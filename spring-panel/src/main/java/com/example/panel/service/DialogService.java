@@ -1408,6 +1408,52 @@ public class DialogService {
         } else {
             status = "ok";
         }
+        long mandatoryIssueTotal = issues.stream()
+                .filter(item -> "rollout_blocker".equals(String.valueOf(item.get("classification"))))
+                .count();
+        long advisoryIssueTotal = Math.max(0L, issues.size() - mandatoryIssueTotal);
+        long reviewIssueTotal = issues.stream()
+                .filter(item -> String.valueOf(item.get("type")).contains("review"))
+                .count();
+        long ownershipIssueTotal = issues.stream()
+                .filter(item -> String.valueOf(item.get("type")).contains("owner")
+                        || String.valueOf(item.get("type")).contains("namespace"))
+                .count();
+        long cleanupIssueTotal = issues.stream()
+                .filter(item -> String.valueOf(item.get("type")).contains("cleanup")
+                        || String.valueOf(item.get("type")).contains("deprecation")
+                        || String.valueOf(item.get("type")).contains("alias")
+                        || String.valueOf(item.get("type")).contains("variable"))
+                .count();
+        List<String> minimumRequiredCheckpoints = new ArrayList<>();
+        if (governanceReviewRequired) {
+            minimumRequiredCheckpoints.add("governance_review");
+        }
+        if (externalCatalogContractRequired) {
+            minimumRequiredCheckpoints.add("external_catalog");
+        }
+        if (deprecationPolicyRequired && minimumRequiredCheckpoints.size() < 2) {
+            minimumRequiredCheckpoints.add("deprecation_policy");
+        }
+        if (minimumRequiredCheckpoints.isEmpty() && requireOwner) {
+            minimumRequiredCheckpoints.add("template_owner");
+        }
+        List<String> advisorySignals = new ArrayList<>();
+        if (redListEnabled) {
+            advisorySignals.add("red_list");
+        }
+        if (ownerActionRequired) {
+            advisorySignals.add("owner_action");
+        }
+        if (aliasCleanupRequired) {
+            advisorySignals.add("alias_cleanup");
+        }
+        if (variableCleanupRequired) {
+            advisorySignals.add("variable_cleanup");
+        }
+        if (usageTierSlaRequired) {
+            advisorySignals.add("usage_tier_sla");
+        }
 
         Map<String, Object> audit = new LinkedHashMap<>();
         audit.put("generated_at", generatedAt.toInstant().toString());
@@ -1419,6 +1465,8 @@ public class DialogService {
         audit.put("published_active_total", publishedActiveTotal);
         audit.put("deprecated_total", deprecatedTotal);
         audit.put("issues_total", issues.size());
+        audit.put("mandatory_issue_total", mandatoryIssueTotal);
+        audit.put("advisory_issue_total", advisoryIssueTotal);
         audit.put("missing_owner_total", missingOwnerTotal);
         audit.put("missing_namespace_total", missingNamespaceTotal);
         audit.put("stale_review_total", staleReviewTotal);
@@ -1431,6 +1479,14 @@ public class DialogService {
         audit.put("variable_cleanup_total", variableCleanupTotal);
         audit.put("cleanup_sla_overdue_total", cleanupSlaOverdueTotal);
         audit.put("deprecation_sla_overdue_total", deprecationSlaOverdueTotal);
+        audit.put("minimum_required_checkpoints", minimumRequiredCheckpoints);
+        audit.put("advisory_signals", advisorySignals.stream().distinct().toList());
+        audit.put("issue_breakdown", Map.of(
+                "review", reviewIssueTotal,
+                "ownership", ownershipIssueTotal,
+                "cleanup", cleanupIssueTotal,
+                "mandatory", mandatoryIssueTotal,
+                "advisory", advisoryIssueTotal));
         audit.put("requirements", Map.ofEntries(
                 Map.entry("require_owner", requireOwner),
                 Map.entry("require_namespace", requireNamespace),
@@ -1992,6 +2048,71 @@ public class DialogService {
                 && contextContractReviewPresent
                 && contextContractReviewFresh
                 && !contextContractReviewTimestampInvalid);
+        long legacyManagedCoveragePct = legacyOnlyScenarios.isEmpty()
+                ? 100L
+                : Math.round((legacyManagedScenarioCount * 100d) / legacyOnlyScenarios.size());
+        long legacyOwnerCoveragePct = legacyOnlyScenarios.isEmpty()
+                ? 100L
+                : Math.round((legacyOwnerAssignedCount * 100d) / legacyOnlyScenarios.size());
+        long legacyDeadlineCoveragePct = legacyOnlyScenarios.isEmpty()
+                ? 100L
+                : Math.round((legacyDeadlineAssignedCount * 100d) / legacyOnlyScenarios.size());
+        long legacyDeadlineOverduePct = legacyOnlyScenarios.isEmpty()
+                ? 0L
+                : Math.round((legacyDeadlineOverdueCount * 100d) / legacyOnlyScenarios.size());
+        long legacyInventoryReviewAgeHours = legacyInventoryReviewedAt != null
+                ? Math.max(0L, java.time.Duration.between(legacyInventoryReviewedAt, OffsetDateTime.now(ZoneOffset.UTC)).toHours())
+                : -1L;
+        List<String> legacyInventoryActionItems = new ArrayList<>();
+        if (!legacyOnlyScenarios.isEmpty()) {
+            if (legacyOwnerAssignedCount < legacyOnlyScenarios.size()) {
+                legacyInventoryActionItems.add("Назначьте owner для всех legacy-only сценариев.");
+            }
+            if (legacyDeadlineAssignedCount < legacyOnlyScenarios.size() || legacyDeadlineInvalidCount > 0) {
+                legacyInventoryActionItems.add("Заполните корректные UTC sunset deadline для каждого открытого сценария.");
+            }
+            if (legacyDeadlineOverdueCount > 0) {
+                legacyInventoryActionItems.add("Закройте или перепланируйте просроченные sunset commitments.");
+            }
+            if (!StringUtils.hasText(legacyInventoryReviewedBy) || legacyInventoryReviewedAt == null) {
+                legacyInventoryActionItems.add("Зафиксируйте последний UTC review owner/deadline inventory.");
+            }
+        }
+        List<String> contextContractDefinitionGaps = Stream.of(
+                        contextContractScenarios.isEmpty() ? "scenarios" : null,
+                        (contextContractMandatoryFields.isEmpty() && contextContractMandatoryFieldsByScenario.isEmpty())
+                                ? "mandatory_fields" : null,
+                        (contextContractSourceOfTruth.isEmpty() && contextContractSourceOfTruthByScenario.isEmpty())
+                                ? "source_of_truth" : null,
+                        (contextContractPriorityBlocks.isEmpty() && contextContractPriorityBlocksByScenario.isEmpty())
+                                ? "priority_blocks" : null)
+                .filter(StringUtils::hasText)
+                .toList();
+        List<String> contextContractOperatorFocusBlocks = Stream.concat(
+                        contextContractPriorityBlocks.stream(),
+                        contextContractPriorityBlocksByScenario.values().stream().flatMap(List::stream))
+                .map(value -> value == null ? null : value.trim())
+                .filter(StringUtils::hasText)
+                .distinct()
+                .limit(4)
+                .toList();
+        List<String> contextContractActionItems = new ArrayList<>();
+        if (!contextContractDefinitionGaps.isEmpty()) {
+            contextContractActionItems.add("Заполните missing contract definitions: " + String.join(", ", contextContractDefinitionGaps) + ".");
+        }
+        if (!contextContractPlaybookMissingKeys.isEmpty()) {
+            contextContractActionItems.add("Добавьте playbooks для gap-ключей: " + String.join(", ", contextContractPlaybookMissingKeys.stream().limit(3).toList()) + ".");
+        }
+        if (contextContractReviewTimestampInvalid) {
+            contextContractActionItems.add("Исправьте reviewed_at на валидный UTC timestamp.");
+        } else if (contextContractEnabled && !contextContractReviewPresent) {
+            contextContractActionItems.add("Подтвердите context contract через UTC review-checkpoint.");
+        } else if (contextContractEnabled && !contextContractReviewFresh) {
+            contextContractActionItems.add("Обновите review context contract: текущий sign-off устарел.");
+        }
+        if (contextContractOperatorFocusBlocks.isEmpty() && contextContractEnabled) {
+            contextContractActionItems.add("Задайте priority blocks, чтобы снизить шум в sidebar и сделать раскрытие progressive.");
+        }
 
         OffsetDateTime legacyUsageReviewedAt = parseReviewTimestamp(legacyUsageReviewedAtRaw);
         boolean legacyUsageReviewTimestampInvalid = StringUtils.hasText(normalizeNullString(legacyUsageReviewedAtRaw))
@@ -2514,6 +2635,10 @@ public class DialogService {
         contextContract.put("playbook_coverage_pct", contextContractPlaybookCoveragePct);
         contextContract.put("playbook_missing_keys", contextContractPlaybookMissingKeys);
         contextContract.put("definition_ready", contextContractDefinitionReady);
+        contextContract.put("definition_gaps", contextContractDefinitionGaps);
+        contextContract.put("operator_focus_blocks", contextContractOperatorFocusBlocks);
+        contextContract.put("progressive_disclosure_ready", !contextContractOperatorFocusBlocks.isEmpty());
+        contextContract.put("action_items", contextContractActionItems);
 
         Map<String, Object> packet = new LinkedHashMap<>();
         packet.put("generated_at", Instant.now().toString());
@@ -2539,22 +2664,28 @@ public class DialogService {
         packet.put("parity_snapshot", paritySnapshot);
         packet.put("parity_exit_criteria", parityExitCriteria);
         packet.put("legacy_only_scenarios", legacyOnlyScenarios);
-        packet.put("legacy_only_inventory", Map.of(
-                "status", legacyInventoryStatus,
-                "ready", legacyInventoryReady,
-                "managed", legacyInventoryManaged,
-                "reviewed_by", legacyInventoryReviewedBy == null ? "" : legacyInventoryReviewedBy,
-                "reviewed_at", legacyInventoryReviewedAt != null ? legacyInventoryReviewedAt.toString() : "",
-                "review_note", legacyInventoryReviewNote == null ? "" : legacyInventoryReviewNote,
-                "review_timestamp_invalid", legacyInventoryReviewTimestampInvalid,
-                "open_count", legacyOnlyScenarios.size(),
-                "managed_count", legacyManagedScenarioCount,
-                "unmanaged_count", legacyUnmanagedScenarioCount,
-                "owners_ready_count", legacyOwnerAssignedCount,
-                "deadlines_ready_count", legacyDeadlineAssignedCount,
-                "deadline_invalid_count", legacyDeadlineInvalidCount,
-                "deadline_overdue_count", legacyDeadlineOverdueCount,
-                "scenario_details", legacyOnlyScenarioDetails
+        packet.put("legacy_only_inventory", Map.ofEntries(
+                Map.entry("status", legacyInventoryStatus),
+                Map.entry("ready", legacyInventoryReady),
+                Map.entry("managed", legacyInventoryManaged),
+                Map.entry("reviewed_by", legacyInventoryReviewedBy == null ? "" : legacyInventoryReviewedBy),
+                Map.entry("reviewed_at", legacyInventoryReviewedAt != null ? legacyInventoryReviewedAt.toString() : ""),
+                Map.entry("review_note", legacyInventoryReviewNote == null ? "" : legacyInventoryReviewNote),
+                Map.entry("review_age_hours", legacyInventoryReviewAgeHours),
+                Map.entry("review_timestamp_invalid", legacyInventoryReviewTimestampInvalid),
+                Map.entry("open_count", legacyOnlyScenarios.size()),
+                Map.entry("managed_count", legacyManagedScenarioCount),
+                Map.entry("managed_coverage_pct", legacyManagedCoveragePct),
+                Map.entry("unmanaged_count", legacyUnmanagedScenarioCount),
+                Map.entry("owners_ready_count", legacyOwnerAssignedCount),
+                Map.entry("owner_coverage_pct", legacyOwnerCoveragePct),
+                Map.entry("deadlines_ready_count", legacyDeadlineAssignedCount),
+                Map.entry("deadline_coverage_pct", legacyDeadlineCoveragePct),
+                Map.entry("deadline_invalid_count", legacyDeadlineInvalidCount),
+                Map.entry("deadline_overdue_count", legacyDeadlineOverdueCount),
+                Map.entry("deadline_overdue_pct", legacyDeadlineOverduePct),
+                Map.entry("action_items", legacyInventoryActionItems),
+                Map.entry("scenario_details", legacyOnlyScenarioDetails)
         ));
         packet.put("incident_history", incidentHistory);
         packet.put("context_contract", contextContract);

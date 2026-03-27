@@ -911,7 +911,11 @@ class SupportPanelIntegrationTests {
         assertThat((List<String>) packet.get("missing_items")).contains("legacy_only_inventory");
         assertThat(legacyInventory).containsEntry("managed", true);
         assertThat(legacyInventory).containsEntry("managed_count", 2L);
+        assertThat(legacyInventory).containsEntry("managed_coverage_pct", 100L);
+        assertThat(legacyInventory).containsEntry("owner_coverage_pct", 100L);
+        assertThat(legacyInventory).containsEntry("deadline_coverage_pct", 100L);
         assertThat(legacyInventory).containsEntry("unmanaged_count", 0L);
+        assertThat((List<String>) legacyInventory.get("action_items")).isEmpty();
         assertThat(items).anySatisfy(item -> {
             if ("legacy_only_inventory".equals(item.get("key"))) {
                 assertThat(item.get("status")).isEqualTo("attention");
@@ -1061,8 +1065,11 @@ class SupportPanelIntegrationTests {
         assertThat(contextContract).containsEntry("playbook_expected_count", 6);
         assertThat(contextContract).containsEntry("playbook_covered_count", 6);
         assertThat(contextContract).containsEntry("playbook_coverage_pct", 100L);
+        assertThat(contextContract).containsEntry("progressive_disclosure_ready", true);
         assertThat((List<String>) contextContract.get("scenarios")).containsExactly("incident", "billing");
         assertThat((List<String>) contextContract.get("mandatory_fields")).containsExactly("full_name", "crm_tier");
+        assertThat((List<String>) contextContract.get("operator_focus_blocks")).containsExactly("customer", "sla");
+        assertThat((List<String>) contextContract.get("action_items")).isEmpty();
         assertThat(items).anySatisfy(item -> {
             if ("context_minimum_profile".equals(item.get("key"))) {
                 assertThat(item.get("status")).isEqualTo("ok");
@@ -2347,6 +2354,12 @@ class SupportPanelIntegrationTests {
         assertThat(audit).containsEntry("variable_cleanup_total", 1);
         assertThat(audit).containsEntry("cleanup_sla_overdue_total", 1);
         assertThat(audit).containsEntry("deprecation_sla_overdue_total", 1);
+        assertThat(((Number) audit.get("mandatory_issue_total")).longValue()).isGreaterThan(0L);
+        assertThat(((Number) audit.get("advisory_issue_total")).longValue()).isGreaterThan(0L);
+        assertThat((List<String>) audit.get("minimum_required_checkpoints"))
+                .containsExactly("governance_review", "external_catalog");
+        assertThat((List<String>) audit.get("advisory_signals"))
+                .contains("red_list", "owner_action");
         assertThat(issues).anySatisfy(issue -> {
             if ("owner_missing".equals(issue.get("type"))) {
                 assertThat(issue.get("status")).isEqualTo("hold");
@@ -2438,18 +2451,18 @@ class SupportPanelIntegrationTests {
 
     @Test
     void settingsBridgePersistsSlaPolicyGovernanceBaselineFields() {
-        settingsBridgeController.updateSettings(Map.of(
-                "dialog_sla_critical_auto_assign_audit_require_layers", true,
-                "dialog_sla_critical_auto_assign_audit_require_owner", true,
-                "dialog_sla_critical_auto_assign_audit_require_review", true,
-                "dialog_sla_critical_auto_assign_audit_review_ttl_hours", 72,
-                "dialog_sla_critical_auto_assign_audit_broad_rule_coverage_pct", 55,
-                "dialog_sla_critical_auto_assign_audit_block_on_conflicts", true,
-                "dialog_sla_critical_auto_assign_governance_review_required", true,
-                "dialog_sla_critical_auto_assign_governance_review_path", "strict",
-                "dialog_sla_critical_auto_assign_governance_review_ttl_hours", 48,
-                "dialog_sla_critical_auto_assign_governance_dry_run_ticket_required", true,
-                "dialog_sla_critical_auto_assign_governance_decision_required", true
+        settingsBridgeController.updateSettings(Map.ofEntries(
+                Map.entry("dialog_sla_critical_auto_assign_audit_require_layers", true),
+                Map.entry("dialog_sla_critical_auto_assign_audit_require_owner", true),
+                Map.entry("dialog_sla_critical_auto_assign_audit_require_review", true),
+                Map.entry("dialog_sla_critical_auto_assign_audit_review_ttl_hours", 72),
+                Map.entry("dialog_sla_critical_auto_assign_audit_broad_rule_coverage_pct", 55),
+                Map.entry("dialog_sla_critical_auto_assign_audit_block_on_conflicts", true),
+                Map.entry("dialog_sla_critical_auto_assign_governance_review_required", true),
+                Map.entry("dialog_sla_critical_auto_assign_governance_review_path", "strict"),
+                Map.entry("dialog_sla_critical_auto_assign_governance_review_ttl_hours", 48),
+                Map.entry("dialog_sla_critical_auto_assign_governance_dry_run_ticket_required", true),
+                Map.entry("dialog_sla_critical_auto_assign_governance_decision_required", true)
         ), null);
 
         Map<String, Object> dialogConfig = (Map<String, Object>) sharedConfigService.loadSettings().get("dialog_config");

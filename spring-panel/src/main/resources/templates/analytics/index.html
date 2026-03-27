@@ -273,6 +273,7 @@
                                             <label for="workspaceTelemetryLegacyScenarioMetadata" class="form-label form-label-sm mb-1">Owner + sunset deadline by scenario (JSON)</label>
                                             <textarea class="form-control form-control-sm font-monospace" id="workspaceTelemetryLegacyScenarioMetadata" rows="4" placeholder='{"attachments_edit":{"owner":"workspace-core","deadline_at_utc":"2026-04-15T12:00:00Z","note":"reply composer parity"}}'></textarea>
                                         </div>
+                                        <div class="small text-muted mt-2" id="workspaceTelemetryLegacyInventorySummary"></div>
                                         <div class="d-flex align-items-center gap-2 mt-2">
                                             <button type="button" class="btn btn-sm btn-outline-primary" id="workspaceTelemetryLegacySave">Сохранить inventory</button>
                                             <small class="text-muted" id="workspaceTelemetryLegacyActionState"></small>
@@ -353,6 +354,7 @@
                                                 <div class="text-muted small">Customer context minimum profile</div>
                                                 <div class="fw-semibold" id="workspaceTelemetryPacketContextState">—</div>
                                                 <div class="small text-muted" id="workspaceTelemetryPacketContextMeta"></div>
+                                                <div class="small text-muted mt-2" id="workspaceTelemetryContextActionSummary"></div>
                                             </div>
                                             <div class="form-check form-switch">
                                                 <input class="form-check-input" type="checkbox" role="switch" id="workspaceTelemetryContextRequired">
@@ -368,29 +370,36 @@
                                                 <label for="workspaceTelemetryContextMandatoryFields" class="form-label form-label-sm mb-1">Mandatory fields (CSV)</label>
                                                 <input type="text" class="form-control form-control-sm" id="workspaceTelemetryContextMandatoryFields" placeholder="full_name, crm_tier, contract_status">
                                             </div>
-                                            <div class="col-12">
-                                                <label for="workspaceTelemetryContextScenarioMandatoryFields" class="form-label form-label-sm mb-1">Mandatory fields by scenario (JSON)</label>
-                                                <textarea class="form-control form-control-sm" id="workspaceTelemetryContextScenarioMandatoryFields" rows="3" placeholder='{"billing":["contract_status","crm_tier"],"incident":["full_name","phone"]}'></textarea>
-                                            </div>
                                             <div class="col-12 col-lg-6">
                                                 <label for="workspaceTelemetryContextSourceOfTruth" class="form-label form-label-sm mb-1">Source-of-truth (CSV)</label>
                                                 <input type="text" class="form-control form-control-sm" id="workspaceTelemetryContextSourceOfTruth" placeholder="crm_tier:crm, contract_status:billing_api">
                                             </div>
                                             <div class="col-12 col-lg-6">
-                                                <label for="workspaceTelemetryContextScenarioSourceOfTruth" class="form-label form-label-sm mb-1">Source-of-truth by scenario (JSON)</label>
-                                                <textarea class="form-control form-control-sm" id="workspaceTelemetryContextScenarioSourceOfTruth" rows="3" placeholder='{"billing":["contract_status:billing_api"],"incident":["severity:incident_hub"]}'></textarea>
-                                            </div>
-                                            <div class="col-12 col-lg-6">
                                                 <label for="workspaceTelemetryContextPriorityBlocks" class="form-label form-label-sm mb-1">Priority blocks (CSV)</label>
                                                 <input type="text" class="form-control form-control-sm" id="workspaceTelemetryContextPriorityBlocks" placeholder="customer, sla, related_events">
-                                            </div>
-                                            <div class="col-12 col-lg-6">
-                                                <label for="workspaceTelemetryContextScenarioPriorityBlocks" class="form-label form-label-sm mb-1">Priority blocks by scenario (JSON)</label>
-                                                <textarea class="form-control form-control-sm" id="workspaceTelemetryContextScenarioPriorityBlocks" rows="3" placeholder='{"billing":["customer","sla"],"incident":["related_events","sla"]}'></textarea>
                                             </div>
                                             <div class="col-12">
                                                 <label for="workspaceTelemetryContextPlaybooks" class="form-label form-label-sm mb-1">Context-gap playbooks (JSON)</label>
                                                 <textarea class="form-control form-control-sm font-monospace" id="workspaceTelemetryContextPlaybooks" rows="4" placeholder='{"mandatory_field:phone":{"label":"Как дозаполнить телефон","url":"https://wiki.company.local/playbooks/phone","summary":"Спросить клиента и обновить CRM"},"source_of_truth":{"label":"Source-of-truth guide","url":"https://wiki.company.local/playbooks/context-sources"}}'></textarea>
+                                            </div>
+                                            <div class="col-12">
+                                                <details class="border rounded p-2 bg-body-tertiary">
+                                                    <summary class="small">Advanced scenario overrides</summary>
+                                                    <div class="row g-2 mt-2">
+                                                        <div class="col-12">
+                                                            <label for="workspaceTelemetryContextScenarioMandatoryFields" class="form-label form-label-sm mb-1">Mandatory fields by scenario (JSON)</label>
+                                                            <textarea class="form-control form-control-sm" id="workspaceTelemetryContextScenarioMandatoryFields" rows="3" placeholder='{"billing":["contract_status","crm_tier"],"incident":["full_name","phone"]}'></textarea>
+                                                        </div>
+                                                        <div class="col-12 col-lg-6">
+                                                            <label for="workspaceTelemetryContextScenarioSourceOfTruth" class="form-label form-label-sm mb-1">Source-of-truth by scenario (JSON)</label>
+                                                            <textarea class="form-control form-control-sm" id="workspaceTelemetryContextScenarioSourceOfTruth" rows="3" placeholder='{"billing":["contract_status:billing_api"],"incident":["severity:incident_hub"]}'></textarea>
+                                                        </div>
+                                                        <div class="col-12 col-lg-6">
+                                                            <label for="workspaceTelemetryContextScenarioPriorityBlocks" class="form-label form-label-sm mb-1">Priority blocks by scenario (JSON)</label>
+                                                            <textarea class="form-control form-control-sm" id="workspaceTelemetryContextScenarioPriorityBlocks" rows="3" placeholder='{"billing":["customer","sla"],"incident":["related_events","sla"]}'></textarea>
+                                                        </div>
+                                                    </div>
+                                                </details>
                                             </div>
                                             <div class="col-12 col-lg-3">
                                                 <label for="workspaceTelemetryContextReviewedBy" class="form-label form-label-sm mb-1">Reviewed by</label>
@@ -469,6 +478,7 @@
                                 </div>
                             </div>
                             <div class="alert alert-warning d-none mb-3" id="workspaceTelemetrySlaPolicyAuditIssueSummary"></div>
+                            <div class="small text-muted mb-3" id="workspaceTelemetrySlaPolicyAuditSummaryCompact"></div>
                             <div class="border rounded p-3 mb-3 bg-body" id="workspaceTelemetrySlaPolicyReviewForm">
                                 <div class="small text-muted mb-2">Governance review checkpoint (UTC)</div>
                                 <div class="row g-2">
@@ -584,6 +594,7 @@
                                 </div>
                             </div>
                             <div class="alert alert-warning d-none mb-3" id="workspaceTelemetryMacroGovernanceIssueSummary"></div>
+                            <div class="small text-muted mb-3" id="workspaceTelemetryMacroGovernanceSummaryCompact"></div>
                             <div class="border rounded p-3 mb-3 bg-body" id="workspaceTelemetryMacroGovernanceReviewForm">
                                 <div class="small text-muted mb-2">Governance review checkpoint (UTC)</div>
                                 <div class="row g-2">
