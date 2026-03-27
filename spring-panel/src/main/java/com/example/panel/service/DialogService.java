@@ -22,6 +22,7 @@ import java.time.ZoneOffset;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -1691,6 +1692,22 @@ public class DialogService {
                 && (!contextContractMandatoryFields.isEmpty() || !contextContractMandatoryFieldsByScenario.isEmpty())
                 && (!contextContractSourceOfTruth.isEmpty() || !contextContractSourceOfTruthByScenario.isEmpty())
                 && (!contextContractPriorityBlocks.isEmpty() || !contextContractPriorityBlocksByScenario.isEmpty());
+        List<String> contextContractPlaybookExpectedKeys = buildContextContractPlaybookExpectedKeys(
+                contextContractMandatoryFields,
+                contextContractMandatoryFieldsByScenario,
+                contextContractSourceOfTruth,
+                contextContractSourceOfTruthByScenario,
+                contextContractPriorityBlocks,
+                contextContractPriorityBlocksByScenario);
+        List<String> contextContractPlaybookMissingKeys = contextContractPlaybookExpectedKeys.stream()
+                .filter(key -> !hasContextContractPlaybookCoverage(contextContractPlaybooks, key))
+                .toList();
+        int contextContractPlaybookExpectedCount = contextContractPlaybookExpectedKeys.size();
+        int contextContractPlaybookCoveredCount = Math.max(0,
+                contextContractPlaybookExpectedCount - contextContractPlaybookMissingKeys.size());
+        long contextContractPlaybookCoveragePct = contextContractPlaybookExpectedCount > 0
+                ? Math.round((contextContractPlaybookCoveredCount * 100d) / contextContractPlaybookExpectedCount)
+                : 100L;
         boolean contextContractReady = !contextContractEnabled
                 || (contextContractDefinitionReady
                 && contextContractReviewPresent
@@ -2000,12 +2017,15 @@ public class DialogService {
                         ? "not required"
                         : contextContractReviewTimestampInvalid
                                 ? "invalid_utc"
-                                : "scenarios=%d, fields=%d, scenario_profiles=%d, sources=%d, blocks=%d".formatted(
+                                : "scenarios=%d, fields=%d, scenario_profiles=%d, sources=%d, blocks=%d, playbooks=%d/%d (%d%%)".formatted(
                                 contextContractScenarios.size(),
                                 contextContractMandatoryFields.size(),
                                 contextContractMandatoryFieldsByScenario.size(),
                                 contextContractSourceOfTruth.size() + contextContractSourceOfTruthByScenario.size(),
-                                contextContractPriorityBlocks.size() + contextContractPriorityBlocksByScenario.size()),
+                                contextContractPriorityBlocks.size() + contextContractPriorityBlocksByScenario.size(),
+                                contextContractPlaybookCoveredCount,
+                                contextContractPlaybookExpectedCount,
+                                contextContractPlaybookCoveragePct),
                 contextContractEnabled
                         ? "scenarios + mandatory/source/priority definitions + review <= %d h UTC".formatted(contextContractReviewTtlHours)
                         : "optional",
@@ -2173,6 +2193,10 @@ public class DialogService {
         contextContract.put("priority_blocks_by_scenario", contextContractPriorityBlocksByScenario);
         contextContract.put("playbooks", contextContractPlaybooks);
         contextContract.put("playbook_count", contextContractPlaybooks.size());
+        contextContract.put("playbook_expected_count", contextContractPlaybookExpectedCount);
+        contextContract.put("playbook_covered_count", contextContractPlaybookCoveredCount);
+        contextContract.put("playbook_coverage_pct", contextContractPlaybookCoveragePct);
+        contextContract.put("playbook_missing_keys", contextContractPlaybookMissingKeys);
         contextContract.put("definition_ready", contextContractDefinitionReady);
 
         Map<String, Object> packet = new LinkedHashMap<>();
@@ -2859,6 +2883,83 @@ public class DialogService {
                     "summary", summary == null ? "" : summary));
         }
         return normalized;
+    }
+
+    private List<String> buildContextContractPlaybookExpectedKeys(List<String> mandatoryFields,
+                                                                  Map<String, List<String>> mandatoryFieldsByScenario,
+                                                                  List<String> sourceOfTruth,
+                                                                  Map<String, List<String>> sourceOfTruthByScenario,
+                                                                  List<String> priorityBlocks,
+                                                                  Map<String, List<String>> priorityBlocksByScenario) {
+        LinkedHashSet<String> expected = new LinkedHashSet<>();
+        mandatoryFields.forEach(field -> {
+            String normalizedField = normalizeNullString(field);
+            if (StringUtils.hasText(normalizedField)) {
+                expected.add("mandatory_field:" + normalizedField.toLowerCase(Locale.ROOT));
+            }
+        });
+        mandatoryFieldsByScenario.values().forEach(values -> values.forEach(field -> {
+            String normalizedField = normalizeNullString(field);
+            if (StringUtils.hasText(normalizedField)) {
+                expected.add("mandatory_field:" + normalizedField.toLowerCase(Locale.ROOT));
+            }
+        }));
+        Stream.concat(sourceOfTruth.stream(), sourceOfTruthByScenario.values().stream().flatMap(Collection::stream))
+                .map(this::normalizeContextContractPlaybookScopedSourceKey)
+                .filter(StringUtils::hasText)
+                .forEach(expected::add);
+        priorityBlocks.forEach(block -> {
+            String normalizedBlock = normalizeNullString(block);
+            if (StringUtils.hasText(normalizedBlock)) {
+                expected.add("priority_block:" + normalizedBlock.toLowerCase(Locale.ROOT));
+            }
+        });
+        priorityBlocksByScenario.values().forEach(values -> values.forEach(block -> {
+            String normalizedBlock = normalizeNullString(block);
+            if (StringUtils.hasText(normalizedBlock)) {
+                expected.add("priority_block:" + normalizedBlock.toLowerCase(Locale.ROOT));
+            }
+        }));
+        return new ArrayList<>(expected);
+    }
+
+    private String normalizeContextContractPlaybookScopedSourceKey(String sourceRule) {
+        String normalized = normalizeNullString(sourceRule);
+        if (!StringUtils.hasText(normalized)) {
+            return null;
+        }
+        String[] parts = normalized.split(":");
+        if (parts.length < 2) {
+            return null;
+        }
+        String field = normalizeNullString(parts[0]);
+        String source = normalizeNullString(parts[1]);
+        if (!StringUtils.hasText(field) || !StringUtils.hasText(source)) {
+            return null;
+        }
+        return "source_of_truth:%s:%s".formatted(
+                field.toLowerCase(Locale.ROOT),
+                source.toLowerCase(Locale.ROOT));
+    }
+
+    private boolean hasContextContractPlaybookCoverage(Map<String, Map<String, String>> playbooks, String key) {
+        if (playbooks.isEmpty()) {
+            return false;
+        }
+        String normalizedKey = normalizeNullString(key);
+        if (!StringUtils.hasText(normalizedKey)) {
+            return false;
+        }
+        String lowerKey = normalizedKey.toLowerCase(Locale.ROOT);
+        if (playbooks.containsKey(lowerKey)) {
+            return true;
+        }
+        int separatorIndex = lowerKey.indexOf(':');
+        if (separatorIndex <= 0) {
+            return false;
+        }
+        String typeKey = lowerKey.substring(0, separatorIndex);
+        return playbooks.containsKey(typeKey);
     }
 
     private double safeDouble(Object value) {

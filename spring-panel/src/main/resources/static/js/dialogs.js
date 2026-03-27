@@ -3776,6 +3776,41 @@
     }
   }
 
+  function normalizeWorkspaceContextViolationDetails(details) {
+    if (!Array.isArray(details)) {
+      return [];
+    }
+    return details
+      .filter((item) => item && typeof item === 'object')
+      .map((item) => {
+        const playbook = item.playbook && typeof item.playbook === 'object' ? item.playbook : null;
+        const playbookUrl = String(playbook?.url || '').trim();
+        return {
+          type: String(item.type || '').trim(),
+          code: String(item.code || '').trim(),
+          operatorMessage: String(item.operator_message || item.analytics_message || item.code || '').trim(),
+          analyticsMessage: String(item.analytics_message || '').trim(),
+          playbookLabel: String(playbook?.label || 'Playbook').trim() || 'Playbook',
+          playbookUrl: /^https?:\/\//i.test(playbookUrl) ? playbookUrl : '',
+          playbookSummary: String(playbook?.summary || '').trim(),
+        };
+      })
+      .filter((item) => item.operatorMessage);
+  }
+
+  function workspaceContextViolationTypeLabel(type) {
+    switch (String(type || '').trim().toLowerCase()) {
+      case 'mandatory_field':
+        return 'Mandatory field';
+      case 'source_of_truth':
+        return 'Source of truth';
+      case 'priority_block':
+        return 'Priority block';
+      default:
+        return 'Context gap';
+    }
+  }
+
   function renderWorkspaceClientProfile(client, context = {}) {
     if (!client || typeof client !== 'object') {
       return '<div class="small text-muted">Профиль клиента недоступен.</div>';
@@ -4074,12 +4109,36 @@
       ? context.contract
       : (client.context_contract && typeof client.context_contract === 'object' ? client.context_contract : null);
     const contractViolations = Array.isArray(contract?.violations) ? contract.violations.filter(Boolean) : [];
+    const contractViolationDetails = normalizeWorkspaceContextViolationDetails(contract?.violation_details);
+    const primaryViolationCards = contractViolationDetails.slice(0, 3);
+    const extraViolationCards = contractViolationDetails.slice(3);
+    const renderViolationCard = (detail) => `<div class="border rounded px-2 py-2 bg-white">
+        <div class="d-flex flex-wrap align-items-center gap-2">
+          <span class="badge text-bg-light border">${escapeHtml(workspaceContextViolationTypeLabel(detail.type))}</span>
+          ${detail.code ? `<span class="small text-muted">${escapeHtml(detail.code)}</span>` : ''}
+        </div>
+        <div class="mt-1">${escapeHtml(detail.operatorMessage)}</div>
+        ${detail.playbookUrl
+          ? `<div class="small mt-1"><a href="${escapeHtml(detail.playbookUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(detail.playbookLabel)}</a>${detail.playbookSummary ? ` <span class="text-muted">· ${escapeHtml(detail.playbookSummary)}</span>` : ''}</div>`
+          : ''}
+      </div>`;
+    const violationActionsSection = contract.ready === true || contractViolationDetails.length === 0
+      ? ''
+      : `<div class="d-flex flex-column gap-2 mt-2">
+          ${primaryViolationCards.map((detail) => renderViolationCard(detail)).join('')}
+          ${extraViolationCards.length
+            ? `<details><summary class="small text-muted">Показать ещё ${extraViolationCards.length}</summary><div class="d-flex flex-column gap-2 mt-2">${extraViolationCards.map((detail) => renderViolationCard(detail)).join('')}</div></details>`
+            : ''}
+        </div>`;
     const contextContractSection = contract && contract.enabled === true
       ? `<div class="alert ${contract.ready === true ? 'alert-success' : 'alert-warning'} py-2 px-3 small mt-2 mb-2">
           <div class="fw-semibold mb-1">Context contract</div>
           <div>${contract.ready === true
             ? 'Minimum profile соблюдён.'
-            : `Есть отклонения: ${escapeHtml(contractViolations.join(', ') || 'contract_not_ready')}.`}</div>
+            : contractViolationDetails.length
+              ? `Нужно закрыть ${contractViolationDetails.length} context-gap ${contractViolationDetails.length === 1 ? 'элемент' : (contractViolationDetails.length < 5 ? 'элемента' : 'элементов')}.`
+              : `Есть отклонения: ${escapeHtml(contractViolations.join(', ') || 'contract_not_ready')}.`}</div>
+          ${violationActionsSection}
           <div class="text-muted mt-1">Проверено: ${escapeHtml(formatWorkspaceDateTime(contract.checked_at_utc || contract.checked_at))}</div>
         </div>`
       : '';

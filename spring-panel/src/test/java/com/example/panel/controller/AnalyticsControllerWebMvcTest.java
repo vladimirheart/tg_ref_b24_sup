@@ -272,6 +272,17 @@ class AnalyticsControllerWebMvcTest {
                                   },
                                   "sourceOfTruth": ["full_name:crm", "crm_tier:crm"],
                                   "priorityBlocks": ["customer", "sla"],
+                                  "playbooks": {
+                                    "mandatory_field:phone": {
+                                      "label": "Phone recovery",
+                                      "url": "https://wiki.example.local/context/phone",
+                                      "summary": "Запросить телефон у клиента и обновить CRM"
+                                    },
+                                    "source_of_truth": {
+                                      "label": "Source guide",
+                                      "url": "https://wiki.example.local/context/source-of-truth"
+                                    }
+                                  },
                                   "reviewedBy": "ops.lead",
                                   "reviewedAtUtc": "2026-03-24T20:10:00Z",
                                   "note": "Updated after weekly context review"
@@ -286,7 +297,8 @@ class AnalyticsControllerWebMvcTest {
                 .andExpect(jsonPath("$.mandatory_fields[0]").value("full_name"))
                 .andExpect(jsonPath("$.scenario_mandatory_fields.billing[0]").value("contract_status"))
                 .andExpect(jsonPath("$.source_of_truth[0]").value("full_name:crm"))
-                .andExpect(jsonPath("$.priority_blocks[0]").value("customer"));
+                .andExpect(jsonPath("$.priority_blocks[0]").value("customer"))
+                .andExpect(jsonPath("$.playbooks['mandatory_field:phone'].url").value("https://wiki.example.local/context/phone"));
 
         ArgumentCaptor<Map<String, Object>> settingsCaptor = ArgumentCaptor.forClass(Map.class);
         verify(sharedConfigService).saveSettings(settingsCaptor.capture());
@@ -304,6 +316,15 @@ class AnalyticsControllerWebMvcTest {
                         "incident", java.util.List.of("full_name", "phone")));
         assertThat(dialogConfig.get("workspace_rollout_context_contract_source_of_truth")).isEqualTo(java.util.List.of("full_name:crm", "crm_tier:crm"));
         assertThat(dialogConfig.get("workspace_rollout_context_contract_priority_blocks")).isEqualTo(java.util.List.of("customer", "sla"));
+        assertThat(dialogConfig.get("workspace_rollout_context_contract_playbooks"))
+                .isEqualTo(Map.of(
+                        "mandatory_field:phone", Map.of(
+                                "label", "Phone recovery",
+                                "url", "https://wiki.example.local/context/phone",
+                                "summary", "Запросить телефон у клиента и обновить CRM"),
+                        "source_of_truth", Map.of(
+                                "label", "Source guide",
+                                "url", "https://wiki.example.local/context/source-of-truth")));
     }
 
     @Test

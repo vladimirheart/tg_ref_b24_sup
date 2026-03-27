@@ -983,6 +983,12 @@ class SupportPanelIntegrationTests {
                          "workspace_rollout_context_contract_mandatory_fields":["full_name","crm_tier"],
                          "workspace_rollout_context_contract_source_of_truth":["full_name:crm","crm_tier:crm"],
                          "workspace_rollout_context_contract_priority_blocks":["customer","sla"],
+                         "workspace_rollout_context_contract_playbooks":{
+                           "mandatory_field:full_name":{"label":"Name playbook","url":"https://wiki.example.local/context/name"},
+                           "mandatory_field:crm_tier":{"label":"Tier playbook","url":"https://wiki.example.local/context/tier"},
+                           "source_of_truth":{"label":"Source guide","url":"https://wiki.example.local/context/source"},
+                           "priority_block":{"label":"Priority block guide","url":"https://wiki.example.local/context/priority"}
+                         },
                          "workspace_rollout_context_contract_reviewed_by":"ops-context-owner",
                          "workspace_rollout_context_contract_reviewed_at":"2099-03-01T09:10:11Z"}
                         """);
@@ -1006,6 +1012,10 @@ class SupportPanelIntegrationTests {
         assertThat(contextContract).containsEntry("ready", true);
         assertThat(contextContract).containsEntry("reviewed_by", "ops-context-owner");
         assertThat(contextContract).containsEntry("reviewed_at", "2099-03-01T09:10:11Z");
+        assertThat(contextContract).containsEntry("playbook_count", 4);
+        assertThat(contextContract).containsEntry("playbook_expected_count", 6);
+        assertThat(contextContract).containsEntry("playbook_covered_count", 6);
+        assertThat(contextContract).containsEntry("playbook_coverage_pct", 100L);
         assertThat((List<String>) contextContract.get("scenarios")).containsExactly("incident", "billing");
         assertThat((List<String>) contextContract.get("mandatory_fields")).containsExactly("full_name", "crm_tier");
         assertThat(items).anySatisfy(item -> {
@@ -1013,6 +1023,7 @@ class SupportPanelIntegrationTests {
                 assertThat(item.get("status")).isEqualTo("ok");
                 assertThat(item.get("measured_at")).isEqualTo("2099-03-01T09:10:11Z");
                 assertThat(String.valueOf(item.get("current_value"))).contains("scenarios=2");
+                assertThat(String.valueOf(item.get("current_value"))).contains("playbooks=6/6 (100%)");
             }
         });
     }
