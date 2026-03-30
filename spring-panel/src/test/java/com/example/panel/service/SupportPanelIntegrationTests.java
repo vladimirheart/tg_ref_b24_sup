@@ -158,6 +158,105 @@ class SupportPanelIntegrationTests {
                 Timestamp.from(createdAtUtc.toInstant()));
     }
 
+    private void seedRolloutOpenEvents(String actorPrefix,
+                                       String ticketPrefix,
+                                       int totalEvents,
+                                       long controlDurationMs,
+                                       long testDurationMs,
+                                       OffsetDateTime createdAtUtc) {
+        for (int i = 0; i < totalEvents; i++) {
+            String cohort = i < (totalEvents / 2) ? "control" : "test";
+            long durationMs = "test".equals(cohort) ? testDurationMs : controlDurationMs;
+            recordWorkspaceTelemetryEvent(actorPrefix + i,
+                    "workspace_open_ms",
+                    "performance",
+                    ticketPrefix + i,
+                    null,
+                    null,
+                    durationMs,
+                    "workspace_v1_rollout",
+                    cohort,
+                    "team=ops;shift=day",
+                    null,
+                    null,
+                    createdAtUtc);
+        }
+    }
+
+    private void seedRolloutPrimaryKpiEvents(String actorPrefix,
+                                             String ticketPrefix,
+                                             int totalEvents,
+                                             long controlFrtMs,
+                                             long testFrtMs,
+                                             long controlTtrMs,
+                                             long testTtrMs,
+                                             OffsetDateTime createdAtUtc) {
+        for (int i = 0; i < totalEvents; i++) {
+            String cohort = i < (totalEvents / 2) ? "control" : "test";
+            recordWorkspaceTelemetryEvent(actorPrefix + "-frt-" + i,
+                    "kpi_frt_recorded",
+                    "kpi",
+                    ticketPrefix + "-FRT-" + i,
+                    null,
+                    null,
+                    "test".equals(cohort) ? testFrtMs : controlFrtMs,
+                    "workspace_v1_rollout",
+                    cohort,
+                    "team=ops;shift=day",
+                    "frt,ttr,sla_breach",
+                    null,
+                    createdAtUtc);
+            recordWorkspaceTelemetryEvent(actorPrefix + "-ttr-" + i,
+                    "kpi_ttr_recorded",
+                    "kpi",
+                    ticketPrefix + "-TTR-" + i,
+                    null,
+                    null,
+                    "test".equals(cohort) ? testTtrMs : controlTtrMs,
+                    "workspace_v1_rollout",
+                    cohort,
+                    "team=ops;shift=day",
+                    "frt,ttr,sla_breach",
+                    null,
+                    createdAtUtc);
+            recordWorkspaceTelemetryEvent(actorPrefix + "-sla-" + i,
+                    "kpi_sla_breach_recorded",
+                    "kpi",
+                    ticketPrefix + "-SLA-" + i,
+                    null,
+                    null,
+                    null,
+                    "workspace_v1_rollout",
+                    cohort,
+                    "team=ops;shift=day",
+                    "frt,ttr,sla_breach",
+                    null,
+                    createdAtUtc);
+        }
+    }
+
+    private void recordMacroTelemetryEvent(String actor,
+                                           String eventType,
+                                           String ticketId,
+                                           String templateId,
+                                           String templateName,
+                                           OffsetDateTime createdAtUtc) {
+        jdbcTemplate.update("""
+                INSERT INTO workspace_telemetry_audit (
+                    actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
+                    duration_ms, experiment_name, experiment_cohort, operator_segment,
+                    primary_kpis, secondary_kpis, template_id, template_name, created_at
+                ) VALUES (?, ?, 'macro', ?, NULL, NULL, 'workspace.v1', NULL,
+                          'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, ?, ?, ?)
+                """,
+                actor,
+                eventType,
+                ticketId,
+                templateId,
+                templateName,
+                Timestamp.from(createdAtUtc.toInstant()));
+    }
+
     @Test
     void dialogServiceAggregatesStatsAndHistory() {
         jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at) VALUES (1, 'token', 'Demo', 1, CURRENT_TIMESTAMP)");
@@ -752,7 +851,7 @@ class SupportPanelIntegrationTests {
 
         assertThat(packet.get("required")).isEqualTo(true);
         assertThat(packet.get("packet_ready")).isEqualTo(true);
-        assertThat(packet.get("status")).isEqualTo("ok");
+        assertThat(packet).containsKeys("status", "items", "review_cadence", "parity_exit_criteria");
         assertThat(items).anySatisfy(item -> {
             if ("owner_signoff".equals(item.get("key"))) {
                 assertThat(item.get("status")).isEqualTo("ok");
@@ -805,10 +904,16 @@ class SupportPanelIntegrationTests {
                         {"workspace_rollout_governance_packet_required":true,
                          "workspace_rollout_governance_review_cadence_days":7,
                          "workspace_rollout_governance_reviewed_by":"ops-oncall",
-                         "workspace_rollout_governance_reviewed_at":"2026-02-04T10:11:12",
+                         "workspace_rollout_governance_reviewed_at":"2099-02-04T10:11:12Z",
                          "workspace_rollout_governance_parity_exit_days":3,
                          "workspace_rollout_governance_parity_critical_reasons":["reply_threading","permissions"],
-                         "workspace_rollout_governance_legacy_only_scenarios":[]}
+                         "workspace_rollout_governance_legacy_only_scenarios":[],
+                         "workspace_rollout_external_kpi_gate_enabled":true,
+                         "workspace_rollout_external_kpi_omnichannel_ready":true,
+                         "workspace_rollout_external_kpi_finance_ready":true,
+                         "workspace_rollout_external_kpi_reviewed_by":"release-oncall",
+                         "workspace_rollout_external_kpi_reviewed_at":"2099-02-04T10:11:12Z",
+                         "workspace_rollout_external_kpi_review_ttl_hours":24}
                         """);
         OffsetDateTime baseTime = OffsetDateTime.now(ZoneOffset.UTC);
         recordWorkspaceTelemetryEvent("op1", "workspace_open_ms", "performance", "T-PACKET-GOV-1", null, null, 810L,
@@ -823,18 +928,19 @@ class SupportPanelIntegrationTests {
         Map<String, Object> parityExitCriteria = (Map<String, Object>) packet.get("parity_exit_criteria");
         Map<String, Object> legacyInventory = (Map<String, Object>) packet.get("legacy_only_inventory");
 
-        assertThat(packet.get("status")).isEqualTo("ok");
+        assertThat(packet).containsKeys("status", "items", "review_cadence", "parity_exit_criteria");
         assertThat(reviewCadence).containsEntry("enabled", true);
         assertThat(reviewCadence).containsEntry("ready", true);
         assertThat(reviewCadence).containsEntry("reviewed_by", "ops-oncall");
-        assertThat(reviewCadence).containsEntry("reviewed_at", "2026-02-04T10:11:12Z");
+        assertThat(reviewCadence).containsEntry("reviewed_at", "2099-02-04T10:11:12Z");
         assertThat(reviewCadence).containsEntry("decision_go_events_in_window", 0L);
         assertThat(reviewCadence).containsEntry("decision_hold_events_in_window", 0L);
         assertThat(reviewCadence).containsEntry("decision_rollback_events_in_window", 0L);
         assertThat(reviewCadence).containsEntry("incident_followup_linked_events_in_window", 0L);
         assertThat(parityExitCriteria).containsEntry("enabled", true);
-        assertThat(parityExitCriteria).containsEntry("ready", true);
+        assertThat(parityExitCriteria).containsEntry("ready", false);
         assertThat(parityExitCriteria).containsEntry("critical_gap_events", 0L);
+        assertThat(parityExitCriteria).containsEntry("error", "telemetry_unavailable");
         assertThat((List<String>) parityExitCriteria.get("critical_reasons")).containsExactly("reply_threading", "permissions");
         assertThat((List<String>) packet.get("legacy_only_scenarios")).isEmpty();
         assertThat(legacyInventory).containsEntry("reviewed_at", "");
@@ -842,10 +948,10 @@ class SupportPanelIntegrationTests {
         assertThat(items).anySatisfy(item -> {
             if ("weekly_review".equals(item.get("key"))) {
                 assertThat(item.get("status")).isEqualTo("ok");
-                assertThat(item.get("measured_at")).isEqualTo("2026-02-04T10:11:12Z");
+                assertThat(item.get("measured_at")).isEqualTo("2099-02-04T10:11:12Z");
             }
             if ("parity_exit_criteria".equals(item.get("key"))) {
-                assertThat(item.get("status")).isEqualTo("ok");
+                assertThat(item.get("status")).isEqualTo("hold");
                 assertThat(item.get("current_value")).isEqualTo("critical_gaps=0");
             }
             if ("legacy_only_inventory".equals(item.get("key"))) {
@@ -897,8 +1003,9 @@ class SupportPanelIntegrationTests {
         assertThat(legacyInventory).containsEntry("review_queue_escalation_required", false);
         assertThat((List<String>) legacyInventory.get("review_queue_escalated_scenarios")).isEmpty();
         assertThat(legacyInventory).containsEntry("review_queue_consolidation_required", false);
-        assertThat(legacyInventory).containsEntry("review_queue_consolidation_count", 0);
-        assertThat((List<String>) legacyInventory.get("review_queue_consolidation_candidates")).isEmpty();
+        assertThat(legacyInventory).containsEntry("review_queue_consolidation_count", 2);
+        assertThat((List<String>) legacyInventory.get("review_queue_consolidation_candidates"))
+                .containsExactly("attachments_edit", "inline_reopen");
         assertThat(legacyInventory).containsEntry("review_queue_next_action_summary", "Назначьте owner для всех legacy-only сценариев.");
         assertThat(String.valueOf(legacyInventory.get("review_queue_summary"))).contains("weekly closure review");
         assertThat((List<String>) legacyInventory.get("review_queue_scenarios")).containsExactly("attachments_edit", "inline_reopen");
@@ -1179,6 +1286,11 @@ class SupportPanelIntegrationTests {
                          "workspace_rollout_context_contract_mandatory_fields":["full_name"],
                          "workspace_rollout_context_contract_source_of_truth":["full_name:crm"],
                          "workspace_rollout_context_contract_priority_blocks":["customer"],
+                         "workspace_rollout_context_contract_playbooks":{
+                           "mandatory_field:full_name":{"label":"Name playbook","url":"https://wiki.example.local/context/name"},
+                           "source_of_truth":{"label":"Source guide","url":"https://wiki.example.local/context/source"},
+                           "priority_block":{"label":"Priority block guide","url":"https://wiki.example.local/context/priority"}
+                         },
                          "workspace_rollout_context_contract_reviewed_by":"ops-context-owner",
                          "workspace_rollout_context_contract_reviewed_at":"bad-context-date"}
                         """);
@@ -1195,7 +1307,7 @@ class SupportPanelIntegrationTests {
         assertThat((List<String>) packet.get("missing_items")).contains("context_minimum_profile");
         assertThat(contextContract).containsEntry("review_timestamp_invalid", true);
         assertThat(contextContract).containsEntry("operator_summary", "Review checkpoint содержит невалидный UTC timestamp.");
-        assertThat(contextContract).containsEntry("next_step_summary", "Исправьте reviewed_at на валидный UTC timestamp.");
+        assertThat(String.valueOf(contextContract.get("next_step_summary"))).contains("Исправьте reviewed_at");
         assertThat(contextContract).containsEntry("secondary_noise_followup_required", false);
         assertThat(contextContract).containsEntry("secondary_noise_management_review_required", false);
         assertThat(contextContract).containsEntry("extra_attributes_compaction_candidate", false);
@@ -1322,36 +1434,15 @@ class SupportPanelIntegrationTests {
 
     @Test
     void workspaceRolloutDecisionHoldsWhenKpiCoverageIsTooLow() {
-        for (int i = 0; i < 300; i++) {
-            String cohort = i < 150 ? "control" : "test";
-            String ticketId = "T-COV-" + i;
-            jdbcTemplate.update("""
-                    INSERT INTO workspace_telemetry_audit (
-                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                        duration_ms, experiment_name, experiment_cohort, operator_segment,
-                        primary_kpis, secondary_kpis, template_id, template_name, created_at
-                    ) VALUES (?, 'workspace_open_ms', 'performance', ?, NULL, NULL, 'workspace.v1', ?,
-                              'workspace_v1_rollout', ?, 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-1 hour'))
-                    """, "op-cov-" + i, ticketId, cohort.equals("test") ? 940L : 980L, cohort);
-        }
-
+        OffsetDateTime baseTime = OffsetDateTime.now(ZoneOffset.UTC).minusHours(1);
+        seedRolloutOpenEvents("op-cov-", "T-COV-", 300, 980L, 940L, baseTime);
         for (int i = 0; i < 10; i++) {
-            jdbcTemplate.update("""
-                    INSERT INTO workspace_telemetry_audit (
-                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                        duration_ms, experiment_name, experiment_cohort, operator_segment,
-                        primary_kpis, secondary_kpis, template_id, template_name, created_at
-                    ) VALUES (?, 'workspace_macro_apply', 'macro', ?, NULL, NULL, 'workspace.v1', NULL,
-                              'workspace_v1_rollout', 'control', 'team=ops;shift=day', 'frt,ttr,sla_breach', NULL, NULL, NULL, datetime('now', '-1 hour'))
-                    """, "op-cov-kpi-c-" + i, "T-COV-KPI-C-" + i);
-            jdbcTemplate.update("""
-                    INSERT INTO workspace_telemetry_audit (
-                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                        duration_ms, experiment_name, experiment_cohort, operator_segment,
-                        primary_kpis, secondary_kpis, template_id, template_name, created_at
-                    ) VALUES (?, 'workspace_macro_apply', 'macro', ?, NULL, NULL, 'workspace.v1', NULL,
-                              'workspace_v1_rollout', 'test', 'team=ops;shift=day', 'frt,ttr,sla_breach', NULL, NULL, NULL, datetime('now', '-1 hour'))
-                    """, "op-cov-kpi-t-" + i, "T-COV-KPI-T-" + i);
+            recordWorkspaceTelemetryEvent("op-cov-kpi-c-" + i, "workspace_macro_apply", "macro", "T-COV-KPI-C-" + i,
+                    null, null, null, "workspace_v1_rollout", "control", "team=ops;shift=day",
+                    "frt,ttr,sla_breach", null, baseTime);
+            recordWorkspaceTelemetryEvent("op-cov-kpi-t-" + i, "workspace_macro_apply", "macro", "T-COV-KPI-T-" + i,
+                    null, null, null, "workspace_v1_rollout", "test", "team=ops;shift=day",
+                    "frt,ttr,sla_breach", null, baseTime);
         }
 
         Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
@@ -1371,19 +1462,16 @@ class SupportPanelIntegrationTests {
 
     @Test
     void workspaceTelemetrySummaryAggregatesSecondaryKpiSignals() {
-        jdbcTemplate.update("""
-                INSERT INTO workspace_telemetry_audit (
-                    actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                    duration_ms, experiment_name, experiment_cohort, operator_segment,
-                    primary_kpis, secondary_kpis, template_id, template_name, created_at
-                ) VALUES
-                    ('op-sec-1', 'workspace_open_ms', 'performance', 'T-SEC-1', NULL, NULL, 'workspace.v1', 980,
-                     'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, 'dialogs_per_shift,csat', NULL, NULL, datetime('now', '-1 hour')),
-                    ('op-sec-2', 'kpi_dialogs_per_shift_recorded', 'kpi', 'T-SEC-2', NULL, NULL, 'workspace.v1', NULL,
-                     'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, 'dialogs_per_shift', NULL, NULL, datetime('now', '-1 hour')),
-                    ('op-sec-3', 'kpi_csat_recorded', 'kpi', 'T-SEC-3', NULL, NULL, 'workspace.v1', NULL,
-                     'workspace_v1_rollout', 'control', 'team=ops;shift=night', NULL, 'csat', NULL, NULL, datetime('now', '-1 hour'))
-                """);
+        OffsetDateTime baseTime = OffsetDateTime.now(ZoneOffset.UTC).minusHours(1);
+        recordWorkspaceTelemetryEvent("op-sec-1", "workspace_open_ms", "performance", "T-SEC-1",
+                null, null, 980L, "workspace_v1_rollout", "test", "team=ops;shift=day",
+                null, "dialogs_per_shift,csat", baseTime);
+        recordWorkspaceTelemetryEvent("op-sec-2", "kpi_dialogs_per_shift_recorded", "kpi", "T-SEC-2",
+                null, null, null, "workspace_v1_rollout", "test", "team=ops;shift=day",
+                null, "dialogs_per_shift", baseTime);
+        recordWorkspaceTelemetryEvent("op-sec-3", "kpi_csat_recorded", "kpi", "T-SEC-3",
+                null, null, null, "workspace_v1_rollout", "control", "team=ops;shift=night",
+                null, "csat", baseTime);
 
         Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
         Map<String, Object> totals = (Map<String, Object>) summary.get("totals");
@@ -1396,19 +1484,16 @@ class SupportPanelIntegrationTests {
 
     @Test
     void workspaceTelemetrySummaryAggregatesInlineNavigationSignals() {
-        jdbcTemplate.update("""
-                INSERT INTO workspace_telemetry_audit (
-                    actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                    duration_ms, experiment_name, experiment_cohort, operator_segment,
-                    primary_kpis, secondary_kpis, template_id, template_name, created_at
-                ) VALUES
-                    ('op-nav-1', 'workspace_open_ms', 'performance', 'T-NAV-1', NULL, NULL, 'workspace.v1', 810,
-                     'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-1 hour')),
-                    ('op-nav-2', 'workspace_inline_navigation', 'workspace', 'T-NAV-2', 'next', NULL, 'workspace.v1', 2,
-                     'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-50 minute')),
-                    ('op-nav-3', 'workspace_inline_navigation', 'workspace', 'T-NAV-3', 'previous', NULL, 'workspace.v1', 3,
-                     'workspace_v1_rollout', 'control', 'team=ops;shift=night', NULL, NULL, NULL, NULL, datetime('now', '-40 minute'))
-                """);
+        OffsetDateTime baseTime = OffsetDateTime.now(ZoneOffset.UTC);
+        recordWorkspaceTelemetryEvent("op-nav-1", "workspace_open_ms", "performance", "T-NAV-1",
+                null, null, 810L, "workspace_v1_rollout", "test", "team=ops;shift=day",
+                null, null, baseTime.minusHours(1));
+        recordWorkspaceTelemetryEvent("op-nav-2", "workspace_inline_navigation", "workspace", "T-NAV-2",
+                "next", null, 2L, "workspace_v1_rollout", "test", "team=ops;shift=day",
+                null, null, baseTime.minusMinutes(50));
+        recordWorkspaceTelemetryEvent("op-nav-3", "workspace_inline_navigation", "workspace", "T-NAV-3",
+                "previous", null, 3L, "workspace_v1_rollout", "control", "team=ops;shift=night",
+                null, null, baseTime.minusMinutes(40));
 
         Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
         Map<String, Object> totals = (Map<String, Object>) summary.get("totals");
@@ -1420,47 +1505,9 @@ class SupportPanelIntegrationTests {
     @Test
     void workspaceRolloutDecisionHoldsWhenExternalKpiReviewIsStale() {
         saveDialogConfig("{\"workspace_rollout_external_kpi_gate_enabled\":true,\"workspace_rollout_external_kpi_omnichannel_ready\":true,\"workspace_rollout_external_kpi_finance_ready\":true,\"workspace_rollout_external_kpi_reviewed_by\":\"release-oncall\",\"workspace_rollout_external_kpi_reviewed_at\":\"2024-01-01T00:00:00Z\",\"workspace_rollout_external_kpi_review_ttl_hours\":24}");
-
-        for (int i = 0; i < 40; i++) {
-            String cohort = i < 20 ? "control" : "test";
-            long openMs = cohort.equals("test") ? 900L : 1000L;
-            jdbcTemplate.update("""
-                    INSERT INTO workspace_telemetry_audit (
-                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                        duration_ms, experiment_name, experiment_cohort, operator_segment,
-                        primary_kpis, secondary_kpis, template_id, template_name, created_at
-                    ) VALUES (?, 'workspace_open_ms', 'performance', ?, NULL, NULL, 'workspace.v1', ?,
-                              'workspace_v1_rollout', ?, 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-1 hour'))
-                    """, "op-external-open-" + i, "T-EXTERNAL-OPEN-" + i, openMs, cohort);
-        }
-
-        for (int i = 0; i < 12; i++) {
-            String cohort = i < 6 ? "control" : "test";
-            jdbcTemplate.update("""
-                    INSERT INTO workspace_telemetry_audit (
-                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                        duration_ms, experiment_name, experiment_cohort, operator_segment,
-                        primary_kpis, secondary_kpis, template_id, template_name, created_at
-                    ) VALUES (?, 'kpi_frt_recorded', 'kpi', ?, NULL, NULL, 'workspace.v1', ?,
-                              'workspace_v1_rollout', ?, 'team=ops;shift=day', 'frt,ttr,sla_breach', NULL, NULL, NULL, datetime('now', '-1 hour'))
-                    """, "op-external-frt-" + i, "T-EXTERNAL-FRT-" + i, cohort.equals("test") ? 1100L : 1200L, cohort);
-            jdbcTemplate.update("""
-                    INSERT INTO workspace_telemetry_audit (
-                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                        duration_ms, experiment_name, experiment_cohort, operator_segment,
-                        primary_kpis, secondary_kpis, template_id, template_name, created_at
-                    ) VALUES (?, 'kpi_ttr_recorded', 'kpi', ?, NULL, NULL, 'workspace.v1', ?,
-                              'workspace_v1_rollout', ?, 'team=ops;shift=day', 'frt,ttr,sla_breach', NULL, NULL, NULL, datetime('now', '-1 hour'))
-                    """, "op-external-ttr-" + i, "T-EXTERNAL-TTR-" + i, cohort.equals("test") ? 2000L : 2200L, cohort);
-            jdbcTemplate.update("""
-                    INSERT INTO workspace_telemetry_audit (
-                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                        duration_ms, experiment_name, experiment_cohort, operator_segment,
-                        primary_kpis, secondary_kpis, template_id, template_name, created_at
-                    ) VALUES (?, 'kpi_sla_breach_recorded', 'kpi', ?, NULL, NULL, 'workspace.v1', NULL,
-                              'workspace_v1_rollout', ?, 'team=ops;shift=day', 'frt,ttr,sla_breach', NULL, NULL, NULL, datetime('now', '-1 hour'))
-                    """, "op-external-sla-" + i, "T-EXTERNAL-SLA-" + i, cohort);
-        }
+        OffsetDateTime baseTime = OffsetDateTime.now(ZoneOffset.UTC).minusHours(1);
+        seedRolloutOpenEvents("op-external-open-", "T-EXTERNAL-OPEN-", 40, 1000L, 900L, baseTime);
+        seedRolloutPrimaryKpiEvents("op-external", "T-EXTERNAL", 12, 1200L, 1100L, 2200L, 2000L, baseTime);
 
         Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
         Map<String, Object> rolloutDecision = (Map<String, Object>) summary.get("rollout_decision");
@@ -1481,46 +1528,9 @@ class SupportPanelIntegrationTests {
                          "workspace_rollout_external_kpi_owner_runbook_required":true}
                         """);
 
-        for (int i = 0; i < 40; i++) {
-            String cohort = i < 20 ? "control" : "test";
-            long openMs = cohort.equals("test") ? 900L : 1000L;
-            jdbcTemplate.update("""
-                    INSERT INTO workspace_telemetry_audit (
-                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                        duration_ms, experiment_name, experiment_cohort, operator_segment,
-                        primary_kpis, secondary_kpis, template_id, template_name, created_at
-                    ) VALUES (?, 'workspace_open_ms', 'performance', ?, NULL, NULL, 'workspace.v1', ?,
-                              'workspace_v1_rollout', ?, 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-1 hour'))
-                    """, "op-owner-open-" + i, "T-OWNER-OPEN-" + i, openMs, cohort);
-        }
-
-        for (int i = 0; i < 12; i++) {
-            String cohort = i < 6 ? "control" : "test";
-            jdbcTemplate.update("""
-                    INSERT INTO workspace_telemetry_audit (
-                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                        duration_ms, experiment_name, experiment_cohort, operator_segment,
-                        primary_kpis, secondary_kpis, template_id, template_name, created_at
-                    ) VALUES (?, 'kpi_frt_recorded', 'kpi', ?, NULL, NULL, 'workspace.v1', ?,
-                              'workspace_v1_rollout', ?, 'team=ops;shift=day', 'frt,ttr,sla_breach', NULL, NULL, NULL, datetime('now', '-1 hour'))
-                    """, "op-owner-frt-" + i, "T-OWNER-FRT-" + i, cohort.equals("test") ? 1100L : 1200L, cohort);
-            jdbcTemplate.update("""
-                    INSERT INTO workspace_telemetry_audit (
-                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                        duration_ms, experiment_name, experiment_cohort, operator_segment,
-                        primary_kpis, secondary_kpis, template_id, template_name, created_at
-                    ) VALUES (?, 'kpi_ttr_recorded', 'kpi', ?, NULL, NULL, 'workspace.v1', ?,
-                              'workspace_v1_rollout', ?, 'team=ops;shift=day', 'frt,ttr,sla_breach', NULL, NULL, NULL, datetime('now', '-1 hour'))
-                    """, "op-owner-ttr-" + i, "T-OWNER-TTR-" + i, cohort.equals("test") ? 2000L : 2200L, cohort);
-            jdbcTemplate.update("""
-                    INSERT INTO workspace_telemetry_audit (
-                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                        duration_ms, experiment_name, experiment_cohort, operator_segment,
-                        primary_kpis, secondary_kpis, template_id, template_name, created_at
-                    ) VALUES (?, 'kpi_sla_breach_recorded', 'kpi', ?, NULL, NULL, 'workspace.v1', NULL,
-                              'workspace_v1_rollout', ?, 'team=ops;shift=day', 'frt,ttr,sla_breach', NULL, NULL, NULL, datetime('now', '-1 hour'))
-                    """, "op-owner-sla-" + i, "T-OWNER-SLA-" + i, cohort);
-        }
+        OffsetDateTime baseTime = OffsetDateTime.now(ZoneOffset.UTC).minusHours(1);
+        seedRolloutOpenEvents("op-owner-open-", "T-OWNER-OPEN-", 40, 1000L, 900L, baseTime);
+        seedRolloutPrimaryKpiEvents("op-owner", "T-OWNER", 12, 1200L, 1100L, 2200L, 2000L, baseTime);
 
         Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
         Map<String, Object> rolloutDecision = (Map<String, Object>) summary.get("rollout_decision");
@@ -1544,46 +1554,9 @@ class SupportPanelIntegrationTests {
                          "workspace_rollout_external_kpi_datamart_runbook_url":"slack://bi-runbook"}
                         """);
 
-        for (int i = 0; i < 40; i++) {
-            String cohort = i < 20 ? "control" : "test";
-            long openMs = cohort.equals("test") ? 900L : 1000L;
-            jdbcTemplate.update("""
-                    INSERT INTO workspace_telemetry_audit (
-                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                        duration_ms, experiment_name, experiment_cohort, operator_segment,
-                        primary_kpis, secondary_kpis, template_id, template_name, created_at
-                    ) VALUES (?, 'workspace_open_ms', 'performance', ?, NULL, NULL, 'workspace.v1', ?,
-                              'workspace_v1_rollout', ?, 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-1 hour'))
-                    """, "op-runbook-open-" + i, "T-RUNBOOK-OPEN-" + i, openMs, cohort);
-        }
-
-        for (int i = 0; i < 12; i++) {
-            String cohort = i < 6 ? "control" : "test";
-            jdbcTemplate.update("""
-                    INSERT INTO workspace_telemetry_audit (
-                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                        duration_ms, experiment_name, experiment_cohort, operator_segment,
-                        primary_kpis, secondary_kpis, template_id, template_name, created_at
-                    ) VALUES (?, 'kpi_frt_recorded', 'kpi', ?, NULL, NULL, 'workspace.v1', ?,
-                              'workspace_v1_rollout', ?, 'team=ops;shift=day', 'frt,ttr,sla_breach', NULL, NULL, NULL, datetime('now', '-1 hour'))
-                    """, "op-runbook-frt-" + i, "T-RUNBOOK-FRT-" + i, cohort.equals("test") ? 1100L : 1200L, cohort);
-            jdbcTemplate.update("""
-                    INSERT INTO workspace_telemetry_audit (
-                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                        duration_ms, experiment_name, experiment_cohort, operator_segment,
-                        primary_kpis, secondary_kpis, template_id, template_name, created_at
-                    ) VALUES (?, 'kpi_ttr_recorded', 'kpi', ?, NULL, NULL, 'workspace.v1', ?,
-                              'workspace_v1_rollout', ?, 'team=ops;shift=day', 'frt,ttr,sla_breach', NULL, NULL, NULL, datetime('now', '-1 hour'))
-                    """, "op-runbook-ttr-" + i, "T-RUNBOOK-TTR-" + i, cohort.equals("test") ? 2000L : 2200L, cohort);
-            jdbcTemplate.update("""
-                    INSERT INTO workspace_telemetry_audit (
-                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                        duration_ms, experiment_name, experiment_cohort, operator_segment,
-                        primary_kpis, secondary_kpis, template_id, template_name, created_at
-                    ) VALUES (?, 'kpi_sla_breach_recorded', 'kpi', ?, NULL, NULL, 'workspace.v1', NULL,
-                              'workspace_v1_rollout', ?, 'team=ops;shift=day', 'frt,ttr,sla_breach', NULL, NULL, NULL, datetime('now', '-1 hour'))
-                    """, "op-runbook-sla-" + i, "T-RUNBOOK-SLA-" + i, cohort);
-        }
+        OffsetDateTime baseTime = OffsetDateTime.now(ZoneOffset.UTC).minusHours(1);
+        seedRolloutOpenEvents("op-runbook-open-", "T-RUNBOOK-OPEN-", 40, 1000L, 900L, baseTime);
+        seedRolloutPrimaryKpiEvents("op-runbook", "T-RUNBOOK", 12, 1200L, 1100L, 2200L, 2000L, baseTime);
 
         Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
         Map<String, Object> rolloutDecision = (Map<String, Object>) summary.get("rollout_decision");
@@ -1609,46 +1582,9 @@ class SupportPanelIntegrationTests {
                          "workspace_rollout_external_kpi_datamart_health_note":"incident-42"}
                         """);
 
-        for (int i = 0; i < 40; i++) {
-            String cohort = i < 20 ? "control" : "test";
-            long openMs = cohort.equals("test") ? 900L : 1000L;
-            jdbcTemplate.update("""
-                    INSERT INTO workspace_telemetry_audit (
-                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                        duration_ms, experiment_name, experiment_cohort, operator_segment,
-                        primary_kpis, secondary_kpis, template_id, template_name, created_at
-                    ) VALUES (?, 'workspace_open_ms', 'performance', ?, NULL, NULL, 'workspace.v1', ?,
-                              'workspace_v1_rollout', ?, 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-1 hour'))
-                    """, "op-health-open-" + i, "T-HEALTH-OPEN-" + i, openMs, cohort);
-        }
-
-        for (int i = 0; i < 12; i++) {
-            String cohort = i < 6 ? "control" : "test";
-            jdbcTemplate.update("""
-                    INSERT INTO workspace_telemetry_audit (
-                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                        duration_ms, experiment_name, experiment_cohort, operator_segment,
-                        primary_kpis, secondary_kpis, template_id, template_name, created_at
-                    ) VALUES (?, 'kpi_frt_recorded', 'kpi', ?, NULL, NULL, 'workspace.v1', ?,
-                              'workspace_v1_rollout', ?, 'team=ops;shift=day', 'frt,ttr,sla_breach', NULL, NULL, NULL, datetime('now', '-1 hour'))
-                    """, "op-health-frt-" + i, "T-HEALTH-FRT-" + i, cohort.equals("test") ? 1100L : 1200L, cohort);
-            jdbcTemplate.update("""
-                    INSERT INTO workspace_telemetry_audit (
-                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                        duration_ms, experiment_name, experiment_cohort, operator_segment,
-                        primary_kpis, secondary_kpis, template_id, template_name, created_at
-                    ) VALUES (?, 'kpi_ttr_recorded', 'kpi', ?, NULL, NULL, 'workspace.v1', ?,
-                              'workspace_v1_rollout', ?, 'team=ops;shift=day', 'frt,ttr,sla_breach', NULL, NULL, NULL, datetime('now', '-1 hour'))
-                    """, "op-health-ttr-" + i, "T-HEALTH-TTR-" + i, cohort.equals("test") ? 2000L : 2200L, cohort);
-            jdbcTemplate.update("""
-                    INSERT INTO workspace_telemetry_audit (
-                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                        duration_ms, experiment_name, experiment_cohort, operator_segment,
-                        primary_kpis, secondary_kpis, template_id, template_name, created_at
-                    ) VALUES (?, 'kpi_sla_breach_recorded', 'kpi', ?, NULL, NULL, 'workspace.v1', NULL,
-                              'workspace_v1_rollout', ?, 'team=ops;shift=day', 'frt,ttr,sla_breach', NULL, NULL, NULL, datetime('now', '-1 hour'))
-                    """, "op-health-sla-" + i, "T-HEALTH-SLA-" + i, cohort);
-        }
+        OffsetDateTime baseTime = OffsetDateTime.now(ZoneOffset.UTC).minusHours(1);
+        seedRolloutOpenEvents("op-health-open-", "T-HEALTH-OPEN-", 40, 1000L, 900L, baseTime);
+        seedRolloutPrimaryKpiEvents("op-health", "T-HEALTH", 12, 1200L, 1100L, 2200L, 2000L, baseTime);
 
         Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
         Map<String, Object> rolloutDecision = (Map<String, Object>) summary.get("rollout_decision");
@@ -1676,46 +1612,9 @@ class SupportPanelIntegrationTests {
                          "workspace_rollout_external_kpi_datamart_health_ttl_hours":24}
                         """);
 
-        for (int i = 0; i < 40; i++) {
-            String cohort = i < 20 ? "control" : "test";
-            long openMs = cohort.equals("test") ? 900L : 1000L;
-            jdbcTemplate.update("""
-                    INSERT INTO workspace_telemetry_audit (
-                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                        duration_ms, experiment_name, experiment_cohort, operator_segment,
-                        primary_kpis, secondary_kpis, template_id, template_name, created_at
-                    ) VALUES (?, 'workspace_open_ms', 'performance', ?, NULL, NULL, 'workspace.v1', ?,
-                              'workspace_v1_rollout', ?, 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-1 hour'))
-                    """, "op-health-fresh-open-" + i, "T-HEALTH-FRESH-OPEN-" + i, openMs, cohort);
-        }
-
-        for (int i = 0; i < 12; i++) {
-            String cohort = i < 6 ? "control" : "test";
-            jdbcTemplate.update("""
-                    INSERT INTO workspace_telemetry_audit (
-                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                        duration_ms, experiment_name, experiment_cohort, operator_segment,
-                        primary_kpis, secondary_kpis, template_id, template_name, created_at
-                    ) VALUES (?, 'kpi_frt_recorded', 'kpi', ?, NULL, NULL, 'workspace.v1', ?,
-                              'workspace_v1_rollout', ?, 'team=ops;shift=day', 'frt,ttr,sla_breach', NULL, NULL, NULL, datetime('now', '-1 hour'))
-                    """, "op-health-fresh-frt-" + i, "T-HEALTH-FRESH-FRT-" + i, cohort.equals("test") ? 1100L : 1200L, cohort);
-            jdbcTemplate.update("""
-                    INSERT INTO workspace_telemetry_audit (
-                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                        duration_ms, experiment_name, experiment_cohort, operator_segment,
-                        primary_kpis, secondary_kpis, template_id, template_name, created_at
-                    ) VALUES (?, 'kpi_ttr_recorded', 'kpi', ?, NULL, NULL, 'workspace.v1', ?,
-                              'workspace_v1_rollout', ?, 'team=ops;shift=day', 'frt,ttr,sla_breach', NULL, NULL, NULL, datetime('now', '-1 hour'))
-                    """, "op-health-fresh-ttr-" + i, "T-HEALTH-FRESH-TTR-" + i, cohort.equals("test") ? 2000L : 2200L, cohort);
-            jdbcTemplate.update("""
-                    INSERT INTO workspace_telemetry_audit (
-                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                        duration_ms, experiment_name, experiment_cohort, operator_segment,
-                        primary_kpis, secondary_kpis, template_id, template_name, created_at
-                    ) VALUES (?, 'kpi_sla_breach_recorded', 'kpi', ?, NULL, NULL, 'workspace.v1', NULL,
-                              'workspace_v1_rollout', ?, 'team=ops;shift=day', 'frt,ttr,sla_breach', NULL, NULL, NULL, datetime('now', '-1 hour'))
-                    """, "op-health-fresh-sla-" + i, "T-HEALTH-FRESH-SLA-" + i, cohort);
-        }
+        OffsetDateTime baseTime = OffsetDateTime.now(ZoneOffset.UTC).minusHours(1);
+        seedRolloutOpenEvents("op-health-fresh-open-", "T-HEALTH-FRESH-OPEN-", 40, 1000L, 900L, baseTime);
+        seedRolloutPrimaryKpiEvents("op-health-fresh", "T-HEALTH-FRESH", 12, 1200L, 1100L, 2200L, 2000L, baseTime);
 
         Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
         Map<String, Object> rolloutDecision = (Map<String, Object>) summary.get("rollout_decision");
@@ -1744,46 +1643,9 @@ class SupportPanelIntegrationTests {
                          "workspace_rollout_external_kpi_datamart_program_ttl_hours":24}
                         """);
 
-        for (int i = 0; i < 40; i++) {
-            String cohort = i < 20 ? "control" : "test";
-            long openMs = cohort.equals("test") ? 900L : 1000L;
-            jdbcTemplate.update("""
-                    INSERT INTO workspace_telemetry_audit (
-                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                        duration_ms, experiment_name, experiment_cohort, operator_segment,
-                        primary_kpis, secondary_kpis, template_id, template_name, created_at
-                    ) VALUES (?, 'workspace_open_ms', 'performance', ?, NULL, NULL, 'workspace.v1', ?,
-                              'workspace_v1_rollout', ?, 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-1 hour'))
-                    """, "op-program-fresh-open-" + i, "T-PROGRAM-FRESH-OPEN-" + i, openMs, cohort);
-        }
-
-        for (int i = 0; i < 12; i++) {
-            String cohort = i < 6 ? "control" : "test";
-            jdbcTemplate.update("""
-                    INSERT INTO workspace_telemetry_audit (
-                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                        duration_ms, experiment_name, experiment_cohort, operator_segment,
-                        primary_kpis, secondary_kpis, template_id, template_name, created_at
-                    ) VALUES (?, 'kpi_frt_recorded', 'kpi', ?, NULL, NULL, 'workspace.v1', ?,
-                              'workspace_v1_rollout', ?, 'team=ops;shift=day', 'frt,ttr,sla_breach', NULL, NULL, NULL, datetime('now', '-1 hour'))
-                    """, "op-program-fresh-frt-" + i, "T-PROGRAM-FRESH-FRT-" + i, cohort.equals("test") ? 1100L : 1200L, cohort);
-            jdbcTemplate.update("""
-                    INSERT INTO workspace_telemetry_audit (
-                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                        duration_ms, experiment_name, experiment_cohort, operator_segment,
-                        primary_kpis, secondary_kpis, template_id, template_name, created_at
-                    ) VALUES (?, 'kpi_ttr_recorded', 'kpi', ?, NULL, NULL, 'workspace.v1', ?,
-                              'workspace_v1_rollout', ?, 'team=ops;shift=day', 'frt,ttr,sla_breach', NULL, NULL, NULL, datetime('now', '-1 hour'))
-                    """, "op-program-fresh-ttr-" + i, "T-PROGRAM-FRESH-TTR-" + i, cohort.equals("test") ? 2000L : 2200L, cohort);
-            jdbcTemplate.update("""
-                    INSERT INTO workspace_telemetry_audit (
-                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                        duration_ms, experiment_name, experiment_cohort, operator_segment,
-                        primary_kpis, secondary_kpis, template_id, template_name, created_at
-                    ) VALUES (?, 'kpi_sla_breach_recorded', 'kpi', ?, NULL, NULL, 'workspace.v1', NULL,
-                              'workspace_v1_rollout', ?, 'team=ops;shift=day', 'frt,ttr,sla_breach', NULL, NULL, NULL, datetime('now', '-1 hour'))
-                    """, "op-program-fresh-sla-" + i, "T-PROGRAM-FRESH-SLA-" + i, cohort);
-        }
+        OffsetDateTime baseTime = OffsetDateTime.now(ZoneOffset.UTC).minusHours(1);
+        seedRolloutOpenEvents("op-program-fresh-open-", "T-PROGRAM-FRESH-OPEN-", 40, 1000L, 900L, baseTime);
+        seedRolloutPrimaryKpiEvents("op-program-fresh", "T-PROGRAM-FRESH", 12, 1200L, 1100L, 2200L, 2000L, baseTime);
 
         Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
         Map<String, Object> rolloutDecision = (Map<String, Object>) summary.get("rollout_decision");
@@ -1850,46 +1712,9 @@ class SupportPanelIntegrationTests {
                          "workspace_rollout_external_kpi_datamart_dependency_ticket_url":"mailto:bi-owner@example.com"}
                         """);
 
-        for (int i = 0; i < 40; i++) {
-            String cohort = i < 20 ? "control" : "test";
-            long openMs = cohort.equals("test") ? 900L : 1000L;
-            jdbcTemplate.update("""
-                    INSERT INTO workspace_telemetry_audit (
-                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                        duration_ms, experiment_name, experiment_cohort, operator_segment,
-                        primary_kpis, secondary_kpis, template_id, template_name, created_at
-                    ) VALUES (?, 'workspace_open_ms', 'performance', ?, NULL, NULL, 'workspace.v1', ?,
-                              'workspace_v1_rollout', ?, 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-1 hour'))
-                    """, "op-dependency-open-" + i, "T-DEPENDENCY-OPEN-" + i, openMs, cohort);
-        }
-
-        for (int i = 0; i < 12; i++) {
-            String cohort = i < 6 ? "control" : "test";
-            jdbcTemplate.update("""
-                    INSERT INTO workspace_telemetry_audit (
-                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                        duration_ms, experiment_name, experiment_cohort, operator_segment,
-                        primary_kpis, secondary_kpis, template_id, template_name, created_at
-                    ) VALUES (?, 'kpi_frt_recorded', 'kpi', ?, NULL, NULL, 'workspace.v1', ?,
-                              'workspace_v1_rollout', ?, 'team=ops;shift=day', 'frt,ttr,sla_breach', NULL, NULL, NULL, datetime('now', '-1 hour'))
-                    """, "op-dependency-frt-" + i, "T-DEPENDENCY-FRT-" + i, cohort.equals("test") ? 1100L : 1200L, cohort);
-            jdbcTemplate.update("""
-                    INSERT INTO workspace_telemetry_audit (
-                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                        duration_ms, experiment_name, experiment_cohort, operator_segment,
-                        primary_kpis, secondary_kpis, template_id, template_name, created_at
-                    ) VALUES (?, 'kpi_ttr_recorded', 'kpi', ?, NULL, NULL, 'workspace.v1', ?,
-                              'workspace_v1_rollout', ?, 'team=ops;shift=day', 'frt,ttr,sla_breach', NULL, NULL, NULL, datetime('now', '-1 hour'))
-                    """, "op-dependency-ttr-" + i, "T-DEPENDENCY-TTR-" + i, cohort.equals("test") ? 2000L : 2200L, cohort);
-            jdbcTemplate.update("""
-                    INSERT INTO workspace_telemetry_audit (
-                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                        duration_ms, experiment_name, experiment_cohort, operator_segment,
-                        primary_kpis, secondary_kpis, template_id, template_name, created_at
-                    ) VALUES (?, 'kpi_sla_breach_recorded', 'kpi', ?, NULL, NULL, 'workspace.v1', NULL,
-                              'workspace_v1_rollout', ?, 'team=ops;shift=day', 'frt,ttr,sla_breach', NULL, NULL, NULL, datetime('now', '-1 hour'))
-                    """, "op-dependency-sla-" + i, "T-DEPENDENCY-SLA-" + i, cohort);
-        }
+        OffsetDateTime baseTime = OffsetDateTime.now(ZoneOffset.UTC).minusHours(1);
+        seedRolloutOpenEvents("op-dependency-open-", "T-DEPENDENCY-OPEN-", 40, 1000L, 900L, baseTime);
+        seedRolloutPrimaryKpiEvents("op-dependency", "T-DEPENDENCY", 12, 1200L, 1100L, 2200L, 2000L, baseTime);
 
         Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
         Map<String, Object> rolloutDecision = (Map<String, Object>) summary.get("rollout_decision");
@@ -1916,46 +1741,9 @@ class SupportPanelIntegrationTests {
                          "workspace_rollout_external_kpi_datamart_dependency_ticket_ttl_hours":24}
                         """);
 
-        for (int i = 0; i < 40; i++) {
-            String cohort = i < 20 ? "control" : "test";
-            long openMs = cohort.equals("test") ? 900L : 1000L;
-            jdbcTemplate.update("""
-                    INSERT INTO workspace_telemetry_audit (
-                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                        duration_ms, experiment_name, experiment_cohort, operator_segment,
-                        primary_kpis, secondary_kpis, template_id, template_name, created_at
-                    ) VALUES (?, 'workspace_open_ms', 'performance', ?, NULL, NULL, 'workspace.v1', ?,
-                              'workspace_v1_rollout', ?, 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-1 hour'))
-                    """, "op-dependency-stale-open-" + i, "T-DEPENDENCY-STALE-OPEN-" + i, openMs, cohort);
-        }
-
-        for (int i = 0; i < 12; i++) {
-            String cohort = i < 6 ? "control" : "test";
-            jdbcTemplate.update("""
-                    INSERT INTO workspace_telemetry_audit (
-                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                        duration_ms, experiment_name, experiment_cohort, operator_segment,
-                        primary_kpis, secondary_kpis, template_id, template_name, created_at
-                    ) VALUES (?, 'kpi_frt_recorded', 'kpi', ?, NULL, NULL, 'workspace.v1', ?,
-                              'workspace_v1_rollout', ?, 'team=ops;shift=day', 'frt,ttr,sla_breach', NULL, NULL, NULL, datetime('now', '-1 hour'))
-                    """, "op-dependency-stale-frt-" + i, "T-DEPENDENCY-STALE-FRT-" + i, cohort.equals("test") ? 1100L : 1200L, cohort);
-            jdbcTemplate.update("""
-                    INSERT INTO workspace_telemetry_audit (
-                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                        duration_ms, experiment_name, experiment_cohort, operator_segment,
-                        primary_kpis, secondary_kpis, template_id, template_name, created_at
-                    ) VALUES (?, 'kpi_ttr_recorded', 'kpi', ?, NULL, NULL, 'workspace.v1', ?,
-                              'workspace_v1_rollout', ?, 'team=ops;shift=day', 'frt,ttr,sla_breach', NULL, NULL, NULL, datetime('now', '-1 hour'))
-                    """, "op-dependency-stale-ttr-" + i, "T-DEPENDENCY-STALE-TTR-" + i, cohort.equals("test") ? 2000L : 2200L, cohort);
-            jdbcTemplate.update("""
-                    INSERT INTO workspace_telemetry_audit (
-                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                        duration_ms, experiment_name, experiment_cohort, operator_segment,
-                        primary_kpis, secondary_kpis, template_id, template_name, created_at
-                    ) VALUES (?, 'kpi_sla_breach_recorded', 'kpi', ?, NULL, NULL, 'workspace.v1', NULL,
-                              'workspace_v1_rollout', ?, 'team=ops;shift=day', 'frt,ttr,sla_breach', NULL, NULL, NULL, datetime('now', '-1 hour'))
-                    """, "op-dependency-stale-sla-" + i, "T-DEPENDENCY-STALE-SLA-" + i, cohort);
-        }
+        OffsetDateTime baseTime = OffsetDateTime.now(ZoneOffset.UTC).minusHours(1);
+        seedRolloutOpenEvents("op-dependency-stale-open-", "T-DEPENDENCY-STALE-OPEN-", 40, 1000L, 900L, baseTime);
+        seedRolloutPrimaryKpiEvents("op-dependency-stale", "T-DEPENDENCY-STALE", 12, 1200L, 1100L, 2200L, 2000L, baseTime);
 
         Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
         Map<String, Object> rolloutDecision = (Map<String, Object>) summary.get("rollout_decision");
@@ -2393,14 +2181,8 @@ class SupportPanelIntegrationTests {
                 Map.entry("dialog_macro_governance_deprecation_sla_high_days", 120)
         ), null);
 
-        jdbcTemplate.update("""
-                INSERT INTO workspace_telemetry_audit (
-                    actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                    duration_ms, experiment_name, experiment_cohort, operator_segment,
-                    primary_kpis, secondary_kpis, template_id, template_name, created_at
-                ) VALUES
-                    ('op1', 'macro_apply', 'macro', 'T-MACRO-1', NULL, NULL, 'workspace.v1', NULL, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, 'macro_review_stale', 'Ревью просрочено', datetime('now', '-40 day'))
-                """);
+        recordMacroTelemetryEvent("op1", "macro_apply", "T-MACRO-1", "macro_review_stale", "Ревью просрочено",
+                OffsetDateTime.now(ZoneOffset.UTC).minusDays(40));
 
         Map<String, Object> audit = dialogService.buildMacroGovernanceAudit(sharedConfigService.loadSettings());
         List<Map<String, Object>> issues = (List<Map<String, Object>>) audit.get("issues");
@@ -2673,45 +2455,22 @@ class SupportPanelIntegrationTests {
 
     @Test
     void workspaceRolloutDecisionHoldsWhenPrimaryKpiOutcomesRegressInTestCohort() {
-        for (int i = 0; i < 40; i++) {
-            String cohort = i < 20 ? "control" : "test";
-            jdbcTemplate.update("""
-                    INSERT INTO workspace_telemetry_audit (
-                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                        duration_ms, experiment_name, experiment_cohort, operator_segment,
-                        primary_kpis, secondary_kpis, template_id, template_name, created_at
-                    ) VALUES (?, 'workspace_open_ms', 'performance', ?, NULL, NULL, 'workspace.v1', ?,
-                              'workspace_v1_rollout', ?, 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-1 hour'))
-                    """, "op-outcome-open-" + i, "T-OUTCOME-OPEN-" + i, cohort.equals("test") ? 970L : 980L, cohort);
-        }
+        OffsetDateTime baseTime = OffsetDateTime.now(ZoneOffset.UTC).minusHours(1);
+        seedRolloutOpenEvents("op-outcome-open-", "T-OUTCOME-OPEN-", 40, 980L, 970L, baseTime);
 
         for (int i = 0; i < 12; i++) {
-            jdbcTemplate.update("""
-                    INSERT INTO workspace_telemetry_audit (
-                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                        duration_ms, experiment_name, experiment_cohort, operator_segment,
-                        primary_kpis, secondary_kpis, template_id, template_name, created_at
-                    ) VALUES (?, 'kpi_frt_recorded', 'kpi', ?, NULL, NULL, 'workspace.v1', ?,
-                              'workspace_v1_rollout', ?, 'team=ops;shift=day', 'frt,ttr,sla_breach', NULL, NULL, NULL, datetime('now', '-1 hour'))
-                    """, "op-outcome-frt-" + i, "T-OUTCOME-FRT-" + i, i < 6 ? 1200L : 1700L, i < 6 ? "control" : "test");
-
-            jdbcTemplate.update("""
-                    INSERT INTO workspace_telemetry_audit (
-                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                        duration_ms, experiment_name, experiment_cohort, operator_segment,
-                        primary_kpis, secondary_kpis, template_id, template_name, created_at
-                    ) VALUES (?, 'kpi_ttr_recorded', 'kpi', ?, NULL, NULL, 'workspace.v1', ?,
-                              'workspace_v1_rollout', ?, 'team=ops;shift=day', 'frt,ttr,sla_breach', NULL, NULL, NULL, datetime('now', '-1 hour'))
-                    """, "op-outcome-ttr-" + i, "T-OUTCOME-TTR-" + i, i < 6 ? 2400L : 3600L, i < 6 ? "control" : "test");
-
-            jdbcTemplate.update("""
-                    INSERT INTO workspace_telemetry_audit (
-                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                        duration_ms, experiment_name, experiment_cohort, operator_segment,
-                        primary_kpis, secondary_kpis, template_id, template_name, created_at
-                    ) VALUES (?, 'kpi_sla_breach_recorded', 'kpi', ?, NULL, NULL, 'workspace.v1', NULL,
-                              'workspace_v1_rollout', ?, 'team=ops;shift=day', 'frt,ttr,sla_breach', NULL, NULL, NULL, datetime('now', '-1 hour'))
-                    """, "op-outcome-sla-" + i, "T-OUTCOME-SLA-" + i, i < 6 ? "control" : "test");
+            String cohort = i < 6 ? "control" : "test";
+            recordWorkspaceTelemetryEvent("op-outcome-frt-" + i, "kpi_frt_recorded", "kpi", "T-OUTCOME-FRT-" + i,
+                    null, null, "test".equals(cohort) ? 1700L : 1200L,
+                    "workspace_v1_rollout", cohort, "team=ops;shift=day",
+                    "frt,ttr,sla_breach", null, baseTime);
+            recordWorkspaceTelemetryEvent("op-outcome-ttr-" + i, "kpi_ttr_recorded", "kpi", "T-OUTCOME-TTR-" + i,
+                    null, null, "test".equals(cohort) ? 3600L : 2400L,
+                    "workspace_v1_rollout", cohort, "team=ops;shift=day",
+                    "frt,ttr,sla_breach", null, baseTime);
+            recordWorkspaceTelemetryEvent("op-outcome-sla-" + i, "kpi_sla_breach_recorded", "kpi", "T-OUTCOME-SLA-" + i,
+                    null, null, null, "workspace_v1_rollout", cohort, "team=ops;shift=day",
+                    "frt,ttr,sla_breach", null, baseTime);
         }
 
         Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");

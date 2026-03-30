@@ -154,6 +154,11 @@
 - сохранять UTC как обязательный формат для packet, analytics и integration fixtures;
 - не расширять governance-поверхность без явного evidence-based запроса.
 
+Состояние на 30 марта 2026 года:
+- integration-фикстуры для rollout/context/governance переведены на helper-based UTC timestamps вместо `datetime('now', ...)`;
+- shared config path в integration-сценариях выровнен с runtime-путём;
+- legacy inventory deadlines обрабатываются тем же UTC parser, что и остальные review timestamps.
+
 ## Операционный режим
 
 ### Engineering guardrails
