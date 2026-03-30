@@ -169,10 +169,12 @@
 - weekly review priority и churn-risk summary для дешёвого weekly governance review.
 - telemetry summary теперь показывает `policy churn` против decision-цикла, а не только статический governance audit.
 - analytics теперь показывает churn-level и follow-up pressure, а не просто процент churn.
+- появился отдельный `p2_governance_control`, который сводит SLA churn, cheap-path drift и macro-noise в единый operational signal со status / summary / next action.
+- типовые SLA policy changes теперь оцениваются отдельно через `typical_policy_change_ready` и `cheap_path_drift_risk_level`, а не только через общий weekly review summary.
 
 Что остаётся:
-- проверить, что реальный `policy churn` не остаётся высоким на типовых policy changes;
-- при необходимости сократить advisory checkpoint-ы ещё на один уровень для типовых policy changes.
+- проверить, что реальный `policy churn` не остаётся высоким на типовых policy changes уже на живых окнах telemetry;
+- при необходимости сократить advisory checkpoint-ы ещё на один уровень для типовых policy changes, если `cheap path drift` снова пойдёт вверх.
 
 ### P2. Macro governance: quality loop уже на данных, но noise всё ещё под наблюдением
 Что уже закрыто:
@@ -188,6 +190,7 @@
 - closure/freshness metrics;
 - mandatory-first analytics, noise-level summary и weekly review priority.
 - advisory noise теперь разложен на actionable vs low-signal red-list кандидаты, чтобы не бюрократизировать легитимно низкое использование.
+- macro audit теперь отдельно показывает `actionable_advisory_share_pct`, `low_signal_advisory_share_pct` и `low_signal_backlog_dominant`, чтобы видеть, не превращается ли low-signal red-list в ручной backlog по инерции.
 
 Что остаётся:
 - проверить, что actionable advisory остаётся главным сигналом, а low-signal red-list не превращается в ручной backlog по инерции;
@@ -232,16 +235,16 @@
 - cleanup библиотеки должен идти по данным использования, а не по ручному ощущению.
 
 Минимум на следующий цикл:
-- сравнить advisory noise против обязательных macro checkpoint-ов;
-- при необходимости понизить часть low-signal red-list сигналов до чисто аналитических.
+- сравнить advisory noise против обязательных macro checkpoint-ов на живых usage-tier окнах;
+- при необходимости понизить часть low-signal red-list сигналов до чисто аналитических, если `low_signal_backlog_dominant` начнёт повторяться.
 
 ### Шаг 4. Сделать governance freshness/closure управленческой нормой
 Цель:
 - оценивать не количество checkpoint-ов, а качество и своевременность их закрытия.
 
 Минимум на следующий цикл:
-- использовать closure/freshness rate как стандартную weekly review метрику;
-- отследить, где noise-level остаётся высоким несмотря на хорошие closure numbers.
+- использовать closure/freshness rate как стандартную weekly review метрику в `p2_governance_control`;
+- отследить, где noise-level остаётся высоким несмотря на хорошие closure numbers и cheap/minimum paths уже nominally ready.
 
 ---
 

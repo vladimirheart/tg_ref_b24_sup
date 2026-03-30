@@ -2075,6 +2075,9 @@ if (legacyUsageBlockedReasonsFollowupInput) {
     const p1Control = payload?.p1_operational_control && typeof payload.p1_operational_control === 'object'
       ? payload.p1_operational_control
       : {};
+    const p2Control = payload?.p2_governance_control && typeof payload.p2_governance_control === 'object'
+      ? payload.p2_governance_control
+      : {};
     const slaReviewPathControl = payload?.sla_review_path_control && typeof payload.sla_review_path_control === 'object'
       ? payload.sla_review_path_control
       : {};
@@ -2129,6 +2132,9 @@ if (legacyUsageBlockedReasonsFollowupInput) {
     if (slaReviewPathControl?.status) {
       updatedAt.textContent += ` · sla-path=${String(slaReviewPathControl.status)}${slaReviewPathControl?.decision_lead_time_status ? ` (${String(slaReviewPathControl.decision_lead_time_status)})` : ''}`;
     }
+    if (p2Control?.status) {
+      updatedAt.textContent += ` · p2=${String(p2Control.status)}${p2Control?.sla_churn_trend_status ? ` (${String(p2Control.sla_churn_trend_status)})` : ''}`;
+    }
     const visibleAlerts = renderAlerts(alerts, filters);
     renderFilterState(filters, visibleAlerts.length);
     renderBreakdownRows(shiftTable, filteredRows(payload?.by_shift, 'shift', filters), 'shift', 'Недостаточно данных по сменам.');
@@ -2155,14 +2161,19 @@ if (legacyUsageBlockedReasonsFollowupInput) {
       const slaText = slaReviewPathControl?.status && slaReviewPathControl.status !== 'controlled'
         ? ` SLA path: ${String(slaReviewPathControl.summary || '').trim()}${slaReviewPathControl?.minimum_required_review_path_summary ? ` · ${String(slaReviewPathControl.minimum_required_review_path_summary).trim()}` : ''}${slaReviewPathControl?.next_action_summary ? ` · next: ${String(slaReviewPathControl.next_action_summary).trim()}` : ''}`
         : '';
-      alertBox.textContent = `Зафиксировано ${alerts.length} отклонений guardrails (${visibleAlerts.length} по текущему фильтру).${focusText}${p1Text}${slaText}`;
+      const p2Text = p2Control?.status && p2Control.status !== 'controlled'
+        ? ` P2 control: ${String(p2Control.summary || '').trim()}${p2Control?.next_action_summary ? ` · next: ${String(p2Control.next_action_summary).trim()}` : ''}`
+        : '';
+      alertBox.textContent = `Зафиксировано ${alerts.length} отклонений guardrails (${visibleAlerts.length} по текущему фильтру).${focusText}${p1Text}${slaText}${p2Text}`;
       alertBox.classList.remove('d-none');
-    } else if (weeklyFocusSections.length || (p1Control?.status && p1Control.status !== 'controlled') || (slaReviewPathControl?.status && slaReviewPathControl.status !== 'controlled')) {
+    } else if (weeklyFocusSections.length || (p1Control?.status && p1Control.status !== 'controlled') || (slaReviewPathControl?.status && slaReviewPathControl.status !== 'controlled') || (p2Control?.status && p2Control.status !== 'controlled')) {
       alertBox.textContent = weeklyFocusSections.length
         ? `Weekly focus: ${String(weeklyReviewFocus?.summary || '').trim()}${weeklyReviewFocus?.priority_mix_summary ? ` · ${String(weeklyReviewFocus.priority_mix_summary).trim()}` : ''}${weeklyReviewFocus?.next_action_summary ? ` · next: ${String(weeklyReviewFocus.next_action_summary).trim()}` : ''}${weeklyReviewFocus?.requires_management_review === true ? ' · management review suggested' : ''}`
         : (p1Control?.status && p1Control.status !== 'controlled'
           ? `P1 control: ${String(p1Control?.summary || '').trim()}${p1Control?.next_action_summary ? ` · next: ${String(p1Control.next_action_summary).trim()}` : ''}`
-          : `SLA path: ${String(slaReviewPathControl?.summary || '').trim()}${slaReviewPathControl?.minimum_required_review_path_summary ? ` · ${String(slaReviewPathControl.minimum_required_review_path_summary).trim()}` : ''}${slaReviewPathControl?.next_action_summary ? ` · next: ${String(slaReviewPathControl.next_action_summary).trim()}` : ''}`);
+          : (slaReviewPathControl?.status && slaReviewPathControl.status !== 'controlled'
+            ? `SLA path: ${String(slaReviewPathControl?.summary || '').trim()}${slaReviewPathControl?.minimum_required_review_path_summary ? ` · ${String(slaReviewPathControl.minimum_required_review_path_summary).trim()}` : ''}${slaReviewPathControl?.next_action_summary ? ` · next: ${String(slaReviewPathControl.next_action_summary).trim()}` : ''}`
+            : `P2 control: ${String(p2Control?.summary || '').trim()}${p2Control?.next_action_summary ? ` · next: ${String(p2Control.next_action_summary).trim()}` : ''}`));
       alertBox.classList.remove('d-none');
     } else {
       alertBox.classList.add('d-none');

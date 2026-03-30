@@ -1949,6 +1949,7 @@ public class DialogApiController {
         payload.put("macro_governance_audit", macroGovernanceAudit);
         payload.put("p1_operational_control", buildP1OperationalControl(payload));
         payload.put("sla_review_path_control", buildSlaReviewPathControl(payload, slaPolicyAudit));
+        payload.put("p2_governance_control", buildP2GovernanceControl(payload, slaPolicyAudit, macroGovernanceAudit));
         payload.put("weekly_review_focus", buildWorkspaceWeeklyReviewFocus(payload, slaPolicyAudit, macroGovernanceAudit));
         payload.put("success", true);
         return ResponseEntity.ok(payload);
@@ -2081,6 +2082,88 @@ public class DialogApiController {
         control.put("next_action_summary", nextActionSummary);
         control.put("management_review_required", "followup".equals(status) && "high".equals(String.valueOf(
                 safeSlaAudit.getOrDefault("policy_churn_risk_level", totals.getOrDefault("workspace_sla_policy_churn_level", "")))));
+        return control;
+    }
+
+    private Map<String, Object> buildP2GovernanceControl(Map<String, Object> payload,
+                                                         Map<String, Object> slaPolicyAudit,
+                                                         Map<String, Object> macroGovernanceAudit) {
+        Map<String, Object> totals = payload.get("totals") instanceof Map<?, ?> map
+                ? OBJECT_MAPPER.convertValue(map, new TypeReference<Map<String, Object>>() {})
+                : Map.of();
+        Map<String, Object> previousTotals = payload.get("previous_totals") instanceof Map<?, ?> map
+                ? OBJECT_MAPPER.convertValue(map, new TypeReference<Map<String, Object>>() {})
+                : Map.of();
+        Map<String, Object> safeSlaAudit = slaPolicyAudit != null ? slaPolicyAudit : Map.of();
+        Map<String, Object> safeMacroAudit = macroGovernanceAudit != null ? macroGovernanceAudit : Map.of();
+
+        long currentSlaChurnPct = asLong(totals.get("workspace_sla_policy_churn_ratio_pct"));
+        long previousSlaChurnPct = asLong(previousTotals.get("workspace_sla_policy_churn_ratio_pct"));
+        long slaChurnDeltaPct = currentSlaChurnPct - previousSlaChurnPct;
+        String slaTrendStatus = slaChurnDeltaPct >= 25L
+                ? "rising"
+                : slaChurnDeltaPct <= -25L ? "improving" : "stable";
+
+        boolean slaManagementReviewRequired = "high".equals(String.valueOf(safeSlaAudit.getOrDefault("cheap_path_drift_risk_level", "")))
+                || "high".equals(String.valueOf(totals.getOrDefault("workspace_sla_policy_churn_level", "")));
+        boolean slaFollowupRequired = Boolean.TRUE.equals(safeSlaAudit.get("weekly_review_followup_required"))
+                || Boolean.TRUE.equals(totals.get("workspace_sla_policy_churn_followup_required"));
+        String slaStatus = slaManagementReviewRequired
+                ? "management_review"
+                : slaFollowupRequired
+                ? "followup"
+                : "controlled";
+
+        boolean macroManagementReviewRequired = !Boolean.TRUE.equals(safeMacroAudit.get("minimum_required_path_controlled"))
+                && Boolean.TRUE.equals(safeMacroAudit.get("weekly_review_followup_required"));
+        boolean macroFollowupRequired = Boolean.TRUE.equals(safeMacroAudit.get("advisory_followup_required"))
+                || Boolean.TRUE.equals(safeMacroAudit.get("advisory_path_reduction_candidate"))
+                || Boolean.TRUE.equals(safeMacroAudit.get("low_signal_backlog_dominant"));
+        String macroStatus = macroManagementReviewRequired
+                ? "management_review"
+                : macroFollowupRequired
+                ? "followup"
+                : "controlled";
+
+        String status = ("management_review".equals(slaStatus) || "management_review".equals(macroStatus))
+                ? "management_review"
+                : ("followup".equals(slaStatus) || "followup".equals(macroStatus))
+                ? "followup"
+                : "controlled";
+
+        String nextActionSummary = firstNonBlank(
+                Boolean.TRUE.equals(safeSlaAudit.get("advisory_path_reduction_candidate"))
+                        ? "Сократите SLA advisory checkpoints для типовых policy changes и удерживайте cheap path."
+                        : "",
+                Boolean.TRUE.equals(safeMacroAudit.get("low_signal_backlog_dominant"))
+                        ? "Оставьте low-signal macro red-list аналитическим и не превращайте его в ручной backlog."
+                        : "",
+                String.valueOf(safeSlaAudit.getOrDefault("weekly_review_summary", "")),
+                String.valueOf(safeMacroAudit.getOrDefault("weekly_review_summary", "")),
+                "P2 governance control не требует дополнительного follow-up.");
+
+        Map<String, Object> control = new LinkedHashMap<>();
+        control.put("status", status);
+        control.put("summary", "controlled".equals(status)
+                ? "P2 governance control удерживается: SLA churn и macro noise остаются в рабочем диапазоне."
+                : "P2 governance control требует follow-up для SLA churn-control или macro noise.");
+        control.put("sla_status", slaStatus);
+        control.put("sla_summary", firstNonBlank(
+                String.valueOf(safeSlaAudit.getOrDefault("minimum_required_review_path_summary", "")),
+                String.valueOf(safeSlaAudit.getOrDefault("weekly_review_summary", ""))));
+        control.put("sla_churn_trend_status", slaTrendStatus);
+        control.put("sla_churn_delta_pct", slaChurnDeltaPct);
+        control.put("sla_cheap_path_drift_risk_level", String.valueOf(safeSlaAudit.getOrDefault("cheap_path_drift_risk_level", "controlled")));
+        control.put("sla_typical_policy_change_ready", Boolean.TRUE.equals(safeSlaAudit.get("typical_policy_change_ready")));
+        control.put("macro_status", macroStatus);
+        control.put("macro_summary", firstNonBlank(
+                String.valueOf(safeMacroAudit.getOrDefault("low_signal_backlog_summary", "")),
+                String.valueOf(safeMacroAudit.getOrDefault("weekly_review_summary", ""))));
+        control.put("macro_low_signal_backlog_dominant", Boolean.TRUE.equals(safeMacroAudit.get("low_signal_backlog_dominant")));
+        control.put("macro_actionable_advisory_share_pct", asLong(safeMacroAudit.get("actionable_advisory_share_pct")));
+        control.put("macro_low_signal_advisory_share_pct", asLong(safeMacroAudit.get("low_signal_advisory_share_pct")));
+        control.put("next_action_summary", nextActionSummary);
+        control.put("management_review_required", "management_review".equals(status));
         return control;
     }
 

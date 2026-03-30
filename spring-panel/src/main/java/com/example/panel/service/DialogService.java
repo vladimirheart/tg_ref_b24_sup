@@ -1506,6 +1506,12 @@ public class DialogService {
         long advisoryNoiseExcludingLowSignalPct = issues.isEmpty()
                 ? 0L
                 : Math.round((actionableAdvisoryTotal * 100d) / issues.size());
+        long actionableAdvisorySharePct = advisoryIssueTotal > 0
+                ? Math.round((actionableAdvisoryTotal * 100d) / advisoryIssueTotal)
+                : 0L;
+        long lowSignalAdvisorySharePct = advisoryIssueTotal > 0
+                ? Math.round((lowSignalAdvisoryTotal * 100d) / advisoryIssueTotal)
+                : 0L;
         String noiseLevel = advisoryIssueTotal <= mandatoryIssueTotal
                 ? "controlled"
                 : advisoryIssueTotal >= Math.max(3L, mandatoryIssueTotal * 2L)
@@ -1513,6 +1519,13 @@ public class DialogService {
                 : "moderate";
         boolean advisoryFollowupRequired = actionableAdvisoryTotal > mandatoryIssueTotal
                 || advisoryNoiseExcludingLowSignalPct >= 50L;
+        boolean lowSignalBacklogDominant = lowSignalAdvisoryTotal > actionableAdvisoryTotal
+                && lowSignalAdvisorySharePct >= 50L;
+        boolean minimumRequiredPathControlled = requiredCheckpointClosureRatePct >= 100L
+                && freshnessClosureRatePct >= 100L;
+        String lowSignalBacklogSummary = lowSignalBacklogDominant
+                ? "Low-signal red-list начинает доминировать над actionable advisory; держите его аналитическим, а не backlog-driven."
+                : "Low-signal red-list не доминирует над actionable advisory.";
         String weeklyReviewPriority = requiredCheckpointClosureRatePct < 100L
                 ? "close_required_path"
                 : freshnessClosureRatePct < 100L
@@ -1551,6 +1564,10 @@ public class DialogService {
         audit.put("advisory_issue_total", advisoryIssueTotal);
         audit.put("low_signal_advisory_total", lowSignalAdvisoryTotal);
         audit.put("actionable_advisory_total", actionableAdvisoryTotal);
+        audit.put("actionable_advisory_share_pct", actionableAdvisorySharePct);
+        audit.put("low_signal_advisory_share_pct", lowSignalAdvisorySharePct);
+        audit.put("low_signal_backlog_dominant", lowSignalBacklogDominant);
+        audit.put("low_signal_backlog_summary", lowSignalBacklogSummary);
         audit.put("missing_owner_total", missingOwnerTotal);
         audit.put("missing_namespace_total", missingNamespaceTotal);
         audit.put("stale_review_total", staleReviewTotal);
@@ -1567,6 +1584,7 @@ public class DialogService {
         audit.put("required_checkpoint_total", requiredCheckpointTotal);
         audit.put("required_checkpoint_ready_total", requiredCheckpointReadyTotal);
         audit.put("required_checkpoint_closure_rate_pct", requiredCheckpointClosureRatePct);
+        audit.put("minimum_required_path_controlled", minimumRequiredPathControlled);
         audit.put("freshness_checkpoint_total", freshnessCheckpointTotal);
         audit.put("freshness_checkpoint_ready_total", freshnessCheckpointReadyTotal);
         audit.put("freshness_closure_rate_pct", freshnessClosureRatePct);
