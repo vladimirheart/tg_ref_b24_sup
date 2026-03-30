@@ -2072,9 +2072,10 @@ public class DialogService {
                     boolean deadlineTimestampInvalid = toBoolean(metadata.get("deadline_timestamp_invalid"));
                     Instant deadlineInstant = null;
                     if (StringUtils.hasText(deadlineAt)) {
-                        try {
-                            deadlineInstant = Instant.parse(deadlineAt);
-                        } catch (Exception ignored) {
+                        OffsetDateTime parsedDeadline = parseReviewTimestamp(deadlineAt);
+                        if (parsedDeadline != null) {
+                            deadlineInstant = parsedDeadline.toInstant();
+                        } else {
                             deadlineTimestampInvalid = true;
                         }
                     }
