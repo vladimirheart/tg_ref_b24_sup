@@ -3329,6 +3329,10 @@ public class DialogApiController {
                 sourceViolations,
                 missingPriorityBlocks,
                 playbooks);
+        List<Map<String, Object>> primaryViolationDetails = violationDetails.stream()
+                .limit(2)
+                .toList();
+        int deferredViolationCount = Math.max(0, violationDetails.size() - primaryViolationDetails.size());
         List<String> definitionGaps = Stream.of(
                         scenarios.isEmpty() ? "scenarios" : null,
                         (mandatoryFields.isEmpty() && mandatoryFieldsByScenario.isEmpty()) ? "mandatory_fields" : null,
@@ -3353,7 +3357,19 @@ public class DialogApiController {
         } else if (!missingPriorityBlocks.isEmpty()) {
             actionItems.add("Верните в workspace блоки: " + String.join(", ", missingPriorityBlocks.stream().limit(3).toList()) + ".");
         }
-         boolean definitionReady = !scenarios.isEmpty()
+        String operatorSummary = violations.isEmpty()
+                ? "Minimum profile соблюдён."
+                : !missingMandatoryFields.isEmpty()
+                ? "Сначала заполните обязательные поля клиента."
+                : !sourceViolations.isEmpty()
+                ? "Проверьте source-of-truth и freshness для customer context."
+                : !missingPriorityBlocks.isEmpty()
+                ? "Верните обязательные context-блоки в основной workspace."
+                : !definitionGaps.isEmpty()
+                ? "Contract definitions требуют cleanup."
+                : "Context contract требует action-oriented follow-up.";
+        String nextStepSummary = actionItems.isEmpty() ? "" : actionItems.get(0);
+        boolean definitionReady = !scenarios.isEmpty()
                  && (!mandatoryFields.isEmpty() || !mandatoryFieldsByScenario.isEmpty())
                  && (!sourceOfTruth.isEmpty() || !sourceOfTruthByScenario.isEmpty())
                  && (!priorityBlocks.isEmpty() || !priorityBlocksByScenario.isEmpty());
@@ -3380,10 +3396,14 @@ public class DialogApiController {
         payload.put("missing_priority_blocks", missingPriorityBlocks);
         payload.put("violations", violations);
         payload.put("violation_details", violationDetails);
+        payload.put("primary_violation_details", primaryViolationDetails);
+        payload.put("deferred_violation_count", deferredViolationCount);
         payload.put("playbooks", playbooks);
         payload.put("definition_gaps", definitionGaps);
         payload.put("operator_focus_blocks", operatorFocusBlocks);
         payload.put("progressive_disclosure_ready", !operatorFocusBlocks.isEmpty());
+        payload.put("operator_summary", operatorSummary);
+        payload.put("next_step_summary", nextStepSummary);
         payload.put("action_items", actionItems);
         payload.put("checked_at_utc", Instant.now().toString());
         return payload;

@@ -871,6 +871,9 @@ class SupportPanelIntegrationTests {
         assertThat(legacyInventory).containsEntry("repeat_review_due_at_utc", "");
         assertThat(legacyInventory).containsEntry("repeat_review_overdue_days", 0L);
         assertThat(legacyInventory).containsEntry("closure_rate_pct", 0L);
+        assertThat(legacyInventory).containsEntry("review_queue_count", 2);
+        assertThat((List<String>) legacyInventory.get("review_queue_scenarios")).containsExactly("attachments_edit", "inline_reopen");
+        assertThat((List<String>) legacyInventory.get("overdue_scenarios")).isEmpty();
         assertThat(legacyInventory).containsEntry("unmanaged_count", 2L);
         assertThat(items).anySatisfy(item -> {
             if ("weekly_review".equals(item.get("key"))) {
@@ -924,6 +927,9 @@ class SupportPanelIntegrationTests {
         assertThat(legacyInventory).containsEntry("deadline_coverage_pct", 100L);
         assertThat(legacyInventory).containsEntry("repeat_review_required", false);
         assertThat(legacyInventory).containsEntry("unmanaged_count", 0L);
+        assertThat(legacyInventory).containsEntry("review_queue_count", 0);
+        assertThat((List<String>) legacyInventory.get("review_queue_scenarios")).isEmpty();
+        assertThat((List<String>) legacyInventory.get("overdue_scenarios")).isEmpty();
         assertThat((List<String>) legacyInventory.get("action_items")).isEmpty();
         assertThat(items).anySatisfy(item -> {
             if ("legacy_only_inventory".equals(item.get("key"))) {

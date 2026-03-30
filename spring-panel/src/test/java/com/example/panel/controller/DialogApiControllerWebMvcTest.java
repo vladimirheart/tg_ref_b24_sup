@@ -7,6 +7,7 @@ import com.example.panel.service.DialogNotificationService;
 import com.example.panel.service.DialogReplyService;
 import com.example.panel.service.DialogService;
 import com.example.panel.service.PermissionService;
+import com.example.panel.service.PublicFormService;
 import com.example.panel.service.SlaEscalationWebhookNotifier;
 import com.example.panel.service.SharedConfigService;
 import com.example.panel.storage.AttachmentService;
@@ -71,6 +72,9 @@ class DialogApiControllerWebMvcTest {
 
     @MockBean
     private SlaEscalationWebhookNotifier slaEscalationWebhookNotifier;
+
+    @MockBean
+    private PublicFormService publicFormService;
 
     @Test
     void snoozeRejectsInvalidDuration() throws Exception {
@@ -223,7 +227,7 @@ class DialogApiControllerWebMvcTest {
                 null,
                 "billing"
         );
-        when(dialogService.loadDialogDetails("T-1", null, "operator"))
+        when(dialogService.loadDialogDetails(anyString(), org.mockito.ArgumentMatchers.nullable(Long.class), anyString()))
                 .thenReturn(Optional.of(new DialogDetails(summary, List.of(), List.of())));
         when(dialogService.loadHistory("T-1", null)).thenReturn(List.of());
         when(dialogService.loadClientDialogHistory(anyLong(), anyString(), anyInt())).thenReturn(List.of());
@@ -315,6 +319,8 @@ class DialogApiControllerWebMvcTest {
                 .andExpect(jsonPath("$.context.contract.operator_focus_blocks[0]").value("customer_profile"))
                 .andExpect(jsonPath("$.context.contract.operator_focus_blocks[1]").value("context_sources"))
                 .andExpect(jsonPath("$.context.contract.progressive_disclosure_ready").value(true))
+                .andExpect(jsonPath("$.context.contract.operator_summary").value("Minimum profile соблюдён."))
+                .andExpect(jsonPath("$.context.contract.next_step_summary").value(""))
                 .andExpect(jsonPath("$.context.contract.action_items.length()").value(0))
                 .andExpect(jsonPath("$.context.contract.effective_mandatory_fields.length()").value(2))
                 .andExpect(jsonPath("$.context.contract.missing_mandatory_fields.length()").value(0))
@@ -378,7 +384,7 @@ class DialogApiControllerWebMvcTest {
                 null,
                 "billing"
         );
-        when(dialogService.loadDialogDetails("T-CONTEXT-GAP", null, "operator"))
+        when(dialogService.loadDialogDetails(anyString(), org.mockito.ArgumentMatchers.nullable(Long.class), anyString()))
                 .thenReturn(Optional.of(new DialogDetails(summary, List.of(), List.of())));
         when(dialogService.loadHistory("T-CONTEXT-GAP", null)).thenReturn(List.of());
         when(dialogService.loadClientDialogHistory(anyLong(), anyString(), anyInt())).thenReturn(List.of());
@@ -411,7 +417,11 @@ class DialogApiControllerWebMvcTest {
                 .andExpect(jsonPath("$.context.contract.ready").value(false))
                 .andExpect(jsonPath("$.context.contract.missing_mandatory_fields[0]").value("phone"))
                 .andExpect(jsonPath("$.context.contract.operator_focus_blocks[0]").value("customer_profile"))
+                .andExpect(jsonPath("$.context.contract.operator_summary").value("Сначала заполните обязательные поля клиента."))
+                .andExpect(jsonPath("$.context.contract.next_step_summary").value("Сначала дозаполните поля: phone."))
                 .andExpect(jsonPath("$.context.contract.action_items[0]").value("Сначала дозаполните поля: phone."))
+                .andExpect(jsonPath("$.context.contract.primary_violation_details.length()").value(1))
+                .andExpect(jsonPath("$.context.contract.deferred_violation_count").value(0))
                 .andExpect(jsonPath("$.context.contract.violation_details[0].code").value("mandatory_field:phone"))
                 .andExpect(jsonPath("$.context.contract.violation_details[0].severity").value("high"))
                 .andExpect(jsonPath("$.context.contract.violation_details[0].short_label").value("Поле \"Phone\" не заполнено"))

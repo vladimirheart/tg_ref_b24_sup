@@ -2588,16 +2588,30 @@
     if (legacyOnlyScenarios.length) {
       const legacyActionItems = Array.isArray(legacyInventory?.action_items) ? legacyInventory.action_items : [];
       const overdue = Number(legacyInventory?.deadline_overdue_count || 0);
+      const reviewQueueScenarios = Array.isArray(legacyInventory?.review_queue_scenarios) ? legacyInventory.review_queue_scenarios : [];
+      const overdueScenarios = Array.isArray(legacyInventory?.overdue_scenarios) ? legacyInventory.overdue_scenarios : [];
       checks.push({
         ok: overdue === 0,
         label: overdue > 0
           ? `Sunset commitments overdue: ${overdue}${legacyActionItems.length ? ` · ${legacyActionItems[0]}` : ''}`
           : `Owner/deadline coverage ${Number(legacyInventory?.owner_coverage_pct || 0)}% / ${Number(legacyInventory?.deadline_coverage_pct || 0)}%`
       });
+      if (reviewQueueScenarios.length) {
+        checks.push({
+          ok: false,
+          label: `Повторно остаются в legacy review-queue: ${reviewQueueScenarios.slice(0, 3).join(', ')}${reviewQueueScenarios.length > 3 ? ` +${reviewQueueScenarios.length - 3}` : ''}`
+        });
+      }
+      if (overdueScenarios.length) {
+        checks.push({
+          ok: false,
+          label: `Overdue scenarios: ${overdueScenarios.join(', ')}`
+        });
+      }
       if (legacyInventory?.repeat_review_required === true) {
         checks.push({
           ok: false,
-          label: `Повторный legacy review обязателен (${String(legacyInventory?.repeat_review_reason || 'review_due')})`
+          label: `Повторный legacy review обязателен (${String(legacyInventory?.repeat_review_reason || 'review_due')})${legacyInventory?.repeat_review_due_at_utc ? ` · due ${formatTimestamp(legacyInventory.repeat_review_due_at_utc, { includeTime: true, fallback: '—' })}` : ''}`
         });
       }
     }
@@ -4180,8 +4194,18 @@
       : (client.context_contract && typeof client.context_contract === 'object' ? client.context_contract : null);
     const contractViolations = Array.isArray(contract?.violations) ? contract.violations.filter(Boolean) : [];
     const contractViolationDetails = normalizeWorkspaceContextViolationDetails(contract?.violation_details);
-    const primaryViolationCards = contractViolationDetails.slice(0, 3);
-    const extraViolationCards = contractViolationDetails.slice(3);
+    const primaryViolationPayload = Array.isArray(contract?.primary_violation_details)
+      ? normalizeWorkspaceContextViolationDetails(contract.primary_violation_details)
+      : [];
+    const primaryViolationCards = primaryViolationPayload.length
+      ? primaryViolationPayload
+      : contractViolationDetails.slice(0, 2);
+    const extraViolationCards = contractViolationDetails.slice(primaryViolationCards.length);
+    const deferredViolationCount = Number(contract?.deferred_violation_count || extraViolationCards.length || 0);
+    const contractOperatorSummary = String(contract?.operator_summary || '').trim();
+    const contractNextStepSummary = String(contract?.next_step_summary || '').trim();
+    const focusBlocks = Array.isArray(contract?.operator_focus_blocks) ? contract.operator_focus_blocks : [];
+    const progressiveDisclosureReady = contract?.progressive_disclosure_ready === true;
     const renderViolationCard = (detail) => `<div class="border rounded px-2 py-2 bg-white">
         <div class="d-flex flex-wrap align-items-center gap-2">
           <span class="badge ${workspaceContextViolationSeverityBadge(detail.severity)}">${escapeHtml(workspaceContextViolationSeverityLabel(detail.severity))}</span>
@@ -4200,22 +4224,27 @@
       : `<div class="d-flex flex-column gap-2 mt-2">
           ${primaryViolationCards.map((detail) => renderViolationCard(detail)).join('')}
           ${extraViolationCards.length
-            ? `<details><summary class="small text-muted">Показать ещё ${extraViolationCards.length}</summary><div class="d-flex flex-column gap-2 mt-2">${extraViolationCards.map((detail) => renderViolationCard(detail)).join('')}</div></details>`
+            ? `<details${progressiveDisclosureReady ? '' : ' open'}><summary class="small text-muted">Показать ещё ${deferredViolationCount}</summary><div class="d-flex flex-column gap-2 mt-2">${extraViolationCards.map((detail) => renderViolationCard(detail)).join('')}</div></details>`
             : ''}
         </div>`;
     const contextContractSection = contract && contract.enabled === true
       ? `<div class="alert ${contract.ready === true ? 'alert-success' : 'alert-warning'} py-2 px-3 small mt-2 mb-2">
           <div class="fw-semibold mb-1">Context contract</div>
-          <div>${contract.ready === true
+          <div>${contractOperatorSummary || (contract.ready === true
             ? 'Minimum profile соблюдён.'
             : contractViolationDetails.length
               ? `Нужно закрыть ${contractViolationDetails.length} context-gap ${contractViolationDetails.length === 1 ? 'элемент' : (contractViolationDetails.length < 5 ? 'элемента' : 'элементов')}.`
               : `Есть отклонения: ${escapeHtml(contractViolations.join(', ') || 'contract_not_ready')}.`}</div>
-          ${Array.isArray(contract.operator_focus_blocks) && contract.operator_focus_blocks.length
-            ? `<div class="mt-1"><span class="text-muted">Operator first:</span> ${escapeHtml(contract.operator_focus_blocks.join(', '))}</div>`
+          ${focusBlocks.length
+            ? `<div class="mt-1"><span class="text-muted">Operator first:</span> ${escapeHtml(focusBlocks.join(', '))}</div>`
             : ''}
-          ${Array.isArray(contract.action_items) && contract.action_items.length
-            ? `<div class="mt-1"><span class="text-muted">Что сделать:</span> ${escapeHtml(contract.action_items[0])}</div>`
+          ${contractNextStepSummary
+            ? `<div class="mt-1"><span class="text-muted">Что сделать:</span> ${escapeHtml(contractNextStepSummary)}</div>`
+            : (Array.isArray(contract.action_items) && contract.action_items.length
+              ? `<div class="mt-1"><span class="text-muted">Что сделать:</span> ${escapeHtml(contract.action_items[0])}</div>`
+              : '')}
+          ${deferredViolationCount > 0
+            ? `<div class="mt-1 text-muted">Остальные детали скрыты до раскрытия: ${deferredViolationCount}.</div>`
             : ''}
           ${violationActionsSection}
           <div class="text-muted mt-1">Проверено: ${escapeHtml(formatWorkspaceDateTime(contract.checked_at_utc || contract.checked_at))}</div>
