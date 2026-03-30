@@ -2397,6 +2397,14 @@ class SupportPanelIntegrationTests {
         assertThat(audit).containsEntry("noise_level", "high");
         assertThat(audit).containsEntry("weekly_review_priority", "close_required_path");
         assertThat(String.valueOf(audit.get("weekly_review_summary"))).contains("обязательные macro checkpoints");
+        assertThat(audit).containsKeys(
+                "low_signal_advisory_total",
+                "actionable_advisory_total",
+                "advisory_noise_excluding_low_signal_pct",
+                "advisory_followup_required",
+                "low_signal_red_list_templates");
+        assertThat(((Number) audit.get("actionable_advisory_total")).longValue()).isGreaterThanOrEqualTo(0L);
+        assertThat(((Number) audit.get("low_signal_advisory_total")).longValue()).isGreaterThanOrEqualTo(0L);
         assertThat((List<String>) audit.get("advisory_signals"))
                 .contains("red_list", "owner_action");
         assertThat(issues).anySatisfy(issue -> {
@@ -2424,6 +2432,7 @@ class SupportPanelIntegrationTests {
                 assertThat(template.get("status")).isEqualTo("hold");
                 assertThat(template.get("usage_count")).isEqualTo(0L);
                 assertThat(template.get("red_list_candidate")).isEqualTo(true);
+                assertThat(template).containsKey("red_list_low_signal");
                 assertThat(template.get("owner_action_required")).isEqualTo(true);
             }
         });

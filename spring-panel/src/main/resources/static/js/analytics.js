@@ -1147,6 +1147,9 @@ if (legacyUsageBlockedReasonsFollowupInput) {
       if (audit?.policy_churn_risk_level) {
         parts.push(`churn=${String(audit.policy_churn_risk_level)}`);
       }
+      if (Number(latestPayload?.totals?.workspace_sla_policy_churn_ratio_pct || 0) > 0) {
+        parts.push(`telemetry churn=${formatNumber(latestPayload.totals.workspace_sla_policy_churn_ratio_pct)}% (${String(latestPayload?.totals?.workspace_sla_policy_churn_level || 'controlled')})`);
+      }
       if (advisory.length) {
         parts.push(`noise filter: ${advisory.slice(0, 2).join(', ')}`);
       }
@@ -1309,8 +1312,15 @@ if (legacyUsageBlockedReasonsFollowupInput) {
       if (Number(audit?.red_list_total || 0) > 0) {
         parts.push(`Red-list: ${formatNumber(audit.red_list_total)}`);
       }
+      if (Number(audit?.low_signal_advisory_total || 0) > 0) {
+        parts.push(`Low-signal: ${formatNumber(audit.low_signal_advisory_total)}`);
+      }
       if (Number(audit?.owner_action_total || 0) > 0) {
         parts.push(`Owner actions: ${formatNumber(audit.owner_action_total)}`);
+      }
+      const lowSignalTemplates = Array.isArray(audit?.low_signal_red_list_templates) ? audit.low_signal_red_list_templates : [];
+      if (lowSignalTemplates.length) {
+        parts.push(`analytics-only candidates: ${lowSignalTemplates.slice(0, 2).join(', ')}`);
       }
       macroGovernanceIssueSummary.textContent = parts.join(' · ');
       macroGovernanceIssueSummary.className = `alert ${status === 'hold' ? 'alert-danger' : (status === 'attention' ? 'alert-warning' : 'alert-secondary')} mb-3${parts.length ? '' : ' d-none'}`;
@@ -1332,7 +1342,17 @@ if (legacyUsageBlockedReasonsFollowupInput) {
       }
       parts.push(`mandatory=${formatNumber(audit?.mandatory_issue_total || 0)}`);
       parts.push(`advisory=${formatNumber(audit?.advisory_issue_total || 0)}`);
+      if (Number(audit?.actionable_advisory_total || 0) > 0 || Number(audit?.low_signal_advisory_total || 0) > 0) {
+        parts.push(`actionable=${formatNumber(audit?.actionable_advisory_total || 0)}`);
+        parts.push(`low-signal=${formatNumber(audit?.low_signal_advisory_total || 0)}`);
+      }
       parts.push(`noise=${formatNumber(audit?.noise_ratio_pct || 0)}% (${String(audit?.noise_level || 'controlled')})`);
+      if (Number(audit?.advisory_noise_excluding_low_signal_pct || 0) > 0) {
+        parts.push(`noise*=${formatNumber(audit?.advisory_noise_excluding_low_signal_pct || 0)}%`);
+      }
+      if (audit?.advisory_followup_required === true) {
+        parts.push('follow-up=yes');
+      }
       if (advisory.length) {
         parts.push(`noise filter: ${advisory.slice(0, 2).join(', ')}`);
       }
@@ -1975,7 +1995,7 @@ if (legacyUsageBlockedReasonsFollowupInput) {
       updatedAt.textContent = `Обновлено: ${formatTimestamp(payload?.generated_at)} · окно ${payload?.window_days || '—'} дн. · ${windowFrom} — ${windowTo}`;
     }
     if (Number(totals.context_secondary_details_expanded_events || 0) > 0 || Number(totals.workspace_sla_policy_review_updated_events || 0) > 0) {
-      updatedAt.textContent += ` · secondary-context opens ${formatNumber(totals.context_secondary_details_expanded_events || 0)} (${formatNumber(totals.context_secondary_details_open_rate_pct || 0)}%) · SLA churn ${formatNumber(totals.workspace_sla_policy_churn_ratio_pct || 0)}%`;
+      updatedAt.textContent += ` · secondary-context opens ${formatNumber(totals.context_secondary_details_expanded_events || 0)} (${formatNumber(totals.context_secondary_details_open_rate_pct || 0)}%, ${String(totals.context_secondary_details_usage_level || 'rare')}${totals.context_secondary_details_top_section ? `, top ${String(totals.context_secondary_details_top_section)}` : ''}) · SLA churn ${formatNumber(totals.workspace_sla_policy_churn_ratio_pct || 0)}% (${String(totals.workspace_sla_policy_churn_level || 'controlled')})`;
     }
     const visibleAlerts = renderAlerts(alerts, filters);
     renderFilterState(filters, visibleAlerts.length);
