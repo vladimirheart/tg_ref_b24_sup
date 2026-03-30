@@ -3909,6 +3909,8 @@
                             <th>Тип оборудования</th>
                             <th>Производитель</th>
                             <th>Модель</th>
+                            <th>Серийный номер</th>
+                            <th>Комплектация</th>
                             <th>Ссылки</th>
                             <th></th>
                           </tr>
@@ -4278,6 +4280,27 @@
                 <label class="form-label" for="itEquipmentModelSelect">Модель оборудования</label>
                 <select class="form-select" id="itEquipmentModelSelect" data-it-equipment-field="equipment_model" required></select>
                 <div class="invalid-feedback">Укажите модель оборудования.</div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label" for="itEquipmentSerialNumberInput">Серийный номер <span class="text-muted">(необязательно)</span></label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="itEquipmentSerialNumberInput"
+                  data-it-equipment-field="serial_number"
+                  placeholder="Например, SN-00012345"
+                >
+              </div>
+              <div class="mb-3">
+                <label class="form-label" for="itEquipmentAccessoriesInput">Комплектация / аксессуары <span class="text-muted">(необязательно)</span></label>
+                <textarea
+                  class="form-control"
+                  id="itEquipmentAccessoriesInput"
+                  data-it-equipment-field="accessories"
+                  rows="2"
+                  placeholder="Кронштейн, блок питания, патч-корд и т.д."
+                ></textarea>
+                <div class="form-text">Поле сохраняется как canonical `accessories`; старый API-алиас `additional_equipment` остаётся совместимым.</div>
               </div>
               <div class="mb-3">
                 <label class="form-label">Ссылки <span class="text-muted">(необязательно)</span></label>
@@ -10116,7 +10139,7 @@
     itEquipmentBody.innerHTML = '';
     if (!list.length) {
       const emptyRow = document.createElement('tr');
-      emptyRow.innerHTML = '<td colspan="5" class="text-muted text-center">Пока нет оборудования</td>';
+      emptyRow.innerHTML = '<td colspan="7" class="text-muted text-center">Пока нет оборудования</td>';
       itEquipmentBody.appendChild(emptyRow);
       return;
     }
@@ -10130,11 +10153,19 @@
       const equipmentType = typeof (item && item.equipment_type) === 'string' ? item.equipment_type : '';
       const equipmentVendor = typeof (item && item.equipment_vendor) === 'string' ? item.equipment_vendor : '';
       const equipmentModel = typeof (item && item.equipment_model) === 'string' ? item.equipment_model : '';
+      const serialNumber = typeof (item && item.serial_number) === 'string' ? item.serial_number : '';
+      const accessories = typeof (item && item.accessories) === 'string'
+        ? item.accessories
+        : typeof (item && item.additional_equipment) === 'string'
+          ? item.additional_equipment
+          : '';
       const links = parseEquipmentLinks(item && item.photo_url);
       row.innerHTML = `
         <td><select class="form-select form-select-sm" data-field="equipment_type">${buildEquipmentSelectOptions(optionSets.types, equipmentType)}</select></td>
         <td><select class="form-select form-select-sm" data-field="equipment_vendor">${buildEquipmentSelectOptions(optionSets.vendors, equipmentVendor)}</select></td>
         <td><select class="form-select form-select-sm" data-field="equipment_model">${buildEquipmentSelectOptions(optionSets.models, equipmentModel)}</select></td>
+        <td><input type="text" class="form-control form-control-sm" data-field="serial_number" value="${escapeHtml(serialNumber)}" placeholder="Серийный номер"></td>
+        <td><textarea class="form-control form-control-sm" data-field="accessories" rows="2" placeholder="Комплектация / аксессуары">${escapeHtml(accessories)}</textarea></td>
         <td>
           <div class="d-flex flex-column gap-2" data-links-container></div>
           <button class="btn btn-sm btn-outline-secondary align-self-start" type="button" data-it-equipment-link-action="add-link">+ Ссылка</button>
@@ -10160,6 +10191,8 @@
       equipment_type: selectValue('[data-field="equipment_type"]'),
       equipment_vendor: selectValue('[data-field="equipment_vendor"]'),
       equipment_model: selectValue('[data-field="equipment_model"]'),
+      serial_number: selectValue('[data-field="serial_number"]'),
+      accessories: selectValue('[data-field="accessories"]'),
       photo_url: formatEquipmentLinksPayload(collectEquipmentLinks(row.querySelector('[data-links-container]'))),
     };
   }
@@ -10530,6 +10563,12 @@
   const itEquipmentModelSelect = itEquipmentAddModalEl
     ? itEquipmentAddModalEl.querySelector('#itEquipmentModelSelect')
     : null;
+  const itEquipmentSerialNumberInput = itEquipmentAddModalEl
+    ? itEquipmentAddModalEl.querySelector('#itEquipmentSerialNumberInput')
+    : null;
+  const itEquipmentAccessoriesInput = itEquipmentAddModalEl
+    ? itEquipmentAddModalEl.querySelector('#itEquipmentAccessoriesInput')
+    : null;
   const itEquipmentAddLinksContainer = itEquipmentAddModalEl
     ? itEquipmentAddModalEl.querySelector('[data-it-equipment-add-links]')
     : null;
@@ -10603,6 +10642,12 @@
   if (itEquipmentAddModalEl) {
     itEquipmentAddModalEl.addEventListener('show.bs.modal', () => {
       const hasOptions = populateItEquipmentAddOptions();
+      if (itEquipmentSerialNumberInput) {
+        itEquipmentSerialNumberInput.value = '';
+      }
+      if (itEquipmentAccessoriesInput) {
+        itEquipmentAccessoriesInput.value = '';
+      }
       if (itEquipmentAddLinksContainer) {
         renderEquipmentLinks(itEquipmentAddLinksContainer, []);
       }
@@ -10665,6 +10710,8 @@
           itEquipmentModelSelect && !itEquipmentModelSelect.disabled
             ? itEquipmentModelSelect.value.trim()
             : '',
+        serial_number: itEquipmentSerialNumberInput ? itEquipmentSerialNumberInput.value.trim() : '',
+        accessories: itEquipmentAccessoriesInput ? itEquipmentAccessoriesInput.value.trim() : '',
         photo_url: formatEquipmentLinksPayload(collectEquipmentLinks(itEquipmentAddLinksContainer)),
       };
 
