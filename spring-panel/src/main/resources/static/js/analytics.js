@@ -807,8 +807,16 @@
       } else if (Number(legacyInventory?.review_queue_count || 0) > 0) {
         parts.push(`queue=${formatNumber(legacyInventory.review_queue_count)}`);
       }
+      if (legacyInventory?.review_queue_escalation_required === true) {
+        parts.push(`queue pressure=${String(legacyInventory?.review_queue_closure_pressure || 'high')}`);
+      }
+      if (Number(legacyInventory?.review_queue_consolidation_count || 0) > 0) {
+        parts.push(`consolidate=${formatNumber(legacyInventory?.review_queue_consolidation_count || 0)}`);
+      }
       if (actionItems.length) {
         parts.push(`next: ${actionItems[0]}`);
+      } else if (legacyInventory?.review_queue_next_action_summary) {
+        parts.push(`next: ${String(legacyInventory.review_queue_next_action_summary)}`);
       }
       legacyInventorySummary.textContent = parts.join(' · ');
     }
@@ -2010,7 +2018,7 @@ if (legacyUsageBlockedReasonsFollowupInput) {
     if (Number(totals.context_secondary_details_expanded_events || 0) > 0 || Number(totals.workspace_sla_policy_review_updated_events || 0) > 0) {
       updatedAt.textContent += ` · secondary-context opens ${formatNumber(totals.context_secondary_details_expanded_events || 0)} (${formatNumber(totals.context_secondary_details_open_rate_pct || 0)}%, ${String(totals.context_secondary_details_usage_level || 'rare')}${totals.context_secondary_details_top_section ? `, top ${String(totals.context_secondary_details_top_section)}` : ''})`;
       if (Number(totals.context_extra_attributes_expanded_events || 0) > 0) {
-        updatedAt.textContent += ` · extra-attrs ${formatNumber(totals.context_extra_attributes_expanded_events || 0)} (${formatNumber(totals.context_extra_attributes_open_rate_pct || 0)}%, ${String(totals.context_extra_attributes_usage_level || 'rare')}${totals.context_extra_attributes_compaction_candidate === true ? ', compact' : ''})`;
+        updatedAt.textContent += ` · extra-attrs ${formatNumber(totals.context_extra_attributes_expanded_events || 0)} (${formatNumber(totals.context_extra_attributes_open_rate_pct || 0)}%, ${String(totals.context_extra_attributes_usage_level || 'rare')}${totals.context_extra_attributes_compaction_candidate === true ? `, compact, share ${formatNumber(totals.context_extra_attributes_share_pct_of_secondary || 0)}%` : ''})`;
       }
       updatedAt.textContent += ` · SLA churn ${formatNumber(totals.workspace_sla_policy_churn_ratio_pct || 0)}% (${String(totals.workspace_sla_policy_churn_level || 'controlled')})`;
     }

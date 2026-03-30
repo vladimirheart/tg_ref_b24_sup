@@ -1967,10 +1967,10 @@ public class DialogApiController {
         Map<String, Object> safeSlaAudit = slaPolicyAudit != null ? slaPolicyAudit : Map.of();
         Map<String, Object> safeMacroAudit = macroGovernanceAudit != null ? macroGovernanceAudit : Map.of();
         boolean contextExtraAttributesCompactionCandidate = Boolean.TRUE.equals(totals.get("context_extra_attributes_compaction_candidate"));
-        boolean contextHeavyDisclosure = "heavy".equals(String.valueOf(totals.getOrDefault("context_secondary_details_usage_level", "")));
-        boolean legacyManagementReviewRequired = asLong(legacyInventory.get("review_queue_repeat_cycles")) >= 3L
+        boolean legacyManagementReviewRequired = Boolean.TRUE.equals(legacyInventory.get("review_queue_escalation_required"))
+                || asLong(legacyInventory.get("review_queue_repeat_cycles")) >= 3L
                 || asLong(legacyInventory.get("review_queue_oldest_overdue_days")) >= 7L;
-        boolean contextManagementReviewRequired = contextExtraAttributesCompactionCandidate && contextHeavyDisclosure;
+        boolean contextManagementReviewRequired = Boolean.TRUE.equals(totals.get("context_secondary_details_management_review_required"));
         boolean slaManagementReviewRequired = "high".equals(String.valueOf(safeSlaAudit.getOrDefault("policy_churn_risk_level", "")))
                 || "high".equals(String.valueOf(totals.getOrDefault("workspace_sla_policy_churn_level", "")));
         boolean macroManagementReviewRequired = Boolean.TRUE.equals(safeMacroAudit.get("weekly_review_followup_required"))
@@ -1985,8 +1985,11 @@ public class DialogApiController {
                     "priority", "high",
                     "summary", String.valueOf(legacyInventory.getOrDefault("review_queue_summary", "")),
                     "management_review_required", legacyManagementReviewRequired,
-                    "action_item", firstListItem(legacyInventory.get("action_items"),
+                    "action_item", firstNonBlank(
+                            String.valueOf(legacyInventory.getOrDefault("review_queue_next_action_summary", "")),
+                            firstListItem(legacyInventory.get("action_items"),
                             "Закройте weekly closure-loop для legacy review-queue.")
+                    )
             ));
         }
         if (Boolean.TRUE.equals(totals.get("context_secondary_details_followup_required"))) {
@@ -1995,6 +1998,7 @@ public class DialogApiController {
                     "label", "Context noise",
                     "priority", "medium",
                     "summary", firstNonBlank(
+                            String.valueOf(totals.getOrDefault("context_secondary_details_compaction_summary", "")),
                             String.valueOf(totals.getOrDefault("context_extra_attributes_summary", "")),
                             String.valueOf(totals.getOrDefault("context_secondary_details_summary", ""))),
                     "management_review_required", contextManagementReviewRequired,
