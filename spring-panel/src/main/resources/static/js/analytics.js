@@ -1974,6 +1974,9 @@ if (legacyUsageBlockedReasonsFollowupInput) {
     if (windowFrom !== '—' && windowTo !== '—') {
       updatedAt.textContent = `Обновлено: ${formatTimestamp(payload?.generated_at)} · окно ${payload?.window_days || '—'} дн. · ${windowFrom} — ${windowTo}`;
     }
+    if (Number(totals.context_secondary_details_expanded_events || 0) > 0 || Number(totals.workspace_sla_policy_review_updated_events || 0) > 0) {
+      updatedAt.textContent += ` · secondary-context opens ${formatNumber(totals.context_secondary_details_expanded_events || 0)} (${formatNumber(totals.context_secondary_details_open_rate_pct || 0)}%) · SLA churn ${formatNumber(totals.workspace_sla_policy_churn_ratio_pct || 0)}%`;
+    }
     const visibleAlerts = renderAlerts(alerts, filters);
     renderFilterState(filters, visibleAlerts.length);
     renderBreakdownRows(shiftTable, filteredRows(payload?.by_shift, 'shift', filters), 'shift', 'Недостаточно данных по сменам.');

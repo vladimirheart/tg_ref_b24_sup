@@ -141,9 +141,10 @@
 - runtime и analytics visibility;
 - progressive disclosure для вторичных context violations;
 - secondary `sources` и `source/freshness policy` блоки свернуты в дешёвый details-first режим с компактным summary.
+- secondary `sources` / `source-freshness policy` / `extra attributes` теперь дают disclosure telemetry, так что sidebar можно оценивать по фактическому раскрытию, а не по ощущениям.
 
 Что остаётся:
-- проверить по usage telemetry, насколько часто операторы вообще раскрывают вторичные `sources/policy` блоки;
+- посмотреть первые usage trends по disclosure telemetry и подтвердить, что вторичные блоки действительно открываются редко;
 - при необходимости ещё сильнее ужать `extra attributes`, если они продолжают конкурировать с primary context.
 
 ### P2. SLA governance: ядро удешевлено, дальше нужен churn-control
@@ -158,9 +159,10 @@
 - closure/freshness metrics;
 - mandatory-first presentation в analytics;
 - weekly review priority и churn-risk summary для дешёвого weekly governance review.
+- telemetry summary теперь показывает `policy churn` против decision-цикла, а не только статический governance audit.
 
 Что остаётся:
-- проверить, что обновление policy не создаёт лишний churn в review-cycle на реальных policy changes;
+- проверить, что реальный `policy churn` не остаётся высоким на типовых policy changes;
 - при необходимости сократить advisory checkpoint-ы ещё на один уровень для типовых policy changes.
 
 ### P2. Macro governance: quality loop уже на данных, но noise всё ещё под наблюдением
@@ -206,7 +208,7 @@
 - оператор должен видеть customer-context priority до любых вторичных policy деталей.
 
 Минимум на следующий цикл:
-- собрать usage telemetry по раскрытию вторичных `sources` и `source/freshness policy` блоков;
+- посмотреть disclosure telemetry по вторичным `sources` / `source-freshness policy` / `extra attributes`;
 - проверить фактическую частоту раскрытия hidden details в workspace.
 
 ### Шаг 3. Зафиксировать минимальный дешёвый SLA review path
@@ -215,7 +217,7 @@
 
 Минимум на следующий цикл:
 - подтвердить, что `minimum_required_review_path` покрывает типовые policy changes;
-- измерить policy churn против decision lead time.
+- измерить policy churn против decision lead time на реальных изменениях правил.
 
 ### Шаг 4. Проверить macro noise на реальных usage-tier сценариях
 Цель:

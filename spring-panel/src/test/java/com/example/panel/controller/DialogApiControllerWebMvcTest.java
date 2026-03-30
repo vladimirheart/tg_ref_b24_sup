@@ -1271,6 +1271,51 @@ class DialogApiControllerWebMvcTest {
     }
 
     @Test
+    void workspaceTelemetryAcceptsContextDisclosureEvents() throws Exception {
+        mockMvc.perform(post("/api/dialogs/workspace-telemetry")
+                        .with(user("operator"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "event_type": "workspace_context_sources_expanded",
+                                  "ticket_id": "T-CTX-DISCLOSE",
+                                  "reason": "section:context_sources|items:3|required:2|gaps:1|hidden:0",
+                                  "duration_ms": 3
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        mockMvc.perform(post("/api/dialogs/workspace-telemetry")
+                        .with(user("operator"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "event_type": "workspace_context_attribute_policy_expanded",
+                                  "ticket_id": "T-CTX-DISCLOSE",
+                                  "reason": "section:attribute_policy|items:2|required:1|gaps:1|hidden:0",
+                                  "duration_ms": 2
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        mockMvc.perform(post("/api/dialogs/workspace-telemetry")
+                        .with(user("operator"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "event_type": "workspace_context_extra_attributes_expanded",
+                                  "ticket_id": "T-CTX-DISCLOSE",
+                                  "reason": "section:extra_attributes|items:8|required:0|gaps:0|hidden:4",
+                                  "duration_ms": 8
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
     void workspaceTelemetryAcceptsReplyAndMediaParityEvents() throws Exception {
         mockMvc.perform(post("/api/dialogs/workspace-telemetry")
                         .with(user("operator"))

@@ -4581,6 +4581,9 @@ public class DialogService {
         long contextAttributePolicyGapEvents = rows.stream().mapToLong(row -> toLong(row.get("context_attribute_policy_gap_events"))).sum();
         long contextBlockGapEvents = rows.stream().mapToLong(row -> toLong(row.get("context_block_gap_events"))).sum();
         long contextContractGapEvents = rows.stream().mapToLong(row -> toLong(row.get("context_contract_gap_events"))).sum();
+        long contextSourcesExpandedEvents = rows.stream().mapToLong(row -> toLong(row.get("context_sources_expanded_events"))).sum();
+        long contextAttributePolicyExpandedEvents = rows.stream().mapToLong(row -> toLong(row.get("context_attribute_policy_expanded_events"))).sum();
+        long contextExtraAttributesExpandedEvents = rows.stream().mapToLong(row -> toLong(row.get("context_extra_attributes_expanded_events"))).sum();
         long workspaceSlaPolicyGapEvents = rows.stream().mapToLong(row -> toLong(row.get("workspace_sla_policy_gap_events"))).sum();
         long workspaceParityGapEvents = rows.stream().mapToLong(row -> toLong(row.get("workspace_parity_gap_events"))).sum();
         long workspaceInlineNavigationEvents = rows.stream().mapToLong(row -> toLong(row.get("workspace_inline_navigation_events"))).sum();
@@ -4593,9 +4596,17 @@ public class DialogService {
         long workspaceRolloutReviewDecisionRollbackEvents = rows.stream().mapToLong(row -> toLong(row.get("workspace_rollout_review_decision_rollback_events"))).sum();
         long workspaceRolloutReviewIncidentFollowupLinkedEvents = rows.stream().mapToLong(row -> toLong(row.get("workspace_rollout_review_incident_followup_linked_events"))).sum();
         long workspaceSlaPolicyReviewUpdatedEvents = rows.stream().mapToLong(row -> toLong(row.get("workspace_sla_policy_review_updated_events"))).sum();
+        long workspaceSlaPolicyDecisionEvents = rows.stream()
+                .mapToLong(row -> toLong(row.get("workspace_rollout_review_decision_go_events"))
+                        + toLong(row.get("workspace_rollout_review_decision_hold_events"))
+                        + toLong(row.get("workspace_rollout_review_decision_rollback_events")))
+                .sum();
         long workspaceMacroGovernanceReviewUpdatedEvents = rows.stream().mapToLong(row -> toLong(row.get("workspace_macro_governance_review_updated_events"))).sum();
         long workspaceMacroExternalCatalogPolicyUpdatedEvents = rows.stream().mapToLong(row -> toLong(row.get("workspace_macro_external_catalog_policy_updated_events"))).sum();
         long workspaceMacroDeprecationPolicyUpdatedEvents = rows.stream().mapToLong(row -> toLong(row.get("workspace_macro_deprecation_policy_updated_events"))).sum();
+        long workspaceMacroPolicyUpdateEvents = workspaceMacroGovernanceReviewUpdatedEvents
+                + workspaceMacroExternalCatalogPolicyUpdatedEvents
+                + workspaceMacroDeprecationPolicyUpdatedEvents;
         long frtRecordedEvents = rows.stream().mapToLong(row -> toLong(row.get("kpi_frt_recorded_events"))).sum();
         long ttrRecordedEvents = rows.stream().mapToLong(row -> toLong(row.get("kpi_ttr_recorded_events"))).sum();
         long slaBreachRecordedEvents = rows.stream().mapToLong(row -> toLong(row.get("kpi_sla_breach_recorded_events"))).sum();
@@ -4619,6 +4630,18 @@ public class DialogService {
         Long avgFrtMs = weightedAverage(rows, "kpi_frt_recorded_events", "avg_frt_ms");
         long workspaceLegacyUsagePolicyUpdatedEvents = rows.stream().mapToLong(row -> toLong(row.get("workspace_legacy_usage_policy_updated_events"))).sum();
         Long avgTtrMs = weightedAverage(rows, "kpi_ttr_recorded_events", "avg_ttr_ms");
+        long contextSecondaryDetailsExpandedEvents = contextSourcesExpandedEvents
+                + contextAttributePolicyExpandedEvents
+                + contextExtraAttributesExpandedEvents;
+        long contextSecondaryDetailsOpenRatePct = workspaceOpenEvents > 0
+                ? Math.round((contextSecondaryDetailsExpandedEvents * 100d) / workspaceOpenEvents)
+                : 0L;
+        long workspaceSlaPolicyChurnRatioPct = workspaceSlaPolicyDecisionEvents > 0
+                ? Math.round((workspaceSlaPolicyReviewUpdatedEvents * 100d) / workspaceSlaPolicyDecisionEvents)
+                : (workspaceSlaPolicyReviewUpdatedEvents > 0 ? 100L : 0L);
+        long workspaceSlaPolicyDecisionCoveragePct = workspaceSlaPolicyReviewUpdatedEvents > 0
+                ? Math.round((workspaceSlaPolicyDecisionEvents * 100d) / workspaceSlaPolicyReviewUpdatedEvents)
+                : 100L;
 
         totals.put("events", events);
         totals.put("render_errors", renderErrors);
@@ -4636,6 +4659,10 @@ public class DialogService {
         totals.put("context_attribute_policy_gap_events", contextAttributePolicyGapEvents);
         totals.put("context_block_gap_events", contextBlockGapEvents);
         totals.put("context_contract_gap_events", contextContractGapEvents);
+        totals.put("context_sources_expanded_events", contextSourcesExpandedEvents);
+        totals.put("context_attribute_policy_expanded_events", contextAttributePolicyExpandedEvents);
+        totals.put("context_extra_attributes_expanded_events", contextExtraAttributesExpandedEvents);
+        totals.put("context_secondary_details_expanded_events", contextSecondaryDetailsExpandedEvents);
         totals.put("workspace_sla_policy_gap_events", workspaceSlaPolicyGapEvents);
         totals.put("workspace_parity_gap_events", workspaceParityGapEvents);
         totals.put("workspace_inline_navigation_events", workspaceInlineNavigationEvents);
@@ -4648,9 +4675,13 @@ public class DialogService {
         totals.put("workspace_rollout_review_decision_rollback_events", workspaceRolloutReviewDecisionRollbackEvents);
         totals.put("workspace_rollout_review_incident_followup_linked_events", workspaceRolloutReviewIncidentFollowupLinkedEvents);
         totals.put("workspace_sla_policy_review_updated_events", workspaceSlaPolicyReviewUpdatedEvents);
+        totals.put("workspace_sla_policy_decision_events", workspaceSlaPolicyDecisionEvents);
+        totals.put("workspace_sla_policy_churn_ratio_pct", workspaceSlaPolicyChurnRatioPct);
+        totals.put("workspace_sla_policy_decision_coverage_pct", workspaceSlaPolicyDecisionCoveragePct);
         totals.put("workspace_macro_governance_review_updated_events", workspaceMacroGovernanceReviewUpdatedEvents);
         totals.put("workspace_macro_external_catalog_policy_updated_events", workspaceMacroExternalCatalogPolicyUpdatedEvents);
         totals.put("workspace_macro_deprecation_policy_updated_events", workspaceMacroDeprecationPolicyUpdatedEvents);
+        totals.put("workspace_macro_policy_update_events", workspaceMacroPolicyUpdateEvents);
         totals.put("context_profile_gap_rate", workspaceOpenEvents > 0 ? (double) contextProfileGapEvents / workspaceOpenEvents : 0d);
         totals.put("context_profile_ready_rate", workspaceOpenEvents > 0
                 ? Math.max(0d, 1d - ((double) contextProfileGapEvents / workspaceOpenEvents))
@@ -4671,6 +4702,7 @@ public class DialogService {
         totals.put("context_contract_ready_rate", workspaceOpenEvents > 0
                 ? Math.max(0d, 1d - ((double) contextContractGapEvents / workspaceOpenEvents))
                 : 1d);
+        totals.put("context_secondary_details_open_rate_pct", contextSecondaryDetailsOpenRatePct);
         totals.put("workspace_sla_policy_gap_rate", workspaceOpenEvents > 0 ? (double) workspaceSlaPolicyGapEvents / workspaceOpenEvents : 0d);
         totals.put("workspace_sla_policy_ready_rate", workspaceOpenEvents > 0
                 ? Math.max(0d, 1d - ((double) workspaceSlaPolicyGapEvents / workspaceOpenEvents))
@@ -5615,6 +5647,9 @@ public class DialogService {
                        SUM(CASE WHEN event_type = 'workspace_context_attribute_policy_gap' THEN 1 ELSE 0 END) AS context_attribute_policy_gap_events,
                        SUM(CASE WHEN event_type = 'workspace_context_block_gap' THEN 1 ELSE 0 END) AS context_block_gap_events,
                        SUM(CASE WHEN event_type = 'workspace_context_contract_gap' THEN 1 ELSE 0 END) AS context_contract_gap_events,
+                       SUM(CASE WHEN event_type = 'workspace_context_sources_expanded' THEN 1 ELSE 0 END) AS context_sources_expanded_events,
+                       SUM(CASE WHEN event_type = 'workspace_context_attribute_policy_expanded' THEN 1 ELSE 0 END) AS context_attribute_policy_expanded_events,
+                       SUM(CASE WHEN event_type = 'workspace_context_extra_attributes_expanded' THEN 1 ELSE 0 END) AS context_extra_attributes_expanded_events,
                        SUM(CASE WHEN event_type = 'workspace_sla_policy_gap' THEN 1 ELSE 0 END) AS workspace_sla_policy_gap_events,
                        SUM(CASE WHEN event_type = 'workspace_parity_gap' THEN 1 ELSE 0 END) AS workspace_parity_gap_events,
                        SUM(CASE WHEN event_type = 'workspace_inline_navigation' THEN 1 ELSE 0 END) AS workspace_inline_navigation_events,
@@ -5669,6 +5704,9 @@ public class DialogService {
                 item.put("context_attribute_policy_gap_events", rs.getLong("context_attribute_policy_gap_events"));
                 item.put("context_block_gap_events", rs.getLong("context_block_gap_events"));
                 item.put("context_contract_gap_events", rs.getLong("context_contract_gap_events"));
+                item.put("context_sources_expanded_events", rs.getLong("context_sources_expanded_events"));
+                item.put("context_attribute_policy_expanded_events", rs.getLong("context_attribute_policy_expanded_events"));
+                item.put("context_extra_attributes_expanded_events", rs.getLong("context_extra_attributes_expanded_events"));
                 item.put("workspace_sla_policy_gap_events", rs.getLong("workspace_sla_policy_gap_events"));
                 item.put("workspace_parity_gap_events", rs.getLong("workspace_parity_gap_events"));
                 item.put("workspace_inline_navigation_events", rs.getLong("workspace_inline_navigation_events"));
