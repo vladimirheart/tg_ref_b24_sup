@@ -969,6 +969,7 @@ class DialogApiControllerWebMvcTest {
                 "totals", Map.ofEntries(
                         Map.entry("context_secondary_details_followup_required", true),
                         Map.entry("context_secondary_details_summary", "Secondary context открывали 6 раз (30% от workspace opens); top=extra_attributes."),
+                        Map.entry("context_secondary_details_open_rate_pct", 30),
                         Map.entry("context_secondary_details_usage_level", "heavy"),
                         Map.entry("context_secondary_details_management_review_required", true),
                         Map.entry("context_secondary_details_compaction_summary", "Extra attributes формируют 83% secondary-context opens; стоит ужать hidden attributes."),
@@ -982,16 +983,23 @@ class DialogApiControllerWebMvcTest {
                         Map.entry("workspace_sla_policy_churn_level", "high"),
                         Map.entry("workspace_sla_policy_churn_summary", "SLA policy updates=3, decisions=1, churn=300%.")
                 ),
+                "previous_totals", Map.of(
+                        "context_secondary_details_open_rate_pct", 12,
+                        "context_extra_attributes_open_rate_pct", 5
+                ),
                 "rollout_packet", Map.of(
-                        "legacy_only_inventory", Map.of(
-                                "review_queue_followup_required", true,
-                                "review_queue_summary", "В weekly closure review остаются 2 сценария(ев); oldest due=2099-04-01T00:00:00Z; repeat cycles=2.",
-                                "review_queue_repeat_cycles", 3,
-                                "review_queue_closure_pressure", "high",
-                                "review_queue_escalation_required", true,
-                                "review_queue_escalated_scenarios", List.of("attachments_edit", "inline_reopen"),
-                                "review_queue_next_action_summary", "Эскалируйте долгоживущие legacy review-queue сценарии на management review.",
-                                "action_items", List.of("Закройте weekly closure-loop для сценариев, которые повторно остаются в legacy review-queue.")
+                        "legacy_only_inventory", Map.ofEntries(
+                                Map.entry("review_queue_followup_required", true),
+                                Map.entry("review_queue_summary", "В weekly closure review остаются 2 сценария(ев); oldest due=2099-04-01T00:00:00Z; repeat cycles=2."),
+                                Map.entry("review_queue_repeat_cycles", 3),
+                                Map.entry("review_queue_closure_pressure", "high"),
+                                Map.entry("review_queue_management_review_required", true),
+                                Map.entry("review_queue_management_review_summary", "Management review нужен для 2 queue-сценария(ев); oldest overdue=0д."),
+                                Map.entry("review_queue_escalated_count", 2),
+                                Map.entry("review_queue_escalation_required", true),
+                                Map.entry("review_queue_escalated_scenarios", List.of("attachments_edit", "inline_reopen")),
+                                Map.entry("review_queue_next_action_summary", "Эскалируйте долгоживущие legacy review-queue сценарии на management review."),
+                                Map.entry("action_items", List.of("Закройте weekly closure-loop для сценариев, которые повторно остаются в legacy review-queue."))
                         )
                 ),
                 "rows", List.of(),
@@ -1032,7 +1040,11 @@ class DialogApiControllerWebMvcTest {
                 .andExpect(jsonPath("$.weekly_review_focus.sections[0].followup_required").value(true))
                 .andExpect(jsonPath("$.weekly_review_focus.sections[0].management_review_required").value(true))
                 .andExpect(jsonPath("$.weekly_review_focus.sections[0].section_status").value("management_review"))
+                .andExpect(jsonPath("$.weekly_review_focus.sections[0].action_item").value("Эскалируйте долгоживущие legacy review-queue сценарии на management review."))
                 .andExpect(jsonPath("$.weekly_review_focus.sections[2].summary").value("Extra attributes формируют 83% secondary-context opens; стоит ужать hidden attributes."))
+                .andExpect(jsonPath("$.weekly_review_focus.sections[2].trend_status").value("rising"))
+                .andExpect(jsonPath("$.weekly_review_focus.sections[2].trend_delta_pct").value(18))
+                .andExpect(jsonPath("$.weekly_review_focus.sections[2].extra_attributes_delta_pct").value(20))
                 .andExpect(jsonPath("$.weekly_review_focus.top_actions.length()").value(4));
     }
 

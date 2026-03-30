@@ -55,6 +55,7 @@
   const legacySaveButton = document.getElementById('workspaceTelemetryLegacySave');
   const legacyActionState = document.getElementById('workspaceTelemetryLegacyActionState');
   const legacyInventorySummary = document.getElementById('workspaceTelemetryLegacyInventorySummary');
+  const legacyQueueSummary = document.getElementById('workspaceTelemetryLegacyQueueSummary');
   const packetLegacyUsageState = document.getElementById('workspaceTelemetryPacketLegacyUsageState');
   const packetLegacyUsageMeta = document.getElementById('workspaceTelemetryPacketLegacyUsageMeta');
   const legacyUsageReviewedByInput = document.getElementById('workspaceTelemetryLegacyUsageReviewedBy');
@@ -88,6 +89,7 @@
   const contextSaveButton = document.getElementById('workspaceTelemetryContextSave');
   const contextActionState = document.getElementById('workspaceTelemetryContextActionState');
   const contextActionSummary = document.getElementById('workspaceTelemetryContextActionSummary');
+  const contextNoiseSummary = document.getElementById('workspaceTelemetryContextNoiseSummary');
   const slaPolicyAuditStatus = document.getElementById('workspaceTelemetrySlaPolicyAuditStatus');
   const slaPolicyAuditUpdatedAt = document.getElementById('workspaceTelemetrySlaPolicyAuditUpdatedAt');
   const slaPolicyAuditSummary = document.getElementById('workspaceTelemetrySlaPolicyAuditSummary');
@@ -318,6 +320,9 @@
     if (legacyInventorySummary) {
       legacyInventorySummary.textContent = '';
     }
+    if (legacyQueueSummary) {
+      legacyQueueSummary.textContent = '';
+    }
     if (legacyActionState) {
       legacyActionState.textContent = '';
     }
@@ -329,6 +334,9 @@
     }
     if (contextActionSummary) {
       contextActionSummary.textContent = '';
+    }
+    if (contextNoiseSummary) {
+      contextNoiseSummary.textContent = '';
     }
     if (contextActionState) {
       contextActionState.textContent = '';
@@ -809,6 +817,9 @@
       }
       if (legacyInventory?.review_queue_escalation_required === true) {
         parts.push(`queue pressure=${String(legacyInventory?.review_queue_closure_pressure || 'high')}`);
+        if (Number(legacyInventory?.review_queue_escalated_count || 0) > 0) {
+          parts.push(`mgmt=${formatNumber(legacyInventory?.review_queue_escalated_count || 0)}`);
+        }
       }
       if (Number(legacyInventory?.review_queue_consolidation_count || 0) > 0) {
         parts.push(`consolidate=${formatNumber(legacyInventory?.review_queue_consolidation_count || 0)}`);
@@ -819,6 +830,41 @@
         parts.push(`next: ${String(legacyInventory.review_queue_next_action_summary)}`);
       }
       legacyInventorySummary.textContent = parts.join(' · ');
+    }
+    if (legacyQueueSummary) {
+      const details = Array.isArray(legacyInventory?.scenario_details) ? legacyInventory.scenario_details : [];
+      const queueDetails = details
+        .filter((item) => item?.queue_candidate === true)
+        .slice(0, 4)
+        .map((item) => {
+          const scenario = String(item?.scenario || 'n/a');
+          const tags = [];
+          if (item?.escalation_candidate === true) {
+            tags.push('escalate');
+          } else if (item?.consolidation_candidate === true) {
+            tags.push('consolidate');
+          } else {
+            tags.push('follow-up');
+          }
+          if (item?.owner) {
+            tags.push(`owner=${String(item.owner)}`);
+          }
+          if (item?.deadline_at_utc) {
+            tags.push(`due=${formatTimestamp(item.deadline_at_utc)}`);
+          } else if (item?.deadline_timestamp_invalid === true) {
+            tags.push('due=invalid_utc');
+          } else {
+            tags.push('due=missing');
+          }
+          return `${scenario} [${tags.join(', ')}]`;
+        });
+      if (queueDetails.length) {
+        legacyQueueSummary.textContent = `Queue map: ${queueDetails.join(' · ')}${Number(legacyInventory?.review_queue_count || 0) > queueDetails.length ? ` · +${Number(legacyInventory?.review_queue_count || 0) - queueDetails.length} more` : ''}`;
+      } else if (legacyInventory?.review_queue_management_review_summary) {
+        legacyQueueSummary.textContent = String(legacyInventory.review_queue_management_review_summary);
+      } else {
+        legacyQueueSummary.textContent = '';
+      }
     }
     const legacyUsagePolicy = packet?.legacy_usage_policy || {};
 if (packetLegacyUsageState) {
@@ -944,7 +990,7 @@ if (legacyUsageBlockedReasonsFollowupInput) {
       const playbookExpectedCount = Number(contextContract?.playbook_expected_count || 0);
       const playbookCoveredCount = Number(contextContract?.playbook_covered_count || 0);
       const playbookCoveragePct = Number(contextContract?.playbook_coverage_pct || 0);
-      packetContextMeta.textContent = `scenarios=${contextScenarios.length} · fields=${contextMandatoryFields.length} · scenario profiles=${Object.keys(contextMandatoryFieldsByScenario).length} · sources=${contextSourceOfTruth.length} (+scenario ${Object.keys(contextSourceOfTruthByScenario).length}, effective ${contextEffectiveSourceOfTruth.length}) · blocks=${contextPriorityBlocks.length} (+scenario ${Object.keys(contextPriorityBlocksByScenario).length}, effective ${contextEffectivePriorityBlocks.length}) · playbooks=${playbookCount}${playbookExpectedCount > 0 ? ` (${playbookCoveredCount}/${playbookExpectedCount}, ${playbookCoveragePct}%)` : ''} · reviewed=${reviewedBy} @ ${reviewedAt}${ttl > 0 ? ` · ttl=${ttl}h` : ''}`;
+      packetContextMeta.textContent = `scenarios=${contextScenarios.length} · fields=${contextMandatoryFields.length} · scenario profiles=${Object.keys(contextMandatoryFieldsByScenario).length} · sources=${contextSourceOfTruth.length} (+scenario ${Object.keys(contextSourceOfTruthByScenario).length}, effective ${contextEffectiveSourceOfTruth.length}) · blocks=${contextPriorityBlocks.length} (+scenario ${Object.keys(contextPriorityBlocksByScenario).length}, effective ${contextEffectivePriorityBlocks.length}) · playbooks=${playbookCount}${playbookExpectedCount > 0 ? ` (${playbookCoveredCount}/${playbookExpectedCount}, ${playbookCoveragePct}%)` : ''}${contextContract?.secondary_noise_followup_required === true ? ` · secondary-noise=${String(contextContract?.secondary_noise_usage_level || 'followup')}` : ''}${contextContract?.extra_attributes_compaction_candidate === true ? ` · extra-attrs=${formatNumber(contextContract?.extra_attributes_open_rate_pct || 0)}% / share ${formatNumber(contextContract?.extra_attributes_share_pct_of_secondary || 0)}%` : ''} · reviewed=${reviewedBy} @ ${reviewedAt}${ttl > 0 ? ` · ttl=${ttl}h` : ''}`;
     }
     if (contextActionSummary) {
       const focusBlocks = Array.isArray(contextContract?.operator_focus_blocks) ? contextContract.operator_focus_blocks : [];
@@ -967,7 +1013,38 @@ if (legacyUsageBlockedReasonsFollowupInput) {
       } else if (actionItems.length) {
         parts.push(`next: ${actionItems[0]}`);
       }
+      if (contextContract?.extra_attributes_compaction_candidate === true) {
+        parts.push(String(contextContract?.secondary_noise_compaction_summary || contextContract?.extra_attributes_summary || '').trim());
+      }
       contextActionSummary.textContent = parts.join(' · ');
+    }
+    if (contextNoiseSummary) {
+      const currentSecondaryRate = Number(latestPayload?.totals?.context_secondary_details_open_rate_pct || 0);
+      const previousSecondaryRate = Number(latestPayload?.previous_totals?.context_secondary_details_open_rate_pct || 0);
+      const currentExtraRate = Number(contextContract?.extra_attributes_open_rate_pct || 0);
+      const previousExtraRate = Number(latestPayload?.previous_totals?.context_extra_attributes_open_rate_pct || 0);
+      const secondaryDelta = Math.round(currentSecondaryRate - previousSecondaryRate);
+      const extraDelta = Math.round(currentExtraRate - previousExtraRate);
+      const trendLabel = secondaryDelta >= 10
+        ? 'rising'
+        : secondaryDelta <= -10
+          ? 'improving'
+          : 'stable';
+      const parts = [];
+      if (contextContract?.secondary_noise_summary) {
+        parts.push(String(contextContract.secondary_noise_summary).trim());
+      }
+      if (contextContract?.secondary_noise_compaction_summary) {
+        parts.push(String(contextContract.secondary_noise_compaction_summary).trim());
+      }
+      parts.push(`trend=${trendLabel} (${currentSecondaryRate}% vs prev ${previousSecondaryRate}%, Δ ${secondaryDelta >= 0 ? '+' : ''}${secondaryDelta}pp)`);
+      if (contextContract?.extra_attributes_compaction_candidate === true || currentExtraRate > 0 || previousExtraRate > 0) {
+        parts.push(`extra-attrs ${currentExtraRate}% vs prev ${previousExtraRate}% (Δ ${extraDelta >= 0 ? '+' : ''}${extraDelta}pp)`);
+      }
+      if (contextContract?.secondary_noise_management_review_required === true) {
+        parts.push('management review required');
+      }
+      contextNoiseSummary.textContent = parts.join(' · ');
     }
     if (contextRequiredInput) {
       contextRequiredInput.checked = contextContract?.required === true;
