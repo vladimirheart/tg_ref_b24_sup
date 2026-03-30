@@ -1,17 +1,34 @@
-# Аудит страницы настроек: покрытие функций
+# Аудит страницы настроек: status after closure
 
-Дата: 2026-03-24
+Дата актуализации: 2026-03-30
 
-## Что проверяли
+## Итог
 
-- Контроллер сохранения настроек (`SettingsBridgeController`) и перечень ключей, которые backend принимает в payload `/settings`.
-- Шаблон страницы настроек (`templates/settings/index.html`) и наличие/отсутствие соответствующих ключей в UI.
+Задачи из этого аудита закрыты.
 
-## Вывод
+На 2026-03-30 страница настроек покрывает:
 
-Основная часть настроек покрыта интерфейсом. При автоматической сверке найдено **13 ключей**, которые обрабатываются backend, но не встречаются в шаблоне страницы настроек.
+- governance-поля для `workspace rollout`;
+- governance-поля для `macro catalog`;
+- UI и backend для `IT equipment`, включая `serial_number` и canonical-поле `accessories`;
+- обратную совместимость по старому API-алиасу `additional_equipment`.
 
-### 1) Ключи governance для macro catalog (не представлены в UI)
+Если новые настройки отсутствуют, поведение системы не меняется: backend продолжает использовать существующие default-значения и already-stored config.
+
+## Что было проверено
+
+- `SettingsBridgeController` принимает и сохраняет нужные ключи в `dialog_config`.
+- `templates/settings/index.html` содержит элементы управления для полей, которые раньше считались missing.
+- `IT equipment` форма и inline-редактирование теперь поддерживают:
+  - `serial_number`
+  - `accessories`
+  - старый alias `additional_equipment` на API-уровне
+
+## Что закрыто
+
+### 1. Macro governance
+
+В UI и payload страницы настроек присутствуют и сохраняются:
 
 - `dialog_macro_governance_require_owner`
 - `dialog_macro_governance_require_namespace`
@@ -20,27 +37,53 @@
 - `dialog_macro_governance_deprecation_requires_reason`
 - `dialog_macro_governance_unused_days`
 
-Комментарий: ключи принимаются контроллером и мапятся в `dialog_config`, но полей на странице для управления ими не найдено.
+Дополнительно сохранены и остальные поля macro quality loop, которые уже использовались audit/analytics-контуром.
 
-### 2) Ключи governance для workspace rollout (не представлены в UI)
+### 2. Workspace rollout governance
+
+В UI и payload страницы настроек присутствуют и сохраняются:
 
 - `dialog_workspace_rollout_governance_review_decision_required`
 - `dialog_workspace_rollout_governance_incident_followup_required`
 - `dialog_workspace_rollout_governance_review_decision_action`
 - `dialog_workspace_rollout_governance_review_incident_followup`
 
-Комментарий: backend поддерживает расширенный governance-контур, но в текущем шаблоне страницы прямых элементов для этих полей не обнаружено.
+Это означает, что extended governance path больше не является backend-only.
 
-### 3) Ключи каталога IT-оборудования (API-алиасы, не обязательный разрыв)
+### 3. IT equipment catalog
 
-- `accessories`
-- `additional_equipment`
-- `serial_number`
+Реальный gap был только здесь: backend давно принимал поля каталога оборудования, но settings UI не давал редактировать часть из них.
 
-Комментарий: это ключи API для CRUD оборудования (`/api/settings/it-equipment`), где `additional_equipment` выступает совместимым алиасом для `accessories`. Отсутствие буквального упоминания этих ключей в шаблоне не обязательно означает функциональный пробел UI, но требует ручной проверки формы раздела IT-оборудования в рантайме.
+Сейчас закрыто:
 
-## Рекомендации
+- в таблицу оборудования добавлены `Серийный номер` и `Комплектация`;
+- в modal добавлены `serial_number` и `accessories`;
+- inline-save и create-flow отправляют canonical-поле `accessories`;
+- backend по-прежнему принимает `additional_equipment` как compatibility alias и сохраняет его в `accessories`.
 
-1. Для governance-блоков добавить явные элементы управления в разделах Dialog/Macro, если эти параметры предполагается изменять из UI.
-2. Если параметры должны оставаться «скрытыми»/операционными, зафиксировать это в `docs/configuration.md` как intentional backend-only.
-3. Для IT-оборудования оставить алиас `additional_equipment` только на уровне API-совместимости и документировать canonical-поле `accessories`.
+Canonical naming:
+
+- UI и новые клиенты: `accessories`
+- compatibility alias: `additional_equipment`
+
+## Подтверждение тестами
+
+Документ опирается не только на ручную сверку, но и на тесты:
+
+- template coverage:
+  - governance fields in settings template
+  - IT equipment fields for `serial_number` and `accessories`
+- integration coverage:
+  - `SettingsBridgeController` сохраняет macro/workspace governance keys
+  - `IT equipment` update path сохраняет `serial_number`
+  - `additional_equipment` корректно мапится в `accessories`
+
+## Остаточный operational note
+
+Отдельных открытых задач по `settings_page_gap_audit.md` не осталось.
+
+Дальше это обычная поддержка:
+
+- держать template coverage tests зелёными при новых изменениях settings page;
+- не использовать `additional_equipment` как новое canonical-имя;
+- при расширении `IT equipment` формы добавлять поля сразу и в template coverage, и в integration tests.

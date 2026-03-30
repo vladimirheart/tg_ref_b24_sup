@@ -108,4 +108,19 @@ class SettingsTemplateGovernanceCoverageTest {
                 .contains("dialog_sla_critical_auto_assign_governance_dry_run_ticket_required")
                 .contains("dialog_sla_critical_auto_assign_governance_decision_required");
     }
+
+    @Test
+    void settingsTemplateContainsItEquipmentSerialAndAccessoriesFields() throws IOException {
+        String html = Files.readString(SETTINGS_TEMPLATE);
+
+        assertThat(html)
+                .contains("id=\"itEquipmentSerialNumberInput\"")
+                .contains("data-it-equipment-field=\"serial_number\"")
+                .contains("id=\"itEquipmentAccessoriesInput\"")
+                .contains("data-it-equipment-field=\"accessories\"")
+                .contains("<th>Серийный номер</th>")
+                .contains("<th>Комплектация</th>")
+                .contains("data-field=\"serial_number\"")
+                .contains("data-field=\"accessories\"");
+    }
 }

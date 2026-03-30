@@ -18,6 +18,9 @@ import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -29,6 +32,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -82,6 +86,11 @@ class SupportPanelIntegrationTests {
 
     @BeforeEach
     void clean() {
+        SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(
+                "settings-test",
+                "n/a",
+                new ArrayList<>(List.of(new SimpleGrantedAuthority("PAGE_SETTINGS")))
+        ));
         jdbcTemplate.update("DELETE FROM chat_history");
         jdbcTemplate.update("DELETE FROM task_history");
         jdbcTemplate.update("DELETE FROM task_links");
@@ -2285,6 +2294,39 @@ class SupportPanelIntegrationTests {
     }
 
     @Test
+    void settingsBridgeUpdatesItEquipmentSerialNumberAndAccessoriesUsingCompatibilityAlias() {
+        jdbcTemplate.update("""
+                INSERT INTO it_equipment_catalog (
+                    equipment_type, equipment_vendor, equipment_model, photo_url, serial_number, accessories, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+                """,
+                "Router", "MikroTik", "RB4011", "[]", "OLD-SN", "old kit");
+
+        Long itemId = jdbcTemplate.queryForObject("SELECT id FROM it_equipment_catalog LIMIT 1", Long.class);
+
+        Map<String, Object> response = settingsBridgeController.updateItEquipment(itemId, Map.of(
+                "serial_number", "SN-2026-0001",
+                "additional_equipment", "rack ears, power adapter"
+        ));
+
+        assertThat(response).containsEntry("success", true);
+        List<Map<String, Object>> items = (List<Map<String, Object>>) response.get("items");
+        assertThat(items).anySatisfy(item -> {
+            if (itemId.equals(((Number) item.get("id")).longValue())) {
+                assertThat(item).containsEntry("serial_number", "SN-2026-0001");
+                assertThat(item).containsEntry("accessories", "rack ears, power adapter");
+            }
+        });
+
+        Map<String, Object> persisted = jdbcTemplate.queryForMap(
+                "SELECT serial_number, accessories FROM it_equipment_catalog WHERE id = ?",
+                itemId
+        );
+        assertThat(persisted).containsEntry("serial_number", "SN-2026-0001");
+        assertThat(persisted).containsEntry("accessories", "rack ears, power adapter");
+    }
+
+    @Test
     void settingsBridgePersistsMacroGovernanceQualityLoopFields() {
         settingsBridgeController.updateSettings(Map.ofEntries(
                 Map.entry("dialog_macro_governance_red_list_enabled", true),
@@ -2342,12 +2384,12 @@ class SupportPanelIntegrationTests {
         assertThat(dialogConfig.get("sla_critical_auto_assign_audit_require_layers")).isEqualTo(true);
         assertThat(dialogConfig.get("sla_critical_auto_assign_audit_require_owner")).isEqualTo(true);
         assertThat(dialogConfig.get("sla_critical_auto_assign_audit_require_review")).isEqualTo(true);
-        assertThat(dialogConfig.get("sla_critical_auto_assign_audit_review_ttl_hours")).isEqualTo(72L);
-        assertThat(dialogConfig.get("sla_critical_auto_assign_audit_broad_rule_coverage_pct")).isEqualTo(55L);
+        assertThat(((Number) dialogConfig.get("sla_critical_auto_assign_audit_review_ttl_hours")).longValue()).isEqualTo(72L);
+        assertThat(((Number) dialogConfig.get("sla_critical_auto_assign_audit_broad_rule_coverage_pct")).longValue()).isEqualTo(55L);
         assertThat(dialogConfig.get("sla_critical_auto_assign_audit_block_on_conflicts")).isEqualTo(true);
         assertThat(dialogConfig.get("sla_critical_auto_assign_governance_review_required")).isEqualTo(true);
         assertThat(dialogConfig.get("sla_critical_auto_assign_governance_review_path")).isEqualTo("strict");
-        assertThat(dialogConfig.get("sla_critical_auto_assign_governance_review_ttl_hours")).isEqualTo(48L);
+        assertThat(((Number) dialogConfig.get("sla_critical_auto_assign_governance_review_ttl_hours")).longValue()).isEqualTo(48L);
         assertThat(dialogConfig.get("sla_critical_auto_assign_governance_dry_run_ticket_required")).isEqualTo(true);
         assertThat(dialogConfig.get("sla_critical_auto_assign_governance_decision_required")).isEqualTo(true);
         assertThat(dialogConfig.get("sla_critical_auto_assign_governance_policy_changed_at")).isNotNull();
