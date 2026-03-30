@@ -79,6 +79,7 @@ public class PublicFormApiController {
         payload.put("disabledStatus", config.get().disabledStatus());
         payload.put("successInstruction", config.get().successInstruction());
         payload.put("responseEtaMinutes", config.get().responseEtaMinutes());
+        payload.put("continuation", publicFormService.buildContinuationOptions(channelId, null));
         payload.put("questions", config.get().questions().stream().map(this::questionToMap).toList());
         return ResponseEntity.ok(payload);
     }
@@ -107,6 +108,7 @@ public class PublicFormApiController {
                     "id", session.channelId(),
                     "publicId", session.channelPublicId()
             ));
+            response.put("continuation", publicFormService.buildContinuationOptions(channelId, session.token()));
             publicFormService.recordSubmitSuccess(session.channelId());
             log.info("Public form session created for channel {} (ticketId={}, token set={})", channelId,
                     session.ticketId(), session.token() != null && !session.token().isBlank());
@@ -140,16 +142,17 @@ public class PublicFormApiController {
         log.info("Public form session {} for channel {} loaded with {} history messages",
                 maskToken(token), channelId, history.size());
         Map<String, Object> response = new LinkedHashMap<>();
+        Map<String, Object> sessionPayload = new LinkedHashMap<>();
+        sessionPayload.put("token", session.get().token());
+        sessionPayload.put("ticketId", session.get().ticketId());
+        sessionPayload.put("clientName", session.get().clientName());
+        sessionPayload.put("clientContact", session.get().clientContact());
+        sessionPayload.put("username", session.get().username());
+        sessionPayload.put("createdAt", Optional.ofNullable(session.get().createdAt()).map(OffsetDateTime::toString).orElse(null));
         response.put("success", true);
-        response.put("session", Map.of(
-                "token", session.get().token(),
-                "ticketId", session.get().ticketId(),
-                "clientName", session.get().clientName(),
-                "clientContact", session.get().clientContact(),
-                "username", session.get().username(),
-                "createdAt", Optional.ofNullable(session.get().createdAt()).map(OffsetDateTime::toString).orElse(null)
-        ));
+        response.put("session", sessionPayload);
         response.put("messages", history.stream().map(this::messageToMap).toList());
+        response.put("continuation", publicFormService.buildContinuationOptions(channelId, session.get().token()));
         return ResponseEntity.ok(response);
     }
 

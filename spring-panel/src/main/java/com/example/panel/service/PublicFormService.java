@@ -916,6 +916,43 @@ public class PublicFormService {
         return readDialogConfigInt("public_form_session_polling_interval_seconds", 15, 5, 300);
     }
 
+    @Transactional(readOnly = true)
+    public Map<String, Object> buildContinuationOptions(String channelRef, String sessionToken) {
+        return resolveChannel(channelRef)
+                .map(channel -> {
+                    Map<String, Object> payload = new LinkedHashMap<>();
+                    String platform = Optional.ofNullable(channel.getPlatform()).filter(StringUtils::hasText).orElse("telegram").trim().toLowerCase(Locale.ROOT);
+                    String command = StringUtils.hasText(sessionToken) ? "/continue " + sessionToken.trim() : "/continue <token>";
+                    payload.put("enabled", true);
+                    payload.put("platform", platform);
+                    payload.put("platformLabel", switch (platform) {
+                        case "vk" -> "VK";
+                        case "max" -> "MAX";
+                        default -> "Telegram";
+                    });
+                    payload.put("channelName", channel.getChannelName());
+                    payload.put("botName", Optional.ofNullable(channel.getBotName()).orElse(""));
+                    payload.put("botUsername", Optional.ofNullable(channel.getBotUsername()).orElse(""));
+                    payload.put("command", command);
+                    payload.put("token", Optional.ofNullable(sessionToken).orElse(""));
+                    payload.put("openUrl", buildContinuationOpenUrl(channel, platform, sessionToken));
+                    payload.put("hint", switch (platform) {
+                        case "vk", "max" -> "Откройте бота и отправьте команду продолжения, чтобы привязать внешний диалог.";
+                        default -> "Откройте бота по ссылке или отправьте команду продолжения.";
+                    });
+                    return payload;
+                })
+                .orElseGet(() -> Map.of(
+                        "enabled", false,
+                        "platform", "telegram",
+                        "platformLabel", "Telegram",
+                        "command", "/continue <token>",
+                        "token", "",
+                        "openUrl", "",
+                        "hint", ""
+                ));
+    }
+
     public String resolveUiLocale() {
         String configured = readDialogConfigString("public_form_default_locale", "auto");
         String normalized = configured.trim().toLowerCase(Locale.ROOT);
@@ -1153,6 +1190,29 @@ public class PublicFormService {
 
     private String generateToken() {
         return UUID.randomUUID().toString();
+    }
+
+    private String buildContinuationOpenUrl(Channel channel, String platform, String sessionToken) {
+        if (!StringUtils.hasText(sessionToken)) {
+            return "";
+        }
+        if ("telegram".equals(platform)) {
+            String botUsername = Optional.ofNullable(channel.getBotUsername()).map(String::trim).orElse("");
+            if (StringUtils.hasText(botUsername)) {
+                String normalized = botUsername.startsWith("@") ? botUsername.substring(1) : botUsername;
+                return "https://t.me/" + normalized + "?start=web_" + urlEncode(sessionToken.trim());
+            }
+            return "";
+        }
+        return "";
+    }
+
+    private String urlEncode(String value) {
+        try {
+            return URLEncoder.encode(Optional.ofNullable(value).orElse(""), StandardCharsets.UTF_8);
+        } catch (Exception ex) {
+            return Optional.ofNullable(value).orElse("");
+        }
     }
 
     private String generateTicketId() {

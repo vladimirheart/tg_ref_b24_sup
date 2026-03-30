@@ -9,6 +9,7 @@ import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.net.URI;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -61,36 +62,44 @@ public class DialogReplyService {
             dialogService.assignResponsibleIfMissing(ticketId, operator);
             return DialogReplyResult.success(timestamp, null);
         }
-        if (channel.getPlatform() != null && !"telegram".equalsIgnoreCase(channel.getPlatform())) {
-            return DialogReplyResult.error("Отправка доступна только для Telegram-каналов.");
-        }
         if (!StringUtils.hasText(channel.getToken())) {
-            return DialogReplyResult.error("Не задан токен Telegram-бота для канала.");
+            return DialogReplyResult.error("Не задан токен бота для канала.");
         }
 
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("chat_id", target.userId());
-        payload.put("text", message);
-        if (replyToTelegramId != null) {
-            payload.put("reply_to_message_id", replyToTelegramId);
-        }
+        String platform = channel.getPlatform() != null ? channel.getPlatform().trim().toLowerCase() : "telegram";
         Long telegramMessageId = null;
-        try {
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create("https://api.telegram.org/bot" + channel.getToken() + "/sendMessage"))
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload)))
-                    .build();
-            HttpResponse<String> response = TELEGRAM_HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() / 100 != 2) {
-                return DialogReplyResult.error("Ошибка отправки сообщения в Telegram.");
-            }
-            telegramMessageId = extractTelegramMessageId(response.body());
-        } catch (InterruptedException ex) {
-            Thread.currentThread().interrupt();
-            return DialogReplyResult.error("Не удалось отправить сообщение в Telegram.");
-        } catch (IOException ex) {
-            return DialogReplyResult.error("Не удалось отправить сообщение в Telegram.");
+        String transportError = switch (platform) {
+            case "vk" -> sendVkText(channel, target.userId(), message) ? null : "Не удалось отправить сообщение в VK.";
+            case "max" -> sendMaxText(channel, target.userId(), message) ? null : "Не удалось отправить сообщение в MAX.";
+            default -> {
+                try {
+                    Map<String, Object> payload = new LinkedHashMap<>();
+                    payload.put("chat_id", target.userId());
+                    payload.put("text", message);
+                    if (replyToTelegramId != null) {
+                        payload.put("reply_to_message_id", replyToTelegramId);
+                    }
+                    HttpRequest request = HttpRequest.newBuilder()
+                            .uri(URI.create("https://api.telegram.org/bot" + channel.getToken() + "/sendMessage"))
+                            .header("Content-Type", "application/json")
+                            .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload)))
+                            .build();
+                    HttpResponse<String> response = TELEGRAM_HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+                    if (response.statusCode() / 100 != 2) {
+                        yield "Ошибка отправки сообщения в Telegram.";
+                    }
+                    telegramMessageId = extractTelegramMessageId(response.body());
+                    yield null;
+                } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt();
+                    yield "Не удалось отправить сообщение в Telegram.";
+                } catch (IOException ex) {
+                    yield "Не удалось отправить сообщение в Telegram.";
+                }
+            };
+        };
+        if (transportError != null) {
+            return DialogReplyResult.error(transportError);
         }
 
         String timestamp = logOperatorMessage(target, ticketId, message, "operator_message", telegramMessageId, replyToTelegramId);
@@ -331,6 +340,46 @@ public class DialogReplyService {
                 ticketId
         );
         return count != null && count > 0;
+    }
+
+    private boolean sendVkText(Channel channel, Long userId, String text) {
+        if (userId == null || userId <= 0 || userId > Integer.MAX_VALUE || !StringUtils.hasText(text)) {
+            return false;
+        }
+        try {
+            String query = "peer_id=" + userId.intValue()
+                    + "&random_id=" + Math.abs((int) System.nanoTime())
+                    + "&message=" + URLEncoder.encode(text, StandardCharsets.UTF_8)
+                    + "&access_token=" + URLEncoder.encode(channel.getToken(), StandardCharsets.UTF_8)
+                    + "&v=5.199";
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("https://api.vk.com/method/messages.send"))
+                    .header("Content-Type", "application/x-www-form-urlencoded")
+                    .POST(HttpRequest.BodyPublishers.ofString(query, StandardCharsets.UTF_8))
+                    .build();
+            HttpResponse<String> response = TELEGRAM_HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            return response.statusCode() / 100 == 2 && !response.body().contains("\"error\"");
+        } catch (Exception ex) {
+            return false;
+        }
+    }
+
+    private boolean sendMaxText(Channel channel, Long userId, String text) {
+        if (userId == null || !StringUtils.hasText(text)) {
+            return false;
+        }
+        try {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("https://platform-api.max.ru/messages?user_id=" + userId))
+                    .header("Authorization", channel.getToken())
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(Map.of("text", text)), StandardCharsets.UTF_8))
+                    .build();
+            HttpResponse<String> response = TELEGRAM_HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            return response.statusCode() / 100 == 2;
+        } catch (Exception ex) {
+            return false;
+        }
     }
 
     public record DialogReplyResult(boolean success, String error, String timestamp, Long telegramMessageId) {

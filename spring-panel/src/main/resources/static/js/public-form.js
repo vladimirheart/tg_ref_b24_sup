@@ -7,6 +7,12 @@
     const statusLabel = document.querySelector('[data-role="status"]');
     const errorBox = document.querySelector('[data-role="error"]');
     const successBox = document.querySelector('[data-role="success"]');
+    const continuationBox = document.querySelector('[data-role="continuation-box"]');
+    const continuationTitle = document.querySelector('[data-role="continuation-title"]');
+    const continuationHint = document.querySelector('[data-role="continuation-hint"]');
+    const continuationCommand = document.querySelector('[data-role="continuation-command"]');
+    const continuationCopy = document.querySelector('[data-role="continuation-copy"]');
+    const continuationLink = document.querySelector('[data-role="continuation-link"]');
     const submitButton = form?.querySelector('button[type="submit"]');
 
     if (!channelRef || !form || !historyContainer || !dynamicQuestionsContainer) {
@@ -23,6 +29,7 @@
     let sessionPollingIntervalMs = 15000;
     let successInstruction = '';
     let responseEtaMinutes = null;
+    let continuationConfig = null;
 
     let uiLocale = 'auto';
 
@@ -216,6 +223,25 @@
     function clearAlerts() {
         errorBox.classList.add('d-none');
         successBox.classList.add('d-none');
+    }
+
+    async function copyToClipboard(value) {
+        if (!value) {
+            return;
+        }
+        if (navigator.clipboard?.writeText) {
+            await navigator.clipboard.writeText(value);
+            return;
+        }
+        const temp = document.createElement('textarea');
+        temp.value = value;
+        temp.setAttribute('readonly', 'readonly');
+        temp.style.position = 'absolute';
+        temp.style.left = '-9999px';
+        document.body.appendChild(temp);
+        temp.select();
+        document.execCommand('copy');
+        document.body.removeChild(temp);
     }
 
     function setSubmitting(isSubmitting, label) {
@@ -452,6 +478,33 @@
         }
     }
 
+    function renderContinuation(config) {
+        continuationConfig = config && config.enabled ? config : null;
+        if (!continuationBox || !continuationTitle || !continuationHint || !continuationCommand || !continuationLink) {
+            return;
+        }
+        if (!continuationConfig) {
+            continuationBox.classList.add('d-none');
+            continuationCommand.value = '';
+            continuationLink.href = '#';
+            continuationLink.classList.add('d-none');
+            return;
+        }
+        const platformLabel = continuationConfig.platformLabel || continuationConfig.platform || 'бот';
+        continuationTitle.textContent = `Продолжить через ${platformLabel}`;
+        continuationHint.textContent = continuationConfig.hint || '';
+        continuationCommand.value = continuationConfig.command || '';
+        const openUrl = (continuationConfig.openUrl || '').trim();
+        if (openUrl) {
+            continuationLink.href = openUrl;
+            continuationLink.classList.remove('d-none');
+        } else {
+            continuationLink.href = '#';
+            continuationLink.classList.add('d-none');
+        }
+        continuationBox.classList.remove('d-none');
+    }
+
 
     function formatEta(minutesValue) {
         const minutes = Number.parseInt(minutesValue, 10);
@@ -512,6 +565,7 @@
             responseEtaMinutes = Number.isFinite(responseEtaRaw) && responseEtaRaw > 0
                 ? Math.max(1, Math.min(10080, responseEtaRaw))
                 : null;
+            renderContinuation(payload.continuation || null);
             const configuredPollingInterval = Number.parseInt(payload.sessionPollingIntervalSeconds, 10);
             const safePollingIntervalSeconds = Number.isFinite(configuredPollingInterval)
                 ? Math.min(300, Math.max(5, configuredPollingInterval))
@@ -541,6 +595,7 @@
                 return;
             }
             const nextToken = payload.session?.token;
+            renderContinuation(payload.continuation || continuationConfig);
             if (nextToken && nextToken !== currentToken) {
                 currentToken = nextToken;
                 setTokenInUrl(nextToken);
@@ -612,6 +667,7 @@
         try {
             const data = await submitWithRetry(payload, 2);
             showSuccess(buildSuccessMessage(data.ticketId, data.token));
+            renderContinuation(data.continuation || continuationConfig);
             statusLabel.textContent = t('dialogCreatedStatus', { ticketId: data.ticketId, createdAt: data.createdAt || '' });
             currentToken = data.token;
             setTokenInUrl(data.token);
@@ -639,4 +695,19 @@
         loadSession(currentToken);
         startHistoryPolling(currentToken);
     }
+    continuationCopy?.addEventListener('click', async () => {
+        const value = continuationCommand?.value || '';
+        if (!value) {
+            return;
+        }
+        try {
+            await copyToClipboard(value);
+            continuationCopy.textContent = 'Скопировано';
+            window.setTimeout(() => {
+                continuationCopy.textContent = 'Скопировать';
+            }, 1200);
+        } catch (e) {
+            console.warn('Failed to copy continuation command', e);
+        }
+    });
 })();

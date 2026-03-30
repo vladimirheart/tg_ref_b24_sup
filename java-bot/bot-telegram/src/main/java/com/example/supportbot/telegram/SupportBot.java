@@ -9,6 +9,7 @@ import com.example.supportbot.service.BlacklistService;
 import com.example.supportbot.service.ChannelService;
 import com.example.supportbot.service.ChatHistoryService;
 import com.example.supportbot.service.FeedbackService;
+import com.example.supportbot.service.PublicFormConversationLinkService;
 import com.example.supportbot.service.SharedConfigService;
 import com.example.supportbot.service.TicketService;
 import com.example.supportbot.service.UnblockRequestService;
@@ -74,6 +75,7 @@ public class SupportBot extends TelegramLongPollingBot {
     private final TicketService ticketService;
     private final ChatHistoryService chatHistoryService;
     private final FeedbackService feedbackService;
+    private final PublicFormConversationLinkService publicFormConversationLinkService;
     private final SharedConfigService sharedConfigService;
     private final ObjectMapper objectMapper;
 
@@ -93,6 +95,7 @@ public class SupportBot extends TelegramLongPollingBot {
                       TicketService ticketService,
                       ChatHistoryService chatHistoryService,
                       FeedbackService feedbackService,
+                      PublicFormConversationLinkService publicFormConversationLinkService,
                       SharedConfigService sharedConfigService,
                       ObjectMapper objectMapper) {
         super(properties.getToken());
@@ -105,6 +108,7 @@ public class SupportBot extends TelegramLongPollingBot {
         this.ticketService = ticketService;
         this.chatHistoryService = chatHistoryService;
         this.feedbackService = feedbackService;
+        this.publicFormConversationLinkService = publicFormConversationLinkService;
         this.sharedConfigService = sharedConfigService;
         this.objectMapper = objectMapper;
     }
@@ -259,6 +263,11 @@ public class SupportBot extends TelegramLongPollingBot {
             return;
         }
         if (message.hasText()) {
+            String publicFormToken = extractPublicFormContinueToken(message.getText());
+            if (publicFormToken != null) {
+                handlePublicFormContinue(message, publicFormToken, channel);
+                return;
+            }
             if (isMyTicketsCommand(message.getText())) {
                 log.info("Received my tickets command from user {} in update {}", userId, update.getUpdateId());
                 handleMyTickets(message);
@@ -1194,6 +1203,52 @@ public class SupportBot extends TelegramLongPollingBot {
         conversations.put(message.getFrom().getId(), session);
         log.info("Conversation initialized for user {} - sending first prompt", session.userId());
         askCurrentQuestion(session);
+    }
+
+    private String extractPublicFormContinueToken(String text) {
+        if (text == null) {
+            return null;
+        }
+        String normalized = text.trim();
+        if (normalized.isEmpty()) {
+            return null;
+        }
+        String[] parts = normalized.split("\\s+", 2);
+        String command = parts[0].toLowerCase();
+        String argument = parts.length > 1 ? parts[1].trim() : "";
+        if ("/continue".equals(command) && !argument.isBlank()) {
+            return argument;
+        }
+        if ("/start".equals(command) && argument.toLowerCase().startsWith("web_")) {
+            String token = argument.substring(4).trim();
+            return token.isBlank() ? null : token;
+        }
+        return null;
+    }
+
+    private void handlePublicFormContinue(Message message, String token, Channel channel) {
+        Long userId = Optional.ofNullable(message.getFrom()).map(User::getId).orElse(null);
+        String username = Optional.ofNullable(message.getFrom()).map(User::getUserName).orElse(null);
+        PublicFormConversationLinkService.LinkResult result =
+                publicFormConversationLinkService.bindSessionToChannel(token, userId, username, channel);
+        String text;
+        if (!result.success()) {
+            text = result.error();
+        } else if (result.closed()) {
+            text = "Диалог #" + result.ticketId() + " привязан к этому боту. Сейчас он закрыт, но после переоткрытия вы сможете продолжить переписку здесь.";
+        } else {
+            text = "Диалог #" + result.ticketId() + " привязан к этому боту. Продолжайте переписку здесь одним сообщением.";
+        }
+        SendMessage reply = SendMessage.builder()
+                .chatId(message.getChatId())
+                .text(text)
+                .replyMarkup(new ReplyKeyboardRemove(true))
+                .build();
+        try {
+            execute(reply);
+        } catch (TelegramApiException e) {
+            log.error("Failed to send public form continue result", e);
+        }
     }
 
     private void handleConversationAnswer(Message message, ConversationSession session) {

@@ -69,6 +69,15 @@
                     <button class="btn btn-primary w-100" type="submit">Отправить</button>
                     <div class="alert alert-danger mt-3 d-none" role="alert" data-role="error"></div>
                     <div class="alert alert-success mt-3 d-none" role="alert" data-role="success"></div>
+                    <div class="alert alert-info mt-3 d-none" role="alert" data-role="continuation-box">
+                        <div class="fw-semibold mb-2" data-role="continuation-title">Продолжить через бота</div>
+                        <div class="small mb-2" data-role="continuation-hint"></div>
+                        <div class="input-group input-group-sm mb-2">
+                            <input type="text" class="form-control font-monospace" data-role="continuation-command" readonly>
+                            <button class="btn btn-outline-secondary" type="button" data-role="continuation-copy">Скопировать</button>
+                        </div>
+                        <a class="btn btn-sm btn-primary d-none" target="_blank" rel="noopener" data-role="continuation-link">Открыть бота</a>
+                    </div>
                 </form>
             </div>
         </div>
