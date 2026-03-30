@@ -8,4 +8,6 @@ import java.util.Optional;
 public interface WebFormSessionRepository extends JpaRepository<WebFormSession, Long> {
 
     Optional<WebFormSession> findByToken(String token);
+
+    Optional<WebFormSession> findByTicketId(String ticketId);
 }

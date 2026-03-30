@@ -90,6 +90,7 @@ class ChannelApiControllerWebMvcTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.channel.id").value(42))
                 .andExpect(jsonPath("$.channel.platform").value("vk"))
+                .andExpect(jsonPath("$.channel.public_id").isNotEmpty())
                 .andExpect(jsonPath("$.channel.question_template_id").value("q-template"))
                 .andExpect(jsonPath("$.channel.rating_template_id").value("r-template"))
                 .andExpect(jsonPath("$.channel.auto_action_template_id").value("auto-template"));
@@ -97,6 +98,8 @@ class ChannelApiControllerWebMvcTest {
         verify(channelRepository).save(argThat(channel ->
                 "VK Support".equals(channel.getChannelName())
                         && "vk".equals(channel.getPlatform())
+                        && channel.getPublicId() != null
+                        && !channel.getPublicId().isBlank()
                         && "q-template".equals(channel.getQuestionTemplateId())
                         && "r-template".equals(channel.getRatingTemplateId())
                         && "auto-template".equals(channel.getAutoActionTemplateId())

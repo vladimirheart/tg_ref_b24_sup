@@ -84,6 +84,12 @@ class SupportPanelIntegrationTests {
     @Autowired
     private NotificationService notificationService;
 
+    @Autowired
+    private DialogReplyService dialogReplyService;
+
+    @Autowired
+    private DialogNotificationService dialogNotificationService;
+
     @BeforeEach
     void clean() {
         SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(
@@ -354,6 +360,48 @@ class SupportPanelIntegrationTests {
         assertThat(ticketCount).isEqualTo(1);
         assertThat(messageCount).isEqualTo(1);
         assertThat(auditCount).isEqualTo(1);
+    }
+
+    @Test
+    void publicFormDialogSupportsOperatorRepliesThroughSharedLinkHistory() {
+        jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, platform, is_active, created_at, public_id) VALUES (52, 'web-shared', 'Внешняя форма', 'vk', 1, CURRENT_TIMESTAMP, 'web-shared')");
+        PublicFormSessionDto session = publicFormService.createSession(
+                "web-shared",
+                new PublicFormSubmission("Нужна помощь с заказом", "Мария", "+79990000001", "maria", null, Map.of("topic", "Заказ"), null),
+                "web-shared-ip"
+        );
+
+        DialogReplyService.DialogReplyResult reply = dialogReplyService.sendReply(session.ticketId(), "Подскажите номер заказа, пожалуйста.", null, "operator");
+
+        assertThat(reply.success()).isTrue();
+        assertThat(reply.telegramMessageId()).isNull();
+        assertThat(dialogService.loadHistory(session.ticketId(), null))
+                .anySatisfy(message -> {
+                    assertThat(message.sender()).isEqualTo("operator");
+                    assertThat(message.message()).contains("Подскажите номер заказа");
+                });
+    }
+
+    @Test
+    void publicFormDialogStoresSystemNotificationsInSharedHistory() {
+        jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, platform, is_active, created_at, public_id) VALUES (53, 'web-system', 'Внешняя форма', 'max', 1, CURRENT_TIMESTAMP, 'web-system')");
+        PublicFormSessionDto session = publicFormService.createSession(
+                "web-system",
+                new PublicFormSubmission("Нужна помощь", "Олег", "+79990000002", "oleg", null, Map.of(), null),
+                "web-system-ip"
+        );
+
+        dialogNotificationService.notifyResolved(session.ticketId());
+
+        assertThat(dialogService.loadHistory(session.ticketId(), null))
+                .anySatisfy(message -> {
+                    assertThat(message.sender()).isEqualTo("system");
+                    assertThat(message.message()).contains("Диалог закрыт");
+                })
+                .anySatisfy(message -> {
+                    assertThat(message.sender()).isEqualTo("system");
+                    assertThat(message.message()).contains("оцените диалог");
+                });
     }
 
 

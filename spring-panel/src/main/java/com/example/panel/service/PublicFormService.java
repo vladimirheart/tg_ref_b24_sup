@@ -20,6 +20,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -30,8 +31,12 @@ import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.LocalDateTime;
 import java.security.MessageDigest;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Collections;
@@ -72,6 +77,7 @@ public class PublicFormService {
     private final ChatHistoryRepository chatHistoryRepository;
     private final TicketRepository ticketRepository;
     private final MessageRepository messageRepository;
+    private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
     private final SharedConfigService sharedConfigService;
     private final DialogService dialogService;
@@ -87,6 +93,7 @@ public class PublicFormService {
                              ChatHistoryRepository chatHistoryRepository,
                              TicketRepository ticketRepository,
                              MessageRepository messageRepository,
+                             JdbcTemplate jdbcTemplate,
                              ObjectMapper objectMapper,
                              SharedConfigService sharedConfigService,
                              DialogService dialogService,
@@ -96,6 +103,7 @@ public class PublicFormService {
         this.chatHistoryRepository = chatHistoryRepository;
         this.ticketRepository = ticketRepository;
         this.messageRepository = messageRepository;
+        this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper;
         this.sharedConfigService = sharedConfigService;
         this.dialogService = dialogService;
@@ -399,20 +407,19 @@ public class PublicFormService {
             return Optional.empty();
         }
         return resolveChannel(channelRef)
-                .flatMap(channel -> sessionRepository.findByToken(token)
-                        .filter(session -> session.getChannel() != null && session.getChannel().getId().equals(channel.getId()))
+                .flatMap(channel -> loadSessionRow(token, channel.getId())
                         .filter(this::isSessionActive)
                         .map(session -> {
-                            WebFormSession persistedSession = maybeRotateSessionToken(session);
+                            PublicSessionRow persistedSession = maybeRotateSessionToken(session);
                             return new PublicFormSessionDto(
-                                persistedSession.getToken(),
-                                session.getTicketId(),
+                                persistedSession.token(),
+                                persistedSession.ticketId(),
                                 channel.getId(),
                                 channel.getPublicId(),
-                                session.getClientName(),
-                                session.getClientContact(),
-                                session.getUsername(),
-                                session.getCreatedAt()
+                                persistedSession.clientName(),
+                                persistedSession.clientContact(),
+                                persistedSession.username(),
+                                persistedSession.createdAt()
                             );
                         }));
     }
@@ -422,22 +429,116 @@ public class PublicFormService {
         return resolveChannel(channelRef).map(Channel::getId);
     }
 
-    private WebFormSession maybeRotateSessionToken(WebFormSession session) {
+    private PublicSessionRow maybeRotateSessionToken(PublicSessionRow session) {
         if (!readDialogConfigBoolean("public_form_session_token_rotate_on_read", false)) {
             return session;
         }
-        session.setToken(generateToken());
-        session.setLastActiveAt(OffsetDateTime.now());
-        return sessionRepository.save(session);
+        String nextToken = generateToken();
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        jdbcTemplate.update("""
+                UPDATE web_form_sessions
+                   SET token = ?, last_active_at = ?
+                 WHERE id = ?
+                """,
+                nextToken,
+                Timestamp.from(now.toInstant()),
+                session.id()
+        );
+        return new PublicSessionRow(
+                session.id(),
+                nextToken,
+                session.ticketId(),
+                session.channelId(),
+                session.userId(),
+                session.clientName(),
+                session.clientContact(),
+                session.username(),
+                session.createdAt(),
+                now
+        );
     }
 
-    private boolean isSessionActive(WebFormSession session) {
+    private boolean isSessionActive(PublicSessionRow session) {
         int ttlHours = readDialogConfigInt("public_form_session_ttl_hours", 72, 1, 24 * 30);
-        OffsetDateTime createdAt = session.getCreatedAt();
+        OffsetDateTime createdAt = session.createdAt();
         if (createdAt == null) {
             return true;
         }
-        return createdAt.plusHours(ttlHours).isAfter(OffsetDateTime.now());
+        return createdAt.plusHours(ttlHours).isAfter(OffsetDateTime.now(ZoneOffset.UTC));
+    }
+
+    private Optional<PublicSessionRow> loadSessionRow(String token, Long channelId) {
+        if (!StringUtils.hasText(token) || channelId == null) {
+            return Optional.empty();
+        }
+        return jdbcTemplate.query("""
+                        SELECT id, token, ticket_id, channel_id, user_id, client_name, client_contact, username, created_at, last_active_at
+                          FROM web_form_sessions
+                         WHERE token = ? AND channel_id = ?
+                         LIMIT 1
+                        """,
+                (rs, rowNum) -> new PublicSessionRow(
+                        rs.getLong("id"),
+                        rs.getString("token"),
+                        rs.getString("ticket_id"),
+                        rs.getLong("channel_id"),
+                        rs.getLong("user_id"),
+                        rs.getString("client_name"),
+                        rs.getString("client_contact"),
+                        rs.getString("username"),
+                        parseOffsetDateTimeValue(rs.getObject("created_at")),
+                        parseOffsetDateTimeValue(rs.getObject("last_active_at"))
+                ),
+                token,
+                channelId
+        ).stream().findFirst();
+    }
+
+    private OffsetDateTime parseOffsetDateTimeValue(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof OffsetDateTime offsetDateTime) {
+            return offsetDateTime.withOffsetSameInstant(ZoneOffset.UTC);
+        }
+        if (value instanceof Timestamp timestamp) {
+            return OffsetDateTime.ofInstant(timestamp.toInstant(), ZoneOffset.UTC);
+        }
+        if (value instanceof java.util.Date date) {
+            return OffsetDateTime.ofInstant(date.toInstant(), ZoneOffset.UTC);
+        }
+        if (value instanceof Number number) {
+            return OffsetDateTime.ofInstant(Instant.ofEpochMilli(number.longValue()), ZoneOffset.UTC);
+        }
+        String raw = value.toString().trim();
+        if (!StringUtils.hasText(raw)) {
+            return null;
+        }
+        try {
+            return OffsetDateTime.parse(raw).withOffsetSameInstant(ZoneOffset.UTC);
+        } catch (Exception ignored) {
+        }
+        try {
+            return LocalDateTime.parse(raw.replace(' ', 'T')).atOffset(ZoneOffset.UTC);
+        } catch (Exception ignored) {
+        }
+        try {
+            return OffsetDateTime.ofInstant(Instant.ofEpochMilli(Long.parseLong(raw)), ZoneOffset.UTC);
+        } catch (Exception ignored) {
+        }
+        return null;
+    }
+
+    private record PublicSessionRow(Long id,
+                                    String token,
+                                    String ticketId,
+                                    Long channelId,
+                                    Long userId,
+                                    String clientName,
+                                    String clientContact,
+                                    String username,
+                                    OffsetDateTime createdAt,
+                                    OffsetDateTime lastActiveAt) {
     }
 
     private void validateSubmission(PublicFormConfig config, PublicFormSubmission submission, Map<String, String> answers) {
