@@ -118,19 +118,43 @@ class SupportPanelIntegrationTests {
                                                String ticketId,
                                                Long durationMs,
                                                OffsetDateTime createdAtUtc) {
+        recordWorkspaceTelemetryEvent(actor, eventType, eventGroup, ticketId, null, null, durationMs,
+                "workspace_v1_rollout", "test", "team=ops;shift=day", null, null, createdAtUtc);
+    }
+
+    private void recordWorkspaceTelemetryEvent(String actor,
+                                               String eventType,
+                                               String eventGroup,
+                                               String ticketId,
+                                               String reason,
+                                               String errorCode,
+                                               Long durationMs,
+                                               String experimentName,
+                                               String experimentCohort,
+                                               String operatorSegment,
+                                               String primaryKpis,
+                                               String secondaryKpis,
+                                               OffsetDateTime createdAtUtc) {
         jdbcTemplate.update("""
                 INSERT INTO workspace_telemetry_audit (
                     actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
                     duration_ms, experiment_name, experiment_cohort, operator_segment,
                     primary_kpis, secondary_kpis, template_id, template_name, created_at
-                ) VALUES (?, ?, ?, ?, NULL, NULL, 'workspace.v1', ?,
-                          'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, 'workspace.v1', ?,
+                          ?, ?, ?, ?, ?, NULL, NULL, ?)
                 """,
                 actor,
                 eventType,
                 eventGroup,
                 ticketId,
+                reason,
+                errorCode,
                 durationMs,
+                experimentName,
+                experimentCohort,
+                operatorSegment,
+                primaryKpis,
+                secondaryKpis,
                 Timestamp.from(createdAtUtc.toInstant()));
     }
 
@@ -486,39 +510,47 @@ class SupportPanelIntegrationTests {
 
     @Test
     void workspaceTelemetrySummaryIncludesPeriodComparisonAndRegressionAlerts() {
-        jdbcTemplate.update("""
-                INSERT INTO workspace_telemetry_audit (
-                    actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                    duration_ms, experiment_name, experiment_cohort, operator_segment,
-                    primary_kpis, secondary_kpis, template_id, template_name, created_at
-                ) VALUES
-                    ('op1', 'workspace_open_ms', 'performance', 'T-1', NULL, NULL, 'workspace.v1', 1200, 'workspace_v1_rollout', 'test', 'team=ops;shift=night', NULL, NULL, NULL, NULL, datetime('now', '-1 day')),
-                    ('op1', 'workspace_render_error', 'quality', 'T-1', NULL, 'render_failed', 'workspace.v1', NULL, 'workspace_v1_rollout', 'test', 'team=ops;shift=night', NULL, NULL, NULL, NULL, datetime('now', '-1 day')),
-                    ('op2', 'workspace_open_ms', 'performance', 'T-2', NULL, NULL, 'workspace.v1', 2300, 'workspace_v1_rollout', 'test', 'team=ops;shift=night', NULL, NULL, NULL, NULL, datetime('now', '-1 day')),
-                    ('op2', 'workspace_fallback_to_legacy', 'fallback', 'T-2', 'timeout', NULL, 'workspace.v1', NULL, 'workspace_v1_rollout', 'test', 'team=ops;shift=night', NULL, NULL, NULL, NULL, datetime('now', '-1 day')),
-
-                    ('op1', 'workspace_open_ms', 'performance', 'T-3', NULL, NULL, 'workspace.v1', 900, 'workspace_v1_rollout', 'test', 'team=ops;shift=night', NULL, NULL, NULL, NULL, datetime('now', '-8 day')),
-                    ('op2', 'workspace_open_ms', 'performance', 'T-4', NULL, NULL, 'workspace.v1', 950, 'workspace_v1_rollout', 'test', 'team=ops;shift=night', NULL, NULL, NULL, NULL, datetime('now', '-8 day')),
-                    ('op3', 'workspace_open_ms', 'performance', 'T-5', NULL, NULL, 'workspace.v1', 980, 'workspace_v1_rollout', 'test', 'team=ops;shift=night', NULL, NULL, NULL, NULL, datetime('now', '-8 day')),
-                    ('op4', 'workspace_open_ms', 'performance', 'T-6', NULL, NULL, 'workspace.v1', 1020, 'workspace_v1_rollout', 'test', 'team=ops;shift=night', NULL, NULL, NULL, NULL, datetime('now', '-8 day')),
-                    ('op5', 'workspace_open_ms', 'performance', 'T-7', NULL, NULL, 'workspace.v1', 1000, 'workspace_v1_rollout', 'test', 'team=ops;shift=night', NULL, NULL, NULL, NULL, datetime('now', '-8 day')),
-                    ('op6', 'workspace_open_ms', 'performance', 'T-8', NULL, NULL, 'workspace.v1', 970, 'workspace_v1_rollout', 'test', 'team=ops;shift=night', NULL, NULL, NULL, NULL, datetime('now', '-8 day')),
-                    ('op7', 'workspace_open_ms', 'performance', 'T-9', NULL, NULL, 'workspace.v1', 1030, 'workspace_v1_rollout', 'test', 'team=ops;shift=night', NULL, NULL, NULL, NULL, datetime('now', '-8 day')),
-                    ('op8', 'workspace_open_ms', 'performance', 'T-10', NULL, NULL, 'workspace.v1', 1010, 'workspace_v1_rollout', 'test', 'team=ops;shift=night', NULL, NULL, NULL, NULL, datetime('now', '-8 day')),
-                    ('op9', 'workspace_open_ms', 'performance', 'T-11', NULL, NULL, 'workspace.v1', 990, 'workspace_v1_rollout', 'test', 'team=ops;shift=night', NULL, NULL, NULL, NULL, datetime('now', '-8 day')),
-                    ('op10', 'workspace_open_ms', 'performance', 'T-12', NULL, NULL, 'workspace.v1', 1015, 'workspace_v1_rollout', 'test', 'team=ops;shift=night', NULL, NULL, NULL, NULL, datetime('now', '-8 day')),
-
-                    ('op11', 'workspace_open_ms', 'performance', 'T-13', NULL, NULL, 'workspace.v1', 1110, 'workspace_v1_rollout', 'control', 'team=ops;shift=night', NULL, NULL, NULL, NULL, datetime('now', '-8 day')),
-                    ('op12', 'workspace_open_ms', 'performance', 'T-14', NULL, NULL, 'workspace.v1', 1090, 'workspace_v1_rollout', 'control', 'team=ops;shift=night', NULL, NULL, NULL, NULL, datetime('now', '-8 day')),
-                    ('op13', 'workspace_open_ms', 'performance', 'T-15', NULL, NULL, 'workspace.v1', 1080, 'workspace_v1_rollout', 'control', 'team=ops;shift=night', NULL, NULL, NULL, NULL, datetime('now', '-8 day')),
-                    ('op14', 'workspace_open_ms', 'performance', 'T-16', NULL, NULL, 'workspace.v1', 1100, 'workspace_v1_rollout', 'control', 'team=ops;shift=night', NULL, NULL, NULL, NULL, datetime('now', '-8 day')),
-                    ('op15', 'workspace_open_ms', 'performance', 'T-17', NULL, NULL, 'workspace.v1', 1130, 'workspace_v1_rollout', 'control', 'team=ops;shift=night', NULL, NULL, NULL, NULL, datetime('now', '-8 day')),
-                    ('op16', 'workspace_open_ms', 'performance', 'T-18', NULL, NULL, 'workspace.v1', 1075, 'workspace_v1_rollout', 'control', 'team=ops;shift=night', NULL, NULL, NULL, NULL, datetime('now', '-8 day')),
-                    ('op17', 'workspace_open_ms', 'performance', 'T-19', NULL, NULL, 'workspace.v1', 1060, 'workspace_v1_rollout', 'control', 'team=ops;shift=night', NULL, NULL, NULL, NULL, datetime('now', '-8 day')),
-                    ('op18', 'workspace_open_ms', 'performance', 'T-20', NULL, NULL, 'workspace.v1', 1050, 'workspace_v1_rollout', 'control', 'team=ops;shift=night', NULL, NULL, NULL, NULL, datetime('now', '-8 day')),
-                    ('op19', 'workspace_open_ms', 'performance', 'T-21', NULL, NULL, 'workspace.v1', 1140, 'workspace_v1_rollout', 'control', 'team=ops;shift=night', NULL, NULL, NULL, NULL, datetime('now', '-8 day')),
-                    ('op20', 'workspace_open_ms', 'performance', 'T-22', NULL, NULL, 'workspace.v1', 1120, 'workspace_v1_rollout', 'control', 'team=ops;shift=night', NULL, NULL, NULL, NULL, datetime('now', '-8 day'))
-                """);
+        OffsetDateTime baseTime = OffsetDateTime.now(ZoneOffset.UTC);
+        recordWorkspaceTelemetryEvent("op1", "workspace_open_ms", "performance", "T-1", null, null, 1200L,
+                "workspace_v1_rollout", "test", "team=ops;shift=night", null, null, baseTime.minusDays(1));
+        recordWorkspaceTelemetryEvent("op1", "workspace_render_error", "quality", "T-1", null, "render_failed", null,
+                "workspace_v1_rollout", "test", "team=ops;shift=night", null, null, baseTime.minusDays(1));
+        recordWorkspaceTelemetryEvent("op2", "workspace_open_ms", "performance", "T-2", null, null, 2300L,
+                "workspace_v1_rollout", "test", "team=ops;shift=night", null, null, baseTime.minusDays(1));
+        recordWorkspaceTelemetryEvent("op2", "workspace_fallback_to_legacy", "fallback", "T-2", "timeout", null, null,
+                "workspace_v1_rollout", "test", "team=ops;shift=night", null, null, baseTime.minusDays(1));
+        for (int i = 3; i <= 12; i++) {
+            long duration = switch (i) {
+                case 3 -> 900L;
+                case 4 -> 950L;
+                case 5 -> 980L;
+                case 6 -> 1020L;
+                case 7 -> 1000L;
+                case 8 -> 970L;
+                case 9 -> 1030L;
+                case 10 -> 1010L;
+                case 11 -> 990L;
+                default -> 1015L;
+            };
+            recordWorkspaceTelemetryEvent("op" + (i - 2), "workspace_open_ms", "performance", "T-" + i, null, null, duration,
+                    "workspace_v1_rollout", "test", "team=ops;shift=night", null, null, baseTime.minusDays(8));
+        }
+        for (int i = 13; i <= 22; i++) {
+            long duration = switch (i) {
+                case 13 -> 1110L;
+                case 14 -> 1090L;
+                case 15 -> 1080L;
+                case 16 -> 1100L;
+                case 17 -> 1130L;
+                case 18 -> 1075L;
+                case 19 -> 1060L;
+                case 20 -> 1050L;
+                case 21 -> 1140L;
+                default -> 1120L;
+            };
+            recordWorkspaceTelemetryEvent("op" + (i - 2), "workspace_open_ms", "performance", "T-" + i, null, null, duration,
+                    "workspace_v1_rollout", "control", "team=ops;shift=night", null, null, baseTime.minusDays(8));
+        }
 
         Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
         Map<String, Object> totals = (Map<String, Object>) summary.get("totals");
@@ -546,18 +578,17 @@ class SupportPanelIntegrationTests {
 
     @Test
     void workspaceTelemetrySummaryIncludesCustomerContextGapRates() {
-        jdbcTemplate.update("""
-                INSERT INTO workspace_telemetry_audit (
-                    actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                    duration_ms, experiment_name, experiment_cohort, operator_segment,
-                    primary_kpis, secondary_kpis, template_id, template_name, created_at
-                ) VALUES
-                    ('op1', 'workspace_open_ms', 'performance', 'T-CONTEXT-1', NULL, NULL, 'workspace.v1', 900, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-2 hour')),
-                    ('op2', 'workspace_open_ms', 'performance', 'T-CONTEXT-2', NULL, NULL, 'workspace.v1', 950, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-1 hour')),
-                    ('op2', 'workspace_context_profile_gap', 'workspace', 'T-CONTEXT-2', 'last_message_at', NULL, 'workspace.v1', 1, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-1 hour')),
-                    ('op2', 'workspace_context_source_gap', 'workspace', 'T-CONTEXT-2', 'contract:invalid_utc', NULL, 'workspace.v1', 1, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-1 hour')),
-                    ('op3', 'workspace_context_profile_gap', 'workspace', 'T-CONTEXT-3', '', NULL, 'workspace.v1', 0, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-30 minute'))
-                """);
+        OffsetDateTime baseTime = OffsetDateTime.now(ZoneOffset.UTC);
+        recordWorkspaceTelemetryEvent("op1", "workspace_open_ms", "performance", "T-CONTEXT-1", null, null, 900L,
+                "workspace_v1_rollout", "test", "team=ops;shift=day", null, null, baseTime.minusHours(2));
+        recordWorkspaceTelemetryEvent("op2", "workspace_open_ms", "performance", "T-CONTEXT-2", null, null, 950L,
+                "workspace_v1_rollout", "test", "team=ops;shift=day", null, null, baseTime.minusHours(1));
+        recordWorkspaceTelemetryEvent("op2", "workspace_context_profile_gap", "workspace", "T-CONTEXT-2", "last_message_at", null, 1L,
+                "workspace_v1_rollout", "test", "team=ops;shift=day", null, null, baseTime.minusHours(1));
+        recordWorkspaceTelemetryEvent("op2", "workspace_context_source_gap", "workspace", "T-CONTEXT-2", "contract:invalid_utc", null, 1L,
+                "workspace_v1_rollout", "test", "team=ops;shift=day", null, null, baseTime.minusHours(1));
+        recordWorkspaceTelemetryEvent("op3", "workspace_context_profile_gap", "workspace", "T-CONTEXT-3", "", null, 0L,
+                "workspace_v1_rollout", "test", "team=ops;shift=day", null, null, baseTime.minusMinutes(30));
 
         Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
         Map<String, Object> totals = (Map<String, Object>) summary.get("totals");
@@ -583,17 +614,15 @@ class SupportPanelIntegrationTests {
 
     @Test
     void workspaceTelemetrySummaryTracksContextBlockGaps() {
-        jdbcTemplate.update("""
-                INSERT INTO workspace_telemetry_audit (
-                    actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                    duration_ms, experiment_name, experiment_cohort, operator_segment,
-                    primary_kpis, secondary_kpis, template_id, template_name, created_at
-                ) VALUES
-                    ('op1', 'workspace_open_ms', 'performance', 'T-BLOCK-1', NULL, NULL, 'workspace.v1', 910, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-2 hour')),
-                    ('op2', 'workspace_open_ms', 'performance', 'T-BLOCK-2', NULL, NULL, 'workspace.v1', 940, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-1 hour')),
-                    ('op2', 'workspace_context_block_gap', 'workspace', 'T-BLOCK-2', 'context_sources,customer_profile', NULL, 'workspace.v1', 2, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-1 hour')),
-                    ('op2', 'workspace_parity_gap', 'workspace', 'T-BLOCK-2', 'attachments', NULL, 'workspace.v1', 75, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-45 minute'))
-                """);
+        OffsetDateTime baseTime = OffsetDateTime.now(ZoneOffset.UTC);
+        recordWorkspaceTelemetryEvent("op1", "workspace_open_ms", "performance", "T-BLOCK-1", null, null, 910L,
+                "workspace_v1_rollout", "test", "team=ops;shift=day", null, null, baseTime.minusHours(2));
+        recordWorkspaceTelemetryEvent("op2", "workspace_open_ms", "performance", "T-BLOCK-2", null, null, 940L,
+                "workspace_v1_rollout", "test", "team=ops;shift=day", null, null, baseTime.minusHours(1));
+        recordWorkspaceTelemetryEvent("op2", "workspace_context_block_gap", "workspace", "T-BLOCK-2", "context_sources,customer_profile", null, 2L,
+                "workspace_v1_rollout", "test", "team=ops;shift=day", null, null, baseTime.minusHours(1));
+        recordWorkspaceTelemetryEvent("op2", "workspace_parity_gap", "workspace", "T-BLOCK-2", "attachments", null, 75L,
+                "workspace_v1_rollout", "test", "team=ops;shift=day", null, null, baseTime.minusMinutes(45));
 
         Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
         Map<String, Object> totals = (Map<String, Object>) summary.get("totals");
@@ -620,16 +649,13 @@ class SupportPanelIntegrationTests {
 
     @Test
     void workspaceTelemetrySummaryTracksSlaPolicyGaps() {
-        jdbcTemplate.update("""
-                INSERT INTO workspace_telemetry_audit (
-                    actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                    duration_ms, experiment_name, experiment_cohort, operator_segment,
-                    primary_kpis, secondary_kpis, template_id, template_name, created_at
-                ) VALUES
-                    ('op1', 'workspace_open_ms', 'performance', 'T-SLA-1', NULL, NULL, 'workspace.v1', 910, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-2 hour')),
-                    ('op2', 'workspace_open_ms', 'performance', 'T-SLA-2', NULL, NULL, 'workspace.v1', 940, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-1 hour')),
-                    ('op2', 'workspace_sla_policy_gap', 'workspace', 'T-SLA-2', 'fallback_assignee_missing', NULL, 'workspace.v1', 5, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-1 hour'))
-                """);
+        OffsetDateTime baseTime = OffsetDateTime.now(ZoneOffset.UTC);
+        recordWorkspaceTelemetryEvent("op1", "workspace_open_ms", "performance", "T-SLA-1", null, null, 910L,
+                "workspace_v1_rollout", "test", "team=ops;shift=day", null, null, baseTime.minusHours(2));
+        recordWorkspaceTelemetryEvent("op2", "workspace_open_ms", "performance", "T-SLA-2", null, null, 940L,
+                "workspace_v1_rollout", "test", "team=ops;shift=day", null, null, baseTime.minusHours(1));
+        recordWorkspaceTelemetryEvent("op2", "workspace_sla_policy_gap", "workspace", "T-SLA-2", "fallback_assignee_missing", null, 5L,
+                "workspace_v1_rollout", "test", "team=ops;shift=day", null, null, baseTime.minusHours(1));
 
         Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
         Map<String, Object> totals = (Map<String, Object>) summary.get("totals");
@@ -660,41 +686,22 @@ class SupportPanelIntegrationTests {
         for (int i = 0; i < 70; i++) {
             String cohort = i < 35 ? "control" : "test";
             long openMs = cohort.equals("test") ? 900L : 1000L;
-            jdbcTemplate.update("""
-                    INSERT INTO workspace_telemetry_audit (
-                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                        duration_ms, experiment_name, experiment_cohort, operator_segment,
-                        primary_kpis, secondary_kpis, template_id, template_name, created_at
-                    ) VALUES (?, 'workspace_open_ms', 'performance', ?, NULL, NULL, 'workspace.v1', ?,
-                              'workspace_v1_rollout', ?, 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-1 hour'))
-                    """, "op-score-open-" + i, "T-SCORE-OPEN-" + i, openMs, cohort);
+            recordWorkspaceTelemetryEvent("op-score-open-" + i, "workspace_open_ms", "performance", "T-SCORE-OPEN-" + i,
+                    null, null, openMs, "workspace_v1_rollout", cohort, "team=ops;shift=day", null, null,
+                    OffsetDateTime.now(ZoneOffset.UTC).minusHours(1));
         }
         for (int i = 0; i < 16; i++) {
             String cohort = i < 8 ? "control" : "test";
-            jdbcTemplate.update("""
-                    INSERT INTO workspace_telemetry_audit (
-                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                        duration_ms, experiment_name, experiment_cohort, operator_segment,
-                        primary_kpis, secondary_kpis, template_id, template_name, created_at
-                    ) VALUES (?, 'kpi_frt_recorded', 'kpi', ?, NULL, NULL, 'workspace.v1', ?,
-                              'workspace_v1_rollout', ?, 'team=ops;shift=day', 'frt,ttr,sla_breach', NULL, NULL, NULL, datetime('now', '-1 hour'))
-                    """, "op-score-frt-" + i, "T-SCORE-FRT-" + i, cohort.equals("test") ? 900L : 1000L, cohort);
-            jdbcTemplate.update("""
-                    INSERT INTO workspace_telemetry_audit (
-                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                        duration_ms, experiment_name, experiment_cohort, operator_segment,
-                        primary_kpis, secondary_kpis, template_id, template_name, created_at
-                    ) VALUES (?, 'kpi_ttr_recorded', 'kpi', ?, NULL, NULL, 'workspace.v1', ?,
-                              'workspace_v1_rollout', ?, 'team=ops;shift=day', 'frt,ttr,sla_breach', NULL, NULL, NULL, datetime('now', '-1 hour'))
-                    """, "op-score-ttr-" + i, "T-SCORE-TTR-" + i, cohort.equals("test") ? 1900L : 2000L, cohort);
-            jdbcTemplate.update("""
-                    INSERT INTO workspace_telemetry_audit (
-                        actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                        duration_ms, experiment_name, experiment_cohort, operator_segment,
-                        primary_kpis, secondary_kpis, template_id, template_name, created_at
-                    ) VALUES (?, 'kpi_sla_breach_recorded', 'kpi', ?, NULL, NULL, 'workspace.v1', NULL,
-                              'workspace_v1_rollout', ?, 'team=ops;shift=day', 'frt,ttr,sla_breach', NULL, NULL, NULL, datetime('now', '-1 hour'))
-                    """, "op-score-sla-" + i, "T-SCORE-SLA-" + i, cohort);
+            OffsetDateTime eventTime = OffsetDateTime.now(ZoneOffset.UTC).minusHours(1);
+            recordWorkspaceTelemetryEvent("op-score-frt-" + i, "kpi_frt_recorded", "kpi", "T-SCORE-FRT-" + i,
+                    null, null, cohort.equals("test") ? 900L : 1000L, "workspace_v1_rollout", cohort,
+                    "team=ops;shift=day", "frt,ttr,sla_breach", null, eventTime);
+            recordWorkspaceTelemetryEvent("op-score-ttr-" + i, "kpi_ttr_recorded", "kpi", "T-SCORE-TTR-" + i,
+                    null, null, cohort.equals("test") ? 1900L : 2000L, "workspace_v1_rollout", cohort,
+                    "team=ops;shift=day", "frt,ttr,sla_breach", null, eventTime);
+            recordWorkspaceTelemetryEvent("op-score-sla-" + i, "kpi_sla_breach_recorded", "kpi", "T-SCORE-SLA-" + i,
+                    null, null, null, "workspace_v1_rollout", cohort, "team=ops;shift=day",
+                    "frt,ttr,sla_breach", null, eventTime);
         }
 
         Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
@@ -731,16 +738,11 @@ class SupportPanelIntegrationTests {
                          "workspace_rollout_governance_owner_signoff_at":"2026-02-03T04:05:06",
                          "workspace_rollout_governance_owner_signoff_ttl_hours":999}
                         """);
-
-        jdbcTemplate.update("""
-                INSERT INTO workspace_telemetry_audit (
-                    actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                    duration_ms, experiment_name, experiment_cohort, operator_segment,
-                    primary_kpis, secondary_kpis, template_id, template_name, created_at
-                ) VALUES
-                    ('op1', 'workspace_open_ms', 'performance', 'T-PACKET-1', NULL, NULL, 'workspace.v1', 880, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-2 hour')),
-                    ('op1', 'workspace_parity_gap', 'workspace', 'T-PACKET-1', 'attachments', NULL, 'workspace.v1', 20, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-90 minute'))
-                """);
+        OffsetDateTime baseTime = OffsetDateTime.now(ZoneOffset.UTC);
+        recordWorkspaceTelemetryEvent("op1", "workspace_open_ms", "performance", "T-PACKET-1", null, null, 880L,
+                "workspace_v1_rollout", "test", "team=ops;shift=day", null, null, baseTime.minusHours(2));
+        recordWorkspaceTelemetryEvent("op1", "workspace_parity_gap", "workspace", "T-PACKET-1", "attachments", null, 20L,
+                "workspace_v1_rollout", "test", "team=ops;shift=day", null, null, baseTime.minusMinutes(90));
 
         Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
         Map<String, Object> packet = (Map<String, Object>) summary.get("rollout_packet");
@@ -1038,18 +1040,22 @@ class SupportPanelIntegrationTests {
 
     @Test
     void workspaceTelemetrySummaryIncludesWeeklyDecisionTelemetryCounters() {
-        jdbcTemplate.update("""
-                INSERT INTO workspace_telemetry_audit (
-                    actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                    duration_ms, experiment_name, experiment_cohort, operator_segment,
-                    primary_kpis, secondary_kpis, template_id, template_name, created_at
-                ) VALUES
-                    ('ops', 'workspace_rollout_review_confirmed', 'experiment', NULL, 'analytics_weekly_review', NULL, 'workspace.v1', NULL, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-20 minute')),
-                    ('ops', 'workspace_rollout_review_decision_go', 'experiment', NULL, 'analytics_weekly_review_decision', NULL, 'workspace.v1', NULL, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-19 minute')),
-                    ('ops', 'workspace_rollout_review_decision_hold', 'experiment', NULL, 'analytics_weekly_review_decision', NULL, 'workspace.v1', NULL, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-18 minute')),
-                    ('ops', 'workspace_rollout_review_decision_rollback', 'experiment', NULL, 'analytics_weekly_review_decision', NULL, 'workspace.v1', NULL, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-17 minute')),
-                    ('ops', 'workspace_rollout_review_incident_followup_linked', 'experiment', NULL, 'analytics_weekly_review_incident_followup', NULL, 'workspace.v1', NULL, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-16 minute'))
-                """);
+        OffsetDateTime baseTime = OffsetDateTime.now(ZoneOffset.UTC);
+        recordWorkspaceTelemetryEvent("ops", "workspace_rollout_review_confirmed", "experiment", null,
+                "analytics_weekly_review", null, null, "workspace_v1_rollout", "test", "team=ops;shift=day",
+                null, null, baseTime.minusMinutes(20));
+        recordWorkspaceTelemetryEvent("ops", "workspace_rollout_review_decision_go", "experiment", null,
+                "analytics_weekly_review_decision", null, null, "workspace_v1_rollout", "test", "team=ops;shift=day",
+                null, null, baseTime.minusMinutes(19));
+        recordWorkspaceTelemetryEvent("ops", "workspace_rollout_review_decision_hold", "experiment", null,
+                "analytics_weekly_review_decision", null, null, "workspace_v1_rollout", "test", "team=ops;shift=day",
+                null, null, baseTime.minusMinutes(18));
+        recordWorkspaceTelemetryEvent("ops", "workspace_rollout_review_decision_rollback", "experiment", null,
+                "analytics_weekly_review_decision", null, null, "workspace_v1_rollout", "test", "team=ops;shift=day",
+                null, null, baseTime.minusMinutes(17));
+        recordWorkspaceTelemetryEvent("ops", "workspace_rollout_review_incident_followup_linked", "experiment", null,
+                "analytics_weekly_review_incident_followup", null, null, "workspace_v1_rollout", "test", "team=ops;shift=day",
+                null, null, baseTime.minusMinutes(16));
 
         Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
         Map<String, Object> packet = (Map<String, Object>) summary.get("rollout_packet");
