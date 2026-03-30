@@ -2024,10 +2024,23 @@ public class DialogService {
         long legacyDeadlineOverdueCount = legacyOnlyScenarioDetails.stream()
                 .filter(item -> toBoolean(item.get("deadline_overdue")))
                 .count();
+        List<String> legacyOverdueScenarios = legacyOnlyScenarioDetails.stream()
+                .filter(item -> toBoolean(item.get("deadline_overdue")))
+                .map(item -> normalizeNullString(String.valueOf(item.get("scenario"))))
+                .filter(StringUtils::hasText)
+                .toList();
         long legacyManagedScenarioCount = legacyOnlyScenarioDetails.stream()
                 .filter(item -> toBoolean(item.get("ready")) && !toBoolean(item.get("deadline_overdue")))
                 .count();
         long legacyUnmanagedScenarioCount = Math.max(0, legacyOnlyScenarios.size() - legacyManagedScenarioCount);
+        List<String> legacyReviewQueueScenarios = legacyOnlyScenarioDetails.stream()
+                .filter(item -> !toBoolean(item.get("ready"))
+                        || toBoolean(item.get("deadline_overdue"))
+                        || toBoolean(item.get("deadline_timestamp_invalid")))
+                .map(item -> normalizeNullString(String.valueOf(item.get("scenario"))))
+                .filter(StringUtils::hasText)
+                .distinct()
+                .toList();
         boolean legacyInventoryReady = legacyOnlyScenarios.isEmpty();
         boolean legacyInventoryManaged = !legacyInventoryReady
                 && legacyUnmanagedScenarioCount == 0
@@ -2749,6 +2762,9 @@ public class DialogService {
                 Map.entry("deadline_invalid_count", legacyDeadlineInvalidCount),
                 Map.entry("deadline_overdue_count", legacyDeadlineOverdueCount),
                 Map.entry("deadline_overdue_pct", legacyDeadlineOverduePct),
+                Map.entry("overdue_scenarios", legacyOverdueScenarios),
+                Map.entry("review_queue_count", legacyReviewQueueScenarios.size()),
+                Map.entry("review_queue_scenarios", legacyReviewQueueScenarios),
                 Map.entry("action_items", legacyInventoryActionItems),
                 Map.entry("scenario_details", legacyOnlyScenarioDetails)
         ));
