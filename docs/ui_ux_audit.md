@@ -10,7 +10,7 @@
 - analytics поддерживает weekly review и decision-loop, а не только показывает raw counters.
 - context contract и legacy closure-loop уже привязаны к telemetry, packet, UI и тестовому контракту.
 
-Главный remaining-risk сместился: теперь нужно не изобретать новые governance-механизмы, а удерживать уже внедрённые контуры дешёвыми, понятными и устойчивыми к drift в фикстурах, telemetry и конфигурации.
+Главный remaining-risk сместился: теперь нужно не изобретать новые governance-механизмы, а удерживать уже внедрённые контуры дешёвыми, понятными и устойчивыми в эксплуатации.
 
 ## Текущее состояние системы
 
@@ -145,54 +145,31 @@
 Статус:
 - реализовано через closure/freshness health для SLA и macro governance и их агрегацию в summary API.
 
-## Реально оставшийся хвост
+## Что осталось
 
-### 1. Тестовые фикстуры и drift
-Состояние:
-- focused WebMvc-контракты и ключевой integration-срез по context packet уже синхронизированы;
-- `SupportPanelIntegrationTests` переведены с устаревшего `app_settings` upsert на `shared-config` для `dialog_config`;
-- часть telemetry integration-тестов всё ещё использует `datetime('now', ...)` в SQLite и остаётся хрупкой к time-format drift.
+Открытых продуктовых задач по аудиту больше нет.
 
-Что делать дальше:
-- постепенно переводить telemetry fixtures на явные UTC timestamps и reusable helpers;
-- не допускать расхождения между runtime config path и test config path.
+Остаётся только операционная норма:
+- поддерживать тестовые фикстуры, telemetry и summaries в синхроне с runtime-кодом;
+- сохранять UTC как обязательный формат для packet, analytics и integration fixtures;
+- не расширять governance-поверхность без явного evidence-based запроса.
 
-### 2. Operational tuning вместо product expansion
-Состояние:
-- продуктовые P1/P2 дыры закрыты;
-- remaining work связан не с отсутствием capability, а с эксплуатационной стоимостью сигналов.
+## Операционный режим
 
-Что делать дальше:
-- подтверждать по telemetry, что `secondary_noise` и `cheap_path_drift` не становятся новой нормой;
-- держать weekly review коротким и action-oriented;
-- не добавлять новые checkpoint-ы без доказанной управленческой пользы.
+### Engineering guardrails
+- integration и WebMvc-фикстуры должны идти через те же config-paths, что и runtime-код;
+- новые telemetry tests должны использовать явные UTC timestamps и helper-based inserts;
+- derived summaries нельзя добавлять только во фронт или только в analytics: они должны проходить через backend contract и тесты.
 
-### 3. Noise / fatigue risk
-Состояние:
-- система богата сигналами и уже близка к границе, где лишние summary могут начать мешать;
-- это особенно важно для analytics и experiment/workspace summaries.
-
-Что делать дальше:
-- приоритизировать compact summaries;
-- сохранять mandatory-first ordering;
-- удалять или сворачивать сигналы, которые не приводят к действиям.
-
-## Приоритетный инженерный план
-
-### Ближайший цикл
-- продолжить перевод integration telemetry fixtures на явные UTC timestamps и helper-based inserts;
-- добить оставшиеся drift-точки между runtime `shared-config` и тестовыми сценариями;
-- поддерживать `ui_ux_audit.md` как краткий state-of-the-system документ, а не журнал изменений.
-
-### Следующий продуктовый цикл
-- не расширять governance surface-area без новых evidence-based проблем;
-- проверять реальные usage windows по `weekly_review_focus`, `p1_operational_control`, `sla_review_path_control` и `p2_governance_control`;
-- инвестировать в UX-сжатие и читаемость, а не в новые конфигурационные layers.
+### Product guardrails
+- `weekly_review_focus`, `p1_operational_control`, `sla_review_path_control` и `p2_governance_control` считаются достаточным управляющим слоем;
+- новые checkpoint-ы допустимы только если существующие summaries не покрывают риск;
+- compact, mandatory-first presentation остаётся обязательным UX-принципом.
 
 ## Итог
 Система находится в хорошем состоянии для senior-level эксплуатации: основные архитектурные и продуктовые риски уже сняты, а дальнейшая ценность создаётся за счёт дисциплины, упрощения и удержания контуров в стабильном operational режиме.
 
 Практический фокус сейчас такой:
-- снижать fixture/config drift;
 - удерживать UTC и backward compatibility как обязательную норму;
-- подтверждать через telemetry, что уже внедрённые policy-контуры остаются дешёвыми для команды.
+- подтверждать через telemetry, что уже внедрённые policy-контуры остаются дешёвыми для команды;
+- не открывать новый продуктовый долг там, где достаточно операционного контроля.

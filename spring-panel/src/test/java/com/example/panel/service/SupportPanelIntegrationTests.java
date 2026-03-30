@@ -777,15 +777,9 @@ class SupportPanelIntegrationTests {
                          "workspace_rollout_governance_owner_signoff_by":"ops-director",
                          "workspace_rollout_governance_owner_signoff_at":"bad-owner-ts"}
                         """);
-
-        jdbcTemplate.update("""
-                INSERT INTO workspace_telemetry_audit (
-                    actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                    duration_ms, experiment_name, experiment_cohort, operator_segment,
-                    primary_kpis, secondary_kpis, template_id, template_name, created_at
-                ) VALUES
-                    ('op1', 'workspace_open_ms', 'performance', 'T-PACKET-INVALID', NULL, NULL, 'workspace.v1', 910, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-1 hour'))
-                """);
+        recordWorkspaceTelemetryEvent("op1", "workspace_open_ms", "performance", "T-PACKET-INVALID", null, null, 910L,
+                "workspace_v1_rollout", "test", "team=ops;shift=day", null, null,
+                OffsetDateTime.now(ZoneOffset.UTC).minusHours(1));
 
         Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
         Map<String, Object> packet = (Map<String, Object>) summary.get("rollout_packet");
@@ -816,16 +810,11 @@ class SupportPanelIntegrationTests {
                          "workspace_rollout_governance_parity_critical_reasons":["reply_threading","permissions"],
                          "workspace_rollout_governance_legacy_only_scenarios":[]}
                         """);
-
-        jdbcTemplate.update("""
-                INSERT INTO workspace_telemetry_audit (
-                    actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                    duration_ms, experiment_name, experiment_cohort, operator_segment,
-                    primary_kpis, secondary_kpis, template_id, template_name, created_at
-                ) VALUES
-                    ('op1', 'workspace_open_ms', 'performance', 'T-PACKET-GOV-1', NULL, NULL, 'workspace.v1', 810, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-2 hour')),
-                    ('op1', 'workspace_parity_gap', 'workspace', 'T-PACKET-GOV-1', 'attachments', NULL, 'workspace.v1', 10, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-90 minute'))
-                """);
+        OffsetDateTime baseTime = OffsetDateTime.now(ZoneOffset.UTC);
+        recordWorkspaceTelemetryEvent("op1", "workspace_open_ms", "performance", "T-PACKET-GOV-1", null, null, 810L,
+                "workspace_v1_rollout", "test", "team=ops;shift=day", null, null, baseTime.minusHours(2));
+        recordWorkspaceTelemetryEvent("op1", "workspace_parity_gap", "workspace", "T-PACKET-GOV-1", "attachments", null, 10L,
+                "workspace_v1_rollout", "test", "team=ops;shift=day", null, null, baseTime.minusMinutes(90));
 
         Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
         Map<String, Object> packet = (Map<String, Object>) summary.get("rollout_packet");
@@ -875,15 +864,9 @@ class SupportPanelIntegrationTests {
                          "workspace_rollout_governance_reviewed_at":"bad-review-ts",
                          "workspace_rollout_governance_legacy_only_scenarios":["attachments_edit","inline_reopen"]}
                         """);
-
-        jdbcTemplate.update("""
-                INSERT INTO workspace_telemetry_audit (
-                    actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                    duration_ms, experiment_name, experiment_cohort, operator_segment,
-                    primary_kpis, secondary_kpis, template_id, template_name, created_at
-                ) VALUES
-                    ('op1', 'workspace_open_ms', 'performance', 'T-PACKET-GOV-2', NULL, NULL, 'workspace.v1', 910, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-1 hour'))
-                """);
+        recordWorkspaceTelemetryEvent("op1", "workspace_open_ms", "performance", "T-PACKET-GOV-2", null, null, 910L,
+                "workspace_v1_rollout", "test", "team=ops;shift=day", null, null,
+                OffsetDateTime.now(ZoneOffset.UTC).minusHours(1));
 
         Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
         Map<String, Object> packet = (Map<String, Object>) summary.get("rollout_packet");
@@ -946,15 +929,9 @@ class SupportPanelIntegrationTests {
                            "inline_reopen":{"owner":"workspace-core","deadline_at_utc":"2099-04-05T00:00:00Z","note":"queue controls"}
                          }}
                         """);
-
-        jdbcTemplate.update("""
-                INSERT INTO workspace_telemetry_audit (
-                    actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                    duration_ms, experiment_name, experiment_cohort, operator_segment,
-                    primary_kpis, secondary_kpis, template_id, template_name, created_at
-                ) VALUES
-                    ('op1', 'workspace_open_ms', 'performance', 'T-PACKET-GOV-2A', NULL, NULL, 'workspace.v1', 910, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-1 hour'))
-                """);
+        recordWorkspaceTelemetryEvent("op1", "workspace_open_ms", "performance", "T-PACKET-GOV-2A", null, null, 910L,
+                "workspace_v1_rollout", "test", "team=ops;shift=day", null, null,
+                OffsetDateTime.now(ZoneOffset.UTC).minusHours(1));
 
         Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
         Map<String, Object> packet = (Map<String, Object>) summary.get("rollout_packet");
@@ -1007,16 +984,11 @@ class SupportPanelIntegrationTests {
                          "workspace_rollout_governance_review_decision_required":true,
                          "workspace_rollout_governance_incident_followup_required":true}
                         """);
-
-        jdbcTemplate.update("""
-                INSERT INTO workspace_telemetry_audit (
-                    actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                    duration_ms, experiment_name, experiment_cohort, operator_segment,
-                    primary_kpis, secondary_kpis, template_id, template_name, created_at
-                ) VALUES
-                    ('op1', 'workspace_open_ms', 'performance', 'T-PACKET-GOV-3', NULL, NULL, 'workspace.v1', 1200, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-20 minute')),
-                    ('op1', 'workspace_render_error', 'guardrail', 'T-PACKET-GOV-3', NULL, NULL, 'workspace.v1', 0, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-18 minute'))
-                """);
+        OffsetDateTime baseTime = OffsetDateTime.now(ZoneOffset.UTC);
+        recordWorkspaceTelemetryEvent("op1", "workspace_open_ms", "performance", "T-PACKET-GOV-3", null, null, 1200L,
+                "workspace_v1_rollout", "test", "team=ops;shift=day", null, null, baseTime.minusMinutes(20));
+        recordWorkspaceTelemetryEvent("op1", "workspace_render_error", "guardrail", "T-PACKET-GOV-3", null, null, 0L,
+                "workspace_v1_rollout", "test", "team=ops;shift=day", null, null, baseTime.minusMinutes(18));
 
         Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
         Map<String, Object> packet = (Map<String, Object>) summary.get("rollout_packet");
@@ -1114,15 +1086,9 @@ class SupportPanelIntegrationTests {
                          "workspace_rollout_context_contract_reviewed_by":"ops-context-owner",
                          "workspace_rollout_context_contract_reviewed_at":"2099-03-01T09:10:11Z"}
                         """);
-
-        jdbcTemplate.update("""
-                INSERT INTO workspace_telemetry_audit (
-                    actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                    duration_ms, experiment_name, experiment_cohort, operator_segment,
-                    primary_kpis, secondary_kpis, template_id, template_name, created_at
-                ) VALUES
-                    ('op1', 'workspace_open_ms', 'performance', 'T-PACKET-CONTEXT-1', NULL, NULL, 'workspace.v1', 810, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-2 hour'))
-                """);
+        recordWorkspaceTelemetryEvent("op1", "workspace_open_ms", "performance", "T-PACKET-CONTEXT-1", null, null, 810L,
+                "workspace_v1_rollout", "test", "team=ops;shift=day", null, null,
+                OffsetDateTime.now(ZoneOffset.UTC).minusHours(2));
 
         Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
         Map<String, Object> packet = (Map<String, Object>) summary.get("rollout_packet");
@@ -1176,17 +1142,13 @@ class SupportPanelIntegrationTests {
                          "workspace_rollout_governance_legacy_blocked_reasons_reviewed":["policy_hold"],
                          "workspace_rollout_governance_legacy_blocked_reasons_followup":""}
                         """);
-
-        jdbcTemplate.update("""
-                INSERT INTO workspace_telemetry_audit (
-                    actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                    duration_ms, experiment_name, experiment_cohort, operator_segment,
-                    primary_kpis, secondary_kpis, template_id, template_name, created_at
-                ) VALUES
-                    ('op1', 'workspace_open_ms', 'performance', 'T-LEGACY-BLOCK-1', NULL, NULL, 'workspace.v1', 810, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-2 hour')),
-                    ('op2', 'workspace_open_legacy_blocked', 'workspace', 'T-LEGACY-BLOCK-2', 'policy_hold', NULL, 'workspace.v1', NULL, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-90 minute')),
-                    ('op3', 'workspace_open_legacy_blocked', 'workspace', 'T-LEGACY-BLOCK-3', 'invalid_review_timestamp', NULL, 'workspace.v1', NULL, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-80 minute'))
-                """);
+        OffsetDateTime baseTime = OffsetDateTime.now(ZoneOffset.UTC);
+        recordWorkspaceTelemetryEvent("op1", "workspace_open_ms", "performance", "T-LEGACY-BLOCK-1", null, null, 810L,
+                "workspace_v1_rollout", "test", "team=ops;shift=day", null, null, baseTime.minusHours(2));
+        recordWorkspaceTelemetryEvent("op2", "workspace_open_legacy_blocked", "workspace", "T-LEGACY-BLOCK-2", "policy_hold", null, null,
+                "workspace_v1_rollout", "test", "team=ops;shift=day", null, null, baseTime.minusMinutes(90));
+        recordWorkspaceTelemetryEvent("op3", "workspace_open_legacy_blocked", "workspace", "T-LEGACY-BLOCK-3", "invalid_review_timestamp", null, null,
+                "workspace_v1_rollout", "test", "team=ops;shift=day", null, null, baseTime.minusMinutes(80));
 
         Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
         Map<String, Object> packet = (Map<String, Object>) summary.get("rollout_packet");
@@ -1220,15 +1182,9 @@ class SupportPanelIntegrationTests {
                          "workspace_rollout_context_contract_reviewed_by":"ops-context-owner",
                          "workspace_rollout_context_contract_reviewed_at":"bad-context-date"}
                         """);
-
-        jdbcTemplate.update("""
-                INSERT INTO workspace_telemetry_audit (
-                    actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                    duration_ms, experiment_name, experiment_cohort, operator_segment,
-                    primary_kpis, secondary_kpis, template_id, template_name, created_at
-                ) VALUES
-                    ('op1', 'workspace_open_ms', 'performance', 'T-PACKET-CONTEXT-INVALID', NULL, NULL, 'workspace.v1', 910, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-1 hour'))
-                """);
+        recordWorkspaceTelemetryEvent("op1", "workspace_open_ms", "performance", "T-PACKET-CONTEXT-INVALID", null, null, 910L,
+                "workspace_v1_rollout", "test", "team=ops;shift=day", null, null,
+                OffsetDateTime.now(ZoneOffset.UTC).minusHours(1));
 
         Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
         Map<String, Object> packet = (Map<String, Object>) summary.get("rollout_packet");
