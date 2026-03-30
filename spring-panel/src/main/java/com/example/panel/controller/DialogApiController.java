@@ -1947,9 +1947,78 @@ public class DialogApiController {
         Map<String, Object> macroGovernanceAudit = dialogService.buildMacroGovernanceAudit(settings);
         payload.put("sla_policy_audit", slaPolicyAudit != null ? slaPolicyAudit : Map.of());
         payload.put("macro_governance_audit", macroGovernanceAudit);
+        payload.put("p1_operational_control", buildP1OperationalControl(payload));
         payload.put("weekly_review_focus", buildWorkspaceWeeklyReviewFocus(payload, slaPolicyAudit, macroGovernanceAudit));
         payload.put("success", true);
         return ResponseEntity.ok(payload);
+    }
+
+    private Map<String, Object> buildP1OperationalControl(Map<String, Object> payload) {
+        Map<String, Object> totals = payload.get("totals") instanceof Map<?, ?> map
+                ? OBJECT_MAPPER.convertValue(map, new TypeReference<Map<String, Object>>() {})
+                : Map.of();
+        Map<String, Object> previousTotals = payload.get("previous_totals") instanceof Map<?, ?> map
+                ? OBJECT_MAPPER.convertValue(map, new TypeReference<Map<String, Object>>() {})
+                : Map.of();
+        Map<String, Object> rolloutPacket = payload.get("rollout_packet") instanceof Map<?, ?> map
+                ? OBJECT_MAPPER.convertValue(map, new TypeReference<Map<String, Object>>() {})
+                : Map.of();
+        Map<String, Object> legacyInventory = rolloutPacket.get("legacy_only_inventory") instanceof Map<?, ?> map
+                ? OBJECT_MAPPER.convertValue(map, new TypeReference<Map<String, Object>>() {})
+                : Map.of();
+        Map<String, Object> contextContract = rolloutPacket.get("context_contract") instanceof Map<?, ?> map
+                ? OBJECT_MAPPER.convertValue(map, new TypeReference<Map<String, Object>>() {})
+                : Map.of();
+
+        long currentContextRate = asLong(totals.get("context_secondary_details_open_rate_pct"));
+        long previousContextRate = asLong(previousTotals.get("context_secondary_details_open_rate_pct"));
+        long currentExtraRate = asLong(totals.get("context_extra_attributes_open_rate_pct"));
+        long previousExtraRate = asLong(previousTotals.get("context_extra_attributes_open_rate_pct"));
+        long contextDeltaPct = currentContextRate - previousContextRate;
+        long extraDeltaPct = currentExtraRate - previousExtraRate;
+
+        String legacyStatus = Boolean.TRUE.equals(legacyInventory.get("review_queue_management_review_required"))
+                ? "management_review"
+                : Boolean.TRUE.equals(legacyInventory.get("review_queue_followup_required"))
+                ? "followup"
+                : "controlled";
+        String contextStatus = Boolean.TRUE.equals(contextContract.get("secondary_noise_management_review_required"))
+                ? "management_review"
+                : Boolean.TRUE.equals(contextContract.get("secondary_noise_followup_required"))
+                ? "followup"
+                : "controlled";
+        String status = ("management_review".equals(legacyStatus) || "management_review".equals(contextStatus))
+                ? "management_review"
+                : ("followup".equals(legacyStatus) || "followup".equals(contextStatus))
+                ? "followup"
+                : "controlled";
+        String nextActionSummary = firstNonBlank(
+                String.valueOf(legacyInventory.getOrDefault("review_queue_next_action_summary", "")),
+                String.valueOf(contextContract.getOrDefault("secondary_noise_compaction_summary", "")),
+                "P1 operational control не требует дополнительного follow-up.");
+        Map<String, Object> control = new LinkedHashMap<>();
+        control.put("status", status);
+        control.put("summary", status.equals("controlled")
+                ? "P1 operational control удерживается: legacy queue и context noise под наблюдением."
+                : "P1 operational control требует follow-up для legacy queue или context noise.");
+        control.put("legacy_status", legacyStatus);
+        control.put("legacy_summary", firstNonBlank(
+                String.valueOf(legacyInventory.getOrDefault("review_queue_management_review_summary", "")),
+                String.valueOf(legacyInventory.getOrDefault("review_queue_summary", ""))));
+        control.put("legacy_next_action_summary", String.valueOf(legacyInventory.getOrDefault("review_queue_next_action_summary", "")));
+        control.put("legacy_management_review_count", asLong(legacyInventory.get("review_queue_escalated_count")));
+        control.put("legacy_consolidation_count", asLong(legacyInventory.get("review_queue_consolidation_count")));
+        control.put("context_status", contextStatus);
+        control.put("context_summary", firstNonBlank(
+                String.valueOf(contextContract.getOrDefault("secondary_noise_compaction_summary", "")),
+                String.valueOf(contextContract.getOrDefault("secondary_noise_summary", ""))));
+        control.put("context_noise_trend_status", contextDeltaPct >= 10L ? "rising" : contextDeltaPct <= -10L ? "improving" : "stable");
+        control.put("context_noise_trend_delta_pct", contextDeltaPct);
+        control.put("context_extra_attributes_delta_pct", extraDeltaPct);
+        control.put("context_extra_attributes_compaction_candidate", Boolean.TRUE.equals(contextContract.get("extra_attributes_compaction_candidate")));
+        control.put("next_action_summary", nextActionSummary);
+        control.put("management_review_required", "management_review".equals(status));
+        return control;
     }
 
     private Map<String, Object> buildWorkspaceWeeklyReviewFocus(Map<String, Object> payload,
@@ -1970,16 +2039,7 @@ public class DialogApiController {
         Map<String, Object> safeSlaAudit = slaPolicyAudit != null ? slaPolicyAudit : Map.of();
         Map<String, Object> safeMacroAudit = macroGovernanceAudit != null ? macroGovernanceAudit : Map.of();
         boolean contextExtraAttributesCompactionCandidate = Boolean.TRUE.equals(totals.get("context_extra_attributes_compaction_candidate"));
-        long currentContextSecondaryRatePct = asLong(totals.get("context_secondary_details_open_rate_pct"));
-        long previousContextSecondaryRatePct = asLong(previousTotals.get("context_secondary_details_open_rate_pct"));
-        long currentContextExtraRatePct = asLong(totals.get("context_extra_attributes_open_rate_pct"));
-        long previousContextExtraRatePct = asLong(previousTotals.get("context_extra_attributes_open_rate_pct"));
-        long contextSecondaryDeltaPct = currentContextSecondaryRatePct - previousContextSecondaryRatePct;
-        long contextExtraDeltaPct = currentContextExtraRatePct - previousContextExtraRatePct;
-        String contextTrendStatus = contextSecondaryDeltaPct >= 10L
-                ? "rising"
-                : contextSecondaryDeltaPct <= -10L ? "improving" : "stable";
-        boolean legacyManagementReviewRequired = Boolean.TRUE.equals(legacyInventory.get("review_queue_management_review_required"))
+        boolean legacyManagementReviewRequired = Boolean.TRUE.equals(legacyInventory.get("review_queue_escalation_required"))
                 || asLong(legacyInventory.get("review_queue_repeat_cycles")) >= 3L
                 || asLong(legacyInventory.get("review_queue_oldest_overdue_days")) >= 7L;
         boolean contextManagementReviewRequired = Boolean.TRUE.equals(totals.get("context_secondary_details_management_review_required"))

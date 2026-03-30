@@ -13661,6 +13661,7 @@ Unconditional classes:
 2026-03-30 11:38:37.844+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [*/*] and supported [application/json, application/*+json]
 2026-03-30 11:38:37.845+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [{rows=[], totals={workspace_sla_policy_churn_followup_required=true, context_extra_attributes_expand (truncated)...]
 2026-03-30 11:38:38.188+03:00 DEBUG [SpringApplicationShutdownHook] o.s.w.c.s.GenericWebApplicationContext - Closing org.springframework.web.context.support.GenericWebApplicationContext@203c20cf, started on Mon Mar 30 11:38:18 MSK 2026
+<<<<<<< HEAD
 2026-03-30 11:53:27.836+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
 2026-03-30 11:53:28.045+03:00 INFO  [main] c.e.p.config.EnvDefaultsInitializer - Applied default SQLite paths for missing APP_DB_* variables: {APP_DB_USERS=C:\Users\sushi\tg_ref_b24_sup\spring-panel\users.db, APP_DB_KNOWLEDGE=C:\Users\sushi\tg_ref_b24_sup\spring-panel\knowledge_base.db, APP_DB_CLIENTS=C:\Users\sushi\tg_ref_b24_sup\spring-panel\clients.db, APP_DB_OBJECT_PASSPORTS=C:\Users\sushi\tg_ref_b24_sup\spring-panel\object_passports.db, APP_DB_OBJECTS=C:\Users\sushi\tg_ref_b24_sup\spring-panel\objects.db, APP_DB_SETTINGS=C:\Users\sushi\tg_ref_b24_sup\spring-panel\settings.db, APP_DB_BOT=C:\Users\sushi\tg_ref_b24_sup\spring-panel\bot_database.db, APP_DB_TICKETS=C:\Users\sushi\tg_ref_b24_sup\spring-panel\tickets.db}
 2026-03-30 11:53:28.097+03:00 INFO  [main] c.e.p.c.DialogApiControllerWebMvcTest - Starting DialogApiControllerWebMvcTest using Java 17.0.12 with PID 21272 (started by S_V in C:\Users\sushi\tg_ref_b24_sup\spring-panel)
@@ -14102,3 +14103,5 @@ Unconditional classes:
 2026-03-30 11:53:41.681+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [*/*] and supported [application/json, application/*+json]
 2026-03-30 11:53:41.683+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [{totals={context_secondary_details_followup_required=true, context_secondary_details_usage_level=hea (truncated)...]
 2026-03-30 11:53:41.975+03:00 DEBUG [SpringApplicationShutdownHook] o.s.w.c.s.GenericWebApplicationContext - Closing org.springframework.web.context.support.GenericWebApplicationContext@203c20cf, started on Mon Mar 30 11:53:28 MSK 2026
+=======
+>>>>>>> d8b8f4bd1714815b3bf45c96b5ada7e9c22cfe02

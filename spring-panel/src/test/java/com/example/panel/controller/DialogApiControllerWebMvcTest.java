@@ -1008,6 +1008,10 @@ class DialogApiControllerWebMvcTest {
         when(slaEscalationWebhookNotifier.buildRoutingGovernanceAudit(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any())).thenReturn(Map.of(
                 "weekly_review_followup_required", true,
                 "policy_churn_risk_level", "high",
+                "minimum_required_review_path_ready", true,
+                "minimum_required_review_path_summary", "Required path: utc_review -> explicit_decision (ready, lead=cheap).",
+                "cheap_review_path_confirmed", true,
+                "decision_lead_time_status", "cheap",
                 "advisory_path_reduction_candidate", true,
                 "weekly_review_summary", "Сократите conflicts/advisory checkpoints, чтобы review-cycle не разрастался."
         ));
@@ -1024,6 +1028,13 @@ class DialogApiControllerWebMvcTest {
                         .with(user("operator")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.p1_operational_control.status").value("management_review"))
+                .andExpect(jsonPath("$.p1_operational_control.legacy_status").value("management_review"))
+                .andExpect(jsonPath("$.p1_operational_control.context_status").value("management_review"))
+                .andExpect(jsonPath("$.p1_operational_control.context_noise_trend_status").value("rising"))
+                .andExpect(jsonPath("$.p1_operational_control.context_noise_trend_delta_pct").value(18))
+                .andExpect(jsonPath("$.p1_operational_control.context_extra_attributes_delta_pct").value(20))
+                .andExpect(jsonPath("$.p1_operational_control.next_action_summary").value("Эскалируйте долгоживущие legacy review-queue сценарии на management review."))
                 .andExpect(jsonPath("$.weekly_review_focus.status").value("hold"))
                 .andExpect(jsonPath("$.weekly_review_focus.section_count").value(4))
                 .andExpect(jsonPath("$.weekly_review_focus.followup_section_count").value(4))
@@ -1068,6 +1079,8 @@ class DialogApiControllerWebMvcTest {
                         .with(user("operator")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.p1_operational_control.status").value("controlled"))
+                .andExpect(jsonPath("$.p1_operational_control.summary").value("P1 operational control удерживается: legacy queue и context noise под наблюдением."))
                 .andExpect(jsonPath("$.weekly_review_focus.status").value("ok"))
                 .andExpect(jsonPath("$.weekly_review_focus.focus_health").value("stable"))
                 .andExpect(jsonPath("$.weekly_review_focus.section_count").value(0))

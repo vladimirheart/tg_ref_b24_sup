@@ -1210,6 +1210,9 @@ if (legacyUsageBlockedReasonsFollowupInput) {
       if (audit?.weekly_review_summary) {
         parts.push(String(audit.weekly_review_summary));
       }
+      if (audit?.minimum_required_review_path_summary) {
+        parts.push(String(audit.minimum_required_review_path_summary));
+      }
       if (issues.length) {
         parts.push(`Issues: ${issues.length}`);
       }
@@ -1231,6 +1234,12 @@ if (legacyUsageBlockedReasonsFollowupInput) {
       if (minimumPath.length) {
         parts.push(`required now: ${minimumPath.join(' -> ')}`);
       }
+      if (audit?.minimum_required_review_path_ready === true) {
+        parts.push('required path=ready');
+      }
+      if (audit?.cheap_review_path_confirmed === true) {
+        parts.push('cheap path=confirmed');
+      }
       parts.push(`closure=${formatNumber(audit?.required_checkpoint_ready_total || 0)}/${formatNumber(audit?.required_checkpoint_total || 0)} (${formatNumber(audit?.required_checkpoint_closure_rate_pct || 100)}%)`);
       if (Number(audit?.freshness_checkpoint_total || 0) > 0) {
         parts.push(`freshness=${formatNumber(audit?.freshness_checkpoint_ready_total || 0)}/${formatNumber(audit?.freshness_checkpoint_total || 0)}`);
@@ -1240,6 +1249,9 @@ if (legacyUsageBlockedReasonsFollowupInput) {
       parts.push(`noise=${formatNumber(audit?.noise_ratio_pct || 0)}% (${String(audit?.noise_level || 'controlled')})`);
       if (audit?.policy_churn_risk_level) {
         parts.push(`churn=${String(audit.policy_churn_risk_level)}`);
+      }
+      if (audit?.decision_lead_time_status) {
+        parts.push(`lead=${String(audit.decision_lead_time_status)}`);
       }
       if (Number(latestPayload?.totals?.workspace_sla_policy_churn_ratio_pct || 0) > 0) {
         parts.push(`telemetry churn=${formatNumber(latestPayload.totals.workspace_sla_policy_churn_ratio_pct)}% (${String(latestPayload?.totals?.workspace_sla_policy_churn_level || 'controlled')})`);
@@ -1334,6 +1346,9 @@ if (legacyUsageBlockedReasonsFollowupInput) {
         parts.push(`lead time=${formatNumber(governanceReview.decision_lead_time_hours)}h`);
       } else if (Number(governanceReview?.decision_lead_time_active_hours) >= 0) {
         parts.push(`lead time pending=${formatNumber(governanceReview.decision_lead_time_active_hours)}h`);
+      }
+      if (audit?.decision_lead_time_status) {
+        parts.push(`status=${String(audit.decision_lead_time_status)}`);
       }
       if (governanceReview?.policy_changed_after_review === true) {
         parts.push('review outdated after policy change');
@@ -2057,6 +2072,9 @@ if (legacyUsageBlockedReasonsFollowupInput) {
   function render(payload) {
     latestPayload = payload || {};
     const totals = payload?.totals || {};
+    const p1Control = payload?.p1_operational_control && typeof payload.p1_operational_control === 'object'
+      ? payload.p1_operational_control
+      : {};
     Object.entries(metricNodes).forEach(([metric, node]) => {
       const value = totals[metric];
       if (metric === 'context_profile_ready_rate'
@@ -2102,6 +2120,9 @@ if (legacyUsageBlockedReasonsFollowupInput) {
     if (weeklyFocusSections.length) {
       updatedAt.textContent += ` · weekly focus ${weeklyFocusSections.map((item) => String(item?.key || '')).filter(Boolean).join(', ')} · top=${String(weeklyReviewFocus?.top_priority_key || 'n/a')} · score=${formatNumber(weeklyReviewFocus?.focus_score || 0)} · health=${String(weeklyReviewFocus?.focus_health || 'stable')}`;
     }
+    if (p1Control?.status) {
+      updatedAt.textContent += ` · p1=${String(p1Control.status)}${p1Control?.context_noise_trend_status ? ` (${String(p1Control.context_noise_trend_status)})` : ''}`;
+    }
     const visibleAlerts = renderAlerts(alerts, filters);
     renderFilterState(filters, visibleAlerts.length);
     renderBreakdownRows(shiftTable, filteredRows(payload?.by_shift, 'shift', filters), 'shift', 'Недостаточно данных по сменам.');
@@ -2122,10 +2143,15 @@ if (legacyUsageBlockedReasonsFollowupInput) {
       const focusText = weeklyFocusSections.length
         ? ` Weekly focus: ${String(weeklyReviewFocus?.summary || '').trim()}${weeklyReviewFocus?.priority_mix_summary ? ` · ${String(weeklyReviewFocus.priority_mix_summary).trim()}` : ''}${weeklyReviewFocus?.next_action_summary ? ` · next: ${String(weeklyReviewFocus.next_action_summary).trim()}` : ''}${weeklyReviewFocus?.requires_management_review === true ? ' · management review suggested' : ''}`
         : '';
-      alertBox.textContent = `Зафиксировано ${alerts.length} отклонений guardrails (${visibleAlerts.length} по текущему фильтру).${focusText}`;
+      const p1Text = p1Control?.status && p1Control.status !== 'controlled'
+        ? ` P1 control: ${String(p1Control.summary || '').trim()}${p1Control?.next_action_summary ? ` · next: ${String(p1Control.next_action_summary).trim()}` : ''}`
+        : '';
+      alertBox.textContent = `Зафиксировано ${alerts.length} отклонений guardrails (${visibleAlerts.length} по текущему фильтру).${focusText}${p1Text}`;
       alertBox.classList.remove('d-none');
-    } else if (weeklyFocusSections.length) {
-      alertBox.textContent = `Weekly focus: ${String(weeklyReviewFocus?.summary || '').trim()}${weeklyReviewFocus?.priority_mix_summary ? ` · ${String(weeklyReviewFocus.priority_mix_summary).trim()}` : ''}${weeklyReviewFocus?.next_action_summary ? ` · next: ${String(weeklyReviewFocus.next_action_summary).trim()}` : ''}${weeklyReviewFocus?.requires_management_review === true ? ' · management review suggested' : ''}`;
+    } else if (weeklyFocusSections.length || (p1Control?.status && p1Control.status !== 'controlled')) {
+      alertBox.textContent = weeklyFocusSections.length
+        ? `Weekly focus: ${String(weeklyReviewFocus?.summary || '').trim()}${weeklyReviewFocus?.priority_mix_summary ? ` · ${String(weeklyReviewFocus.priority_mix_summary).trim()}` : ''}${weeklyReviewFocus?.next_action_summary ? ` · next: ${String(weeklyReviewFocus.next_action_summary).trim()}` : ''}${weeklyReviewFocus?.requires_management_review === true ? ' · management review suggested' : ''}`
+        : `P1 control: ${String(p1Control?.summary || '').trim()}${p1Control?.next_action_summary ? ` · next: ${String(p1Control.next_action_summary).trim()}` : ''}`;
       alertBox.classList.remove('d-none');
     } else {
       alertBox.classList.add('d-none');
