@@ -469,6 +469,9 @@
     workspace_context_attribute_policy_gap: 'workspace',
     workspace_context_block_gap: 'workspace',
     workspace_context_contract_gap: 'workspace',
+    workspace_context_sources_expanded: 'workspace',
+    workspace_context_attribute_policy_expanded: 'workspace',
+    workspace_context_extra_attributes_expanded: 'workspace',
     workspace_sla_policy_gap: 'workspace',
     workspace_parity_gap: 'workspace',
     workspace_inline_navigation: 'workspace',
@@ -501,6 +504,7 @@
   let workspaceLastContextBlockGapSignature = '';
   let workspaceLastSlaPolicyGapSignature = '';
   let workspaceLastParityGapSignature = '';
+  const workspaceContextDisclosureSignatures = new Set();
 
 
   const BUSINESS_STYLES = (window.BUSINESS_CELL_STYLES && typeof window.BUSINESS_CELL_STYLES === 'object')
@@ -2419,6 +2423,55 @@
     }
   }
 
+  function emitWorkspaceContextDisclosureTelemetry(eventType, detail) {
+    const ticketId = String(activeWorkspaceTicketId || '').trim();
+    if (!ticketId || !eventType || !detail || detail.open !== true) return;
+    const reason = [
+      `section:${String(detail.section || 'unknown').trim()}`,
+      `items:${Number(detail.items || 0)}`,
+      `required:${Number(detail.required || 0)}`,
+      `gaps:${Number(detail.gaps || 0)}`,
+      `hidden:${Number(detail.hidden || 0)}`,
+    ].join('|');
+    const signature = `${ticketId}:${eventType}:${reason}`;
+    if (workspaceContextDisclosureSignatures.has(signature)) {
+      return;
+    }
+    workspaceContextDisclosureSignatures.add(signature);
+    emitWorkspaceTelemetry(eventType, {
+      ticketId,
+      reason,
+      durationMs: Number(detail.items || 0),
+      contractVersion: activeWorkspacePayload?.contract_version || 'workspace.v1',
+    });
+  }
+
+  function bindWorkspaceContextDisclosureTelemetry(container) {
+    if (!container) return;
+    const eventBySection = {
+      context_sources: 'workspace_context_sources_expanded',
+      attribute_policy: 'workspace_context_attribute_policy_expanded',
+      extra_attributes: 'workspace_context_extra_attributes_expanded',
+    };
+    container.querySelectorAll('details[data-workspace-telemetry-section]').forEach((node) => {
+      if (node.dataset.telemetryBound === 'true') return;
+      node.dataset.telemetryBound = 'true';
+      node.addEventListener('toggle', () => {
+        const section = String(node.dataset.workspaceTelemetrySection || '').trim();
+        const eventType = eventBySection[section];
+        if (!eventType) return;
+        emitWorkspaceContextDisclosureTelemetry(eventType, {
+          section,
+          open: node.open === true,
+          items: Number(node.dataset.workspaceTelemetryItems || 0),
+          required: Number(node.dataset.workspaceTelemetryRequired || 0),
+          gaps: Number(node.dataset.workspaceTelemetryGaps || 0),
+          hidden: Number(node.dataset.workspaceTelemetryHidden || 0),
+        });
+      });
+    });
+  }
+
   function isValidWorkspaceContract(payload) {
     const version = String(payload?.contract_version || '').trim();
     const ticketId = String(payload?.conversation?.ticketId || '').trim();
@@ -2900,7 +2953,7 @@
         const avgCurrent = Number.isFinite(Number(totals.avg_open_ms)) ? `${Math.round(Number(totals.avg_open_ms))}мс` : '—';
         const avgPrevious = Number.isFinite(Number(previousTotals.avg_open_ms)) ? `${Math.round(Number(previousTotals.avg_open_ms))}мс` : '—';
         const generatedAt = formatWorkspaceDateTime(payload?.generated_at);
-        experimentTelemetrySummaryState.textContent = `Событий: ${Number(totals.events || 0)} (пред. окно: ${Number(previousTotals.events || 0)}) · Fallback: ${Number(totals.fallbacks || 0)} · Manual legacy: ${Number(totals.manual_legacy_open_events || 0)} · Legacy blocked: ${Number(totals.workspace_open_legacy_blocked_events || 0)} · Inline nav: ${Number(totals.workspace_inline_navigation_events || 0)} · Rollout packet views: ${Number(totals.workspace_rollout_packet_viewed_events || 0)} · Source policy gaps: ${Number(totals.context_attribute_policy_gap_events || 0)} · Context contract gaps: ${Number(totals.context_contract_gap_events || 0)} · SLA policy gaps: ${Number(totals.workspace_sla_policy_gap_events || 0)} · Parity gaps: ${Number(totals.workspace_parity_gap_events || 0)} · Render error: ${Number(totals.render_errors || 0)} · Avg open: ${avgCurrent} (было ${avgPrevious}, Δ ${formatDeltaMs(comparison.avg_open_ms_delta)}) · Обновлено: ${generatedAt}.`;
+        experimentTelemetrySummaryState.textContent = `Событий: ${Number(totals.events || 0)} (пред. окно: ${Number(previousTotals.events || 0)}) · Fallback: ${Number(totals.fallbacks || 0)} · Manual legacy: ${Number(totals.manual_legacy_open_events || 0)} · Legacy blocked: ${Number(totals.workspace_open_legacy_blocked_events || 0)} · Inline nav: ${Number(totals.workspace_inline_navigation_events || 0)} · Rollout packet views: ${Number(totals.workspace_rollout_packet_viewed_events || 0)} · Secondary context opens: ${Number(totals.context_secondary_details_expanded_events || 0)} (${Number(totals.context_secondary_details_open_rate_pct || 0)}%) · Source policy gaps: ${Number(totals.context_attribute_policy_gap_events || 0)} · Context contract gaps: ${Number(totals.context_contract_gap_events || 0)} · SLA policy gaps: ${Number(totals.workspace_sla_policy_gap_events || 0)} · SLA churn: ${Number(totals.workspace_sla_policy_churn_ratio_pct || 0)}% · Macro policy updates: ${Number(totals.workspace_macro_policy_update_events || 0)} · Parity gaps: ${Number(totals.workspace_parity_gap_events || 0)} · Render error: ${Number(totals.render_errors || 0)} · Avg open: ${avgCurrent} (было ${avgPrevious}, Δ ${formatDeltaMs(comparison.avg_open_ms_delta)}) · Обновлено: ${generatedAt}.`;
       }
     } catch (_error) {
       renderExperimentTelemetrySummaryRows([]);
@@ -3720,6 +3773,7 @@
       if (workspaceClientContent) {
         workspaceClientContent.classList.remove('d-none');
         workspaceClientContent.innerHTML = renderWorkspaceClientProfile(client, context);
+        bindWorkspaceContextDisclosureTelemetry(workspaceClientContent);
       }
     } else {
       if (workspaceClientState) workspaceClientState.classList.add('d-none');
@@ -4048,6 +4102,7 @@
       });
     const limitedExtraEntries = filteredExtraEntries.slice(0, WORKSPACE_CLIENT_EXTRA_ATTRIBUTES_MAX);
     const hiddenByLimitCount = Math.max(0, filteredExtraEntries.length - limitedExtraEntries.length);
+    const extraAttributeTotalCount = filteredExtraEntries.length;
     const expandedExtraEntries = limitedExtraEntries.slice(0, WORKSPACE_CLIENT_EXTRA_ATTRIBUTES_COLLAPSE_AFTER);
     const collapsedExtraEntries = limitedExtraEntries.slice(WORKSPACE_CLIENT_EXTRA_ATTRIBUTES_COLLAPSE_AFTER);
 
@@ -4106,7 +4161,7 @@
     }).length;
     const contextSourceRequiredCount = contextSources.filter((source) => source?.required === true).length;
     const contextSourcesSection = contextSources.length
-      ? `<details class="mt-2"${contextSourceIssueCount > 0 ? ' open' : ''}>
+      ? `<details class="mt-2" data-workspace-telemetry-section="context_sources" data-workspace-telemetry-items="${contextSources.length}" data-workspace-telemetry-required="${contextSourceRequiredCount}" data-workspace-telemetry-gaps="${contextSourceIssueCount}" data-workspace-telemetry-hidden="0"${contextSourceIssueCount > 0 ? ' open' : ''}>
         <summary class="small fw-semibold">Источники контекста <span class="text-muted fw-normal">(${contextSources.length}; required ${contextSourceRequiredCount}; gaps ${contextSourceIssueCount})</span></summary>
         <div class="small text-muted mt-1">Свернуто по умолчанию, чтобы primary customer-context оставался выше policy-шума.</div>
         <div class="d-flex flex-column gap-2 mt-2">
@@ -4175,7 +4230,7 @@
     }).length;
     const attributePolicyRequiredCount = attributePolicies.filter((policy) => policy?.required === true).length;
     const attributePoliciesSection = attributePolicies.length
-      ? `<details class="mt-2"${attributePolicyIssueCount > 0 ? ' open' : ''}>
+      ? `<details class="mt-2" data-workspace-telemetry-section="attribute_policy" data-workspace-telemetry-items="${attributePolicies.length}" data-workspace-telemetry-required="${attributePolicyRequiredCount}" data-workspace-telemetry-gaps="${attributePolicyIssueCount}" data-workspace-telemetry-hidden="0"${attributePolicyIssueCount > 0 ? ' open' : ''}>
         <summary class="small fw-semibold">Source / freshness policy <span class="text-muted fw-normal">(${attributePolicies.length}; required ${attributePolicyRequiredCount}; gaps ${attributePolicyIssueCount})</span></summary>
         <div class="small text-muted mt-1">Вторичные policy-детали раскрываются отдельно, чтобы не конкурировать с action-oriented contract summary.</div>
         <div class="d-flex flex-column gap-2 mt-2">
@@ -4270,10 +4325,13 @@
       : '';
 
     const extraSection = expandedRows || collapsedRows
-      ? `<div class="small fw-semibold mt-2">Доп. атрибуты</div>
-        <div>${expandedRows}</div>
+      ? `<details class="mt-2" data-workspace-telemetry-section="extra_attributes" data-workspace-telemetry-items="${limitedExtraEntries.length}" data-workspace-telemetry-required="0" data-workspace-telemetry-gaps="0" data-workspace-telemetry-hidden="${hiddenByLimitCount}">
+        <summary class="small fw-semibold">Доп. атрибуты <span class="text-muted fw-normal">(${extraAttributeTotalCount}; visible ${limitedExtraEntries.length}${hiddenByLimitCount > 0 ? `; hidden ${hiddenByLimitCount}` : ''})</span></summary>
+        <div class="small text-muted mt-1">Второстепенные поля скрыты до раскрытия, чтобы не конкурировать с customer-context contract.</div>
+        <div class="mt-2">${expandedRows}</div>
         ${collapsedRows ? `<details class="mt-1"><summary class="small text-muted">Показать ещё ${collapsedExtraEntries.length}</summary><div class="mt-1">${collapsedRows}</div></details>` : ''}
-        ${hiddenByLimitCount > 0 ? `<div class="small text-muted">Скрыто по лимиту: ${hiddenByLimitCount}.</div>` : ''}`
+        ${hiddenByLimitCount > 0 ? `<div class="small text-muted mt-1">Скрыто по лимиту: ${hiddenByLimitCount}.</div>` : ''}
+      </details>`
       : '';
 
     const externalLinks = (client.external_links && typeof client.external_links === 'object')
