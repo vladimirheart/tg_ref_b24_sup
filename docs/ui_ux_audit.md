@@ -126,11 +126,12 @@
 - owner/deadline coverage для `legacy-only` inventory;
 - overdue sunset commitments;
 - repeat legacy review;
-- review-queue для сценариев, которые повторно остаются в legacy.
+- review-queue для сценариев, которые повторно остаются в legacy;
+- follow-up summary / oldest due / repeat-cycle visibility для `review_queue`.
 
 Что остаётся:
 - регулярное закрытие или консолидация долгоживущих legacy-only сценариев;
-- отдельный closure-loop для сценариев, которые несколько циклов подряд остаются в review-queue.
+- дисциплина еженедельного follow-up по сценариям, которые несколько циклов подряд остаются в review-queue.
 
 ### P1. Context contract: action-oriented UX уже собран, но нужен ещё более дешёвый sidebar
 Что уже закрыто:
@@ -138,10 +139,12 @@
 - playbook links;
 - короткие operator-friendly labels и next step в runtime workspace;
 - runtime и analytics visibility;
-- progressive disclosure для вторичных context violations.
+- progressive disclosure для вторичных context violations;
+- secondary `sources` и `source/freshness policy` блоки свернуты в дешёвый details-first режим с компактным summary.
 
 Что остаётся:
-- дополнительно сжать вторичные блоки `sources` / `attribute policy` / `extra attributes`, чтобы важные customer-context сигналы всегда были выше визуального шума.
+- проверить по usage telemetry, насколько часто операторы вообще раскрывают вторичные `sources/policy` блоки;
+- при необходимости ещё сильнее ужать `extra attributes`, если они продолжают конкурировать с primary context.
 
 ### P2. SLA governance: ядро удешевлено, дальше нужен churn-control
 Что уже закрыто:
@@ -153,10 +156,11 @@
 - lead time от policy change до governance decision;
 - minimum required review path;
 - closure/freshness metrics;
-- mandatory-first presentation в analytics.
+- mandatory-first presentation в analytics;
+- weekly review priority и churn-risk summary для дешёвого weekly governance review.
 
 Что остаётся:
-- проверить, что обновление policy не создаёт лишний churn в review-cycle;
+- проверить, что обновление policy не создаёт лишний churn в review-cycle на реальных policy changes;
 - при необходимости сократить advisory checkpoint-ы ещё на один уровень для типовых policy changes.
 
 ### P2. Macro governance: quality loop уже на данных, но noise всё ещё под наблюдением
@@ -171,7 +175,7 @@
 - usage-tier cleanup SLA;
 - usage-tier deprecation SLA;
 - closure/freshness metrics;
-- mandatory-first analytics и noise-level summary.
+- mandatory-first analytics, noise-level summary и weekly review priority.
 
 Что остаётся:
 - проверить, что macro quality loop не даёт слишком много advisory red-list сигналов на библиотеках с низким, но легитимным использованием;
@@ -194,7 +198,7 @@
 - перевести sunset-дисциплину из режима “видим долг” в режим “системно закрываем”.
 
 Минимум на следующий цикл:
-- weekly closure review для `review_queue_scenarios`;
+- weekly closure review для `review_queue_scenarios` по новым `review_queue_summary` / `repeat_cycles`;
 - отдельный follow-up для сценариев, которые остаются в очереди несколько циклов подряд.
 
 ### Шаг 2. Ещё сильнее ужать runtime context noise
@@ -202,7 +206,7 @@
 - оператор должен видеть customer-context priority до любых вторичных policy деталей.
 
 Минимум на следующий цикл:
-- дополнительно свернуть вторичные `sources` и `source/freshness policy` блоки;
+- собрать usage telemetry по раскрытию вторичных `sources` и `source/freshness policy` блоков;
 - проверить фактическую частоту раскрытия hidden details в workspace.
 
 ### Шаг 3. Зафиксировать минимальный дешёвый SLA review path
@@ -247,6 +251,6 @@
 
 Практический приоритет:
 - закрыть долгоживущие legacy-only сценарии, а не только считать их;
-- удержать context UX в режиме “сначала главное, детали по запросу”;
-- держать SLA/macro governance в балансе между контролем и скоростью;
+- удержать context UX в режиме “сначала главное, детали по запросу” и проверять реальное раскрытие вторичных блоков;
+- держать SLA/macro governance в балансе между контролем и скоростью, используя weekly priority вместо добавления новых чекпоинтов;
 - измерять не число checkpoint-ов, а closure/freshness, noise-level и влияние на ежедневную операторскую работу.

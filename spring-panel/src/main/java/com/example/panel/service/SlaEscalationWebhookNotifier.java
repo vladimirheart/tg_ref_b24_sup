@@ -900,6 +900,28 @@ public class SlaEscalationWebhookNotifier {
                 : advisoryIssueTotal >= Math.max(3L, mandatoryIssueTotal * 2L)
                 ? "high"
                 : "moderate";
+        String policyChurnRiskLevel = policyChangedAfterReview || conflictingRulesCount > 0
+                ? "high"
+                : ((policyDecisionLeadTimeHours > 24L)
+                || (policyDecisionLeadTimeActiveHours > 24L))
+                ? "moderate"
+                : "controlled";
+        String weeklyReviewPriority = requiredCheckpointClosureRatePct < 100L
+                ? "close_required_path"
+                : freshnessClosureRatePct < 100L
+                ? "refresh_required_review"
+                : ("high".equals(noiseLevel) || "high".equals(policyChurnRiskLevel))
+                ? "reduce_policy_churn"
+                : advisoryIssueTotal > mandatoryIssueTotal
+                ? "trim_advisory_noise"
+                : "monitor";
+        String weeklyReviewSummary = switch (weeklyReviewPriority) {
+            case "close_required_path" -> "Сначала закройте обязательный SLA review path.";
+            case "refresh_required_review" -> "Освежите UTC review, чтобы policy change не жил без актуального решения.";
+            case "reduce_policy_churn" -> "Сократите conflicts/advisory checkpoints, чтобы review-cycle не разрастался.";
+            case "trim_advisory_noise" -> "Проверьте, что advisory checkpoints не доминируют над обязательными.";
+            default -> "Минимальный SLA governance path выглядит устойчиво.";
+        };
 
         Map<String, Object> auditPayload = new LinkedHashMap<>();
         auditPayload.put("generated_at", generatedAt.toString());
@@ -923,6 +945,9 @@ public class SlaEscalationWebhookNotifier {
         auditPayload.put("freshness_closure_rate_pct", freshnessClosureRatePct);
         auditPayload.put("noise_ratio_pct", noiseRatioPct);
         auditPayload.put("noise_level", noiseLevel);
+        auditPayload.put("policy_churn_risk_level", policyChurnRiskLevel);
+        auditPayload.put("weekly_review_priority", weeklyReviewPriority);
+        auditPayload.put("weekly_review_summary", weeklyReviewSummary);
         auditPayload.put("advisory_checkpoints", advisoryCheckpoints.stream().distinct().toList());
         auditPayload.put("issue_breakdown", Map.of(
                 "conflicts", conflictIssueTotal,

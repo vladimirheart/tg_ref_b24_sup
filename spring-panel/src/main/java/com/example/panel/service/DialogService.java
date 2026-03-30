@@ -1490,6 +1490,22 @@ public class DialogService {
                 : advisoryIssueTotal >= Math.max(3L, mandatoryIssueTotal * 2L)
                 ? "high"
                 : "moderate";
+        String weeklyReviewPriority = requiredCheckpointClosureRatePct < 100L
+                ? "close_required_path"
+                : freshnessClosureRatePct < 100L
+                ? "refresh_stale_checkpoints"
+                : "high".equals(noiseLevel)
+                ? "reduce_advisory_noise"
+                : advisoryIssueTotal > mandatoryIssueTotal
+                ? "trim_advisory_noise"
+                : "monitor";
+        String weeklyReviewSummary = switch (weeklyReviewPriority) {
+            case "close_required_path" -> "Сначала закройте обязательные macro checkpoints.";
+            case "refresh_stale_checkpoints" -> "Освежите review/catalog/deprecation checkpoints по UTC TTL.";
+            case "reduce_advisory_noise" -> "Сократите advisory red-list шум до минимального обязательного контура.";
+            case "trim_advisory_noise" -> "Проверьте, что advisory сигналы не доминируют над обязательными.";
+            default -> "Closure, freshness и noise находятся в рабочем диапазоне.";
+        };
 
         Map<String, Object> audit = new LinkedHashMap<>();
         audit.put("generated_at", generatedAt.toInstant().toString());
@@ -1524,6 +1540,8 @@ public class DialogService {
         audit.put("freshness_closure_rate_pct", freshnessClosureRatePct);
         audit.put("noise_ratio_pct", noiseRatioPct);
         audit.put("noise_level", noiseLevel);
+        audit.put("weekly_review_priority", weeklyReviewPriority);
+        audit.put("weekly_review_summary", weeklyReviewSummary);
         audit.put("advisory_signals", advisorySignals.stream().distinct().toList());
         audit.put("issue_breakdown", Map.of(
                 "review", reviewIssueTotal,
@@ -2051,6 +2069,20 @@ public class DialogService {
                 .filter(StringUtils::hasText)
                 .distinct()
                 .toList();
+        Instant legacyReviewQueueOldestDeadline = legacyOnlyScenarioDetails.stream()
+                .filter(item -> legacyReviewQueueScenarios.contains(String.valueOf(item.get("scenario"))))
+                .map(item -> normalizeNullString(String.valueOf(item.get("deadline_at_utc"))))
+                .filter(StringUtils::hasText)
+                .map(value -> {
+                    try {
+                        return Instant.parse(value);
+                    } catch (Exception ignored) {
+                        return null;
+                    }
+                })
+                .filter(Objects::nonNull)
+                .min(Instant::compareTo)
+                .orElse(null);
         boolean legacyInventoryReady = legacyOnlyScenarios.isEmpty();
         boolean legacyInventoryManaged = !legacyInventoryReady
                 && legacyUnmanagedScenarioCount == 0
@@ -2144,6 +2176,32 @@ public class DialogService {
                 : legacyInventoryReviewAgeHours > legacyRepeatReviewCadenceDays * 24L
                 ? "review_stale"
                 : "";
+        long legacyReviewQueueRepeatCycles = !legacyReviewQueueScenarios.isEmpty() && legacyRepeatReviewCadenceDays > 0
+                ? Math.max(1L, Math.max(
+                legacyRepeatReviewOverdueDays > 0
+                        ? 1L + (legacyRepeatReviewOverdueDays / Math.max(1L, legacyRepeatReviewCadenceDays))
+                        : 0L,
+                legacyInventoryReviewedAt != null && legacyInventoryReviewAgeHours > 0
+                        ? Math.max(0L, legacyInventoryReviewAgeHours / Math.max(24L, legacyRepeatReviewCadenceDays * 24L))
+                        : 0L))
+                : 0L;
+        long legacyReviewQueueOldestOverdueDays = legacyReviewQueueOldestDeadline != null && legacyReviewQueueOldestDeadline.isBefore(now)
+                ? Math.max(0L, java.time.Duration.between(legacyReviewQueueOldestDeadline, now).toDays())
+                : 0L;
+        boolean legacyReviewQueueFollowupRequired = !legacyReviewQueueScenarios.isEmpty()
+                && (legacyRepeatReviewRequired
+                || legacyDeadlineOverdueCount > 0
+                || legacyDeadlineInvalidCount > 0
+                || legacyReviewQueueRepeatCycles > 1);
+        String legacyReviewQueueSummary = legacyReviewQueueScenarios.isEmpty()
+                ? ""
+                : legacyReviewQueueFollowupRequired
+                ? "В weekly closure review остаются %d сценария(ев); oldest due=%s; repeat cycles=%d."
+                .formatted(
+                        legacyReviewQueueScenarios.size(),
+                        legacyReviewQueueOldestDeadline != null ? legacyReviewQueueOldestDeadline.toString() : "n/a",
+                        legacyReviewQueueRepeatCycles)
+                : "Review queue под контролем: %d сценария(ев) ещё в работе.".formatted(legacyReviewQueueScenarios.size());
         List<String> legacyInventoryActionItems = new ArrayList<>();
         if (!legacyOnlyScenarios.isEmpty()) {
             if (legacyOwnerAssignedCount < legacyOnlyScenarios.size()) {
@@ -2157,6 +2215,9 @@ public class DialogService {
             }
             if (!StringUtils.hasText(legacyInventoryReviewedBy) || legacyInventoryReviewedAt == null) {
                 legacyInventoryActionItems.add("Зафиксируйте последний UTC review owner/deadline inventory.");
+            }
+            if (legacyReviewQueueFollowupRequired) {
+                legacyInventoryActionItems.add("Закройте weekly closure-loop для сценариев, которые повторно остаются в legacy review-queue.");
             }
         }
         List<String> contextContractDefinitionGaps = Stream.of(
@@ -2780,6 +2841,11 @@ public class DialogService {
                 Map.entry("repeat_review_overdue_days", legacyRepeatReviewOverdueDays),
                 Map.entry("repeat_review_required", legacyRepeatReviewRequired),
                 Map.entry("repeat_review_reason", legacyRepeatReviewReason),
+                Map.entry("review_queue_followup_required", legacyReviewQueueFollowupRequired),
+                Map.entry("review_queue_repeat_cycles", legacyReviewQueueRepeatCycles),
+                Map.entry("review_queue_oldest_deadline_at_utc", legacyReviewQueueOldestDeadline != null ? legacyReviewQueueOldestDeadline.toString() : ""),
+                Map.entry("review_queue_oldest_overdue_days", legacyReviewQueueOldestOverdueDays),
+                Map.entry("review_queue_summary", legacyReviewQueueSummary),
                 Map.entry("open_count", legacyOnlyScenarios.size()),
                 Map.entry("managed_count", legacyManagedScenarioCount),
                 Map.entry("closure_rate_pct", legacyManagedCoveragePct),

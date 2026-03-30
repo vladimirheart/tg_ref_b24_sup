@@ -1060,6 +1060,9 @@ class SlaEscalationWebhookNotifierTest {
         assertEquals(1L, freshnessCheckpointReadyTotal.longValue());
         assertTrue(noiseRatioPct.longValue() >= 0L && noiseRatioPct.longValue() <= 100L);
         assertTrue(List.of("controlled", "moderate", "high").contains(audit.get("noise_level")));
+        assertEquals("controlled", audit.get("policy_churn_risk_level"));
+        assertTrue(List.of("monitor", "trim_advisory_noise").contains(audit.get("weekly_review_priority")));
+        assertTrue(String.valueOf(audit.get("weekly_review_summary")).length() > 10);
         assertTrue(mandatoryIssues.longValue() >= 0L);
         assertTrue(advisoryIssues.longValue() >= 0L);
     }

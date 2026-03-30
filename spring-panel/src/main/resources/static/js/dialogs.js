@@ -2598,8 +2598,10 @@
       });
       if (reviewQueueScenarios.length) {
         checks.push({
-          ok: false,
-          label: `Повторно остаются в legacy review-queue: ${reviewQueueScenarios.slice(0, 3).join(', ')}${reviewQueueScenarios.length > 3 ? ` +${reviewQueueScenarios.length - 3}` : ''}`
+          ok: legacyInventory?.review_queue_followup_required !== true,
+          label: legacyInventory?.review_queue_summary
+            ? String(legacyInventory.review_queue_summary)
+            : `Повторно остаются в legacy review-queue: ${reviewQueueScenarios.slice(0, 3).join(', ')}${reviewQueueScenarios.length > 3 ? ` +${reviewQueueScenarios.length - 3}` : ''}`
         });
       }
       if (overdueScenarios.length) {
@@ -4098,9 +4100,16 @@
           return 'optional';
       }
     };
+    const contextSourceIssueCount = contextSources.filter((source) => {
+      const status = String(source?.status || '').toLowerCase();
+      return ['missing', 'stale', 'invalid_utc'].includes(status);
+    }).length;
+    const contextSourceRequiredCount = contextSources.filter((source) => source?.required === true).length;
     const contextSourcesSection = contextSources.length
-      ? `<div class="small fw-semibold mt-2">Источники контекста</div>
-        <div class="d-flex flex-column gap-2 mt-1">
+      ? `<details class="mt-2"${contextSourceIssueCount > 0 ? ' open' : ''}>
+        <summary class="small fw-semibold">Источники контекста <span class="text-muted fw-normal">(${contextSources.length}; required ${contextSourceRequiredCount}; gaps ${contextSourceIssueCount})</span></summary>
+        <div class="small text-muted mt-1">Свернуто по умолчанию, чтобы primary customer-context оставался выше policy-шума.</div>
+        <div class="d-flex flex-column gap-2 mt-2">
           ${contextSources.map((source) => {
             const meta = [];
             if (Number.isFinite(Number(source.matched_attribute_count)) && Number(source.matched_attribute_count) > 0) {
@@ -4124,7 +4133,7 @@
               ${source.summary ? `<div class="small text-muted">${escapeHtml(String(source.summary))}</div>` : ''}
             </div>`;
           }).join('')}
-        </div>`
+        </div></details>`
       : '';
 
     const attributePolicies = Array.isArray(client.attribute_policies)
@@ -4160,9 +4169,16 @@
           return 'untracked';
       }
     };
+    const attributePolicyIssueCount = attributePolicies.filter((policy) => {
+      const status = String(policy?.status || '').toLowerCase();
+      return ['missing', 'stale', 'invalid_utc', 'unavailable'].includes(status);
+    }).length;
+    const attributePolicyRequiredCount = attributePolicies.filter((policy) => policy?.required === true).length;
     const attributePoliciesSection = attributePolicies.length
-      ? `<div class="small fw-semibold mt-2">Source / freshness policy</div>
-        <div class="d-flex flex-column gap-2 mt-1">
+      ? `<details class="mt-2"${attributePolicyIssueCount > 0 ? ' open' : ''}>
+        <summary class="small fw-semibold">Source / freshness policy <span class="text-muted fw-normal">(${attributePolicies.length}; required ${attributePolicyRequiredCount}; gaps ${attributePolicyIssueCount})</span></summary>
+        <div class="small text-muted mt-1">Вторичные policy-детали раскрываются отдельно, чтобы не конкурировать с action-oriented contract summary.</div>
+        <div class="d-flex flex-column gap-2 mt-2">
           ${attributePolicies.map((policy) => {
             const meta = [];
             if (policy.source_label || policy.source_key) {
@@ -4188,7 +4204,7 @@
               ${policy.summary ? `<div class="small text-muted">${escapeHtml(String(policy.summary))}</div>` : ''}
             </div>`;
           }).join('')}
-        </div>`
+        </div></details>`
       : '';
 
     const contract = context?.contract && typeof context.contract === 'object'
