@@ -928,14 +928,21 @@ if (legacyUsageBlockedReasonsFollowupInput) {
       const focusBlocks = Array.isArray(contextContract?.operator_focus_blocks) ? contextContract.operator_focus_blocks : [];
       const definitionGaps = Array.isArray(contextContract?.definition_gaps) ? contextContract.definition_gaps : [];
       const actionItems = Array.isArray(contextContract?.action_items) ? contextContract.action_items : [];
+      const operatorSummary = String(contextContract?.operator_summary || '').trim();
+      const nextStepSummary = String(contextContract?.next_step_summary || '').trim();
       const parts = [];
+      if (operatorSummary) {
+        parts.push(operatorSummary);
+      }
       if (focusBlocks.length) {
         parts.push(`operator first: ${focusBlocks.join(', ')}`);
       }
       if (definitionGaps.length) {
         parts.push(`missing: ${definitionGaps.join(', ')}`);
       }
-      if (actionItems.length) {
+      if (nextStepSummary) {
+        parts.push(`next: ${nextStepSummary}`);
+      } else if (actionItems.length) {
         parts.push(`next: ${actionItems[0]}`);
       }
       contextActionSummary.textContent = parts.join(' · ');
@@ -1125,6 +1132,7 @@ if (legacyUsageBlockedReasonsFollowupInput) {
       }
       parts.push(`mandatory=${formatNumber(audit?.mandatory_issue_total || 0)}`);
       parts.push(`advisory=${formatNumber(audit?.advisory_issue_total || 0)}`);
+      parts.push(`noise=${formatNumber(audit?.noise_ratio_pct || 0)}% (${String(audit?.noise_level || 'controlled')})`);
       if (advisory.length) {
         parts.push(`noise filter: ${advisory.slice(0, 2).join(', ')}`);
       }
@@ -1304,6 +1312,7 @@ if (legacyUsageBlockedReasonsFollowupInput) {
       }
       parts.push(`mandatory=${formatNumber(audit?.mandatory_issue_total || 0)}`);
       parts.push(`advisory=${formatNumber(audit?.advisory_issue_total || 0)}`);
+      parts.push(`noise=${formatNumber(audit?.noise_ratio_pct || 0)}% (${String(audit?.noise_level || 'controlled')})`);
       if (advisory.length) {
         parts.push(`noise filter: ${advisory.slice(0, 2).join(', ')}`);
       }

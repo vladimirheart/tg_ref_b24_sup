@@ -2618,11 +2618,13 @@
     if (contextContract?.enabled === true) {
       const contextActionItems = Array.isArray(contextContract?.action_items) ? contextContract.action_items : [];
       const focusBlocks = Array.isArray(contextContract?.operator_focus_blocks) ? contextContract.operator_focus_blocks : [];
+      const operatorSummary = String(contextContract?.operator_summary || '').trim();
+      const nextStepSummary = String(contextContract?.next_step_summary || '').trim();
       checks.push({
         ok: contextContract?.ready === true,
         label: contextContract?.ready === true
           ? `Context contract ready${focusBlocks.length ? ` · operator first: ${focusBlocks.join(', ')}` : ''}`
-          : (contextActionItems[0] || 'Context contract требует action-oriented follow-up')
+          : (nextStepSummary || operatorSummary || contextActionItems[0] || 'Context contract требует action-oriented follow-up')
       });
     }
     if (nextReviewAt) {
