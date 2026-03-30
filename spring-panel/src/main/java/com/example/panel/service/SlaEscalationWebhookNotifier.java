@@ -869,6 +869,29 @@ public class SlaEscalationWebhookNotifier {
         if (blockOnConflict || conflictingRulesCount > 0) {
             advisoryCheckpoints.add("conflict_cleanup");
         }
+        Map<String, Boolean> requiredCheckpointState = new LinkedHashMap<>();
+        requiredCheckpointState.put("utc_review", governanceReviewPresent && governanceReviewFresh
+                && !governanceReviewedAtInvalid
+                && !policyChangedAfterReview
+                && !policyChangedAtInvalid);
+        requiredCheckpointState.put("explicit_decision", governanceDecisionReady);
+        requiredCheckpointState.put("dry_run_ticket", governanceDryRunReady);
+        requiredCheckpointState.put("rule_owner", ownershipIssueTotal == 0);
+        long requiredCheckpointTotal = minimumRequiredReviewPath.size();
+        long requiredCheckpointReadyTotal = minimumRequiredReviewPath.stream()
+                .filter(key -> Boolean.TRUE.equals(requiredCheckpointState.get(key)))
+                .count();
+        long requiredCheckpointClosureRatePct = requiredCheckpointTotal > 0
+                ? Math.round((requiredCheckpointReadyTotal * 100d) / requiredCheckpointTotal)
+                : 100L;
+        long freshnessCheckpointTotal = governanceReviewRequired ? 1L : 0L;
+        long freshnessCheckpointReadyTotal = governanceReviewRequired
+                && Boolean.TRUE.equals(requiredCheckpointState.get("utc_review"))
+                ? 1L
+                : 0L;
+        long freshnessClosureRatePct = freshnessCheckpointTotal > 0
+                ? Math.round((freshnessCheckpointReadyTotal * 100d) / freshnessCheckpointTotal)
+                : 100L;
 
         Map<String, Object> auditPayload = new LinkedHashMap<>();
         auditPayload.put("generated_at", generatedAt.toString());
@@ -884,6 +907,12 @@ public class SlaEscalationWebhookNotifier {
         auditPayload.put("mandatory_issue_total", mandatoryIssueTotal);
         auditPayload.put("advisory_issue_total", advisoryIssueTotal);
         auditPayload.put("minimum_required_review_path", minimumRequiredReviewPath);
+        auditPayload.put("required_checkpoint_total", requiredCheckpointTotal);
+        auditPayload.put("required_checkpoint_ready_total", requiredCheckpointReadyTotal);
+        auditPayload.put("required_checkpoint_closure_rate_pct", requiredCheckpointClosureRatePct);
+        auditPayload.put("freshness_checkpoint_total", freshnessCheckpointTotal);
+        auditPayload.put("freshness_checkpoint_ready_total", freshnessCheckpointReadyTotal);
+        auditPayload.put("freshness_closure_rate_pct", freshnessClosureRatePct);
         auditPayload.put("advisory_checkpoints", advisoryCheckpoints.stream().distinct().toList());
         auditPayload.put("issue_breakdown", Map.of(
                 "conflicts", conflictIssueTotal,

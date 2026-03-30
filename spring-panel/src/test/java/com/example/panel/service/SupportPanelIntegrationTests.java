@@ -865,8 +865,12 @@ class SupportPanelIntegrationTests {
         assertThat(legacyInventory).containsEntry("review_timestamp_invalid", false);
         assertThat(legacyInventory).containsEntry("reviewed_at", "");
         assertThat(legacyInventory).containsEntry("managed", false);
+        assertThat(legacyInventory).containsEntry("review_fresh", false);
         assertThat(legacyInventory).containsEntry("repeat_review_required", true);
         assertThat(legacyInventory).containsEntry("repeat_review_reason", "review_missing");
+        assertThat(legacyInventory).containsEntry("repeat_review_due_at_utc", "");
+        assertThat(legacyInventory).containsEntry("repeat_review_overdue_days", 0L);
+        assertThat(legacyInventory).containsEntry("closure_rate_pct", 0L);
         assertThat(legacyInventory).containsEntry("unmanaged_count", 2L);
         assertThat(items).anySatisfy(item -> {
             if ("weekly_review".equals(item.get("key"))) {
@@ -913,7 +917,9 @@ class SupportPanelIntegrationTests {
         assertThat((List<String>) packet.get("missing_items")).contains("legacy_only_inventory");
         assertThat(legacyInventory).containsEntry("managed", true);
         assertThat(legacyInventory).containsEntry("managed_count", 2L);
+        assertThat(legacyInventory).containsEntry("review_fresh", true);
         assertThat(legacyInventory).containsEntry("managed_coverage_pct", 100L);
+        assertThat(legacyInventory).containsEntry("closure_rate_pct", 100L);
         assertThat(legacyInventory).containsEntry("owner_coverage_pct", 100L);
         assertThat(legacyInventory).containsEntry("deadline_coverage_pct", 100L);
         assertThat(legacyInventory).containsEntry("repeat_review_required", false);
@@ -2361,6 +2367,12 @@ class SupportPanelIntegrationTests {
         assertThat(((Number) audit.get("advisory_issue_total")).longValue()).isGreaterThan(0L);
         assertThat((List<String>) audit.get("minimum_required_checkpoints"))
                 .containsExactly("governance_review", "external_catalog");
+        assertThat(audit).containsEntry("required_checkpoint_total", 2L);
+        assertThat(audit).containsEntry("required_checkpoint_ready_total", 0L);
+        assertThat(audit).containsEntry("required_checkpoint_closure_rate_pct", 0L);
+        assertThat(audit).containsEntry("freshness_checkpoint_total", 3L);
+        assertThat(audit).containsEntry("freshness_checkpoint_ready_total", 0L);
+        assertThat(audit).containsEntry("freshness_closure_rate_pct", 0L);
         assertThat((List<String>) audit.get("advisory_signals"))
                 .contains("red_list", "owner_action");
         assertThat(issues).anySatisfy(issue -> {

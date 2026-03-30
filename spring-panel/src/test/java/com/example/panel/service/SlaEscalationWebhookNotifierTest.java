@@ -1041,12 +1041,22 @@ class SlaEscalationWebhookNotifierTest {
         List<String> minimumPath = (List<String>) audit.get("minimum_required_review_path");
         Number mandatoryIssues = (Number) audit.get("mandatory_issue_total");
         Number advisoryIssues = (Number) audit.get("advisory_issue_total");
+        Number requiredCheckpointTotal = (Number) audit.get("required_checkpoint_total");
+        Number requiredCheckpointReadyTotal = (Number) audit.get("required_checkpoint_ready_total");
+        Number requiredCheckpointClosureRatePct = (Number) audit.get("required_checkpoint_closure_rate_pct");
+        Number freshnessCheckpointTotal = (Number) audit.get("freshness_checkpoint_total");
+        Number freshnessCheckpointReadyTotal = (Number) audit.get("freshness_checkpoint_ready_total");
         assertEquals("strict", governanceReview.get("review_path"));
         assertEquals(4L, governanceReview.get("decision_lead_time_hours"));
         assertEquals(true, governanceReview.get("decision_ready"));
         assertEquals(true, requirements.get("governance_dry_run_ticket_required"));
         assertEquals(true, requirements.get("governance_decision_required"));
         assertEquals(List.of("utc_review", "explicit_decision"), minimumPath);
+        assertEquals(2L, requiredCheckpointTotal.longValue());
+        assertEquals(2L, requiredCheckpointReadyTotal.longValue());
+        assertEquals(100L, requiredCheckpointClosureRatePct.longValue());
+        assertEquals(1L, freshnessCheckpointTotal.longValue());
+        assertEquals(1L, freshnessCheckpointReadyTotal.longValue());
         assertTrue(mandatoryIssues.longValue() >= 0L);
         assertTrue(advisoryIssues.longValue() >= 0L);
     }

@@ -786,6 +786,13 @@
       if (Number(legacyInventory?.deadline_overdue_count || 0) > 0) {
         parts.push(`overdue=${formatNumber(legacyInventory.deadline_overdue_count)} (${formatNumber(legacyInventory?.deadline_overdue_pct || 0)}%)`);
       }
+      if (legacyInventory?.repeat_review_required === true) {
+        const reviewReason = formatLegacyRepeatReviewReason(legacyInventory?.repeat_review_reason);
+        const overdueDays = Number(legacyInventory?.repeat_review_overdue_days || 0);
+        parts.push(`repeat review=${reviewReason || 'required'}${overdueDays > 0 ? ` (+${formatNumber(overdueDays)}d)` : ''}`);
+      } else if (legacyInventory?.repeat_review_due_at_utc) {
+        parts.push(`review due=${formatTimestamp(legacyInventory.repeat_review_due_at_utc)}`);
+      }
       if (actionItems.length) {
         parts.push(`next: ${actionItems[0]}`);
       }
@@ -1007,6 +1014,38 @@ if (legacyUsageBlockedReasonsFollowupInput) {
     }
   }
 
+  function sortGovernanceIssues(items) {
+    const issues = Array.isArray(items) ? [...items] : [];
+    const severityRank = (issue) => {
+      const classification = String(issue?.classification || '').toLowerCase();
+      const status = String(issue?.status || '').toLowerCase();
+      if (classification === 'rollout_blocker' || status === 'hold') return 0;
+      if (classification === 'immediate_incident') return 1;
+      if (status === 'attention') return 2;
+      return 3;
+    };
+    return issues.sort((left, right) => {
+      const severityDiff = severityRank(left) - severityRank(right);
+      if (severityDiff !== 0) {
+        return severityDiff;
+      }
+      return String(left?.summary || left?.type || '').localeCompare(String(right?.summary || right?.type || ''), 'ru');
+    });
+  }
+
+  function formatLegacyRepeatReviewReason(value) {
+    switch (String(value || '').trim().toLowerCase()) {
+      case 'overdue_commitments':
+        return 'overdue commitments';
+      case 'review_missing':
+        return 'review missing';
+      case 'review_stale':
+        return 'review stale';
+      default:
+        return '';
+    }
+  }
+
   function renderSlaPolicyAudit(audit) {
     const status = String(audit?.status || 'off').toLowerCase();
     if (slaPolicyAuditStatus) {
@@ -1055,7 +1094,7 @@ if (legacyUsageBlockedReasonsFollowupInput) {
         : 'Выбранные маршруты пока не определились.';
     }
 
-    const issues = Array.isArray(audit?.issues) ? audit.issues : [];
+    const issues = sortGovernanceIssues(audit?.issues);
     if (slaPolicyAuditIssueSummary) {
       const requirements = audit?.requirements && typeof audit.requirements === 'object' ? audit.requirements : {};
       const parts = [];
@@ -1079,6 +1118,10 @@ if (legacyUsageBlockedReasonsFollowupInput) {
       const parts = [];
       if (minimumPath.length) {
         parts.push(`required now: ${minimumPath.join(' -> ')}`);
+      }
+      parts.push(`closure=${formatNumber(audit?.required_checkpoint_ready_total || 0)}/${formatNumber(audit?.required_checkpoint_total || 0)} (${formatNumber(audit?.required_checkpoint_closure_rate_pct || 100)}%)`);
+      if (Number(audit?.freshness_checkpoint_total || 0) > 0) {
+        parts.push(`freshness=${formatNumber(audit?.freshness_checkpoint_ready_total || 0)}/${formatNumber(audit?.freshness_checkpoint_total || 0)}`);
       }
       parts.push(`mandatory=${formatNumber(audit?.mandatory_issue_total || 0)}`);
       parts.push(`advisory=${formatNumber(audit?.advisory_issue_total || 0)}`);
@@ -1229,7 +1272,7 @@ if (legacyUsageBlockedReasonsFollowupInput) {
         : 'optional';
       macroGovernanceCleanupMeta.textContent = `invalid_review=${formatNumber(audit?.invalid_review_total || 0)} · window=${formatNumber(requirements.unused_days || 0)}d UTC · cadence=${formatNumber(requirements.cleanup_cadence_days || 0)}d · cleanup_sla=${formatNumber(requirements.cleanup_sla_low_days || 0)}/${formatNumber(requirements.cleanup_sla_medium_days || 0)}/${formatNumber(requirements.cleanup_sla_high_days || 0)}d · deprecation_sla=${formatNumber(requirements.deprecation_sla_low_days || 0)}/${formatNumber(requirements.deprecation_sla_medium_days || 0)}/${formatNumber(requirements.deprecation_sla_high_days || 0)}d · deprecation_gaps=${formatNumber(audit?.deprecation_gap_total || 0)} · governance_review=${governanceReview.required === true ? (governanceReview.ready === true ? 'ready' : 'gap') : 'optional'} · external_catalog=${externalCatalogMeta} · deprecation_policy=${deprecationPolicyMeta}`;
     }
-    const issues = Array.isArray(audit?.issues) ? audit.issues : [];
+    const issues = sortGovernanceIssues(audit?.issues);
     if (macroGovernanceIssueSummary) {
       const parts = [];
       if (audit?.summary) {
@@ -1254,6 +1297,10 @@ if (legacyUsageBlockedReasonsFollowupInput) {
       const parts = [];
       if (required.length) {
         parts.push(`required now: ${required.join(' -> ')}`);
+      }
+      parts.push(`closure=${formatNumber(audit?.required_checkpoint_ready_total || 0)}/${formatNumber(audit?.required_checkpoint_total || 0)} (${formatNumber(audit?.required_checkpoint_closure_rate_pct || 100)}%)`);
+      if (Number(audit?.freshness_checkpoint_total || 0) > 0) {
+        parts.push(`freshness=${formatNumber(audit?.freshness_checkpoint_ready_total || 0)}/${formatNumber(audit?.freshness_checkpoint_total || 0)}`);
       }
       parts.push(`mandatory=${formatNumber(audit?.mandatory_issue_total || 0)}`);
       parts.push(`advisory=${formatNumber(audit?.advisory_issue_total || 0)}`);

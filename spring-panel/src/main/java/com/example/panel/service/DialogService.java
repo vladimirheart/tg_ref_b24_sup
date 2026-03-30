@@ -1454,6 +1454,34 @@ public class DialogService {
         if (usageTierSlaRequired) {
             advisorySignals.add("usage_tier_sla");
         }
+        Map<String, Boolean> requiredCheckpointState = new LinkedHashMap<>();
+        requiredCheckpointState.put("governance_review", governanceReady);
+        requiredCheckpointState.put("external_catalog", externalCatalogReady);
+        requiredCheckpointState.put("deprecation_policy", deprecationPolicyReady);
+        requiredCheckpointState.put("template_owner", missingOwnerTotal == 0);
+        long requiredCheckpointTotal = minimumRequiredCheckpoints.size();
+        long requiredCheckpointReadyTotal = minimumRequiredCheckpoints.stream()
+                .filter(key -> Boolean.TRUE.equals(requiredCheckpointState.get(key)))
+                .count();
+        long requiredCheckpointClosureRatePct = requiredCheckpointTotal > 0
+                ? Math.round((requiredCheckpointReadyTotal * 100d) / requiredCheckpointTotal)
+                : 100L;
+        long freshnessCheckpointTotal = Stream.of(governanceReviewRequired, externalCatalogContractRequired, deprecationPolicyRequired)
+                .filter(Boolean::booleanValue)
+                .count();
+        long freshnessCheckpointReadyTotal = 0L;
+        if (governanceReviewRequired && governanceReviewedAt != null && governanceReviewFresh && !governanceReviewedAtInvalid) {
+            freshnessCheckpointReadyTotal += 1L;
+        }
+        if (externalCatalogContractRequired && externalCatalogVerifiedAt != null && externalCatalogReviewFresh && !externalCatalogVerifiedAtInvalid) {
+            freshnessCheckpointReadyTotal += 1L;
+        }
+        if (deprecationPolicyRequired && deprecationPolicyReviewedAt != null && deprecationPolicyReviewFresh && !deprecationPolicyReviewedAtInvalid) {
+            freshnessCheckpointReadyTotal += 1L;
+        }
+        long freshnessClosureRatePct = freshnessCheckpointTotal > 0
+                ? Math.round((freshnessCheckpointReadyTotal * 100d) / freshnessCheckpointTotal)
+                : 100L;
 
         Map<String, Object> audit = new LinkedHashMap<>();
         audit.put("generated_at", generatedAt.toInstant().toString());
@@ -1480,6 +1508,12 @@ public class DialogService {
         audit.put("cleanup_sla_overdue_total", cleanupSlaOverdueTotal);
         audit.put("deprecation_sla_overdue_total", deprecationSlaOverdueTotal);
         audit.put("minimum_required_checkpoints", minimumRequiredCheckpoints);
+        audit.put("required_checkpoint_total", requiredCheckpointTotal);
+        audit.put("required_checkpoint_ready_total", requiredCheckpointReadyTotal);
+        audit.put("required_checkpoint_closure_rate_pct", requiredCheckpointClosureRatePct);
+        audit.put("freshness_checkpoint_total", freshnessCheckpointTotal);
+        audit.put("freshness_checkpoint_ready_total", freshnessCheckpointReadyTotal);
+        audit.put("freshness_closure_rate_pct", freshnessClosureRatePct);
         audit.put("advisory_signals", advisorySignals.stream().distinct().toList());
         audit.put("issue_breakdown", Map.of(
                 "review", reviewIssueTotal,
@@ -2064,6 +2098,18 @@ public class DialogService {
                 ? Math.max(0L, java.time.Duration.between(legacyInventoryReviewedAt, OffsetDateTime.now(ZoneOffset.UTC)).toHours())
                 : -1L;
         long legacyRepeatReviewCadenceDays = reviewCadenceDays > 0 ? reviewCadenceDays : 7L;
+        OffsetDateTime legacyRepeatReviewDueAt = legacyInventoryReviewedAt != null
+                ? legacyInventoryReviewedAt.plusDays(legacyRepeatReviewCadenceDays)
+                : null;
+        boolean legacyInventoryReviewFresh = legacyOnlyScenarios.isEmpty()
+                || (legacyInventoryReviewedAt != null
+                && legacyInventoryReviewAgeHours <= legacyRepeatReviewCadenceDays * 24L
+                && !legacyInventoryReviewTimestampInvalid);
+        long legacyRepeatReviewOverdueDays = !legacyOnlyScenarios.isEmpty()
+                && legacyRepeatReviewDueAt != null
+                && legacyRepeatReviewDueAt.isBefore(OffsetDateTime.now(ZoneOffset.UTC))
+                ? Math.max(0L, java.time.Duration.between(legacyRepeatReviewDueAt, OffsetDateTime.now(ZoneOffset.UTC)).toDays())
+                : 0L;
         boolean legacyRepeatReviewRequired = !legacyOnlyScenarios.isEmpty()
                 && (legacyInventoryReviewedAt == null
                 || legacyInventoryReviewAgeHours > legacyRepeatReviewCadenceDays * 24L
@@ -2686,10 +2732,14 @@ public class DialogService {
                 Map.entry("review_age_hours", legacyInventoryReviewAgeHours),
                 Map.entry("review_timestamp_invalid", legacyInventoryReviewTimestampInvalid),
                 Map.entry("repeat_review_cadence_days", legacyRepeatReviewCadenceDays),
+                Map.entry("review_fresh", legacyInventoryReviewFresh),
+                Map.entry("repeat_review_due_at_utc", legacyRepeatReviewDueAt != null ? legacyRepeatReviewDueAt.toString() : ""),
+                Map.entry("repeat_review_overdue_days", legacyRepeatReviewOverdueDays),
                 Map.entry("repeat_review_required", legacyRepeatReviewRequired),
                 Map.entry("repeat_review_reason", legacyRepeatReviewReason),
                 Map.entry("open_count", legacyOnlyScenarios.size()),
                 Map.entry("managed_count", legacyManagedScenarioCount),
+                Map.entry("closure_rate_pct", legacyManagedCoveragePct),
                 Map.entry("managed_coverage_pct", legacyManagedCoveragePct),
                 Map.entry("unmanaged_count", legacyUnmanagedScenarioCount),
                 Map.entry("owners_ready_count", legacyOwnerAssignedCount),
