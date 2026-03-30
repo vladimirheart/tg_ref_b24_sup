@@ -94,11 +94,33 @@ public class ChannelApiController {
         channel.setActive(parseBoolean(data.getOrDefault("is_active", true)));
         channel.setMaxQuestions(parseInteger(data.get("max_questions")));
         channel.setSupportChatId(stringValue(firstValue(data, "support_chat_id", "supportChatId")));
+        channel.setQuestionTemplateId(stringValue(data.get("question_template_id")));
+        channel.setRatingTemplateId(stringValue(data.get("rating_template_id")));
+        channel.setAutoActionTemplateId(stringValue(data.get("auto_action_template_id")));
+        if (data.containsKey("platform_config") || data.containsKey("settings")) {
+            Object raw = firstValue(data, "platform_config", "settings");
+            channel.setPlatformConfig(serializeIfNeeded(raw));
+        }
+        if (data.containsKey("delivery_settings") || data.containsKey("deliverySettings")) {
+            Object raw = firstValue(data, "delivery_settings", "deliverySettings");
+            channel.setDeliverySettings(serializeIfNeeded(raw));
+        }
+        if (data.containsKey("questions_cfg")) {
+            try {
+                channel.setQuestionsCfg(normalizeQuestionsConfig(data.get("questions_cfg")));
+            } catch (IllegalArgumentException ex) {
+                return ResponseEntity.badRequest().body(Map.of("success", false, "error", ex.getMessage()));
+            }
+        }
         String token = stringValue(data.get("token"));
         channel.setToken(token.isEmpty() ? generateToken() : token);
         channel.setFilters("{}");
-        channel.setQuestionsCfg("{}");
-        channel.setDeliverySettings("{}");
+        if (isBlank(channel.getQuestionsCfg())) {
+            channel.setQuestionsCfg("{}");
+        }
+        if (isBlank(channel.getDeliverySettings())) {
+            channel.setDeliverySettings("{}");
+        }
         channel.setCreatedAt(OffsetDateTime.now());
         channel.setUpdatedAt(OffsetDateTime.now());
         updateTelegramBotInfo(channel, false);
@@ -522,7 +544,11 @@ public class ChannelApiController {
         response.put("credential_id", channel.getCredentialId());
         response.put("bot_name", channel.getBotName());
         response.put("bot_username", channel.getBotUsername());
+        response.put("question_template_id", channel.getQuestionTemplateId());
+        response.put("rating_template_id", channel.getRatingTemplateId());
+        response.put("auto_action_template_id", channel.getAutoActionTemplateId());
         response.put("support_chat_id", channel.getSupportChatId());
+        response.put("platform_config", parseJsonMap(channel.getPlatformConfig()));
         response.put("delivery_settings", parseJsonMap(channel.getDeliverySettings()));
         response.put("public_id", channel.getPublicId());
         response.put("questions_cfg", parseJsonValue(channel.getQuestionsCfg()));
