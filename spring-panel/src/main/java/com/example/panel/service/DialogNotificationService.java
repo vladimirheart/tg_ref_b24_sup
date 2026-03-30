@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.net.URI;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -74,15 +75,11 @@ public class DialogNotificationService {
             log.warn("Unable to notify user {}: channel {} not found", userId, channelId);
             return false;
         }
-        if (channel.getPlatform() != null && !"telegram".equalsIgnoreCase(channel.getPlatform())) {
-            log.info("Skipping notification for user {}: platform {} not supported", userId, channel.getPlatform());
-            return false;
-        }
         if (!StringUtils.hasText(channel.getToken())) {
-            log.warn("Unable to notify user {}: Telegram token missing for channel {}", userId, channelId);
+            log.warn("Unable to notify user {}: bot token missing for channel {}", userId, channelId);
             return false;
         }
-        if (!sendTelegramMessage(channel, userId, message)) {
+        if (!sendPlatformMessage(channel, userId, message)) {
             return false;
         }
         if (logHistory) {
@@ -115,19 +112,15 @@ public class DialogNotificationService {
             }
             return;
         }
-        if (channel.getPlatform() != null && !"telegram".equalsIgnoreCase(channel.getPlatform())) {
-            log.info("Skipping notification for ticket {}: platform {} not supported", ticketId, channel.getPlatform());
-            return;
-        }
         if (!StringUtils.hasText(channel.getToken())) {
-            log.warn("Unable to notify ticket {}: Telegram token missing for channel {}", ticketId, channel.getId());
+            log.warn("Unable to notify ticket {}: bot token missing for channel {}", ticketId, channel.getId());
             return;
         }
         for (String message : messages) {
             if (!StringUtils.hasText(message)) {
                 continue;
             }
-            if (sendTelegramMessage(channel, target.userId(), message)) {
+            if (sendPlatformMessage(channel, target.userId(), message)) {
                 logSystemMessage(target, ticketId, message);
             }
         }
@@ -160,6 +153,19 @@ public class DialogNotificationService {
     }
 
     private boolean sendTelegramMessage(Channel channel, Long userId, String text) {
+        String platform = channel.getPlatform() != null ? channel.getPlatform().trim().toLowerCase() : "telegram";
+        return switch (platform) {
+            case "vk" -> sendVkMessage(channel, userId, text);
+            case "max" -> sendMaxMessage(channel, userId, text);
+            default -> sendTelegramText(channel, userId, text);
+        };
+    }
+
+    private boolean sendPlatformMessage(Channel channel, Long userId, String text) {
+        return sendTelegramMessage(channel, userId, text);
+    }
+
+    private boolean sendTelegramText(Channel channel, Long userId, String text) {
         if (userId == null || !StringUtils.hasText(text)) {
             return false;
         }
@@ -184,6 +190,48 @@ public class DialogNotificationService {
             return false;
         } catch (IOException ex) {
             log.warn("Telegram notification failed: {}", ex.getMessage());
+            return false;
+        }
+    }
+
+    private boolean sendVkMessage(Channel channel, Long userId, String text) {
+        if (userId == null || userId <= 0 || userId > Integer.MAX_VALUE || !StringUtils.hasText(text)) {
+            return false;
+        }
+        try {
+            String query = "peer_id=" + userId.intValue()
+                    + "&random_id=" + Math.abs((int) System.nanoTime())
+                    + "&message=" + URLEncoder.encode(text, java.nio.charset.StandardCharsets.UTF_8)
+                    + "&access_token=" + URLEncoder.encode(channel.getToken(), java.nio.charset.StandardCharsets.UTF_8)
+                    + "&v=5.199";
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("https://api.vk.com/method/messages.send"))
+                    .header("Content-Type", "application/x-www-form-urlencoded")
+                    .POST(HttpRequest.BodyPublishers.ofString(query, java.nio.charset.StandardCharsets.UTF_8))
+                    .build();
+            HttpResponse<String> response = TELEGRAM_HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString(java.nio.charset.StandardCharsets.UTF_8));
+            return response.statusCode() / 100 == 2 && !response.body().contains("\"error\"");
+        } catch (Exception ex) {
+            log.warn("VK notification failed: {}", ex.getMessage());
+            return false;
+        }
+    }
+
+    private boolean sendMaxMessage(Channel channel, Long userId, String text) {
+        if (userId == null || !StringUtils.hasText(text)) {
+            return false;
+        }
+        try {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("https://platform-api.max.ru/messages?user_id=" + userId))
+                    .header("Authorization", channel.getToken())
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(Map.of("text", text)), java.nio.charset.StandardCharsets.UTF_8))
+                    .build();
+            HttpResponse<String> response = TELEGRAM_HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString(java.nio.charset.StandardCharsets.UTF_8));
+            return response.statusCode() / 100 == 2;
+        } catch (Exception ex) {
+            log.warn("MAX notification failed: {}", ex.getMessage());
             return false;
         }
     }

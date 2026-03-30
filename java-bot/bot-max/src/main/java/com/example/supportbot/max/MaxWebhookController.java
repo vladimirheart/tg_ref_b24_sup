@@ -6,6 +6,7 @@ import com.example.supportbot.entity.TicketActive;
 import com.example.supportbot.service.ChannelService;
 import com.example.supportbot.service.ChatHistoryService;
 import com.example.supportbot.service.MessagingService;
+import com.example.supportbot.service.PublicFormConversationLinkService;
 import com.example.supportbot.service.TicketService;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.util.LinkedHashMap;
@@ -31,17 +32,20 @@ public class MaxWebhookController {
     private final TicketService ticketService;
     private final ChatHistoryService chatHistoryService;
     private final MessagingService messagingService;
+    private final PublicFormConversationLinkService publicFormConversationLinkService;
 
     public MaxWebhookController(MaxBotProperties properties,
                                 ChannelService channelService,
                                 TicketService ticketService,
                                 ChatHistoryService chatHistoryService,
-                                MessagingService messagingService) {
+                                MessagingService messagingService,
+                                PublicFormConversationLinkService publicFormConversationLinkService) {
         this.properties = properties;
         this.channelService = channelService;
         this.ticketService = ticketService;
         this.chatHistoryService = chatHistoryService;
         this.messagingService = messagingService;
+        this.publicFormConversationLinkService = publicFormConversationLinkService;
     }
 
     @PostMapping
@@ -70,6 +74,21 @@ public class MaxWebhookController {
         }
 
         Channel channel = channelService.resolveConfiguredChannel(properties.getChannelId(), properties.getToken(), "MAX", "max");
+        String publicFormToken = extractPublicFormContinueToken(text);
+        if (publicFormToken != null) {
+            PublicFormConversationLinkService.LinkResult result =
+                    publicFormConversationLinkService.bindSessionToChannel(publicFormToken, userId, username, channel);
+            if (!result.success()) {
+                messagingService.sendToUser(channel, userId, result.error());
+            } else if (result.closed()) {
+                messagingService.sendToUser(channel, userId,
+                        "Диалог #" + result.ticketId() + " привязан к этому боту. Сейчас он закрыт, но после переоткрытия вы сможете продолжить переписку здесь.");
+            } else {
+                messagingService.sendToUser(channel, userId,
+                        "Диалог #" + result.ticketId() + " привязан к этому боту. Продолжайте переписку здесь следующим сообщением.");
+            }
+            return ResponseEntity.ok(Map.of("ok", true, "continued", true));
+        }
         if ("/start".equalsIgnoreCase(text.trim())) {
             messagingService.sendToUser(channel, userId, "Здравствуйте! Я бот поддержки. Опишите проблему в одном сообщении.");
             return ResponseEntity.ok(Map.of("ok", true));
@@ -125,5 +144,26 @@ public class MaxWebhookController {
         } catch (NumberFormatException ex) {
             return null;
         }
+    }
+
+    private String extractPublicFormContinueToken(String text) {
+        if (text == null) {
+            return null;
+        }
+        String normalized = text.trim();
+        if (normalized.isEmpty()) {
+            return null;
+        }
+        String[] parts = normalized.split("\\s+", 2);
+        String command = parts[0].toLowerCase();
+        String argument = parts.length > 1 ? parts[1].trim() : "";
+        if ("/continue".equals(command) && !argument.isBlank()) {
+            return argument;
+        }
+        if ("/start".equals(command) && argument.toLowerCase().startsWith("web_")) {
+            String token = argument.substring(4).trim();
+            return token.isBlank() ? null : token;
+        }
+        return null;
     }
 }

@@ -9,6 +9,7 @@ C:\Users\sushi\tg_ref_b24_sup\java-bot\bot-core\src\main\java\com\example\suppor
 C:\Users\sushi\tg_ref_b24_sup\java-bot\bot-core\src\main\java\com\example\supportbot\entity\TicketActive.java
 C:\Users\sushi\tg_ref_b24_sup\java-bot\bot-core\src\main\java\com\example\supportbot\repository\ClientUsernameRepository.java
 C:\Users\sushi\tg_ref_b24_sup\java-bot\bot-core\src\main\java\com\example\supportbot\service\UnblockRequestService.java
+C:\Users\sushi\tg_ref_b24_sup\java-bot\bot-core\src\main\java\com\example\supportbot\service\PublicFormConversationLinkService.java
 C:\Users\sushi\tg_ref_b24_sup\java-bot\bot-core\src\main\java\com\example\supportbot\persistence\LocalDateStringConverter.java
 C:\Users\sushi\tg_ref_b24_sup\java-bot\bot-core\src\main\java\com\example\supportbot\repository\FeedbackRepository.java
 C:\Users\sushi\tg_ref_b24_sup\java-bot\bot-core\src\main\java\com\example\supportbot\entity\ClientUsername.java

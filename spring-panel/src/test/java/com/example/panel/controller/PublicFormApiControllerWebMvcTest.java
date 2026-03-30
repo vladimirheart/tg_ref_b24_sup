@@ -96,6 +96,15 @@ class PublicFormApiControllerWebMvcTest {
         when(publicFormService.loadConfigRaw("web-enabled")).thenReturn(Optional.of(enabledConfig));
         when(publicFormService.resolveUiLocale()).thenReturn("en");
         when(publicFormService.buildRequesterKey("203.0.113.1", "fp-001")).thenReturn("ip+fp-key");
+        when(publicFormService.buildContinuationOptions("web-enabled", "token-1")).thenReturn(Map.of(
+                "enabled", true,
+                "platform", "telegram",
+                "platformLabel", "Telegram",
+                "command", "/continue token-1",
+                "token", "token-1",
+                "openUrl", "https://t.me/support_test_bot?start=web_token-1",
+                "hint", "Open bot"
+        ));
         when(publicFormService.createSession(eq("web-enabled"), any(PublicFormSubmission.class), eq("ip+fp-key")))
                 .thenReturn(createdSession);
 
@@ -116,7 +125,10 @@ class PublicFormApiControllerWebMvcTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.ticketId").value("T-101"))
-                .andExpect(jsonPath("$.token").value("token-1"));
+                .andExpect(jsonPath("$.token").value("token-1"))
+                .andExpect(jsonPath("$.continuation.enabled").value(true))
+                .andExpect(jsonPath("$.continuation.command").value("/continue token-1"))
+                .andExpect(jsonPath("$.continuation.openUrl").value("https://t.me/support_test_bot?start=web_token-1"));
 
         ArgumentCaptor<PublicFormSubmission> submissionCaptor = ArgumentCaptor.forClass(PublicFormSubmission.class);
         verify(publicFormService).createSession(eq("web-enabled"), submissionCaptor.capture(), eq("ip+fp-key"));
@@ -142,13 +154,24 @@ class PublicFormApiControllerWebMvcTest {
         when(publicFormService.isSessionPollingEnabled()).thenReturn(true);
         when(publicFormService.resolveSessionPollingIntervalSeconds()).thenReturn(15);
         when(publicFormService.resolveUiLocale()).thenReturn("en");
+        when(publicFormService.buildContinuationOptions("web-locale", null)).thenReturn(Map.of(
+                "enabled", true,
+                "platform", "vk",
+                "platformLabel", "VK",
+                "command", "/continue <token>",
+                "token", "",
+                "openUrl", "",
+                "hint", "Send command"
+        ));
 
         mockMvc.perform(get("/api/public/forms/web-locale/config"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.uiLocale").value("en"))
                 .andExpect(jsonPath("$.successInstruction").value("Ответим в течение дня"))
-                .andExpect(jsonPath("$.responseEtaMinutes").value(120));
+                .andExpect(jsonPath("$.responseEtaMinutes").value(120))
+                .andExpect(jsonPath("$.continuation.platform").value("vk"))
+                .andExpect(jsonPath("$.continuation.command").value("/continue <token>"));
     }
 
     @Test
@@ -234,11 +257,22 @@ class PublicFormApiControllerWebMvcTest {
         );
         when(publicFormService.resolveChannelId("web-session")).thenReturn(Optional.of(15L));
         when(publicFormService.findSession("web-session", "token-2")).thenReturn(Optional.of(session));
+        when(publicFormService.buildContinuationOptions("web-session", "token-2")).thenReturn(Map.of(
+                "enabled", true,
+                "platform", "max",
+                "platformLabel", "MAX",
+                "command", "/continue token-2",
+                "token", "token-2",
+                "openUrl", "",
+                "hint", "Send command"
+        ));
         when(dialogService.loadHistory("T-202", null)).thenReturn(List.of());
 
         mockMvc.perform(get("/api/public/forms/web-session/sessions/token-2"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true));
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.continuation.platform").value("max"))
+                .andExpect(jsonPath("$.continuation.command").value("/continue token-2"));
 
         verify(publicFormService).recordSessionLookup(15L, true);
     }
