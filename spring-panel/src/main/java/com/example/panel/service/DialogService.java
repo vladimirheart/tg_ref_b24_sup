@@ -1532,6 +1532,10 @@ public class DialogService {
             case "trim_advisory_noise" -> "Проверьте, что advisory сигналы не доминируют над обязательными.";
             default -> "Closure, freshness и noise находятся в рабочем диапазоне.";
         };
+        boolean weeklyReviewFollowupRequired = !"monitor".equals(weeklyReviewPriority)
+                && !"monitor_low_signal_advisories".equals(weeklyReviewPriority);
+        boolean advisoryPathReductionCandidate = "reduce_advisory_noise".equals(weeklyReviewPriority)
+                || "trim_advisory_noise".equals(weeklyReviewPriority);
 
         Map<String, Object> audit = new LinkedHashMap<>();
         audit.put("generated_at", generatedAt.toInstant().toString());
@@ -1572,6 +1576,8 @@ public class DialogService {
         audit.put("advisory_followup_required", advisoryFollowupRequired);
         audit.put("weekly_review_priority", weeklyReviewPriority);
         audit.put("weekly_review_summary", weeklyReviewSummary);
+        audit.put("weekly_review_followup_required", weeklyReviewFollowupRequired);
+        audit.put("advisory_path_reduction_candidate", advisoryPathReductionCandidate);
         audit.put("advisory_signals", advisorySignals.stream().distinct().toList());
         audit.put("low_signal_red_list_templates", lowSignalRedListTemplates.stream().distinct().limit(5).toList());
         audit.put("issue_breakdown", Map.of(

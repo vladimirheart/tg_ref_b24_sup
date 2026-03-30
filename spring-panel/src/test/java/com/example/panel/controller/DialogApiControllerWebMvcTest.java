@@ -963,6 +963,50 @@ class DialogApiControllerWebMvcTest {
     }
 
     @Test
+    void workspaceTelemetrySummaryIncludesWeeklyReviewFocus() throws Exception {
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(true);
+        when(dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout")).thenReturn(Map.of(
+                "totals", Map.of(
+                        "context_secondary_details_followup_required", true,
+                        "context_secondary_details_summary", "Secondary context открывали 6 раз (30% от workspace opens); top=extra_attributes.",
+                        "workspace_sla_policy_churn_followup_required", true,
+                        "workspace_sla_policy_churn_summary", "SLA policy updates=3, decisions=1, churn=300%."
+                ),
+                "rollout_packet", Map.of(
+                        "legacy_only_inventory", Map.of(
+                                "review_queue_followup_required", true,
+                                "review_queue_summary", "В weekly closure review остаются 2 сценария(ев); oldest due=2099-04-01T00:00:00Z; repeat cycles=2.",
+                                "action_items", List.of("Закройте weekly closure-loop для сценариев, которые повторно остаются в legacy review-queue.")
+                        )
+                ),
+                "rows", List.of(),
+                "guardrails", Map.of("status", "ok", "alerts", List.of())
+        ));
+        when(slaEscalationWebhookNotifier.buildRoutingGovernanceAudit(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any())).thenReturn(Map.of(
+                "weekly_review_followup_required", true,
+                "advisory_path_reduction_candidate", true,
+                "weekly_review_summary", "Сократите conflicts/advisory checkpoints, чтобы review-cycle не разрастался."
+        ));
+        when(dialogService.buildMacroGovernanceAudit(org.mockito.ArgumentMatchers.any())).thenReturn(Map.of(
+                "weekly_review_followup_required", false,
+                "advisory_followup_required", true,
+                "advisory_path_reduction_candidate", true,
+                "weekly_review_summary", "Сократите advisory red-list шум до минимального обязательного контура."
+        ));
+
+        mockMvc.perform(get("/api/dialogs/workspace-telemetry/summary")
+                        .param("days", "7")
+                        .param("experiment_name", "workspace_v1_rollout")
+                        .with(user("operator")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.weekly_review_focus.status").value("hold"))
+                .andExpect(jsonPath("$.weekly_review_focus.section_count").value(4))
+                .andExpect(jsonPath("$.weekly_review_focus.sections[0].key").value("legacy"))
+                .andExpect(jsonPath("$.weekly_review_focus.top_actions.length()").value(4));
+    }
+
+    @Test
     void workspaceTelemetrySummaryRejectsInvalidUtcWindow() throws Exception {
         when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(true);
 

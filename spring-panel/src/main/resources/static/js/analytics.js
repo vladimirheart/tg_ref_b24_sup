@@ -1990,12 +1990,19 @@ if (legacyUsageBlockedReasonsFollowupInput) {
 
     const windowFrom = formatTimestamp(payload?.window_from_utc || '');
     const windowTo = formatTimestamp(payload?.window_to_utc || '');
+    const weeklyReviewFocus = payload?.weekly_review_focus && typeof payload.weekly_review_focus === 'object'
+      ? payload.weekly_review_focus
+      : {};
+    const weeklyFocusSections = Array.isArray(weeklyReviewFocus?.sections) ? weeklyReviewFocus.sections : [];
     updatedAt.textContent = `Обновлено: ${formatTimestamp(payload?.generated_at)} · окно ${payload?.window_days || '—'} дн.`;
     if (windowFrom !== '—' && windowTo !== '—') {
       updatedAt.textContent = `Обновлено: ${formatTimestamp(payload?.generated_at)} · окно ${payload?.window_days || '—'} дн. · ${windowFrom} — ${windowTo}`;
     }
     if (Number(totals.context_secondary_details_expanded_events || 0) > 0 || Number(totals.workspace_sla_policy_review_updated_events || 0) > 0) {
       updatedAt.textContent += ` · secondary-context opens ${formatNumber(totals.context_secondary_details_expanded_events || 0)} (${formatNumber(totals.context_secondary_details_open_rate_pct || 0)}%, ${String(totals.context_secondary_details_usage_level || 'rare')}${totals.context_secondary_details_top_section ? `, top ${String(totals.context_secondary_details_top_section)}` : ''}) · SLA churn ${formatNumber(totals.workspace_sla_policy_churn_ratio_pct || 0)}% (${String(totals.workspace_sla_policy_churn_level || 'controlled')})`;
+    }
+    if (weeklyFocusSections.length) {
+      updatedAt.textContent += ` · weekly focus ${weeklyFocusSections.map((item) => String(item?.key || '')).filter(Boolean).join(', ')}`;
     }
     const visibleAlerts = renderAlerts(alerts, filters);
     renderFilterState(filters, visibleAlerts.length);
@@ -2014,7 +2021,13 @@ if (legacyUsageBlockedReasonsFollowupInput) {
     renderRolloutDecision(payload?.rollout_decision, payload?.cohort_comparison);
 
     if (status === 'attention') {
-      alertBox.textContent = `Зафиксировано ${alerts.length} отклонений guardrails (${visibleAlerts.length} по текущему фильтру).`;
+      const focusText = weeklyFocusSections.length
+        ? ` Weekly focus: ${String(weeklyReviewFocus?.summary || '').trim()}`
+        : '';
+      alertBox.textContent = `Зафиксировано ${alerts.length} отклонений guardrails (${visibleAlerts.length} по текущему фильтру).${focusText}`;
+      alertBox.classList.remove('d-none');
+    } else if (weeklyFocusSections.length) {
+      alertBox.textContent = `Weekly focus: ${String(weeklyReviewFocus?.summary || '').trim()}${Array.isArray(weeklyReviewFocus?.top_actions) && weeklyReviewFocus.top_actions.length ? ` · next: ${weeklyReviewFocus.top_actions.slice(0, 2).join(' / ')}` : ''}`;
       alertBox.classList.remove('d-none');
     } else {
       alertBox.classList.add('d-none');
