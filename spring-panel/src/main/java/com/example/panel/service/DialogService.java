@@ -941,11 +941,13 @@ public class DialogService {
         int unusedPublishedTotal = 0;
         int deprecationGapTotal = 0;
         int redListTotal = 0;
+        int lowSignalRedListTotal = 0;
         int ownerActionTotal = 0;
         int aliasCleanupTotal = 0;
         int variableCleanupTotal = 0;
         int cleanupSlaOverdueTotal = 0;
         int deprecationSlaOverdueTotal = 0;
+        List<String> lowSignalRedListTemplates = new ArrayList<>();
 
         for (Map<String, Object> template : templates) {
             String templateId = normalizeNullString(String.valueOf(template.get("id")));
@@ -1080,8 +1082,21 @@ public class DialogService {
                 redListReasons.add("runtime_errors");
             }
             boolean redListCandidate = !redListReasons.isEmpty();
+            boolean lowSignalRedListCandidate = redListCandidate
+                    && redListReasons.stream().allMatch("low_adoption"::equals)
+                    && usageCount > 0
+                    && previewCount == 0
+                    && errorCount == 0;
             if (redListCandidate) {
                 redListTotal += 1;
+                if (lowSignalRedListCandidate) {
+                    lowSignalRedListTotal += 1;
+                    if (StringUtils.hasText(templateName)) {
+                        lowSignalRedListTemplates.add(templateName);
+                    } else if (StringUtils.hasText(templateId)) {
+                        lowSignalRedListTemplates.add(templateId);
+                    }
+                }
                 templateIssues.add("red_list_candidate");
                 issues.add(buildMacroGovernanceIssue(
                         "red_list_candidate",
@@ -1210,6 +1225,7 @@ public class DialogService {
             auditTemplate.put("deprecation_due_in_days", deprecated ? deprecationDueInDays : -1L);
             auditTemplate.put("deprecation_sla_status", deprecationSlaStatus);
             auditTemplate.put("red_list_candidate", redListCandidate);
+            auditTemplate.put("red_list_low_signal", lowSignalRedListCandidate);
             auditTemplate.put("red_list_reasons", redListReasons);
             auditTemplate.put("owner_action_required", ownerActionNeeded);
             auditTemplate.put("owner_action_status", ownerActionStatus);
@@ -1482,26 +1498,36 @@ public class DialogService {
         long freshnessClosureRatePct = freshnessCheckpointTotal > 0
                 ? Math.round((freshnessCheckpointReadyTotal * 100d) / freshnessCheckpointTotal)
                 : 100L;
+        long lowSignalAdvisoryTotal = lowSignalRedListTotal;
+        long actionableAdvisoryTotal = Math.max(0L, advisoryIssueTotal - lowSignalAdvisoryTotal);
         long noiseRatioPct = issues.isEmpty()
                 ? 0L
                 : Math.round((advisoryIssueTotal * 100d) / issues.size());
+        long advisoryNoiseExcludingLowSignalPct = issues.isEmpty()
+                ? 0L
+                : Math.round((actionableAdvisoryTotal * 100d) / issues.size());
         String noiseLevel = advisoryIssueTotal <= mandatoryIssueTotal
                 ? "controlled"
                 : advisoryIssueTotal >= Math.max(3L, mandatoryIssueTotal * 2L)
                 ? "high"
                 : "moderate";
+        boolean advisoryFollowupRequired = actionableAdvisoryTotal > mandatoryIssueTotal
+                || advisoryNoiseExcludingLowSignalPct >= 50L;
         String weeklyReviewPriority = requiredCheckpointClosureRatePct < 100L
                 ? "close_required_path"
                 : freshnessClosureRatePct < 100L
                 ? "refresh_stale_checkpoints"
+                : actionableAdvisoryTotal == 0 && lowSignalAdvisoryTotal > 0
+                ? "monitor_low_signal_advisories"
                 : "high".equals(noiseLevel)
                 ? "reduce_advisory_noise"
-                : advisoryIssueTotal > mandatoryIssueTotal
+                : advisoryFollowupRequired
                 ? "trim_advisory_noise"
                 : "monitor";
         String weeklyReviewSummary = switch (weeklyReviewPriority) {
             case "close_required_path" -> "Сначала закройте обязательные macro checkpoints.";
             case "refresh_stale_checkpoints" -> "Освежите review/catalog/deprecation checkpoints по UTC TTL.";
+            case "monitor_low_signal_advisories" -> "Advisory шум в основном состоит из low-signal red-list кандидатов; держите их аналитическими, а не бюрократическими.";
             case "reduce_advisory_noise" -> "Сократите advisory red-list шум до минимального обязательного контура.";
             case "trim_advisory_noise" -> "Проверьте, что advisory сигналы не доминируют над обязательными.";
             default -> "Closure, freshness и noise находятся в рабочем диапазоне.";
@@ -1519,6 +1545,8 @@ public class DialogService {
         audit.put("issues_total", issues.size());
         audit.put("mandatory_issue_total", mandatoryIssueTotal);
         audit.put("advisory_issue_total", advisoryIssueTotal);
+        audit.put("low_signal_advisory_total", lowSignalAdvisoryTotal);
+        audit.put("actionable_advisory_total", actionableAdvisoryTotal);
         audit.put("missing_owner_total", missingOwnerTotal);
         audit.put("missing_namespace_total", missingNamespaceTotal);
         audit.put("stale_review_total", staleReviewTotal);
@@ -1539,10 +1567,13 @@ public class DialogService {
         audit.put("freshness_checkpoint_ready_total", freshnessCheckpointReadyTotal);
         audit.put("freshness_closure_rate_pct", freshnessClosureRatePct);
         audit.put("noise_ratio_pct", noiseRatioPct);
+        audit.put("advisory_noise_excluding_low_signal_pct", advisoryNoiseExcludingLowSignalPct);
         audit.put("noise_level", noiseLevel);
+        audit.put("advisory_followup_required", advisoryFollowupRequired);
         audit.put("weekly_review_priority", weeklyReviewPriority);
         audit.put("weekly_review_summary", weeklyReviewSummary);
         audit.put("advisory_signals", advisorySignals.stream().distinct().toList());
+        audit.put("low_signal_red_list_templates", lowSignalRedListTemplates.stream().distinct().limit(5).toList());
         audit.put("issue_breakdown", Map.of(
                 "review", reviewIssueTotal,
                 "ownership", ownershipIssueTotal,
@@ -4636,12 +4667,48 @@ public class DialogService {
         long contextSecondaryDetailsOpenRatePct = workspaceOpenEvents > 0
                 ? Math.round((contextSecondaryDetailsExpandedEvents * 100d) / workspaceOpenEvents)
                 : 0L;
+        String contextSecondaryDetailsUsageLevel = contextSecondaryDetailsOpenRatePct >= 40L
+                ? "heavy"
+                : contextSecondaryDetailsOpenRatePct >= 15L
+                ? "moderate"
+                : "rare";
+        String contextSecondaryDetailsTopSection = Stream.of(
+                        Map.entry("sources", contextSourcesExpandedEvents),
+                        Map.entry("attribute_policy", contextAttributePolicyExpandedEvents),
+                        Map.entry("extra_attributes", contextExtraAttributesExpandedEvents))
+                .filter(entry -> entry.getValue() > 0)
+                .max(Map.Entry.comparingByValue())
+                .map(Map.Entry::getKey)
+                .orElse("");
+        boolean contextSecondaryDetailsFollowupRequired = contextSecondaryDetailsOpenRatePct >= 25L
+                || contextExtraAttributesExpandedEvents > (contextSourcesExpandedEvents + contextAttributePolicyExpandedEvents);
+        String contextSecondaryDetailsSummary = contextSecondaryDetailsExpandedEvents <= 0
+                ? "Вторичные context-блоки почти не раскрывались."
+                : "Secondary context открывали %d раз (%d%% от workspace opens); top=%s."
+                .formatted(
+                        contextSecondaryDetailsExpandedEvents,
+                        contextSecondaryDetailsOpenRatePct,
+                        StringUtils.hasText(contextSecondaryDetailsTopSection) ? contextSecondaryDetailsTopSection : "n/a");
         long workspaceSlaPolicyChurnRatioPct = workspaceSlaPolicyDecisionEvents > 0
                 ? Math.round((workspaceSlaPolicyReviewUpdatedEvents * 100d) / workspaceSlaPolicyDecisionEvents)
                 : (workspaceSlaPolicyReviewUpdatedEvents > 0 ? 100L : 0L);
         long workspaceSlaPolicyDecisionCoveragePct = workspaceSlaPolicyReviewUpdatedEvents > 0
                 ? Math.round((workspaceSlaPolicyDecisionEvents * 100d) / workspaceSlaPolicyReviewUpdatedEvents)
                 : 100L;
+        String workspaceSlaPolicyChurnLevel = workspaceSlaPolicyChurnRatioPct >= 200L
+                ? "high"
+                : workspaceSlaPolicyChurnRatioPct >= 100L
+                ? "moderate"
+                : "controlled";
+        boolean workspaceSlaPolicyChurnFollowupRequired = workspaceSlaPolicyChurnRatioPct >= 150L
+                || (workspaceSlaPolicyReviewUpdatedEvents > 0 && workspaceSlaPolicyDecisionCoveragePct < 60L);
+        String workspaceSlaPolicyChurnSummary = workspaceSlaPolicyReviewUpdatedEvents <= 0
+                ? "SLA policy review updates в telemetry окне не зафиксированы."
+                : "SLA policy updates=%d, decisions=%d, churn=%d%%."
+                .formatted(
+                        workspaceSlaPolicyReviewUpdatedEvents,
+                        workspaceSlaPolicyDecisionEvents,
+                        workspaceSlaPolicyChurnRatioPct);
 
         totals.put("events", events);
         totals.put("render_errors", renderErrors);
@@ -4663,6 +4730,10 @@ public class DialogService {
         totals.put("context_attribute_policy_expanded_events", contextAttributePolicyExpandedEvents);
         totals.put("context_extra_attributes_expanded_events", contextExtraAttributesExpandedEvents);
         totals.put("context_secondary_details_expanded_events", contextSecondaryDetailsExpandedEvents);
+        totals.put("context_secondary_details_usage_level", contextSecondaryDetailsUsageLevel);
+        totals.put("context_secondary_details_top_section", contextSecondaryDetailsTopSection);
+        totals.put("context_secondary_details_followup_required", contextSecondaryDetailsFollowupRequired);
+        totals.put("context_secondary_details_summary", contextSecondaryDetailsSummary);
         totals.put("workspace_sla_policy_gap_events", workspaceSlaPolicyGapEvents);
         totals.put("workspace_parity_gap_events", workspaceParityGapEvents);
         totals.put("workspace_inline_navigation_events", workspaceInlineNavigationEvents);
@@ -4678,6 +4749,9 @@ public class DialogService {
         totals.put("workspace_sla_policy_decision_events", workspaceSlaPolicyDecisionEvents);
         totals.put("workspace_sla_policy_churn_ratio_pct", workspaceSlaPolicyChurnRatioPct);
         totals.put("workspace_sla_policy_decision_coverage_pct", workspaceSlaPolicyDecisionCoveragePct);
+        totals.put("workspace_sla_policy_churn_level", workspaceSlaPolicyChurnLevel);
+        totals.put("workspace_sla_policy_churn_followup_required", workspaceSlaPolicyChurnFollowupRequired);
+        totals.put("workspace_sla_policy_churn_summary", workspaceSlaPolicyChurnSummary);
         totals.put("workspace_macro_governance_review_updated_events", workspaceMacroGovernanceReviewUpdatedEvents);
         totals.put("workspace_macro_external_catalog_policy_updated_events", workspaceMacroExternalCatalogPolicyUpdatedEvents);
         totals.put("workspace_macro_deprecation_policy_updated_events", workspaceMacroDeprecationPolicyUpdatedEvents);

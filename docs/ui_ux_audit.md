@@ -142,9 +142,10 @@
 - progressive disclosure для вторичных context violations;
 - secondary `sources` и `source/freshness policy` блоки свернуты в дешёвый details-first режим с компактным summary.
 - secondary `sources` / `source-freshness policy` / `extra attributes` теперь дают disclosure telemetry, так что sidebar можно оценивать по фактическому раскрытию, а не по ощущениям.
+- analytics summary теперь показывает usage-level и top opened secondary section, а не только сырой счётчик раскрытий.
 
 Что остаётся:
-- посмотреть первые usage trends по disclosure telemetry и подтвердить, что вторичные блоки действительно открываются редко;
+- подтвердить по первым usage windows, что heavy раскрытие secondary context не становится новой нормой для операторов;
 - при необходимости ещё сильнее ужать `extra attributes`, если они продолжают конкурировать с primary context.
 
 ### P2. SLA governance: ядро удешевлено, дальше нужен churn-control
@@ -160,6 +161,7 @@
 - mandatory-first presentation в analytics;
 - weekly review priority и churn-risk summary для дешёвого weekly governance review.
 - telemetry summary теперь показывает `policy churn` против decision-цикла, а не только статический governance audit.
+- analytics теперь показывает churn-level и follow-up pressure, а не просто процент churn.
 
 Что остаётся:
 - проверить, что реальный `policy churn` не остаётся высоким на типовых policy changes;
@@ -178,9 +180,10 @@
 - usage-tier deprecation SLA;
 - closure/freshness metrics;
 - mandatory-first analytics, noise-level summary и weekly review priority.
+- advisory noise теперь разложен на actionable vs low-signal red-list кандидаты, чтобы не бюрократизировать легитимно низкое использование.
 
 Что остаётся:
-- проверить, что macro quality loop не даёт слишком много advisory red-list сигналов на библиотеках с низким, но легитимным использованием;
+- проверить, что actionable advisory остаётся главным сигналом, а low-signal red-list не превращается в ручной backlog по инерции;
 - удержать policy в минимальном обязательном контуре без возврата в бюрократию.
 
 ### P2. Документ и тестовые фикстуры нужно держать ближе к коду
@@ -209,7 +212,7 @@
 
 Минимум на следующий цикл:
 - посмотреть disclosure telemetry по вторичным `sources` / `source-freshness policy` / `extra attributes`;
-- проверить фактическую частоту раскрытия hidden details в workspace.
+- проверить фактическую частоту heavy раскрытия hidden details в workspace.
 
 ### Шаг 3. Зафиксировать минимальный дешёвый SLA review path
 Цель:
@@ -225,7 +228,7 @@
 
 Минимум на следующий цикл:
 - сравнить advisory noise против обязательных macro checkpoint-ов;
-- при необходимости понизить часть red-list сигналов до чисто аналитических.
+- при необходимости понизить часть low-signal red-list сигналов до чисто аналитических.
 
 ### Шаг 5. Сделать governance freshness/closure управленческой нормой
 Цель:
