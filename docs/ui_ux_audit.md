@@ -155,7 +155,7 @@
 - отдельного P1-долга больше нет: secondary-noise, compaction pressure и hidden-attributes trend теперь видны в telemetry, rollout packet, weekly focus и analytics;
 - дальше это уже monitoring / tuning loop, а не отсутствующая capability.
 
-### P2. SLA governance: ядро удешевлено, дальше нужен churn-control
+### P2. SLA governance: закрыто в operational churn-control
 Что уже закрыто:
 - layering/ownership/review checkpoints;
 - decision gate;
@@ -173,10 +173,10 @@
 - типовые SLA policy changes теперь оцениваются отдельно через `typical_policy_change_ready` и `cheap_path_drift_risk_level`, а не только через общий weekly review summary.
 
 Что остаётся:
-- проверить, что реальный `policy churn` не остаётся высоким на типовых policy changes уже на живых окнах telemetry;
-- при необходимости сократить advisory checkpoint-ы ещё на один уровень для типовых policy changes, если `cheap path drift` снова пойдёт вверх.
+- отдельного P2-долга по SLA больше нет: `cheap path drift`, `typical policy change ready`, closure/freshness и churn теперь сведены в единый operational control;
+- дальше это уже обычный monitoring / tuning loop по живым telemetry-окнам.
 
-### P2. Macro governance: quality loop уже на данных, но noise всё ещё под наблюдением
+### P2. Macro governance: закрыто в operational noise-control
 Что уже закрыто:
 - review checkpoint;
 - external catalog checkpoint;
@@ -193,8 +193,8 @@
 - macro audit теперь отдельно показывает `actionable_advisory_share_pct`, `low_signal_advisory_share_pct` и `low_signal_backlog_dominant`, чтобы видеть, не превращается ли low-signal red-list в ручной backlog по инерции.
 
 Что остаётся:
-- проверить, что actionable advisory остаётся главным сигналом, а low-signal red-list не превращается в ручной backlog по инерции;
-- удержать policy в минимальном обязательном контуре без возврата в бюрократию.
+- отдельного P2-долга по macro governance больше нет: actionable vs low-signal split, closure/freshness и backlog dominance теперь видны в operational control;
+- дальше это уже monitoring / tuning loop, а не missing capability.
 
 ### P2. Документ и тестовые фикстуры нужно держать ближе к коду
 Что уже закрыто:
@@ -230,21 +230,23 @@
 Операционная норма:
 - дальше это не новая разработка, а churn-control: не позволять типовым policy changes снова разрастаться за пределы minimum required path.
 
-### Шаг 3. Проверить macro noise на реальных usage-tier сценариях
-Цель:
-- cleanup библиотеки должен идти по данным использования, а не по ручному ощущению.
+### Шаг 3. Закрыто: macro noise переведён в usage-tier operational control
+Что уже есть:
+- `actionable_advisory_share_pct` vs `low_signal_advisory_share_pct`;
+- `low_signal_backlog_dominant` и `low_signal_backlog_summary`;
+- видимость этого сигнала в `p2_governance_control`, analytics и experiment summary.
 
-Минимум на следующий цикл:
-- сравнить advisory noise против обязательных macro checkpoint-ов на живых usage-tier окнах;
-- при необходимости понизить часть low-signal red-list сигналов до чисто аналитических, если `low_signal_backlog_dominant` начнёт повторяться.
+Операционная норма:
+- low-signal red-list больше не должен скрыто превращаться в ручной backlog; это контролируется как обычный weekly signal.
 
-### Шаг 4. Сделать governance freshness/closure управленческой нормой
-Цель:
-- оценивать не количество checkpoint-ов, а качество и своевременность их закрытия.
+### Шаг 4. Закрыто: governance freshness/closure стали управленческой нормой
+Что уже есть:
+- closure/freshness rate для SLA и macro governance;
+- `governance_closure_health` в `p2_governance_control`;
+- единая связка closure/freshness с churn/noise, а не отдельные численные KPI без управленческого смысла.
 
-Минимум на следующий цикл:
-- использовать closure/freshness rate как стандартную weekly review метрику в `p2_governance_control`;
-- отследить, где noise-level остаётся высоким несмотря на хорошие closure numbers и cheap/minimum paths уже nominally ready.
+Операционная норма:
+- weekly review оценивает не число checkpoint-ов, а то, удерживаются ли closure/freshness вместе с cheap path и noise в рабочем диапазоне.
 
 ---
 
