@@ -10,6 +10,8 @@ import com.example.panel.model.notification.NotificationDto;
 import com.example.panel.model.notification.NotificationSummary;
 import com.example.panel.model.publicform.PublicFormSessionDto;
 import com.example.panel.model.publicform.PublicFormSubmission;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -22,9 +24,12 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestPropertySource;
 
 import java.io.IOException;
+import java.sql.Timestamp;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -40,11 +45,15 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class SupportPanelIntegrationTests {
 
     private static Path dbFile;
+    private static Path sharedConfigDir;
+    private static final TypeReference<LinkedHashMap<String, Object>> MAP_TYPE = new TypeReference<>() {};
 
     @DynamicPropertySource
     static void sqlite(DynamicPropertyRegistry registry) throws IOException {
         dbFile = Files.createTempFile("panel-test", ".db");
+        sharedConfigDir = Files.createTempDirectory("panel-shared-config");
         registry.add("app.datasource.sqlite.path", () -> dbFile.toString());
+        registry.add("shared-config.dir", () -> sharedConfigDir.toString());
     }
 
     @Autowired
@@ -58,6 +67,9 @@ class SupportPanelIntegrationTests {
 
     @Autowired
     private SharedConfigService sharedConfigService;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @Autowired
     private KnowledgeBaseService knowledgeBaseService;
@@ -86,7 +98,40 @@ class SupportPanelIntegrationTests {
         jdbcTemplate.update("DELETE FROM knowledge_articles");
         jdbcTemplate.update("DELETE FROM notifications");
         jdbcTemplate.update("DELETE FROM workspace_telemetry_audit");
-        jdbcTemplate.update("DELETE FROM app_settings WHERE setting_key = ?", "dialog_config");
+        jdbcTemplate.update("DELETE FROM app_settings");
+        sharedConfigService.saveSettings(new LinkedHashMap<>());
+    }
+
+    private void saveDialogConfig(String rawJson) {
+        try {
+            Map<String, Object> settings = new LinkedHashMap<>();
+            settings.put("dialog_config", objectMapper.readValue(rawJson, MAP_TYPE));
+            sharedConfigService.saveSettings(settings);
+        } catch (IOException ex) {
+            throw new IllegalStateException("Failed to persist dialog_config fixture", ex);
+        }
+    }
+
+    private void recordWorkspaceTelemetryEvent(String actor,
+                                               String eventType,
+                                               String eventGroup,
+                                               String ticketId,
+                                               Long durationMs,
+                                               OffsetDateTime createdAtUtc) {
+        jdbcTemplate.update("""
+                INSERT INTO workspace_telemetry_audit (
+                    actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
+                    duration_ms, experiment_name, experiment_cohort, operator_segment,
+                    primary_kpis, secondary_kpis, template_id, template_name, created_at
+                ) VALUES (?, ?, ?, ?, NULL, NULL, 'workspace.v1', ?,
+                          'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, ?)
+                """,
+                actor,
+                eventType,
+                eventGroup,
+                ticketId,
+                durationMs,
+                Timestamp.from(createdAtUtc.toInstant()));
     }
 
     @Test
@@ -225,16 +270,14 @@ class SupportPanelIntegrationTests {
 
     @Test
     void publicFormServiceBuildsRateLimitRequesterKeyWithFingerprintToggle() {
-        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
-                "dialog_config", "{\"public_form_rate_limit_use_fingerprint\":true}");
+        saveDialogConfig("{\"public_form_rate_limit_use_fingerprint\":true}");
 
         String keyA = publicFormService.buildRequesterKey("same-ip", "browser-A");
         String keyB = publicFormService.buildRequesterKey("same-ip", "browser-B");
         assertThat(keyA).contains("same-ip|fp:");
         assertThat(keyA).isNotEqualTo(keyB);
 
-        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
-                "dialog_config", "{\"public_form_rate_limit_use_fingerprint\":false}");
+        saveDialogConfig("{\"public_form_rate_limit_use_fingerprint\":false}");
 
         String keyWithoutFingerprint = publicFormService.buildRequesterKey("same-ip", "browser-A");
         assertThat(keyWithoutFingerprint).isEqualTo("same-ip");
@@ -270,8 +313,7 @@ class SupportPanelIntegrationTests {
     @Test
     void publicFormSessionTokenRotatesOnReadWhenEnabled() {
         jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id) VALUES (35, 'web-rotate', 'Веб-форма', 1, CURRENT_TIMESTAMP, 'web-rotate')");
-        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
-                "dialog_config", "{\"public_form_session_token_rotate_on_read\":true}");
+        saveDialogConfig("{\"public_form_session_token_rotate_on_read\":true}");
 
         PublicFormSubmission submission = new PublicFormSubmission("Нужна помощь", "Анна", "+79991234567", "anna", null, Map.of(), null);
         PublicFormSessionDto created = publicFormService.createSession("web-rotate", submission, "ip-rotate");
@@ -301,8 +343,7 @@ class SupportPanelIntegrationTests {
     void publicFormServiceRequiresCaptchaWhenEnabled() {
         jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id, questions_cfg) VALUES (24, 'web-captcha', 'Веб-форма', 1, CURRENT_TIMESTAMP, 'web-captcha', ?)",
                 "{\"schemaVersion\":1,\"enabled\":true,\"captchaEnabled\":true,\"fields\":[]}");
-        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
-                "dialog_config", "{\"public_form_captcha_shared_secret\":\"captcha-123\"}");
+        saveDialogConfig("{\"public_form_captcha_shared_secret\":\"captcha-123\"}");
 
         PublicFormSubmission bad = new PublicFormSubmission("Нужна помощь", "Анна", "+79991234567", "anna", "wrong", Map.of(), null);
         assertThatThrownBy(() -> publicFormService.createSession("web-captcha", bad, "ip-captcha"))
@@ -319,8 +360,7 @@ class SupportPanelIntegrationTests {
     void publicFormServiceLimitsTotalAnswersPayload() {
         jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id, questions_cfg) VALUES (32, 'web-payload', 'Веб-форма', 1, CURRENT_TIMESTAMP, 'web-payload', ?)",
                 "[{\"id\":\"details\",\"text\":\"Детали\",\"type\":\"textarea\",\"required\":true,\"maxLength\":1200}]");
-        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
-                "dialog_config", "{\"public_form_answers_total_max_length\":200}");
+        saveDialogConfig("{\"public_form_answers_total_max_length\":200}");
 
         PublicFormSubmission oversized = new PublicFormSubmission("Нужна помощь", "Анна", "+79991234567", "anna", null,
                 Map.of("details", "x".repeat(205)), null);
@@ -340,8 +380,7 @@ class SupportPanelIntegrationTests {
     void publicFormServiceStripsHtmlTagsWhenEnabledAndCanBeDisabledFromSettings() {
         jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id, questions_cfg) VALUES (33, 'web-strip', 'Веб-форма', 1, CURRENT_TIMESTAMP, 'web-strip', ?)",
                 "[{\"id\":\"details\",\"text\":\"Детали\",\"type\":\"textarea\",\"required\":true,\"maxLength\":1200}]");
-        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
-                "dialog_config", "{\"public_form_strip_html_tags\":true}");
+        saveDialogConfig("{\"public_form_strip_html_tags\":true}");
 
         PublicFormSubmission sanitized = new PublicFormSubmission("<b>Нужна</b> помощь <script>alert(1)</script>", "<b>Анна</b>", "+79991234567", "anna", null,
                 Map.of("details", "<i>Срочно</i> нужна <u>помощь</u>"), null);
@@ -360,8 +399,7 @@ class SupportPanelIntegrationTests {
 
         jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id, questions_cfg) VALUES (34, 'web-strip-off', 'Веб-форма', 1, CURRENT_TIMESTAMP, 'web-strip-off', ?)",
                 "[{\"id\":\"details\",\"text\":\"Детали\",\"type\":\"textarea\",\"required\":true,\"maxLength\":1200}]");
-        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
-                "dialog_config", "{\"public_form_strip_html_tags\":false}");
+        saveDialogConfig("{\"public_form_strip_html_tags\":false}");
 
         PublicFormSubmission raw = new PublicFormSubmission("<b>Нужна</b> помощь", "<b>Олег</b>", "+79990000000", "oleg", null,
                 Map.of("details", "<i>Не трогать HTML</i>"), null);
@@ -377,8 +415,7 @@ class SupportPanelIntegrationTests {
     @Test
     void publicFormServiceCollectsRuntimeMetricsWhenEnabled() {
         jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id) VALUES (31, 'web-metrics', 'Веб-форма', 1, CURRENT_TIMESTAMP, 'web-metrics')");
-        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
-                "dialog_config", "{\"public_form_alert_min_views\":1,\"public_form_alert_error_rate_threshold\":0.5,\"public_form_alert_captcha_failure_rate_threshold\":0.3,\"public_form_alert_rate_limit_rejection_rate_threshold\":0.3}");
+        saveDialogConfig("{\"public_form_alert_min_views\":1,\"public_form_alert_error_rate_threshold\":0.5,\"public_form_alert_captcha_failure_rate_threshold\":0.3,\"public_form_alert_rate_limit_rejection_rate_threshold\":0.3}");
 
         publicFormService.recordConfigView(31L);
         publicFormService.recordConfigView(31L);
@@ -611,8 +648,7 @@ class SupportPanelIntegrationTests {
 
     @Test
     void workspaceTelemetrySummaryBuildsRolloutScorecardWithUtcTimestamps() {
-        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
-                "dialog_config", """
+        saveDialogConfig("""
                         {"workspace_rollout_external_kpi_gate_enabled":true,
                          "workspace_rollout_external_kpi_omnichannel_ready":true,
                          "workspace_rollout_external_kpi_finance_ready":true,
@@ -688,8 +724,7 @@ class SupportPanelIntegrationTests {
 
     @Test
     void workspaceTelemetrySummaryBuildsGovernancePacketWithOwnerSignoffInUtc() {
-        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
-                "dialog_config", """
+        saveDialogConfig("""
                         {"workspace_rollout_governance_packet_required":true,
                          "workspace_rollout_governance_owner_signoff_required":true,
                          "workspace_rollout_governance_owner_signoff_by":"ops-director",
@@ -734,8 +769,7 @@ class SupportPanelIntegrationTests {
 
     @Test
     void workspaceTelemetrySummaryFlagsGovernancePacketInvalidOwnerSignoffDate() {
-        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
-                "dialog_config", """
+        saveDialogConfig("""
                         {"workspace_rollout_governance_packet_required":true,
                          "workspace_rollout_governance_owner_signoff_required":true,
                          "workspace_rollout_governance_owner_signoff_by":"ops-director",
@@ -771,8 +805,7 @@ class SupportPanelIntegrationTests {
 
     @Test
     void workspaceTelemetrySummaryBuildsGovernanceCadenceAndParityExitInUtc() {
-        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
-                "dialog_config", """
+        saveDialogConfig("""
                         {"workspace_rollout_governance_packet_required":true,
                          "workspace_rollout_governance_review_cadence_days":7,
                          "workspace_rollout_governance_reviewed_by":"ops-oncall",
@@ -833,8 +866,7 @@ class SupportPanelIntegrationTests {
 
     @Test
     void workspaceTelemetrySummaryBlocksGovernancePacketForStaleReviewAndLegacyInventory() {
-        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
-                "dialog_config", """
+        saveDialogConfig("""
                         {"workspace_rollout_governance_packet_required":true,
                          "workspace_rollout_governance_review_cadence_days":7,
                          "workspace_rollout_governance_reviewed_by":"ops-oncall",
@@ -902,8 +934,7 @@ class SupportPanelIntegrationTests {
 
     @Test
     void workspaceTelemetrySummaryMarksManagedLegacyInventoryAsAttention() {
-        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
-                "dialog_config", """
+        saveDialogConfig("""
                         {"workspace_rollout_governance_packet_required":true,
                          "workspace_rollout_governance_legacy_only_scenarios":["attachments_edit","inline_reopen"],
                          "workspace_rollout_governance_legacy_inventory_reviewed_by":"ops-oncall",
@@ -966,8 +997,7 @@ class SupportPanelIntegrationTests {
 
     @Test
     void workspaceTelemetrySummaryRequiresDecisionAndIncidentFollowupWhenConfigured() {
-        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
-                "dialog_config", """
+        saveDialogConfig("""
                         {"workspace_rollout_governance_packet_required":true,
                          "workspace_rollout_governance_review_cadence_days":7,
                          "workspace_rollout_governance_reviewed_by":"ops-oncall",
@@ -1039,8 +1069,7 @@ class SupportPanelIntegrationTests {
 
     @Test
     void workspaceTelemetrySummaryMarksLegacyInventoryInvalidUtc() {
-        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
-                "dialog_config", """
+        saveDialogConfig("""
                         {"workspace_rollout_governance_packet_required":false,
                          "workspace_rollout_governance_legacy_only_scenarios":["attachments_edit"],
                          "workspace_rollout_governance_legacy_inventory_reviewed_by":"ops-oncall",
@@ -1063,8 +1092,7 @@ class SupportPanelIntegrationTests {
 
     @Test
     void workspaceTelemetrySummaryIncludesContextMinimumProfileContract() {
-        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
-                "dialog_config", """
+        saveDialogConfig("""
                         {"workspace_rollout_governance_packet_required":true,
                          "workspace_rollout_context_contract_required":true,
                          "workspace_rollout_context_contract_scenarios":["incident","billing"],
@@ -1133,8 +1161,7 @@ class SupportPanelIntegrationTests {
 
     @Test
     void workspaceTelemetrySummaryRequiresBlockedReasonsReviewForLegacyUsagePolicy() {
-        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
-                "dialog_config", """
+        saveDialogConfig("""
                         {"workspace_rollout_governance_packet_required":true,
                          "workspace_rollout_governance_legacy_usage_reviewed_by":"ops-lead",
                          "workspace_rollout_governance_legacy_usage_reviewed_at":"2099-03-01T09:10:11Z",
@@ -1177,8 +1204,7 @@ class SupportPanelIntegrationTests {
 
     @Test
     void workspaceTelemetrySummaryFlagsInvalidContextMinimumProfileReviewTimestamp() {
-        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
-                "dialog_config", """
+        saveDialogConfig("""
                         {"workspace_rollout_governance_packet_required":true,
                          "workspace_rollout_context_contract_required":true,
                          "workspace_rollout_context_contract_scenarios":["incident"],
@@ -1221,8 +1247,7 @@ class SupportPanelIntegrationTests {
 
     @Test
     void workspaceTelemetrySummaryProjectsContextCompactionSignalsIntoPacket() {
-        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
-                "dialog_config", """
+        saveDialogConfig("""
                         {"workspace_rollout_governance_packet_required":true,
                          "workspace_rollout_context_contract_required":true,
                          "workspace_rollout_context_contract_scenarios":["incident"],
@@ -1232,24 +1257,17 @@ class SupportPanelIntegrationTests {
                          "workspace_rollout_context_contract_reviewed_by":"ops-context-owner",
                          "workspace_rollout_context_contract_reviewed_at":"2099-03-01T09:10:11Z"}
                         """);
-
-        jdbcTemplate.update("""
-                INSERT INTO workspace_telemetry_audit (
-                    actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
-                    duration_ms, experiment_name, experiment_cohort, operator_segment,
-                    primary_kpis, secondary_kpis, template_id, template_name, created_at
-                ) VALUES
-                    ('op1', 'workspace_open_ms', 'performance', 'T-CONTEXT-COMPACT-1', NULL, NULL, 'workspace.v1', 810, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-2 hour')),
-                    ('op2', 'workspace_open_ms', 'performance', 'T-CONTEXT-COMPACT-2', NULL, NULL, 'workspace.v1', 820, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-110 minute')),
-                    ('op3', 'workspace_open_ms', 'performance', 'T-CONTEXT-COMPACT-3', NULL, NULL, 'workspace.v1', 830, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-100 minute')),
-                    ('op4', 'workspace_open_ms', 'performance', 'T-CONTEXT-COMPACT-4', NULL, NULL, 'workspace.v1', 840, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-90 minute')),
-                    ('op5', 'workspace_open_ms', 'performance', 'T-CONTEXT-COMPACT-5', NULL, NULL, 'workspace.v1', 850, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-80 minute')),
-                    ('op6', 'workspace_context_extra_attributes_expanded', 'workspace', 'T-CONTEXT-COMPACT-1', NULL, NULL, 'workspace.v1', NULL, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-70 minute')),
-                    ('op6', 'workspace_context_extra_attributes_expanded', 'workspace', 'T-CONTEXT-COMPACT-2', NULL, NULL, 'workspace.v1', NULL, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-60 minute')),
-                    ('op6', 'workspace_context_extra_attributes_expanded', 'workspace', 'T-CONTEXT-COMPACT-3', NULL, NULL, 'workspace.v1', NULL, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-50 minute')),
-                    ('op6', 'workspace_context_extra_attributes_expanded', 'workspace', 'T-CONTEXT-COMPACT-4', NULL, NULL, 'workspace.v1', NULL, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-40 minute')),
-                    ('op7', 'workspace_context_sources_expanded', 'workspace', 'T-CONTEXT-COMPACT-5', NULL, NULL, 'workspace.v1', NULL, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-30 minute'))
-                """);
+        OffsetDateTime baseTime = OffsetDateTime.now(ZoneOffset.UTC);
+        recordWorkspaceTelemetryEvent("op1", "workspace_open_ms", "performance", "T-CONTEXT-COMPACT-1", 810L, baseTime.minusHours(2));
+        recordWorkspaceTelemetryEvent("op2", "workspace_open_ms", "performance", "T-CONTEXT-COMPACT-2", 820L, baseTime.minusMinutes(110));
+        recordWorkspaceTelemetryEvent("op3", "workspace_open_ms", "performance", "T-CONTEXT-COMPACT-3", 830L, baseTime.minusMinutes(100));
+        recordWorkspaceTelemetryEvent("op4", "workspace_open_ms", "performance", "T-CONTEXT-COMPACT-4", 840L, baseTime.minusMinutes(90));
+        recordWorkspaceTelemetryEvent("op5", "workspace_open_ms", "performance", "T-CONTEXT-COMPACT-5", 850L, baseTime.minusMinutes(80));
+        recordWorkspaceTelemetryEvent("op6", "workspace_context_extra_attributes_expanded", "workspace", "T-CONTEXT-COMPACT-1", null, baseTime.minusMinutes(70));
+        recordWorkspaceTelemetryEvent("op6", "workspace_context_extra_attributes_expanded", "workspace", "T-CONTEXT-COMPACT-2", null, baseTime.minusMinutes(60));
+        recordWorkspaceTelemetryEvent("op6", "workspace_context_extra_attributes_expanded", "workspace", "T-CONTEXT-COMPACT-3", null, baseTime.minusMinutes(50));
+        recordWorkspaceTelemetryEvent("op6", "workspace_context_extra_attributes_expanded", "workspace", "T-CONTEXT-COMPACT-4", null, baseTime.minusMinutes(40));
+        recordWorkspaceTelemetryEvent("op7", "workspace_context_sources_expanded", "workspace", "T-CONTEXT-COMPACT-5", null, baseTime.minusMinutes(30));
 
         Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
         Map<String, Object> packet = (Map<String, Object>) summary.get("rollout_packet");
@@ -1268,8 +1286,7 @@ class SupportPanelIntegrationTests {
 
     @Test
     void workspaceTelemetrySummaryExpandsExternalCheckpointScorecardItems() {
-        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
-                "dialog_config", """
+        saveDialogConfig("""
                         {"workspace_rollout_external_kpi_gate_enabled":true,
                          "workspace_rollout_external_kpi_omnichannel_ready":true,
                          "workspace_rollout_external_kpi_finance_ready":true,
@@ -1440,8 +1457,7 @@ class SupportPanelIntegrationTests {
 
     @Test
     void workspaceRolloutDecisionHoldsWhenExternalKpiReviewIsStale() {
-        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
-                "dialog_config", "{\"workspace_rollout_external_kpi_gate_enabled\":true,\"workspace_rollout_external_kpi_omnichannel_ready\":true,\"workspace_rollout_external_kpi_finance_ready\":true,\"workspace_rollout_external_kpi_reviewed_by\":\"release-oncall\",\"workspace_rollout_external_kpi_reviewed_at\":\"2024-01-01T00:00:00Z\",\"workspace_rollout_external_kpi_review_ttl_hours\":24}");
+        saveDialogConfig("{\"workspace_rollout_external_kpi_gate_enabled\":true,\"workspace_rollout_external_kpi_omnichannel_ready\":true,\"workspace_rollout_external_kpi_finance_ready\":true,\"workspace_rollout_external_kpi_reviewed_by\":\"release-oncall\",\"workspace_rollout_external_kpi_reviewed_at\":\"2024-01-01T00:00:00Z\",\"workspace_rollout_external_kpi_review_ttl_hours\":24}");
 
         for (int i = 0; i < 40; i++) {
             String cohort = i < 20 ? "control" : "test";
@@ -1496,8 +1512,7 @@ class SupportPanelIntegrationTests {
 
     @Test
     void workspaceRolloutDecisionHoldsWhenOwnerRunbookGateEnabledWithoutContext() {
-        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
-                "dialog_config", """
+        saveDialogConfig("""
                         {"workspace_rollout_external_kpi_gate_enabled":true,"workspace_rollout_external_kpi_omnichannel_ready":true,
                          "workspace_rollout_external_kpi_finance_ready":true,"workspace_rollout_external_kpi_reviewed_by":"release-oncall",
                          "workspace_rollout_external_kpi_reviewed_at":"2099-01-01T00:00:00Z","workspace_rollout_external_kpi_review_ttl_hours":24,
@@ -1558,8 +1573,7 @@ class SupportPanelIntegrationTests {
 
     @Test
     void workspaceRolloutDecisionHoldsWhenOwnerRunbookGateHasInvalidRunbookUrl() {
-        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
-                "dialog_config", """
+        saveDialogConfig("""
                         {"workspace_rollout_external_kpi_gate_enabled":true,"workspace_rollout_external_kpi_omnichannel_ready":true,
                          "workspace_rollout_external_kpi_finance_ready":true,"workspace_rollout_external_kpi_reviewed_by":"release-oncall",
                          "workspace_rollout_external_kpi_reviewed_at":"2099-01-01T00:00:00Z","workspace_rollout_external_kpi_review_ttl_hours":24,
@@ -1624,8 +1638,7 @@ class SupportPanelIntegrationTests {
 
     @Test
     void workspaceRolloutDecisionHoldsWhenDatamartHealthGateIsRequiredAndDegraded() {
-        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
-                "dialog_config", """
+        saveDialogConfig("""
                         {"workspace_rollout_external_kpi_gate_enabled":true,"workspace_rollout_external_kpi_omnichannel_ready":true,
                          "workspace_rollout_external_kpi_finance_ready":true,"workspace_rollout_external_kpi_reviewed_by":"release-oncall",
                          "workspace_rollout_external_kpi_reviewed_at":"2099-01-01T00:00:00Z","workspace_rollout_external_kpi_review_ttl_hours":24,
@@ -1690,8 +1703,7 @@ class SupportPanelIntegrationTests {
 
     @Test
     void workspaceRolloutDecisionHoldsWhenDatamartHealthFreshnessRequiredAndStatusStale() {
-        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
-                "dialog_config", """
+        saveDialogConfig("""
                         {"workspace_rollout_external_kpi_gate_enabled":true,"workspace_rollout_external_kpi_omnichannel_ready":true,
                          "workspace_rollout_external_kpi_finance_ready":true,"workspace_rollout_external_kpi_reviewed_by":"release-oncall",
                          "workspace_rollout_external_kpi_reviewed_at":"2099-01-01T00:00:00Z","workspace_rollout_external_kpi_review_ttl_hours":24,
@@ -1760,8 +1772,7 @@ class SupportPanelIntegrationTests {
 
     @Test
     void workspaceRolloutDecisionHoldsWhenDatamartProgramFreshnessRequiredAndStatusStale() {
-        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
-                "dialog_config", """
+        saveDialogConfig("""
                         {"workspace_rollout_external_kpi_gate_enabled":true,"workspace_rollout_external_kpi_omnichannel_ready":true,
                          "workspace_rollout_external_kpi_finance_ready":true,"workspace_rollout_external_kpi_reviewed_by":"release-oncall",
                          "workspace_rollout_external_kpi_reviewed_at":"2099-01-01T00:00:00Z","workspace_rollout_external_kpi_review_ttl_hours":24,
@@ -1825,8 +1836,7 @@ class SupportPanelIntegrationTests {
 
     @Test
     void workspaceRolloutDecisionHoldsWhenDatamartProgramBlockedAndBlockerUrlMissing() {
-        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
-                "dialog_config", """
+        saveDialogConfig("""
                         {"workspace_rollout_external_kpi_gate_enabled":true,"workspace_rollout_external_kpi_omnichannel_ready":true,
                          "workspace_rollout_external_kpi_finance_ready":true,"workspace_rollout_external_kpi_reviewed_by":"release-oncall",
                          "workspace_rollout_external_kpi_reviewed_at":"2099-01-01T00:00:00Z","workspace_rollout_external_kpi_review_ttl_hours":24,
@@ -1848,8 +1858,7 @@ class SupportPanelIntegrationTests {
 
     @Test
     void workspaceRolloutDecisionAllowsBlockedDatamartWhenProgramBlockerGateDisabled() {
-        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
-                "dialog_config", """
+        saveDialogConfig("""
                         {"workspace_rollout_external_kpi_gate_enabled":true,"workspace_rollout_external_kpi_omnichannel_ready":true,
                          "workspace_rollout_external_kpi_finance_ready":true,"workspace_rollout_external_kpi_reviewed_by":"release-oncall",
                          "workspace_rollout_external_kpi_reviewed_at":"2099-01-01T00:00:00Z","workspace_rollout_external_kpi_review_ttl_hours":24,
@@ -1871,8 +1880,7 @@ class SupportPanelIntegrationTests {
 
     @Test
     void workspaceRolloutDecisionHoldsWhenDependencyTicketUrlIsInvalid() {
-        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
-                "dialog_config", """
+        saveDialogConfig("""
                         {"workspace_rollout_external_kpi_gate_enabled":true,"workspace_rollout_external_kpi_omnichannel_ready":true,
                          "workspace_rollout_external_kpi_finance_ready":true,"workspace_rollout_external_kpi_reviewed_by":"release-oncall",
                          "workspace_rollout_external_kpi_reviewed_at":"2099-01-01T00:00:00Z","workspace_rollout_external_kpi_review_ttl_hours":24,
@@ -1935,8 +1943,7 @@ class SupportPanelIntegrationTests {
 
     @Test
     void workspaceRolloutDecisionHoldsWhenDependencyTicketUpdateIsStale() {
-        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
-                "dialog_config", """
+        saveDialogConfig("""
                         {"workspace_rollout_external_kpi_gate_enabled":true,"workspace_rollout_external_kpi_omnichannel_ready":true,
                          "workspace_rollout_external_kpi_finance_ready":true,"workspace_rollout_external_kpi_reviewed_by":"release-oncall",
                          "workspace_rollout_external_kpi_reviewed_at":"2099-01-01T00:00:00Z","workspace_rollout_external_kpi_review_ttl_hours":24,
@@ -2002,8 +2009,7 @@ class SupportPanelIntegrationTests {
 
     @Test
     void workspaceRolloutDecisionHoldsWhenDependencyTicketOwnerContactIsNotActionable() {
-        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
-                "dialog_config", """
+        saveDialogConfig("""
                         {"workspace_rollout_external_kpi_gate_enabled":true,"workspace_rollout_external_kpi_omnichannel_ready":true,
                          "workspace_rollout_external_kpi_finance_ready":true,"workspace_rollout_external_kpi_reviewed_by":"release-oncall",
                          "workspace_rollout_external_kpi_reviewed_at":"2099-01-01T00:00:00Z","workspace_rollout_external_kpi_review_ttl_hours":24,
@@ -2024,8 +2030,7 @@ class SupportPanelIntegrationTests {
 
     @Test
     void workspaceRolloutDecisionAllowsWhenDependencyTicketOwnerContactIsActionable() {
-        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
-                "dialog_config", """
+        saveDialogConfig("""
                         {"workspace_rollout_external_kpi_gate_enabled":true,"workspace_rollout_external_kpi_omnichannel_ready":true,
                          "workspace_rollout_external_kpi_finance_ready":true,"workspace_rollout_external_kpi_reviewed_by":"release-oncall",
                          "workspace_rollout_external_kpi_reviewed_at":"2099-01-01T00:00:00Z","workspace_rollout_external_kpi_review_ttl_hours":24,
@@ -2047,8 +2052,7 @@ class SupportPanelIntegrationTests {
 
     @Test
     void workspaceRolloutDecisionHoldsWhenDatamartContractMandatoryFieldMissing() {
-        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
-                "dialog_config", """
+        saveDialogConfig("""
                         {"workspace_rollout_external_kpi_gate_enabled":true,"workspace_rollout_external_kpi_omnichannel_ready":true,
                          "workspace_rollout_external_kpi_finance_ready":true,"workspace_rollout_external_kpi_reviewed_by":"release-oncall",
                          "workspace_rollout_external_kpi_reviewed_at":"2099-01-01T00:00:00Z","workspace_rollout_external_kpi_review_ttl_hours":24,
@@ -2078,8 +2082,7 @@ class SupportPanelIntegrationTests {
 
     @Test
     void workspaceRolloutDecisionAllowsWhenDatamartContractMandatoryFieldsCovered() {
-        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
-                "dialog_config", """
+        saveDialogConfig("""
                         {"workspace_rollout_external_kpi_gate_enabled":true,"workspace_rollout_external_kpi_omnichannel_ready":true,
                          "workspace_rollout_external_kpi_finance_ready":true,"workspace_rollout_external_kpi_reviewed_by":"release-oncall",
                          "workspace_rollout_external_kpi_reviewed_at":"2099-01-01T00:00:00Z","workspace_rollout_external_kpi_review_ttl_hours":24,
@@ -2110,8 +2113,7 @@ class SupportPanelIntegrationTests {
 
     @Test
     void workspaceRolloutDecisionHoldsWhenDatamartOptionalCoverageThresholdIsNotMet() {
-        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
-                "dialog_config", """
+        saveDialogConfig("""
                         {"workspace_rollout_external_kpi_gate_enabled":true,"workspace_rollout_external_kpi_omnichannel_ready":true,
                          "workspace_rollout_external_kpi_finance_ready":true,"workspace_rollout_external_kpi_reviewed_by":"release-oncall",
                          "workspace_rollout_external_kpi_reviewed_at":"2099-01-01T00:00:00Z","workspace_rollout_external_kpi_review_ttl_hours":24,
@@ -2140,8 +2142,7 @@ class SupportPanelIntegrationTests {
 
     @Test
     void workspaceRolloutDecisionUsesSafeDefaultForOptionalCoverageThreshold() {
-        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
-                "dialog_config", """
+        saveDialogConfig("""
                         {"workspace_rollout_external_kpi_gate_enabled":true,"workspace_rollout_external_kpi_omnichannel_ready":true,
                          "workspace_rollout_external_kpi_finance_ready":true,"workspace_rollout_external_kpi_reviewed_by":"release-oncall",
                          "workspace_rollout_external_kpi_reviewed_at":"2099-01-01T00:00:00Z","workspace_rollout_external_kpi_review_ttl_hours":24,
@@ -2167,8 +2168,7 @@ class SupportPanelIntegrationTests {
 
     @Test
     void workspaceRolloutDecisionHoldsWhenDatamartContractHasOverlappingFields() {
-        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
-                "dialog_config", """
+        saveDialogConfig("""
                         {"workspace_rollout_external_kpi_gate_enabled":true,"workspace_rollout_external_kpi_omnichannel_ready":true,
                          "workspace_rollout_external_kpi_finance_ready":true,"workspace_rollout_external_kpi_reviewed_by":"release-oncall",
                          "workspace_rollout_external_kpi_reviewed_at":"2099-01-01T00:00:00Z","workspace_rollout_external_kpi_review_ttl_hours":24,
@@ -2196,8 +2196,7 @@ class SupportPanelIntegrationTests {
 
     @Test
     void workspaceRolloutDecisionFlagsInvalidUtcTimestampsFromExternalKpiConfig() {
-        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
-                "dialog_config", """
+        saveDialogConfig("""
                         {"workspace_rollout_external_kpi_gate_enabled":true,"workspace_rollout_external_kpi_omnichannel_ready":true,
                          "workspace_rollout_external_kpi_finance_ready":true,"workspace_rollout_external_kpi_reviewed_by":"release-oncall",
                          "workspace_rollout_external_kpi_reviewed_at":"bad-value",
@@ -2218,8 +2217,7 @@ class SupportPanelIntegrationTests {
 
     @Test
     void workspaceRolloutDecisionTreatsLegacyDatetimeLocalAsUtc() {
-        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
-                "dialog_config", """
+        saveDialogConfig("""
                         {"workspace_rollout_external_kpi_gate_enabled":true,"workspace_rollout_external_kpi_omnichannel_ready":true,
                          "workspace_rollout_external_kpi_finance_ready":true,"workspace_rollout_external_kpi_reviewed_by":"release-oncall",
                          "workspace_rollout_external_kpi_reviewed_at":"2099-01-01T00:00",
@@ -2474,11 +2472,20 @@ class SupportPanelIntegrationTests {
         assertThat(audit).containsKeys(
                 "low_signal_advisory_total",
                 "actionable_advisory_total",
+                "actionable_advisory_share_pct",
+                "low_signal_advisory_share_pct",
                 "advisory_noise_excluding_low_signal_pct",
                 "advisory_followup_required",
-                "low_signal_red_list_templates");
+                "low_signal_red_list_templates",
+                "low_signal_backlog_dominant",
+                "low_signal_backlog_summary",
+                "minimum_required_path_controlled");
         assertThat(((Number) audit.get("actionable_advisory_total")).longValue()).isGreaterThanOrEqualTo(0L);
         assertThat(((Number) audit.get("low_signal_advisory_total")).longValue()).isGreaterThanOrEqualTo(0L);
+        assertThat(((Number) audit.get("actionable_advisory_share_pct")).longValue()).isBetween(0L, 100L);
+        assertThat(((Number) audit.get("low_signal_advisory_share_pct")).longValue()).isBetween(0L, 100L);
+        assertThat(audit).containsEntry("minimum_required_path_controlled", false);
+        assertThat(String.valueOf(audit.get("low_signal_backlog_summary"))).isNotBlank();
         assertThat((List<String>) audit.get("advisory_signals"))
                 .contains("red_list", "owner_action");
         assertThat(issues).anySatisfy(issue -> {
@@ -2604,8 +2611,7 @@ class SupportPanelIntegrationTests {
 
     @Test
     void workspaceRolloutDecisionPublishesCanonicalTimestampInvalidAliases() {
-        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
-                "dialog_config", """
+        saveDialogConfig("""
                         {"workspace_rollout_external_kpi_gate_enabled":true,"workspace_rollout_external_kpi_omnichannel_ready":true,
                          "workspace_rollout_external_kpi_finance_ready":true,"workspace_rollout_external_kpi_reviewed_by":"release-oncall",
                          "workspace_rollout_external_kpi_reviewed_at":"2099-01-01T00:00Z","workspace_rollout_external_kpi_review_ttl_hours":24,
@@ -2636,8 +2642,7 @@ class SupportPanelIntegrationTests {
 
     @Test
     void workspaceRolloutDecisionDoesNotApplyOptionalCoverageGateWhenContractIsDisabled() {
-        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
-                "dialog_config", """
+        saveDialogConfig("""
                         {"workspace_rollout_external_kpi_gate_enabled":true,"workspace_rollout_external_kpi_omnichannel_ready":true,
                          "workspace_rollout_external_kpi_finance_ready":true,"workspace_rollout_external_kpi_reviewed_by":"release-oncall",
                          "workspace_rollout_external_kpi_reviewed_at":"2099-01-01T00:00:00Z","workspace_rollout_external_kpi_review_ttl_hours":24,
@@ -2665,8 +2670,7 @@ class SupportPanelIntegrationTests {
 
     @Test
     void workspaceRolloutDecisionMarksMediumRiskWhenSingleGateFails() {
-        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
-                "dialog_config", """
+        saveDialogConfig("""
                         {"workspace_rollout_external_kpi_gate_enabled":true,"workspace_rollout_external_kpi_omnichannel_ready":true,
                          "workspace_rollout_external_kpi_finance_ready":true,"workspace_rollout_external_kpi_reviewed_by":"release-oncall",
                          "workspace_rollout_external_kpi_reviewed_at":"2099-01-01T00:00:00Z","workspace_rollout_external_kpi_review_ttl_hours":24,
@@ -2686,8 +2690,7 @@ class SupportPanelIntegrationTests {
 
     @Test
     void workspaceRolloutDecisionMarksHighRiskWhenDatamartProgramBlocked() {
-        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
-                "dialog_config", """
+        saveDialogConfig("""
                         {"workspace_rollout_external_kpi_gate_enabled":true,"workspace_rollout_external_kpi_omnichannel_ready":true,
                          "workspace_rollout_external_kpi_finance_ready":true,"workspace_rollout_external_kpi_reviewed_by":"release-oncall",
                          "workspace_rollout_external_kpi_reviewed_at":"2099-01-01T00:00:00Z","workspace_rollout_external_kpi_review_ttl_hours":24,
@@ -2762,3 +2765,4 @@ class SupportPanelIntegrationTests {
     }
 
 }
+

@@ -2425,6 +2425,25 @@ public class DialogService {
         long previousWorkspaceOpenEvents = toLong(previousTotals.get("workspace_open_events"));
         long previousManualLegacyOpenEvents = toLong(previousTotals.get("manual_legacy_open_events"));
         long previousManualLegacyBlockedEvents = toLong(previousTotals.get("workspace_open_legacy_blocked_events"));
+        boolean contextSecondaryDetailsFollowupRequired = toBoolean(safeTotals.get("context_secondary_details_followup_required"));
+        boolean contextSecondaryDetailsManagementReviewRequired = toBoolean(safeTotals.get("context_secondary_details_management_review_required"));
+        String contextSecondaryDetailsSummary = String.valueOf(
+                safeTotals.getOrDefault("context_secondary_details_summary", ""));
+        String contextSecondaryDetailsCompactionSummary = String.valueOf(
+                safeTotals.getOrDefault("context_secondary_details_compaction_summary", ""));
+        String contextSecondaryDetailsUsageLevel = String.valueOf(
+                safeTotals.getOrDefault("context_secondary_details_usage_level", "rare"));
+        String contextSecondaryDetailsTopSection = String.valueOf(
+                safeTotals.getOrDefault("context_secondary_details_top_section", ""));
+        boolean contextExtraAttributesCompactionCandidate = toBoolean(
+                safeTotals.get("context_extra_attributes_compaction_candidate"));
+        long contextExtraAttributesOpenRatePct = toLong(safeTotals.get("context_extra_attributes_open_rate_pct"));
+        long contextExtraAttributesSharePctOfSecondary = toLong(
+                safeTotals.get("context_extra_attributes_share_pct_of_secondary"));
+        String contextExtraAttributesUsageLevel = String.valueOf(
+                safeTotals.getOrDefault("context_extra_attributes_usage_level", "rare"));
+        String contextExtraAttributesSummary = String.valueOf(
+                safeTotals.getOrDefault("context_extra_attributes_summary", ""));
         double previousManualLegacyShareRatio = previousWorkspaceOpenEvents > 0
                 ? (double) previousManualLegacyOpenEvents / previousWorkspaceOpenEvents
                 : 0d;

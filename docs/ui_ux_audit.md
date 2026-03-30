@@ -202,6 +202,8 @@
 - основные rollout/context/governance доработки описаны на уровне состояния, а не истории.
 - focused WebMvc-покрытие теперь отдельно проверяет и насыщенный `weekly_review_focus`, и пустой `ok`-сценарий без follow-up.
 - weekly focus и legacy/context derived-поля снова синхронизированы с тестовым контрактом, чтобы новые action-loop сигналы не оставались только во фронте.
+- integration-фикстуры теперь тоже знают про P2-derived поля macro governance (`actionable/low-signal share`, `low_signal_backlog_dominant`, `minimum_required_path_controlled`), а не только про базовые issue counters.
+- `SupportPanelIntegrationTests` больше не завязаны на устаревший `app_settings`-upsert для `dialog_config`: shared-config вынесен во временную test-директорию, а telemetry фикстуры для context packet пишут явные UTC timestamps и проходят focused integration-срез без SQLite schema drift.
 
 Что остаётся:
 - периодически чистить WebMvc/integration fixtures, чтобы они не отставали от реальных конструкторов и workspace-контрактов.
