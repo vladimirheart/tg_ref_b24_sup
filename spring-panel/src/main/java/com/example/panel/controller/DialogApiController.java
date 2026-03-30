@@ -1967,7 +1967,7 @@ public class DialogApiController {
         Map<String, Object> safeSlaAudit = slaPolicyAudit != null ? slaPolicyAudit : Map.of();
         Map<String, Object> safeMacroAudit = macroGovernanceAudit != null ? macroGovernanceAudit : Map.of();
         boolean contextExtraAttributesCompactionCandidate = Boolean.TRUE.equals(totals.get("context_extra_attributes_compaction_candidate"));
-        boolean legacyManagementReviewRequired = Boolean.TRUE.equals(legacyInventory.get("review_queue_escalation_required"))
+        boolean legacyManagementReviewRequired = Boolean.TRUE.equals(legacyInventory.get("review_queue_management_review_required"))
                 || asLong(legacyInventory.get("review_queue_repeat_cycles")) >= 3L
                 || asLong(legacyInventory.get("review_queue_oldest_overdue_days")) >= 7L;
         boolean contextManagementReviewRequired = Boolean.TRUE.equals(totals.get("context_secondary_details_management_review_required"));

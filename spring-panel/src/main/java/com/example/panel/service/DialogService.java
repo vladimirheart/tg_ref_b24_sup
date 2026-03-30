@@ -2241,6 +2241,7 @@ public class DialogService {
                 .toList();
         boolean legacyReviewQueueEscalationRequired = !legacyReviewQueueEscalatedScenarios.isEmpty()
                 || legacyReviewQueueOldestOverdueDays >= 7L;
+        long legacyReviewQueueEscalatedCount = legacyReviewQueueEscalatedScenarios.size();
         List<String> legacyReviewQueueConsolidationCandidates = legacyOnlyScenarioDetails.stream()
                 .filter(item -> legacyReviewQueueScenarios.contains(String.valueOf(item.get("scenario"))))
                 .filter(item -> !toBoolean(item.get("owner_ready"))
@@ -2256,6 +2257,12 @@ public class DialogService {
                 ? "none"
                 : legacyReviewQueueEscalationRequired ? "high"
                 : legacyReviewQueueFollowupRequired ? "moderate" : "controlled";
+        String legacyReviewQueueManagementReviewSummary = !legacyReviewQueueEscalationRequired
+                ? ""
+                : "Management review нужен для %d queue-сценария(ев); oldest overdue=%dд."
+                .formatted(
+                        Math.max(1L, legacyReviewQueueEscalatedCount),
+                        Math.max(0L, legacyReviewQueueOldestOverdueDays));
         String legacyReviewQueueSummary = legacyReviewQueueScenarios.isEmpty()
                 ? ""
                 : legacyReviewQueueFollowupRequired
@@ -2888,6 +2895,17 @@ public class DialogService {
         contextContract.put("operator_summary", contextContractOperatorSummary);
         contextContract.put("next_step_summary", contextContractNextStepSummary);
         contextContract.put("action_items", contextContractActionItems);
+        contextContract.put("secondary_noise_followup_required", contextSecondaryDetailsFollowupRequired);
+        contextContract.put("secondary_noise_management_review_required", contextSecondaryDetailsManagementReviewRequired);
+        contextContract.put("secondary_noise_summary", contextSecondaryDetailsSummary);
+        contextContract.put("secondary_noise_compaction_summary", contextSecondaryDetailsCompactionSummary);
+        contextContract.put("secondary_noise_usage_level", contextSecondaryDetailsUsageLevel);
+        contextContract.put("secondary_noise_top_section", contextSecondaryDetailsTopSection);
+        contextContract.put("extra_attributes_compaction_candidate", contextExtraAttributesCompactionCandidate);
+        contextContract.put("extra_attributes_open_rate_pct", contextExtraAttributesOpenRatePct);
+        contextContract.put("extra_attributes_share_pct_of_secondary", contextExtraAttributesSharePctOfSecondary);
+        contextContract.put("extra_attributes_usage_level", contextExtraAttributesUsageLevel);
+        contextContract.put("extra_attributes_summary", contextExtraAttributesSummary);
 
         Map<String, Object> packet = new LinkedHashMap<>();
         packet.put("generated_at", Instant.now().toString());
@@ -2934,6 +2952,9 @@ public class DialogService {
                 Map.entry("review_queue_oldest_overdue_days", legacyReviewQueueOldestOverdueDays),
                 Map.entry("review_queue_closure_pressure", legacyReviewQueueClosurePressure),
                 Map.entry("review_queue_escalation_required", legacyReviewQueueEscalationRequired),
+                Map.entry("review_queue_management_review_required", legacyReviewQueueEscalationRequired),
+                Map.entry("review_queue_management_review_summary", legacyReviewQueueManagementReviewSummary),
+                Map.entry("review_queue_escalated_count", legacyReviewQueueEscalatedCount),
                 Map.entry("review_queue_escalated_scenarios", legacyReviewQueueEscalatedScenarios),
                 Map.entry("review_queue_consolidation_required", legacyReviewQueueConsolidationRequired),
                 Map.entry("review_queue_consolidation_count", legacyReviewQueueConsolidationCandidates.size()),
