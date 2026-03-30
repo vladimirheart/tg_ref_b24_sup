@@ -2230,6 +2230,32 @@ public class DialogService {
                 || legacyDeadlineOverdueCount > 0
                 || legacyDeadlineInvalidCount > 0
                 || legacyReviewQueueRepeatCycles > 1);
+        List<String> legacyReviewQueueEscalatedScenarios = legacyOnlyScenarioDetails.stream()
+                .filter(item -> legacyReviewQueueScenarios.contains(String.valueOf(item.get("scenario"))))
+                .filter(item -> toBoolean(item.get("deadline_overdue"))
+                        || toBoolean(item.get("deadline_timestamp_invalid"))
+                        || legacyReviewQueueRepeatCycles >= 3)
+                .map(item -> normalizeNullString(String.valueOf(item.get("scenario"))))
+                .filter(StringUtils::hasText)
+                .distinct()
+                .toList();
+        boolean legacyReviewQueueEscalationRequired = !legacyReviewQueueEscalatedScenarios.isEmpty()
+                || legacyReviewQueueOldestOverdueDays >= 7L;
+        List<String> legacyReviewQueueConsolidationCandidates = legacyOnlyScenarioDetails.stream()
+                .filter(item -> legacyReviewQueueScenarios.contains(String.valueOf(item.get("scenario"))))
+                .filter(item -> !toBoolean(item.get("owner_ready"))
+                        || !toBoolean(item.get("deadline_present"))
+                        || toBoolean(item.get("deadline_timestamp_invalid")))
+                .map(item -> normalizeNullString(String.valueOf(item.get("scenario"))))
+                .filter(StringUtils::hasText)
+                .distinct()
+                .toList();
+        boolean legacyReviewQueueConsolidationRequired = !legacyReviewQueueConsolidationCandidates.isEmpty()
+                && legacyReviewQueueRepeatCycles > 1;
+        String legacyReviewQueueClosurePressure = legacyReviewQueueScenarios.isEmpty()
+                ? "none"
+                : legacyReviewQueueEscalationRequired ? "high"
+                : legacyReviewQueueFollowupRequired ? "moderate" : "controlled";
         String legacyReviewQueueSummary = legacyReviewQueueScenarios.isEmpty()
                 ? ""
                 : legacyReviewQueueFollowupRequired
@@ -2253,10 +2279,34 @@ public class DialogService {
             if (!StringUtils.hasText(legacyInventoryReviewedBy) || legacyInventoryReviewedAt == null) {
                 legacyInventoryActionItems.add("Зафиксируйте последний UTC review owner/deadline inventory.");
             }
+            if (legacyReviewQueueEscalationRequired) {
+                legacyInventoryActionItems.add("Эскалируйте долгоживущие legacy review-queue сценарии на management review.");
+            }
+            if (legacyReviewQueueConsolidationRequired) {
+                legacyInventoryActionItems.add("Сконсолидируйте queue-сценарии без owner/deadline в единый weekly closure plan.");
+            }
             if (legacyReviewQueueFollowupRequired) {
                 legacyInventoryActionItems.add("Закройте weekly closure-loop для сценариев, которые повторно остаются в legacy review-queue.");
             }
         }
+        String legacyReviewQueueNextActionSummary = !legacyInventoryActionItems.isEmpty()
+                ? legacyInventoryActionItems.get(0)
+                : (legacyReviewQueueScenarios.isEmpty()
+                ? "Legacy review-queue не требует follow-up."
+                : "Продолжайте weekly closure review без дополнительных escalation.");
+        Set<String> legacyReviewQueueScenarioSet = new LinkedHashSet<>(legacyReviewQueueScenarios);
+        Set<String> legacyReviewQueueEscalatedScenarioSet = new LinkedHashSet<>(legacyReviewQueueEscalatedScenarios);
+        Set<String> legacyReviewQueueConsolidationSet = new LinkedHashSet<>(legacyReviewQueueConsolidationCandidates);
+        legacyOnlyScenarioDetails = legacyOnlyScenarioDetails.stream()
+                .map(item -> {
+                    Map<String, Object> enriched = new LinkedHashMap<>(item);
+                    String scenario = String.valueOf(item.getOrDefault("scenario", ""));
+                    enriched.put("queue_candidate", legacyReviewQueueScenarioSet.contains(scenario));
+                    enriched.put("escalation_candidate", legacyReviewQueueEscalatedScenarioSet.contains(scenario));
+                    enriched.put("consolidation_candidate", legacyReviewQueueConsolidationSet.contains(scenario));
+                    return enriched;
+                })
+                .toList();
         List<String> contextContractDefinitionGaps = Stream.of(
                         contextContractScenarios.isEmpty() ? "scenarios" : null,
                         (contextContractMandatoryFields.isEmpty() && contextContractMandatoryFieldsByScenario.isEmpty())
@@ -2882,6 +2932,13 @@ public class DialogService {
                 Map.entry("review_queue_repeat_cycles", legacyReviewQueueRepeatCycles),
                 Map.entry("review_queue_oldest_deadline_at_utc", legacyReviewQueueOldestDeadline != null ? legacyReviewQueueOldestDeadline.toString() : ""),
                 Map.entry("review_queue_oldest_overdue_days", legacyReviewQueueOldestOverdueDays),
+                Map.entry("review_queue_closure_pressure", legacyReviewQueueClosurePressure),
+                Map.entry("review_queue_escalation_required", legacyReviewQueueEscalationRequired),
+                Map.entry("review_queue_escalated_scenarios", legacyReviewQueueEscalatedScenarios),
+                Map.entry("review_queue_consolidation_required", legacyReviewQueueConsolidationRequired),
+                Map.entry("review_queue_consolidation_count", legacyReviewQueueConsolidationCandidates.size()),
+                Map.entry("review_queue_consolidation_candidates", legacyReviewQueueConsolidationCandidates),
+                Map.entry("review_queue_next_action_summary", legacyReviewQueueNextActionSummary),
                 Map.entry("review_queue_summary", legacyReviewQueueSummary),
                 Map.entry("open_count", legacyOnlyScenarios.size()),
                 Map.entry("managed_count", legacyManagedScenarioCount),
@@ -4703,10 +4760,15 @@ public class DialogService {
                         contextSecondaryDetailsExpandedEvents,
                         contextSecondaryDetailsOpenRatePct,
                         StringUtils.hasText(contextSecondaryDetailsTopSection) ? contextSecondaryDetailsTopSection : "n/a");
+        long contextExtraAttributesSharePctOfSecondary = contextSecondaryDetailsExpandedEvents > 0
+                ? Math.round((contextExtraAttributesExpandedEvents * 100d) / contextSecondaryDetailsExpandedEvents)
+                : 0L;
         boolean contextExtraAttributesCompactionCandidate = contextExtraAttributesOpenRatePct >= 15L
                 || (contextExtraAttributesExpandedEvents > 0
                 && "extra_attributes".equals(contextSecondaryDetailsTopSection)
                 && contextSecondaryDetailsFollowupRequired);
+        boolean contextSecondaryDetailsManagementReviewRequired = contextExtraAttributesCompactionCandidate
+                && "heavy".equals(contextSecondaryDetailsUsageLevel);
         String contextExtraAttributesSummary = contextExtraAttributesExpandedEvents <= 0
                 ? "Extra attributes почти не раскрывались."
                 : "Extra attributes открывали %d раз (%d%% от workspace opens); usage=%s."
@@ -4714,6 +4776,10 @@ public class DialogService {
                         contextExtraAttributesExpandedEvents,
                         contextExtraAttributesOpenRatePct,
                         contextExtraAttributesUsageLevel);
+        String contextSecondaryDetailsCompactionSummary = contextExtraAttributesCompactionCandidate
+                ? "Extra attributes формируют %d%% secondary-context opens; стоит ужать hidden attributes."
+                .formatted(contextExtraAttributesSharePctOfSecondary)
+                : "Secondary context pressure остаётся под контролем.";
         long workspaceSlaPolicyChurnRatioPct = workspaceSlaPolicyDecisionEvents > 0
                 ? Math.round((workspaceSlaPolicyReviewUpdatedEvents * 100d) / workspaceSlaPolicyDecisionEvents)
                 : (workspaceSlaPolicyReviewUpdatedEvents > 0 ? 100L : 0L);
@@ -4758,9 +4824,12 @@ public class DialogService {
         totals.put("context_secondary_details_usage_level", contextSecondaryDetailsUsageLevel);
         totals.put("context_secondary_details_top_section", contextSecondaryDetailsTopSection);
         totals.put("context_secondary_details_followup_required", contextSecondaryDetailsFollowupRequired);
+        totals.put("context_secondary_details_management_review_required", contextSecondaryDetailsManagementReviewRequired);
         totals.put("context_secondary_details_summary", contextSecondaryDetailsSummary);
+        totals.put("context_secondary_details_compaction_summary", contextSecondaryDetailsCompactionSummary);
         totals.put("context_extra_attributes_open_rate_pct", contextExtraAttributesOpenRatePct);
         totals.put("context_extra_attributes_usage_level", contextExtraAttributesUsageLevel);
+        totals.put("context_extra_attributes_share_pct_of_secondary", contextExtraAttributesSharePctOfSecondary);
         totals.put("context_extra_attributes_compaction_candidate", contextExtraAttributesCompactionCandidate);
         totals.put("context_extra_attributes_summary", contextExtraAttributesSummary);
         totals.put("workspace_sla_policy_gap_events", workspaceSlaPolicyGapEvents);

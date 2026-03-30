@@ -130,6 +130,7 @@
 - repeat legacy review;
 - review-queue для сценариев, которые повторно остаются в legacy;
 - follow-up summary / oldest due / repeat-cycle visibility для `review_queue`.
+- escalation / consolidation сигналы для долгоживущих `review_queue` сценариев, чтобы weekly review не застревал на уровне простого “видим очередь”.
 
 Что остаётся:
 - регулярное закрытие или консолидация долгоживущих legacy-only сценариев;
@@ -146,6 +147,7 @@
 - secondary `sources` / `source-freshness policy` / `extra attributes` теперь дают disclosure telemetry, так что sidebar можно оценивать по фактическому раскрытию, а не по ощущениям.
 - analytics summary теперь показывает usage-level и top opened secondary section, а не только сырой счётчик раскрытий.
 - `extra attributes` получили отдельный telemetry-compaction сигнал, чтобы отличать общий secondary-context noise от точечной перегрузки именно hidden attributes.
+- telemetry summary теперь отдельно помечает случаи, где hidden attributes уже требуют management review, а не просто ещё одного ручного просмотра.
 
 Что остаётся:
 - подтвердить по первым usage windows, что heavy раскрытие secondary context не становится новой нормой для операторов;
@@ -194,6 +196,7 @@
 - аудит снова стал рабочим артефактом;
 - основные rollout/context/governance доработки описаны на уровне состояния, а не истории.
 - focused WebMvc-покрытие теперь отдельно проверяет и насыщенный `weekly_review_focus`, и пустой `ok`-сценарий без follow-up.
+- weekly focus и legacy/context derived-поля снова синхронизированы с тестовым контрактом, чтобы новые action-loop сигналы не оставались только во фронте.
 
 Что остаётся:
 - периодически чистить WebMvc/integration fixtures, чтобы они не отставали от реальных конструкторов и workspace-контрактов.

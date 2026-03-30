@@ -876,6 +876,13 @@ class SupportPanelIntegrationTests {
         assertThat(legacyInventory).containsEntry("review_queue_repeat_cycles", 1L);
         assertThat(legacyInventory).containsEntry("review_queue_oldest_deadline_at_utc", "");
         assertThat(legacyInventory).containsEntry("review_queue_oldest_overdue_days", 0L);
+        assertThat(legacyInventory).containsEntry("review_queue_closure_pressure", "moderate");
+        assertThat(legacyInventory).containsEntry("review_queue_escalation_required", false);
+        assertThat((List<String>) legacyInventory.get("review_queue_escalated_scenarios")).isEmpty();
+        assertThat(legacyInventory).containsEntry("review_queue_consolidation_required", false);
+        assertThat(legacyInventory).containsEntry("review_queue_consolidation_count", 0);
+        assertThat((List<String>) legacyInventory.get("review_queue_consolidation_candidates")).isEmpty();
+        assertThat(legacyInventory).containsEntry("review_queue_next_action_summary", "Назначьте owner для всех legacy-only сценариев.");
         assertThat(String.valueOf(legacyInventory.get("review_queue_summary"))).contains("weekly closure review");
         assertThat((List<String>) legacyInventory.get("review_queue_scenarios")).containsExactly("attachments_edit", "inline_reopen");
         assertThat((List<String>) legacyInventory.get("overdue_scenarios")).isEmpty();
@@ -937,6 +944,13 @@ class SupportPanelIntegrationTests {
         assertThat(legacyInventory).containsEntry("review_queue_repeat_cycles", 0L);
         assertThat(legacyInventory).containsEntry("review_queue_oldest_deadline_at_utc", "");
         assertThat(legacyInventory).containsEntry("review_queue_oldest_overdue_days", 0L);
+        assertThat(legacyInventory).containsEntry("review_queue_closure_pressure", "none");
+        assertThat(legacyInventory).containsEntry("review_queue_escalation_required", false);
+        assertThat((List<String>) legacyInventory.get("review_queue_escalated_scenarios")).isEmpty();
+        assertThat(legacyInventory).containsEntry("review_queue_consolidation_required", false);
+        assertThat(legacyInventory).containsEntry("review_queue_consolidation_count", 0);
+        assertThat((List<String>) legacyInventory.get("review_queue_consolidation_candidates")).isEmpty();
+        assertThat(legacyInventory).containsEntry("review_queue_next_action_summary", "Legacy review-queue не требует follow-up.");
         assertThat(legacyInventory).containsEntry("review_queue_summary", "");
         assertThat((List<String>) legacyInventory.get("review_queue_scenarios")).isEmpty();
         assertThat((List<String>) legacyInventory.get("overdue_scenarios")).isEmpty();
