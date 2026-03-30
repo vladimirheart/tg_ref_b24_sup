@@ -2096,6 +2096,8 @@ public class DialogApiController {
                 : Map.of();
         Map<String, Object> safeSlaAudit = slaPolicyAudit != null ? slaPolicyAudit : Map.of();
         Map<String, Object> safeMacroAudit = macroGovernanceAudit != null ? macroGovernanceAudit : Map.of();
+        boolean hasSlaAuditSignals = !safeSlaAudit.isEmpty();
+        boolean hasMacroAuditSignals = !safeMacroAudit.isEmpty();
 
         long currentSlaChurnPct = asLong(totals.get("workspace_sla_policy_churn_ratio_pct"));
         long previousSlaChurnPct = asLong(previousTotals.get("workspace_sla_policy_churn_ratio_pct"));
@@ -2103,6 +2105,10 @@ public class DialogApiController {
         String slaTrendStatus = slaChurnDeltaPct >= 25L
                 ? "rising"
                 : slaChurnDeltaPct <= -25L ? "improving" : "stable";
+        long slaClosureRatePct = hasSlaAuditSignals ? asLong(safeSlaAudit.get("required_checkpoint_closure_rate_pct")) : 100L;
+        long slaFreshnessRatePct = hasSlaAuditSignals ? asLong(safeSlaAudit.get("freshness_closure_rate_pct")) : 100L;
+        String slaClosureStatus = slaClosureRatePct >= 100L ? "controlled" : "followup";
+        String slaFreshnessStatus = slaFreshnessRatePct >= 100L ? "controlled" : "followup";
 
         boolean slaManagementReviewRequired = "high".equals(String.valueOf(safeSlaAudit.getOrDefault("cheap_path_drift_risk_level", "")))
                 || "high".equals(String.valueOf(totals.getOrDefault("workspace_sla_policy_churn_level", "")));
@@ -2124,6 +2130,20 @@ public class DialogApiController {
                 : macroFollowupRequired
                 ? "followup"
                 : "controlled";
+        long macroClosureRatePct = hasMacroAuditSignals ? asLong(safeMacroAudit.get("required_checkpoint_closure_rate_pct")) : 100L;
+        long macroFreshnessRatePct = hasMacroAuditSignals ? asLong(safeMacroAudit.get("freshness_closure_rate_pct")) : 100L;
+        String macroClosureStatus = macroClosureRatePct >= 100L ? "controlled" : "followup";
+        String macroFreshnessStatus = macroFreshnessRatePct >= 100L ? "controlled" : "followup";
+        boolean macroActionableSignalDominant = asLong(safeMacroAudit.get("actionable_advisory_share_pct"))
+                >= asLong(safeMacroAudit.get("low_signal_advisory_share_pct"))
+                && !Boolean.TRUE.equals(safeMacroAudit.get("low_signal_backlog_dominant"));
+        String governanceClosureHealth = ("followup".equals(slaClosureStatus) || "followup".equals(slaFreshnessStatus)
+                || "followup".equals(macroClosureStatus) || "followup".equals(macroFreshnessStatus))
+                ? "followup"
+                : "controlled";
+        String macroNoiseHealth = Boolean.TRUE.equals(safeMacroAudit.get("low_signal_backlog_dominant"))
+                ? "followup"
+                : macroActionableSignalDominant ? "controlled" : "monitor";
 
         String status = ("management_review".equals(slaStatus) || "management_review".equals(macroStatus))
                 ? "management_review"
@@ -2155,6 +2175,10 @@ public class DialogApiController {
         control.put("sla_churn_delta_pct", slaChurnDeltaPct);
         control.put("sla_cheap_path_drift_risk_level", String.valueOf(safeSlaAudit.getOrDefault("cheap_path_drift_risk_level", "controlled")));
         control.put("sla_typical_policy_change_ready", Boolean.TRUE.equals(safeSlaAudit.get("typical_policy_change_ready")));
+        control.put("sla_closure_rate_pct", slaClosureRatePct);
+        control.put("sla_closure_status", slaClosureStatus);
+        control.put("sla_freshness_rate_pct", slaFreshnessRatePct);
+        control.put("sla_freshness_status", slaFreshnessStatus);
         control.put("macro_status", macroStatus);
         control.put("macro_summary", firstNonBlank(
                 String.valueOf(safeMacroAudit.getOrDefault("low_signal_backlog_summary", "")),
@@ -2162,6 +2186,13 @@ public class DialogApiController {
         control.put("macro_low_signal_backlog_dominant", Boolean.TRUE.equals(safeMacroAudit.get("low_signal_backlog_dominant")));
         control.put("macro_actionable_advisory_share_pct", asLong(safeMacroAudit.get("actionable_advisory_share_pct")));
         control.put("macro_low_signal_advisory_share_pct", asLong(safeMacroAudit.get("low_signal_advisory_share_pct")));
+        control.put("macro_actionable_signal_dominant", macroActionableSignalDominant);
+        control.put("macro_closure_rate_pct", macroClosureRatePct);
+        control.put("macro_closure_status", macroClosureStatus);
+        control.put("macro_freshness_rate_pct", macroFreshnessRatePct);
+        control.put("macro_freshness_status", macroFreshnessStatus);
+        control.put("governance_closure_health", governanceClosureHealth);
+        control.put("macro_noise_health", macroNoiseHealth);
         control.put("next_action_summary", nextActionSummary);
         control.put("management_review_required", "management_review".equals(status));
         return control;

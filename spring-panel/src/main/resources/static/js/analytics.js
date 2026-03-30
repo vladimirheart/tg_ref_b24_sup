@@ -2133,7 +2133,7 @@ if (legacyUsageBlockedReasonsFollowupInput) {
       updatedAt.textContent += ` · sla-path=${String(slaReviewPathControl.status)}${slaReviewPathControl?.decision_lead_time_status ? ` (${String(slaReviewPathControl.decision_lead_time_status)})` : ''}`;
     }
     if (p2Control?.status) {
-      updatedAt.textContent += ` · p2=${String(p2Control.status)}${p2Control?.sla_churn_trend_status ? ` (${String(p2Control.sla_churn_trend_status)})` : ''}`;
+      updatedAt.textContent += ` · p2=${String(p2Control.status)}${p2Control?.sla_churn_trend_status ? ` (${String(p2Control.sla_churn_trend_status)})` : ''}${p2Control?.governance_closure_health ? ` · closure=${String(p2Control.governance_closure_health)}` : ''}${p2Control?.macro_noise_health ? ` · macro-noise=${String(p2Control.macro_noise_health)}` : ''}`;
     }
     const visibleAlerts = renderAlerts(alerts, filters);
     renderFilterState(filters, visibleAlerts.length);

@@ -1007,28 +1007,32 @@ class DialogApiControllerWebMvcTest {
                 "rows", List.of(),
                 "guardrails", Map.of("status", "ok", "alerts", List.of())
         ));
-        when(slaEscalationWebhookNotifier.buildRoutingGovernanceAudit(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any())).thenReturn(Map.of(
-                "weekly_review_followup_required", true,
-                "policy_churn_risk_level", "high",
-                "minimum_required_review_path_ready", true,
-                "minimum_required_review_path_summary", "Required path: utc_review -> explicit_decision (ready, lead=cheap).",
-                "cheap_review_path_confirmed", true,
-                "typical_policy_change_ready", true,
-                "cheap_path_drift_risk_level", "controlled",
-                "decision_lead_time_status", "cheap",
-                "advisory_path_reduction_candidate", true,
-                "weekly_review_summary", "Сократите conflicts/advisory checkpoints, чтобы review-cycle не разрастался."
+        when(slaEscalationWebhookNotifier.buildRoutingGovernanceAudit(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any())).thenReturn(Map.ofEntries(
+                Map.entry("weekly_review_followup_required", true),
+                Map.entry("policy_churn_risk_level", "high"),
+                Map.entry("minimum_required_review_path_ready", true),
+                Map.entry("minimum_required_review_path_summary", "Required path: utc_review -> explicit_decision (ready, lead=cheap)."),
+                Map.entry("cheap_review_path_confirmed", true),
+                Map.entry("typical_policy_change_ready", true),
+                Map.entry("cheap_path_drift_risk_level", "controlled"),
+                Map.entry("required_checkpoint_closure_rate_pct", 100),
+                Map.entry("freshness_closure_rate_pct", 100),
+                Map.entry("decision_lead_time_status", "cheap"),
+                Map.entry("advisory_path_reduction_candidate", true),
+                Map.entry("weekly_review_summary", "Сократите conflicts/advisory checkpoints, чтобы review-cycle не разрастался.")
         ));
-        when(dialogService.buildMacroGovernanceAudit(org.mockito.ArgumentMatchers.any())).thenReturn(Map.of(
-                "weekly_review_followup_required", false,
-                "advisory_followup_required", true,
-                "advisory_path_reduction_candidate", true,
-                "low_signal_backlog_dominant", true,
-                "low_signal_backlog_summary", "Low-signal red-list начинает доминировать над actionable advisory; держите его аналитическим, а не backlog-driven.",
-                "actionable_advisory_share_pct", 40,
-                "low_signal_advisory_share_pct", 60,
-                "minimum_required_path_controlled", true,
-                "weekly_review_summary", "Сократите advisory red-list шум до минимального обязательного контура."
+        when(dialogService.buildMacroGovernanceAudit(org.mockito.ArgumentMatchers.any())).thenReturn(Map.ofEntries(
+                Map.entry("weekly_review_followup_required", false),
+                Map.entry("advisory_followup_required", true),
+                Map.entry("advisory_path_reduction_candidate", true),
+                Map.entry("low_signal_backlog_dominant", true),
+                Map.entry("low_signal_backlog_summary", "Low-signal red-list начинает доминировать над actionable advisory; держите его аналитическим, а не backlog-driven."),
+                Map.entry("actionable_advisory_share_pct", 40),
+                Map.entry("low_signal_advisory_share_pct", 60),
+                Map.entry("minimum_required_path_controlled", true),
+                Map.entry("required_checkpoint_closure_rate_pct", 100),
+                Map.entry("freshness_closure_rate_pct", 100),
+                Map.entry("weekly_review_summary", "Сократите advisory red-list шум до минимального обязательного контура.")
         ));
 
         mockMvc.perform(get("/api/dialogs/workspace-telemetry/summary")
@@ -1057,10 +1061,16 @@ class DialogApiControllerWebMvcTest {
                 .andExpect(jsonPath("$.p2_governance_control.sla_churn_delta_pct").value(180))
                 .andExpect(jsonPath("$.p2_governance_control.sla_cheap_path_drift_risk_level").value("controlled"))
                 .andExpect(jsonPath("$.p2_governance_control.sla_typical_policy_change_ready").value(true))
+                .andExpect(jsonPath("$.p2_governance_control.sla_closure_status").value("controlled"))
+                .andExpect(jsonPath("$.p2_governance_control.sla_freshness_status").value("controlled"))
                 .andExpect(jsonPath("$.p2_governance_control.macro_status").value("followup"))
                 .andExpect(jsonPath("$.p2_governance_control.macro_low_signal_backlog_dominant").value(true))
                 .andExpect(jsonPath("$.p2_governance_control.macro_actionable_advisory_share_pct").value(40))
                 .andExpect(jsonPath("$.p2_governance_control.macro_low_signal_advisory_share_pct").value(60))
+                .andExpect(jsonPath("$.p2_governance_control.macro_closure_status").value("controlled"))
+                .andExpect(jsonPath("$.p2_governance_control.macro_freshness_status").value("controlled"))
+                .andExpect(jsonPath("$.p2_governance_control.governance_closure_health").value("controlled"))
+                .andExpect(jsonPath("$.p2_governance_control.macro_noise_health").value("followup"))
                 .andExpect(jsonPath("$.p2_governance_control.next_action_summary").value("Сократите SLA advisory checkpoints для типовых policy changes и удерживайте cheap path."))
                 .andExpect(jsonPath("$.weekly_review_focus.status").value("hold"))
                 .andExpect(jsonPath("$.weekly_review_focus.section_count").value(4))
@@ -1115,6 +1125,8 @@ class DialogApiControllerWebMvcTest {
                 .andExpect(jsonPath("$.sla_review_path_control.next_action_summary").value("Дополнительный SLA follow-up не требуется."))
                 .andExpect(jsonPath("$.p2_governance_control.status").value("controlled"))
                 .andExpect(jsonPath("$.p2_governance_control.summary").value("P2 governance control удерживается: SLA churn и macro noise остаются в рабочем диапазоне."))
+                .andExpect(jsonPath("$.p2_governance_control.governance_closure_health").value("controlled"))
+                .andExpect(jsonPath("$.p2_governance_control.macro_noise_health").value("controlled"))
                 .andExpect(jsonPath("$.p2_governance_control.next_action_summary").value("P2 governance control не требует дополнительного follow-up."))
                 .andExpect(jsonPath("$.weekly_review_focus.status").value("ok"))
                 .andExpect(jsonPath("$.weekly_review_focus.focus_health").value("stable"))
