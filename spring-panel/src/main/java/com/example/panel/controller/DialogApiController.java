@@ -1948,6 +1948,7 @@ public class DialogApiController {
         payload.put("sla_policy_audit", slaPolicyAudit != null ? slaPolicyAudit : Map.of());
         payload.put("macro_governance_audit", macroGovernanceAudit);
         payload.put("p1_operational_control", buildP1OperationalControl(payload));
+        payload.put("sla_review_path_control", buildSlaReviewPathControl(payload, slaPolicyAudit));
         payload.put("weekly_review_focus", buildWorkspaceWeeklyReviewFocus(payload, slaPolicyAudit, macroGovernanceAudit));
         payload.put("success", true);
         return ResponseEntity.ok(payload);
@@ -1982,9 +1983,13 @@ public class DialogApiController {
                 : Boolean.TRUE.equals(legacyInventory.get("review_queue_followup_required"))
                 ? "followup"
                 : "controlled";
-        String contextStatus = Boolean.TRUE.equals(contextContract.get("secondary_noise_management_review_required"))
+        boolean contextManagementReviewRequired = Boolean.TRUE.equals(contextContract.get("secondary_noise_management_review_required"))
+                || Boolean.TRUE.equals(totals.get("context_secondary_details_management_review_required"));
+        boolean contextFollowupRequired = Boolean.TRUE.equals(contextContract.get("secondary_noise_followup_required"))
+                || Boolean.TRUE.equals(totals.get("context_secondary_details_followup_required"));
+        String contextStatus = contextManagementReviewRequired
                 ? "management_review"
-                : Boolean.TRUE.equals(contextContract.get("secondary_noise_followup_required"))
+                : contextFollowupRequired
                 ? "followup"
                 : "controlled";
         String status = ("management_review".equals(legacyStatus) || "management_review".equals(contextStatus))
@@ -2011,13 +2016,71 @@ public class DialogApiController {
         control.put("context_status", contextStatus);
         control.put("context_summary", firstNonBlank(
                 String.valueOf(contextContract.getOrDefault("secondary_noise_compaction_summary", "")),
-                String.valueOf(contextContract.getOrDefault("secondary_noise_summary", ""))));
+                String.valueOf(totals.getOrDefault("context_secondary_details_compaction_summary", "")),
+                String.valueOf(contextContract.getOrDefault("secondary_noise_summary", "")),
+                String.valueOf(totals.getOrDefault("context_secondary_details_summary", ""))));
         control.put("context_noise_trend_status", contextDeltaPct >= 10L ? "rising" : contextDeltaPct <= -10L ? "improving" : "stable");
         control.put("context_noise_trend_delta_pct", contextDeltaPct);
         control.put("context_extra_attributes_delta_pct", extraDeltaPct);
-        control.put("context_extra_attributes_compaction_candidate", Boolean.TRUE.equals(contextContract.get("extra_attributes_compaction_candidate")));
+        control.put("context_extra_attributes_compaction_candidate",
+                Boolean.TRUE.equals(contextContract.get("extra_attributes_compaction_candidate"))
+                        || Boolean.TRUE.equals(totals.get("context_extra_attributes_compaction_candidate")));
         control.put("next_action_summary", nextActionSummary);
         control.put("management_review_required", "management_review".equals(status));
+        return control;
+    }
+
+    private Map<String, Object> buildSlaReviewPathControl(Map<String, Object> payload,
+                                                          Map<String, Object> slaPolicyAudit) {
+        Map<String, Object> totals = payload.get("totals") instanceof Map<?, ?> map
+                ? OBJECT_MAPPER.convertValue(map, new TypeReference<Map<String, Object>>() {})
+                : Map.of();
+        Map<String, Object> safeSlaAudit = slaPolicyAudit != null ? slaPolicyAudit : Map.of();
+        boolean cheapPathConfirmed = Boolean.TRUE.equals(safeSlaAudit.get("cheap_review_path_confirmed"));
+        boolean minimumPathReady = Boolean.TRUE.equals(safeSlaAudit.get("minimum_required_review_path_ready"));
+        boolean churnFollowupRequired = Boolean.TRUE.equals(totals.get("workspace_sla_policy_churn_followup_required"))
+                || Boolean.TRUE.equals(safeSlaAudit.get("weekly_review_followup_required"));
+        boolean hasSlaSignals = !safeSlaAudit.isEmpty()
+                || totals.containsKey("workspace_sla_policy_churn_followup_required")
+                || totals.containsKey("workspace_sla_policy_churn_level");
+        String leadTimeStatus = String.valueOf(safeSlaAudit.getOrDefault("decision_lead_time_status", "unknown"));
+        String status = !hasSlaSignals
+                ? "controlled"
+                : cheapPathConfirmed
+                ? "controlled"
+                : minimumPathReady && !churnFollowupRequired
+                ? "monitor"
+                : churnFollowupRequired
+                ? "followup"
+                : "attention";
+        String nextActionSummary = cheapPathConfirmed
+                ? "Удерживайте только minimum required SLA review path и не возвращайте advisory checkpoints в типовые policy changes."
+                : !hasSlaSignals
+                ? "Дополнительный SLA follow-up не требуется."
+                : Boolean.TRUE.equals(safeSlaAudit.get("advisory_path_reduction_candidate"))
+                ? "Сократите advisory checkpoints до minimum required path и перепроверьте decision cadence."
+                : minimumPathReady
+                ? "Проверьте decision cadence: minimum required path уже готов, но lead time или churn ещё шумят."
+                : "Закройте minimum required SLA review path перед следующими policy changes.";
+
+        Map<String, Object> control = new LinkedHashMap<>();
+        control.put("status", status);
+        control.put("summary", !hasSlaSignals
+                ? "SLA review path не требует отдельного follow-up."
+                : cheapPathConfirmed
+                ? "Минимальный дешёвый SLA review path зафиксирован и удерживается под операционным контролем."
+                : "SLA review path требует follow-up, чтобы остаться дешёвым и обязательным.");
+        control.put("minimum_required_review_path_ready", minimumPathReady);
+        control.put("minimum_required_review_path_summary", String.valueOf(safeSlaAudit.getOrDefault("minimum_required_review_path_summary", "")));
+        control.put("cheap_review_path_confirmed", cheapPathConfirmed);
+        control.put("decision_lead_time_status", leadTimeStatus);
+        control.put("decision_lead_time_summary", String.valueOf(safeSlaAudit.getOrDefault("decision_lead_time_summary", "")));
+        control.put("policy_churn_level", String.valueOf(totals.getOrDefault(
+                "workspace_sla_policy_churn_level",
+                safeSlaAudit.getOrDefault("policy_churn_risk_level", "controlled"))));
+        control.put("next_action_summary", nextActionSummary);
+        control.put("management_review_required", "followup".equals(status) && "high".equals(String.valueOf(
+                safeSlaAudit.getOrDefault("policy_churn_risk_level", totals.getOrDefault("workspace_sla_policy_churn_level", "")))));
         return control;
     }
 
@@ -2038,6 +2101,15 @@ public class DialogApiController {
                 : Map.of();
         Map<String, Object> safeSlaAudit = slaPolicyAudit != null ? slaPolicyAudit : Map.of();
         Map<String, Object> safeMacroAudit = macroGovernanceAudit != null ? macroGovernanceAudit : Map.of();
+        long previousContextSecondaryRatePct = asLong(previousTotals.get("context_secondary_details_open_rate_pct"));
+        long currentContextSecondaryRatePct = asLong(totals.get("context_secondary_details_open_rate_pct"));
+        long contextSecondaryDeltaPct = currentContextSecondaryRatePct - previousContextSecondaryRatePct;
+        long previousContextExtraRatePct = asLong(previousTotals.get("context_extra_attributes_open_rate_pct"));
+        long currentContextExtraRatePct = asLong(totals.get("context_extra_attributes_open_rate_pct"));
+        long contextExtraDeltaPct = currentContextExtraRatePct - previousContextExtraRatePct;
+        String contextTrendStatus = contextSecondaryDeltaPct >= 10L
+                ? "rising"
+                : contextSecondaryDeltaPct <= -10L ? "improving" : "stable";
         boolean contextExtraAttributesCompactionCandidate = Boolean.TRUE.equals(totals.get("context_extra_attributes_compaction_candidate"));
         boolean legacyManagementReviewRequired = Boolean.TRUE.equals(legacyInventory.get("review_queue_escalation_required"))
                 || asLong(legacyInventory.get("review_queue_repeat_cycles")) >= 3L
