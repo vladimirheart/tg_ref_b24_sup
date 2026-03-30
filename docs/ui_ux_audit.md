@@ -207,21 +207,25 @@
 
 ## Приоритетный план следующего этапа
 
-### Шаг 1. Удерживать закрытый P1 в режиме операционного контроля
-Цель:
-- не дать закрытым P1-контурам снова деградировать в ручной backlog.
+### Шаг 1. Закрыто: P1 удерживается в режиме операционного контроля
+Что уже есть:
+- отдельный `p1_operational_control` в summary API, который сводит legacy queue и context-noise в явный status / summary / next action;
+- scenario-level visibility для `legacy review_queue`, включая queue pressure, escalation, consolidation и management-review pressure;
+- trend-aware monitoring secondary-noise и hidden `extra attributes`, чтобы деградация operator-first sidebar была видна до возврата в ручной backlog;
+- единая видимость в analytics, experiment summary и weekly focus, а не только внутри rollout packet.
 
-Минимум на следующий цикл:
-- weekly review по `queue pressure` / `management review` / `consolidation candidates` без возврата к ручному списку долгов;
-- мониторить trend secondary-noise и скрытых `extra attributes`, чтобы operator-first sidebar оставался дешёвым.
+Операционная норма:
+- weekly review теперь должен только удерживать эти сигналы в контролируемом состоянии; отдельного продуктового P1-gap здесь больше нет.
 
-### Шаг 2. Зафиксировать минимальный дешёвый SLA review path
-Цель:
-- governance должен уменьшать риск, а не замедлять изменение правил.
+### Шаг 2. Закрыто: минимальный дешёвый SLA review path зафиксирован
+Что уже есть:
+- `minimum_required_review_path`, `minimum_required_review_path_ready` и `minimum_required_review_path_summary`;
+- `decision_lead_time_status` / `decision_lead_time_summary`, чтобы review path оценивался не только по наличию checkpoint-ов, но и по цене во времени;
+- `cheap_review_path_confirmed` и отдельный `sla_review_path_control` в summary API, который превращает SLA governance в понятный operational signal со status / summary / next action;
+- явная видимость во фронте analytics и experiment summary, чтобы команда видела, удерживается ли cheap path без возврата к advisory-noise.
 
-Минимум на следующий цикл:
-- подтвердить, что `minimum_required_review_path` покрывает типовые policy changes;
-- измерить policy churn против decision lead time на реальных изменениях правил.
+Операционная норма:
+- дальше это не новая разработка, а churn-control: не позволять типовым policy changes снова разрастаться за пределы minimum required path.
 
 ### Шаг 3. Проверить macro noise на реальных usage-tier сценариях
 Цель:

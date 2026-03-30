@@ -2075,6 +2075,9 @@ if (legacyUsageBlockedReasonsFollowupInput) {
     const p1Control = payload?.p1_operational_control && typeof payload.p1_operational_control === 'object'
       ? payload.p1_operational_control
       : {};
+    const slaReviewPathControl = payload?.sla_review_path_control && typeof payload.sla_review_path_control === 'object'
+      ? payload.sla_review_path_control
+      : {};
     Object.entries(metricNodes).forEach(([metric, node]) => {
       const value = totals[metric];
       if (metric === 'context_profile_ready_rate'
@@ -2123,6 +2126,9 @@ if (legacyUsageBlockedReasonsFollowupInput) {
     if (p1Control?.status) {
       updatedAt.textContent += ` · p1=${String(p1Control.status)}${p1Control?.context_noise_trend_status ? ` (${String(p1Control.context_noise_trend_status)})` : ''}`;
     }
+    if (slaReviewPathControl?.status) {
+      updatedAt.textContent += ` · sla-path=${String(slaReviewPathControl.status)}${slaReviewPathControl?.decision_lead_time_status ? ` (${String(slaReviewPathControl.decision_lead_time_status)})` : ''}`;
+    }
     const visibleAlerts = renderAlerts(alerts, filters);
     renderFilterState(filters, visibleAlerts.length);
     renderBreakdownRows(shiftTable, filteredRows(payload?.by_shift, 'shift', filters), 'shift', 'Недостаточно данных по сменам.');
@@ -2146,12 +2152,17 @@ if (legacyUsageBlockedReasonsFollowupInput) {
       const p1Text = p1Control?.status && p1Control.status !== 'controlled'
         ? ` P1 control: ${String(p1Control.summary || '').trim()}${p1Control?.next_action_summary ? ` · next: ${String(p1Control.next_action_summary).trim()}` : ''}`
         : '';
-      alertBox.textContent = `Зафиксировано ${alerts.length} отклонений guardrails (${visibleAlerts.length} по текущему фильтру).${focusText}${p1Text}`;
+      const slaText = slaReviewPathControl?.status && slaReviewPathControl.status !== 'controlled'
+        ? ` SLA path: ${String(slaReviewPathControl.summary || '').trim()}${slaReviewPathControl?.minimum_required_review_path_summary ? ` · ${String(slaReviewPathControl.minimum_required_review_path_summary).trim()}` : ''}${slaReviewPathControl?.next_action_summary ? ` · next: ${String(slaReviewPathControl.next_action_summary).trim()}` : ''}`
+        : '';
+      alertBox.textContent = `Зафиксировано ${alerts.length} отклонений guardrails (${visibleAlerts.length} по текущему фильтру).${focusText}${p1Text}${slaText}`;
       alertBox.classList.remove('d-none');
-    } else if (weeklyFocusSections.length || (p1Control?.status && p1Control.status !== 'controlled')) {
+    } else if (weeklyFocusSections.length || (p1Control?.status && p1Control.status !== 'controlled') || (slaReviewPathControl?.status && slaReviewPathControl.status !== 'controlled')) {
       alertBox.textContent = weeklyFocusSections.length
         ? `Weekly focus: ${String(weeklyReviewFocus?.summary || '').trim()}${weeklyReviewFocus?.priority_mix_summary ? ` · ${String(weeklyReviewFocus.priority_mix_summary).trim()}` : ''}${weeklyReviewFocus?.next_action_summary ? ` · next: ${String(weeklyReviewFocus.next_action_summary).trim()}` : ''}${weeklyReviewFocus?.requires_management_review === true ? ' · management review suggested' : ''}`
-        : `P1 control: ${String(p1Control?.summary || '').trim()}${p1Control?.next_action_summary ? ` · next: ${String(p1Control.next_action_summary).trim()}` : ''}`;
+        : (p1Control?.status && p1Control.status !== 'controlled'
+          ? `P1 control: ${String(p1Control?.summary || '').trim()}${p1Control?.next_action_summary ? ` · next: ${String(p1Control.next_action_summary).trim()}` : ''}`
+          : `SLA path: ${String(slaReviewPathControl?.summary || '').trim()}${slaReviewPathControl?.minimum_required_review_path_summary ? ` · ${String(slaReviewPathControl.minimum_required_review_path_summary).trim()}` : ''}${slaReviewPathControl?.next_action_summary ? ` · next: ${String(slaReviewPathControl.next_action_summary).trim()}` : ''}`);
       alertBox.classList.remove('d-none');
     } else {
       alertBox.classList.add('d-none');
