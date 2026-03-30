@@ -1107,6 +1107,16 @@ class SupportPanelIntegrationTests {
         assertThat(contextContract).containsEntry("progressive_disclosure_ready", true);
         assertThat(contextContract).containsEntry("operator_summary", "Minimum profile соблюдён.");
         assertThat(contextContract).containsEntry("next_step_summary", "");
+        assertThat(contextContract).containsEntry("secondary_noise_followup_required", false);
+        assertThat(contextContract).containsEntry("secondary_noise_management_review_required", false);
+        assertThat(contextContract).containsEntry("secondary_noise_usage_level", "rare");
+        assertThat(contextContract).containsEntry("secondary_noise_top_section", "");
+        assertThat(contextContract).containsEntry("secondary_noise_compaction_summary", "Secondary context pressure остаётся под контролем.");
+        assertThat(contextContract).containsEntry("extra_attributes_compaction_candidate", false);
+        assertThat(contextContract).containsEntry("extra_attributes_open_rate_pct", 0L);
+        assertThat(contextContract).containsEntry("extra_attributes_share_pct_of_secondary", 0L);
+        assertThat(contextContract).containsEntry("extra_attributes_usage_level", "rare");
+        assertThat(contextContract).containsEntry("extra_attributes_summary", "Extra attributes почти не раскрывались.");
         assertThat((List<String>) contextContract.get("scenarios")).containsExactly("incident", "billing");
         assertThat((List<String>) contextContract.get("mandatory_fields")).containsExactly("full_name", "crm_tier");
         assertThat((List<String>) contextContract.get("operator_focus_blocks")).containsExactly("customer", "sla");
@@ -1198,12 +1208,62 @@ class SupportPanelIntegrationTests {
         assertThat(contextContract).containsEntry("review_timestamp_invalid", true);
         assertThat(contextContract).containsEntry("operator_summary", "Review checkpoint содержит невалидный UTC timestamp.");
         assertThat(contextContract).containsEntry("next_step_summary", "Исправьте reviewed_at на валидный UTC timestamp.");
+        assertThat(contextContract).containsEntry("secondary_noise_followup_required", false);
+        assertThat(contextContract).containsEntry("secondary_noise_management_review_required", false);
+        assertThat(contextContract).containsEntry("extra_attributes_compaction_candidate", false);
         assertThat(items).anySatisfy(item -> {
             if ("context_minimum_profile".equals(item.get("key"))) {
                 assertThat(item.get("status")).isEqualTo("hold");
                 assertThat(item.get("current_value")).isEqualTo("invalid_utc");
             }
         });
+    }
+
+    @Test
+    void workspaceTelemetrySummaryProjectsContextCompactionSignalsIntoPacket() {
+        jdbcTemplate.update("INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value",
+                "dialog_config", """
+                        {"workspace_rollout_governance_packet_required":true,
+                         "workspace_rollout_context_contract_required":true,
+                         "workspace_rollout_context_contract_scenarios":["incident"],
+                         "workspace_rollout_context_contract_mandatory_fields":["full_name"],
+                         "workspace_rollout_context_contract_source_of_truth":["full_name:crm"],
+                         "workspace_rollout_context_contract_priority_blocks":["customer"],
+                         "workspace_rollout_context_contract_reviewed_by":"ops-context-owner",
+                         "workspace_rollout_context_contract_reviewed_at":"2099-03-01T09:10:11Z"}
+                        """);
+
+        jdbcTemplate.update("""
+                INSERT INTO workspace_telemetry_audit (
+                    actor, event_type, event_group, ticket_id, reason, error_code, contract_version,
+                    duration_ms, experiment_name, experiment_cohort, operator_segment,
+                    primary_kpis, secondary_kpis, template_id, template_name, created_at
+                ) VALUES
+                    ('op1', 'workspace_open_ms', 'performance', 'T-CONTEXT-COMPACT-1', NULL, NULL, 'workspace.v1', 810, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-2 hour')),
+                    ('op2', 'workspace_open_ms', 'performance', 'T-CONTEXT-COMPACT-2', NULL, NULL, 'workspace.v1', 820, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-110 minute')),
+                    ('op3', 'workspace_open_ms', 'performance', 'T-CONTEXT-COMPACT-3', NULL, NULL, 'workspace.v1', 830, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-100 minute')),
+                    ('op4', 'workspace_open_ms', 'performance', 'T-CONTEXT-COMPACT-4', NULL, NULL, 'workspace.v1', 840, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-90 minute')),
+                    ('op5', 'workspace_open_ms', 'performance', 'T-CONTEXT-COMPACT-5', NULL, NULL, 'workspace.v1', 850, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-80 minute')),
+                    ('op6', 'workspace_context_extra_attributes_expanded', 'workspace', 'T-CONTEXT-COMPACT-1', NULL, NULL, 'workspace.v1', NULL, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-70 minute')),
+                    ('op6', 'workspace_context_extra_attributes_expanded', 'workspace', 'T-CONTEXT-COMPACT-2', NULL, NULL, 'workspace.v1', NULL, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-60 minute')),
+                    ('op6', 'workspace_context_extra_attributes_expanded', 'workspace', 'T-CONTEXT-COMPACT-3', NULL, NULL, 'workspace.v1', NULL, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-50 minute')),
+                    ('op6', 'workspace_context_extra_attributes_expanded', 'workspace', 'T-CONTEXT-COMPACT-4', NULL, NULL, 'workspace.v1', NULL, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-40 minute')),
+                    ('op7', 'workspace_context_sources_expanded', 'workspace', 'T-CONTEXT-COMPACT-5', NULL, NULL, 'workspace.v1', NULL, 'workspace_v1_rollout', 'test', 'team=ops;shift=day', NULL, NULL, NULL, NULL, datetime('now', '-30 minute'))
+                """);
+
+        Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
+        Map<String, Object> packet = (Map<String, Object>) summary.get("rollout_packet");
+        Map<String, Object> contextContract = (Map<String, Object>) packet.get("context_contract");
+
+        assertThat(contextContract).containsEntry("secondary_noise_followup_required", true);
+        assertThat(contextContract).containsEntry("secondary_noise_management_review_required", true);
+        assertThat(contextContract).containsEntry("secondary_noise_usage_level", "heavy");
+        assertThat(contextContract).containsEntry("secondary_noise_top_section", "extra_attributes");
+        assertThat(contextContract).containsEntry("extra_attributes_compaction_candidate", true);
+        assertThat(contextContract).containsEntry("extra_attributes_open_rate_pct", 80L);
+        assertThat(contextContract).containsEntry("extra_attributes_share_pct_of_secondary", 80L);
+        assertThat(contextContract).containsEntry("extra_attributes_usage_level", "heavy");
+        assertThat(String.valueOf(contextContract.get("secondary_noise_compaction_summary"))).contains("стоит ужать hidden attributes");
     }
 
     @Test

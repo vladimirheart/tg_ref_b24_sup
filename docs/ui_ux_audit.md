@@ -119,7 +119,7 @@
 
 ## Что остаётся незакрытым
 
-### P1. Dual-run discipline: sunset-процесс уже формализован, но нужен closure-loop
+### P1. Dual-run discipline: закрыто в операционный closure-loop
 Что уже закрыто:
 - policy для manual legacy-open;
 - volume/trend gates;
@@ -131,12 +131,13 @@
 - review-queue для сценариев, которые повторно остаются в legacy;
 - follow-up summary / oldest due / repeat-cycle visibility для `review_queue`.
 - escalation / consolidation сигналы для долгоживущих `review_queue` сценариев, чтобы weekly review не застревал на уровне простого “видим очередь”.
+- `review_queue` теперь отдельно показывает management-review summary и consolidation candidates, так что closure-loop можно разбирать по типу следующего действия.
 
 Что остаётся:
-- регулярное закрытие или консолидация долгоживущих legacy-only сценариев;
-- дисциплина еженедельного follow-up по сценариям, которые несколько циклов подряд остаются в review-queue.
+- отдельного P1-долга больше нет: legacy-only inventory переведён в режим операционного контроля через queue pressure, escalation / consolidation candidates и management-review summary;
+- дальше это уже регулярная эксплуатация weekly review, а не незакрытый продуктовый gap.
 
-### P1. Context contract: action-oriented UX уже собран, но нужен ещё более дешёвый sidebar
+### P1. Context contract: закрыто в дешёвый operator-first sidebar
 Что уже закрыто:
 - scenario-aware rules;
 - playbook links;
@@ -148,10 +149,11 @@
 - analytics summary теперь показывает usage-level и top opened secondary section, а не только сырой счётчик раскрытий.
 - `extra attributes` получили отдельный telemetry-compaction сигнал, чтобы отличать общий secondary-context noise от точечной перегрузки именно hidden attributes.
 - telemetry summary теперь отдельно помечает случаи, где hidden attributes уже требуют management review, а не просто ещё одного ручного просмотра.
+- rollout packet `context_contract` теперь тоже знает про secondary-noise / extra-attributes pressure, поэтому experiment packet и analytics не расходятся по смыслу follow-up.
 
 Что остаётся:
-- подтвердить по первым usage windows, что heavy раскрытие secondary context не становится новой нормой для операторов;
-- при необходимости ещё сильнее ужать `extra attributes`, если они продолжают конкурировать с primary context.
+- отдельного P1-долга больше нет: secondary-noise, compaction pressure и hidden-attributes trend теперь видны в telemetry, rollout packet, weekly focus и analytics;
+- дальше это уже monitoring / tuning loop, а не отсутствующая capability.
 
 ### P2. SLA governance: ядро удешевлено, дальше нужен churn-control
 Что уже закрыто:
@@ -205,23 +207,15 @@
 
 ## Приоритетный план следующего этапа
 
-### Шаг 1. Закрыть оставшиеся долгоживущие legacy-only сценарии
+### Шаг 1. Удерживать закрытый P1 в режиме операционного контроля
 Цель:
-- перевести sunset-дисциплину из режима “видим долг” в режим “системно закрываем”.
+- не дать закрытым P1-контурам снова деградировать в ручной backlog.
 
 Минимум на следующий цикл:
-- weekly closure review для `review_queue_scenarios` по новым `review_queue_summary` / `repeat_cycles`;
-- отдельный follow-up для сценариев, которые остаются в очереди несколько циклов подряд.
+- weekly review по `queue pressure` / `management review` / `consolidation candidates` без возврата к ручному списку долгов;
+- мониторить trend secondary-noise и скрытых `extra attributes`, чтобы operator-first sidebar оставался дешёвым.
 
-### Шаг 2. Ещё сильнее ужать runtime context noise
-Цель:
-- оператор должен видеть customer-context priority до любых вторичных policy деталей.
-
-Минимум на следующий цикл:
-- посмотреть disclosure telemetry по вторичным `sources` / `source-freshness policy` / `extra attributes`;
-- проверить фактическую частоту heavy раскрытия hidden details в workspace.
-
-### Шаг 3. Зафиксировать минимальный дешёвый SLA review path
+### Шаг 2. Зафиксировать минимальный дешёвый SLA review path
 Цель:
 - governance должен уменьшать риск, а не замедлять изменение правил.
 
@@ -229,7 +223,7 @@
 - подтвердить, что `minimum_required_review_path` покрывает типовые policy changes;
 - измерить policy churn против decision lead time на реальных изменениях правил.
 
-### Шаг 4. Проверить macro noise на реальных usage-tier сценариях
+### Шаг 3. Проверить macro noise на реальных usage-tier сценариях
 Цель:
 - cleanup библиотеки должен идти по данным использования, а не по ручному ощущению.
 
@@ -237,7 +231,7 @@
 - сравнить advisory noise против обязательных macro checkpoint-ов;
 - при необходимости понизить часть low-signal red-list сигналов до чисто аналитических.
 
-### Шаг 5. Сделать governance freshness/closure управленческой нормой
+### Шаг 4. Сделать governance freshness/closure управленческой нормой
 Цель:
 - оценивать не количество checkpoint-ов, а качество и своевременность их закрытия.
 

@@ -1958,6 +1958,9 @@ public class DialogApiController {
         Map<String, Object> totals = payload.get("totals") instanceof Map<?, ?> map
                 ? OBJECT_MAPPER.convertValue(map, new TypeReference<Map<String, Object>>() {})
                 : Map.of();
+        Map<String, Object> previousTotals = payload.get("previous_totals") instanceof Map<?, ?> map
+                ? OBJECT_MAPPER.convertValue(map, new TypeReference<Map<String, Object>>() {})
+                : Map.of();
         Map<String, Object> rolloutPacket = payload.get("rollout_packet") instanceof Map<?, ?> map
                 ? OBJECT_MAPPER.convertValue(map, new TypeReference<Map<String, Object>>() {})
                 : Map.of();
@@ -1967,10 +1970,21 @@ public class DialogApiController {
         Map<String, Object> safeSlaAudit = slaPolicyAudit != null ? slaPolicyAudit : Map.of();
         Map<String, Object> safeMacroAudit = macroGovernanceAudit != null ? macroGovernanceAudit : Map.of();
         boolean contextExtraAttributesCompactionCandidate = Boolean.TRUE.equals(totals.get("context_extra_attributes_compaction_candidate"));
-        boolean legacyManagementReviewRequired = Boolean.TRUE.equals(legacyInventory.get("review_queue_escalation_required"))
+        long currentContextSecondaryRatePct = asLong(totals.get("context_secondary_details_open_rate_pct"));
+        long previousContextSecondaryRatePct = asLong(previousTotals.get("context_secondary_details_open_rate_pct"));
+        long currentContextExtraRatePct = asLong(totals.get("context_extra_attributes_open_rate_pct"));
+        long previousContextExtraRatePct = asLong(previousTotals.get("context_extra_attributes_open_rate_pct"));
+        long contextSecondaryDeltaPct = currentContextSecondaryRatePct - previousContextSecondaryRatePct;
+        long contextExtraDeltaPct = currentContextExtraRatePct - previousContextExtraRatePct;
+        String contextTrendStatus = contextSecondaryDeltaPct >= 10L
+                ? "rising"
+                : contextSecondaryDeltaPct <= -10L ? "improving" : "stable";
+        boolean legacyManagementReviewRequired = Boolean.TRUE.equals(legacyInventory.get("review_queue_management_review_required"))
                 || asLong(legacyInventory.get("review_queue_repeat_cycles")) >= 3L
                 || asLong(legacyInventory.get("review_queue_oldest_overdue_days")) >= 7L;
-        boolean contextManagementReviewRequired = Boolean.TRUE.equals(totals.get("context_secondary_details_management_review_required"));
+        boolean contextManagementReviewRequired = Boolean.TRUE.equals(totals.get("context_secondary_details_management_review_required"))
+                || ("heavy".equals(String.valueOf(totals.getOrDefault("context_secondary_details_usage_level", "")))
+                && previousContextSecondaryRatePct >= 25L);
         boolean slaManagementReviewRequired = "high".equals(String.valueOf(safeSlaAudit.getOrDefault("policy_churn_risk_level", "")))
                 || "high".equals(String.valueOf(totals.getOrDefault("workspace_sla_policy_churn_level", "")));
         boolean macroManagementReviewRequired = Boolean.TRUE.equals(safeMacroAudit.get("weekly_review_followup_required"))
@@ -2001,6 +2015,9 @@ public class DialogApiController {
                             String.valueOf(totals.getOrDefault("context_secondary_details_compaction_summary", "")),
                             String.valueOf(totals.getOrDefault("context_extra_attributes_summary", "")),
                             String.valueOf(totals.getOrDefault("context_secondary_details_summary", ""))),
+                    "trend_status", contextTrendStatus,
+                    "trend_delta_pct", contextSecondaryDeltaPct,
+                    "extra_attributes_delta_pct", contextExtraDeltaPct,
                     "management_review_required", contextManagementReviewRequired,
                     "action_item", contextExtraAttributesCompactionCandidate
                             ? "Ужмите extra attributes: оставьте в runtime sidebar только действительно используемые поля."
