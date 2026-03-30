@@ -979,11 +979,13 @@ class DialogApiControllerWebMvcTest {
                         Map.entry("context_extra_attributes_share_pct_of_secondary", 83),
                         Map.entry("context_extra_attributes_compaction_candidate", true),
                         Map.entry("context_extra_attributes_summary", "Extra attributes открывали 5 раз (25% от workspace opens); usage=heavy."),
+                        Map.entry("workspace_sla_policy_churn_ratio_pct", 300),
                         Map.entry("workspace_sla_policy_churn_followup_required", true),
                         Map.entry("workspace_sla_policy_churn_level", "high"),
                         Map.entry("workspace_sla_policy_churn_summary", "SLA policy updates=3, decisions=1, churn=300%.")
                 ),
                 "previous_totals", Map.of(
+                        "workspace_sla_policy_churn_ratio_pct", 120,
                         "context_secondary_details_open_rate_pct", 12,
                         "context_extra_attributes_open_rate_pct", 5
                 ),
@@ -1011,6 +1013,8 @@ class DialogApiControllerWebMvcTest {
                 "minimum_required_review_path_ready", true,
                 "minimum_required_review_path_summary", "Required path: utc_review -> explicit_decision (ready, lead=cheap).",
                 "cheap_review_path_confirmed", true,
+                "typical_policy_change_ready", true,
+                "cheap_path_drift_risk_level", "controlled",
                 "decision_lead_time_status", "cheap",
                 "advisory_path_reduction_candidate", true,
                 "weekly_review_summary", "Сократите conflicts/advisory checkpoints, чтобы review-cycle не разрастался."
@@ -1019,6 +1023,11 @@ class DialogApiControllerWebMvcTest {
                 "weekly_review_followup_required", false,
                 "advisory_followup_required", true,
                 "advisory_path_reduction_candidate", true,
+                "low_signal_backlog_dominant", true,
+                "low_signal_backlog_summary", "Low-signal red-list начинает доминировать над actionable advisory; держите его аналитическим, а не backlog-driven.",
+                "actionable_advisory_share_pct", 40,
+                "low_signal_advisory_share_pct", 60,
+                "minimum_required_path_controlled", true,
                 "weekly_review_summary", "Сократите advisory red-list шум до минимального обязательного контура."
         ));
 
@@ -1042,6 +1051,17 @@ class DialogApiControllerWebMvcTest {
                 .andExpect(jsonPath("$.sla_review_path_control.cheap_review_path_confirmed").value(true))
                 .andExpect(jsonPath("$.sla_review_path_control.decision_lead_time_status").value("cheap"))
                 .andExpect(jsonPath("$.sla_review_path_control.next_action_summary").value("Удерживайте только minimum required SLA review path и не возвращайте advisory checkpoints в типовые policy changes."))
+                .andExpect(jsonPath("$.p2_governance_control.status").value("management_review"))
+                .andExpect(jsonPath("$.p2_governance_control.sla_status").value("management_review"))
+                .andExpect(jsonPath("$.p2_governance_control.sla_churn_trend_status").value("rising"))
+                .andExpect(jsonPath("$.p2_governance_control.sla_churn_delta_pct").value(180))
+                .andExpect(jsonPath("$.p2_governance_control.sla_cheap_path_drift_risk_level").value("controlled"))
+                .andExpect(jsonPath("$.p2_governance_control.sla_typical_policy_change_ready").value(true))
+                .andExpect(jsonPath("$.p2_governance_control.macro_status").value("followup"))
+                .andExpect(jsonPath("$.p2_governance_control.macro_low_signal_backlog_dominant").value(true))
+                .andExpect(jsonPath("$.p2_governance_control.macro_actionable_advisory_share_pct").value(40))
+                .andExpect(jsonPath("$.p2_governance_control.macro_low_signal_advisory_share_pct").value(60))
+                .andExpect(jsonPath("$.p2_governance_control.next_action_summary").value("Сократите SLA advisory checkpoints для типовых policy changes и удерживайте cheap path."))
                 .andExpect(jsonPath("$.weekly_review_focus.status").value("hold"))
                 .andExpect(jsonPath("$.weekly_review_focus.section_count").value(4))
                 .andExpect(jsonPath("$.weekly_review_focus.followup_section_count").value(4))
@@ -1093,6 +1113,9 @@ class DialogApiControllerWebMvcTest {
                 .andExpect(jsonPath("$.sla_review_path_control.minimum_required_review_path_ready").value(false))
                 .andExpect(jsonPath("$.sla_review_path_control.cheap_review_path_confirmed").value(false))
                 .andExpect(jsonPath("$.sla_review_path_control.next_action_summary").value("Дополнительный SLA follow-up не требуется."))
+                .andExpect(jsonPath("$.p2_governance_control.status").value("controlled"))
+                .andExpect(jsonPath("$.p2_governance_control.summary").value("P2 governance control удерживается: SLA churn и macro noise остаются в рабочем диапазоне."))
+                .andExpect(jsonPath("$.p2_governance_control.next_action_summary").value("P2 governance control не требует дополнительного follow-up."))
                 .andExpect(jsonPath("$.weekly_review_focus.status").value("ok"))
                 .andExpect(jsonPath("$.weekly_review_focus.focus_health").value("stable"))
                 .andExpect(jsonPath("$.weekly_review_focus.section_count").value(0))

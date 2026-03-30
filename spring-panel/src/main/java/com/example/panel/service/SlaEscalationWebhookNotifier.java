@@ -936,9 +936,23 @@ public class SlaEscalationWebhookNotifier {
                 : policyDecisionLeadTimeActiveHours >= 0
                 ? "Decision pending=%dh (%s).".formatted(policyDecisionLeadTimeActiveHours, decisionLeadTimeStatus)
                 : "Decision lead time пока не определён.";
+        String cheapPathDriftRiskLevel = "high".equals(policyChurnRiskLevel) || "stalled".equals(decisionLeadTimeStatus) || "aging".equals(decisionLeadTimeStatus)
+                ? "high"
+                : "moderate".equals(policyChurnRiskLevel) || "slow".equals(decisionLeadTimeStatus)
+                ? "moderate"
+                : "controlled";
+        long advisoryCheckpointLoad = advisoryCheckpoints.stream().distinct().count();
+        String advisoryCheckpointLoadLevel = advisoryCheckpointLoad >= 3L
+                ? "high"
+                : advisoryCheckpointLoad >= 1L
+                ? "moderate"
+                : "controlled";
         boolean cheapReviewPathConfirmed = minimumRequiredReviewPathReady
                 && ("cheap".equals(decisionLeadTimeStatus) || "pending".equals(decisionLeadTimeStatus))
                 && !"high".equals(policyChurnRiskLevel);
+        boolean typicalPolicyChangeReady = minimumRequiredReviewPathReady
+                && ("cheap".equals(decisionLeadTimeStatus) || "pending".equals(decisionLeadTimeStatus) || "slow".equals(decisionLeadTimeStatus))
+                && !"high".equals(cheapPathDriftRiskLevel);
         String minimumRequiredReviewPathSummary = minimumRequiredReviewPath.isEmpty()
                 ? "Минимальный required path не задан."
                 : "Required path: %s (%s, lead=%s)."
@@ -964,6 +978,7 @@ public class SlaEscalationWebhookNotifier {
         auditPayload.put("minimum_required_review_path_ready", minimumRequiredReviewPathReady);
         auditPayload.put("minimum_required_review_path_summary", minimumRequiredReviewPathSummary);
         auditPayload.put("cheap_review_path_confirmed", cheapReviewPathConfirmed);
+        auditPayload.put("typical_policy_change_ready", typicalPolicyChangeReady);
         auditPayload.put("required_checkpoint_total", requiredCheckpointTotal);
         auditPayload.put("required_checkpoint_ready_total", requiredCheckpointReadyTotal);
         auditPayload.put("required_checkpoint_closure_rate_pct", requiredCheckpointClosureRatePct);
@@ -973,6 +988,9 @@ public class SlaEscalationWebhookNotifier {
         auditPayload.put("noise_ratio_pct", noiseRatioPct);
         auditPayload.put("noise_level", noiseLevel);
         auditPayload.put("policy_churn_risk_level", policyChurnRiskLevel);
+        auditPayload.put("cheap_path_drift_risk_level", cheapPathDriftRiskLevel);
+        auditPayload.put("advisory_checkpoint_load", advisoryCheckpointLoad);
+        auditPayload.put("advisory_checkpoint_load_level", advisoryCheckpointLoadLevel);
         auditPayload.put("decision_lead_time_status", decisionLeadTimeStatus);
         auditPayload.put("decision_lead_time_summary", decisionLeadTimeSummary);
         auditPayload.put("weekly_review_priority", weeklyReviewPriority);
