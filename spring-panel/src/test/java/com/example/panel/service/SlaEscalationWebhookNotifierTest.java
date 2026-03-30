@@ -1056,11 +1056,16 @@ class SlaEscalationWebhookNotifierTest {
         assertEquals(2L, requiredCheckpointTotal.longValue());
         assertEquals(2L, requiredCheckpointReadyTotal.longValue());
         assertEquals(100L, requiredCheckpointClosureRatePct.longValue());
+        assertEquals(true, audit.get("minimum_required_review_path_ready"));
+        assertEquals("Required path: utc_review -> explicit_decision (ready, lead=cheap).", audit.get("minimum_required_review_path_summary"));
+        assertEquals(true, audit.get("cheap_review_path_confirmed"));
         assertEquals(1L, freshnessCheckpointTotal.longValue());
         assertEquals(1L, freshnessCheckpointReadyTotal.longValue());
         assertTrue(noiseRatioPct.longValue() >= 0L && noiseRatioPct.longValue() <= 100L);
         assertTrue(List.of("controlled", "moderate", "high").contains(audit.get("noise_level")));
         assertEquals("controlled", audit.get("policy_churn_risk_level"));
+        assertEquals("cheap", audit.get("decision_lead_time_status"));
+        assertEquals("Decision lead time=4h (cheap).", audit.get("decision_lead_time_summary"));
         assertTrue(List.of("monitor", "trim_advisory_noise").contains(audit.get("weekly_review_priority")));
         assertTrue(String.valueOf(audit.get("weekly_review_summary")).length() > 10);
         assertTrue(mandatoryIssues.longValue() >= 0L);
