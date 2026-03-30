@@ -1482,6 +1482,14 @@ public class DialogService {
         long freshnessClosureRatePct = freshnessCheckpointTotal > 0
                 ? Math.round((freshnessCheckpointReadyTotal * 100d) / freshnessCheckpointTotal)
                 : 100L;
+        long noiseRatioPct = issues.isEmpty()
+                ? 0L
+                : Math.round((advisoryIssueTotal * 100d) / issues.size());
+        String noiseLevel = advisoryIssueTotal <= mandatoryIssueTotal
+                ? "controlled"
+                : advisoryIssueTotal >= Math.max(3L, mandatoryIssueTotal * 2L)
+                ? "high"
+                : "moderate";
 
         Map<String, Object> audit = new LinkedHashMap<>();
         audit.put("generated_at", generatedAt.toInstant().toString());
@@ -1514,6 +1522,8 @@ public class DialogService {
         audit.put("freshness_checkpoint_total", freshnessCheckpointTotal);
         audit.put("freshness_checkpoint_ready_total", freshnessCheckpointReadyTotal);
         audit.put("freshness_closure_rate_pct", freshnessClosureRatePct);
+        audit.put("noise_ratio_pct", noiseRatioPct);
+        audit.put("noise_level", noiseLevel);
         audit.put("advisory_signals", advisorySignals.stream().distinct().toList());
         audit.put("issue_breakdown", Map.of(
                 "review", reviewIssueTotal,
@@ -2184,6 +2194,24 @@ public class DialogService {
         if (contextContractOperatorFocusBlocks.isEmpty() && contextContractEnabled) {
             contextContractActionItems.add("Задайте priority blocks, чтобы снизить шум в sidebar и сделать раскрытие progressive.");
         }
+        String contextContractOperatorSummary = contextContractReady
+                ? "Minimum profile соблюдён."
+                : !contextContractDefinitionGaps.isEmpty()
+                ? "Contract definitions требуют cleanup."
+                : !contextContractPlaybookMissingKeys.isEmpty()
+                ? "Playbook coverage неполный для operator-flow."
+                : contextContractReviewTimestampInvalid
+                ? "Review checkpoint содержит невалидный UTC timestamp."
+                : (contextContractEnabled && !contextContractReviewPresent)
+                ? "Context contract ещё не подтверждён review-checkpoint."
+                : (contextContractEnabled && !contextContractReviewFresh)
+                ? "Context contract review устарел."
+                : !contextContractOperatorFocusBlocks.isEmpty()
+                ? "Operator focus blocks требуют приоритизации."
+                : "Context contract требует action-oriented follow-up.";
+        String contextContractNextStepSummary = contextContractActionItems.isEmpty()
+                ? ""
+                : contextContractActionItems.get(0);
 
         OffsetDateTime legacyUsageReviewedAt = parseReviewTimestamp(legacyUsageReviewedAtRaw);
         boolean legacyUsageReviewTimestampInvalid = StringUtils.hasText(normalizeNullString(legacyUsageReviewedAtRaw))
@@ -2709,6 +2737,8 @@ public class DialogService {
         contextContract.put("definition_gaps", contextContractDefinitionGaps);
         contextContract.put("operator_focus_blocks", contextContractOperatorFocusBlocks);
         contextContract.put("progressive_disclosure_ready", !contextContractOperatorFocusBlocks.isEmpty());
+        contextContract.put("operator_summary", contextContractOperatorSummary);
+        contextContract.put("next_step_summary", contextContractNextStepSummary);
         contextContract.put("action_items", contextContractActionItems);
 
         Map<String, Object> packet = new LinkedHashMap<>();

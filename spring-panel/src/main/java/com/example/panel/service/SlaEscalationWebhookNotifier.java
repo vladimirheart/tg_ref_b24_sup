@@ -892,6 +892,14 @@ public class SlaEscalationWebhookNotifier {
         long freshnessClosureRatePct = freshnessCheckpointTotal > 0
                 ? Math.round((freshnessCheckpointReadyTotal * 100d) / freshnessCheckpointTotal)
                 : 100L;
+        long noiseRatioPct = issues.isEmpty()
+                ? 0L
+                : Math.round((advisoryIssueTotal * 100d) / issues.size());
+        String noiseLevel = advisoryIssueTotal <= mandatoryIssueTotal
+                ? "controlled"
+                : advisoryIssueTotal >= Math.max(3L, mandatoryIssueTotal * 2L)
+                ? "high"
+                : "moderate";
 
         Map<String, Object> auditPayload = new LinkedHashMap<>();
         auditPayload.put("generated_at", generatedAt.toString());
@@ -913,6 +921,8 @@ public class SlaEscalationWebhookNotifier {
         auditPayload.put("freshness_checkpoint_total", freshnessCheckpointTotal);
         auditPayload.put("freshness_checkpoint_ready_total", freshnessCheckpointReadyTotal);
         auditPayload.put("freshness_closure_rate_pct", freshnessClosureRatePct);
+        auditPayload.put("noise_ratio_pct", noiseRatioPct);
+        auditPayload.put("noise_level", noiseLevel);
         auditPayload.put("advisory_checkpoints", advisoryCheckpoints.stream().distinct().toList());
         auditPayload.put("issue_breakdown", Map.of(
                 "conflicts", conflictIssueTotal,

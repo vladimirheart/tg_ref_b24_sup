@@ -1046,6 +1046,7 @@ class SlaEscalationWebhookNotifierTest {
         Number requiredCheckpointClosureRatePct = (Number) audit.get("required_checkpoint_closure_rate_pct");
         Number freshnessCheckpointTotal = (Number) audit.get("freshness_checkpoint_total");
         Number freshnessCheckpointReadyTotal = (Number) audit.get("freshness_checkpoint_ready_total");
+        Number noiseRatioPct = (Number) audit.get("noise_ratio_pct");
         assertEquals("strict", governanceReview.get("review_path"));
         assertEquals(4L, governanceReview.get("decision_lead_time_hours"));
         assertEquals(true, governanceReview.get("decision_ready"));
@@ -1057,6 +1058,8 @@ class SlaEscalationWebhookNotifierTest {
         assertEquals(100L, requiredCheckpointClosureRatePct.longValue());
         assertEquals(1L, freshnessCheckpointTotal.longValue());
         assertEquals(1L, freshnessCheckpointReadyTotal.longValue());
+        assertTrue(noiseRatioPct.longValue() >= 0L && noiseRatioPct.longValue() <= 100L);
+        assertTrue(List.of("controlled", "moderate", "high").contains(audit.get("noise_level")));
         assertTrue(mandatoryIssues.longValue() >= 0L);
         assertTrue(advisoryIssues.longValue() >= 0L);
     }

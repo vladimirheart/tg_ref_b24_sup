@@ -1,6 +1,6 @@
 -# UI/UX аудит панели Iguana
 
-**Дата актуализации:** 27 марта 2026 года.
+**Дата актуализации:** 30 марта 2026 года.
 
 ## Зачем обновлён документ
 Предыдущая версия накопила слишком много итерационной истории и перестала быть удобным рабочим артефактом. Эта версия:
@@ -75,11 +75,13 @@
 - freshness/staleness;
 - scenario-aware mandatory/source/priority rules;
 - playbook links;
-- runtime visibility в workspace и governance packet.
+- runtime visibility в workspace и governance packet;
+- operator-friendly summary / next-step для runtime workspace;
+- progressive disclosure для вторичных violation-details.
 
 Оценка:
 - это уже не просто sidebar, а управляемый контракт минимального контекста;
-- remaining-gap находится в operator UX: причины нарушений должны быть ещё короче, понятнее и более action-oriented.
+- основной remaining-gap сместился из “сделать понятно” в “не перегрузить оператора вторичными источниками и policy-деталями”.
 
 ### 5. Macro system и macro governance
 Реализованы:
@@ -102,52 +104,62 @@
 - weekly review discipline;
 - criteria/follow-up gates;
 - legacy usage policy;
-- blocked-attempt visibility и post-review blocked reasons.
+- blocked-attempt visibility и post-review blocked reasons;
+- sunset coverage / overdue / repeat-review visibility для legacy-only inventory;
+- closure/freshness metrics для SLA и macro governance;
+- mandatory-first сортировка governance-сигналов в analytics.
 
 Оценка:
 - analytics уже поддерживает управленческий decision-loop;
-- следующий вопрос не “добавить ещё gate”, а “какие из них реально снижают инциденты и не тормозят операторов”.
+- главный вопрос теперь не “добавить ещё gate”, а “удержать noise под контролем и не вернуть команду в alert fatigue”.
 
 ---
 
 ## Что остаётся незакрытым
 
-### P1. Dual-run discipline ещё не доведена до sunset-фазы
+### P1. Dual-run discipline: sunset-процесс уже формализован, но нужен closure-loop
 Что уже закрыто:
 - policy для manual legacy-open;
 - volume/trend gates;
 - blocked-trend visibility;
-- обязательный review top blocked reasons.
+- обязательный review top blocked reasons;
+- owner/deadline coverage для `legacy-only` inventory;
+- overdue sunset commitments;
+- repeat legacy review;
+- review-queue для сценариев, которые повторно остаются в legacy.
 
 Что остаётся:
-- формальный sunset-процесс для `legacy-only` inventory;
-- регулярное закрытие или консолидация сценариев, которые слишком долго живут только в legacy;
-- явная дисциплина owner/deadline по overdue inventory.
+- регулярное закрытие или консолидация долгоживущих legacy-only сценариев;
+- отдельный closure-loop для сценариев, которые несколько циклов подряд остаются в review-queue.
 
-### P1. Context contract ещё можно сделать понятнее для оператора
+### P1. Context contract: action-oriented UX уже собран, но нужен ещё более дешёвый sidebar
 Что уже закрыто:
 - scenario-aware rules;
 - playbook links;
 - короткие operator-friendly labels и next step в runtime workspace;
-- runtime и analytics visibility.
+- runtime и analytics visibility;
+- progressive disclosure для вторичных context violations.
 
 Что остаётся:
-- снизить визуальный шум в sidebar через приоритизацию и progressive disclosure.
+- дополнительно сжать вторичные блоки `sources` / `attribute policy` / `extra attributes`, чтобы важные customer-context сигналы всегда были выше визуального шума.
 
-### P2. SLA governance нужно удешевить
+### P2. SLA governance: ядро удешевлено, дальше нужен churn-control
 Что уже закрыто:
 - layering/ownership/review checkpoints;
 - decision gate;
 - analytics review loop;
 - risk-based review paths (`custom/light/standard/strict`);
 - pre-review сигнализация конфликтующих routing rules;
-- lead time от policy change до governance decision.
+- lead time от policy change до governance decision;
+- minimum required review path;
+- closure/freshness metrics;
+- mandatory-first presentation в analytics.
 
 Что остаётся:
-- упростить noisy governance-signals до 1-2 действительно обязательных путей эскалации;
-- проверить, что обновление policy не создаёт лишний churn в review-cycle.
+- проверить, что обновление policy не создаёт лишний churn в review-cycle;
+- при необходимости сократить advisory checkpoint-ы ещё на один уровень для типовых policy changes.
 
-### P2. Macro governance нужно удержать в продуктивном режиме
+### P2. Macro governance: quality loop уже на данных, но noise всё ещё под наблюдением
 Что уже закрыто:
 - review checkpoint;
 - external catalog checkpoint;
@@ -157,56 +169,65 @@
 - owner action для проблемных шаблонов;
 - cleanup visibility по aliases/tags и неизвестным переменным;
 - usage-tier cleanup SLA;
-- usage-tier deprecation SLA.
+- usage-tier deprecation SLA;
+- closure/freshness metrics;
+- mandatory-first analytics и noise-level summary.
 
 Что остаётся:
-- проверить, что macro quality loop не даёт слишком много noisy red-list сигналов.
-- упростить policy до минимального набора действительно обязательных macro-governance checkpoint-ов.
+- проверить, что macro quality loop не даёт слишком много advisory red-list сигналов на библиотеках с низким, но легитимным использованием;
+- удержать policy в минимальном обязательном контуре без возврата в бюрократию.
+
+### P2. Документ и тестовые фикстуры нужно держать ближе к коду
+Что уже закрыто:
+- аудит снова стал рабочим артефактом;
+- основные rollout/context/governance доработки описаны на уровне состояния, а не истории.
+
+Что остаётся:
+- периодически чистить WebMvc/integration fixtures, чтобы они не отставали от реальных конструкторов и workspace-контрактов.
 
 ---
 
 ## Приоритетный план следующего этапа
 
-### Шаг 1. Завершить sunset-дисциплину для legacy-only inventory
+### Шаг 1. Закрыть оставшиеся долгоживущие legacy-only сценарии
 Цель:
-- каждая legacy-only возможность либо закрывается, либо получает owner, deadline и явный follow-up.
+- перевести sunset-дисциплину из режима “видим долг” в режим “системно закрываем”.
 
 Минимум на следующий цикл:
-- hold-сигнал для overdue legacy-only inventory;
-- явная метрика просроченных sunset commitments;
-- удобный review сценариев, которые повторно остаются в legacy.
+- weekly closure review для `review_queue_scenarios`;
+- отдельный follow-up для сценариев, которые остаются в очереди несколько циклов подряд.
 
-### Шаг 2. Довести context contract до action-oriented UX
+### Шаг 2. Ещё сильнее ужать runtime context noise
 Цель:
-- оператор должен видеть не просто “что не так”, а “что сделать дальше”.
+- оператор должен видеть customer-context priority до любых вторичных policy деталей.
 
 Минимум на следующий цикл:
-- более аккуратная приоритизация блоков контекста в workspace.
+- дополнительно свернуть вторичные `sources` и `source/freshness policy` блоки;
+- проверить фактическую частоту раскрытия hidden details в workspace.
 
-### Шаг 3. Снизить стоимость SLA policy review
+### Шаг 3. Зафиксировать минимальный дешёвый SLA review path
 Цель:
 - governance должен уменьшать риск, а не замедлять изменение правил.
 
 Минимум на следующий цикл:
-- отфильтровать noisy SLA governance checkpoints;
-- определить минимальный обязательный review path для типовых policy change.
+- подтвердить, что `minimum_required_review_path` покрывает типовые policy changes;
+- измерить policy churn против decision lead time.
 
-### Шаг 4. Ввести quality loop для macro catalog
+### Шаг 4. Проверить macro noise на реальных usage-tier сценариях
 Цель:
-- чистка библиотеки должна идти по данным использования, а не по ручному ощущению.
+- cleanup библиотеки должен идти по данным использования, а не по ручному ощущению.
 
 Минимум на следующий цикл:
-- фильтрация noisy macro governance сигналов;
-- сокращение macro governance до минимального обязательного контура.
+- сравнить advisory noise против обязательных macro checkpoint-ов;
+- при необходимости понизить часть red-list сигналов до чисто аналитических.
 
-### Шаг 5. Проверить реальную стоимость текущих policy-gates
+### Шаг 5. Сделать governance freshness/closure управленческой нормой
 Цель:
-- понять, какие checkpoints действительно уменьшают инциденты, а какие только создают шум.
+- оценивать не количество checkpoint-ов, а качество и своевременность их закрытия.
 
 Минимум на следующий цикл:
-- сравнить пользу gate-ов против времени review;
-- отфильтровать noisy checkpoints;
-- определить SLO для governance freshness и closure rate.
+- использовать closure/freshness rate как стандартную weekly review метрику;
+- отследить, где noise-level остаётся высоким несмотря на хорошие closure numbers.
 
 ---
 
@@ -225,7 +246,7 @@
 > **Следующий этап — не наращивать количество governance-механизмов, а упростить ежедневную работу с уже существующими правилами и ускорить закрытие явных operational-долгов.**
 
 Практический приоритет:
-- довести dual-run до контролируемого sunset;
-- сделать context contract максимально action-oriented;
-- удержать SLA/macro governance в балансе между контролем и скоростью;
-- измерять не число checkpoint-ов, а качество решений и их влияние на операторскую работу.
+- закрыть долгоживущие legacy-only сценарии, а не только считать их;
+- удержать context UX в режиме “сначала главное, детали по запросу”;
+- держать SLA/macro governance в балансе между контролем и скоростью;
+- измерять не число checkpoint-ов, а closure/freshness, noise-level и влияние на ежедневную операторскую работу.

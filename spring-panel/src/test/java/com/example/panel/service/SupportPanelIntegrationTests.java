@@ -1081,6 +1081,8 @@ class SupportPanelIntegrationTests {
         assertThat(contextContract).containsEntry("playbook_covered_count", 6);
         assertThat(contextContract).containsEntry("playbook_coverage_pct", 100L);
         assertThat(contextContract).containsEntry("progressive_disclosure_ready", true);
+        assertThat(contextContract).containsEntry("operator_summary", "Minimum profile соблюдён.");
+        assertThat(contextContract).containsEntry("next_step_summary", "");
         assertThat((List<String>) contextContract.get("scenarios")).containsExactly("incident", "billing");
         assertThat((List<String>) contextContract.get("mandatory_fields")).containsExactly("full_name", "crm_tier");
         assertThat((List<String>) contextContract.get("operator_focus_blocks")).containsExactly("customer", "sla");
@@ -1170,6 +1172,8 @@ class SupportPanelIntegrationTests {
         assertThat(packet.get("status")).isEqualTo("hold");
         assertThat((List<String>) packet.get("missing_items")).contains("context_minimum_profile");
         assertThat(contextContract).containsEntry("review_timestamp_invalid", true);
+        assertThat(contextContract).containsEntry("operator_summary", "Review checkpoint содержит невалидный UTC timestamp.");
+        assertThat(contextContract).containsEntry("next_step_summary", "Исправьте reviewed_at на валидный UTC timestamp.");
         assertThat(items).anySatisfy(item -> {
             if ("context_minimum_profile".equals(item.get("key"))) {
                 assertThat(item.get("status")).isEqualTo("hold");
@@ -2379,6 +2383,8 @@ class SupportPanelIntegrationTests {
         assertThat(audit).containsEntry("freshness_checkpoint_total", 3L);
         assertThat(audit).containsEntry("freshness_checkpoint_ready_total", 0L);
         assertThat(audit).containsEntry("freshness_closure_rate_pct", 0L);
+        assertThat(((Number) audit.get("noise_ratio_pct")).longValue()).isGreaterThan(50L);
+        assertThat(audit).containsEntry("noise_level", "high");
         assertThat((List<String>) audit.get("advisory_signals"))
                 .contains("red_list", "owner_action");
         assertThat(issues).anySatisfy(issue -> {
