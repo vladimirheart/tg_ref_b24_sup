@@ -108,7 +108,8 @@
 - sunset coverage / overdue / repeat-review visibility для legacy-only inventory;
 - closure/freshness metrics для SLA и macro governance;
 - mandatory-first сортировка governance-сигналов в analytics;
-- aggregated `weekly review focus`, который сводит legacy/context/SLA/macro follow-up в единый action-loop.
+- aggregated `weekly review focus`, который сводит legacy/context/SLA/macro follow-up в единый action-loop и сразу показывает top priority / next action / management-review pressure.
+- `weekly review focus` теперь также показывает focus health, priority mix и количество секций, которые уже требуют management review, а не просто общий список follow-up.
 
 Оценка:
 - analytics уже поддерживает управленческий decision-loop;
@@ -144,6 +145,7 @@
 - secondary `sources` и `source/freshness policy` блоки свернуты в дешёвый details-first режим с компактным summary.
 - secondary `sources` / `source-freshness policy` / `extra attributes` теперь дают disclosure telemetry, так что sidebar можно оценивать по фактическому раскрытию, а не по ощущениям.
 - analytics summary теперь показывает usage-level и top opened secondary section, а не только сырой счётчик раскрытий.
+- `extra attributes` получили отдельный telemetry-compaction сигнал, чтобы отличать общий secondary-context noise от точечной перегрузки именно hidden attributes.
 
 Что остаётся:
 - подтвердить по первым usage windows, что heavy раскрытие secondary context не становится новой нормой для операторов;
@@ -191,6 +193,7 @@
 Что уже закрыто:
 - аудит снова стал рабочим артефактом;
 - основные rollout/context/governance доработки описаны на уровне состояния, а не истории.
+- focused WebMvc-покрытие теперь отдельно проверяет и насыщенный `weekly_review_focus`, и пустой `ok`-сценарий без follow-up.
 
 Что остаётся:
 - периодически чистить WebMvc/integration fixtures, чтобы они не отставали от реальных конструкторов и workspace-контрактов.

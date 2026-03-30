@@ -4673,9 +4673,17 @@ public class DialogService {
         long contextSecondaryDetailsOpenRatePct = workspaceOpenEvents > 0
                 ? Math.round((contextSecondaryDetailsExpandedEvents * 100d) / workspaceOpenEvents)
                 : 0L;
+        long contextExtraAttributesOpenRatePct = workspaceOpenEvents > 0
+                ? Math.round((contextExtraAttributesExpandedEvents * 100d) / workspaceOpenEvents)
+                : 0L;
         String contextSecondaryDetailsUsageLevel = contextSecondaryDetailsOpenRatePct >= 40L
                 ? "heavy"
                 : contextSecondaryDetailsOpenRatePct >= 15L
+                ? "moderate"
+                : "rare";
+        String contextExtraAttributesUsageLevel = contextExtraAttributesOpenRatePct >= 20L
+                ? "heavy"
+                : contextExtraAttributesOpenRatePct >= 8L
                 ? "moderate"
                 : "rare";
         String contextSecondaryDetailsTopSection = Stream.of(
@@ -4695,6 +4703,17 @@ public class DialogService {
                         contextSecondaryDetailsExpandedEvents,
                         contextSecondaryDetailsOpenRatePct,
                         StringUtils.hasText(contextSecondaryDetailsTopSection) ? contextSecondaryDetailsTopSection : "n/a");
+        boolean contextExtraAttributesCompactionCandidate = contextExtraAttributesOpenRatePct >= 15L
+                || (contextExtraAttributesExpandedEvents > 0
+                && "extra_attributes".equals(contextSecondaryDetailsTopSection)
+                && contextSecondaryDetailsFollowupRequired);
+        String contextExtraAttributesSummary = contextExtraAttributesExpandedEvents <= 0
+                ? "Extra attributes почти не раскрывались."
+                : "Extra attributes открывали %d раз (%d%% от workspace opens); usage=%s."
+                .formatted(
+                        contextExtraAttributesExpandedEvents,
+                        contextExtraAttributesOpenRatePct,
+                        contextExtraAttributesUsageLevel);
         long workspaceSlaPolicyChurnRatioPct = workspaceSlaPolicyDecisionEvents > 0
                 ? Math.round((workspaceSlaPolicyReviewUpdatedEvents * 100d) / workspaceSlaPolicyDecisionEvents)
                 : (workspaceSlaPolicyReviewUpdatedEvents > 0 ? 100L : 0L);
@@ -4740,6 +4759,10 @@ public class DialogService {
         totals.put("context_secondary_details_top_section", contextSecondaryDetailsTopSection);
         totals.put("context_secondary_details_followup_required", contextSecondaryDetailsFollowupRequired);
         totals.put("context_secondary_details_summary", contextSecondaryDetailsSummary);
+        totals.put("context_extra_attributes_open_rate_pct", contextExtraAttributesOpenRatePct);
+        totals.put("context_extra_attributes_usage_level", contextExtraAttributesUsageLevel);
+        totals.put("context_extra_attributes_compaction_candidate", contextExtraAttributesCompactionCandidate);
+        totals.put("context_extra_attributes_summary", contextExtraAttributesSummary);
         totals.put("workspace_sla_policy_gap_events", workspaceSlaPolicyGapEvents);
         totals.put("workspace_parity_gap_events", workspaceParityGapEvents);
         totals.put("workspace_inline_navigation_events", workspaceInlineNavigationEvents);
