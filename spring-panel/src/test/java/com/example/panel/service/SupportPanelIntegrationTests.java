@@ -872,6 +872,11 @@ class SupportPanelIntegrationTests {
         assertThat(legacyInventory).containsEntry("repeat_review_overdue_days", 0L);
         assertThat(legacyInventory).containsEntry("closure_rate_pct", 0L);
         assertThat(legacyInventory).containsEntry("review_queue_count", 2);
+        assertThat(legacyInventory).containsEntry("review_queue_followup_required", true);
+        assertThat(legacyInventory).containsEntry("review_queue_repeat_cycles", 1L);
+        assertThat(legacyInventory).containsEntry("review_queue_oldest_deadline_at_utc", "");
+        assertThat(legacyInventory).containsEntry("review_queue_oldest_overdue_days", 0L);
+        assertThat(String.valueOf(legacyInventory.get("review_queue_summary"))).contains("weekly closure review");
         assertThat((List<String>) legacyInventory.get("review_queue_scenarios")).containsExactly("attachments_edit", "inline_reopen");
         assertThat((List<String>) legacyInventory.get("overdue_scenarios")).isEmpty();
         assertThat(legacyInventory).containsEntry("unmanaged_count", 2L);
@@ -928,6 +933,11 @@ class SupportPanelIntegrationTests {
         assertThat(legacyInventory).containsEntry("repeat_review_required", false);
         assertThat(legacyInventory).containsEntry("unmanaged_count", 0L);
         assertThat(legacyInventory).containsEntry("review_queue_count", 0);
+        assertThat(legacyInventory).containsEntry("review_queue_followup_required", false);
+        assertThat(legacyInventory).containsEntry("review_queue_repeat_cycles", 0L);
+        assertThat(legacyInventory).containsEntry("review_queue_oldest_deadline_at_utc", "");
+        assertThat(legacyInventory).containsEntry("review_queue_oldest_overdue_days", 0L);
+        assertThat(legacyInventory).containsEntry("review_queue_summary", "");
         assertThat((List<String>) legacyInventory.get("review_queue_scenarios")).isEmpty();
         assertThat((List<String>) legacyInventory.get("overdue_scenarios")).isEmpty();
         assertThat((List<String>) legacyInventory.get("action_items")).isEmpty();
@@ -2385,6 +2395,8 @@ class SupportPanelIntegrationTests {
         assertThat(audit).containsEntry("freshness_closure_rate_pct", 0L);
         assertThat(((Number) audit.get("noise_ratio_pct")).longValue()).isGreaterThan(50L);
         assertThat(audit).containsEntry("noise_level", "high");
+        assertThat(audit).containsEntry("weekly_review_priority", "close_required_path");
+        assertThat(String.valueOf(audit.get("weekly_review_summary"))).contains("обязательные macro checkpoints");
         assertThat((List<String>) audit.get("advisory_signals"))
                 .contains("red_list", "owner_action");
         assertThat(issues).anySatisfy(issue -> {
