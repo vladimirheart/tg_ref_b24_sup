@@ -1944,10 +1944,138 @@ public class DialogApiController {
         Map<String, Object> slaPolicyAudit = slaEscalationWebhookNotifier.buildRoutingGovernanceAudit(
                 dialogService.loadDialogs(null),
                 settings);
+        Map<String, Object> macroGovernanceAudit = dialogService.buildMacroGovernanceAudit(settings);
         payload.put("sla_policy_audit", slaPolicyAudit != null ? slaPolicyAudit : Map.of());
-        payload.put("macro_governance_audit", dialogService.buildMacroGovernanceAudit(settings));
+        payload.put("macro_governance_audit", macroGovernanceAudit);
+        payload.put("weekly_review_focus", buildWorkspaceWeeklyReviewFocus(payload, slaPolicyAudit, macroGovernanceAudit));
         payload.put("success", true);
         return ResponseEntity.ok(payload);
+    }
+
+    private Map<String, Object> buildWorkspaceWeeklyReviewFocus(Map<String, Object> payload,
+                                                                Map<String, Object> slaPolicyAudit,
+                                                                Map<String, Object> macroGovernanceAudit) {
+        Map<String, Object> totals = payload.get("totals") instanceof Map<?, ?> map
+                ? OBJECT_MAPPER.convertValue(map, new TypeReference<Map<String, Object>>() {})
+                : Map.of();
+        Map<String, Object> rolloutPacket = payload.get("rollout_packet") instanceof Map<?, ?> map
+                ? OBJECT_MAPPER.convertValue(map, new TypeReference<Map<String, Object>>() {})
+                : Map.of();
+        Map<String, Object> legacyInventory = rolloutPacket.get("legacy_only_inventory") instanceof Map<?, ?> map
+                ? OBJECT_MAPPER.convertValue(map, new TypeReference<Map<String, Object>>() {})
+                : Map.of();
+        Map<String, Object> safeSlaAudit = slaPolicyAudit != null ? slaPolicyAudit : Map.of();
+        Map<String, Object> safeMacroAudit = macroGovernanceAudit != null ? macroGovernanceAudit : Map.of();
+
+        List<Map<String, Object>> sections = new ArrayList<>();
+        if (Boolean.TRUE.equals(legacyInventory.get("review_queue_followup_required"))
+                || Boolean.TRUE.equals(legacyInventory.get("repeat_review_required"))) {
+            sections.add(Map.of(
+                    "key", "legacy",
+                    "label", "Legacy closure loop",
+                    "priority", "high",
+                    "summary", String.valueOf(legacyInventory.getOrDefault("review_queue_summary", "")),
+                    "action_item", firstListItem(legacyInventory.get("action_items"),
+                            "Закройте weekly closure-loop для legacy review-queue.")
+            ));
+        }
+        if (Boolean.TRUE.equals(totals.get("context_secondary_details_followup_required"))) {
+            sections.add(Map.of(
+                    "key", "context",
+                    "label", "Context noise",
+                    "priority", "medium",
+                    "summary", String.valueOf(totals.getOrDefault("context_secondary_details_summary", "")),
+                    "action_item", "Проверьте, почему secondary context раскрывается слишком часто, и ужмите noisy blocks."
+            ));
+        }
+        if (Boolean.TRUE.equals(totals.get("workspace_sla_policy_churn_followup_required"))
+                || Boolean.TRUE.equals(safeSlaAudit.get("weekly_review_followup_required"))) {
+            sections.add(Map.of(
+                    "key", "sla",
+                    "label", "SLA governance",
+                    "priority", "high",
+                    "summary", firstNonBlank(
+                            String.valueOf(totals.getOrDefault("workspace_sla_policy_churn_summary", "")),
+                            String.valueOf(safeSlaAudit.getOrDefault("weekly_review_summary", ""))),
+                    "action_item", Boolean.TRUE.equals(safeSlaAudit.get("advisory_path_reduction_candidate"))
+                            ? "Сократите advisory checkpoints для типовых SLA policy changes."
+                            : "Закройте обязательный SLA review path и stabilise decision cadence."
+            ));
+        }
+        if (Boolean.TRUE.equals(safeMacroAudit.get("weekly_review_followup_required"))
+                || Boolean.TRUE.equals(safeMacroAudit.get("advisory_followup_required"))) {
+            sections.add(Map.of(
+                    "key", "macro",
+                    "label", "Macro governance",
+                    "priority", Boolean.TRUE.equals(safeMacroAudit.get("advisory_path_reduction_candidate")) ? "medium" : "high",
+                    "summary", String.valueOf(safeMacroAudit.getOrDefault("weekly_review_summary", "")),
+                    "action_item", Boolean.TRUE.equals(safeMacroAudit.get("advisory_path_reduction_candidate"))
+                            ? "Оставьте low-signal red-list аналитическими и сократите ручной backlog."
+                            : "Закройте обязательные macro checkpoints и только потом revisited advisory cleanup."
+            ));
+        }
+
+        List<Map<String, Object>> sortedSections = sections.stream()
+                .sorted((left, right) -> Integer.compare(
+                        reviewFocusPriorityWeight(String.valueOf(left.get("priority"))),
+                        reviewFocusPriorityWeight(String.valueOf(right.get("priority")))))
+                .toList();
+        List<String> topActions = sortedSections.stream()
+                .map(item -> trimToNull(String.valueOf(item.get("action_item"))))
+                .filter(StringUtils::hasText)
+                .limit(4)
+                .toList();
+        long blockingCount = sortedSections.stream()
+                .filter(item -> "high".equals(String.valueOf(item.get("priority"))))
+                .count();
+        String status = sortedSections.isEmpty()
+                ? "ok"
+                : blockingCount > 0 ? "hold" : "attention";
+        String summary = sortedSections.isEmpty()
+                ? "Weekly review focus не требует дополнительных follow-up."
+                : "Weekly review focus: %d секции(й), high=%d.".formatted(sortedSections.size(), blockingCount);
+
+        Map<String, Object> focus = new LinkedHashMap<>();
+        focus.put("status", status);
+        focus.put("summary", summary);
+        focus.put("section_count", sortedSections.size());
+        focus.put("blocking_count", blockingCount);
+        focus.put("sections", sortedSections);
+        focus.put("top_actions", topActions);
+        return focus;
+    }
+
+    private int reviewFocusPriorityWeight(String value) {
+        return switch (trimToNull(value) == null ? "" : trimToNull(value).toLowerCase(Locale.ROOT)) {
+            case "high" -> 0;
+            case "medium" -> 1;
+            default -> 2;
+        };
+    }
+
+    private String firstListItem(Object value, String fallback) {
+        if (value instanceof List<?> list) {
+            for (Object item : list) {
+                String candidate = trimToNull(String.valueOf(item));
+                if (candidate != null) {
+                    return candidate;
+                }
+            }
+        }
+        return fallback;
+    }
+
+    private String firstNonBlank(String... values) {
+        if (values == null) {
+            return "";
+        }
+        for (String value : values) {
+            String candidate = trimToNull(value);
+            if (candidate != null) {
+                return candidate;
+            }
+        }
+        return "";
     }
 
     @GetMapping("/triage-preferences")

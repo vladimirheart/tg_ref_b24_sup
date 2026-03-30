@@ -107,7 +107,8 @@
 - blocked-attempt visibility и post-review blocked reasons;
 - sunset coverage / overdue / repeat-review visibility для legacy-only inventory;
 - closure/freshness metrics для SLA и macro governance;
-- mandatory-first сортировка governance-сигналов в analytics.
+- mandatory-first сортировка governance-сигналов в analytics;
+- aggregated `weekly review focus`, который сводит legacy/context/SLA/macro follow-up в единый action-loop.
 
 Оценка:
 - analytics уже поддерживает управленческий decision-loop;

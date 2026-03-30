@@ -922,6 +922,9 @@ public class SlaEscalationWebhookNotifier {
             case "trim_advisory_noise" -> "Проверьте, что advisory checkpoints не доминируют над обязательными.";
             default -> "Минимальный SLA governance path выглядит устойчиво.";
         };
+        boolean weeklyReviewFollowupRequired = !"monitor".equals(weeklyReviewPriority);
+        boolean advisoryPathReductionCandidate = "reduce_policy_churn".equals(weeklyReviewPriority)
+                || "trim_advisory_noise".equals(weeklyReviewPriority);
 
         Map<String, Object> auditPayload = new LinkedHashMap<>();
         auditPayload.put("generated_at", generatedAt.toString());
@@ -948,6 +951,8 @@ public class SlaEscalationWebhookNotifier {
         auditPayload.put("policy_churn_risk_level", policyChurnRiskLevel);
         auditPayload.put("weekly_review_priority", weeklyReviewPriority);
         auditPayload.put("weekly_review_summary", weeklyReviewSummary);
+        auditPayload.put("weekly_review_followup_required", weeklyReviewFollowupRequired);
+        auditPayload.put("advisory_path_reduction_candidate", advisoryPathReductionCandidate);
         auditPayload.put("advisory_checkpoints", advisoryCheckpoints.stream().distinct().toList());
         auditPayload.put("issue_breakdown", Map.of(
                 "conflicts", conflictIssueTotal,
