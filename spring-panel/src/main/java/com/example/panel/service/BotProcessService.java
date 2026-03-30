@@ -3,10 +3,13 @@ package com.example.panel.service;
 import com.example.panel.config.SqliteDataSourceProperties;
 import com.example.panel.entity.Channel;
 import com.example.panel.model.channel.BotCredential;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.OffsetDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -28,16 +31,19 @@ public class BotProcessService {
     private final SharedConfigService sharedConfigService;
     private final SqliteDataSourceProperties ticketsDbProperties;
     private final IntegrationNetworkService integrationNetworkService;
+    private final ObjectMapper objectMapper;
     private final Map<Long, Process> processes = new ConcurrentHashMap<>();
     private final Map<Long, OffsetDateTime> startedAt = new ConcurrentHashMap<>();
     private static final Pattern PID_FILE_PATTERN = Pattern.compile("bot-(\\d+)\\.pid");
 
     public BotProcessService(SharedConfigService sharedConfigService,
                              SqliteDataSourceProperties ticketsDbProperties,
-                             IntegrationNetworkService integrationNetworkService) {
+                             IntegrationNetworkService integrationNetworkService,
+                             ObjectMapper objectMapper) {
         this.sharedConfigService = sharedConfigService;
         this.ticketsDbProperties = ticketsDbProperties;
         this.integrationNetworkService = integrationNetworkService;
+        this.objectMapper = objectMapper;
     }
 
     public BotProcessStatus start(Channel channel) {
@@ -76,16 +82,34 @@ public class BotProcessService {
             env.put("TELEGRAM_BOT_USERNAME", Objects.toString(channel.getBotUsername(), ""));
             env.put("GROUP_CHAT_ID", Objects.toString(channel.getSupportChatId(), "0"));
             String platform = Objects.toString(channel.getPlatform(), "telegram").toLowerCase();
+            Map<String, Object> platformConfig = parsePlatformConfig(channel);
             env.put("VK_BOT_ENABLED", "vk".equals(platform) ? "true" : "false");
             if ("vk".equals(platform)) {
                 env.put("VK_BOT_TOKEN", credential.token());
                 env.put("VK_OPERATOR_CHAT_ID", Objects.toString(channel.getSupportChatId(), "0"));
+                Integer groupId = readInteger(platformConfig, "group_id", "groupId");
+                String confirmationToken = readString(platformConfig, "confirmation_token", "confirmationToken");
+                String secret = readString(platformConfig, "secret", "callback_secret", "callbackSecret");
+                if (groupId != null && groupId > 0) {
+                    env.put("VK_GROUP_ID", String.valueOf(groupId));
+                }
+                env.put("VK_WEBHOOK_ENABLED", Boolean.toString(groupId != null && groupId > 0));
+                if (!confirmationToken.isBlank()) {
+                    env.put("VK_CONFIRMATION_TOKEN", confirmationToken);
+                }
+                if (!secret.isBlank()) {
+                    env.put("VK_WEBHOOK_SECRET", secret);
+                }
             }
             env.put("MAX_BOT_ENABLED", "max".equals(platform) ? "true" : "false");
             if ("max".equals(platform)) {
                 env.put("MAX_BOT_TOKEN", credential.token());
                 env.put("MAX_CHANNEL_ID", Objects.toString(channel.getId(), "0"));
                 env.put("MAX_SUPPORT_CHAT_ID", Objects.toString(channel.getSupportChatId(), ""));
+                String secret = readString(platformConfig, "secret", "webhook_secret", "webhookSecret");
+                if (!secret.isBlank()) {
+                    env.put("MAX_WEBHOOK_SECRET", secret);
+                }
             }
             env.putIfAbsent("SPRING_PROFILES_ACTIVE", "default");
             env.put("APP_BOT_LOG_PATH", logFile.toString());
@@ -205,6 +229,50 @@ public class BotProcessService {
             return "bot-max";
         }
         return "bot-telegram";
+    }
+
+    private Map<String, Object> parsePlatformConfig(Channel channel) {
+        if (channel == null) {
+            return Map.of();
+        }
+        String raw = channel.getPlatformConfig();
+        if (raw == null || raw.isBlank()) {
+            return Map.of();
+        }
+        try {
+            return objectMapper.readValue(raw, new TypeReference<LinkedHashMap<String, Object>>() {});
+        } catch (Exception ex) {
+            log.warn("Failed to parse platform_config for channel {}: {}", channel.getId(), ex.getMessage());
+            return Map.of();
+        }
+    }
+
+    private String readString(Map<String, Object> values, String... keys) {
+        if (values == null || keys == null) {
+            return "";
+        }
+        for (String key : keys) {
+            Object value = values.get(key);
+            if (value != null) {
+                String text = String.valueOf(value).trim();
+                if (!text.isEmpty()) {
+                    return text;
+                }
+            }
+        }
+        return "";
+    }
+
+    private Integer readInteger(Map<String, Object> values, String... keys) {
+        String raw = readString(values, keys);
+        if (raw.isBlank()) {
+            return null;
+        }
+        try {
+            return Integer.parseInt(raw);
+        } catch (NumberFormatException ex) {
+            return null;
+        }
     }
 
     private Path resolveLogFile(Path botWorkingDir) {

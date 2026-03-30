@@ -4627,7 +4627,7 @@
                     <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
                       <div>
                         <h5 class="card-title mb-1">Добавить канал</h5>
-                        <p class="text-muted mb-0">Подключайте новые боты в Telegram и VK через удобную форму.</p>
+                        <p class="text-muted mb-0">Подключайте новые боты в Telegram, VK и MAX через удобную форму.</p>
                       </div>
                       <div class="ms-auto d-flex align-items-center gap-2">
                         <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#addChannelModal">Добавить канал</button>
@@ -4652,10 +4652,18 @@
                             <li>Заполните поля в модалке и сохраните канал.</li>
                           </ol>
                         </div>
+                        <div class="col-12 col-lg-6">
+                          <div class="text-uppercase small text-muted fw-semibold mb-2">MAX</div>
+                          <ol class="mb-0 ps-3 small text-body-secondary d-flex flex-column gap-1">
+                            <li>Получите bot token в кабинете интеграции MAX.</li>
+                            <li>Укажите токен и название канала в панели.</li>
+                            <li>При необходимости добавьте ID чата для уведомлений и сохраните канал.</li>
+                          </ol>
+                        </div>
                       </div>
                       <div class="small text-muted mt-3 mb-0">Для VK используется Callback API. После настройки запустите сервис <code>python vk_webhook_support.py</code>.</div>
                     </div>
-                    <div class="text-muted small mb-0">Для Telegram токен проверяется через <code>getMe</code>. Для VK можно использовать Callback API без токена.</div>
+                    <div class="text-muted small mb-0">Для Telegram токен проверяется через <code>getMe</code>. Для VK можно использовать Callback API без токена. Для MAX достаточно bot token и названия канала.</div>
                   </div>
                 </div>
 
@@ -4973,14 +4981,15 @@
             <ul class="mb-0 small ps-3 text-body-secondary">
               <li>Для Telegram — токен из @BotFather и название канала для панели.</li>
               <li>Для VK — ID сообщества, код подтверждения Callback API и при необходимости секретный ключ.</li>
+              <li>Для MAX — bot token сервиса и название канала в панели.</li>
             </ul>
           </div>
           <div id="addChannelValidationAlert" class="alert alert-warning d-none small" role="alert" aria-live="polite"></div>
           <div class="row g-3 align-items-end">
             <div class="col-12 col-md-4 col-xl-3" id="token_field_container">
-              <label class="form-label" for="new_token">Токен бота</label>
+              <label class="form-label" for="new_token" id="new_token_label">Токен бота</label>
               <input id="new_token" class="form-control" placeholder="Токен из BotFather">
-              <div class="form-text">Проверяется автоматически для Telegram.</div>
+              <div class="form-text" id="new_token_help">Проверяется автоматически для Telegram.</div>
             </div>
             <div class="col-12 col-md-4 col-xl-3">
               <label class="form-label" for="new_channel_name">Название в панели</label>
@@ -5037,10 +5046,19 @@
                 </ol>
               </div>
             </div>
+            <div class="col-12" id="max_webhook_container" style="display: none;">
+              <div class="row g-3">
+                <div class="col-12 col-md-6 col-xl-4">
+                  <label class="form-label" for="new_max_secret">Webhook secret MAX <span class="text-muted">(опционально)</span></label>
+                  <input id="new_max_secret" class="form-control" placeholder="Будет сверяться с X-Max-Bot-Api-Secret">
+                  <div class="form-text">Если задан, входящие webhook-запросы MAX должны содержать тот же secret в заголовке.</div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         <div class="modal-footer">
-          <div class="text-muted small me-auto">Для Telegram токен проверяется через <code>getMe</code>. Для VK можно использовать Callback API без токена.</div>
+          <div class="text-muted small me-auto">Для Telegram токен проверяется через <code>getMe</code>. Для VK можно использовать Callback API без токена. Для MAX токен сохраняется как учётные данные канала.</div>
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
           <button type="button" class="btn btn-primary" onclick="addChannel()">Добавить канал</button>
         </div>
@@ -20405,6 +20423,8 @@
 
   function resetAddChannelForm() {
     const tokenInput = document.getElementById('new_token');
+    const tokenLabel = document.getElementById('new_token_label');
+    const tokenHelp = document.getElementById('new_token_help');
     const nameInput = document.getElementById('new_channel_name');
     const supportChatInput = document.getElementById('new_support_chat_id');
     const platformSelect = document.getElementById('new_platform');
@@ -20414,13 +20434,18 @@
     const vkGroupInput = document.getElementById('new_vk_group_id');
     const vkConfirmInput = document.getElementById('new_vk_confirmation');
     const vkSecretInput = document.getElementById('new_vk_secret');
+    const maxSecretInput = document.getElementById('new_max_secret');
 
     if (tokenInput) tokenInput.value = '';
+    if (tokenInput) tokenInput.placeholder = 'Токен из BotFather';
+    if (tokenLabel) tokenLabel.textContent = 'Токен бота';
+    if (tokenHelp) tokenHelp.textContent = 'Проверяется автоматически для Telegram.';
     if (nameInput) nameInput.value = '';
     if (supportChatInput) supportChatInput.value = '';
     if (vkGroupInput) vkGroupInput.value = '';
     if (vkConfirmInput) vkConfirmInput.value = '';
     if (vkSecretInput) vkSecretInput.value = '';
+    if (maxSecretInput) maxSecretInput.value = '';
     if (platformSelect) platformSelect.value = 'telegram';
     if (questionSelect && !questionSelect.disabled) {
       questionSelect.value = DEFAULT_QUESTION_TEMPLATE_ID;
@@ -20445,6 +20470,7 @@
     const vkGroupInput = document.getElementById('new_vk_group_id');
     const vkConfirmInput = document.getElementById('new_vk_confirmation');
     const vkSecretInput = document.getElementById('new_vk_secret');
+    const maxSecretInput = document.getElementById('new_max_secret');
 
     const platform = platformSelect?.value || 'telegram';
     const token = tokenInput?.value?.trim() || '';
@@ -20452,7 +20478,7 @@
 
     updateAddChannelValidationAlert('');
 
-    if (platform !== 'vk') {
+    if (platform === 'telegram') {
       if (!token && !channelName) {
         notifyChannelStatus('Для Telegram заполните токен бота и название канала в панели.', 'warning');
         tokenInput?.focus();
@@ -20465,6 +20491,22 @@
       }
       if (!channelName) {
         notifyChannelStatus('Кроме токена, для Telegram нужно указать название канала в панели.', 'warning');
+        nameInput?.focus();
+        return;
+      }
+    } else if (platform === 'max') {
+      if (!token && !channelName) {
+        notifyChannelStatus('Для MAX заполните токен бота и название канала в панели.', 'warning');
+        tokenInput?.focus();
+        return;
+      }
+      if (!token) {
+        notifyChannelStatus('Для MAX необходим токен бота.', 'warning');
+        tokenInput?.focus();
+        return;
+      }
+      if (!channelName) {
+        notifyChannelStatus('Для MAX укажите название канала в панели.', 'warning');
         nameInput?.focus();
         return;
       }
@@ -20505,6 +20547,11 @@
       const secret = vkSecretInput?.value?.trim();
       if (secret) {
         payload.platform_config.secret = secret;
+      }
+    } else if (platform === 'max') {
+      const secret = maxSecretInput?.value?.trim();
+      if (secret) {
+        payload.platform_config = { secret };
       }
     }
 
@@ -20677,13 +20724,33 @@
   function togglePlatformFields() {
     const platformSelect = document.getElementById('new_platform');
     const tokenContainer = document.getElementById('token_field_container');
+    const tokenInput = document.getElementById('new_token');
+    const tokenLabel = document.getElementById('new_token_label');
+    const tokenHelp = document.getElementById('new_token_help');
     const vkContainer = document.getElementById('vk_group_id_container');
+    const maxContainer = document.getElementById('max_webhook_container');
     const platform = platformSelect?.value || 'telegram';
     if (tokenContainer) {
       tokenContainer.classList.toggle('d-none', platform === 'vk');
     }
     if (vkContainer) {
       vkContainer.style.display = platform === 'vk' ? '' : 'none';
+    }
+    if (maxContainer) {
+      maxContainer.style.display = platform === 'max' ? '' : 'none';
+    }
+    if (platform === 'max') {
+      if (tokenLabel) tokenLabel.textContent = 'Токен MAX-бота';
+      if (tokenInput) tokenInput.placeholder = 'Токен бота MAX';
+      if (tokenHelp) tokenHelp.textContent = 'Используется как учётные данные канала MAX.';
+    } else {
+      if (tokenLabel) tokenLabel.textContent = 'Токен бота';
+      if (tokenInput) tokenInput.placeholder = 'Токен из BotFather';
+      if (tokenHelp) {
+        tokenHelp.textContent = platform === 'vk'
+          ? 'Для VK токен можно не указывать, если используется Callback API.'
+          : 'Проверяется автоматически для Telegram.';
+      }
     }
   }
 

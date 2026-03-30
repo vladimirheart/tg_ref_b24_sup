@@ -31,6 +31,9 @@ vk-bot:
   group-id: ${VK_GROUP_ID:0}
   channel-id: ${VK_OPERATOR_CHAT_ID:0}
   retry-delay-seconds: ${VK_RETRY_DELAY:5}
+  webhook-enabled: ${VK_WEBHOOK_ENABLED:false}
+  confirmation-token: ${VK_CONFIRMATION_TOKEN:}
+  secret: ${VK_WEBHOOK_SECRET:}
 
 
 max-bot:
