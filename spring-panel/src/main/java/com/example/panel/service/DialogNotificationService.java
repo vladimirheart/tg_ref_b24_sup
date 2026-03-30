@@ -106,6 +106,15 @@ public class DialogNotificationService {
             log.warn("Unable to notify ticket {}: channel {} not found", ticketId, target.channelId());
             return;
         }
+        if (hasWebFormSession(ticketId)) {
+            for (String message : messages) {
+                if (!StringUtils.hasText(message)) {
+                    continue;
+                }
+                logSystemMessage(target, ticketId, message);
+            }
+            return;
+        }
         if (channel.getPlatform() != null && !"telegram".equalsIgnoreCase(channel.getPlatform())) {
             log.info("Skipping notification for ticket {}: platform {} not supported", ticketId, channel.getPlatform());
             return;
@@ -206,6 +215,18 @@ public class DialogNotificationService {
         } catch (IOException ex) {
             return null;
         }
+    }
+
+    private boolean hasWebFormSession(String ticketId) {
+        if (!StringUtils.hasText(ticketId)) {
+            return false;
+        }
+        Integer count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM web_form_sessions WHERE ticket_id = ?",
+                Integer.class,
+                ticketId
+        );
+        return count != null && count > 0;
     }
 
     private record DialogTarget(Long userId, Long channelId) {}

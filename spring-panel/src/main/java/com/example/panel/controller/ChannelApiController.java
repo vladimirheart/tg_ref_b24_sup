@@ -121,6 +121,9 @@ public class ChannelApiController {
         if (isBlank(channel.getDeliverySettings())) {
             channel.setDeliverySettings("{}");
         }
+        if (isBlank(channel.getPublicId())) {
+            channel.setPublicId(generateToken());
+        }
         channel.setCreatedAt(OffsetDateTime.now());
         channel.setUpdatedAt(OffsetDateTime.now());
         updateTelegramBotInfo(channel, false);

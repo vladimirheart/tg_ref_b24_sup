@@ -56,6 +56,11 @@ public class DialogReplyService {
         if (channel == null) {
             return DialogReplyResult.error("Канал для отправки сообщения не найден.");
         }
+        if (hasWebFormSession(ticketId)) {
+            String timestamp = logOperatorMessage(target, ticketId, message, "operator_message", null, replyToTelegramId);
+            dialogService.assignResponsibleIfMissing(ticketId, operator);
+            return DialogReplyResult.success(timestamp, null);
+        }
         if (channel.getPlatform() != null && !"telegram".equalsIgnoreCase(channel.getPlatform())) {
             return DialogReplyResult.error("Отправка доступна только для Telegram-каналов.");
         }
@@ -88,21 +93,7 @@ public class DialogReplyService {
             return DialogReplyResult.error("Не удалось отправить сообщение в Telegram.");
         }
 
-        String timestamp = OffsetDateTime.now().toString();
-        jdbcTemplate.update("""
-                INSERT INTO chat_history(user_id, sender, message, timestamp, ticket_id, message_type, channel_id, tg_message_id, reply_to_tg_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                target.userId(),
-                "operator",
-                message,
-                timestamp,
-                ticketId,
-                "operator_message",
-                target.channelId(),
-                telegramMessageId,
-                replyToTelegramId
-        );
+        String timestamp = logOperatorMessage(target, ticketId, message, "operator_message", telegramMessageId, replyToTelegramId);
         dialogService.assignResponsibleIfMissing(ticketId, operator);
         return DialogReplyResult.success(timestamp, telegramMessageId);
     }
@@ -223,6 +214,9 @@ public class DialogReplyService {
         if (channel == null) {
             return DialogMediaReplyResult.error("Канал для отправки сообщения не найден.");
         }
+        if (hasWebFormSession(ticketId)) {
+            return DialogMediaReplyResult.error("Для внешней формы доступны только текстовые ответы в общем окне диалога.");
+        }
         if (channel.getPlatform() != null && !"telegram".equalsIgnoreCase(channel.getPlatform())) {
             return DialogMediaReplyResult.error("Отправка доступна только для Telegram-каналов.");
         }
@@ -301,6 +295,42 @@ public class DialogReplyService {
         } catch (IOException ex) {
             return null;
         }
+    }
+
+    private String logOperatorMessage(DialogReplyTarget target,
+                                      String ticketId,
+                                      String message,
+                                      String messageType,
+                                      Long telegramMessageId,
+                                      Long replyToTelegramId) {
+        String timestamp = OffsetDateTime.now().toString();
+        jdbcTemplate.update("""
+                INSERT INTO chat_history(user_id, sender, message, timestamp, ticket_id, message_type, channel_id, tg_message_id, reply_to_tg_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                target.userId(),
+                "operator",
+                message,
+                timestamp,
+                ticketId,
+                messageType,
+                target.channelId(),
+                telegramMessageId,
+                replyToTelegramId
+        );
+        return timestamp;
+    }
+
+    private boolean hasWebFormSession(String ticketId) {
+        if (!StringUtils.hasText(ticketId)) {
+            return false;
+        }
+        Integer count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM web_form_sessions WHERE ticket_id = ?",
+                Integer.class,
+                ticketId
+        );
+        return count != null && count > 0;
     }
 
     public record DialogReplyResult(boolean success, String error, String timestamp, Long telegramMessageId) {
