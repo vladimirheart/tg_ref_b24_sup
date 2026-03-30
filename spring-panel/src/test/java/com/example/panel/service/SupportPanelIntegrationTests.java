@@ -571,8 +571,8 @@ class SupportPanelIntegrationTests {
         assertThat(rolloutDecision).containsEntry("sample_size_ok", false);
         assertThat(alerts).anySatisfy(alert -> {
             assertThat(alert.get("metric")).isEqualTo("render_error");
-            assertThat(alert).containsKey("previous_value");
-            assertThat(alert).containsKey("delta");
+            assertThat(alert).containsKey("value");
+            assertThat(alert).containsKey("threshold");
         });
     }
 
