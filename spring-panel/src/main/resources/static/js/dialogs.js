@@ -2661,7 +2661,7 @@
         const escalatedScenarios = Array.isArray(legacyInventory?.review_queue_escalated_scenarios) ? legacyInventory.review_queue_escalated_scenarios : [];
         checks.push({
           ok: false,
-          label: `Legacy queue escalation (${String(legacyInventory?.review_queue_closure_pressure || 'high')}): ${escalatedScenarios.length ? escalatedScenarios.join(', ') : 'management review required'}`
+          label: `Legacy queue escalation (${String(legacyInventory?.review_queue_closure_pressure || 'high')}${Number(legacyInventory?.review_queue_escalated_count || 0) > 0 ? `, mgmt ${Number(legacyInventory?.review_queue_escalated_count || 0)}` : ''}): ${escalatedScenarios.length ? escalatedScenarios.join(', ') : 'management review required'}`
         });
       }
       if (Number(legacyInventory?.review_queue_consolidation_count || 0) > 0) {
@@ -2695,12 +2695,12 @@
           ? `Context contract ready${focusBlocks.length ? ` · operator first: ${focusBlocks.join(', ')}` : ''}`
           : (nextStepSummary || operatorSummary || contextActionItems[0] || 'Context contract требует action-oriented follow-up')
       });
-    }
-    if (payload?.totals?.context_extra_attributes_compaction_candidate === true) {
-      checks.push({
-        ok: false,
-        label: String(payload?.totals?.context_secondary_details_compaction_summary || 'Extra attributes требуют compaction review.')
-      });
+      if (contextContract?.extra_attributes_compaction_candidate === true) {
+        checks.push({
+          ok: contextContract?.secondary_noise_management_review_required !== true,
+          label: String(contextContract?.secondary_noise_compaction_summary || contextContract?.extra_attributes_summary || 'Extra attributes требуют compaction review.')
+        });
+      }
     }
     if (nextReviewAt) {
       checks.push({ ok: true, label: `Следующий review due UTC: ${nextReviewAt}` });

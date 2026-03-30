@@ -131,6 +131,7 @@
 - review-queue для сценариев, которые повторно остаются в legacy;
 - follow-up summary / oldest due / repeat-cycle visibility для `review_queue`.
 - escalation / consolidation сигналы для долгоживущих `review_queue` сценариев, чтобы weekly review не застревал на уровне простого “видим очередь”.
+- `review_queue` теперь отдельно показывает management-review summary и consolidation candidates, так что closure-loop можно разбирать по типу следующего действия.
 
 Что остаётся:
 - регулярное закрытие или консолидация долгоживущих legacy-only сценариев;
@@ -148,6 +149,7 @@
 - analytics summary теперь показывает usage-level и top opened secondary section, а не только сырой счётчик раскрытий.
 - `extra attributes` получили отдельный telemetry-compaction сигнал, чтобы отличать общий secondary-context noise от точечной перегрузки именно hidden attributes.
 - telemetry summary теперь отдельно помечает случаи, где hidden attributes уже требуют management review, а не просто ещё одного ручного просмотра.
+- rollout packet `context_contract` теперь тоже знает про secondary-noise / extra-attributes pressure, поэтому experiment packet и analytics не расходятся по смыслу follow-up.
 
 Что остаётся:
 - подтвердить по первым usage windows, что heavy раскрытие secondary context не становится новой нормой для операторов;
