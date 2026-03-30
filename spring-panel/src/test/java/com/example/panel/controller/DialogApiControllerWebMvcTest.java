@@ -966,16 +966,24 @@ class DialogApiControllerWebMvcTest {
     void workspaceTelemetrySummaryIncludesWeeklyReviewFocus() throws Exception {
         when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(true);
         when(dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout")).thenReturn(Map.of(
-                "totals", Map.of(
-                        "context_secondary_details_followup_required", true,
-                        "context_secondary_details_summary", "Secondary context открывали 6 раз (30% от workspace opens); top=extra_attributes.",
-                        "workspace_sla_policy_churn_followup_required", true,
-                        "workspace_sla_policy_churn_summary", "SLA policy updates=3, decisions=1, churn=300%."
+                "totals", Map.ofEntries(
+                        Map.entry("context_secondary_details_followup_required", true),
+                        Map.entry("context_secondary_details_summary", "Secondary context открывали 6 раз (30% от workspace opens); top=extra_attributes."),
+                        Map.entry("context_secondary_details_usage_level", "heavy"),
+                        Map.entry("context_extra_attributes_expanded_events", 5),
+                        Map.entry("context_extra_attributes_open_rate_pct", 25),
+                        Map.entry("context_extra_attributes_usage_level", "heavy"),
+                        Map.entry("context_extra_attributes_compaction_candidate", true),
+                        Map.entry("context_extra_attributes_summary", "Extra attributes открывали 5 раз (25% от workspace opens); usage=heavy."),
+                        Map.entry("workspace_sla_policy_churn_followup_required", true),
+                        Map.entry("workspace_sla_policy_churn_level", "high"),
+                        Map.entry("workspace_sla_policy_churn_summary", "SLA policy updates=3, decisions=1, churn=300%.")
                 ),
                 "rollout_packet", Map.of(
                         "legacy_only_inventory", Map.of(
                                 "review_queue_followup_required", true,
                                 "review_queue_summary", "В weekly closure review остаются 2 сценария(ев); oldest due=2099-04-01T00:00:00Z; repeat cycles=2.",
+                                "review_queue_repeat_cycles", 3,
                                 "action_items", List.of("Закройте weekly closure-loop для сценариев, которые повторно остаются в legacy review-queue.")
                         )
                 ),
@@ -984,6 +992,7 @@ class DialogApiControllerWebMvcTest {
         ));
         when(slaEscalationWebhookNotifier.buildRoutingGovernanceAudit(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any())).thenReturn(Map.of(
                 "weekly_review_followup_required", true,
+                "policy_churn_risk_level", "high",
                 "advisory_path_reduction_candidate", true,
                 "weekly_review_summary", "Сократите conflicts/advisory checkpoints, чтобы review-cycle не разрастался."
         ));
@@ -1002,8 +1011,54 @@ class DialogApiControllerWebMvcTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.weekly_review_focus.status").value("hold"))
                 .andExpect(jsonPath("$.weekly_review_focus.section_count").value(4))
+                .andExpect(jsonPath("$.weekly_review_focus.followup_section_count").value(4))
+                .andExpect(jsonPath("$.weekly_review_focus.focus_score").value(10))
+                .andExpect(jsonPath("$.weekly_review_focus.focus_health").value("management_review"))
+                .andExpect(jsonPath("$.weekly_review_focus.top_priority_key").value("legacy"))
+                .andExpect(jsonPath("$.weekly_review_focus.top_priority_label").value("Legacy closure loop"))
+                .andExpect(jsonPath("$.weekly_review_focus.priority_mix_summary").value("high=2, follow-up=4, management-review=3."))
+                .andExpect(jsonPath("$.weekly_review_focus.next_action_summary").value("Закройте weekly closure-loop для сценариев, которые повторно остаются в legacy review-queue."))
+                .andExpect(jsonPath("$.weekly_review_focus.requires_management_review").value(true))
+                .andExpect(jsonPath("$.weekly_review_focus.management_review_section_count").value(3))
                 .andExpect(jsonPath("$.weekly_review_focus.sections[0].key").value("legacy"))
+                .andExpect(jsonPath("$.weekly_review_focus.sections[0].priority_weight").value(0))
+                .andExpect(jsonPath("$.weekly_review_focus.sections[0].followup_required").value(true))
+                .andExpect(jsonPath("$.weekly_review_focus.sections[0].management_review_required").value(true))
+                .andExpect(jsonPath("$.weekly_review_focus.sections[0].section_status").value("management_review"))
                 .andExpect(jsonPath("$.weekly_review_focus.top_actions.length()").value(4));
+    }
+
+    @Test
+    void workspaceTelemetrySummaryReturnsStableWeeklyReviewFocusWhenFollowupNotRequired() throws Exception {
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(true);
+        when(dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout")).thenReturn(Map.of(
+                "totals", Map.of(),
+                "rollout_packet", Map.of("legacy_only_inventory", Map.of()),
+                "rows", List.of(),
+                "guardrails", Map.of("status", "ok", "alerts", List.of())
+        ));
+        when(slaEscalationWebhookNotifier.buildRoutingGovernanceAudit(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(Map.of());
+        when(dialogService.buildMacroGovernanceAudit(org.mockito.ArgumentMatchers.any()))
+                .thenReturn(Map.of());
+
+        mockMvc.perform(get("/api/dialogs/workspace-telemetry/summary")
+                        .param("days", "7")
+                        .param("experiment_name", "workspace_v1_rollout")
+                        .with(user("operator")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.weekly_review_focus.status").value("ok"))
+                .andExpect(jsonPath("$.weekly_review_focus.focus_health").value("stable"))
+                .andExpect(jsonPath("$.weekly_review_focus.section_count").value(0))
+                .andExpect(jsonPath("$.weekly_review_focus.followup_section_count").value(0))
+                .andExpect(jsonPath("$.weekly_review_focus.management_review_section_count").value(0))
+                .andExpect(jsonPath("$.weekly_review_focus.top_priority_key").value(""))
+                .andExpect(jsonPath("$.weekly_review_focus.top_priority_label").value(""))
+                .andExpect(jsonPath("$.weekly_review_focus.priority_mix_summary").value("Weekly focus пуст: follow-up не требуется."))
+                .andExpect(jsonPath("$.weekly_review_focus.next_action_summary").value("Дополнительный follow-up не требуется."))
+                .andExpect(jsonPath("$.weekly_review_focus.requires_management_review").value(false))
+                .andExpect(jsonPath("$.weekly_review_focus.top_actions.length()").value(0));
     }
 
     @Test

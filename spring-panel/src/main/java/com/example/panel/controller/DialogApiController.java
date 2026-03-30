@@ -1966,6 +1966,15 @@ public class DialogApiController {
                 : Map.of();
         Map<String, Object> safeSlaAudit = slaPolicyAudit != null ? slaPolicyAudit : Map.of();
         Map<String, Object> safeMacroAudit = macroGovernanceAudit != null ? macroGovernanceAudit : Map.of();
+        boolean contextExtraAttributesCompactionCandidate = Boolean.TRUE.equals(totals.get("context_extra_attributes_compaction_candidate"));
+        boolean contextHeavyDisclosure = "heavy".equals(String.valueOf(totals.getOrDefault("context_secondary_details_usage_level", "")));
+        boolean legacyManagementReviewRequired = asLong(legacyInventory.get("review_queue_repeat_cycles")) >= 3L
+                || asLong(legacyInventory.get("review_queue_oldest_overdue_days")) >= 7L;
+        boolean contextManagementReviewRequired = contextExtraAttributesCompactionCandidate && contextHeavyDisclosure;
+        boolean slaManagementReviewRequired = "high".equals(String.valueOf(safeSlaAudit.getOrDefault("policy_churn_risk_level", "")))
+                || "high".equals(String.valueOf(totals.getOrDefault("workspace_sla_policy_churn_level", "")));
+        boolean macroManagementReviewRequired = Boolean.TRUE.equals(safeMacroAudit.get("weekly_review_followup_required"))
+                && !Boolean.TRUE.equals(safeMacroAudit.get("advisory_path_reduction_candidate"));
 
         List<Map<String, Object>> sections = new ArrayList<>();
         if (Boolean.TRUE.equals(legacyInventory.get("review_queue_followup_required"))
@@ -1975,6 +1984,7 @@ public class DialogApiController {
                     "label", "Legacy closure loop",
                     "priority", "high",
                     "summary", String.valueOf(legacyInventory.getOrDefault("review_queue_summary", "")),
+                    "management_review_required", legacyManagementReviewRequired,
                     "action_item", firstListItem(legacyInventory.get("action_items"),
                             "Закройте weekly closure-loop для legacy review-queue.")
             ));
@@ -1984,8 +1994,13 @@ public class DialogApiController {
                     "key", "context",
                     "label", "Context noise",
                     "priority", "medium",
-                    "summary", String.valueOf(totals.getOrDefault("context_secondary_details_summary", "")),
-                    "action_item", "Проверьте, почему secondary context раскрывается слишком часто, и ужмите noisy blocks."
+                    "summary", firstNonBlank(
+                            String.valueOf(totals.getOrDefault("context_extra_attributes_summary", "")),
+                            String.valueOf(totals.getOrDefault("context_secondary_details_summary", ""))),
+                    "management_review_required", contextManagementReviewRequired,
+                    "action_item", contextExtraAttributesCompactionCandidate
+                            ? "Ужмите extra attributes: оставьте в runtime sidebar только действительно используемые поля."
+                            : "Проверьте, почему secondary context раскрывается слишком часто, и ужмите noisy blocks."
             ));
         }
         if (Boolean.TRUE.equals(totals.get("workspace_sla_policy_churn_followup_required"))
@@ -1997,6 +2012,7 @@ public class DialogApiController {
                     "summary", firstNonBlank(
                             String.valueOf(totals.getOrDefault("workspace_sla_policy_churn_summary", "")),
                             String.valueOf(safeSlaAudit.getOrDefault("weekly_review_summary", ""))),
+                    "management_review_required", slaManagementReviewRequired,
                     "action_item", Boolean.TRUE.equals(safeSlaAudit.get("advisory_path_reduction_candidate"))
                             ? "Сократите advisory checkpoints для типовых SLA policy changes."
                             : "Закройте обязательный SLA review path и stabilise decision cadence."
@@ -2009,6 +2025,7 @@ public class DialogApiController {
                     "label", "Macro governance",
                     "priority", Boolean.TRUE.equals(safeMacroAudit.get("advisory_path_reduction_candidate")) ? "medium" : "high",
                     "summary", String.valueOf(safeMacroAudit.getOrDefault("weekly_review_summary", "")),
+                    "management_review_required", macroManagementReviewRequired,
                     "action_item", Boolean.TRUE.equals(safeMacroAudit.get("advisory_path_reduction_candidate"))
                             ? "Оставьте low-signal red-list аналитическими и сократите ручной backlog."
                             : "Закройте обязательные macro checkpoints и только потом revisited advisory cleanup."
@@ -2019,6 +2036,18 @@ public class DialogApiController {
                 .sorted((left, right) -> Integer.compare(
                         reviewFocusPriorityWeight(String.valueOf(left.get("priority"))),
                         reviewFocusPriorityWeight(String.valueOf(right.get("priority")))))
+                .map(item -> {
+                    Map<String, Object> enriched = new LinkedHashMap<>(item);
+                    int priorityWeight = reviewFocusPriorityWeight(String.valueOf(item.get("priority")));
+                    boolean managementReviewRequired = Boolean.TRUE.equals(item.get("management_review_required"));
+                    enriched.put("priority_weight", priorityWeight);
+                    enriched.put("followup_required", true);
+                    enriched.put("management_review_required", managementReviewRequired);
+                    enriched.put("section_status", managementReviewRequired
+                            ? "management_review"
+                            : priorityWeight == 0 ? "blocking" : "followup");
+                    return enriched;
+                })
                 .toList();
         List<String> topActions = sortedSections.stream()
                 .map(item -> trimToNull(String.valueOf(item.get("action_item"))))
@@ -2028,18 +2057,56 @@ public class DialogApiController {
         long blockingCount = sortedSections.stream()
                 .filter(item -> "high".equals(String.valueOf(item.get("priority"))))
                 .count();
+        long managementReviewSectionCount = sortedSections.stream()
+                .filter(item -> Boolean.TRUE.equals(item.get("management_review_required")))
+                .count();
+        long focusScore = sortedSections.stream()
+                .mapToLong(item -> switch (String.valueOf(item.get("priority"))) {
+                    case "high" -> 3L;
+                    case "medium" -> 2L;
+                    default -> 1L;
+                })
+                .sum();
         String status = sortedSections.isEmpty()
                 ? "ok"
                 : blockingCount > 0 ? "hold" : "attention";
         String summary = sortedSections.isEmpty()
                 ? "Weekly review focus не требует дополнительных follow-up."
                 : "Weekly review focus: %d секции(й), high=%d.".formatted(sortedSections.size(), blockingCount);
+        String topPriorityKey = sortedSections.isEmpty()
+                ? ""
+                : String.valueOf(sortedSections.get(0).getOrDefault("key", ""));
+        String topPriorityLabel = sortedSections.isEmpty()
+                ? ""
+                : String.valueOf(sortedSections.get(0).getOrDefault("label", ""));
+        String nextActionSummary = topActions.isEmpty()
+                ? "Дополнительный follow-up не требуется."
+                : topActions.get(0);
+        boolean requiresManagementReview = blockingCount > 1
+                || (blockingCount > 0 && sortedSections.size() > 2)
+                || managementReviewSectionCount > 0;
+        String focusHealth = sortedSections.isEmpty()
+                ? "stable"
+                : requiresManagementReview ? "management_review" : "followup";
+        String priorityMixSummary = sortedSections.isEmpty()
+                ? "Weekly focus пуст: follow-up не требуется."
+                : "high=%d, follow-up=%d, management-review=%d."
+                .formatted(blockingCount, sortedSections.size(), managementReviewSectionCount);
 
         Map<String, Object> focus = new LinkedHashMap<>();
         focus.put("status", status);
         focus.put("summary", summary);
         focus.put("section_count", sortedSections.size());
+        focus.put("followup_section_count", sortedSections.size());
         focus.put("blocking_count", blockingCount);
+        focus.put("management_review_section_count", managementReviewSectionCount);
+        focus.put("focus_score", focusScore);
+        focus.put("focus_health", focusHealth);
+        focus.put("top_priority_key", topPriorityKey);
+        focus.put("top_priority_label", topPriorityLabel);
+        focus.put("priority_mix_summary", priorityMixSummary);
+        focus.put("next_action_summary", nextActionSummary);
+        focus.put("requires_management_review", requiresManagementReview);
         focus.put("sections", sortedSections);
         focus.put("top_actions", topActions);
         return focus;
@@ -2608,6 +2675,20 @@ public class DialogApiController {
         }
         String normalized = String.valueOf(raw).trim();
         return "true".equalsIgnoreCase(normalized) || "1".equals(normalized);
+    }
+
+    private long asLong(Object raw) {
+        if (raw instanceof Number number) {
+            return number.longValue();
+        }
+        if (raw == null) {
+            return 0L;
+        }
+        try {
+            return Long.parseLong(String.valueOf(raw).trim());
+        } catch (NumberFormatException ex) {
+            return 0L;
+        }
     }
 
     private Map<String, Object> resolveWorkspaceExternalProfileLinks(Map<String, Object> settings,
