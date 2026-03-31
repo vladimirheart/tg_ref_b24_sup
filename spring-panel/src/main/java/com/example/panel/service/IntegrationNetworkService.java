@@ -72,7 +72,13 @@ public class IntegrationNetworkService {
             String proxyUrl = buildProxyUrl(proxy);
             env.put("HTTP_PROXY", proxyUrl);
             env.put("HTTPS_PROXY", proxyUrl);
-            env.put("JAVA_TOOL_OPTIONS", buildJavaToolOptions(proxy));
+            env.put("http_proxy", proxyUrl);
+            env.put("https_proxy", proxyUrl);
+            if (proxy.scheme().toLowerCase(Locale.ROOT).startsWith("socks")) {
+                env.put("ALL_PROXY", proxyUrl);
+                env.put("all_proxy", proxyUrl);
+            }
+            env.put("JAVA_TOOL_OPTIONS", mergeJavaToolOptions(System.getenv("JAVA_TOOL_OPTIONS"), buildJavaToolOptions(proxy)));
         } else if ("vpn".equals(resolved.mode()) && hasText(resolved.vpnName())) {
             env.put("APP_NETWORK_VPN_NAME", resolved.vpnName());
         }
@@ -163,13 +169,41 @@ public class IntegrationNetworkService {
         if (scheme.startsWith("socks")) {
             options.add("-DsocksProxyHost=" + proxy.host());
             options.add("-DsocksProxyPort=" + proxy.port());
+            if (hasText(proxy.username())) {
+                options.add("-Djava.net.socks.username=" + proxy.username());
+            }
+            if (hasText(proxy.password())) {
+                options.add("-Djava.net.socks.password=" + proxy.password());
+            }
         } else {
             options.add("-Dhttp.proxyHost=" + proxy.host());
             options.add("-Dhttp.proxyPort=" + proxy.port());
             options.add("-Dhttps.proxyHost=" + proxy.host());
             options.add("-Dhttps.proxyPort=" + proxy.port());
+            if (hasText(proxy.username())) {
+                options.add("-Dhttp.proxyUser=" + proxy.username());
+                options.add("-Dhttps.proxyUser=" + proxy.username());
+                options.add("-Djdk.http.auth.proxying.disabledSchemes=");
+                options.add("-Djdk.http.auth.tunneling.disabledSchemes=");
+            }
+            if (hasText(proxy.password())) {
+                options.add("-Dhttp.proxyPassword=" + proxy.password());
+                options.add("-Dhttps.proxyPassword=" + proxy.password());
+            }
         }
         return String.join(" ", options);
+    }
+
+    private String mergeJavaToolOptions(String existing, String additional) {
+        String normalizedExisting = existing == null ? "" : existing.trim();
+        String normalizedAdditional = additional == null ? "" : additional.trim();
+        if (normalizedExisting.isEmpty()) {
+            return normalizedAdditional;
+        }
+        if (normalizedAdditional.isEmpty()) {
+            return normalizedExisting;
+        }
+        return normalizedExisting + " " + normalizedAdditional;
     }
 
     @SuppressWarnings("unchecked")
