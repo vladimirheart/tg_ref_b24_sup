@@ -96,7 +96,7 @@ public class DialogReplyService {
                 } catch (IOException ex) {
                     yield "Не удалось отправить сообщение в Telegram.";
                 }
-            };
+            }
         };
         if (transportError != null) {
             return DialogReplyResult.error(transportError);
