@@ -4714,11 +4714,13 @@
       return;
     }
     setWorkspaceReadonlyMode(false);
-    if (!WORKSPACE_EXPERIENCE_ENABLED) {
-      openDialogDetails(ticketId, row);
-      return;
+    const channelId = row?.dataset?.channelId ?? null;
+    const nextUrl = buildWorkspaceDialogUrl(ticketId, channelId);
+    const currentPath = `${window.location.pathname || ''}${window.location.search || ''}`;
+    if (currentPath !== nextUrl) {
+      window.history.pushState({ ticketId: String(ticketId || '').trim() }, '', nextUrl);
     }
-    openDialogWithWorkspaceFallback(ticketId, row);
+    openDialogDetails(ticketId, row);
   }
 
   function isTypingTarget(target) {
