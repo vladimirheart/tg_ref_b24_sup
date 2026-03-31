@@ -1,5 +1,6 @@
 package com.example.panel.controller;
 
+import com.example.panel.model.dialog.DialogListItem;
 import com.example.panel.model.dialog.DialogSummary;
 import com.example.panel.service.DialogService;
 import com.example.panel.service.NavigationService;
@@ -20,6 +21,7 @@ import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
@@ -51,5 +53,46 @@ class DialogsControllerWebMvcTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("dialogs/index"))
                 .andExpect(model().attribute("initialDialogTicketId", "T-123"));
+    }
+
+    @Test
+    void dialogsListRendersOpenActionsAsRealDialogLinks() throws Exception {
+        doNothing().when(navigationService).enrich(any(), any());
+        when(dialogService.loadSummary()).thenReturn(new DialogSummary(1, 1, 0, Collections.emptyList()));
+        when(dialogService.loadDialogs(anyString())).thenReturn(Collections.singletonList(
+                new DialogListItem(
+                        "T-555",
+                        1001L,
+                        2002L,
+                        "client",
+                        "Клиент",
+                        "Billing",
+                        7L,
+                        "Поддержка",
+                        "Москва",
+                        "Офис",
+                        "Проблема",
+                        "2026-03-31T09:00:00Z",
+                        "open",
+                        null,
+                        null,
+                        "",
+                        "31.03.2026",
+                        "12:00:00",
+                        null,
+                        null,
+                        null,
+                        0,
+                        null,
+                        null
+                )
+        ));
+        when(sharedConfigService.loadSettings()).thenReturn(Map.of());
+
+        mockMvc.perform(get("/dialogs").with(user("operator")))
+                .andExpect(status().isOk())
+                .andExpect(view().name("dialogs/index"))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("href=\"/dialogs/T-555\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("data-ticket-id=\"T-555\"")));
     }
 }
