@@ -7520,11 +7520,7 @@
     if (initialRow) {
       setActiveDialogRow(initialRow, { ensureVisible: true });
     }
-    if (WORKSPACE_EXPERIENCE_ENABLED) {
-      openDialogWithWorkspaceFallback(INITIAL_DIALOG_TICKET_ID, initialRow, { source: 'initial_route' });
-    } else {
-      openDialogDetails(INITIAL_DIALOG_TICKET_ID, initialRow);
-    }
+    openDialogDetails(INITIAL_DIALOG_TICKET_ID, initialRow);
   }
 
   window.addEventListener('beforeunload', () => {
@@ -7545,7 +7541,7 @@
       }
       const row = rowsList().find((item) => String(item.dataset.ticketId || '') === ticketId) || null;
       setActiveDialogRow(row, { ensureVisible: true });
-      openDialogWithWorkspaceFallback(ticketId, row, { source: 'initial_route' });
+      openDialogDetails(ticketId, row);
     });
   }
 
