@@ -1207,14 +1207,6 @@ public class PublicFormService {
         return "";
     }
 
-    private String urlEncode(String value) {
-        try {
-            return URLEncoder.encode(Optional.ofNullable(value).orElse(""), StandardCharsets.UTF_8);
-        } catch (Exception ex) {
-            return Optional.ofNullable(value).orElse("");
-        }
-    }
-
     private String generateTicketId() {
         return "web-" + UUID.randomUUID().toString().replaceAll("-", "").substring(0, 8).toLowerCase(Locale.ROOT);
     }
