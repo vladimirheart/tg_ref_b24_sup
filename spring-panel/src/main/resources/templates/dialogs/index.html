@@ -849,5 +849,110 @@
     : {};
 </script>
 <script th:src="@{/js/dialogs.js}"></script>
+<script th:inline="javascript">
+  (() => {
+    const initialTicketId = /*[[${initialDialogTicketId}]]*/ null;
+    if (!initialTicketId) return;
+
+    window.setTimeout(async () => {
+      const modalEl = document.getElementById('dialogDetailsModal');
+      if (!modalEl || modalEl.classList.contains('show')) return;
+
+      const detailsMeta = document.getElementById('dialogDetailsMeta');
+      const detailsClientName = document.getElementById('dialogDetailsClientName');
+      const detailsClientStatus = document.getElementById('dialogDetailsClientStatus');
+      const detailsCategories = document.getElementById('dialogDetailsCategories');
+      const detailsSummary = document.getElementById('dialogDetailsSummary');
+      const detailsProblem = document.getElementById('dialogDetailsProblem');
+      const detailsHistory = document.getElementById('dialogDetailsHistory');
+
+      if (detailsMeta) detailsMeta.textContent = `Диалог #${initialTicketId}`;
+      if (detailsSummary) detailsSummary.innerHTML = '<div class="text-muted">Загрузка диалога…</div>';
+      if (detailsHistory) detailsHistory.innerHTML = '';
+
+      const escapeHtml = (value) => String(value ?? '').replace(/[&<>"]/g, (char) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+      }[char]));
+      const showModal = () => {
+        if (window.bootstrap?.Modal) {
+          window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        }
+      };
+
+      try {
+        const response = await fetch(`/api/dialogs/${encodeURIComponent(initialTicketId)}`, {
+          credentials: 'same-origin',
+          cache: 'no-store',
+        });
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload?.error || `Ошибка ${response.status}`);
+        }
+
+        const summary = payload?.summary || {};
+        const history = Array.isArray(payload?.history) ? payload.history : [];
+        const clientName = summary.clientName || summary.username || 'Клиент';
+        const clientStatus = summary.clientStatus || 'статус не указан';
+        const statusLabel = summary.statusLabel || summary.status || '—';
+        const channelLabel = summary.channelName || '—';
+        const businessLabel = summary.business || '—';
+        const locationLabel = summary.locationName || summary.city || '—';
+        const categoriesLabel = summary.categoriesSafe || summary.categories || '—';
+        const problemLabel = summary.problem || 'Проблема не указана';
+        const createdLabel = [summary.createdDate || summary.created_date, summary.createdTime || summary.created_time]
+          .filter(Boolean)
+          .join(' ') || summary.createdAt || summary.created_at || '—';
+
+        if (detailsClientName) detailsClientName.textContent = clientName;
+        if (detailsClientStatus) detailsClientStatus.textContent = clientStatus;
+        if (detailsCategories) detailsCategories.textContent = `Категории: ${categoriesLabel}`;
+        if (detailsProblem) detailsProblem.textContent = problemLabel;
+        if (detailsSummary) {
+          detailsSummary.innerHTML = [
+            ['Клиент', clientName],
+            ['Статус клиента', clientStatus],
+            ['Статус', statusLabel],
+            ['Канал', channelLabel],
+            ['Бизнес', businessLabel],
+            ['Локация', locationLabel],
+            ['Создан', createdLabel],
+          ].map(([label, value]) => `
+            <div class="d-flex justify-content-between gap-2">
+              <span>${escapeHtml(label)}</span>
+              <span class="text-dark">${escapeHtml(value || '—')}</span>
+            </div>
+          `).join('');
+        }
+        if (detailsHistory) {
+          detailsHistory.innerHTML = history.length
+            ? history.map((item) => {
+                const senderRaw = String(item?.sender || '').toLowerCase();
+                const sender = senderRaw.includes('operator') || senderRaw.includes('support') || senderRaw.includes('system')
+                  ? 'support'
+                  : 'user';
+                const timestamp = String(item?.timestamp || '');
+                return `
+                  <div class="chat-message ${sender}">
+                    <div>${escapeHtml(item?.message || '—')}</div>
+                    ${timestamp ? `<div class="text-muted small mt-2">${escapeHtml(timestamp)}</div>` : ''}
+                  </div>
+                `;
+              }).join('')
+            : '<div class="text-muted">Сообщения отсутствуют.</div>';
+        }
+
+        showModal();
+      } catch (error) {
+        if (detailsSummary) {
+          detailsSummary.innerHTML = `<div class="text-danger">Не удалось открыть диалог: ${escapeHtml(error?.message || 'unknown_error')}</div>`;
+        }
+        showModal();
+      }
+    }, 200);
+  })();
+</script>
 </body>
 </html>
