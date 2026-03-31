@@ -23,6 +23,7 @@ import java.nio.file.StandardCopyOption;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.HashMap;
@@ -647,9 +648,11 @@ public class ClientProfileApiController {
         if (data == null || data.length == 0) {
             return false;
         }
-        long existingSize = Files.isRegularFile(target) ? Files.size(target) : -1;
-        if (existingSize == data.length) {
-            return false;
+        if (Files.isRegularFile(target)) {
+            byte[] existing = Files.readAllBytes(target);
+            if (Arrays.equals(existing, data)) {
+                return false;
+            }
         }
         Files.createDirectories(target.getParent());
         Path tempFile = Files.createTempFile(target.getParent(), "avatar", ".tmp");
