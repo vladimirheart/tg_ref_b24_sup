@@ -96,7 +96,15 @@ class IntegrationNetworkServiceTest {
             .containsEntry("APP_NETWORK_PROXY_HOST", "corp-proxy.local")
             .containsEntry("APP_NETWORK_PROXY_PORT", "3128")
             .containsEntry("HTTP_PROXY", "http://svc_bot:pwd@corp-proxy.local:3128")
+            .containsEntry("HTTPS_PROXY", "http://svc_bot:pwd@corp-proxy.local:3128")
+            .containsEntry("http_proxy", "http://svc_bot:pwd@corp-proxy.local:3128")
+            .containsEntry("https_proxy", "http://svc_bot:pwd@corp-proxy.local:3128")
             .containsKey("JAVA_TOOL_OPTIONS");
-        assertThat(env.get("JAVA_TOOL_OPTIONS")).contains("-Dhttp.proxyHost=corp-proxy.local");
+        assertThat(env.get("JAVA_TOOL_OPTIONS"))
+            .contains("-Dhttp.proxyHost=corp-proxy.local")
+            .contains("-Dhttps.proxyHost=corp-proxy.local")
+            .contains("-Dhttp.proxyUser=svc_bot")
+            .contains("-Dhttps.proxyPassword=pwd")
+            .contains("-Djdk.http.auth.tunneling.disabledSchemes=");
     }
 }
