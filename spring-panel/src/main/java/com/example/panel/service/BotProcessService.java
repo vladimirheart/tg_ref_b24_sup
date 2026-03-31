@@ -73,9 +73,11 @@ public class BotProcessService {
             Path botWorkingDir = resolveBotWorkingDir();
             builder.directory(botWorkingDir.toFile());
             Path logFile = resolveLogFile(botWorkingDir);
+            Path processOutputLogFile = resolveProcessOutputLogFile(logFile);
             Files.createDirectories(logFile.getParent());
+            Files.createDirectories(processOutputLogFile.getParent());
             builder.redirectErrorStream(true);
-            builder.redirectOutput(ProcessBuilder.Redirect.appendTo(logFile.toFile()));
+            builder.redirectOutput(ProcessBuilder.Redirect.appendTo(processOutputLogFile.toFile()));
             Map<String, String> env = builder.environment();
             env.put("APP_DB_TICKETS", ticketsDbProperties.getNormalizedPath().toString());
             env.put("TELEGRAM_BOT_TOKEN", credential.token());
@@ -287,6 +289,18 @@ public class BotProcessService {
     private Path resolvePidFile(Path botWorkingDir, Long channelId) {
         Path runDir = botWorkingDir.resolve("../run").normalize();
         return runDir.resolve("bot-" + channelId + ".pid").toAbsolutePath().normalize();
+    }
+
+    private Path resolveProcessOutputLogFile(Path logFile) {
+        String fileName = logFile.getFileName() != null ? logFile.getFileName().toString() : "support-bot.log";
+        int extensionIndex = fileName.lastIndexOf('.');
+        String baseName = extensionIndex >= 0 ? fileName.substring(0, extensionIndex) : fileName;
+        String extension = extensionIndex >= 0 ? fileName.substring(extensionIndex) : ".log";
+        String processFileName = baseName + "-process" + extension;
+        Path parent = logFile.getParent();
+        return (parent != null ? parent.resolve(processFileName) : Paths.get(processFileName))
+            .toAbsolutePath()
+            .normalize();
     }
 
     private void writePidFile(Path botWorkingDir, Long channelId, long pid) {
