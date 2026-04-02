@@ -3,6 +3,7 @@ package com.example.panel.controller;
 import com.example.panel.service.SettingsCatalogService;
 import com.example.panel.service.SharedConfigService;
 import com.example.panel.service.PermissionService;
+import com.example.panel.service.NotificationService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -46,6 +47,7 @@ public class SettingsBridgeController {
     private final SharedConfigService sharedConfigService;
     private final SettingsCatalogService settingsCatalogService;
     private final PermissionService permissionService;
+    private final NotificationService notificationService;
     private final ObjectMapper objectMapper;
 
     private record MacroNormalizationResult(List<Map<String, Object>> templates,
@@ -55,11 +57,13 @@ public class SettingsBridgeController {
                                     SharedConfigService sharedConfigService,
                                     SettingsCatalogService settingsCatalogService,
                                     PermissionService permissionService,
+                                    NotificationService notificationService,
                                     ObjectMapper objectMapper) {
         this.jdbcTemplate = jdbcTemplate;
         this.sharedConfigService = sharedConfigService;
         this.settingsCatalogService = settingsCatalogService;
         this.permissionService = permissionService;
+        this.notificationService = notificationService;
         this.objectMapper = objectMapper;
     }
 
@@ -1453,7 +1457,8 @@ public class SettingsBridgeController {
 
     @PostMapping({"/api/settings/it-equipment", "/api/settings/it-equipment/"})
     @PreAuthorize("hasAuthority('PAGE_SETTINGS')")
-    public Map<String, Object> createItEquipment(HttpServletRequest request) throws IOException {
+    public Map<String, Object> createItEquipment(HttpServletRequest request,
+                                                 Authentication authentication) throws IOException {
         Map<String, Object> payload = RequestPayloadUtils.readPayload(request, objectMapper);
         String type = stringValue(payload.get("equipment_type"));
         String vendor = stringValue(payload.get("equipment_vendor"));
@@ -1476,6 +1481,12 @@ public class SettingsBridgeController {
                 "VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))",
             type, vendor, model, photoUrl, serialNumber, accessories
         );
+        String actor = authentication != null ? authentication.getName() : null;
+        notificationService.notifyAllOperators(
+            "Создан паспорт оборудования: " + vendor + " " + model,
+            "/object-passports",
+            actor
+        );
         List<Map<String, Object>> items = jdbcTemplate.queryForList(
             "SELECT id, equipment_type, equipment_vendor, equipment_model, photo_url, serial_number, accessories " +
                 "FROM it_equipment_catalog ORDER BY id DESC"
@@ -1487,7 +1498,8 @@ public class SettingsBridgeController {
         method = {RequestMethod.POST, RequestMethod.PUT, RequestMethod.PATCH})
     @PreAuthorize("hasAuthority('PAGE_SETTINGS')")
     public Map<String, Object> updateItEquipment(@PathVariable long itemId,
-                                                 @RequestBody Map<String, Object> payload) {
+                                                 @RequestBody Map<String, Object> payload,
+                                                 Authentication authentication) {
         StringBuilder updates = new StringBuilder();
         List<Object> params = new ArrayList<>();
 
@@ -1534,6 +1546,12 @@ public class SettingsBridgeController {
         updates.append("updated_at = datetime('now')");
         params.add(itemId);
         jdbcTemplate.update("UPDATE it_equipment_catalog SET " + updates + " WHERE id = ?", params.toArray());
+        String actor = authentication != null ? authentication.getName() : null;
+        notificationService.notifyAllOperators(
+            "Обновлен паспорт оборудования #" + itemId,
+            "/object-passports/" + itemId,
+            actor
+        );
 
         List<Map<String, Object>> items = jdbcTemplate.queryForList(
             "SELECT id, equipment_type, equipment_vendor, equipment_model, photo_url, serial_number, accessories " +
@@ -1544,11 +1562,18 @@ public class SettingsBridgeController {
 
     @DeleteMapping("/api/settings/it-equipment/{itemId}")
     @PreAuthorize("hasAuthority('PAGE_SETTINGS')")
-    public Map<String, Object> deleteItEquipment(@PathVariable long itemId) {
+    public Map<String, Object> deleteItEquipment(@PathVariable long itemId,
+                                                 Authentication authentication) {
         int removed = jdbcTemplate.update("DELETE FROM it_equipment_catalog WHERE id = ?", itemId);
         if (removed == 0) {
             return Map.of("success", false, "error", "Оборудование не найдено");
         }
+        String actor = authentication != null ? authentication.getName() : null;
+        notificationService.notifyAllOperators(
+            "Удален паспорт оборудования #" + itemId,
+            "/object-passports",
+            actor
+        );
         List<Map<String, Object>> items = jdbcTemplate.queryForList(
             "SELECT id, equipment_type, equipment_vendor, equipment_model, photo_url, serial_number, accessories " +
                 "FROM it_equipment_catalog ORDER BY id DESC"

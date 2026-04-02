@@ -7,6 +7,7 @@ import com.example.panel.repository.ChannelRepository;
 import com.example.panel.repository.ClientPhoneRepository;
 import com.example.panel.repository.ClientStatusRepository;
 import com.example.panel.service.BotDatabaseRegistry;
+import com.example.panel.service.NotificationService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.transaction.Transactional;
@@ -64,6 +65,7 @@ public class ClientProfileApiController {
     private final BotDatabaseRegistry botDatabaseRegistry;
     private final ChannelRepository channelRepository;
     private final ObjectMapper objectMapper;
+    private final NotificationService notificationService;
     private final Path avatarsRoot;
 
     public ClientProfileApiController(JdbcTemplate jdbcTemplate,
@@ -73,6 +75,7 @@ public class ClientProfileApiController {
                                       BotDatabaseRegistry botDatabaseRegistry,
                                       ChannelRepository channelRepository,
                                       ObjectMapper objectMapper,
+                                      NotificationService notificationService,
                                       @Value("${app.storage.avatars:attachments/avatars}") String avatarsDir)
         throws IOException {
         this.jdbcTemplate = jdbcTemplate;
@@ -82,16 +85,24 @@ public class ClientProfileApiController {
         this.botDatabaseRegistry = botDatabaseRegistry;
         this.channelRepository = channelRepository;
         this.objectMapper = objectMapper;
+        this.notificationService = notificationService;
         this.avatarsRoot = ensureDirectory(avatarsDir);
     }
 
     @PostMapping("/{userId}/name")
     @Transactional
     public Map<String, Object> updateName(@PathVariable("userId") long userId,
-                                          @RequestBody Map<String, Object> payload) {
+                                          @RequestBody Map<String, Object> payload,
+                                          Authentication authentication) {
         String name = payload.get("client_name") != null ? String.valueOf(payload.get("client_name")) : "";
         String trimmed = name == null ? "" : name.trim();
         jdbcTemplate.update("UPDATE messages SET client_name = ? WHERE user_id = ?", trimmed, userId);
+        String actor = authentication != null ? authentication.getName() : null;
+        notificationService.notifyAllOperators(
+            "Обновлена карточка клиента " + userId + ": изменено имя",
+            "/clients?userId=" + userId,
+            actor
+        );
         log.info("Updated client name for {} to '{}'", userId, trimmed);
         return Map.of("ok", true, "client_name", trimmed);
     }
@@ -112,6 +123,12 @@ public class ClientProfileApiController {
         entry.setUpdatedAt(OffsetDateTime.now());
         entry.setUpdatedBy(authentication != null ? authentication.getName() : "system");
         clientStatusRepository.save(entry);
+        String actor = authentication != null ? authentication.getName() : null;
+        notificationService.notifyAllOperators(
+            "Обновлена карточка клиента " + userId + ": изменен статус",
+            "/clients?userId=" + userId,
+            actor
+        );
         log.info("Updated client status for {} to '{}'", userId, trimmed);
         return Map.of("ok", true, "client_status", trimmed);
     }
@@ -135,6 +152,12 @@ public class ClientProfileApiController {
         entry.setCreatedAt(OffsetDateTime.now());
         entry.setCreatedBy(authentication != null ? authentication.getName() : "system");
         ClientPhone saved = clientPhoneRepository.save(entry);
+        String actor = authentication != null ? authentication.getName() : null;
+        notificationService.notifyAllOperators(
+            "Обновлена карточка клиента " + userId + ": добавлен телефон",
+            "/clients?userId=" + userId,
+            actor
+        );
         log.info("Added manual phone {} for {}", saved.getId(), userId);
         return Map.of(
             "ok", true,
@@ -149,7 +172,8 @@ public class ClientProfileApiController {
     @Transactional
     public Map<String, Object> updatePhone(@PathVariable("userId") long userId,
                                            @PathVariable("phoneId") long phoneId,
-                                           @RequestBody Map<String, Object> payload) {
+                                           @RequestBody Map<String, Object> payload,
+                                           Authentication authentication) {
         Optional<ClientPhone> entryOpt = clientPhoneRepository.findById(phoneId);
         if (entryOpt.isEmpty()) {
             return Map.of("ok", false, "error", "Телефон не найден");
@@ -166,12 +190,19 @@ public class ClientProfileApiController {
             entry.setActive(Boolean.parseBoolean(String.valueOf(payload.get("active"))));
         }
         clientPhoneRepository.save(entry);
+        String actor = authentication != null ? authentication.getName() : null;
+        notificationService.notifyAllOperators(
+            "Обновлена карточка клиента " + userId + ": изменен телефон",
+            "/clients?userId=" + userId,
+            actor
+        );
         return Map.of("ok", true);
     }
 
     @PostMapping("/{userId}/refresh")
     @Transactional
-    public Map<String, Object> refreshExternalProfile(@PathVariable("userId") long userId) {
+    public Map<String, Object> refreshExternalProfile(@PathVariable("userId") long userId,
+                                                      Authentication authentication) {
         List<ChannelSnapshot> channels = jdbcTemplate.query(
             """
                 SELECT
@@ -266,6 +297,14 @@ public class ClientProfileApiController {
         String level = missingChannels.isEmpty() && unchangedChannels.isEmpty()
             ? "success"
             : (updatedChannels.isEmpty() ? "warning" : "info");
+        if (!updatedChannels.isEmpty() || avatarUpdated) {
+            String actor = authentication != null ? authentication.getName() : null;
+            notificationService.notifyAllOperators(
+                "Обновлена карточка клиента " + userId + " из внешнего профиля",
+                "/clients?userId=" + userId,
+                actor
+            );
+        }
 
         log.info("Refreshed external info for client {} with {} updates", userId, updatedChannels.size());
         Map<String, Object> response = new HashMap<>();
