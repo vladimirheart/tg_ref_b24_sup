@@ -4,12 +4,86 @@
 
   const passwordInput = document.querySelector('[data-auth-password]');
   const passwordToggle = document.querySelector('[data-auth-password-toggle]');
+  const forgotPasswordForm = document.querySelector('[data-forgot-password-form]');
+  const forgotPasswordError = document.querySelector('[data-forgot-password-error]');
+  const forgotPasswordSuccess = document.querySelector('[data-forgot-password-success]');
+  const forgotPasswordSubmit = document.querySelector('[data-forgot-password-submit]');
 
   if (passwordInput && passwordToggle) {
     passwordToggle.addEventListener('click', function () {
       const isPassword = passwordInput.getAttribute('type') === 'password';
       passwordInput.setAttribute('type', isPassword ? 'text' : 'password');
       passwordToggle.textContent = isPassword ? 'Скрыть' : 'Показать';
+    });
+  }
+
+  function getCsrfToken() {
+    var tokenInput = document.querySelector('input[name=\"_csrf\"]');
+    return tokenInput ? tokenInput.value : '';
+  }
+
+  function setForgotMessage(type, message) {
+    if (forgotPasswordError) {
+      forgotPasswordError.classList.add('d-none');
+      forgotPasswordError.textContent = '';
+    }
+    if (forgotPasswordSuccess) {
+      forgotPasswordSuccess.classList.add('d-none');
+      forgotPasswordSuccess.textContent = '';
+    }
+    if (!message) return;
+    if (type === 'error' && forgotPasswordError) {
+      forgotPasswordError.textContent = message;
+      forgotPasswordError.classList.remove('d-none');
+    }
+    if (type === 'success' && forgotPasswordSuccess) {
+      forgotPasswordSuccess.textContent = message;
+      forgotPasswordSuccess.classList.remove('d-none');
+    }
+  }
+
+  if (forgotPasswordForm) {
+    forgotPasswordForm.addEventListener('submit', function (event) {
+      event.preventDefault();
+      setForgotMessage('', '');
+      var formData = new FormData(forgotPasswordForm);
+      var username = String(formData.get('username') || '').trim();
+      var comment = String(formData.get('comment') || '').trim();
+      if (!username) {
+        setForgotMessage('error', 'Введите логин.');
+        return;
+      }
+      if (forgotPasswordSubmit) {
+        forgotPasswordSubmit.disabled = true;
+      }
+      fetch('/api/password-reset-requests/public', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': getCsrfToken()
+        },
+        body: JSON.stringify({
+          username: username,
+          comment: comment
+        })
+      })
+        .then(function (response) { return response.json(); })
+        .then(function (data) {
+          if (!data || data.success === false) {
+            throw new Error((data && data.error) || 'Не удалось отправить заявку');
+          }
+          setForgotMessage('success', data.message || 'Заявка отправлена. Ожидайте ответа администратора.');
+          forgotPasswordForm.reset();
+        })
+        .catch(function (error) {
+          setForgotMessage('error', error.message || 'Не удалось отправить заявку');
+        })
+        .finally(function () {
+          if (forgotPasswordSubmit) {
+            forgotPasswordSubmit.disabled = false;
+          }
+        });
     });
   }
 

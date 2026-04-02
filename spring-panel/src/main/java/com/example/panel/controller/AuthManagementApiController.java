@@ -496,7 +496,8 @@ public class AuthManagementApiController {
         if (!StringUtils.hasText(permissionKey)) {
             return false;
         }
-        if (permissionService.hasAuthority(authentication, "ROLE_ADMIN")) {
+        if (permissionService.isSuperUser(authentication)
+            || permissionService.hasAuthority(authentication, "ROLE_PORTAL_ADMIN")) {
             return true;
         }
         if (!permissionService.hasAuthority(authentication, "PAGE_SETTINGS")) {

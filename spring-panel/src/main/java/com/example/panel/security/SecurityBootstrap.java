@@ -36,6 +36,7 @@ public class SecurityBootstrap {
 
         // 3) гарантируем набор прав admin
         ensureAdminAuthorities(adminId);
+        ensurePortalAdminRole();
     }
 
     /**
@@ -138,6 +139,30 @@ public class SecurityBootstrap {
                         userId, auth
                 );
             }
+        }
+    }
+
+    private void ensurePortalAdminRole() {
+        try {
+            Integer count = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM roles WHERE lower(name) = lower(?)",
+                    Integer.class,
+                    "Администратор портала"
+            );
+            if (count != null && count > 0) {
+                return;
+            }
+            String permissionsJson = """
+                    {"pages":["*"],"fields":{"edit":["*"],"view":["*"]}}
+                    """.trim();
+            jdbcTemplate.update(
+                    "INSERT INTO roles(name, description, permissions) VALUES (?, ?, ?)",
+                    "Администратор портала",
+                    "Полный доступ к панели и заявкам на восстановление пароля",
+                    permissionsJson
+            );
+        } catch (DataAccessException ignored) {
+            // roles table may be absent in bootstrap edge cases
         }
     }
 }
