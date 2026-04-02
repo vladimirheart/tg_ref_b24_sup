@@ -48,7 +48,7 @@
                                 <input class="form-check-input m-0" type="checkbox" name="remember-me" value="true">
                                 <span>Запомнить меня</span>
                             </label>
-                            <a href="#" class="link-primary text-decoration-none">Забыли пароль?</a>
+                            <button type="button" class="btn btn-link p-0 link-primary text-decoration-none" data-bs-toggle="modal" data-bs-target="#forgotPasswordModal" data-auth-forgot-password>Забыли пароль?</button>
                         </div>
                         <button type="submit" class="btn btn-primary w-100 btn-rounded">Войти</button>
                     </form>
@@ -56,6 +56,36 @@
             </div>
             <p class="text-center text-muted small mt-3 mb-0">Логин/пароль по умолчанию: <strong>admin / admin</strong></p>
         </div>
+    </div>
+
+    <div class="modal fade" id="forgotPasswordModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <form data-forgot-password-form>
+            <div class="modal-header">
+              <h5 class="modal-title">Восстановление доступа</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+              <div class="alert alert-danger d-none" data-forgot-password-error role="alert"></div>
+              <div class="alert alert-success d-none" data-forgot-password-success role="status"></div>
+              <div class="mb-3">
+                <label class="form-label" for="forgotUsername">Логин</label>
+                <input id="forgotUsername" class="form-control" name="username" autocomplete="username" required>
+              </div>
+              <div class="mb-0">
+                <label class="form-label" for="forgotComment">Комментарий (опционально)</label>
+                <textarea id="forgotComment" class="form-control" rows="3" name="comment" placeholder="Например: нет доступа к почте / сменился телефон"></textarea>
+              </div>
+              <p class="small text-muted mt-3 mb-0">Заявку увидит администратор портала и обработает вручную.</p>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+              <button type="submit" class="btn btn-primary" data-forgot-password-submit>Отправить заявку</button>
+            </div>
+          </form>
+        </div>
+      </div>
     </div>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ru" xmlns:th="http://www.thymeleaf.org">
 <head>
   <meta charset="UTF-8" />
@@ -1594,6 +1594,7 @@
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="usersModalLabel">👥 Пользователи панели и настройки доступа</h5>
+            <button type="button" class="btn btn-outline-warning btn-sm me-2" data-bs-toggle="modal" data-bs-target="#passwordResetRequestsModal" th:if="${canManagePasswordResetRequests}">Заявки на восстановление</button>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
           </div>
           <div class="modal-body">
@@ -21344,11 +21345,48 @@
   });
 
   </script>
+
+    <div class="modal fade" id="passwordResetRequestsModal" tabindex="-1" aria-hidden="true" th:if="${canManagePasswordResetRequests}">
+      <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Запросы на восстановление пароля</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+          </div>
+          <div class="modal-body" data-password-reset-requests data-password-reset-endpoint="/api/password-reset-requests">
+            <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2 mb-3">
+              <div class="text-muted small">Доступ к обработке заявок есть только у администратора портала и admin.</div>
+              <button type="button" class="btn btn-outline-primary btn-sm" data-password-reset-refresh>Обновить</button>
+            </div>
+            <div class="alert alert-danger d-none" data-password-reset-error role="alert"></div>
+            <div class="table-responsive">
+              <table class="table table-sm align-middle">
+                <thead>
+                  <tr>
+                    <th style="width: 20%">Пользователь</th>
+                    <th style="width: 14%">Статус</th>
+                    <th style="width: 16%">Дата заявки</th>
+                    <th style="width: 16%">Кем обработано</th>
+                    <th style="width: 16%">Дата обработки</th>
+                    <th class="text-end" style="width: 18%">Действия</th>
+                  </tr>
+                </thead>
+                <tbody data-password-reset-body></tbody>
+              </table>
+            </div>
+            <div class="alert alert-info mt-3 d-none" data-password-reset-empty>Сейчас заявок нет.</div>
+          </div>
+        </div>
+      </div>
+    </div>
 </main>
   <script src="/js/input-settings.js"></script>
   <script src="/js/auth-management.js"></script>
+  <script src="/js/password-reset-requests.js"></script>
   <script src="/js/sidebar.js"></script>
   <script src="/js/modal-transitions.js"></script>
   <script src="/js/bot-settings.js"></script>
 </body>
 </html>
+
+

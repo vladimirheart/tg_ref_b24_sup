@@ -37,6 +37,7 @@ public class SecurityConfig {
                                 "/css/**", "/js/**", "/images/**", "/vendor/**", "/webjars/**",
                                 "/favicon.ico", "/*.svg", "/*.png",
                                 "/login",
+                                "/api/password-reset-requests/public",
                                 "/public/forms/**", "/api/public/forms/**",
                                 "/error", "/error/**"
                         ).permitAll()

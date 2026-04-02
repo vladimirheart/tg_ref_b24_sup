@@ -128,10 +128,23 @@ class UserRepositoryUserDetailsService implements UserDetailsService {
             if ("admin".equalsIgnoreCase(roleName)) {
                 result.add("ROLE_ADMIN");
             }
+            if (isPortalAdminRole(roleName)) {
+                result.add("ROLE_PORTAL_ADMIN");
+            }
             return result;
         } catch (DataAccessException ex) {
             return Set.of();
         }
+    }
+
+    private boolean isPortalAdminRole(String roleName) {
+        if (roleName == null) {
+            return false;
+        }
+        String normalized = roleName.trim().toLowerCase();
+        return normalized.equals("portal_admin")
+                || normalized.equals("portal admin")
+                || normalized.equals("администратор портала");
     }
 
     static Set<String> mapPagePermissionsToAuthorities(List<String> pages) {
