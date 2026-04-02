@@ -1,10 +1,11 @@
 package com.example.panel.model.dialog;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.springframework.util.StringUtils;
+
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import org.springframework.util.StringUtils;
 
 public record DialogListItem(String ticketId,
                              Long requestNumber,
@@ -19,6 +20,7 @@ public record DialogListItem(String ticketId,
                              String problem,
                              String createdAt,
                              String status,
+                             Boolean aiProcessing,
                              String resolvedBy,
                              String resolvedAt,
                              String responsible,
@@ -72,6 +74,9 @@ public record DialogListItem(String ticketId,
 
     @JsonProperty("statusLabel")
     public String statusLabel() {
+        if (isAutoProcessing()) {
+            return "в автоматической обработке";
+        }
         if (isClosed()) {
             return isAutoClosed() ? "Закрыт автоматически" : "Закрыт";
         }
@@ -86,6 +91,9 @@ public record DialogListItem(String ticketId,
 
     @JsonProperty("statusKey")
     public String statusKey() {
+        if (isAutoProcessing()) {
+            return "auto_processing";
+        }
         if (isClosed()) {
             return isAutoClosed() ? "auto_closed" : "closed";
         }
@@ -101,6 +109,7 @@ public record DialogListItem(String ticketId,
     @JsonProperty("statusClass")
     public String statusClass() {
         return switch (statusKey()) {
+            case "auto_processing" -> " dialog-status-badge status-auto-processing";
             case "auto_closed" -> " dialog-status-badge status-auto-closed";
             case "closed" -> " dialog-status-badge status-closed";
             case "waiting_operator" -> " dialog-status-badge status-waiting-operator";
@@ -217,6 +226,10 @@ public record DialogListItem(String ticketId,
         }
         String normalized = resolvedBy.trim().toLowerCase();
         return normalized.contains("auto") || normalized.contains("авто");
+    }
+
+    private boolean isAutoProcessing() {
+        return Boolean.TRUE.equals(aiProcessing) && !isClosed();
     }
 
     private boolean hasOperatorReply() {

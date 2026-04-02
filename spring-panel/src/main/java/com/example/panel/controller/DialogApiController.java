@@ -7,6 +7,7 @@ import com.example.panel.model.dialog.DialogSummary;
 import com.example.panel.service.DialogNotificationService;
 import com.example.panel.service.DialogReplyService;
 import com.example.panel.service.DialogService;
+import com.example.panel.service.DialogAiAssistantService;
 import com.example.panel.service.NotificationService;
 import com.example.panel.service.PermissionService;
 import com.example.panel.service.PublicFormService;
@@ -80,6 +81,7 @@ public class DialogApiController {
     private final NotificationService notificationService;
     private final PublicFormService publicFormService;
     private final SlaEscalationWebhookNotifier slaEscalationWebhookNotifier;
+    private final DialogAiAssistantService dialogAiAssistantService;
     private static final long QUICK_ACTION_TARGET_MS = 1500;
     private static final int DEFAULT_SLA_TARGET_MINUTES = 24 * 60;
     private static final int DEFAULT_SLA_WARNING_MINUTES = 4 * 60;
@@ -178,7 +180,8 @@ public class DialogApiController {
                                PermissionService permissionService,
                                NotificationService notificationService,
                                PublicFormService publicFormService,
-                               SlaEscalationWebhookNotifier slaEscalationWebhookNotifier) {
+                               SlaEscalationWebhookNotifier slaEscalationWebhookNotifier,
+                               DialogAiAssistantService dialogAiAssistantService) {
         this.dialogService = dialogService;
         this.dialogReplyService = dialogReplyService;
         this.dialogNotificationService = dialogNotificationService;
@@ -188,6 +191,7 @@ public class DialogApiController {
         this.notificationService = notificationService;
         this.publicFormService = publicFormService;
         this.slaEscalationWebhookNotifier = slaEscalationWebhookNotifier;
+        this.dialogAiAssistantService = dialogAiAssistantService;
     }
 
     @GetMapping
@@ -2507,6 +2511,7 @@ public class DialogApiController {
             return permissionDenied;
         }
         String operator = authentication != null ? authentication.getName() : null;
+        dialogAiAssistantService.clearProcessing(ticketId, "operator_reply", null);
         DialogReplyService.DialogReplyResult result = dialogReplyService.sendReply(
                 ticketId,
                 request.message(),
@@ -2597,6 +2602,7 @@ public class DialogApiController {
             return permissionDenied;
         }
         String operator = authentication != null ? authentication.getName() : null;
+        dialogAiAssistantService.clearProcessing(ticketId, "operator_reply_media", null);
         var metadata = attachmentService.storeTicketAttachment(authentication, ticketId, file);
         var result = dialogReplyService.sendMediaReply(ticketId, file, message, operator, metadata.storedName(), metadata.originalName());
         if (!result.success()) {
@@ -2644,6 +2650,7 @@ public class DialogApiController {
                         .body(Map.of("success", false, "error", result.error()));
             }
             if (result.updated()) {
+                dialogAiAssistantService.clearProcessing(ticketId, "resolved", null);
                 dialogNotificationService.notifyResolved(ticketId);
                 notificationService.notifyDialogParticipants(
                         ticketId,
@@ -2675,6 +2682,7 @@ public class DialogApiController {
                     .body(Map.of("success", false, "error", result.error()));
         }
         if (result.updated()) {
+            dialogAiAssistantService.clearProcessing(ticketId, "reopened", null);
             dialogNotificationService.notifyReopened(ticketId);
             notificationService.notifyDialogParticipants(
                     ticketId,
@@ -2728,6 +2736,7 @@ public class DialogApiController {
             }
 
             dialogService.assignResponsibleIfMissing(ticketId, operator);
+            dialogAiAssistantService.clearProcessing(ticketId, "operator_take", null);
 
             Optional<DialogListItem> updated = dialogService.findDialog(ticketId, operator);
             String responsible = updated.map(DialogListItem::responsible).orElse(dialog.get().responsible());
@@ -2763,6 +2772,22 @@ public class DialogApiController {
             logQuickAction(operator, ticketId, "snooze", "success", "minutes=" + minutes);
             return ResponseEntity.ok(Map.of("success", true));
         });
+    }
+
+    @GetMapping("/{ticketId}/ai-suggestions")
+    public ResponseEntity<?> aiSuggestions(@PathVariable String ticketId,
+                                           @RequestParam(value = "limit", required = false) Integer limit,
+                                           Authentication authentication) {
+        ResponseEntity<Map<String, Object>> permissionDenied = requireDialogPermission(authentication, "can_reply", "ai_suggestions", ticketId);
+        if (permissionDenied != null) {
+            return permissionDenied;
+        }
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("success", true);
+        payload.put("ticket_id", ticketId);
+        payload.put("processing", dialogAiAssistantService.isProcessing(ticketId));
+        payload.put("items", dialogAiAssistantService.loadOperatorSuggestions(ticketId, limit));
+        return ResponseEntity.ok(payload);
     }
 
     private <T> T withQuickActionTiming(String action, String ticketId, Supplier<T> supplier) {

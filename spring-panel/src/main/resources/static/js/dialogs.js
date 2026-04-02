@@ -84,6 +84,10 @@
   const workspaceReplyTarget = document.getElementById('workspaceReplyTarget');
   const workspaceReplyTargetText = document.getElementById('workspaceReplyTargetText');
   const workspaceReplyTargetClear = document.getElementById('workspaceReplyTargetClear');
+  const workspaceAiSuggestionsSection = document.getElementById('workspaceAiSuggestionsSection');
+  const workspaceAiSuggestionsState = document.getElementById('workspaceAiSuggestionsState');
+  const workspaceAiSuggestionsList = document.getElementById('workspaceAiSuggestionsList');
+  const workspaceAiSuggestionsRefresh = document.getElementById('workspaceAiSuggestionsRefresh');
   const workspaceAssignBtn = document.getElementById('workspaceAssignBtn');
   const workspaceSnoozeBtn = document.getElementById('workspaceSnoozeBtn');
   const workspaceResolveBtn = document.getElementById('workspaceResolveBtn');
@@ -1317,6 +1321,7 @@
 
   function statusClassByKey(statusKey) {
     const normalizedKey = String(statusKey || '').toLowerCase();
+    if (normalizedKey === 'auto_processing') return 'dialog-status-badge status-auto-processing';
     if (normalizedKey === 'auto_closed') return 'dialog-status-badge status-auto-closed';
     if (normalizedKey === 'closed') return 'dialog-status-badge status-closed';
     if (normalizedKey === 'waiting_operator') return 'dialog-status-badge status-waiting-operator';
@@ -3742,6 +3747,71 @@
     }
   }
 
+  function appendToWorkspaceComposer(text) {
+    if (!workspaceComposerText || !text) return;
+    const value = String(workspaceComposerText.value || '');
+    const addition = String(text).trim();
+    if (!addition) return;
+    workspaceComposerText.value = value ? `${value}\n\n${addition}` : addition;
+    workspaceComposerText.focus();
+  }
+
+  async function loadWorkspaceAiSuggestions(ticketId) {
+    const normalizedTicketId = String(ticketId || '').trim();
+    if (!workspaceAiSuggestionsSection || !workspaceAiSuggestionsState || !workspaceAiSuggestionsList) return;
+    if (!normalizedTicketId) {
+      workspaceAiSuggestionsState.textContent = 'Откройте диалог для подсказок.';
+      workspaceAiSuggestionsList.classList.add('d-none');
+      workspaceAiSuggestionsList.innerHTML = '';
+      return;
+    }
+    workspaceAiSuggestionsState.textContent = 'Загружаем подсказки…';
+    workspaceAiSuggestionsList.classList.add('d-none');
+    workspaceAiSuggestionsList.innerHTML = '';
+    try {
+      const resp = await fetch(`/api/dialogs/${encodeURIComponent(normalizedTicketId)}/ai-suggestions?limit=3`, {
+        credentials: 'same-origin',
+        cache: 'no-store',
+      });
+      const payload = await resp.json().catch(() => ({}));
+      if (!resp.ok || payload.success === false) {
+        throw new Error(payload.error || (`HTTP ${resp.status}`));
+      }
+      const items = Array.isArray(payload.items) ? payload.items : [];
+      if (!items.length) {
+        workspaceAiSuggestionsState.textContent = payload.processing
+          ? 'Агент в автоматической обработке, но подсказки пока не готовы.'
+          : 'Подсказок пока нет, ответьте вручную или обновите позже.';
+        return;
+      }
+      workspaceAiSuggestionsState.textContent = payload.processing
+        ? 'Диалог в автоматической обработке. Подсказки ниже:'
+        : 'Подсказки готовы:';
+      workspaceAiSuggestionsList.innerHTML = items.map((item, index) => {
+        const scoreLabel = String(item?.score_label || item?.score || '').trim();
+        const source = String(item?.source || '').trim();
+        const title = escapeHtml(String(item?.title || `Подсказка ${index + 1}`));
+        const snippet = escapeHtml(String(item?.snippet || ''));
+        const reply = escapeHtml(String(item?.reply || item?.snippet || ''));
+        return `
+          <article class="border rounded p-2">
+            <div class="d-flex justify-content-between align-items-start gap-2">
+              <div class="fw-semibold">${title}</div>
+              <span class="badge text-bg-light border">${escapeHtml(source || 'source')}${scoreLabel ? ` · ${escapeHtml(scoreLabel)}` : ''}</span>
+            </div>
+            ${snippet ? `<div class="small text-muted mt-1">${snippet}</div>` : ''}
+            <div class="mt-2">
+              <button type="button" class="btn btn-sm btn-outline-primary" data-ai-suggestion-apply="${index}" data-ai-suggestion-reply="${reply}">Вставить в ответ</button>
+            </div>
+          </article>
+        `;
+      }).join('');
+      workspaceAiSuggestionsList.classList.remove('d-none');
+    } catch (error) {
+      workspaceAiSuggestionsState.textContent = `Не удалось загрузить подсказки: ${error.message || 'unknown_error'}`;
+    }
+  }
+
   function renderWorkspaceShell(payload) {
     if (!workspaceShell) return;
     workspaceShell.classList.remove('d-none');
@@ -3761,6 +3831,7 @@
     resetWorkspaceReplyTarget({ emitTelemetry: false });
     workspaceComposerTicketId = String(conversation.ticketId || '').trim();
     restoreWorkspaceDraft(workspaceComposerTicketId);
+    loadWorkspaceAiSuggestions(workspaceComposerTicketId);
     const canReplyInWorkspace = permissions && permissions.can_reply === true && !workspaceReadonlyMode;
     if (workspaceComposerText) workspaceComposerText.disabled = !canReplyInWorkspace;
     if (workspaceComposerSend) workspaceComposerSend.disabled = !canReplyInWorkspace;
@@ -6090,6 +6161,8 @@
     if (fallback) return fallback;
     if (statusKey) {
       switch (statusKey) {
+        case 'auto_processing':
+          return 'в автоматической обработке';
         case 'auto_closed':
           return 'Закрыт автоматически';
         case 'closed':
@@ -7055,6 +7128,22 @@
       renderWorkspaceCategories();
       updateSummaryCategories('—');
       scheduleCategorySave();
+    });
+  }
+
+  if (workspaceAiSuggestionsRefresh) {
+    workspaceAiSuggestionsRefresh.addEventListener('click', () => {
+      loadWorkspaceAiSuggestions(activeWorkspaceTicketId || workspaceComposerTicketId);
+    });
+  }
+
+  if (workspaceAiSuggestionsList) {
+    workspaceAiSuggestionsList.addEventListener('click', (event) => {
+      const applyBtn = event.target.closest('[data-ai-suggestion-apply]');
+      if (!applyBtn) return;
+      const reply = String(applyBtn.dataset.aiSuggestionReply || '').trim();
+      if (!reply) return;
+      appendToWorkspaceComposer(reply);
     });
   }
 
