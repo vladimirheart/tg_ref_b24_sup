@@ -34,6 +34,14 @@
   - `POST /api/dialogs/{ticketId}/ai-review/approve`
   - `POST /api/dialogs/{ticketId}/ai-review/reject`
   - в UI карточки диалога появились кнопки «Принять правку / Оставить текущее».
+- Добавлена мини-очередь ревизий (global queue):
+  - `GET /api/dialogs/ai-reviews`
+  - `POST /api/dialogs/ai-reviews/{queryKey}/approve`
+  - `POST /api/dialogs/ai-reviews/{queryKey}/reject`
+  - отдельный блок в интерфейсе Диалогов со списком pending-ревизий и быстрыми действиями.
+- Добавлены runtime-пороги в `dialog_config`:
+  - `ai_agent_auto_reply_threshold` (порог автоответа),
+  - `ai_agent_difference_threshold` (чувствительность к расхождению операторского ответа).
 
 ## 3. Архитектура целевого решения
 ## 3.1 Контур обработки

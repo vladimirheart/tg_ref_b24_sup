@@ -4,6 +4,10 @@
   if (!table) return;
 
   const quickSearch = document.getElementById('dialogQuickSearch');
+  const aiReviewQueueSection = document.getElementById('aiReviewQueueSection');
+  const aiReviewQueueRefresh = document.getElementById('aiReviewQueueRefresh');
+  const aiReviewQueueState = document.getElementById('aiReviewQueueState');
+  const aiReviewQueueBody = document.getElementById('aiReviewQueueBody');
   const pageSizeSelect = document.getElementById('dialogPageSize');
   const slaWindowSelect = document.getElementById('dialogSlaWindow');
   const sortModeSelect = document.getElementById('dialogSortMode');
@@ -3829,6 +3833,60 @@
     }
   }
 
+  function renderAiReviewQueueRows(items) {
+    if (!aiReviewQueueBody) return;
+    if (!Array.isArray(items) || items.length === 0) {
+      aiReviewQueueBody.innerHTML = '<tr><td colspan="5" class="text-muted text-center py-3">Очередь ревизий пуста.</td></tr>';
+      return;
+    }
+    aiReviewQueueBody.innerHTML = items.map((item) => {
+      const queryKey = String(item?.query_key || '').trim();
+      const ticketId = String(item?.last_ticket_id || '').trim();
+      const question = escapeHtml(String(item?.query_text || '').trim() || '—');
+      const current = escapeHtml(String(item?.solution_text || '').trim() || '—');
+      const pending = escapeHtml(String(item?.pending_solution_text || '').trim() || '—');
+      const dialogLabel = ticketId ? `#${escapeHtml(ticketId)}` : '—';
+      return `
+        <tr data-ai-review-query-key="${escapeHtml(queryKey)}" data-ai-review-ticket-id="${escapeHtml(ticketId)}">
+          <td class="small">${question}</td>
+          <td class="small text-muted">${current}</td>
+          <td class="small">${pending}</td>
+          <td>${dialogLabel}</td>
+          <td class="text-end">
+            <div class="btn-group btn-group-sm" role="group">
+              <button class="btn btn-outline-primary" type="button" data-ai-review-open ${ticketId ? '' : 'disabled'}>Открыть</button>
+              <button class="btn btn-success" type="button" data-ai-review-approve>Принять</button>
+              <button class="btn btn-outline-secondary" type="button" data-ai-review-reject>Отклонить</button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  async function loadAiReviewQueue() {
+    if (!aiReviewQueueSection || !aiReviewQueueState || !aiReviewQueueBody) return;
+    aiReviewQueueState.textContent = 'Загрузка очереди ревизий…';
+    try {
+      const resp = await fetch('/api/dialogs/ai-reviews?limit=30', {
+        credentials: 'same-origin',
+        cache: 'no-store',
+      });
+      const payload = await resp.json().catch(() => ({}));
+      if (!resp.ok || payload.success === false) {
+        throw new Error(payload.error || (`HTTP ${resp.status}`));
+      }
+      const items = Array.isArray(payload.items) ? payload.items : [];
+      aiReviewQueueState.textContent = items.length
+        ? `Найдено ревизий: ${items.length}`
+        : 'Очередь ревизий пуста.';
+      renderAiReviewQueueRows(items);
+    } catch (error) {
+      aiReviewQueueState.textContent = `Не удалось загрузить очередь ревизий: ${error.message || 'unknown_error'}`;
+      aiReviewQueueBody.innerHTML = '<tr><td colspan="5" class="text-danger text-center py-3">Ошибка загрузки очереди ревизий.</td></tr>';
+    }
+  }
+
   async function loadWorkspaceAiReview(ticketId) {
     const normalizedTicketId = String(ticketId || '').trim();
     if (!workspaceAiReviewBox) return;
@@ -7180,6 +7238,69 @@
     });
   }
 
+  if (aiReviewQueueRefresh) {
+    aiReviewQueueRefresh.addEventListener('click', () => {
+      loadAiReviewQueue();
+    });
+  }
+
+  if (aiReviewQueueBody) {
+    aiReviewQueueBody.addEventListener('click', async (event) => {
+      const row = event.target.closest('tr[data-ai-review-query-key]');
+      if (!row) return;
+      const queryKey = String(row.dataset.aiReviewQueryKey || '').trim();
+      const ticketId = String(row.dataset.aiReviewTicketId || '').trim();
+      if (!queryKey) return;
+
+      if (event.target.closest('[data-ai-review-open]')) {
+        if (!ticketId) return;
+        const rowEl = rowsList().find((item) => String(item.dataset.ticketId || '') === ticketId) || null;
+        setActiveDialogRow(rowEl, { ensureVisible: true });
+        await openDialogWithWorkspaceFallback(ticketId, rowEl, { source: 'ai_review_queue' });
+        return;
+      }
+
+      if (event.target.closest('[data-ai-review-approve]')) {
+        try {
+          const resp = await fetch(`/api/dialogs/ai-reviews/${encodeURIComponent(queryKey)}/approve`, {
+            method: 'POST',
+            credentials: 'same-origin',
+          });
+          const payload = await resp.json().catch(() => ({}));
+          if (!resp.ok || payload.success === false) throw new Error(payload.error || (`HTTP ${resp.status}`));
+          if (typeof showNotification === 'function') showNotification('Правка принята', 'success');
+          loadAiReviewQueue();
+          if (ticketId && String(activeWorkspaceTicketId || '') === ticketId) {
+            loadWorkspaceAiReview(ticketId);
+            loadWorkspaceAiSuggestions(ticketId);
+          }
+        } catch (error) {
+          if (typeof showNotification === 'function') showNotification(`Не удалось принять правку: ${error.message || 'unknown_error'}`, 'warning');
+        }
+        return;
+      }
+
+      if (event.target.closest('[data-ai-review-reject]')) {
+        try {
+          const resp = await fetch(`/api/dialogs/ai-reviews/${encodeURIComponent(queryKey)}/reject`, {
+            method: 'POST',
+            credentials: 'same-origin',
+          });
+          const payload = await resp.json().catch(() => ({}));
+          if (!resp.ok || payload.success === false) throw new Error(payload.error || (`HTTP ${resp.status}`));
+          if (typeof showNotification === 'function') showNotification('Правка отклонена', 'success');
+          loadAiReviewQueue();
+          if (ticketId && String(activeWorkspaceTicketId || '') === ticketId) {
+            loadWorkspaceAiReview(ticketId);
+            loadWorkspaceAiSuggestions(ticketId);
+          }
+        } catch (error) {
+          if (typeof showNotification === 'function') showNotification(`Не удалось отклонить правку: ${error.message || 'unknown_error'}`, 'warning');
+        }
+      }
+    });
+  }
+
   if (workspaceAiReviewApprove) {
     workspaceAiReviewApprove.addEventListener('click', async () => {
       const ticketId = String(activeWorkspaceTicketId || workspaceComposerTicketId || '').trim();
@@ -7687,6 +7808,8 @@
     applyFilters();
   }
   void loadServerTriagePreferences();
+  loadAiReviewQueue();
+  setInterval(loadAiReviewQueue, 30 * 1000);
 
   if (INITIAL_DIALOG_TICKET_ID) {
     const initialRow = rowsList().find((row) => String(row.dataset.ticketId || '') === INITIAL_DIALOG_TICKET_ID) || null;

@@ -24,8 +24,8 @@ public class DialogAiAssistantService {
     private static final Logger log = LoggerFactory.getLogger(DialogAiAssistantService.class);
     private static final Pattern TOKEN_SPLIT = Pattern.compile("[^\\p{IsAlphabetic}\\p{IsDigit}]+");
     private static final Set<String> STOP = Set.of("и","в","на","не","что","как","для","или","по","из","к","у","о","об","the","a","an","to","of","in","on","for","and","or","is","are","be");
-    private static final double AUTO_REPLY_THRESHOLD = 0.62d;
-    private static final double DIFFERENCE_THRESHOLD = 0.42d;
+    private static final double AUTO_REPLY_THRESHOLD_DEFAULT = 0.62d;
+    private static final double DIFFERENCE_THRESHOLD_DEFAULT = 0.42d;
     private static final int DEFAULT_SUGGESTION_LIMIT = 3;
 
     private final JdbcTemplate jdbcTemplate;
@@ -56,7 +56,7 @@ public class DialogAiAssistantService {
             return;
         }
         AiSuggestion top = suggestions.get(0);
-        if (top.score < AUTO_REPLY_THRESHOLD) {
+        if (top.score < resolveAutoReplyThreshold()) {
             clearProcessing(t, "low_confidence", "Низкая уверенность (" + formatScore(top.score) + ").");
             notifyOperatorsEscalation(t, m, "Низкая уверенность агента: " + formatScore(top.score));
             return;
@@ -78,7 +78,7 @@ public class DialogAiAssistantService {
             if (t == null || r == null) return;
             String lastClient = loadLastClientMessage(t);
             if (!StringUtils.hasText(lastClient)) return;
-            String key = upsertLearningSolution(lastClient, r, operator);
+            String key = upsertLearningSolution(t, lastClient, r, operator);
             if (key == null) return;
             String suggested = loadLastSuggestedReply(t);
             if (!StringUtils.hasText(suggested) || !isMeaningfullyDifferent(suggested, r) || hasOpenCorrectionRequest(t)) return;
@@ -271,27 +271,81 @@ public class DialogAiAssistantService {
         return out;
     }
 
-    private String upsertLearningSolution(String clientQuestion, String operatorReply, String operator) {
+    private String upsertLearningSolution(String ticketId, String clientQuestion, String operatorReply, String operator) {
         String q = trim(clientQuestion), r = trim(operatorReply); if (q == null || r == null) return null;
         String key = buildKey(q);
         List<Map<String, Object>> rows = jdbcTemplate.queryForList("SELECT solution_text,pending_solution_text,review_required FROM ai_agent_solution_memory WHERE query_key=? LIMIT 1", key);
         if (rows.isEmpty()) {
-            jdbcTemplate.update("INSERT INTO ai_agent_solution_memory(query_key,query_text,solution_text,source,times_used,times_confirmed,times_corrected,review_required,pending_solution_text,last_operator,created_at,updated_at) VALUES (?,?,?,?,0,1,0,0,NULL,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)", key, cut(q, 600), cut(r, 2000), "operator", trim(operator));
+            jdbcTemplate.update("INSERT INTO ai_agent_solution_memory(query_key,query_text,solution_text,source,times_used,times_confirmed,times_corrected,review_required,pending_solution_text,last_operator,last_ticket_id,last_client_message,created_at,updated_at) VALUES (?,?,?,?,0,1,0,0,NULL,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)", key, cut(q, 600), cut(r, 2000), "operator", trim(operator), trim(ticketId), cut(q, 600));
             return key;
         }
         Map<String, Object> ex = rows.get(0);
         String sol = trim(safe(ex.get("solution_text"))), pending = trim(safe(ex.get("pending_solution_text")));
         boolean review = isTrue(ex.get("review_required"));
         if (review && pending != null && !isMeaningfullyDifferent(pending, r)) {
-            jdbcTemplate.update("UPDATE ai_agent_solution_memory SET query_text=?,solution_text=?,review_required=0,pending_solution_text=NULL,times_confirmed=COALESCE(times_confirmed,0)+1,last_operator=?,updated_at=CURRENT_TIMESTAMP WHERE query_key=?", cut(q, 600), cut(r, 2000), trim(operator), key);
+            jdbcTemplate.update("UPDATE ai_agent_solution_memory SET query_text=?,solution_text=?,review_required=0,pending_solution_text=NULL,times_confirmed=COALESCE(times_confirmed,0)+1,last_operator=?,last_ticket_id=?,last_client_message=?,updated_at=CURRENT_TIMESTAMP WHERE query_key=?", cut(q, 600), cut(r, 2000), trim(operator), trim(ticketId), cut(q, 600), key);
             return key;
         }
         if (sol != null && isMeaningfullyDifferent(sol, r)) {
-            jdbcTemplate.update("UPDATE ai_agent_solution_memory SET query_text=?,review_required=1,pending_solution_text=?,times_corrected=COALESCE(times_corrected,0)+1,last_operator=?,updated_at=CURRENT_TIMESTAMP WHERE query_key=?", cut(q, 600), cut(r, 2000), trim(operator), key);
+            jdbcTemplate.update("UPDATE ai_agent_solution_memory SET query_text=?,review_required=1,pending_solution_text=?,times_corrected=COALESCE(times_corrected,0)+1,last_operator=?,last_ticket_id=?,last_client_message=?,updated_at=CURRENT_TIMESTAMP WHERE query_key=?", cut(q, 600), cut(r, 2000), trim(operator), trim(ticketId), cut(q, 600), key);
             return key;
         }
-        jdbcTemplate.update("UPDATE ai_agent_solution_memory SET query_text=?,solution_text=?,review_required=0,pending_solution_text=NULL,times_confirmed=COALESCE(times_confirmed,0)+1,last_operator=?,updated_at=CURRENT_TIMESTAMP WHERE query_key=?", cut(q, 600), cut(r, 2000), trim(operator), key);
+        jdbcTemplate.update("UPDATE ai_agent_solution_memory SET query_text=?,solution_text=?,review_required=0,pending_solution_text=NULL,times_confirmed=COALESCE(times_confirmed,0)+1,last_operator=?,last_ticket_id=?,last_client_message=?,updated_at=CURRENT_TIMESTAMP WHERE query_key=?", cut(q, 600), cut(r, 2000), trim(operator), trim(ticketId), cut(q, 600), key);
         return key;
+    }
+
+    public List<Map<String, Object>> loadPendingReviewsQueue(Integer limit) {
+        int safeLimit = Math.max(1, Math.min(limit != null ? limit : 25, 200));
+        try {
+            return jdbcTemplate.queryForList(
+                    "SELECT query_key, query_text, solution_text, pending_solution_text, last_ticket_id, updated_at, times_confirmed, times_corrected FROM ai_agent_solution_memory WHERE COALESCE(review_required,0)=1 AND trim(COALESCE(pending_solution_text,''))<>'' ORDER BY COALESCE(updated_at, created_at) DESC LIMIT ?",
+                    safeLimit
+            );
+        } catch (Exception ex) {
+            return List.of();
+        }
+    }
+
+    public boolean approvePendingReviewByKey(String queryKey, String operator) {
+        String key = trim(queryKey);
+        if (key == null) return false;
+        try {
+            String ticketId = jdbcTemplate.query(
+                    "SELECT last_ticket_id FROM ai_agent_solution_memory WHERE query_key = ? LIMIT 1",
+                    rs -> rs.next() ? trim(rs.getString("last_ticket_id")) : null,
+                    key
+            );
+            int updated = jdbcTemplate.update(
+                    "UPDATE ai_agent_solution_memory SET solution_text = pending_solution_text, pending_solution_text = NULL, review_required = 0, times_confirmed = COALESCE(times_confirmed,0) + 1, last_operator = ?, updated_at = CURRENT_TIMESTAMP WHERE query_key = ? AND COALESCE(review_required,0)=1 AND trim(COALESCE(pending_solution_text,''))<>''",
+                    trim(operator),
+                    key
+            );
+            if (updated > 0 && ticketId != null) clearProcessing(ticketId, "operator_correction_approved", null);
+            return updated > 0;
+        } catch (Exception ex) {
+            return false;
+        }
+    }
+
+    public boolean rejectPendingReviewByKey(String queryKey, String operator) {
+        String key = trim(queryKey);
+        if (key == null) return false;
+        try {
+            String ticketId = jdbcTemplate.query(
+                    "SELECT last_ticket_id FROM ai_agent_solution_memory WHERE query_key = ? LIMIT 1",
+                    rs -> rs.next() ? trim(rs.getString("last_ticket_id")) : null,
+                    key
+            );
+            int updated = jdbcTemplate.update(
+                    "UPDATE ai_agent_solution_memory SET pending_solution_text = NULL, review_required = 0, last_operator = ?, updated_at = CURRENT_TIMESTAMP WHERE query_key = ? AND COALESCE(review_required,0)=1",
+                    trim(operator),
+                    key
+            );
+            if (updated > 0 && ticketId != null) clearProcessing(ticketId, "operator_correction_rejected", null);
+            return updated > 0;
+        } catch (Exception ex) {
+            return false;
+        }
     }
 
     private void markMemoryUsage(String key) { try { jdbcTemplate.update("UPDATE ai_agent_solution_memory SET times_used=COALESCE(times_used,0)+1,updated_at=CURRENT_TIMESTAMP WHERE query_key=?", key); } catch (Exception ignored) {} }
@@ -303,7 +357,7 @@ public class DialogAiAssistantService {
     private void notifyOperatorsEscalation(String ticketId, String msg, String reason) { String t = "AI-агент эскалировал обращение " + ticketId + ". " + reason; if (StringUtils.hasText(msg)) t += " Вопрос клиента: " + cut(msg, 140); notificationService.notifyAllOperators(t, "/dialogs?ticketId=" + ticketId, null); }
     private boolean isAgentEnabled() { try { Object d = sharedConfigService.loadSettings().get("dialog_config"); if (d instanceof Map<?,?> m) { Object e = m.get("ai_agent_enabled"); if (e instanceof Boolean b) return b; String n = String.valueOf(e).trim().toLowerCase(Locale.ROOT); return !"false".equals(n) && !"0".equals(n) && !"off".equals(n); } } catch (Exception ex) { log.debug("ai_agent_enabled read failed: {}", ex.getMessage()); } return true; }
     private boolean requiresHumanImmediately(String m) { String n = String.valueOf(m).toLowerCase(Locale.ROOT); return n.contains("оператор") || n.contains("человек") || n.contains("менеджер") || n.contains("позвоните"); }
-    private boolean isMeaningfullyDifferent(String a, String b) { return similarity(a, b) < DIFFERENCE_THRESHOLD; }
+    private boolean isMeaningfullyDifferent(String a, String b) { return similarity(a, b) < resolveDifferenceThreshold(); }
     private double similarity(String a, String b) { Set<String> x = tokenize(a), y = tokenize(b); if (x.isEmpty() || y.isEmpty()) return 0d; int i = 0; for (String t : x) if (y.contains(t)) i++; int u = x.size() + y.size() - i; return u <= 0 ? 0d : i / (double) u; }
     private double scoreByTokens(Set<String> q, String src) { Set<String> s = tokenize(src); if (q.isEmpty() || s.isEmpty()) return 0d; int o = 0; for (String t : q) if (s.contains(t)) o++; if (o == 0) return 0d; double r = o / (double) q.size(); String n = normalize(src); double boost = 0d; for (String t : q) if (t.length() >= 5 && n.contains(t)) boost += 0.03d; return Math.min(1d, r + boost); }
     private Set<String> tokenize(String v) { String n = normalize(v); if (!StringUtils.hasText(n)) return Set.of(); Set<String> out = new LinkedHashSet<>(); for (String t : TOKEN_SPLIT.split(n)) { String x = trim(t); if (x == null || x.length() < 2 || STOP.contains(x)) continue; out.add(x); } return out; }
@@ -317,6 +371,21 @@ public class DialogAiAssistantService {
     private boolean isTrue(Object v) { if (v instanceof Boolean b) return b; String n = String.valueOf(v).trim().toLowerCase(Locale.ROOT); return "1".equals(n) || "true".equals(n) || "yes".equals(n) || "on".equals(n); }
     private String formatScore(double score) { return String.format(Locale.ROOT, "%.2f", Math.max(0d, Math.min(1d, score))); }
     private String buildKey(String question) { try { return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(normalize(question).getBytes(StandardCharsets.UTF_8))); } catch (Exception ex) { return Integer.toHexString(normalize(question).hashCode()); } }
+    private double resolveAutoReplyThreshold() { return resolveDialogConfigDouble("ai_agent_auto_reply_threshold", AUTO_REPLY_THRESHOLD_DEFAULT, 0.2d, 0.95d); }
+    private double resolveDifferenceThreshold() { return resolveDialogConfigDouble("ai_agent_difference_threshold", DIFFERENCE_THRESHOLD_DEFAULT, 0.1d, 0.9d); }
+    private double resolveDialogConfigDouble(String key, double fallback, double min, double max) {
+        try {
+            Object raw = sharedConfigService.loadSettings().get("dialog_config");
+            if (!(raw instanceof Map<?,?> map)) return fallback;
+            Object val = map.get(key);
+            if (val == null) return fallback;
+            double parsed = Double.parseDouble(String.valueOf(val).trim());
+            if (Double.isNaN(parsed) || Double.isInfinite(parsed)) return fallback;
+            return Math.max(min, Math.min(max, parsed));
+        } catch (Exception ex) {
+            return fallback;
+        }
+    }
 
     private static final class AiSuggestion {
         final String source; final String title; final String snippet; final double score; final String memoryKey;
