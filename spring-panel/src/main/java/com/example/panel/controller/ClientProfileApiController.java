@@ -235,6 +235,7 @@ public class ClientProfileApiController {
         String username = null;
         String clientName = null;
         boolean avatarUpdated = false;
+        boolean avatarRefreshProcessed = false;
 
         for (ChannelSnapshot channel : channels) {
             Optional<ExternalUserInfo> userInfo = loadExternalUserInfo(userId, channel.channelId());
@@ -263,16 +264,15 @@ public class ClientProfileApiController {
             }
 
             Optional<Channel> storedChannel = channelRepository.findById(channel.channelId());
-            if (storedChannel.isPresent()
+            if (!avatarRefreshProcessed
+                && storedChannel.isPresent()
                 && isTelegramPlatform(channel.platform())
                 && StringUtils.hasText(storedChannel.get().getToken())) {
-                Optional<TelegramProfilePhoto> photo = fetchTelegramProfilePhoto(storedChannel.get().getToken(), userId);
-                if (photo.isPresent()) {
-                    boolean saved = storeAvatar(userId, photo.get());
-                    if (saved) {
-                        updated = true;
-                        avatarUpdated = true;
-                    }
+                avatarRefreshProcessed = true;
+                boolean refreshed = refreshTelegramAvatar(userId, storedChannel.get().getToken());
+                if (refreshed) {
+                    updated = true;
+                    avatarUpdated = true;
                 }
             }
 
@@ -681,6 +681,29 @@ public class ClientProfileApiController {
             log.warn("Failed to store avatar for user {}: {}", userId, ex.getMessage());
         }
         return updated;
+    }
+
+    private boolean refreshTelegramAvatar(long userId, String token) {
+        boolean removed = removeAvatarFiles(userId);
+        Optional<TelegramProfilePhoto> photo = fetchTelegramProfilePhoto(token, userId);
+        if (photo.isPresent()) {
+            boolean saved = storeAvatar(userId, photo.get());
+            return removed || saved;
+        }
+        return removed;
+    }
+
+    private boolean removeAvatarFiles(long userId) {
+        boolean changed = false;
+        try {
+            Path thumbPath = resolveAvatarPath(userId, false);
+            Path fullPath = resolveAvatarPath(userId, true);
+            changed |= Files.deleteIfExists(thumbPath);
+            changed |= Files.deleteIfExists(fullPath);
+        } catch (IOException ex) {
+            log.warn("Failed to delete previous avatar for user {}: {}", userId, ex.getMessage());
+        }
+        return changed;
     }
 
     private boolean storeAvatarFile(Path target, byte[] data) throws IOException {
