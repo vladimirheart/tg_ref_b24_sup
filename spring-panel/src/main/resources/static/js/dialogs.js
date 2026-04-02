@@ -1471,6 +1471,16 @@
     return normalized ? normalized.charAt(0).toUpperCase() : '—';
   }
 
+  function normalizeIdentity(value) {
+    return String(value || '').trim().toLowerCase();
+  }
+
+  function isOwnedByCurrentOperator(responsible) {
+    const owner = normalizeIdentity(responsible);
+    if (!owner || owner === '—' || owner === '-') return false;
+    return owner === normalizeIdentity(OPERATOR_IDENTITY);
+  }
+
   function buildAvatarUrl(userId) {
     const normalized = String(userId || '').trim();
     if (!normalized) return '';
@@ -1612,7 +1622,7 @@
     const statusKey = item?.statusKey || '';
     const statusLabel = formatStatusLabel(statusRaw, item?.statusLabel || '', statusKey);
     const responsible = item?.responsible || item?.resolvedBy || '—';
-    const hasResponsible = Boolean(String(responsible || '').trim() && responsible !== '—');
+    const canTakeOwnership = !isOwnedByCurrentOperator(responsible);
     const unreadCount = Number(item?.unreadCount) || 0;
     const createdDate = item?.createdDateSafe || item?.createdDate || 'Дата не указана';
     const createdTime = item?.createdTimeSafe || item?.createdTime || '—';
@@ -1683,7 +1693,7 @@
         </td>
         <td class="dialog-actions">
           <a href="#" class="btn btn-sm btn-outline-primary dialog-open-btn" data-ticket-id="${escapeHtml(ticketId)}">Открыть</a>
-          <button type="button" class="btn btn-sm btn-outline-success dialog-take-btn ${hasResponsible || !canRunAction('can_assign') ? 'd-none' : ''}" data-ticket-id="${escapeHtml(ticketId)}">Назначить мне</button>
+          <button type="button" class="btn btn-sm btn-outline-success dialog-take-btn ${!canTakeOwnership || !canRunAction('can_assign') ? 'd-none' : ''}" data-ticket-id="${escapeHtml(ticketId)}">Взять себе</button>
           <button type="button" class="btn btn-sm btn-outline-warning dialog-snooze-btn ${isResolvedStatusKey(statusKey) || !canRunAction('can_snooze') ? 'd-none' : ''}" data-ticket-id="${escapeHtml(ticketId)}">${formatSnoozeActionLabel(QUICK_SNOOZE_MINUTES)}</button>
           <button type="button" class="btn btn-sm btn-outline-danger dialog-close-btn ${isResolvedStatusKey(statusKey) || !canRunAction('can_close') ? 'd-none' : ''}" data-ticket-id="${escapeHtml(ticketId)}">Закрыть</button>
           <a href="/tasks" class="btn btn-sm btn-outline-secondary dialog-task-btn"
@@ -1711,7 +1721,7 @@
     }
     const takeBtn = row.querySelector('.dialog-take-btn');
     if (takeBtn) {
-      takeBtn.classList.toggle('d-none', Boolean(value) || !canRunAction('can_assign'));
+      takeBtn.classList.toggle('d-none', isOwnedByCurrentOperator(value) || !canRunAction('can_assign'));
     }
   }
 
@@ -1729,8 +1739,8 @@
     const closeBtn = row.querySelector('.dialog-close-btn');
     const snoozeBtn = row.querySelector('.dialog-snooze-btn');
     const takeBtn = row.querySelector('.dialog-take-btn');
-    const hasResponsible = Boolean(String(row.dataset.responsible || '').trim());
-    if (takeBtn) takeBtn.classList.toggle('d-none', hasResponsible || !canRunAction('can_assign'));
+    const responsible = String(row.dataset.responsible || '').trim();
+    if (takeBtn) takeBtn.classList.toggle('d-none', isOwnedByCurrentOperator(responsible) || !canRunAction('can_assign'));
     if (closeBtn) closeBtn.classList.toggle('d-none', isClosed || !canRunAction('can_close'));
     if (snoozeBtn) {
       snoozeBtn.classList.toggle('d-none', isClosed || !canRunAction('can_snooze'));
@@ -3430,14 +3440,15 @@
     const statusKey = conversation?.statusKey || '';
     const statusLabel = conversation?.statusLabel || '';
     const resolved = isResolvedStatus(statusRaw, statusKey, statusLabel);
-    const hasResponsible = Boolean(String(conversation?.responsible || '').trim());
+    const responsible = String(conversation?.responsible || '').trim();
+    const canTakeOwnership = !isOwnedByCurrentOperator(responsible);
     const canAssign = permissions?.can_assign === true && !workspaceReadonlyMode;
     const canClose = permissions?.can_close === true && !workspaceReadonlyMode;
     const canSnooze = permissions?.can_snooze === true && !workspaceReadonlyMode;
 
     if (workspaceAssignBtn) {
-      workspaceAssignBtn.disabled = !canAssign || hasResponsible;
-      workspaceAssignBtn.classList.toggle('d-none', !canAssign || hasResponsible);
+      workspaceAssignBtn.disabled = !canAssign || !canTakeOwnership;
+      workspaceAssignBtn.classList.toggle('d-none', !canAssign || !canTakeOwnership);
     }
     if (workspaceSnoozeBtn) {
       workspaceSnoozeBtn.disabled = !canSnooze || resolved;

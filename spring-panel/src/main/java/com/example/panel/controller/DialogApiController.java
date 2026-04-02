@@ -2735,7 +2735,7 @@ public class DialogApiController {
                         .body(Map.of("success", false, "error", "Диалог не найден"));
             }
 
-            dialogService.assignResponsibleIfMissing(ticketId, operator);
+            dialogService.assignResponsibleIfMissingOrRedirected(ticketId, operator, operator);
             dialogAiAssistantService.clearProcessing(ticketId, "operator_take", null);
 
             Optional<DialogListItem> updated = dialogService.findDialog(ticketId, operator);
