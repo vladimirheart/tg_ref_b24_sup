@@ -14,62 +14,35 @@
   <script src="/js/common.js"></script>
   <style>
     .settings-tiles .settings-tile {
-      border: 1px solid transparent;
+      border: 1px solid color-mix(in srgb, var(--color-border) 88%, transparent);
       border-radius: 1rem;
-      background:
-        linear-gradient(color-mix(in srgb, var(--card) 96%, white), color-mix(in srgb, var(--secondary) 18%, white)),
-        conic-gradient(
-          from var(--gradient-angle),
-          color-mix(in srgb, var(--gradient-primary) 42%, transparent),
-          color-mix(in srgb, var(--gradient-secondary) 34%, transparent),
-          color-mix(in srgb, var(--gradient-accent) 42%, transparent),
-          color-mix(in srgb, var(--gradient-primary) 42%, transparent)
-        );
-      box-shadow: var(--color-shadow);
+      background: color-mix(in srgb, var(--card) 95%, white);
+      box-shadow: 0 0.25rem 0.8rem rgba(15, 23, 42, 0.06);
       cursor: pointer;
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
-      background-origin: padding-box, border-box;
-      background-clip: padding-box, border-box;
-      animation: gradient-rotate 16s linear infinite;
+      transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
     }
 
     .settings-tiles .settings-tile--accent {
-      background:
-        linear-gradient(135deg, color-mix(in srgb, var(--accent) 74%, white), color-mix(in srgb, var(--card) 94%, white)),
-        conic-gradient(
-          from var(--gradient-angle),
-          color-mix(in srgb, var(--gradient-primary) 52%, transparent),
-          color-mix(in srgb, var(--gradient-secondary) 42%, transparent),
-          color-mix(in srgb, var(--gradient-accent) 50%, transparent),
-          color-mix(in srgb, var(--gradient-primary) 52%, transparent)
-        );
-      border-color: transparent;
+      background: color-mix(in srgb, var(--secondary) 28%, white);
+      border-color: color-mix(in srgb, var(--secondary) 36%, var(--color-border));
     }
 
     .settings-tiles .settings-tile.is-active {
-      border-color: transparent;
-      box-shadow: 0 0.9rem 1.8rem rgba(16, 185, 129, 0.18);
-      background:
-        linear-gradient(135deg, color-mix(in srgb, var(--accent) 84%, white), color-mix(in srgb, var(--card) 96%, white)),
-        conic-gradient(
-          from var(--gradient-angle),
-          color-mix(in srgb, var(--gradient-primary) 60%, transparent),
-          color-mix(in srgb, var(--gradient-secondary) 48%, transparent),
-          color-mix(in srgb, var(--gradient-accent) 58%, transparent),
-          color-mix(in srgb, var(--gradient-primary) 60%, transparent)
-        );
+      border-color: color-mix(in srgb, var(--primary) 34%, var(--color-border));
+      box-shadow: 0 0.45rem 1rem rgba(13, 110, 253, 0.12);
+      background: color-mix(in srgb, var(--secondary) 42%, white);
     }
 
     .settings-tiles .settings-tile:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 0.75rem 1.5rem rgba(0, 0, 0, 0.12);
+      border-color: color-mix(in srgb, var(--primary) 30%, var(--color-border));
+      box-shadow: 0 0.45rem 1.15rem rgba(15, 23, 42, 0.1);
     }
 
     .settings-tiles .settings-tile .tile-icon {
       width: 3rem;
       height: 3rem;
       border-radius: 0.75rem;
-      background: color-mix(in srgb, var(--accent) 72%, white);
+      background: color-mix(in srgb, var(--primary) 14%, white);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -78,7 +51,7 @@
     }
 
     .settings-tiles .settings-tile--accent .tile-icon {
-      background: color-mix(in srgb, var(--primary) 14%, white);
+      background: color-mix(in srgb, var(--primary) 18%, white);
       color: var(--primary);
     }
 
@@ -93,13 +66,13 @@
     }
 
     .it-section-accordion .accordion-button {
-      background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 68%, white), color-mix(in srgb, var(--secondary) 32%, white));
+      background: color-mix(in srgb, var(--secondary) 34%, white);
       color: var(--primary);
       font-weight: 600;
     }
 
     .it-section-accordion .accordion-button.collapsed {
-      background: linear-gradient(135deg, color-mix(in srgb, var(--card) 95%, white), color-mix(in srgb, var(--secondary) 18%, white));
+      background: color-mix(in srgb, var(--card) 96%, white);
       color: var(--primary);
     }
 
@@ -128,15 +101,15 @@
     }
 
     .it-section-accordion--nested .accordion-button {
-      background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 78%, white), color-mix(in srgb, var(--secondary) 26%, white));
+      background: color-mix(in srgb, var(--secondary) 30%, white);
     }
 
     .it-section-accordion--nested .accordion-button.collapsed {
-      background: linear-gradient(135deg, color-mix(in srgb, var(--card) 96%, white), color-mix(in srgb, var(--secondary) 14%, white));
+      background: color-mix(in srgb, var(--card) 96%, white);
     }
 
     .modal .card-header {
-      background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 74%, white), color-mix(in srgb, var(--secondary) 28%, white));
+      background: color-mix(in srgb, var(--secondary) 28%, white);
       color: var(--primary);
       font-weight: 600;
     }
@@ -460,8 +433,8 @@
       border: 1px solid #e9ecef;
       border-radius: 0.75rem;
       padding: 0.75rem;
-      background: linear-gradient(135deg, rgba(13, 110, 253, 0.08), #ffffff);
-      box-shadow: 0 0.25rem 0.75rem rgba(13, 110, 253, 0.08);
+      background: #ffffff;
+      box-shadow: 0 0.12rem 0.4rem rgba(15, 23, 42, 0.05);
     }
 
     .org-node__header {
@@ -601,7 +574,7 @@
     .partner-contact-person {
       border: 1px solid #dee2e6;
       border-radius: 0.75rem;
-      background: linear-gradient(135deg, #ffffff, #f8f9fa);
+      background: #ffffff;
       padding: 0.75rem;
     }
     .partner-contact-person + .partner-contact-person {
@@ -629,14 +602,14 @@
     }
     .partner-contact-card--summary {
       cursor: pointer;
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
       border: 1px solid #e9ecef;
       border-radius: 0.75rem;
-      background: linear-gradient(135deg, #ffffff, #f8f9fa);
+      background: #ffffff;
     }
     .partner-contact-card--summary:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 0.75rem 1.5rem rgba(13, 110, 253, 0.15);
+      border-color: color-mix(in srgb, var(--primary) 26%, var(--color-border));
+      box-shadow: 0 0.45rem 1rem rgba(15, 23, 42, 0.1);
     }
     .partner-contact-card--summary .card-body {
       display: flex;
@@ -1027,7 +1000,7 @@
     .bot-question-dependencies {
       border-radius: 0.75rem;
       border: 1px solid rgba(13, 110, 253, 0.15);
-      background: linear-gradient(135deg, rgba(13, 110, 253, 0.08), #ffffff);
+      background: #ffffff;
     }
     .bot-question-dependencies__title {
       color: #0d6efd;
@@ -1133,7 +1106,7 @@
     .modal .card-header.bg-primary,
     .modal .card-header.bg-success,
     .modal .card-header.bg-warning {
-      background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 74%, white), color-mix(in srgb, var(--secondary) 24%, white)) !important;
+      background: color-mix(in srgb, var(--secondary) 30%, white) !important;
       color: var(--color-text) !important;
     }
     .location-section-header .form-control[disabled],
@@ -1144,6 +1117,14 @@
     .bot-question-option.is-active {
       background-color: color-mix(in srgb, var(--primary) 14%, white) !important;
       box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary) 28%, transparent) !important;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .settings-tiles .settings-tile,
+      .partner-contact-card--summary,
+      .partner-contact-details__chevron,
+      .org-members-list .form-check {
+        transition: none !important;
+      }
     }
   </style>
 </head>
