@@ -2792,6 +2792,44 @@ public class DialogApiController {
         return ResponseEntity.ok(payload);
     }
 
+    @GetMapping("/{ticketId}/ai-review")
+    public ResponseEntity<?> aiReview(@PathVariable String ticketId,
+                                      Authentication authentication) {
+        ResponseEntity<Map<String, Object>> permissionDenied = requireDialogPermission(authentication, "can_reply", "ai_review", ticketId);
+        if (permissionDenied != null) {
+            return permissionDenied;
+        }
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("success", true);
+        payload.put("ticket_id", ticketId);
+        payload.put("review", dialogAiAssistantService.loadPendingReview(ticketId));
+        return ResponseEntity.ok(payload);
+    }
+
+    @PostMapping("/{ticketId}/ai-review/approve")
+    public ResponseEntity<?> approveAiReview(@PathVariable String ticketId,
+                                             Authentication authentication) {
+        ResponseEntity<Map<String, Object>> permissionDenied = requireDialogPermission(authentication, "can_reply", "ai_review_approve", ticketId);
+        if (permissionDenied != null) {
+            return permissionDenied;
+        }
+        String operator = authentication != null ? authentication.getName() : null;
+        boolean updated = dialogAiAssistantService.approvePendingReview(ticketId, operator);
+        return ResponseEntity.ok(Map.of("success", true, "updated", updated));
+    }
+
+    @PostMapping("/{ticketId}/ai-review/reject")
+    public ResponseEntity<?> rejectAiReview(@PathVariable String ticketId,
+                                            Authentication authentication) {
+        ResponseEntity<Map<String, Object>> permissionDenied = requireDialogPermission(authentication, "can_reply", "ai_review_reject", ticketId);
+        if (permissionDenied != null) {
+            return permissionDenied;
+        }
+        String operator = authentication != null ? authentication.getName() : null;
+        boolean updated = dialogAiAssistantService.rejectPendingReview(ticketId, operator);
+        return ResponseEntity.ok(Map.of("success", true, "updated", updated));
+    }
+
     private <T> T withQuickActionTiming(String action, String ticketId, Supplier<T> supplier) {
         long startedAtMs = System.currentTimeMillis();
         try {
