@@ -31,9 +31,6 @@
     if (element.closest('.content-disclosure')) {
       return true;
     }
-    if (element.closest('.modal')) {
-      return true;
-    }
     if (element.closest('.settings-tiles')) {
       return true;
     }
@@ -41,6 +38,22 @@
       return true;
     }
     if (containsInteractiveContent(element)) {
+      return true;
+    }
+    return false;
+  }
+
+  function shouldSkipModalHelpElement(element) {
+    if (shouldSkipElement(element)) {
+      return true;
+    }
+    if (!element.closest('.modal')) {
+      return true;
+    }
+    if (element.classList.contains('alert-danger') || element.classList.contains('alert-success')) {
+      return true;
+    }
+    if (element.classList.contains('d-none')) {
       return true;
     }
     return false;
@@ -95,12 +108,6 @@
   }
 
   function initContentDisclosure() {
-    const isSettingsPage = typeof window.location?.pathname === 'string'
-      && /^\/settings(?:\/|$)/.test(window.location.pathname);
-    if (isSettingsPage) {
-      return;
-    }
-
     const subtitleCandidates = document.querySelectorAll('.page-subtitle');
     subtitleCandidates.forEach((element) => {
       if (shouldSkipElement(element)) {
@@ -122,6 +129,30 @@
         minLength: 58,
         previewLength: 72,
         variantClass: 'content-disclosure--card',
+      });
+    });
+
+    const modalAlertCandidates = document.querySelectorAll('.modal .alert.alert-light.border');
+    modalAlertCandidates.forEach((element) => {
+      if (shouldSkipModalHelpElement(element)) {
+        return;
+      }
+      buildDisclosure(element, {
+        minLength: 120,
+        previewLength: 110,
+        variantClass: 'content-disclosure--inline',
+      });
+    });
+
+    const modalFormTextCandidates = document.querySelectorAll('.modal .form-text');
+    modalFormTextCandidates.forEach((element) => {
+      if (shouldSkipModalHelpElement(element)) {
+        return;
+      }
+      buildDisclosure(element, {
+        minLength: 140,
+        previewLength: 120,
+        variantClass: 'content-disclosure--inline',
       });
     });
   }
