@@ -7,7 +7,11 @@ set "ORIGINAL_DIR=%CD%"
 pushd "%SCRIPT_DIR%" >nul
 
 set "JAVA_EXE="
-if defined JAVA_HOME if exist "%JAVA_HOME%\bin\java.exe" set "JAVA_EXE=%JAVA_HOME%\bin\java.exe"
+if defined JAVA_HOME_17 if exist "%JAVA_HOME_17%\bin\java.exe" (
+    set "JAVA_HOME=%JAVA_HOME_17%"
+    set "JAVA_EXE=%JAVA_HOME%\bin\java.exe"
+)
+if not defined JAVA_EXE if defined JAVA_HOME if exist "%JAVA_HOME%\bin\java.exe" set "JAVA_EXE=%JAVA_HOME%\bin\java.exe"
 if not defined JAVA_EXE (
     for %%J in (java.exe) do if not "%%~$PATH:J"=="" set "JAVA_EXE=%%~$PATH:J"
 )
@@ -63,6 +67,10 @@ if !JAVA_EFFECTIVE_MAJOR! LSS 17 (
     echo [ERROR] JDK 17+ is required, but %JAVA_VERSION% was detected.
     exit /b 1
 )
+echo [INFO] Java runtime: %JAVA_VERSION% (major !JAVA_EFFECTIVE_MAJOR!)
+if not "!JAVA_EFFECTIVE_MAJOR!"=="17" (
+    echo [WARN] This project is primarily tested on JDK 17. If build errors occur, set JAVA_HOME_17 to a JDK 17 path.
+)
 
 set "MVN_CMD=%SCRIPT_DIR%\mvnw.cmd"
 if exist "%MVN_CMD%" (
@@ -84,12 +92,15 @@ if defined SPRING_OPTS (
     set "EXTRA_APP_ARG=-Dspring-boot.run.arguments=\"%SPRING_OPTS%\""
 )
 
+set "TEST_SKIP_ARGS=-Dmaven.test.skip=true"
+if defined RUN_WITH_TESTS set "TEST_SKIP_ARGS="
+
 echo Starting Spring panel with %MVN_CMD%
 echo [INFO] Running Maven clean phase before startup to remove stale compiled classes.
 if "%MVN_CMD%"=="mvn" (
-    call mvn %MVN_REPO_ARG% %EXTRA_JVM_ARG% %EXTRA_APP_ARG% clean spring-boot:run %*
+    call mvn %MVN_REPO_ARG% %TEST_SKIP_ARGS% %EXTRA_JVM_ARG% %EXTRA_APP_ARG% clean spring-boot:run %*
 ) else (
-    call "%MVN_CMD%" %MVN_REPO_ARG% %EXTRA_JVM_ARG% %EXTRA_APP_ARG% clean spring-boot:run %*
+    call "%MVN_CMD%" %MVN_REPO_ARG% %TEST_SKIP_ARGS% %EXTRA_JVM_ARG% %EXTRA_APP_ARG% clean spring-boot:run %*
 )
 
 set "EXIT_CODE=%ERRORLEVEL%"
