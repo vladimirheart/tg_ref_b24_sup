@@ -2522,6 +2522,7 @@ public class DialogApiController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Map.of("success", false, "error", result.error()));
         }
+        dialogAiAssistantService.registerOperatorReply(ticketId, request.message(), operator);
         notificationService.notifyDialogParticipants(
                 ticketId,
                 "Новое сообщение в обращении " + ticketId,
@@ -2609,6 +2610,7 @@ public class DialogApiController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Map.of("success", false, "error", result.error()));
         }
+        dialogAiAssistantService.registerOperatorReply(ticketId, message, operator);
         String attachmentUrl = "/api/attachments/tickets/" + ticketId + "/" + result.storedName();
         Map<String, Object> response = new java.util.LinkedHashMap<>();
         response.put("success", true);
