@@ -87,6 +87,14 @@ body {
     margin-top: 0.4rem;
 }
 
+.content-disclosure--inline {
+    margin-top: 0.25rem;
+}
+
+.content-disclosure--inline .content-disclosure__toggle {
+    font-size: 0.8rem;
+}
+
 @media (prefers-reduced-motion: reduce) {
     .content-disclosure__icon {
         transition: none;
