@@ -27,7 +27,7 @@ if not defined APP_HTTP_PORT (
 )
 
 if not defined JAVA_EXE (
-    echo [ERROR] Java executable not found. Install JDK 17 and expose it via JAVA_HOME or PATH.
+    echo [ERROR] Java executable not found. Install JDK 17+ and expose it via JAVA_HOME or PATH.
     exit /b 1
 )
 
@@ -51,8 +51,16 @@ if not defined JAVA_MAJOR (
     echo [ERROR] Unable to determine Java version.
     exit /b 1
 )
-if not "%JAVA_MAJOR%"=="17" (
-    echo [ERROR] JDK 17 is required, but %JAVA_VERSION% was detected.
+set "JAVA_EFFECTIVE_MAJOR=%JAVA_MAJOR%"
+if "%JAVA_MAJOR%"=="1" (
+    for /f "tokens=2 delims=." %%N in ("%JAVA_VERSION%") do set "JAVA_EFFECTIVE_MAJOR=%%N"
+)
+if not defined JAVA_EFFECTIVE_MAJOR (
+    echo [ERROR] Unable to determine Java version.
+    exit /b 1
+)
+if !JAVA_EFFECTIVE_MAJOR! LSS 17 (
+    echo [ERROR] JDK 17+ is required, but %JAVA_VERSION% was detected.
     exit /b 1
 )
 
@@ -62,6 +70,9 @@ if exist "%MVN_CMD%" (
 ) else (
     set "MVN_CMD=mvn"
 )
+set "MVN_REPO_DIR=%SCRIPT_DIR%\.m2\repository"
+if not exist "%SCRIPT_DIR%\.m2" mkdir "%SCRIPT_DIR%\.m2" >nul 2>&1
+set "MVN_REPO_ARG=-Dmaven.repo.local=%MVN_REPO_DIR%"
 
 set "EXTRA_JVM_ARG="
 if defined JAVA_OPTS (
@@ -76,9 +87,9 @@ if defined SPRING_OPTS (
 echo Starting Spring panel with %MVN_CMD%
 echo [INFO] Running Maven clean phase before startup to remove stale compiled classes.
 if "%MVN_CMD%"=="mvn" (
-    call mvn %EXTRA_JVM_ARG% %EXTRA_APP_ARG% clean spring-boot:run %*
+    call mvn %MVN_REPO_ARG% %EXTRA_JVM_ARG% %EXTRA_APP_ARG% clean spring-boot:run %*
 ) else (
-    call "%MVN_CMD%" %EXTRA_JVM_ARG% %EXTRA_APP_ARG% clean spring-boot:run %*
+    call "%MVN_CMD%" %MVN_REPO_ARG% %EXTRA_JVM_ARG% %EXTRA_APP_ARG% clean spring-boot:run %*
 )
 
 set "EXIT_CODE=%ERRORLEVEL%"
