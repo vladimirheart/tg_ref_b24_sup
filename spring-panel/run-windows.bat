@@ -16,13 +16,12 @@ if not defined JAVA_EXE (
     for %%J in (java.exe) do if not "%%~$PATH:J"=="" set "JAVA_EXE=%%~$PATH:J"
 )
 
-rem Choose a port if the default one is busy and the user has not explicitly set APP_HTTP_PORT.
+rem Choose a free port if the default one is busy and the user has not explicitly set APP_HTTP_PORT.
 set "DEFAULT_PORT=%APP_HTTP_PORT%"
 if not defined DEFAULT_PORT set "DEFAULT_PORT=8080"
 if not defined APP_HTTP_PORT (
-    call :CheckPort !DEFAULT_PORT!
-    if "!PORT_BUSY!"=="1" (
-        set "APP_HTTP_PORT=8081"
+    call :FindAvailablePort !DEFAULT_PORT!
+    if not "!APP_HTTP_PORT!"=="!DEFAULT_PORT!" (
         echo [INFO] Port !DEFAULT_PORT! is already in use. Falling back to APP_HTTP_PORT=!APP_HTTP_PORT!.
     )
 ) else (
@@ -116,3 +115,15 @@ for /f "tokens=1" %%P in ('netstat -ano -p tcp ^| findstr /R ":%PORT_TO_CHECK% "
     goto :eof
 )
 goto :eof
+
+:FindAvailablePort
+set "PORT_CANDIDATE=%~1"
+if "%PORT_CANDIDATE%"=="" set "PORT_CANDIDATE=8080"
+:FindAvailablePortLoop
+call :CheckPort %PORT_CANDIDATE%
+if "!PORT_BUSY!"=="0" (
+    set "APP_HTTP_PORT=%PORT_CANDIDATE%"
+    goto :eof
+)
+set /a PORT_CANDIDATE+=1
+goto :FindAvailablePortLoop
