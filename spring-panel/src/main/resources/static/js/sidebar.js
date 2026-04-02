@@ -7,6 +7,8 @@
   const bellBtn = document.getElementById('bellBtn');
   const bellBadge = document.getElementById('notify-count');
   const root = document.body;
+  const mobileToggleBtn = document.getElementById('sidebarMobileToggle');
+  const mobileOverlay = document.getElementById('sidebarMobileOverlay');
   const changePasswordBtn = sidebar.querySelector('[data-sidebar-change-password]');
   const changePasswordModalEl = document.querySelector('[data-sidebar-password-modal]');
   const changePasswordForm = changePasswordModalEl ? changePasswordModalEl.querySelector('[data-change-password-form]') : null;
@@ -20,6 +22,24 @@
   let pinned = localStorage.getItem(LS_KEY_PIN) === '1';
   const HOVER_LEAVE_DELAY_MS = 1000;
   let hoverLeaveTimer = null;
+  const MOBILE_BREAKPOINT = 991.98;
+
+  function isMobileViewport() {
+    return window.innerWidth <= MOBILE_BREAKPOINT;
+  }
+
+  function setMobileOpen(open) {
+    const shouldOpen = Boolean(open);
+    root.classList.toggle('sidebar-mobile-open', shouldOpen);
+    if (mobileOverlay) {
+      mobileOverlay.hidden = !shouldOpen;
+    }
+    if (mobileToggleBtn) {
+      const icon = mobileToggleBtn.querySelector('.icon');
+      if (icon) icon.textContent = shouldOpen ? '×' : '☰';
+      mobileToggleBtn.setAttribute('aria-label', shouldOpen ? 'Закрыть меню' : 'Открыть меню');
+    }
+  }
 
   // оборачиваем страницу, чтобы не было пустоты справа
   function ensureLayoutWrap() {
@@ -70,6 +90,11 @@
       clearTimeout(hoverLeaveTimer);
       hoverLeaveTimer = null;
     }
+    if (isMobileViewport()) {
+      sidebar.classList.remove('pinned', 'hovering', 'collapsed');
+      setBodyCollapsedState(false);
+      return;
+    }
     if (pinned) {
       sidebar.classList.add('pinned');
       sidebar.classList.remove('collapsed', 'hovering');
@@ -82,6 +107,26 @@
     }
   }
   applyState();
+
+  function syncSidebarForViewport() {
+    if (!isMobileViewport()) {
+      setMobileOpen(false);
+    }
+    applyState();
+  }
+
+  if (mobileToggleBtn) {
+    mobileToggleBtn.addEventListener('click', () => {
+      setMobileOpen(!root.classList.contains('sidebar-mobile-open'));
+    });
+  }
+
+  if (mobileOverlay) {
+    mobileOverlay.addEventListener('click', () => setMobileOpen(false));
+  }
+
+  window.addEventListener('resize', syncSidebarForViewport);
+  syncSidebarForViewport();
 
   const nav = sidebar.querySelector('.sidebar-nav');
   const ORDER_STORAGE_KEY = 'sidebarNavOrder';
@@ -322,6 +367,14 @@
         setEditingOrder(false);
       });
     }
+
+    nav.addEventListener('click', (event) => {
+      const link = event.target.closest('.nav-link');
+      if (!link) return;
+      if (isMobileViewport()) {
+        setMobileOpen(false);
+      }
+    });
   }
 
   if (editOrderBtn) {
@@ -722,6 +775,10 @@
   });
 
   document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && root.classList.contains('sidebar-mobile-open')) {
+      setMobileOpen(false);
+      return;
+    }
     if (event.key === 'Escape' && notificationsOpen) {
       closeNotifications();
     }

@@ -8,9 +8,9 @@
 }
 
 :root {
-  --page-min-width: 1820px;
+  --page-min-width: 320px;
   font-size: 80%;
-  --page-min-height: 1000px;
+  --page-min-height: 100vh;
   --card: #ffffff;
   --ring: #22c55e;
   --input: #e5e7eb;
@@ -138,9 +138,9 @@
 
 html {
   background-color: var(--color-bg);
-  min-width: var(--page-min-width);
+  min-width: 0;
   min-height: var(--page-min-height);
-  overflow-x: auto;
+  overflow-x: hidden;
   overflow-y: auto;
 }
 
@@ -148,9 +148,9 @@ body {
   background-color: var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-sans);
-  min-width: var(--page-min-width);
+  min-width: 0;
   min-height: var(--page-min-height);
-  overflow-x: auto;
+  overflow-x: hidden;
   overflow-y: auto;
   line-height: 1.45;
   background-image:
@@ -382,7 +382,7 @@ a:not([class]) {
 .with-sidebar,
 .sidebar-layout,
 .main-content {
-  min-height: var(--page-min-height);
+  min-height: max(100vh, var(--page-min-height));
 }
 
 @media (max-width: 1919.98px) {
@@ -391,9 +391,27 @@ a:not([class]) {
   .sidebar-layout,
   .main-content,
   .with-sidebar {
-    min-width: var(--page-min-width);
-    width: var(--page-min-width);
-    max-width: none;
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
+.container,
+.container-fluid {
+  width: 100%;
+  max-width: 100%;
+}
+
+@media (max-width: 991.98px) {
+  .container,
+  .container-fluid {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .table-responsive {
+    border-radius: 0.75rem;
   }
 }
 
@@ -441,6 +459,42 @@ a:not([class]) {
 
 .btn-sm {
   font-size: 0.8rem;
+}
+
+/* Universal back button style */
+.btn-back {
+  position: relative;
+  overflow: hidden;
+  min-width: 110px;
+  border-radius: 0.75rem;
+}
+
+.btn-back .btn-back__label {
+  display: inline-block;
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+
+.btn-back .btn-back__icon {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 30%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--primary-foreground) 18%, transparent);
+  transition: width 0.35s ease;
+}
+
+.btn-back:hover .btn-back__label,
+.btn-back:focus-visible .btn-back__label {
+  opacity: 0;
+  transform: translateX(6px);
+}
+
+.btn-back:hover .btn-back__icon,
+.btn-back:focus-visible .btn-back__icon {
+  width: 100%;
 }
 .resize-handle {
   position: absolute;
@@ -657,6 +711,62 @@ table[data-column-reorderable] th.dragging {
 
 .select2-dropdown {
   z-index: 9999 !important;
+}
+
+/* Multi-select style (closer to modern combobox look) */
+.select2-container--default .select2-selection--multiple {
+  border-radius: 0.75rem;
+  min-height: 42px;
+  border-color: var(--color-border);
+  background: color-mix(in srgb, var(--color-surface) 90%, white);
+  padding: 4px 6px;
+}
+
+.select2-container--default.select2-container--focus .select2-selection--multiple {
+  border-color: color-mix(in srgb, var(--color-accent) 55%, var(--color-border));
+  box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--color-accent) 20%, transparent);
+}
+
+.select2-container--default .select2-selection--multiple .select2-selection__choice {
+  border: 1px solid color-mix(in srgb, var(--color-accent) 35%, var(--color-border));
+  background: color-mix(in srgb, var(--color-accent) 12%, white);
+  color: var(--color-text);
+  border-radius: 999px;
+  padding: 2px 8px;
+  margin-top: 4px;
+}
+
+.select2-container--default .select2-results__option--highlighted.select2-results__option--selectable {
+  background: color-mix(in srgb, var(--color-accent) 16%, var(--color-surface));
+  color: inherit;
+}
+
+.select2-container--default .select2-results__option--selected {
+  background: color-mix(in srgb, var(--color-accent) 22%, var(--color-surface));
+}
+
+/* Scrollbar style */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--color-accent) 45%, var(--color-border)) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-accent) 45%, var(--color-border));
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--color-accent) 62%, var(--color-border));
 }
 
 /* Убедитесь, что модальные окна остаются поверх остального интерфейса,

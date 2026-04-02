@@ -1,5 +1,10 @@
 <!-- Unified sidebar fragment shared across all pages -->
 <div xmlns:th="http://www.thymeleaf.org" th:fragment="navbar(active)">
+    <button id="sidebarMobileToggle" class="sidebar-mobile-toggle" type="button" aria-label="Открыть меню">
+        <span class="icon" aria-hidden="true">&#9776;</span>
+    </button>
+    <div id="sidebarMobileOverlay" class="sidebar-mobile-overlay" hidden></div>
+
     <div class="sidebar" id="app-sidebar">
         <div class="sidebar-header">
             <span class="brand">
