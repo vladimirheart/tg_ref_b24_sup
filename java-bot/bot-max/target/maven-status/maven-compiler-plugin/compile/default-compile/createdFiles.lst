@@ -1,5 +1,0 @@
-com\example\supportbot\config\MaxBotProperties.class
-com\example\supportbot\max\MaxOutboundMessenger.class
-com\example\supportbot\max\MaxWebhookController.class
-com\example\supportbot\max\MaxApiClient.class
-com\example\supportbot\max\MaxBotApplication.class
