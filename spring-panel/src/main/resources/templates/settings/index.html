@@ -5244,7 +5244,11 @@
             <div class="d-flex flex-column flex-lg-row gap-2 align-items-lg-center">
               <button type="button" class="btn btn-success" id="channelEditorBotStartBtn">Запустить бота</button>
               <button type="button" class="btn btn-outline-danger" id="channelEditorBotStopBtn">Остановить</button>
-              <div class="small text-muted" data-channel-editor-bot-status>Статус: —</div>
+              <div class="small text-muted d-flex flex-wrap align-items-center gap-2" data-channel-editor-bot-status>
+                <span>Статус процесса:</span>
+                <span class="badge bg-secondary-subtle text-secondary" data-channel-editor-bot-status-badge>—</span>
+                <span data-channel-editor-bot-status-details></span>
+              </div>
             </div>
             <div class="mt-3">
               <div class="form-label small mb-1">Токен бота</div>
@@ -18578,6 +18582,8 @@
   const channelEditorBotStartBtn = document.getElementById('channelEditorBotStartBtn');
   const channelEditorBotStopBtn = document.getElementById('channelEditorBotStopBtn');
   const channelEditorBotStatusEl = document.querySelector('[data-channel-editor-bot-status]');
+  const channelEditorBotStatusBadgeEl = document.querySelector('[data-channel-editor-bot-status-badge]');
+  const channelEditorBotStatusDetailsEl = document.querySelector('[data-channel-editor-bot-status-details]');
   const channelEditorBotRefreshBtn = document.getElementById('channelEditorBotRefreshBtn');
   const channelEditorSaveBtn = document.getElementById('channelEditorSaveBtn');
   const channelEditorDeleteBtn = document.getElementById('channelEditorDeleteBtn');
@@ -19229,17 +19235,64 @@
     }
   }
 
-  function updateBotStatusLabel(status, startedAt) {
-    if (!channelEditorBotStatusEl) return;
-    if (status === 'running') {
-      channelEditorBotStatusEl.textContent = startedAt
-        ? `Статус: запущен (с ${new Date(startedAt).toLocaleString()})`
-        : 'Статус: запущен';
-    } else if (status === 'stopped') {
-      channelEditorBotStatusEl.textContent = 'Статус: остановлен';
-    } else {
-      channelEditorBotStatusEl.textContent = `Статус: ${status || '—'}`;
+  function normalizeBotRuntimeStatus(status) {
+    const raw = String(status || '').trim();
+    const normalized = raw.toLowerCase();
+    if (normalized === 'running') {
+      return { code: 'running', label: 'запущен', details: '' };
     }
+    if (normalized === 'stopped') {
+      return { code: 'stopped', label: 'остановлен', details: '' };
+    }
+    if (!raw) {
+      return { code: 'unknown', label: '—', details: '' };
+    }
+    return { code: 'error', label: 'ошибка', details: raw };
+  }
+
+  function getBotRuntimeBadgeClass(code) {
+    if (code === 'running') return 'badge bg-success-subtle text-success';
+    if (code === 'stopped') return 'badge bg-secondary-subtle text-secondary';
+    if (code === 'error') return 'badge bg-danger-subtle text-danger';
+    return 'badge bg-warning-subtle text-warning-emphasis';
+  }
+
+  function updateBotStatusLabel(status, startedAt) {
+    const normalized = normalizeBotRuntimeStatus(status);
+    if (channelEditorBotStatusBadgeEl) {
+      channelEditorBotStatusBadgeEl.className = getBotRuntimeBadgeClass(normalized.code);
+      channelEditorBotStatusBadgeEl.textContent = normalized.label;
+    }
+    if (channelEditorBotStatusDetailsEl) {
+      if (normalized.code === 'running' && startedAt) {
+        channelEditorBotStatusDetailsEl.textContent = `с ${new Date(startedAt).toLocaleString()}`;
+      } else if (normalized.details) {
+        channelEditorBotStatusDetailsEl.textContent = normalized.details;
+      } else {
+        channelEditorBotStatusDetailsEl.textContent = '';
+      }
+    }
+    if (!channelEditorBotStatusEl) return;
+    channelEditorBotStatusEl.title = normalized.details || '';
+  }
+
+  function setChannelRowBotRuntimeStatus(channelId, status, startedAt) {
+    const badge = document.querySelector(`[data-channel-bot-runtime-status="${channelId}"]`);
+    if (!badge) return;
+    const normalized = normalizeBotRuntimeStatus(status);
+    badge.className = getBotRuntimeBadgeClass(normalized.code);
+    if (normalized.code === 'running' && startedAt) {
+      badge.textContent = `Процесс: запущен с ${new Date(startedAt).toLocaleTimeString()}`;
+      badge.title = new Date(startedAt).toLocaleString();
+      return;
+    }
+    if (normalized.details) {
+      badge.textContent = `Процесс: ${normalized.label}`;
+      badge.title = normalized.details;
+      return;
+    }
+    badge.textContent = `Процесс: ${normalized.label}`;
+    badge.title = '';
   }
 
   function updateBotControls(running) {
@@ -19300,10 +19353,12 @@
       const payload = await response.json();
       updateBotStatusLabel(payload.status, payload.startedAt);
       updateBotControls(payload.status === 'running');
+      setChannelRowBotRuntimeStatus(channelId, payload.status, payload.startedAt);
     } catch (error) {
       console.error('Failed to load bot status', error);
       updateBotStatusLabel('ошибка');
       updateBotControls(false);
+      setChannelRowBotRuntimeStatus(channelId, 'ошибка', null);
     }
   }
 
@@ -20371,6 +20426,9 @@
         </td>
         <td class="text-center">
           <div>${statusBadge}</div>
+          <div class="mt-1">
+            <span class="badge bg-light text-secondary border border-secondary-subtle" data-channel-bot-runtime-status="${prepared.id}">Процесс: проверка…</span>
+          </div>
           <div class="d-flex justify-content-center gap-2 mt-2">
             <button type="button" class="btn btn-sm btn-outline-success" data-channel-start="${prepared.id}">Запустить</button>
             <button type="button" class="btn btn-sm btn-outline-primary" data-channel-edit="${prepared.id}">Редактировать</button>
@@ -20393,6 +20451,18 @@
           ? data.channels
           : [];
       renderChannels(rows);
+      const channelIds = rows
+        .map((item) => item?.id)
+        .filter((id) => id !== null && id !== undefined);
+      Promise.all(channelIds.map(async (channelId) => {
+        try {
+          const response = await fetch(`/api/bots/${channelId}/status`);
+          const payload = await response.json().catch(() => ({}));
+          setChannelRowBotRuntimeStatus(channelId, payload?.status, payload?.startedAt);
+        } catch (error) {
+          setChannelRowBotRuntimeStatus(channelId, 'ошибка', null);
+        }
+      }));
       refreshChannelEditorIfOpen();
     } catch (error) {
       showPopup('Не удалось загрузить каналы: ' + error.message);
@@ -20890,11 +20960,13 @@
       }
       updateBotStatusLabel(payload.status, payload.startedAt);
       updateBotControls(payload.status === 'running');
+      setChannelRowBotRuntimeStatus(channelId, payload.status, payload.startedAt);
       return true;
     } catch (error) {
       console.error('Failed to start bot', error);
       updateBotStatusLabel(error.message || 'Ошибка');
       updateBotControls(false);
+      setChannelRowBotRuntimeStatus(channelId, 'ошибка', null);
       showPopup('Не удалось запустить бота: ' + error.message);
       return false;
     }
@@ -20920,9 +20992,11 @@
       }
       updateBotStatusLabel(payload.status, payload.startedAt);
       updateBotControls(false);
+      setChannelRowBotRuntimeStatus(channelId, payload.status, payload.startedAt);
     } catch (error) {
       console.error('Failed to stop bot', error);
       updateBotStatusLabel(error.message || 'Ошибка');
+      setChannelRowBotRuntimeStatus(channelId, 'ошибка', null);
       showPopup('Не удалось остановить бота: ' + error.message);
     }
   }
