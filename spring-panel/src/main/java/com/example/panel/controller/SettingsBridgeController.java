@@ -310,6 +310,9 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_dependency_ticket_owner_contact_required")
                 || payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_dependency_ticket_owner_contact")
                 || payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_dependency_ticket_owner_contact_actionable_required")
+                || payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_dependency_ticket_freshness_required")
+                || payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_dependency_ticket_updated_at")
+                || payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_dependency_ticket_ttl_hours")
                 || payload.containsKey("dialog_workspace_rollout_external_kpi_reviewed_by")
                 || payload.containsKey("dialog_workspace_rollout_external_kpi_reviewed_at")
                 || payload.containsKey("dialog_workspace_rollout_external_kpi_review_ttl_hours")
@@ -368,6 +371,12 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_public_form_rate_limit_max_requests")
                 || payload.containsKey("dialog_public_form_rate_limit_use_fingerprint")
                 || payload.containsKey("dialog_public_form_metrics_enabled")
+                || payload.containsKey("dialog_public_form_alerts_enabled")
+                || payload.containsKey("dialog_public_form_alert_min_views")
+                || payload.containsKey("dialog_public_form_alert_error_rate_threshold")
+                || payload.containsKey("dialog_public_form_alert_captcha_failure_rate_threshold")
+                || payload.containsKey("dialog_public_form_alert_rate_limit_rejection_rate_threshold")
+                || payload.containsKey("dialog_public_form_alert_session_lookup_miss_rate_threshold")
                 || payload.containsKey("dialog_public_form_captcha_shared_secret")
                 || payload.containsKey("dialog_public_form_captcha_mode")
                 || payload.containsKey("dialog_public_form_turnstile_secret_key")
@@ -992,6 +1001,21 @@ public class SettingsBridgeController {
                     dialogConfig.put("workspace_rollout_external_kpi_datamart_dependency_ticket_owner_contact_actionable_required",
                             payload.get("dialog_workspace_rollout_external_kpi_datamart_dependency_ticket_owner_contact_actionable_required"));
                 }
+                if (payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_dependency_ticket_freshness_required")) {
+                    dialogConfig.put("workspace_rollout_external_kpi_datamart_dependency_ticket_freshness_required",
+                            payload.get("dialog_workspace_rollout_external_kpi_datamart_dependency_ticket_freshness_required"));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_dependency_ticket_updated_at")) {
+                    dialogConfig.put("workspace_rollout_external_kpi_datamart_dependency_ticket_updated_at",
+                            normalizeUtcTimestampSetting(
+                                    payload.get("dialog_workspace_rollout_external_kpi_datamart_dependency_ticket_updated_at"),
+                                    "Дата обновления dependency-ticket data-mart",
+                                    updateWarnings));
+                }
+                if (payload.containsKey("dialog_workspace_rollout_external_kpi_datamart_dependency_ticket_ttl_hours")) {
+                    dialogConfig.put("workspace_rollout_external_kpi_datamart_dependency_ticket_ttl_hours",
+                            payload.get("dialog_workspace_rollout_external_kpi_datamart_dependency_ticket_ttl_hours"));
+                }
                 if (payload.containsKey("dialog_workspace_rollout_external_kpi_reviewed_by")) {
                     dialogConfig.put("workspace_rollout_external_kpi_reviewed_by",
                             payload.get("dialog_workspace_rollout_external_kpi_reviewed_by"));
@@ -1238,6 +1262,30 @@ public class SettingsBridgeController {
                 if (payload.containsKey("dialog_public_form_metrics_enabled")) {
                     dialogConfig.put("public_form_metrics_enabled",
                             payload.get("dialog_public_form_metrics_enabled"));
+                }
+                if (payload.containsKey("dialog_public_form_alerts_enabled")) {
+                    dialogConfig.put("public_form_alerts_enabled",
+                            payload.get("dialog_public_form_alerts_enabled"));
+                }
+                if (payload.containsKey("dialog_public_form_alert_min_views")) {
+                    dialogConfig.put("public_form_alert_min_views",
+                            payload.get("dialog_public_form_alert_min_views"));
+                }
+                if (payload.containsKey("dialog_public_form_alert_error_rate_threshold")) {
+                    dialogConfig.put("public_form_alert_error_rate_threshold",
+                            payload.get("dialog_public_form_alert_error_rate_threshold"));
+                }
+                if (payload.containsKey("dialog_public_form_alert_captcha_failure_rate_threshold")) {
+                    dialogConfig.put("public_form_alert_captcha_failure_rate_threshold",
+                            payload.get("dialog_public_form_alert_captcha_failure_rate_threshold"));
+                }
+                if (payload.containsKey("dialog_public_form_alert_rate_limit_rejection_rate_threshold")) {
+                    dialogConfig.put("public_form_alert_rate_limit_rejection_rate_threshold",
+                            payload.get("dialog_public_form_alert_rate_limit_rejection_rate_threshold"));
+                }
+                if (payload.containsKey("dialog_public_form_alert_session_lookup_miss_rate_threshold")) {
+                    dialogConfig.put("public_form_alert_session_lookup_miss_rate_threshold",
+                            payload.get("dialog_public_form_alert_session_lookup_miss_rate_threshold"));
                 }
                 if (payload.containsKey("dialog_public_form_strip_html_tags")) {
                     dialogConfig.put("public_form_strip_html_tags",
