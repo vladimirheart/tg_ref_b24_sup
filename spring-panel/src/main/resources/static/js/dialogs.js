@@ -88,6 +88,12 @@
   const workspaceAiSuggestionsState = document.getElementById('workspaceAiSuggestionsState');
   const workspaceAiSuggestionsList = document.getElementById('workspaceAiSuggestionsList');
   const workspaceAiSuggestionsRefresh = document.getElementById('workspaceAiSuggestionsRefresh');
+  const workspaceAiReviewBox = document.getElementById('workspaceAiReviewBox');
+  const workspaceAiReviewQuestion = document.getElementById('workspaceAiReviewQuestion');
+  const workspaceAiReviewCurrent = document.getElementById('workspaceAiReviewCurrent');
+  const workspaceAiReviewPending = document.getElementById('workspaceAiReviewPending');
+  const workspaceAiReviewApprove = document.getElementById('workspaceAiReviewApprove');
+  const workspaceAiReviewReject = document.getElementById('workspaceAiReviewReject');
   const workspaceAssignBtn = document.getElementById('workspaceAssignBtn');
   const workspaceSnoozeBtn = document.getElementById('workspaceSnoozeBtn');
   const workspaceResolveBtn = document.getElementById('workspaceResolveBtn');
@@ -3823,6 +3829,29 @@
     }
   }
 
+  async function loadWorkspaceAiReview(ticketId) {
+    const normalizedTicketId = String(ticketId || '').trim();
+    if (!workspaceAiReviewBox) return;
+    workspaceAiReviewBox.classList.add('d-none');
+    if (!normalizedTicketId) return;
+    try {
+      const resp = await fetch(`/api/dialogs/${encodeURIComponent(normalizedTicketId)}/ai-review`, {
+        credentials: 'same-origin',
+        cache: 'no-store',
+      });
+      const payload = await resp.json().catch(() => ({}));
+      if (!resp.ok || payload.success === false) return;
+      const review = payload.review || {};
+      if (review.pending !== true) return;
+      if (workspaceAiReviewQuestion) workspaceAiReviewQuestion.textContent = String(review.query_text || '').trim();
+      if (workspaceAiReviewCurrent) workspaceAiReviewCurrent.textContent = String(review.current_solution || '').trim();
+      if (workspaceAiReviewPending) workspaceAiReviewPending.textContent = String(review.pending_solution || '').trim();
+      workspaceAiReviewBox.classList.remove('d-none');
+    } catch (_error) {
+      // silent by design
+    }
+  }
+
   function renderWorkspaceShell(payload) {
     if (!workspaceShell) return;
     workspaceShell.classList.remove('d-none');
@@ -3843,6 +3872,7 @@
     workspaceComposerTicketId = String(conversation.ticketId || '').trim();
     restoreWorkspaceDraft(workspaceComposerTicketId);
     loadWorkspaceAiSuggestions(workspaceComposerTicketId);
+    loadWorkspaceAiReview(workspaceComposerTicketId);
     const canReplyInWorkspace = permissions && permissions.can_reply === true && !workspaceReadonlyMode;
     if (workspaceComposerText) workspaceComposerText.disabled = !canReplyInWorkspace;
     if (workspaceComposerSend) workspaceComposerSend.disabled = !canReplyInWorkspace;
@@ -7144,7 +7174,48 @@
 
   if (workspaceAiSuggestionsRefresh) {
     workspaceAiSuggestionsRefresh.addEventListener('click', () => {
-      loadWorkspaceAiSuggestions(activeWorkspaceTicketId || workspaceComposerTicketId);
+      const ticketId = activeWorkspaceTicketId || workspaceComposerTicketId;
+      loadWorkspaceAiSuggestions(ticketId);
+      loadWorkspaceAiReview(ticketId);
+    });
+  }
+
+  if (workspaceAiReviewApprove) {
+    workspaceAiReviewApprove.addEventListener('click', async () => {
+      const ticketId = String(activeWorkspaceTicketId || workspaceComposerTicketId || '').trim();
+      if (!ticketId) return;
+      try {
+        const resp = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/ai-review/approve`, {
+          method: 'POST',
+          credentials: 'same-origin',
+        });
+        const payload = await resp.json().catch(() => ({}));
+        if (!resp.ok || payload.success === false) throw new Error(payload.error || `HTTP ${resp.status}`);
+        loadWorkspaceAiReview(ticketId);
+        loadWorkspaceAiSuggestions(ticketId);
+        if (typeof showNotification === 'function') showNotification('Правка AI-решения принята', 'success');
+      } catch (error) {
+        if (typeof showNotification === 'function') showNotification(`Не удалось принять правку: ${error.message || 'unknown_error'}`, 'warning');
+      }
+    });
+  }
+
+  if (workspaceAiReviewReject) {
+    workspaceAiReviewReject.addEventListener('click', async () => {
+      const ticketId = String(activeWorkspaceTicketId || workspaceComposerTicketId || '').trim();
+      if (!ticketId) return;
+      try {
+        const resp = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/ai-review/reject`, {
+          method: 'POST',
+          credentials: 'same-origin',
+        });
+        const payload = await resp.json().catch(() => ({}));
+        if (!resp.ok || payload.success === false) throw new Error(payload.error || `HTTP ${resp.status}`);
+        loadWorkspaceAiReview(ticketId);
+        if (typeof showNotification === 'function') showNotification('Оставлено текущее AI-решение', 'success');
+      } catch (error) {
+        if (typeof showNotification === 'function') showNotification(`Не удалось отклонить правку: ${error.message || 'unknown_error'}`, 'warning');
+      }
     });
   }
 

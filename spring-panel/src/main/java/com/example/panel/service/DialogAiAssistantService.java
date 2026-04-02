@@ -115,6 +115,79 @@ public class DialogAiAssistantService {
         return payload;
     }
 
+    public Map<String, Object> loadPendingReview(String ticketId) {
+        String t = trim(ticketId);
+        if (t == null) return Map.of("pending", false);
+        String lastClient = loadLastClientMessage(t);
+        if (!StringUtils.hasText(lastClient)) return Map.of("pending", false);
+        String key = buildKey(lastClient);
+        try {
+            List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                    "SELECT query_key, query_text, solution_text, pending_solution_text, review_required, updated_at FROM ai_agent_solution_memory WHERE query_key = ? LIMIT 1",
+                    key
+            );
+            if (rows.isEmpty()) return Map.of("pending", false);
+            Map<String, Object> row = rows.get(0);
+            boolean pending = isTrue(row.get("review_required")) && trim(safe(row.get("pending_solution_text"))) != null;
+            if (!pending) return Map.of("pending", false, "query_key", key);
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("pending", true);
+            payload.put("ticket_id", t);
+            payload.put("query_key", key);
+            payload.put("query_text", safe(row.get("query_text")));
+            payload.put("current_solution", safe(row.get("solution_text")));
+            payload.put("pending_solution", safe(row.get("pending_solution_text")));
+            payload.put("updated_at", safe(row.get("updated_at")));
+            return payload;
+        } catch (Exception ex) {
+            return Map.of("pending", false);
+        }
+    }
+
+    public boolean approvePendingReview(String ticketId, String operator) {
+        String t = trim(ticketId);
+        if (t == null) return false;
+        String lastClient = loadLastClientMessage(t);
+        if (!StringUtils.hasText(lastClient)) return false;
+        String key = buildKey(lastClient);
+        try {
+            int updated = jdbcTemplate.update(
+                    "UPDATE ai_agent_solution_memory SET solution_text = pending_solution_text, pending_solution_text = NULL, review_required = 0, times_confirmed = COALESCE(times_confirmed,0) + 1, last_operator = ?, updated_at = CURRENT_TIMESTAMP WHERE query_key = ? AND COALESCE(review_required,0) = 1 AND trim(COALESCE(pending_solution_text,'')) <> ''",
+                    trim(operator),
+                    key
+            );
+            if (updated > 0) {
+                clearProcessing(t, "operator_correction_approved", null);
+                return true;
+            }
+            return false;
+        } catch (Exception ex) {
+            return false;
+        }
+    }
+
+    public boolean rejectPendingReview(String ticketId, String operator) {
+        String t = trim(ticketId);
+        if (t == null) return false;
+        String lastClient = loadLastClientMessage(t);
+        if (!StringUtils.hasText(lastClient)) return false;
+        String key = buildKey(lastClient);
+        try {
+            int updated = jdbcTemplate.update(
+                    "UPDATE ai_agent_solution_memory SET pending_solution_text = NULL, review_required = 0, last_operator = ?, updated_at = CURRENT_TIMESTAMP WHERE query_key = ? AND COALESCE(review_required,0) = 1",
+                    trim(operator),
+                    key
+            );
+            if (updated > 0) {
+                clearProcessing(t, "operator_correction_rejected", null);
+                return true;
+            }
+            return false;
+        } catch (Exception ex) {
+            return false;
+        }
+    }
+
     public boolean isProcessing(String ticketId) {
         String t = trim(ticketId);
         if (t == null) return false;
