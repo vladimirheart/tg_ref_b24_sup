@@ -122,6 +122,75 @@ body {
     height: 64px;
 }
 
+.auth-wrapper {
+    position: relative;
+    overflow: hidden;
+}
+
+.auth-particles {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.auth-wrapper main {
+    position: relative;
+    z-index: 1;
+}
+
+.auth-card {
+    backdrop-filter: blur(6px);
+    background:
+        linear-gradient(color-mix(in srgb, var(--card) 86%, white), color-mix(in srgb, var(--card) 94%, transparent)),
+        linear-gradient(135deg, color-mix(in srgb, var(--gradient-primary) 22%, transparent), transparent 70%);
+}
+
+.auth-card .form-control {
+    border-radius: 0.8rem;
+    min-height: 44px;
+}
+
+.auth-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.auth-password-wrap {
+    position: relative;
+}
+
+.auth-password-toggle {
+    position: absolute;
+    top: 50%;
+    right: 10px;
+    transform: translateY(-50%);
+    border: 0;
+    background: transparent;
+    color: var(--muted-foreground);
+    font-size: 0.9rem;
+    padding: 4px 6px;
+}
+
+.auth-password-toggle:hover,
+.auth-password-toggle:focus-visible {
+    color: var(--primary);
+}
+
+@media (max-width: 575.98px) {
+    .auth-wrapper {
+        align-items: flex-start !important;
+        padding-top: 16px;
+        padding-bottom: 16px;
+    }
+
+    .auth-card .card-body {
+        padding: 1rem !important;
+    }
+}
+
 .empty-state {
     border: 1px dashed color-mix(in srgb, var(--color-border) 80%, transparent);
     border-radius: 1rem;
