@@ -2830,6 +2830,43 @@ public class DialogApiController {
         return ResponseEntity.ok(Map.of("success", true, "updated", updated));
     }
 
+    @GetMapping("/ai-reviews")
+    public ResponseEntity<?> aiReviewsQueue(@RequestParam(value = "limit", required = false) Integer limit,
+                                            Authentication authentication) {
+        ResponseEntity<Map<String, Object>> permissionDenied = requireDialogPermission(authentication, "can_reply", "ai_reviews_queue", null);
+        if (permissionDenied != null) {
+            return permissionDenied;
+        }
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("success", true);
+        payload.put("items", dialogAiAssistantService.loadPendingReviewsQueue(limit));
+        return ResponseEntity.ok(payload);
+    }
+
+    @PostMapping("/ai-reviews/{queryKey}/approve")
+    public ResponseEntity<?> approveAiReviewByKey(@PathVariable String queryKey,
+                                                  Authentication authentication) {
+        ResponseEntity<Map<String, Object>> permissionDenied = requireDialogPermission(authentication, "can_reply", "ai_review_approve_key", null);
+        if (permissionDenied != null) {
+            return permissionDenied;
+        }
+        String operator = authentication != null ? authentication.getName() : null;
+        boolean updated = dialogAiAssistantService.approvePendingReviewByKey(queryKey, operator);
+        return ResponseEntity.ok(Map.of("success", true, "updated", updated));
+    }
+
+    @PostMapping("/ai-reviews/{queryKey}/reject")
+    public ResponseEntity<?> rejectAiReviewByKey(@PathVariable String queryKey,
+                                                 Authentication authentication) {
+        ResponseEntity<Map<String, Object>> permissionDenied = requireDialogPermission(authentication, "can_reply", "ai_review_reject_key", null);
+        if (permissionDenied != null) {
+            return permissionDenied;
+        }
+        String operator = authentication != null ? authentication.getName() : null;
+        boolean updated = dialogAiAssistantService.rejectPendingReviewByKey(queryKey, operator);
+        return ResponseEntity.ok(Map.of("success", true, "updated", updated));
+    }
+
     private <T> T withQuickActionTiming(String action, String ticketId, Supplier<T> supplier) {
         long startedAtMs = System.currentTimeMillis();
         try {

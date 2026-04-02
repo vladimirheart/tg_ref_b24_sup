@@ -114,6 +114,35 @@
         </div>
     </div>
 
+    <section class="card shadow-sm mb-4 dialogs-table-card gradient-border-hover" id="aiReviewQueueSection">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center gap-2">
+            <div>
+                <strong>Очередь ревизий AI-решений</strong>
+                <div class="small text-muted">Решения, где ответ оператора отличается от текущей версии в памяти агента.</div>
+            </div>
+            <button class="btn btn-sm btn-outline-secondary" id="aiReviewQueueRefresh" type="button">Обновить</button>
+        </div>
+        <div class="card-body">
+            <div class="small text-muted mb-2" id="aiReviewQueueState">Загрузка очереди ревизий…</div>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead>
+                    <tr>
+                        <th style="min-width: 18rem;">Вопрос</th>
+                        <th style="min-width: 16rem;">Текущее решение</th>
+                        <th style="min-width: 16rem;">Предложенная правка</th>
+                        <th>Диалог</th>
+                        <th class="text-end">Действия</th>
+                    </tr>
+                    </thead>
+                    <tbody id="aiReviewQueueBody">
+                    <tr><td colspan="5" class="text-muted text-center py-3">Загрузка…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
     <section id="dialogsWorkspaceShell" class="d-none mb-4" aria-live="polite">
         <div class="card shadow-sm workspace-shell-card gradient-border-hover">
             <div class="card-body">
