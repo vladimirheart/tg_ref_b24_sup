@@ -684,26 +684,11 @@ public class ClientProfileApiController {
     }
 
     private boolean refreshTelegramAvatar(long userId, String token) {
-        boolean removed = removeAvatarFiles(userId);
         Optional<TelegramProfilePhoto> photo = fetchTelegramProfilePhoto(token, userId);
-        if (photo.isPresent()) {
-            boolean saved = storeAvatar(userId, photo.get());
-            return removed || saved;
+        if (photo.isEmpty()) {
+            return false;
         }
-        return removed;
-    }
-
-    private boolean removeAvatarFiles(long userId) {
-        boolean changed = false;
-        try {
-            Path thumbPath = resolveAvatarPath(userId, false);
-            Path fullPath = resolveAvatarPath(userId, true);
-            changed |= Files.deleteIfExists(thumbPath);
-            changed |= Files.deleteIfExists(fullPath);
-        } catch (IOException ex) {
-            log.warn("Failed to delete previous avatar for user {}: {}", userId, ex.getMessage());
-        }
-        return changed;
+        return storeAvatar(userId, photo.get());
     }
 
     private boolean storeAvatarFile(Path target, byte[] data) throws IOException {
