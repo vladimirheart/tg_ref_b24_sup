@@ -30,8 +30,6 @@ public class TelegramLongPollingLifecycle implements SmartLifecycle {
         }
         try {
             botsApi = new TelegramBotsApi(DefaultBotSession.class);
-
-            supportBot.deleteWebhookIfAny();
             botsApi.registerBot(supportBot);
 
             running = true;
