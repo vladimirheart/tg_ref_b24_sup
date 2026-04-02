@@ -7,6 +7,7 @@ import com.example.panel.model.dialog.DialogSummary;
 import com.example.panel.service.DialogNotificationService;
 import com.example.panel.service.DialogReplyService;
 import com.example.panel.service.DialogService;
+import com.example.panel.service.NotificationService;
 import com.example.panel.service.PermissionService;
 import com.example.panel.service.PublicFormService;
 import com.example.panel.service.SlaEscalationWebhookNotifier;
@@ -76,6 +77,7 @@ public class DialogApiController {
     private final AttachmentService attachmentService;
     private final SharedConfigService sharedConfigService;
     private final PermissionService permissionService;
+    private final NotificationService notificationService;
     private final PublicFormService publicFormService;
     private final SlaEscalationWebhookNotifier slaEscalationWebhookNotifier;
     private static final long QUICK_ACTION_TARGET_MS = 1500;
@@ -174,6 +176,7 @@ public class DialogApiController {
                                AttachmentService attachmentService,
                                SharedConfigService sharedConfigService,
                                PermissionService permissionService,
+                               NotificationService notificationService,
                                PublicFormService publicFormService,
                                SlaEscalationWebhookNotifier slaEscalationWebhookNotifier) {
         this.dialogService = dialogService;
@@ -182,6 +185,7 @@ public class DialogApiController {
         this.attachmentService = attachmentService;
         this.sharedConfigService = sharedConfigService;
         this.permissionService = permissionService;
+        this.notificationService = notificationService;
         this.publicFormService = publicFormService;
         this.slaEscalationWebhookNotifier = slaEscalationWebhookNotifier;
     }
@@ -2513,6 +2517,12 @@ public class DialogApiController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Map.of("success", false, "error", result.error()));
         }
+        notificationService.notifyDialogParticipants(
+                ticketId,
+                "Новое сообщение в обращении " + ticketId,
+                "/dialogs?ticketId=" + ticketId,
+                operator
+        );
         return ResponseEntity.ok(Map.of(
                 "success", true,
                 "timestamp", result.timestamp(),
@@ -2541,6 +2551,12 @@ public class DialogApiController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Map.of("success", false, "error", result.error()));
         }
+        notificationService.notifyDialogParticipants(
+                ticketId,
+                "Сообщение в обращении " + ticketId + " было отредактировано",
+                "/dialogs?ticketId=" + ticketId,
+                operator
+        );
         return ResponseEntity.ok(Map.of("success", true, "timestamp", result.timestamp()));
     }
 
@@ -2562,6 +2578,12 @@ public class DialogApiController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Map.of("success", false, "error", result.error()));
         }
+        notificationService.notifyDialogParticipants(
+                ticketId,
+                "Сообщение в обращении " + ticketId + " было удалено",
+                "/dialogs?ticketId=" + ticketId,
+                operator
+        );
         return ResponseEntity.ok(Map.of("success", true, "timestamp", result.timestamp()));
     }
 
@@ -2590,6 +2612,12 @@ public class DialogApiController {
         response.put("attachment", attachmentUrl);
         response.put("messageType", result.messageType());
         response.put("message", result.message());
+        notificationService.notifyDialogParticipants(
+                ticketId,
+                "Новое медиа-сообщение в обращении " + ticketId,
+                "/dialogs?ticketId=" + ticketId,
+                operator
+        );
         return ResponseEntity.ok(response);
     }
 
@@ -2617,6 +2645,12 @@ public class DialogApiController {
             }
             if (result.updated()) {
                 dialogNotificationService.notifyResolved(ticketId);
+                notificationService.notifyDialogParticipants(
+                        ticketId,
+                        "Обращение " + ticketId + " закрыто",
+                        "/dialogs?ticketId=" + ticketId,
+                        operator
+                );
             }
             logQuickAction(operator, ticketId, "quick_close", "success", result.updated() ? "updated" : "noop");
             return ResponseEntity.ok(Map.of("success", true, "updated", result.updated()));
@@ -2642,6 +2676,12 @@ public class DialogApiController {
         }
         if (result.updated()) {
             dialogNotificationService.notifyReopened(ticketId);
+            notificationService.notifyDialogParticipants(
+                    ticketId,
+                    "Обращение " + ticketId + " снова открыто",
+                    "/dialogs?ticketId=" + ticketId,
+                    operator
+            );
         }
         return ResponseEntity.ok(Map.of("success", true, "updated", result.updated()));
     }
@@ -2657,6 +2697,12 @@ public class DialogApiController {
         String operator = authentication != null ? authentication.getName() : null;
         dialogService.assignResponsibleIfMissing(ticketId, operator);
         dialogService.setTicketCategories(ticketId, request != null ? request.categories() : List.of());
+        notificationService.notifyDialogParticipants(
+                ticketId,
+                "В обращении " + ticketId + " обновлены категории",
+                "/dialogs?ticketId=" + ticketId,
+                operator
+        );
         return ResponseEntity.ok(Map.of("success", true));
     }
 
@@ -2685,6 +2731,12 @@ public class DialogApiController {
 
             Optional<DialogListItem> updated = dialogService.findDialog(ticketId, operator);
             String responsible = updated.map(DialogListItem::responsible).orElse(dialog.get().responsible());
+            notificationService.notifyDialogParticipants(
+                    ticketId,
+                    "Обращение " + ticketId + " взято в работу оператором " + operator,
+                    "/dialogs?ticketId=" + ticketId,
+                    operator
+            );
             logQuickAction(operator, ticketId, "take", "success", "responsible_assigned");
             return ResponseEntity.ok(Map.of(
                     "success", true,

@@ -3,9 +3,12 @@ package com.example.panel.controller;
 import com.example.panel.entity.Task;
 import com.example.panel.entity.TaskComment;
 import com.example.panel.entity.TaskHistory;
+import com.example.panel.entity.TaskPerson;
 import com.example.panel.repository.TaskCommentRepository;
 import com.example.panel.repository.TaskHistoryRepository;
+import com.example.panel.repository.TaskPersonRepository;
 import com.example.panel.repository.TaskRepository;
+import com.example.panel.service.NotificationService;
 import jakarta.transaction.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,6 +18,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -32,9 +36,11 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/tasks")
@@ -47,13 +53,19 @@ public class TaskApiController {
     private final TaskRepository taskRepository;
     private final TaskCommentRepository commentRepository;
     private final TaskHistoryRepository historyRepository;
+    private final TaskPersonRepository taskPersonRepository;
+    private final NotificationService notificationService;
 
     public TaskApiController(TaskRepository taskRepository,
                              TaskCommentRepository commentRepository,
-                             TaskHistoryRepository historyRepository) {
+                             TaskHistoryRepository historyRepository,
+                             TaskPersonRepository taskPersonRepository,
+                             NotificationService notificationService) {
         this.taskRepository = taskRepository;
         this.commentRepository = commentRepository;
         this.historyRepository = historyRepository;
+        this.taskPersonRepository = taskPersonRepository;
+        this.notificationService = notificationService;
     }
 
     @GetMapping
@@ -106,9 +118,13 @@ public class TaskApiController {
                                     @RequestParam(name = "body_html", required = false) String bodyHtml,
                                     @RequestParam(required = false) String creator,
                                     @RequestParam(required = false) String assignee,
+                                    @RequestParam(required = false) String co,
+                                    @RequestParam(required = false) String watchers,
                                     @RequestParam(required = false) String tag,
                                     @RequestParam(name = "due_at", required = false) String dueAt,
-                                    @RequestParam(required = false) String status) {
+                                    @RequestParam(required = false) String status,
+                                    Authentication authentication) {
+        boolean isNew = id == null || taskRepository.findById(id).isEmpty();
         Task task = id != null ? taskRepository.findById(id).orElse(new Task()) : new Task();
         task.setTitle(title);
         task.setBodyHtml(bodyHtml);
@@ -127,6 +143,15 @@ public class TaskApiController {
             saved.setSeq(saved.getId());
             saved = taskRepository.save(saved);
         }
+        syncTaskPeople(saved, co, watchers);
+        String actor = resolveActor(authentication, saved.getCreator());
+        Set<String> recipients = resolveTaskRecipients(saved, co, watchers);
+        String displayNo = saved.getSeq() != null ? "DL_" + saved.getSeq() : "DL_" + saved.getId();
+        String safeTitle = StringUtils.hasText(saved.getTitle()) ? saved.getTitle().trim() : "без названия";
+        String text = isNew
+                ? "Новая задача " + displayNo + ": " + safeTitle
+                : "Обновлена задача " + displayNo + ": " + safeTitle;
+        notificationService.notifyUsersExcluding(recipients, actor, text, "/tasks#task=" + saved.getId());
         log.info("Task {} saved (id={}, creator={}, assignee={}, status={})",
                 saved.getSeq(), saved.getId(), saved.getCreator(), saved.getAssignee(), saved.getStatus());
         return Map.of("ok", true, "id", saved.getId());
@@ -148,7 +173,8 @@ public class TaskApiController {
     @PostMapping(value = "/{id}/comments", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public Map<String, Object> addComment(@PathVariable Long id,
                                           @RequestParam String html,
-                                          @RequestParam(name = "author", required = false) String author) {
+                                          @RequestParam(name = "author", required = false) String author,
+                                          Authentication authentication) {
         Task task = taskRepository.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         TaskComment comment = new TaskComment();
         comment.setTask(task);
@@ -161,6 +187,16 @@ public class TaskApiController {
                 "author", saved.getAuthor(),
                 "html", saved.getHtml(),
                 "created_at", formatDate(saved.getCreatedAt())
+        );
+        String actor = resolveActor(authentication, saved.getAuthor());
+        Set<String> recipients = resolveTaskRecipients(task, null, null);
+        String displayNo = task.getSeq() != null ? "DL_" + task.getSeq() : "DL_" + task.getId();
+        String safeAuthor = StringUtils.hasText(saved.getAuthor()) ? saved.getAuthor().trim() : "оператор";
+        notificationService.notifyUsersExcluding(
+                recipients,
+                actor,
+                "Новый комментарий в задаче " + displayNo + " от " + safeAuthor,
+                "/tasks#task=" + task.getId()
         );
         log.info("Comment {} added to task {} by {}", saved.getId(), id, saved.getAuthor());
         return Map.of("ok", true, "item", dto);
@@ -197,6 +233,21 @@ public class TaskApiController {
                 })
                 .toList();
         dto.put("comments", comments);
+        List<TaskPerson> people = taskPersonRepository.findByTaskId(task.getId());
+        dto.put("co", people.stream()
+                .filter(person -> "co".equalsIgnoreCase(person.getRole()))
+                .map(TaskPerson::getIdentity)
+                .filter(StringUtils::hasText)
+                .map(String::trim)
+                .distinct()
+                .toList());
+        dto.put("watchers", people.stream()
+                .filter(person -> "watcher".equalsIgnoreCase(person.getRole()))
+                .map(TaskPerson::getIdentity)
+                .filter(StringUtils::hasText)
+                .map(String::trim)
+                .distinct()
+                .toList());
 
         List<Map<String, Object>> history = historyRepository.findByTaskIdOrderByAtDesc(task.getId()).stream()
                 .map(h -> {
@@ -239,5 +290,98 @@ public class TaskApiController {
 
     private String formatDate(OffsetDateTime value) {
         return value != null ? value.toString() : null;
+    }
+
+    private void syncTaskPeople(Task task, String co, String watchers) {
+        if (task == null || task.getId() == null) {
+            return;
+        }
+        List<TaskPerson> existing = taskPersonRepository.findByTaskId(task.getId());
+        if (!existing.isEmpty()) {
+            taskPersonRepository.deleteAll(existing);
+        }
+        List<TaskPerson> fresh = new java.util.ArrayList<>();
+        addTaskPeopleRole(fresh, task, "assignee", task.getAssignee());
+        addTaskPeopleRole(fresh, task, "creator", task.getCreator());
+        for (String identity : parseIdentityList(co)) {
+            addTaskPeopleRole(fresh, task, "co", identity);
+        }
+        for (String identity : parseIdentityList(watchers)) {
+            addTaskPeopleRole(fresh, task, "watcher", identity);
+        }
+        if (!fresh.isEmpty()) {
+            taskPersonRepository.saveAll(fresh);
+        }
+    }
+
+    private void addTaskPeopleRole(List<TaskPerson> target, Task task, String role, String identity) {
+        if (target == null || task == null || !StringUtils.hasText(identity) || !StringUtils.hasText(role)) {
+            return;
+        }
+        String trimmedIdentity = identity.trim();
+        if (trimmedIdentity.isEmpty()) {
+            return;
+        }
+        boolean exists = target.stream().anyMatch(person ->
+                role.equalsIgnoreCase(person.getRole())
+                        && trimmedIdentity.equalsIgnoreCase(person.getIdentity()));
+        if (exists) {
+            return;
+        }
+        TaskPerson person = new TaskPerson();
+        person.setTask(task);
+        person.setRole(role);
+        person.setIdentity(trimmedIdentity);
+        target.add(person);
+    }
+
+    private Set<String> resolveTaskRecipients(Task task, String co, String watchers) {
+        Set<String> recipients = new LinkedHashSet<>();
+        if (task != null) {
+            if (StringUtils.hasText(task.getAssignee())) {
+                recipients.add(task.getAssignee().trim());
+            }
+            if (StringUtils.hasText(task.getCreator())) {
+                recipients.add(task.getCreator().trim());
+            }
+            if (task.getId() != null) {
+                taskPersonRepository.findByTaskId(task.getId()).stream()
+                        .map(TaskPerson::getIdentity)
+                        .filter(StringUtils::hasText)
+                        .map(String::trim)
+                        .forEach(recipients::add);
+            }
+        }
+        parseIdentityList(co).forEach(recipients::add);
+        parseIdentityList(watchers).forEach(recipients::add);
+        return recipients;
+    }
+
+    private List<String> parseIdentityList(String raw) {
+        if (!StringUtils.hasText(raw)) {
+            return List.of();
+        }
+        Set<String> values = new LinkedHashSet<>();
+        String[] chunks = raw.split("[,;\\n]+");
+        for (String chunk : chunks) {
+            if (!StringUtils.hasText(chunk)) {
+                continue;
+            }
+            String value = chunk.trim();
+            if (!value.isEmpty()) {
+                values.add(value);
+            }
+        }
+        return values.stream().toList();
+    }
+
+    private String resolveActor(Authentication authentication, String fallback) {
+        if (authentication != null && StringUtils.hasText(authentication.getName())) {
+            return authentication.getName().trim();
+        }
+        if (StringUtils.hasText(fallback)) {
+            return fallback.trim();
+        }
+        return null;
     }
 }

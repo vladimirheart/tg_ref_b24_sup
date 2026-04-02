@@ -4,6 +4,7 @@ import com.example.panel.model.knowledge.KnowledgeArticleCommand;
 import com.example.panel.model.knowledge.KnowledgeArticleDetails;
 import com.example.panel.service.KnowledgeBaseService;
 import com.example.panel.service.NavigationService;
+import com.example.panel.service.NotificationService;
 import com.example.panel.service.PermissionService;
 import com.example.panel.storage.AttachmentService;
 import org.slf4j.Logger;
@@ -35,15 +36,18 @@ public class KnowledgeBaseController {
     private final KnowledgeBaseService knowledgeBaseService;
     private final AttachmentService attachmentService;
     private final NavigationService navigationService;
+    private final NotificationService notificationService;
 
     public KnowledgeBaseController(PermissionService permissionService,
                                    KnowledgeBaseService knowledgeBaseService,
                                    AttachmentService attachmentService,
-                                   NavigationService navigationService) {
+                                   NavigationService navigationService,
+                                   NotificationService notificationService) {
         this.permissionService = permissionService;
         this.knowledgeBaseService = knowledgeBaseService;
         this.attachmentService = attachmentService;
         this.navigationService = navigationService;
+        this.notificationService = notificationService;
     }
 
     @GetMapping
@@ -85,8 +89,15 @@ public class KnowledgeBaseController {
 
     @PostMapping("/articles")
     @PreAuthorize("hasAuthority('PAGE_KNOWLEDGE_BASE')")
-    public String saveArticle(KnowledgeArticleCommand command) {
+    public String saveArticle(KnowledgeArticleCommand command, Authentication authentication) {
+        boolean isNew = command != null && command.id() == null;
         KnowledgeArticleDetails saved = knowledgeBaseService.saveArticle(command);
+        String actor = authentication != null ? authentication.getName() : null;
+        String title = saved.title() != null && !saved.title().isBlank() ? saved.title().trim() : "без названия";
+        String text = isNew
+                ? "Новая статья в базе знаний: " + title
+                : "Обновлена статья в базе знаний: " + title;
+        notificationService.notifyAllOperators(text, "/knowledge-base/" + saved.id(), actor);
         return "redirect:/knowledge-base/" + saved.id();
     }
 
