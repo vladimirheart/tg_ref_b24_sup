@@ -60,6 +60,32 @@
       color: var(--color-text);
       font-weight: 600;
     }
+    .settings-tiles .settings-tile .tile-description {
+      margin-top: 0.6rem;
+    }
+    .settings-tiles .settings-tile .tile-description-toggle {
+      border: 0;
+      background: transparent;
+      padding: 0;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--primary);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      text-decoration: none;
+    }
+    .settings-tiles .settings-tile .tile-description-toggle .tile-description-icon {
+      transition: transform 0.18s ease;
+      font-size: 0.8rem;
+    }
+    .settings-tiles .settings-tile .tile-description-toggle[aria-expanded="true"] .tile-description-icon {
+      transform: rotate(180deg);
+    }
+    .settings-tiles .settings-tile .tile-description-collapse {
+      margin-top: 0.4rem;
+      margin-bottom: 0;
+    }
 
     .settings-tiles .settings-tile--accent .card-text {
       color: var(--color-text-muted);
@@ -21270,7 +21296,52 @@
       renderManagerBindingsRows();
     });
   }
-  document.addEventListener('DOMContentLoaded', initReporting);
+  function initSettingsTileDescriptions() {
+    const tiles = document.querySelectorAll('.settings-tiles > .col .settings-tile[role="button"]');
+    let collapseIndex = 0;
+    tiles.forEach((tile) => {
+      const body = tile.querySelector('.card-body');
+      const description = body ? body.querySelector('.card-text.text-muted') : null;
+      if (!body || !description) {
+        return;
+      }
+      if (description.dataset.managerBindingsSummary !== undefined || description.dataset.reportingSummary !== undefined) {
+        return;
+      }
+      collapseIndex += 1;
+      const collapseId = `settingsTileDescription${collapseIndex}`;
+      description.id = collapseId;
+      description.classList.add('collapse', 'tile-description-collapse');
+      description.classList.remove('mb-0');
+      const wrapper = document.createElement('div');
+      wrapper.className = 'tile-description';
+      wrapper.setAttribute('data-tile-collapse', 'true');
+      const toggle = document.createElement('button');
+      toggle.type = 'button';
+      toggle.className = 'tile-description-toggle';
+      toggle.setAttribute('data-bs-toggle', 'collapse');
+      toggle.setAttribute('data-bs-target', `#${collapseId}`);
+      toggle.setAttribute('aria-expanded', 'false');
+      toggle.setAttribute('aria-controls', collapseId);
+      toggle.innerHTML = 'Описание <i class="bi bi-chevron-down tile-description-icon" aria-hidden="true"></i>';
+      wrapper.appendChild(toggle);
+      wrapper.appendChild(description);
+      body.appendChild(wrapper);
+      wrapper.addEventListener('click', (event) => {
+        event.stopPropagation();
+      });
+      toggle.addEventListener('click', (event) => {
+        event.stopPropagation();
+      });
+      description.addEventListener('click', (event) => {
+        event.stopPropagation();
+      });
+    });
+  }
+  document.addEventListener('DOMContentLoaded', () => {
+    initReporting();
+    initSettingsTileDescriptions();
+  });
 
   </script>
 </main>
