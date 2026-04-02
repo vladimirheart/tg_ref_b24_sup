@@ -4857,6 +4857,10 @@
                 </div>
 
                 <div class="table-responsive shadow-sm">
+                  <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 p-2 border border-bottom-0 rounded-top bg-light-subtle">
+                    <div class="small text-muted" id="channelsBotStatusesInfo">Статусы процессов не обновлялись.</div>
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="channelsRefreshBotStatusesBtn">Обновить статусы всех ботов</button>
+                  </div>
                   <table class="table align-middle mb-0">
                     <thead class="table-light">
                       <tr>
@@ -18537,6 +18541,8 @@
 
   // === КАНАЛЫ (боты) ===
   const channelsBody = document.getElementById('channelsBody');
+  const channelsRefreshBotStatusesBtn = document.getElementById('channelsRefreshBotStatusesBtn');
+  const channelsBotStatusesInfo = document.getElementById('channelsBotStatusesInfo');
   const channelEditorModalEl = document.getElementById('channelEditorModal');
   const channelEditorNameInput = document.getElementById('channelEditorName');
   const channelEditorActiveInput = document.getElementById('channelEditorIsActive');
@@ -19293,6 +19299,56 @@
     }
     badge.textContent = `Процесс: ${normalized.label}`;
     badge.title = '';
+  }
+
+  async function refreshAllBotRuntimeStatuses(silent = false) {
+    const channelIds = Array.from(CHANNELS_REGISTRY.keys())
+      .map((value) => Number.parseInt(value, 10))
+      .filter((value) => Number.isFinite(value));
+    if (!channelIds.length) {
+      if (!silent && channelsBotStatusesInfo) {
+        channelsBotStatusesInfo.textContent = 'Нет каналов для обновления статусов.';
+      }
+      return;
+    }
+    const defaultLabel = 'Обновить статусы всех ботов';
+    if (channelsRefreshBotStatusesBtn) {
+      channelsRefreshBotStatusesBtn.disabled = true;
+      channelsRefreshBotStatusesBtn.textContent = 'Обновляем…';
+    }
+    if (channelsBotStatusesInfo) {
+      channelsBotStatusesInfo.textContent = `Обновление статусов: 0/${channelIds.length}`;
+    }
+    let done = 0;
+    let errors = 0;
+    await Promise.all(channelIds.map(async (channelId) => {
+      try {
+        const response = await fetch(`/api/bots/${channelId}/status`);
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(payload?.error || ('HTTP ' + response.status));
+        }
+        setChannelRowBotRuntimeStatus(channelId, payload?.status, payload?.startedAt);
+      } catch (error) {
+        errors += 1;
+        setChannelRowBotRuntimeStatus(channelId, 'ошибка', null);
+      } finally {
+        done += 1;
+        if (channelsBotStatusesInfo) {
+          channelsBotStatusesInfo.textContent = `Обновление статусов: ${done}/${channelIds.length}`;
+        }
+      }
+    }));
+    const refreshedAt = new Date().toLocaleTimeString();
+    if (channelsBotStatusesInfo) {
+      channelsBotStatusesInfo.textContent = errors
+        ? `Обновлено ${channelIds.length - errors}/${channelIds.length}, ошибок: ${errors}. ${refreshedAt}`
+        : `Статусы обновлены: ${channelIds.length}/${channelIds.length}. ${refreshedAt}`;
+    }
+    if (channelsRefreshBotStatusesBtn) {
+      channelsRefreshBotStatusesBtn.disabled = false;
+      channelsRefreshBotStatusesBtn.textContent = defaultLabel;
+    }
   }
 
   function updateBotControls(running) {
@@ -20451,18 +20507,7 @@
           ? data.channels
           : [];
       renderChannels(rows);
-      const channelIds = rows
-        .map((item) => item?.id)
-        .filter((id) => id !== null && id !== undefined);
-      Promise.all(channelIds.map(async (channelId) => {
-        try {
-          const response = await fetch(`/api/bots/${channelId}/status`);
-          const payload = await response.json().catch(() => ({}));
-          setChannelRowBotRuntimeStatus(channelId, payload?.status, payload?.startedAt);
-        } catch (error) {
-          setChannelRowBotRuntimeStatus(channelId, 'ошибка', null);
-        }
-      }));
+      await refreshAllBotRuntimeStatuses(true);
       refreshChannelEditorIfOpen();
     } catch (error) {
       showPopup('Не удалось загрузить каналы: ' + error.message);
@@ -20930,6 +20975,9 @@
       integrationNetworkProfileEditingIndex = null;
       integrationNetworkProfileForm?.reset();
       toggleIntegrationNetworkProfileModeFields();
+    });
+    channelsRefreshBotStatusesBtn?.addEventListener('click', () => {
+      refreshAllBotRuntimeStatuses(false);
     });
     vkSaveBtn?.addEventListener('click', saveVkWebhookSettings);
     addChannelModalEl?.addEventListener('show.bs.modal', () => {

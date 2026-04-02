@@ -60,8 +60,11 @@ public class BotProcessService {
 
         try {
             String botModule = resolveBotModule(channel);
+            Path botWorkingDir = resolveBotWorkingDir();
+            Files.createDirectories(resolveMavenRepoDir(botWorkingDir));
             ProcessBuilder builder = new ProcessBuilder(
                 mvnwCommand(),
+                "-Dmaven.repo.local=" + resolveMavenRepoDir(botWorkingDir),
                 "-q",
                 "-Dorg.slf4j.simpleLogger.showDateTime=true",
                 "-Dorg.slf4j.simpleLogger.dateTimeFormat=yyyy-MM-dd HH:mm:ss.SSSXXX",
@@ -70,7 +73,6 @@ public class BotProcessService {
                 "-am",
                 "spring-boot:run"
             );
-            Path botWorkingDir = resolveBotWorkingDir();
             builder.directory(botWorkingDir.toFile());
             Path logFile = resolveLogFile(botWorkingDir);
             Path processOutputLogFile = resolveProcessOutputLogFile(logFile);
@@ -301,6 +303,10 @@ public class BotProcessService {
         return (parent != null ? parent.resolve(processFileName) : Paths.get(processFileName))
             .toAbsolutePath()
             .normalize();
+    }
+
+    private Path resolveMavenRepoDir(Path botWorkingDir) {
+        return botWorkingDir.resolve("../spring-panel/.m2/repository").toAbsolutePath().normalize();
     }
 
     private void writePidFile(Path botWorkingDir, Long channelId, long pid) {
