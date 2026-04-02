@@ -94,3 +94,4 @@ export SPRING_OPTS="--server.port=8080"
 - [docs/vk_bot_setup.md](docs/vk_bot_setup.md) — настройка VK-бота.
 - [docs/max_bot_setup.md](docs/max_bot_setup.md) — настройка MAX-бота.
 - [docs/ui_ux_audit.md](docs/ui_ux_audit.md) — UI/UX аудит с внедрёнными правками и roadmap развития панели.
+- [docs/ai_dialog_agent_plan.md](docs/ai_dialog_agent_plan.md) — план развития AI-агента диалогов.
