@@ -6,28 +6,26 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 
 @Service
 public class DialogAiAssistantService {
-
     private static final Logger log = LoggerFactory.getLogger(DialogAiAssistantService.class);
     private static final Pattern TOKEN_SPLIT = Pattern.compile("[^\\p{IsAlphabetic}\\p{IsDigit}]+");
-    private static final Set<String> STOP_WORDS = Set.of(
-            "и", "в", "во", "на", "не", "что", "как", "для", "или", "по", "из", "к", "у", "о", "об",
-            "это", "а", "но", "же", "бы", "ли", "мы", "вы", "они", "он", "она", "оно", "с", "со", "от",
-            "the", "a", "an", "to", "of", "in", "on", "for", "and", "or", "is", "are", "be"
-    );
+    private static final Set<String> STOP = Set.of("и","в","на","не","что","как","для","или","по","из","к","у","о","об","the","a","an","to","of","in","on","for","and","or","is","are","be");
     private static final double AUTO_REPLY_THRESHOLD = 0.62d;
+    private static final double DIFFERENCE_THRESHOLD = 0.42d;
     private static final int DEFAULT_SUGGESTION_LIMIT = 3;
 
     private final JdbcTemplate jdbcTemplate;
@@ -35,10 +33,7 @@ public class DialogAiAssistantService {
     private final NotificationService notificationService;
     private final SharedConfigService sharedConfigService;
 
-    public DialogAiAssistantService(JdbcTemplate jdbcTemplate,
-                                    DialogReplyService dialogReplyService,
-                                    NotificationService notificationService,
-                                    SharedConfigService sharedConfigService) {
+    public DialogAiAssistantService(JdbcTemplate jdbcTemplate, DialogReplyService dialogReplyService, NotificationService notificationService, SharedConfigService sharedConfigService) {
         this.jdbcTemplate = jdbcTemplate;
         this.dialogReplyService = dialogReplyService;
         this.notificationService = notificationService;
@@ -46,427 +41,214 @@ public class DialogAiAssistantService {
     }
 
     public void processIncomingClientMessage(String ticketId, String message) {
-        String normalizedTicketId = trimToNull(ticketId);
-        String normalizedMessage = trimToNull(message);
-        if (normalizedTicketId == null || normalizedMessage == null) {
+        String t = trim(ticketId), m = trim(message);
+        if (t == null || m == null) return;
+        if (!isAgentEnabled()) { clearProcessing(t, "disabled", null); return; }
+        if (requiresHumanImmediately(m)) {
+            clearProcessing(t, "manual_requested", null);
+            notifyOperatorsEscalation(t, m, "Клиент запросил оператора.");
             return;
         }
-        if (!isAgentEnabled()) {
-            clearProcessing(normalizedTicketId, "disabled", null);
-            return;
-        }
-        if (requiresHumanImmediately(normalizedMessage)) {
-            clearProcessing(normalizedTicketId, "manual_requested", null);
-            notifyOperatorsEscalation(normalizedTicketId, normalizedMessage, "Клиент запросил оператора.");
-            return;
-        }
-
-        List<AiSuggestion> suggestions = findSuggestions(normalizedTicketId, normalizedMessage, DEFAULT_SUGGESTION_LIMIT);
+        List<AiSuggestion> suggestions = findSuggestions(t, m, DEFAULT_SUGGESTION_LIMIT);
         if (suggestions.isEmpty()) {
-            clearProcessing(normalizedTicketId, "no_match", "Нет релевантных источников.");
-            notifyOperatorsEscalation(normalizedTicketId, normalizedMessage, "Агент не нашел релевантный ответ.");
+            clearProcessing(t, "no_match", "Нет релевантных источников.");
+            notifyOperatorsEscalation(t, m, "Агент не нашел релевантный ответ.");
             return;
         }
-
         AiSuggestion top = suggestions.get(0);
-        if (top.score() < AUTO_REPLY_THRESHOLD) {
-            clearProcessing(normalizedTicketId, "low_confidence", "Низкая уверенность (" + formatScore(top.score()) + ").");
-            notifyOperatorsEscalation(normalizedTicketId, normalizedMessage, "Низкая уверенность агента: " + formatScore(top.score()));
+        if (top.score < AUTO_REPLY_THRESHOLD) {
+            clearProcessing(t, "low_confidence", "Низкая уверенность (" + formatScore(top.score) + ").");
+            notifyOperatorsEscalation(t, m, "Низкая уверенность агента: " + formatScore(top.score));
             return;
         }
-
         String reply = buildAutoReply(top);
-        DialogReplyService.DialogReplyResult result = dialogReplyService.sendReply(normalizedTicketId, reply, null, null);
+        DialogReplyService.DialogReplyResult result = dialogReplyService.sendReply(t, reply, null, null);
         if (!result.success()) {
-            clearProcessing(normalizedTicketId, "send_failed", result.error());
-            notifyOperatorsEscalation(normalizedTicketId, normalizedMessage, "Ошибка отправки автоответа: " + result.error());
+            clearProcessing(t, "send_failed", result.error());
+            notifyOperatorsEscalation(t, m, "Ошибка отправки автоответа: " + result.error());
             return;
         }
-        markProcessing(normalizedTicketId, "auto_replied", top, null);
+        if (top.memoryKey != null) markMemoryUsage(top.memoryKey);
+        markProcessing(t, "auto_replied", top, null);
+    }
+
+    public void registerOperatorReply(String ticketId, String operatorReply, String operator) {
+        try {
+            String t = trim(ticketId), r = trim(operatorReply);
+            if (t == null || r == null) return;
+            String lastClient = loadLastClientMessage(t);
+            if (!StringUtils.hasText(lastClient)) return;
+            String key = upsertLearningSolution(lastClient, r, operator);
+            if (key == null) return;
+            String suggested = loadLastSuggestedReply(t);
+            if (!StringUtils.hasText(suggested) || !isMeaningfullyDifferent(suggested, r) || hasOpenCorrectionRequest(t)) return;
+            notificationService.notifyDialogParticipants(
+                    t,
+                    "AI-решение по обращению " + t + " отличается от ответа оператора. Внесите правки в сохраненное решение.",
+                    "/dialogs?ticketId=" + t,
+                    null
+            );
+            clearProcessing(t, "operator_correction_requested", "operator_reply_differs");
+            jdbcTemplate.update("UPDATE ai_agent_solution_memory SET review_required = 1, pending_solution_text = ?, updated_at = CURRENT_TIMESTAMP WHERE query_key = ?", cut(r, 2000), key);
+        } catch (Exception ex) {
+            log.debug("registerOperatorReply failed for {}: {}", ticketId, ex.getMessage());
+        }
     }
 
     public List<Map<String, Object>> loadOperatorSuggestions(String ticketId, Integer limit) {
-        String normalizedTicketId = trimToNull(ticketId);
-        if (normalizedTicketId == null) {
-            return List.of();
-        }
-        String lastClientMessage = loadLastClientMessage(normalizedTicketId);
-        if (!StringUtils.hasText(lastClientMessage)) {
-            return List.of();
-        }
+        String t = trim(ticketId);
+        if (t == null) return List.of();
+        String lastClient = loadLastClientMessage(t);
+        if (!StringUtils.hasText(lastClient)) return List.of();
         int safeLimit = Math.max(1, Math.min(limit != null ? limit : DEFAULT_SUGGESTION_LIMIT, 8));
-        List<AiSuggestion> suggestions = findSuggestions(normalizedTicketId, lastClientMessage, safeLimit);
         List<Map<String, Object>> payload = new ArrayList<>();
-        for (AiSuggestion suggestion : suggestions) {
+        for (AiSuggestion s : findSuggestions(t, lastClient, safeLimit)) {
             Map<String, Object> item = new LinkedHashMap<>();
-            item.put("source", suggestion.source());
-            item.put("title", suggestion.title());
-            item.put("score", suggestion.score());
-            item.put("score_label", formatScore(suggestion.score()));
-            item.put("snippet", suggestion.snippet());
-            item.put("reply", buildOperatorReplySuggestion(suggestion));
+            item.put("source", s.source);
+            item.put("title", s.title);
+            item.put("score", s.score);
+            item.put("score_label", formatScore(s.score));
+            item.put("snippet", s.snippet);
+            item.put("reply", buildOperatorReplySuggestion(s));
             payload.add(item);
         }
         return payload;
     }
 
     public boolean isProcessing(String ticketId) {
-        String normalizedTicketId = trimToNull(ticketId);
-        if (normalizedTicketId == null) {
-            return false;
-        }
-        try {
-            Integer value = jdbcTemplate.queryForObject(
-                    "SELECT COALESCE(is_processing, 0) FROM ticket_ai_agent_state WHERE ticket_id = ?",
-                    Integer.class,
-                    normalizedTicketId
-            );
-            return value != null && value > 0;
-        } catch (Exception ex) {
-            return false;
-        }
+        String t = trim(ticketId);
+        if (t == null) return false;
+        try { Integer v = jdbcTemplate.queryForObject("SELECT COALESCE(is_processing, 0) FROM ticket_ai_agent_state WHERE ticket_id = ?", Integer.class, t); return v != null && v > 0; }
+        catch (Exception ex) { return false; }
     }
 
     public void clearProcessing(String ticketId, String action, String error) {
-        String normalizedTicketId = trimToNull(ticketId);
-        if (normalizedTicketId == null) {
-            return;
-        }
-        try {
-            jdbcTemplate.update(
-                    """
-                    INSERT INTO ticket_ai_agent_state(ticket_id, is_processing, mode, last_action, last_error, updated_at)
-                    VALUES (?, 0, ?, ?, ?, CURRENT_TIMESTAMP)
-                    ON CONFLICT(ticket_id) DO UPDATE SET
-                        is_processing = 0,
-                        mode = excluded.mode,
-                        last_action = excluded.last_action,
-                        last_error = excluded.last_error,
-                        updated_at = CURRENT_TIMESTAMP
-                    """,
-                    normalizedTicketId,
-                    "assist",
-                    trimToNull(action),
-                    trimToNull(error)
-            );
-        } catch (Exception ex) {
-            log.debug("Unable to clear AI processing for {}: {}", normalizedTicketId, ex.getMessage());
-        }
+        String t = trim(ticketId);
+        if (t == null) return;
+        jdbcTemplate.update("""
+                INSERT INTO ticket_ai_agent_state(ticket_id, is_processing, mode, last_action, last_error, updated_at)
+                VALUES (?, 0, ?, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(ticket_id) DO UPDATE SET is_processing = 0, mode = excluded.mode, last_action = excluded.last_action, last_error = excluded.last_error, updated_at = CURRENT_TIMESTAMP
+                """, t, "assist", trim(action), trim(error));
     }
 
     private void markProcessing(String ticketId, String action, AiSuggestion suggestion, String error) {
-        try {
-            jdbcTemplate.update(
-                    """
-                    INSERT INTO ticket_ai_agent_state(ticket_id, is_processing, mode, last_action, last_error, last_source, last_score, last_suggested_reply, updated_at)
-                    VALUES (?, 1, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-                    ON CONFLICT(ticket_id) DO UPDATE SET
-                        is_processing = 1,
-                        mode = excluded.mode,
-                        last_action = excluded.last_action,
-                        last_error = excluded.last_error,
-                        last_source = excluded.last_source,
-                        last_score = excluded.last_score,
-                        last_suggested_reply = excluded.last_suggested_reply,
-                        updated_at = CURRENT_TIMESTAMP
-                    """,
-                    ticketId,
-                    "assist",
-                    trimToNull(action),
-                    trimToNull(error),
-                    suggestion != null ? suggestion.source() : null,
-                    suggestion != null ? suggestion.score() : null,
-                    suggestion != null ? trimToNull(buildAutoReply(suggestion)) : null
-            );
-        } catch (Exception ex) {
-            log.debug("Unable to mark AI processing for {}: {}", ticketId, ex.getMessage());
-        }
+        jdbcTemplate.update("""
+                INSERT INTO ticket_ai_agent_state(ticket_id, is_processing, mode, last_action, last_error, last_source, last_score, last_suggested_reply, updated_at)
+                VALUES (?, 1, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(ticket_id) DO UPDATE SET is_processing = 1, mode = excluded.mode, last_action = excluded.last_action, last_error = excluded.last_error, last_source = excluded.last_source, last_score = excluded.last_score, last_suggested_reply = excluded.last_suggested_reply, updated_at = CURRENT_TIMESTAMP
+                """, ticketId, "assist", trim(action), trim(error), suggestion != null ? suggestion.source : null, suggestion != null ? suggestion.score : null, suggestion != null ? trim(buildAutoReply(suggestion)) : null);
     }
 
     private List<AiSuggestion> findSuggestions(String ticketId, String query, int limit) {
-        Set<String> queryTokens = tokenize(query);
-        if (queryTokens.isEmpty()) {
+        Set<String> q = tokenize(query); if (q.isEmpty()) return List.of();
+        List<AiSuggestion> c = new ArrayList<>();
+        c.addAll(loadMemoryCandidates(q, limit * 4));
+        c.addAll(loadKnowledgeCandidates(q, limit * 4));
+        c.addAll(loadTaskCandidates(q, limit * 4));
+        c.addAll(loadHistoryCandidates(ticketId, q, limit * 6));
+        return c.stream().filter(x -> x.score > 0d).sorted(Comparator.comparingDouble((AiSuggestion x) -> x.score).reversed()).limit(limit).toList();
+    }
+
+    private List<AiSuggestion> loadMemoryCandidates(Set<String> q, int limit) {
+        List<Map<String, Object>> rows;
+        try {
+            rows = jdbcTemplate.queryForList("SELECT query_key, query_text, solution_text, times_confirmed, times_corrected FROM ai_agent_solution_memory WHERE COALESCE(review_required,0)=0 AND solution_text IS NOT NULL AND trim(solution_text)<>'' ORDER BY COALESCE(updated_at, created_at) DESC LIMIT ?", limit);
+        } catch (Exception ex) {
             return List.of();
         }
-
-        List<AiSuggestion> candidates = new ArrayList<>();
-        candidates.addAll(loadKnowledgeCandidates(queryTokens, limit * 4));
-        candidates.addAll(loadTaskCandidates(queryTokens, limit * 4));
-        candidates.addAll(loadHistoryCandidates(ticketId, queryTokens, limit * 6));
-
-        return candidates.stream()
-                .filter(candidate -> candidate.score() > 0d)
-                .sorted(Comparator.comparingDouble(AiSuggestion::score).reversed())
-                .limit(limit)
-                .toList();
-    }
-
-    private List<AiSuggestion> loadKnowledgeCandidates(Set<String> queryTokens, int limit) {
-        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-                """
-                SELECT id, title, summary, content
-                  FROM knowledge_articles
-                 ORDER BY COALESCE(updated_at, created_at) DESC
-                 LIMIT ?
-                """,
-                limit
-        );
-        List<AiSuggestion> result = new ArrayList<>();
+        List<AiSuggestion> out = new ArrayList<>();
         for (Map<String, Object> row : rows) {
-            String title = safeText(row.get("title"));
-            String text = joinText(title, safeText(row.get("summary")), safeText(row.get("content")));
-            double score = scoreByTokens(queryTokens, text);
-            if (score <= 0d) {
-                continue;
-            }
-            result.add(new AiSuggestion(
-                    "knowledge",
-                    title.isBlank() ? "Статья базы знаний" : title,
-                    compactSnippet(text, 280),
-                    score
-            ));
+            String key = safe(row.get("query_key")), qt = safe(row.get("query_text")), st = safe(row.get("solution_text"));
+            double s = scoreByTokens(q, join(qt, st));
+            int conf = toInt(row.get("times_confirmed")), corr = toInt(row.get("times_corrected"));
+            s = Math.max(0d, Math.min(1d, s + Math.min(0.20d, conf * 0.02d) - Math.min(0.12d, corr * 0.02d)));
+            if (s > 0d) out.add(new AiSuggestion("memory", "Проверенное решение", cut(st, 320), s, trim(key)));
         }
-        return result;
+        return out;
     }
 
-    private List<AiSuggestion> loadTaskCandidates(Set<String> queryTokens, int limit) {
-        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-                """
-                SELECT id, title, body_html, status
-                  FROM tasks
-                 ORDER BY COALESCE(last_activity_at, created_at) DESC
-                 LIMIT ?
-                """,
-                limit
-        );
-        List<AiSuggestion> result = new ArrayList<>();
+    private List<AiSuggestion> loadKnowledgeCandidates(Set<String> q, int limit) {
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList("SELECT title, summary, content FROM knowledge_articles ORDER BY COALESCE(updated_at, created_at) DESC LIMIT ?", limit);
+        List<AiSuggestion> out = new ArrayList<>();
         for (Map<String, Object> row : rows) {
-            String title = safeText(row.get("title"));
-            String bodyHtml = safeText(row.get("body_html"));
-            String text = joinText(title, stripHtml(bodyHtml), safeText(row.get("status")));
-            double score = scoreByTokens(queryTokens, text);
-            if (score <= 0d) {
-                continue;
-            }
-            result.add(new AiSuggestion(
-                    "tasks",
-                    title.isBlank() ? "Похожая задача" : title,
-                    compactSnippet(text, 280),
-                    score
-            ));
+            String title = safe(row.get("title")); String text = join(title, safe(row.get("summary")), safe(row.get("content"))); double s = scoreByTokens(q, text);
+            if (s > 0d) out.add(new AiSuggestion("knowledge", StringUtils.hasText(title) ? title : "Статья базы знаний", cut(text, 280), s, null));
         }
-        return result;
+        return out;
     }
 
-    private List<AiSuggestion> loadHistoryCandidates(String ticketId, Set<String> queryTokens, int limit) {
-        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-                """
-                SELECT ticket_id, message
-                  FROM chat_history
-                 WHERE ticket_id <> ?
-                   AND lower(sender) IN ('operator', 'support', 'admin', 'system')
-                   AND message IS NOT NULL
-                   AND trim(message) <> ''
-                 ORDER BY id DESC
-                 LIMIT ?
-                """,
-                ticketId,
-                limit
-        );
-        List<AiSuggestion> result = new ArrayList<>();
+    private List<AiSuggestion> loadTaskCandidates(Set<String> q, int limit) {
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList("SELECT title, body_html, status FROM tasks ORDER BY COALESCE(last_activity_at, created_at) DESC LIMIT ?", limit);
+        List<AiSuggestion> out = new ArrayList<>();
         for (Map<String, Object> row : rows) {
-            String ticket = safeText(row.get("ticket_id"));
-            String message = safeText(row.get("message"));
-            double score = scoreByTokens(queryTokens, message);
-            if (score <= 0d) {
-                continue;
-            }
-            result.add(new AiSuggestion(
-                    "history",
-                    ticket.isBlank() ? "Похожий диалог" : "Похожий диалог #" + ticket,
-                    compactSnippet(message, 260),
-                    score
-            ));
+            String title = safe(row.get("title")); String text = join(title, stripHtml(safe(row.get("body_html"))), safe(row.get("status"))); double s = scoreByTokens(q, text);
+            if (s > 0d) out.add(new AiSuggestion("tasks", StringUtils.hasText(title) ? title : "Похожая задача", cut(text, 280), s, null));
         }
-        return result;
+        return out;
     }
 
-    private String buildAutoReply(AiSuggestion suggestion) {
-        String body = trimToNull(suggestion != null ? suggestion.snippet() : null);
-        if (body == null) {
-            body = "Я не нашел готовое решение в базе знаний.";
+    private List<AiSuggestion> loadHistoryCandidates(String ticketId, Set<String> q, int limit) {
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList("SELECT ticket_id, message FROM chat_history WHERE ticket_id <> ? AND lower(sender) IN ('operator','support','admin','system') AND message IS NOT NULL AND trim(message)<>'' ORDER BY id DESC LIMIT ?", ticketId, limit);
+        List<AiSuggestion> out = new ArrayList<>();
+        for (Map<String, Object> row : rows) {
+            String ticket = safe(row.get("ticket_id")), msg = safe(row.get("message")); double s = scoreByTokens(q, msg);
+            if (s > 0d) out.add(new AiSuggestion("history", StringUtils.hasText(ticket) ? "Похожий диалог #" + ticket : "Похожий диалог", cut(msg, 260), s, null));
         }
-        return "Подобрал ответ по внутренней базе:\n\n"
-                + body
-                + "\n\nЕсли это не решает вопрос, напишите «оператор» — подключим специалиста.";
+        return out;
     }
 
-    private String buildOperatorReplySuggestion(AiSuggestion suggestion) {
-        String sourceLabel = switch (suggestion.source()) {
-            case "knowledge" -> "базе знаний";
-            case "tasks" -> "истории задач";
-            case "history" -> "похожих диалогах";
-            default -> "внутренних данных";
-        };
-        return "По " + sourceLabel + " можно предложить клиенту:\n\n" + suggestion.snippet();
+    private String upsertLearningSolution(String clientQuestion, String operatorReply, String operator) {
+        String q = trim(clientQuestion), r = trim(operatorReply); if (q == null || r == null) return null;
+        String key = buildKey(q);
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList("SELECT solution_text,pending_solution_text,review_required FROM ai_agent_solution_memory WHERE query_key=? LIMIT 1", key);
+        if (rows.isEmpty()) {
+            jdbcTemplate.update("INSERT INTO ai_agent_solution_memory(query_key,query_text,solution_text,source,times_used,times_confirmed,times_corrected,review_required,pending_solution_text,last_operator,created_at,updated_at) VALUES (?,?,?,?,0,1,0,0,NULL,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)", key, cut(q, 600), cut(r, 2000), "operator", trim(operator));
+            return key;
+        }
+        Map<String, Object> ex = rows.get(0);
+        String sol = trim(safe(ex.get("solution_text"))), pending = trim(safe(ex.get("pending_solution_text")));
+        boolean review = isTrue(ex.get("review_required"));
+        if (review && pending != null && !isMeaningfullyDifferent(pending, r)) {
+            jdbcTemplate.update("UPDATE ai_agent_solution_memory SET query_text=?,solution_text=?,review_required=0,pending_solution_text=NULL,times_confirmed=COALESCE(times_confirmed,0)+1,last_operator=?,updated_at=CURRENT_TIMESTAMP WHERE query_key=?", cut(q, 600), cut(r, 2000), trim(operator), key);
+            return key;
+        }
+        if (sol != null && isMeaningfullyDifferent(sol, r)) {
+            jdbcTemplate.update("UPDATE ai_agent_solution_memory SET query_text=?,review_required=1,pending_solution_text=?,times_corrected=COALESCE(times_corrected,0)+1,last_operator=?,updated_at=CURRENT_TIMESTAMP WHERE query_key=?", cut(q, 600), cut(r, 2000), trim(operator), key);
+            return key;
+        }
+        jdbcTemplate.update("UPDATE ai_agent_solution_memory SET query_text=?,solution_text=?,review_required=0,pending_solution_text=NULL,times_confirmed=COALESCE(times_confirmed,0)+1,last_operator=?,updated_at=CURRENT_TIMESTAMP WHERE query_key=?", cut(q, 600), cut(r, 2000), trim(operator), key);
+        return key;
     }
 
-    private void notifyOperatorsEscalation(String ticketId, String message, String reason) {
-        String text = "AI-агент эскалировал обращение " + ticketId + ". " + reason;
-        if (StringUtils.hasText(message)) {
-            text += " Вопрос клиента: " + compactSnippet(message, 140);
-        }
-        notificationService.notifyAllOperators(text, "/dialogs?ticketId=" + ticketId, null);
-    }
+    private void markMemoryUsage(String key) { try { jdbcTemplate.update("UPDATE ai_agent_solution_memory SET times_used=COALESCE(times_used,0)+1,updated_at=CURRENT_TIMESTAMP WHERE query_key=?", key); } catch (Exception ignored) {} }
+    private boolean hasOpenCorrectionRequest(String ticketId) { String a = jdbcTemplate.query("SELECT last_action FROM ticket_ai_agent_state WHERE ticket_id=? LIMIT 1", rs -> rs.next() ? trim(rs.getString("last_action")) : null, ticketId); return "operator_correction_requested".equalsIgnoreCase(String.valueOf(a)); }
+    private String loadLastSuggestedReply(String ticketId) { return jdbcTemplate.query("SELECT last_suggested_reply FROM ticket_ai_agent_state WHERE ticket_id=? LIMIT 1", rs -> rs.next() ? trim(rs.getString("last_suggested_reply")) : null, ticketId); }
+    private String loadLastClientMessage(String ticketId) { return jdbcTemplate.query("SELECT message FROM chat_history WHERE ticket_id=? AND lower(sender) NOT IN ('operator','support','admin','system') AND message IS NOT NULL AND trim(message)<>'' ORDER BY id DESC LIMIT 1", rs -> rs.next() ? trim(rs.getString("message")) : null, ticketId); }
+    private String buildAutoReply(AiSuggestion s) { String body = trim(s != null ? s.snippet : null); if (body == null) body = "Я не нашел готовое решение в базе знаний."; return "Подобрал ответ по внутренней базе:\n\n" + body + "\n\nЕсли это не решает вопрос, напишите «оператор» — подключим специалиста."; }
+    private String buildOperatorReplySuggestion(AiSuggestion s) { String src = switch (s.source) { case "memory" -> "проверенным решениям"; case "knowledge" -> "базе знаний"; case "tasks" -> "истории задач"; case "history" -> "похожих диалогах"; default -> "внутренним данным"; }; return "По " + src + " можно предложить клиенту:\n\n" + s.snippet; }
+    private void notifyOperatorsEscalation(String ticketId, String msg, String reason) { String t = "AI-агент эскалировал обращение " + ticketId + ". " + reason; if (StringUtils.hasText(msg)) t += " Вопрос клиента: " + cut(msg, 140); notificationService.notifyAllOperators(t, "/dialogs?ticketId=" + ticketId, null); }
+    private boolean isAgentEnabled() { try { Object d = sharedConfigService.loadSettings().get("dialog_config"); if (d instanceof Map<?,?> m) { Object e = m.get("ai_agent_enabled"); if (e instanceof Boolean b) return b; String n = String.valueOf(e).trim().toLowerCase(Locale.ROOT); return !"false".equals(n) && !"0".equals(n) && !"off".equals(n); } } catch (Exception ex) { log.debug("ai_agent_enabled read failed: {}", ex.getMessage()); } return true; }
+    private boolean requiresHumanImmediately(String m) { String n = String.valueOf(m).toLowerCase(Locale.ROOT); return n.contains("оператор") || n.contains("человек") || n.contains("менеджер") || n.contains("позвоните"); }
+    private boolean isMeaningfullyDifferent(String a, String b) { return similarity(a, b) < DIFFERENCE_THRESHOLD; }
+    private double similarity(String a, String b) { Set<String> x = tokenize(a), y = tokenize(b); if (x.isEmpty() || y.isEmpty()) return 0d; int i = 0; for (String t : x) if (y.contains(t)) i++; int u = x.size() + y.size() - i; return u <= 0 ? 0d : i / (double) u; }
+    private double scoreByTokens(Set<String> q, String src) { Set<String> s = tokenize(src); if (q.isEmpty() || s.isEmpty()) return 0d; int o = 0; for (String t : q) if (s.contains(t)) o++; if (o == 0) return 0d; double r = o / (double) q.size(); String n = normalize(src); double boost = 0d; for (String t : q) if (t.length() >= 5 && n.contains(t)) boost += 0.03d; return Math.min(1d, r + boost); }
+    private Set<String> tokenize(String v) { String n = normalize(v); if (!StringUtils.hasText(n)) return Set.of(); Set<String> out = new LinkedHashSet<>(); for (String t : TOKEN_SPLIT.split(n)) { String x = trim(t); if (x == null || x.length() < 2 || STOP.contains(x)) continue; out.add(x); } return out; }
+    private String normalize(String v) { if (!StringUtils.hasText(v)) return ""; return v.toLowerCase(Locale.ROOT).replace('ё', 'е'); }
+    private String stripHtml(String v) { if (!StringUtils.hasText(v)) return ""; return v.replaceAll("<[^>]+>", " ").replaceAll("\\s+", " ").trim(); }
+    private String join(String... chunks) { StringBuilder b = new StringBuilder(); if (chunks == null) return ""; for (String c : chunks) { String t = trim(c); if (t == null) continue; if (!b.isEmpty()) b.append(". "); b.append(t); } return b.toString(); }
+    private String cut(String text, int len) { String t = trim(text); if (t == null) return ""; String c = t.replaceAll("\\s+", " ").trim(); return c.length() <= len ? c : c.substring(0, Math.max(0, len - 3)) + "..."; }
+    private String safe(Object v) { return v != null ? String.valueOf(v) : ""; }
+    private String trim(String v) { if (!StringUtils.hasText(v)) return null; String t = v.trim(); return t.isEmpty() ? null : t; }
+    private int toInt(Object v) { try { return Integer.parseInt(String.valueOf(v)); } catch (Exception ex) { return 0; } }
+    private boolean isTrue(Object v) { if (v instanceof Boolean b) return b; String n = String.valueOf(v).trim().toLowerCase(Locale.ROOT); return "1".equals(n) || "true".equals(n) || "yes".equals(n) || "on".equals(n); }
+    private String formatScore(double score) { return String.format(Locale.ROOT, "%.2f", Math.max(0d, Math.min(1d, score))); }
+    private String buildKey(String question) { try { return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(normalize(question).getBytes(StandardCharsets.UTF_8))); } catch (Exception ex) { return Integer.toHexString(normalize(question).hashCode()); } }
 
-    private boolean isAgentEnabled() {
-        try {
-            Map<String, Object> settings = sharedConfigService.loadSettings();
-            Object rawDialogConfig = settings.get("dialog_config");
-            if (rawDialogConfig instanceof Map<?, ?> map) {
-                Object enabled = map.get("ai_agent_enabled");
-                if (enabled instanceof Boolean bool) {
-                    return bool;
-                }
-                String normalized = String.valueOf(enabled).trim().toLowerCase(Locale.ROOT);
-                return !"false".equals(normalized) && !"0".equals(normalized) && !"off".equals(normalized);
-            }
-        } catch (Exception ex) {
-            log.debug("Unable to resolve ai_agent_enabled setting: {}", ex.getMessage());
+    private static final class AiSuggestion {
+        final String source; final String title; final String snippet; final double score; final String memoryKey;
+        AiSuggestion(String source, String title, String snippet, double score, String memoryKey) {
+            this.source = source; this.title = title; this.snippet = snippet; this.score = score; this.memoryKey = memoryKey;
         }
-        return true;
-    }
-
-    private String loadLastClientMessage(String ticketId) {
-        try {
-            return jdbcTemplate.query(
-                    """
-                    SELECT message
-                      FROM chat_history
-                     WHERE ticket_id = ?
-                       AND lower(sender) NOT IN ('operator', 'support', 'admin', 'system')
-                       AND message IS NOT NULL
-                       AND trim(message) <> ''
-                     ORDER BY id DESC
-                     LIMIT 1
-                    """,
-                    rs -> rs.next() ? trimToNull(rs.getString("message")) : null,
-                    ticketId
-            );
-        } catch (Exception ex) {
-            return null;
-        }
-    }
-
-    private boolean requiresHumanImmediately(String message) {
-        String normalized = String.valueOf(message).toLowerCase(Locale.ROOT);
-        return normalized.contains("оператор")
-                || normalized.contains("человек")
-                || normalized.contains("менеджер")
-                || normalized.contains("позвоните");
-    }
-
-    private double scoreByTokens(Set<String> queryTokens, String sourceText) {
-        Set<String> sourceTokens = tokenize(sourceText);
-        if (queryTokens.isEmpty() || sourceTokens.isEmpty()) {
-            return 0d;
-        }
-        int overlap = 0;
-        for (String token : queryTokens) {
-            if (sourceTokens.contains(token)) {
-                overlap++;
-            }
-        }
-        if (overlap == 0) {
-            return 0d;
-        }
-        double overlapRate = overlap / (double) queryTokens.size();
-        String sourceNormalized = normalizeText(sourceText);
-        double boost = 0d;
-        for (String token : queryTokens) {
-            if (token.length() >= 5 && sourceNormalized.contains(token)) {
-                boost += 0.03d;
-            }
-        }
-        return Math.min(1d, overlapRate + boost);
-    }
-
-    private Set<String> tokenize(String value) {
-        String normalized = normalizeText(value);
-        if (!StringUtils.hasText(normalized)) {
-            return Set.of();
-        }
-        Set<String> result = new LinkedHashSet<>();
-        for (String token : TOKEN_SPLIT.split(normalized)) {
-            String trimmed = trimToNull(token);
-            if (trimmed == null || trimmed.length() < 2 || STOP_WORDS.contains(trimmed)) {
-                continue;
-            }
-            result.add(trimmed);
-        }
-        return result;
-    }
-
-    private String normalizeText(String value) {
-        if (!StringUtils.hasText(value)) {
-            return "";
-        }
-        return value.toLowerCase(Locale.ROOT).replace('ё', 'е');
-    }
-
-    private String stripHtml(String value) {
-        if (!StringUtils.hasText(value)) {
-            return "";
-        }
-        return value.replaceAll("<[^>]+>", " ").replaceAll("\\s+", " ").trim();
-    }
-
-    private String joinText(String... chunks) {
-        StringBuilder builder = new StringBuilder();
-        if (chunks == null) {
-            return "";
-        }
-        for (String chunk : chunks) {
-            String trimmed = trimToNull(chunk);
-            if (trimmed == null) {
-                continue;
-            }
-            if (!builder.isEmpty()) {
-                builder.append(". ");
-            }
-            builder.append(trimmed);
-        }
-        return builder.toString();
-    }
-
-    private String compactSnippet(String text, int maxLen) {
-        String normalized = trimToNull(text);
-        if (normalized == null) {
-            return "";
-        }
-        String compact = normalized.replaceAll("\\s+", " ").trim();
-        if (compact.length() <= maxLen) {
-            return compact;
-        }
-        return compact.substring(0, Math.max(0, maxLen - 3)) + "...";
-    }
-
-    private String safeText(Object value) {
-        return value != null ? String.valueOf(value) : "";
-    }
-
-    private String trimToNull(String value) {
-        if (!StringUtils.hasText(value)) {
-            return null;
-        }
-        String trimmed = value.trim();
-        return trimmed.isEmpty() ? null : trimmed;
-    }
-
-    private String formatScore(double score) {
-        return String.format(Locale.ROOT, "%.2f", Math.max(0d, Math.min(1d, score)));
-    }
-
-    private record AiSuggestion(String source, String title, String snippet, double score) {
     }
 }
