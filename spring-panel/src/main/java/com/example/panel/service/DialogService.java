@@ -161,6 +161,7 @@ public class DialogService {
                        m.problem,
                        COALESCE(m.created_at, t.created_at) AS created_at,
                        t.status, t.resolved_by, t.resolved_at,
+                       COALESCE(tas.is_processing, 0) AS ai_processing,
                        tr.responsible AS responsible,
                        COALESCE(m.created_date, substr(COALESCE(m.created_at, t.created_at), 1, 10)) AS created_date,
                        COALESCE(m.created_time, substr(COALESCE(m.created_at, t.created_at), 12, 8)) AS created_time,
@@ -219,6 +220,7 @@ public class DialogService {
                   )
                   LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
                   LEFT JOIN ticket_responsibles tr ON tr.ticket_id = t.ticket_id
+                  LEFT JOIN ticket_ai_agent_state tas ON tas.ticket_id = t.ticket_id
                   LEFT JOIN client_statuses cs ON cs.user_id = COALESCE(m.user_id, t.user_id)
                        AND cs.updated_at = (
                            SELECT MAX(updated_at) FROM client_statuses WHERE user_id = COALESCE(m.user_id, t.user_id)
@@ -240,6 +242,7 @@ public class DialogService {
                     rs.getString("problem"),
                     rs.getString("created_at"),
                     rs.getString("status"),
+                    rs.getObject("ai_processing") != null && rs.getInt("ai_processing") > 0,
                     rs.getString("resolved_by"),
                     rs.getString("resolved_at"),
                     rs.getString("responsible"),
@@ -286,6 +289,7 @@ public class DialogService {
                            m.problem,
                            COALESCE(m.created_at, t.created_at) AS created_at,
                            t.status, t.resolved_by, t.resolved_at,
+                           COALESCE(tas.is_processing, 0) AS ai_processing,
                            tr.responsible AS responsible,
                            COALESCE(m.created_date, substr(COALESCE(m.created_at, t.created_at), 1, 10)) AS created_date,
                            COALESCE(m.created_time, substr(COALESCE(m.created_at, t.created_at), 12, 8)) AS created_time,
@@ -344,6 +348,7 @@ public class DialogService {
                       )
                       LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
                       LEFT JOIN ticket_responsibles tr ON tr.ticket_id = t.ticket_id
+                      LEFT JOIN ticket_ai_agent_state tas ON tas.ticket_id = t.ticket_id
                       LEFT JOIN client_statuses cs ON cs.user_id = COALESCE(m.user_id, t.user_id)
                            AND cs.updated_at = (
                                SELECT MAX(updated_at) FROM client_statuses WHERE user_id = COALESCE(m.user_id, t.user_id)
@@ -366,6 +371,7 @@ public class DialogService {
                     rs.getString("problem"),
                     rs.getString("created_at"),
                     rs.getString("status"),
+                    rs.getObject("ai_processing") != null && rs.getInt("ai_processing") > 0,
                     rs.getString("resolved_by"),
                     rs.getString("resolved_at"),
                     rs.getString("responsible"),

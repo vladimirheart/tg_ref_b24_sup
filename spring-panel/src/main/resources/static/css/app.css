@@ -647,6 +647,12 @@ body {
   color: #41464b;
 }
 
+.dialog-status-badge.status-auto-processing {
+  background-color: #e8f4ff;
+  border-color: #9ecbff;
+  color: #0b5cad;
+}
+
 .dialog-unread-count {
   background-color: #dc3545;
   color: #fff;

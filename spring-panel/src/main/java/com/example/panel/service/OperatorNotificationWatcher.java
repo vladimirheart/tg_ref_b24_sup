@@ -20,14 +20,17 @@ public class OperatorNotificationWatcher {
 
     private final JdbcTemplate jdbcTemplate;
     private final NotificationService notificationService;
+    private final DialogAiAssistantService dialogAiAssistantService;
 
     private final AtomicLong lastChatHistoryId = new AtomicLong(0);
     private final AtomicLong lastFeedbackId = new AtomicLong(0);
 
     public OperatorNotificationWatcher(JdbcTemplate jdbcTemplate,
-                                       NotificationService notificationService) {
+                                       NotificationService notificationService,
+                                       DialogAiAssistantService dialogAiAssistantService) {
         this.jdbcTemplate = jdbcTemplate;
         this.notificationService = notificationService;
+        this.dialogAiAssistantService = dialogAiAssistantService;
     }
 
     @PostConstruct
@@ -82,6 +85,7 @@ public class OperatorNotificationWatcher {
                                 "/dialogs?ticketId=" + ticketId,
                                 null
                         );
+                        dialogAiAssistantService.processIncomingClientMessage(ticketId, message);
                     }
                     if (maxSeen > afterId) {
                         lastChatHistoryId.set(maxSeen);
