@@ -13,6 +13,7 @@
   const aiMonitoringState = document.getElementById('aiMonitoringState');
   const aiMonitoringAlerts = document.getElementById('aiMonitoringAlerts');
   const aiMonitoringRunbook = document.getElementById('aiMonitoringRunbook');
+  const aiMonitoringEvents = document.getElementById('aiMonitoringEvents');
   const aiKpiAutoReplyRate = document.getElementById('aiKpiAutoReplyRate');
   const aiKpiAssistRate = document.getElementById('aiKpiAssistRate');
   const aiKpiEscalationRate = document.getElementById('aiKpiEscalationRate');
@@ -4011,6 +4012,47 @@
     aiMonitoringRunbook.innerHTML = items.map((item) => `<li>${escapeHtml(String(item || ''))}</li>`).join('');
   }
 
+  function renderAiMonitoringEvents(items) {
+    if (!aiMonitoringEvents) return;
+    if (!Array.isArray(items) || !items.length) {
+      aiMonitoringEvents.innerHTML = '<div class="text-muted">Событий нет.</div>';
+      return;
+    }
+    aiMonitoringEvents.innerHTML = items.slice(0, 12).map((item) => {
+      const createdAt = formatUtcDate(item?.created_at, { includeTime: true });
+      const eventType = escapeHtml(String(item?.event_type || 'event'));
+      const ticketId = escapeHtml(String(item?.ticket_id || '-'));
+      const reason = escapeHtml(String(item?.decision_reason || item?.detail || ''));
+      const source = escapeHtml(String(item?.source || ''));
+      const actor = escapeHtml(String(item?.actor || 'system'));
+      return `<div class="border rounded p-2 mb-1">
+        <div class="d-flex flex-wrap justify-content-between gap-2">
+          <span class="fw-semibold">${eventType}</span>
+          <span class="text-muted">${createdAt}</span>
+        </div>
+        <div class="text-muted">ticket: ${ticketId} | actor: ${actor}${source ? ` | source: ${source}` : ''}</div>
+        ${reason ? `<div>${reason}</div>` : ''}
+      </div>`;
+    }).join('');
+  }
+
+  async function loadAiMonitoringEvents(days = 7, limit = 50) {
+    if (!aiMonitoringEvents) return;
+    try {
+      const resp = await fetch(`/api/dialogs/ai-monitoring/events?days=${encodeURIComponent(days)}&limit=${encodeURIComponent(limit)}`, {
+        credentials: 'same-origin',
+        cache: 'no-store',
+      });
+      const payload = await resp.json().catch(() => ({}));
+      if (!resp.ok || payload.success === false) {
+        throw new Error(payload.error || `HTTP ${resp.status}`);
+      }
+      renderAiMonitoringEvents(Array.isArray(payload.items) ? payload.items : []);
+    } catch (_error) {
+      renderAiMonitoringEvents([]);
+    }
+  }
+
   async function loadAiMonitoringSummary(days = 7) {
     if (!aiMonitoringSection || !aiMonitoringState) return;
     aiMonitoringState.textContent = 'Загрузка AI-метрик…';
@@ -4031,12 +4073,14 @@
       if (aiKpiCorrectionRate) aiKpiCorrectionRate.textContent = formatRatePercent(kpis.correction_rate);
       renderAiMonitoringAlerts(summary.alerts);
       renderAiMonitoringRunbook(summary.runbook?.items);
+      await loadAiMonitoringEvents(days, 50);
       const windowDays = Number(summary.window_days || days);
       aiMonitoringState.textContent = `Окно: ${Number.isFinite(windowDays) ? windowDays : days} дн · обновлено ${formatUtcDate(summary.generated_at, { includeTime: true })}`;
     } catch (error) {
       aiMonitoringState.textContent = `Не удалось загрузить AI-метрики: ${error.message || 'unknown_error'}`;
       renderAiMonitoringAlerts([]);
       renderAiMonitoringRunbook([]);
+      renderAiMonitoringEvents([]);
     }
   }
 
