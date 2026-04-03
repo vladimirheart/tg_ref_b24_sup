@@ -18,6 +18,7 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -31,6 +32,7 @@ import java.util.regex.Pattern;
 public class DialogAiAssistantService {
     private static final Logger log = LoggerFactory.getLogger(DialogAiAssistantService.class);
     private static final Pattern TOKEN_SPLIT = Pattern.compile("[^\\p{IsAlphabetic}\\p{IsDigit}]+");
+    private static final Pattern ENTITY_HINT_PATTERN = Pattern.compile("(#?[a-zA-Zа-яА-Я]{2,}[\\-_]?[0-9]{2,}|\\+?[0-9][0-9\\-()\\s]{6,}|[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,})");
     private static final Set<String> STOP = Set.of("Рё","РІ","РЅР°","РЅРµ","С‡С‚Рѕ","РєР°Рє","РґР»СЏ","РёР»Рё","РїРѕ","РёР·","Рє","Сѓ","Рѕ","РѕР±","the","a","an","to","of","in","on","for","and","or","is","are","be");
     private static final double AUTO_REPLY_THRESHOLD_DEFAULT = 0.62d;
     private static final double SUGGEST_THRESHOLD_DEFAULT = 0.46d;
@@ -336,16 +338,23 @@ public class DialogAiAssistantService {
     }
 
     private List<AiSuggestion> findSuggestions(String ticketId, String query, int limit) {
-        Set<String> q = tokenize(query); if (q.isEmpty()) return List.of();
-        List<AiSuggestion> c = new ArrayList<>();
-        c.addAll(loadMemoryCandidates(q, limit * 4));
-        c.addAll(loadKnowledgeCandidates(q, limit * 4));
-        c.addAll(loadTaskCandidates(q, limit * 4));
-        c.addAll(loadHistoryCandidates(ticketId, q, limit * 6));
-        return c.stream().filter(x -> x.score > 0d).sorted(Comparator.comparingDouble((AiSuggestion x) -> x.score).reversed()).limit(limit).toList();
+        Set<String> q = tokenize(query);
+        Set<String> entities = extractEntityHints(query);
+        if (q.isEmpty() && entities.isEmpty()) return List.of();
+        List<AiSuggestion> candidates = new ArrayList<>();
+        candidates.addAll(loadMemoryCandidates(q, entities, limit * 4));
+        candidates.addAll(loadKnowledgeCandidates(q, entities, limit * 4));
+        candidates.addAll(loadTaskCandidates(q, entities, limit * 4));
+        candidates.addAll(loadHistoryCandidates(ticketId, q, entities, limit * 6));
+        return rerankSuggestions(q, candidates)
+                .stream()
+                .filter(x -> x.score > 0d)
+                .sorted(Comparator.comparingDouble((AiSuggestion x) -> x.score).reversed())
+                .limit(limit)
+                .toList();
     }
 
-    private List<AiSuggestion> loadMemoryCandidates(Set<String> q, int limit) {
+    private List<AiSuggestion> loadMemoryCandidates(Set<String> q, Set<String> entities, int limit) {
         List<Map<String, Object>> rows;
         try {
             rows = jdbcTemplate.queryForList("SELECT query_key, query_text, solution_text, times_confirmed, times_corrected FROM ai_agent_solution_memory WHERE COALESCE(review_required,0)=0 AND solution_text IS NOT NULL AND trim(solution_text)<>'' ORDER BY COALESCE(updated_at, created_at) DESC LIMIT ?", limit);
@@ -355,7 +364,7 @@ public class DialogAiAssistantService {
         List<AiSuggestion> out = new ArrayList<>();
         for (Map<String, Object> row : rows) {
             String key = safe(row.get("query_key")), qt = safe(row.get("query_text")), st = safe(row.get("solution_text"));
-            double s = scoreByTokens(q, join(qt, st));
+            double s = scoreByTokens(q, entities, join(qt, st));
             int conf = toInt(row.get("times_confirmed")), corr = toInt(row.get("times_corrected"));
             s = Math.max(0d, Math.min(1d, s + Math.min(0.20d, conf * 0.02d) - Math.min(0.12d, corr * 0.02d)));
             if (s > 0d) out.add(new AiSuggestion("memory", "РџСЂРѕРІРµСЂРµРЅРЅРѕРµ СЂРµС€РµРЅРёРµ", cut(st, 320), s, trim(key)));
@@ -363,31 +372,37 @@ public class DialogAiAssistantService {
         return out;
     }
 
-    private List<AiSuggestion> loadKnowledgeCandidates(Set<String> q, int limit) {
+    private List<AiSuggestion> loadKnowledgeCandidates(Set<String> q, Set<String> entities, int limit) {
         List<Map<String, Object>> rows = jdbcTemplate.queryForList("SELECT title, summary, content FROM knowledge_articles ORDER BY COALESCE(updated_at, created_at) DESC LIMIT ?", limit);
         List<AiSuggestion> out = new ArrayList<>();
         for (Map<String, Object> row : rows) {
-            String title = safe(row.get("title")); String text = join(title, safe(row.get("summary")), safe(row.get("content"))); double s = scoreByTokens(q, text);
+            String title = safe(row.get("title"));
+            String text = cleanTextForRetrieval(join(title, safe(row.get("summary")), safe(row.get("content"))));
+            double s = scoreByTokens(q, entities, text);
             if (s > 0d) out.add(new AiSuggestion("knowledge", StringUtils.hasText(title) ? title : "РЎС‚Р°С‚СЊСЏ Р±Р°Р·С‹ Р·РЅР°РЅРёР№", cut(text, 280), s, null));
         }
         return out;
     }
 
-    private List<AiSuggestion> loadTaskCandidates(Set<String> q, int limit) {
+    private List<AiSuggestion> loadTaskCandidates(Set<String> q, Set<String> entities, int limit) {
         List<Map<String, Object>> rows = jdbcTemplate.queryForList("SELECT title, body_html, status FROM tasks ORDER BY COALESCE(last_activity_at, created_at) DESC LIMIT ?", limit);
         List<AiSuggestion> out = new ArrayList<>();
         for (Map<String, Object> row : rows) {
-            String title = safe(row.get("title")); String text = join(title, stripHtml(safe(row.get("body_html"))), safe(row.get("status"))); double s = scoreByTokens(q, text);
+            String title = safe(row.get("title"));
+            String text = cleanTextForRetrieval(join(title, stripHtml(safe(row.get("body_html"))), safe(row.get("status"))));
+            double s = scoreByTokens(q, entities, text);
             if (s > 0d) out.add(new AiSuggestion("tasks", StringUtils.hasText(title) ? title : "РџРѕС…РѕР¶Р°СЏ Р·Р°РґР°С‡Р°", cut(text, 280), s, null));
         }
         return out;
     }
 
-    private List<AiSuggestion> loadHistoryCandidates(String ticketId, Set<String> q, int limit) {
+    private List<AiSuggestion> loadHistoryCandidates(String ticketId, Set<String> q, Set<String> entities, int limit) {
         List<Map<String, Object>> rows = jdbcTemplate.queryForList("SELECT ticket_id, message FROM chat_history WHERE ticket_id <> ? AND lower(sender) IN ('operator','support','admin','system','ai_agent') AND message IS NOT NULL AND trim(message)<>'' ORDER BY id DESC LIMIT ?", ticketId, limit);
         List<AiSuggestion> out = new ArrayList<>();
         for (Map<String, Object> row : rows) {
-            String ticket = safe(row.get("ticket_id")), msg = safe(row.get("message")); double s = scoreByTokens(q, msg);
+            String ticket = safe(row.get("ticket_id"));
+            String msg = cleanTextForRetrieval(safe(row.get("message")));
+            double s = scoreByTokens(q, entities, msg);
             if (s > 0d) out.add(new AiSuggestion("history", StringUtils.hasText(ticket) ? "РџРѕС…РѕР¶РёР№ РґРёР°Р»РѕРі #" + ticket : "РџРѕС…РѕР¶РёР№ РґРёР°Р»РѕРі", cut(msg, 260), s, null));
         }
         return out;
@@ -474,16 +489,150 @@ public class DialogAiAssistantService {
     private boolean hasOpenCorrectionRequest(String ticketId) { String a = jdbcTemplate.query("SELECT last_action FROM ticket_ai_agent_state WHERE ticket_id=? LIMIT 1", rs -> rs.next() ? trim(rs.getString("last_action")) : null, ticketId); return "operator_correction_requested".equalsIgnoreCase(String.valueOf(a)); }
     private String loadLastSuggestedReply(String ticketId) { return jdbcTemplate.query("SELECT last_suggested_reply FROM ticket_ai_agent_state WHERE ticket_id=? LIMIT 1", rs -> rs.next() ? trim(rs.getString("last_suggested_reply")) : null, ticketId); }
     private String loadLastClientMessage(String ticketId) { return jdbcTemplate.query("SELECT message FROM chat_history WHERE ticket_id=? AND lower(sender) NOT IN ('operator','support','admin','system','ai_agent') AND message IS NOT NULL AND trim(message)<>'' ORDER BY id DESC LIMIT 1", rs -> rs.next() ? trim(rs.getString("message")) : null, ticketId); }
-    private String buildAutoReply(AiSuggestion s) { String body = trim(s != null ? s.snippet : null); if (body == null) body = "РЇ РЅРµ РЅР°С€РµР» РіРѕС‚РѕРІРѕРµ СЂРµС€РµРЅРёРµ РІ Р±Р°Р·Рµ Р·РЅР°РЅРёР№."; return "РџРѕРґРѕР±СЂР°Р» РѕС‚РІРµС‚ РїРѕ РІРЅСѓС‚СЂРµРЅРЅРµР№ Р±Р°Р·Рµ:\n\n" + body + "\n\nР•СЃР»Рё СЌС‚Рѕ РЅРµ СЂРµС€Р°РµС‚ РІРѕРїСЂРѕСЃ, РЅР°РїРёС€РёС‚Рµ В«РѕРїРµСЂР°С‚РѕСЂВ» вЂ” РїРѕРґРєР»СЋС‡РёРј СЃРїРµС†РёР°Р»РёСЃС‚Р°."; }
-    private String buildOperatorReplySuggestion(AiSuggestion s) { String src = switch (s.source) { case "memory" -> "РїСЂРѕРІРµСЂРµРЅРЅС‹Рј СЂРµС€РµРЅРёСЏРј"; case "knowledge" -> "Р±Р°Р·Рµ Р·РЅР°РЅРёР№"; case "tasks" -> "РёСЃС‚РѕСЂРёРё Р·Р°РґР°С‡"; case "history" -> "РїРѕС…РѕР¶РёС… РґРёР°Р»РѕРіР°С…"; default -> "РІРЅСѓС‚СЂРµРЅРЅРёРј РґР°РЅРЅС‹Рј"; }; return "РџРѕ " + src + " РјРѕР¶РЅРѕ РїСЂРµРґР»РѕР¶РёС‚СЊ РєР»РёРµРЅС‚Сѓ:\n\n" + s.snippet; }
+    private String buildAutoReply(AiSuggestion s) {
+        String body = cleanTextForRetrieval(s != null ? s.snippet : null);
+        if (!StringUtils.hasText(body)) {
+            body = "Не найдено готовое решение в базе знаний.";
+        }
+        List<String> steps = splitIntoSteps(body, 3);
+        StringBuilder reply = new StringBuilder();
+        reply.append("Коротко: ").append(cut(firstSentence(body), 220)).append("\n\n");
+        reply.append("Что сделать:\n");
+        if (steps.isEmpty()) {
+            reply.append("1. ").append(cut(body, 280)).append("\n");
+        } else {
+            for (int i = 0; i < steps.size(); i++) {
+                reply.append(i + 1).append(". ").append(steps.get(i)).append("\n");
+            }
+        }
+        reply.append("\nЕсли не поможет, напишите «оператор» — подключим специалиста.");
+        return reply.toString();
+    }
+    private String buildOperatorReplySuggestion(AiSuggestion s) {
+        String sourceLabel = switch (s.source) {
+            case "memory" -> "проверенным решениям";
+            case "knowledge" -> "базе знаний";
+            case "tasks" -> "истории задач";
+            case "history" -> "похожим диалогам";
+            default -> "внутренним данным";
+        };
+        String prepared = buildAutoReply(s);
+        return "По " + sourceLabel + " предлагаемый ответ:\n\n" + prepared;
+    }
     private void notifyOperatorsEscalation(String ticketId, String msg, String reason) { String t = "AI-Р°РіРµРЅС‚ СЌСЃРєР°Р»РёСЂРѕРІР°Р» РѕР±СЂР°С‰РµРЅРёРµ " + ticketId + ". " + reason; if (StringUtils.hasText(msg)) t += " Р’РѕРїСЂРѕСЃ РєР»РёРµРЅС‚Р°: " + cut(msg, 140); notificationService.notifyAllOperators(t, "/dialogs?ticketId=" + ticketId, null); }
     private boolean isAgentEnabled() { try { Object d = sharedConfigService.loadSettings().get("dialog_config"); if (d instanceof Map<?,?> m) { Object e = m.get("ai_agent_enabled"); if (e instanceof Boolean b) return b; String n = String.valueOf(e).trim().toLowerCase(Locale.ROOT); return !"false".equals(n) && !"0".equals(n) && !"off".equals(n); } } catch (Exception ex) { log.debug("ai_agent_enabled read failed: {}", ex.getMessage()); } return true; }
     private boolean requiresHumanImmediately(String m) { String n = String.valueOf(m).toLowerCase(Locale.ROOT); return n.contains("РѕРїРµСЂР°С‚РѕСЂ") || n.contains("С‡РµР»РѕРІРµРє") || n.contains("РјРµРЅРµРґР¶РµСЂ") || n.contains("РїРѕР·РІРѕРЅРёС‚Рµ"); }
     private boolean isMeaningfullyDifferent(String a, String b) { return similarity(a, b) < resolveDifferenceThreshold(); }
     private double similarity(String a, String b) { Set<String> x = tokenize(a), y = tokenize(b); if (x.isEmpty() || y.isEmpty()) return 0d; int i = 0; for (String t : x) if (y.contains(t)) i++; int u = x.size() + y.size() - i; return u <= 0 ? 0d : i / (double) u; }
-    private double scoreByTokens(Set<String> q, String src) { Set<String> s = tokenize(src); if (q.isEmpty() || s.isEmpty()) return 0d; int o = 0; for (String t : q) if (s.contains(t)) o++; if (o == 0) return 0d; double r = o / (double) q.size(); String n = normalize(src); double boost = 0d; for (String t : q) if (t.length() >= 5 && n.contains(t)) boost += 0.03d; return Math.min(1d, r + boost); }
+    private double scoreByTokens(Set<String> q, Set<String> entities, String src) {
+        Set<String> s = tokenize(src);
+        if (q.isEmpty() && (entities == null || entities.isEmpty())) return 0d;
+        if (s.isEmpty()) return 0d;
+        int overlap = 0;
+        for (String t : q) if (s.contains(t)) overlap++;
+        double base = q.isEmpty() ? 0d : overlap / (double) q.size();
+        String normalized = normalize(src);
+        double phraseBoost = 0d;
+        for (String token : q) {
+            if (token.length() >= 5 && normalized.contains(token)) phraseBoost += 0.02d;
+        }
+        double entityBoost = 0d;
+        if (entities != null && !entities.isEmpty()) {
+            int entityHits = 0;
+            for (String hint : entities) {
+                if (normalized.contains(hint)) entityHits++;
+            }
+            entityBoost = Math.min(0.24d, entityHits * 0.08d);
+        }
+        return Math.max(0d, Math.min(1d, base + phraseBoost + entityBoost));
+    }
     private Set<String> tokenize(String v) { String n = normalize(v); if (!StringUtils.hasText(n)) return Set.of(); Set<String> out = new LinkedHashSet<>(); for (String t : TOKEN_SPLIT.split(n)) { String x = trim(t); if (x == null || x.length() < 2 || STOP.contains(x)) continue; out.add(x); } return out; }
     private String normalize(String v) { if (!StringUtils.hasText(v)) return ""; return v.toLowerCase(Locale.ROOT).replace('\u0451', '\u0435'); }
+    private String cleanTextForRetrieval(String value) {
+        if (!StringUtils.hasText(value)) return "";
+        String text = stripHtml(value);
+        text = text.replaceAll("```[\\s\\S]*?```", " ");
+        text = text.replaceAll("\\[[^\\]]+\\]\\([^\\)]+\\)", " ");
+        text = text.replaceAll("https?://\\S+", " ");
+        text = text.replaceAll("[\\p{Cntrl}&&[^\r\n\t]]", " ");
+        text = text.replaceAll("\\s+", " ").trim();
+        return text;
+    }
+    private Set<String> extractEntityHints(String value) {
+        String normalized = normalize(value);
+        if (!StringUtils.hasText(normalized)) return Set.of();
+        Set<String> out = new LinkedHashSet<>();
+        var matcher = ENTITY_HINT_PATTERN.matcher(normalized);
+        while (matcher.find()) {
+            String hit = trim(matcher.group());
+            if (hit == null) continue;
+            if (hit.length() >= 4) out.add(hit);
+        }
+        return out;
+    }
+    private List<AiSuggestion> rerankSuggestions(Set<String> queryTokens, List<AiSuggestion> candidates) {
+        if (candidates == null || candidates.isEmpty()) return List.of();
+        List<AiSuggestion> weighted = new ArrayList<>();
+        for (AiSuggestion candidate : candidates) {
+            double score = applySourceWeight(candidate.source, candidate.score);
+            weighted.add(new AiSuggestion(candidate.source, candidate.title, candidate.snippet, score, candidate.memoryKey));
+        }
+        Map<String, AiSuggestion> bestBySource = new HashMap<>();
+        for (AiSuggestion candidate : weighted) {
+            AiSuggestion current = bestBySource.get(candidate.source);
+            if (current == null || candidate.score > current.score) {
+                bestBySource.put(candidate.source, candidate);
+            }
+        }
+        List<AiSuggestion> reranked = new ArrayList<>();
+        for (AiSuggestion candidate : weighted) {
+            double penalty = 0d;
+            for (AiSuggestion anchor : bestBySource.values()) {
+                if (anchor.source.equals(candidate.source)) continue;
+                if (anchor.score < 0.45d || candidate.score < 0.45d) continue;
+                double sim = similarity(anchor.snippet, candidate.snippet);
+                if (sim < 0.12d) {
+                    penalty = Math.max(penalty, 0.08d);
+                }
+            }
+            if ("memory".equals(candidate.source)) {
+                penalty = Math.max(0d, penalty - 0.03d);
+            }
+            double tokenCover = queryTokens.isEmpty() ? 0d : similarity(String.join(" ", queryTokens), candidate.snippet);
+            double adjusted = Math.max(0d, Math.min(1d, candidate.score - penalty + Math.min(0.06d, tokenCover * 0.1d)));
+            reranked.add(new AiSuggestion(candidate.source, candidate.title, candidate.snippet, adjusted, candidate.memoryKey));
+        }
+        return reranked;
+    }
+    private double applySourceWeight(String source, double score) {
+        double weight = switch (String.valueOf(source).toLowerCase(Locale.ROOT)) {
+            case "memory" -> 1.15d;
+            case "knowledge" -> 1.08d;
+            case "tasks" -> 1.00d;
+            case "history" -> 0.92d;
+            default -> 1.0d;
+        };
+        return Math.max(0d, Math.min(1d, score * weight));
+    }
+    private String firstSentence(String text) {
+        String prepared = cleanTextForRetrieval(text);
+        if (!StringUtils.hasText(prepared)) return "";
+        String[] parts = prepared.split("(?<=[.!?])\\s+");
+        return parts.length > 0 ? parts[0].trim() : prepared;
+    }
+    private List<String> splitIntoSteps(String text, int max) {
+        String prepared = cleanTextForRetrieval(text);
+        if (!StringUtils.hasText(prepared) || max <= 0) return List.of();
+        String[] parts = prepared.split("(?<=[.!?])\\s+");
+        List<String> steps = new ArrayList<>();
+        for (String part : parts) {
+            String step = cut(part, 180);
+            if (!StringUtils.hasText(step)) continue;
+            steps.add(step);
+            if (steps.size() >= max) break;
+        }
+        return steps;
+    }
     private String stripHtml(String v) { if (!StringUtils.hasText(v)) return ""; return v.replaceAll("<[^>]+>", " ").replaceAll("\\s+", " ").trim(); }
     private String join(String... chunks) { StringBuilder b = new StringBuilder(); if (chunks == null) return ""; for (String c : chunks) { String t = trim(c); if (t == null) continue; if (!b.isEmpty()) b.append(". "); b.append(t); } return b.toString(); }
     private String cut(String text, int len) { String t = trim(text); if (t == null) return ""; String c = t.replaceAll("\\s+", " ").trim(); return c.length() <= len ? c : c.substring(0, Math.max(0, len - 3)) + "..."; }
