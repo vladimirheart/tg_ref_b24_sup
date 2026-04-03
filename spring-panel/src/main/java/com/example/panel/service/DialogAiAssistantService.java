@@ -661,29 +661,40 @@ public class DialogAiAssistantService {
         return payload;
     }
 
-    public List<Map<String, Object>> loadMonitoringEvents(Integer days, Integer limit, String ticketId) {
+    public List<Map<String, Object>> loadMonitoringEvents(Integer days,
+                                                          Integer limit,
+                                                          String ticketId,
+                                                          String eventType,
+                                                          String actor) {
         int safeDays = Math.max(1, Math.min(days != null ? days : 7, 90));
         int safeLimit = Math.max(1, Math.min(limit != null ? limit : 50, 200));
         String sinceExpr = "-" + safeDays + " days";
         String ticket = trim(ticketId);
+        String event = trim(eventType);
+        String who = trim(actor);
         try {
-            if (ticket != null) {
-                return jdbcTemplate.queryForList("""
-                        SELECT id, ticket_id, event_type, actor, decision_type, decision_reason, source, score, detail, payload_json, created_at
-                          FROM ai_agent_event_log
-                         WHERE ticket_id = ?
-                           AND datetime(substr(COALESCE(created_at,''),1,19)) >= datetime('now', ?)
-                         ORDER BY id DESC
-                         LIMIT ?
-                        """, ticket, sinceExpr, safeLimit);
-            }
-            return jdbcTemplate.queryForList("""
+            List<Object> params = new ArrayList<>();
+            StringBuilder sql = new StringBuilder("""
                     SELECT id, ticket_id, event_type, actor, decision_type, decision_reason, source, score, detail, payload_json, created_at
                       FROM ai_agent_event_log
                      WHERE datetime(substr(COALESCE(created_at,''),1,19)) >= datetime('now', ?)
-                     ORDER BY id DESC
-                     LIMIT ?
-                    """, sinceExpr, safeLimit);
+                    """);
+            params.add(sinceExpr);
+            if (ticket != null) {
+                sql.append(" AND ticket_id = ?");
+                params.add(ticket);
+            }
+            if (event != null) {
+                sql.append(" AND lower(COALESCE(event_type,'')) = ?");
+                params.add(event.toLowerCase(Locale.ROOT));
+            }
+            if (who != null) {
+                sql.append(" AND lower(COALESCE(actor,'')) = ?");
+                params.add(who.toLowerCase(Locale.ROOT));
+            }
+            sql.append(" ORDER BY id DESC LIMIT ?");
+            params.add(safeLimit);
+            return jdbcTemplate.queryForList(sql.toString(), params.toArray());
         } catch (Exception ex) {
             return List.of();
         }

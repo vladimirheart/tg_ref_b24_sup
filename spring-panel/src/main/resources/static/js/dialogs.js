@@ -14,6 +14,10 @@
   const aiMonitoringAlerts = document.getElementById('aiMonitoringAlerts');
   const aiMonitoringRunbook = document.getElementById('aiMonitoringRunbook');
   const aiMonitoringEvents = document.getElementById('aiMonitoringEvents');
+  const aiMonitoringEventTypeFilter = document.getElementById('aiMonitoringEventTypeFilter');
+  const aiMonitoringActorFilter = document.getElementById('aiMonitoringActorFilter');
+  const aiMonitoringApplyFilters = document.getElementById('aiMonitoringApplyFilters');
+  const aiMonitoringExportCsv = document.getElementById('aiMonitoringExportCsv');
   const aiKpiAutoReplyRate = document.getElementById('aiKpiAutoReplyRate');
   const aiKpiAssistRate = document.getElementById('aiKpiAssistRate');
   const aiKpiEscalationRate = document.getElementById('aiKpiEscalationRate');
@@ -236,6 +240,10 @@
   const DEFAULT_SLA_WARNING_MINUTES = 4 * 60;
   const DEFAULT_PRIMARY_KPIS = Object.freeze(['FRT', 'TTR', 'SLA breach %']);
   const DEFAULT_SECONDARY_KPIS = Object.freeze(['Dialogs per operator / shift', 'CSAT', 'UI error-rate']);
+  const aiMonitoringFilters = {
+    eventType: '',
+    actor: '',
+  };
 
   function normalizeStringArray(value, fallbackValue) {
     if (!Array.isArray(value)) {
