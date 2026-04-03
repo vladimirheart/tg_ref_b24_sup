@@ -8173,8 +8173,10 @@
   void loadServerTriagePreferences();
   loadAiReviewQueue();
   setInterval(loadAiReviewQueue, 30 * 1000);
-  loadAiMonitoringSummary(7);
-  setInterval(() => loadAiMonitoringSummary(7), 60 * 1000);
+  if (aiMonitoringSection && aiMonitoringState) {
+    loadAiMonitoringSummary(7);
+    setInterval(() => loadAiMonitoringSummary(7), 60 * 1000);
+  }
 
   if (INITIAL_DIALOG_TICKET_ID) {
     const initialRow = rowsList().find((row) => String(row.dataset.ticketId || '') === INITIAL_DIALOG_TICKET_ID) || null;
