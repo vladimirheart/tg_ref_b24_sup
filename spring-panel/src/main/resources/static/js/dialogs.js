@@ -4044,10 +4044,19 @@
     }).join('');
   }
 
+  function buildAiMonitoringEventsQuery(days = 7, limit = 50) {
+    const params = new URLSearchParams();
+    params.set('days', String(days));
+    params.set('limit', String(limit));
+    if (aiMonitoringFilters.eventType) params.set('eventType', aiMonitoringFilters.eventType);
+    if (aiMonitoringFilters.actor) params.set('actor', aiMonitoringFilters.actor);
+    return params.toString();
+  }
+
   async function loadAiMonitoringEvents(days = 7, limit = 50) {
     if (!aiMonitoringEvents) return;
     try {
-      const resp = await fetch(`/api/dialogs/ai-monitoring/events?days=${encodeURIComponent(days)}&limit=${encodeURIComponent(limit)}`, {
+      const resp = await fetch(`/api/dialogs/ai-monitoring/events?${buildAiMonitoringEventsQuery(days, limit)}`, {
         credentials: 'same-origin',
         cache: 'no-store',
       });
@@ -4059,6 +4068,17 @@
     } catch (_error) {
       renderAiMonitoringEvents([]);
     }
+  }
+
+  function exportAiMonitoringEventsCsv(days = 7, limit = 200) {
+    const query = buildAiMonitoringEventsQuery(days, limit);
+    const href = `/api/dialogs/ai-monitoring/events?${query}&format=csv`;
+    const link = document.createElement('a');
+    link.href = href;
+    link.download = `ai-monitoring-events-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
   }
 
   async function loadAiMonitoringSummary(days = 7) {
@@ -7454,6 +7474,22 @@
   if (aiMonitoringRefresh) {
     aiMonitoringRefresh.addEventListener('click', () => {
       loadAiMonitoringSummary(7);
+    });
+  }
+
+  if (aiMonitoringApplyFilters) {
+    aiMonitoringApplyFilters.addEventListener('click', () => {
+      aiMonitoringFilters.eventType = String(aiMonitoringEventTypeFilter?.value || '').trim().toLowerCase();
+      aiMonitoringFilters.actor = String(aiMonitoringActorFilter?.value || '').trim().toLowerCase();
+      loadAiMonitoringEvents(7, 50);
+    });
+  }
+
+  if (aiMonitoringExportCsv) {
+    aiMonitoringExportCsv.addEventListener('click', () => {
+      aiMonitoringFilters.eventType = String(aiMonitoringEventTypeFilter?.value || '').trim().toLowerCase();
+      aiMonitoringFilters.actor = String(aiMonitoringActorFilter?.value || '').trim().toLowerCase();
+      exportAiMonitoringEventsCsv(7, 200);
     });
   }
 
