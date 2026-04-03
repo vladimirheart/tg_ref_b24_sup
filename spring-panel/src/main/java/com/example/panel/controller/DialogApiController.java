@@ -2792,6 +2792,69 @@ public class DialogApiController {
         return ResponseEntity.ok(payload);
     }
 
+    @PostMapping("/{ticketId}/ai-suggestions/feedback")
+    public ResponseEntity<?> aiSuggestionFeedback(@PathVariable String ticketId,
+                                                  @RequestBody(required = false) AiSuggestionFeedbackRequest request,
+                                                  Authentication authentication) {
+        ResponseEntity<Map<String, Object>> permissionDenied = requireDialogPermission(authentication, "can_reply", "ai_suggestion_feedback", ticketId);
+        if (permissionDenied != null) {
+            return permissionDenied;
+        }
+        if (request == null || !StringUtils.hasText(request.decision())) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "error", "decision is required"));
+        }
+        String operator = authentication != null ? authentication.getName() : null;
+        dialogAiAssistantService.recordSuggestionFeedback(
+                ticketId,
+                request.decision(),
+                request.source(),
+                request.title(),
+                request.snippet(),
+                request.suggestedReply(),
+                operator
+        );
+        return ResponseEntity.ok(Map.of("success", true));
+    }
+
+    @GetMapping("/{ticketId}/ai-control")
+    public ResponseEntity<?> aiControlState(@PathVariable String ticketId,
+                                            Authentication authentication) {
+        ResponseEntity<Map<String, Object>> permissionDenied = requireDialogPermission(authentication, "can_reply", "ai_control_state", ticketId);
+        if (permissionDenied != null) {
+            return permissionDenied;
+        }
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "control", dialogAiAssistantService.loadDialogControlState(ticketId)
+        ));
+    }
+
+    @PostMapping("/{ticketId}/ai-control")
+    public ResponseEntity<?> aiControlUpdate(@PathVariable String ticketId,
+                                             @RequestBody(required = false) AiControlRequest request,
+                                             Authentication authentication) {
+        ResponseEntity<Map<String, Object>> permissionDenied = requireDialogPermission(authentication, "can_reply", "ai_control_update", ticketId);
+        if (permissionDenied != null) {
+            return permissionDenied;
+        }
+        if (request == null) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "error", "request body is required"));
+        }
+        String operator = authentication != null ? authentication.getName() : null;
+        boolean updated = dialogAiAssistantService.updateDialogControlState(
+                ticketId,
+                request.aiDisabled(),
+                request.autoReplyBlocked(),
+                request.reason(),
+                operator
+        );
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "updated", updated,
+                "control", dialogAiAssistantService.loadDialogControlState(ticketId)
+        ));
+    }
+
     @GetMapping("/{ticketId}/ai-review")
     public ResponseEntity<?> aiReview(@PathVariable String ticketId,
                                       Authentication authentication) {
@@ -4849,6 +4912,16 @@ public class DialogApiController {
     public record DialogCategoriesRequest(List<String> categories) {}
 
     public record DialogSnoozeRequest(Integer minutes) {}
+
+    public record AiSuggestionFeedbackRequest(String decision,
+                                              String source,
+                                              String title,
+                                              String snippet,
+                                              @JsonAlias({"suggested_reply", "suggestedReply"}) String suggestedReply) {}
+
+    public record AiControlRequest(@JsonAlias({"ai_disabled", "aiDisabled"}) Boolean aiDisabled,
+                                   @JsonAlias({"auto_reply_blocked", "autoReplyBlocked"}) Boolean autoReplyBlocked,
+                                   String reason) {}
 
     public record TriagePreferencesRequest(@JsonAlias("view") String view,
                                            @JsonAlias("sort_mode") String sortMode,

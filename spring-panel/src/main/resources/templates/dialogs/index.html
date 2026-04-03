@@ -215,6 +215,11 @@
                                     <div class="fw-semibold">AI-подсказки ответа</div>
                                     <button class="btn btn-sm btn-outline-secondary" id="workspaceAiSuggestionsRefresh" type="button">Обновить</button>
                                 </div>
+                                <div class="d-flex flex-wrap gap-2 mt-2">
+                                    <button class="btn btn-sm btn-outline-danger" id="workspaceAiDisableForDialog" type="button">Отключить AI для диалога</button>
+                                    <button class="btn btn-sm btn-outline-warning" id="workspaceAiHandoffNoAutoReply" type="button">Передать мне и без автоответов</button>
+                                </div>
+                                <div class="small text-muted mt-1" id="workspaceAiControlState">Режим AI для диалога не загружен.</div>
                                 <div class="text-muted mt-1" id="workspaceAiSuggestionsState">Подсказки загружаются…</div>
                                 <div class="alert alert-warning mt-2 mb-0 d-none" id="workspaceAiReviewBox">
                                     <div class="fw-semibold mb-1">Требуется ревизия AI-решения</div>
