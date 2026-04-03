@@ -2947,15 +2947,49 @@ public class DialogApiController {
     public ResponseEntity<?> aiMonitoringEvents(@RequestParam(value = "days", required = false) Integer days,
                                                 @RequestParam(value = "limit", required = false) Integer limit,
                                                 @RequestParam(value = "ticketId", required = false) String ticketId,
+                                                @RequestParam(value = "eventType", required = false) String eventType,
+                                                @RequestParam(value = "actor", required = false) String actor,
+                                                @RequestParam(value = "format", required = false) String format,
                                                 Authentication authentication) {
         ResponseEntity<Map<String, Object>> permissionDenied = requireDialogPermission(authentication, "can_reply", "ai_monitoring_events", ticketId);
         if (permissionDenied != null) {
             return permissionDenied;
         }
+        List<Map<String, Object>> items = dialogAiAssistantService.loadMonitoringEvents(days, limit, ticketId, eventType, actor);
+        if ("csv".equalsIgnoreCase(String.valueOf(format))) {
+            String csv = buildAiMonitoringEventsCsv(items);
+            return ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType("text/csv; charset=UTF-8"))
+                    .body(csv);
+        }
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("success", true);
-        payload.put("items", dialogAiAssistantService.loadMonitoringEvents(days, limit, ticketId));
+        payload.put("items", items);
         return ResponseEntity.ok(payload);
+    }
+
+    private String buildAiMonitoringEventsCsv(List<Map<String, Object>> items) {
+        StringBuilder out = new StringBuilder();
+        out.append("id,ticket_id,event_type,actor,decision_type,decision_reason,source,score,detail,created_at\n");
+        for (Map<String, Object> row : items) {
+            out.append(csvCell(row.get("id"))).append(',')
+                    .append(csvCell(row.get("ticket_id"))).append(',')
+                    .append(csvCell(row.get("event_type"))).append(',')
+                    .append(csvCell(row.get("actor"))).append(',')
+                    .append(csvCell(row.get("decision_type"))).append(',')
+                    .append(csvCell(row.get("decision_reason"))).append(',')
+                    .append(csvCell(row.get("source"))).append(',')
+                    .append(csvCell(row.get("score"))).append(',')
+                    .append(csvCell(row.get("detail"))).append(',')
+                    .append(csvCell(row.get("created_at"))).append('\n');
+        }
+        return out.toString();
+    }
+
+    private String csvCell(Object value) {
+        String text = value != null ? String.valueOf(value) : "";
+        String escaped = text.replace("\"", "\"\"");
+        return "\"" + escaped + "\"";
     }
 
     private <T> T withQuickActionTiming(String action, String ticketId, Supplier<T> supplier) {
