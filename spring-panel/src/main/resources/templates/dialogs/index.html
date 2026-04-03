@@ -106,7 +106,7 @@
         }
     </style>
 </head>
-<body class="with-sidebar sidebar-pinned"
+<body class="with-sidebar sidebar-pinned dialog-compact-mode"
       th:attr="data-initial-dialog-ticket-id=${initialDialogTicketId},data-operator-identity=${operatorIdentity}">
 <div th:replace="~{fragments/navbar :: navbar('dialogs')}"></div>
 
@@ -499,7 +499,7 @@
                             <button type="button" class="btn btn-sm btn-outline-danger dialog-close-btn"
                                     th:data-ticket-id="${dialog.ticketId}"
                                     th:classappend="${dialog.statusKey() == 'closed' or dialog.statusKey() == 'auto_closed'} ? ' d-none' : ''">Закрыть</button>
-                            <a th:href="@{/tasks}" class="btn btn-sm btn-outline-secondary dialog-task-btn"
+                            <a th:href="@{/tasks(create=1,ticketId=${dialog.ticketId},client=${dialog.displayClientName()})}" class="btn btn-sm btn-outline-secondary dialog-task-btn"
                                th:data-ticket-id="${dialog.ticketId}"
                                th:data-client="${dialog.displayClientName()}">Задача</a>
                         </td>
@@ -975,6 +975,113 @@
     : {};
 </script>
 <script th:src="@{/js/dialogs.js}"></script>
+<script>
+  (() => {
+    const STORAGE_COMPACT_MODE = 'iguana:dialogs:compact-mode';
+    const compactBtn = document.getElementById('dialogCompactToggle');
+    const columnsModal = document.getElementById('dialogColumnsModal');
+    const columnsList = document.getElementById('dialogColumnsList');
+    const columnsApply = document.getElementById('dialogColumnsApply');
+    const columnsReset = document.getElementById('dialogColumnsReset');
+    const table = document.getElementById('dialogsTable');
+
+    function applyCompact(enabled) {
+      document.body.classList.toggle('dialog-compact-mode', Boolean(enabled));
+      if (compactBtn) {
+        compactBtn.textContent = enabled ? 'Standard mode' : 'Compact mode';
+        compactBtn.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+      }
+    }
+
+    try {
+      const stored = String(localStorage.getItem(STORAGE_COMPACT_MODE) || '').trim().toLowerCase();
+      if (stored === '') {
+        localStorage.setItem(STORAGE_COMPACT_MODE, '1');
+        applyCompact(true);
+      } else {
+        applyCompact(stored === '1' || stored === 'true' || stored === 'on');
+      }
+    } catch (_e) {
+      applyCompact(true);
+    }
+
+    if (compactBtn) {
+      compactBtn.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        const next = !document.body.classList.contains('dialog-compact-mode');
+        applyCompact(next);
+        try {
+          localStorage.setItem(STORAGE_COMPACT_MODE, next ? '1' : '0');
+        } catch (_e) {
+          // ignore
+        }
+      }, true);
+    }
+
+    function buildColumnsFallback() {
+      if (!columnsList || !table) return;
+      const headers = Array.from(table.querySelectorAll('thead th[data-column-key]'));
+      if (!headers.length) return;
+      if (columnsList.querySelector('[data-column-toggle]')) return;
+      columnsList.innerHTML = '';
+      headers.forEach((th) => {
+        const key = String(th.getAttribute('data-column-key') || '').trim();
+        if (!key) return;
+        const label = String((th.textContent || '').trim() || key);
+        const col = document.createElement('div');
+        col.className = 'col-12 col-sm-6';
+        col.innerHTML = '<label class="dialog-column-option">'
+          + `<input type="checkbox" class="form-check-input" data-column-toggle="${key}" checked>`
+          + `<span>${label}</span>`
+          + '</label>';
+        columnsList.appendChild(col);
+      });
+    }
+
+    function applyColumnsFallback() {
+      if (!columnsList || !table) return;
+      const head = table.tHead ? Array.from(table.tHead.rows[0].cells) : [];
+      const rows = table.tBodies.length ? Array.from(table.tBodies[0].rows) : [];
+      columnsList.querySelectorAll('[data-column-toggle]').forEach((checkbox) => {
+        const key = checkbox.getAttribute('data-column-toggle');
+        const header = table.querySelector(`th[data-column-key="${key}"]`);
+        if (!header) return;
+        const index = header.cellIndex;
+        const hide = !checkbox.checked;
+        header.classList.toggle('d-none', hide);
+        rows.forEach((row) => {
+          if (row.cells[index]) {
+            row.cells[index].classList.toggle('d-none', hide);
+          }
+        });
+      });
+    }
+
+    if (columnsModal) {
+      columnsModal.addEventListener('show.bs.modal', buildColumnsFallback);
+    }
+    if (columnsApply) {
+      columnsApply.addEventListener('click', () => {
+        if (!columnsList.querySelector('[data-column-toggle]')) {
+          buildColumnsFallback();
+        }
+        applyColumnsFallback();
+      }, true);
+    }
+    if (columnsReset) {
+      columnsReset.addEventListener('click', () => {
+        if (!columnsList.querySelector('[data-column-toggle]')) {
+          buildColumnsFallback();
+        }
+        columnsList.querySelectorAll('[data-column-toggle]').forEach((checkbox) => {
+          checkbox.checked = true;
+        });
+        applyColumnsFallback();
+      }, true);
+    }
+  })();
+</script>
 <script th:inline="javascript">
   (() => {
     const initialTicketId = /*[[${initialDialogTicketId}]]*/ null;

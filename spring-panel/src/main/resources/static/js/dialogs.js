@@ -1796,9 +1796,14 @@
   function loadCompactMode() {
     try {
       const raw = String(localStorage.getItem(STORAGE_COMPACT_MODE) || '').trim().toLowerCase();
+      if (!raw) {
+        applyCompactMode(true);
+        localStorage.setItem(STORAGE_COMPACT_MODE, '1');
+        return;
+      }
       applyCompactMode(raw === '1' || raw === 'true' || raw === 'on');
     } catch (_error) {
-      applyCompactMode(false);
+      applyCompactMode(true);
     }
   }
 
