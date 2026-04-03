@@ -143,6 +143,29 @@
         </div>
     </section>
 
+    <section class="card shadow-sm mb-4 dialogs-table-card gradient-border-hover" id="aiMonitoringSection">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center gap-2">
+            <div>
+                <strong>AI Monitoring</strong>
+                <div class="small text-muted">Оперативные KPI, алерты и runbook по качеству работы AI-агента.</div>
+            </div>
+            <button class="btn btn-sm btn-outline-secondary" id="aiMonitoringRefresh" type="button">Обновить</button>
+        </div>
+        <div class="card-body">
+            <div class="small text-muted mb-2" id="aiMonitoringState">Загрузка AI-метрик…</div>
+            <div class="row g-2 mb-2" id="aiMonitoringKpis">
+                <div class="col-md-3 col-6"><div class="border rounded p-2"><div class="small text-muted">Auto-reply rate</div><div class="fw-semibold" id="aiKpiAutoReplyRate">—</div></div></div>
+                <div class="col-md-3 col-6"><div class="border rounded p-2"><div class="small text-muted">Assist usage rate</div><div class="fw-semibold" id="aiKpiAssistRate">—</div></div></div>
+                <div class="col-md-3 col-6"><div class="border rounded p-2"><div class="small text-muted">Escalation rate</div><div class="fw-semibold" id="aiKpiEscalationRate">—</div></div></div>
+                <div class="col-md-3 col-6"><div class="border rounded p-2"><div class="small text-muted">Correction rate</div><div class="fw-semibold" id="aiKpiCorrectionRate">—</div></div></div>
+            </div>
+            <div class="small fw-semibold mb-1">Алерты</div>
+            <div id="aiMonitoringAlerts" class="small text-muted mb-2">—</div>
+            <div class="small fw-semibold mb-1">Runbook</div>
+            <ul id="aiMonitoringRunbook" class="small mb-0 ps-3"></ul>
+        </div>
+    </section>
+
     <section id="dialogsWorkspaceShell" class="d-none mb-4" aria-live="polite">
         <div class="card shadow-sm workspace-shell-card gradient-border-hover">
             <div class="card-body">
