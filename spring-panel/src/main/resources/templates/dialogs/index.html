@@ -126,8 +126,8 @@
             <div class="d-flex flex-wrap gap-2 align-items-center">
                 <h2 class="dialogs-title me-2">Диалоги</h2>
                 <input type="search" id="dialogQuickSearch" class="form-control form-control-sm dialog-toolbar-search flex-grow-1" placeholder="Поиск по обращению, клиенту или каналу">
-                <button class="btn btn-outline-primary btn-sm" id="dialogFiltersBtn" type="button">Фильтры</button>
-                <button class="btn btn-outline-secondary btn-sm" id="dialogColumnsBtn" type="button">Колонки</button>
+                <button class="btn btn-outline-primary btn-sm" id="dialogFiltersBtn" type="button" data-bs-toggle="modal" data-bs-target="#dialogFiltersModal">Фильтры</button>
+                <button class="btn btn-outline-secondary btn-sm" id="dialogColumnsBtn" type="button" data-bs-toggle="modal" data-bs-target="#dialogColumnsModal">Колонки</button>
                 <button class="btn btn-outline-secondary btn-sm" id="dialogCompactToggle" type="button">Compact mode</button>
                 <a class="btn btn-outline-secondary btn-sm" href="/ai-ops">AI Ops</a>
                 <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#dialogToolbarAdvanced" aria-expanded="false" aria-controls="dialogToolbarAdvanced">Ещё параметры</button>
@@ -596,6 +596,9 @@
                         <div class="small">
                             <span class="fw-semibold" id="dialogDetailsClientName">—</span>
                             <span class="text-muted" id="dialogDetailsClientStatus">—</span>
+                        </div>
+                        <div class="mt-1">
+                            <a class="btn btn-sm btn-outline-primary" id="dialogDetailsOpenClientCard" href="#" target="_blank" rel="noopener noreferrer">Открыть карточку клиента</a>
                         </div>
                     </div>
                 </div>
@@ -1079,5 +1082,3 @@
 </script>
 </body>
 </html>
-
-
