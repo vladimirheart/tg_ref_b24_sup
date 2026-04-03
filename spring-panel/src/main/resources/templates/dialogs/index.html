@@ -1,10 +1,10 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ru" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="_csrf" th:content="${_csrf != null ? _csrf.token : ''}" />
-    <title>Диалоги — iguana</title>
+    <title>Р”РёР°Р»РѕРіРё вЂ” iguana</title>
     <link rel="icon" type="image/svg+xml" th:href="@{/iguana-icon.svg}" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
     <link rel="stylesheet" th:href="@{/css/style.css}">
@@ -43,6 +43,28 @@
             border-radius: 1rem;
             padding: 1rem;
             background: color-mix(in srgb, var(--color-surface-soft) 78%, white);
+        }
+        .workspace-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.35rem;
+        }
+        .workspace-tab-btn {
+            border: 1px solid color-mix(in srgb, var(--color-border) 82%, transparent);
+            background: color-mix(in srgb, var(--card) 95%, white);
+            color: var(--foreground);
+            border-radius: 999px;
+            padding: 0.3rem 0.7rem;
+            font-size: 0.8rem;
+            line-height: 1.2;
+        }
+        .workspace-tab-btn.is-active {
+            background: linear-gradient(135deg, var(--primary), var(--chart-2));
+            border-color: color-mix(in srgb, var(--primary) 55%, var(--chart-4));
+            color: var(--primary-foreground);
+        }
+        .workspace-tab-panel.d-none {
+            display: none !important;
         }
         .dialog-summary-item {
             display: flex;
@@ -90,8 +112,8 @@
         <div class="d-flex flex-wrap justify-content-between gap-3 align-items-end">
             <div>
                 <span class="page-kicker">Conversation Desk</span>
-                <h1 class="page-title">Диалоги</h1>
-                <p class="page-subtitle">Единое рабочее место для очереди обращений, SLA и быстрых действий операторов.</p>
+                <h1 class="page-title">Р”РёР°Р»РѕРіРё</h1>
+                <p class="page-subtitle">Р•РґРёРЅРѕРµ СЂР°Р±РѕС‡РµРµ РјРµСЃС‚Рѕ РґР»СЏ РѕС‡РµСЂРµРґРё РѕР±СЂР°С‰РµРЅРёР№, SLA Рё Р±С‹СЃС‚СЂС‹С… РґРµР№СЃС‚РІРёР№ РѕРїРµСЂР°С‚РѕСЂРѕРІ.</p>
             </div>
         </div>
     </div>
@@ -99,40 +121,40 @@
     <div class="card shadow-sm mb-4 dialogs-toolbar-card gradient-border-hover">
         <div class="card-body py-3">
             <div class="d-flex flex-wrap gap-2 align-items-center">
-                <h2 class="dialogs-title me-2">Диалоги</h2>
-                <input type="search" id="dialogQuickSearch" class="form-control form-control-sm dialog-toolbar-search flex-grow-1" placeholder="Поиск по обращению, клиенту или каналу">
-                <button class="btn btn-outline-primary btn-sm" id="dialogFiltersBtn" type="button">Фильтры</button>
-                <button class="btn btn-outline-secondary btn-sm" id="dialogColumnsBtn" type="button">Колонки</button>
+                <h2 class="dialogs-title me-2">Р”РёР°Р»РѕРіРё</h2>
+                <input type="search" id="dialogQuickSearch" class="form-control form-control-sm dialog-toolbar-search flex-grow-1" placeholder="РџРѕРёСЃРє РїРѕ РѕР±СЂР°С‰РµРЅРёСЋ, РєР»РёРµРЅС‚Сѓ РёР»Рё РєР°РЅР°Р»Сѓ">
+                <button class="btn btn-outline-primary btn-sm" id="dialogFiltersBtn" type="button">Р¤РёР»СЊС‚СЂС‹</button>
+                <button class="btn btn-outline-secondary btn-sm" id="dialogColumnsBtn" type="button">РљРѕР»РѕРЅРєРё</button>
                 <button class="btn btn-outline-secondary btn-sm" id="dialogCompactToggle" type="button">Compact mode</button>
                 <a class="btn btn-outline-secondary btn-sm" href="/ai-ops">AI Ops</a>
-                <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#dialogToolbarAdvanced" aria-expanded="false" aria-controls="dialogToolbarAdvanced">Ещё параметры</button>
+                <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#dialogToolbarAdvanced" aria-expanded="false" aria-controls="dialogToolbarAdvanced">Р•С‰С‘ РїР°СЂР°РјРµС‚СЂС‹</button>
             </div>
             <div class="mt-3 dialog-status-group">
-                <div class="btn-group flex-wrap" role="group" aria-label="Статусы диалогов">
-                    <button class="btn btn-outline-secondary btn-sm active" type="button" data-dialog-view="all">Все</button>
-                    <button class="btn btn-outline-secondary btn-sm" type="button" data-dialog-view="active">Активные</button>
-                    <button class="btn btn-outline-secondary btn-sm" type="button" data-dialog-view="new">Новые</button>
-                    <button class="btn btn-outline-secondary btn-sm" type="button" data-dialog-view="unassigned">Без ответственного</button>
-                    <button class="btn btn-outline-secondary btn-sm" type="button" data-dialog-view="overdue">Просроченные</button>
-                    <button class="btn btn-outline-secondary btn-sm" type="button" data-dialog-view="sla_critical">SLA критичные</button>
-                    <button class="btn btn-outline-secondary btn-sm" type="button" data-dialog-view="escalation_required">Нужна эскалация</button>
+                <div class="btn-group flex-wrap" role="group" aria-label="РЎС‚Р°С‚СѓСЃС‹ РґРёР°Р»РѕРіРѕРІ">
+                    <button class="btn btn-outline-secondary btn-sm active" type="button" data-dialog-view="all">Р’СЃРµ</button>
+                    <button class="btn btn-outline-secondary btn-sm" type="button" data-dialog-view="active">РђРєС‚РёРІРЅС‹Рµ</button>
+                    <button class="btn btn-outline-secondary btn-sm" type="button" data-dialog-view="new">РќРѕРІС‹Рµ</button>
+                    <button class="btn btn-outline-secondary btn-sm" type="button" data-dialog-view="unassigned">Р‘РµР· РѕС‚РІРµС‚СЃС‚РІРµРЅРЅРѕРіРѕ</button>
+                    <button class="btn btn-outline-secondary btn-sm" type="button" data-dialog-view="overdue">РџСЂРѕСЃСЂРѕС‡РµРЅРЅС‹Рµ</button>
+                    <button class="btn btn-outline-secondary btn-sm" type="button" data-dialog-view="sla_critical">SLA РєСЂРёС‚РёС‡РЅС‹Рµ</button>
+                    <button class="btn btn-outline-secondary btn-sm" type="button" data-dialog-view="escalation_required">РќСѓР¶РЅР° СЌСЃРєР°Р»Р°С†РёСЏ</button>
                 </div>
             </div>
             <div class="collapse mt-3" id="dialogToolbarAdvanced">
                 <div class="d-flex flex-wrap gap-2 align-items-center dialog-toolbar-controls">
-                    <select class="form-select form-select-sm dialog-toolbar-page-size" id="dialogSlaWindow" aria-label="Требует реакции в ближайшие N минут">
-                        <option value="">SLA: все</option>
-                        <option value="15">Реакция ≤ 15м</option>
-                        <option value="30">Реакция ≤ 30м</option>
-                        <option value="60">Реакция ≤ 60м</option>
-                        <option value="120">Реакция ≤ 120м</option>
+                    <select class="form-select form-select-sm dialog-toolbar-page-size" id="dialogSlaWindow" aria-label="РўСЂРµР±СѓРµС‚ СЂРµР°РєС†РёРё РІ Р±Р»РёР¶Р°Р№С€РёРµ N РјРёРЅСѓС‚">
+                        <option value="">SLA: РІСЃРµ</option>
+                        <option value="15">Р РµР°РєС†РёСЏ в‰¤ 15Рј</option>
+                        <option value="30">Р РµР°РєС†РёСЏ в‰¤ 30Рј</option>
+                        <option value="60">Р РµР°РєС†РёСЏ в‰¤ 60Рј</option>
+                        <option value="120">Р РµР°РєС†РёСЏ в‰¤ 120Рј</option>
                     </select>
-                    <select class="form-select form-select-sm dialog-toolbar-page-size" id="dialogSortMode" aria-label="Режим сортировки диалогов">
-                        <option value="default">Сортировка: стандарт</option>
-                        <option value="sla_priority">Сортировка: SLA-first</option>
+                    <select class="form-select form-select-sm dialog-toolbar-page-size" id="dialogSortMode" aria-label="Р РµР¶РёРј СЃРѕСЂС‚РёСЂРѕРІРєРё РґРёР°Р»РѕРіРѕРІ">
+                        <option value="default">РЎРѕСЂС‚РёСЂРѕРІРєР°: СЃС‚Р°РЅРґР°СЂС‚</option>
+                        <option value="sla_priority">РЎРѕСЂС‚РёСЂРѕРІРєР°: SLA-first</option>
                     </select>
-                    <button class="btn btn-outline-info btn-sm" id="dialogExperimentInfoBtn" type="button" data-bs-toggle="modal" data-bs-target="#dialogExperimentInfoModal">🧪 Эксперимент</button>
-                    <button class="btn btn-outline-dark btn-sm" id="dialogHotkeysBtn" type="button" data-bs-toggle="modal" data-bs-target="#dialogHotkeysModal">⌨ Шорткаты</button>
+                    <button class="btn btn-outline-info btn-sm" id="dialogExperimentInfoBtn" type="button" data-bs-toggle="modal" data-bs-target="#dialogExperimentInfoModal">рџ§Є Р­РєСЃРїРµСЂРёРјРµРЅС‚</button>
+                    <button class="btn btn-outline-dark btn-sm" id="dialogHotkeysBtn" type="button" data-bs-toggle="modal" data-bs-target="#dialogHotkeysModal">вЊЁ РЁРѕСЂС‚РєР°С‚С‹</button>
                 </div>
             </div>
         </div>
@@ -141,26 +163,26 @@
     <section class="card shadow-sm mb-4 dialogs-table-card gradient-border-hover" id="aiReviewQueueSection">
         <div class="card-header bg-white d-flex justify-content-between align-items-center gap-2">
             <div>
-                <strong>Очередь ревизий AI-решений</strong>
-                <div class="small text-muted">Решения, где ответ оператора отличается от текущей версии в памяти агента.</div>
+                <strong>РћС‡РµСЂРµРґСЊ СЂРµРІРёР·РёР№ AI-СЂРµС€РµРЅРёР№</strong>
+                <div class="small text-muted">Р РµС€РµРЅРёСЏ, РіРґРµ РѕС‚РІРµС‚ РѕРїРµСЂР°С‚РѕСЂР° РѕС‚Р»РёС‡Р°РµС‚СЃСЏ РѕС‚ С‚РµРєСѓС‰РµР№ РІРµСЂСЃРёРё РІ РїР°РјСЏС‚Рё Р°РіРµРЅС‚Р°.</div>
             </div>
-            <button class="btn btn-sm btn-outline-secondary" id="aiReviewQueueRefresh" type="button">Обновить</button>
+            <button class="btn btn-sm btn-outline-secondary" id="aiReviewQueueRefresh" type="button">РћР±РЅРѕРІРёС‚СЊ</button>
         </div>
         <div class="card-body">
-            <div class="small text-muted mb-2" id="aiReviewQueueState">Загрузка очереди ревизий…</div>
+            <div class="small text-muted mb-2" id="aiReviewQueueState">Р—Р°РіСЂСѓР·РєР° РѕС‡РµСЂРµРґРё СЂРµРІРёР·РёР№вЂ¦</div>
             <div class="table-responsive">
                 <table class="table table-sm align-middle mb-0">
                     <thead>
                     <tr>
-                        <th style="min-width: 18rem;">Вопрос</th>
-                        <th style="min-width: 16rem;">Текущее решение</th>
-                        <th style="min-width: 16rem;">Предложенная правка</th>
-                        <th>Диалог</th>
-                        <th class="text-end">Действия</th>
+                        <th style="min-width: 18rem;">Р’РѕРїСЂРѕСЃ</th>
+                        <th style="min-width: 16rem;">РўРµРєСѓС‰РµРµ СЂРµС€РµРЅРёРµ</th>
+                        <th style="min-width: 16rem;">РџСЂРµРґР»РѕР¶РµРЅРЅР°СЏ РїСЂР°РІРєР°</th>
+                        <th>Р”РёР°Р»РѕРі</th>
+                        <th class="text-end">Р”РµР№СЃС‚РІРёСЏ</th>
                     </tr>
                     </thead>
                     <tbody id="aiReviewQueueBody">
-                    <tr><td colspan="5" class="text-muted text-center py-3">Загрузка…</td></tr>
+                    <tr><td colspan="5" class="text-muted text-center py-3">Р—Р°РіСЂСѓР·РєР°вЂ¦</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -170,10 +192,10 @@
     <section class="card shadow-sm mb-4 dialogs-table-card gradient-border-hover">
         <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-2">
             <div>
-                <strong>AI Ops вынесен в отдельную страницу</strong>
-                <div class="small text-muted">KPI, алерты, runbook и журнал событий теперь доступны в отдельном операционном контуре.</div>
+                <strong>AI Ops РІС‹РЅРµСЃРµРЅ РІ РѕС‚РґРµР»СЊРЅСѓСЋ СЃС‚СЂР°РЅРёС†Сѓ</strong>
+                <div class="small text-muted">KPI, Р°Р»РµСЂС‚С‹, runbook Рё Р¶СѓСЂРЅР°Р» СЃРѕР±С‹С‚РёР№ С‚РµРїРµСЂСЊ РґРѕСЃС‚СѓРїРЅС‹ РІ РѕС‚РґРµР»СЊРЅРѕРј РѕРїРµСЂР°С†РёРѕРЅРЅРѕРј РєРѕРЅС‚СѓСЂРµ.</div>
             </div>
-            <a class="btn btn-sm btn-outline-primary" href="/ai-ops">Открыть AI Ops</a>
+            <a class="btn btn-sm btn-outline-primary" href="/ai-ops">РћС‚РєСЂС‹С‚СЊ AI Ops</a>
         </div>
     </section>
 
@@ -183,146 +205,155 @@
                 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
                     <div>
                         <h2 class="h5 mb-1" id="workspaceConversationTitle">Workspace</h2>
-                        <p class="small text-muted mb-0" id="workspaceConversationMeta">Загрузка карточки диалога…</p>
+                        <p class="small text-muted mb-0" id="workspaceConversationMeta">Р—Р°РіСЂСѓР·РєР° РєР°СЂС‚РѕС‡РєРё РґРёР°Р»РѕРіР°вЂ¦</p>
                     </div>
                     <div class="d-flex flex-wrap gap-2 align-items-center">
-                        <div class="btn-group" role="group" aria-label="Навигация по очереди workspace">
-                            <button class="btn btn-sm btn-outline-secondary" id="workspaceNavPrevBtn" type="button">← Предыдущий</button>
-                            <button class="btn btn-sm btn-outline-secondary" id="workspaceNavNextBtn" type="button">Следующий →</button>
+                        <div class="btn-group" role="group" aria-label="РќР°РІРёРіР°С†РёСЏ РїРѕ РѕС‡РµСЂРµРґРё workspace">
+                            <button class="btn btn-sm btn-outline-secondary" id="workspaceNavPrevBtn" type="button">в†ђ РџСЂРµРґС‹РґСѓС‰РёР№</button>
+                            <button class="btn btn-sm btn-outline-secondary" id="workspaceNavNextBtn" type="button">РЎР»РµРґСѓСЋС‰РёР№ в†’</button>
                         </div>
-                        <span class="small text-muted" id="workspaceNavState">Очередь не определена</span>
-                        <button class="btn btn-sm btn-outline-success" id="workspaceAssignBtn" type="button">Назначить мне</button>
-                        <button class="btn btn-sm btn-outline-warning" id="workspaceSnoozeBtn" type="button">Отложить на 1ч</button>
-                        <button class="btn btn-sm btn-outline-danger" id="workspaceResolveBtn" type="button">Закрыть</button>
-                        <button class="btn btn-sm btn-outline-secondary d-none" id="workspaceReopenBtn" type="button">Переоткрыть</button>
-                        <a class="btn btn-sm btn-outline-secondary" id="workspaceCreateTaskBtn" href="/tasks">Задача</a>
+                        <span class="small text-muted" id="workspaceNavState">РћС‡РµСЂРµРґСЊ РЅРµ РѕРїСЂРµРґРµР»РµРЅР°</span>
+                        <button class="btn btn-sm btn-outline-success" id="workspaceAssignBtn" type="button">РќР°Р·РЅР°С‡РёС‚СЊ РјРЅРµ</button>
+                        <button class="btn btn-sm btn-outline-warning" id="workspaceSnoozeBtn" type="button">РћС‚Р»РѕР¶РёС‚СЊ РЅР° 1С‡</button>
+                        <button class="btn btn-sm btn-outline-danger" id="workspaceResolveBtn" type="button">Р—Р°РєСЂС‹С‚СЊ</button>
+                        <button class="btn btn-sm btn-outline-secondary d-none" id="workspaceReopenBtn" type="button">РџРµСЂРµРѕС‚РєСЂС‹С‚СЊ</button>
+                        <a class="btn btn-sm btn-outline-secondary" id="workspaceCreateTaskBtn" href="/tasks">Р—Р°РґР°С‡Р°</a>
+                        <button class="btn btn-sm btn-outline-primary" id="workspaceAiIncidentExport" type="button">Р­РєСЃРїРѕСЂС‚ РёРЅС†РёРґРµРЅС‚Р°</button>
                         <button class="btn btn-sm btn-outline-dark" id="workspaceLegacyBtn" type="button">Legacy modal</button>
-                        <a class="btn btn-sm btn-outline-secondary" href="/dialogs">Вернуться к списку</a>
+                        <a class="btn btn-sm btn-outline-secondary" href="/dialogs">Р’РµСЂРЅСѓС‚СЊСЃСЏ Рє СЃРїРёСЃРєСѓ</a>
                     </div>
                 </div>
                 <div id="workspaceRolloutBanner" class="d-none alert alert-info py-2 px-3 small mb-3" role="status" aria-live="polite"></div>
                 <div id="workspaceParityBanner" class="d-none alert py-2 px-3 small mb-3" role="status" aria-live="polite"></div>
                 <div id="workspaceReadonlyBanner" class="d-none alert alert-warning py-2 px-3 small" role="status" aria-live="polite">
-                    Workspace открыт в режиме только чтения: действия изменения временно недоступны.
+                    Workspace РѕС‚РєСЂС‹С‚ РІ СЂРµР¶РёРјРµ С‚РѕР»СЊРєРѕ С‡С‚РµРЅРёСЏ: РґРµР№СЃС‚РІРёСЏ РёР·РјРµРЅРµРЅРёСЏ РІСЂРµРјРµРЅРЅРѕ РЅРµРґРѕСЃС‚СѓРїРЅС‹.
                 </div>
                 <div class="row g-3">
                     <div class="col-12 col-xl-8">
                         <div class="workspace-panel-block mb-3" id="workspaceMessagesBlock">
-                            <div class="small text-muted" id="workspaceMessagesState">Загрузка ленты…</div>
+                            <div class="small text-muted" id="workspaceMessagesState">Р—Р°РіСЂСѓР·РєР° Р»РµРЅС‚С‹вЂ¦</div>
                             <div id="workspaceMessagesList" class="d-none"></div>
                             <div class="mt-2 d-none" id="workspaceMessagesLoadMoreWrap">
-                                <button class="btn btn-sm btn-outline-secondary" id="workspaceMessagesLoadMore" type="button">Загрузить ещё</button>
+                                <button class="btn btn-sm btn-outline-secondary" id="workspaceMessagesLoadMore" type="button">Р—Р°РіСЂСѓР·РёС‚СЊ РµС‰С‘</button>
                             </div>
                             <div id="workspaceMessagesError" class="d-none alert alert-warning py-2 px-3 mt-2 mb-0 small">
-                                Не удалось загрузить сообщения. <button class="btn btn-link btn-sm p-0" id="workspaceMessagesRetry" type="button">Повторить</button>
+                                РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ СЃРѕРѕР±С‰РµРЅРёСЏ. <button class="btn btn-link btn-sm p-0" id="workspaceMessagesRetry" type="button">РџРѕРІС‚РѕСЂРёС‚СЊ</button>
                             </div>
                         </div>
                         <div class="workspace-panel-block" id="workspaceComposerBlock">
-                            <div class="small text-muted mb-2">Ответ оператору</div>
+                            <div class="small text-muted mb-2">РћС‚РІРµС‚ РѕРїРµСЂР°С‚РѕСЂСѓ</div>
                             <div class="workspace-composer-macro d-none mb-2" id="workspaceComposerMacroSection">
-                                <label class="form-label form-label-sm mb-1" for="workspaceComposerMacroSearch">Макросы</label>
+                                <label class="form-label form-label-sm mb-1" for="workspaceComposerMacroSearch">РњР°РєСЂРѕСЃС‹</label>
                                 <input
                                     class="form-control form-control-sm mb-1"
                                     id="workspaceComposerMacroSearch"
                                     type="search"
-                                    placeholder="Поиск макроса по названию, тегам или тексту"
+                                    placeholder="РџРѕРёСЃРє РјР°РєСЂРѕСЃР° РїРѕ РЅР°Р·РІР°РЅРёСЋ, С‚РµРіР°Рј РёР»Рё С‚РµРєСЃС‚Сѓ"
                                     autocomplete="off"
                                 >
                                 <div class="d-flex flex-wrap gap-2 align-items-center">
-                                    <select class="form-select form-select-sm" id="workspaceComposerMacroSelect" aria-label="Выбор макроса для workspace"></select>
-                                    <button class="btn btn-sm btn-outline-secondary" id="workspaceComposerMacroApply" type="button">Вставить макрос</button>
+                                    <select class="form-select form-select-sm" id="workspaceComposerMacroSelect" aria-label="Р’С‹Р±РѕСЂ РјР°РєСЂРѕСЃР° РґР»СЏ workspace"></select>
+                                    <button class="btn btn-sm btn-outline-secondary" id="workspaceComposerMacroApply" type="button">Р’СЃС‚Р°РІРёС‚СЊ РјР°РєСЂРѕСЃ</button>
                                 </div>
-                                <div class="small text-muted mt-1" id="workspaceComposerMacroPreview">Выберите макрос для предпросмотра.</div>
+                                <div class="small text-muted mt-1" id="workspaceComposerMacroPreview">Р’С‹Р±РµСЂРёС‚Рµ РјР°РєСЂРѕСЃ РґР»СЏ РїСЂРµРґРїСЂРѕСЃРјРѕС‚СЂР°.</div>
                                 <div class="small text-muted mt-1" id="workspaceComposerMacroMeta"></div>
                             </div>
                             <div class="d-none alert alert-secondary py-2 px-3 small mb-2" id="workspaceReplyTarget">
                                 <div class="d-flex align-items-start justify-content-between gap-2">
                                     <div>
-                                        <div class="fw-semibold">Ответ на сообщение</div>
-                                        <div id="workspaceReplyTargetText">—</div>
+                                        <div class="fw-semibold">РћС‚РІРµС‚ РЅР° СЃРѕРѕР±С‰РµРЅРёРµ</div>
+                                        <div id="workspaceReplyTargetText">вЂ”</div>
                                     </div>
-                                    <button class="btn btn-link btn-sm p-0" id="workspaceReplyTargetClear" type="button">Очистить</button>
+                                    <button class="btn btn-link btn-sm p-0" id="workspaceReplyTargetClear" type="button">РћС‡РёСЃС‚РёС‚СЊ</button>
                                 </div>
                             </div>
                             <div class="alert alert-light border py-2 px-3 small mb-2" id="workspaceAiSuggestionsSection">
                                 <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap">
-                                    <div class="fw-semibold">AI-подсказки ответа</div>
-                                    <button class="btn btn-sm btn-outline-secondary" id="workspaceAiSuggestionsRefresh" type="button">Обновить</button>
+                                    <div class="fw-semibold">AI-РїРѕРґСЃРєР°Р·РєРё РѕС‚РІРµС‚Р°</div>
+                                    <button class="btn btn-sm btn-outline-secondary" id="workspaceAiSuggestionsRefresh" type="button">РћР±РЅРѕРІРёС‚СЊ</button>
                                 </div>
                                 <div class="d-flex flex-wrap gap-2 mt-2">
-                                    <button class="btn btn-sm btn-outline-danger" id="workspaceAiDisableForDialog" type="button">Отключить AI для диалога</button>
-                                    <button class="btn btn-sm btn-outline-warning" id="workspaceAiHandoffNoAutoReply" type="button">Передать мне и без автоответов</button>
+                                    <button class="btn btn-sm btn-outline-danger" id="workspaceAiDisableForDialog" type="button">РћС‚РєР»СЋС‡РёС‚СЊ AI РґР»СЏ РґРёР°Р»РѕРіР°</button>
+                                    <button class="btn btn-sm btn-outline-warning" id="workspaceAiHandoffNoAutoReply" type="button">РџРµСЂРµРґР°С‚СЊ РјРЅРµ Рё Р±РµР· Р°РІС‚РѕРѕС‚РІРµС‚РѕРІ</button>
                                 </div>
-                                <div class="small text-muted mt-1" id="workspaceAiControlState">Режим AI для диалога не загружен.</div>
-                                <div class="text-muted mt-1" id="workspaceAiSuggestionsState">Подсказки загружаются…</div>
+                                <div class="small text-muted mt-1" id="workspaceAiControlState">Р РµР¶РёРј AI РґР»СЏ РґРёР°Р»РѕРіР° РЅРµ Р·Р°РіСЂСѓР¶РµРЅ.</div>
+                                <div class="text-muted mt-1" id="workspaceAiSuggestionsState">РџРѕРґСЃРєР°Р·РєРё Р·Р°РіСЂСѓР¶Р°СЋС‚СЃСЏвЂ¦</div>
                                 <div class="alert alert-warning mt-2 mb-0 d-none" id="workspaceAiReviewBox">
-                                    <div class="fw-semibold mb-1">Требуется ревизия AI-решения</div>
+                                    <div class="fw-semibold mb-1">РўСЂРµР±СѓРµС‚СЃСЏ СЂРµРІРёР·РёСЏ AI-СЂРµС€РµРЅРёСЏ</div>
                                     <div class="small mb-1" id="workspaceAiReviewQuestion"></div>
-                                    <div class="small"><strong>Текущее:</strong> <span id="workspaceAiReviewCurrent"></span></div>
-                                    <div class="small"><strong>Предложено оператором:</strong> <span id="workspaceAiReviewPending"></span></div>
+                                    <div class="small"><strong>РўРµРєСѓС‰РµРµ:</strong> <span id="workspaceAiReviewCurrent"></span></div>
+                                    <div class="small"><strong>РџСЂРµРґР»РѕР¶РµРЅРѕ РѕРїРµСЂР°С‚РѕСЂРѕРј:</strong> <span id="workspaceAiReviewPending"></span></div>
                                     <div class="d-flex gap-2 mt-2">
-                                        <button class="btn btn-sm btn-success" id="workspaceAiReviewApprove" type="button">Принять правку</button>
-                                        <button class="btn btn-sm btn-outline-secondary" id="workspaceAiReviewReject" type="button">Оставить текущее</button>
+                                        <button class="btn btn-sm btn-success" id="workspaceAiReviewApprove" type="button">РџСЂРёРЅСЏС‚СЊ РїСЂР°РІРєСѓ</button>
+                                        <button class="btn btn-sm btn-outline-secondary" id="workspaceAiReviewReject" type="button">РћСЃС‚Р°РІРёС‚СЊ С‚РµРєСѓС‰РµРµ</button>
                                     </div>
                                 </div>
                                 <div class="d-flex flex-column gap-2 mt-2 d-none" id="workspaceAiSuggestionsList"></div>
                             </div>
-                            <textarea class="form-control form-control-sm mb-2" id="workspaceComposerText" rows="4" placeholder="Введите ответ клиенту…"></textarea>
+                            <textarea class="form-control form-control-sm mb-2" id="workspaceComposerText" rows="4" placeholder="Р’РІРµРґРёС‚Рµ РѕС‚РІРµС‚ РєР»РёРµРЅС‚СѓвЂ¦"></textarea>
                             <div class="d-flex flex-wrap align-items-center gap-2">
-                                <button class="btn btn-sm btn-primary" id="workspaceComposerSend" type="button">Отправить (Ctrl/Cmd/Alt+Enter)</button>
-                                <button class="btn btn-sm btn-outline-secondary" id="workspaceComposerMediaTrigger" type="button">Прикрепить медиа</button>
-                                <button class="btn btn-sm btn-outline-secondary" id="workspaceComposerSaveDraft" type="button">Сохранить черновик (Ctrl/Cmd/Alt+S)</button>
-                                <span class="small text-muted" id="workspaceComposerDraftState">Черновик не сохранён</span>
+                                <button class="btn btn-sm btn-primary" id="workspaceComposerSend" type="button">РћС‚РїСЂР°РІРёС‚СЊ (Ctrl/Cmd/Alt+Enter)</button>
+                                <button class="btn btn-sm btn-outline-secondary" id="workspaceComposerMediaTrigger" type="button">РџСЂРёРєСЂРµРїРёС‚СЊ РјРµРґРёР°</button>
+                                <button class="btn btn-sm btn-outline-secondary" id="workspaceComposerSaveDraft" type="button">РЎРѕС…СЂР°РЅРёС‚СЊ С‡РµСЂРЅРѕРІРёРє (Ctrl/Cmd/Alt+S)</button>
+                                <span class="small text-muted" id="workspaceComposerDraftState">Р§РµСЂРЅРѕРІРёРє РЅРµ СЃРѕС…СЂР°РЅС‘РЅ</span>
                             </div>
                             <input class="d-none" type="file" id="workspaceComposerMedia" multiple>
                         </div>
                     </div>
                     <div class="col-12 col-xl-4">
-                        <div class="workspace-panel-block mb-3" id="workspaceClientBlock">
-                            <div class="small text-muted mb-2">Клиент</div>
-                            <div id="workspaceClientState" class="small text-muted">Загрузка профиля…</div>
-                            <div id="workspaceClientContent" class="d-none"></div>
-                            <div id="workspaceClientError" class="d-none alert alert-warning py-2 px-3 mt-2 mb-0 small">
-                                Профиль клиента временно недоступен.
-                                <button class="btn btn-link btn-sm p-0" id="workspaceClientRetry" type="button">Повторить</button>
+                        <div class="workspace-panel-block mb-3" id="workspaceMetaTabs">
+                            <div class="workspace-tabs mb-3" role="tablist" aria-label="Карточка диалога">
+                                <button class="workspace-tab-btn is-active" data-workspace-tab="client" type="button" role="tab" aria-selected="true">Клиент</button>
+                                <button class="workspace-tab-btn" data-workspace-tab="sla" type="button" role="tab" aria-selected="false">SLA</button>
+                                <button class="workspace-tab-btn" data-workspace-tab="ai" type="button" role="tab" aria-selected="false">AI</button>
+                                <button class="workspace-tab-btn" data-workspace-tab="history" type="button" role="tab" aria-selected="false">История</button>
                             </div>
-                        </div>
-                        <div class="workspace-panel-block mb-3" id="workspaceHistoryBlock">
-                            <div class="small text-muted mb-2">История обращений</div>
-                            <div id="workspaceHistoryState" class="small text-muted">Загрузка истории…</div>
-                            <div id="workspaceHistoryContent" class="d-none"></div>
-                            <div id="workspaceHistoryError" class="d-none alert alert-warning py-2 px-3 mt-2 mb-0 small">
-                                История клиента временно недоступна.
-                                <button class="btn btn-link btn-sm p-0" id="workspaceHistoryRetry" type="button">Повторить</button>
-                            </div>
-                        </div>
-                        <div class="workspace-panel-block mb-3" id="workspaceRelatedEventsBlock">
-                            <div class="small text-muted mb-2">Связанные события</div>
-                            <div id="workspaceRelatedEventsState" class="small text-muted">Загрузка событий…</div>
-                            <div id="workspaceRelatedEventsContent" class="d-none"></div>
-                            <div id="workspaceRelatedEventsError" class="d-none alert alert-warning py-2 px-3 mt-2 mb-0 small">
-                                События временно недоступны.
-                                <button class="btn btn-link btn-sm p-0" id="workspaceRelatedEventsRetry" type="button">Повторить</button>
-                            </div>
-                        </div>
-                        <div class="workspace-panel-block" id="workspaceSlaBlock">
-                            <div class="small text-muted mb-2">SLA</div>
-                            <div id="workspaceSlaState" class="small text-muted">Загрузка SLA…</div>
-                            <div id="workspaceSlaContent" class="d-none"></div>
-                            <div id="workspaceSlaError" class="d-none alert alert-warning py-2 px-3 mt-2 mb-0 small">
-                                SLA-контекст временно недоступен.
-                                <button class="btn btn-link btn-sm p-0" id="workspaceSlaRetry" type="button">Повторить</button>
-                            </div>
+                            <section class="workspace-tab-panel" data-workspace-tab-panel="client" id="workspaceClientBlock">
+                                <div class="small text-muted mb-2">Клиент</div>
+                                <div id="workspaceClientState" class="small text-muted">Загрузка профиля…</div>
+                                <div id="workspaceClientContent" class="d-none"></div>
+                                <div id="workspaceClientError" class="d-none alert alert-warning py-2 px-3 mt-2 mb-0 small">
+                                    Профиль клиента временно недоступен.
+                                    <button class="btn btn-link btn-sm p-0" id="workspaceClientRetry" type="button">Повторить</button>
+                                </div>
+                            </section>
+                            <section class="workspace-tab-panel d-none" data-workspace-tab-panel="sla" id="workspaceSlaBlock">
+                                <div class="small text-muted mb-2">SLA</div>
+                                <div id="workspaceSlaState" class="small text-muted">Загрузка SLA…</div>
+                                <div id="workspaceSlaContent" class="d-none"></div>
+                                <div id="workspaceSlaError" class="d-none alert alert-warning py-2 px-3 mt-2 mb-0 small">
+                                    SLA-контекст временно недоступен.
+                                    <button class="btn btn-link btn-sm p-0" id="workspaceSlaRetry" type="button">Повторить</button>
+                                </div>
+                            </section>
+                            <section class="workspace-tab-panel d-none" data-workspace-tab-panel="ai" id="workspaceRelatedEventsBlock">
+                                <div class="small text-muted mb-2">Связанные события</div>
+                                <div id="workspaceRelatedEventsState" class="small text-muted">Загрузка событий…</div>
+                                <div id="workspaceRelatedEventsContent" class="d-none"></div>
+                                <div id="workspaceRelatedEventsError" class="d-none alert alert-warning py-2 px-3 mt-2 mb-0 small">
+                                    События временно недоступны.
+                                    <button class="btn btn-link btn-sm p-0" id="workspaceRelatedEventsRetry" type="button">Повторить</button>
+                                </div>
+                            </section>
+                            <section class="workspace-tab-panel d-none" data-workspace-tab-panel="history" id="workspaceHistoryBlock">
+                                <div class="small text-muted mb-2">История обращений</div>
+                                <div id="workspaceHistoryState" class="small text-muted">Загрузка истории…</div>
+                                <div id="workspaceHistoryContent" class="d-none"></div>
+                                <div id="workspaceHistoryError" class="d-none alert alert-warning py-2 px-3 mt-2 mb-0 small">
+                                    История клиента временно недоступна.
+                                    <button class="btn btn-link btn-sm p-0" id="workspaceHistoryRetry" type="button">Повторить</button>
+                                </div>
+                            </section>
                         </div>
                         <div class="workspace-panel-block mt-3" id="workspaceCategoriesBlock">
                             <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
-                                <div class="small text-muted">Категории</div>
-                                <button class="btn btn-link btn-sm p-0 text-decoration-none" id="workspaceCategoriesClear" type="button">Сбросить</button>
+                                <div class="small text-muted">РљР°С‚РµРіРѕСЂРёРё</div>
+                                <button class="btn btn-link btn-sm p-0 text-decoration-none" id="workspaceCategoriesClear" type="button">РЎР±СЂРѕСЃРёС‚СЊ</button>
                             </div>
-                            <div id="workspaceCategoriesState" class="small text-muted">Загрузка категорий…</div>
+                            <div id="workspaceCategoriesState" class="small text-muted">Р—Р°РіСЂСѓР·РєР° РєР°С‚РµРіРѕСЂРёР№вЂ¦</div>
                             <div id="workspaceCategoriesList" class="d-flex flex-wrap gap-2 d-none"></div>
                             <div id="workspaceCategoriesError" class="d-none alert alert-warning py-2 px-3 mt-2 mb-0 small">
-                                Не удалось сохранить категории.
+                                РќРµ СѓРґР°Р»РѕСЃСЊ СЃРѕС…СЂР°РЅРёС‚СЊ РєР°С‚РµРіРѕСЂРёРё.
                             </div>
                         </div>
                     </div>
@@ -332,26 +363,26 @@
     </section>
 
     <div class="dialog-bulk-toolbar d-flex flex-wrap align-items-center gap-2 mb-3 d-none" id="dialogBulkToolbar">
-        <span class="small text-muted" id="dialogBulkCount">Выбрано: 0</span>
-        <button class="btn btn-outline-success btn-sm" id="dialogBulkTakeBtn" type="button" disabled>Назначить выбранные на меня</button>
-        <button class="btn btn-outline-warning btn-sm" id="dialogBulkSnoozeBtn" type="button" disabled>Отложить выбранные</button>
-        <button class="btn btn-outline-danger btn-sm" id="dialogBulkCloseBtn" type="button" disabled>Закрыть выбранные</button>
-        <button class="btn btn-link btn-sm text-decoration-none" id="dialogBulkClearBtn" type="button" disabled>Снять выделение</button>
+        <span class="small text-muted" id="dialogBulkCount">Р’С‹Р±СЂР°РЅРѕ: 0</span>
+        <button class="btn btn-outline-success btn-sm" id="dialogBulkTakeBtn" type="button" disabled>РќР°Р·РЅР°С‡РёС‚СЊ РІС‹Р±СЂР°РЅРЅС‹Рµ РЅР° РјРµРЅСЏ</button>
+        <button class="btn btn-outline-warning btn-sm" id="dialogBulkSnoozeBtn" type="button" disabled>РћС‚Р»РѕР¶РёС‚СЊ РІС‹Р±СЂР°РЅРЅС‹Рµ</button>
+        <button class="btn btn-outline-danger btn-sm" id="dialogBulkCloseBtn" type="button" disabled>Р—Р°РєСЂС‹С‚СЊ РІС‹Р±СЂР°РЅРЅС‹Рµ</button>
+        <button class="btn btn-link btn-sm text-decoration-none" id="dialogBulkClearBtn" type="button" disabled>РЎРЅСЏС‚СЊ РІС‹РґРµР»РµРЅРёРµ</button>
     </div>
 
     <div class="card shadow-sm mb-4 dialogs-summary-card gradient-border-hover">
         <div class="card-body py-2">
             <div class="d-flex flex-wrap align-items-center gap-3 dialog-summary-inline">
                 <div class="dialog-summary-item">
-                    <span class="text-muted small">Всего обращений</span>
+                    <span class="text-muted small">Р’СЃРµРіРѕ РѕР±СЂР°С‰РµРЅРёР№</span>
                     <span class="h5 mb-0" id="dialogsSummaryTotal" th:text="${summary != null ? summary.totalTickets : 0}">0</span>
                 </div>
                 <div class="dialog-summary-item">
-                    <span class="text-muted small">В ожидании</span>
+                    <span class="text-muted small">Р’ РѕР¶РёРґР°РЅРёРё</span>
                     <span class="h5 mb-0" id="dialogsSummaryPending" th:text="${summary != null ? summary.pendingTickets : 0}">0</span>
                 </div>
                 <div class="dialog-summary-item">
-                    <span class="text-muted small">Закрыто</span>
+                    <span class="text-muted small">Р—Р°РєСЂС‹С‚Рѕ</span>
                     <span class="h5 mb-0" id="dialogsSummaryResolved" th:text="${summary != null ? summary.resolvedTickets : 0}">0</span>
                 </div>
             </div>
@@ -365,25 +396,25 @@
                     <thead>
                     <tr>
                         <th class="dialog-select-column">
-                            <input class="form-check-input" type="checkbox" id="dialogSelectAll" aria-label="Выбрать все видимые диалоги">
+                            <input class="form-check-input" type="checkbox" id="dialogSelectAll" aria-label="Р’С‹Р±СЂР°С‚СЊ РІСЃРµ РІРёРґРёРјС‹Рµ РґРёР°Р»РѕРіРё">
                         </th>
-                        <th data-column-key="ticket">№ обращения</th>
-                        <th data-column-key="client">Клиент</th>
-                        <th data-column-key="status">Статус</th>
-                        <th data-column-key="channel">Канал</th>
-                        <th data-column-key="business">Бизнес</th>
-                        <th data-column-key="problem">Проблема</th>
-                        <th data-column-key="location">Локация</th>
-                        <th data-column-key="categories">Категории</th>
-                        <th data-column-key="responsible">Ответственный</th>
-                        <th data-column-key="created">Дата</th>
+                        <th data-column-key="ticket">в„– РѕР±СЂР°С‰РµРЅРёСЏ</th>
+                        <th data-column-key="client">РљР»РёРµРЅС‚</th>
+                        <th data-column-key="status">РЎС‚Р°С‚СѓСЃ</th>
+                        <th data-column-key="channel">РљР°РЅР°Р»</th>
+                        <th data-column-key="business">Р‘РёР·РЅРµСЃ</th>
+                        <th data-column-key="problem">РџСЂРѕР±Р»РµРјР°</th>
+                        <th data-column-key="location">Р›РѕРєР°С†РёСЏ</th>
+                        <th data-column-key="categories">РљР°С‚РµРіРѕСЂРёРё</th>
+                        <th data-column-key="responsible">РћС‚РІРµС‚СЃС‚РІРµРЅРЅС‹Р№</th>
+                        <th data-column-key="created">Р”Р°С‚Р°</th>
                         <th data-column-key="sla">SLA</th>
-                        <th data-column-key="actions">Действия</th>
+                        <th data-column-key="actions">Р”РµР№СЃС‚РІРёСЏ</th>
                     </tr>
                     </thead>
                     <tbody>
                     <tr th:if="${#lists.isEmpty(dialogs)}">
-                        <td colspan="13" class="text-center text-muted py-4">Диалоги не найдены</td>
+                        <td colspan="13" class="text-center text-muted py-4">Р”РёР°Р»РѕРіРё РЅРµ РЅР°Р№РґРµРЅС‹</td>
                     </tr>
                     <tr th:each="dialog : ${dialogs}"
                         th:data-ticket-id="${dialog.ticketId}"
@@ -406,65 +437,65 @@
                         th:data-request-number="${dialog.requestNumber()}"
                         th:data-last-message-timestamp="${dialog.lastMessageTimestamp()}">
                         <td class="dialog-select-column">
-                            <input class="form-check-input dialog-row-select" type="checkbox" th:data-ticket-id="${dialog.ticketId}" aria-label="Выбрать диалог">
+                            <input class="form-check-input dialog-row-select" type="checkbox" th:data-ticket-id="${dialog.ticketId}" aria-label="Р’С‹Р±СЂР°С‚СЊ РґРёР°Р»РѕРі">
                         </td>
-                        <td th:text="${dialog.displayTicketNumber()}">—</td>
+                        <td th:text="${dialog.displayTicketNumber()}">вЂ”</td>
                         <td>
                             <div class="d-flex align-items-center gap-2">
                                 <div class="dialog-avatar"
                                      th:attr="data-avatar-user-id=${dialog.userId}, data-avatar-name=${dialog.displayClientName()}">
-                                    <img class="dialog-avatar-img d-none" alt="Аватар клиента" data-avatar-img>
-                                    <span class="avatar-circle" data-avatar-initial th:text="${dialog.avatarInitial()}">—</span>
+                                    <img class="dialog-avatar-img d-none" alt="РђРІР°С‚Р°СЂ РєР»РёРµРЅС‚Р°" data-avatar-img>
+                                    <span class="avatar-circle" data-avatar-initial th:text="${dialog.avatarInitial()}">вЂ”</span>
                                 </div>
                                 <div>
-                                    <div class="fw-semibold" th:text="${dialog.displayClientName()}">Клиент</div>
-                                    <div class="small text-muted" th:text="${dialog.clientStatusLabel()}">статус</div>
+                                    <div class="fw-semibold" th:text="${dialog.displayClientName()}">РљР»РёРµРЅС‚</div>
+                                    <div class="small text-muted" th:text="${dialog.clientStatusLabel()}">СЃС‚Р°С‚СѓСЃ</div>
                                 </div>
                             </div>
                         </td>
                         <td>
                             <div class="d-flex align-items-center gap-2">
-                                <span class="badge rounded-pill" th:classappend="${dialog.statusClass()}" th:text="${dialog.statusLabel()}">Открыт</span>
+                                <span class="badge rounded-pill" th:classappend="${dialog.statusClass()}" th:text="${dialog.statusLabel()}">РћС‚РєСЂС‹С‚</span>
                                 <span class="badge dialog-unread-count"
                                       th:classappend="${dialog.unreadCount() != null and dialog.unreadCount() > 0} ? '' : ' d-none'"
                                       th:text="${dialog.unreadCount()}">0</span>
                             </div>
-                            <div class="small text-warning" th:if="${dialog.ratingStars() != ''}" th:text="${dialog.ratingStars()}">★★★★★</div>
+                            <div class="small text-warning" th:if="${dialog.ratingStars() != ''}" th:text="${dialog.ratingStars()}">в…в…в…в…в…</div>
                         </td>
-                        <td th:text="${dialog.channelLabel()}">—</td>
+                        <td th:text="${dialog.channelLabel()}">вЂ”</td>
                         <td class="dialog-business-cell" th:data-business="${dialog.businessLabel()}">
                             <div class="dialog-business-pill">
                                 <span class="dialog-business-icon d-none" aria-hidden="true"></span>
-                                <span class="dialog-business-text" th:text="${dialog.businessLabel()}">—</span>
+                                <span class="dialog-business-text" th:text="${dialog.businessLabel()}">вЂ”</span>
                             </div>
                         </td>
-                        <td class="text-truncate" style="max-width: 260px;" th:text="${dialog.problemSafe()}">—</td>
-                        <td th:text="${dialog.location()} ?: '—'">—</td>
-                        <td th:text="${dialog.categoriesSafe()}">—</td>
-                        <td th:text="${dialog.responsible()} ?: '—'">—</td>
+                        <td class="text-truncate" style="max-width: 260px;" th:text="${dialog.problemSafe()}">вЂ”</td>
+                        <td th:text="${dialog.location()} ?: 'вЂ”'">вЂ”</td>
+                        <td th:text="${dialog.categoriesSafe()}">вЂ”</td>
+                        <td th:text="${dialog.responsible()} ?: 'вЂ”'">вЂ”</td>
                         <td>
-                            <div class="small text-muted" th:text="${dialog.createdDateSafe()}">—</div>
-                            <div class="small" th:text="${dialog.createdTimeSafe()}">—</div>
+                            <div class="small text-muted" th:text="${dialog.createdDateSafe()}">вЂ”</div>
+                            <div class="small" th:text="${dialog.createdTimeSafe()}">вЂ”</div>
                         </td>
                         <td class="dialog-sla-cell">
-                            <span class="badge rounded-pill dialog-sla-badge">—</span>
+                            <span class="badge rounded-pill dialog-sla-badge">вЂ”</span>
                         </td>
                         <td class="dialog-actions">
                             <a th:href="@{/dialogs/{ticketId}(ticketId=${dialog.ticketId})}"
                                class="btn btn-sm btn-outline-primary dialog-open-btn"
-                               th:data-ticket-id="${dialog.ticketId}">Открыть</a>
+                               th:data-ticket-id="${dialog.ticketId}">РћС‚РєСЂС‹С‚СЊ</a>
                             <button type="button" class="btn btn-sm btn-outline-success dialog-take-btn"
                                     th:data-ticket-id="${dialog.ticketId}"
-                                    th:classappend="${dialog.responsible() != null and !#strings.isEmpty(dialog.responsible())} ? ' d-none' : ''">Назначить мне</button>
+                                    th:classappend="${dialog.responsible() != null and !#strings.isEmpty(dialog.responsible())} ? ' d-none' : ''">РќР°Р·РЅР°С‡РёС‚СЊ РјРЅРµ</button>
                             <button type="button" class="btn btn-sm btn-outline-warning dialog-snooze-btn"
                                     th:data-ticket-id="${dialog.ticketId}"
-                                    th:classappend="${dialog.statusKey() == 'closed' or dialog.statusKey() == 'auto_closed'} ? ' d-none' : ''">Отложить 1ч</button>
+                                    th:classappend="${dialog.statusKey() == 'closed' or dialog.statusKey() == 'auto_closed'} ? ' d-none' : ''">РћС‚Р»РѕР¶РёС‚СЊ 1С‡</button>
                             <button type="button" class="btn btn-sm btn-outline-danger dialog-close-btn"
                                     th:data-ticket-id="${dialog.ticketId}"
-                                    th:classappend="${dialog.statusKey() == 'closed' or dialog.statusKey() == 'auto_closed'} ? ' d-none' : ''">Закрыть</button>
+                                    th:classappend="${dialog.statusKey() == 'closed' or dialog.statusKey() == 'auto_closed'} ? ' d-none' : ''">Р—Р°РєСЂС‹С‚СЊ</button>
                             <a th:href="@{/tasks}" class="btn btn-sm btn-outline-secondary dialog-task-btn"
                                th:data-ticket-id="${dialog.ticketId}"
-                               th:data-client="${dialog.displayClientName()}">Задача</a>
+                               th:data-client="${dialog.displayClientName()}">Р—Р°РґР°С‡Р°</a>
                         </td>
                     </tr>
                     </tbody>
@@ -475,13 +506,13 @@
 
     <div class="d-flex justify-content-end mt-3">
         <div class="d-flex align-items-center gap-2">
-            <label class="small text-muted mb-0" for="dialogPageSize">Количество диалогов</label>
-            <select class="form-select form-select-sm dialog-toolbar-page-size" id="dialogPageSize" aria-label="Количество диалогов на странице">
-                <option value="10">10 / стр.</option>
-                <option value="20">20 / стр.</option>
-                <option value="50">50 / стр.</option>
-                <option value="100">100 / стр.</option>
-                <option value="all">Все</option>
+            <label class="small text-muted mb-0" for="dialogPageSize">РљРѕР»РёС‡РµСЃС‚РІРѕ РґРёР°Р»РѕРіРѕРІ</label>
+            <select class="form-select form-select-sm dialog-toolbar-page-size" id="dialogPageSize" aria-label="РљРѕР»РёС‡РµСЃС‚РІРѕ РґРёР°Р»РѕРіРѕРІ РЅР° СЃС‚СЂР°РЅРёС†Рµ">
+                <option value="10">10 / СЃС‚СЂ.</option>
+                <option value="20">20 / СЃС‚СЂ.</option>
+                <option value="50">50 / СЃС‚СЂ.</option>
+                <option value="100">100 / СЃС‚СЂ.</option>
+                <option value="all">Р’СЃРµ</option>
             </select>
         </div>
     </div>
@@ -491,31 +522,31 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Фильтры</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                <h5 class="modal-title">Р¤РёР»СЊС‚СЂС‹</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Р—Р°РєСЂС‹С‚СЊ"></button>
             </div>
             <div class="modal-body">
                 <form id="dialogFiltersForm">
                     <div class="mb-3">
-                        <label class="form-label" for="dialogFilterSearch">Поиск</label>
-                        <input type="text" class="form-control" id="dialogFilterSearch" name="search" placeholder="Поиск по клиенту, проблеме или ID">
+                        <label class="form-label" for="dialogFilterSearch">РџРѕРёСЃРє</label>
+                        <input type="text" class="form-control" id="dialogFilterSearch" name="search" placeholder="РџРѕРёСЃРє РїРѕ РєР»РёРµРЅС‚Сѓ, РїСЂРѕР±Р»РµРјРµ РёР»Рё ID">
                     </div>
                     <div class="mb-3">
-                        <label class="form-label" for="dialogFilterStatus">Статус</label>
+                        <label class="form-label" for="dialogFilterStatus">РЎС‚Р°С‚СѓСЃ</label>
                         <select class="form-select" id="dialogFilterStatus" name="status">
-                            <option value="">Все</option>
-                            <option value="Новый">Новый</option>
-                            <option value="Ожидает ответа оператора">Ожидает ответа оператора</option>
-                            <option value="Ожидает ответа клиента">Ожидает ответа клиента</option>
-                            <option value="Закрыт">Закрыт</option>
-                            <option value="Закрыт автоматически">Закрыт автоматически</option>
+                            <option value="">Р’СЃРµ</option>
+                            <option value="РќРѕРІС‹Р№">РќРѕРІС‹Р№</option>
+                            <option value="РћР¶РёРґР°РµС‚ РѕС‚РІРµС‚Р° РѕРїРµСЂР°С‚РѕСЂР°">РћР¶РёРґР°РµС‚ РѕС‚РІРµС‚Р° РѕРїРµСЂР°С‚РѕСЂР°</option>
+                            <option value="РћР¶РёРґР°РµС‚ РѕС‚РІРµС‚Р° РєР»РёРµРЅС‚Р°">РћР¶РёРґР°РµС‚ РѕС‚РІРµС‚Р° РєР»РёРµРЅС‚Р°</option>
+                            <option value="Р—Р°РєСЂС‹С‚">Р—Р°РєСЂС‹С‚</option>
+                            <option value="Р—Р°РєСЂС‹С‚ Р°РІС‚РѕРјР°С‚РёС‡РµСЃРєРё">Р—Р°РєСЂС‹С‚ Р°РІС‚РѕРјР°С‚РёС‡РµСЃРєРё</option>
                         </select>
                     </div>
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" id="dialogFiltersReset">Сбросить</button>
-                <button type="button" class="btn btn-primary" id="dialogFiltersApply">Применить</button>
+                <button type="button" class="btn btn-outline-secondary" id="dialogFiltersReset">РЎР±СЂРѕСЃРёС‚СЊ</button>
+                <button type="button" class="btn btn-primary" id="dialogFiltersApply">РџСЂРёРјРµРЅРёС‚СЊ</button>
             </div>
         </div>
     </div>
@@ -525,15 +556,15 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Колонки</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                <h5 class="modal-title">РљРѕР»РѕРЅРєРё</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Р—Р°РєСЂС‹С‚СЊ"></button>
             </div>
             <div class="modal-body">
                 <div class="row g-2" id="dialogColumnsList"></div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" id="dialogColumnsReset">По умолчанию</button>
-                <button type="button" class="btn btn-primary" id="dialogColumnsApply">Применить</button>
+                <button type="button" class="btn btn-outline-secondary" id="dialogColumnsReset">РџРѕ СѓРјРѕР»С‡Р°РЅРёСЋ</button>
+                <button type="button" class="btn btn-primary" id="dialogColumnsApply">РџСЂРёРјРµРЅРёС‚СЊ</button>
             </div>
         </div>
     </div>
@@ -545,52 +576,52 @@
             <div class="modal-header">
                 <div class="dialog-details-header">
                     <div class="dialog-details-avatar" id="dialogDetailsAvatar" aria-hidden="true">
-                        <img class="dialog-details-avatar-img d-none" alt="Аватар клиента" data-avatar-img>
-                        <span class="dialog-details-avatar-initial" data-avatar-initial>—</span>
+                        <img class="dialog-details-avatar-img d-none" alt="РђРІР°С‚Р°СЂ РєР»РёРµРЅС‚Р°" data-avatar-img>
+                        <span class="dialog-details-avatar-initial" data-avatar-initial>вЂ”</span>
                     </div>
                     <div>
-                        <h5 class="modal-title mb-1">Детали диалога</h5>
+                        <h5 class="modal-title mb-1">Р”РµС‚Р°Р»Рё РґРёР°Р»РѕРіР°</h5>
                         <div class="text-muted small d-flex flex-wrap gap-2">
                             <span id="dialogDetailsMeta"></span>
                             <span class="text-warning d-none" id="dialogDetailsRating"></span>
                             <span class="badge dialog-unread-count d-none" id="dialogDetailsUnreadCount"></span>
                         </div>
-                        <div class="small text-muted dialog-details-categories" id="dialogDetailsCategories">Категории: —</div>
+                        <div class="small text-muted dialog-details-categories" id="dialogDetailsCategories">РљР°С‚РµРіРѕСЂРёРё: вЂ”</div>
                         <div class="small">
-                            <span class="fw-semibold" id="dialogDetailsClientName">—</span>
-                            <span class="text-muted" id="dialogDetailsClientStatus">—</span>
+                            <span class="fw-semibold" id="dialogDetailsClientName">вЂ”</span>
+                            <span class="text-muted" id="dialogDetailsClientStatus">вЂ”</span>
                         </div>
                     </div>
                 </div>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Р—Р°РєСЂС‹С‚СЊ"></button>
             </div>
             <div class="modal-body">
                 <div class="dialog-details-layout">
                     <div class="dialog-details-sidebar" id="dialogDetailsSidebar">
                         <div class="dialog-details-section">
-                            <div class="fw-semibold mb-2">Сводка</div>
+                            <div class="fw-semibold mb-2">РЎРІРѕРґРєР°</div>
                             <div class="d-flex flex-column gap-1" id="dialogDetailsSummary"></div>
                         </div>
                         <div class="dialog-details-section">
-                            <div class="fw-semibold mb-2">Проблема</div>
-                            <div class="dialog-details-problem" id="dialogDetailsProblem">—</div>
+                            <div class="fw-semibold mb-2">РџСЂРѕР±Р»РµРјР°</div>
+                            <div class="dialog-details-problem" id="dialogDetailsProblem">вЂ”</div>
                         </div>
                         <div class="dialog-details-section">
-                            <div class="fw-semibold mb-2">Метрики</div>
+                            <div class="fw-semibold mb-2">РњРµС‚СЂРёРєРё</div>
                             <div class="d-flex flex-column gap-2 small" id="dialogDetailsMetrics"></div>
                         </div>
                         <div class="dialog-details-section dialog-templates-dropdown" id="dialogCompletionTemplatesSection">
                             <button class="dialog-templates-toggle" type="button" id="dialogCompletionTemplatesToggle">
-                                Шаблоны действий
-                                <span class="dialog-templates-caret" aria-hidden="true">▾</span>
+                                РЁР°Р±Р»РѕРЅС‹ РґРµР№СЃС‚РІРёР№
+                                <span class="dialog-templates-caret" aria-hidden="true">в–ѕ</span>
                             </button>
                             <div class="dialog-templates-menu" id="dialogCompletionTemplatesMenu">
                                 <div class="d-flex align-items-center justify-content-between mb-2">
-                                    <div class="fw-semibold small">Набор шаблонов</div>
+                                    <div class="fw-semibold small">РќР°Р±РѕСЂ С€Р°Р±Р»РѕРЅРѕРІ</div>
                                     <select class="form-select form-select-sm w-auto" id="dialogCompletionTemplateSelect"></select>
                                 </div>
                                 <div class="d-flex flex-column gap-2 small" id="dialogCompletionTemplateList"></div>
-                                <div class="text-muted small d-none" id="dialogCompletionTemplateEmpty">Шаблоны действий не настроены.</div>
+                                <div class="text-muted small d-none" id="dialogCompletionTemplateEmpty">РЁР°Р±Р»РѕРЅС‹ РґРµР№СЃС‚РІРёР№ РЅРµ РЅР°СЃС‚СЂРѕРµРЅС‹.</div>
                             </div>
                         </div>
                         <div class="dialog-details-resize-handle" id="dialogDetailsResizeHandle" aria-hidden="true"></div>
@@ -599,96 +630,96 @@
                         <div class="card shadow-sm border-0 h-100">
                             <div class="card-body d-flex flex-column">
                                 <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
-                                    <div class="fw-semibold">История сообщений</div>
+                                    <div class="fw-semibold">РСЃС‚РѕСЂРёСЏ СЃРѕРѕР±С‰РµРЅРёР№</div>
                                     <label class="dialog-font-control small text-muted">
-                                        Размер шрифта
+                                        Р Р°Р·РјРµСЂ С€СЂРёС„С‚Р°
                                         <input type="range" class="form-range" id="dialogFontSizeRange" min="12" max="18" step="1" value="14">
                                     </label>
                                 </div>
                                 <div class="d-flex flex-column gap-2 chat-history flex-grow-1" id="dialogDetailsHistory"></div>
                                 <div class="dialog-details-composer mt-3">
-                                    <label class="form-label small text-muted" for="dialogReplyText">Ответ клиенту</label>
+                                    <label class="form-label small text-muted" for="dialogReplyText">РћС‚РІРµС‚ РєР»РёРµРЅС‚Сѓ</label>
                                     <div class="dialog-composer-panels">
                                         <div class="dialog-template-panel" id="dialogEmojiPanel">
-                                            <div class="fw-semibold small mb-2">Эмодзи</div>
+                                            <div class="fw-semibold small mb-2">Р­РјРѕРґР·Рё</div>
                                             <div class="d-flex flex-wrap gap-2" id="dialogEmojiList"></div>
                                         </div>
                                         <div class="dialog-template-panel" id="dialogQuestionTemplatesSection">
                                             <div class="d-flex align-items-center justify-content-between mb-2">
-                                                <div class="fw-semibold small">Шаблоны вопросов</div>
+                                                <div class="fw-semibold small">РЁР°Р±Р»РѕРЅС‹ РІРѕРїСЂРѕСЃРѕРІ</div>
                                                 <select class="form-select form-select-sm w-auto" id="dialogQuestionTemplateSelect"></select>
                                             </div>
                                             <div class="d-flex flex-column gap-2" id="dialogQuestionTemplateList"></div>
-                                            <div class="text-muted small d-none" id="dialogQuestionTemplateEmpty">Шаблоны вопросов не настроены.</div>
+                                            <div class="text-muted small d-none" id="dialogQuestionTemplateEmpty">РЁР°Р±Р»РѕРЅС‹ РІРѕРїСЂРѕСЃРѕРІ РЅРµ РЅР°СЃС‚СЂРѕРµРЅС‹.</div>
                                         </div>
                                         <div class="dialog-template-panel" id="dialogMacroTemplatesSection">
                                             <div class="d-flex align-items-center justify-content-between mb-2">
-                                                <div class="fw-semibold small">Макросы ответа</div>
+                                                <div class="fw-semibold small">РњР°РєСЂРѕСЃС‹ РѕС‚РІРµС‚Р°</div>
                                                 <select class="form-select form-select-sm w-auto" id="dialogMacroTemplateSelect"></select>
                                             </div>
                                             <input
                                                 type="search"
                                                 class="form-control form-control-sm mb-2"
                                                 id="dialogMacroTemplateSearch"
-                                                placeholder="Поиск макроса по названию, тегу или тексту"
-                                                aria-label="Поиск макроса"
+                                                placeholder="РџРѕРёСЃРє РјР°РєСЂРѕСЃР° РїРѕ РЅР°Р·РІР°РЅРёСЋ, С‚РµРіСѓ РёР»Рё С‚РµРєСЃС‚Сѓ"
+                                                aria-label="РџРѕРёСЃРє РјР°РєСЂРѕСЃР°"
                                             >
-                                            <div class="small text-muted" id="dialogMacroTemplatePreview">Выберите макрос для предпросмотра.</div>
+                                            <div class="small text-muted" id="dialogMacroTemplatePreview">Р’С‹Р±РµСЂРёС‚Рµ РјР°РєСЂРѕСЃ РґР»СЏ РїСЂРµРґРїСЂРѕСЃРјРѕС‚СЂР°.</div>
                                             <div class="mt-2 d-flex flex-wrap gap-2" id="dialogMacroTemplateMeta"></div>
-                                            <div class="form-text small mt-2" id="dialogMacroVariableCatalog">Загрузка доступных переменных…</div>
+                                            <div class="form-text small mt-2" id="dialogMacroVariableCatalog">Р—Р°РіСЂСѓР·РєР° РґРѕСЃС‚СѓРїРЅС‹С… РїРµСЂРµРјРµРЅРЅС‹С…вЂ¦</div>
                                             <div class="mt-2">
-                                                <button class="btn btn-outline-primary btn-sm" type="button" id="dialogMacroTemplateApply">Применить в ответ</button>
+                                                <button class="btn btn-outline-primary btn-sm" type="button" id="dialogMacroTemplateApply">РџСЂРёРјРµРЅРёС‚СЊ РІ РѕС‚РІРµС‚</button>
                                             </div>
-                                            <div class="text-muted small d-none" id="dialogMacroTemplateEmpty">Макросы не настроены.</div>
+                                            <div class="text-muted small d-none" id="dialogMacroTemplateEmpty">РњР°РєСЂРѕСЃС‹ РЅРµ РЅР°СЃС‚СЂРѕРµРЅС‹.</div>
                                         </div>
                                     </div>
                                     <div class="dialog-composer-input mt-2">
                                         <div class="dialog-composer-textarea">
-                                            <textarea class="form-control" id="dialogReplyText" rows="2" placeholder="Введите ответ..."></textarea>
+                                            <textarea class="form-control" id="dialogReplyText" rows="2" placeholder="Р’РІРµРґРёС‚Рµ РѕС‚РІРµС‚..."></textarea>
                                             <div class="dialog-composer-overlay">
                                                 <button class="dialog-template-icon" type="button" data-template-toggle="question"
-                                                        aria-label="Шаблоны вопросов" data-tooltip="Шаблоны вопросов">
-                                                    ❓
+                                                        aria-label="РЁР°Р±Р»РѕРЅС‹ РІРѕРїСЂРѕСЃРѕРІ" data-tooltip="РЁР°Р±Р»РѕРЅС‹ РІРѕРїСЂРѕСЃРѕРІ">
+                                                    вќ“
                                                 </button>
                                                 <button class="dialog-template-icon" type="button" data-template-toggle="macro"
-                                                        aria-label="Макросы ответа" data-tooltip="Макросы ответа">
-                                                    ⚡
+                                                        aria-label="РњР°РєСЂРѕСЃС‹ РѕС‚РІРµС‚Р°" data-tooltip="РњР°РєСЂРѕСЃС‹ РѕС‚РІРµС‚Р°">
+                                                    вљЎ
                                                 </button>
                                                 <button class="dialog-template-icon" type="button" id="dialogReplyEmojiTrigger"
-                                                        aria-label="Добавить эмодзи" data-tooltip="Добавить эмодзи">
-                                                    😀
+                                                        aria-label="Р”РѕР±Р°РІРёС‚СЊ СЌРјРѕРґР·Рё" data-tooltip="Р”РѕР±Р°РІРёС‚СЊ СЌРјРѕРґР·Рё">
+                                                    рџЂ
                                                 </button>
                                                 <button class="dialog-template-icon" type="button" id="dialogReplyMediaTrigger"
-                                                        aria-label="Добавить медиа" data-tooltip="Добавить медиа">
-                                                    📎
+                                                        aria-label="Р”РѕР±Р°РІРёС‚СЊ РјРµРґРёР°" data-tooltip="Р”РѕР±Р°РІРёС‚СЊ РјРµРґРёР°">
+                                                    рџ“Ћ
                                                 </button>
                                             </div>
                                         </div>
-                                        <button class="btn btn-primary" type="button" id="dialogReplySend">Отправить</button>
+                                        <button class="btn btn-primary" type="button" id="dialogReplySend">РћС‚РїСЂР°РІРёС‚СЊ</button>
                                         <input class="d-none" type="file" id="dialogReplyMedia" multiple>
                                     </div>
                                     <div class="dialog-reply-target d-none" id="dialogReplyTarget">
-                                        <div class="small text-muted">Ответ на сообщение:</div>
+                                        <div class="small text-muted">РћС‚РІРµС‚ РЅР° СЃРѕРѕР±С‰РµРЅРёРµ:</div>
                                         <div class="dialog-reply-target-text" id="dialogReplyTargetText"></div>
-                                        <button class="btn btn-sm btn-link p-0" type="button" id="dialogReplyTargetClear">Сбросить</button>
+                                        <button class="btn btn-sm btn-link p-0" type="button" id="dialogReplyTargetClear">РЎР±СЂРѕСЃРёС‚СЊ</button>
                                     </div>
-                                    <div class="form-text">Сообщение будет отправлено в активный диалог клиента.</div>
+                                    <div class="form-text">РЎРѕРѕР±С‰РµРЅРёРµ Р±СѓРґРµС‚ РѕС‚РїСЂР°РІР»РµРЅРѕ РІ Р°РєС‚РёРІРЅС‹Р№ РґРёР°Р»РѕРі РєР»РёРµРЅС‚Р°.</div>
                                 </div>
                                 <div class="dialog-details-section mt-3">
                                     <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
-                                        <div class="fw-semibold">Категории обращения</div>
+                                        <div class="fw-semibold">РљР°С‚РµРіРѕСЂРёРё РѕР±СЂР°С‰РµРЅРёСЏ</div>
                                         <button class="btn btn-outline-secondary btn-sm" type="button" data-template-toggle="category">
-                                            Выбрать
+                                            Р’С‹Р±СЂР°С‚СЊ
                                         </button>
                                     </div>
                                     <div class="dialog-template-panel is-open" id="dialogCategoryTemplatesSection">
                                         <div class="d-flex align-items-center justify-content-between mb-2">
-                                            <div class="fw-semibold small">Набор категорий</div>
+                                            <div class="fw-semibold small">РќР°Р±РѕСЂ РєР°С‚РµРіРѕСЂРёР№</div>
                                             <select class="form-select form-select-sm w-auto" id="dialogCategoryTemplateSelect"></select>
                                         </div>
                                         <div class="d-flex flex-wrap gap-2 small" id="dialogCategoryTemplateList"></div>
-                                        <div class="text-muted small d-none" id="dialogCategoryTemplateEmpty">Категории не настроены.</div>
-                                        <div class="form-text small mt-2">Выбор сохраняется автоматически.</div>
+                                        <div class="text-muted small d-none" id="dialogCategoryTemplateEmpty">РљР°С‚РµРіРѕСЂРёРё РЅРµ РЅР°СЃС‚СЂРѕРµРЅС‹.</div>
+                                        <div class="form-text small mt-2">Р’С‹Р±РѕСЂ СЃРѕС…СЂР°РЅСЏРµС‚СЃСЏ Р°РІС‚РѕРјР°С‚РёС‡РµСЃРєРё.</div>
                                     </div>
                                 </div>
                             </div>
@@ -697,10 +728,10 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <a class="btn btn-outline-secondary" id="dialogDetailsCreateTask" th:href="@{/tasks}">Создать задачу</a>
-                <button type="button" class="btn btn-outline-success" id="dialogDetailsResolve">Закрыть обращение</button>
-                <button type="button" class="btn btn-outline-warning d-none" id="dialogDetailsReopen">Переоткрыть обращение</button>
-                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Закрыть</button>
+                <a class="btn btn-outline-secondary" id="dialogDetailsCreateTask" th:href="@{/tasks}">РЎРѕР·РґР°С‚СЊ Р·Р°РґР°С‡Сѓ</a>
+                <button type="button" class="btn btn-outline-success" id="dialogDetailsResolve">Р—Р°РєСЂС‹С‚СЊ РѕР±СЂР°С‰РµРЅРёРµ</button>
+                <button type="button" class="btn btn-outline-warning d-none" id="dialogDetailsReopen">РџРµСЂРµРѕС‚РєСЂС‹С‚СЊ РѕР±СЂР°С‰РµРЅРёРµ</button>
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Р—Р°РєСЂС‹С‚СЊ</button>
             </div>
         </div>
     </div>
@@ -710,29 +741,29 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Горячие клавиши</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                <h5 class="modal-title">Р“РѕСЂСЏС‡РёРµ РєР»Р°РІРёС€Рё</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Р—Р°РєСЂС‹С‚СЊ"></button>
             </div>
             <div class="modal-body">
                 <ul class="list-group list-group-flush dialog-hotkeys-list">
-                    <li class="list-group-item d-flex justify-content-between align-items-center"><span>Фокус на быстрый поиск</span><kbd>/</kbd></li>
-                    <li class="list-group-item d-flex justify-content-between align-items-center"><span>Показать окно шорткатов</span><kbd>?</kbd></li>
-                    <li class="list-group-item d-flex justify-content-between align-items-center"><span>Все / Активные / Новые / Без ответственного / Просроченные</span><span><kbd>Alt</kbd> + <kbd>1..5</kbd></span></li>
-                    <li class="list-group-item d-flex justify-content-between align-items-center"><span>Фильтр по статусам: Новый / Оператор / Клиент / Закрыт / Сброс</span><span><kbd>Alt</kbd> + <kbd>6..0</kbd></span></li>
-                    <li class="list-group-item d-flex justify-content-between align-items-center"><span>Переключить режим сортировки (стандарт / SLA-first)</span><span><kbd>Alt</kbd> + <kbd>L</kbd></span></li>
-                    <li class="list-group-item d-flex justify-content-between align-items-center"><span>Открыть следующий диалог</span><span><kbd>Alt</kbd> + <kbd>↓</kbd></span></li>
-                    <li class="list-group-item d-flex justify-content-between align-items-center"><span>Открыть предыдущий диалог</span><span><kbd>Alt</kbd> + <kbd>↑</kbd></span></li>
-                    <li class="list-group-item d-flex justify-content-between align-items-center"><span>Назначить диалог на себя (из списка)</span><span><kbd>Alt</kbd> + <kbd>A</kbd></span></li>
-                    <li class="list-group-item d-flex justify-content-between align-items-center"><span id="dialogHotkeySingleSnoozeLabel">Отложить диалог (из списка)</span><span><kbd>Alt</kbd> + <kbd>S</kbd></span></li>
-                    <li class="list-group-item d-flex justify-content-between align-items-center"><span>Быстро закрыть диалог (из списка)</span><span><kbd>Alt</kbd> + <kbd>C</kbd></span></li>
-                    <li class="list-group-item d-flex justify-content-between align-items-center"><span>Закрыть/переоткрыть открытый диалог</span><span><kbd>Alt</kbd> + <kbd>R</kbd></span></li>
-                    <li class="list-group-item d-flex justify-content-between align-items-center"><span>Отправить сообщение из workspace</span><span><kbd>Ctrl/Cmd/Alt</kbd> + <kbd>Enter</kbd></span></li>
-                    <li class="list-group-item d-flex justify-content-between align-items-center"><span>Сохранить черновик workspace</span><span><kbd>Ctrl/Cmd/Alt</kbd> + <kbd>S</kbd></span></li>
-                    <li class="list-group-item d-flex justify-content-between align-items-center"><span>Назначить выбранные диалоги на себя</span><span><kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>A</kbd></span></li>
-                    <li class="list-group-item d-flex justify-content-between align-items-center"><span id="dialogHotkeyBulkSnoozeLabel">Отложить выбранные диалоги</span><span><kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>S</kbd></span></li>
-                    <li class="list-group-item d-flex justify-content-between align-items-center"><span>Закрыть выбранные диалоги</span><span><kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>C</kbd></span></li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center"><span>Р¤РѕРєСѓСЃ РЅР° Р±С‹СЃС‚СЂС‹Р№ РїРѕРёСЃРє</span><kbd>/</kbd></li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center"><span>РџРѕРєР°Р·Р°С‚СЊ РѕРєРЅРѕ С€РѕСЂС‚РєР°С‚РѕРІ</span><kbd>?</kbd></li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center"><span>Р’СЃРµ / РђРєС‚РёРІРЅС‹Рµ / РќРѕРІС‹Рµ / Р‘РµР· РѕС‚РІРµС‚СЃС‚РІРµРЅРЅРѕРіРѕ / РџСЂРѕСЃСЂРѕС‡РµРЅРЅС‹Рµ</span><span><kbd>Alt</kbd> + <kbd>1..5</kbd></span></li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center"><span>Р¤РёР»СЊС‚СЂ РїРѕ СЃС‚Р°С‚СѓСЃР°Рј: РќРѕРІС‹Р№ / РћРїРµСЂР°С‚РѕСЂ / РљР»РёРµРЅС‚ / Р—Р°РєСЂС‹С‚ / РЎР±СЂРѕСЃ</span><span><kbd>Alt</kbd> + <kbd>6..0</kbd></span></li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center"><span>РџРµСЂРµРєР»СЋС‡РёС‚СЊ СЂРµР¶РёРј СЃРѕСЂС‚РёСЂРѕРІРєРё (СЃС‚Р°РЅРґР°СЂС‚ / SLA-first)</span><span><kbd>Alt</kbd> + <kbd>L</kbd></span></li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center"><span>РћС‚РєСЂС‹С‚СЊ СЃР»РµРґСѓСЋС‰РёР№ РґРёР°Р»РѕРі</span><span><kbd>Alt</kbd> + <kbd>в†“</kbd></span></li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center"><span>РћС‚РєСЂС‹С‚СЊ РїСЂРµРґС‹РґСѓС‰РёР№ РґРёР°Р»РѕРі</span><span><kbd>Alt</kbd> + <kbd>в†‘</kbd></span></li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center"><span>РќР°Р·РЅР°С‡РёС‚СЊ РґРёР°Р»РѕРі РЅР° СЃРµР±СЏ (РёР· СЃРїРёСЃРєР°)</span><span><kbd>Alt</kbd> + <kbd>A</kbd></span></li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center"><span id="dialogHotkeySingleSnoozeLabel">РћС‚Р»РѕР¶РёС‚СЊ РґРёР°Р»РѕРі (РёР· СЃРїРёСЃРєР°)</span><span><kbd>Alt</kbd> + <kbd>S</kbd></span></li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center"><span>Р‘С‹СЃС‚СЂРѕ Р·Р°РєСЂС‹С‚СЊ РґРёР°Р»РѕРі (РёР· СЃРїРёСЃРєР°)</span><span><kbd>Alt</kbd> + <kbd>C</kbd></span></li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center"><span>Р—Р°РєСЂС‹С‚СЊ/РїРµСЂРµРѕС‚РєСЂС‹С‚СЊ РѕС‚РєСЂС‹С‚С‹Р№ РґРёР°Р»РѕРі</span><span><kbd>Alt</kbd> + <kbd>R</kbd></span></li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center"><span>РћС‚РїСЂР°РІРёС‚СЊ СЃРѕРѕР±С‰РµРЅРёРµ РёР· workspace</span><span><kbd>Ctrl/Cmd/Alt</kbd> + <kbd>Enter</kbd></span></li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center"><span>РЎРѕС…СЂР°РЅРёС‚СЊ С‡РµСЂРЅРѕРІРёРє workspace</span><span><kbd>Ctrl/Cmd/Alt</kbd> + <kbd>S</kbd></span></li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center"><span>РќР°Р·РЅР°С‡РёС‚СЊ РІС‹Р±СЂР°РЅРЅС‹Рµ РґРёР°Р»РѕРіРё РЅР° СЃРµР±СЏ</span><span><kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>A</kbd></span></li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center"><span id="dialogHotkeyBulkSnoozeLabel">РћС‚Р»РѕР¶РёС‚СЊ РІС‹Р±СЂР°РЅРЅС‹Рµ РґРёР°Р»РѕРіРё</span><span><kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>S</kbd></span></li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center"><span>Р—Р°РєСЂС‹С‚СЊ РІС‹Р±СЂР°РЅРЅС‹Рµ РґРёР°Р»РѕРіРё</span><span><kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>C</kbd></span></li>
                 </ul>
-                <p class="text-muted small mb-0 mt-3">Шорткаты отключаются во время ввода текста и работы с модальными формами.</p>
+                <p class="text-muted small mb-0 mt-3">РЁРѕСЂС‚РєР°С‚С‹ РѕС‚РєР»СЋС‡Р°СЋС‚СЃСЏ РІРѕ РІСЂРµРјСЏ РІРІРѕРґР° С‚РµРєСЃС‚Р° Рё СЂР°Р±РѕС‚С‹ СЃ РјРѕРґР°Р»СЊРЅС‹РјРё С„РѕСЂРјР°РјРё.</p>
             </div>
         </div>
     </div>
@@ -742,19 +773,19 @@
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Просмотр медиа</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                <h5 class="modal-title">РџСЂРѕСЃРјРѕС‚СЂ РјРµРґРёР°</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Р—Р°РєСЂС‹С‚СЊ"></button>
             </div>
             <div class="modal-body">
                 <video class="w-100 d-none" id="dialogMediaPreviewVideo" controls></video>
-                <img class="w-100 d-none dialog-media-preview-image" id="dialogMediaPreviewImage" alt="Просмотр изображения">
+                <img class="w-100 d-none dialog-media-preview-image" id="dialogMediaPreviewImage" alt="РџСЂРѕСЃРјРѕС‚СЂ РёР·РѕР±СЂР°Р¶РµРЅРёСЏ">
             </div>
             <div class="modal-footer">
-                <div class="btn-group d-none" id="dialogMediaImageControls" role="group" aria-label="Управление изображением">
-                    <button class="btn btn-outline-secondary" type="button" id="dialogMediaZoomOut">Уменьшить</button>
-                    <button class="btn btn-outline-secondary" type="button" id="dialogMediaZoomIn">Увеличить</button>
+                <div class="btn-group d-none" id="dialogMediaImageControls" role="group" aria-label="РЈРїСЂР°РІР»РµРЅРёРµ РёР·РѕР±СЂР°Р¶РµРЅРёРµРј">
+                    <button class="btn btn-outline-secondary" type="button" id="dialogMediaZoomOut">РЈРјРµРЅСЊС€РёС‚СЊ</button>
+                    <button class="btn btn-outline-secondary" type="button" id="dialogMediaZoomIn">РЈРІРµР»РёС‡РёС‚СЊ</button>
                 </div>
-                <a class="btn btn-outline-primary d-none" href="#" id="dialogMediaDownloadLink" download target="_blank" rel="noopener">Скачать</a>
+                <a class="btn btn-outline-primary d-none" href="#" id="dialogMediaDownloadLink" download target="_blank" rel="noopener">РЎРєР°С‡Р°С‚СЊ</a>
             </div>
         </div>
     </div>
@@ -764,18 +795,18 @@
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">A/B критерии workspace-эксперимента</h5>
+                <h5 class="modal-title">A/B РєСЂРёС‚РµСЂРёРё workspace-СЌРєСЃРїРµСЂРёРјРµРЅС‚Р°</h5>
                 <div class="d-flex align-items-center gap-2 me-2">
-                    <button type="button" class="btn btn-sm btn-outline-primary" id="dialogExperimentTelemetryRefreshBtn">Обновить</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="dialogExperimentTelemetryRefreshBtn">РћР±РЅРѕРІРёС‚СЊ</button>
                     <div class="form-check form-switch mb-0">
                         <input class="form-check-input" type="checkbox" role="switch" id="dialogExperimentTelemetryAutoRefresh" checked>
-                        <label class="form-check-label small" for="dialogExperimentTelemetryAutoRefresh">Автообновление</label>
+                        <label class="form-check-label small" for="dialogExperimentTelemetryAutoRefresh">РђРІС‚РѕРѕР±РЅРѕРІР»РµРЅРёРµ</label>
                     </div>
                 </div>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Р—Р°РєСЂС‹С‚СЊ"></button>
             </div>
             <div class="modal-body">
-                <p class="small text-muted mb-3" id="dialogExperimentInfoMeta">Данные об эксперименте загружаются…</p>
+                <p class="small text-muted mb-3" id="dialogExperimentInfoMeta">Р”Р°РЅРЅС‹Рµ РѕР± СЌРєСЃРїРµСЂРёРјРµРЅС‚Рµ Р·Р°РіСЂСѓР¶Р°СЋС‚СЃСЏвЂ¦</p>
                 <div class="row g-3">
                     <div class="col-12 col-md-6">
                         <h6 class="mb-2">Primary KPI</h6>
@@ -787,8 +818,8 @@
                     </div>
                 </div>
                 <hr class="my-3">
-                <h6 class="mb-2">Срез production-метрик (последние 7 дней)</h6>
-                <p class="small text-muted mb-2" id="dialogExperimentTelemetrySummaryState">Загрузка агрегатов telemetry…</p>
+                <h6 class="mb-2">РЎСЂРµР· production-РјРµС‚СЂРёРє (РїРѕСЃР»РµРґРЅРёРµ 7 РґРЅРµР№)</h6>
+                <p class="small text-muted mb-2" id="dialogExperimentTelemetrySummaryState">Р—Р°РіСЂСѓР·РєР° Р°РіСЂРµРіР°С‚РѕРІ telemetryвЂ¦</p>
                 <div class="alert alert-success py-2 px-3 small d-none" id="dialogExperimentTelemetryGuardrailState" role="status"></div>
                 <ul class="small mb-2 ps-3 d-none" id="dialogExperimentTelemetryGuardrailAlerts"></ul>
                 <div class="alert py-2 px-3 small d-none" id="dialogExperimentRolloutDecisionState" role="status"></div>
@@ -799,16 +830,16 @@
                     <table class="table table-sm align-middle mb-0">
                         <thead>
                         <tr>
-                            <th scope="col">Элемент пакета</th>
-                            <th scope="col">Категория</th>
-                            <th scope="col">Текущее состояние</th>
-                            <th scope="col">Порог</th>
+                            <th scope="col">Р­Р»РµРјРµРЅС‚ РїР°РєРµС‚Р°</th>
+                            <th scope="col">РљР°С‚РµРіРѕСЂРёСЏ</th>
+                            <th scope="col">РўРµРєСѓС‰РµРµ СЃРѕСЃС‚РѕСЏРЅРёРµ</th>
+                            <th scope="col">РџРѕСЂРѕРі</th>
                             <th scope="col">UTC</th>
-                            <th scope="col" class="text-end">Статус</th>
+                            <th scope="col" class="text-end">РЎС‚Р°С‚СѓСЃ</th>
                         </tr>
                         </thead>
                         <tbody id="dialogExperimentRolloutPacketRows">
-                        <tr><td colspan="6" class="small text-muted">Governance packet появится после первых telemetry-сигналов.</td></tr>
+                        <tr><td colspan="6" class="small text-muted">Governance packet РїРѕСЏРІРёС‚СЃСЏ РїРѕСЃР»Рµ РїРµСЂРІС‹С… telemetry-СЃРёРіРЅР°Р»РѕРІ.</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -816,16 +847,16 @@
                     <table class="table table-sm align-middle mb-0">
                         <thead>
                         <tr>
-                            <th scope="col">Чекпоинт</th>
-                            <th scope="col">Категория</th>
-                            <th scope="col">Текущее состояние</th>
-                            <th scope="col">Порог</th>
+                            <th scope="col">Р§РµРєРїРѕРёРЅС‚</th>
+                            <th scope="col">РљР°С‚РµРіРѕСЂРёСЏ</th>
+                            <th scope="col">РўРµРєСѓС‰РµРµ СЃРѕСЃС‚РѕСЏРЅРёРµ</th>
+                            <th scope="col">РџРѕСЂРѕРі</th>
                             <th scope="col">UTC</th>
-                            <th scope="col" class="text-end">Статус</th>
+                            <th scope="col" class="text-end">РЎС‚Р°С‚СѓСЃ</th>
                         </tr>
                         </thead>
                         <tbody id="dialogExperimentRolloutScorecardRows">
-                        <tr><td colspan="6" class="small text-muted">Rollout scorecard появится после первых telemetry-сигналов.</td></tr>
+                        <tr><td colspan="6" class="small text-muted">Rollout scorecard РїРѕСЏРІРёС‚СЃСЏ РїРѕСЃР»Рµ РїРµСЂРІС‹С… telemetry-СЃРёРіРЅР°Р»РѕРІ.</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -836,12 +867,12 @@
                             <th scope="col">KPI</th>
                             <th scope="col" class="text-end">Control</th>
                             <th scope="col" class="text-end">Test</th>
-                            <th scope="col" class="text-end">Δ</th>
-                            <th scope="col" class="text-end">Статус</th>
+                            <th scope="col" class="text-end">О”</th>
+                            <th scope="col" class="text-end">РЎС‚Р°С‚СѓСЃ</th>
                         </tr>
                         </thead>
                         <tbody id="dialogExperimentRolloutKpiOutcomeRows">
-                        <tr><td colspan="5" class="small text-muted">Данные появятся после первых KPI-сигналов.</td></tr>
+                        <tr><td colspan="5" class="small text-muted">Р”Р°РЅРЅС‹Рµ РїРѕСЏРІСЏС‚СЃСЏ РїРѕСЃР»Рµ РїРµСЂРІС‹С… KPI-СЃРёРіРЅР°Р»РѕРІ.</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -857,7 +888,7 @@
                         </tr>
                         </thead>
                         <tbody id="dialogExperimentGapBreakdownRows">
-                        <tr><td colspan="5" class="small text-muted">Gap breakdown появится после первых parity/context-gap событий.</td></tr>
+                        <tr><td colspan="5" class="small text-muted">Gap breakdown РїРѕСЏРІРёС‚СЃСЏ РїРѕСЃР»Рµ РїРµСЂРІС‹С… parity/context-gap СЃРѕР±С‹С‚РёР№.</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -865,53 +896,53 @@
                     <table class="table table-sm align-middle mb-0">
                         <thead>
                         <tr>
-                            <th scope="col">Когорта</th>
-                            <th scope="col">Сегмент</th>
-                            <th scope="col" class="text-end">События</th>
+                            <th scope="col">РљРѕРіРѕСЂС‚Р°</th>
+                            <th scope="col">РЎРµРіРјРµРЅС‚</th>
+                            <th scope="col" class="text-end">РЎРѕР±С‹С‚РёСЏ</th>
                             <th scope="col" class="text-end">Fallback</th>
                             <th scope="col" class="text-end">Render error</th>
                             <th scope="col" class="text-end">Avg open (ms)</th>
                         </tr>
                         </thead>
                         <tbody id="dialogExperimentTelemetrySummaryRows">
-                        <tr><td colspan="6" class="small text-muted">Данные появятся после первых событий.</td></tr>
+                        <tr><td colspan="6" class="small text-muted">Р”Р°РЅРЅС‹Рµ РїРѕСЏРІСЏС‚СЃСЏ РїРѕСЃР»Рµ РїРµСЂРІС‹С… СЃРѕР±С‹С‚РёР№.</td></tr>
                         </tbody>
                     </table>
                 </div>
                 <hr class="my-3">
                 <div class="row g-3">
                     <div class="col-12 col-lg-6">
-                        <h6 class="mb-2">Операционный срез по сменам</h6>
+                        <h6 class="mb-2">РћРїРµСЂР°С†РёРѕРЅРЅС‹Р№ СЃСЂРµР· РїРѕ СЃРјРµРЅР°Рј</h6>
                         <div class="table-responsive">
                             <table class="table table-sm align-middle mb-0">
                                 <thead>
                                 <tr>
-                                    <th scope="col">Смена</th>
-                                    <th scope="col" class="text-end">События</th>
+                                    <th scope="col">РЎРјРµРЅР°</th>
+                                    <th scope="col" class="text-end">РЎРѕР±С‹С‚РёСЏ</th>
                                     <th scope="col" class="text-end">Fallback %</th>
                                     <th scope="col" class="text-end">Render error %</th>
                                 </tr>
                                 </thead>
                                 <tbody id="dialogExperimentTelemetryShiftRows">
-                                <tr><td colspan="4" class="small text-muted">Данные появятся после первых событий.</td></tr>
+                                <tr><td colspan="4" class="small text-muted">Р”Р°РЅРЅС‹Рµ РїРѕСЏРІСЏС‚СЃСЏ РїРѕСЃР»Рµ РїРµСЂРІС‹С… СЃРѕР±С‹С‚РёР№.</td></tr>
                                 </tbody>
                             </table>
                         </div>
                     </div>
                     <div class="col-12 col-lg-6">
-                        <h6 class="mb-2">Операционный срез по командам</h6>
+                        <h6 class="mb-2">РћРїРµСЂР°С†РёРѕРЅРЅС‹Р№ СЃСЂРµР· РїРѕ РєРѕРјР°РЅРґР°Рј</h6>
                         <div class="table-responsive">
                             <table class="table table-sm align-middle mb-0">
                                 <thead>
                                 <tr>
-                                    <th scope="col">Команда</th>
-                                    <th scope="col" class="text-end">События</th>
+                                    <th scope="col">РљРѕРјР°РЅРґР°</th>
+                                    <th scope="col" class="text-end">РЎРѕР±С‹С‚РёСЏ</th>
                                     <th scope="col" class="text-end">Fallback %</th>
                                     <th scope="col" class="text-end">Render error %</th>
                                 </tr>
                                 </thead>
                                 <tbody id="dialogExperimentTelemetryTeamRows">
-                                <tr><td colspan="4" class="small text-muted">Данные появятся после первых событий.</td></tr>
+                                <tr><td colspan="4" class="small text-muted">Р”Р°РЅРЅС‹Рµ РїРѕСЏРІСЏС‚СЃСЏ РїРѕСЃР»Рµ РїРµСЂРІС‹С… СЃРѕР±С‹С‚РёР№.</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -919,7 +950,7 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Закрыть</button>
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Р—Р°РєСЂС‹С‚СЊ</button>
             </div>
         </div>
     </div>
@@ -952,8 +983,8 @@
       const detailsProblem = document.getElementById('dialogDetailsProblem');
       const detailsHistory = document.getElementById('dialogDetailsHistory');
 
-      if (detailsMeta) detailsMeta.textContent = `Диалог #${initialTicketId}`;
-      if (detailsSummary) detailsSummary.innerHTML = '<div class="text-muted">Загрузка диалога…</div>';
+      if (detailsMeta) detailsMeta.textContent = `Р”РёР°Р»РѕРі #${initialTicketId}`;
+      if (detailsSummary) detailsSummary.innerHTML = '<div class="text-muted">Р—Р°РіСЂСѓР·РєР° РґРёР°Р»РѕРіР°вЂ¦</div>';
       if (detailsHistory) detailsHistory.innerHTML = '';
 
       const escapeHtml = (value) => String(value ?? '').replace(/[&<>"]/g, (char) => ({
@@ -975,40 +1006,40 @@
         });
         const payload = await response.json();
         if (!response.ok) {
-          throw new Error(payload?.error || `Ошибка ${response.status}`);
+          throw new Error(payload?.error || `РћС€РёР±РєР° ${response.status}`);
         }
 
         const summary = payload?.summary || {};
         const history = Array.isArray(payload?.history) ? payload.history : [];
-        const clientName = summary.clientName || summary.username || 'Клиент';
-        const clientStatus = summary.clientStatus || 'статус не указан';
-        const statusLabel = summary.statusLabel || summary.status || '—';
-        const channelLabel = summary.channelName || '—';
-        const businessLabel = summary.business || '—';
-        const locationLabel = summary.locationName || summary.city || '—';
-        const categoriesLabel = summary.categoriesSafe || summary.categories || '—';
-        const problemLabel = summary.problem || 'Проблема не указана';
+        const clientName = summary.clientName || summary.username || 'РљР»РёРµРЅС‚';
+        const clientStatus = summary.clientStatus || 'СЃС‚Р°С‚СѓСЃ РЅРµ СѓРєР°Р·Р°РЅ';
+        const statusLabel = summary.statusLabel || summary.status || 'вЂ”';
+        const channelLabel = summary.channelName || 'вЂ”';
+        const businessLabel = summary.business || 'вЂ”';
+        const locationLabel = summary.locationName || summary.city || 'вЂ”';
+        const categoriesLabel = summary.categoriesSafe || summary.categories || 'вЂ”';
+        const problemLabel = summary.problem || 'РџСЂРѕР±Р»РµРјР° РЅРµ СѓРєР°Р·Р°РЅР°';
         const createdLabel = [summary.createdDate || summary.created_date, summary.createdTime || summary.created_time]
           .filter(Boolean)
-          .join(' ') || summary.createdAt || summary.created_at || '—';
+          .join(' ') || summary.createdAt || summary.created_at || 'вЂ”';
 
         if (detailsClientName) detailsClientName.textContent = clientName;
         if (detailsClientStatus) detailsClientStatus.textContent = clientStatus;
-        if (detailsCategories) detailsCategories.textContent = `Категории: ${categoriesLabel}`;
+        if (detailsCategories) detailsCategories.textContent = `РљР°С‚РµРіРѕСЂРёРё: ${categoriesLabel}`;
         if (detailsProblem) detailsProblem.textContent = problemLabel;
         if (detailsSummary) {
           detailsSummary.innerHTML = [
-            ['Клиент', clientName],
-            ['Статус клиента', clientStatus],
-            ['Статус', statusLabel],
-            ['Канал', channelLabel],
-            ['Бизнес', businessLabel],
-            ['Локация', locationLabel],
-            ['Создан', createdLabel],
+            ['РљР»РёРµРЅС‚', clientName],
+            ['РЎС‚Р°С‚СѓСЃ РєР»РёРµРЅС‚Р°', clientStatus],
+            ['РЎС‚Р°С‚СѓСЃ', statusLabel],
+            ['РљР°РЅР°Р»', channelLabel],
+            ['Р‘РёР·РЅРµСЃ', businessLabel],
+            ['Р›РѕРєР°С†РёСЏ', locationLabel],
+            ['РЎРѕР·РґР°РЅ', createdLabel],
           ].map(([label, value]) => `
             <div class="d-flex justify-content-between gap-2">
               <span>${escapeHtml(label)}</span>
-              <span class="text-dark">${escapeHtml(value || '—')}</span>
+              <span class="text-dark">${escapeHtml(value || 'вЂ”')}</span>
             </div>
           `).join('');
         }
@@ -1022,18 +1053,18 @@
                 const timestamp = String(item?.timestamp || '');
                 return `
                   <div class="chat-message ${sender}">
-                    <div>${escapeHtml(item?.message || '—')}</div>
+                    <div>${escapeHtml(item?.message || 'вЂ”')}</div>
                     ${timestamp ? `<div class="text-muted small mt-2">${escapeHtml(timestamp)}</div>` : ''}
                   </div>
                 `;
               }).join('')
-            : '<div class="text-muted">Сообщения отсутствуют.</div>';
+            : '<div class="text-muted">РЎРѕРѕР±С‰РµРЅРёСЏ РѕС‚СЃСѓС‚СЃС‚РІСѓСЋС‚.</div>';
         }
 
         showModal();
       } catch (error) {
         if (detailsSummary) {
-          detailsSummary.innerHTML = `<div class="text-danger">Не удалось открыть диалог: ${escapeHtml(error?.message || 'unknown_error')}</div>`;
+          detailsSummary.innerHTML = `<div class="text-danger">РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‚РєСЂС‹С‚СЊ РґРёР°Р»РѕРі: ${escapeHtml(error?.message || 'unknown_error')}</div>`;
         }
         showModal();
       }
@@ -1042,3 +1073,5 @@
 </script>
 </body>
 </html>
+
+

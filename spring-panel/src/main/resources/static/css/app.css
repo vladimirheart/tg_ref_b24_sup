@@ -1153,5 +1153,67 @@ body {
     transition: transform 0.2s ease;
 }
 
+/* Unified visual system */
+.card,
+.page-header-card,
+.workspace-panel-block {
+    border-radius: 0.95rem;
+    border-color: color-mix(in srgb, var(--color-border) 88%, transparent);
+}
+
+.card {
+    box-shadow: 0 10px 24px -20px rgba(15, 23, 42, 0.35);
+}
+
+.page-title,
+.dialogs-title {
+    letter-spacing: -0.01em;
+    line-height: 1.12;
+}
+
+.table > :not(caption) > * > * {
+    padding-top: 0.7rem;
+    padding-bottom: 0.7rem;
+}
+
+.btn,
+.form-control,
+.form-select {
+    min-height: 2.2rem;
+}
+
+/* Density mode (global) */
+body.density-comfortable {
+    --app-density-space: 1rem;
+    --app-density-control-height: 2.2rem;
+}
+
+body.density-compact {
+    --app-density-space: 0.65rem;
+    --app-density-control-height: 1.95rem;
+}
+
+body.density-compact .card-body,
+body.density-compact .page-header-card,
+body.density-compact .workspace-panel-block {
+    padding: calc(var(--app-density-space) * 0.95) !important;
+}
+
+body.density-compact .table > :not(caption) > * > * {
+    padding-top: 0.45rem;
+    padding-bottom: 0.45rem;
+}
+
+body.density-compact .btn,
+body.density-compact .form-control,
+body.density-compact .form-select {
+    min-height: var(--app-density-control-height);
+    font-size: 0.875rem;
+}
+
+body.density-compact .page-title {
+    font-size: clamp(1.2rem, 1.4vw, 1.6rem);
+}
+
 
 

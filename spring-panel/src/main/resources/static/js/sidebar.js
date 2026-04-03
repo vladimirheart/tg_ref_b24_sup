@@ -4,6 +4,7 @@
   if (!sidebar) return;
 
   const pinBtn = document.getElementById('pinSidebarBtn');
+  const densityModeBtn = document.getElementById('densityModeBtn');
   const bellBtn = document.getElementById('bellBtn');
   const bellBadge = document.getElementById('notify-count');
   const root = document.body;
@@ -19,6 +20,9 @@
   let changePasswordModalInstance = null;
 
   const LS_KEY_PIN = 'sidebarPinned';
+  const LS_KEY_DENSITY_MODE = 'uiDensityMode';
+  const DENSITY_COMFORTABLE = 'comfortable';
+  const DENSITY_COMPACT = 'compact';
   let pinned = localStorage.getItem(LS_KEY_PIN) === '1';
   const HOVER_LEAVE_DELAY_MS = 1000;
   let hoverLeaveTimer = null;
@@ -132,6 +136,7 @@
   const ORDER_STORAGE_KEY = 'sidebarNavOrder';
   const DEFAULT_ORDER = [
     'dialogs',
+    'ai-ops',
     'tasks',
     'clients',
     'unblock-requests',
@@ -526,6 +531,12 @@
     });
   }
 
+  if (densityModeBtn) {
+    densityModeBtn.addEventListener('click', () => {
+      toggleDensityMode();
+    });
+  }
+
   const bellWrapper = document.getElementById('notify-bell-wrapper');
   const bellDropdown = document.getElementById('notify-dropdown');
   let notificationsOpen = false;
@@ -837,3 +848,39 @@
     if (href && (path === href || path.startsWith(href + '/'))) a.classList.add('active');
   });
 })();
+  function setDensityMode(mode) {
+    const nextMode = mode === DENSITY_COMPACT ? DENSITY_COMPACT : DENSITY_COMFORTABLE;
+    root.classList.toggle('density-compact', nextMode === DENSITY_COMPACT);
+    root.classList.toggle('density-comfortable', nextMode !== DENSITY_COMPACT);
+    if (densityModeBtn) {
+      const isCompact = nextMode === DENSITY_COMPACT;
+      densityModeBtn.setAttribute('aria-pressed', isCompact ? 'true' : 'false');
+      densityModeBtn.textContent = isCompact ? '▤' : '◫';
+      densityModeBtn.title = `Плотность интерфейса: ${isCompact ? 'compact' : 'comfortable'}`;
+    }
+    try {
+      localStorage.setItem(LS_KEY_DENSITY_MODE, nextMode);
+    } catch (_error) {
+      // ignore storage write errors
+    }
+  }
+
+  function loadDensityMode() {
+    let stored = DENSITY_COMFORTABLE;
+    try {
+      const raw = String(localStorage.getItem(LS_KEY_DENSITY_MODE) || '').trim().toLowerCase();
+      if (raw === DENSITY_COMPACT || raw === DENSITY_COMFORTABLE) {
+        stored = raw;
+      }
+    } catch (_error) {
+      stored = DENSITY_COMFORTABLE;
+    }
+    setDensityMode(stored);
+  }
+
+  function toggleDensityMode() {
+    const compactEnabled = root.classList.contains('density-compact');
+    setDensityMode(compactEnabled ? DENSITY_COMFORTABLE : DENSITY_COMPACT);
+  }
+
+  loadDensityMode();
