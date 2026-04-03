@@ -2943,6 +2943,21 @@ public class DialogApiController {
         return ResponseEntity.ok(payload);
     }
 
+    @GetMapping("/ai-monitoring/events")
+    public ResponseEntity<?> aiMonitoringEvents(@RequestParam(value = "days", required = false) Integer days,
+                                                @RequestParam(value = "limit", required = false) Integer limit,
+                                                @RequestParam(value = "ticketId", required = false) String ticketId,
+                                                Authentication authentication) {
+        ResponseEntity<Map<String, Object>> permissionDenied = requireDialogPermission(authentication, "can_reply", "ai_monitoring_events", ticketId);
+        if (permissionDenied != null) {
+            return permissionDenied;
+        }
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("success", true);
+        payload.put("items", dialogAiAssistantService.loadMonitoringEvents(days, limit, ticketId));
+        return ResponseEntity.ok(payload);
+    }
+
     private <T> T withQuickActionTiming(String action, String ticketId, Supplier<T> supplier) {
         long startedAtMs = System.currentTimeMillis();
         try {

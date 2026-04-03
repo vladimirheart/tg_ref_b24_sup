@@ -67,17 +67,27 @@ public class DialogAiAssistantService {
         DialogAiControl control = loadDialogControl(t);
         if (control.aiDisabled()) {
             clearProcessing(t, "disabled_for_dialog", control.reason(), "disabled", "dialog_override_disabled", null);
+            recordAiEvent(t, "ai_agent_disabled_for_dialog", null, "disabled", "dialog_override_disabled", null, null, control.reason(), Map.of(
+                    "ai_disabled", true,
+                    "auto_reply_blocked", control.autoReplyBlocked()
+            ));
             return;
         }
 
         if (!isAgentEnabled()) {
             clearProcessing(t, "disabled", null, "disabled", "config_disabled", null);
+            recordAiEvent(t, "ai_agent_decision_made", null, "disabled", "config_disabled", null, null, "Agent disabled in dialog_config", Map.of(
+                    "action", "disabled"
+            ));
             return;
         }
 
         if (requiresHumanImmediately(m)) {
             clearProcessing(t, "manual_requested", null, "escalate", "manual_requested", null);
             notifyOperatorsEscalation(t, m, "Клиент запросил оператора.");
+            recordAiEvent(t, "ai_agent_escalated", null, "escalate", "manual_requested", null, null, "Client explicitly requested operator", Map.of(
+                    "message_preview", cut(m, 200)
+            ));
             return;
         }
 
@@ -88,6 +98,9 @@ public class DialogAiAssistantService {
         if (suggestions.isEmpty()) {
             clearProcessing(t, "no_match", "Нет релевантных источников.", "escalate", "no_match", sourceHits, mode);
             notifyOperatorsEscalation(t, m, "Агент не нашел релевантный ответ.");
+            recordAiEvent(t, "ai_agent_escalated", null, "escalate", "no_match", null, null, "No relevant sources", Map.of(
+                    "source_hits", sourceHits
+            ));
             return;
         }
 
@@ -98,28 +111,40 @@ public class DialogAiAssistantService {
         if (MODE_ESCALATE_ONLY.equals(mode)) {
             clearProcessing(t, "escalated", "Режим escalate_only", "escalate", "mode_escalate_only", sourceHits, mode);
             notifyOperatorsEscalation(t, m, "Включен режим escalate_only.");
+            recordAiEvent(t, "ai_agent_escalated", null, "escalate", "mode_escalate_only", top.source, top.score, "Escalate-only mode", Map.of(
+                    "source_hits", sourceHits
+            ));
             return;
         }
 
         if (top.score < suggestThreshold) {
             clearProcessing(t, "low_confidence", "Низкая уверенность (" + formatScore(top.score) + ").", "escalate", "below_suggest_threshold", sourceHits, mode);
             notifyOperatorsEscalation(t, m, "Низкая уверенность агента: " + formatScore(top.score));
+            recordAiEvent(t, "ai_agent_escalated", null, "escalate", "below_suggest_threshold", top.source, top.score, "Low confidence", Map.of(
+                    "source_hits", sourceHits,
+                    "suggest_threshold", suggestThreshold
+            ));
             return;
         }
 
         if (MODE_ASSIST_ONLY.equals(mode) || top.score < autoReplyThreshold || control.autoReplyBlocked()) {
+            String decisionReason = control.autoReplyBlocked()
+                    ? "dialog_override_auto_reply_blocked"
+                    : (MODE_ASSIST_ONLY.equals(mode) ? "mode_assist_only" : "below_auto_reply_threshold");
             markProcessing(
                     t,
                     "suggest_only",
                     top,
                     null,
                     "suggest_only",
-                    control.autoReplyBlocked()
-                            ? "dialog_override_auto_reply_blocked"
-                            : (MODE_ASSIST_ONLY.equals(mode) ? "mode_assist_only" : "below_auto_reply_threshold"),
+                    decisionReason,
                     sourceHits,
                     mode
             );
+            recordAiEvent(t, "ai_agent_suggestion_shown", null, "suggest_only", decisionReason, top.source, top.score, "Suggestion shown to operator", Map.of(
+                    "source_hits", sourceHits,
+                    "auto_reply_threshold", autoReplyThreshold
+            ));
             return;
         }
 
@@ -127,6 +152,9 @@ public class DialogAiAssistantService {
         if (!guard.allowed()) {
             clearProcessing(t, "auto_reply_suppressed", guard.reason(), "suppressed", "loop_guard", sourceHits, mode);
             notifyOperatorsEscalation(t, m, "Автоответ подавлен защитой от циклов: " + guard.reason());
+            recordAiEvent(t, "ai_agent_decision_made", null, "suppressed", "loop_guard", top.source, top.score, guard.reason(), Map.of(
+                    "source_hits", sourceHits
+            ));
             return;
         }
 
@@ -135,6 +163,9 @@ public class DialogAiAssistantService {
         if (!result.success()) {
             clearProcessing(t, "send_failed", result.error(), "escalate", "send_failed", sourceHits, mode);
             notifyOperatorsEscalation(t, m, "Ошибка отправки автоответа: " + result.error());
+            recordAiEvent(t, "ai_agent_escalated", null, "escalate", "send_failed", top.source, top.score, result.error(), Map.of(
+                    "source_hits", sourceHits
+            ));
             return;
         }
 
@@ -142,6 +173,10 @@ public class DialogAiAssistantService {
             markMemoryUsage(top.memoryKey);
         }
         markProcessing(t, "auto_replied", top, null, "auto_reply", "score_above_threshold", sourceHits, mode);
+        recordAiEvent(t, "ai_agent_auto_reply_sent", "ai_agent", "auto_reply", "score_above_threshold", top.source, top.score, "Auto reply sent", Map.of(
+                "source_hits", sourceHits,
+                "reply_preview", cut(reply, 300)
+        ));
     }
 
     public void registerOperatorReply(String ticketId, String operatorReply, String operator) {
@@ -161,6 +196,10 @@ public class DialogAiAssistantService {
                     null
             );
             clearProcessing(t, "operator_correction_requested", "operator_reply_differs");
+            recordAiEvent(t, "ai_agent_correction_requested", trim(operator), "review", "operator_reply_differs", null, null, "Operator reply differs from AI memory", Map.of(
+                    "ticket_id", t,
+                    "memory_key", key
+            ));
             jdbcTemplate.update("UPDATE ai_agent_solution_memory SET review_required = 1, pending_solution_text = ?, updated_at = CURRENT_TIMESTAMP WHERE query_key = ?", cut(r, 2000), key);
         } catch (Exception ex) {
             log.debug("registerOperatorReply failed for {}: {}", ticketId, ex.getMessage());
@@ -227,6 +266,10 @@ public class DialogAiAssistantService {
                     cut(reason, 500),
                     trim(actor)
             );
+            recordAiEvent(t, "ai_agent_control_changed", trim(actor), "control_update", "dialog_control_updated", null, null, trim(reason), Map.of(
+                    "ai_disabled", nextAiDisabled,
+                    "auto_reply_blocked", nextAutoReplyBlocked
+            ));
             return true;
         } catch (Exception ex) {
             return false;
@@ -256,6 +299,13 @@ public class DialogAiAssistantService {
                     cut(suggestedReply, 2000),
                     trim(actor)
             );
+            String normalizedDecision = d.toLowerCase(Locale.ROOT);
+            String eventType = "accepted".equals(normalizedDecision)
+                    ? "ai_agent_suggestion_applied"
+                    : ("rejected".equals(normalizedDecision) ? "ai_agent_suggestion_rejected" : "ai_agent_suggestion_feedback");
+            recordAiEvent(t, eventType, trim(actor), "suggestion_feedback", normalizedDecision, trim(source), null, trim(title), Map.of(
+                    "decision", normalizedDecision
+            ));
         } catch (Exception ex) {
             log.debug("Failed to persist ai feedback for {}: {}", t, ex.getMessage());
         }
@@ -304,6 +354,7 @@ public class DialogAiAssistantService {
             );
             if (updated > 0) {
                 clearProcessing(t, "operator_correction_approved", null);
+                recordAiEvent(t, "ai_agent_correction_approved", trim(operator), "review", "approved", null, null, null, null);
                 return true;
             }
             return false;
@@ -326,6 +377,7 @@ public class DialogAiAssistantService {
             );
             if (updated > 0) {
                 clearProcessing(t, "operator_correction_rejected", null);
+                recordAiEvent(t, "ai_agent_correction_rejected", trim(operator), "review", "rejected", null, null, null, null);
                 return true;
             }
             return false;
@@ -609,6 +661,34 @@ public class DialogAiAssistantService {
         return payload;
     }
 
+    public List<Map<String, Object>> loadMonitoringEvents(Integer days, Integer limit, String ticketId) {
+        int safeDays = Math.max(1, Math.min(days != null ? days : 7, 90));
+        int safeLimit = Math.max(1, Math.min(limit != null ? limit : 50, 200));
+        String sinceExpr = "-" + safeDays + " days";
+        String ticket = trim(ticketId);
+        try {
+            if (ticket != null) {
+                return jdbcTemplate.queryForList("""
+                        SELECT id, ticket_id, event_type, actor, decision_type, decision_reason, source, score, detail, payload_json, created_at
+                          FROM ai_agent_event_log
+                         WHERE ticket_id = ?
+                           AND datetime(substr(COALESCE(created_at,''),1,19)) >= datetime('now', ?)
+                         ORDER BY id DESC
+                         LIMIT ?
+                        """, ticket, sinceExpr, safeLimit);
+            }
+            return jdbcTemplate.queryForList("""
+                    SELECT id, ticket_id, event_type, actor, decision_type, decision_reason, source, score, detail, payload_json, created_at
+                      FROM ai_agent_event_log
+                     WHERE datetime(substr(COALESCE(created_at,''),1,19)) >= datetime('now', ?)
+                     ORDER BY id DESC
+                     LIMIT ?
+                    """, sinceExpr, safeLimit);
+        } catch (Exception ex) {
+            return List.of();
+        }
+    }
+
     public boolean approvePendingReviewByKey(String queryKey, String operator) {
         String key = trim(queryKey);
         if (key == null) return false;
@@ -623,7 +703,12 @@ public class DialogAiAssistantService {
                     trim(operator),
                     key
             );
-            if (updated > 0 && ticketId != null) clearProcessing(ticketId, "operator_correction_approved", null);
+            if (updated > 0 && ticketId != null) {
+                clearProcessing(ticketId, "operator_correction_approved", null);
+                recordAiEvent(ticketId, "ai_agent_correction_approved", trim(operator), "review", "approved", null, null, null, Map.of(
+                        "query_key", key
+                ));
+            }
             return updated > 0;
         } catch (Exception ex) {
             return false;
@@ -644,7 +729,12 @@ public class DialogAiAssistantService {
                     trim(operator),
                     key
             );
-            if (updated > 0 && ticketId != null) clearProcessing(ticketId, "operator_correction_rejected", null);
+            if (updated > 0 && ticketId != null) {
+                clearProcessing(ticketId, "operator_correction_rejected", null);
+                recordAiEvent(ticketId, "ai_agent_correction_rejected", trim(operator), "review", "rejected", null, null, null, Map.of(
+                        "query_key", key
+                ));
+            }
             return updated > 0;
         } catch (Exception ex) {
             return false;
@@ -982,6 +1072,44 @@ public class DialogAiAssistantService {
         } catch (DateTimeParseException ignored) {
         }
         return null;
+    }
+    private void recordAiEvent(String ticketId,
+                               String eventType,
+                               String actor,
+                               String decisionType,
+                               String decisionReason,
+                               String source,
+                               Double score,
+                               String detail,
+                               Map<String, Object> payload) {
+        String type = trim(eventType);
+        if (type == null) return;
+        try {
+            jdbcTemplate.update("""
+                    INSERT INTO ai_agent_event_log(
+                        ticket_id, event_type, actor, decision_type, decision_reason, source, score, detail, payload_json, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                    """,
+                    trim(ticketId),
+                    cut(type, 80),
+                    trim(actor),
+                    trim(decisionType),
+                    trim(decisionReason),
+                    trim(source),
+                    score,
+                    cut(detail, 2000),
+                    payload != null && !payload.isEmpty() ? cut(toJson(payload), 5000) : null
+            );
+        } catch (Exception ex) {
+            log.debug("Failed to record ai event '{}' for ticket {}: {}", type, ticketId, ex.getMessage());
+        }
+    }
+    private String toJson(Map<String, Object> payload) {
+        try {
+            return objectMapper.writeValueAsString(payload);
+        } catch (Exception ex) {
+            return null;
+        }
     }
     private int resolveDialogConfigInt(String key, int fallback, int min, int max) {
         try {
