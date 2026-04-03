@@ -156,6 +156,7 @@
   const detailsAvatar = document.getElementById('dialogDetailsAvatar');
   const detailsClientName = document.getElementById('dialogDetailsClientName');
   const detailsClientStatus = document.getElementById('dialogDetailsClientStatus');
+  const detailsOpenClientCard = document.getElementById('dialogDetailsOpenClientCard');
   const detailsCategories = document.getElementById('dialogDetailsCategories');
   const detailsUnreadCount = document.getElementById('dialogDetailsUnreadCount');
   const detailsRating = document.getElementById('dialogDetailsRating');
@@ -1298,6 +1299,14 @@
     localStorage.setItem(STORAGE_TASK, JSON.stringify(payload));
   }
 
+  function buildTaskCreateUrl(ticketId, clientName) {
+    const params = new URLSearchParams();
+    params.set('create', '1');
+    if (ticketId) params.set('ticketId', String(ticketId));
+    if (clientName) params.set('client', String(clientName));
+    return `/tasks?${params.toString()}`;
+  }
+
   function collectRowSearchText(row) {
     const parts = [
       row.dataset.ticketId,
@@ -1522,7 +1531,18 @@
   function buildAvatarUrl(userId) {
     const normalized = String(userId || '').trim();
     if (!normalized) return '';
-    return `/avatar/${encodeURIComponent(normalized)}?strict=1`;
+    return `/avatar/${encodeURIComponent(normalized)}`;
+  }
+
+  function getDialogUserId(source) {
+    if (!source || typeof source !== 'object') return '';
+    return String(
+      source.userId
+      || source.user_id
+      || source.clientUserId
+      || source.client_user_id
+      || '',
+    ).trim();
   }
 
   function bindAvatar(container, userId, name) {
@@ -1666,6 +1686,7 @@
     const createdTime = item?.createdTimeSafe || item?.createdTime || '—';
     const ratingValue = Number(item?.rating);
     const ratingStars = formatRatingStars(ratingValue);
+    const userId = getDialogUserId(item);
 
     return `
       <tr data-ticket-id="${escapeHtml(ticketId)}"
@@ -1673,7 +1694,7 @@
           data-client="${escapeHtml(clientName)}"
           data-client-status="${escapeHtml(clientStatus)}"
           data-channel-id="${escapeHtml(item?.channelId || '')}"
-          data-user-id="${escapeHtml(item?.userId || '')}"
+          data-user-id="${escapeHtml(userId)}"
           data-channel="${escapeHtml(channelLabel)}"
           data-business="${escapeHtml(businessLabel)}"
           data-problem="${escapeHtml(problemLabel)}"
@@ -1693,7 +1714,7 @@
         <td>${escapeHtml(displayNumber)}</td>
         <td>
           <div class="d-flex align-items-center gap-2">
-            <div class="dialog-avatar" data-avatar-user-id="${escapeHtml(item?.userId || '')}"
+            <div class="dialog-avatar" data-avatar-user-id="${escapeHtml(userId)}"
                  data-avatar-name="${escapeHtml(clientName)}">
               <img class="dialog-avatar-img d-none" alt="Аватар клиента" data-avatar-img>
               <span class="avatar-circle" data-avatar-initial>${escapeHtml(avatarInitial(clientName))}</span>
@@ -6446,20 +6467,35 @@
     `;
   }
 
+  function isTechnicalHistoryMessage(message) {
+    const type = String(message?.messageType || '').toLowerCase();
+    const senderType = normalizeMessageSenderByType(message?.messageType, message?.sender);
+    const text = String(message?.message || '').toLowerCase();
+    if (type.includes('feedback') || type.includes('rating')) return true;
+    if (senderType === 'system' && (text.includes('поставьте оценку') || text.includes('оцените') || text.includes('оценк'))) {
+      return true;
+    }
+    return false;
+  }
+
   function renderHistory(messages) {
     if (!detailsHistory) return;
-    if (!Array.isArray(messages) || messages.length === 0) {
+    const filteredMessages = Array.isArray(messages)
+      ? messages.filter((msg) => !isTechnicalHistoryMessage(msg))
+      : [];
+    if (filteredMessages.length === 0) {
       detailsHistory.innerHTML = '<div class="text-muted">Сообщения не найдены.</div>';
       lastHistoryMarker = 'empty';
       return;
     }
-    lastHistoryMarker = historyMarker(messages);
-    detailsHistory.innerHTML = messages.map((msg) => messageToHtml(msg)).join('');
+    lastHistoryMarker = historyMarker(filteredMessages);
+    detailsHistory.innerHTML = filteredMessages.map((msg) => messageToHtml(msg)).join('');
     detailsHistory.scrollTop = detailsHistory.scrollHeight;
   }
 
   function appendHistoryMessage(message) {
     if (!detailsHistory) return;
+    if (isTechnicalHistoryMessage(message)) return;
     const wrapper = document.createElement('div');
     wrapper.innerHTML = messageToHtml(message);
     const node = wrapper.firstElementChild;
@@ -6625,6 +6661,11 @@
     if (detailsSummary) detailsSummary.innerHTML = '<div>Загрузка...</div>';
     if (detailsHistory) detailsHistory.innerHTML = '';
     if (detailsReplyText) detailsReplyText.value = '';
+    if (detailsOpenClientCard) {
+      detailsOpenClientCard.href = '#';
+      detailsOpenClientCard.classList.add('disabled');
+      detailsOpenClientCard.setAttribute('aria-disabled', 'true');
+    }
 
     try {
       const url = withChannelParam(`/api/dialogs/${encodeURIComponent(ticketId)}`, activeDialogChannelId);
@@ -6677,12 +6718,23 @@
       const requestNumber = summary.requestNumber || fallbackRow?.dataset.requestNumber || '';
       const ratingValue = summary.rating ?? fallbackRow?.dataset.rating;
       const ratingStars = formatRatingStars(ratingValue);
+      const clientUserId = getDialogUserId(summary) || String(fallbackRow?.dataset?.userId || '').trim();
       if (detailsAvatar) {
-        const clientUserId = summary.userId || fallbackRow?.dataset.userId || '';
         bindAvatar(detailsAvatar, clientUserId, clientName);
       }
       if (detailsClientName) detailsClientName.textContent = clientName;
       if (detailsClientStatus) detailsClientStatus.textContent = clientStatus;
+      if (detailsOpenClientCard) {
+        if (clientUserId) {
+          detailsOpenClientCard.href = `/client/${encodeURIComponent(clientUserId)}`;
+          detailsOpenClientCard.classList.remove('disabled');
+          detailsOpenClientCard.setAttribute('aria-disabled', 'false');
+        } else {
+          detailsOpenClientCard.href = '#';
+          detailsOpenClientCard.classList.add('disabled');
+          detailsOpenClientCard.setAttribute('aria-disabled', 'true');
+        }
+      }
       updateSummaryCategories(categoriesLabel || '—');
       if (detailsProblem) detailsProblem.textContent = problemLabel;
       if (detailsMeta) detailsMeta.textContent = formatDialogMeta(ticketId, requestNumber);
@@ -6717,7 +6769,6 @@
         createdAt: createdDisplay || createdLabel || '—',
       };
       if (detailsSummary) {
-        const clientUserId = summary.userId || fallbackRow?.dataset.userId || '';
         detailsSummary.innerHTML = summaryItems.map(([label, value]) => {
           const safeValue = value || '—';
           let renderedValue = `<span class="text-dark">${escapeHtml(safeValue)}</span>`;
@@ -6825,10 +6876,14 @@
     }
     const taskBtn = event.target.closest('.dialog-task-btn');
     if (taskBtn) {
+      event.preventDefault();
+      const ticketId = taskBtn.dataset.ticketId;
+      const clientName = taskBtn.dataset.client;
       setTaskDraft({
-        ticketId: taskBtn.dataset.ticketId,
-        client: taskBtn.dataset.client,
+        ticketId,
+        client: clientName,
       });
+      window.location.href = buildTaskCreateUrl(ticketId, clientName);
       return;
     }
     const takeBtn = event.target.closest('.dialog-take-btn');
@@ -6926,19 +6981,33 @@
   }
 
   if (detailsCreateTask) {
-    detailsCreateTask.addEventListener('click', () => {
-      const meta = (detailsMeta?.textContent || '').match(/ID диалога:\s*(.+)$/);
-      if (meta && meta[1]) {
-        setTaskDraft({ ticketId: meta[1].trim() });
+    detailsCreateTask.addEventListener('click', (event) => {
+      event.preventDefault();
+      const ticketId = String(activeDialogTicketId || activeWorkspaceTicketId || '').trim();
+      const client = String(detailsClientName?.textContent || '').trim();
+      if (!ticketId) return;
+      setTaskDraft({ ticketId, client });
+      window.location.href = buildTaskCreateUrl(ticketId, client);
+    });
+  }
+
+  if (detailsOpenClientCard) {
+    detailsOpenClientCard.addEventListener('click', (event) => {
+      const href = String(detailsOpenClientCard.getAttribute('href') || '').trim();
+      if (!href || href === '#') {
+        event.preventDefault();
       }
     });
   }
 
   if (workspaceCreateTaskBtn) {
-    workspaceCreateTaskBtn.addEventListener('click', () => {
-      if (activeWorkspaceTicketId) {
-        setTaskDraft({ ticketId: activeWorkspaceTicketId });
-      }
+    workspaceCreateTaskBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      const ticketId = String(activeWorkspaceTicketId || '').trim();
+      const client = String(detailsClientName?.textContent || '').trim();
+      if (!ticketId) return;
+      setTaskDraft({ ticketId, client });
+      window.location.href = buildTaskCreateUrl(ticketId, client);
     });
   }
 

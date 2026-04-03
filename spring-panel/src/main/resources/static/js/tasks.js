@@ -527,6 +527,60 @@ setInterval(updateOverdueTasks, 60000);
     if (inst) inst.show();
   });
 
+  function openCreateTaskFromDialogContext(context) {
+    if (!createBtn || !context || !context.ticketId) return;
+    createBtn.click();
+    const ticketId = String(context.ticketId || '').trim();
+    const client = String(context.client || '').trim();
+    if (!ticketId) return;
+    if (form && form.title && !String(form.title.value || '').trim()) {
+      const suffix = client ? `: ${client}` : '';
+      form.title.value = `Обращение #${ticketId}${suffix}`;
+    }
+    if (form && form.tag && !String(form.tag.value || '').trim()) {
+      form.tag.value = 'dialog';
+    }
+    if (bodyEditor && !String(bodyEditor.textContent || '').trim()) {
+      const safeClient = client ? `, клиент: ${client}` : '';
+      bodyEditor.innerHTML = `<p>Создано из диалога #${ticketId}${safeClient}.</p>`;
+    }
+    if (form && form.assignee && !String(form.assignee.value || '').trim() && form.creator) {
+      form.assignee.value = form.creator.value || '';
+    }
+    setDirty();
+  }
+
+  function consumeDialogCreateContext() {
+    const context = {};
+    try {
+      const params = new URLSearchParams(window.location.search || '');
+      if (params.get('create') === '1') {
+        context.ticketId = params.get('ticketId') || '';
+        context.client = params.get('client') || '';
+        const next = new URL(window.location.href);
+        next.searchParams.delete('create');
+        next.searchParams.delete('ticketId');
+        next.searchParams.delete('client');
+        window.history.replaceState({}, '', `${next.pathname}${next.search}${next.hash}`);
+      }
+    } catch (_error) {
+      // ignore URL parsing issues
+    }
+    if (context.ticketId) return context;
+    try {
+      const raw = localStorage.getItem('iguana:dialogs:create-task');
+      if (!raw) return null;
+      localStorage.removeItem('iguana:dialogs:create-task');
+      const parsed = JSON.parse(raw);
+      return {
+        ticketId: String(parsed?.ticketId || '').trim(),
+        client: String(parsed?.client || '').trim(),
+      };
+    } catch (_error) {
+      return null;
+    }
+  }
+
   // открыть существующую
   async function openTaskModal(taskId) {
     if (!taskId) return;
@@ -717,6 +771,10 @@ setInterval(updateOverdueTasks, 60000);
   }
   window.addEventListener('hashchange', openFromHash);
   openFromHash();
+  const createContext = consumeDialogCreateContext();
+  if (createContext && createContext.ticketId) {
+    openCreateTaskFromDialogContext(createContext);
+  }
 
   // стартовая загрузка
   load();
