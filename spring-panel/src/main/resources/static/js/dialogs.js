@@ -121,7 +121,10 @@
   const workspaceResolveBtn = document.getElementById('workspaceResolveBtn');
   const workspaceReopenBtn = document.getElementById('workspaceReopenBtn');
   const workspaceCreateTaskBtn = document.getElementById('workspaceCreateTaskBtn');
+  const workspaceAiIncidentExport = document.getElementById('workspaceAiIncidentExport');
   const workspaceLegacyBtn = document.getElementById('workspaceLegacyBtn');
+  const workspaceTabButtons = Array.from(document.querySelectorAll('[data-workspace-tab]'));
+  const workspaceTabPanels = Array.from(document.querySelectorAll('[data-workspace-tab-panel]'));
   const workspaceCategoriesState = document.getElementById('workspaceCategoriesState');
   const workspaceCategoriesList = document.getElementById('workspaceCategoriesList');
   const workspaceCategoriesError = document.getElementById('workspaceCategoriesError');
@@ -1784,6 +1787,34 @@
     } catch (_error) {
       // ignore storage write errors
     }
+  }
+
+  function switchWorkspaceTab(tabName) {
+    const target = String(tabName || 'client').trim().toLowerCase() || 'client';
+    workspaceTabButtons.forEach((button) => {
+      const active = String(button?.dataset?.workspaceTab || '').trim().toLowerCase() === target;
+      button.classList.toggle('is-active', active);
+      button.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+    workspaceTabPanels.forEach((panel) => {
+      const visible = String(panel?.dataset?.workspaceTabPanel || '').trim().toLowerCase() === target;
+      panel.classList.toggle('d-none', !visible);
+    });
+  }
+
+  function exportWorkspaceIncidentCsv() {
+    if (!activeWorkspaceTicketId) {
+      if (typeof showNotification === 'function') {
+        showNotification('Сначала откройте диалог, чтобы экспортировать инцидент.', 'warning');
+      }
+      return;
+    }
+    const link = document.createElement('a');
+    link.href = `/api/dialogs/ai-monitoring/events?ticketId=${encodeURIComponent(activeWorkspaceTicketId)}&days=30&limit=500&format=csv`;
+    link.download = `incident-${activeWorkspaceTicketId}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
   }
 
   function parseRowCategories(row) {
@@ -7513,6 +7544,20 @@
     });
   }
 
+  if (workspaceTabButtons.length) {
+    workspaceTabButtons.forEach((button) => {
+      button.addEventListener('click', () => {
+        switchWorkspaceTab(button.dataset.workspaceTab || 'client');
+      });
+    });
+  }
+
+  if (workspaceAiIncidentExport) {
+    workspaceAiIncidentExport.addEventListener('click', () => {
+      exportWorkspaceIncidentCsv();
+    });
+  }
+
   if (aiMonitoringApplyFilters) {
     aiMonitoringApplyFilters.addEventListener('click', () => {
       aiMonitoringFilters.eventType = String(aiMonitoringEventTypeFilter?.value || '').trim().toLowerCase();
@@ -8125,6 +8170,7 @@
   restoreDialogPreferences();
   loadPageSize();
   loadCompactMode();
+  switchWorkspaceTab('client');
   configureSlaWindowSelect();
   if (sortModeSelect) {
     sortModeSelect.value = filterState.sortMode;
