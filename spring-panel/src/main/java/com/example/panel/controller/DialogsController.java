@@ -50,6 +50,16 @@ public class DialogsController {
         return renderDialogsPage(authentication, model, ticketId);
     }
 
+    @GetMapping("/ai-ops")
+    @PreAuthorize("hasAuthority('PAGE_DIALOGS')")
+    public String aiOps(Authentication authentication, Model model) {
+        String operatorIdentity = authentication != null ? authentication.getName() : "anonymous";
+        navigationService.enrich(model, authentication);
+        model.addAttribute("activePage", "ai-ops");
+        model.addAttribute("operatorIdentity", operatorIdentity);
+        return "dialogs/ai-ops";
+    }
+
     private String renderDialogsPage(Authentication authentication, Model model, String initialDialogTicketId) {
         String operatorIdentity = authentication != null ? authentication.getName() : "anonymous";
         navigationService.enrich(model, authentication);

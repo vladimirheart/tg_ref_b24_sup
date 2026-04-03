@@ -57,6 +57,28 @@
         .dialog-summary-item .h5 {
             font-family: var(--font-serif);
         }
+        body.dialog-compact-mode .dialogs-hero {
+            display: none;
+        }
+        body.dialog-compact-mode .dialogs-toolbar-card .card-body,
+        body.dialog-compact-mode .dialogs-table-card .card-body,
+        body.dialog-compact-mode .workspace-shell-card .card-body {
+            padding: 0.75rem !important;
+        }
+        body.dialog-compact-mode .workspace-panel-block {
+            padding: 0.75rem;
+            border-radius: 0.75rem;
+        }
+        body.dialog-compact-mode .card {
+            box-shadow: none;
+        }
+        body.dialog-compact-mode .page-title {
+            font-size: 1.4rem;
+        }
+        body.dialog-compact-mode .dialog-summary-item {
+            min-width: 9rem;
+            padding: 0.5rem 0.75rem;
+        }
     </style>
 </head>
 <body class="with-sidebar sidebar-pinned"
@@ -81,6 +103,7 @@
                 <input type="search" id="dialogQuickSearch" class="form-control form-control-sm dialog-toolbar-search flex-grow-1" placeholder="Поиск по обращению, клиенту или каналу">
                 <button class="btn btn-outline-primary btn-sm" id="dialogFiltersBtn" type="button">Фильтры</button>
                 <button class="btn btn-outline-secondary btn-sm" id="dialogColumnsBtn" type="button">Колонки</button>
+                <button class="btn btn-outline-secondary btn-sm" id="dialogCompactToggle" type="button">Compact mode</button>
                 <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#dialogToolbarAdvanced" aria-expanded="false" aria-controls="dialogToolbarAdvanced">Ещё параметры</button>
             </div>
             <div class="mt-3 dialog-status-group">
