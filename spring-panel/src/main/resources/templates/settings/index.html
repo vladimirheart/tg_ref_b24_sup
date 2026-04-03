@@ -2200,6 +2200,32 @@
                         <option value="autopilot">Autopilot (эскалация всех критичных очередей)</option>
                       </select>
                     </div>
+                    <div class="col-md-3">
+                      <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="dialogAiAgentEnabled">
+                        <label class="form-check-label" for="dialogAiAgentEnabled">AI-агент включён</label>
+                      </div>
+                    </div>
+                    <div class="col-md-3">
+                      <label for="dialogAiAgentMode" class="form-label">Режим AI-агента</label>
+                      <select class="form-select" id="dialogAiAgentMode">
+                        <option value="auto_reply">Auto reply</option>
+                        <option value="assist_only">Assist only</option>
+                        <option value="escalate_only">Escalate only</option>
+                      </select>
+                    </div>
+                    <div class="col-md-2">
+                      <label for="dialogAiAgentAutoReplyThreshold" class="form-label">Порог автоответа</label>
+                      <input type="number" class="form-control" id="dialogAiAgentAutoReplyThreshold" min="0.2" max="0.95" step="0.01">
+                    </div>
+                    <div class="col-md-2">
+                      <label for="dialogAiAgentSuggestThreshold" class="form-label">Порог подсказки</label>
+                      <input type="number" class="form-control" id="dialogAiAgentSuggestThreshold" min="0.1" max="0.95" step="0.01">
+                    </div>
+                    <div class="col-md-2">
+                      <label for="dialogAiAgentMaxAutoRepliesPerDialog" class="form-label">Лимит автоответов/диалог</label>
+                      <input type="number" class="form-control" id="dialogAiAgentMaxAutoRepliesPerDialog" min="1" max="20" step="1">
+                    </div>
                     <div class="col-md-6">
                       <div class="form-check mt-2">
                         <input class="form-check-input" type="checkbox" id="dialogSlaEscalationEnabled">
@@ -5509,6 +5535,11 @@
     macro_require_independent_review: true,
     quick_snooze_minutes: 60,
     overdue_threshold_hours: 24,
+    ai_agent_enabled: true,
+    ai_agent_mode: 'auto_reply',
+    ai_agent_auto_reply_threshold: 0.62,
+    ai_agent_suggest_threshold: 0.46,
+    ai_agent_max_auto_replies_per_dialog: 3,
     list_poll_interval_ms: 8000,
     history_poll_interval_ms: 8000,
     workspace_guardrail_render_error_rate: 0.01,
@@ -14690,6 +14721,11 @@
       warning: document.getElementById('dialogSlaWarningMinutes'),
       critical: document.getElementById('dialogSlaCriticalMinutes'),
       orchestrationMode: document.getElementById('dialogSlaCriticalOrchestrationMode'),
+      aiAgentEnabled: document.getElementById('dialogAiAgentEnabled'),
+      aiAgentMode: document.getElementById('dialogAiAgentMode'),
+      aiAgentAutoReplyThreshold: document.getElementById('dialogAiAgentAutoReplyThreshold'),
+      aiAgentSuggestThreshold: document.getElementById('dialogAiAgentSuggestThreshold'),
+      aiAgentMaxAutoRepliesPerDialog: document.getElementById('dialogAiAgentMaxAutoRepliesPerDialog'),
       escalationEnabled: document.getElementById('dialogSlaEscalationEnabled'),
       autoAssignEnabled: document.getElementById('dialogSlaAutoAssignEnabled'),
       autoAssignTo: document.getElementById('dialogSlaAutoAssignTo'),
@@ -14956,6 +14992,32 @@
       const mode = String(DIALOG_CONFIG.sla_critical_orchestration_mode || DEFAULT_DIALOG_SLA_CONFIG.orchestration_mode).trim().toLowerCase();
       const allowedModes = new Set(['monitor', 'assist', 'autopilot']);
       inputs.orchestrationMode.value = allowedModes.has(mode) ? mode : DEFAULT_DIALOG_SLA_CONFIG.orchestration_mode;
+    }
+    if (inputs.aiAgentEnabled instanceof HTMLInputElement) {
+      inputs.aiAgentEnabled.checked = DIALOG_CONFIG.ai_agent_enabled !== false;
+    }
+    if (inputs.aiAgentMode) {
+      const mode = String(DIALOG_CONFIG.ai_agent_mode || DEFAULT_DIALOG_SLA_CONFIG.ai_agent_mode).trim().toLowerCase();
+      const allowedModes = new Set(['auto_reply', 'assist_only', 'escalate_only']);
+      inputs.aiAgentMode.value = allowedModes.has(mode) ? mode : DEFAULT_DIALOG_SLA_CONFIG.ai_agent_mode;
+    }
+    if (inputs.aiAgentAutoReplyThreshold) {
+      const value = Number.parseFloat(DIALOG_CONFIG.ai_agent_auto_reply_threshold);
+      inputs.aiAgentAutoReplyThreshold.value = Number.isFinite(value) && value >= 0.2 && value <= 0.95
+        ? value.toFixed(2)
+        : DEFAULT_DIALOG_SLA_CONFIG.ai_agent_auto_reply_threshold.toFixed(2);
+    }
+    if (inputs.aiAgentSuggestThreshold) {
+      const value = Number.parseFloat(DIALOG_CONFIG.ai_agent_suggest_threshold);
+      inputs.aiAgentSuggestThreshold.value = Number.isFinite(value) && value >= 0.1 && value <= 0.95
+        ? value.toFixed(2)
+        : DEFAULT_DIALOG_SLA_CONFIG.ai_agent_suggest_threshold.toFixed(2);
+    }
+    if (inputs.aiAgentMaxAutoRepliesPerDialog) {
+      const value = Number.parseInt(DIALOG_CONFIG.ai_agent_max_auto_replies_per_dialog, 10);
+      inputs.aiAgentMaxAutoRepliesPerDialog.value = Number.isFinite(value) && value >= 1 && value <= 20
+        ? value
+        : DEFAULT_DIALOG_SLA_CONFIG.ai_agent_max_auto_replies_per_dialog;
     }
     if (inputs.escalationEnabled instanceof HTMLInputElement) {
       inputs.escalationEnabled.checked = DIALOG_CONFIG.sla_critical_escalation_enabled !== false;
@@ -16502,6 +16564,35 @@
     const safeOrchestrationMode = allowedOrchestrationModes.has(orchestrationModeRaw)
       ? orchestrationModeRaw
       : DEFAULT_DIALOG_SLA_CONFIG.orchestration_mode;
+    const aiAgentModeRaw = String(inputs.aiAgentMode?.value || DEFAULT_DIALOG_SLA_CONFIG.ai_agent_mode).trim().toLowerCase();
+    const aiAgentAllowedModes = new Set(['auto_reply', 'assist_only', 'escalate_only']);
+    const safeAiAgentMode = aiAgentAllowedModes.has(aiAgentModeRaw)
+      ? aiAgentModeRaw
+      : DEFAULT_DIALOG_SLA_CONFIG.ai_agent_mode;
+    const aiAgentAutoReplyThresholdRaw = Number.parseFloat(inputs.aiAgentAutoReplyThreshold?.value);
+    const safeAiAgentAutoReplyThreshold = Number.isFinite(aiAgentAutoReplyThresholdRaw)
+      ? Math.min(0.95, Math.max(0.2, aiAgentAutoReplyThresholdRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.ai_agent_auto_reply_threshold;
+    if (!Number.isFinite(aiAgentAutoReplyThresholdRaw) || aiAgentAutoReplyThresholdRaw < 0.2 || aiAgentAutoReplyThresholdRaw > 0.95) {
+      errors.push('Порог автоответа AI-агента должен быть в диапазоне 0.20..0.95.');
+    }
+    const aiAgentSuggestThresholdRaw = Number.parseFloat(inputs.aiAgentSuggestThreshold?.value);
+    const safeAiAgentSuggestThreshold = Number.isFinite(aiAgentSuggestThresholdRaw)
+      ? Math.min(0.95, Math.max(0.1, aiAgentSuggestThresholdRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.ai_agent_suggest_threshold;
+    if (!Number.isFinite(aiAgentSuggestThresholdRaw) || aiAgentSuggestThresholdRaw < 0.1 || aiAgentSuggestThresholdRaw > 0.95) {
+      errors.push('Порог подсказки AI-агента должен быть в диапазоне 0.10..0.95.');
+    }
+    if (safeAiAgentSuggestThreshold > safeAiAgentAutoReplyThreshold) {
+      errors.push('Порог подсказки не может быть выше порога автоответа.');
+    }
+    const aiAgentMaxAutoRepliesRaw = Number.parseInt(inputs.aiAgentMaxAutoRepliesPerDialog?.value, 10);
+    const safeAiAgentMaxAutoReplies = Number.isFinite(aiAgentMaxAutoRepliesRaw)
+      ? Math.min(20, Math.max(1, aiAgentMaxAutoRepliesRaw))
+      : DEFAULT_DIALOG_SLA_CONFIG.ai_agent_max_auto_replies_per_dialog;
+    if (!Number.isFinite(aiAgentMaxAutoRepliesRaw) || aiAgentMaxAutoRepliesRaw < 1 || aiAgentMaxAutoRepliesRaw > 20) {
+      errors.push('Лимит автоответов AI-агента должен быть в диапазоне 1..20.');
+    }
     const autoAssignMaxPerRunRaw = Math.round(Number(inputs.autoAssignMaxPerRun?.value));
     const safeAutoAssignMaxPerRun = Number.isFinite(autoAssignMaxPerRunRaw)
       ? Math.min(100, Math.max(1, autoAssignMaxPerRunRaw))
@@ -17910,6 +18001,11 @@
         dialog_sla_warning_minutes: safeWarning,
         dialog_sla_critical_minutes: safeCritical,
         dialog_sla_critical_orchestration_mode: safeOrchestrationMode,
+        dialog_ai_agent_enabled: Boolean(inputs.aiAgentEnabled?.checked),
+        dialog_ai_agent_mode: safeAiAgentMode,
+        dialog_ai_agent_auto_reply_threshold: safeAiAgentAutoReplyThreshold,
+        dialog_ai_agent_suggest_threshold: safeAiAgentSuggestThreshold,
+        dialog_ai_agent_max_auto_replies_per_dialog: safeAiAgentMaxAutoReplies,
         dialog_sla_critical_escalation_enabled: Boolean(inputs.escalationEnabled?.checked),
         dialog_sla_critical_auto_assign_enabled: Boolean(inputs.autoAssignEnabled?.checked),
         dialog_sla_critical_auto_assign_to: (inputs.autoAssignTo?.value || '').trim(),

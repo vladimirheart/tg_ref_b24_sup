@@ -64,18 +64,18 @@
 
 ## 4. Бэклог (по приоритету)
 ## P0 (критично, ближайший спринт)
-- [ ] Добавить настройки режима агента в UI “Настройки -> Диалоги”:
+- [x] Добавить настройки режима агента в UI “Настройки -> Диалоги”:
   - `ai_agent_enabled`
   - `ai_agent_mode` (`auto_reply` / `assist_only` / `escalate_only`)
   - `ai_agent_auto_reply_threshold`
   - `ai_agent_suggest_threshold`
   - `ai_agent_max_auto_replies_per_dialog`
-- [ ] Ввести защиту от “зацикливания”:
+- [x] Ввести защиту от “зацикливания”:
   - лимит автоответов в одном диалоге за окно времени;
   - cooldown перед следующим автоответом.
-- [ ] Добавить причину решения в структуру state (machine-readable):
+- [x] Добавить причину решения в структуру state (machine-readable):
   - `decision_type`, `decision_reason`, `source_hits`.
-- [ ] Явно маркировать автоответы как `ai_agent` (а не `operator/system`).
+- [x] Явно маркировать автоответы как `ai_agent` (а не `operator/system`).
 
 ## P1 (качество ответов)
 - [ ] Нормализованный retrieval-пайплайн:
@@ -170,3 +170,4 @@
 1. Этап 0: `assist_only` для всех, сбор метрик.
 2. Этап 1: `auto_reply` только на whitelisted категориях.
 3. Этап 2: расширение покрытия при стабильном CSAT и низком correction rate.
+
