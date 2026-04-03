@@ -92,6 +92,9 @@
   const workspaceAiSuggestionsState = document.getElementById('workspaceAiSuggestionsState');
   const workspaceAiSuggestionsList = document.getElementById('workspaceAiSuggestionsList');
   const workspaceAiSuggestionsRefresh = document.getElementById('workspaceAiSuggestionsRefresh');
+  const workspaceAiDisableForDialog = document.getElementById('workspaceAiDisableForDialog');
+  const workspaceAiHandoffNoAutoReply = document.getElementById('workspaceAiHandoffNoAutoReply');
+  const workspaceAiControlState = document.getElementById('workspaceAiControlState');
   const workspaceAiReviewBox = document.getElementById('workspaceAiReviewBox');
   const workspaceAiReviewQuestion = document.getElementById('workspaceAiReviewQuestion');
   const workspaceAiReviewCurrent = document.getElementById('workspaceAiReviewCurrent');

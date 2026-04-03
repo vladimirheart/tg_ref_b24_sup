@@ -64,6 +64,12 @@ public class DialogAiAssistantService {
         String m = trim(message);
         if (t == null || m == null) return;
 
+        DialogAiControl control = loadDialogControl(t);
+        if (control.aiDisabled()) {
+            clearProcessing(t, "disabled_for_dialog", control.reason(), "disabled", "dialog_override_disabled", null);
+            return;
+        }
+
         if (!isAgentEnabled()) {
             clearProcessing(t, "disabled", null, "disabled", "config_disabled", null);
             return;
@@ -101,14 +107,16 @@ public class DialogAiAssistantService {
             return;
         }
 
-        if (MODE_ASSIST_ONLY.equals(mode) || top.score < autoReplyThreshold) {
+        if (MODE_ASSIST_ONLY.equals(mode) || top.score < autoReplyThreshold || control.autoReplyBlocked()) {
             markProcessing(
                     t,
                     "suggest_only",
                     top,
                     null,
                     "suggest_only",
-                    MODE_ASSIST_ONLY.equals(mode) ? "mode_assist_only" : "below_auto_reply_threshold",
+                    control.autoReplyBlocked()
+                            ? "dialog_override_auto_reply_blocked"
+                            : (MODE_ASSIST_ONLY.equals(mode) ? "mode_assist_only" : "below_auto_reply_threshold"),
                     sourceHits,
                     mode
             );
@@ -174,9 +182,83 @@ public class DialogAiAssistantService {
             item.put("score_label", formatScore(s.score));
             item.put("snippet", s.snippet);
             item.put("reply", buildOperatorReplySuggestion(s));
+            item.put("explain", buildSuggestionExplain(s));
             payload.add(item);
         }
         return payload;
+    }
+
+    public Map<String, Object> loadDialogControlState(String ticketId) {
+        DialogAiControl control = loadDialogControl(ticketId);
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("ticket_id", trim(ticketId));
+        payload.put("ai_disabled", control.aiDisabled());
+        payload.put("auto_reply_blocked", control.autoReplyBlocked());
+        payload.put("reason", control.reason());
+        payload.put("updated_by", control.updatedBy());
+        payload.put("updated_at", control.updatedAt());
+        return payload;
+    }
+
+    public boolean updateDialogControlState(String ticketId,
+                                            Boolean aiDisabled,
+                                            Boolean autoReplyBlocked,
+                                            String reason,
+                                            String actor) {
+        String t = trim(ticketId);
+        if (t == null) return false;
+        DialogAiControl current = loadDialogControl(t);
+        boolean nextAiDisabled = aiDisabled != null ? aiDisabled : current.aiDisabled();
+        boolean nextAutoReplyBlocked = autoReplyBlocked != null ? autoReplyBlocked : current.autoReplyBlocked();
+        try {
+            jdbcTemplate.update("""
+                    INSERT INTO ticket_ai_agent_dialog_control(ticket_id, ai_disabled, auto_reply_blocked, reason, updated_by, updated_at)
+                    VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                    ON CONFLICT(ticket_id) DO UPDATE SET
+                        ai_disabled = excluded.ai_disabled,
+                        auto_reply_blocked = excluded.auto_reply_blocked,
+                        reason = excluded.reason,
+                        updated_by = excluded.updated_by,
+                        updated_at = CURRENT_TIMESTAMP
+                    """,
+                    t,
+                    nextAiDisabled ? 1 : 0,
+                    nextAutoReplyBlocked ? 1 : 0,
+                    cut(reason, 500),
+                    trim(actor)
+            );
+            return true;
+        } catch (Exception ex) {
+            return false;
+        }
+    }
+
+    public void recordSuggestionFeedback(String ticketId,
+                                         String decision,
+                                         String source,
+                                         String title,
+                                         String snippet,
+                                         String suggestedReply,
+                                         String actor) {
+        String t = trim(ticketId);
+        String d = trim(decision);
+        if (t == null || d == null) return;
+        try {
+            jdbcTemplate.update("""
+                    INSERT INTO ai_agent_suggestion_feedback(ticket_id, decision, source, title, snippet, suggested_reply, actor, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                    """,
+                    t,
+                    cut(d.toLowerCase(Locale.ROOT), 64),
+                    cut(source, 128),
+                    cut(title, 255),
+                    cut(snippet, 2000),
+                    cut(suggestedReply, 2000),
+                    trim(actor)
+            );
+        } catch (Exception ex) {
+            log.debug("Failed to persist ai feedback for {}: {}", t, ex.getMessage());
+        }
     }
 
     public Map<String, Object> loadPendingReview(String ticketId) {
@@ -519,6 +601,16 @@ public class DialogAiAssistantService {
         String prepared = buildAutoReply(s);
         return "По " + sourceLabel + " предлагаемый ответ:\n\n" + prepared;
     }
+    private String buildSuggestionExplain(AiSuggestion s) {
+        String sourceExplain = switch (String.valueOf(s.source).toLowerCase(Locale.ROOT)) {
+            case "memory" -> "Выбрано из подтвержденных операторских решений.";
+            case "knowledge" -> "Выбрано из статей базы знаний.";
+            case "tasks" -> "Выбрано из похожих задач.";
+            case "history" -> "Выбрано из похожих диалогов.";
+            default -> "Выбрано из внутренних источников.";
+        };
+        return sourceExplain + " Оценка релевантности: " + formatScore(s.score) + ".";
+    }
     private void notifyOperatorsEscalation(String ticketId, String msg, String reason) { String t = "AI-Р°РіРµРЅС‚ СЌСЃРєР°Р»РёСЂРѕРІР°Р» РѕР±СЂР°С‰РµРЅРёРµ " + ticketId + ". " + reason; if (StringUtils.hasText(msg)) t += " Р’РѕРїСЂРѕСЃ РєР»РёРµРЅС‚Р°: " + cut(msg, 140); notificationService.notifyAllOperators(t, "/dialogs?ticketId=" + ticketId, null); }
     private boolean isAgentEnabled() { try { Object d = sharedConfigService.loadSettings().get("dialog_config"); if (d instanceof Map<?,?> m) { Object e = m.get("ai_agent_enabled"); if (e instanceof Boolean b) return b; String n = String.valueOf(e).trim().toLowerCase(Locale.ROOT); return !"false".equals(n) && !"0".equals(n) && !"off".equals(n); } } catch (Exception ex) { log.debug("ai_agent_enabled read failed: {}", ex.getMessage()); } return true; }
     private boolean requiresHumanImmediately(String m) { String n = String.valueOf(m).toLowerCase(Locale.ROOT); return n.contains("РѕРїРµСЂР°С‚РѕСЂ") || n.contains("С‡РµР»РѕРІРµРє") || n.contains("РјРµРЅРµРґР¶РµСЂ") || n.contains("РїРѕР·РІРѕРЅРёС‚Рµ"); }
@@ -697,6 +789,27 @@ public class DialogAiAssistantService {
         }
         return new AutoReplyGuard(true, null);
     }
+    private DialogAiControl loadDialogControl(String ticketId) {
+        String t = trim(ticketId);
+        if (t == null) return DialogAiControl.DEFAULT;
+        try {
+            List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                    "SELECT ai_disabled, auto_reply_blocked, reason, updated_by, updated_at FROM ticket_ai_agent_dialog_control WHERE ticket_id = ? LIMIT 1",
+                    t
+            );
+            if (rows.isEmpty()) return DialogAiControl.DEFAULT;
+            Map<String, Object> row = rows.get(0);
+            return new DialogAiControl(
+                    isTrue(row.get("ai_disabled")),
+                    isTrue(row.get("auto_reply_blocked")),
+                    trim(safe(row.get("reason"))),
+                    trim(safe(row.get("updated_by"))),
+                    trim(safe(row.get("updated_at")))
+            );
+        } catch (Exception ex) {
+            return DialogAiControl.DEFAULT;
+        }
+    }
     private String encodeSourceHits(List<AiSuggestion> suggestions) {
         if (suggestions == null || suggestions.isEmpty()) return null;
         List<Map<String, Object>> payload = new ArrayList<>();
@@ -775,6 +888,13 @@ public class DialogAiAssistantService {
     }
 
     private record AutoReplyGuard(boolean allowed, String reason) {}
+    private record DialogAiControl(boolean aiDisabled,
+                                   boolean autoReplyBlocked,
+                                   String reason,
+                                   String updatedBy,
+                                   String updatedAt) {
+        static final DialogAiControl DEFAULT = new DialogAiControl(false, false, null, null, null);
+    }
 
     private static final class AiSuggestion {
         final String source; final String title; final String snippet; final double score; final String memoryKey;
