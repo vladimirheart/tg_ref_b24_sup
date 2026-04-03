@@ -302,28 +302,28 @@
     const normalizedMinutes = Math.max(1, Number(minutes) || QUICK_SNOOZE_MINUTES);
     if (normalizedMinutes % 60 === 0) {
       const hours = normalizedMinutes / 60;
-      return `Отложить ${hours}ч`;
+      return `РћС‚Р»РѕР¶РёС‚СЊ ${hours}С‡`;
     }
-    return `Отложить ${normalizedMinutes}м`;
+    return `РћС‚Р»РѕР¶РёС‚СЊ ${normalizedMinutes}Рј`;
   }
 
   function formatBulkSnoozeLabel(minutes) {
     const normalizedMinutes = Math.max(1, Number(minutes) || QUICK_SNOOZE_MINUTES);
     if (normalizedMinutes % 60 === 0) {
       const hours = normalizedMinutes / 60;
-      const hoursLabel = hours === 1 ? '1 час' : `${hours} ч`;
-      return `Выбранные диалоги отложены на ${hoursLabel}`;
+      const hoursLabel = hours === 1 ? '1 С‡Р°СЃ' : `${hours} С‡`;
+      return `Р’С‹Р±СЂР°РЅРЅС‹Рµ РґРёР°Р»РѕРіРё РѕС‚Р»РѕР¶РµРЅС‹ РЅР° ${hoursLabel}`;
     }
-    return `Выбранные диалоги отложены на ${normalizedMinutes} мин`;
+    return `Р’С‹Р±СЂР°РЅРЅС‹Рµ РґРёР°Р»РѕРіРё РѕС‚Р»РѕР¶РµРЅС‹ РЅР° ${normalizedMinutes} РјРёРЅ`;
   }
 
   function formatSnoozeDurationLabel(minutes) {
     const normalizedMinutes = Math.max(1, Number(minutes) || QUICK_SNOOZE_MINUTES);
     if (normalizedMinutes % 60 === 0) {
       const hours = normalizedMinutes / 60;
-      return hours === 1 ? '1 час' : `${hours} ч`;
+      return hours === 1 ? '1 С‡Р°СЃ' : `${hours} С‡`;
     }
-    return `${normalizedMinutes} мин`;
+    return `${normalizedMinutes} РјРёРЅ`;
   }
 
 
@@ -542,7 +542,7 @@
     }),
   });
 
-  const DIALOG_EMOJI = ['😀','😁','😂','😊','😍','🤔','😢','😡','👍','🙏','🔥','🎉','✅','❗','📌'];
+  const DIALOG_EMOJI = ['рџЂ','рџЃ','рџ‚','рџЉ','рџЌ','рџ¤”','рџў','рџЎ','рџ‘Ќ','рџ™Џ','рџ”Ґ','рџЋ‰','вњ…','вќ—','рџ“Њ'];
 
   function canRunAction(permissionKey) {
     if (!permissionKey) return true;
@@ -578,15 +578,15 @@
     if (Number.isFinite(Number(rollout?.rollout_percent)) && Number(rollout?.rollout_percent) > 0) {
       metaParts.push(`rollout: ${Math.max(0, Math.min(100, Number(rollout.rollout_percent)))}%`);
     }
-    if (reviewedAt && reviewedAt !== '—') {
+    if (reviewedAt && reviewedAt !== 'вЂ”') {
       metaParts.push(`reviewed UTC: ${reviewedAt}`);
     }
-    if (dataUpdatedAt && dataUpdatedAt !== '—') {
+    if (dataUpdatedAt && dataUpdatedAt !== 'вЂ”') {
       metaParts.push(`data updated UTC: ${dataUpdatedAt}`);
     }
     workspaceRolloutBanner.className = resolveWorkspaceRolloutBannerClass(rollout?.banner_tone);
     workspaceRolloutBanner.classList.remove('d-none');
-    workspaceRolloutBanner.textContent = [summary || 'Workspace rollout state loaded.', metaParts.join(' · ')].filter(Boolean).join(' ');
+    workspaceRolloutBanner.textContent = [summary || 'Workspace rollout state loaded.', metaParts.join(' В· ')].filter(Boolean).join(' ');
   }
 
   function resolveLegacyOpenPolicy(rollout) {
@@ -646,7 +646,7 @@
     if (Number.isFinite(Number(safeParity?.score_pct))) {
       metaParts.push(`parity score: ${Math.max(0, Math.min(100, Number(safeParity.score_pct)))}%`);
     }
-    if (checkedAtUtc && checkedAtUtc !== '—') {
+    if (checkedAtUtc && checkedAtUtc !== 'вЂ”') {
       metaParts.push(`checked UTC: ${checkedAtUtc}`);
     }
     if (missingLabels.length > 0) {
@@ -654,7 +654,7 @@
     }
     workspaceParityBanner.className = resolveWorkspaceParityBannerClass(status);
     workspaceParityBanner.classList.remove('d-none');
-    workspaceParityBanner.textContent = [summary, metaParts.join(' · ')].filter(Boolean).join(' ');
+    workspaceParityBanner.textContent = [summary, metaParts.join(' В· ')].filter(Boolean).join(' ');
   }
 
   function setWorkspaceReadonlyMode(isReadonly, reasonText) {
@@ -675,23 +675,23 @@
 
   function resolveWorkspaceReadonlyReason(permissions) {
     if (!permissions || typeof permissions !== 'object') {
-      return 'Workspace открыт в режиме только чтения: не удалось получить права оператора.';
+      return 'Workspace РѕС‚РєСЂС‹С‚ РІ СЂРµР¶РёРјРµ С‚РѕР»СЊРєРѕ С‡С‚РµРЅРёСЏ: РЅРµ СѓРґР°Р»РѕСЃСЊ РїРѕР»СѓС‡РёС‚СЊ РїСЂР°РІР° РѕРїРµСЂР°С‚РѕСЂР°.';
     }
     const requiredFlags = ['can_reply', ...WORKSPACE_MUTATING_PERMISSION_KEYS];
     const hasInvalidFlag = requiredFlags.some((flag) => typeof permissions[flag] !== 'boolean');
     if (hasInvalidFlag) {
-      return 'Workspace открыт в режиме только чтения: права оператора загружены некорректно.';
+      return 'Workspace РѕС‚РєСЂС‹С‚ РІ СЂРµР¶РёРјРµ С‚РѕР»СЊРєРѕ С‡С‚РµРЅРёСЏ: РїСЂР°РІР° РѕРїРµСЂР°С‚РѕСЂР° Р·Р°РіСЂСѓР¶РµРЅС‹ РЅРµРєРѕСЂСЂРµРєС‚РЅРѕ.';
     }
     const hasMutatingPermission = WORKSPACE_MUTATING_PERMISSION_KEYS.some((flag) => permissions[flag] === true);
     if (!hasMutatingPermission) {
-      return 'Workspace открыт в режиме только чтения: действия изменения отключены политикой доступа.';
+      return 'Workspace РѕС‚РєСЂС‹С‚ РІ СЂРµР¶РёРјРµ С‚РѕР»СЊРєРѕ С‡С‚РµРЅРёСЏ: РґРµР№СЃС‚РІРёСЏ РёР·РјРµРЅРµРЅРёСЏ РѕС‚РєР»СЋС‡РµРЅС‹ РїРѕР»РёС‚РёРєРѕР№ РґРѕСЃС‚СѓРїР°.';
     }
     return null;
   }
 
   function notifyPermissionDenied(actionTitle) {
     if (typeof showNotification === 'function') {
-      showNotification(`Недостаточно прав для действия «${actionTitle}».`, 'warning');
+      showNotification(`РќРµРґРѕСЃС‚Р°С‚РѕС‡РЅРѕ РїСЂР°РІ РґР»СЏ РґРµР№СЃС‚РІРёСЏ В«${actionTitle}В».`, 'warning');
     }
   }
 
@@ -718,13 +718,13 @@
 
 
   if (bulkSnoozeBtn) {
-    bulkSnoozeBtn.textContent = `Отложить выбранные на ${formatSnoozeDurationLabel(QUICK_SNOOZE_MINUTES)}`;
+    bulkSnoozeBtn.textContent = `РћС‚Р»РѕР¶РёС‚СЊ РІС‹Р±СЂР°РЅРЅС‹Рµ РЅР° ${formatSnoozeDurationLabel(QUICK_SNOOZE_MINUTES)}`;
   }
   if (hotkeySingleSnoozeLabel) {
-    hotkeySingleSnoozeLabel.textContent = `Отложить диалог на ${formatSnoozeDurationLabel(QUICK_SNOOZE_MINUTES)} (из списка)`;
+    hotkeySingleSnoozeLabel.textContent = `РћС‚Р»РѕР¶РёС‚СЊ РґРёР°Р»РѕРі РЅР° ${formatSnoozeDurationLabel(QUICK_SNOOZE_MINUTES)} (РёР· СЃРїРёСЃРєР°)`;
   }
   if (hotkeyBulkSnoozeLabel) {
-    hotkeyBulkSnoozeLabel.textContent = `Отложить выбранные диалоги на ${formatSnoozeDurationLabel(QUICK_SNOOZE_MINUTES)}`;
+    hotkeyBulkSnoozeLabel.textContent = `РћС‚Р»РѕР¶РёС‚СЊ РІС‹Р±СЂР°РЅРЅС‹Рµ РґРёР°Р»РѕРіРё РЅР° ${formatSnoozeDurationLabel(QUICK_SNOOZE_MINUTES)}`;
   }
 
   const snoozedDialogs = loadSnoozedDialogs();
@@ -784,13 +784,13 @@
   let historyLoading = false;
   let listLoading = false;
   let activeDialogContext = {
-    clientName: '—',
-    operatorName: '—',
-    channelName: '—',
-    business: '—',
-    location: '—',
-    status: '—',
-    createdAt: '—',
+    clientName: 'вЂ”',
+    operatorName: 'вЂ”',
+    channelName: 'вЂ”',
+    business: 'вЂ”',
+    location: 'вЂ”',
+    status: 'вЂ”',
+    createdAt: 'вЂ”',
   };
   let completionHideTimer = null;
   let activeAudioPlayer = null;
@@ -944,8 +944,8 @@
     if (!slaWindowSelect) {
       return;
     }
-    const optionsMarkup = ['<option value="">SLA: все</option>']
-      .concat(DIALOG_SLA_WINDOW_PRESETS.map((minutes) => `<option value="${minutes}">Реакция ≤ ${minutes}м</option>`))
+    const optionsMarkup = ['<option value="">SLA: РІСЃРµ</option>']
+      .concat(DIALOG_SLA_WINDOW_PRESETS.map((minutes) => `<option value="${minutes}">Р РµР°РєС†РёСЏ в‰¤ ${minutes}Рј</option>`))
       .join('');
     slaWindowSelect.innerHTML = optionsMarkup;
     slaWindowSelect.value = Number.isFinite(filterState.slaWindowMinutes)
@@ -1122,19 +1122,19 @@
     const normalized = Array.isArray(categories)
       ? categories.map((item) => String(item || '').trim()).filter(Boolean)
       : [];
-    return normalized.length ? normalized.join(', ') : '—';
+    return normalized.length ? normalized.join(', ') : 'вЂ”';
   }
 
   function normalizeCategories(value) {
     if (Array.isArray(value)) {
-      return value.map((item) => String(item || '').trim()).filter((item) => item && item !== '—');
+      return value.map((item) => String(item || '').trim()).filter((item) => item && item !== 'вЂ”');
     }
     const normalized = String(value || '').trim();
-    if (!normalized || normalized === '—') return [];
+    if (!normalized || normalized === 'вЂ”') return [];
     return normalized
       .split(',')
       .map((item) => item.trim())
-      .filter((item) => item && item !== '—');
+      .filter((item) => item && item !== 'вЂ”');
   }
 
   function categoryBadgePalette(label) {
@@ -1153,7 +1153,7 @@
   function renderCategoryBadges(categories) {
     const list = normalizeCategories(categories);
     if (!list.length) {
-      return '<span class="text-muted">—</span>';
+      return '<span class="text-muted">вЂ”</span>';
     }
     const badges = list.map((category) => {
       const palette = categoryBadgePalette(category);
@@ -1169,7 +1169,7 @@
   function updateSummaryCategories(label) {
     if (detailsCategories) {
       detailsCategories.innerHTML = `
-        <span>Категории:</span>
+        <span>РљР°С‚РµРіРѕСЂРёРё:</span>
         ${renderCategoryBadges(label)}
       `;
     }
@@ -1180,7 +1180,7 @@
       }
     }
     if (activeDialogRow) {
-      const rowLabel = label || '—';
+      const rowLabel = label || 'вЂ”';
       activeDialogRow.dataset.categories = rowLabel;
       const categoriesIndex = table.querySelector('th[data-column-key="categories"]')?.cellIndex ?? -1;
       if (categoriesIndex >= 0 && activeDialogRow.children[categoriesIndex]) {
@@ -1200,7 +1200,7 @@
     });
     const data = await resp.json();
     if (!resp.ok || !data?.success) {
-      throw new Error(data?.error || `Ошибка ${resp.status}`);
+      throw new Error(data?.error || `РћС€РёР±РєР° ${resp.status}`);
     }
   }
 
@@ -1223,7 +1223,7 @@
           workspaceCategoriesError.classList.remove('d-none');
         }
         if (typeof showNotification === 'function') {
-          showNotification(error.message || 'Не удалось сохранить категории', 'error');
+          showNotification(error.message || 'РќРµ СѓРґР°Р»РѕСЃСЊ СЃРѕС…СЂР°РЅРёС‚СЊ РєР°С‚РµРіРѕСЂРёРё', 'error');
         }
       }
     }, 400);
@@ -1356,21 +1356,21 @@
       replyTargetText.textContent = '';
     }
     if (detailsReplyText) {
-      detailsReplyText.placeholder = 'Введите ответ...';
+      detailsReplyText.placeholder = 'Р’РІРµРґРёС‚Рµ РѕС‚РІРµС‚...';
     }
   }
 
   function setReplyTarget(messageId, preview) {
     activeReplyToTelegramId = messageId;
     if (detailsReplyText) {
-      detailsReplyText.placeholder = `Ответ на сообщение #${messageId}`;
+      detailsReplyText.placeholder = `РћС‚РІРµС‚ РЅР° СЃРѕРѕР±С‰РµРЅРёРµ #${messageId}`;
     }
     if (replyTarget) {
       replyTarget.classList.remove('d-none');
     }
     if (replyTargetText) {
       const safePreview = String(preview || '').trim();
-      replyTargetText.textContent = safePreview || `Сообщение #${messageId}`;
+      replyTargetText.textContent = safePreview || `РЎРѕРѕР±С‰РµРЅРёРµ #${messageId}`;
     }
   }
 
@@ -1384,7 +1384,7 @@
       workspaceReplyTargetText.textContent = '';
     }
     if (workspaceComposerText) {
-      workspaceComposerText.placeholder = 'Введите ответ клиенту…';
+      workspaceComposerText.placeholder = 'Р’РІРµРґРёС‚Рµ РѕС‚РІРµС‚ РєР»РёРµРЅС‚СѓвЂ¦';
     }
     if (hadActiveTarget && options.emitTelemetry !== false) {
       emitWorkspaceTelemetry('workspace_reply_target_cleared', {
@@ -1403,14 +1403,14 @@
     }
     activeWorkspaceReplyToTelegramId = normalizedMessageId;
     if (workspaceComposerText) {
-      workspaceComposerText.placeholder = `Ответ на сообщение #${normalizedMessageId}`;
+      workspaceComposerText.placeholder = `РћС‚РІРµС‚ РЅР° СЃРѕРѕР±С‰РµРЅРёРµ #${normalizedMessageId}`;
     }
     if (workspaceReplyTarget) {
       workspaceReplyTarget.classList.remove('d-none');
     }
     if (workspaceReplyTargetText) {
       const safePreview = String(preview || '').trim();
-      workspaceReplyTargetText.textContent = safePreview || `Сообщение #${normalizedMessageId}`;
+      workspaceReplyTargetText.textContent = safePreview || `РЎРѕРѕР±С‰РµРЅРёРµ #${normalizedMessageId}`;
     }
     emitWorkspaceTelemetry('workspace_reply_target_selected', {
       ticketId: activeWorkspaceTicketId,
@@ -1445,7 +1445,7 @@
     if (!src || !mediaPreviewModal || !mediaPreviewImage) return;
     resetMediaPreview();
     mediaPreviewImage.src = src;
-    mediaPreviewImage.alt = name || 'Изображение';
+    mediaPreviewImage.alt = name || 'РР·РѕР±СЂР°Р¶РµРЅРёРµ';
     mediaPreviewImage.classList.remove('d-none');
     if (mediaPreviewImageControls) {
       mediaPreviewImageControls.classList.remove('d-none');
@@ -1481,7 +1481,7 @@
 
   function avatarInitial(name) {
     const normalized = String(name || '').trim();
-    return normalized ? normalized.charAt(0).toUpperCase() : '—';
+    return normalized ? normalized.charAt(0).toUpperCase() : 'вЂ”';
   }
 
   function normalizeIdentity(value) {
@@ -1490,7 +1490,7 @@
 
   function isOwnedByCurrentOperator(responsible) {
     const owner = normalizeIdentity(responsible);
-    if (!owner || owner === '—' || owner === '-') return false;
+    if (!owner || owner === 'вЂ”' || owner === '-') return false;
     return owner === normalizeIdentity(OPERATOR_IDENTITY);
   }
 
@@ -1537,7 +1537,7 @@
     const numeric = Number(value);
     if (!Number.isFinite(numeric) || numeric <= 0) return '';
     const capped = Math.min(5, Math.max(1, Math.round(numeric)));
-    return '★'.repeat(capped);
+    return 'в…'.repeat(capped);
   }
 
   function formatDialogMeta(ticketId, requestNumber) {
@@ -1545,11 +1545,11 @@
     const normalizedRequest = requestNumber ? String(requestNumber) : '';
     if (normalizedRequest) {
       if (normalizedTicketId && normalizedRequest !== normalizedTicketId) {
-        return `№ обращения: ${normalizedRequest} · ID: ${normalizedTicketId}`;
+        return `в„– РѕР±СЂР°С‰РµРЅРёСЏ: ${normalizedRequest} В· ID: ${normalizedTicketId}`;
       }
-      return `№ обращения: ${normalizedRequest}`;
+      return `в„– РѕР±СЂР°С‰РµРЅРёСЏ: ${normalizedRequest}`;
     }
-    return normalizedTicketId ? `ID диалога: ${normalizedTicketId}` : '';
+    return normalizedTicketId ? `ID РґРёР°Р»РѕРіР°: ${normalizedTicketId}` : '';
   }
 
   function formatDurationMinutes(totalMinutes) {
@@ -1557,19 +1557,19 @@
     const hours = Math.floor(safeValue / 60);
     const minutes = safeValue % 60;
     if (hours > 0) {
-      return `${hours}ч ${minutes}м`;
+      return `${hours}С‡ ${minutes}Рј`;
     }
-    return `${minutes}м`;
+    return `${minutes}Рј`;
   }
 
   function computeSlaState(row) {
     if (!row || isResolved(row)) {
-      return { label: 'Закрыт', className: 'dialog-sla-closed', title: 'SLA не применяется к закрытому обращению' };
+      return { label: 'Р—Р°РєСЂС‹С‚', className: 'dialog-sla-closed', title: 'SLA РЅРµ РїСЂРёРјРµРЅСЏРµС‚СЃСЏ Рє Р·Р°РєСЂС‹С‚РѕРјСѓ РѕР±СЂР°С‰РµРЅРёСЋ' };
     }
     const createdAtRaw = String(row.dataset.createdAt || '').trim();
     const createdAt = parseUtcDateValue(createdAtRaw);
     if (!createdAtRaw || !createdAt) {
-      return { label: 'Нет даты', className: 'dialog-sla-closed', title: 'Не удалось определить время создания обращения' };
+      return { label: 'РќРµС‚ РґР°С‚С‹', className: 'dialog-sla-closed', title: 'РќРµ СѓРґР°Р»РѕСЃСЊ РѕРїСЂРµРґРµР»РёС‚СЊ РІСЂРµРјСЏ СЃРѕР·РґР°РЅРёСЏ РѕР±СЂР°С‰РµРЅРёСЏ' };
     }
     const ageMinutes = (Date.now() - createdAt.getTime()) / 60000;
     const minutesLeft = SLA_TARGET_MINUTES - ageMinutes;
@@ -1577,22 +1577,22 @@
     const deadlineLabel = formatUtcDate(deadline, { includeTime: true });
     if (minutesLeft <= 0) {
       return {
-        label: `Просрочен ${formatDurationMinutes(Math.abs(minutesLeft))}`,
+        label: `РџСЂРѕСЃСЂРѕС‡РµРЅ ${formatDurationMinutes(Math.abs(minutesLeft))}`,
         className: 'dialog-sla-overdue',
-        title: `SLA просрочен. Дедлайн: ${deadlineLabel}`,
+        title: `SLA РїСЂРѕСЃСЂРѕС‡РµРЅ. Р”РµРґР»Р°Р№РЅ: ${deadlineLabel}`,
       };
     }
     if (minutesLeft <= SLA_WARNING_MINUTES) {
       return {
-        label: `Риск ${formatDurationMinutes(minutesLeft)}`,
+        label: `Р РёСЃРє ${formatDurationMinutes(minutesLeft)}`,
         className: 'dialog-sla-risk',
-        title: `До дедлайна SLA: ${formatDurationMinutes(minutesLeft)} (дедлайн: ${deadlineLabel})`,
+        title: `Р”Рѕ РґРµРґР»Р°Р№РЅР° SLA: ${formatDurationMinutes(minutesLeft)} (РґРµРґР»Р°Р№РЅ: ${deadlineLabel})`,
       };
     }
     return {
-      label: `До SLA ${formatDurationMinutes(minutesLeft)}`,
+      label: `Р”Рѕ SLA ${formatDurationMinutes(minutesLeft)}`,
       className: 'dialog-sla-safe',
-      title: `До дедлайна SLA: ${formatDurationMinutes(minutesLeft)} (дедлайн: ${deadlineLabel})`,
+      title: `Р”Рѕ РґРµРґР»Р°Р№РЅР° SLA: ${formatDurationMinutes(minutesLeft)} (РґРµРґР»Р°Р№РЅ: ${deadlineLabel})`,
     };
   }
 
@@ -1605,15 +1605,15 @@
     const state = computeSlaState(row);
     const criticalPinned = isCriticalSlaDialog(row);
     const escalationRequired = isEscalationRequiredDialog(row);
-    const pinMarker = criticalPinned ? ' 📌' : '';
-    const escalationMarker = escalationRequired ? ' ⚠' : '';
+    const pinMarker = criticalPinned ? ' рџ“Њ' : '';
+    const escalationMarker = escalationRequired ? ' вљ ' : '';
     badge.className = `badge rounded-pill dialog-sla-badge ${state.className}`;
     badge.textContent = `${state.label}${pinMarker}${escalationMarker}`;
     const markers = [
-      criticalPinned ? 'Автопин: критичный SLA' : '',
-      escalationRequired ? 'Требуется эскалация' : '',
-    ].filter(Boolean).join(' · ');
-    badge.title = markers ? `${state.title || ''} · ${markers}` : (state.title || '');
+      criticalPinned ? 'РђРІС‚РѕРїРёРЅ: РєСЂРёС‚РёС‡РЅС‹Р№ SLA' : '',
+      escalationRequired ? 'РўСЂРµР±СѓРµС‚СЃСЏ СЌСЃРєР°Р»Р°С†РёСЏ' : '',
+    ].filter(Boolean).join(' В· ');
+    badge.title = markers ? `${state.title || ''} В· ${markers}` : (state.title || '');
   }
 
   function updateAllSlaBadges() {
@@ -1621,24 +1621,24 @@
   }
 
   function renderDialogRow(item) {
-    const ticketId = item?.ticketId || '—';
+    const ticketId = item?.ticketId || 'вЂ”';
     const requestNumber = item?.requestNumber;
     const displayNumber = requestNumber || ticketId;
-    const clientName = item?.clientName || item?.username || 'Неизвестный клиент';
-    const clientStatus = item?.clientStatus || 'статус не указан';
-    const channelLabel = item?.channelName || 'Без канала';
-    const businessLabel = item?.business || 'Без бизнеса';
-    const problemLabel = item?.problem || 'Проблема не указана';
-    const locationLabel = item?.location || [item?.city, item?.locationName].filter(Boolean).join(', ') || '—';
+    const clientName = item?.clientName || item?.username || 'РќРµРёР·РІРµСЃС‚РЅС‹Р№ РєР»РёРµРЅС‚';
+    const clientStatus = item?.clientStatus || 'СЃС‚Р°С‚СѓСЃ РЅРµ СѓРєР°Р·Р°РЅ';
+    const channelLabel = item?.channelName || 'Р‘РµР· РєР°РЅР°Р»Р°';
+    const businessLabel = item?.business || 'Р‘РµР· Р±РёР·РЅРµСЃР°';
+    const problemLabel = item?.problem || 'РџСЂРѕР±Р»РµРјР° РЅРµ СѓРєР°Р·Р°РЅР°';
+    const locationLabel = item?.location || [item?.city, item?.locationName].filter(Boolean).join(', ') || 'вЂ”';
     const statusRaw = item?.status || '';
-    const categories = item?.categoriesSafe || item?.categories || '—';
+    const categories = item?.categoriesSafe || item?.categories || 'вЂ”';
     const statusKey = item?.statusKey || '';
     const statusLabel = formatStatusLabel(statusRaw, item?.statusLabel || '', statusKey);
-    const responsible = item?.responsible || item?.resolvedBy || '—';
+    const responsible = item?.responsible || item?.resolvedBy || 'вЂ”';
     const canTakeOwnership = !isOwnedByCurrentOperator(responsible);
     const unreadCount = Number(item?.unreadCount) || 0;
-    const createdDate = item?.createdDateSafe || item?.createdDate || 'Дата не указана';
-    const createdTime = item?.createdTimeSafe || item?.createdTime || '—';
+    const createdDate = item?.createdDateSafe || item?.createdDate || 'Р”Р°С‚Р° РЅРµ СѓРєР°Р·Р°РЅР°';
+    const createdTime = item?.createdTimeSafe || item?.createdTime || 'вЂ”';
     const ratingValue = Number(item?.rating);
     const ratingStars = formatRatingStars(ratingValue);
 
@@ -1657,20 +1657,20 @@
           data-status-key="${escapeHtml(statusKey)}"
           data-location="${escapeHtml(locationLabel)}"
           data-categories="${escapeHtml(categories)}"
-          data-responsible="${escapeHtml(responsible === '—' ? '' : responsible)}"
+          data-responsible="${escapeHtml(responsible === 'вЂ”' ? '' : responsible)}"
           data-created-at="${escapeHtml(item?.createdAt || '')}"
           data-unread="${unreadCount}"
           data-rating="${Number.isFinite(ratingValue) ? ratingValue : ''}"
           data-last-message-timestamp="${escapeHtml(item?.lastMessageTimestamp || '')}">
         <td class="dialog-select-column">
-          <input class="form-check-input dialog-row-select" type="checkbox" data-ticket-id="${escapeHtml(ticketId)}" aria-label="Выбрать диалог">
+          <input class="form-check-input dialog-row-select" type="checkbox" data-ticket-id="${escapeHtml(ticketId)}" aria-label="Р’С‹Р±СЂР°С‚СЊ РґРёР°Р»РѕРі">
         </td>
         <td>${escapeHtml(displayNumber)}</td>
         <td>
           <div class="d-flex align-items-center gap-2">
             <div class="dialog-avatar" data-avatar-user-id="${escapeHtml(item?.userId || '')}"
                  data-avatar-name="${escapeHtml(clientName)}">
-              <img class="dialog-avatar-img d-none" alt="Аватар клиента" data-avatar-img>
+              <img class="dialog-avatar-img d-none" alt="РђРІР°С‚Р°СЂ РєР»РёРµРЅС‚Р°" data-avatar-img>
               <span class="avatar-circle" data-avatar-initial>${escapeHtml(avatarInitial(clientName))}</span>
             </div>
             <div>
@@ -1702,16 +1702,16 @@
           <div class="small">${escapeHtml(createdTime)}</div>
         </td>
         <td class="dialog-sla-cell">
-          <span class="badge rounded-pill dialog-sla-badge">—</span>
+          <span class="badge rounded-pill dialog-sla-badge">вЂ”</span>
         </td>
         <td class="dialog-actions">
-          <a href="#" class="btn btn-sm btn-outline-primary dialog-open-btn" data-ticket-id="${escapeHtml(ticketId)}">Открыть</a>
-          <button type="button" class="btn btn-sm btn-outline-success dialog-take-btn ${!canTakeOwnership || !canRunAction('can_assign') ? 'd-none' : ''}" data-ticket-id="${escapeHtml(ticketId)}">Взять себе</button>
+          <a href="#" class="btn btn-sm btn-outline-primary dialog-open-btn" data-ticket-id="${escapeHtml(ticketId)}">РћС‚РєСЂС‹С‚СЊ</a>
+          <button type="button" class="btn btn-sm btn-outline-success dialog-take-btn ${!canTakeOwnership || !canRunAction('can_assign') ? 'd-none' : ''}" data-ticket-id="${escapeHtml(ticketId)}">Р’Р·СЏС‚СЊ СЃРµР±Рµ</button>
           <button type="button" class="btn btn-sm btn-outline-warning dialog-snooze-btn ${isResolvedStatusKey(statusKey) || !canRunAction('can_snooze') ? 'd-none' : ''}" data-ticket-id="${escapeHtml(ticketId)}">${formatSnoozeActionLabel(QUICK_SNOOZE_MINUTES)}</button>
-          <button type="button" class="btn btn-sm btn-outline-danger dialog-close-btn ${isResolvedStatusKey(statusKey) || !canRunAction('can_close') ? 'd-none' : ''}" data-ticket-id="${escapeHtml(ticketId)}">Закрыть</button>
+          <button type="button" class="btn btn-sm btn-outline-danger dialog-close-btn ${isResolvedStatusKey(statusKey) || !canRunAction('can_close') ? 'd-none' : ''}" data-ticket-id="${escapeHtml(ticketId)}">Р—Р°РєСЂС‹С‚СЊ</button>
           <a href="/tasks" class="btn btn-sm btn-outline-secondary dialog-task-btn"
              data-ticket-id="${escapeHtml(ticketId)}"
-             data-client="${escapeHtml(clientName)}">Задача</a>
+             data-client="${escapeHtml(clientName)}">Р—Р°РґР°С‡Р°</a>
         </td>
       </tr>
     `;
@@ -1730,7 +1730,7 @@
     const responsibleIndex = table.querySelector('th[data-column-key="responsible"]')?.cellIndex ?? -1;
     const rowCells = row.children;
     if (responsibleIndex >= 0 && rowCells[responsibleIndex]) {
-      rowCells[responsibleIndex].textContent = value || '—';
+      rowCells[responsibleIndex].textContent = value || 'вЂ”';
     }
     const takeBtn = row.querySelector('.dialog-take-btn');
     if (takeBtn) {
@@ -1740,7 +1740,7 @@
 
   function parseRowCategories(row) {
     const categoriesValue = String(row?.dataset?.categories || '').trim();
-    if (!categoriesValue || categoriesValue === '—') {
+    if (!categoriesValue || categoriesValue === 'вЂ”') {
       return [];
     }
     return categoriesValue.split(',').map((item) => item.trim()).filter(Boolean);
@@ -1760,7 +1760,7 @@
       const ticketId = row.dataset.ticketId;
       const until = getSnoozeUntil(ticketId);
       snoozeBtn.textContent = until
-        ? `Отложен до ${formatUtcDate(new Date(until), { includeTime: true })}`
+        ? `РћС‚Р»РѕР¶РµРЅ РґРѕ ${formatUtcDate(new Date(until), { includeTime: true })}`
         : formatSnoozeActionLabel(QUICK_SNOOZE_MINUTES);
     }
   }
@@ -1769,7 +1769,7 @@
     if (!ticketId) return;
     const categories = parseRowCategories(row);
     if (!categories.length) {
-      throw new Error('Для быстрого закрытия укажите категорию в карточке диалога.');
+      throw new Error('Р”Р»СЏ Р±С‹СЃС‚СЂРѕРіРѕ Р·Р°РєСЂС‹С‚РёСЏ СѓРєР°Р¶РёС‚Рµ РєР°С‚РµРіРѕСЂРёСЋ РІ РєР°СЂС‚РѕС‡РєРµ РґРёР°Р»РѕРіР°.');
     }
     const btn = triggerButton || null;
     if (btn) btn.disabled = true;
@@ -1780,9 +1780,9 @@
     });
     const data = await resp.json();
     if (!resp.ok || !data?.success) {
-      throw new Error(data?.error || `Ошибка ${resp.status}`);
+      throw new Error(data?.error || `РћС€РёР±РєР° ${resp.status}`);
     }
-    updateRowStatus(row, 'resolved', 'Закрыт', 'closed', 0);
+    updateRowStatus(row, 'resolved', 'Р—Р°РєСЂС‹С‚', 'closed', 0);
     emitWorkspaceTelemetry('triage_quick_close', { ticketId });
     updateRowSlaBadge(row);
     updateRowQuickActions(row);
@@ -1800,18 +1800,18 @@
       });
       const data = await resp.json();
       if (!resp.ok || !data?.success) {
-        throw new Error(data?.error || `Ошибка ${resp.status}`);
+        throw new Error(data?.error || `РћС€РёР±РєР° ${resp.status}`);
       }
       updateRowResponsible(row, data.responsible || '');
       emitWorkspaceTelemetry('triage_quick_assign', { ticketId });
       applyFilters();
       if (typeof showNotification === 'function') {
-        showNotification('Диалог назначен на вас', 'success');
+        showNotification('Р”РёР°Р»РѕРі РЅР°Р·РЅР°С‡РµРЅ РЅР° РІР°СЃ', 'success');
       }
     } catch (error) {
       if (btn) btn.disabled = false;
       if (typeof showNotification === 'function') {
-        showNotification(error.message || 'Не удалось взять диалог', 'error');
+        showNotification(error.message || 'РќРµ СѓРґР°Р»РѕСЃСЊ РІР·СЏС‚СЊ РґРёР°Р»РѕРі', 'error');
       }
       throw error;
     }
@@ -1829,7 +1829,7 @@
       });
       const data = await resp.json();
       if (!resp.ok || !data?.success) {
-        throw new Error(data?.error || `Ошибка ${resp.status}`);
+        throw new Error(data?.error || `РћС€РёР±РєР° ${resp.status}`);
       }
       emitWorkspaceTelemetry('triage_quick_snooze', { ticketId, reason: `minutes:${minutes}` });
     } finally {
@@ -1875,7 +1875,7 @@
       });
       const data = await resp.json();
       if (!resp.ok || !data?.success) {
-        throw new Error(data?.error || `Ошибка ${resp.status}`);
+        throw new Error(data?.error || `РћС€РёР±РєР° ${resp.status}`);
       }
       const dialogs = data.dialogs || [];
       syncSlaOrchestrationSignals(data.sla_orchestration || null);
@@ -1908,7 +1908,7 @@
   }
 
   const emptyRow = document.createElement('tr');
-  emptyRow.innerHTML = '<td colspan="13" class="text-center text-muted py-4">Нет результатов</td>';
+  emptyRow.innerHTML = '<td colspan="13" class="text-center text-muted py-4">РќРµС‚ СЂРµР·СѓР»СЊС‚Р°С‚РѕРІ</td>';
   emptyRow.classList.add('d-none');
 
   function ensureEmptyRow() {
@@ -2028,12 +2028,12 @@
     const key = String(row.dataset.statusKey || '').toLowerCase();
     const raw = String(row.dataset.statusRaw || '').toLowerCase();
     const label = String(row.dataset.status || '').toLowerCase();
-    return key === 'new' || raw === 'new' || label === 'новый';
+    return key === 'new' || raw === 'new' || label === 'РЅРѕРІС‹Р№';
   }
 
   function isUnassignedDialog(row) {
     const responsible = String(row.dataset.responsible || '').trim().toLowerCase();
-    return !responsible || responsible === '—' || responsible === '-';
+    return !responsible || responsible === 'вЂ”' || responsible === '-';
   }
 
   function isOverdueDialog(row) {
@@ -2117,7 +2117,7 @@
     const raw = (row.dataset.statusRaw || '').toLowerCase();
     const label = (row.dataset.status || '').toLowerCase();
     const key = (row.dataset.statusKey || '').toLowerCase();
-    return raw === 'resolved' || raw === 'closed' || label.startsWith('закрыт') || key.includes('closed');
+    return raw === 'resolved' || raw === 'closed' || label.startsWith('Р·Р°РєСЂС‹С‚') || key.includes('closed');
   }
 
   function syncRowSelectionState(row) {
@@ -2154,7 +2154,7 @@
       bulkToolbar.classList.toggle('d-none', !canShowBulkToolbar);
     }
     if (bulkCount) {
-      bulkCount.textContent = `Выбрано: ${count}`;
+      bulkCount.textContent = `Р’С‹Р±СЂР°РЅРѕ: ${count}`;
     }
     if (bulkTakeBtn) bulkTakeBtn.disabled = !canShowBulkToolbar || !canRunAction('can_bulk') || !canRunAction('can_assign');
     if (bulkSnoozeBtn) bulkSnoozeBtn.disabled = !canShowBulkToolbar || !canRunAction('can_bulk') || !canRunAction('can_snooze');
@@ -2171,13 +2171,13 @@
 
   async function runBulkAction(action) {
     const permissionMap = {
-      take: ['can_bulk', 'can_assign', 'Назначить выбранные на меня'],
-      snooze: ['can_bulk', 'can_snooze', `Отложить выбранные на ${formatSnoozeActionLabel(QUICK_SNOOZE_MINUTES).replace('Отложить ', '')}`],
-      close: ['can_bulk', 'can_close', 'Закрыть выбранные'],
+      take: ['can_bulk', 'can_assign', 'РќР°Р·РЅР°С‡РёС‚СЊ РІС‹Р±СЂР°РЅРЅС‹Рµ РЅР° РјРµРЅСЏ'],
+      snooze: ['can_bulk', 'can_snooze', `РћС‚Р»РѕР¶РёС‚СЊ РІС‹Р±СЂР°РЅРЅС‹Рµ РЅР° ${formatSnoozeActionLabel(QUICK_SNOOZE_MINUTES).replace('РћС‚Р»РѕР¶РёС‚СЊ ', '')}`],
+      close: ['can_bulk', 'can_close', 'Р—Р°РєСЂС‹С‚СЊ РІС‹Р±СЂР°РЅРЅС‹Рµ'],
     };
     const [bulkPermission, actionPermission, actionTitle] = permissionMap[action] || [];
     if (!canRunAction(bulkPermission) || !canRunAction(actionPermission)) {
-      notifyPermissionDenied(actionTitle || 'Групповое действие');
+      notifyPermissionDenied(actionTitle || 'Р“СЂСѓРїРїРѕРІРѕРµ РґРµР№СЃС‚РІРёРµ');
       emitWorkspaceTelemetry('triage_bulk_action', {
         reason: `${action || 'unknown'}:permission_denied`,
       });
@@ -2199,7 +2199,7 @@
     const skippedRows = rows.filter((row) => !eligibleRows.includes(row));
     if (!eligibleRows.length) {
       if (typeof showNotification === 'function') {
-        showNotification('Нет диалогов, подходящих для выбранного группового действия.', 'warning');
+        showNotification('РќРµС‚ РґРёР°Р»РѕРіРѕРІ, РїРѕРґС…РѕРґСЏС‰РёС… РґР»СЏ РІС‹Р±СЂР°РЅРЅРѕРіРѕ РіСЂСѓРїРїРѕРІРѕРіРѕ РґРµР№СЃС‚РІРёСЏ.', 'warning');
       }
       emitWorkspaceTelemetry('triage_bulk_action', {
         reason: `${action || 'unknown'}:nothing_eligible:selected=${rows.length}`,
@@ -2207,7 +2207,7 @@
       return;
     }
     if (skippedRows.length && typeof showNotification === 'function') {
-      showNotification(`Пропущено ${skippedRows.length} диалог(ов): действие недоступно для текущего статуса/прав.`, 'warning');
+      showNotification(`РџСЂРѕРїСѓС‰РµРЅРѕ ${skippedRows.length} РґРёР°Р»РѕРі(РѕРІ): РґРµР№СЃС‚РІРёРµ РЅРµРґРѕСЃС‚СѓРїРЅРѕ РґР»СЏ С‚РµРєСѓС‰РµРіРѕ СЃС‚Р°С‚СѓСЃР°/РїСЂР°РІ.`, 'warning');
     }
     let processedCount = 0;
     const originalDisabled = [bulkTakeBtn, bulkSnoozeBtn, bulkCloseBtn, bulkClearBtn]
@@ -2242,23 +2242,23 @@
         }
         processedCount += 1;
       } catch (error) {
-        errors.push(`${ticketId}: ${error.message || 'ошибка'}`);
+        errors.push(`${ticketId}: ${error.message || 'РѕС€РёР±РєР°'}`);
       }
     }
 
     applyFilters();
     if (errors.length) {
       if (typeof showNotification === 'function') {
-        showNotification(`Часть операций не выполнена (${errors.length}).`, 'error');
+        showNotification(`Р§Р°СЃС‚СЊ РѕРїРµСЂР°С†РёР№ РЅРµ РІС‹РїРѕР»РЅРµРЅР° (${errors.length}).`, 'error');
       }
       console.warn('Bulk action errors', action, errors);
     } else if (typeof showNotification === 'function') {
       const successMap = {
-        take: 'Выбранные диалоги назначены на вас',
+        take: 'Р’С‹Р±СЂР°РЅРЅС‹Рµ РґРёР°Р»РѕРіРё РЅР°Р·РЅР°С‡РµРЅС‹ РЅР° РІР°СЃ',
         snooze: formatBulkSnoozeLabel(QUICK_SNOOZE_MINUTES),
-        close: 'Выбранные диалоги закрыты',
+        close: 'Р’С‹Р±СЂР°РЅРЅС‹Рµ РґРёР°Р»РѕРіРё Р·Р°РєСЂС‹С‚С‹',
       };
-      showNotification(successMap[action] || 'Групповое действие выполнено', 'success');
+      showNotification(successMap[action] || 'Р“СЂСѓРїРїРѕРІРѕРµ РґРµР№СЃС‚РІРёРµ РІС‹РїРѕР»РЅРµРЅРѕ', 'success');
     }
     emitWorkspaceTelemetry('triage_bulk_action', {
       reason: `${action || 'unknown'}:${errors.length ? 'partial_failure' : 'success'}:processed=${processedCount}:errors=${errors.length}:skipped=${skippedRows.length}`,
@@ -2512,13 +2512,13 @@
 
   function renderExperimentKpiItems(container, items) {
     if (!container) return;
-    const safeItems = Array.isArray(items) && items.length ? items : ['—'];
+    const safeItems = Array.isArray(items) && items.length ? items : ['вЂ”'];
     container.innerHTML = safeItems.map((item) => `<li>${escapeHtml(String(item))}</li>`).join('');
   }
 
   function renderExperimentInfoPanel() {
     if (experimentInfoMeta) {
-      experimentInfoMeta.textContent = `Эксперимент: ${WORKSPACE_AB_TEST_CONFIG.experimentName} · Когорта: ${workspaceExperimentContext.cohort} · Сегмент: ${workspaceExperimentContext.operatorSegment}`;
+      experimentInfoMeta.textContent = `Р­РєСЃРїРµСЂРёРјРµРЅС‚: ${WORKSPACE_AB_TEST_CONFIG.experimentName} В· РљРѕРіРѕСЂС‚Р°: ${workspaceExperimentContext.cohort} В· РЎРµРіРјРµРЅС‚: ${workspaceExperimentContext.operatorSegment}`;
     }
     renderExperimentKpiItems(experimentPrimaryKpis, WORKSPACE_AB_TEST_CONFIG.primaryKpis);
     renderExperimentKpiItems(experimentSecondaryKpis, WORKSPACE_AB_TEST_CONFIG.secondaryKpis);
@@ -2533,16 +2533,16 @@
 
   function formatDeltaPercent(value) {
     const safe = Number(value);
-    if (!Number.isFinite(safe)) return '0.00 п.п.';
+    if (!Number.isFinite(safe)) return '0.00 Рї.Рї.';
     const sign = safe > 0 ? '+' : '';
-    return `${sign}${(safe * 100).toFixed(2)} п.п.`;
+    return `${sign}${(safe * 100).toFixed(2)} Рї.Рї.`;
   }
 
   function formatDeltaMs(value) {
     const safe = Number(value);
-    if (!Number.isFinite(safe)) return '—';
+    if (!Number.isFinite(safe)) return 'вЂ”';
     const sign = safe > 0 ? '+' : '';
-    return `${sign}${Math.round(safe)}мс`;
+    return `${sign}${Math.round(safe)}РјСЃ`;
   }
 
   function renderExperimentTelemetryGuardrails(guardrails) {
@@ -2565,11 +2565,11 @@
     const summary = `SLO: render_error ${formatGuardrailPercent(rates.render_error)} / fallback ${formatGuardrailPercent(rates.fallback)} / abandon ${formatGuardrailPercent(rates.abandon)} / slow_open ${formatGuardrailPercent(rates.slow_open)}.`;
     if (status === 'attention') {
       experimentTelemetryGuardrailState.classList.add('alert-warning');
-      experimentTelemetryGuardrailState.textContent = `Найдены отклонения guardrails. ${summary}`;
+      experimentTelemetryGuardrailState.textContent = `РќР°Р№РґРµРЅС‹ РѕС‚РєР»РѕРЅРµРЅРёСЏ guardrails. ${summary}`;
       if (alerts.length) {
         experimentTelemetryGuardrailAlerts.classList.remove('d-none');
         experimentTelemetryGuardrailAlerts.innerHTML = alerts.map((alert) => {
-          const message = String(alert?.message || 'Отклонение метрики');
+          const message = String(alert?.message || 'РћС‚РєР»РѕРЅРµРЅРёРµ РјРµС‚СЂРёРєРё');
           const value = formatGuardrailPercent(alert?.value);
           const threshold = formatGuardrailPercent(alert?.threshold);
           const scope = String(alert?.scope || '').trim();
@@ -2578,22 +2578,22 @@
           const previousValue = Number(alert?.previous_value);
           const delta = Number(alert?.delta);
           const scopeMeta = scope && segment
-            ? ` · срез: ${scope}=${segment}${events > 0 ? ` · событий: ${events}` : ''}`
+            ? ` В· СЃСЂРµР·: ${scope}=${segment}${events > 0 ? ` В· СЃРѕР±С‹С‚РёР№: ${events}` : ''}`
             : '';
           const previousMeta = Number.isFinite(previousValue)
-            ? ` · предыдущее окно: ${escapeHtml(formatGuardrailPercent(previousValue))}`
+            ? ` В· РїСЂРµРґС‹РґСѓС‰РµРµ РѕРєРЅРѕ: ${escapeHtml(formatGuardrailPercent(previousValue))}`
             : '';
           const deltaMeta = Number.isFinite(delta)
-            ? ` · Δ: ${escapeHtml(formatDeltaPercent(delta))}`
+            ? ` В· О”: ${escapeHtml(formatDeltaPercent(delta))}`
             : '';
-          return `<li>${escapeHtml(message)} (факт: ${escapeHtml(value)} · порог: ${escapeHtml(threshold)}${previousMeta}${deltaMeta}${escapeHtml(scopeMeta)})</li>`;
+          return `<li>${escapeHtml(message)} (С„Р°РєС‚: ${escapeHtml(value)} В· РїРѕСЂРѕРі: ${escapeHtml(threshold)}${previousMeta}${deltaMeta}${escapeHtml(scopeMeta)})</li>`;
         }).join('');
       }
       return;
     }
 
     experimentTelemetryGuardrailState.classList.add('alert-success');
-    experimentTelemetryGuardrailState.textContent = `Guardrails в норме. ${summary}`;
+    experimentTelemetryGuardrailState.textContent = `Guardrails РІ РЅРѕСЂРјРµ. ${summary}`;
   }
 
   function formatRolloutDecisionAction(action) {
@@ -2605,13 +2605,13 @@
 
   function formatKpiOutcomeDelta(metricName, value) {
     const safe = Number(value);
-    if (!Number.isFinite(safe)) return '—';
+    if (!Number.isFinite(safe)) return 'вЂ”';
     const isPercentMetric = String(metricName || '').toLowerCase() === 'sla_breach';
     if (isPercentMetric) {
       return formatDeltaPercent(safe);
     }
     const sign = safe > 0 ? '+' : '';
-    return `${sign}${Math.round(safe)}мс`;
+    return `${sign}${Math.round(safe)}РјСЃ`;
   }
 
 
@@ -2624,16 +2624,16 @@
       experimentRolloutPacketChecklist.classList.add('d-none');
       experimentRolloutPacketChecklist.innerHTML = '';
       experimentRolloutPacketWrap.classList.add('d-none');
-      experimentRolloutPacketRows.innerHTML = '<tr><td colspan="6" class="small text-muted">Governance packet появится после первых telemetry-сигналов.</td></tr>';
+      experimentRolloutPacketRows.innerHTML = '<tr><td colspan="6" class="small text-muted">Governance packet РїРѕСЏРІРёС‚СЃСЏ РїРѕСЃР»Рµ РїРµСЂРІС‹С… telemetry-СЃРёРіРЅР°Р»РѕРІ.</td></tr>';
       return;
     }
 
     const status = String(safePacket?.status || 'attention').trim().toLowerCase();
     const required = Boolean(safePacket?.required);
     const packetReady = Boolean(safePacket?.packet_ready);
-    const summary = String(safePacket?.summary || '').trim() || 'Governance packet загружен.';
+    const summary = String(safePacket?.summary || '').trim() || 'Governance packet Р·Р°РіСЂСѓР¶РµРЅ.';
     const decisionAction = String(safePacket?.decision_action || 'hold').trim().toUpperCase();
-    const generatedAt = formatTimestamp(safePacket?.generated_at, { includeTime: true, fallback: '—' });
+    const generatedAt = formatTimestamp(safePacket?.generated_at, { includeTime: true, fallback: 'вЂ”' });
     const blockingCount = Math.max(0, Number(safePacket?.blocking_count || 0));
     const attentionCount = Math.max(0, Number(safePacket?.attention_count || 0));
     const invalidUtcItems = Array.isArray(safePacket?.invalid_utc_items) ? safePacket.invalid_utc_items : [];
@@ -2657,14 +2657,14 @@
     } else {
       experimentRolloutPacketState.classList.add('alert-warning');
     }
-    experimentRolloutPacketState.textContent = `Governance packet: ${status.toUpperCase()} · decision ${decisionAction} · blocking ${blockingCount} · attention ${attentionCount} · generated ${generatedAt}. ${summary}`;
+    experimentRolloutPacketState.textContent = `Governance packet: ${status.toUpperCase()} В· decision ${decisionAction} В· blocking ${blockingCount} В· attention ${attentionCount} В· generated ${generatedAt}. ${summary}`;
     experimentRolloutPacketState.classList.remove('d-none');
 
     const checks = [
-      { ok: packetReady, label: required ? 'Полный governance packet собран' : 'Governance packet не блокирует rollout' },
-      { ok: missingItems.length === 0, label: missingItems.length ? `Пропущенные элементы: ${missingItems.join(', ')}` : 'Нет пропущенных элементов пакета' },
-      { ok: invalidUtcItems.length === 0, label: invalidUtcItems.length ? `UTC-ошибки: ${invalidUtcItems.join(', ')}` : 'UTC-метки governance валидны' },
-      { ok: legacyOnlyScenarios.length === 0, label: legacyOnlyScenarios.length ? `Legacy-only inventory открыт: ${legacyOnlyScenarios.join(', ')}` : 'Legacy-only inventory пуст' },
+      { ok: packetReady, label: required ? 'РџРѕР»РЅС‹Р№ governance packet СЃРѕР±СЂР°РЅ' : 'Governance packet РЅРµ Р±Р»РѕРєРёСЂСѓРµС‚ rollout' },
+      { ok: missingItems.length === 0, label: missingItems.length ? `РџСЂРѕРїСѓС‰РµРЅРЅС‹Рµ СЌР»РµРјРµРЅС‚С‹: ${missingItems.join(', ')}` : 'РќРµС‚ РїСЂРѕРїСѓС‰РµРЅРЅС‹С… СЌР»РµРјРµРЅС‚РѕРІ РїР°РєРµС‚Р°' },
+      { ok: invalidUtcItems.length === 0, label: invalidUtcItems.length ? `UTC-РѕС€РёР±РєРё: ${invalidUtcItems.join(', ')}` : 'UTC-РјРµС‚РєРё governance РІР°Р»РёРґРЅС‹' },
+      { ok: legacyOnlyScenarios.length === 0, label: legacyOnlyScenarios.length ? `Legacy-only inventory РѕС‚РєСЂС‹С‚: ${legacyOnlyScenarios.join(', ')}` : 'Legacy-only inventory РїСѓСЃС‚' },
     ];
     if (legacyOnlyScenarios.length) {
       const legacyActionItems = Array.isArray(legacyInventory?.action_items) ? legacyInventory.action_items : [];
@@ -2674,7 +2674,7 @@
       checks.push({
         ok: overdue === 0,
         label: overdue > 0
-          ? `Sunset commitments overdue: ${overdue}${legacyActionItems.length ? ` · ${legacyActionItems[0]}` : ''}`
+          ? `Sunset commitments overdue: ${overdue}${legacyActionItems.length ? ` В· ${legacyActionItems[0]}` : ''}`
           : `Owner/deadline coverage ${Number(legacyInventory?.owner_coverage_pct || 0)}% / ${Number(legacyInventory?.deadline_coverage_pct || 0)}%`
       });
       if (reviewQueueScenarios.length) {
@@ -2682,7 +2682,7 @@
           ok: legacyInventory?.review_queue_followup_required !== true,
           label: legacyInventory?.review_queue_summary
             ? String(legacyInventory.review_queue_summary)
-            : `Повторно остаются в legacy review-queue: ${reviewQueueScenarios.slice(0, 3).join(', ')}${reviewQueueScenarios.length > 3 ? ` +${reviewQueueScenarios.length - 3}` : ''}`
+            : `РџРѕРІС‚РѕСЂРЅРѕ РѕСЃС‚Р°СЋС‚СЃСЏ РІ legacy review-queue: ${reviewQueueScenarios.slice(0, 3).join(', ')}${reviewQueueScenarios.length > 3 ? ` +${reviewQueueScenarios.length - 3}` : ''}`
         });
       }
       if (legacyInventory?.review_queue_escalation_required === true) {
@@ -2696,7 +2696,7 @@
         const consolidationCandidates = Array.isArray(legacyInventory?.review_queue_consolidation_candidates) ? legacyInventory.review_queue_consolidation_candidates : [];
         checks.push({
           ok: false,
-          label: `Legacy queue consolidation: ${consolidationCandidates.length ? consolidationCandidates.join(', ') : `${Number(legacyInventory?.review_queue_consolidation_count || 0)} сценария(ев)`}`
+          label: `Legacy queue consolidation: ${consolidationCandidates.length ? consolidationCandidates.join(', ') : `${Number(legacyInventory?.review_queue_consolidation_count || 0)} СЃС†РµРЅР°СЂРёСЏ(РµРІ)`}`
         });
       }
       if (overdueScenarios.length) {
@@ -2708,7 +2708,7 @@
       if (legacyInventory?.repeat_review_required === true) {
         checks.push({
           ok: false,
-          label: `Повторный legacy review обязателен (${String(legacyInventory?.repeat_review_reason || 'review_due')})${legacyInventory?.repeat_review_due_at_utc ? ` · due ${formatTimestamp(legacyInventory.repeat_review_due_at_utc, { includeTime: true, fallback: '—' })}` : ''}`
+          label: `РџРѕРІС‚РѕСЂРЅС‹Р№ legacy review РѕР±СЏР·Р°С‚РµР»РµРЅ (${String(legacyInventory?.repeat_review_reason || 'review_due')})${legacyInventory?.repeat_review_due_at_utc ? ` В· due ${formatTimestamp(legacyInventory.repeat_review_due_at_utc, { includeTime: true, fallback: 'вЂ”' })}` : ''}`
         });
       }
     }
@@ -2720,26 +2720,26 @@
       checks.push({
         ok: contextContract?.ready === true,
         label: contextContract?.ready === true
-          ? `Context contract ready${focusBlocks.length ? ` · operator first: ${focusBlocks.join(', ')}` : ''}`
-          : (nextStepSummary || operatorSummary || contextActionItems[0] || 'Context contract требует action-oriented follow-up')
+          ? `Context contract ready${focusBlocks.length ? ` В· operator first: ${focusBlocks.join(', ')}` : ''}`
+          : (nextStepSummary || operatorSummary || contextActionItems[0] || 'Context contract С‚СЂРµР±СѓРµС‚ action-oriented follow-up')
       });
       if (contextContract?.extra_attributes_compaction_candidate === true) {
         checks.push({
           ok: contextContract?.secondary_noise_management_review_required !== true,
-          label: String(contextContract?.secondary_noise_compaction_summary || contextContract?.extra_attributes_summary || 'Extra attributes требуют compaction review.')
+          label: String(contextContract?.secondary_noise_compaction_summary || contextContract?.extra_attributes_summary || 'Extra attributes С‚СЂРµР±СѓСЋС‚ compaction review.')
         });
       }
     }
     if (nextReviewAt) {
-      checks.push({ ok: true, label: `Следующий review due UTC: ${nextReviewAt}` });
+      checks.push({ ok: true, label: `РЎР»РµРґСѓСЋС‰РёР№ review due UTC: ${nextReviewAt}` });
     }
     experimentRolloutPacketChecklist.classList.remove('d-none');
-    experimentRolloutPacketChecklist.innerHTML = checks.map((item) => (`<li>${item.ok ? '✅' : '⚠️'} ${escapeHtml(item.label)}</li>`)).join('');
+    experimentRolloutPacketChecklist.innerHTML = checks.map((item) => (`<li>${item.ok ? 'вњ…' : 'вљ пёЏ'} ${escapeHtml(item.label)}</li>`)).join('');
 
     const items = Array.isArray(safePacket?.items) ? safePacket.items : [];
     if (!items.length) {
       experimentRolloutPacketWrap.classList.add('d-none');
-      experimentRolloutPacketRows.innerHTML = '<tr><td colspan="6" class="small text-muted">Governance packet появится после первых telemetry-сигналов.</td></tr>';
+      experimentRolloutPacketRows.innerHTML = '<tr><td colspan="6" class="small text-muted">Governance packet РїРѕСЏРІРёС‚СЃСЏ РїРѕСЃР»Рµ РїРµСЂРІС‹С… telemetry-СЃРёРіРЅР°Р»РѕРІ.</td></tr>';
       return;
     }
 
@@ -2757,13 +2757,13 @@
       return `
         <tr>
           <td>
-            <div>${escapeHtml(String(item?.label || '—'))}</div>
+            <div>${escapeHtml(String(item?.label || 'вЂ”'))}</div>
             ${note ? `<div class="small text-muted">${escapeHtml(note)}</div>` : ''}
           </td>
-          <td>${escapeHtml(String(item?.category || '—'))}</td>
-          <td>${escapeHtml(String(item?.current_value || '—'))}</td>
-          <td>${escapeHtml(String(item?.threshold || '—'))}</td>
-          <td>${escapeHtml(formatTimestamp(item?.measured_at, { includeTime: true, fallback: '—' }))}</td>
+          <td>${escapeHtml(String(item?.category || 'вЂ”'))}</td>
+          <td>${escapeHtml(String(item?.current_value || 'вЂ”'))}</td>
+          <td>${escapeHtml(String(item?.threshold || 'вЂ”'))}</td>
+          <td>${escapeHtml(formatTimestamp(item?.measured_at, { includeTime: true, fallback: 'вЂ”' }))}</td>
           <td class="text-end">${badge}</td>
         </tr>
       `;
@@ -2788,7 +2788,7 @@
     });
     if (!rows.length) {
       experimentGapBreakdownWrap.classList.add('d-none');
-      experimentGapBreakdownRows.innerHTML = '<tr><td colspan="5" class="small text-muted">Gap breakdown появится после первых parity/context-gap событий.</td></tr>';
+      experimentGapBreakdownRows.innerHTML = '<tr><td colspan="5" class="small text-muted">Gap breakdown РїРѕСЏРІРёС‚СЃСЏ РїРѕСЃР»Рµ РїРµСЂРІС‹С… parity/context-gap СЃРѕР±С‹С‚РёР№.</td></tr>';
       return;
     }
     experimentGapBreakdownWrap.classList.remove('d-none');
@@ -2798,7 +2798,7 @@
         <td>${escapeHtml(String(item?.reason || 'unspecified'))}</td>
         <td class="text-end">${escapeHtml(String(Number(item?.events || 0)))}</td>
         <td class="text-end">${escapeHtml(String(Number(item?.tickets || 0)))}</td>
-        <td>${escapeHtml(formatTimestamp(item?.last_seen_at, { includeTime: true, fallback: '—' }))}</td>
+        <td>${escapeHtml(formatTimestamp(item?.last_seen_at, { includeTime: true, fallback: 'вЂ”' }))}</td>
       </tr>
     `).join('');
   }
@@ -2808,7 +2808,7 @@
     const items = Array.isArray(scorecard?.items) ? scorecard.items : [];
     if (!items.length) {
       experimentRolloutScorecardWrap.classList.add('d-none');
-      experimentRolloutScorecardRows.innerHTML = '<tr><td colspan="6" class="small text-muted">Rollout scorecard появится после первых telemetry-сигналов.</td></tr>';
+      experimentRolloutScorecardRows.innerHTML = '<tr><td colspan="6" class="small text-muted">Rollout scorecard РїРѕСЏРІРёС‚СЃСЏ РїРѕСЃР»Рµ РїРµСЂРІС‹С… telemetry-СЃРёРіРЅР°Р»РѕРІ.</td></tr>';
       return;
     }
 
@@ -2826,13 +2826,13 @@
       return `
         <tr>
           <td>
-            <div>${escapeHtml(String(item?.label || '—'))}</div>
+            <div>${escapeHtml(String(item?.label || 'вЂ”'))}</div>
             ${note ? `<div class="small text-muted">${escapeHtml(note)}</div>` : ''}
           </td>
-          <td>${escapeHtml(String(item?.category || '—'))}</td>
-          <td>${escapeHtml(String(item?.current_value || '—'))}</td>
-          <td>${escapeHtml(String(item?.threshold || '—'))}</td>
-          <td>${escapeHtml(formatTimestamp(item?.measured_at, { includeTime: true, fallback: '—' }))}</td>
+          <td>${escapeHtml(String(item?.category || 'вЂ”'))}</td>
+          <td>${escapeHtml(String(item?.current_value || 'вЂ”'))}</td>
+          <td>${escapeHtml(String(item?.threshold || 'вЂ”'))}</td>
+          <td>${escapeHtml(formatTimestamp(item?.measured_at, { includeTime: true, fallback: 'вЂ”' }))}</td>
           <td class="text-end">${badge}</td>
         </tr>
       `;
@@ -2849,13 +2849,13 @@
       experimentRolloutDecisionChecklist.classList.add('d-none');
       experimentRolloutDecisionChecklist.innerHTML = '';
       experimentRolloutKpiOutcomesWrap.classList.add('d-none');
-      experimentRolloutKpiOutcomeRows.innerHTML = '<tr><td colspan="5" class="small text-muted">Данные появятся после первых KPI-сигналов.</td></tr>';
+      experimentRolloutKpiOutcomeRows.innerHTML = '<tr><td colspan="5" class="small text-muted">Р”Р°РЅРЅС‹Рµ РїРѕСЏРІСЏС‚СЃСЏ РїРѕСЃР»Рµ РїРµСЂРІС‹С… KPI-СЃРёРіРЅР°Р»РѕРІ.</td></tr>';
       return;
     }
 
     const action = formatRolloutDecisionAction(safeDecision?.action);
     const winner = String(safeDecision?.winner || 'insufficient_data');
-    const rationale = String(safeDecision?.rationale || 'Решение будет доступно после накопления данных.');
+    const rationale = String(safeDecision?.rationale || 'Р РµС€РµРЅРёРµ Р±СѓРґРµС‚ РґРѕСЃС‚СѓРїРЅРѕ РїРѕСЃР»Рµ РЅР°РєРѕРїР»РµРЅРёСЏ РґР°РЅРЅС‹С….');
 
     experimentRolloutDecisionState.classList.remove('d-none', 'alert-success', 'alert-warning', 'alert-danger');
     if (action === 'scale_up') {
@@ -2865,22 +2865,22 @@
     } else {
       experimentRolloutDecisionState.classList.add('alert-warning');
     }
-    experimentRolloutDecisionState.textContent = `Rollout decision: ${action.toUpperCase()} · winner: ${winner}. ${rationale}`;
+    experimentRolloutDecisionState.textContent = `Rollout decision: ${action.toUpperCase()} В· winner: ${winner}. ${rationale}`;
 
     const checks = [
-      { ok: Boolean(safeDecision?.sample_size_ok), label: 'Достаточная выборка control/test' },
-      { ok: Boolean(safeDecision?.kpi_signal_ready), label: 'Покрытие KPI-сигналов (FRT/TTR/SLA breach)' },
-      { ok: Boolean(safeDecision?.kpi_outcome_ready), label: 'Готовность KPI-результатов к сравнению' },
-      { ok: !Boolean(safeDecision?.kpi_outcome_regressions), label: 'Нет деградации product KPI в test cohort' },
+      { ok: Boolean(safeDecision?.sample_size_ok), label: 'Р”РѕСЃС‚Р°С‚РѕС‡РЅР°СЏ РІС‹Р±РѕСЂРєР° control/test' },
+      { ok: Boolean(safeDecision?.kpi_signal_ready), label: 'РџРѕРєСЂС‹С‚РёРµ KPI-СЃРёРіРЅР°Р»РѕРІ (FRT/TTR/SLA breach)' },
+      { ok: Boolean(safeDecision?.kpi_outcome_ready), label: 'Р“РѕС‚РѕРІРЅРѕСЃС‚СЊ KPI-СЂРµР·СѓР»СЊС‚Р°С‚РѕРІ Рє СЃСЂР°РІРЅРµРЅРёСЋ' },
+      { ok: !Boolean(safeDecision?.kpi_outcome_regressions), label: 'РќРµС‚ РґРµРіСЂР°РґР°С†РёРё product KPI РІ test cohort' },
     ];
     experimentRolloutDecisionChecklist.classList.remove('d-none');
-    experimentRolloutDecisionChecklist.innerHTML = checks.map((item) => (`<li>${item.ok ? '✅' : '⚠️'} ${escapeHtml(item.label)}</li>`)).join('');
+    experimentRolloutDecisionChecklist.innerHTML = checks.map((item) => (`<li>${item.ok ? 'вњ…' : 'вљ пёЏ'} ${escapeHtml(item.label)}</li>`)).join('');
 
     const outcomeMetrics = safeComparison?.kpi_outcome_signal?.metrics;
     const metricEntries = outcomeMetrics && typeof outcomeMetrics === 'object' ? Object.entries(outcomeMetrics) : [];
     if (!metricEntries.length) {
       experimentRolloutKpiOutcomesWrap.classList.add('d-none');
-      experimentRolloutKpiOutcomeRows.innerHTML = '<tr><td colspan="5" class="small text-muted">Данные появятся после первых KPI-сигналов.</td></tr>';
+      experimentRolloutKpiOutcomeRows.innerHTML = '<tr><td colspan="5" class="small text-muted">Р”Р°РЅРЅС‹Рµ РїРѕСЏРІСЏС‚СЃСЏ РїРѕСЃР»Рµ РїРµСЂРІС‹С… KPI-СЃРёРіРЅР°Р»РѕРІ.</td></tr>';
       return;
     }
     experimentRolloutKpiOutcomesWrap.classList.remove('d-none');
@@ -2897,11 +2897,11 @@
       const controlValue = Number(metric?.control_value);
       const testValue = Number(metric?.test_value);
       const controlDisplay = Number.isFinite(controlValue)
-        ? (String(metricName).toLowerCase() === 'sla_breach' ? formatGuardrailPercent(controlValue) : `${Math.round(controlValue)}мс`)
-        : '—';
+        ? (String(metricName).toLowerCase() === 'sla_breach' ? formatGuardrailPercent(controlValue) : `${Math.round(controlValue)}РјСЃ`)
+        : 'вЂ”';
       const testDisplay = Number.isFinite(testValue)
-        ? (String(metricName).toLowerCase() === 'sla_breach' ? formatGuardrailPercent(testValue) : `${Math.round(testValue)}мс`)
-        : '—';
+        ? (String(metricName).toLowerCase() === 'sla_breach' ? formatGuardrailPercent(testValue) : `${Math.round(testValue)}РјСЃ`)
+        : 'вЂ”';
       return `
         <tr>
           <td>${escapeHtml(String(metricName))}</td>
@@ -2918,11 +2918,11 @@
     if (!experimentTelemetrySummaryRows) return;
     const safeRows = Array.isArray(rows) ? rows : [];
     if (!safeRows.length) {
-      experimentTelemetrySummaryRows.innerHTML = '<tr><td colspan="6" class="small text-muted">Недостаточно telemetry-данных для расчёта.</td></tr>';
+      experimentTelemetrySummaryRows.innerHTML = '<tr><td colspan="6" class="small text-muted">РќРµРґРѕСЃС‚Р°С‚РѕС‡РЅРѕ telemetry-РґР°РЅРЅС‹С… РґР»СЏ СЂР°СЃС‡С‘С‚Р°.</td></tr>';
       return;
     }
     experimentTelemetrySummaryRows.innerHTML = safeRows.map((row) => {
-      const avgOpenMs = Number.isFinite(Number(row?.avg_open_ms)) ? Math.round(Number(row.avg_open_ms)) : '—';
+      const avgOpenMs = Number.isFinite(Number(row?.avg_open_ms)) ? Math.round(Number(row.avg_open_ms)) : 'вЂ”';
       return `
         <tr>
           <td>${escapeHtml(String(row?.experiment_cohort || 'unknown'))}</td>
@@ -2940,7 +2940,7 @@
     if (!container) return;
     const safeRows = Array.isArray(rows) ? rows : [];
     if (!safeRows.length) {
-      container.innerHTML = '<tr><td colspan="4" class="small text-muted">Недостаточно telemetry-данных для расчёта.</td></tr>';
+      container.innerHTML = '<tr><td colspan="4" class="small text-muted">РќРµРґРѕСЃС‚Р°С‚РѕС‡РЅРѕ telemetry-РґР°РЅРЅС‹С… РґР»СЏ СЂР°СЃС‡С‘С‚Р°.</td></tr>';
       return;
     }
     container.innerHTML = safeRows.map((row) => {
@@ -2978,7 +2978,7 @@
   async function loadExperimentTelemetrySummary() {
     if (!experimentTelemetrySummaryRows) return;
     if (experimentTelemetrySummaryState) {
-      experimentTelemetrySummaryState.textContent = 'Загрузка агрегатов telemetry…';
+      experimentTelemetrySummaryState.textContent = 'Р—Р°РіСЂСѓР·РєР° Р°РіСЂРµРіР°С‚РѕРІ telemetryвЂ¦';
     }
     try {
       const response = await fetch(`/api/dialogs/workspace-telemetry/summary?days=7&experiment_name=${encodeURIComponent(WORKSPACE_AB_TEST_CONFIG.experimentName)}`);
@@ -3014,10 +3014,10 @@
           ? payload.weekly_review_focus
           : {};
         const weeklyFocusSections = Array.isArray(weeklyReviewFocus?.sections) ? weeklyReviewFocus.sections : [];
-        const avgCurrent = Number.isFinite(Number(totals.avg_open_ms)) ? `${Math.round(Number(totals.avg_open_ms))}мс` : '—';
-        const avgPrevious = Number.isFinite(Number(previousTotals.avg_open_ms)) ? `${Math.round(Number(previousTotals.avg_open_ms))}мс` : '—';
+        const avgCurrent = Number.isFinite(Number(totals.avg_open_ms)) ? `${Math.round(Number(totals.avg_open_ms))}РјСЃ` : 'вЂ”';
+        const avgPrevious = Number.isFinite(Number(previousTotals.avg_open_ms)) ? `${Math.round(Number(previousTotals.avg_open_ms))}РјСЃ` : 'вЂ”';
         const generatedAt = formatWorkspaceDateTime(payload?.generated_at);
-        experimentTelemetrySummaryState.textContent = `Событий: ${Number(totals.events || 0)} (пред. окно: ${Number(previousTotals.events || 0)}) · Fallback: ${Number(totals.fallbacks || 0)} · Manual legacy: ${Number(totals.manual_legacy_open_events || 0)} · Legacy blocked: ${Number(totals.workspace_open_legacy_blocked_events || 0)} · Inline nav: ${Number(totals.workspace_inline_navigation_events || 0)} · Rollout packet views: ${Number(totals.workspace_rollout_packet_viewed_events || 0)} · Secondary context opens: ${Number(totals.context_secondary_details_expanded_events || 0)} (${Number(totals.context_secondary_details_open_rate_pct || 0)}%, ${String(totals.context_secondary_details_usage_level || 'rare')}${totals.context_secondary_details_top_section ? `, top ${String(totals.context_secondary_details_top_section)}` : ''})${Number(totals.context_extra_attributes_expanded_events || 0) > 0 ? ` · Extra attrs: ${Number(totals.context_extra_attributes_expanded_events || 0)} (${Number(totals.context_extra_attributes_open_rate_pct || 0)}%, ${String(totals.context_extra_attributes_usage_level || 'rare')}${totals.context_extra_attributes_compaction_candidate === true ? `, compact, share ${Number(totals.context_extra_attributes_share_pct_of_secondary || 0)}%` : ''})` : ''} · P1 control: ${String(p1Control?.status || 'controlled')}${p1Control?.context_noise_trend_status ? ` (${String(p1Control.context_noise_trend_status)})` : ''}${p1Control?.next_action_summary ? ` · next ${String(p1Control.next_action_summary)}` : ''} · P2 control: ${String(p2Control?.status || 'controlled')}${p2Control?.sla_churn_trend_status ? ` (${String(p2Control.sla_churn_trend_status)})` : ''}${p2Control?.governance_closure_health ? ` · closure ${String(p2Control.governance_closure_health)}` : ''}${p2Control?.macro_noise_health ? ` · macro-noise ${String(p2Control.macro_noise_health)}` : ''}${p2Control?.next_action_summary ? ` · next ${String(p2Control.next_action_summary)}` : ''} · Source policy gaps: ${Number(totals.context_attribute_policy_gap_events || 0)} · Context contract gaps: ${Number(totals.context_contract_gap_events || 0)} · SLA policy gaps: ${Number(totals.workspace_sla_policy_gap_events || 0)} · SLA churn: ${Number(totals.workspace_sla_policy_churn_ratio_pct || 0)}% (${String(totals.workspace_sla_policy_churn_level || 'controlled')}) · SLA path: ${String(slaReviewPathControl?.status || 'controlled')}${slaReviewPathControl?.decision_lead_time_status ? ` (${String(slaReviewPathControl.decision_lead_time_status)})` : ''}${slaReviewPathControl?.minimum_required_review_path_summary ? ` · ${String(slaReviewPathControl.minimum_required_review_path_summary)}` : ''}${slaReviewPathControl?.cheap_review_path_confirmed === true ? ' · cheap path confirmed' : ''}${slaReviewPathControl?.next_action_summary ? ` · next ${String(slaReviewPathControl.next_action_summary)}` : ''}${slaAudit?.cheap_review_path_confirmed === true ? ' · SLA cheap path confirmed' : ''}${slaAudit?.decision_lead_time_status ? ` · SLA lead ${String(slaAudit.decision_lead_time_status)}` : ''} · Macro policy updates: ${Number(totals.workspace_macro_policy_update_events || 0)}${p2Control?.macro_low_signal_backlog_dominant === true ? ` · macro low-signal ${Number(p2Control.macro_low_signal_advisory_share_pct || 0)}%` : ''} · Weekly focus: ${weeklyFocusSections.length ? weeklyFocusSections.map((item) => String(item?.key || '')).filter(Boolean).join(', ') : 'none'}${weeklyReviewFocus?.top_priority_key ? ` (top ${String(weeklyReviewFocus.top_priority_key)})` : ''}${weeklyReviewFocus?.focus_health ? `, health ${String(weeklyReviewFocus.focus_health)}` : ''}${weeklyReviewFocus?.priority_mix_summary ? ` · ${String(weeklyReviewFocus.priority_mix_summary)}` : ''}${weeklyReviewFocus?.next_action_summary ? ` · next: ${String(weeklyReviewFocus.next_action_summary)}` : ''}${weeklyReviewFocus?.requires_management_review === true ? ' · management review suggested' : ''} · Parity gaps: ${Number(totals.workspace_parity_gap_events || 0)} · Render error: ${Number(totals.render_errors || 0)} · Avg open: ${avgCurrent} (было ${avgPrevious}, Δ ${formatDeltaMs(comparison.avg_open_ms_delta)}) · Обновлено: ${generatedAt}.`;
+        experimentTelemetrySummaryState.textContent = `РЎРѕР±С‹С‚РёР№: ${Number(totals.events || 0)} (РїСЂРµРґ. РѕРєРЅРѕ: ${Number(previousTotals.events || 0)}) В· Fallback: ${Number(totals.fallbacks || 0)} В· Manual legacy: ${Number(totals.manual_legacy_open_events || 0)} В· Legacy blocked: ${Number(totals.workspace_open_legacy_blocked_events || 0)} В· Inline nav: ${Number(totals.workspace_inline_navigation_events || 0)} В· Rollout packet views: ${Number(totals.workspace_rollout_packet_viewed_events || 0)} В· Secondary context opens: ${Number(totals.context_secondary_details_expanded_events || 0)} (${Number(totals.context_secondary_details_open_rate_pct || 0)}%, ${String(totals.context_secondary_details_usage_level || 'rare')}${totals.context_secondary_details_top_section ? `, top ${String(totals.context_secondary_details_top_section)}` : ''})${Number(totals.context_extra_attributes_expanded_events || 0) > 0 ? ` В· Extra attrs: ${Number(totals.context_extra_attributes_expanded_events || 0)} (${Number(totals.context_extra_attributes_open_rate_pct || 0)}%, ${String(totals.context_extra_attributes_usage_level || 'rare')}${totals.context_extra_attributes_compaction_candidate === true ? `, compact, share ${Number(totals.context_extra_attributes_share_pct_of_secondary || 0)}%` : ''})` : ''} В· P1 control: ${String(p1Control?.status || 'controlled')}${p1Control?.context_noise_trend_status ? ` (${String(p1Control.context_noise_trend_status)})` : ''}${p1Control?.next_action_summary ? ` В· next ${String(p1Control.next_action_summary)}` : ''} В· P2 control: ${String(p2Control?.status || 'controlled')}${p2Control?.sla_churn_trend_status ? ` (${String(p2Control.sla_churn_trend_status)})` : ''}${p2Control?.governance_closure_health ? ` В· closure ${String(p2Control.governance_closure_health)}` : ''}${p2Control?.macro_noise_health ? ` В· macro-noise ${String(p2Control.macro_noise_health)}` : ''}${p2Control?.next_action_summary ? ` В· next ${String(p2Control.next_action_summary)}` : ''} В· Source policy gaps: ${Number(totals.context_attribute_policy_gap_events || 0)} В· Context contract gaps: ${Number(totals.context_contract_gap_events || 0)} В· SLA policy gaps: ${Number(totals.workspace_sla_policy_gap_events || 0)} В· SLA churn: ${Number(totals.workspace_sla_policy_churn_ratio_pct || 0)}% (${String(totals.workspace_sla_policy_churn_level || 'controlled')}) В· SLA path: ${String(slaReviewPathControl?.status || 'controlled')}${slaReviewPathControl?.decision_lead_time_status ? ` (${String(slaReviewPathControl.decision_lead_time_status)})` : ''}${slaReviewPathControl?.minimum_required_review_path_summary ? ` В· ${String(slaReviewPathControl.minimum_required_review_path_summary)}` : ''}${slaReviewPathControl?.cheap_review_path_confirmed === true ? ' В· cheap path confirmed' : ''}${slaReviewPathControl?.next_action_summary ? ` В· next ${String(slaReviewPathControl.next_action_summary)}` : ''}${slaAudit?.cheap_review_path_confirmed === true ? ' В· SLA cheap path confirmed' : ''}${slaAudit?.decision_lead_time_status ? ` В· SLA lead ${String(slaAudit.decision_lead_time_status)}` : ''} В· Macro policy updates: ${Number(totals.workspace_macro_policy_update_events || 0)}${p2Control?.macro_low_signal_backlog_dominant === true ? ` В· macro low-signal ${Number(p2Control.macro_low_signal_advisory_share_pct || 0)}%` : ''} В· Weekly focus: ${weeklyFocusSections.length ? weeklyFocusSections.map((item) => String(item?.key || '')).filter(Boolean).join(', ') : 'none'}${weeklyReviewFocus?.top_priority_key ? ` (top ${String(weeklyReviewFocus.top_priority_key)})` : ''}${weeklyReviewFocus?.focus_health ? `, health ${String(weeklyReviewFocus.focus_health)}` : ''}${weeklyReviewFocus?.priority_mix_summary ? ` В· ${String(weeklyReviewFocus.priority_mix_summary)}` : ''}${weeklyReviewFocus?.next_action_summary ? ` В· next: ${String(weeklyReviewFocus.next_action_summary)}` : ''}${weeklyReviewFocus?.requires_management_review === true ? ' В· management review suggested' : ''} В· Parity gaps: ${Number(totals.workspace_parity_gap_events || 0)} В· Render error: ${Number(totals.render_errors || 0)} В· Avg open: ${avgCurrent} (Р±С‹Р»Рѕ ${avgPrevious}, О” ${formatDeltaMs(comparison.avg_open_ms_delta)}) В· РћР±РЅРѕРІР»РµРЅРѕ: ${generatedAt}.`;
       }
     } catch (_error) {
       renderExperimentTelemetrySummaryRows([]);
@@ -3029,19 +3029,19 @@
       renderExperimentRolloutDecision(null, null);
       renderExperimentGapBreakdown(null);
       if (experimentTelemetrySummaryState) {
-        experimentTelemetrySummaryState.textContent = 'Не удалось загрузить telemetry-агрегаты. Проверьте API /api/dialogs/workspace-telemetry/summary.';
+        experimentTelemetrySummaryState.textContent = 'РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ telemetry-Р°РіСЂРµРіР°С‚С‹. РџСЂРѕРІРµСЂСЊС‚Рµ API /api/dialogs/workspace-telemetry/summary.';
       }
     }
   }
 
   function formatWorkspaceDateTime(value) {
-    return formatTimestamp(value, { includeTime: true, fallback: '—' });
+    return formatTimestamp(value, { includeTime: true, fallback: 'вЂ”' });
   }
 
   function renderWorkspaceSimpleList(items, formatter) {
     const list = Array.isArray(items) ? items : [];
     if (list.length === 0) {
-      return '<div class="small text-muted">Пока нет данных.</div>';
+      return '<div class="small text-muted">РџРѕРєР° РЅРµС‚ РґР°РЅРЅС‹С….</div>';
     }
     return `<ul class="list-unstyled small mb-0">${list.map((item) => `<li class="mb-2">${formatter(item)}</li>`).join('')}</ul>`;
   }
@@ -3069,7 +3069,7 @@
 
   function confirmWorkspaceTicketSwitch(nextTicketId) {
     if (!hasUnsavedWorkspaceComposerChanges(nextTicketId)) return true;
-    const accepted = window.confirm('Есть несохранённые изменения в черновике. Сохранить текущий черновик перед переключением диалога?');
+    const accepted = window.confirm('Р•СЃС‚СЊ РЅРµСЃРѕС…СЂР°РЅС‘РЅРЅС‹Рµ РёР·РјРµРЅРµРЅРёСЏ РІ С‡РµСЂРЅРѕРІРёРєРµ. РЎРѕС…СЂР°РЅРёС‚СЊ С‚РµРєСѓС‰РёР№ С‡РµСЂРЅРѕРІРёРє РїРµСЂРµРґ РїРµСЂРµРєР»СЋС‡РµРЅРёРµРј РґРёР°Р»РѕРіР°?');
     if (accepted) {
       saveWorkspaceDraft(workspaceComposerTicketId, workspaceComposerText?.value || '', { reason: 'manual' });
     }
@@ -3078,7 +3078,7 @@
 
   function updateWorkspaceDraftState(text) {
     if (!workspaceComposerDraftState) return;
-    workspaceComposerDraftState.textContent = text || 'Черновик не сохранён';
+    workspaceComposerDraftState.textContent = text || 'Р§РµСЂРЅРѕРІРёРє РЅРµ СЃРѕС…СЂР°РЅС‘РЅ';
   }
 
   function saveWorkspaceDraft(ticketId, message, options = {}) {
@@ -3088,12 +3088,12 @@
     try {
       if (!value) {
         localStorage.removeItem(storageKey);
-        updateWorkspaceDraftState('Черновик очищен');
+        updateWorkspaceDraftState('Р§РµСЂРЅРѕРІРёРє РѕС‡РёС‰РµРЅ');
       } else {
         localStorage.setItem(storageKey, value);
         workspaceDraftLastSavedValue = value;
         if (!options.silent) {
-          updateWorkspaceDraftState(`Черновик сохранён · ${new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`);
+          updateWorkspaceDraftState(`Р§РµСЂРЅРѕРІРёРє СЃРѕС…СЂР°РЅС‘РЅ В· ${new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`);
         }
         const now = Date.now();
         const shouldSendDraftTelemetry = options.reason === 'manual'
@@ -3108,7 +3108,7 @@
         }
       }
     } catch (_error) {
-      updateWorkspaceDraftState('Не удалось сохранить черновик');
+      updateWorkspaceDraftState('РќРµ СѓРґР°Р»РѕСЃСЊ СЃРѕС…СЂР°РЅРёС‚СЊ С‡РµСЂРЅРѕРІРёРє');
     }
   }
 
@@ -3120,18 +3120,18 @@
       workspaceComposerText.value = stored || '';
       workspaceDraftLastSavedValue = workspaceComposerText.value.trim();
       if (stored) {
-        updateWorkspaceDraftState('Черновик восстановлен');
+        updateWorkspaceDraftState('Р§РµСЂРЅРѕРІРёРє РІРѕСЃСЃС‚Р°РЅРѕРІР»РµРЅ');
         emitWorkspaceTelemetry('workspace_draft_restored', {
           ticketId,
           length: stored.length,
         });
       } else {
-        updateWorkspaceDraftState('Черновик не сохранён');
+        updateWorkspaceDraftState('Р§РµСЂРЅРѕРІРёРє РЅРµ СЃРѕС…СЂР°РЅС‘РЅ');
       }
     } catch (_error) {
       workspaceComposerText.value = '';
       workspaceDraftLastSavedValue = '';
-      updateWorkspaceDraftState('Не удалось загрузить черновик');
+      updateWorkspaceDraftState('РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ С‡РµСЂРЅРѕРІРёРє');
     }
   }
 
@@ -3169,14 +3169,14 @@
     if (namespace) parts.push(`namespace=${namespace}`);
     if (owner) parts.push(`owner=${owner}`);
     if (reviewedAt) parts.push(`review UTC ${reviewedAt.replace('T', ' ').replace('Z', ' UTC')}`);
-    return parts.join(' · ');
+    return parts.join(' В· ');
   }
 
   function renderWorkspaceMacroPreview(template) {
     activeWorkspaceMacroTemplate = template || null;
     if (!workspaceComposerMacroPreview) return;
     const text = resolveMacroText(template);
-    workspaceComposerMacroPreview.textContent = text || 'Выберите макрос для предпросмотра.';
+    workspaceComposerMacroPreview.textContent = text || 'Р’С‹Р±РµСЂРёС‚Рµ РјР°РєСЂРѕСЃ РґР»СЏ РїСЂРµРґРїСЂРѕСЃРјРѕС‚СЂР°.';
     if (workspaceComposerMacroMeta) {
       workspaceComposerMacroMeta.textContent = buildMacroGovernanceMeta(template);
     }
@@ -3194,7 +3194,7 @@
       option.value = template?.id
         ? `id:${template.id}`
         : `idx:${Number.isFinite(Number(template?.__macroIndex)) ? Number(template.__macroIndex) : index}`;
-      option.textContent = template?.name || `Макрос ${index + 1}`;
+      option.textContent = template?.name || `РњР°РєСЂРѕСЃ ${index + 1}`;
       workspaceComposerMacroSelect.appendChild(option);
     });
     const selected = nextTemplates.length > 0
@@ -3248,8 +3248,8 @@
       workflowActions: appliedSteps.length ? appliedSteps.join('|') : null,
     });
     if (typeof showNotification === 'function' && (message || appliedSteps.length)) {
-      const workflowSuffix = appliedSteps.length ? `; действия: ${appliedSteps.join(', ')}` : '';
-      showNotification(`Макрос workspace применён${workflowSuffix}.`, 'success');
+      const workflowSuffix = appliedSteps.length ? `; РґРµР№СЃС‚РІРёСЏ: ${appliedSteps.join(', ')}` : '';
+      showNotification(`РњР°РєСЂРѕСЃ workspace РїСЂРёРјРµРЅС‘РЅ${workflowSuffix}.`, 'success');
     }
   }
 
@@ -3262,7 +3262,7 @@
     const replyPreview = workspaceReplyTargetText ? workspaceReplyTargetText.textContent.trim() : '';
     if (!message) return;
     if (workspaceReadonlyMode || workspaceComposerText.disabled) {
-      notifyPermissionDenied('Отправка ответа');
+      notifyPermissionDenied('РћС‚РїСЂР°РІРєР° РѕС‚РІРµС‚Р°');
       return;
     }
     workspaceComposerSend.disabled = true;
@@ -3275,29 +3275,29 @@
       });
       const data = await resp.json();
       if (!resp.ok || !data?.success) {
-        throw new Error(data?.error || `Ошибка ${resp.status}`);
+        throw new Error(data?.error || `РћС€РёР±РєР° ${resp.status}`);
       }
       workspaceComposerText.value = '';
       saveWorkspaceDraft(workspaceComposerTicketId, '');
       resetWorkspaceReplyTarget({ reason: 'message_sent' });
       appendWorkspaceMessage({
-        senderName: data.responsible || 'Оператор',
+        senderName: data.responsible || 'РћРїРµСЂР°С‚РѕСЂ',
         messageText: message,
         sentAt: data.timestamp || new Date().toISOString(),
         telegramMessageId: data.telegramMessageId || null,
         replyPreview,
       });
       if (activeDialogRow) {
-        updateRowStatus(activeDialogRow, activeDialogRow.dataset.statusRaw || '', 'ожидает ответа клиента', 'waiting_client', 0);
+        updateRowStatus(activeDialogRow, activeDialogRow.dataset.statusRaw || '', 'РѕР¶РёРґР°РµС‚ РѕС‚РІРµС‚Р° РєР»РёРµРЅС‚Р°', 'waiting_client', 0);
         updateRowResponsible(activeDialogRow, data.responsible || activeDialogRow.dataset.responsible || '');
         applyFilters();
       }
       if (typeof showNotification === 'function') {
-        showNotification('Сообщение отправлено', 'success');
+        showNotification('РЎРѕРѕР±С‰РµРЅРёРµ РѕС‚РїСЂР°РІР»РµРЅРѕ', 'success');
       }
     } catch (error) {
       if (typeof showNotification === 'function') {
-        showNotification(error.message || 'Не удалось отправить сообщение', 'error');
+        showNotification(error.message || 'РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‚РїСЂР°РІРёС‚СЊ СЃРѕРѕР±С‰РµРЅРёРµ', 'error');
       }
     } finally {
       workspaceComposerSend.disabled = false;
@@ -3310,7 +3310,7 @@
     const canLoadMore = Boolean(activeWorkspaceTicketId) && workspaceMessagesHasMore;
     workspaceMessagesLoadMoreWrap.classList.toggle('d-none', !canLoadMore);
     workspaceMessagesLoadMore.disabled = workspaceMessagesLoadingMore || !canLoadMore;
-    workspaceMessagesLoadMore.textContent = workspaceMessagesLoadingMore ? 'Загрузка…' : 'Загрузить ещё';
+    workspaceMessagesLoadMore.textContent = workspaceMessagesLoadingMore ? 'Р—Р°РіСЂСѓР·РєР°вЂ¦' : 'Р—Р°РіСЂСѓР·РёС‚СЊ РµС‰С‘';
   }
 
 
@@ -3324,16 +3324,16 @@
 
   function formatWorkspaceSlaRemaining(minutesLeft) {
     const value = Number(minutesLeft);
-    if (!Number.isFinite(value)) return '—';
-    if (value === 0) return '0м';
+    if (!Number.isFinite(value)) return 'вЂ”';
+    if (value === 0) return '0Рј';
     const absValue = Math.abs(Math.round(value));
     const hours = Math.floor(absValue / 60);
     const minutes = absValue % 60;
-    const suffix = value < 0 ? 'назад' : 'осталось';
+    const suffix = value < 0 ? 'РЅР°Р·Р°Рґ' : 'РѕСЃС‚Р°Р»РѕСЃСЊ';
     if (hours > 0) {
-      return `${hours}ч ${minutes}м ${suffix}`;
+      return `${hours}С‡ ${minutes}Рј ${suffix}`;
     }
-    return `${minutes}м ${suffix}`;
+    return `${minutes}Рј ${suffix}`;
   }
 
   function mergeWorkspacePayload(basePayload, partialPayload, include) {
@@ -3377,7 +3377,7 @@
   async function reloadWorkspaceSection(include, options = {}) {
     if (!WORKSPACE_V1_ENABLED || !activeWorkspaceTicketId) return;
     const channelId = activeWorkspaceChannelId;
-    setWorkspaceSectionLoading(options.stateElement, options.errorElement, options.statusText || 'Повторная загрузка...');
+    setWorkspaceSectionLoading(options.stateElement, options.errorElement, options.statusText || 'РџРѕРІС‚РѕСЂРЅР°СЏ Р·Р°РіСЂСѓР·РєР°...');
     try {
       const partialPayload = await preloadWorkspaceContract(activeWorkspaceTicketId, channelId, { include });
       activeWorkspacePayload = mergeWorkspacePayload(activeWorkspacePayload, partialPayload, include);
@@ -3385,7 +3385,7 @@
     } catch (_error) {
       if (options.errorElement) options.errorElement.classList.remove('d-none');
       if (typeof showNotification === 'function') {
-        showNotification(options.failMessage || 'Не удалось обновить секцию workspace.', 'warning');
+        showNotification(options.failMessage || 'РќРµ СѓРґР°Р»РѕСЃСЊ РѕР±РЅРѕРІРёС‚СЊ СЃРµРєС†РёСЋ workspace.', 'warning');
       }
     }
   }
@@ -3411,11 +3411,11 @@
       workspaceMessagesHasMore = messages.has_more === true;
       if (workspaceMessagesState && !workspaceMessagesHasMore) {
         workspaceMessagesState.classList.remove('d-none');
-        workspaceMessagesState.textContent = 'Показаны все сообщения по диалогу.';
+        workspaceMessagesState.textContent = 'РџРѕРєР°Р·Р°РЅС‹ РІСЃРµ СЃРѕРѕР±С‰РµРЅРёСЏ РїРѕ РґРёР°Р»РѕРіСѓ.';
       }
     } catch (_error) {
       if (typeof showNotification === 'function') {
-        showNotification('Не удалось догрузить сообщения workspace.', 'warning');
+        showNotification('РќРµ СѓРґР°Р»РѕСЃСЊ РґРѕРіСЂСѓР·РёС‚СЊ СЃРѕРѕР±С‰РµРЅРёСЏ workspace.', 'warning');
       }
     } finally {
       workspaceMessagesLoadingMore = false;
@@ -3432,15 +3432,15 @@
     const ordered = Array.from(new Set([...templateCategories, ...Array.from(selectedCategories)]));
     if (ordered.length === 0) {
       workspaceCategoriesState.classList.remove('d-none');
-      workspaceCategoriesState.textContent = 'Категории не настроены.';
+      workspaceCategoriesState.textContent = 'РљР°С‚РµРіРѕСЂРёРё РЅРµ РЅР°СЃС‚СЂРѕРµРЅС‹.';
       workspaceCategoriesList.classList.add('d-none');
       workspaceCategoriesList.innerHTML = '';
       return;
     }
     workspaceCategoriesState.classList.remove('d-none');
     workspaceCategoriesState.textContent = selectedCategories.size > 0
-      ? `Выбрано: ${selectedCategories.size}. Изменения сохраняются автоматически.`
-      : 'Выберите хотя бы одну категорию для закрытия диалога.';
+      ? `Р’С‹Р±СЂР°РЅРѕ: ${selectedCategories.size}. РР·РјРµРЅРµРЅРёСЏ СЃРѕС…СЂР°РЅСЏСЋС‚СЃСЏ Р°РІС‚РѕРјР°С‚РёС‡РµСЃРєРё.`
+      : 'Р’С‹Р±РµСЂРёС‚Рµ С…РѕС‚СЏ Р±С‹ РѕРґРЅСѓ РєР°С‚РµРіРѕСЂРёСЋ РґР»СЏ Р·Р°РєСЂС‹С‚РёСЏ РґРёР°Р»РѕРіР°.';
     workspaceCategoriesList.classList.remove('d-none');
     workspaceCategoriesList.innerHTML = ordered.map((category) => {
       const selected = selectedCategories.has(category);
@@ -3684,7 +3684,7 @@
   function buildWorkspaceNavigationStateText(navigation) {
     const safeNavigation = navigation && typeof navigation === 'object' ? navigation : null;
     if (!safeNavigation) {
-      return 'Очередь не определена';
+      return 'РћС‡РµСЂРµРґСЊ РЅРµ РѕРїСЂРµРґРµР»РµРЅР°';
     }
     if (typeof safeNavigation.summary === 'string' && safeNavigation.summary.trim()) {
       return safeNavigation.summary.trim();
@@ -3692,11 +3692,11 @@
     const position = Number(safeNavigation.position || 0);
     const total = Number(safeNavigation.total || 0);
     if (position > 0 && total > 0) {
-      return `Позиция ${position} из ${total}.`;
+      return `РџРѕР·РёС†РёСЏ ${position} РёР· ${total}.`;
     }
     return safeNavigation.enabled === false
-      ? 'Inline navigation отключена.'
-      : 'Текущий диалог открыт вне активной очереди.';
+      ? 'Inline navigation РѕС‚РєР»СЋС‡РµРЅР°.'
+      : 'РўРµРєСѓС‰РёР№ РґРёР°Р»РѕРі РѕС‚РєСЂС‹С‚ РІРЅРµ Р°РєС‚РёРІРЅРѕР№ РѕС‡РµСЂРµРґРё.';
   }
 
   function getWorkspaceNavigationTarget(direction, navigation) {
@@ -3722,14 +3722,14 @@
     if (workspaceNavPrevBtn) {
       workspaceNavPrevBtn.disabled = !navigationEnabled || !previous;
       workspaceNavPrevBtn.title = previous
-        ? `${previous.ticketId}${previous.clientName ? ` · ${previous.clientName}` : ''}${previous.status ? ` · ${previous.status}` : ''}`
-        : 'Предыдущий диалог недоступен';
+        ? `${previous.ticketId}${previous.clientName ? ` В· ${previous.clientName}` : ''}${previous.status ? ` В· ${previous.status}` : ''}`
+        : 'РџСЂРµРґС‹РґСѓС‰РёР№ РґРёР°Р»РѕРі РЅРµРґРѕСЃС‚СѓРїРµРЅ';
     }
     if (workspaceNavNextBtn) {
       workspaceNavNextBtn.disabled = !navigationEnabled || !next;
       workspaceNavNextBtn.title = next
-        ? `${next.ticketId}${next.clientName ? ` · ${next.clientName}` : ''}${next.status ? ` · ${next.status}` : ''}`
-        : 'Следующий диалог недоступен';
+        ? `${next.ticketId}${next.clientName ? ` В· ${next.clientName}` : ''}${next.status ? ` В· ${next.status}` : ''}`
+        : 'РЎР»РµРґСѓСЋС‰РёР№ РґРёР°Р»РѕРі РЅРµРґРѕСЃС‚СѓРїРµРЅ';
     }
     if (workspaceNavState) {
       workspaceNavState.textContent = buildWorkspaceNavigationStateText(navigation);
@@ -3784,12 +3784,12 @@
     const normalizedTicketId = String(ticketId || '').trim();
     if (!workspaceAiSuggestionsSection || !workspaceAiSuggestionsState || !workspaceAiSuggestionsList) return;
     if (!normalizedTicketId) {
-      workspaceAiSuggestionsState.textContent = 'Откройте диалог для подсказок.';
+      workspaceAiSuggestionsState.textContent = 'Open a dialog to load AI suggestions.';
       workspaceAiSuggestionsList.classList.add('d-none');
       workspaceAiSuggestionsList.innerHTML = '';
       return;
     }
-    workspaceAiSuggestionsState.textContent = 'Загружаем подсказки…';
+    workspaceAiSuggestionsState.textContent = 'Loading AI suggestions...';
     workspaceAiSuggestionsList.classList.add('d-none');
     workspaceAiSuggestionsList.innerHTML = '';
     try {
@@ -3804,51 +3804,130 @@
       const items = Array.isArray(payload.items) ? payload.items : [];
       if (!items.length) {
         workspaceAiSuggestionsState.textContent = payload.processing
-          ? 'Агент в автоматической обработке, но подсказки пока не готовы.'
-          : 'Подсказок пока нет, ответьте вручную или обновите позже.';
+          ? 'AI is processing this dialog, suggestions are not ready yet.'
+          : 'No suggestions yet. Reply manually or refresh later.';
         return;
       }
       workspaceAiSuggestionsState.textContent = payload.processing
-        ? 'Диалог в автоматической обработке. Подсказки ниже:'
-        : 'Подсказки готовы:';
+        ? 'Dialog is in automatic processing mode. Suggestions:'
+        : 'Suggestions ready:';
       workspaceAiSuggestionsList.innerHTML = items.map((item, index) => {
         const scoreLabel = String(item?.score_label || item?.score || '').trim();
         const source = String(item?.source || '').trim();
-        const title = escapeHtml(String(item?.title || `Подсказка ${index + 1}`));
+        const title = escapeHtml(String(item?.title || `Suggestion ${index + 1}`));
         const snippet = escapeHtml(String(item?.snippet || ''));
         const reply = escapeHtml(String(item?.reply || item?.snippet || ''));
+        const explain = escapeHtml(String(item?.explain || '').trim());
+        const sourceBadge = `${escapeHtml(source || 'source')}${scoreLabel ? ` · ${escapeHtml(scoreLabel)}` : ''}`;
+        const rawSource = escapeHtml(String(item?.source || '').trim());
+        const rawTitle = escapeHtml(String(item?.title || '').trim());
+        const rawSnippet = escapeHtml(String(item?.snippet || '').trim());
         return `
           <article class="border rounded p-2">
             <div class="d-flex justify-content-between align-items-start gap-2">
               <div class="fw-semibold">${title}</div>
-              <span class="badge text-bg-light border">${escapeHtml(source || 'source')}${scoreLabel ? ` · ${escapeHtml(scoreLabel)}` : ''}</span>
+              <span class="badge text-bg-light border">${sourceBadge}</span>
             </div>
             ${snippet ? `<div class="small text-muted mt-1">${snippet}</div>` : ''}
+            ${explain ? `<div class="small mt-1"><strong>Why selected:</strong> ${explain}</div>` : ''}
             <div class="mt-2">
-              <button type="button" class="btn btn-sm btn-outline-primary" data-ai-suggestion-apply="${index}" data-ai-suggestion-reply="${reply}">Вставить в ответ</button>
+              <div class="btn-group btn-group-sm" role="group">
+                <button type="button" class="btn btn-outline-primary" data-ai-suggestion-apply="${index}" data-ai-suggestion-reply="${reply}">Insert as-is</button>
+                <button type="button" class="btn btn-outline-secondary" data-ai-suggestion-apply-edit="${index}" data-ai-suggestion-reply="${reply}">Insert and edit</button>
+                <button type="button" class="btn btn-outline-danger" data-ai-suggestion-reject="${index}" data-ai-suggestion-source="${rawSource}" data-ai-suggestion-title="${rawTitle}" data-ai-suggestion-snippet="${rawSnippet}" data-ai-suggestion-reply="${reply}">Reject</button>
+              </div>
             </div>
           </article>
         `;
       }).join('');
       workspaceAiSuggestionsList.classList.remove('d-none');
     } catch (error) {
-      workspaceAiSuggestionsState.textContent = `Не удалось загрузить подсказки: ${error.message || 'unknown_error'}`;
+      workspaceAiSuggestionsState.textContent = `Failed to load suggestions: ${error.message || 'unknown_error'}`;
     }
   }
 
+  async function sendAiSuggestionFeedback(ticketId, payload) {
+    const normalizedTicketId = String(ticketId || '').trim();
+    if (!normalizedTicketId) return false;
+    const resp = await fetch(`/api/dialogs/${encodeURIComponent(normalizedTicketId)}/ai-suggestions/feedback`, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload || {}),
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok || data.success === false) {
+      throw new Error(data.error || `HTTP ${resp.status}`);
+    }
+    return true;
+  }
+
+  async function loadWorkspaceAiControl(ticketId) {
+    const normalizedTicketId = String(ticketId || '').trim();
+    if (!workspaceAiControlState || !workspaceAiDisableForDialog || !workspaceAiHandoffNoAutoReply) return;
+    if (!normalizedTicketId) {
+      workspaceAiControlState.textContent = 'Open a dialog to manage AI.';
+      workspaceAiDisableForDialog.disabled = true;
+      workspaceAiHandoffNoAutoReply.disabled = true;
+      return;
+    }
+    workspaceAiControlState.textContent = 'Loading AI dialog controls...';
+    workspaceAiDisableForDialog.disabled = true;
+    workspaceAiHandoffNoAutoReply.disabled = true;
+    try {
+      const resp = await fetch(`/api/dialogs/${encodeURIComponent(normalizedTicketId)}/ai-control`, {
+        credentials: 'same-origin',
+        cache: 'no-store',
+      });
+      const payload = await resp.json().catch(() => ({}));
+      if (!resp.ok || payload.success === false) {
+        throw new Error(payload.error || `HTTP ${resp.status}`);
+      }
+      const control = payload.control || {};
+      const disabled = control.ai_disabled === true;
+      const blocked = control.auto_reply_blocked === true;
+      workspaceAiDisableForDialog.textContent = disabled ? 'Enable AI for dialog' : 'Disable AI for dialog';
+      workspaceAiControlState.textContent = disabled
+        ? 'AI is fully disabled for this dialog.'
+        : (blocked ? 'AI auto-reply is disabled for this dialog. Suggestions remain available.' : 'AI runs in standard mode.');
+      workspaceAiDisableForDialog.disabled = false;
+      workspaceAiHandoffNoAutoReply.disabled = false;
+    } catch (error) {
+      workspaceAiControlState.textContent = `Failed to load AI control state: ${error.message || 'unknown_error'}`;
+    }
+  }
+
+  async function updateWorkspaceAiControl(ticketId, controlPayload, successMessage) {
+    const normalizedTicketId = String(ticketId || '').trim();
+    if (!normalizedTicketId) return;
+    const resp = await fetch(`/api/dialogs/${encodeURIComponent(normalizedTicketId)}/ai-control`, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(controlPayload || {}),
+    });
+    const payload = await resp.json().catch(() => ({}));
+    if (!resp.ok || payload.success === false) {
+      throw new Error(payload.error || `HTTP ${resp.status}`);
+    }
+    if (typeof showNotification === 'function' && successMessage) {
+      showNotification(successMessage, 'success');
+    }
+    await loadWorkspaceAiControl(normalizedTicketId);
+  }
   function renderAiReviewQueueRows(items) {
     if (!aiReviewQueueBody) return;
     if (!Array.isArray(items) || items.length === 0) {
-      aiReviewQueueBody.innerHTML = '<tr><td colspan="5" class="text-muted text-center py-3">Очередь ревизий пуста.</td></tr>';
+      aiReviewQueueBody.innerHTML = '<tr><td colspan="5" class="text-muted text-center py-3">РћС‡РµСЂРµРґСЊ СЂРµРІРёР·РёР№ РїСѓСЃС‚Р°.</td></tr>';
       return;
     }
     aiReviewQueueBody.innerHTML = items.map((item) => {
       const queryKey = String(item?.query_key || '').trim();
       const ticketId = String(item?.last_ticket_id || '').trim();
-      const question = escapeHtml(String(item?.query_text || '').trim() || '—');
-      const current = escapeHtml(String(item?.solution_text || '').trim() || '—');
-      const pending = escapeHtml(String(item?.pending_solution_text || '').trim() || '—');
-      const dialogLabel = ticketId ? `#${escapeHtml(ticketId)}` : '—';
+      const question = escapeHtml(String(item?.query_text || '').trim() || 'вЂ”');
+      const current = escapeHtml(String(item?.solution_text || '').trim() || 'вЂ”');
+      const pending = escapeHtml(String(item?.pending_solution_text || '').trim() || 'вЂ”');
+      const dialogLabel = ticketId ? `#${escapeHtml(ticketId)}` : 'вЂ”';
       return `
         <tr data-ai-review-query-key="${escapeHtml(queryKey)}" data-ai-review-ticket-id="${escapeHtml(ticketId)}">
           <td class="small">${question}</td>
@@ -3857,9 +3936,9 @@
           <td>${dialogLabel}</td>
           <td class="text-end">
             <div class="btn-group btn-group-sm" role="group">
-              <button class="btn btn-outline-primary" type="button" data-ai-review-open ${ticketId ? '' : 'disabled'}>Открыть</button>
-              <button class="btn btn-success" type="button" data-ai-review-approve>Принять</button>
-              <button class="btn btn-outline-secondary" type="button" data-ai-review-reject>Отклонить</button>
+              <button class="btn btn-outline-primary" type="button" data-ai-review-open ${ticketId ? '' : 'disabled'}>РћС‚РєСЂС‹С‚СЊ</button>
+              <button class="btn btn-success" type="button" data-ai-review-approve>РџСЂРёРЅСЏС‚СЊ</button>
+              <button class="btn btn-outline-secondary" type="button" data-ai-review-reject>РћС‚РєР»РѕРЅРёС‚СЊ</button>
             </div>
           </td>
         </tr>
@@ -3869,7 +3948,7 @@
 
   async function loadAiReviewQueue() {
     if (!aiReviewQueueSection || !aiReviewQueueState || !aiReviewQueueBody) return;
-    aiReviewQueueState.textContent = 'Загрузка очереди ревизий…';
+    aiReviewQueueState.textContent = 'Р—Р°РіСЂСѓР·РєР° РѕС‡РµСЂРµРґРё СЂРµРІРёР·РёР№вЂ¦';
     try {
       const resp = await fetch('/api/dialogs/ai-reviews?limit=30', {
         credentials: 'same-origin',
@@ -3881,12 +3960,12 @@
       }
       const items = Array.isArray(payload.items) ? payload.items : [];
       aiReviewQueueState.textContent = items.length
-        ? `Найдено ревизий: ${items.length}`
-        : 'Очередь ревизий пуста.';
+        ? `РќР°Р№РґРµРЅРѕ СЂРµРІРёР·РёР№: ${items.length}`
+        : 'РћС‡РµСЂРµРґСЊ СЂРµРІРёР·РёР№ РїСѓСЃС‚Р°.';
       renderAiReviewQueueRows(items);
     } catch (error) {
-      aiReviewQueueState.textContent = `Не удалось загрузить очередь ревизий: ${error.message || 'unknown_error'}`;
-      aiReviewQueueBody.innerHTML = '<tr><td colspan="5" class="text-danger text-center py-3">Ошибка загрузки очереди ревизий.</td></tr>';
+      aiReviewQueueState.textContent = `РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ РѕС‡РµСЂРµРґСЊ СЂРµРІРёР·РёР№: ${error.message || 'unknown_error'}`;
+      aiReviewQueueBody.innerHTML = '<tr><td colspan="5" class="text-danger text-center py-3">РћС€РёР±РєР° Р·Р°РіСЂСѓР·РєРё РѕС‡РµСЂРµРґРё СЂРµРІРёР·РёР№.</td></tr>';
     }
   }
 
@@ -3934,6 +4013,7 @@
     restoreWorkspaceDraft(workspaceComposerTicketId);
     loadWorkspaceAiSuggestions(workspaceComposerTicketId);
     loadWorkspaceAiReview(workspaceComposerTicketId);
+    loadWorkspaceAiControl(workspaceComposerTicketId);
     const canReplyInWorkspace = permissions && permissions.can_reply === true && !workspaceReadonlyMode;
     if (workspaceComposerText) workspaceComposerText.disabled = !canReplyInWorkspace;
     if (workspaceComposerSend) workspaceComposerSend.disabled = !canReplyInWorkspace;
@@ -3944,13 +4024,13 @@
     if (workspaceReplyTargetClear) workspaceReplyTargetClear.disabled = !canReplyInWorkspace || composer.reply_target_supported === false;
 
     if (workspaceConversationTitle) {
-      workspaceConversationTitle.textContent = `Диалог #${conversation.ticketId || '—'}`;
+      workspaceConversationTitle.textContent = `Р”РёР°Р»РѕРі #${conversation.ticketId || 'вЂ”'}`;
     }
     if (workspaceConversationMeta) {
-      const status = conversation.statusLabel || conversation.status || '—';
-      const assignee = conversation.responsible || 'без ответственного';
+      const status = conversation.statusLabel || conversation.status || 'вЂ”';
+      const assignee = conversation.responsible || 'Р±РµР· РѕС‚РІРµС‚СЃС‚РІРµРЅРЅРѕРіРѕ';
       const createdAt = formatWorkspaceDateTime(conversation.createdAt || conversation.created_at);
-      workspaceConversationMeta.textContent = `Статус: ${status} · Ответственный: ${assignee} · Создан: ${createdAt}`;
+      workspaceConversationMeta.textContent = `РЎС‚Р°С‚СѓСЃ: ${status} В· РћС‚РІРµС‚СЃС‚РІРµРЅРЅС‹Р№: ${assignee} В· РЎРѕР·РґР°РЅ: ${createdAt}`;
     }
     renderWorkspaceNavigation(navigation);
     updateWorkspaceActionButtons(conversation, permissions || {});
@@ -3960,7 +4040,7 @@
       workspaceMessagesState.classList.toggle('d-none', Array.isArray(messages.items) && messages.items.length > 0);
       workspaceMessagesState.textContent = Array.isArray(messages.items) && messages.items.length > 0
         ? ''
-        : 'Сообщения отсутствуют или ещё не загружены.';
+        : 'РЎРѕРѕР±С‰РµРЅРёСЏ РѕС‚СЃСѓС‚СЃС‚РІСѓСЋС‚ РёР»Рё РµС‰С‘ РЅРµ Р·Р°РіСЂСѓР¶РµРЅС‹.';
     }
     if (workspaceMessagesList) {
       const items = Array.isArray(messages.items) ? messages.items : [];
@@ -3997,11 +4077,11 @@
       if (workspaceHistoryContent) {
         workspaceHistoryContent.classList.remove('d-none');
         workspaceHistoryContent.innerHTML = renderWorkspaceSimpleList(contextHistory, (item) => {
-          const ticketId = escapeHtml(item.ticket_id || item.ticketId || '—');
-          const status = escapeHtml(item.status || '—');
+          const ticketId = escapeHtml(item.ticket_id || item.ticketId || 'вЂ”');
+          const status = escapeHtml(item.status || 'вЂ”');
           const createdAt = escapeHtml(formatWorkspaceDateTime(item.created_at || item.createdAt));
-          const problem = escapeHtml(item.problem || 'Без описания');
-          return `<div><strong>#${ticketId}</strong> · <span class="text-muted">${status}</span></div><div class="text-muted">${createdAt}</div><div>${problem}</div>`;
+          const problem = escapeHtml(item.problem || 'Р‘РµР· РѕРїРёСЃР°РЅРёСЏ');
+          return `<div><strong>#${ticketId}</strong> В· <span class="text-muted">${status}</span></div><div class="text-muted">${createdAt}</div><div>${problem}</div>`;
         });
       }
     } else {
@@ -4017,11 +4097,11 @@
       if (workspaceRelatedEventsContent) {
         workspaceRelatedEventsContent.classList.remove('d-none');
         workspaceRelatedEventsContent.innerHTML = renderWorkspaceSimpleList(relatedEvents, (item) => {
-          const actor = escapeHtml(item.actor || 'Система');
+          const actor = escapeHtml(item.actor || 'РЎРёСЃС‚РµРјР°');
           const type = escapeHtml(item.type || 'event');
           const timestamp = escapeHtml(formatWorkspaceDateTime(item.timestamp));
-          const detail = escapeHtml(item.detail || '—');
-          return `<div><strong>${actor}</strong> · <span class="text-muted">${type}</span></div><div class="text-muted">${timestamp}</div><div>${detail}</div>`;
+          const detail = escapeHtml(item.detail || 'вЂ”');
+          return `<div><strong>${actor}</strong> В· <span class="text-muted">${type}</span></div><div class="text-muted">${timestamp}</div><div>${detail}</div>`;
         });
       }
     } else {
@@ -4075,16 +4155,16 @@
                 <span class="badge ${policyBadgeClass}">${escapeHtml(String(policy.status || 'unknown'))}</span>
                 ${policy.action ? `<span class="badge text-bg-light border">${escapeHtml(String(policy.action))}</span>` : ''}
               </div>
-              ${policyMeta.length ? `<div class="small text-muted mt-1">${escapeHtml(policyMeta.join(' · '))}</div>` : ''}
+              ${policyMeta.length ? `<div class="small text-muted mt-1">${escapeHtml(policyMeta.join(' В· '))}</div>` : ''}
               ${policy.summary ? `<div class="small text-muted mt-1">${escapeHtml(String(policy.summary))}</div>` : ''}
               ${policyIssues.length ? `<div class="small text-warning mt-1">Issues: ${escapeHtml(policyIssues.join(', '))}</div>` : ''}
             </div>`
           : '';
         const escalationHint = sla.escalation_required === true
-          ? '<div class="small text-danger mt-1">Требуется эскалация: окно SLA критичное.</div>'
+          ? '<div class="small text-danger mt-1">РўСЂРµР±СѓРµС‚СЃСЏ СЌСЃРєР°Р»Р°С†РёСЏ: РѕРєРЅРѕ SLA РєСЂРёС‚РёС‡РЅРѕРµ.</div>'
           : '';
         workspaceSlaContent.classList.remove('d-none');
-        workspaceSlaContent.innerHTML = `<div class="small">Состояние: <span class="badge ${badgeClass}">${escapeHtml(sla.state)}</span></div><div class="small text-muted">До дедлайна: ${escapeHtml(remaining)}</div><div class="small text-muted">Дедлайн: ${escapeHtml(formatWorkspaceDateTime(sla.deadline_at))}</div>${escalationHint}${policyMarkup}`;
+        workspaceSlaContent.innerHTML = `<div class="small">РЎРѕСЃС‚РѕСЏРЅРёРµ: <span class="badge ${badgeClass}">${escapeHtml(sla.state)}</span></div><div class="small text-muted">Р”Рѕ РґРµРґР»Р°Р№РЅР°: ${escapeHtml(remaining)}</div><div class="small text-muted">Р”РµРґР»Р°Р№РЅ: ${escapeHtml(formatWorkspaceDateTime(sla.deadline_at))}</div>${escalationHint}${policyMarkup}`;
       }
     } else {
       if (workspaceSlaState) workspaceSlaState.classList.add('d-none');
@@ -4143,11 +4223,11 @@
   function workspaceContextViolationSeverityLabel(severity) {
     switch (String(severity || '').trim().toLowerCase()) {
       case 'high':
-        return 'Срочно';
+        return 'РЎСЂРѕС‡РЅРѕ';
       case 'medium':
-        return 'Нужно действие';
+        return 'РќСѓР¶РЅРѕ РґРµР№СЃС‚РІРёРµ';
       default:
-        return 'К сведению';
+        return 'Рљ СЃРІРµРґРµРЅРёСЋ';
     }
   }
 
@@ -4164,25 +4244,25 @@
 
   function renderWorkspaceClientProfile(client, context = {}) {
     if (!client || typeof client !== 'object') {
-      return '<div class="small text-muted">Профиль клиента недоступен.</div>';
+      return '<div class="small text-muted">РџСЂРѕС„РёР»СЊ РєР»РёРµРЅС‚Р° РЅРµРґРѕСЃС‚СѓРїРµРЅ.</div>';
     }
     const fields = [
       ['ID', client.id],
       ['Username', client.username],
-      ['Статус', client.status],
-      ['Канал', client.channel],
-      ['Бизнес', client.business],
-      ['Локация', client.location],
-      ['Ответственный', client.responsible],
-      ['Непрочитанные', client.unread_count],
-      ['Оценка', client.rating],
-      ['Последнее сообщение', formatWorkspaceDateTime(client.last_message_at)],
-      ['Всего диалогов', client.total_dialogs],
-      ['Открытых диалогов', client.open_dialogs],
-      ['Закрыто за 30 дней', client.resolved_30d],
-      ['Первое обращение', formatWorkspaceDateTime(client.first_seen_at)],
-      ['Последняя активность тикета', formatWorkspaceDateTime(client.last_ticket_activity_at)],
-      ['Язык', client.language],
+      ['РЎС‚Р°С‚СѓСЃ', client.status],
+      ['РљР°РЅР°Р»', client.channel],
+      ['Р‘РёР·РЅРµСЃ', client.business],
+      ['Р›РѕРєР°С†РёСЏ', client.location],
+      ['РћС‚РІРµС‚СЃС‚РІРµРЅРЅС‹Р№', client.responsible],
+      ['РќРµРїСЂРѕС‡РёС‚Р°РЅРЅС‹Рµ', client.unread_count],
+      ['РћС†РµРЅРєР°', client.rating],
+      ['РџРѕСЃР»РµРґРЅРµРµ СЃРѕРѕР±С‰РµРЅРёРµ', formatWorkspaceDateTime(client.last_message_at)],
+      ['Р’СЃРµРіРѕ РґРёР°Р»РѕРіРѕРІ', client.total_dialogs],
+      ['РћС‚РєСЂС‹С‚С‹С… РґРёР°Р»РѕРіРѕРІ', client.open_dialogs],
+      ['Р—Р°РєСЂС‹С‚Рѕ Р·Р° 30 РґРЅРµР№', client.resolved_30d],
+      ['РџРµСЂРІРѕРµ РѕР±СЂР°С‰РµРЅРёРµ', formatWorkspaceDateTime(client.first_seen_at)],
+      ['РџРѕСЃР»РµРґРЅСЏСЏ Р°РєС‚РёРІРЅРѕСЃС‚СЊ С‚РёРєРµС‚Р°', formatWorkspaceDateTime(client.last_ticket_activity_at)],
+      ['РЇР·С‹Рє', client.language],
     ];
     const reservedClientKeys = new Set([
       'id',
@@ -4226,13 +4306,13 @@
       : 0;
     const profileRuleSummary = [];
     if (totalRequiredProfileFields > 0) {
-      profileRuleSummary.push(`Обязательных полей: ${totalRequiredProfileFields}`);
+      profileRuleSummary.push(`РћР±СЏР·Р°С‚РµР»СЊРЅС‹С… РїРѕР»РµР№: ${totalRequiredProfileFields}`);
     }
     if (activeProfileSegments.length) {
-      profileRuleSummary.push(`Сегменты: ${activeProfileSegments.join(', ')}`);
+      profileRuleSummary.push(`РЎРµРіРјРµРЅС‚С‹: ${activeProfileSegments.join(', ')}`);
     }
     const healthBanner = profileHealth && profileHealth.enabled === true
-      ? `<div class="alert ${profileHealth.ready ? 'alert-success' : 'alert-warning'} py-2 px-3 small mb-2">${profileHealth.ready ? `Контекст клиента готов (${Number(profileHealth.coverage_pct || 100)}%).` : `Нужно дозаполнить контекст (${Number(profileHealth.coverage_pct || 0)}%): ${escapeHtml(missingFields.join(', ') || 'нет обязательных полей')}.`}${profileRuleSummary.length ? `<div class="text-muted mt-1">${escapeHtml(profileRuleSummary.join(' · '))}</div>` : ''}<div class="text-muted mt-1">Проверено: ${escapeHtml(formatWorkspaceDateTime(profileHealth.checked_at_utc || profileHealth.checked_at))}</div></div>`
+      ? `<div class="alert ${profileHealth.ready ? 'alert-success' : 'alert-warning'} py-2 px-3 small mb-2">${profileHealth.ready ? `РљРѕРЅС‚РµРєСЃС‚ РєР»РёРµРЅС‚Р° РіРѕС‚РѕРІ (${Number(profileHealth.coverage_pct || 100)}%).` : `РќСѓР¶РЅРѕ РґРѕР·Р°РїРѕР»РЅРёС‚СЊ РєРѕРЅС‚РµРєСЃС‚ (${Number(profileHealth.coverage_pct || 0)}%): ${escapeHtml(missingFields.join(', ') || 'РЅРµС‚ РѕР±СЏР·Р°С‚РµР»СЊРЅС‹С… РїРѕР»РµР№')}.`}${profileRuleSummary.length ? `<div class="text-muted mt-1">${escapeHtml(profileRuleSummary.join(' В· '))}</div>` : ''}<div class="text-muted mt-1">РџСЂРѕРІРµСЂРµРЅРѕ: ${escapeHtml(formatWorkspaceDateTime(profileHealth.checked_at_utc || profileHealth.checked_at))}</div></div>`
       : '';
 
     const contextBlocks = Array.isArray(context?.blocks)
@@ -4258,10 +4338,10 @@
     };
     const contextBlocksSection = contextBlocksHealth && contextBlocksHealth.enabled === true && contextBlocks.length
       ? `<div class="alert ${contextBlocksHealth.ready ? 'alert-success' : 'alert-warning'} py-2 px-3 small mb-2">
-          <div class="fw-semibold mb-1">Приоритет customer context</div>
+          <div class="fw-semibold mb-1">РџСЂРёРѕСЂРёС‚РµС‚ customer context</div>
           <div>${contextBlocksHealth.ready
-            ? `Все обязательные блоки готовы (${Number(contextBlocksHealth.coverage_pct || 100)}%).`
-            : `Покрытие обязательных блоков: ${Number(contextBlocksHealth.coverage_pct || 0)}%. Не хватает: ${escapeHtml((Array.isArray(contextBlocksHealth.missing_required_labels) ? contextBlocksHealth.missing_required_labels : []).join(', ') || '—')}.`}</div>
+            ? `Р’СЃРµ РѕР±СЏР·Р°С‚РµР»СЊРЅС‹Рµ Р±Р»РѕРєРё РіРѕС‚РѕРІС‹ (${Number(contextBlocksHealth.coverage_pct || 100)}%).`
+            : `РџРѕРєСЂС‹С‚РёРµ РѕР±СЏР·Р°С‚РµР»СЊРЅС‹С… Р±Р»РѕРєРѕРІ: ${Number(contextBlocksHealth.coverage_pct || 0)}%. РќРµ С…РІР°С‚Р°РµС‚: ${escapeHtml((Array.isArray(contextBlocksHealth.missing_required_labels) ? contextBlocksHealth.missing_required_labels : []).join(', ') || 'вЂ”')}.`}</div>
           <div class="d-flex flex-column gap-2 mt-2">
             ${contextBlocks.map((block) => {
               const meta = [];
@@ -4276,10 +4356,10 @@
               }
               return `<div class="border rounded px-2 py-1 bg-white">
                 <div class="d-flex flex-wrap align-items-center gap-2">
-                  <span class="fw-semibold">${escapeHtml(block.label || block.key || 'Блок')}</span>
+                  <span class="fw-semibold">${escapeHtml(block.label || block.key || 'Р‘Р»РѕРє')}</span>
                   <span class="badge ${contextBlockBadgeClass(block.status)}">${escapeHtml(String(block.status || 'unavailable'))}</span>
                 </div>
-                ${meta.length ? `<div class="small text-muted mt-1">${escapeHtml(meta.join(' · '))}</div>` : ''}
+                ${meta.length ? `<div class="small text-muted mt-1">${escapeHtml(meta.join(' В· '))}</div>` : ''}
                 ${block.summary ? `<div class="small text-muted">${escapeHtml(String(block.summary))}</div>` : ''}
               </div>`;
             }).join('')}
@@ -4371,13 +4451,13 @@
     const contextSourceRequiredCount = contextSources.filter((source) => source?.required === true).length;
     const contextSourcesSection = contextSources.length
       ? `<details class="mt-2" data-workspace-telemetry-section="context_sources" data-workspace-telemetry-items="${contextSources.length}" data-workspace-telemetry-required="${contextSourceRequiredCount}" data-workspace-telemetry-gaps="${contextSourceIssueCount}" data-workspace-telemetry-hidden="0"${contextSourceIssueCount > 0 ? ' open' : ''}>
-        <summary class="small fw-semibold">Источники контекста <span class="text-muted fw-normal">(${contextSources.length}; required ${contextSourceRequiredCount}; gaps ${contextSourceIssueCount})</span></summary>
-        <div class="small text-muted mt-1">Свернуто по умолчанию, чтобы primary customer-context оставался выше policy-шума.</div>
+        <summary class="small fw-semibold">РСЃС‚РѕС‡РЅРёРєРё РєРѕРЅС‚РµРєСЃС‚Р° <span class="text-muted fw-normal">(${contextSources.length}; required ${contextSourceRequiredCount}; gaps ${contextSourceIssueCount})</span></summary>
+        <div class="small text-muted mt-1">РЎРІРµСЂРЅСѓС‚Рѕ РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ, С‡С‚РѕР±С‹ primary customer-context РѕСЃС‚Р°РІР°Р»СЃСЏ РІС‹С€Рµ policy-С€СѓРјР°.</div>
         <div class="d-flex flex-column gap-2 mt-2">
           ${contextSources.map((source) => {
             const meta = [];
             if (Number.isFinite(Number(source.matched_attribute_count)) && Number(source.matched_attribute_count) > 0) {
-              meta.push(`${Number(source.matched_attribute_count)} атр.`);
+              meta.push(`${Number(source.matched_attribute_count)} Р°С‚СЂ.`);
             }
             if (source.updated_at_utc) {
               meta.push(`UTC ${formatWorkspaceDateTime(source.updated_at_utc)}`);
@@ -4385,15 +4465,15 @@
               meta.push(`invalid: ${String(source.updated_at_raw).trim()}`);
             }
             if (source.linked === true) {
-              meta.push('есть ссылка');
+              meta.push('РµСЃС‚СЊ СЃСЃС‹Р»РєР°');
             }
             return `<div class="border rounded px-2 py-1">
               <div class="d-flex flex-wrap align-items-center gap-2">
-                <span class="fw-semibold">${escapeHtml(source.label || source.key || 'Источник')}</span>
+                <span class="fw-semibold">${escapeHtml(source.label || source.key || 'РСЃС‚РѕС‡РЅРёРє')}</span>
                 <span class="badge ${sourceBadgeClass(source.status)}">${escapeHtml(sourceStatusLabel(source.status))}</span>
                 ${source.required === true ? '<span class="badge text-bg-light border">required</span>' : ''}
               </div>
-              ${meta.length ? `<div class="small text-muted mt-1">${escapeHtml(meta.join(' · '))}</div>` : ''}
+              ${meta.length ? `<div class="small text-muted mt-1">${escapeHtml(meta.join(' В· '))}</div>` : ''}
               ${source.summary ? `<div class="small text-muted">${escapeHtml(String(source.summary))}</div>` : ''}
             </div>`;
           }).join('')}
@@ -4441,7 +4521,7 @@
     const attributePoliciesSection = attributePolicies.length
       ? `<details class="mt-2" data-workspace-telemetry-section="attribute_policy" data-workspace-telemetry-items="${attributePolicies.length}" data-workspace-telemetry-required="${attributePolicyRequiredCount}" data-workspace-telemetry-gaps="${attributePolicyIssueCount}" data-workspace-telemetry-hidden="0"${attributePolicyIssueCount > 0 ? ' open' : ''}>
         <summary class="small fw-semibold">Source / freshness policy <span class="text-muted fw-normal">(${attributePolicies.length}; required ${attributePolicyRequiredCount}; gaps ${attributePolicyIssueCount})</span></summary>
-        <div class="small text-muted mt-1">Вторичные policy-детали раскрываются отдельно, чтобы не конкурировать с action-oriented contract summary.</div>
+        <div class="small text-muted mt-1">Р’С‚РѕСЂРёС‡РЅС‹Рµ policy-РґРµС‚Р°Р»Рё СЂР°СЃРєСЂС‹РІР°СЋС‚СЃСЏ РѕС‚РґРµР»СЊРЅРѕ, С‡С‚РѕР±С‹ РЅРµ РєРѕРЅРєСѓСЂРёСЂРѕРІР°С‚СЊ СЃ action-oriented contract summary.</div>
         <div class="d-flex flex-column gap-2 mt-2">
           ${attributePolicies.map((policy) => {
             const meta = [];
@@ -4464,7 +4544,7 @@
                 <span class="badge ${attributePolicyBadgeClass(policy.status)}">${escapeHtml(attributePolicyStatusLabel(policy.status))}</span>
                 ${policy.required === true ? '<span class="badge text-bg-light border">required</span>' : ''}
               </div>
-              ${meta.length ? `<div class="small text-muted mt-1">${escapeHtml(meta.join(' · '))}</div>` : ''}
+              ${meta.length ? `<div class="small text-muted mt-1">${escapeHtml(meta.join(' В· '))}</div>` : ''}
               ${policy.summary ? `<div class="small text-muted">${escapeHtml(String(policy.summary))}</div>` : ''}
             </div>`;
           }).join('')}
@@ -4496,9 +4576,9 @@
         </div>
         <div class="mt-1 fw-semibold">${escapeHtml(detail.shortLabel || detail.operatorMessage)}</div>
         <div class="small text-muted mt-1">${escapeHtml(detail.operatorMessage)}</div>
-        ${detail.nextStep ? `<div class="small mt-1"><span class="text-muted">Следующий шаг:</span> ${escapeHtml(detail.nextStep)}</div>` : ''}
+        ${detail.nextStep ? `<div class="small mt-1"><span class="text-muted">РЎР»РµРґСѓСЋС‰РёР№ С€Р°Рі:</span> ${escapeHtml(detail.nextStep)}</div>` : ''}
         ${detail.playbookUrl
-          ? `<div class="small mt-1"><a href="${escapeHtml(detail.playbookUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(detail.actionLabel || detail.playbookLabel)}</a>${detail.playbookSummary ? ` <span class="text-muted">· ${escapeHtml(detail.playbookSummary)}</span>` : ''}</div>`
+          ? `<div class="small mt-1"><a href="${escapeHtml(detail.playbookUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(detail.actionLabel || detail.playbookLabel)}</a>${detail.playbookSummary ? ` <span class="text-muted">В· ${escapeHtml(detail.playbookSummary)}</span>` : ''}</div>`
           : ''}
       </div>`;
     const violationActionsSection = contract.ready === true || contractViolationDetails.length === 0
@@ -4506,40 +4586,40 @@
       : `<div class="d-flex flex-column gap-2 mt-2">
           ${primaryViolationCards.map((detail) => renderViolationCard(detail)).join('')}
           ${extraViolationCards.length
-            ? `<details${progressiveDisclosureReady ? '' : ' open'}><summary class="small text-muted">Показать ещё ${deferredViolationCount}</summary><div class="d-flex flex-column gap-2 mt-2">${extraViolationCards.map((detail) => renderViolationCard(detail)).join('')}</div></details>`
+            ? `<details${progressiveDisclosureReady ? '' : ' open'}><summary class="small text-muted">РџРѕРєР°Р·Р°С‚СЊ РµС‰С‘ ${deferredViolationCount}</summary><div class="d-flex flex-column gap-2 mt-2">${extraViolationCards.map((detail) => renderViolationCard(detail)).join('')}</div></details>`
             : ''}
         </div>`;
     const contextContractSection = contract && contract.enabled === true
       ? `<div class="alert ${contract.ready === true ? 'alert-success' : 'alert-warning'} py-2 px-3 small mt-2 mb-2">
           <div class="fw-semibold mb-1">Context contract</div>
           <div>${contractOperatorSummary || (contract.ready === true
-            ? 'Minimum profile соблюдён.'
+            ? 'Minimum profile СЃРѕР±Р»СЋРґС‘РЅ.'
             : contractViolationDetails.length
-              ? `Нужно закрыть ${contractViolationDetails.length} context-gap ${contractViolationDetails.length === 1 ? 'элемент' : (contractViolationDetails.length < 5 ? 'элемента' : 'элементов')}.`
-              : `Есть отклонения: ${escapeHtml(contractViolations.join(', ') || 'contract_not_ready')}.`}</div>
+              ? `РќСѓР¶РЅРѕ Р·Р°РєСЂС‹С‚СЊ ${contractViolationDetails.length} context-gap ${contractViolationDetails.length === 1 ? 'СЌР»РµРјРµРЅС‚' : (contractViolationDetails.length < 5 ? 'СЌР»РµРјРµРЅС‚Р°' : 'СЌР»РµРјРµРЅС‚РѕРІ')}.`
+              : `Р•СЃС‚СЊ РѕС‚РєР»РѕРЅРµРЅРёСЏ: ${escapeHtml(contractViolations.join(', ') || 'contract_not_ready')}.`}</div>
           ${focusBlocks.length
             ? `<div class="mt-1"><span class="text-muted">Operator first:</span> ${escapeHtml(focusBlocks.join(', '))}</div>`
             : ''}
           ${contractNextStepSummary
-            ? `<div class="mt-1"><span class="text-muted">Что сделать:</span> ${escapeHtml(contractNextStepSummary)}</div>`
+            ? `<div class="mt-1"><span class="text-muted">Р§С‚Рѕ СЃРґРµР»Р°С‚СЊ:</span> ${escapeHtml(contractNextStepSummary)}</div>`
             : (Array.isArray(contract.action_items) && contract.action_items.length
-              ? `<div class="mt-1"><span class="text-muted">Что сделать:</span> ${escapeHtml(contract.action_items[0])}</div>`
+              ? `<div class="mt-1"><span class="text-muted">Р§С‚Рѕ СЃРґРµР»Р°С‚СЊ:</span> ${escapeHtml(contract.action_items[0])}</div>`
               : '')}
           ${deferredViolationCount > 0
-            ? `<div class="mt-1 text-muted">Остальные детали скрыты до раскрытия: ${deferredViolationCount}.</div>`
+            ? `<div class="mt-1 text-muted">РћСЃС‚Р°Р»СЊРЅС‹Рµ РґРµС‚Р°Р»Рё СЃРєСЂС‹С‚С‹ РґРѕ СЂР°СЃРєСЂС‹С‚РёСЏ: ${deferredViolationCount}.</div>`
             : ''}
           ${violationActionsSection}
-          <div class="text-muted mt-1">Проверено: ${escapeHtml(formatWorkspaceDateTime(contract.checked_at_utc || contract.checked_at))}</div>
+          <div class="text-muted mt-1">РџСЂРѕРІРµСЂРµРЅРѕ: ${escapeHtml(formatWorkspaceDateTime(contract.checked_at_utc || contract.checked_at))}</div>
         </div>`
       : '';
 
     const extraSection = expandedRows || collapsedRows
       ? `<details class="mt-2" data-workspace-telemetry-section="extra_attributes" data-workspace-telemetry-items="${limitedExtraEntries.length}" data-workspace-telemetry-required="0" data-workspace-telemetry-gaps="0" data-workspace-telemetry-hidden="${hiddenByLimitCount}">
-        <summary class="small fw-semibold">Доп. атрибуты <span class="text-muted fw-normal">(${extraAttributeTotalCount}; visible ${limitedExtraEntries.length}${hiddenByLimitCount > 0 ? `; hidden ${hiddenByLimitCount}` : ''})</span></summary>
-        <div class="small text-muted mt-1">Второстепенные поля скрыты до раскрытия, чтобы не конкурировать с customer-context contract.</div>
+        <summary class="small fw-semibold">Р”РѕРї. Р°С‚СЂРёР±СѓС‚С‹ <span class="text-muted fw-normal">(${extraAttributeTotalCount}; visible ${limitedExtraEntries.length}${hiddenByLimitCount > 0 ? `; hidden ${hiddenByLimitCount}` : ''})</span></summary>
+        <div class="small text-muted mt-1">Р’С‚РѕСЂРѕСЃС‚РµРїРµРЅРЅС‹Рµ РїРѕР»СЏ СЃРєСЂС‹С‚С‹ РґРѕ СЂР°СЃРєСЂС‹С‚РёСЏ, С‡С‚РѕР±С‹ РЅРµ РєРѕРЅРєСѓСЂРёСЂРѕРІР°С‚СЊ СЃ customer-context contract.</div>
         <div class="mt-2">${expandedRows}</div>
-        ${collapsedRows ? `<details class="mt-1"><summary class="small text-muted">Показать ещё ${collapsedExtraEntries.length}</summary><div class="mt-1">${collapsedRows}</div></details>` : ''}
-        ${hiddenByLimitCount > 0 ? `<div class="small text-muted mt-1">Скрыто по лимиту: ${hiddenByLimitCount}.</div>` : ''}
+        ${collapsedRows ? `<details class="mt-1"><summary class="small text-muted">РџРѕРєР°Р·Р°С‚СЊ РµС‰С‘ ${collapsedExtraEntries.length}</summary><div class="mt-1">${collapsedRows}</div></details>` : ''}
+        ${hiddenByLimitCount > 0 ? `<div class="small text-muted mt-1">РЎРєСЂС‹С‚Рѕ РїРѕ Р»РёРјРёС‚Сѓ: ${hiddenByLimitCount}.</div>` : ''}
       </details>`
       : '';
 
@@ -4551,7 +4631,7 @@
           if (!url || !(url.startsWith('http://') || url.startsWith('https://'))) {
             return '';
           }
-          const label = String(item.label || 'Профиль').trim() || 'Профиль';
+          const label = String(item.label || 'РџСЂРѕС„РёР»СЊ').trim() || 'РџСЂРѕС„РёР»СЊ';
           return `<a class="btn btn-sm btn-outline-secondary" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a>`;
         })
         .filter(Boolean)
@@ -4560,7 +4640,7 @@
       ? `<div class="d-flex flex-wrap gap-2 mt-2">${externalLinks.join('')}</div>`
       : '';
 
-    return `<div class="small"><strong>${escapeHtml(client.name || '—')}</strong></div>${healthBanner}${contextBlocksSection}${contextContractSection}${rows || '<div class="small text-muted">Дополнительные атрибуты отсутствуют.</div>'}${contextSourcesSection}${attributePoliciesSection}${extraSection}${segmentBadges}${linksSection}`;
+    return `<div class="small"><strong>${escapeHtml(client.name || 'вЂ”')}</strong></div>${healthBanner}${contextBlocksSection}${contextContractSection}${rows || '<div class="small text-muted">Р”РѕРїРѕР»РЅРёС‚РµР»СЊРЅС‹Рµ Р°С‚СЂРёР±СѓС‚С‹ РѕС‚СЃСѓС‚СЃС‚РІСѓСЋС‚.</div>'}${contextSourcesSection}${attributePoliciesSection}${extraSection}${segmentBadges}${linksSection}`;
   }
 
   function isWorkspaceClientExtraValue(value) {
@@ -4587,7 +4667,7 @@
       .replace(/[_-]+/g, ' ')
       .replace(/\s+/g, ' ')
       .trim()
-      .replace(/^./, (char) => char.toUpperCase()) || 'Атрибут';
+      .replace(/^./, (char) => char.toUpperCase()) || 'РђС‚СЂРёР±СѓС‚';
   }
 
   function resolveWorkspaceClientAttributeLabelMap(rawLabels) {
@@ -4724,7 +4804,7 @@
     return payload;
   }
 
-  async function reloadWorkspaceForInitialRoute(statusText = 'Повторная загрузка ленты…') {
+  async function reloadWorkspaceForInitialRoute(statusText = 'РџРѕРІС‚РѕСЂРЅР°СЏ Р·Р°РіСЂСѓР·РєР° Р»РµРЅС‚С‹вЂ¦') {
     if (!WORKSPACE_V1_ENABLED || !activeWorkspaceTicketId) return;
     const initialRow = rowsList().find((row) => String(row.dataset.ticketId || '') === activeWorkspaceTicketId) || null;
     if (workspaceMessagesError) workspaceMessagesError.classList.add('d-none');
@@ -4765,11 +4845,11 @@
     if (isWorkspaceTemporarilyDisabled()) {
       if (!WORKSPACE_DISABLE_LEGACY_FALLBACK) {
         if (typeof showNotification === 'function') {
-          showNotification('Workspace временно в cooldown — открыт legacy modal как rollback.', 'warning');
+          showNotification('Workspace РІСЂРµРјРµРЅРЅРѕ РІ cooldown вЂ” РѕС‚РєСЂС‹С‚ legacy modal РєР°Рє rollback.', 'warning');
         }
         openDialogDetails(ticketId, row || activeDialogRow);
       } else if (typeof showNotification === 'function') {
-        showNotification('Legacy modal отключён: дождитесь завершения workspace cooldown или исправьте причину деградации workspace.', 'warning');
+        showNotification('Legacy modal РѕС‚РєР»СЋС‡С‘РЅ: РґРѕР¶РґРёС‚РµСЃСЊ Р·Р°РІРµСЂС€РµРЅРёСЏ workspace cooldown РёР»Рё РёСЃРїСЂР°РІСЊС‚Рµ РїСЂРёС‡РёРЅСѓ РґРµРіСЂР°РґР°С†РёРё workspace.', 'warning');
       }
       return;
     }
@@ -4853,13 +4933,13 @@
           source,
         });
         if (typeof showNotification === 'function') {
-          showNotification('Workspace временно переведён в cooldown из-за серии ошибок. Используется legacy-режим.', 'warning');
+          showNotification('Workspace РІСЂРµРјРµРЅРЅРѕ РїРµСЂРµРІРµРґС‘РЅ РІ cooldown РёР·-Р·Р° СЃРµСЂРёРё РѕС€РёР±РѕРє. РСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ legacy-СЂРµР¶РёРј.', 'warning');
         }
       }
       const fallbackAllowed = !WORKSPACE_DISABLE_LEGACY_FALLBACK;
       if (fallbackAllowed) {
         if (typeof showNotification === 'function') {
-          showNotification('Workspace временно недоступен — выполнен rollback в legacy modal.', 'warning');
+          showNotification('Workspace РІСЂРµРјРµРЅРЅРѕ РЅРµРґРѕСЃС‚СѓРїРµРЅ вЂ” РІС‹РїРѕР»РЅРµРЅ rollback РІ legacy modal.', 'warning');
         }
         openDialogDetails(ticketId, row || activeDialogRow);
         return;
@@ -4868,14 +4948,14 @@
         workspaceShell.classList.remove('d-none');
         if (workspaceMessagesState) {
           workspaceMessagesState.classList.remove('d-none');
-          workspaceMessagesState.textContent = 'Workspace временно недоступен. Auto-fallback в legacy отключён текущим режимом rollout.';
+          workspaceMessagesState.textContent = 'Workspace РІСЂРµРјРµРЅРЅРѕ РЅРµРґРѕСЃС‚СѓРїРµРЅ. Auto-fallback РІ legacy РѕС‚РєР»СЋС‡С‘РЅ С‚РµРєСѓС‰РёРј СЂРµР¶РёРјРѕРј rollout.';
         }
         if (workspaceMessagesError) {
           workspaceMessagesError.classList.remove('d-none');
         }
       }
       if (typeof showNotification === 'function') {
-        showNotification('Legacy modal отключён: auto-fallback недоступен. Проверьте telemetry workspace и исправьте ошибку контракта.', 'warning');
+        showNotification('Legacy modal РѕС‚РєР»СЋС‡С‘РЅ: auto-fallback РЅРµРґРѕСЃС‚СѓРїРµРЅ. РџСЂРѕРІРµСЂСЊС‚Рµ telemetry workspace Рё РёСЃРїСЂР°РІСЊС‚Рµ РѕС€РёР±РєСѓ РєРѕРЅС‚СЂР°РєС‚Р°.', 'warning');
       }
       return;
     }
@@ -4938,10 +5018,10 @@
     }
 
     const statusShortcutMap = {
-      '6': 'Новый',
-      '7': 'Ожидает ответа оператора',
-      '8': 'Ожидает ответа клиента',
-      '9': 'Закрыт',
+      '6': 'РќРѕРІС‹Р№',
+      '7': 'РћР¶РёРґР°РµС‚ РѕС‚РІРµС‚Р° РѕРїРµСЂР°С‚РѕСЂР°',
+      '8': 'РћР¶РёРґР°РµС‚ РѕС‚РІРµС‚Р° РєР»РёРµРЅС‚Р°',
+      '9': 'Р—Р°РєСЂС‹С‚',
       '0': '',
     };
 
@@ -4964,7 +5044,7 @@
       persistDialogPreferences();
       applyFilters();
       if (typeof showNotification === 'function') {
-        showNotification(nextSortMode === 'sla_priority' ? 'Включена сортировка SLA-first' : 'Включена стандартная сортировка', 'info');
+        showNotification(nextSortMode === 'sla_priority' ? 'Р’РєР»СЋС‡РµРЅР° СЃРѕСЂС‚РёСЂРѕРІРєР° SLA-first' : 'Р’РєР»СЋС‡РµРЅР° СЃС‚Р°РЅРґР°СЂС‚РЅР°СЏ СЃРѕСЂС‚РёСЂРѕРІРєР°', 'info');
       }
       return;
     }
@@ -4972,7 +5052,7 @@
     if (event.shiftKey && key === 'a') {
       event.preventDefault();
       if (!canRunAction('can_bulk') || !canRunAction('can_assign')) {
-        notifyPermissionDenied('Назначить выбранные на меня');
+        notifyPermissionDenied('РќР°Р·РЅР°С‡РёС‚СЊ РІС‹Р±СЂР°РЅРЅС‹Рµ РЅР° РјРµРЅСЏ');
         return;
       }
       runBulkAction('take');
@@ -4982,7 +5062,7 @@
     if (event.shiftKey && key === 's') {
       event.preventDefault();
       if (!canRunAction('can_bulk') || !canRunAction('can_snooze')) {
-        notifyPermissionDenied(`Отложить выбранные на ${formatSnoozeActionLabel(QUICK_SNOOZE_MINUTES).replace('Отложить ', '')}`);
+        notifyPermissionDenied(`РћС‚Р»РѕР¶РёС‚СЊ РІС‹Р±СЂР°РЅРЅС‹Рµ РЅР° ${formatSnoozeActionLabel(QUICK_SNOOZE_MINUTES).replace('РћС‚Р»РѕР¶РёС‚СЊ ', '')}`);
         return;
       }
       runBulkAction('snooze');
@@ -4992,7 +5072,7 @@
     if (event.shiftKey && key === 'c') {
       event.preventDefault();
       if (!canRunAction('can_bulk') || !canRunAction('can_close')) {
-        notifyPermissionDenied('Закрыть выбранные');
+        notifyPermissionDenied('Р—Р°РєСЂС‹С‚СЊ РІС‹Р±СЂР°РЅРЅС‹Рµ');
         return;
       }
       runBulkAction('close');
@@ -5002,7 +5082,7 @@
     if (key === 'a') {
       event.preventDefault();
       if (!canRunAction('can_assign')) {
-        notifyPermissionDenied('Назначить мне');
+        notifyPermissionDenied('РќР°Р·РЅР°С‡РёС‚СЊ РјРЅРµ');
         return;
       }
       const row = getShortcutTargetRow();
@@ -5013,12 +5093,12 @@
       takeDialog(ticketId, row, takeBtn)
         .then(() => {
           if (typeof showNotification === 'function') {
-            showNotification('Диалог назначен на вас', 'success');
+            showNotification('Р”РёР°Р»РѕРі РЅР°Р·РЅР°С‡РµРЅ РЅР° РІР°СЃ', 'success');
           }
         })
         .catch((error) => {
           if (typeof showNotification === 'function') {
-            showNotification(error.message || 'Не удалось назначить диалог', 'error');
+            showNotification(error.message || 'РќРµ СѓРґР°Р»РѕСЃСЊ РЅР°Р·РЅР°С‡РёС‚СЊ РґРёР°Р»РѕРі', 'error');
           }
         });
       return;
@@ -5041,12 +5121,12 @@
           updateRowQuickActions(row);
           applyFilters();
           if (typeof showNotification === 'function') {
-            showNotification(`Диалог отложен на ${formatSnoozeActionLabel(QUICK_SNOOZE_MINUTES).replace('Отложить ', '')}`, 'success');
+            showNotification(`Р”РёР°Р»РѕРі РѕС‚Р»РѕР¶РµРЅ РЅР° ${formatSnoozeActionLabel(QUICK_SNOOZE_MINUTES).replace('РћС‚Р»РѕР¶РёС‚СЊ ', '')}`, 'success');
           }
         })
         .catch((error) => {
           if (typeof showNotification === 'function') {
-            showNotification(error.message || 'Не удалось отложить диалог', 'error');
+            showNotification(error.message || 'РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‚Р»РѕР¶РёС‚СЊ РґРёР°Р»РѕРі', 'error');
           }
         });
       return;
@@ -5055,7 +5135,7 @@
     if (key === 'c') {
       event.preventDefault();
       if (!canRunAction('can_close')) {
-        notifyPermissionDenied('Закрыть');
+        notifyPermissionDenied('Р—Р°РєСЂС‹С‚СЊ');
         return;
       }
       const row = getShortcutTargetRow();
@@ -5068,13 +5148,13 @@
         .then(() => {
           clearSnooze(ticketId);
           if (typeof showNotification === 'function') {
-            showNotification('Диалог закрыт', 'success');
+            showNotification('Р”РёР°Р»РѕРі Р·Р°РєСЂС‹С‚', 'success');
           }
         })
         .catch((error) => {
           closeBtn.disabled = false;
           if (typeof showNotification === 'function') {
-            showNotification(error.message || 'Не удалось закрыть диалог', 'error');
+            showNotification(error.message || 'РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РєСЂС‹С‚СЊ РґРёР°Р»РѕРі', 'error');
           }
         });
       return;
@@ -5206,7 +5286,7 @@
   }
 
   function renderSummaryBadge(value, style) {
-    const safeValue = escapeHtml(value || '—');
+    const safeValue = escapeHtml(value || 'вЂ”');
     const background = style?.background ? `background-color: ${style.background}` : '';
     const color = style?.text ? `color: ${style.text}` : '';
     const inlineStyle = [background, color].filter(Boolean).join('; ');
@@ -5337,15 +5417,15 @@
   }
 
   function formatDuration(totalMinutes) {
-    if (!Number.isFinite(totalMinutes) || totalMinutes < 0) return '—';
+    if (!Number.isFinite(totalMinutes) || totalMinutes < 0) return 'вЂ”';
     const minutes = Math.floor(totalMinutes);
-    if (minutes < 60) return `${minutes} мин`;
+    if (minutes < 60) return `${minutes} РјРёРЅ`;
     const hours = Math.floor(minutes / 60);
     const restMinutes = minutes % 60;
-    if (hours < 24) return `${hours} ч ${restMinutes} мин`;
+    if (hours < 24) return `${hours} С‡ ${restMinutes} РјРёРЅ`;
     const days = Math.floor(hours / 24);
     const restHours = hours % 24;
-    return `${days} д ${restHours} ч`;
+    return `${days} Рґ ${restHours} С‡`;
   }
 
   function resolveTimeMetricColor(totalMinutes, config) {
@@ -5386,7 +5466,7 @@
   function renderMacroTemplateOptions(templates) {
     if (!macroTemplateSelect) return;
     const nextTemplates = Array.isArray(templates) ? templates : [];
-    buildTemplateOptions(macroTemplateSelect, nextTemplates, 'Макрос');
+    buildTemplateOptions(macroTemplateSelect, nextTemplates, 'РњР°РєСЂРѕСЃ');
     const hasOptions = nextTemplates.length > 0;
     if (macroTemplateSelect) {
       macroTemplateSelect.disabled = !hasOptions;
@@ -5444,10 +5524,10 @@
       wrapper.className = 'border rounded p-2 bg-light';
       const question = document.createElement('div');
       question.className = 'fw-semibold';
-      question.textContent = item?.question || 'Контрольный вопрос';
+      question.textContent = item?.question || 'РљРѕРЅС‚СЂРѕР»СЊРЅС‹Р№ РІРѕРїСЂРѕСЃ';
       const action = document.createElement('div');
       action.className = 'text-muted';
-      action.textContent = item?.action || 'Действие';
+      action.textContent = item?.action || 'Р”РµР№СЃС‚РІРёРµ';
       wrapper.appendChild(question);
       wrapper.appendChild(action);
       completionTemplateList.appendChild(wrapper);
@@ -5461,13 +5541,13 @@
   function renderMacroVariableCatalog(variables) {
     if (!macroVariableCatalog) return;
     if (!Array.isArray(variables) || variables.length === 0) {
-      macroVariableCatalog.textContent = 'Доступны шаблоны вида {{ticket_id}} и {{client_name}}.';
+      macroVariableCatalog.textContent = 'Р”РѕСЃС‚СѓРїРЅС‹ С€Р°Р±Р»РѕРЅС‹ РІРёРґР° {{ticket_id}} Рё {{client_name}}.';
       return;
     }
     macroVariableCatalog.innerHTML = '';
     const title = document.createElement('span');
     title.className = 'text-muted';
-    title.textContent = 'Переменные: ';
+    title.textContent = 'РџРµСЂРµРјРµРЅРЅС‹Рµ: ';
     macroVariableCatalog.appendChild(title);
     variables.forEach((item, index) => {
       const code = document.createElement('code');
@@ -5480,7 +5560,7 @@
       if (label || key) titleParts.push(label || key);
       if (defaultValue) titleParts.push(`default: ${defaultValue}`);
       if (source) titleParts.push(`source: ${source}`);
-      code.title = titleParts.join(' · ');
+      code.title = titleParts.join(' В· ');
       macroVariableCatalog.appendChild(code);
       if (index < variables.length - 1) {
         macroVariableCatalog.appendChild(document.createTextNode(', '));
@@ -5506,16 +5586,16 @@
     macroVariableCatalogInitialized = true;
     macroVariableCatalogTicketId = normalizedTicketId;
     const fallbackVariables = [
-      { key: 'client_name', label: 'Имя клиента' },
-      { key: 'ticket_id', label: 'ID обращения' },
-      { key: 'operator_name', label: 'Имя оператора' },
-      { key: 'channel_name', label: 'Канал обращения' },
-      { key: 'business', label: 'Бизнес-направление' },
-      { key: 'location', label: 'Локация клиента' },
-      { key: 'dialog_status', label: 'Статус диалога' },
-      { key: 'created_at', label: 'Дата создания' },
-      { key: 'current_date', label: 'Текущая дата' },
-      { key: 'current_time', label: 'Текущее время' },
+      { key: 'client_name', label: 'РРјСЏ РєР»РёРµРЅС‚Р°' },
+      { key: 'ticket_id', label: 'ID РѕР±СЂР°С‰РµРЅРёСЏ' },
+      { key: 'operator_name', label: 'РРјСЏ РѕРїРµСЂР°С‚РѕСЂР°' },
+      { key: 'channel_name', label: 'РљР°РЅР°Р» РѕР±СЂР°С‰РµРЅРёСЏ' },
+      { key: 'business', label: 'Р‘РёР·РЅРµСЃ-РЅР°РїСЂР°РІР»РµРЅРёРµ' },
+      { key: 'location', label: 'Р›РѕРєР°С†РёСЏ РєР»РёРµРЅС‚Р°' },
+      { key: 'dialog_status', label: 'РЎС‚Р°С‚СѓСЃ РґРёР°Р»РѕРіР°' },
+      { key: 'created_at', label: 'Р”Р°С‚Р° СЃРѕР·РґР°РЅРёСЏ' },
+      { key: 'current_date', label: 'РўРµРєСѓС‰Р°СЏ РґР°С‚Р°' },
+      { key: 'current_time', label: 'РўРµРєСѓС‰РµРµ РІСЂРµРјСЏ' },
     ];
     try {
       const params = new URLSearchParams();
@@ -5537,14 +5617,14 @@
   function resolveMacroVariables() {
     const now = new Date();
     const variables = {
-      client_name: activeDialogContext.clientName || 'клиент',
-      ticket_id: activeDialogTicketId || '—',
-      operator_name: activeDialogContext.operatorName || 'оператор',
-      channel_name: activeDialogContext.channelName || '—',
-      business: activeDialogContext.business || '—',
-      location: activeDialogContext.location || '—',
-      dialog_status: activeDialogContext.status || '—',
-      created_at: activeDialogContext.createdAt || '—',
+      client_name: activeDialogContext.clientName || 'РєР»РёРµРЅС‚',
+      ticket_id: activeDialogTicketId || 'вЂ”',
+      operator_name: activeDialogContext.operatorName || 'РѕРїРµСЂР°С‚РѕСЂ',
+      channel_name: activeDialogContext.channelName || 'вЂ”',
+      business: activeDialogContext.business || 'вЂ”',
+      location: activeDialogContext.location || 'вЂ”',
+      dialog_status: activeDialogContext.status || 'вЂ”',
+      created_at: activeDialogContext.createdAt || 'вЂ”',
       current_date: now.toLocaleDateString('ru-RU'),
       current_time: now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
     };
@@ -5581,7 +5661,7 @@
       }
       : null;
     const message = resolveMacroText(template);
-    macroTemplatePreview.textContent = message || 'Выберите макрос для предпросмотра.';
+    macroTemplatePreview.textContent = message || 'Р’С‹Р±РµСЂРёС‚Рµ РјР°РєСЂРѕСЃ РґР»СЏ РїСЂРµРґРїСЂРѕСЃРјРѕС‚СЂР°.';
     macroTemplateMeta.innerHTML = '';
     const tags = Array.isArray(template?.tags) ? template.tags.filter(Boolean) : [];
     tags.forEach((tag) => {
@@ -5594,19 +5674,19 @@
     if (workflow.assignToMe) {
       const badge = document.createElement('span');
       badge.className = 'badge text-bg-info-subtle border';
-      badge.textContent = 'Workflow: назначить мне';
+      badge.textContent = 'Workflow: РЅР°Р·РЅР°С‡РёС‚СЊ РјРЅРµ';
       macroTemplateMeta.appendChild(badge);
     }
     if (workflow.snoozeMinutes > 0) {
       const badge = document.createElement('span');
       badge.className = 'badge text-bg-info-subtle border';
-      badge.textContent = `Workflow: snooze ${workflow.snoozeMinutes}м`;
+      badge.textContent = `Workflow: snooze ${workflow.snoozeMinutes}Рј`;
       macroTemplateMeta.appendChild(badge);
     }
     if (workflow.closeTicket) {
       const badge = document.createElement('span');
       badge.className = 'badge text-bg-warning-subtle border';
-      badge.textContent = 'Workflow: закрыть тикет';
+      badge.textContent = 'Workflow: Р·Р°РєСЂС‹С‚СЊ С‚РёРєРµС‚';
       macroTemplateMeta.appendChild(badge);
     }
     const namespace = String(template?.namespace || '').trim();
@@ -5644,7 +5724,7 @@
       const hasTemplates = templates.length > 0;
       categoryTemplatesSection.classList.toggle('d-none', !hasTemplates);
       if (hasTemplates && categoryTemplateSelect) {
-        buildTemplateOptions(categoryTemplateSelect, templates, 'Шаблон категорий');
+        buildTemplateOptions(categoryTemplateSelect, templates, 'РЁР°Р±Р»РѕРЅ РєР°С‚РµРіРѕСЂРёР№');
         renderCategoryTemplate(templates[0]);
         syncCategorySelections();
         categoryTemplateSelect.addEventListener('change', () => {
@@ -5660,7 +5740,7 @@
       const hasTemplates = templates.length > 0;
       questionTemplatesSection.classList.toggle('d-none', !hasTemplates);
       if (hasTemplates && questionTemplateSelect) {
-        buildTemplateOptions(questionTemplateSelect, templates, 'Шаблон вопросов');
+        buildTemplateOptions(questionTemplateSelect, templates, 'РЁР°Р±Р»РѕРЅ РІРѕРїСЂРѕСЃРѕРІ');
         renderQuestionTemplate(templates[0]);
         questionTemplateSelect.addEventListener('change', () => {
           const selected = findTemplateByValue(templates, questionTemplateSelect.value);
@@ -5710,7 +5790,7 @@
       const hasTemplates = templates.length > 0;
       completionTemplatesSection.classList.toggle('d-none', !hasTemplates);
       if (hasTemplates && completionTemplateSelect) {
-        buildTemplateOptions(completionTemplateSelect, templates, 'Шаблон действий');
+        buildTemplateOptions(completionTemplateSelect, templates, 'РЁР°Р±Р»РѕРЅ РґРµР№СЃС‚РІРёР№');
         renderCompletionTemplate(templates[0]);
         completionTemplateSelect.addEventListener('change', () => {
           const selected = findTemplateByValue(templates, completionTemplateSelect.value);
@@ -5775,18 +5855,18 @@
 
     if (workflow.assignToMe) {
       await takeDialog(ticketId, row, null);
-      steps.push('назначить мне');
+      steps.push('РЅР°Р·РЅР°С‡РёС‚СЊ РјРЅРµ');
     }
     if (workflow.snoozeMinutes > 0) {
       await snoozeDialog(ticketId, workflow.snoozeMinutes, null);
       setSnooze(ticketId, workflow.snoozeMinutes);
       if (row) updateRowQuickActions(row);
       applyFilters();
-      steps.push(`отложить на ${workflow.snoozeMinutes} мин`);
+      steps.push(`РѕС‚Р»РѕР¶РёС‚СЊ РЅР° ${workflow.snoozeMinutes} РјРёРЅ`);
     }
     if (workflow.closeTicket && row) {
       await closeDialogQuick(ticketId, row, null);
-      steps.push('закрыть тикет');
+      steps.push('Р·Р°РєСЂС‹С‚СЊ С‚РёРєРµС‚');
     }
 
     return steps;
@@ -5803,8 +5883,8 @@
       insertReplyText(message);
     }
     if (typeof showNotification === 'function' && (message || appliedSteps.length)) {
-      const workflowSuffix = appliedSteps.length ? `; действия: ${appliedSteps.join(', ')}` : '';
-      showNotification(`Макрос применён${workflowSuffix}.`, 'success');
+      const workflowSuffix = appliedSteps.length ? `; РґРµР№СЃС‚РІРёСЏ: ${appliedSteps.join(', ')}` : '';
+      showNotification(`РњР°РєСЂРѕСЃ РїСЂРёРјРµРЅС‘РЅ${workflowSuffix}.`, 'success');
     }
     emitWorkspaceTelemetry('macro_apply', {
       ticketId: activeDialogTicketId,
@@ -5915,12 +5995,12 @@
   function resolveSenderLabel(message, context) {
     const senderType = normalizeMessageSenderByType(message?.messageType, message?.sender);
     if (senderType === 'support') {
-      return context?.operatorName || message?.sender || 'Оператор';
+      return context?.operatorName || message?.sender || 'РћРїРµСЂР°С‚РѕСЂ';
     }
     if (senderType === 'system') {
-      return message?.sender || 'Система';
+      return message?.sender || 'РЎРёСЃС‚РµРјР°';
     }
-    return context?.clientName || message?.sender || 'Клиент';
+    return context?.clientName || message?.sender || 'РљР»РёРµРЅС‚';
   }
 
   function parseUtcDateValue(value) {
@@ -5954,7 +6034,7 @@
 
   function formatUtcDate(date, options = {}) {
     if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
-      return options.fallback || '—';
+      return options.fallback || 'вЂ”';
     }
     const day = String(date.getUTCDate()).padStart(2, '0');
     const month = String(date.getUTCMonth() + 1).padStart(2, '0');
@@ -5971,7 +6051,7 @@
   function formatTimestamp(value, options = {}) {
     const parsed = parseUtcDateValue(value);
     if (!parsed) return options.fallback || String(value || '');
-    return formatUtcDate(parsed, { includeTime: options.includeTime, fallback: options.fallback || '—' });
+    return formatUtcDate(parsed, { includeTime: options.includeTime, fallback: options.fallback || 'вЂ”' });
   }
 
   function resolveAttachmentKind(messageType, attachment) {
@@ -6003,12 +6083,12 @@
       const hasPath = /[\\/]/.test(message) || /^https?:\/\//i.test(message);
       if (!hasPath) return message;
       const extension = extractExtension(message);
-      return extension ? `Файл ${extension}` : 'Файл';
+      return extension ? `Р¤Р°Р№Р» ${extension}` : 'Р¤Р°Р№Р»';
     }
 
-    if (!attachment) return 'Файл';
+    if (!attachment) return 'Р¤Р°Р№Р»';
     const extension = extractExtension(attachment);
-    return extension ? `Файл ${extension}` : 'Файл';
+    return extension ? `Р¤Р°Р№Р» ${extension}` : 'Р¤Р°Р№Р»';
   }
 
   function buildMediaMarkup(message) {
@@ -6017,7 +6097,7 @@
     const name = resolveAttachmentName(message.message, message.attachment);
     const downloadLink = `
       <a class="btn btn-sm btn-outline-secondary" href="${message.attachment}" download target="_blank" rel="noopener">
-        Скачать
+        РЎРєР°С‡Р°С‚СЊ
       </a>
     `;
     if (kind === 'audio') {
@@ -6025,7 +6105,7 @@
         <div class="chat-media">
           <div class="chat-media-actions">
             <button class="btn btn-sm btn-outline-primary chat-audio-play" type="button"
-              data-audio-src="${message.attachment}">Воспроизвести</button>
+              data-audio-src="${message.attachment}">Р’РѕСЃРїСЂРѕРёР·РІРµСЃС‚Рё</button>
             ${downloadLink}
             <span class="chat-media-file-name">${name}</span>
           </div>
@@ -6087,30 +6167,30 @@
     const isEdited = Boolean(message?.editedAt);
     const isSupport = senderType === 'support';
     const replyPreview = message?.replyPreview
-      ? `<div class="small text-muted border-start ps-2 mb-1 chat-message-reply-source">↪ ${escapeHtml(message.replyPreview)}</div>`
+      ? `<div class="small text-muted border-start ps-2 mb-1 chat-message-reply-source">в†Є ${escapeHtml(message.replyPreview)}</div>`
       : '';
     const forwardedBadge = message?.forwardedFrom
-      ? `<div class="small text-muted mb-1">Переслано от ${escapeHtml(message.forwardedFrom)}</div>`
+      ? `<div class="small text-muted mb-1">РџРµСЂРµСЃР»Р°РЅРѕ РѕС‚ ${escapeHtml(message.forwardedFrom)}</div>`
       : '';
     const bodyText = message?.message ? escapeHtml(message.message).replace(/\n/g, '<br>') : '';
     const fallbackType = message?.messageType && !bodyText ? `[${escapeHtml(message.messageType)}]` : '';
-    const body = isDeleted ? '<span class="text-muted">Сообщение удалено</span>' : (bodyText || fallbackType || '—');
+    const body = isDeleted ? '<span class="text-muted">РЎРѕРѕР±С‰РµРЅРёРµ СѓРґР°Р»РµРЅРѕ</span>' : (bodyText || fallbackType || 'вЂ”');
     const originalBlock = isEdited && message?.originalMessage && message.originalMessage !== message.message
-      ? `<div class="small text-muted mt-1"><div>Было: ${escapeHtml(message.originalMessage)}</div><div>Стало: ${escapeHtml(message.message || '')}</div></div>`
+      ? `<div class="small text-muted mt-1"><div>Р‘С‹Р»Рѕ: ${escapeHtml(message.originalMessage)}</div><div>РЎС‚Р°Р»Рѕ: ${escapeHtml(message.message || '')}</div></div>`
       : '';
     const statusBadges = [
-      isEdited ? '<span class="chat-message-meta-badge">✏️ Изменено</span>' : '',
-      isDeleted ? '<span class="chat-message-meta-badge">🗑 Удалено</span>' : ''
+      isEdited ? '<span class="chat-message-meta-badge">вњЏпёЏ РР·РјРµРЅРµРЅРѕ</span>' : '',
+      isDeleted ? '<span class="chat-message-meta-badge">рџ—‘ РЈРґР°Р»РµРЅРѕ</span>' : ''
     ].join(' ');
     const media = isDeleted ? '' : buildMediaMarkup(message);
     const canReply = senderType !== 'system' && message?.telegramMessageId;
     const actionButtons = canReply
       ? `<div class="chat-message-menu">
-          <button class="chat-message-menu-toggle" type="button" data-action-menu aria-label="Действия с сообщением">⋯</button>
+          <button class="chat-message-menu-toggle" type="button" data-action-menu aria-label="Р”РµР№СЃС‚РІРёСЏ СЃ СЃРѕРѕР±С‰РµРЅРёРµРј">в‹Ї</button>
           <div class="chat-message-menu-list">
-            <button class="btn btn-sm btn-outline-secondary" type="button" data-action="reply" data-message-id="${message.telegramMessageId}">Ответить</button>
-            ${isSupport ? `<button class="btn btn-sm btn-outline-secondary" type="button" data-action="edit" data-message-id="${message.telegramMessageId}" ${isDeleted ? 'disabled' : ''}>Редактировать</button>` : ''}
-            ${isSupport ? `<button class="btn btn-sm btn-outline-danger" type="button" data-action="delete" data-message-id="${message.telegramMessageId}" ${isDeleted ? 'disabled' : ''}>Удалить</button>` : ''}
+            <button class="btn btn-sm btn-outline-secondary" type="button" data-action="reply" data-message-id="${message.telegramMessageId}">РћС‚РІРµС‚РёС‚СЊ</button>
+            ${isSupport ? `<button class="btn btn-sm btn-outline-secondary" type="button" data-action="edit" data-message-id="${message.telegramMessageId}" ${isDeleted ? 'disabled' : ''}>Р РµРґР°РєС‚РёСЂРѕРІР°С‚СЊ</button>` : ''}
+            ${isSupport ? `<button class="btn btn-sm btn-outline-danger" type="button" data-action="delete" data-message-id="${message.telegramMessageId}" ${isDeleted ? 'disabled' : ''}>РЈРґР°Р»РёС‚СЊ</button>` : ''}
           </div>
         </div>`
       : '';
@@ -6135,7 +6215,7 @@
   function renderHistory(messages) {
     if (!detailsHistory) return;
     if (!Array.isArray(messages) || messages.length === 0) {
-      detailsHistory.innerHTML = '<div class="text-muted">Сообщения не найдены.</div>';
+      detailsHistory.innerHTML = '<div class="text-muted">РЎРѕРѕР±С‰РµРЅРёСЏ РЅРµ РЅР°Р№РґРµРЅС‹.</div>';
       lastHistoryMarker = 'empty';
       return;
     }
@@ -6185,7 +6265,7 @@
       });
       const data = await resp.json();
       if (!resp.ok || !data?.success) {
-        throw new Error(data?.error || `Ошибка ${resp.status}`);
+        throw new Error(data?.error || `РћС€РёР±РєР° ${resp.status}`);
       }
       const messages = data.messages || [];
       const marker = historyMarker(messages);
@@ -6216,7 +6296,7 @@
     if (!detailsResolve) return;
     const resolved = String(statusRaw || '').toLowerCase() === 'resolved';
     detailsResolve.disabled = resolved;
-    detailsResolve.textContent = resolved ? 'Обращение закрыто' : 'Закрыть обращение';
+    detailsResolve.textContent = resolved ? 'РћР±СЂР°С‰РµРЅРёРµ Р·Р°РєСЂС‹С‚Рѕ' : 'Р—Р°РєСЂС‹С‚СЊ РѕР±СЂР°С‰РµРЅРёРµ';
     if (detailsReopen) {
       detailsReopen.disabled = !resolved;
       detailsReopen.classList.toggle('d-none', !resolved);
@@ -6264,33 +6344,33 @@
     if (statusKey) {
       switch (statusKey) {
         case 'auto_processing':
-          return 'в автоматической обработке';
+          return 'РІ Р°РІС‚РѕРјР°С‚РёС‡РµСЃРєРѕР№ РѕР±СЂР°Р±РѕС‚РєРµ';
         case 'auto_closed':
-          return 'Закрыт автоматически';
+          return 'Р—Р°РєСЂС‹С‚ Р°РІС‚РѕРјР°С‚РёС‡РµСЃРєРё';
         case 'closed':
-          return 'Закрыт';
+          return 'Р—Р°РєСЂС‹С‚';
         case 'waiting_operator':
-          return 'ожидает ответа оператора';
+          return 'РѕР¶РёРґР°РµС‚ РѕС‚РІРµС‚Р° РѕРїРµСЂР°С‚РѕСЂР°';
         case 'waiting_client':
-          return 'ожидает ответа клиента';
+          return 'РѕР¶РёРґР°РµС‚ РѕС‚РІРµС‚Р° РєР»РёРµРЅС‚Р°';
         case 'new':
-          return 'новый';
+          return 'РЅРѕРІС‹Р№';
         default:
-          return '—';
+          return 'вЂ”';
       }
     }
     const normalized = String(raw || '').toLowerCase();
-    if (normalized === 'resolved' || normalized === 'closed') return 'Закрыт';
-    if (normalized === 'pending') return 'ожидает ответа оператора';
-    if (normalized) return 'ожидает ответа клиента';
-    return '—';
+    if (normalized === 'resolved' || normalized === 'closed') return 'Р—Р°РєСЂС‹С‚';
+    if (normalized === 'pending') return 'РѕР¶РёРґР°РµС‚ РѕС‚РІРµС‚Р° РѕРїРµСЂР°С‚РѕСЂР°';
+    if (normalized) return 'РѕР¶РёРґР°РµС‚ РѕС‚РІРµС‚Р° РєР»РёРµРЅС‚Р°';
+    return 'вЂ”';
   }
 
   function isResolvedStatus(statusRaw, statusKey, statusLabel) {
     const raw = String(statusRaw || '').toLowerCase();
     const key = String(statusKey || '').toLowerCase();
     const label = String(statusLabel || '').toLowerCase();
-    return raw === 'resolved' || raw === 'closed' || key === 'closed' || key === 'auto_closed' || label.startsWith('закрыт');
+    return raw === 'resolved' || raw === 'closed' || key === 'closed' || key === 'auto_closed' || label.startsWith('Р·Р°РєСЂС‹С‚');
   }
 
   async function openDialogDetails(ticketId, fallbackRow) {
@@ -6308,7 +6388,7 @@
       detailsRating.textContent = '';
       detailsRating.classList.add('d-none');
     }
-    if (detailsSummary) detailsSummary.innerHTML = '<div>Загрузка...</div>';
+    if (detailsSummary) detailsSummary.innerHTML = '<div>Р—Р°РіСЂСѓР·РєР°...</div>';
     if (detailsHistory) detailsHistory.innerHTML = '';
     if (detailsReplyText) detailsReplyText.value = '';
 
@@ -6320,7 +6400,7 @@
       });
       const data = await resp.json();
       if (!resp.ok) {
-        throw new Error(data?.error || `Ошибка ${resp.status}`);
+        throw new Error(data?.error || `РћС€РёР±РєР° ${resp.status}`);
       }
       const summary = data.summary || {};
       selectedCategories = new Set(Array.isArray(data.categories) ? data.categories.filter(Boolean).map((item) => String(item).trim()) : []);
@@ -6337,29 +6417,29 @@
       const createdAt = summary.createdAt || summary.created_at;
       const createdLabel = [createdDate, createdTime].filter(Boolean).join(' ')
         || createdAt
-        || '—';
+        || 'вЂ”';
       const createdDisplay = formatTimestamp(createdLabel, { includeTime: true });
       const resolvedDisplay = formatTimestamp(resolvedAt || '', { includeTime: true });
       const responsibleLabel = summary.responsible
         || resolvedBy
         || fallbackRow?.dataset.responsible
-        || '—';
+        || 'вЂ”';
       const clientName = summary.clientName
         || summary.username
         || fallbackRow?.dataset.client
-        || '—';
-      const clientStatus = summary.clientStatus || fallbackRow?.dataset.clientStatus || '—';
-      const channelLabel = summary.channelName || fallbackRow?.dataset.channel || '—';
-      const businessLabel = summary.business || fallbackRow?.dataset.business || '—';
+        || 'вЂ”';
+      const clientStatus = summary.clientStatus || fallbackRow?.dataset.clientStatus || 'вЂ”';
+      const channelLabel = summary.channelName || fallbackRow?.dataset.channel || 'вЂ”';
+      const businessLabel = summary.business || fallbackRow?.dataset.business || 'вЂ”';
       const statusRaw = summary.status || fallbackRow?.dataset.statusRaw || '';
       const statusKey = summary.statusKey || fallbackRow?.dataset.statusKey || '';
       const statusLabel = formatStatusLabel(statusRaw, summary.statusLabel || fallbackRow?.dataset.status, statusKey);
-      const locationLabel = summary.locationName || summary.city || fallbackRow?.dataset.location || '—';
-      const problemLabel = summary.problem || fallbackRow?.dataset.problem || '—';
+      const locationLabel = summary.locationName || summary.city || fallbackRow?.dataset.location || 'вЂ”';
+      const problemLabel = summary.problem || fallbackRow?.dataset.problem || 'вЂ”';
       const selectedCategoriesLabel = formatCategoriesLabel(Array.from(selectedCategories));
-      const categoriesLabel = selectedCategoriesLabel !== '—'
+      const categoriesLabel = selectedCategoriesLabel !== 'вЂ”'
         ? selectedCategoriesLabel
-        : (summary.categoriesSafe || summary.categories || fallbackRow?.dataset.categories || '—');
+        : (summary.categoriesSafe || summary.categories || fallbackRow?.dataset.categories || 'вЂ”');
       const requestNumber = summary.requestNumber || fallbackRow?.dataset.requestNumber || '';
       const ratingValue = summary.rating ?? fallbackRow?.dataset.rating;
       const ratingStars = formatRatingStars(ratingValue);
@@ -6369,7 +6449,7 @@
       }
       if (detailsClientName) detailsClientName.textContent = clientName;
       if (detailsClientStatus) detailsClientStatus.textContent = clientStatus;
-      updateSummaryCategories(categoriesLabel || '—');
+      updateSummaryCategories(categoriesLabel || 'вЂ”');
       if (detailsProblem) detailsProblem.textContent = problemLabel;
       if (detailsMeta) detailsMeta.textContent = formatDialogMeta(ticketId, requestNumber);
       if (detailsRating) {
@@ -6382,38 +6462,38 @@
         }
       }
       const summaryItems = [
-        ['Клиент', summary.clientName || summary.username || fallbackRow?.dataset.client || '—'],
-        ['Статус клиента', summary.clientStatus || fallbackRow?.dataset.clientStatus || '—'],
-        ['Статус', statusLabel || '—'],
-        ['Канал', summary.channelName || fallbackRow?.dataset.channel || '—'],
-        ['Бизнес', businessLabel],
-        ['Проблема', summary.problem || fallbackRow?.dataset.problem || '—'],
-        ['Локация', summary.locationName || summary.city || fallbackRow?.dataset.location || '—'],
-        ['Категории', categoriesLabel || '—'],
-        ['Ответственный', responsibleLabel],
-        ['Создан', createdDisplay || createdLabel],
+        ['РљР»РёРµРЅС‚', summary.clientName || summary.username || fallbackRow?.dataset.client || 'вЂ”'],
+        ['РЎС‚Р°С‚СѓСЃ РєР»РёРµРЅС‚Р°', summary.clientStatus || fallbackRow?.dataset.clientStatus || 'вЂ”'],
+        ['РЎС‚Р°С‚СѓСЃ', statusLabel || 'вЂ”'],
+        ['РљР°РЅР°Р»', summary.channelName || fallbackRow?.dataset.channel || 'вЂ”'],
+        ['Р‘РёР·РЅРµСЃ', businessLabel],
+        ['РџСЂРѕР±Р»РµРјР°', summary.problem || fallbackRow?.dataset.problem || 'вЂ”'],
+        ['Р›РѕРєР°С†РёСЏ', summary.locationName || summary.city || fallbackRow?.dataset.location || 'вЂ”'],
+        ['РљР°С‚РµРіРѕСЂРёРё', categoriesLabel || 'вЂ”'],
+        ['РћС‚РІРµС‚СЃС‚РІРµРЅРЅС‹Р№', responsibleLabel],
+        ['РЎРѕР·РґР°РЅ', createdDisplay || createdLabel],
       ];
       activeDialogContext = {
         clientName,
-        operatorName: responsibleLabel || 'Оператор',
+        operatorName: responsibleLabel || 'РћРїРµСЂР°С‚РѕСЂ',
         channelName: channelLabel,
         business: businessLabel,
         location: locationLabel,
-        status: statusLabel || '—',
-        createdAt: createdDisplay || createdLabel || '—',
+        status: statusLabel || 'вЂ”',
+        createdAt: createdDisplay || createdLabel || 'вЂ”',
       };
       if (detailsSummary) {
         const clientUserId = summary.userId || fallbackRow?.dataset.userId || '';
         detailsSummary.innerHTML = summaryItems.map(([label, value]) => {
-          const safeValue = value || '—';
+          const safeValue = value || 'вЂ”';
           let renderedValue = `<span class="text-dark">${escapeHtml(safeValue)}</span>`;
-          if (label === 'Статус') {
+          if (label === 'РЎС‚Р°С‚СѓСЃ') {
             renderedValue = renderSummaryBadge(safeValue, resolveSummaryBadgeStyle('status', safeValue));
           }
-          if (label === 'Канал') {
+          if (label === 'РљР°РЅР°Р»') {
             renderedValue = renderSummaryBadge(safeValue, resolveSummaryBadgeStyle('channel', safeValue));
           }
-          if (label === 'Бизнес') {
+          if (label === 'Р‘РёР·РЅРµСЃ') {
             const businessKey = String(safeValue || '').trim();
             const businessStyle = BUSINESS_STYLE_MAP[businessKey] || {};
             renderedValue = renderSummaryBadge(safeValue, {
@@ -6421,14 +6501,14 @@
               text: businessStyle.text || SUMMARY_BADGE_STYLES.default.text,
             });
           }
-          if (label === 'Клиент' && safeValue !== '—' && clientUserId) {
+          if (label === 'РљР»РёРµРЅС‚' && safeValue !== 'вЂ”' && clientUserId) {
             renderedValue = `<a class="dialog-summary-value-link" href="/client/${encodeURIComponent(clientUserId)}" target="_blank" rel="noopener">${escapeHtml(safeValue)}</a>`;
           }
-          if (label === 'Ответственный' && safeValue !== '—') {
+          if (label === 'РћС‚РІРµС‚СЃС‚РІРµРЅРЅС‹Р№' && safeValue !== 'вЂ”') {
             renderedValue = `<a class="dialog-summary-value-link" href="/users/${encodeURIComponent(safeValue)}" target="_blank" rel="noopener">${escapeHtml(safeValue)}</a>`;
           }
-          const fieldAttr = label === 'Категории' ? ' data-summary-field="categories"' : '';
-          const valueMarkup = label === 'Категории'
+          const fieldAttr = label === 'РљР°С‚РµРіРѕСЂРёРё' ? ' data-summary-field="categories"' : '';
+          const valueMarkup = label === 'РљР°С‚РµРіРѕСЂРёРё'
             ? `<span data-summary-value>${renderCategoryBadges(safeValue)}</span>`
             : renderedValue;
           return `
@@ -6448,23 +6528,23 @@
         const totalMinutes = Number.isFinite(createdAtTimestamp)
           ? Math.max(0, Math.floor((endTimestamp - createdAtTimestamp) / 60000))
           : null;
-        const timeLabel = totalMinutes === null ? '—' : formatDuration(totalMinutes);
+        const timeLabel = totalMinutes === null ? 'вЂ”' : formatDuration(totalMinutes);
         const timeColor = totalMinutes === null ? null : resolveTimeMetricColor(totalMinutes, timeMetricsConfig);
         const metrics = [
-          { label: 'Создано', value: createdDisplay },
-          { label: 'Время обращения', value: timeLabel, color: timeColor },
-          { label: 'Закрыто', value: resolvedDisplay || '—' },
-          { label: 'Канал', value: channelLabel },
-          { label: 'Бизнес', value: businessLabel },
-          { label: 'Ответственный', value: responsibleLabel },
+          { label: 'РЎРѕР·РґР°РЅРѕ', value: createdDisplay },
+          { label: 'Р’СЂРµРјСЏ РѕР±СЂР°С‰РµРЅРёСЏ', value: timeLabel, color: timeColor },
+          { label: 'Р—Р°РєСЂС‹С‚Рѕ', value: resolvedDisplay || 'вЂ”' },
+          { label: 'РљР°РЅР°Р»', value: channelLabel },
+          { label: 'Р‘РёР·РЅРµСЃ', value: businessLabel },
+          { label: 'РћС‚РІРµС‚СЃС‚РІРµРЅРЅС‹Р№', value: responsibleLabel },
         ];
         detailsMetrics.innerHTML = metrics.map((item) => `
           <div class="dialog-metric-item">
             <span>${item.label}</span>
             ${
               item.color
-                ? `<span class="dialog-time-metric-badge" style="background-color: ${item.color};">${item.value || '—'}</span>`
-                : `<span>${item.value || '—'}</span>`
+                ? `<span class="dialog-time-metric-badge" style="background-color: ${item.color};">${item.value || 'вЂ”'}</span>`
+                : `<span>${item.value || 'вЂ”'}</span>`
             }
           </div>
         `).join('');
@@ -6477,7 +6557,7 @@
       updateDialogUnreadCount(0);
     } catch (error) {
       if (detailsSummary) {
-        detailsSummary.innerHTML = `<div class="text-danger">Не удалось загрузить детали: ${error.message}</div>`;
+        detailsSummary.innerHTML = `<div class="text-danger">РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ РґРµС‚Р°Р»Рё: ${error.message}</div>`;
       }
     }
 
@@ -6521,7 +6601,7 @@
     if (takeBtn) {
       event.preventDefault();
       if (!canRunAction('can_assign')) {
-        notifyPermissionDenied('Назначить мне');
+        notifyPermissionDenied('РќР°Р·РЅР°С‡РёС‚СЊ РјРЅРµ');
         return;
       }
       const ticketId = takeBtn.dataset.ticketId;
@@ -6546,12 +6626,12 @@
           updateRowQuickActions(row);
           applyFilters();
           if (typeof showNotification === 'function') {
-            showNotification(`Диалог отложен на ${formatSnoozeActionLabel(QUICK_SNOOZE_MINUTES).replace('Отложить ', '')}`, 'success');
+            showNotification(`Р”РёР°Р»РѕРі РѕС‚Р»РѕР¶РµРЅ РЅР° ${formatSnoozeActionLabel(QUICK_SNOOZE_MINUTES).replace('РћС‚Р»РѕР¶РёС‚СЊ ', '')}`, 'success');
           }
         })
         .catch((error) => {
           if (typeof showNotification === 'function') {
-            showNotification(error.message || 'Не удалось отложить диалог', 'error');
+            showNotification(error.message || 'РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‚Р»РѕР¶РёС‚СЊ РґРёР°Р»РѕРі', 'error');
           }
         });
       return;
@@ -6560,7 +6640,7 @@
     if (closeBtn) {
       event.preventDefault();
       if (!canRunAction('can_close')) {
-        notifyPermissionDenied('Закрыть');
+        notifyPermissionDenied('Р—Р°РєСЂС‹С‚СЊ');
         return;
       }
       const ticketId = closeBtn.dataset.ticketId;
@@ -6571,12 +6651,12 @@
         .then(() => {
           clearSnooze(ticketId);
           if (typeof showNotification === 'function') {
-            showNotification('Диалог закрыт', 'success');
+            showNotification('Р”РёР°Р»РѕРі Р·Р°РєСЂС‹С‚', 'success');
           }
         })
         .catch((error) => {
           if (typeof showNotification === 'function') {
-            showNotification(error.message || 'Не удалось закрыть диалог', 'error');
+            showNotification(error.message || 'РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РєСЂС‹С‚СЊ РґРёР°Р»РѕРі', 'error');
           }
           closeBtn.disabled = false;
         });
@@ -6613,7 +6693,7 @@
 
   if (detailsCreateTask) {
     detailsCreateTask.addEventListener('click', () => {
-      const meta = (detailsMeta?.textContent || '').match(/ID диалога:\s*(.+)$/);
+      const meta = (detailsMeta?.textContent || '').match(/ID РґРёР°Р»РѕРіР°:\s*(.+)$/);
       if (meta && meta[1]) {
         setTaskDraft({ ticketId: meta[1].trim() });
       }
@@ -6647,7 +6727,7 @@
       if (!activeWorkspaceTicketId || !activeDialogRow) return;
       try {
         await takeDialog(activeWorkspaceTicketId, activeDialogRow, workspaceAssignBtn);
-        await refreshActiveWorkspaceContract({ successMessage: 'Диалог назначен на вас.' });
+        await refreshActiveWorkspaceContract({ successMessage: 'Р”РёР°Р»РѕРі РЅР°Р·РЅР°С‡РµРЅ РЅР° РІР°СЃ.' });
       } catch (_error) {
         // notification is already shown inside takeDialog
       }
@@ -6664,11 +6744,11 @@
           updateRowQuickActions(activeDialogRow);
         }
         if (typeof showNotification === 'function') {
-          showNotification(`Диалог отложен на ${formatSnoozeDurationLabel(QUICK_SNOOZE_MINUTES)}.`, 'success');
+          showNotification(`Р”РёР°Р»РѕРі РѕС‚Р»РѕР¶РµРЅ РЅР° ${formatSnoozeDurationLabel(QUICK_SNOOZE_MINUTES)}.`, 'success');
         }
       } catch (error) {
         if (typeof showNotification === 'function') {
-          showNotification(error.message || 'Не удалось отложить диалог', 'error');
+          showNotification(error.message || 'РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‚Р»РѕР¶РёС‚СЊ РґРёР°Р»РѕРі', 'error');
         }
       }
     });
@@ -6682,7 +6762,7 @@
         const categories = Array.from(selectedCategories);
         if (!categories.length) {
           renderWorkspaceCategories();
-          throw new Error('Выберите хотя бы одну категорию перед закрытием диалога.');
+          throw new Error('Р’С‹Р±РµСЂРёС‚Рµ С…РѕС‚СЏ Р±С‹ РѕРґРЅСѓ РєР°С‚РµРіРѕСЂРёСЋ РїРµСЂРµРґ Р·Р°РєСЂС‹С‚РёРµРј РґРёР°Р»РѕРіР°.');
         }
         const response = await fetch(`/api/dialogs/${encodeURIComponent(activeWorkspaceTicketId)}/resolve`, {
           method: 'POST',
@@ -6691,13 +6771,13 @@
         });
         const payload = await response.json();
         if (!response.ok || !payload?.success) {
-          throw new Error(payload?.error || `Ошибка ${response.status}`);
+          throw new Error(payload?.error || `РћС€РёР±РєР° ${response.status}`);
         }
-        await refreshActiveWorkspaceContract({ successMessage: 'Диалог закрыт.' });
+        await refreshActiveWorkspaceContract({ successMessage: 'Р”РёР°Р»РѕРі Р·Р°РєСЂС‹С‚.' });
       } catch (error) {
         workspaceResolveBtn.disabled = false;
         if (typeof showNotification === 'function') {
-          showNotification(error.message || 'Не удалось закрыть диалог', 'error');
+          showNotification(error.message || 'РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РєСЂС‹С‚СЊ РґРёР°Р»РѕРі', 'error');
         }
       }
     });
@@ -6706,7 +6786,7 @@
   if (workspaceReopenBtn) {
     workspaceReopenBtn.addEventListener('click', async () => {
       if (!activeWorkspaceTicketId) return;
-      if (!window.confirm('Переоткрыть закрытое обращение?')) {
+      if (!window.confirm('РџРµСЂРµРѕС‚РєСЂС‹С‚СЊ Р·Р°РєСЂС‹С‚РѕРµ РѕР±СЂР°С‰РµРЅРёРµ?')) {
         return;
       }
       workspaceReopenBtn.disabled = true;
@@ -6717,12 +6797,12 @@
         });
         const payload = await response.json();
         if (!response.ok || !payload?.success) {
-          throw new Error(payload?.error || `Ошибка ${response.status}`);
+          throw new Error(payload?.error || `РћС€РёР±РєР° ${response.status}`);
         }
-        await refreshActiveWorkspaceContract({ successMessage: 'Диалог переоткрыт.' });
+        await refreshActiveWorkspaceContract({ successMessage: 'Р”РёР°Р»РѕРі РїРµСЂРµРѕС‚РєСЂС‹С‚.' });
       } catch (error) {
         if (typeof showNotification === 'function') {
-          showNotification(error.message || 'Не удалось переоткрыть диалог', 'error');
+          showNotification(error.message || 'РќРµ СѓРґР°Р»РѕСЃСЊ РїРµСЂРµРѕС‚РєСЂС‹С‚СЊ РґРёР°Р»РѕРі', 'error');
         }
       } finally {
         workspaceReopenBtn.disabled = false;
@@ -6754,11 +6834,11 @@
       }
       let legacyOpenReason = 'manual_rollback';
       if (policy.enabled && policy.reasonRequired) {
-        const answer = window.prompt('Укажите причину manual legacy-open (UTC policy checkpoint):', 'manual_rollback');
+        const answer = window.prompt('РЈРєР°Р¶РёС‚Рµ РїСЂРёС‡РёРЅСѓ manual legacy-open (UTC policy checkpoint):', 'manual_rollback');
         legacyOpenReason = String(answer || '').trim();
         if (!legacyOpenReason) {
           if (typeof showNotification === 'function') {
-            showNotification('Legacy modal не открыт: требуется причина manual open.', 'warning');
+            showNotification('Legacy modal РЅРµ РѕС‚РєСЂС‹С‚: С‚СЂРµР±СѓРµС‚СЃСЏ РїСЂРёС‡РёРЅР° manual open.', 'warning');
           }
           return;
         }
@@ -6780,7 +6860,7 @@
         const categories = Array.from(selectedCategories);
         if (!categories.length) {
           openCategoryPanel();
-          throw new Error('Укажите хотя бы одну категорию обращения перед закрытием.');
+          throw new Error('РЈРєР°Р¶РёС‚Рµ С…РѕС‚СЏ Р±С‹ РѕРґРЅСѓ РєР°С‚РµРіРѕСЂРёСЋ РѕР±СЂР°С‰РµРЅРёСЏ РїРµСЂРµРґ Р·Р°РєСЂС‹С‚РёРµРј.');
         }
         const resp = await fetch(`/api/dialogs/${encodeURIComponent(activeDialogTicketId)}/resolve`, {
           method: 'POST',
@@ -6789,15 +6869,15 @@
         });
         const data = await resp.json();
         if (!resp.ok || !data?.success) {
-          throw new Error(data?.error || `Ошибка ${resp.status}`);
+          throw new Error(data?.error || `РћС€РёР±РєР° ${resp.status}`);
         }
         await openDialogDetails(activeDialogTicketId, activeDialogRow);
         if (typeof showNotification === 'function') {
-          showNotification('Диалог закрыт', 'success');
+          showNotification('Р”РёР°Р»РѕРі Р·Р°РєСЂС‹С‚', 'success');
         }
       } catch (error) {
         if (typeof showNotification === 'function') {
-          showNotification(error.message || 'Не удалось закрыть диалог', 'error');
+          showNotification(error.message || 'РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РєСЂС‹С‚СЊ РґРёР°Р»РѕРі', 'error');
         }
         detailsResolve.disabled = false;
       }
@@ -6807,7 +6887,7 @@
   if (detailsReopen) {
     detailsReopen.addEventListener('click', async () => {
       if (!activeDialogTicketId) return;
-      if (!window.confirm('Переоткрыть закрытое обращение?')) {
+      if (!window.confirm('РџРµСЂРµРѕС‚РєСЂС‹С‚СЊ Р·Р°РєСЂС‹С‚РѕРµ РѕР±СЂР°С‰РµРЅРёРµ?')) {
         return;
       }
       detailsReopen.disabled = true;
@@ -6818,15 +6898,15 @@
         });
         const data = await resp.json();
         if (!resp.ok || !data?.success) {
-          throw new Error(data?.error || `Ошибка ${resp.status}`);
+          throw new Error(data?.error || `РћС€РёР±РєР° ${resp.status}`);
         }
         await openDialogDetails(activeDialogTicketId, activeDialogRow);
         if (typeof showNotification === 'function') {
-          showNotification('Диалог переоткрыт', 'success');
+          showNotification('Р”РёР°Р»РѕРі РїРµСЂРµРѕС‚РєСЂС‹С‚', 'success');
         }
       } catch (error) {
         if (typeof showNotification === 'function') {
-          showNotification(error.message || 'Не удалось переоткрыть диалог', 'error');
+          showNotification(error.message || 'РќРµ СѓРґР°Р»РѕСЃСЊ РїРµСЂРµРѕС‚РєСЂС‹С‚СЊ РґРёР°Р»РѕРі', 'error');
         }
       } finally {
         detailsReopen.disabled = false;
@@ -6847,28 +6927,28 @@
         });
         const data = await resp.json();
         if (!resp.ok || !data?.success) {
-          throw new Error(data?.error || `Ошибка ${resp.status}`);
+          throw new Error(data?.error || `РћС€РёР±РєР° ${resp.status}`);
         }
         detailsReplyText.value = '';
         resetReplyTarget();
         activeDialogContext.operatorName = data.responsible || activeDialogContext.operatorName;
         appendHistoryMessage({
-          sender: data.responsible || 'Оператор',
+          sender: data.responsible || 'РћРїРµСЂР°С‚РѕСЂ',
           message,
           timestamp: data.timestamp || new Date().toISOString(),
           messageType: 'operator_message',
         });
         if (activeDialogRow) {
-          updateRowStatus(activeDialogRow, activeDialogRow.dataset.statusRaw || '', 'ожидает ответа клиента', 'waiting_client', 0);
+          updateRowStatus(activeDialogRow, activeDialogRow.dataset.statusRaw || '', 'РѕР¶РёРґР°РµС‚ РѕС‚РІРµС‚Р° РєР»РёРµРЅС‚Р°', 'waiting_client', 0);
           updateRowResponsible(activeDialogRow, data.responsible || activeDialogRow.dataset.responsible || '');
           applyFilters();
         }
         if (typeof showNotification === 'function') {
-          showNotification('Сообщение отправлено', 'success');
+          showNotification('РЎРѕРѕР±С‰РµРЅРёРµ РѕС‚РїСЂР°РІР»РµРЅРѕ', 'success');
         }
       } catch (error) {
         if (typeof showNotification === 'function') {
-          showNotification(error.message || 'Не удалось отправить сообщение', 'error');
+          showNotification(error.message || 'РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‚РїСЂР°РІРёС‚СЊ СЃРѕРѕР±С‰РµРЅРёРµ', 'error');
         }
       } finally {
         detailsReplySend.disabled = false;
@@ -6883,7 +6963,7 @@
   }
 
   function renderWorkspaceMessageItem(message) {
-    const author = message?.senderName || message?.senderRole || 'Участник';
+    const author = message?.senderName || message?.senderRole || 'РЈС‡Р°СЃС‚РЅРёРє';
     const timestamp = formatWorkspaceDateTime(message?.sentAt || message?.createdAt);
     const text = String(message?.messageText || message?.message || '').trim();
     const replyPreviewText = String(message?.replyPreview || message?.reply_preview || '').trim();
@@ -6898,15 +6978,15 @@
     const mediaMarkup = normalizedMessage.attachment ? buildMediaMarkup(normalizedMessage) : '';
     const textMarkup = text ? `<div class="workspace-message-body">${escapeHtml(text)}</div>` : '';
     const replyPreviewMarkup = replyPreviewText
-      ? `<div class="small text-muted border-start ps-2 mb-1 workspace-message-reply-source">↪ ${escapeHtml(replyPreviewText)}</div>`
+      ? `<div class="small text-muted border-start ps-2 mb-1 workspace-message-reply-source">в†Є ${escapeHtml(replyPreviewText)}</div>`
       : '';
     const replyTargetSupported = activeWorkspacePayload?.composer?.reply_target_supported !== false;
     const canReply = replyTargetSupported && Number.isFinite(telegramMessageId) && senderType !== 'system';
     const actionMarkup = canReply
-      ? `<div class="mt-2"><button class="btn btn-sm btn-outline-secondary" type="button" data-workspace-action="reply" data-message-id="${telegramMessageId}">Ответить</button></div>`
+      ? `<div class="mt-2"><button class="btn btn-sm btn-outline-secondary" type="button" data-workspace-action="reply" data-message-id="${telegramMessageId}">РћС‚РІРµС‚РёС‚СЊ</button></div>`
       : '';
-    const fallbackMarkup = textMarkup || mediaMarkup ? '' : '<div>—</div>';
-    return `<article class="workspace-message-item" data-telegram-message-id="${Number.isFinite(telegramMessageId) ? telegramMessageId : ''}"><div class="workspace-message-meta">${escapeHtml(author)} · ${escapeHtml(timestamp)}</div>${replyPreviewMarkup}${textMarkup}${mediaMarkup}${fallbackMarkup}${actionMarkup}</article>`;
+    const fallbackMarkup = textMarkup || mediaMarkup ? '' : '<div>вЂ”</div>';
+    return `<article class="workspace-message-item" data-telegram-message-id="${Number.isFinite(telegramMessageId) ? telegramMessageId : ''}"><div class="workspace-message-meta">${escapeHtml(author)} В· ${escapeHtml(timestamp)}</div>${replyPreviewMarkup}${textMarkup}${mediaMarkup}${fallbackMarkup}${actionMarkup}</article>`;
   }
 
   async function sendMediaFiles(files, options = {}) {
@@ -6931,12 +7011,12 @@
         });
         const data = await resp.json();
         if (!resp.ok || !data?.success) {
-          throw new Error(data?.error || `Ошибка ${resp.status}`);
+          throw new Error(data?.error || `РћС€РёР±РєР° ${resp.status}`);
         }
         activeDialogContext.operatorName = data.responsible || activeDialogContext.operatorName;
         if (appendHistory) {
           appendHistoryMessage({
-            sender: data.responsible || 'Оператор',
+            sender: data.responsible || 'РћРїРµСЂР°С‚РѕСЂ',
             message: data.message || '',
             timestamp: data.timestamp || new Date().toISOString(),
             messageType: data.messageType || 'operator_media',
@@ -6944,7 +7024,7 @@
           });
         }
         if (activeDialogRow) {
-          updateRowStatus(activeDialogRow, activeDialogRow.dataset.statusRaw || '', 'ожидает ответа клиента', 'waiting_client', 0);
+          updateRowStatus(activeDialogRow, activeDialogRow.dataset.statusRaw || '', 'РѕР¶РёРґР°РµС‚ РѕС‚РІРµС‚Р° РєР»РёРµРЅС‚Р°', 'waiting_client', 0);
         }
         if (ticketId === activeWorkspaceTicketId) {
           emitWorkspaceTelemetry('workspace_media_sent', {
@@ -6960,11 +7040,11 @@
         detailsReplyText.value = '';
       }
       if (typeof showNotification === 'function') {
-        showNotification(options.successMessage || 'Медиа отправлено', 'success');
+        showNotification(options.successMessage || 'РњРµРґРёР° РѕС‚РїСЂР°РІР»РµРЅРѕ', 'success');
       }
     } catch (error) {
       if (typeof showNotification === 'function') {
-        showNotification(error.message || options.errorMessage || 'Не удалось отправить медиа', 'error');
+        showNotification(error.message || options.errorMessage || 'РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‚РїСЂР°РІРёС‚СЊ РјРµРґРёР°', 'error');
       }
     } finally {
       if (sendButton) sendButton.disabled = false;
@@ -7007,7 +7087,7 @@
       }
       if (action === 'edit') {
         const current = button.closest('.chat-message')?.querySelector('div:nth-of-type(2)')?.textContent || '';
-        const nextText = window.prompt('Введите новый текст сообщения:', current.trim());
+        const nextText = window.prompt('Р’РІРµРґРёС‚Рµ РЅРѕРІС‹Р№ С‚РµРєСЃС‚ СЃРѕРѕР±С‰РµРЅРёСЏ:', current.trim());
         if (!nextText || !nextText.trim()) return;
         const resp = await fetch(`/api/dialogs/${encodeURIComponent(activeDialogTicketId)}/edit`, {
           method: 'POST',
@@ -7015,19 +7095,19 @@
           body: JSON.stringify({ telegramMessageId: messageId, message: nextText.trim() }),
         });
         const data = await resp.json();
-        if (!resp.ok || !data?.success) throw new Error(data?.error || `Ошибка ${resp.status}`);
+        if (!resp.ok || !data?.success) throw new Error(data?.error || `РћС€РёР±РєР° ${resp.status}`);
         await refreshHistory();
         return;
       }
       if (action === 'delete') {
-        if (!window.confirm('Удалить сообщение у клиента?')) return;
+        if (!window.confirm('РЈРґР°Р»РёС‚СЊ СЃРѕРѕР±С‰РµРЅРёРµ Сѓ РєР»РёРµРЅС‚Р°?')) return;
         const resp = await fetch(`/api/dialogs/${encodeURIComponent(activeDialogTicketId)}/delete`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ telegramMessageId: messageId }),
         });
         const data = await resp.json();
-        if (!resp.ok || !data?.success) throw new Error(data?.error || `Ошибка ${resp.status}`);
+        if (!resp.ok || !data?.success) throw new Error(data?.error || `РћС€РёР±РєР° ${resp.status}`);
         await refreshHistory();
       }
     });
@@ -7228,7 +7308,7 @@
       selectedCategories = new Set();
       syncCategorySelections();
       renderWorkspaceCategories();
-      updateSummaryCategories('—');
+      updateSummaryCategories('вЂ”');
       scheduleCategorySave();
     });
   }
@@ -7238,6 +7318,7 @@
       const ticketId = activeWorkspaceTicketId || workspaceComposerTicketId;
       loadWorkspaceAiSuggestions(ticketId);
       loadWorkspaceAiReview(ticketId);
+      loadWorkspaceAiControl(ticketId);
     });
   }
 
@@ -7271,14 +7352,14 @@
           });
           const payload = await resp.json().catch(() => ({}));
           if (!resp.ok || payload.success === false) throw new Error(payload.error || (`HTTP ${resp.status}`));
-          if (typeof showNotification === 'function') showNotification('Правка принята', 'success');
+          if (typeof showNotification === 'function') showNotification('РџСЂР°РІРєР° РїСЂРёРЅСЏС‚Р°', 'success');
           loadAiReviewQueue();
           if (ticketId && String(activeWorkspaceTicketId || '') === ticketId) {
             loadWorkspaceAiReview(ticketId);
             loadWorkspaceAiSuggestions(ticketId);
           }
         } catch (error) {
-          if (typeof showNotification === 'function') showNotification(`Не удалось принять правку: ${error.message || 'unknown_error'}`, 'warning');
+          if (typeof showNotification === 'function') showNotification(`РќРµ СѓРґР°Р»РѕСЃСЊ РїСЂРёРЅСЏС‚СЊ РїСЂР°РІРєСѓ: ${error.message || 'unknown_error'}`, 'warning');
         }
         return;
       }
@@ -7291,14 +7372,14 @@
           });
           const payload = await resp.json().catch(() => ({}));
           if (!resp.ok || payload.success === false) throw new Error(payload.error || (`HTTP ${resp.status}`));
-          if (typeof showNotification === 'function') showNotification('Правка отклонена', 'success');
+          if (typeof showNotification === 'function') showNotification('РџСЂР°РІРєР° РѕС‚РєР»РѕРЅРµРЅР°', 'success');
           loadAiReviewQueue();
           if (ticketId && String(activeWorkspaceTicketId || '') === ticketId) {
             loadWorkspaceAiReview(ticketId);
             loadWorkspaceAiSuggestions(ticketId);
           }
         } catch (error) {
-          if (typeof showNotification === 'function') showNotification(`Не удалось отклонить правку: ${error.message || 'unknown_error'}`, 'warning');
+          if (typeof showNotification === 'function') showNotification(`РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‚РєР»РѕРЅРёС‚СЊ РїСЂР°РІРєСѓ: ${error.message || 'unknown_error'}`, 'warning');
         }
       }
     });
@@ -7317,9 +7398,9 @@
         if (!resp.ok || payload.success === false) throw new Error(payload.error || `HTTP ${resp.status}`);
         loadWorkspaceAiReview(ticketId);
         loadWorkspaceAiSuggestions(ticketId);
-        if (typeof showNotification === 'function') showNotification('Правка AI-решения принята', 'success');
+        if (typeof showNotification === 'function') showNotification('РџСЂР°РІРєР° AI-СЂРµС€РµРЅРёСЏ РїСЂРёРЅСЏС‚Р°', 'success');
       } catch (error) {
-        if (typeof showNotification === 'function') showNotification(`Не удалось принять правку: ${error.message || 'unknown_error'}`, 'warning');
+        if (typeof showNotification === 'function') showNotification(`РќРµ СѓРґР°Р»РѕСЃСЊ РїСЂРёРЅСЏС‚СЊ РїСЂР°РІРєСѓ: ${error.message || 'unknown_error'}`, 'warning');
       }
     });
   }
@@ -7336,20 +7417,97 @@
         const payload = await resp.json().catch(() => ({}));
         if (!resp.ok || payload.success === false) throw new Error(payload.error || `HTTP ${resp.status}`);
         loadWorkspaceAiReview(ticketId);
-        if (typeof showNotification === 'function') showNotification('Оставлено текущее AI-решение', 'success');
+        if (typeof showNotification === 'function') showNotification('РћСЃС‚Р°РІР»РµРЅРѕ С‚РµРєСѓС‰РµРµ AI-СЂРµС€РµРЅРёРµ', 'success');
       } catch (error) {
-        if (typeof showNotification === 'function') showNotification(`Не удалось отклонить правку: ${error.message || 'unknown_error'}`, 'warning');
+        if (typeof showNotification === 'function') showNotification(`РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‚РєР»РѕРЅРёС‚СЊ РїСЂР°РІРєСѓ: ${error.message || 'unknown_error'}`, 'warning');
       }
     });
   }
 
   if (workspaceAiSuggestionsList) {
-    workspaceAiSuggestionsList.addEventListener('click', (event) => {
+    workspaceAiSuggestionsList.addEventListener('click', async (event) => {
       const applyBtn = event.target.closest('[data-ai-suggestion-apply]');
-      if (!applyBtn) return;
-      const reply = String(applyBtn.dataset.aiSuggestionReply || '').trim();
-      if (!reply) return;
-      appendToWorkspaceComposer(reply);
+      if (applyBtn) {
+        const reply = String(applyBtn.dataset.aiSuggestionReply || '').trim();
+        if (!reply) return;
+        appendToWorkspaceComposer(reply);
+        return;
+      }
+      const applyEditBtn = event.target.closest('[data-ai-suggestion-apply-edit]');
+      if (applyEditBtn) {
+        const reply = String(applyEditBtn.dataset.aiSuggestionReply || '').trim();
+        if (!reply) return;
+        appendToWorkspaceComposer(reply);
+        if (workspaceComposerText) {
+          const len = workspaceComposerText.value.length;
+          workspaceComposerText.focus();
+          workspaceComposerText.setSelectionRange(len, len);
+        }
+        return;
+      }
+      const rejectBtn = event.target.closest('[data-ai-suggestion-reject]');
+      if (!rejectBtn) return;
+      const ticketId = String(activeWorkspaceTicketId || workspaceComposerTicketId || '').trim();
+      if (!ticketId) return;
+      const source = String(rejectBtn.dataset.aiSuggestionSource || '').trim();
+      const title = String(rejectBtn.dataset.aiSuggestionTitle || '').trim();
+      const snippet = String(rejectBtn.dataset.aiSuggestionSnippet || '').trim();
+      const suggestedReply = String(rejectBtn.dataset.aiSuggestionReply || '').trim();
+      try {
+        await sendAiSuggestionFeedback(ticketId, {
+          decision: 'rejected',
+          source,
+          title,
+          snippet,
+          suggested_reply: suggestedReply,
+        });
+        const card = rejectBtn.closest('article');
+        if (card) card.remove();
+        if (typeof showNotification === 'function') {
+          showNotification('Подсказка отклонена и отправлена в feedback-loop', 'info');
+        }
+      } catch (error) {
+        if (typeof showNotification === 'function') {
+          showNotification(`Не удалось отклонить подсказку: ${error.message || 'unknown_error'}`, 'warning');
+        }
+      }
+    });
+  }
+
+  if (workspaceAiDisableForDialog) {
+    workspaceAiDisableForDialog.addEventListener('click', async () => {
+      const ticketId = String(activeWorkspaceTicketId || workspaceComposerTicketId || '').trim();
+      if (!ticketId) return;
+      const disableMode = !/enable/i.test(String(workspaceAiDisableForDialog.textContent || ''));
+      try {
+        await updateWorkspaceAiControl(ticketId, {
+          ai_disabled: disableMode,
+          reason: disableMode ? 'disabled_by_operator' : 'enabled_by_operator',
+        }, disableMode ? 'AI отключен для текущего диалога' : 'AI включен для текущего диалога');
+      } catch (error) {
+        if (typeof showNotification === 'function') {
+          showNotification(`Не удалось обновить режим AI: ${error.message || 'unknown_error'}`, 'warning');
+        }
+      }
+    });
+  }
+
+  if (workspaceAiHandoffNoAutoReply) {
+    workspaceAiHandoffNoAutoReply.addEventListener('click', async () => {
+      const ticketId = String(activeWorkspaceTicketId || workspaceComposerTicketId || '').trim();
+      if (!ticketId) return;
+      try {
+        await takeDialog(ticketId, activeDialogRow, null);
+        await updateWorkspaceAiControl(ticketId, {
+          ai_disabled: false,
+          auto_reply_blocked: true,
+          reason: 'handoff_no_auto_reply',
+        }, 'Диалог передан оператору, автоответы AI отключены');
+      } catch (error) {
+        if (typeof showNotification === 'function') {
+          showNotification(`Не удалось выполнить handoff: ${error.message || 'unknown_error'}`, 'warning');
+        }
+      }
     });
   }
 
@@ -7381,7 +7539,7 @@
         await applyMacroTemplate();
       } catch (error) {
         if (typeof showNotification === 'function') {
-          showNotification(error?.message || 'Не удалось применить макрос', 'error');
+          showNotification(error?.message || 'РќРµ СѓРґР°Р»РѕСЃСЊ РїСЂРёРјРµРЅРёС‚СЊ РјР°РєСЂРѕСЃ', 'error');
         }
       }
     });
@@ -7468,7 +7626,7 @@
         if (!src) return;
         if (activeAudioPlayer && activeAudioSource === src && !activeAudioPlayer.paused) {
           activeAudioPlayer.pause();
-          playButton.textContent = 'Воспроизвести';
+          playButton.textContent = 'Р’РѕСЃРїСЂРѕРёР·РІРµСЃС‚Рё';
           return;
         }
         if (activeAudioPlayer) {
@@ -7476,12 +7634,12 @@
         }
         activeAudioPlayer = new Audio(src);
         activeAudioSource = src;
-        playButton.textContent = 'Пауза';
+        playButton.textContent = 'РџР°СѓР·Р°';
         activeAudioPlayer.addEventListener('ended', () => {
-          playButton.textContent = 'Воспроизвести';
+          playButton.textContent = 'Р’РѕСЃРїСЂРѕРёР·РІРµСЃС‚Рё';
         });
         activeAudioPlayer.play().catch(() => {
-          playButton.textContent = 'Воспроизвести';
+          playButton.textContent = 'Р’РѕСЃРїСЂРѕРёР·РІРµСЃС‚Рё';
         });
         return;
       }
@@ -7519,8 +7677,8 @@
       reloadWorkspaceSection('messages', {
         stateElement: workspaceMessagesState,
         errorElement: workspaceMessagesError,
-        statusText: 'Повторная загрузка ленты…',
-        failMessage: 'Не удалось обновить ленту workspace.',
+        statusText: 'РџРѕРІС‚РѕСЂРЅР°СЏ Р·Р°РіСЂСѓР·РєР° Р»РµРЅС‚С‹вЂ¦',
+        failMessage: 'РќРµ СѓРґР°Р»РѕСЃСЊ РѕР±РЅРѕРІРёС‚СЊ Р»РµРЅС‚Сѓ workspace.',
       });
     });
   }
@@ -7553,7 +7711,7 @@
         if (!src) return;
         if (activeAudioPlayer && activeAudioSource === src && !activeAudioPlayer.paused) {
           activeAudioPlayer.pause();
-          playButton.textContent = 'Воспроизвести';
+          playButton.textContent = 'Р’РѕСЃРїСЂРѕРёР·РІРµСЃС‚Рё';
           return;
         }
         if (activeAudioPlayer) {
@@ -7561,12 +7719,12 @@
         }
         activeAudioPlayer = new Audio(src);
         activeAudioSource = src;
-        playButton.textContent = 'Пауза';
+        playButton.textContent = 'РџР°СѓР·Р°';
         activeAudioPlayer.addEventListener('ended', () => {
-          playButton.textContent = 'Воспроизвести';
+          playButton.textContent = 'Р’РѕСЃРїСЂРѕРёР·РІРµСЃС‚Рё';
         });
         activeAudioPlayer.play().catch(() => {
-          playButton.textContent = 'Воспроизвести';
+          playButton.textContent = 'Р’РѕСЃРїСЂРѕРёР·РІРµСЃС‚Рё';
         });
         return;
       }
@@ -7591,8 +7749,8 @@
       reloadWorkspaceSection('context', {
         stateElement: workspaceClientState,
         errorElement: workspaceClientError,
-        statusText: 'Повторная загрузка профиля клиента…',
-        failMessage: 'Не удалось обновить профиль клиента.',
+        statusText: 'РџРѕРІС‚РѕСЂРЅР°СЏ Р·Р°РіСЂСѓР·РєР° РїСЂРѕС„РёР»СЏ РєР»РёРµРЅС‚Р°вЂ¦',
+        failMessage: 'РќРµ СѓРґР°Р»РѕСЃСЊ РѕР±РЅРѕРІРёС‚СЊ РїСЂРѕС„РёР»СЊ РєР»РёРµРЅС‚Р°.',
       });
     });
   }
@@ -7602,8 +7760,8 @@
       reloadWorkspaceSection('context', {
         stateElement: workspaceHistoryState,
         errorElement: workspaceHistoryError,
-        statusText: 'Повторная загрузка истории клиента…',
-        failMessage: 'Не удалось обновить историю клиента.',
+        statusText: 'РџРѕРІС‚РѕСЂРЅР°СЏ Р·Р°РіСЂСѓР·РєР° РёСЃС‚РѕСЂРёРё РєР»РёРµРЅС‚Р°вЂ¦',
+        failMessage: 'РќРµ СѓРґР°Р»РѕСЃСЊ РѕР±РЅРѕРІРёС‚СЊ РёСЃС‚РѕСЂРёСЋ РєР»РёРµРЅС‚Р°.',
       });
     });
   }
@@ -7613,8 +7771,8 @@
       reloadWorkspaceSection('context', {
         stateElement: workspaceRelatedEventsState,
         errorElement: workspaceRelatedEventsError,
-        statusText: 'Повторная загрузка связанных событий…',
-        failMessage: 'Не удалось обновить связанные события.',
+        statusText: 'РџРѕРІС‚РѕСЂРЅР°СЏ Р·Р°РіСЂСѓР·РєР° СЃРІСЏР·Р°РЅРЅС‹С… СЃРѕР±С‹С‚РёР№вЂ¦',
+        failMessage: 'РќРµ СѓРґР°Р»РѕСЃСЊ РѕР±РЅРѕРІРёС‚СЊ СЃРІСЏР·Р°РЅРЅС‹Рµ СЃРѕР±С‹С‚РёСЏ.',
       });
     });
   }
@@ -7624,8 +7782,8 @@
       reloadWorkspaceSection('sla', {
         stateElement: workspaceSlaState,
         errorElement: workspaceSlaError,
-        statusText: 'Повторная загрузка SLA-контекста…',
-        failMessage: 'Не удалось обновить SLA-контекст.',
+        statusText: 'РџРѕРІС‚РѕСЂРЅР°СЏ Р·Р°РіСЂСѓР·РєР° SLA-РєРѕРЅС‚РµРєСЃС‚Р°вЂ¦',
+        failMessage: 'РќРµ СѓРґР°Р»РѕСЃСЊ РѕР±РЅРѕРІРёС‚СЊ SLA-РєРѕРЅС‚РµРєСЃС‚.',
       });
     });
   }
@@ -7655,8 +7813,8 @@
           reloadWorkspaceSection('messages', {
             stateElement: workspaceMessagesState,
             errorElement: workspaceMessagesError,
-            statusText: 'Обновление ленты после отправки медиа…',
-            failMessage: 'Медиа отправлено, но лента workspace не обновилась автоматически.',
+            statusText: 'РћР±РЅРѕРІР»РµРЅРёРµ Р»РµРЅС‚С‹ РїРѕСЃР»Рµ РѕС‚РїСЂР°РІРєРё РјРµРґРёР°вЂ¦',
+            failMessage: 'РњРµРґРёР° РѕС‚РїСЂР°РІР»РµРЅРѕ, РЅРѕ Р»РµРЅС‚Р° workspace РЅРµ РѕР±РЅРѕРІРёР»Р°СЃСЊ Р°РІС‚РѕРјР°С‚РёС‡РµСЃРєРё.',
           });
         },
       });
@@ -7714,7 +7872,7 @@
         await applyWorkspaceMacroTemplate();
       } catch (error) {
         if (typeof showNotification === 'function') {
-          showNotification(error?.message || 'Не удалось применить macro workflow', 'error');
+          showNotification(error?.message || 'РќРµ СѓРґР°Р»РѕСЃСЊ РїСЂРёРјРµРЅРёС‚СЊ macro workflow', 'error');
         }
       }
     });
