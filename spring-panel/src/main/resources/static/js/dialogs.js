@@ -27,6 +27,7 @@
   const sortModeSelect = document.getElementById('dialogSortMode');
   const filtersBtn = document.getElementById('dialogFiltersBtn');
   const columnsBtn = document.getElementById('dialogColumnsBtn');
+  const dialogCompactToggle = document.getElementById('dialogCompactToggle');
   const hotkeysBtn = document.getElementById('dialogHotkeysBtn');
   const experimentInfoMeta = document.getElementById('dialogExperimentInfoMeta');
   const experimentPrimaryKpis = document.getElementById('dialogExperimentPrimaryKpis');
@@ -230,6 +231,7 @@
   const STORAGE_VIEW = 'iguana:dialogs:view';
   const STORAGE_SLA_WINDOW = 'iguana:dialogs:sla-window';
   const STORAGE_SORT_MODE = 'iguana:dialogs:sort-mode';
+  const STORAGE_COMPACT_MODE = 'iguana:dialogs:compact-mode';
   const DEFAULT_LIST_POLL_INTERVAL_MS = 8000;
   const DEFAULT_HISTORY_POLL_INTERVAL_MS = 8000;
   const DEFAULT_QUICK_SNOOZE_MINUTES = 60;
@@ -1753,6 +1755,34 @@
     const takeBtn = row.querySelector('.dialog-take-btn');
     if (takeBtn) {
       takeBtn.classList.toggle('d-none', isOwnedByCurrentOperator(value) || !canRunAction('can_assign'));
+    }
+  }
+
+  function applyCompactMode(enabled) {
+    const active = Boolean(enabled);
+    document.body.classList.toggle('dialog-compact-mode', active);
+    if (dialogCompactToggle) {
+      dialogCompactToggle.textContent = active ? 'Standard mode' : 'Compact mode';
+      dialogCompactToggle.setAttribute('aria-pressed', active ? 'true' : 'false');
+    }
+  }
+
+  function loadCompactMode() {
+    try {
+      const raw = String(localStorage.getItem(STORAGE_COMPACT_MODE) || '').trim().toLowerCase();
+      applyCompactMode(raw === '1' || raw === 'true' || raw === 'on');
+    } catch (_error) {
+      applyCompactMode(false);
+    }
+  }
+
+  function toggleCompactMode() {
+    const next = !document.body.classList.contains('dialog-compact-mode');
+    applyCompactMode(next);
+    try {
+      localStorage.setItem(STORAGE_COMPACT_MODE, next ? '1' : '0');
+    } catch (_error) {
+      // ignore storage write errors
     }
   }
 
@@ -7477,6 +7507,12 @@
     });
   }
 
+  if (dialogCompactToggle) {
+    dialogCompactToggle.addEventListener('click', () => {
+      toggleCompactMode();
+    });
+  }
+
   if (aiMonitoringApplyFilters) {
     aiMonitoringApplyFilters.addEventListener('click', () => {
       aiMonitoringFilters.eventType = String(aiMonitoringEventTypeFilter?.value || '').trim().toLowerCase();
@@ -8088,6 +8124,7 @@
   loadColumnState();
   restoreDialogPreferences();
   loadPageSize();
+  loadCompactMode();
   configureSlaWindowSelect();
   if (sortModeSelect) {
     sortModeSelect.value = filterState.sortMode;

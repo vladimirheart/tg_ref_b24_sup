@@ -36,6 +36,12 @@
                 <span class="icon" aria-hidden="true">💬</span>
                 <span class="label">Диалоги</span>
             </a>
+            <a class="nav-link" data-page-key="ai-ops"
+               th:classappend="${active}=='ai-ops' ? ' active'"
+               th:href="@{/ai-ops}">
+                <span class="icon" aria-hidden="true">🤖</span>
+                <span class="label">AI Ops</span>
+            </a>
             <a class="nav-link" data-page-key="tasks" th:if="${canManageTasks}"
                th:classappend="${active}=='tasks' ? ' active'"
                th:href="@{/tasks}">
