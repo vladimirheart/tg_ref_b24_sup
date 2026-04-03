@@ -168,6 +168,11 @@ public class SettingsBridgeController {
                 || payload.containsKey("dialog_sla_warning_minutes")
                 || payload.containsKey("dialog_sla_critical_minutes")
                 || payload.containsKey("dialog_sla_critical_orchestration_mode")
+                || payload.containsKey("dialog_ai_agent_enabled")
+                || payload.containsKey("dialog_ai_agent_mode")
+                || payload.containsKey("dialog_ai_agent_auto_reply_threshold")
+                || payload.containsKey("dialog_ai_agent_suggest_threshold")
+                || payload.containsKey("dialog_ai_agent_max_auto_replies_per_dialog")
                 || payload.containsKey("dialog_sla_critical_escalation_enabled")
                 || payload.containsKey("dialog_sla_critical_auto_assign_enabled")
                 || payload.containsKey("dialog_sla_critical_auto_assign_to")
@@ -519,6 +524,21 @@ public class SettingsBridgeController {
                 }
                 if (payload.containsKey("dialog_sla_critical_orchestration_mode")) {
                     dialogConfig.put("sla_critical_orchestration_mode", payload.get("dialog_sla_critical_orchestration_mode"));
+                }
+                if (payload.containsKey("dialog_ai_agent_enabled")) {
+                    dialogConfig.put("ai_agent_enabled", payload.get("dialog_ai_agent_enabled"));
+                }
+                if (payload.containsKey("dialog_ai_agent_mode")) {
+                    dialogConfig.put("ai_agent_mode", payload.get("dialog_ai_agent_mode"));
+                }
+                if (payload.containsKey("dialog_ai_agent_auto_reply_threshold")) {
+                    dialogConfig.put("ai_agent_auto_reply_threshold", payload.get("dialog_ai_agent_auto_reply_threshold"));
+                }
+                if (payload.containsKey("dialog_ai_agent_suggest_threshold")) {
+                    dialogConfig.put("ai_agent_suggest_threshold", payload.get("dialog_ai_agent_suggest_threshold"));
+                }
+                if (payload.containsKey("dialog_ai_agent_max_auto_replies_per_dialog")) {
+                    dialogConfig.put("ai_agent_max_auto_replies_per_dialog", payload.get("dialog_ai_agent_max_auto_replies_per_dialog"));
                 }
                 if (payload.containsKey("dialog_sla_critical_escalation_enabled")) {
                     dialogConfig.put("sla_critical_escalation_enabled", payload.get("dialog_sla_critical_escalation_enabled"));

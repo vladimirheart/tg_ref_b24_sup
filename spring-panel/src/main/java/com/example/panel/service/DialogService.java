@@ -195,14 +195,14 @@ public class DialogService {
                                SELECT COUNT(*)
                                  FROM chat_history ch
                                 WHERE ch.ticket_id = t.ticket_id
-                                  AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system')
+                                  AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
                                   AND ch.timestamp > COALESCE(
                                       tr.last_read_at,
                                       (
                                           SELECT MAX(op.timestamp)
                                             FROM chat_history op
                                            WHERE op.ticket_id = t.ticket_id
-                                             AND lower(op.sender) IN ('operator', 'support', 'admin', 'system')
+                                             AND lower(op.sender) IN ('operator', 'support', 'admin', 'system', 'ai_agent')
                                       ),
                                       ''
                                   )
@@ -323,14 +323,14 @@ public class DialogService {
                                    SELECT COUNT(*)
                                      FROM chat_history ch
                                     WHERE ch.ticket_id = t.ticket_id
-                                      AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system')
+                                      AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
                                       AND ch.timestamp > COALESCE(
                                           tr.last_read_at,
                                           (
                                               SELECT MAX(op.timestamp)
                                                 FROM chat_history op
                                                WHERE op.ticket_id = t.ticket_id
-                                                 AND lower(op.sender) IN ('operator', 'support', 'admin', 'system')
+                                                 AND lower(op.sender) IN ('operator', 'support', 'admin', 'system', 'ai_agent')
                                           ),
                                           ''
                                       )
@@ -622,7 +622,7 @@ public class DialogService {
                                    id AS sort_id
                               FROM chat_history
                              WHERE ticket_id = ?
-                               AND (lower(COALESCE(sender, '')) IN ('operator', 'support', 'admin', 'system')
+                               AND (lower(COALESCE(sender, '')) IN ('operator', 'support', 'admin', 'system', 'ai_agent')
                                     OR lower(COALESCE(message_type, '')) IN ('system', 'status', 'event'))
                             UNION ALL
                             SELECT COALESCE(t.assignee, t.creator, 'system') AS actor,
@@ -667,7 +667,7 @@ public class DialogService {
                                    id AS sort_id
                               FROM chat_history
                              WHERE ticket_id = ?
-                               AND (lower(COALESCE(sender, '')) IN ('operator', 'support', 'admin', 'system')
+                               AND (lower(COALESCE(sender, '')) IN ('operator', 'support', 'admin', 'system', 'ai_agent')
                                     OR lower(COALESCE(message_type, '')) IN ('system', 'status', 'event'))
                             UNION ALL
                             SELECT COALESCE(t.assignee, t.creator, 'system') AS actor,

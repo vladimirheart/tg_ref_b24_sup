@@ -45,9 +45,18 @@ public class DialogReplyService {
     }
 
     public DialogReplyResult sendReply(String ticketId, String message, Long replyToTelegramId, String operator) {
+        return sendReply(ticketId, message, replyToTelegramId, operator, "operator");
+    }
+
+    public DialogReplyResult sendReply(String ticketId,
+                                       String message,
+                                       Long replyToTelegramId,
+                                       String operator,
+                                       String sender) {
         if (!StringUtils.hasText(ticketId) || !StringUtils.hasText(message)) {
             return DialogReplyResult.error("Сообщение не может быть пустым.");
         }
+        String safeSender = normalizeSender(sender);
         Optional<DialogReplyTarget> targetOpt = loadReplyTarget(ticketId);
         if (targetOpt.isEmpty()) {
             return DialogReplyResult.error("Не удалось определить получателя сообщения.");
@@ -58,7 +67,7 @@ public class DialogReplyService {
             return DialogReplyResult.error("Канал для отправки сообщения не найден.");
         }
         if (hasWebFormSession(ticketId)) {
-            String timestamp = logOperatorMessage(target, ticketId, message, "operator_message", null, replyToTelegramId);
+            String timestamp = logOutgoingMessage(target, ticketId, message, "operator_message", null, replyToTelegramId, safeSender);
             dialogService.assignResponsibleIfMissing(ticketId, operator);
             return DialogReplyResult.success(timestamp, null);
         }
@@ -102,7 +111,7 @@ public class DialogReplyService {
             return DialogReplyResult.error(transportError);
         }
 
-        String timestamp = logOperatorMessage(target, ticketId, message, "operator_message", telegramMessageId, replyToTelegramId);
+        String timestamp = logOutgoingMessage(target, ticketId, message, "operator_message", telegramMessageId, replyToTelegramId, safeSender);
         dialogService.assignResponsibleIfMissing(ticketId, operator);
         return DialogReplyResult.success(timestamp, telegramMessageId);
     }
@@ -306,19 +315,20 @@ public class DialogReplyService {
         }
     }
 
-    private String logOperatorMessage(DialogReplyTarget target,
+    private String logOutgoingMessage(DialogReplyTarget target,
                                       String ticketId,
                                       String message,
                                       String messageType,
                                       Long telegramMessageId,
-                                      Long replyToTelegramId) {
+                                      Long replyToTelegramId,
+                                      String sender) {
         String timestamp = OffsetDateTime.now().toString();
         jdbcTemplate.update("""
                 INSERT INTO chat_history(user_id, sender, message, timestamp, ticket_id, message_type, channel_id, tg_message_id, reply_to_tg_id)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 target.userId(),
-                "operator",
+                normalizeSender(sender),
                 message,
                 timestamp,
                 ticketId,
@@ -328,6 +338,14 @@ public class DialogReplyService {
                 replyToTelegramId
         );
         return timestamp;
+    }
+
+    private String normalizeSender(String sender) {
+        String normalized = StringUtils.hasText(sender) ? sender.trim().toLowerCase() : "";
+        return switch (normalized) {
+            case "operator", "support", "admin", "system", "ai_agent" -> normalized;
+            default -> "operator";
+        };
     }
 
     private boolean hasWebFormSession(String ticketId) {

@@ -5896,7 +5896,7 @@
 
   function normalizeMessageSender(sender) {
     const value = String(sender || '').toLowerCase();
-    if (value.includes('support') || value.includes('operator') || value.includes('admin') || value.includes('system')) {
+    if (value.includes('support') || value.includes('operator') || value.includes('admin') || value.includes('system') || value.includes('ai_agent')) {
       return 'support';
     }
     return 'user';
