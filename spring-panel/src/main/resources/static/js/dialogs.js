@@ -8,6 +8,15 @@
   const aiReviewQueueRefresh = document.getElementById('aiReviewQueueRefresh');
   const aiReviewQueueState = document.getElementById('aiReviewQueueState');
   const aiReviewQueueBody = document.getElementById('aiReviewQueueBody');
+  const aiMonitoringSection = document.getElementById('aiMonitoringSection');
+  const aiMonitoringRefresh = document.getElementById('aiMonitoringRefresh');
+  const aiMonitoringState = document.getElementById('aiMonitoringState');
+  const aiMonitoringAlerts = document.getElementById('aiMonitoringAlerts');
+  const aiMonitoringRunbook = document.getElementById('aiMonitoringRunbook');
+  const aiKpiAutoReplyRate = document.getElementById('aiKpiAutoReplyRate');
+  const aiKpiAssistRate = document.getElementById('aiKpiAssistRate');
+  const aiKpiEscalationRate = document.getElementById('aiKpiEscalationRate');
+  const aiKpiCorrectionRate = document.getElementById('aiKpiCorrectionRate');
   const pageSizeSelect = document.getElementById('dialogPageSize');
   const slaWindowSelect = document.getElementById('dialogSlaWindow');
   const sortModeSelect = document.getElementById('dialogSortMode');
@@ -3969,6 +3978,68 @@
     }
   }
 
+  function formatRatePercent(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return '—';
+    return `${(numeric * 100).toFixed(1)}%`;
+  }
+
+  function renderAiMonitoringAlerts(alerts) {
+    if (!aiMonitoringAlerts) return;
+    if (!Array.isArray(alerts) || alerts.length === 0) {
+      aiMonitoringAlerts.innerHTML = '<div class="text-muted">Алертов нет.</div>';
+      return;
+    }
+    aiMonitoringAlerts.innerHTML = alerts.map((alert) => {
+      const severity = String(alert?.severity || 'info').trim().toLowerCase();
+      const cls = severity === 'warning'
+        ? 'alert alert-warning py-2 px-3 mb-2'
+        : (severity === 'ok' ? 'alert alert-success py-2 px-3 mb-2' : 'alert alert-info py-2 px-3 mb-2');
+      const message = escapeHtml(String(alert?.message || 'AI alert'));
+      const value = formatRatePercent(alert?.value);
+      const threshold = formatRatePercent(alert?.threshold);
+      return `<div class="${cls}"><div>${message}</div><div class="small text-muted">value: ${value} · threshold: ${threshold}</div></div>`;
+    }).join('');
+  }
+
+  function renderAiMonitoringRunbook(items) {
+    if (!aiMonitoringRunbook) return;
+    if (!Array.isArray(items) || !items.length) {
+      aiMonitoringRunbook.innerHTML = '<li>Runbook недоступен.</li>';
+      return;
+    }
+    aiMonitoringRunbook.innerHTML = items.map((item) => `<li>${escapeHtml(String(item || ''))}</li>`).join('');
+  }
+
+  async function loadAiMonitoringSummary(days = 7) {
+    if (!aiMonitoringSection || !aiMonitoringState) return;
+    aiMonitoringState.textContent = 'Загрузка AI-метрик…';
+    try {
+      const resp = await fetch(`/api/dialogs/ai-monitoring/summary?days=${encodeURIComponent(days)}`, {
+        credentials: 'same-origin',
+        cache: 'no-store',
+      });
+      const payload = await resp.json().catch(() => ({}));
+      if (!resp.ok || payload.success === false) {
+        throw new Error(payload.error || `HTTP ${resp.status}`);
+      }
+      const summary = payload.summary || {};
+      const kpis = summary.kpis || {};
+      if (aiKpiAutoReplyRate) aiKpiAutoReplyRate.textContent = formatRatePercent(kpis.auto_reply_rate);
+      if (aiKpiAssistRate) aiKpiAssistRate.textContent = formatRatePercent(kpis.assist_usage_rate);
+      if (aiKpiEscalationRate) aiKpiEscalationRate.textContent = formatRatePercent(kpis.escalation_rate);
+      if (aiKpiCorrectionRate) aiKpiCorrectionRate.textContent = formatRatePercent(kpis.correction_rate);
+      renderAiMonitoringAlerts(summary.alerts);
+      renderAiMonitoringRunbook(summary.runbook?.items);
+      const windowDays = Number(summary.window_days || days);
+      aiMonitoringState.textContent = `Окно: ${Number.isFinite(windowDays) ? windowDays : days} дн · обновлено ${formatUtcDate(summary.generated_at, { includeTime: true })}`;
+    } catch (error) {
+      aiMonitoringState.textContent = `Не удалось загрузить AI-метрики: ${error.message || 'unknown_error'}`;
+      renderAiMonitoringAlerts([]);
+      renderAiMonitoringRunbook([]);
+    }
+  }
+
   async function loadWorkspaceAiReview(ticketId) {
     const normalizedTicketId = String(ticketId || '').trim();
     if (!workspaceAiReviewBox) return;
@@ -7328,6 +7399,12 @@
     });
   }
 
+  if (aiMonitoringRefresh) {
+    aiMonitoringRefresh.addEventListener('click', () => {
+      loadAiMonitoringSummary(7);
+    });
+  }
+
   if (aiReviewQueueBody) {
     aiReviewQueueBody.addEventListener('click', async (event) => {
       const row = event.target.closest('tr[data-ai-review-query-key]');
@@ -7971,6 +8048,8 @@
   void loadServerTriagePreferences();
   loadAiReviewQueue();
   setInterval(loadAiReviewQueue, 30 * 1000);
+  loadAiMonitoringSummary(7);
+  setInterval(() => loadAiMonitoringSummary(7), 60 * 1000);
 
   if (INITIAL_DIALOG_TICKET_ID) {
     const initialRow = rowsList().find((row) => String(row.dataset.ticketId || '') === INITIAL_DIALOG_TICKET_ID) || null;
