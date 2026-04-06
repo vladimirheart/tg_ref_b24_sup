@@ -1282,9 +1282,9 @@ public class SupportBot extends TelegramLongPollingBot {
         }
 
         QuestionFlowItemDto current = session.currentQuestion();
+        String resolvedAnswer = Optional.ofNullable(message.getText()).orElse("");
         if (isPresetQuestion(current)) {
             List<String> options = resolvePresetOptions(current, session.answers());
-            String answer = Optional.ofNullable(message.getText()).orElse("");
             if (options.isEmpty()) {
                 SendMessage retry = SendMessage.builder()
                         .chatId(session.chatId())
@@ -1298,7 +1298,8 @@ public class SupportBot extends TelegramLongPollingBot {
                 }
                 return;
             }
-            if (!options.contains(answer)) {
+            resolvedAnswer = resolvePresetAnswer(resolvedAnswer, options);
+            if (!options.contains(resolvedAnswer)) {
                 SendMessage retry = SendMessage.builder()
                         .chatId(session.chatId())
                         .text("Введите один из вариантов текстом: " + String.join(", ", options))
@@ -1313,7 +1314,7 @@ public class SupportBot extends TelegramLongPollingBot {
             }
         }
 
-        session.recordAnswer(message);
+        session.recordAnswer(message, resolvedAnswer);
         log.info("Recorded answer for user {} at step {}", session.userId(), session.currentIndex);
         if (session.isComplete()) {
             finalizeConversation(session);
@@ -1360,8 +1361,11 @@ public class SupportBot extends TelegramLongPollingBot {
     private String buildQuestionPromptText(QuestionFlowItemDto current, List<String> options, boolean includeBack) {
         StringBuilder text = new StringBuilder(Optional.ofNullable(current.getText()).orElse(""));
         if (options != null && !options.isEmpty()) {
-            text.append("\n\nВарианты: ").append(String.join(", ", options)).append(".");
-            text.append("\nОтвет можно ввести текстом.");
+            text.append("\n\nВарианты:");
+            for (int i = 0; i < options.size(); i++) {
+                text.append("\n").append(i + 1).append(". ").append(options.get(i));
+            }
+            text.append("\nМожно ответить номером (1, 2, ...) или текстом варианта.");
         }
         if (includeBack) {
             text.append("\n\nЧтобы вернуться к предыдущему вопросу, напишите \"").append(BACK_BUTTON).append("\".");
