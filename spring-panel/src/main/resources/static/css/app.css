@@ -1304,5 +1304,90 @@ body {
     color: var(--ui-muted) !important;
 }
 
+/* Bootstrap utility harmonization */
+.bg-light,
+.bg-light-subtle,
+.bg-secondary-subtle,
+.bg-body-tertiary {
+    background-color: color-mix(in srgb, var(--muted) 78%, var(--ui-surface)) !important;
+    color: var(--ui-text) !important;
+}
+
+.text-dark,
+.text-body-secondary,
+.text-secondary {
+    color: var(--ui-text) !important;
+}
+
+.border,
+.border-top,
+.border-bottom,
+.border-start,
+.border-end {
+    border-color: var(--ui-border) !important;
+}
+
+.badge.bg-light,
+.badge.bg-light.text-dark,
+.badge.bg-warning.text-dark {
+    background-color: color-mix(in srgb, var(--muted) 72%, var(--ui-surface)) !important;
+    color: var(--ui-text) !important;
+    border: 1px solid var(--ui-border) !important;
+}
+
+.badge.bg-info,
+.badge.bg-primary,
+.badge.bg-secondary,
+.badge.bg-success,
+.badge.bg-danger {
+    border: 1px solid color-mix(in srgb, var(--ui-border) 65%, transparent) !important;
+}
+
+/* Settings page cards unified */
+.settings-tiles .settings-tile {
+    background: var(--ui-surface) !important;
+    border: 1px solid var(--ui-border) !important;
+    border-radius: var(--ui-radius) !important;
+    box-shadow: var(--ui-shadow) !important;
+}
+
+.settings-tiles .settings-tile .tile-icon {
+    background: color-mix(in srgb, var(--ui-primary) 14%, var(--ui-surface)) !important;
+    color: var(--ui-text) !important;
+    border: 1px solid var(--ui-border) !important;
+}
+
+.settings-tiles .settings-tile:hover,
+.settings-tiles .settings-tile.is-active {
+    background: color-mix(in srgb, var(--ui-primary) 8%, var(--ui-surface)) !important;
+    border-color: var(--ui-border) !important;
+    transform: none !important;
+}
+
+/* Navbar, tabs, pagination */
+.nav-tabs .nav-link {
+    color: var(--ui-text);
+    border-color: transparent;
+}
+
+.nav-tabs .nav-link.active,
+.nav-tabs .nav-item.show .nav-link {
+    color: var(--ui-text);
+    background-color: var(--ui-surface);
+    border-color: var(--ui-border) var(--ui-border) transparent !important;
+}
+
+.pagination .page-link {
+    color: var(--ui-text);
+    border-color: var(--ui-border);
+    background-color: var(--ui-surface);
+}
+
+.pagination .page-item.active .page-link {
+    background-color: var(--ui-primary);
+    border-color: var(--ui-primary);
+    color: var(--primary-foreground);
+}
+
 
 
