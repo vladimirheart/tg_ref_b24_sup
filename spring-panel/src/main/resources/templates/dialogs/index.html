@@ -177,9 +177,9 @@
                 <table class="table table-sm align-middle mb-0">
                     <thead>
                     <tr>
-                        <th style="min-width: 18rem;">Вопрос</th>
-                        <th style="min-width: 16rem;">Текущее решение</th>
-                        <th style="min-width: 16rem;">Предложенная правка</th>
+                        <th class="dialog-col-question">Вопрос</th>
+                        <th class="dialog-col-current-answer">Текущее решение</th>
+                        <th class="dialog-col-proposed-answer">Предложенная правка</th>
                         <th>Диалог</th>
                         <th class="text-end">Действия</th>
                     </tr>
@@ -465,7 +465,7 @@
                                 <span class="dialog-business-text" th:text="${dialog.businessLabel()}">—</span>
                             </div>
                         </td>
-                        <td class="text-truncate" style="max-width: 260px;" th:text="${dialog.problemSafe()}">—</td>
+                        <td class="text-truncate dialog-problem-cell" th:text="${dialog.problemSafe()}">—</td>
                         <td th:text="${dialog.location()} ?: '—'">—</td>
                         <td th:text="${dialog.categoriesSafe()}">—</td>
                         <td th:text="${dialog.responsible()} ?: '—'">—</td>

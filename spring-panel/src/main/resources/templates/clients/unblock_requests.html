@@ -23,7 +23,7 @@
 
     <div class="mb-3 d-flex align-items-center gap-2 flex-wrap">
         <label class="form-label mb-0">Статус:</label>
-        <select class="form-select form-select-sm" style="width:auto"
+        <select class="form-select form-select-sm unblock-status-select"
                 onchange="location.href=this.value ? ('?status='+this.value) : '/unblock-requests'">
             <option value="" th:selected="${statusFilter == null || statusFilter.isBlank()}">all</option>
             <option th:each="status : ${availableStatuses}"
