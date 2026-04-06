@@ -1373,6 +1373,30 @@ public class SupportBot extends TelegramLongPollingBot {
         return text.toString();
     }
 
+    private String resolvePresetAnswer(String rawAnswer, List<String> options) {
+        if (rawAnswer == null) {
+            return "";
+        }
+        String trimmed = rawAnswer.trim();
+        if (trimmed.isEmpty()) {
+            return trimmed;
+        }
+        try {
+            int numeric = Integer.parseInt(trimmed);
+            if (numeric >= 1 && numeric <= options.size()) {
+                return options.get(numeric - 1);
+            }
+        } catch (NumberFormatException ignored) {
+            // fallback to text matching
+        }
+        for (String option : options) {
+            if (option.equalsIgnoreCase(trimmed)) {
+                return option;
+            }
+        }
+        return trimmed;
+    }
+
     private boolean isMyTicketsCommand(String text) {
         if (text == null) {
             return false;
@@ -1697,14 +1721,17 @@ public class SupportBot extends TelegramLongPollingBot {
         }
 
         void recordAnswer(Message message) {
+            recordAnswer(message, message.getText());
+        }
+
+        void recordAnswer(Message message, String resolvedAnswer) {
             QuestionFlowItemDto current = currentQuestion();
             if (current == null) {
                 return;
             }
-            String answer = message.getText();
             String answerKey = answerKeyFor(current);
             if (answerKey != null) {
-                answers.put(answerKey, answer);
+                answers.put(answerKey, resolvedAnswer);
             }
             currentIndex += 1;
             addHistoryEvent(message, "text", null);

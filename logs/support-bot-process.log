@@ -1,0 +1,71 @@
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v3.2.5)
+
+2026-04-06 10:38:01.543+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
+2026-04-06 10:38:01.684+03:00 INFO  [main] c.e.s.t.TelegramBotApplication - Starting TelegramBotApplication using Java 17.0.17 with PID 10068 (C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\java-bot\bot-telegram\target\classes started by SinicinVV in C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\java-bot\bot-telegram)
+2026-04-06 10:38:01.687+03:00 INFO  [main] c.e.s.t.TelegramBotApplication - The following 1 profile is active: "default"
+2026-04-06 10:38:03.196+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-04-06 10:38:03.556+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 333 ms. Found 30 JPA repository interfaces.
+2026-04-06 10:38:04.846+03:00 INFO  [main] o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-04-06 10:38:05.054+03:00 INFO  [main] org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
+2026-04-06 10:38:05.153+03:00 INFO  [main] o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
+2026-04-06 10:38:05.887+03:00 INFO  [main] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-04-06 10:38:10.062+03:00 INFO  [main] o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-04-06 10:38:10.069+03:00 INFO  [main] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-04-06 10:38:12.193+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Initializing Telegram bot configuration check
+2026-04-06 10:38:12.202+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Telegram bot configuration: username='tst_int_SV_bot' token=8391…kzYU (46) channelId=-4961108450
+2026-04-06 10:38:12.993+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Telegram bot connected successfully: id=8391583658 username=tst_int_SV_bot
+2026-04-06 10:38:12.994+03:00 WARN  [main] o.s.aop.framework.CglibAopProxy - Unable to proxy interface-implementing method [public final org.telegram.telegrambots.bots.DefaultBotOptions org.telegram.telegrambots.bots.DefaultAbsSender.getOptions()] because it is marked as final, consider using interface-based JDK proxies instead.
+2026-04-06 10:38:14.171+03:00 INFO  [main] c.e.s.t.TelegramLongPollingLifecycle - Telegram long polling started. username=tst_int_SV_bot
+2026-04-06 10:38:14.222+03:00 INFO  [main] c.e.s.t.TelegramBotApplication - Started TelegramBotApplication in 14.319 seconds (process running for 15.302)
+2026-04-06 10:38:31.417+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Received Telegram update 450028483 (message=true, callbackQuery=false, editedMessage=false, channelPost=false)
+2026-04-06 10:38:31.417+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Incoming update 450028483 chat=380742186 user=380742186 text=/start attachments=none
+2026-04-06 10:38:31.564+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Received /start from user 380742186 in update 450028483
+2026-04-06 10:38:31.667+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Starting conversation for user 380742186 chat 380742186 with 5 questions
+2026-04-06 10:38:31.704+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Conversation initialized for user 380742186 - sending first prompt
+2026-04-06 10:38:31.706+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Prompting reuse decision for user 380742186
+2026-04-06 10:38:44.500+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Received Telegram update 450028484 (message=true, callbackQuery=false, editedMessage=false, channelPost=false)
+2026-04-06 10:38:44.501+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Incoming update 450028484 chat=380742186 user=380742186 text=нет attachments=none
+2026-04-06 10:38:44.512+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Received conversation answer from user 380742186 in update 450028484
+2026-04-06 10:38:44.512+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Prompting question business for user 380742186
+2026-04-06 10:38:54.582+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Received Telegram update 450028485 (message=true, callbackQuery=false, editedMessage=false, channelPost=false)
+2026-04-06 10:38:54.583+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Incoming update 450028485 chat=380742186 user=380742186 text=БлинБери attachments=none
+2026-04-06 10:38:54.593+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Received conversation answer from user 380742186 in update 450028485
+2026-04-06 10:38:54.596+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Recorded answer for user 380742186 at step 1
+2026-04-06 10:38:54.596+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Prompting question location_type for user 380742186
+2026-04-06 10:42:03.051+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Received Telegram update 450028486 (message=true, callbackQuery=false, editedMessage=false, channelPost=false)
+2026-04-06 10:42:03.052+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Incoming update 450028486 chat=380742186 user=380742186 text=корп attachments=none
+2026-04-06 10:42:03.062+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Received conversation answer from user 380742186 in update 450028486
+2026-04-06 10:42:16.820+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Received Telegram update 450028487 (message=true, callbackQuery=false, editedMessage=false, channelPost=false)
+2026-04-06 10:42:16.821+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Incoming update 450028487 chat=380742186 user=380742186 text=Корпоративная сеть attachments=none
+2026-04-06 10:42:16.831+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Received conversation answer from user 380742186 in update 450028487
+2026-04-06 10:42:16.832+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Recorded answer for user 380742186 at step 2
+2026-04-06 10:42:16.832+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Prompting question city for user 380742186
+2026-04-06 10:42:20.801+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Received Telegram update 450028488 (message=true, callbackQuery=false, editedMessage=false, channelPost=false)
+2026-04-06 10:42:20.801+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Incoming update 450028488 chat=380742186 user=380742186 text=Волгоград attachments=none
+2026-04-06 10:42:20.812+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Received conversation answer from user 380742186 in update 450028488
+2026-04-06 10:42:20.812+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Recorded answer for user 380742186 at step 3
+2026-04-06 10:42:20.812+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Prompting question location_name for user 380742186
+2026-04-06 10:42:40.262+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Received Telegram update 450028489 (message=true, callbackQuery=false, editedMessage=false, channelPost=false)
+2026-04-06 10:42:40.262+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Incoming update 450028489 chat=380742186 user=380742186 text=ББ Волгоград 7 гвардейская attachments=none
+2026-04-06 10:42:40.274+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Received conversation answer from user 380742186 in update 450028489
+2026-04-06 10:42:48.901+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Received Telegram update 450028490 (message=true, callbackQuery=false, editedMessage=false, channelPost=false)
+2026-04-06 10:42:48.902+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Incoming update 450028490 chat=380742186 user=380742186 text=ББ Волгоград 7 Гвардейская attachments=none
+2026-04-06 10:42:48.912+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Received conversation answer from user 380742186 in update 450028490
+2026-04-06 10:42:48.912+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Recorded answer for user 380742186 at step 4
+2026-04-06 10:42:48.912+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Prompting question problem for user 380742186
+2026-04-06 10:42:55.800+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Received Telegram update 450028491 (message=true, callbackQuery=false, editedMessage=false, channelPost=false)
+2026-04-06 10:42:55.800+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Incoming update 450028491 chat=380742186 user=380742186 text=Не работает касса attachments=none
+2026-04-06 10:42:55.812+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Received conversation answer from user 380742186 in update 450028491
+2026-04-06 10:42:55.813+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Recorded answer for user 380742186 at step 5
+2026-04-06 10:42:55.952+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Created ticket a000ae24-cd46-4505-9373-3400d8c5b8aa for user 380742186 with 0 attachments
+2026-04-06 10:43:29.656+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Received Telegram update 450028492 (message=true, callbackQuery=false, editedMessage=false, channelPost=false)
+2026-04-06 10:43:29.656+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Incoming update 450028492 chat=380742186 user=380742186 text=пишет что лицензия занята attachments=none
+2026-04-06 10:43:29.705+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Active ticket message received: ticketId=a000ae24-cd46-4505-9373-3400d8c5b8aa userId=380742186 username=Vladimir_SV messageType=text telegramMessageId=3852 attachment=null
+2026-04-06 10:43:29.723+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Stored client message in history: ticketId=a000ae24-cd46-4505-9373-3400d8c5b8aa userId=380742186 messageType=text attachment=null
