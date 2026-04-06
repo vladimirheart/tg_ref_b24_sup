@@ -7208,9 +7208,24 @@
     });
   }
 
+  function resolveDetailsTicketId() {
+    const direct = String(activeDialogTicketId || '').trim();
+    if (direct) {
+      return direct;
+    }
+    const metaText = String(detailsMeta?.textContent || '');
+    const match = metaText.match(/#([A-Za-z0-9._:-]+)/);
+    if (!match?.[1]) {
+      return null;
+    }
+    activeDialogTicketId = match[1];
+    return activeDialogTicketId;
+  }
+
   if (detailsResolve) {
     detailsResolve.addEventListener('click', async () => {
-      if (!activeDialogTicketId) return;
+      const ticketId = resolveDetailsTicketId();
+      if (!ticketId) return;
       detailsResolve.disabled = true;
       try {
         const categories = Array.from(selectedCategories);
@@ -7218,7 +7233,7 @@
           openCategoryPanel();
           throw new Error('Укажите хотя бы одну категорию обращения перед закрытием.');
         }
-        const resp = await fetch(`/api/dialogs/${encodeURIComponent(activeDialogTicketId)}/resolve`, {
+        const resp = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/resolve`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ categories }),
@@ -7227,7 +7242,7 @@
         if (!resp.ok || !data?.success) {
           throw new Error(data?.error || `Ошибка ${resp.status}`);
         }
-        await openDialogDetails(activeDialogTicketId, activeDialogRow);
+        await openDialogDetails(ticketId, activeDialogRow);
         if (typeof showNotification === 'function') {
           showNotification('Диалог закрыт', 'success');
         }
@@ -7242,13 +7257,14 @@
 
   if (detailsReopen) {
     detailsReopen.addEventListener('click', async () => {
-      if (!activeDialogTicketId) return;
+      const ticketId = resolveDetailsTicketId();
+      if (!ticketId) return;
       if (!window.confirm('Переоткрыть закрытое обращение?')) {
         return;
       }
       detailsReopen.disabled = true;
       try {
-        const resp = await fetch(`/api/dialogs/${encodeURIComponent(activeDialogTicketId)}/reopen`, {
+        const resp = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/reopen`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
         });
@@ -7256,7 +7272,7 @@
         if (!resp.ok || !data?.success) {
           throw new Error(data?.error || `Ошибка ${resp.status}`);
         }
-        await openDialogDetails(activeDialogTicketId, activeDialogRow);
+        await openDialogDetails(ticketId, activeDialogRow);
         if (typeof showNotification === 'function') {
           showNotification('Диалог переоткрыт', 'success');
         }
@@ -7273,10 +7289,11 @@
   if (detailsReplySend && detailsReplyText) {
     const sendReply = async () => {
       const message = detailsReplyText.value.trim();
-      if (!message || !activeDialogTicketId) return;
+      const ticketId = resolveDetailsTicketId();
+      if (!message || !ticketId) return;
       detailsReplySend.disabled = true;
       try {
-        const resp = await fetch(`/api/dialogs/${encodeURIComponent(activeDialogTicketId)}/reply`, {
+        const resp = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/reply`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ message, replyToTelegramId: activeReplyToTelegramId }),
@@ -7424,7 +7441,8 @@
         return;
       }
       const button = event.target.closest('button[data-action]');
-      if (!button || !activeDialogTicketId) return;
+      const ticketId = resolveDetailsTicketId();
+      if (!button || !ticketId) return;
       const menu = button.closest('.chat-message-menu');
       if (menu) menu.classList.remove('is-open');
       const messageId = Number.parseInt(button.dataset.messageId, 10);
@@ -7445,7 +7463,7 @@
         const current = button.closest('.chat-message')?.querySelector('div:nth-of-type(2)')?.textContent || '';
         const nextText = window.prompt('Введите новый текст сообщения:', current.trim());
         if (!nextText || !nextText.trim()) return;
-        const resp = await fetch(`/api/dialogs/${encodeURIComponent(activeDialogTicketId)}/edit`, {
+        const resp = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/edit`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ telegramMessageId: messageId, message: nextText.trim() }),
@@ -7457,7 +7475,7 @@
       }
       if (action === 'delete') {
         if (!window.confirm('Удалить сообщение у клиента?')) return;
-        const resp = await fetch(`/api/dialogs/${encodeURIComponent(activeDialogTicketId)}/delete`, {
+        const resp = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/delete`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ telegramMessageId: messageId }),
@@ -8375,6 +8393,15 @@
   } else {
     applyFilters();
   }
+  window.openDialogDetailsByTicketId = (ticketId) => {
+    const normalizedTicketId = String(ticketId || '').trim();
+    if (!normalizedTicketId) return;
+    const row = rowsList().find((item) => String(item.dataset.ticketId || '') === normalizedTicketId) || null;
+    setActiveDialogRow(row, { ensureVisible: true });
+    openDialogDetails(normalizedTicketId, row);
+  };
+  window.refreshAiReviewQueue = () => loadAiReviewQueue();
+
   void loadServerTriagePreferences();
   loadAiReviewQueue();
   setInterval(loadAiReviewQueue, 30 * 1000);
