@@ -1665,5 +1665,96 @@ body {
     max-width: 260px;
 }
 
+/* Unified UI refresh: softer static borders + consistent buttons */
+:root {
+    --ui-border-soft: color-mix(in srgb, var(--color-border) 78%, transparent);
+    --ui-border-soft-strong: color-mix(in srgb, var(--color-border) 88%, transparent);
+}
+
+.card,
+.modal-content,
+.table,
+.list-group-item,
+.form-control,
+.form-select,
+.input-group-text,
+.dropdown-menu {
+    border-color: var(--ui-border-soft) !important;
+}
+
+.card:hover,
+.modal-content:hover,
+.form-control:hover,
+.form-select:hover,
+.input-group-text:hover,
+.dropdown-menu:hover {
+    border-color: var(--ui-border-soft) !important;
+}
+
+.btn {
+    position: relative;
+    overflow: hidden;
+    border-radius: 0.75rem;
+    border-color: var(--ui-border-soft) !important;
+    transition: transform 0.14s ease, box-shadow 0.14s ease, background-color 0.14s ease;
+}
+
+.btn:hover {
+    border-color: var(--ui-border-soft) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 10px 20px color-mix(in srgb, var(--color-shadow-color) 14%, transparent);
+}
+
+.btn:active {
+    transform: translateY(0);
+    box-shadow: 0 4px 10px color-mix(in srgb, var(--color-shadow-color) 10%, transparent);
+}
+
+.btn.btn-outline-primary,
+.btn.btn-outline-secondary,
+.btn.btn-outline-success,
+.btn.btn-outline-warning,
+.btn.btn-outline-danger {
+    background-color: color-mix(in srgb, var(--card) 90%, var(--background));
+}
+
+.btn.btn-primary {
+    background: linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--primary) 94%, white),
+        color-mix(in srgb, var(--primary) 82%, black)
+    );
+    border-color: color-mix(in srgb, var(--primary) 66%, var(--color-border)) !important;
+}
+
+.btn.btn-success {
+    border-color: color-mix(in srgb, var(--chart-5) 55%, var(--color-border)) !important;
+}
+
+.btn.btn-warning {
+    border-color: color-mix(in srgb, var(--chart-3) 58%, var(--color-border)) !important;
+}
+
+.btn.btn-danger {
+    border-color: color-mix(in srgb, var(--destructive) 60%, var(--color-border)) !important;
+}
+
+.btn-ripple-wave {
+    position: absolute;
+    border-radius: 999px;
+    pointer-events: none;
+    transform: scale(0);
+    opacity: 0.65;
+    animation: btn-ripple-wave 650ms ease-out forwards;
+    background: var(--button-ripple-color, rgba(0, 0, 0, 0.18));
+}
+
+@keyframes btn-ripple-wave {
+    to {
+        transform: scale(1);
+        opacity: 0;
+    }
+}
+
 
 
