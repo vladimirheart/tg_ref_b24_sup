@@ -1541,6 +1541,10 @@
       || source.user_id
       || source.clientUserId
       || source.client_user_id
+      || source.client?.userId
+      || source.client?.user_id
+      || source.client?.id
+      || source.workspaceClient?.id
       || '',
     ).trim();
   }
@@ -6667,7 +6671,8 @@
     if (detailsHistory) detailsHistory.innerHTML = '';
     if (detailsReplyText) detailsReplyText.value = '';
     if (detailsOpenClientCard) {
-      detailsOpenClientCard.href = '#';
+      detailsOpenClientCard.dataset.userId = '';
+      detailsOpenClientCard.disabled = true;
       detailsOpenClientCard.classList.add('disabled');
       detailsOpenClientCard.setAttribute('aria-disabled', 'true');
     }
@@ -6731,11 +6736,13 @@
       if (detailsClientStatus) detailsClientStatus.textContent = clientStatus;
       if (detailsOpenClientCard) {
         if (clientUserId) {
-          detailsOpenClientCard.href = `/client/${encodeURIComponent(clientUserId)}`;
+          detailsOpenClientCard.dataset.userId = clientUserId;
+          detailsOpenClientCard.disabled = false;
           detailsOpenClientCard.classList.remove('disabled');
           detailsOpenClientCard.setAttribute('aria-disabled', 'false');
         } else {
-          detailsOpenClientCard.href = '#';
+          detailsOpenClientCard.dataset.userId = '';
+          detailsOpenClientCard.disabled = true;
           detailsOpenClientCard.classList.add('disabled');
           detailsOpenClientCard.setAttribute('aria-disabled', 'true');
         }
@@ -6998,9 +7005,13 @@
 
   if (detailsOpenClientCard) {
     detailsOpenClientCard.addEventListener('click', (event) => {
-      const href = String(detailsOpenClientCard.getAttribute('href') || '').trim();
-      if (!href || href === '#') {
-        event.preventDefault();
+      event.preventDefault();
+      const userId = String(detailsOpenClientCard.dataset.userId || '').trim();
+      if (!userId) return;
+      const clientUrl = `/client/${encodeURIComponent(userId)}`;
+      const opened = window.open(clientUrl, '_blank', 'noopener');
+      if (!opened) {
+        window.location.href = clientUrl;
       }
     });
   }
