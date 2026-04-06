@@ -13,9 +13,6 @@ attachments/
 
 /spring-panel/target/
 *.patch
-logs/spring-panel.log
-logs/*.log
-*.log
 *.bak
 *.tmp
 *.temp
