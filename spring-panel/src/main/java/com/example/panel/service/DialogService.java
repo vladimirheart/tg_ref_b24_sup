@@ -605,6 +605,124 @@ public class DialogService {
         }
     }
 
+    public Map<String, Object> loadDialogProfileMatchCandidates(Map<String, String> incomingValues, int perFieldLimit) {
+        if (incomingValues == null || incomingValues.isEmpty()) {
+            return Map.of(
+                    "enabled", true,
+                    "fields", List.of(),
+                    "summary", "no_incoming_values"
+            );
+        }
+        int safeLimit = Math.max(1, Math.min(perFieldLimit, 8));
+        List<Map<String, Object>> fields = new ArrayList<>();
+        int fieldsWithCandidates = 0;
+        for (Map.Entry<String, String> entry : incomingValues.entrySet()) {
+            String field = normalizeFieldKey(entry.getKey());
+            String incoming = trimOrNull(entry.getValue());
+            if (field == null || incoming == null) {
+                continue;
+            }
+            String paramType = mapFieldToParameterType(field);
+            if (paramType == null) {
+                continue;
+            }
+            List<Map<String, Object>> candidates = querySettingsParameterMatches(paramType, incoming, safeLimit);
+            if (!candidates.isEmpty()) {
+                fieldsWithCandidates++;
+            }
+            Map<String, Object> fieldPayload = new LinkedHashMap<>();
+            fieldPayload.put("field", field);
+            fieldPayload.put("param_type", paramType);
+            fieldPayload.put("incoming_value", incoming);
+            fieldPayload.put("label", resolveFieldLabel(field));
+            fieldPayload.put("candidates", candidates);
+            fieldPayload.put("has_candidates", !candidates.isEmpty());
+            fieldPayload.put("needs_review", !candidates.isEmpty() && !Boolean.TRUE.equals(candidates.get(0).get("exact_match")));
+            fields.add(fieldPayload);
+        }
+        return Map.of(
+                "enabled", true,
+                "source", "settings_parameters",
+                "summary", fieldsWithCandidates > 0 ? "review_required" : "no_matches",
+                "fields", fields,
+                "has_any_candidates", fieldsWithCandidates > 0
+        );
+    }
+
+    private List<Map<String, Object>> querySettingsParameterMatches(String paramType, String incomingValue, int limit) {
+        String normalizedIncoming = incomingValue.trim().toLowerCase(Locale.ROOT);
+        try {
+            return jdbcTemplate.query(
+                    """
+                    SELECT id, value, state
+                      FROM settings_parameters
+                     WHERE is_deleted = 0
+                       AND param_type = ?
+                       AND value IS NOT NULL
+                       AND trim(value) <> ''
+                     ORDER BY
+                       CASE
+                         WHEN lower(trim(value)) = ? THEN 0
+                         WHEN lower(trim(value)) LIKE ? THEN 1
+                         WHEN lower(trim(value)) LIKE ? THEN 2
+                         ELSE 3
+                       END,
+                       value
+                     LIMIT ?
+                    """,
+                    (rs, rowNum) -> {
+                        String value = rs.getString("value");
+                        String normalizedValue = value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
+                        boolean exactMatch = normalizedIncoming.equals(normalizedValue);
+                        boolean prefixMatch = !exactMatch && normalizedValue.startsWith(normalizedIncoming);
+                        String matchType = exactMatch ? "exact" : (prefixMatch ? "prefix" : "contains");
+                        double confidence = exactMatch ? 1.0d : (prefixMatch ? 0.82d : 0.64d);
+                        Map<String, Object> candidate = new LinkedHashMap<>();
+                        candidate.put("id", rs.getLong("id"));
+                        candidate.put("value", value);
+                        candidate.put("state", rs.getString("state"));
+                        candidate.put("match_type", matchType);
+                        candidate.put("exact_match", exactMatch);
+                        candidate.put("confidence", confidence);
+                        return candidate;
+                    },
+                    paramType,
+                    normalizedIncoming,
+                    normalizedIncoming + "%",
+                    "%" + normalizedIncoming + "%",
+                    limit
+            );
+        } catch (DataAccessException ex) {
+            log.debug("Unable to resolve mapping candidates for paramType={} value={}: {}", paramType, incomingValue, summarizeDataAccessException(ex));
+            return List.of();
+        }
+    }
+
+    private String normalizeFieldKey(String value) {
+        String normalized = trimOrNull(value);
+        return normalized == null ? null : normalized.toLowerCase(Locale.ROOT);
+    }
+
+    private String mapFieldToParameterType(String field) {
+        return switch (field) {
+            case "business" -> "business";
+            case "location", "location_name", "department" -> "department";
+            case "city" -> "city";
+            case "country" -> "country";
+            default -> null;
+        };
+    }
+
+    private String resolveFieldLabel(String field) {
+        return switch (field) {
+            case "business" -> "Бизнес";
+            case "location", "location_name", "department" -> "Локация";
+            case "city" -> "Город";
+            case "country" -> "Страна";
+            default -> field;
+        };
+    }
+
     public List<Map<String, Object>> loadRelatedEvents(String ticketId, int limit) {
         if (!StringUtils.hasText(ticketId) || limit <= 0) {
             return List.of();

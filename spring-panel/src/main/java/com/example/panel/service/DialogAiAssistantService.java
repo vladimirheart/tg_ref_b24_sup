@@ -475,11 +475,13 @@ public class DialogAiAssistantService {
         Set<String> q = tokenize(query);
         Set<String> entities = extractEntityHints(query);
         if (q.isEmpty() && entities.isEmpty()) return List.of();
+        Long applicantUserId = resolveApplicantUserId(ticketId);
         List<AiSuggestion> candidates = new ArrayList<>();
         candidates.addAll(loadMemoryCandidates(q, entities, limit * 4));
         candidates.addAll(loadKnowledgeCandidates(q, entities, limit * 4));
         candidates.addAll(loadTaskCandidates(q, entities, limit * 4));
         candidates.addAll(loadHistoryCandidates(ticketId, q, entities, limit * 6));
+        candidates.addAll(loadApplicantHistoryCandidates(applicantUserId, ticketId, q, entities, limit * 6));
         return rerankSuggestions(q, candidates)
                 .stream()
                 .filter(x -> x.score > 0d)
@@ -538,6 +540,53 @@ public class DialogAiAssistantService {
             String msg = cleanTextForRetrieval(safe(row.get("message")));
             double s = scoreByTokens(q, entities, msg);
             if (s > 0d) out.add(new AiSuggestion("history", StringUtils.hasText(ticket) ? "РџРѕС…РѕР¶РёР№ РґРёР°Р»РѕРі #" + ticket : "РџРѕС…РѕР¶РёР№ РґРёР°Р»РѕРі", cut(msg, 260), s, null));
+        }
+        return out;
+    }
+
+    private List<AiSuggestion> loadApplicantHistoryCandidates(Long userId, String ticketId, Set<String> q, Set<String> entities, int limit) {
+        if (userId == null || !StringUtils.hasText(ticketId)) {
+            return List.of();
+        }
+        List<Map<String, Object>> rows;
+        try {
+            rows = jdbcTemplate.queryForList(
+                    """
+                    SELECT ch.ticket_id, ch.message
+                      FROM chat_history ch
+                      JOIN messages m ON m.ticket_id = ch.ticket_id
+                     WHERE m.user_id = ?
+                       AND ch.ticket_id <> ?
+                       AND lower(COALESCE(ch.sender, '')) IN ('operator','support','admin','system','ai_agent')
+                       AND ch.message IS NOT NULL
+                       AND trim(ch.message) <> ''
+                     ORDER BY ch.id DESC
+                     LIMIT ?
+                    """,
+                    userId,
+                    ticketId,
+                    limit
+            );
+        } catch (Exception ex) {
+            return List.of();
+        }
+        List<AiSuggestion> out = new ArrayList<>();
+        for (Map<String, Object> row : rows) {
+            String prevTicket = safe(row.get("ticket_id"));
+            String msg = cleanTextForRetrieval(safe(row.get("message")));
+            double s = scoreByTokens(q, entities, msg);
+            if (s <= 0d) {
+                continue;
+            }
+            // Applicant-specific history is more relevant than generic history.
+            double boosted = Math.max(0d, Math.min(1d, s + 0.12d));
+            out.add(new AiSuggestion(
+                    "applicant_history",
+                    StringUtils.hasText(prevTicket) ? "История заявителя #" + prevTicket : "История заявителя",
+                    cut(msg, 260),
+                    boosted,
+                    null
+            ));
         }
         return out;
     }
@@ -755,6 +804,21 @@ public class DialogAiAssistantService {
     private void markMemoryUsage(String key) { try { jdbcTemplate.update("UPDATE ai_agent_solution_memory SET times_used=COALESCE(times_used,0)+1,updated_at=CURRENT_TIMESTAMP WHERE query_key=?", key); } catch (Exception ignored) {} }
     private boolean hasOpenCorrectionRequest(String ticketId) { String a = jdbcTemplate.query("SELECT last_action FROM ticket_ai_agent_state WHERE ticket_id=? LIMIT 1", rs -> rs.next() ? trim(rs.getString("last_action")) : null, ticketId); return "operator_correction_requested".equalsIgnoreCase(String.valueOf(a)); }
     private String loadLastSuggestedReply(String ticketId) { return jdbcTemplate.query("SELECT last_suggested_reply FROM ticket_ai_agent_state WHERE ticket_id=? LIMIT 1", rs -> rs.next() ? trim(rs.getString("last_suggested_reply")) : null, ticketId); }
+    private Long resolveApplicantUserId(String ticketId) {
+        String t = trim(ticketId);
+        if (t == null) {
+            return null;
+        }
+        try {
+            return jdbcTemplate.query(
+                    "SELECT user_id FROM messages WHERE ticket_id = ? AND user_id IS NOT NULL LIMIT 1",
+                    rs -> rs.next() ? rs.getLong("user_id") : null,
+                    t
+            );
+        } catch (Exception ex) {
+            return null;
+        }
+    }
     private String loadLastClientMessage(String ticketId) { return jdbcTemplate.query("SELECT message FROM chat_history WHERE ticket_id=? AND lower(sender) NOT IN ('operator','support','admin','system','ai_agent') AND message IS NOT NULL AND trim(message)<>'' ORDER BY id DESC LIMIT 1", rs -> rs.next() ? trim(rs.getString("message")) : null, ticketId); }
     private String buildAutoReply(AiSuggestion s) {
         String body = cleanTextForRetrieval(s != null ? s.snippet : null);
@@ -781,6 +845,7 @@ public class DialogAiAssistantService {
             case "knowledge" -> "базе знаний";
             case "tasks" -> "истории задач";
             case "history" -> "похожим диалогам";
+            case "applicant_history" -> "истории этого заявителя";
             default -> "внутренним данным";
         };
         String prepared = buildAutoReply(s);
@@ -792,6 +857,7 @@ public class DialogAiAssistantService {
             case "knowledge" -> "Выбрано из статей базы знаний.";
             case "tasks" -> "Выбрано из похожих задач.";
             case "history" -> "Выбрано из похожих диалогов.";
+            case "applicant_history" -> "Выбрано из прошлых диалогов этого заявителя.";
             default -> "Выбрано из внутренних источников.";
         };
         return sourceExplain + " Оценка релевантности: " + formatScore(s.score) + ".";

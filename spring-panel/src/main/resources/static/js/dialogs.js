@@ -4578,6 +4578,43 @@
     const healthBanner = profileHealth && profileHealth.enabled === true
       ? `<div class="alert ${profileHealth.ready ? 'alert-success' : 'alert-warning'} py-2 px-3 small mb-2">${profileHealth.ready ? `Контекст клиента готов (${Number(profileHealth.coverage_pct || 100)}%).` : `Нужно дозаполнить контекст (${Number(profileHealth.coverage_pct || 0)}%): ${escapeHtml(missingFields.join(', ') || 'нет обязательных полей')}.`}${profileRuleSummary.length ? `<div class="text-muted mt-1">${escapeHtml(profileRuleSummary.join(' · '))}</div>` : ''}<div class="text-muted mt-1">Проверено: ${escapeHtml(formatWorkspaceDateTime(profileHealth.checked_at_utc || profileHealth.checked_at))}</div></div>`
       : '';
+    const profileMatchCandidates = context?.profile_match_candidates && typeof context.profile_match_candidates === 'object'
+      ? context.profile_match_candidates
+      : (client?.profile_match_candidates && typeof client.profile_match_candidates === 'object'
+        ? client.profile_match_candidates
+        : null);
+    const profileMatchFields = Array.isArray(profileMatchCandidates?.fields)
+      ? profileMatchCandidates.fields.filter((item) => item && typeof item === 'object')
+      : [];
+    const profileMatchReviewFields = profileMatchFields.filter((item) => Array.isArray(item.candidates) && item.candidates.length > 0);
+    const clientCardUrl = Number.isFinite(Number(client?.id)) ? `/client/${Number(client.id)}` : null;
+    const profileMatchSection = profileMatchCandidates && profileMatchFields.length
+      ? `<details class="mt-2"${profileMatchReviewFields.length ? ' open' : ''}>
+          <summary class="small fw-semibold">Сопоставление данных <span class="text-muted fw-normal">(${profileMatchReviewFields.length}/${profileMatchFields.length})</span></summary>
+          <div class="small text-muted mt-1">Проверьте предложенные совпадения по бизнесу, локации, городу и стране.</div>
+          <div class="d-flex flex-column gap-2 mt-2">
+            ${profileMatchFields.map((field) => {
+              const incomingValue = String(field?.incoming_value || '').trim();
+              const label = String(field?.label || field?.field || 'field').trim();
+              const candidates = Array.isArray(field?.candidates) ? field.candidates.slice(0, 3) : [];
+              const candidateLine = candidates.length
+                ? candidates.map((candidate) => {
+                  const value = String(candidate?.value || '').trim();
+                  const matchType = String(candidate?.match_type || '').trim();
+                  const confidence = Number(candidate?.confidence || 0);
+                  const confidenceLabel = Number.isFinite(confidence) ? `${Math.round(confidence * 100)}%` : '';
+                  return `${escapeHtml(value)}${matchType ? ` (${escapeHtml(matchType)})` : ''}${confidenceLabel ? ` · ${escapeHtml(confidenceLabel)}` : ''}`;
+                }).join('; ')
+                : 'нет совпадений';
+              return `<div class="border rounded px-2 py-1 bg-white">
+                  <div class="small"><span class="fw-semibold">${escapeHtml(label)}:</span> <span class="text-body">${escapeHtml(incomingValue || '—')}</span></div>
+                  <div class="small text-muted">Кандидаты: ${candidateLine}</div>
+                </div>`;
+            }).join('')}
+          </div>
+          ${clientCardUrl ? `<a class="btn btn-sm btn-outline-primary mt-2" href="${clientCardUrl}" target="_blank" rel="noopener noreferrer">Открыть карточку клиента для правок</a>` : ''}
+        </details>`
+      : '';
 
     const contextBlocks = Array.isArray(context?.blocks)
       ? context.blocks.filter((item) => item && typeof item === 'object')
@@ -4904,7 +4941,7 @@
       ? `<div class="d-flex flex-wrap gap-2 mt-2">${externalLinks.join('')}</div>`
       : '';
 
-    return `<div class="small"><strong>${escapeHtml(client.name || '—')}</strong></div>${healthBanner}${contextBlocksSection}${contextContractSection}${rows || '<div class="small text-muted">Дополнительные атрибуты отсутствуют.</div>'}${contextSourcesSection}${attributePoliciesSection}${extraSection}${segmentBadges}${linksSection}`;
+    return `<div class="small"><strong>${escapeHtml(client.name || '—')}</strong></div>${profileMatchSection}${healthBanner}${contextBlocksSection}${contextContractSection}${rows || '<div class="small text-muted">Дополнительные атрибуты отсутствуют.</div>'}${contextSourcesSection}${attributePoliciesSection}${extraSection}${segmentBadges}${linksSection}`;
   }
 
   function isWorkspaceClientExtraValue(value) {
