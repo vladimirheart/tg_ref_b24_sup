@@ -163,35 +163,6 @@
         </div>
     </div>
 
-    <section class="card shadow-sm mb-4 dialogs-table-card gradient-border-hover dialogs-extra-section" id="aiReviewQueueSection">
-        <div class="card-header bg-white d-flex justify-content-between align-items-center gap-2">
-            <div>
-                <strong>Очередь ревизий AI-решений</strong>
-                <div class="small text-muted">Решения, где ответ оператора отличается от текущей версии в памяти агента.</div>
-            </div>
-            <button class="btn btn-sm btn-outline-secondary" id="aiReviewQueueRefresh" type="button">Обновить</button>
-        </div>
-        <div class="card-body">
-            <div class="small text-muted mb-2" id="aiReviewQueueState">Загрузка очереди ревизий…</div>
-            <div class="table-responsive">
-                <table class="table table-sm align-middle mb-0">
-                    <thead>
-                    <tr>
-                        <th class="dialog-col-question">Вопрос</th>
-                        <th class="dialog-col-current-answer">Текущее решение</th>
-                        <th class="dialog-col-proposed-answer">Предложенная правка</th>
-                        <th>Диалог</th>
-                        <th class="text-end">Действия</th>
-                    </tr>
-                    </thead>
-                    <tbody id="aiReviewQueueBody">
-                    <tr><td colspan="5" class="text-muted text-center py-3">Загрузка…</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </section>
-
     <section id="dialogsWorkspaceShell" class="d-none mb-4 dialogs-extra-section" aria-live="polite">
         <div class="card shadow-sm workspace-shell-card gradient-border-hover">
             <div class="card-body">
@@ -363,32 +334,13 @@
         <button class="btn btn-link btn-sm text-decoration-none" id="dialogBulkClearBtn" type="button" disabled>Снять выделение</button>
     </div>
 
-    <div class="card shadow-sm mb-4 dialogs-summary-card gradient-border-hover dialogs-extra-section">
-        <div class="card-body py-2">
-            <div class="d-flex flex-wrap align-items-center gap-3 dialog-summary-inline">
-                <div class="dialog-summary-item">
-                    <span class="text-muted small">Всего обращений</span>
-                    <span class="h5 mb-0" id="dialogsSummaryTotal" th:text="${summary != null ? summary.totalTickets : 0}">0</span>
-                </div>
-                <div class="dialog-summary-item">
-                    <span class="text-muted small">В ожидании</span>
-                    <span class="h5 mb-0" id="dialogsSummaryPending" th:text="${summary != null ? summary.pendingTickets : 0}">0</span>
-                </div>
-                <div class="dialog-summary-item">
-                    <span class="text-muted small">Закрыто</span>
-                    <span class="h5 mb-0" id="dialogsSummaryResolved" th:text="${summary != null ? summary.resolvedTickets : 0}">0</span>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <div class="card shadow-sm dialogs-table-card gradient-border-hover">
         <div class="card-body">
             <div class="d-flex justify-content-end mb-2">
                 <button class="btn btn-outline-secondary btn-sm" id="dialogListOnlyToggle" type="button">Только список</button>
             </div>
             <div class="table-responsive">
-                <table class="table table-hover table-striped align-middle dialog-table" id="dialogsTable">
+                <table class="table table-striped align-middle dialog-table" id="dialogsTable">
                     <thead>
                     <tr>
                         <th class="dialog-select-column">
@@ -1080,9 +1032,6 @@
     window.setTimeout(() => {
       if (typeof window.openDialogDetailsByTicketId === 'function') {
         window.openDialogDetailsByTicketId(initialTicketId);
-      }
-      if (typeof window.refreshAiReviewQueue === 'function') {
-        window.refreshAiReviewQueue();
       }
     }, 200);
   })();

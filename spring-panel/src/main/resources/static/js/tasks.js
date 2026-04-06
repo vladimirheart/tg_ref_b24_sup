@@ -12,6 +12,7 @@
   const pager = document.getElementById('pager') || document.getElementById('pagination');
   const modalEl = document.getElementById('taskModal');
   const form = document.getElementById('taskForm');
+  const taskIdInput = document.getElementById('taskId');
   const bodyEditor = document.getElementById('bodyEditor');
   const deleteBtn = document.getElementById('deleteTaskBtn');
   const totalCounter = document.getElementById('tasksTotal');
@@ -137,6 +138,16 @@
     document.body.appendChild(backdrop);
     fallbackTaskModalBackdrop = backdrop;
     return backdrop;
+  }
+
+  function getTaskIdValue() {
+    if (!taskIdInput) return '';
+    return String(taskIdInput.value || '').trim();
+  }
+
+  function setTaskIdValue(value) {
+    if (!taskIdInput) return;
+    taskIdInput.value = String(value || '').trim();
   }
 
   function removeTaskModalBackdrop() {
@@ -418,8 +429,10 @@ setInterval(updateOverdueTasks, 60000);
   // фильтры
   if (filters) {
     filters.addEventListener('submit', (e) => { e.preventDefault(); state.page = 1; load().then(() => filtersModal && filtersModal.hide()); });
-    const reset = document.getElementById('resetFilters');
+    const reset = document.getElementById('resetFilters') || document.getElementById('resetFiltersBtn');
+    const apply = document.getElementById('applyFiltersBtn');
     if (reset) reset.addEventListener('click', () => { filters.reset(); state.page = 1; load().then(() => filtersModal && filtersModal.hide()); });
+    if (apply) apply.addEventListener('click', () => { state.page = 1; load().then(() => filtersModal && filtersModal.hide()); });
     const filtersBtn = document.getElementById('filtersBtn');
     if (filtersBtn && filtersModal) filtersBtn.addEventListener('click', () => filtersModal.show());
   }
@@ -486,8 +499,9 @@ setInterval(updateOverdueTasks, 60000);
       due_at: form.due_at?.value || '',
       status: form.dataset.status || ''
     };
-    if (!form.id.value) localStorage.setItem(DRAFT_NEW_KEY, JSON.stringify(data));
-    else localStorage.setItem('taskDraft_' + form.id.value, JSON.stringify(data));
+    const currentTaskId = getTaskIdValue();
+    if (!currentTaskId) localStorage.setItem(DRAFT_NEW_KEY, JSON.stringify(data));
+    else localStorage.setItem('taskDraft_' + currentTaskId, JSON.stringify(data));
   }
   function loadDraft(taskId) {
     const key = taskId ? ('taskDraft_' + taskId) : DRAFT_NEW_KEY;
@@ -545,7 +559,7 @@ setInterval(updateOverdueTasks, 60000);
   const createBtn = document.getElementById('createTaskBtn');
   if (createBtn) createBtn.addEventListener('click', () => {
     form.reset();
-    form.id.value = '';
+    setTaskIdValue('');
     if (bodyEditor) bodyEditor.innerHTML = '';
     if (deleteBtn) deleteBtn.hidden = true;
     if (form.title) form.title.readOnly = false;
@@ -643,7 +657,7 @@ setInterval(updateOverdueTasks, 60000);
     const res = await httpJson(`/api/tasks/${taskId}`);
     const t = await res.json();
 
-    form.id.value = t.id;
+    setTaskIdValue(t.id);
     if (form.title) form.title.value = t.title || '';
     if (bodyEditor) bodyEditor.innerHTML = t.body_html || '';
     if (form.creator) form.creator.value = t.creator || (document.body.dataset.userEmail || '');
@@ -684,7 +698,9 @@ setInterval(updateOverdueTasks, 60000);
         if (!html) return;
         const fd = new FormData();
         fd.append('html', html);
-        const r = await httpJson(`/api/tasks/${form.id.value}/comments`, { method: 'POST', body: fd });
+        const taskId = getTaskIdValue();
+        if (!taskId) return;
+        const r = await httpJson(`/api/tasks/${taskId}/comments`, { method: 'POST', body: fd });
         const data = await r.json();
         if (data && data.ok) {
           commentEditor.innerHTML = '';
@@ -747,7 +763,8 @@ setInterval(updateOverdueTasks, 60000);
   const saveBtn = document.getElementById('saveTaskBtn');
   if (saveBtn) saveBtn.addEventListener('click', async () => {
     const fd = new FormData();
-    fd.append('id', form.id.value);
+    const taskId = getTaskIdValue();
+    fd.append('id', taskId);
     fd.append('title', form.title?.value || '');
     fd.append('body_html', bodyEditor?.innerHTML || '');
     fd.append('creator', form.creator?.value || '');
@@ -765,7 +782,7 @@ setInterval(updateOverdueTasks, 60000);
       const r = await httpJson('/api/tasks', { method: 'POST', body: fd });
       const data = await r.json();
         if (data && data.ok) {
-          localStorage.removeItem('taskDraft_' + (form.id.value || 'new'));
+          localStorage.removeItem('taskDraft_' + (taskId || 'new'));
           isDirty = false;
           hideTaskModal(true);
           await load();
@@ -783,7 +800,8 @@ setInterval(updateOverdueTasks, 60000);
 
   // удаление
   if (deleteBtn) deleteBtn.addEventListener('click', async () => {
-      if (!form.id.value) return;
+      const taskId = getTaskIdValue();
+      if (!taskId) return;
       const confirmed = await showConfirmActionModal({
         title: 'Удаление задачи',
         message: 'Удалить задачу?',
@@ -792,10 +810,10 @@ setInterval(updateOverdueTasks, 60000);
         icon: '🗑️',
       });
       if (!confirmed) return;
-    const r = await httpJson('/api/tasks/' + form.id.value, { method: 'DELETE' });
+    const r = await httpJson('/api/tasks/' + taskId, { method: 'DELETE' });
     const data = await r.json();
     if (data && data.ok) {
-      localStorage.removeItem('taskDraft_' + form.id.value);
+      localStorage.removeItem('taskDraft_' + taskId);
       isDirty = false;
       hideTaskModal(true);
       load();

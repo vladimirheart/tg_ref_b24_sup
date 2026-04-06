@@ -1233,3 +1233,35 @@ h1.page-title, .content h1, .container h1 { margin-top: 0 !important; }
   color: #0d6efd;
   border-color: rgba(13, 110, 253, 0.25) !important;
 }
+
+/* Global no-hover mode requested for operator workspace */
+.btn,
+.nav-link,
+.dropdown-item,
+.list-group-item,
+.page-link,
+.table,
+.card,
+.form-control,
+.form-select {
+    transition: none !important;
+}
+
+@media (hover: hover) {
+    .btn:hover,
+    .nav-link:hover,
+    .dropdown-item:hover,
+    .list-group-item:hover,
+    .page-link:hover {
+        background-color: inherit !important;
+        color: inherit !important;
+        border-color: inherit !important;
+        box-shadow: none !important;
+        text-decoration: none !important;
+    }
+
+    .table-hover > tbody > tr:hover > * {
+        --bs-table-accent-bg: transparent !important;
+        color: inherit !important;
+    }
+}
