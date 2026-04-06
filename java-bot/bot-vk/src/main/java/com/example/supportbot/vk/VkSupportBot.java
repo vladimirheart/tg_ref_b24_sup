@@ -24,11 +24,6 @@ import com.vk.api.sdk.exceptions.LongPollServerKeyExpiredException;
 import com.vk.api.sdk.exceptions.LongPollServerTsException;
 import com.vk.api.sdk.httpclient.HttpTransportClient;
 import com.vk.api.sdk.objects.messages.AudioMessage;
-import com.vk.api.sdk.objects.messages.Keyboard;
-import com.vk.api.sdk.objects.messages.KeyboardButton;
-import com.vk.api.sdk.objects.messages.KeyboardButtonAction;
-import com.vk.api.sdk.objects.messages.KeyboardButtonActionType;
-import com.vk.api.sdk.objects.messages.KeyboardButtonColor;
 import com.vk.api.sdk.objects.messages.Message;
 import com.vk.api.sdk.objects.messages.MessageAttachment;
 import com.vk.api.sdk.objects.messages.MessageAttachmentType;
@@ -228,7 +223,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         if (session.awaitingReuseDecision()) {
             if (!session.consumeReuseDecision(text)) {
                 sendText(actor, peerId, "Ответьте 'да', чтобы использовать прошлые значения, или 'нет', чтобы заполнить заново.",
-                        reuseDecisionKeyboard());
+                        null);
                 return;
             }
             if (session.isComplete()) {
@@ -336,7 +331,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
 
     private void promptCurrentQuestion(GroupActor actor, ConversationSession session) {
         if (session.awaitingReuseDecision()) {
-            sendText(actor, session.peerId(), session.reusePrompt(), reuseDecisionKeyboard());
+            sendText(actor, session.peerId(), session.reusePrompt());
             return;
         }
         QuestionFlowItemDto current = session.currentQuestion();
@@ -449,24 +444,17 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
     }
 
     private void sendText(GroupActor actor, int peerId, String text) {
-        sendText(actor, peerId, text, null);
-    }
-
-    private void sendText(GroupActor actor, int peerId, String text, Keyboard keyboard) {
         if (text == null || text.isBlank()) {
             return;
         }
         try {
             log.info("Sending VK message to peer {}: {}", peerId, summarizeText(text));
-            var request = vkClient.messages()
+            vkClient.messages()
                     .send(actor)
                     .peerId(peerId)
                     .randomId(ThreadLocalRandom.current().nextInt())
-                    .message(text);
-            if (keyboard != null) {
-                request.keyboard(keyboard);
-            }
-            request.execute();
+                    .message(text)
+                    .execute();
         } catch (ClientException e) {
             log.error("Failed to send VK message to peer {}", peerId, e);
         }
@@ -626,17 +614,6 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         }
     }
 
-    private Keyboard reuseDecisionKeyboard() {
-        KeyboardButton yesButton = new KeyboardButton()
-                .setAction(new KeyboardButtonAction().setType(KeyboardButtonActionType.TEXT).setLabel("Да"))
-                .setColor(KeyboardButtonColor.POSITIVE);
-        KeyboardButton noButton = new KeyboardButton()
-                .setAction(new KeyboardButtonAction().setType(KeyboardButtonActionType.TEXT).setLabel("Нет"))
-                .setColor(KeyboardButtonColor.NEGATIVE);
-        return new Keyboard()
-                .setOneTime(true)
-                .setButtons(List.of(List.of(yesButton, noButton)));
-    }
 
     private Channel getChannel() {
         Channel channel = cachedChannel;
