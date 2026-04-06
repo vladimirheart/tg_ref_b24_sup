@@ -23,6 +23,7 @@
   const filtersModal = (typeof bootstrap !== 'undefined' && filtersModalEl)
     ? new bootstrap.Modal(filtersModalEl)
     : null;
+  let fallbackTaskModalBackdrop = null;
 
   const FINAL_STATUSES = new Set(['завершена', 'отменена']);
 
@@ -126,9 +127,53 @@
     return { text: 'Завершена досрочно', overdue: false };
   }
 
+  function ensureTaskModalBackdrop() {
+    if (fallbackTaskModalBackdrop && document.body.contains(fallbackTaskModalBackdrop)) {
+      return fallbackTaskModalBackdrop;
+    }
+    const backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop fade show';
+    backdrop.dataset.fallbackTaskModalBackdrop = 'true';
+    document.body.appendChild(backdrop);
+    fallbackTaskModalBackdrop = backdrop;
+    return backdrop;
+  }
+
+  function removeTaskModalBackdrop() {
+    if (fallbackTaskModalBackdrop && document.body.contains(fallbackTaskModalBackdrop)) {
+      fallbackTaskModalBackdrop.remove();
+    }
+    fallbackTaskModalBackdrop = null;
+  }
+
   function getModalInstance() {
-    if (typeof bootstrap === 'undefined' || !modalEl) return null;
-    return bootstrap.Modal.getOrCreateInstance(modalEl);
+    if (!modalEl) return null;
+    if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+      return bootstrap.Modal.getOrCreateInstance(modalEl);
+    }
+    return {
+      show() {
+        modalEl.style.display = 'block';
+        modalEl.classList.add('show');
+        modalEl.removeAttribute('aria-hidden');
+        modalEl.setAttribute('aria-modal', 'true');
+        document.body.classList.add('modal-open');
+        ensureTaskModalBackdrop();
+        modalEl.dispatchEvent(new Event('shown.bs.modal'));
+      },
+      hide() {
+        const hideEvent = new Event('hide.bs.modal', { cancelable: true });
+        modalEl.dispatchEvent(hideEvent);
+        if (hideEvent.defaultPrevented) return;
+        modalEl.classList.remove('show');
+        modalEl.style.display = 'none';
+        modalEl.setAttribute('aria-hidden', 'true');
+        modalEl.removeAttribute('aria-modal');
+        document.body.classList.remove('modal-open');
+        removeTaskModalBackdrop();
+        modalEl.dispatchEvent(new Event('hidden.bs.modal'));
+      },
+    };
   }
 
   let skipDirtyConfirm = false;

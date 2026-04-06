@@ -480,3 +480,25 @@ window.CommonUtils = {
     getTicketCountLabel,
     updateAnalyticsStatsCards
 };
+
+// Lightweight ripple effect for all Bootstrap-like buttons in non-React pages.
+(function initGlobalButtonRipple() {
+    if (typeof document === 'undefined') return;
+    const BUTTON_SELECTOR = '.btn';
+    document.addEventListener('click', (event) => {
+        const button = event.target.closest(BUTTON_SELECTOR);
+        if (!button || button.disabled) return;
+        const rect = button.getBoundingClientRect();
+        const size = Math.max(rect.width, rect.height) * 1.9;
+        const wave = document.createElement('span');
+        wave.className = 'btn-ripple-wave';
+        wave.style.width = `${size}px`;
+        wave.style.height = `${size}px`;
+        wave.style.left = `${event.clientX - rect.left - size / 2}px`;
+        wave.style.top = `${event.clientY - rect.top - size / 2}px`;
+        button.appendChild(wave);
+        window.setTimeout(() => {
+            wave.remove();
+        }, 700);
+    });
+})();
