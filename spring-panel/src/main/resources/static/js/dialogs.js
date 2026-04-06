@@ -226,6 +226,69 @@
   const mediaPreviewModal = (typeof bootstrap !== 'undefined' && mediaPreviewModalEl)
     ? new bootstrap.Modal(mediaPreviewModalEl)
     : null;
+  let fallbackModalBackdrop = null;
+
+  function ensureFallbackModalBackdrop() {
+    if (fallbackModalBackdrop && document.body.contains(fallbackModalBackdrop)) {
+      return fallbackModalBackdrop;
+    }
+    const backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop fade show';
+    backdrop.dataset.fallbackModalBackdrop = 'true';
+    document.body.appendChild(backdrop);
+    fallbackModalBackdrop = backdrop;
+    return backdrop;
+  }
+
+  function removeFallbackModalBackdrop() {
+    if (fallbackModalBackdrop && document.body.contains(fallbackModalBackdrop)) {
+      fallbackModalBackdrop.remove();
+    }
+    fallbackModalBackdrop = null;
+  }
+
+  function showModalSafe(modalEl, modalInstance) {
+    if (!modalEl) return;
+    if (modalInstance) {
+      modalInstance.show();
+      return;
+    }
+    modalEl.style.display = 'block';
+    modalEl.classList.add('show');
+    modalEl.removeAttribute('aria-hidden');
+    modalEl.setAttribute('aria-modal', 'true');
+    document.body.classList.add('modal-open');
+    ensureFallbackModalBackdrop();
+    modalEl.dispatchEvent(new Event('shown.bs.modal'));
+  }
+
+  function hideModalSafe(modalEl, modalInstance) {
+    if (!modalEl) return;
+    if (modalInstance) {
+      modalInstance.hide();
+      return;
+    }
+    const hideEvent = new Event('hide.bs.modal', { cancelable: true });
+    modalEl.dispatchEvent(hideEvent);
+    if (hideEvent.defaultPrevented) return;
+    modalEl.classList.remove('show');
+    modalEl.style.display = 'none';
+    modalEl.setAttribute('aria-hidden', 'true');
+    modalEl.removeAttribute('aria-modal');
+    document.body.classList.remove('modal-open');
+    removeFallbackModalBackdrop();
+    modalEl.dispatchEvent(new Event('hidden.bs.modal'));
+  }
+
+  function bindFallbackModalDismiss(modalEl, modalInstance) {
+    if (!modalEl || modalInstance) return;
+    modalEl.querySelectorAll('[data-bs-dismiss="modal"]').forEach((button) => {
+      button.addEventListener('click', (event) => {
+        event.preventDefault();
+        hideModalSafe(modalEl, modalInstance);
+      });
+    });
+  }
 
   const STORAGE_COLUMNS = 'iguana:dialogs:columns';
   const STORAGE_WIDTHS = 'iguana:dialogs:column-widths';
@@ -1476,7 +1539,7 @@
   }
 
   function showImagePreview(src, name) {
-    if (!src || !mediaPreviewModal || !mediaPreviewImage) return;
+    if (!src || !mediaPreviewModalEl || !mediaPreviewImage) return;
     resetMediaPreview();
     mediaPreviewImage.src = src;
     mediaPreviewImage.alt = name || 'Изображение';
@@ -1489,11 +1552,11 @@
       mediaPreviewDownloadLink.setAttribute('href', src);
       mediaPreviewDownloadLink.setAttribute('download', name || 'image');
     }
-    mediaPreviewModal.show();
+    showModalSafe(mediaPreviewModalEl, mediaPreviewModal);
   }
 
   function showVideoPreview(src) {
-    if (!src || !mediaPreviewModal || !mediaPreviewVideo) return;
+    if (!src || !mediaPreviewModalEl || !mediaPreviewVideo) return;
     resetMediaPreview();
     mediaPreviewVideo.src = src;
     mediaPreviewVideo.classList.remove('d-none');
@@ -1503,7 +1566,7 @@
       mediaPreviewDownloadLink.setAttribute('href', src);
       mediaPreviewDownloadLink.setAttribute('download', 'video');
     }
-    mediaPreviewModal.show();
+    showModalSafe(mediaPreviewModalEl, mediaPreviewModal);
   }
 
   function escapeSelectorValue(value) {
@@ -5296,9 +5359,9 @@
       return;
     }
 
-    if ((event.key === '?' || (event.shiftKey && event.key === '/')) && hotkeysModal) {
+    if ((event.key === '?' || (event.shiftKey && event.key === '/')) && hotkeysModalEl) {
       event.preventDefault();
-      hotkeysModal.show();
+      showModalSafe(hotkeysModalEl, hotkeysModal);
       return;
     }
 
@@ -6690,7 +6753,7 @@
   }
 
   async function openDialogDetails(ticketId, fallbackRow) {
-    if (!ticketId || !detailsModal) return;
+    if (!ticketId || !detailsModalEl) return;
     activeDialogTicketId = ticketId;
     initMacroVariableCatalog(ticketId, true);
     setActiveDialogRow(fallbackRow || null, { ensureVisible: true });
@@ -6895,7 +6958,7 @@
       }
     }
 
-    detailsModal.show();
+    showModalSafe(detailsModalEl, detailsModal);
     startHistoryPolling();
   }
 
@@ -7532,13 +7595,18 @@
     });
   }
 
-  if (filtersBtn && filtersModal) {
+  bindFallbackModalDismiss(filtersModalEl, filtersModal);
+  bindFallbackModalDismiss(columnsModalEl, columnsModal);
+  bindFallbackModalDismiss(hotkeysModalEl, hotkeysModal);
+  bindFallbackModalDismiss(mediaPreviewModalEl, mediaPreviewModal);
+
+  if (filtersBtn && filtersModalEl) {
     filtersBtn.addEventListener('click', () => {
       if (filtersForm) {
         filtersForm.search.value = filterState.search || '';
         filtersForm.status.value = filterState.status || '';
       }
-      filtersModal.show();
+      showModalSafe(filtersModalEl, filtersModal);
     });
   }
 
@@ -7550,7 +7618,7 @@
         if (quickSearch) quickSearch.value = filterState.search || '';
       }
       applyFilters();
-      if (filtersModal) filtersModal.hide();
+      hideModalSafe(filtersModalEl, filtersModal);
     });
   }
 
@@ -7582,16 +7650,16 @@
     });
   }
 
-  if (hotkeysBtn && hotkeysModal) {
+  if (hotkeysBtn && hotkeysModalEl) {
     hotkeysBtn.addEventListener('click', () => {
-      hotkeysModal.show();
+      showModalSafe(hotkeysModalEl, hotkeysModal);
     });
   }
 
-  if (columnsBtn && columnsModal) {
+  if (columnsBtn && columnsModalEl) {
     columnsBtn.addEventListener('click', () => {
       syncColumnsList();
-      columnsModal.show();
+      showModalSafe(columnsModalEl, columnsModal);
     });
   }
 
@@ -7605,7 +7673,7 @@
         persistColumnState();
         applyColumnState();
       }
-      if (columnsModal) columnsModal.hide();
+      hideModalSafe(columnsModalEl, columnsModal);
     });
   }
 
@@ -7619,6 +7687,7 @@
   }
 
   if (detailsModalEl) {
+    bindFallbackModalDismiss(detailsModalEl, detailsModal);
     detailsModalEl.addEventListener('shown.bs.modal', () => {
       startHistoryPolling();
     });
