@@ -153,7 +153,19 @@ public class DialogService {
                     : "NULL AS rating,";
             String sql = """
                     SELECT t.ticket_id, m.group_msg_id AS request_number,
-                           COALESCE(m.user_id, t.user_id) AS user_id,
+                           COALESCE(
+                               m.user_id,
+                               t.user_id,
+                               (
+                                   SELECT m3.user_id
+                                     FROM messages m3
+                                    WHERE m3.ticket_id = t.ticket_id
+                                      AND m3.user_id IS NOT NULL
+                                    ORDER BY substr(m3.created_at, 1, 19) DESC,
+                                             m3.group_msg_id DESC
+                                    LIMIT 1
+                               )
+                           ) AS user_id,
                            m.username, m.client_name, m.business,
                            COALESCE(m.channel_id, t.channel_id) AS channel_id,
                            c.channel_name AS channel_name,
@@ -191,7 +203,7 @@ public class DialogService {
                             WHERE tc.ticket_id = t.ticket_id
                        ) AS categories,
                        CASE
-                           WHEN tr.responsible = ? THEN (
+                           WHEN lower(COALESCE(tr.responsible, '')) = lower(?) THEN (
                                SELECT COUNT(*)
                                  FROM chat_history ch
                                 WHERE ch.ticket_id = t.ticket_id
@@ -221,9 +233,33 @@ public class DialogService {
                   LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
                   LEFT JOIN ticket_responsibles tr ON tr.ticket_id = t.ticket_id
                   LEFT JOIN ticket_ai_agent_state tas ON tas.ticket_id = t.ticket_id
-                  LEFT JOIN client_statuses cs ON cs.user_id = COALESCE(m.user_id, t.user_id)
+                  LEFT JOIN client_statuses cs ON cs.user_id = COALESCE(
+                           m.user_id,
+                           t.user_id,
+                           (
+                               SELECT m3.user_id
+                                 FROM messages m3
+                                WHERE m3.ticket_id = t.ticket_id
+                                  AND m3.user_id IS NOT NULL
+                                ORDER BY substr(m3.created_at, 1, 19) DESC,
+                                         m3.group_msg_id DESC
+                                LIMIT 1
+                           )
+                       )
                        AND cs.updated_at = (
-                           SELECT MAX(updated_at) FROM client_statuses WHERE user_id = COALESCE(m.user_id, t.user_id)
+                           SELECT MAX(updated_at) FROM client_statuses WHERE user_id = COALESCE(
+                               m.user_id,
+                               t.user_id,
+                               (
+                                   SELECT m3.user_id
+                                     FROM messages m3
+                                    WHERE m3.ticket_id = t.ticket_id
+                                      AND m3.user_id IS NOT NULL
+                                    ORDER BY substr(m3.created_at, 1, 19) DESC,
+                                             m3.group_msg_id DESC
+                                    LIMIT 1
+                               )
+                           )
                        )
                   ORDER BY substr(COALESCE(m.created_at, t.created_at), 1, 19) DESC,
                            t.ticket_id DESC
@@ -281,7 +317,19 @@ public class DialogService {
                     : "NULL AS rating,";
             String sql = """
                     SELECT t.ticket_id, m.group_msg_id AS request_number,
-                           COALESCE(m.user_id, t.user_id) AS user_id,
+                           COALESCE(
+                               m.user_id,
+                               t.user_id,
+                               (
+                                   SELECT m3.user_id
+                                     FROM messages m3
+                                    WHERE m3.ticket_id = t.ticket_id
+                                      AND m3.user_id IS NOT NULL
+                                    ORDER BY substr(m3.created_at, 1, 19) DESC,
+                                             m3.group_msg_id DESC
+                                    LIMIT 1
+                               )
+                           ) AS user_id,
                            m.username, m.client_name, m.business,
                            COALESCE(m.channel_id, t.channel_id) AS channel_id,
                            c.channel_name AS channel_name,
@@ -319,7 +367,7 @@ public class DialogService {
                                 WHERE tc.ticket_id = t.ticket_id
                            ) AS categories,
                            CASE
-                               WHEN tr.responsible = ? THEN (
+                               WHEN lower(COALESCE(tr.responsible, '')) = lower(?) THEN (
                                    SELECT COUNT(*)
                                      FROM chat_history ch
                                     WHERE ch.ticket_id = t.ticket_id
@@ -349,9 +397,33 @@ public class DialogService {
                       LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
                       LEFT JOIN ticket_responsibles tr ON tr.ticket_id = t.ticket_id
                       LEFT JOIN ticket_ai_agent_state tas ON tas.ticket_id = t.ticket_id
-                      LEFT JOIN client_statuses cs ON cs.user_id = COALESCE(m.user_id, t.user_id)
+                      LEFT JOIN client_statuses cs ON cs.user_id = COALESCE(
+                               m.user_id,
+                               t.user_id,
+                               (
+                                   SELECT m3.user_id
+                                     FROM messages m3
+                                    WHERE m3.ticket_id = t.ticket_id
+                                      AND m3.user_id IS NOT NULL
+                                    ORDER BY substr(m3.created_at, 1, 19) DESC,
+                                             m3.group_msg_id DESC
+                                    LIMIT 1
+                               )
+                           )
                            AND cs.updated_at = (
-                               SELECT MAX(updated_at) FROM client_statuses WHERE user_id = COALESCE(m.user_id, t.user_id)
+                               SELECT MAX(updated_at) FROM client_statuses WHERE user_id = COALESCE(
+                                   m.user_id,
+                                   t.user_id,
+                                   (
+                                       SELECT m3.user_id
+                                         FROM messages m3
+                                        WHERE m3.ticket_id = t.ticket_id
+                                          AND m3.user_id IS NOT NULL
+                                        ORDER BY substr(m3.created_at, 1, 19) DESC,
+                                                 m3.group_msg_id DESC
+                                        LIMIT 1
+                                   )
+                               )
                            )
                      WHERE t.ticket_id = ?
                      ORDER BY substr(COALESCE(m.created_at, t.created_at), 1, 19) DESC

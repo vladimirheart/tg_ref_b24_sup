@@ -709,26 +709,13 @@
       setBellCount(payload.unread.length);
       lastUnreadCount = payload.unread.length;
 
-      const markPromises = payload.unread
-        .filter((item) => item && item.id != null)
-        .map((item) => fetch(`/api/notifications/${item.id}/read`, { method: 'POST' }));
-      if (markPromises.length) {
-        Promise.allSettled(markPromises).finally(() => {
-          setBellCount(0);
-          lastUnreadCount = 0;
-          updateNotificationCount();
-        });
-      } else {
-        setBellCount(0);
-        lastUnreadCount = 0;
-      }
     } catch (error) {
       bellDropdown.innerHTML = '<div class="notif-item text-danger">Не удалось загрузить уведомления</div>';
     }
   }
 
   if (bellDropdown) {
-    bellDropdown.addEventListener('click', (event) => {
+    bellDropdown.addEventListener('click', async (event) => {
       const link = event.target.closest('a[data-notification-link]');
       if (!link) return;
       if (event.defaultPrevented) return;
@@ -736,6 +723,15 @@
         return;
       }
       event.preventDefault();
+      const itemEl = link.closest('.notif-item');
+      const notificationId = itemEl?.dataset?.id;
+      if (notificationId) {
+        try {
+          await fetch(`/api/notifications/${notificationId}/read`, { method: 'POST' });
+        } catch (_error) {
+          // ignore read marker errors
+        }
+      }
       const href = link.getAttribute('href') || '';
       closeNotifications();
       navigateNotification(href);
@@ -754,7 +750,7 @@
       const response = await fetch('/api/notifications/unread_count');
       if (!response.ok) return;
       const data = await response.json();
-      const newCount = Number(data.count || 0);
+      const newCount = Number(data.unread ?? data.count ?? 0);
       setBellCount(newCount);
       if (hasInitialUnread && newCount > lastUnreadCount) {
         const diff = newCount - lastUnreadCount;

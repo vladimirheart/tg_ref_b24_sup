@@ -2229,8 +2229,8 @@
   function isNewDialog(row) {
     const key = String(row.dataset.statusKey || '').toLowerCase();
     const raw = String(row.dataset.statusRaw || '').toLowerCase();
-    const label = String(row.dataset.status || '').toLowerCase();
-    return key === 'new' || raw === 'new' || label === 'новый';
+    
+    return key === 'new' || raw === 'new';
   }
 
   function isUnassignedDialog(row) {
@@ -2317,9 +2317,8 @@
 
   function isResolved(row) {
     const raw = (row.dataset.statusRaw || '').toLowerCase();
-    const label = (row.dataset.status || '').toLowerCase();
     const key = (row.dataset.statusKey || '').toLowerCase();
-    return raw === 'resolved' || raw === 'closed' || label.startsWith('закрыт') || key.includes('closed');
+    return raw === 'resolved' || raw === 'closed' || key.includes('closed');
   }
 
   function syncRowSelectionState(row) {
@@ -2516,7 +2515,7 @@
 
   function applyStatusFilter(statusLabel = '') {
     const normalized = String(statusLabel || '').trim().toLowerCase();
-    filterState.status = statusLabel;
+    filterState.status = normalized;
     if (statusFilter) {
       const options = Array.from(statusFilter.options || []);
       const match = options.find((option) => String(option.value || '').trim().toLowerCase() === normalized);
@@ -5337,7 +5336,14 @@
     if (currentPath !== nextUrl) {
       window.history.pushState({ ticketId: String(ticketId || '').trim() }, '', nextUrl);
     }
-    openDialogDetails(ticketId, row);
+    if (!detailsModalEl) {
+      window.location.href = `/dialogs/${encodeURIComponent(ticketId)}`;
+      return;
+    }
+    Promise.resolve(openDialogDetails(ticketId, row)).catch((error) => {
+      console.error('Failed to open dialog details modal', error);
+      window.location.href = `/dialogs/${encodeURIComponent(ticketId)}`;
+    });
   }
 
   function isTypingTarget(target) {
@@ -6748,8 +6754,7 @@
   function isResolvedStatus(statusRaw, statusKey, statusLabel) {
     const raw = String(statusRaw || '').toLowerCase();
     const key = String(statusKey || '').toLowerCase();
-    const label = String(statusLabel || '').toLowerCase();
-    return raw === 'resolved' || raw === 'closed' || key === 'closed' || key === 'auto_closed' || label.startsWith('закрыт');
+    return raw === 'resolved' || raw === 'closed' || key === 'closed' || key === 'auto_closed';
   }
 
   async function openDialogDetails(ticketId, fallbackRow) {
@@ -6980,6 +6985,7 @@
     const openBtn = event.target.closest('.dialog-open-btn');
     if (openBtn) {
       event.preventDefault();
+      event.stopPropagation();
       const ticketId = openBtn.dataset.ticketId;
       const row = openBtn.closest('tr');
       setActiveDialogRow(row, { ensureVisible: true });
@@ -8469,11 +8475,9 @@
     setActiveDialogRow(row, { ensureVisible: true });
     openDialogDetails(normalizedTicketId, row);
   };
-  window.refreshAiReviewQueue = () => loadAiReviewQueue();
+  window.refreshAiReviewQueue = () => {};
 
   void loadServerTriagePreferences();
-  loadAiReviewQueue();
-  setInterval(loadAiReviewQueue, 30 * 1000);
   if (aiMonitoringSection && aiMonitoringState) {
     loadAiMonitoringSummary(7);
     setInterval(() => loadAiMonitoringSummary(7), 60 * 1000);

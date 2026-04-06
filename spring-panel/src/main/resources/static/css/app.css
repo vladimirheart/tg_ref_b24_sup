@@ -1758,3 +1758,26 @@ body {
 
 
 
+
+/* Dialog/theme hover suppression */
+.gradient-border-hover,
+.dialog-summary-value-link,
+.dialog-column-option,
+.workspace-tab-btn,
+.dialog-business-pill {
+  transition: none !important;
+}
+
+@media (hover: hover) {
+  .gradient-border-hover:hover,
+  .dialog-summary-value-link:hover,
+  .dialog-column-option:hover,
+  .workspace-tab-btn:hover,
+  .dialog-business-pill:hover {
+    background: inherit !important;
+    color: inherit !important;
+    border-color: inherit !important;
+    box-shadow: none !important;
+    text-decoration: none !important;
+  }
+}

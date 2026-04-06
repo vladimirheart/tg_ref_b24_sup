@@ -664,3 +664,31 @@ body.sidebar-mobile-open .sidebar-mobile-overlay {
     padding-top: 64px;
   }
 }
+
+/* Sidebar no-hover overrides */
+.icon-btn,
+.notify-btn,
+.sidebar-nav .nav-link,
+.sidebar-logout-btn,
+.sidebar-order-btn,
+.sidebar-account-btn,
+.notify-dropdown .notif-item {
+  transition: none !important;
+}
+
+@media (hover: hover) {
+  .icon-btn:hover,
+  .notify-btn:hover,
+  .sidebar-nav .nav-link:hover,
+  .sidebar-logout-btn:hover,
+  .sidebar-order-btn:hover,
+  .sidebar-account-btn:hover,
+  .notify-dropdown .notif-item:hover,
+  .notify-dropdown .notif-item-read:hover,
+  .sidebar-nav .nav-link:hover .icon {
+    background-color: inherit !important;
+    color: inherit !important;
+    border-color: inherit !important;
+    box-shadow: none !important;
+  }
+}
