@@ -210,7 +210,7 @@
                         <button class="btn btn-sm btn-outline-warning" id="workspaceSnoozeBtn" type="button">Отложить на 1ч</button>
                         <button class="btn btn-sm btn-outline-danger" id="workspaceResolveBtn" type="button">Закрыть</button>
                         <button class="btn btn-sm btn-outline-secondary d-none" id="workspaceReopenBtn" type="button">Переоткрыть</button>
-                        <a class="btn btn-sm btn-outline-secondary" id="workspaceCreateTaskBtn" href="/tasks">Задача</a>
+                        <a class="btn btn-sm btn-outline-secondary" id="workspaceCreateTaskBtn" th:href="@{/tasks(create=1)}">Задача</a>
                         <button class="btn btn-sm btn-outline-primary" id="workspaceAiIncidentExport" type="button">Экспорт инцидента</button>
                         <button class="btn btn-sm btn-outline-dark" id="workspaceLegacyBtn" type="button">Legacy modal</button>
                         <a class="btn btn-sm btn-outline-secondary" href="/dialogs">Вернуться к списку</a>
@@ -727,7 +727,7 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <a class="btn btn-outline-secondary" id="dialogDetailsCreateTask" th:href="@{/tasks}">Создать задачу</a>
+                <a class="btn btn-outline-secondary" id="dialogDetailsCreateTask" th:href="@{/tasks(create=1)}">Создать задачу</a>
                 <button type="button" class="btn btn-outline-success" id="dialogDetailsResolve">Закрыть обращение</button>
                 <button type="button" class="btn btn-outline-warning d-none" id="dialogDetailsReopen">Переоткрыть обращение</button>
                 <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Закрыть</button>
