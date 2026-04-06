@@ -92,6 +92,7 @@ public class DialogAiAssistantService {
         }
 
         String mode = resolveAgentMode();
+        markProcessing(t, "processing", null, null, "processing", "incoming_message", null, mode);
         List<AiSuggestion> suggestions = findSuggestions(t, m, DEFAULT_SUGGESTION_LIMIT);
         String sourceHits = encodeSourceHits(suggestions);
 

@@ -79,8 +79,7 @@ public class OperatorNotificationWatcher {
                         if (StringUtils.hasText(message)) {
                             text += ": " + truncate(message, 100);
                         }
-                        notificationService.notifyDialogParticipants(
-                                ticketId,
+                        notificationService.notifyAllOperators(
                                 text,
                                 "/dialogs?ticketId=" + ticketId,
                                 null

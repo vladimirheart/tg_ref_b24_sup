@@ -838,6 +838,7 @@ setInterval(updateOverdueTasks, 60000);
   if (createContext && createContext.ticketId) {
     openCreateTaskFromDialogContext(createContext);
   }
+  window.__tasksPrimaryReady = true;
 
   // стартовая загрузка
   load();

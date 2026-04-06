@@ -345,6 +345,49 @@
   <script th:src="@{/js/modal-helpers.js}"></script>
   <script th:src="@{/js/sidebar.js}"></script>
   <script th:src="@{/js/tasks.js}"></script>
+  <script>
+    (() => {
+      const createBtn = document.getElementById('createTaskBtn');
+      const modalEl = document.getElementById('taskModal');
+      const saveBtn = document.getElementById('saveTaskBtn');
+      const form = document.getElementById('taskForm');
+
+      if (createBtn && modalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+        createBtn.addEventListener('click', () => {
+          if (window.__tasksPrimaryReady) return;
+          bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        }, { capture: true });
+      }
+
+      if (saveBtn && form) {
+        saveBtn.addEventListener('click', async (event) => {
+          if (window.__tasksPrimaryReady) return;
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          const fd = new FormData();
+          fd.append('id', String(document.getElementById('taskId')?.value || '').trim());
+          fd.append('title', String(form.querySelector('[name="title"]')?.value || '').trim());
+          fd.append('body_html', String(form.querySelector('[name="description"]')?.value || '').trim());
+          fd.append('assignee', String(form.querySelector('[name="assignee"]')?.value || '').trim());
+          fd.append('co', String(form.querySelector('[name="co"]')?.value || '').trim());
+          fd.append('watchers', String(form.querySelector('[name="watchers"]')?.value || '').trim());
+          fd.append('tag', String(form.querySelector('[name="tag"]')?.value || '').trim());
+          fd.append('due_at', String(form.querySelector('[name="due_at"]')?.value || '').trim());
+          fd.append('status', String(form.querySelector('[name="status"]')?.value || '').trim() || 'Новая');
+          try {
+            const resp = await fetch('/api/tasks', { method: 'POST', credentials: 'same-origin', body: fd });
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok || data?.ok === false) {
+              throw new Error(data?.error || `HTTP ${resp.status}`);
+            }
+            window.location.reload();
+          } catch (error) {
+            alert(`Не удалось создать задачу: ${error.message || 'unknown_error'}`);
+          }
+        }, { capture: true });
+      }
+    })();
+  </script>
   <script th:src="@{/js/modal-transitions.js}"></script>
 </body>
 </html>

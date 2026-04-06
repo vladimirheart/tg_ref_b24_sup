@@ -1247,6 +1247,19 @@ h1.page-title, .content h1, .container h1 { margin-top: 0 !important; }
     transition: none !important;
 }
 
+.btn {
+    --bs-btn-hover-bg: var(--bs-btn-bg);
+    --bs-btn-hover-border-color: var(--bs-btn-border-color);
+    --bs-btn-hover-color: var(--bs-btn-color);
+    --bs-btn-active-bg: var(--bs-btn-bg);
+    --bs-btn-active-border-color: var(--bs-btn-border-color);
+}
+
+.form-control,
+.form-select {
+    --bs-form-control-bg: var(--bs-body-bg);
+}
+
 @media (hover: hover) {
     .btn:hover,
     .nav-link:hover,
@@ -1263,5 +1276,10 @@ h1.page-title, .content h1, .container h1 { margin-top: 0 !important; }
     .table-hover > tbody > tr:hover > * {
         --bs-table-accent-bg: transparent !important;
         color: inherit !important;
+    }
+
+    a:hover {
+        color: inherit !important;
+        text-decoration: none !important;
     }
 }
