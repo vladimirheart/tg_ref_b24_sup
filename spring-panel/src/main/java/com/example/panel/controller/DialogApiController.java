@@ -780,6 +780,15 @@ public class DialogApiController {
         if (!filteredProfileEnrichment.isEmpty()) {
             workspaceClient.putAll(filteredProfileEnrichment);
         }
+        Map<String, String> profileMatchIncomingValues = new LinkedHashMap<>();
+        putProfileMatchField(profileMatchIncomingValues, "business", summary.businessLabel());
+        putProfileMatchField(profileMatchIncomingValues, "location", summary.location());
+        putProfileMatchField(profileMatchIncomingValues, "city", workspaceClient.get("city"));
+        putProfileMatchField(profileMatchIncomingValues, "country", workspaceClient.get("country"));
+        Map<String, Object> profileMatchCandidates = dialogService.loadDialogProfileMatchCandidates(profileMatchIncomingValues, 5);
+        if (!profileMatchCandidates.isEmpty()) {
+            workspaceClient.put("profile_match_candidates", profileMatchCandidates);
+        }
         Map<String, Object> profileHealth = buildWorkspaceProfileHealth(settings, workspaceClient, attributeLabels);
         if (!profileHealth.isEmpty()) {
             workspaceClient.put("profile_health", profileHealth);
@@ -873,6 +882,7 @@ public class DialogApiController {
                 ? Map.of(
                 "client", workspaceClient,
                 "history", clientHistory,
+                "profile_match_candidates", profileMatchCandidates,
                 "related_events", relatedEvents,
                 "profile_health", profileHealth,
                 "context_sources", contextSources,
@@ -925,6 +935,17 @@ public class DialogApiController {
         ));
         payload.put("success", true);
         return ResponseEntity.ok(payload);
+    }
+
+    private void putProfileMatchField(Map<String, String> target, String key, Object value) {
+        if (target == null || !StringUtils.hasText(key) || value == null) {
+            return;
+        }
+        String normalized = String.valueOf(value).trim();
+        if (!StringUtils.hasText(normalized) || "—".equals(normalized) || "-".equals(normalized)) {
+            return;
+        }
+        target.put(key, normalized);
     }
 
     private Map<String, Object> mapWithNullableValues(Object... keyValues) {

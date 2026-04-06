@@ -1257,6 +1257,7 @@ public class SupportBot extends TelegramLongPollingBot {
                 SendMessage retry = SendMessage.builder()
                         .chatId(session.chatId())
                         .text("Ответьте 'да' чтобы повторить прошлые данные или 'нет' чтобы заполнить заново.")
+                        .replyMarkup(new ReplyKeyboardRemove(true))
                         .build();
                 try {
                     execute(retry);
@@ -1300,8 +1301,8 @@ public class SupportBot extends TelegramLongPollingBot {
             if (!options.contains(answer)) {
                 SendMessage retry = SendMessage.builder()
                         .chatId(session.chatId())
-                        .text("Выберите вариант кнопкой.")
-                        .replyMarkup(keyboardMarkup(options, session.canGoBack()))
+                        .text("Введите один из вариантов текстом: " + String.join(", ", options))
+                        .replyMarkup(new ReplyKeyboardRemove(true))
                         .build();
                 try {
                     execute(retry);
@@ -1327,7 +1328,7 @@ public class SupportBot extends TelegramLongPollingBot {
             SendMessage prompt = SendMessage.builder()
                     .chatId(session.chatId())
                     .text(session.reusePrompt())
-                    .replyMarkup(keyboardMarkup(List.of("Да", "Нет"), false))
+                    .replyMarkup(new ReplyKeyboardRemove(true))
                     .build();
             try {
                 execute(prompt);
@@ -1342,30 +1343,30 @@ public class SupportBot extends TelegramLongPollingBot {
             return;
         }
         log.info("Prompting question {} for user {}", current.getId(), session.userId());
+        boolean includeBack = session.canGoBack();
+        List<String> options = isPresetQuestion(current) ? resolvePresetOptions(current, session.answers()) : List.of();
         SendMessage.SendMessageBuilder promptBuilder = SendMessage.builder()
                 .chatId(session.chatId())
-                .text(current.getText());
-        boolean includeBack = session.canGoBack();
-        if (isPresetQuestion(current)) {
-            List<String> options = resolvePresetOptions(current, session.answers());
-            if (!options.isEmpty()) {
-                promptBuilder.replyMarkup(keyboardMarkup(options, includeBack));
-            } else {
-                promptBuilder.replyMarkup(new ReplyKeyboardRemove(true));
-            }
-        } else {
-            if (includeBack) {
-                promptBuilder.replyMarkup(keyboardMarkup(List.of(), true));
-            } else {
-                promptBuilder.replyMarkup(new ReplyKeyboardRemove(true));
-            }
-        }
+                .text(buildQuestionPromptText(current, options, includeBack))
+                .replyMarkup(new ReplyKeyboardRemove(true));
         SendMessage prompt = promptBuilder.build();
         try {
             execute(prompt);
         } catch (TelegramApiException e) {
             log.error("Failed to send conversation prompt", e);
         }
+    }
+
+    private String buildQuestionPromptText(QuestionFlowItemDto current, List<String> options, boolean includeBack) {
+        StringBuilder text = new StringBuilder(Optional.ofNullable(current.getText()).orElse(""));
+        if (options != null && !options.isEmpty()) {
+            text.append("\n\nВарианты: ").append(String.join(", ", options)).append(".");
+            text.append("\nОтвет можно ввести текстом.");
+        }
+        if (includeBack) {
+            text.append("\n\nЧтобы вернуться к предыдущему вопросу, напишите \"").append(BACK_BUTTON).append("\".");
+        }
+        return text.toString();
     }
 
     private boolean isMyTicketsCommand(String text) {
