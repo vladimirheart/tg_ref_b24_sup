@@ -1552,5 +1552,118 @@ body {
     color: var(--status-color, var(--primary));
 }
 
+/* Clients page extracted styles */
+.sortable {
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+}
+
+.sortable::after {
+    content: " ↕";
+    font-size: 0.8em;
+    opacity: 0.5;
+}
+
+.sort-asc::after {
+    content: " ↑";
+    opacity: 1;
+}
+
+.sort-desc::after {
+    content: " ↓";
+    opacity: 1;
+}
+
+.clients-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 1rem;
+    align-items: end;
+    margin-bottom: 1rem;
+}
+
+.client-status-alert {
+    border-left: 4px solid var(--chart-2);
+    background: color-mix(in srgb, var(--accent) 55%, var(--ui-surface));
+}
+
+.clients-table-card {
+    overflow: hidden;
+}
+
+.client-avatar-ring.status-has-color {
+    display: inline-flex;
+    padding: 2px;
+    border-radius: 999px;
+    background:
+        linear-gradient(var(--card), var(--card)),
+        conic-gradient(from var(--gradient-angle), var(--primary), var(--chart-2), var(--chart-4), var(--primary));
+    background-origin: padding-box, border-box;
+    background-clip: padding-box, border-box;
+    animation: gradient-rotate 9s linear infinite;
+}
+
+.client-avatar-img {
+    border-radius: 999px;
+    display: block;
+}
+
+.client-blacklist-select,
+.unblock-status-select {
+    width: auto;
+    display: inline-block;
+}
+
+/* Analytics / AI Ops extracted inline styles */
+.analytics-control-auto {
+    width: auto;
+}
+
+.analytics-control-sm {
+    max-width: 210px;
+}
+
+.analytics-control-md {
+    max-width: 220px;
+}
+
+.analytics-control-lg {
+    max-width: 230px;
+}
+
+.analytics-scroll-area {
+    max-height: 420px;
+    overflow-y: auto;
+}
+
+.ai-ops-filter-input {
+    max-width: 14rem;
+}
+
+/* Tasks extracted inline styles */
+.tasks-page-size-select {
+    width: auto;
+    min-width: 90px;
+}
+
+.tasks-status-select {
+    max-width: 160px;
+}
+
+/* Dialogs extracted inline styles */
+.dialog-col-question {
+    min-width: 18rem;
+}
+
+.dialog-col-current-answer,
+.dialog-col-proposed-answer {
+    min-width: 16rem;
+}
+
+.dialog-problem-cell {
+    max-width: 260px;
+}
+
 
 

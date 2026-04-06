@@ -8,41 +8,6 @@
     <link rel="stylesheet" th:href="@{/css/style.css}">
     <link rel="stylesheet" th:href="@{/css/sidebar.css}">
     <link rel="stylesheet" th:href="@{/css/app.css}">
-    <style>
-        .sortable { cursor: pointer; user-select: none; position: relative; }
-        .sortable::after { content: " ↕"; font-size: .8em; opacity: .5; }
-        .sort-asc::after { content: " ↑"; opacity: 1; }
-        .sort-desc::after { content: " ↓"; opacity: 1; }
-        .clients-toolbar {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) auto;
-            gap: 1rem;
-            align-items: end;
-            margin-bottom: 1rem;
-        }
-        .client-status-alert {
-            border-left: 4px solid var(--chart-2);
-            background: color-mix(in srgb, var(--accent) 55%, white);
-        }
-        .clients-table-card {
-            overflow: hidden;
-        }
-        .client-avatar-ring.status-has-color {
-            display: inline-flex;
-            padding: 2px;
-            border-radius: 999px;
-            background:
-                linear-gradient(var(--card), var(--card)),
-                conic-gradient(from var(--gradient-angle), var(--primary), var(--chart-2), var(--chart-4), var(--primary));
-            background-origin: padding-box, border-box;
-            background-clip: padding-box, border-box;
-            animation: gradient-rotate 9s linear infinite;
-        }
-        .client-avatar-img {
-            border-radius: 999px;
-            display: block;
-        }
-    </style>
 </head>
 <body class="with-sidebar sidebar-pinned">
 <div th:replace="~{fragments/navbar :: navbar('clients')}"></div>
@@ -73,7 +38,7 @@
             </div>
             <div>
                 <label class="form-label small text-muted mb-2">Blacklist</label>
-                <select class="form-select form-select-sm" style="width:auto;display:inline-block"
+                <select class="form-select form-select-sm client-blacklist-select"
                         onchange="location.href='?blacklist='+this.value">
                     <option value="" th:selected="${blacklistFilter == null || blacklistFilter.isBlank()}">Все</option>
                     <option value="1" th:selected="${blacklistFilter == '1'}">Только в блэклисте</option>
