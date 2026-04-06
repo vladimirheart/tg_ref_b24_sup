@@ -1036,5 +1036,72 @@
     }, 200);
   })();
 </script>
+<script>
+  (() => {
+    function fallbackOpen(ticketId) {
+      if (!ticketId) return;
+      const modalEl = document.getElementById('dialogDetailsModal');
+      if (!modalEl || typeof bootstrap === 'undefined' || !bootstrap.Modal) {
+        window.location.href = `/dialogs/${encodeURIComponent(ticketId)}`;
+        return;
+      }
+      const summary = document.getElementById('dialogDetailsSummary');
+      const history = document.getElementById('dialogDetailsHistory');
+      const meta = document.getElementById('dialogDetailsMeta');
+      if (summary) summary.innerHTML = '<div class="text-muted">Загрузка...</div>';
+      if (history) history.innerHTML = '';
+      if (meta) meta.textContent = `ID диалога: ${ticketId}`;
+      bootstrap.Modal.getOrCreateInstance(modalEl).show();
+      fetch(`/api/dialogs/${encodeURIComponent(ticketId)}`, { credentials: 'same-origin', cache: 'no-store' })
+        .then((resp) => resp.json().catch(() => ({})))
+        .then((data) => {
+          const safe = data && typeof data === 'object' ? data : {};
+          const s = safe.summary || {};
+          if (summary) {
+            summary.innerHTML = `
+              <div class="d-flex justify-content-between gap-2"><span>Клиент</span><span>${(s.clientName || s.username || '—')}</span></div>
+              <div class="d-flex justify-content-between gap-2"><span>Статус</span><span>${(s.statusLabel || s.status || '—')}</span></div>
+              <div class="d-flex justify-content-between gap-2"><span>Канал</span><span>${(s.channelName || '—')}</span></div>
+            `;
+          }
+          if (history && Array.isArray(safe.history)) {
+            history.innerHTML = safe.history.map((item) => `<div class="mb-2"><div class="small text-muted">${item.timestamp || ''}</div><div>${item.message || ''}</div></div>`).join('');
+          }
+        })
+        .catch(() => {
+          if (summary) summary.innerHTML = '<div class="text-danger">Не удалось загрузить детали диалога.</div>';
+        });
+    }
+
+    document.addEventListener('click', (event) => {
+      const btn = event.target.closest('.dialog-open-btn');
+      if (!btn) return;
+      event.preventDefault();
+      const ticketId = btn.getAttribute('data-ticket-id');
+      if (typeof window.openDialogDetailsByTicketId === 'function') {
+        try {
+          window.openDialogDetailsByTicketId(ticketId);
+          window.setTimeout(() => {
+            const modalEl = document.getElementById('dialogDetailsModal');
+            const opened = modalEl && modalEl.classList.contains('show');
+            if (!opened) {
+              fallbackOpen(ticketId);
+            }
+          }, 280);
+          return;
+        } catch (_error) {
+          fallbackOpen(ticketId);
+          return;
+        }
+      }
+      fallbackOpen(ticketId);
+    });
+
+    const pathMatch = (window.location.pathname || '').match(/^\/dialogs\/([^/]+)$/);
+    if (pathMatch && typeof window.openDialogDetailsByTicketId !== 'function') {
+      fallbackOpen(decodeURIComponent(pathMatch[1] || ''));
+    }
+  })();
+</script>
 </body>
 </html>

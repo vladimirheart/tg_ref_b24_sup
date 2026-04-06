@@ -203,7 +203,7 @@ public class DialogService {
                             WHERE tc.ticket_id = t.ticket_id
                        ) AS categories,
                        CASE
-                           WHEN lower(COALESCE(tr.responsible, '')) = lower(?) THEN (
+                           WHEN tr.responsible IS NULL OR trim(tr.responsible) = '' OR lower(COALESCE(tr.responsible, '')) = lower(?) THEN (
                                SELECT COUNT(*)
                                  FROM chat_history ch
                                 WHERE ch.ticket_id = t.ticket_id
@@ -367,7 +367,7 @@ public class DialogService {
                                 WHERE tc.ticket_id = t.ticket_id
                            ) AS categories,
                            CASE
-                               WHEN lower(COALESCE(tr.responsible, '')) = lower(?) THEN (
+                               WHEN tr.responsible IS NULL OR trim(tr.responsible) = '' OR lower(COALESCE(tr.responsible, '')) = lower(?) THEN (
                                    SELECT COUNT(*)
                                      FROM chat_history ch
                                     WHERE ch.ticket_id = t.ticket_id
