@@ -9,11 +9,15 @@ import com.example.supportbot.service.ChannelService;
 import com.example.supportbot.service.ChatHistoryService;
 import com.example.supportbot.service.FeedbackService;
 import com.example.supportbot.service.PublicFormConversationLinkService;
+import com.example.supportbot.service.SharedConfigService;
 import com.example.supportbot.service.TicketService;
 import com.example.supportbot.service.UnblockRequestService;
 import com.example.supportbot.settings.BotSettingsService;
 import com.example.supportbot.settings.dto.BotSettingsDto;
 import com.example.supportbot.settings.dto.QuestionFlowItemDto;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vk.api.sdk.callback.longpoll.BotsLongPoll;
 import com.vk.api.sdk.callback.longpoll.responses.GetLongPollEventsResponse;
 import com.vk.api.sdk.callback.longpoll.responses.LongPollGroupUpdates;
@@ -75,6 +79,8 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
     private final ChatHistoryService chatHistoryService;
     private final FeedbackService feedbackService;
     private final PublicFormConversationLinkService publicFormConversationLinkService;
+    private final SharedConfigService sharedConfigService;
+    private final ObjectMapper objectMapper;
     private final VkApiClient vkClient;
     private final HttpClient httpClient;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -82,6 +88,8 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
 
     private volatile boolean running = false;
     private volatile Channel cachedChannel;
+    private volatile Map<String, Object> cachedLocationTree;
+    private volatile Map<String, Object> cachedPresetDefinitions;
 
     public VkSupportBot(VkBotProperties properties,
                         BlacklistService blacklistService,
@@ -92,7 +100,9 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                         TicketService ticketService,
                         ChatHistoryService chatHistoryService,
                         FeedbackService feedbackService,
-                        PublicFormConversationLinkService publicFormConversationLinkService) {
+                        PublicFormConversationLinkService publicFormConversationLinkService,
+                        SharedConfigService sharedConfigService,
+                        ObjectMapper objectMapper) {
         this.properties = properties;
         this.blacklistService = blacklistService;
         this.unblockRequestService = unblockRequestService;
@@ -103,6 +113,8 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         this.chatHistoryService = chatHistoryService;
         this.feedbackService = feedbackService;
         this.publicFormConversationLinkService = publicFormConversationLinkService;
+        this.sharedConfigService = sharedConfigService;
+        this.objectMapper = objectMapper;
         this.vkClient = new VkApiClient(new HttpTransportClient());
         this.httpClient = HttpClient.newBuilder().build();
     }
@@ -234,8 +246,23 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
             return;
         }
 
-        if (!text.isBlank()) {
-            session.recordAnswer(text);
+        String resolvedAnswer = text;
+        QuestionFlowItemDto current = session.currentQuestion();
+        if (isPresetQuestion(current)) {
+            List<String> options = resolvePresetOptions(current, session.answers());
+            if (options.isEmpty()) {
+                sendText(actor, peerId, "Сейчас нет доступных вариантов для выбора. Обратитесь к администратору.");
+                return;
+            }
+            resolvedAnswer = resolvePresetAnswer(resolvedAnswer, options);
+            if (!options.contains(resolvedAnswer)) {
+                sendText(actor, peerId, "Введите один из вариантов: " + String.join(", ", options));
+                return;
+            }
+        }
+
+        if (!resolvedAnswer.isBlank()) {
+            session.recordAnswer(resolvedAnswer);
         }
         storeAttachments(message, session);
 
@@ -336,8 +363,183 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         }
         QuestionFlowItemDto current = session.currentQuestion();
         if (current != null) {
-            sendText(actor, session.peerId(), current.getText());
+            List<String> options = isPresetQuestion(current) ? resolvePresetOptions(current, session.answers()) : List.of();
+            sendText(actor, session.peerId(), buildQuestionPromptText(current, options));
         }
+    }
+
+    private boolean isPresetQuestion(QuestionFlowItemDto current) {
+        if (current == null) {
+            return false;
+        }
+        if ("preset".equalsIgnoreCase(current.getType())) {
+            return true;
+        }
+        return current.getPreset() != null && current.getPreset().field() != null;
+    }
+
+    private String buildQuestionPromptText(QuestionFlowItemDto current, List<String> options) {
+        StringBuilder text = new StringBuilder(Optional.ofNullable(current.getText()).orElse(""));
+        if (options != null && !options.isEmpty()) {
+            text.append("\n\nВарианты:");
+            for (int i = 0; i < options.size(); i++) {
+                text.append("\n").append(i + 1).append(". ").append(options.get(i));
+            }
+            text.append("\nМожно ответить номером (1, 2, ...) или текстом варианта.");
+        }
+        return text.toString();
+    }
+
+    private String resolvePresetAnswer(String rawAnswer, List<String> options) {
+        if (rawAnswer == null) {
+            return "";
+        }
+        String trimmed = rawAnswer.trim();
+        if (trimmed.isEmpty()) {
+            return trimmed;
+        }
+        try {
+            int numeric = Integer.parseInt(trimmed);
+            if (numeric >= 1 && numeric <= options.size()) {
+                return options.get(numeric - 1);
+            }
+        } catch (NumberFormatException ignored) {
+            // fallback to text matching
+        }
+        for (String option : options) {
+            if (option.equalsIgnoreCase(trimmed)) {
+                return option;
+            }
+        }
+        return trimmed;
+    }
+
+    private List<String> resolvePresetOptions(QuestionFlowItemDto current, Map<String, String> answers) {
+        if (current == null || current.getPreset() == null) {
+            return List.of();
+        }
+        String group = current.getPreset().group();
+        String field = current.getPreset().field();
+        if (field == null || field.isBlank() || group == null || group.isBlank()) {
+            return List.of();
+        }
+        List<String> options;
+        if ("locations".equalsIgnoreCase(group)) {
+            Map<String, Object> tree = locationTree();
+            options = resolveLocationOptions(field, answers, tree);
+            if (options.isEmpty()) {
+                options = resolvePresetDefinitionOptions(group, field);
+            }
+        } else {
+            options = resolvePresetDefinitionOptions(group, field);
+        }
+        List<String> excluded = Optional.ofNullable(current.getExcludedOptions()).orElseGet(List::of);
+        if (!excluded.isEmpty() && !options.isEmpty()) {
+            options = options.stream()
+                    .filter(option -> !excluded.contains(option))
+                    .toList();
+        }
+        return options;
+    }
+
+    private List<String> resolvePresetDefinitionOptions(String group, String field) {
+        if (group == null || field == null) {
+            return List.of();
+        }
+        Map<String, Object> definitions = presetDefinitions();
+        Map<String, Object> groupData = asMap(definitions.get(group));
+        Map<String, Object> fields = asMap(groupData.get("fields"));
+        Map<String, Object> fieldData = asMap(fields.get(field));
+        return asList(fieldData.get("options"));
+    }
+
+    private List<String> resolveLocationOptions(String field, Map<String, String> answers, Map<String, Object> tree) {
+        if (tree.isEmpty()) {
+            return List.of();
+        }
+        String business = answers.get("business");
+        String locationType = answers.get("location_type");
+        String city = answers.get("city");
+        return switch (field) {
+            case "business" -> sortedKeys(tree);
+            case "location_type" -> business == null ? List.of() : sortedKeys(asMap(tree.get(business)));
+            case "city" -> {
+                if (business == null || locationType == null) {
+                    yield List.of();
+                }
+                Map<String, Object> businessNode = asMap(tree.get(business));
+                yield sortedKeys(asMap(businessNode.get(locationType)));
+            }
+            case "location_name" -> {
+                if (business == null || locationType == null || city == null) {
+                    yield List.of();
+                }
+                Map<String, Object> businessNode = asMap(tree.get(business));
+                Map<String, Object> typeNode = asMap(businessNode.get(locationType));
+                yield asList(typeNode.get(city));
+            }
+            default -> List.of();
+        };
+    }
+
+    private List<String> sortedKeys(Map<String, Object> node) {
+        if (node == null || node.isEmpty()) {
+            return List.of();
+        }
+        return node.keySet().stream()
+                .map(Object::toString)
+                .sorted()
+                .toList();
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> asMap(Object node) {
+        if (node instanceof Map<?, ?> map) {
+            return new LinkedHashMap<>((Map<String, Object>) map);
+        }
+        return new LinkedHashMap<>();
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<String> asList(Object node) {
+        if (node instanceof List<?> list) {
+            List<String> result = new ArrayList<>();
+            for (Object item : list) {
+                if (item != null) {
+                    result.add(item.toString());
+                }
+            }
+            return result;
+        }
+        return List.of();
+    }
+
+    private Map<String, Object> locationTree() {
+        if (cachedLocationTree != null) {
+            return cachedLocationTree;
+        }
+        JsonNode locations = sharedConfigService.loadLocations();
+        if (locations == null || locations.isNull()) {
+            cachedLocationTree = new LinkedHashMap<>();
+            return cachedLocationTree;
+        }
+        JsonNode treeNode = locations.get("tree");
+        Map<String, Object> resolved = objectMapper.convertValue(
+                treeNode != null && !treeNode.isNull() ? treeNode : locations,
+                new TypeReference<>() {}
+        );
+        cachedLocationTree = resolved != null ? resolved : new LinkedHashMap<>();
+        return cachedLocationTree;
+    }
+
+    private Map<String, Object> presetDefinitions() {
+        if (cachedPresetDefinitions != null) {
+            return cachedPresetDefinitions;
+        }
+        Map<String, Object> baseDefinitions = sharedConfigService.presetDefinitions();
+        Map<String, Object> merged = botSettingsService.buildLocationPresets(locationTree(), baseDefinitions);
+        cachedPresetDefinitions = merged != null ? merged : new LinkedHashMap<>();
+        return cachedPresetDefinitions;
     }
 
     private void finalizeConversation(GroupActor actor, ConversationSession session) {
