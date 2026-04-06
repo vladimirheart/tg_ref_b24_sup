@@ -4501,6 +4501,17 @@
                   <label class="form-check-label" for="themeOptionAuto">Автоматически (как в системе)</label>
                 </div>
               </div>
+              <div class="mb-3">
+                <label class="form-label fw-semibold">Стиль интерфейса</label>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="themePaletteOption" id="themePaletteNeo" value="neo">
+                  <label class="form-check-label" for="themePaletteNeo">Neo Contrast (индиго + бирюза)</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="themePaletteOption" id="themePaletteMono" value="mono">
+                  <label class="form-check-label" for="themePaletteMono">Mono Minimal (монохром)</label>
+                </div>
+              </div>
               <p class="text-muted small mb-0">Настройка сохраняется в вашем браузере и применяется ко всем страницам панели.</p>
             </form>
           </div>
@@ -5431,25 +5442,49 @@
     const showConfirmActionModal = window.showConfirmActionModal;
   (function () {
     const form = document.querySelector('[data-theme-form]');
-    if (!form || !window.iguanaTheme) {
+    if (!form || !window.iguanaTheme || !window.iguanaThemePalette) {
       return;
     }
-    const radios = Array.from(form.querySelectorAll('input[name="themeOption"]'));
-    const sync = (theme) => {
+    const themeRadios = Array.from(form.querySelectorAll('input[name="themeOption"]'));
+    const paletteRadios = Array.from(form.querySelectorAll('input[name="themePaletteOption"]'));
+
+    const syncTheme = (theme) => {
       const normalized = typeof theme === 'string' ? theme : window.iguanaTheme.get();
-      radios.forEach((radio) => {
+      themeRadios.forEach((radio) => {
         radio.checked = radio.value === normalized;
       });
     };
-    sync(window.iguanaTheme.get());
+
+    const syncPalette = (palette) => {
+      const normalized = typeof palette === 'string' ? palette : window.iguanaThemePalette.get();
+      paletteRadios.forEach((radio) => {
+        radio.checked = radio.value === normalized;
+      });
+    };
+
+    syncTheme(window.iguanaTheme.get());
+    syncPalette(window.iguanaThemePalette.get());
+
     form.addEventListener('change', (event) => {
       const target = event.target;
-      if (!target || target.name !== 'themeOption') return;
-      window.iguanaTheme.set(target.value);
+      if (!target) return;
+      if (target.name === 'themeOption') {
+        window.iguanaTheme.set(target.value);
+      }
+      if (target.name === 'themePaletteOption') {
+        window.iguanaThemePalette.set(target.value);
+      }
     });
+
     document.addEventListener('theme:change', (event) => {
-      const next = event && event.detail && event.detail.theme ? event.detail.theme : window.iguanaTheme.get();
-      sync(next);
+      const detail = event && event.detail ? event.detail : {};
+      syncTheme(detail.theme || window.iguanaTheme.get());
+      syncPalette(detail.palette || window.iguanaThemePalette.get());
+    });
+
+    document.addEventListener('theme:palette-change', (event) => {
+      const detail = event && event.detail ? event.detail : {};
+      syncPalette(detail.palette || window.iguanaThemePalette.get());
     });
   })();
   const RAW_DIALOG_CONFIG = /*[[${settingsPayload['dialog_config']}]]*/ {};

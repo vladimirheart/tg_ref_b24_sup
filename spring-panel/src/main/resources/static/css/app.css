@@ -1215,5 +1215,94 @@ body.density-compact .page-title {
     font-size: clamp(1.2rem, 1.4vw, 1.6rem);
 }
 
+/* Project-wide unified UI language */
+:root {
+    --ui-surface: var(--card);
+    --ui-border: var(--border);
+    --ui-radius: var(--radius, 0.75rem);
+    --ui-text: var(--foreground);
+    --ui-muted: var(--muted-foreground);
+    --ui-primary: var(--primary);
+    --ui-shadow: 0 0 0 0 color-mix(in srgb, var(--foreground) 8%, transparent);
+}
+
+body {
+    letter-spacing: var(--letter-spacing, normal);
+    background-image: none !important;
+}
+
+.page-header-card {
+    background: var(--ui-surface) !important;
+    border: 1px solid var(--ui-border) !important;
+    border-radius: var(--ui-radius) !important;
+    box-shadow: var(--ui-shadow) !important;
+    animation: none !important;
+}
+
+.card,
+.modal-content,
+.dropdown-menu,
+.accordion-item,
+.workspace-panel-block,
+.sidebar,
+.sidebar-user-card {
+    background: var(--ui-surface) !important;
+    border: 1px solid var(--ui-border) !important;
+    border-radius: var(--ui-radius) !important;
+    box-shadow: var(--ui-shadow) !important;
+    animation: none !important;
+}
+
+.btn,
+.form-control,
+.form-select,
+.form-check-input,
+.input-group-text {
+    border-radius: calc(var(--ui-radius) * 0.6) !important;
+    border-color: var(--ui-border) !important;
+}
+
+.btn-primary {
+    background: var(--ui-primary) !important;
+    border-color: var(--ui-primary) !important;
+    color: var(--primary-foreground) !important;
+}
+
+.btn-outline-primary,
+.btn-outline-secondary,
+.btn-outline-dark,
+.btn-outline-light {
+    color: var(--ui-text) !important;
+    border-color: var(--ui-border) !important;
+}
+
+.btn-outline-primary:hover,
+.btn-outline-secondary:hover,
+.btn-outline-dark:hover,
+.btn-outline-light:hover {
+    background: color-mix(in srgb, var(--ui-primary) 12%, var(--ui-surface)) !important;
+}
+
+.table {
+    --bs-table-bg: var(--ui-surface);
+    --bs-table-color: var(--ui-text);
+    --bs-table-border-color: var(--ui-border);
+}
+
+.table thead th {
+    background: color-mix(in srgb, var(--muted) 75%, var(--ui-surface)) !important;
+    color: var(--ui-muted) !important;
+}
+
+.table-striped > tbody > tr:nth-of-type(odd) > * {
+    background: color-mix(in srgb, var(--muted) 35%, var(--ui-surface)) !important;
+}
+
+.text-muted,
+.form-text,
+.small.text-muted {
+    color: var(--ui-muted) !important;
+}
+
 
 
