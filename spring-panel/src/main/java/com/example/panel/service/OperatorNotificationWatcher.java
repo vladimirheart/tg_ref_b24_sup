@@ -51,7 +51,7 @@ public class OperatorNotificationWatcher {
         long afterId = lastChatHistoryId.get();
         jdbcTemplate.query(
                 """
-                SELECT id, ticket_id, sender, message, message_type
+                SELECT id, ticket_id, sender, message, message_type, attachment
                   FROM chat_history
                  WHERE id > ?
                  ORDER BY id ASC
@@ -67,6 +67,7 @@ public class OperatorNotificationWatcher {
                         String sender = normalizeSender(rs.getString("sender"));
                         String messageType = normalizeSender(rs.getString("message_type"));
                         String message = trimToNull(rs.getString("message"));
+                        String attachment = trimToNull(rs.getString("attachment"));
 
                         if (!StringUtils.hasText(ticketId)) {
                             continue;
@@ -84,7 +85,7 @@ public class OperatorNotificationWatcher {
                                 "/dialogs?ticketId=" + ticketId,
                                 null
                         );
-                        dialogAiAssistantService.processIncomingClientMessage(ticketId, message);
+                        dialogAiAssistantService.processIncomingClientMessage(ticketId, message, messageType, attachment);
                     }
                     if (maxSeen > afterId) {
                         lastChatHistoryId.set(maxSeen);

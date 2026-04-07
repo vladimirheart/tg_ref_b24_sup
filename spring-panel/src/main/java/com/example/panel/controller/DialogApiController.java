@@ -2951,6 +2951,42 @@ public class DialogApiController {
         return ResponseEntity.ok(Map.of("success", true, "updated", updated));
     }
 
+    @GetMapping("/ai-solution-memory")
+    public ResponseEntity<?> aiSolutionMemory(@RequestParam(value = "limit", required = false) Integer limit,
+                                              @RequestParam(value = "query", required = false) String query,
+                                              Authentication authentication) {
+        ResponseEntity<Map<String, Object>> permissionDenied = requireDialogPermission(authentication, "can_reply", "ai_solution_memory", null);
+        if (permissionDenied != null) {
+            return permissionDenied;
+        }
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("success", true);
+        payload.put("items", dialogAiAssistantService.loadSolutionMemory(limit, query));
+        return ResponseEntity.ok(payload);
+    }
+
+    @PostMapping("/ai-solution-memory/{queryKey}")
+    public ResponseEntity<?> updateAiSolutionMemory(@PathVariable String queryKey,
+                                                    @RequestBody(required = false) AiSolutionMemoryUpdateRequest request,
+                                                    Authentication authentication) {
+        ResponseEntity<Map<String, Object>> permissionDenied = requireDialogPermission(authentication, "can_reply", "ai_solution_memory_update", null);
+        if (permissionDenied != null) {
+            return permissionDenied;
+        }
+        if (request == null || !StringUtils.hasText(request.queryText()) || !StringUtils.hasText(request.solutionText())) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "error", "query_text and solution_text are required"));
+        }
+        String operator = authentication != null ? authentication.getName() : null;
+        boolean updated = dialogAiAssistantService.updateSolutionMemory(
+                queryKey,
+                request.queryText(),
+                request.solutionText(),
+                request.reviewRequired(),
+                operator
+        );
+        return ResponseEntity.ok(Map.of("success", true, "updated", updated));
+    }
+
     @GetMapping("/ai-monitoring/summary")
     public ResponseEntity<?> aiMonitoringSummary(@RequestParam(value = "days", required = false) Integer days,
                                                  Authentication authentication) {
@@ -5005,6 +5041,10 @@ public class DialogApiController {
     public record AiControlRequest(@JsonAlias({"ai_disabled", "aiDisabled"}) Boolean aiDisabled,
                                    @JsonAlias({"auto_reply_blocked", "autoReplyBlocked"}) Boolean autoReplyBlocked,
                                    String reason) {}
+
+    public record AiSolutionMemoryUpdateRequest(@JsonAlias({"query_text", "queryText"}) String queryText,
+                                                @JsonAlias({"solution_text", "solutionText"}) String solutionText,
+                                                @JsonAlias({"review_required", "reviewRequired"}) Boolean reviewRequired) {}
 
     public record TriagePreferencesRequest(@JsonAlias("view") String view,
                                            @JsonAlias("sort_mode") String sortMode,

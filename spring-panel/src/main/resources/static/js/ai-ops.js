@@ -12,9 +12,17 @@
   const assistRateEl = document.getElementById('aiOpsAssistRate');
   const escalationRateEl = document.getElementById('aiOpsEscalationRate');
   const correctionRateEl = document.getElementById('aiOpsCorrectionRate');
+
+  const memoryStateEl = document.getElementById('aiOpsMemoryState');
+  const memoryListEl = document.getElementById('aiOpsMemoryList');
+  const memoryQueryInput = document.getElementById('aiOpsMemoryQuery');
+  const memorySearchBtn = document.getElementById('aiOpsMemorySearch');
+  const memoryRefreshBtn = document.getElementById('aiOpsMemoryRefresh');
+
   if (!stateEl) return;
 
   const filters = { eventType: '', actor: '' };
+  const memoryFilters = { query: '' };
 
   function escapeHtml(value) {
     return String(value || '')
@@ -27,12 +35,12 @@
 
   function formatRatePercent(value) {
     const n = Number(value);
-    if (!Number.isFinite(n)) return '—';
+    if (!Number.isFinite(n)) return '--';
     return `${(n * 100).toFixed(1)}%`;
   }
 
   function formatUtcDate(value) {
-    if (!value) return '—';
+    if (!value) return '--';
     const d = new Date(value);
     if (Number.isNaN(d.getTime())) return String(value);
     return d.toLocaleString();
@@ -51,7 +59,7 @@
   function renderAlerts(alerts) {
     if (!alertsEl) return;
     if (!Array.isArray(alerts) || !alerts.length) {
-      alertsEl.innerHTML = '<div class="text-muted">Алертов нет.</div>';
+      alertsEl.innerHTML = '<div class="text-muted">No alerts.</div>';
       return;
     }
     alertsEl.innerHTML = alerts.map((a) => {
@@ -69,7 +77,7 @@
   function renderRunbook(items) {
     if (!runbookEl) return;
     if (!Array.isArray(items) || !items.length) {
-      runbookEl.innerHTML = '<li>Runbook недоступен.</li>';
+      runbookEl.innerHTML = '<li>Runbook unavailable.</li>';
       return;
     }
     runbookEl.innerHTML = items.map((x) => `<li>${escapeHtml(x)}</li>`).join('');
@@ -78,7 +86,7 @@
   function renderEvents(items) {
     if (!eventsEl) return;
     if (!Array.isArray(items) || !items.length) {
-      eventsEl.innerHTML = '<div class="text-muted">Событий нет.</div>';
+      eventsEl.innerHTML = '<div class="text-muted">No events.</div>';
       return;
     }
     eventsEl.innerHTML = items.slice(0, 20).map((item) => {
@@ -94,8 +102,40 @@
     }).join('');
   }
 
+  function renderSolutionMemory(items) {
+    if (!memoryListEl) return;
+    if (!Array.isArray(items) || !items.length) {
+      memoryListEl.innerHTML = '<div class="text-muted">No records.</div>';
+      return;
+    }
+    memoryListEl.innerHTML = items.map((item) => {
+      const key = escapeHtml(item?.query_key || '');
+      const queryText = escapeHtml(item?.query_text || '');
+      const solutionText = escapeHtml(item?.solution_text || '');
+      const reviewRequired = Number(item?.review_required || 0) > 0;
+      const updatedAt = formatUtcDate(item?.updated_at || item?.created_at);
+      const stats = `used: ${Number(item?.times_used || 0)} | confirmed: ${Number(item?.times_confirmed || 0)} | corrected: ${Number(item?.times_corrected || 0)}`;
+      return `<div class="border rounded p-2 mb-2" data-memory-row="${key}">
+        <div class="d-flex flex-wrap justify-content-between gap-2 mb-1">
+          <span class="fw-semibold">${queryText || '(empty query)'}</span>
+          <span class="text-muted">${escapeHtml(updatedAt)}</span>
+        </div>
+        <div class="text-muted mb-2">${escapeHtml(stats)}</div>
+        <textarea class="form-control form-control-sm mb-2" rows="2" data-memory-query>${queryText}</textarea>
+        <textarea class="form-control form-control-sm mb-2" rows="4" data-memory-solution>${solutionText}</textarea>
+        <div class="d-flex flex-wrap align-items-center gap-2">
+          <label class="form-check-label small">
+            <input type="checkbox" class="form-check-input me-1" data-memory-review ${reviewRequired ? 'checked' : ''}> review required
+          </label>
+          <button class="btn btn-sm btn-outline-primary" type="button" data-memory-save="${key}">Save</button>
+          <span class="small text-muted" data-memory-row-state></span>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
   async function loadSummary(days = 7) {
-    stateEl.textContent = 'Загрузка…';
+    stateEl.textContent = 'Loading...';
     try {
       const resp = await fetch(`/api/dialogs/ai-monitoring/summary?days=${encodeURIComponent(days)}`, { credentials: 'same-origin', cache: 'no-store' });
       const payload = await resp.json().catch(() => ({}));
@@ -108,9 +148,9 @@
       if (correctionRateEl) correctionRateEl.textContent = formatRatePercent(kpis.correction_rate);
       renderAlerts(summary.alerts);
       renderRunbook(summary.runbook?.items);
-      stateEl.textContent = `Окно: ${summary.window_days || days} дн | обновлено ${formatUtcDate(summary.generated_at)}`;
+      stateEl.textContent = `Window: ${summary.window_days || days} days | updated ${formatUtcDate(summary.generated_at)}`;
     } catch (error) {
-      stateEl.textContent = `Не удалось загрузить AI-метрики: ${error.message || 'unknown_error'}`;
+      stateEl.textContent = `Failed to load AI metrics: ${error.message || 'unknown_error'}`;
       renderAlerts([]);
       renderRunbook([]);
     }
@@ -127,6 +167,64 @@
     }
   }
 
+  async function loadSolutionMemory(limit = 100) {
+    if (memoryStateEl) memoryStateEl.textContent = 'Loading...';
+    try {
+      const params = new URLSearchParams();
+      params.set('limit', String(limit));
+      if (memoryFilters.query) params.set('query', memoryFilters.query);
+      const resp = await fetch(`/api/dialogs/ai-solution-memory?${params.toString()}`, { credentials: 'same-origin', cache: 'no-store' });
+      const payload = await resp.json().catch(() => ({}));
+      if (!resp.ok || payload.success === false) throw new Error(payload.error || `HTTP ${resp.status}`);
+      const items = Array.isArray(payload.items) ? payload.items : [];
+      renderSolutionMemory(items);
+      if (memoryStateEl) memoryStateEl.textContent = `Loaded: ${items.length}`;
+    } catch (error) {
+      renderSolutionMemory([]);
+      if (memoryStateEl) memoryStateEl.textContent = `Failed to load: ${error.message || 'unknown_error'}`;
+    }
+  }
+
+  async function saveSolutionMemoryRow(button) {
+    if (!button) return;
+    const key = String(button.getAttribute('data-memory-save') || '').trim();
+    const row = button.closest('[data-memory-row]');
+    const queryEl = row?.querySelector('[data-memory-query]');
+    const solutionEl = row?.querySelector('[data-memory-solution]');
+    const reviewEl = row?.querySelector('[data-memory-review]');
+    const stateRowEl = row?.querySelector('[data-memory-row-state]');
+    if (!key || !queryEl || !solutionEl) return;
+
+    const body = {
+      query_text: String(queryEl.value || '').trim(),
+      solution_text: String(solutionEl.value || '').trim(),
+      review_required: !!(reviewEl && reviewEl.checked),
+    };
+    if (!body.query_text || !body.solution_text) {
+      if (stateRowEl) stateRowEl.textContent = 'query/solution required';
+      return;
+    }
+    button.disabled = true;
+    if (stateRowEl) stateRowEl.textContent = 'saving...';
+    try {
+      const resp = await fetch(`/api/dialogs/ai-solution-memory/${encodeURIComponent(key)}`, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const payload = await resp.json().catch(() => ({}));
+      if (!resp.ok || payload.success === false || payload.updated === false) {
+        throw new Error(payload.error || 'update_failed');
+      }
+      if (stateRowEl) stateRowEl.textContent = 'saved';
+    } catch (error) {
+      if (stateRowEl) stateRowEl.textContent = `error: ${error.message || 'unknown_error'}`;
+    } finally {
+      button.disabled = false;
+    }
+  }
+
   function exportEventsCsv(days = 7, limit = 200) {
     const href = `/api/dialogs/ai-monitoring/events?${buildEventsQuery(days, limit, 'csv')}`;
     const link = document.createElement('a');
@@ -137,7 +235,10 @@
     link.remove();
   }
 
-  if (refreshBtn) refreshBtn.addEventListener('click', () => { loadSummary(7); loadEvents(7, 50); });
+  if (refreshBtn) refreshBtn.addEventListener('click', () => {
+    loadSummary(7);
+    loadEvents(7, 50);
+  });
   if (applyFiltersBtn) applyFiltersBtn.addEventListener('click', () => {
     filters.eventType = String(eventTypeInput?.value || '').trim().toLowerCase();
     filters.actor = String(actorInput?.value || '').trim().toLowerCase();
@@ -148,7 +249,21 @@
     filters.actor = String(actorInput?.value || '').trim().toLowerCase();
     exportEventsCsv(7, 200);
   });
+  if (memorySearchBtn) memorySearchBtn.addEventListener('click', () => {
+    memoryFilters.query = String(memoryQueryInput?.value || '').trim();
+    loadSolutionMemory(100);
+  });
+  if (memoryRefreshBtn) memoryRefreshBtn.addEventListener('click', () => {
+    loadSolutionMemory(100);
+  });
+  if (memoryListEl) {
+    memoryListEl.addEventListener('click', (event) => {
+      const saveBtn = event.target.closest('[data-memory-save]');
+      if (saveBtn) saveSolutionMemoryRow(saveBtn);
+    });
+  }
 
   loadSummary(7);
   loadEvents(7, 50);
+  loadSolutionMemory(100);
 })();
