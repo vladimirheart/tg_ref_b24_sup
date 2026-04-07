@@ -6968,7 +6968,10 @@
   }
 
   table.addEventListener('click', (event) => {
-    const rowSelect = event.target.closest('.dialog-row-select');
+    const target = event.target instanceof Element ? event.target : event.target?.parentElement;
+    if (!target) return;
+
+    const rowSelect = target.closest('.dialog-row-select');
     if (rowSelect) {
       const ticketId = String(rowSelect.dataset.ticketId || '');
       if (ticketId) {
@@ -6982,7 +6985,7 @@
       return;
     }
 
-    const openBtn = event.target.closest('.dialog-open-btn');
+    const openBtn = target.closest('.dialog-open-btn');
     if (openBtn) {
       event.preventDefault();
       event.stopPropagation();
@@ -6992,7 +6995,7 @@
       openDialogEntry(ticketId, row);
       return;
     }
-    const taskBtn = event.target.closest('.dialog-task-btn');
+    const taskBtn = target.closest('.dialog-task-btn');
     if (taskBtn) {
       event.preventDefault();
       const ticketId = taskBtn.dataset.ticketId;
@@ -7004,7 +7007,7 @@
       window.location.href = buildTaskCreateUrl(ticketId, clientName);
       return;
     }
-    const takeBtn = event.target.closest('.dialog-take-btn');
+    const takeBtn = target.closest('.dialog-take-btn');
     if (takeBtn) {
       event.preventDefault();
       if (!canRunAction('can_assign')) {
@@ -7017,7 +7020,7 @@
       takeDialog(ticketId, row, takeBtn);
       return;
     }
-    const snoozeBtn = event.target.closest('.dialog-snooze-btn');
+    const snoozeBtn = target.closest('.dialog-snooze-btn');
     if (snoozeBtn) {
       event.preventDefault();
       if (!canRunAction('can_snooze')) {
@@ -7043,7 +7046,7 @@
         });
       return;
     }
-    const closeBtn = event.target.closest('.dialog-close-btn');
+    const closeBtn = target.closest('.dialog-close-btn');
     if (closeBtn) {
       event.preventDefault();
       if (!canRunAction('can_close')) {
@@ -8516,4 +8519,5 @@
   initColumnResize();
   restoreColumnWidths();
   initDetailsResize();
+  window.__dialogsPrimaryReady = true;
 })();
