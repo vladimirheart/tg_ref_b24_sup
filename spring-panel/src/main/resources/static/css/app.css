@@ -1819,3 +1819,82 @@ body {
     color: inherit !important;
   }
 }
+
+/* Final unified style (clean + stable) */
+:root {
+  --ui-shell-bg: #f5f6f8;
+  --ui-surface-clean: #ffffff;
+  --ui-border-clean: #d9dde3;
+  --ui-text-clean: #1f2937;
+  --ui-muted-clean: #6b7280;
+  --ui-primary-clean: #2563eb;
+}
+
+body,
+.main-content {
+  background: var(--ui-shell-bg) !important;
+  color: var(--ui-text-clean) !important;
+}
+
+.card,
+.modal-content,
+.dropdown-menu,
+.list-group-item,
+.accordion-item,
+.workspace-panel-block,
+.sidebar,
+.sidebar-user-card {
+  background: var(--ui-surface-clean) !important;
+  border: 1px solid var(--ui-border-clean) !important;
+  box-shadow: 0 8px 22px rgba(17, 24, 39, 0.06) !important;
+  filter: none !important;
+}
+
+.btn-primary {
+  background: var(--ui-primary-clean) !important;
+  border-color: var(--ui-primary-clean) !important;
+}
+
+.text-muted,
+.small.text-muted,
+.form-text {
+  color: var(--ui-muted-clean) !important;
+}
+
+/* Modal render stability: prevent half-drawn states */
+.modal {
+  z-index: 20000 !important;
+}
+
+.modal-backdrop {
+  z-index: 19990 !important;
+}
+
+.modal.fade .modal-dialog {
+  transform: translateY(8px) !important;
+  opacity: 0 !important;
+  transition: transform 0.18s ease, opacity 0.18s ease !important;
+}
+
+.modal.fade.show .modal-dialog,
+.modal.fade.showing .modal-dialog {
+  transform: translateY(0) !important;
+  opacity: 1 !important;
+}
+
+.modal.fade.modal-closing .modal-dialog {
+  transform: translateY(6px) !important;
+  opacity: 0 !important;
+}
+
+.modal-content {
+  opacity: 1 !important;
+  transform: none !important;
+  max-width: 100%;
+}
+
+.modal-header,
+.modal-body,
+.modal-footer {
+  background: var(--ui-surface-clean) !important;
+}

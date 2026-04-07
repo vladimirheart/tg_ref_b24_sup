@@ -185,24 +185,20 @@
 
     <style id="modal-animations-style">
         .modal.fade .modal-dialog {
-            --modal-scale-hidden: 0.92;
-            --modal-scale-visible: 1;
-            --modal-scale-closing: 0.9;
-            --modal-scale: var(--modal-scale-hidden);
-            transform: var(--modal-transform, scale(var(--modal-scale)));
+            transform: translateY(8px);
             opacity: 0;
             transform-origin: center;
-            transition: transform 0.25s ease, opacity 0.25s ease;
+            transition: transform 0.18s ease, opacity 0.18s ease;
         }
 
         .modal.fade.show .modal-dialog,
         .modal.fade.showing .modal-dialog {
-            --modal-scale: var(--modal-scale-visible);
+            transform: translateY(0);
             opacity: 1;
         }
 
         .modal.fade.modal-closing .modal-dialog {
-            --modal-scale: var(--modal-scale-closing);
+            transform: translateY(6px);
             opacity: 0;
         }
 
