@@ -15,3 +15,164 @@
 2026-04-07 08:41:56.983+03:00 WARN  [main] o.s.aop.framework.CglibAopProxy - Unable to proxy interface-implementing method [public final org.telegram.telegrambots.bots.DefaultBotOptions org.telegram.telegrambots.bots.DefaultAbsSender.getOptions()] because it is marked as final, consider using interface-based JDK proxies instead.
 2026-04-07 08:41:58.099+03:00 INFO  [main] c.e.s.t.TelegramLongPollingLifecycle - Telegram long polling started. username=tst_int_SV_bot
 2026-04-07 08:41:58.144+03:00 INFO  [main] c.e.s.t.TelegramBotApplication - Started TelegramBotApplication in 13.887 seconds (process running for 14.853)
+2026-04-07 09:00:01.500+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
+2026-04-07 09:00:01.644+03:00 INFO  [main] c.e.s.t.TelegramBotApplication - Starting TelegramBotApplication using Java 17.0.17 with PID 9160 (C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\java-bot\bot-telegram\target\classes started by SinicinVV in C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\java-bot\bot-telegram)
+2026-04-07 09:00:01.646+03:00 INFO  [main] c.e.s.t.TelegramBotApplication - The following 1 profile is active: "default"
+2026-04-07 09:00:02.962+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-04-07 09:00:03.242+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 255 ms. Found 30 JPA repository interfaces.
+2026-04-07 09:00:04.467+03:00 INFO  [main] o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-04-07 09:00:04.608+03:00 INFO  [main] org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
+2026-04-07 09:00:04.683+03:00 INFO  [main] o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
+2026-04-07 09:00:05.349+03:00 INFO  [main] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-04-07 09:00:08.934+03:00 INFO  [main] o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-04-07 09:00:08.945+03:00 INFO  [main] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-04-07 09:00:10.868+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Initializing Telegram bot configuration check
+2026-04-07 09:00:10.880+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Telegram bot configuration: username='tst_int_SV_bot' token=8391…kzYU (46) channelId=-4961108450
+2026-04-07 09:00:11.904+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Telegram bot connected successfully: id=8391583658 username=tst_int_SV_bot
+2026-04-07 09:00:11.907+03:00 WARN  [main] o.s.aop.framework.CglibAopProxy - Unable to proxy interface-implementing method [public final org.telegram.telegrambots.bots.DefaultBotOptions org.telegram.telegrambots.bots.DefaultAbsSender.getOptions()] because it is marked as final, consider using interface-based JDK proxies instead.
+2026-04-07 09:00:13.726+03:00 INFO  [main] c.e.s.t.TelegramLongPollingLifecycle - Telegram long polling started. username=tst_int_SV_bot
+2026-04-07 09:00:13.774+03:00 INFO  [main] c.e.s.t.TelegramBotApplication - Started TelegramBotApplication in 13.591 seconds (process running for 14.731)
+2026-04-07 09:00:14.390+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Received Telegram update 450028494 (message=true, callbackQuery=false, editedMessage=false, channelPost=false)
+2026-04-07 09:00:14.391+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Incoming update 450028494 chat=380742186 user=380742186 text=спасибо. попробую attachments=none
+2026-04-07 09:00:14.951+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Active ticket message received: ticketId=a000ae24-cd46-4505-9373-3400d8c5b8aa userId=380742186 username=Vladimir_SV messageType=text telegramMessageId=3857 attachment=null
+2026-04-07 09:00:15.056+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Stored client message in history: ticketId=a000ae24-cd46-4505-9373-3400d8c5b8aa userId=380742186 messageType=text attachment=null
+2026-04-07 09:00:15.176+03:00 WARN  [tst_int_SV_bot Telegram Executor] o.h.e.jdbc.spi.SqlExceptionHelper - SQL Error: 5, SQLState: null
+2026-04-07 09:00:15.176+03:00 ERROR [tst_int_SV_bot Telegram Executor] o.h.e.jdbc.spi.SqlExceptionHelper - [SQLITE_BUSY_SNAPSHOT] Another database connection has already written to the database (database is locked)
+2026-04-07 09:00:15.198+03:00 ERROR [tst_int_SV_bot Telegram Executor] o.t.t.u.DefaultBotSession - could not execute statement [[SQLITE_BUSY_SNAPSHOT] Another database connection has already written to the database (database is locked)] [update ticket_active set last_seen=?,user_identity=? where ticket_id=?]; SQL [update ticket_active set last_seen=?,user_identity=? where ticket_id=?]
+org.springframework.dao.CannotAcquireLockException: could not execute statement [[SQLITE_BUSY_SNAPSHOT] Another database connection has already written to the database (database is locked)] [update ticket_active set last_seen=?,user_identity=? where ticket_id=?]; SQL [update ticket_active set last_seen=?,user_identity=? where ticket_id=?]
+	at org.springframework.orm.jpa.vendor.HibernateJpaDialect.convertHibernateAccessException(HibernateJpaDialect.java:283)
+	at org.springframework.orm.jpa.vendor.HibernateJpaDialect.translateExceptionIfPossible(HibernateJpaDialect.java:244)
+	at org.springframework.orm.jpa.JpaTransactionManager.doCommit(JpaTransactionManager.java:566)
+	at org.springframework.transaction.support.AbstractPlatformTransactionManager.processCommit(AbstractPlatformTransactionManager.java:794)
+	at org.springframework.transaction.support.AbstractPlatformTransactionManager.commit(AbstractPlatformTransactionManager.java:757)
+	at org.springframework.transaction.interceptor.TransactionAspectSupport.commitTransactionAfterReturning(TransactionAspectSupport.java:676)
+	at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:426)
+	at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:119)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:768)
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:720)
+	at com.example.supportbot.service.TicketService$$SpringCGLIB$$0.registerActivity(<generated>)
+	at com.example.supportbot.telegram.SupportBot.handleActiveTicketMessage(SupportBot.java:825)
+	at com.example.supportbot.telegram.SupportBot.handleActiveTextMessage(SupportBot.java:775)
+	at com.example.supportbot.telegram.SupportBot.handleTextMessage(SupportBot.java:328)
+	at com.example.supportbot.telegram.SupportBot.onUpdateReceived(SupportBot.java:284)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at org.telegram.telegrambots.meta.generics.LongPollingBot.onUpdatesReceived(LongPollingBot.java:27)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:569)
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:354)
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:716)
+	at com.example.supportbot.telegram.SupportBot$$SpringCGLIB$$0.onUpdatesReceived(<generated>)
+	at org.telegram.telegrambots.updatesreceivers.DefaultBotSession$HandlerThread.run(DefaultBotSession.java:312)
+Caused by: org.hibernate.exception.LockAcquisitionException: could not execute statement [[SQLITE_BUSY_SNAPSHOT] Another database connection has already written to the database (database is locked)] [update ticket_active set last_seen=?,user_identity=? where ticket_id=?]
+	at org.hibernate.community.dialect.SQLiteDialect.lambda$buildSQLExceptionConversionDelegate$1(SQLiteDialect.java:477)
+	at org.hibernate.exception.internal.StandardSQLExceptionConverter.convert(StandardSQLExceptionConverter.java:58)
+	at org.hibernate.engine.jdbc.spi.SqlExceptionHelper.convert(SqlExceptionHelper.java:108)
+	at org.hibernate.engine.jdbc.internal.ResultSetReturnImpl.executeUpdate(ResultSetReturnImpl.java:197)
+	at org.hibernate.engine.jdbc.mutation.internal.AbstractMutationExecutor.performNonBatchedMutation(AbstractMutationExecutor.java:108)
+	at org.hibernate.engine.jdbc.mutation.internal.MutationExecutorSingleNonBatched.performNonBatchedOperations(MutationExecutorSingleNonBatched.java:40)
+	at org.hibernate.engine.jdbc.mutation.internal.AbstractMutationExecutor.execute(AbstractMutationExecutor.java:52)
+	at org.hibernate.persister.entity.mutation.UpdateCoordinatorStandard.doStaticUpdate(UpdateCoordinatorStandard.java:778)
+	at org.hibernate.persister.entity.mutation.UpdateCoordinatorStandard.performUpdate(UpdateCoordinatorStandard.java:324)
+	at org.hibernate.persister.entity.mutation.UpdateCoordinatorStandard.coordinateUpdate(UpdateCoordinatorStandard.java:242)
+	at org.hibernate.persister.entity.AbstractEntityPersister.update(AbstractEntityPersister.java:2810)
+	at org.hibernate.action.internal.EntityUpdateAction.execute(EntityUpdateAction.java:168)
+	at org.hibernate.engine.spi.ActionQueue.executeActions(ActionQueue.java:632)
+	at org.hibernate.engine.spi.ActionQueue.executeActions(ActionQueue.java:499)
+	at org.hibernate.event.internal.AbstractFlushingEventListener.performExecutions(AbstractFlushingEventListener.java:363)
+	at org.hibernate.event.internal.DefaultFlushEventListener.onFlush(DefaultFlushEventListener.java:41)
+	at org.hibernate.event.service.internal.EventListenerGroupImpl.fireEventOnEachListener(EventListenerGroupImpl.java:127)
+	at org.hibernate.internal.SessionImpl.doFlush(SessionImpl.java:1403)
+	at org.hibernate.internal.SessionImpl.managedFlush(SessionImpl.java:484)
+	at org.hibernate.internal.SessionImpl.flushBeforeTransactionCompletion(SessionImpl.java:2319)
+	at org.hibernate.internal.SessionImpl.beforeTransactionCompletion(SessionImpl.java:1976)
+	at org.hibernate.engine.jdbc.internal.JdbcCoordinatorImpl.beforeTransactionCompletion(JdbcCoordinatorImpl.java:439)
+	at org.hibernate.resource.transaction.backend.jdbc.internal.JdbcResourceLocalTransactionCoordinatorImpl.beforeCompletionCallback(JdbcResourceLocalTransactionCoordinatorImpl.java:169)
+	at org.hibernate.resource.transaction.backend.jdbc.internal.JdbcResourceLocalTransactionCoordinatorImpl$TransactionDriverControlImpl.commit(JdbcResourceLocalTransactionCoordinatorImpl.java:267)
+	at org.hibernate.engine.transaction.internal.TransactionImpl.commit(TransactionImpl.java:101)
+	at org.springframework.orm.jpa.JpaTransactionManager.doCommit(JpaTransactionManager.java:562)
+	... 23 common frames omitted
+Caused by: org.sqlite.SQLiteException: [SQLITE_BUSY_SNAPSHOT] Another database connection has already written to the database (database is locked)
+	at org.sqlite.core.DB.newSQLException(DB.java:1179)
+	at org.sqlite.core.DB.newSQLException(DB.java:1190)
+	at org.sqlite.core.DB.execute(DB.java:985)
+	at org.sqlite.core.DB.executeUpdate(DB.java:1054)
+	at org.sqlite.jdbc3.JDBC3PreparedStatement.lambda$executeLargeUpdate$2(JDBC3PreparedStatement.java:129)
+	at org.sqlite.jdbc3.JDBC3Statement.withConnectionTimeout(JDBC3Statement.java:454)
+	at org.sqlite.jdbc3.JDBC3PreparedStatement.executeLargeUpdate(JDBC3PreparedStatement.java:124)
+	at org.sqlite.jdbc3.JDBC3PreparedStatement.executeUpdate(JDBC3PreparedStatement.java:105)
+	at org.hibernate.engine.jdbc.internal.ResultSetReturnImpl.executeUpdate(ResultSetReturnImpl.java:194)
+	... 45 common frames omitted
+2026-04-07 09:00:48.092+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Received Telegram update 450028495 (message=true, callbackQuery=false, editedMessage=false, channelPost=false)
+2026-04-07 09:00:48.093+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Incoming update 450028495 chat=380742186 user=380742186 text=да, спасибо attachments=none
+2026-04-07 09:00:48.134+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Active ticket message received: ticketId=a000ae24-cd46-4505-9373-3400d8c5b8aa userId=380742186 username=Vladimir_SV messageType=text telegramMessageId=3859 attachment=null
+2026-04-07 09:00:48.153+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Stored client message in history: ticketId=a000ae24-cd46-4505-9373-3400d8c5b8aa userId=380742186 messageType=text attachment=null
+2026-04-07 09:01:24.929+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Received Telegram update 450028496 (message=true, callbackQuery=false, editedMessage=false, channelPost=false)
+2026-04-07 09:01:24.929+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Incoming update 450028496 chat=380742186 user=380742186 text=нет attachments=none
+2026-04-07 09:01:24.964+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Active ticket message received: ticketId=a000ae24-cd46-4505-9373-3400d8c5b8aa userId=380742186 username=Vladimir_SV messageType=text telegramMessageId=3862 attachment=null
+2026-04-07 09:01:24.982+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Stored client message in history: ticketId=a000ae24-cd46-4505-9373-3400d8c5b8aa userId=380742186 messageType=text attachment=null
+2026-04-07 09:02:00.140+03:00 INFO  [scheduling-1] c.e.supportbot.telegram.SupportBot - Sending direct Telegram message to chat 380742186: Пожалуйста, оцените качество ответа от 1 до 5.
+2026-04-07 09:03:23.684+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Received Telegram update 450028497 (message=true, callbackQuery=false, editedMessage=false, channelPost=false)
+2026-04-07 09:03:23.685+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Incoming update 450028497 chat=380742186 user=380742186 text=/start attachments=none
+2026-04-07 09:03:23.699+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Received /start from user 380742186 in update 450028497
+2026-04-07 09:03:23.714+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Starting conversation for user 380742186 chat 380742186 with 5 questions
+2026-04-07 09:03:23.729+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Conversation initialized for user 380742186 - sending first prompt
+2026-04-07 09:03:23.730+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Prompting reuse decision for user 380742186
+2026-04-07 09:03:27.524+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Received Telegram update 450028498 (message=true, callbackQuery=false, editedMessage=false, channelPost=false)
+2026-04-07 09:03:27.525+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Incoming update 450028498 chat=380742186 user=380742186 text=да attachments=none
+2026-04-07 09:03:27.533+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Received conversation answer from user 380742186 in update 450028498
+2026-04-07 09:03:27.533+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Prompting question problem for user 380742186
+2026-04-07 09:03:52.180+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Received Telegram update 450028499 (message=true, callbackQuery=false, editedMessage=false, channelPost=false)
+2026-04-07 09:03:52.181+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Incoming update 450028499 chat=380742186 user=380742186 text=пишет что лицензия занята attachments=none
+2026-04-07 09:03:52.193+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Received conversation answer from user 380742186 in update 450028499
+2026-04-07 09:03:52.195+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Recorded answer for user 380742186 at step 5
+2026-04-07 09:03:52.239+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Created ticket 9e989f70-e0a4-4be1-9573-df9612687f59 for user 380742186 with 0 attachments
+2026-04-07 09:04:34.840+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Received Telegram update 450028500 (message=true, callbackQuery=false, editedMessage=false, channelPost=false)
+2026-04-07 09:04:34.841+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Incoming update 450028500 chat=380742186 user=380742186 text=точно! спасибо attachments=none
+2026-04-07 09:04:34.868+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Active ticket message received: ticketId=9e989f70-e0a4-4be1-9573-df9612687f59 userId=380742186 username=Vladimir_SV messageType=text telegramMessageId=3873 attachment=null
+2026-04-07 09:04:34.883+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Stored client message in history: ticketId=9e989f70-e0a4-4be1-9573-df9612687f59 userId=380742186 messageType=text attachment=null
+2026-04-07 09:04:51.673+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Received Telegram update 450028501 (message=true, callbackQuery=false, editedMessage=false, channelPost=false)
+2026-04-07 09:04:51.673+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Incoming update 450028501 chat=380742186 user=380742186 text=5 attachments=none
+2026-04-07 09:04:51.696+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Processing feedback rating 5 from user 380742186
+2026-04-07 09:04:51.909+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Handled rating feedback from user 380742186 in update 450028501
+2026-04-07 09:06:00.019+03:00 INFO  [scheduling-1] c.e.supportbot.telegram.SupportBot - Sending direct Telegram message to chat 380742186: Пожалуйста, оцените качество ответа от 1 до 5.
+2026-04-07 09:06:09.860+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Received Telegram update 450028502 (message=true, callbackQuery=false, editedMessage=false, channelPost=false)
+2026-04-07 09:06:09.861+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Incoming update 450028502 chat=380742186 user=380742186 text=5 attachments=none
+2026-04-07 09:06:09.886+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Processing feedback rating 5 from user 380742186
+2026-04-07 09:06:10.098+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Handled rating feedback from user 380742186 in update 450028502
+2026-04-07 09:31:10.791+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
+2026-04-07 09:31:10.958+03:00 INFO  [main] c.e.s.t.TelegramBotApplication - Starting TelegramBotApplication using Java 17.0.17 with PID 8368 (C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\java-bot\bot-telegram\target\classes started by SinicinVV in C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\java-bot\bot-telegram)
+2026-04-07 09:31:10.960+03:00 INFO  [main] c.e.s.t.TelegramBotApplication - The following 1 profile is active: "default"
+2026-04-07 09:31:12.221+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-04-07 09:31:12.632+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 385 ms. Found 30 JPA repository interfaces.
+2026-04-07 09:31:13.711+03:00 INFO  [main] o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-04-07 09:31:13.841+03:00 INFO  [main] org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
+2026-04-07 09:31:13.917+03:00 INFO  [main] o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
+2026-04-07 09:31:14.615+03:00 INFO  [main] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-04-07 09:31:17.926+03:00 INFO  [main] o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-04-07 09:31:17.933+03:00 INFO  [main] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-04-07 09:31:19.589+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Initializing Telegram bot configuration check
+2026-04-07 09:31:19.594+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Telegram bot configuration: username='tst_int_SV_bot' token=8391…kzYU (46) channelId=-4961108450
+2026-04-07 09:31:20.320+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Telegram bot connected successfully: id=8391583658 username=tst_int_SV_bot
+2026-04-07 09:31:20.322+03:00 WARN  [main] o.s.aop.framework.CglibAopProxy - Unable to proxy interface-implementing method [public final org.telegram.telegrambots.bots.DefaultBotOptions org.telegram.telegrambots.bots.DefaultAbsSender.getOptions()] because it is marked as final, consider using interface-based JDK proxies instead.
+2026-04-07 09:31:21.424+03:00 INFO  [main] c.e.s.t.TelegramLongPollingLifecycle - Telegram long polling started. username=tst_int_SV_bot
+2026-04-07 09:31:21.468+03:00 INFO  [main] c.e.s.t.TelegramBotApplication - Started TelegramBotApplication in 12.061 seconds (process running for 13.117)
+2026-04-07 09:31:21.983+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Received Telegram update 450028503 (message=true, callbackQuery=false, editedMessage=false, channelPost=false)
+2026-04-07 09:31:21.983+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Incoming update 450028503 chat=380742186 user=380742186 text=авы attachments=none
+2026-04-07 09:31:29.183+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Received Telegram update 450028504 (message=true, callbackQuery=false, editedMessage=false, channelPost=false)
+2026-04-07 09:31:29.183+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Incoming update 450028504 chat=380742186 user=380742186 text=/start attachments=none
+2026-04-07 09:31:29.193+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Received /start from user 380742186 in update 450028504
+2026-04-07 09:31:29.288+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Starting conversation for user 380742186 chat 380742186 with 5 questions
+2026-04-07 09:31:29.306+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Conversation initialized for user 380742186 - sending first prompt
+2026-04-07 09:31:29.307+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Prompting reuse decision for user 380742186
+2026-04-07 09:31:32.243+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Received Telegram update 450028505 (message=true, callbackQuery=false, editedMessage=false, channelPost=false)
+2026-04-07 09:31:32.243+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Incoming update 450028505 chat=380742186 user=380742186 text=да attachments=none
+2026-04-07 09:31:32.252+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Received conversation answer from user 380742186 in update 450028505
+2026-04-07 09:31:32.253+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Prompting question problem for user 380742186
+2026-04-07 09:31:37.584+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Received Telegram update 450028506 (message=true, callbackQuery=false, editedMessage=false, channelPost=false)
+2026-04-07 09:31:37.584+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Incoming update 450028506 chat=380742186 user=380742186 text=не работает касса attachments=none
+2026-04-07 09:31:37.594+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Received conversation answer from user 380742186 in update 450028506
+2026-04-07 09:31:37.596+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Recorded answer for user 380742186 at step 5
+2026-04-07 09:31:37.728+03:00 INFO  [tst_int_SV_bot Telegram Executor] c.e.supportbot.telegram.SupportBot - Created ticket 9547fa8d-be49-41d2-bf74-d1b04f7bf7d2 for user 380742186 with 0 attachments
