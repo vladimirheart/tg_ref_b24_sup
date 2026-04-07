@@ -32,7 +32,7 @@ import java.util.regex.Pattern;
 public class DialogAiAssistantService {
     private static final Logger log = LoggerFactory.getLogger(DialogAiAssistantService.class);
     private static final Pattern TOKEN_SPLIT = Pattern.compile("[^\\p{IsAlphabetic}\\p{IsDigit}]+");
-    private static final Pattern ENTITY_HINT_PATTERN = Pattern.compile("(#?[a-zA-Z�-��-�]{2,}[\\-_]?[0-9]{2,}|\\+?[0-9][0-9\\-()\\s]{6,}|[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,})");
+    private static final Pattern ENTITY_HINT_PATTERN = Pattern.compile("(#?[a-zA-Zа-яА-Я]{2,}[\\-_]?[0-9]{2,}|\\+?[0-9][0-9\\-()\\s]{6,}|[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,})");
     private static final Set<String> STOP = Set.of("и","в","на","не","что","как","для","или","по","из","к","у","о","об","the","a","an","to","of","in","on","for","and","or","is","are","be");
     private static final double AUTO_REPLY_THRESHOLD_DEFAULT = 0.62d;
     private static final double SUGGEST_THRESHOLD_DEFAULT = 0.46d;
@@ -83,8 +83,8 @@ public class DialogAiAssistantService {
         }
 
         if (requiresHumanImmediately(m)) {
-            clearProcessing(t, "manual_requested", null, "escalate", "manual_requested", null);
-            notifyOperatorsEscalation(t, m, "������ �������� ���������.");
+            markProcessing(t, "manual_requested", null, null, "escalate", "manual_requested", null, resolveAgentMode());
+            notifyOperatorsEscalation(t, m, "Клиент запросил оператора.");
             recordAiEvent(t, "ai_agent_escalated", null, "escalate", "manual_requested", null, null, "Client explicitly requested operator", Map.of(
                     "message_preview", cut(m, 200)
             ));
@@ -97,8 +97,8 @@ public class DialogAiAssistantService {
         String sourceHits = encodeSourceHits(suggestions);
 
         if (suggestions.isEmpty()) {
-            clearProcessing(t, "no_match", "��� ����������� ����������.", "escalate", "no_match", sourceHits, mode);
-            notifyOperatorsEscalation(t, m, "����� �� ����� ����������� �����.");
+            markProcessing(t, "no_match", null, "Нет подходящих источников.", "escalate", "no_match", sourceHits, mode);
+            notifyOperatorsEscalation(t, m, "AI-агент не нашел подходящее решение.");
             recordAiEvent(t, "ai_agent_escalated", null, "escalate", "no_match", null, null, "No relevant sources", Map.of(
                     "source_hits", sourceHits
             ));
@@ -110,8 +110,8 @@ public class DialogAiAssistantService {
         double suggestThreshold = resolveSuggestThreshold();
 
         if (MODE_ESCALATE_ONLY.equals(mode)) {
-            clearProcessing(t, "escalated", "����� escalate_only", "escalate", "mode_escalate_only", sourceHits, mode);
-            notifyOperatorsEscalation(t, m, "������� ����� escalate_only.");
+            markProcessing(t, "escalated", top, "Режим escalate_only", "escalate", "mode_escalate_only", sourceHits, mode);
+            notifyOperatorsEscalation(t, m, "Активен режим escalate_only.");
             recordAiEvent(t, "ai_agent_escalated", null, "escalate", "mode_escalate_only", top.source, top.score, "Escalate-only mode", Map.of(
                     "source_hits", sourceHits
             ));
@@ -119,8 +119,8 @@ public class DialogAiAssistantService {
         }
 
         if (top.score < suggestThreshold) {
-            clearProcessing(t, "low_confidence", "������ ����������� (" + formatScore(top.score) + ").", "escalate", "below_suggest_threshold", sourceHits, mode);
-            notifyOperatorsEscalation(t, m, "������ ����������� ������: " + formatScore(top.score));
+            markProcessing(t, "low_confidence", top, "Низкая уверенность (" + formatScore(top.score) + ").", "escalate", "below_suggest_threshold", sourceHits, mode);
+            notifyOperatorsEscalation(t, m, "Низкая уверенность ответа: " + formatScore(top.score));
             recordAiEvent(t, "ai_agent_escalated", null, "escalate", "below_suggest_threshold", top.source, top.score, "Low confidence", Map.of(
                     "source_hits", sourceHits,
                     "suggest_threshold", suggestThreshold
@@ -151,8 +151,8 @@ public class DialogAiAssistantService {
 
         AutoReplyGuard guard = evaluateAutoReplyGuard(t);
         if (!guard.allowed()) {
-            clearProcessing(t, "auto_reply_suppressed", guard.reason(), "suppressed", "loop_guard", sourceHits, mode);
-            notifyOperatorsEscalation(t, m, "��������� �������� ������� �� ������: " + guard.reason());
+            markProcessing(t, "auto_reply_suppressed", top, guard.reason(), "suppressed", "loop_guard", sourceHits, mode);
+            notifyOperatorsEscalation(t, m, "Автоответ временно подавлен: " + guard.reason());
             recordAiEvent(t, "ai_agent_decision_made", null, "suppressed", "loop_guard", top.source, top.score, guard.reason(), Map.of(
                     "source_hits", sourceHits
             ));
@@ -162,8 +162,8 @@ public class DialogAiAssistantService {
         String reply = buildAutoReply(top);
         DialogReplyService.DialogReplyResult result = dialogReplyService.sendReply(t, reply, null, null, "ai_agent");
         if (!result.success()) {
-            clearProcessing(t, "send_failed", result.error(), "escalate", "send_failed", sourceHits, mode);
-            notifyOperatorsEscalation(t, m, "������ �������� ����������: " + result.error());
+            markProcessing(t, "send_failed", top, result.error(), "escalate", "send_failed", sourceHits, mode);
+            notifyOperatorsEscalation(t, m, "Ошибка отправки ответа: " + result.error());
             recordAiEvent(t, "ai_agent_escalated", null, "escalate", "send_failed", top.source, top.score, result.error(), Map.of(
                     "source_hits", sourceHits
             ));
@@ -583,7 +583,7 @@ public class DialogAiAssistantService {
             double boosted = Math.max(0d, Math.min(1d, s + 0.12d));
             out.add(new AiSuggestion(
                     "applicant_history",
-                    StringUtils.hasText(prevTicket) ? "������� ��������� #" + prevTicket : "������� ���������",
+                    StringUtils.hasText(prevTicket) ? "История заявителя #" + prevTicket : "История заявителя",
                     cut(msg, 260),
                     boosted,
                     null
@@ -696,10 +696,10 @@ public class DialogAiAssistantService {
         Map<String, Object> runbook = new LinkedHashMap<>();
         runbook.put("title", "AI Agent Incident Runbook");
         runbook.put("items", List.of(
-                "��������� �������� escalation_rate � correction_rate.",
-                "���� escalation_rate > 35%, ����������� ai_agent_mode � assist_only.",
-                "���� correction_rate > 25%, �������� ������� ������� � �������� ������ �������.",
-                "��� �������� ������� ��������� AI ��� ���������� �������� ����� ������� ��������."
+                "Проверить значения escalation_rate и correction_rate.",
+                "Если escalation_rate > 35%, переключить ai_agent_mode в assist_only.",
+                "Если correction_rate > 25%, проверить базу знаний и корректность эталонных ответов.",
+                "При массовых ошибках отключить AI для канала и назначить ручной разбор."
         ));
 
         Map<String, Object> payload = new LinkedHashMap<>();
@@ -824,12 +824,12 @@ public class DialogAiAssistantService {
     private String buildAutoReply(AiSuggestion s) {
         String body = cleanTextForRetrieval(s != null ? s.snippet : null);
         if (!StringUtils.hasText(body)) {
-            body = "�� ������� ������� ������� � ���� ������.";
+            body = "Не удалось подготовить ответ по этому запросу.";
         }
         List<String> steps = splitIntoSteps(body, 3);
         StringBuilder reply = new StringBuilder();
-        reply.append("�������: ").append(cut(firstSentence(body), 220)).append("\n\n");
-        reply.append("��� �������:\n");
+        reply.append("Ответ: ").append(cut(firstSentence(body), 220)).append("\n\n");
+        reply.append("Что сделать:\n");
         if (steps.isEmpty()) {
             reply.append("1. ").append(cut(body, 280)).append("\n");
         } else {
@@ -837,31 +837,31 @@ public class DialogAiAssistantService {
                 reply.append(i + 1).append(". ").append(steps.get(i)).append("\n");
             }
         }
-        reply.append("\n���� �� �������, �������� ��������� � ��������� �����������.");
+        reply.append("\nЕсли это не помогло, подключим оператора и уточним детали.");
         return reply.toString();
     }
     private String buildOperatorReplySuggestion(AiSuggestion s) {
         String sourceLabel = switch (s.source) {
-            case "memory" -> "����������� ��������";
-            case "knowledge" -> "���� ������";
-            case "tasks" -> "������� �����";
-            case "history" -> "������� ��������";
-            case "applicant_history" -> "������� ����� ���������";
-            default -> "���������� ������";
+            case "memory" -> "память решений";
+            case "knowledge" -> "база знаний";
+            case "tasks" -> "похожие задачи";
+            case "history" -> "история диалогов";
+            case "applicant_history" -> "история заявителя";
+            default -> "рабочие источники";
         };
         String prepared = buildAutoReply(s);
-        return "�� " + sourceLabel + " ������������ �����:\n\n" + prepared;
+        return "По источнику \"" + sourceLabel + "\" предлагается:\n\n" + prepared;
     }
     private String buildSuggestionExplain(AiSuggestion s) {
         String sourceExplain = switch (String.valueOf(s.source).toLowerCase(Locale.ROOT)) {
-            case "memory" -> "������� �� �������������� ������������ �������.";
-            case "knowledge" -> "������� �� ������ ���� ������.";
-            case "tasks" -> "������� �� ������� �����.";
-            case "history" -> "������� �� ������� ��������.";
-            case "applicant_history" -> "������� �� ������� �������� ����� ���������.";
-            default -> "������� �� ���������� ����������.";
+            case "memory" -> "Основано на ранее подтвержденном решении.";
+            case "knowledge" -> "Основано на статье из базы знаний.";
+            case "tasks" -> "Основано на похожих задачах.";
+            case "history" -> "Основано на похожих диалогах.";
+            case "applicant_history" -> "Основано на предыдущих обращениях заявителя.";
+            default -> "Основано на релевантных источниках.";
         };
-        return sourceExplain + " ������ �������������: " + formatScore(s.score) + ".";
+        return sourceExplain + " Уровень уверенности: " + formatScore(s.score) + ".";
     }
     private void notifyOperatorsEscalation(String ticketId, String msg, String reason) { String t = "AI-агент эскалировал обращение " + ticketId + ". " + reason; if (StringUtils.hasText(msg)) t += " Вопрос клиента: " + cut(msg, 140); notificationService.notifyAllOperators(t, "/dialogs?ticketId=" + ticketId, null); }
     private boolean isAgentEnabled() { try { Object d = sharedConfigService.loadSettings().get("dialog_config"); if (d instanceof Map<?,?> m) { Object e = m.get("ai_agent_enabled"); if (e instanceof Boolean b) return b; String n = String.valueOf(e).trim().toLowerCase(Locale.ROOT); return !"false".equals(n) && !"0".equals(n) && !"off".equals(n); } } catch (Exception ex) { log.debug("ai_agent_enabled read failed: {}", ex.getMessage()); } return true; }
@@ -1010,23 +1010,23 @@ public class DialogAiAssistantService {
                                                             double rejectionRate) {
         List<Map<String, Object>> alerts = new ArrayList<>();
         if (inboundMessages == 0) {
-            alerts.add(alert("info", "��� �������� ��������� � ������������� ����.", 0d, 1d));
+            alerts.add(alert("info", "Нет входящих сообщений в выбранном окне.", 0d, 1d));
             return alerts;
         }
         if (escalations >= 5 && escalationRate > 0.35d) {
-            alerts.add(alert("warning", "������� ���������: ����� ������� ����� �������� ���������.", escalationRate, 0.35d));
+            alerts.add(alert("warning", "Высокий escalation rate: чаще подключайте операторов и проверяйте источники.", escalationRate, 0.35d));
         }
         if (operatorCorrections >= 3 && correctionRate > 0.25d) {
-            alerts.add(alert("warning", "���� ���������: ������ ������ ����� ������� ������ ���������.", correctionRate, 0.25d));
+            alerts.add(alert("warning", "Высокий correction rate: AI-решения часто требуют правок оператора.", correctionRate, 0.25d));
         }
         if (rejectedSuggestions >= 5 && rejectionRate > 0.40d) {
-            alerts.add(alert("warning", "������� ������� ���������� ��������� �����������.", rejectionRate, 0.40d));
+            alerts.add(alert("warning", "Операторы часто отклоняют подсказки AI.", rejectionRate, 0.40d));
         }
         if ((autoReplies + suggestOnly) >= 10 && autoReplyRate < 0.05d) {
-            alerts.add(alert("info", "������ auto-reply rate: ��������� ������ � �������� retrieval.", autoReplyRate, 0.05d));
+            alerts.add(alert("info", "Низкий auto-reply rate: проверьте пороги и качество retrieval.", autoReplyRate, 0.05d));
         }
         if (alerts.isEmpty()) {
-            alerts.add(alert("ok", "��������� ���������� � �������� AI-������ �� ����������.", 0d, 0d));
+            alerts.add(alert("ok", "Показатели стабильны, критичных отклонений не обнаружено.", 0d, 0d));
         }
         return alerts;
     }
