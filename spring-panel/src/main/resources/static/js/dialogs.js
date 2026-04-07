@@ -3,6 +3,43 @@
   const table = document.getElementById('dialogsTable');
   if (!table) return;
 
+  const DEBUG_DIALOGS =
+    (new URLSearchParams(window.location.search || '')).get('debugDialogs') === '1'
+    || String(localStorage.getItem('debugDialogs') || '').trim() === '1';
+
+  function debugLog(message, payload) {
+    if (!DEBUG_DIALOGS) return;
+    if (payload === undefined) {
+      console.log(`[dialogs-debug] ${message}`);
+      return;
+    }
+    console.log(`[dialogs-debug] ${message}`, payload);
+  }
+
+  if (DEBUG_DIALOGS) {
+    window.__dialogsDebugEnabled = true;
+    window.addEventListener('error', (event) => {
+      debugLog('window.error', {
+        message: event?.message,
+        filename: event?.filename,
+        line: event?.lineno,
+        col: event?.colno,
+      });
+    });
+    window.addEventListener('unhandledrejection', (event) => {
+      const reason = event?.reason;
+      debugLog('window.unhandledrejection', {
+        message: reason?.message || String(reason || ''),
+        stack: reason?.stack || null,
+      });
+    });
+    debugLog('bootstrap.start', {
+      href: window.location.href,
+      hasDetailsModal: Boolean(document.getElementById('dialogDetailsModal')),
+      hasDialogsTable: Boolean(table),
+    });
+  }
+
   const quickSearch = document.getElementById('dialogQuickSearch');
   const aiReviewQueueSection = document.getElementById('aiReviewQueueSection');
   const aiReviewQueueRefresh = document.getElementById('aiReviewQueueRefresh');
@@ -249,8 +286,15 @@
 
   function showModalSafe(modalEl, modalInstance) {
     if (!modalEl) return;
+    debugLog('showModalSafe.called', {
+      modalId: modalEl.id || null,
+      viaBootstrap: Boolean(modalInstance),
+      classList: modalEl.className,
+      styleDisplay: modalEl.style?.display || '',
+    });
     if (modalInstance) {
       modalInstance.show();
+      debugLog('showModalSafe.bootstrap.show()', { modalId: modalEl.id || null });
       return;
     }
     modalEl.style.display = 'block';
@@ -260,6 +304,12 @@
     document.body.classList.add('modal-open');
     ensureFallbackModalBackdrop();
     modalEl.dispatchEvent(new Event('shown.bs.modal'));
+    debugLog('showModalSafe.fallback.show()', {
+      modalId: modalEl.id || null,
+      classList: modalEl.className,
+      styleDisplay: modalEl.style?.display || '',
+      bodyModalOpen: document.body.classList.contains('modal-open'),
+    });
   }
 
   function hideModalSafe(modalEl, modalInstance) {
@@ -5326,7 +5376,13 @@
 
   function openDialogEntry(ticketId, row) {
     if (!ticketId) return;
+    debugLog('openDialogEntry.called', {
+      ticketId,
+      rowFound: Boolean(row),
+      detailsModalExists: Boolean(detailsModalEl),
+    });
     if (!confirmWorkspaceTicketSwitch(ticketId)) {
+      debugLog('openDialogEntry.aborted.confirmWorkspaceTicketSwitch=false', { ticketId });
       return;
     }
     setWorkspaceReadonlyMode(false);
@@ -5335,12 +5391,18 @@
     const currentPath = `${window.location.pathname || ''}${window.location.search || ''}`;
     if (currentPath !== nextUrl) {
       window.history.pushState({ ticketId: String(ticketId || '').trim() }, '', nextUrl);
+      debugLog('openDialogEntry.pushState', { currentPath, nextUrl });
     }
     if (!detailsModalEl) {
+      debugLog('openDialogEntry.redirect.noDetailsModal', { ticketId });
       window.location.href = `/dialogs/${encodeURIComponent(ticketId)}`;
       return;
     }
     Promise.resolve(openDialogDetails(ticketId, row)).catch((error) => {
+      debugLog('openDialogEntry.openDialogDetails.catch', {
+        ticketId,
+        message: error?.message || String(error || ''),
+      });
       console.error('Failed to open dialog details modal', error);
       window.location.href = `/dialogs/${encodeURIComponent(ticketId)}`;
     });
@@ -6758,7 +6820,18 @@
   }
 
   async function openDialogDetails(ticketId, fallbackRow) {
-    if (!ticketId || !detailsModalEl) return;
+    if (!ticketId || !detailsModalEl) {
+      debugLog('openDialogDetails.skipped', {
+        ticketId,
+        hasDetailsModal: Boolean(detailsModalEl),
+      });
+      return;
+    }
+    debugLog('openDialogDetails.start', {
+      ticketId,
+      fallbackRowFound: Boolean(fallbackRow),
+      channelId: fallbackRow?.dataset?.channelId || null,
+    });
     activeDialogTicketId = ticketId;
     initMacroVariableCatalog(ticketId, true);
     setActiveDialogRow(fallbackRow || null, { ensureVisible: true });
@@ -6784,9 +6857,14 @@
 
     try {
       const url = withChannelParam(`/api/dialogs/${encodeURIComponent(ticketId)}`, activeDialogChannelId);
+      debugLog('openDialogDetails.fetch.start', { url });
       const resp = await fetch(url, {
         credentials: 'same-origin',
         cache: 'no-store',
+      });
+      debugLog('openDialogDetails.fetch.response', {
+        status: resp.status,
+        ok: resp.ok,
       });
       const data = await resp.json();
       if (!resp.ok) {
@@ -6957,7 +7035,15 @@
         updateRowStatus(activeDialogRow, statusRaw, statusLabel, statusKey, summary.unreadCount);
       }
       updateDialogUnreadCount(0);
+      debugLog('openDialogDetails.render.done', {
+        ticketId,
+        historyCount: Array.isArray(data?.history) ? data.history.length : null,
+      });
     } catch (error) {
+      debugLog('openDialogDetails.catch', {
+        ticketId,
+        message: error?.message || String(error || ''),
+      });
       if (detailsSummary) {
         detailsSummary.innerHTML = `<div class="text-danger">Не удалось загрузить детали: ${error.message}</div>`;
       }
@@ -6965,6 +7051,11 @@
 
     showModalSafe(detailsModalEl, detailsModal);
     startHistoryPolling();
+    debugLog('openDialogDetails.finish', {
+      ticketId,
+      modalVisible: detailsModalEl.classList.contains('show'),
+      modalDisplay: detailsModalEl.style?.display || '',
+    });
   }
 
   table.addEventListener('click', (event) => {
@@ -6991,6 +7082,10 @@
       event.stopPropagation();
       const ticketId = openBtn.dataset.ticketId;
       const row = openBtn.closest('tr');
+      debugLog('table.click.openBtn', {
+        ticketId: ticketId || null,
+        href: openBtn.getAttribute('href'),
+      });
       setActiveDialogRow(row, { ensureVisible: true });
       openDialogEntry(ticketId, row);
       return;
@@ -8474,6 +8569,7 @@
   window.openDialogDetailsByTicketId = (ticketId) => {
     const normalizedTicketId = String(ticketId || '').trim();
     if (!normalizedTicketId) return;
+    debugLog('window.openDialogDetailsByTicketId.called', { ticketId: normalizedTicketId });
     const row = rowsList().find((item) => String(item.dataset.ticketId || '') === normalizedTicketId) || null;
     setActiveDialogRow(row, { ensureVisible: true });
     openDialogDetails(normalizedTicketId, row);
@@ -8487,6 +8583,7 @@
   }
 
   if (INITIAL_DIALOG_TICKET_ID) {
+    debugLog('initialTicket.autoload', { ticketId: INITIAL_DIALOG_TICKET_ID });
     const initialRow = rowsList().find((row) => String(row.dataset.ticketId || '') === INITIAL_DIALOG_TICKET_ID) || null;
     if (initialRow) {
       setActiveDialogRow(initialRow, { ensureVisible: true });
