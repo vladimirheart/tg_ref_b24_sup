@@ -229,7 +229,13 @@ public record DialogListItem(String ticketId,
     }
 
     private boolean isAutoProcessing() {
-        return Boolean.TRUE.equals(aiProcessing) && !isClosed();
+        if (isClosed()) {
+            return false;
+        }
+        if (Boolean.TRUE.equals(aiProcessing)) {
+            return true;
+        }
+        return StringUtils.hasText(responsible) && "ai_agent".equalsIgnoreCase(responsible.trim());
     }
 
     private boolean hasOperatorReply() {
