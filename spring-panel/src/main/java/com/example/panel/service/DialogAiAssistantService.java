@@ -44,6 +44,24 @@ public class DialogAiAssistantService {
     private static final String MODE_AUTO_REPLY = "auto_reply";
     private static final String MODE_ASSIST_ONLY = "assist_only";
     private static final String MODE_ESCALATE_ONLY = "escalate_only";
+    private static final Set<String> JUNK_MEDIA_TYPES = Set.of(
+            "animation",
+            "sticker",
+            "emoji",
+            "reaction",
+            "gif",
+            "system_notification"
+    );
+    private static final Set<String> ACTIONABLE_MEDIA_TYPES = Set.of(
+            "photo",
+            "image",
+            "video",
+            "video_note",
+            "voice",
+            "audio",
+            "document",
+            "file"
+    );
 
     private final JdbcTemplate jdbcTemplate;
     private final DialogReplyService dialogReplyService;
@@ -60,15 +78,19 @@ public class DialogAiAssistantService {
     }
 
     public void processIncomingClientMessage(String ticketId, String message) {
+        processIncomingClientMessage(ticketId, message, null, null);
+    }
+
+    public void processIncomingClientMessage(String ticketId, String message, String messageType, String attachment) {
         String t = trim(ticketId);
         if (t == null) return;
-        String m = trim(message);
-        if (m == null) {
-            m = loadLastClientMessage(t);
+        IncomingClientPayload payload = normalizeIncomingPayload(t, message, messageType, attachment);
+        if (payload == null) {
+            clearProcessing(t, "ignored_media_noise", null, "ignored", "junk_or_noise_media", null);
+            recordAiEvent(t, "ai_agent_message_ignored", null, "ignored", "junk_or_noise_media", null, null, "Ignored non-actionable media/noise message", null);
+            return;
         }
-        if (m == null) {
-            m = "[non_text_message]";
-        }
+        String m = payload.message();
 
         DialogAiControl control = loadDialogControl(t);
         if (control.aiDisabled()) {
@@ -216,10 +238,11 @@ public class DialogAiAssistantService {
     public List<Map<String, Object>> loadOperatorSuggestions(String ticketId, Integer limit) {
         String t = trim(ticketId);
         if (t == null) return List.of();
-        String lastClient = loadLastClientMessage(t);
+        IncomingClientPayload payload = loadLastClientPayload(t);
+        String lastClient = payload != null ? payload.message() : null;
         if (!StringUtils.hasText(lastClient)) return List.of();
         int safeLimit = Math.max(1, Math.min(limit != null ? limit : DEFAULT_SUGGESTION_LIMIT, 8));
-        List<Map<String, Object>> payload = new ArrayList<>();
+        List<Map<String, Object>> result = new ArrayList<>();
         for (AiSuggestion s : findSuggestions(t, lastClient, safeLimit)) {
             Map<String, Object> item = new LinkedHashMap<>();
             item.put("source", s.source);
@@ -229,9 +252,9 @@ public class DialogAiAssistantService {
             item.put("snippet", s.snippet);
             item.put("reply", buildOperatorReplySuggestion(s));
             item.put("explain", buildSuggestionExplain(s));
-            payload.add(item);
+            result.add(item);
         }
-        return payload;
+        return result;
     }
 
     public Map<String, Object> loadDialogControlState(String ticketId) {
@@ -633,6 +656,81 @@ public class DialogAiAssistantService {
         }
     }
 
+    public List<Map<String, Object>> loadSolutionMemory(Integer limit, String query) {
+        int safeLimit = Math.max(1, Math.min(limit != null ? limit : 100, 500));
+        String q = trim(query);
+        try {
+            if (q == null) {
+                return jdbcTemplate.queryForList(
+                        """
+                        SELECT query_key, query_text, solution_text, pending_solution_text, review_required,
+                               times_used, times_confirmed, times_corrected, last_operator, last_ticket_id,
+                               created_at, updated_at
+                          FROM ai_agent_solution_memory
+                         ORDER BY COALESCE(updated_at, created_at) DESC
+                         LIMIT ?
+                        """,
+                        safeLimit
+                );
+            }
+            String like = "%" + q.toLowerCase(Locale.ROOT) + "%";
+            return jdbcTemplate.queryForList(
+                    """
+                    SELECT query_key, query_text, solution_text, pending_solution_text, review_required,
+                           times_used, times_confirmed, times_corrected, last_operator, last_ticket_id,
+                           created_at, updated_at
+                      FROM ai_agent_solution_memory
+                     WHERE lower(COALESCE(query_text,'')) LIKE ?
+                        OR lower(COALESCE(solution_text,'')) LIKE ?
+                     ORDER BY COALESCE(updated_at, created_at) DESC
+                     LIMIT ?
+                    """,
+                    like,
+                    like,
+                    safeLimit
+            );
+        } catch (Exception ex) {
+            return List.of();
+        }
+    }
+
+    public boolean updateSolutionMemory(String queryKey,
+                                        String queryText,
+                                        String solutionText,
+                                        Boolean reviewRequired,
+                                        String operator) {
+        String key = trim(queryKey);
+        String q = trim(queryText);
+        String s = trim(solutionText);
+        if (key == null || q == null || s == null) {
+            return false;
+        }
+        boolean requireReview = reviewRequired != null && reviewRequired;
+        try {
+            int updated = jdbcTemplate.update(
+                    """
+                    UPDATE ai_agent_solution_memory
+                       SET query_text = ?,
+                           solution_text = ?,
+                           review_required = ?,
+                           pending_solution_text = CASE WHEN ? = 1 THEN pending_solution_text ELSE NULL END,
+                           last_operator = ?,
+                           updated_at = CURRENT_TIMESTAMP
+                     WHERE query_key = ?
+                    """,
+                    cut(q, 600),
+                    cut(s, 2000),
+                    requireReview ? 1 : 0,
+                    requireReview ? 1 : 0,
+                    trim(operator),
+                    key
+            );
+            return updated > 0;
+        } catch (Exception ex) {
+            return false;
+        }
+    }
+
     public Map<String, Object> loadMonitoringSummary(Integer days) {
         int safeDays = Math.max(1, Math.min(days != null ? days : 7, 90));
         String sinceExpr = "-" + safeDays + " days";
@@ -826,6 +924,106 @@ public class DialogAiAssistantService {
             return null;
         }
     }
+    private IncomingClientPayload normalizeIncomingPayload(String ticketId, String message, String messageType, String attachment) {
+        IncomingClientPayload incoming = new IncomingClientPayload(trim(message), normalize(trim(messageType)), trim(attachment));
+        IncomingClientPayload payload = incoming;
+        if (payload.message() == null && payload.type() == null && payload.attachment() == null) {
+            payload = loadLastClientPayload(ticketId);
+        }
+        if (payload == null) {
+            return null;
+        }
+        if (isJunkMediaType(payload.type())) {
+            return null;
+        }
+        String text = trim(payload.message());
+        if (payload.attachment() != null && (isActionableMediaType(payload.type()) || text == null)) {
+            text = trim(buildMediaContext(payload.type(), payload.attachment(), text));
+        }
+        if (isNoiseClientMessage(text)) {
+            return null;
+        }
+        return new IncomingClientPayload(text, payload.type(), payload.attachment());
+    }
+
+    private IncomingClientPayload loadLastClientPayload(String ticketId) {
+        String t = trim(ticketId);
+        if (t == null) {
+            return null;
+        }
+        try {
+            return jdbcTemplate.query(
+                    """
+                    SELECT message, message_type, attachment
+                      FROM chat_history
+                     WHERE ticket_id = ?
+                       AND lower(COALESCE(sender, '')) NOT IN ('operator','support','admin','system','ai_agent')
+                     ORDER BY id DESC
+                     LIMIT 1
+                    """,
+                    rs -> rs.next()
+                            ? new IncomingClientPayload(
+                                    trim(rs.getString("message")),
+                                    normalize(trim(rs.getString("message_type"))),
+                                    trim(rs.getString("attachment")))
+                            : null,
+                    t
+            );
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
+    private boolean isJunkMediaType(String type) {
+        String normalized = normalize(type);
+        return normalized != null && JUNK_MEDIA_TYPES.contains(normalized);
+    }
+
+    private boolean isActionableMediaType(String type) {
+        String normalized = normalize(type);
+        return normalized != null && ACTIONABLE_MEDIA_TYPES.contains(normalized);
+    }
+
+    private boolean isNoiseClientMessage(String text) {
+        String normalized = trim(text);
+        if (normalized == null) {
+            return true;
+        }
+        if (normalized.length() <= 2 && !normalized.chars().anyMatch(Character::isLetterOrDigit)) {
+            return true;
+        }
+        boolean hasAlphaNum = normalized.chars().anyMatch(Character::isLetterOrDigit);
+        if (!hasAlphaNum) {
+            return true;
+        }
+        Set<String> tokens = tokenize(normalized);
+        Set<String> entities = extractEntityHints(normalized);
+        return tokens.isEmpty() && entities.isEmpty();
+    }
+
+    private String buildMediaContext(String messageType, String attachment, String caption) {
+        String type = trim(messageType);
+        String mediaType = type != null ? type : "media";
+        String fileName = fileNameFromAttachment(attachment);
+        String cap = trim(caption);
+        if (cap != null) {
+            return "client sent " + mediaType + " " + fileName + ". caption: " + cap;
+        }
+        return "client sent " + mediaType + " " + fileName;
+    }
+
+    private String fileNameFromAttachment(String attachment) {
+        String value = trim(attachment);
+        if (value == null) {
+            return "attachment";
+        }
+        String normalized = value.replace('\\', '/');
+        int idx = normalized.lastIndexOf('/');
+        String raw = idx >= 0 ? normalized.substring(idx + 1) : normalized;
+        String trimmed = trim(raw);
+        return trimmed != null ? trimmed : "attachment";
+    }
+
     private String loadLastClientMessage(String ticketId) { return jdbcTemplate.query("SELECT message FROM chat_history WHERE ticket_id=? AND lower(sender) NOT IN ('operator','support','admin','system','ai_agent') AND message IS NOT NULL AND trim(message)<>'' ORDER BY id DESC LIMIT 1", rs -> rs.next() ? trim(rs.getString("message")) : null, ticketId); }
     private String buildAutoReply(AiSuggestion s) {
         String body = cleanTextForRetrieval(s != null ? s.snippet : null);
@@ -1243,6 +1441,7 @@ public class DialogAiAssistantService {
                                    String updatedAt) {
         static final DialogAiControl DEFAULT = new DialogAiControl(false, false, null, null, null);
     }
+    private record IncomingClientPayload(String message, String type, String attachment) {}
 
     private static final class AiSuggestion {
         final String source; final String title; final String snippet; final double score; final String memoryKey;
