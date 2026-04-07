@@ -2154,6 +2154,7 @@
           orderedRows.push(existingRow);
           return;
         }
+        existingRow.remove();
       }
       const nextRow = createDialogRowElement(item);
       if (nextRow) orderedRows.push(nextRow);

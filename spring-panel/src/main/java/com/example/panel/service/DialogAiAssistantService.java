@@ -61,8 +61,14 @@ public class DialogAiAssistantService {
 
     public void processIncomingClientMessage(String ticketId, String message) {
         String t = trim(ticketId);
+        if (t == null) return;
         String m = trim(message);
-        if (t == null || m == null) return;
+        if (m == null) {
+            m = loadLastClientMessage(t);
+        }
+        if (m == null) {
+            m = "[non_text_message]";
+        }
 
         DialogAiControl control = loadDialogControl(t);
         if (control.aiDisabled()) {
