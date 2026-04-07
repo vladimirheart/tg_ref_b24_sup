@@ -80,3 +80,65 @@
 2026-04-07 07:10:16.087+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
 2026-04-07 07:10:21.105+03:00 INFO  [SpringApplicationShutdownHook] c.e.panel.service.BotProcessService - Stopping all bot processes due to panel shutdown
 2026-04-07 07:10:21.115+03:00 INFO  [SpringApplicationShutdownHook] o.s.o.j.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-04-07 07:18:58.002+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
+2026-04-07 07:18:58.122+03:00 INFO  [main] c.e.p.config.EnvDefaultsInitializer - Applied default SQLite paths for missing APP_DB_* variables: {APP_DB_USERS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\users.db, APP_DB_KNOWLEDGE=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\knowledge_base.db, APP_DB_CLIENTS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\clients.db, APP_DB_OBJECT_PASSPORTS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\object_passports.db, APP_DB_OBJECTS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\objects.db, APP_DB_SETTINGS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\settings.db, APP_DB_BOT=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\bot_database.db, APP_DB_TICKETS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\tickets.db}
+2026-04-07 07:18:58.133+03:00 WARN  [main] c.e.p.config.EnvDefaultsInitializer - Environment variable APP_DB_OBJECT_PASSPORTS points to missing file C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\object_passports.db, falling back to defaults.
+2026-04-07 07:18:58.136+03:00 INFO  [main] c.e.p.config.EnvDefaultsInitializer - Applied default SQLite paths for missing APP_DB_* variables: {APP_DB_OBJECT_PASSPORTS=C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\object_passports.db}
+2026-04-07 07:18:58.146+03:00 INFO  [main] com.example.panel.PanelApplication - Starting PanelApplication using Java 17.0.17 with PID 5572 (C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\target\classes started by SinicinVV in C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel)
+2026-04-07 07:18:58.149+03:00 INFO  [main] com.example.panel.PanelApplication - No active profile set, falling back to 1 default profile: "default"
+2026-04-07 07:19:00.309+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-04-07 07:19:00.614+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 285 ms. Found 31 JPA repository interfaces.
+2026-04-07 07:19:02.311+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 8080 (http)
+2026-04-07 07:19:02.332+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Initializing ProtocolHandler ["http-nio-8080"]
+2026-04-07 07:19:02.345+03:00 INFO  [main] o.a.catalina.core.StandardService - Starting service [Tomcat]
+2026-04-07 07:19:02.350+03:00 INFO  [main] o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.20]
+2026-04-07 07:19:02.515+03:00 INFO  [main] o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+2026-04-07 07:19:02.519+03:00 INFO  [main] o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 4247 ms
+2026-04-07 07:19:02.657+03:00 INFO  [main] c.e.p.c.SqliteDataSourceConfiguration - Using SQLite database at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\bot_database.db
+2026-04-07 07:19:03.259+03:00 INFO  [main] org.flywaydb.core.FlywayExecutor - Database: jdbc:sqlite:C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\bot_database.db (SQLite 3.43)
+2026-04-07 07:19:03.388+03:00 INFO  [main] o.f.core.internal.command.DbValidate - Successfully validated 29 migrations (execution time 00:00.087s)
+2026-04-07 07:19:03.404+03:00 INFO  [main] o.f.core.internal.command.DbMigrate - Current version of schema "main": 26
+2026-04-07 07:19:03.405+03:00 WARN  [main] o.f.core.internal.command.DbMigrate - outOfOrder mode is active. Migration of schema "main" may not be reproducible.
+2026-04-07 07:19:03.418+03:00 INFO  [main] o.f.core.internal.command.DbMigrate - Schema "main" is up to date. No migration necessary.
+2026-04-07 07:19:03.737+03:00 INFO  [main] o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-04-07 07:19:03.864+03:00 INFO  [main] org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
+2026-04-07 07:19:03.942+03:00 INFO  [main] o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
+2026-04-07 07:19:04.466+03:00 INFO  [main] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-04-07 07:19:07.246+03:00 INFO  [main] o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-04-07 07:19:07.258+03:00 INFO  [main] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-04-07 07:19:07.511+03:00 INFO  [main] c.e.p.service.DatabaseHealthService - Spring panel is using SQLite database at: C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\bot_database.db (tickets) and C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\users.db (users)
+2026-04-07 07:19:07.678+03:00 INFO  [main] c.e.p.service.SharedConfigService - Using shared config directory at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\config\shared
+2026-04-07 07:19:09.649+03:00 INFO  [main] o.s.d.j.r.query.QueryEnhancerFactory - Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-04-07 07:19:11.219+03:00 INFO  [main] c.e.p.s.OperatorNotificationWatcher - Operator notification watcher initialized (chatHistoryId=98, feedbackId=6)
+2026-04-07 07:19:11.239+03:00 INFO  [main] c.e.p.c.BotSqliteDataSourceConfiguration - Using BOT SQLite database at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\bot_database.db
+2026-04-07 07:19:11.643+03:00 INFO  [main] c.e.p.c.UsersSqliteDataSourceConfiguration - Using USERS SQLite database at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\users.db
+2026-04-07 07:19:11.722+03:00 WARN  [main] o.s.b.a.o.j.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-04-07 07:19:12.632+03:00 INFO  [main] o.s.s.web.DefaultSecurityFilterChain - Will secure any request with [org.springframework.security.web.session.DisableEncodeUrlFilter@1602b644, org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@4d0ec988, org.springframework.security.web.context.SecurityContextHolderFilter@5f708ac6, org.springframework.security.web.header.HeaderWriterFilter@8662634, org.springframework.web.filter.CorsFilter@17991766, org.springframework.security.web.csrf.CsrfFilter@67954442, com.example.panel.security.SecurityHeadersFilter@15d114ce, org.springframework.security.web.authentication.logout.LogoutFilter@7ab66d54, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter@3db32d5, org.springframework.security.web.session.ConcurrentSessionFilter@487fc205, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@d813294, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@2613a6fc, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@33b09909, com.example.panel.security.UserLastActivityFilter@2d4fb0d8, org.springframework.security.web.session.SessionManagementFilter@f03dc9b, org.springframework.security.web.access.ExceptionTranslationFilter@479a2453, org.springframework.security.web.access.intercept.AuthorizationFilter@6b861a26]
+2026-04-07 07:19:13.778+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Starting ProtocolHandler ["http-nio-8080"]
+2026-04-07 07:19:13.800+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 8080 (http) with context path ''
+2026-04-07 07:19:13.833+03:00 INFO  [main] com.example.panel.PanelApplication - Started PanelApplication in 17.053 seconds (process running for 17.855)
+2026-04-07 07:19:13.850+03:00 INFO  [main] c.e.p.s.AdditionalServicesHealthService - Bot database directory is available: C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\bot_databases
+2026-04-07 07:19:13.855+03:00 INFO  [main] c.e.p.s.AdditionalServicesHealthService - Bot runtime is available at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\java-bot
+2026-04-07 07:19:13.998+03:00 INFO  [main] c.e.p.s.AdditionalServicesHealthService - Telegram bot process status: stopped
+2026-04-07 07:19:13.999+03:00 INFO  [main] c.e.p.s.AdditionalServicesHealthService - VK bot process status: stopped
+2026-04-07 07:19:14.016+03:00 INFO  [main] c.e.p.s.DatabaseBootstrapService - Clients database ensured at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\clients.db
+2026-04-07 07:19:14.027+03:00 INFO  [main] c.e.p.s.DatabaseBootstrapService - Knowledge base database ensured at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\knowledge_base.db
+2026-04-07 07:19:14.036+03:00 INFO  [main] c.e.p.s.DatabaseBootstrapService - Objects database ensured at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\spring-panel\objects.db
+2026-04-07 07:19:14.375+03:00 INFO  [main] c.e.p.service.BotDatabaseRegistry - Bot database ready for channel 1 at C:\Users\SinicinVV\Documents\tg_bot\tg_ref_b24_sup\bot_databases\bot-1.db
+2026-04-07 07:19:49.238+03:00 INFO  [http-nio-8080-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-04-07 07:19:49.239+03:00 INFO  [http-nio-8080-exec-1] o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
+2026-04-07 07:19:49.253+03:00 INFO  [http-nio-8080-exec-1] o.s.web.servlet.DispatcherServlet - Completed initialization in 3 ms
+2026-04-07 07:19:49.510+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-07 07:20:49.187+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-07 07:21:49.190+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-07 07:22:49.171+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-07 07:23:49.186+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-07 07:24:17.662+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-07 07:24:19.477+03:00 INFO  [http-nio-8080-exec-4] c.e.p.controller.DialogsController - Loaded dialogs page for user admin
+2026-04-07 07:24:20.816+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-07 07:24:24.397+03:00 INFO  [http-nio-8080-exec-1] c.e.p.controller.DialogsController - Loaded dialogs page for user admin
+2026-04-07 07:24:24.881+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-07 07:24:39.734+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-07 07:24:54.740+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-07 07:24:56.517+03:00 INFO  [SpringApplicationShutdownHook] c.e.panel.service.BotProcessService - Stopping all bot processes due to panel shutdown
+2026-04-07 07:24:56.527+03:00 INFO  [SpringApplicationShutdownHook] o.s.o.j.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
