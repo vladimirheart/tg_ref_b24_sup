@@ -16,7 +16,7 @@
     if (palette === 'neo' || palette === 'mono') {
       return palette;
     }
-    return 'neo';
+    return 'mono';
   }
 
   function syncBodyDatasets(themeValue, paletteValue) {
@@ -42,7 +42,7 @@
   function applyTheme(theme) {
     const normalized = normalizeTheme(theme);
     const effective = resolveEffective(normalized);
-    const palette = normalizePalette(localStorage.getItem(PALETTE_STORAGE_KEY) || 'neo');
+    const palette = normalizePalette(localStorage.getItem(PALETTE_STORAGE_KEY) || 'mono');
     if (root) {
       root.dataset.themeChoice = normalized;
       root.dataset.theme = effective;
@@ -73,7 +73,7 @@
   }
 
   const savedTheme = normalizeTheme(localStorage.getItem(THEME_STORAGE_KEY) || 'light');
-  const savedPalette = normalizePalette(localStorage.getItem(PALETTE_STORAGE_KEY) || 'neo');
+  const savedPalette = 'mono';
   localStorage.setItem(THEME_STORAGE_KEY, savedTheme);
   localStorage.setItem(PALETTE_STORAGE_KEY, savedPalette);
   applyTheme(savedTheme);
