@@ -4489,7 +4489,10 @@
       if (!resp.ok || payload.success === false) return;
       const review = payload.review || {};
       if (review.pending !== true) return;
-      if (workspaceAiReviewQuestion) workspaceAiReviewQuestion.textContent = String(review.query_text || '').trim();
+      if (workspaceAiReviewQuestion) {
+        const question = String(review.query_text || '').trim();
+        workspaceAiReviewQuestion.textContent = `Для обучения AI подтвердите соответствие: какое сообщение клиента описывает проблему и какое сообщение оператора является решением. ${question}`;
+      }
       if (workspaceAiReviewCurrent) workspaceAiReviewCurrent.textContent = String(review.current_solution || '').trim();
       if (workspaceAiReviewPending) workspaceAiReviewPending.textContent = String(review.pending_solution || '').trim();
       workspaceAiReviewBox.classList.remove('d-none');
