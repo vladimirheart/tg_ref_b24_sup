@@ -561,6 +561,14 @@
                             <div class="fw-semibold mb-2">Метрики</div>
                             <div class="d-flex flex-column gap-2 small" id="dialogDetailsMetrics"></div>
                         </div>
+                        <div class="dialog-details-section">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <div class="fw-semibold">AI-помощник</div>
+                                <button class="btn btn-sm btn-outline-secondary" id="dialogDetailsAiRefresh" type="button">Обновить</button>
+                            </div>
+                            <div class="small text-muted" id="dialogDetailsAiState">Откройте диалог для загрузки подсказок.</div>
+                            <div class="d-flex flex-column gap-2 mt-2 d-none" id="dialogDetailsAiList"></div>
+                        </div>
                         <div class="dialog-details-section dialog-templates-dropdown" id="dialogCompletionTemplatesSection">
                             <button class="dialog-templates-toggle" type="button" id="dialogCompletionTemplatesToggle">
                                 Шаблоны действий

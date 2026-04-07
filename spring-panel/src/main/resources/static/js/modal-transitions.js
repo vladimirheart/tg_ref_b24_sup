@@ -44,26 +44,16 @@
     adjustModalStacking(modal);
   };
 
-  const handleHide = (event) => {
-    const modal = event.target;
-    if (!isAnimatedModal(modal)) {
-      return;
-    }
-    modal.classList.add('modal-closing');
-  };
-
   const handleHidden = (event) => {
     const modal = event.target;
     if (!isAnimatedModal(modal)) {
       return;
     }
-    modal.classList.remove('modal-closing');
     if (modal.style) {
       modal.style.removeProperty('z-index');
     }
   };
 
   document.addEventListener('show.bs.modal', handleShow);
-  document.addEventListener('hide.bs.modal', handleHide);
   document.addEventListener('hidden.bs.modal', handleHidden);
 })();
