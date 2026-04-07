@@ -128,8 +128,10 @@
             <input type="checkbox" class="form-check-input me-1" data-memory-review ${reviewRequired ? 'checked' : ''}> review required
           </label>
           <button class="btn btn-sm btn-outline-primary" type="button" data-memory-save="${key}">Save</button>
+          <button class="btn btn-sm btn-outline-secondary" type="button" data-memory-history="${key}">History</button>
           <span class="small text-muted" data-memory-row-state></span>
         </div>
+        <div class="small mt-2" data-memory-history-list></div>
       </div>`;
     }).join('');
   }
@@ -225,6 +227,79 @@
     }
   }
 
+  async function loadSolutionMemoryHistory(button) {
+    if (!button) return;
+    const key = String(button.getAttribute('data-memory-history') || '').trim();
+    const row = button.closest('[data-memory-row]');
+    const historyEl = row?.querySelector('[data-memory-history-list]');
+    if (!key || !historyEl) return;
+    historyEl.textContent = 'loading history...';
+    try {
+      const resp = await fetch(`/api/dialogs/ai-solution-memory/${encodeURIComponent(key)}/history?limit=20`, {
+        credentials: 'same-origin',
+        cache: 'no-store',
+      });
+      const payload = await resp.json().catch(() => ({}));
+      if (!resp.ok || payload.success === false) throw new Error(payload.error || `HTTP ${resp.status}`);
+      const items = Array.isArray(payload.items) ? payload.items : [];
+      if (!items.length) {
+        historyEl.innerHTML = '<div class="text-muted">No history.</div>';
+        return;
+      }
+      historyEl.innerHTML = items.map((h) => {
+        const id = Number(h?.id || 0);
+        const createdAt = formatUtcDate(h?.created_at);
+        const who = escapeHtml(h?.changed_by || 'system');
+        const action = escapeHtml(h?.change_action || 'update');
+        const oldSolution = escapeHtml(h?.old_solution_text || '');
+        const newSolution = escapeHtml(h?.new_solution_text || '');
+        return `<div class="border rounded p-2 mb-1" data-memory-history-row="${id}">
+          <div class="d-flex flex-wrap justify-content-between gap-2">
+            <span class="fw-semibold">#${id} ${action}</span>
+            <span class="text-muted">${escapeHtml(createdAt)}</span>
+          </div>
+          <div class="text-muted">by: ${who}</div>
+          <div class="small"><strong>old:</strong> ${oldSolution || '-'}</div>
+          <div class="small"><strong>new:</strong> ${newSolution || '-'}</div>
+          <button class="btn btn-sm btn-outline-danger mt-1" type="button" data-memory-rollback="${id}" data-memory-key="${key}">Rollback to old</button>
+        </div>`;
+      }).join('');
+    } catch (error) {
+      historyEl.textContent = `history error: ${error.message || 'unknown_error'}`;
+    }
+  }
+
+  async function rollbackSolutionMemory(button) {
+    if (!button) return;
+    const historyId = Number(button.getAttribute('data-memory-rollback') || 0);
+    const key = String(button.getAttribute('data-memory-key') || '').trim();
+    if (!historyId || !key) return;
+    button.disabled = true;
+    try {
+      const resp = await fetch(`/api/dialogs/ai-solution-memory/${encodeURIComponent(key)}/rollback`, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ history_id: historyId }),
+      });
+      const payload = await resp.json().catch(() => ({}));
+      if (!resp.ok || payload.success === false || payload.updated === false) {
+        throw new Error(payload.error || 'rollback_failed');
+      }
+      await loadSolutionMemory(100);
+    } catch (error) {
+      const row = button.closest('[data-memory-history-row]');
+      if (row) {
+        const err = document.createElement('div');
+        err.className = 'small text-danger mt-1';
+        err.textContent = `rollback error: ${error.message || 'unknown_error'}`;
+        row.appendChild(err);
+      }
+    } finally {
+      button.disabled = false;
+    }
+  }
+
   function exportEventsCsv(days = 7, limit = 200) {
     const href = `/api/dialogs/ai-monitoring/events?${buildEventsQuery(days, limit, 'csv')}`;
     const link = document.createElement('a');
@@ -260,6 +335,10 @@
     memoryListEl.addEventListener('click', (event) => {
       const saveBtn = event.target.closest('[data-memory-save]');
       if (saveBtn) saveSolutionMemoryRow(saveBtn);
+      const historyBtn = event.target.closest('[data-memory-history]');
+      if (historyBtn) loadSolutionMemoryHistory(historyBtn);
+      const rollbackBtn = event.target.closest('[data-memory-rollback]');
+      if (rollbackBtn) rollbackSolutionMemory(rollbackBtn);
     });
   }
 
