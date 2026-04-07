@@ -570,7 +570,8 @@ setInterval(updateOverdueTasks, 60000);
 
     // авто-подстановка автора/исполнителя (если шаблон подставил — оставим)
     if (form.creator && !form.creator.value) form.creator.value = (document.body.dataset.userEmail || '');
-    if (form.assignee && !form.assignee.value) form.assignee.value = form.creator.value;
+    const creatorValue = form.creator ? (form.creator.value || '') : '';
+    if (form.assignee && !form.assignee.value) form.assignee.value = creatorValue;
 
     if (taskNumberEl) taskNumberEl.textContent = 'Новая задача';
     const createdAt = document.getElementById('createdAt');

@@ -1262,14 +1262,27 @@ h1.page-title, .content h1, .container h1 { margin-top: 0 !important; }
 
 @media (hover: hover) {
     .btn:hover,
+    .btn:active,
     .nav-link:hover,
     .dropdown-item:hover,
     .list-group-item:hover,
-    .page-link:hover {
+    .page-link:hover,
+    .card:hover,
+    .modal-content:hover,
+    .form-control:hover,
+    .form-select:hover,
+    .gradient-border-hover:hover,
+    .gradient-border-stop-hover:hover,
+    .settings-tile:hover,
+    .client-analytics-row:hover {
         background-color: inherit !important;
         color: inherit !important;
         border-color: inherit !important;
         box-shadow: none !important;
+        transform: none !important;
+        filter: none !important;
+        transition: none !important;
+        animation: none !important;
         text-decoration: none !important;
     }
 

@@ -1781,3 +1781,41 @@ body {
     text-decoration: none !important;
   }
 }
+
+/* Global hard-disable for hover visual effects */
+@media (hover: hover) {
+  .btn:hover,
+  .btn:active,
+  .card:hover,
+  .modal-content:hover,
+  .form-control:hover,
+  .form-select:hover,
+  .input-group-text:hover,
+  .nav-link:hover,
+  .dropdown-item:hover,
+  .list-group-item:hover,
+  .page-link:hover,
+  .settings-tile:hover,
+  .client-analytics-row:hover,
+  .workspace-tab-btn:hover,
+  .dialog-business-pill:hover,
+  .gradient-border-hover:hover,
+  .gradient-border-stop-hover:hover,
+  a:hover {
+    transform: none !important;
+    box-shadow: none !important;
+    filter: none !important;
+    text-decoration: none !important;
+    transition: none !important;
+    animation: none !important;
+    background-color: inherit !important;
+    border-color: inherit !important;
+    color: inherit !important;
+  }
+
+  .table-hover > tbody > tr:hover > * {
+    --bs-table-accent-bg: transparent !important;
+    background-color: transparent !important;
+    color: inherit !important;
+  }
+}
