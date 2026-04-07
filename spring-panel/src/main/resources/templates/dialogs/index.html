@@ -1026,14 +1026,32 @@
 </script>
 <script th:inline="javascript">
   (() => {
-    const initialTicketId = /*[[${initialDialogTicketId}]]*/ null;
-    if (!initialTicketId) return;
+    const initialTicketFromModel = /*[[${initialDialogTicketId}]]*/ null;
+    const pathMatch = (window.location.pathname || '').match(/^\/dialogs\/([^/]+)$/);
+    const initialTicketFromPath = pathMatch && pathMatch[1] ? decodeURIComponent(pathMatch[1]) : null;
+    const ticketId = initialTicketFromModel || initialTicketFromPath;
+    if (!ticketId) return;
 
-    window.setTimeout(() => {
+    let attempts = 0;
+    const maxAttempts = 12;
+    const openWhenReady = () => {
+      attempts += 1;
       if (typeof window.openDialogDetailsByTicketId === 'function') {
-        window.openDialogDetailsByTicketId(initialTicketId);
+        window.openDialogDetailsByTicketId(ticketId);
+        return;
       }
-    }, 200);
+      if (attempts < maxAttempts) {
+        window.setTimeout(openWhenReady, 250);
+      }
+    };
+
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+      window.setTimeout(openWhenReady, 120);
+    } else {
+      document.addEventListener('DOMContentLoaded', () => {
+        window.setTimeout(openWhenReady, 120);
+      }, { once: true });
+    }
   })();
 </script>
 
