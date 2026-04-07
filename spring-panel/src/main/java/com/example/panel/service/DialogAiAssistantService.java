@@ -627,6 +627,19 @@ public class DialogAiAssistantService {
         List<Map<String, Object>> rows = jdbcTemplate.queryForList("SELECT solution_text,pending_solution_text,review_required FROM ai_agent_solution_memory WHERE query_key=? LIMIT 1", key);
         if (rows.isEmpty()) {
             jdbcTemplate.update("INSERT INTO ai_agent_solution_memory(query_key,query_text,solution_text,source,times_used,times_confirmed,times_corrected,review_required,pending_solution_text,last_operator,last_ticket_id,last_client_message,created_at,updated_at) VALUES (?,?,?,?,0,1,0,0,NULL,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)", key, cut(q, 600), cut(r, 2000), "operator", trim(operator), trim(ticketId), cut(q, 600));
+            insertSolutionMemoryHistory(
+                    key,
+                    trim(operator),
+                    "learning",
+                    "insert",
+                    null,
+                    null,
+                    false,
+                    cut(q, 600),
+                    cut(r, 2000),
+                    false,
+                    "learned_from_operator_reply"
+            );
             return key;
         }
         Map<String, Object> ex = rows.get(0);
@@ -634,13 +647,52 @@ public class DialogAiAssistantService {
         boolean review = isTrue(ex.get("review_required"));
         if (review && pending != null && !isMeaningfullyDifferent(pending, r)) {
             jdbcTemplate.update("UPDATE ai_agent_solution_memory SET query_text=?,solution_text=?,review_required=0,pending_solution_text=NULL,times_confirmed=COALESCE(times_confirmed,0)+1,last_operator=?,last_ticket_id=?,last_client_message=?,updated_at=CURRENT_TIMESTAMP WHERE query_key=?", cut(q, 600), cut(r, 2000), trim(operator), trim(ticketId), cut(q, 600), key);
+            insertSolutionMemoryHistory(
+                    key,
+                    trim(operator),
+                    "learning",
+                    "confirm_pending",
+                    cut(q, 600),
+                    cut(sol, 2000),
+                    true,
+                    cut(q, 600),
+                    cut(r, 2000),
+                    false,
+                    "pending_solution_confirmed"
+            );
             return key;
         }
         if (sol != null && isMeaningfullyDifferent(sol, r)) {
             jdbcTemplate.update("UPDATE ai_agent_solution_memory SET query_text=?,review_required=1,pending_solution_text=?,times_corrected=COALESCE(times_corrected,0)+1,last_operator=?,last_ticket_id=?,last_client_message=?,updated_at=CURRENT_TIMESTAMP WHERE query_key=?", cut(q, 600), cut(r, 2000), trim(operator), trim(ticketId), cut(q, 600), key);
+            insertSolutionMemoryHistory(
+                    key,
+                    trim(operator),
+                    "learning",
+                    "correction_requested",
+                    cut(q, 600),
+                    cut(sol, 2000),
+                    false,
+                    cut(q, 600),
+                    cut(r, 2000),
+                    true,
+                    "operator_reply_differs"
+            );
             return key;
         }
         jdbcTemplate.update("UPDATE ai_agent_solution_memory SET query_text=?,solution_text=?,review_required=0,pending_solution_text=NULL,times_confirmed=COALESCE(times_confirmed,0)+1,last_operator=?,last_ticket_id=?,last_client_message=?,updated_at=CURRENT_TIMESTAMP WHERE query_key=?", cut(q, 600), cut(r, 2000), trim(operator), trim(ticketId), cut(q, 600), key);
+        insertSolutionMemoryHistory(
+                key,
+                trim(operator),
+                "learning",
+                "update_confirmed",
+                cut(q, 600),
+                cut(sol, 2000),
+                review,
+                cut(q, 600),
+                cut(r, 2000),
+                false,
+                "operator_reply_confirmed"
+        );
         return key;
     }
 
@@ -707,6 +759,10 @@ public class DialogAiAssistantService {
         }
         boolean requireReview = reviewRequired != null && reviewRequired;
         try {
+            Map<String, Object> before = loadSolutionMemoryByKey(key);
+            if (before == null) {
+                return false;
+            }
             int updated = jdbcTemplate.update(
                     """
                     UPDATE ai_agent_solution_memory
@@ -725,7 +781,121 @@ public class DialogAiAssistantService {
                     trim(operator),
                     key
             );
-            return updated > 0;
+            if (updated > 0) {
+                insertSolutionMemoryHistory(
+                        key,
+                        trim(operator),
+                        "manual",
+                        "update",
+                        safe(before.get("query_text")),
+                        safe(before.get("solution_text")),
+                        isTrue(before.get("review_required")),
+                        cut(q, 600),
+                        cut(s, 2000),
+                        requireReview,
+                        "manual_edit"
+                );
+                return true;
+            }
+            return false;
+        } catch (Exception ex) {
+            return false;
+        }
+    }
+
+    public List<Map<String, Object>> loadSolutionMemoryHistory(String queryKey, Integer limit) {
+        String key = trim(queryKey);
+        if (key == null) {
+            return List.of();
+        }
+        int safeLimit = Math.max(1, Math.min(limit != null ? limit : 30, 200));
+        try {
+            return jdbcTemplate.queryForList(
+                    """
+                    SELECT id, query_key, changed_by, change_source, change_action,
+                           old_query_text, old_solution_text, old_review_required,
+                           new_query_text, new_solution_text, new_review_required,
+                           note, created_at
+                      FROM ai_agent_solution_memory_history
+                     WHERE query_key = ?
+                     ORDER BY id DESC
+                     LIMIT ?
+                    """,
+                    key,
+                    safeLimit
+            );
+        } catch (Exception ex) {
+            return List.of();
+        }
+    }
+
+    public boolean rollbackSolutionMemory(String queryKey, Long historyId, String operator) {
+        String key = trim(queryKey);
+        if (key == null || historyId == null || historyId <= 0) {
+            return false;
+        }
+        try {
+            Map<String, Object> before = loadSolutionMemoryByKey(key);
+            if (before == null) {
+                return false;
+            }
+            Map<String, Object> history = jdbcTemplate.query(
+                    """
+                    SELECT old_query_text, old_solution_text, old_review_required
+                      FROM ai_agent_solution_memory_history
+                     WHERE id = ? AND query_key = ?
+                     LIMIT 1
+                    """,
+                    rs -> rs.next() ? Map.of(
+                            "old_query_text", trim(rs.getString("old_query_text")),
+                            "old_solution_text", trim(rs.getString("old_solution_text")),
+                            "old_review_required", rs.getInt("old_review_required")) : null,
+                    historyId,
+                    key
+            );
+            if (history == null) {
+                return false;
+            }
+            String rollbackQuery = trim(safe(history.get("old_query_text")));
+            String rollbackSolution = trim(safe(history.get("old_solution_text")));
+            boolean rollbackReview = isTrue(history.get("old_review_required"));
+            if (rollbackQuery == null || rollbackSolution == null) {
+                return false;
+            }
+            int updated = jdbcTemplate.update(
+                    """
+                    UPDATE ai_agent_solution_memory
+                       SET query_text = ?,
+                           solution_text = ?,
+                           review_required = ?,
+                           pending_solution_text = NULL,
+                           last_operator = ?,
+                           updated_at = CURRENT_TIMESTAMP
+                     WHERE query_key = ?
+                    """,
+                    cut(rollbackQuery, 600),
+                    cut(rollbackSolution, 2000),
+                    rollbackReview ? 1 : 0,
+                    trim(operator),
+                    key
+            );
+            if (updated > 0) {
+                insertSolutionMemoryHistory(
+                        key,
+                        trim(operator),
+                        "manual",
+                        "rollback",
+                        safe(before.get("query_text")),
+                        safe(before.get("solution_text")),
+                        isTrue(before.get("review_required")),
+                        cut(rollbackQuery, 600),
+                        cut(rollbackSolution, 2000),
+                        rollbackReview,
+                        "rollback_to_history_id=" + historyId
+                );
+                return true;
+            }
+            return false;
         } catch (Exception ex) {
             return false;
         }
@@ -1022,6 +1192,59 @@ public class DialogAiAssistantService {
         String raw = idx >= 0 ? normalized.substring(idx + 1) : normalized;
         String trimmed = trim(raw);
         return trimmed != null ? trimmed : "attachment";
+    }
+
+    private Map<String, Object> loadSolutionMemoryByKey(String queryKey) {
+        String key = trim(queryKey);
+        if (key == null) {
+            return null;
+        }
+        try {
+            List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                    "SELECT query_text, solution_text, review_required FROM ai_agent_solution_memory WHERE query_key = ? LIMIT 1",
+                    key
+            );
+            return rows.isEmpty() ? null : rows.get(0);
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
+    private void insertSolutionMemoryHistory(String queryKey,
+                                             String changedBy,
+                                             String changeSource,
+                                             String changeAction,
+                                             String oldQueryText,
+                                             String oldSolutionText,
+                                             boolean oldReviewRequired,
+                                             String newQueryText,
+                                             String newSolutionText,
+                                             boolean newReviewRequired,
+                                             String note) {
+        try {
+            jdbcTemplate.update(
+                    """
+                    INSERT INTO ai_agent_solution_memory_history(
+                        query_key, changed_by, change_source, change_action,
+                        old_query_text, old_solution_text, old_review_required,
+                        new_query_text, new_solution_text, new_review_required, note, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                    """,
+                    trim(queryKey),
+                    trim(changedBy),
+                    cut(trim(changeSource), 64),
+                    cut(trim(changeAction), 64),
+                    cut(trim(oldQueryText), 600),
+                    cut(trim(oldSolutionText), 2000),
+                    oldReviewRequired ? 1 : 0,
+                    cut(trim(newQueryText), 600),
+                    cut(trim(newSolutionText), 2000),
+                    newReviewRequired ? 1 : 0,
+                    cut(trim(note), 500)
+            );
+        } catch (Exception ex) {
+            log.debug("Failed to insert ai solution memory history for {}: {}", queryKey, ex.getMessage());
+        }
     }
 
     private String loadLastClientMessage(String ticketId) { return jdbcTemplate.query("SELECT message FROM chat_history WHERE ticket_id=? AND lower(sender) NOT IN ('operator','support','admin','system','ai_agent') AND message IS NOT NULL AND trim(message)<>'' ORDER BY id DESC LIMIT 1", rs -> rs.next() ? trim(rs.getString("message")) : null, ticketId); }

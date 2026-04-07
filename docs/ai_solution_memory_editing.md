@@ -11,6 +11,8 @@ This document explains how to edit the agent's stored answers.
    - `query_text` (the user question pattern),
    - `solution_text` (the answer used by AI retrieval).
 5. Click `Save`.
+6. Click `History` to view changes.
+7. In history, click `Rollback to old` to restore a previous version.
 
 ## API (if needed)
 
@@ -24,6 +26,16 @@ This document explains how to edit the agent's stored answers.
       "query_text": "new question text",
       "solution_text": "new answer text",
       "review_required": false
+    }
+    ```
+- History:
+  - `GET /api/dialogs/ai-solution-memory/{queryKey}/history?limit=20`
+- Rollback:
+  - `POST /api/dialogs/ai-solution-memory/{queryKey}/rollback`
+  - body:
+    ```json
+    {
+      "history_id": 123
     }
     ```
 
