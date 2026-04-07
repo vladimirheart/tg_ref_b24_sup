@@ -441,28 +441,28 @@
     const normalizedMinutes = Math.max(1, Number(minutes) || QUICK_SNOOZE_MINUTES);
     if (normalizedMinutes % 60 === 0) {
       const hours = normalizedMinutes / 60;
-      return `Р С›РЎвЂљР В»Р С•Р В¶Р С‘РЎвЂљРЎРЉ ${hours}РЎвЂЎ`;
+      return `Отложить ${hours}ч`;
     }
-    return `Р С›РЎвЂљР В»Р С•Р В¶Р С‘РЎвЂљРЎРЉ ${normalizedMinutes}Р С`;
+    return `Отложить ${normalizedMinutes}м`;
   }
 
   function formatBulkSnoozeLabel(minutes) {
     const normalizedMinutes = Math.max(1, Number(minutes) || QUICK_SNOOZE_MINUTES);
     if (normalizedMinutes % 60 === 0) {
       const hours = normalizedMinutes / 60;
-      const hoursLabel = hours === 1 ? '1 РЎвЂЎР В°РЎРѓ' : `${hours} РЎвЂЎ`;
-      return `Р вЂ™РЎвЂ№Р В±РЎР‚Р В°Р Р…Р Р…РЎвЂ№Р Вµ Р Т‘Р С‘Р В°Р В»Р С•Р С–Р С‘ Р С•РЎвЂљР В»Р С•Р В¶Р ВµР Р…РЎвЂ№ Р Р…Р В° ${hoursLabel}`;
+      const hoursLabel = hours === 1 ? '1 час' : `${hours} ч`;
+      return `Выбранные диалоги отложены на ${hoursLabel}`;
     }
-    return `Р вЂ™РЎвЂ№Р В±РЎР‚Р В°Р Р…Р Р…РЎвЂ№Р Вµ Р Т‘Р С‘Р В°Р В»Р С•Р С–Р С‘ Р С•РЎвЂљР В»Р С•Р В¶Р ВµР Р…РЎвЂ№ Р Р…Р В° ${normalizedMinutes} Р СР С‘Р Р…`;
+    return `Выбранные диалоги отложены на ${normalizedMinutes} мин`;
   }
 
   function formatSnoozeDurationLabel(minutes) {
     const normalizedMinutes = Math.max(1, Number(minutes) || QUICK_SNOOZE_MINUTES);
     if (normalizedMinutes % 60 === 0) {
       const hours = normalizedMinutes / 60;
-      return hours === 1 ? '1 РЎвЂЎР В°РЎРѓ' : `${hours} РЎвЂЎ`;
+      return hours === 1 ? '1 час' : `${hours} ч`;
     }
-    return `${normalizedMinutes} Р СР С‘Р Р…`;
+    return `${normalizedMinutes} мин`;
   }
 
 
@@ -681,7 +681,7 @@
     }),
   });
 
-  const DIALOG_EMOJI = ['СЂСџВР‚','СЂСџВРѓ','СЂСџВвЂљ','СЂСџВР‰','СЂСџВРЊ','СЂСџВ¤вЂќ','СЂСџВСћ','СЂСџВРЋ','СЂСџвЂРЊ','СЂСџв„ўРЏ','СЂСџвЂќТђ','СЂСџР‹вЂ°','РІСљвЂ¦','РІСњвЂ”','СЂСџвЂњРЉ'];
+  const DIALOG_EMOJI = ['😀','😁','😂','😊','😍','🤔','😢','😡','👍','🙏','🔥','🎉','✅','❗','📌'];
 
   function canRunAction(permissionKey) {
     if (!permissionKey) return true;
@@ -717,15 +717,15 @@
     if (Number.isFinite(Number(rollout?.rollout_percent)) && Number(rollout?.rollout_percent) > 0) {
       metaParts.push(`rollout: ${Math.max(0, Math.min(100, Number(rollout.rollout_percent)))}%`);
     }
-    if (reviewedAt && reviewedAt !== 'РІР‚вЂќ') {
+    if (reviewedAt && reviewedAt !== '—') {
       metaParts.push(`reviewed UTC: ${reviewedAt}`);
     }
-    if (dataUpdatedAt && dataUpdatedAt !== 'РІР‚вЂќ') {
+    if (dataUpdatedAt && dataUpdatedAt !== '—') {
       metaParts.push(`data updated UTC: ${dataUpdatedAt}`);
     }
     workspaceRolloutBanner.className = resolveWorkspaceRolloutBannerClass(rollout?.banner_tone);
     workspaceRolloutBanner.classList.remove('d-none');
-    workspaceRolloutBanner.textContent = [summary || 'Workspace rollout state loaded.', metaParts.join(' Р’В· ')].filter(Boolean).join(' ');
+    workspaceRolloutBanner.textContent = [summary || 'Workspace rollout state loaded.', metaParts.join(' · ')].filter(Boolean).join(' ');
   }
 
   function resolveLegacyOpenPolicy(rollout) {
@@ -785,7 +785,7 @@
     if (Number.isFinite(Number(safeParity?.score_pct))) {
       metaParts.push(`parity score: ${Math.max(0, Math.min(100, Number(safeParity.score_pct)))}%`);
     }
-    if (checkedAtUtc && checkedAtUtc !== 'РІР‚вЂќ') {
+    if (checkedAtUtc && checkedAtUtc !== '—') {
       metaParts.push(`checked UTC: ${checkedAtUtc}`);
     }
     if (missingLabels.length > 0) {
@@ -793,7 +793,7 @@
     }
     workspaceParityBanner.className = resolveWorkspaceParityBannerClass(status);
     workspaceParityBanner.classList.remove('d-none');
-    workspaceParityBanner.textContent = [summary, metaParts.join(' Р’В· ')].filter(Boolean).join(' ');
+    workspaceParityBanner.textContent = [summary, metaParts.join(' · ')].filter(Boolean).join(' ');
   }
 
   function setWorkspaceReadonlyMode(isReadonly, reasonText) {
@@ -814,23 +814,23 @@
 
   function resolveWorkspaceReadonlyReason(permissions) {
     if (!permissions || typeof permissions !== 'object') {
-      return 'Workspace Р С•РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљ Р Р† РЎР‚Р ВµР В¶Р С‘Р СР Вµ РЎвЂљР С•Р В»РЎРЉР С”Р С• РЎвЂЎРЎвЂљР ВµР Р…Р С‘РЎРЏ: Р Р…Р Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р С—Р С•Р В»РЎС“РЎвЂЎР С‘РЎвЂљРЎРЉ Р С—РЎР‚Р В°Р Р†Р В° Р С•Р С—Р ВµРЎР‚Р В°РЎвЂљР С•РЎР‚Р В°.';
+      return 'Workspace открыт в режиме только чтения: не удалось получить права оператора.';
     }
     const requiredFlags = ['can_reply', ...WORKSPACE_MUTATING_PERMISSION_KEYS];
     const hasInvalidFlag = requiredFlags.some((flag) => typeof permissions[flag] !== 'boolean');
     if (hasInvalidFlag) {
-      return 'Workspace Р С•РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљ Р Р† РЎР‚Р ВµР В¶Р С‘Р СР Вµ РЎвЂљР С•Р В»РЎРЉР С”Р С• РЎвЂЎРЎвЂљР ВµР Р…Р С‘РЎРЏ: Р С—РЎР‚Р В°Р Р†Р В° Р С•Р С—Р ВµРЎР‚Р В°РЎвЂљР С•РЎР‚Р В° Р В·Р В°Р С–РЎР‚РЎС“Р В¶Р ВµР Р…РЎвЂ№ Р Р…Р ВµР С”Р С•РЎР‚РЎР‚Р ВµР С”РЎвЂљР Р…Р С•.';
+      return 'Workspace открыт в режиме только чтения: права оператора загружены некорректно.';
     }
     const hasMutatingPermission = WORKSPACE_MUTATING_PERMISSION_KEYS.some((flag) => permissions[flag] === true);
     if (!hasMutatingPermission) {
-      return 'Workspace Р С•РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљ Р Р† РЎР‚Р ВµР В¶Р С‘Р СР Вµ РЎвЂљР С•Р В»РЎРЉР С”Р С• РЎвЂЎРЎвЂљР ВµР Р…Р С‘РЎРЏ: Р Т‘Р ВµР в„–РЎРѓРЎвЂљР Р†Р С‘РЎРЏ Р С‘Р В·Р СР ВµР Р…Р ВµР Р…Р С‘РЎРЏ Р С•РЎвЂљР С”Р В»РЎР‹РЎвЂЎР ВµР Р…РЎвЂ№ Р С—Р С•Р В»Р С‘РЎвЂљР С‘Р С”Р С•Р в„– Р Т‘Р С•РЎРѓРЎвЂљРЎС“Р С—Р В°.';
+      return 'Workspace открыт в режиме только чтения: действия изменения отключены политикой доступа.';
     }
     return null;
   }
 
   function notifyPermissionDenied(actionTitle) {
     if (typeof showNotification === 'function') {
-      showNotification(`Р СњР ВµР Т‘Р С•РЎРѓРЎвЂљР В°РЎвЂљР С•РЎвЂЎР Р…Р С• Р С—РЎР‚Р В°Р Р† Р Т‘Р В»РЎРЏ Р Т‘Р ВµР в„–РЎРѓРЎвЂљР Р†Р С‘РЎРЏ Р’В«${actionTitle}Р’В».`, 'warning');
+      showNotification(`Недостаточно прав для действия «${actionTitle}».`, 'warning');
     }
   }
 
@@ -857,13 +857,13 @@
 
 
   if (bulkSnoozeBtn) {
-    bulkSnoozeBtn.textContent = `Р С›РЎвЂљР В»Р С•Р В¶Р С‘РЎвЂљРЎРЉ Р Р†РЎвЂ№Р В±РЎР‚Р В°Р Р…Р Р…РЎвЂ№Р Вµ Р Р…Р В° ${formatSnoozeDurationLabel(QUICK_SNOOZE_MINUTES)}`;
+    bulkSnoozeBtn.textContent = `Отложить выбранные на ${formatSnoozeDurationLabel(QUICK_SNOOZE_MINUTES)}`;
   }
   if (hotkeySingleSnoozeLabel) {
-    hotkeySingleSnoozeLabel.textContent = `Р С›РЎвЂљР В»Р С•Р В¶Р С‘РЎвЂљРЎРЉ Р Т‘Р С‘Р В°Р В»Р С•Р С– Р Р…Р В° ${formatSnoozeDurationLabel(QUICK_SNOOZE_MINUTES)} (Р С‘Р В· РЎРѓР С—Р С‘РЎРѓР С”Р В°)`;
+    hotkeySingleSnoozeLabel.textContent = `Отложить диалог на ${formatSnoozeDurationLabel(QUICK_SNOOZE_MINUTES)} (из списка)`;
   }
   if (hotkeyBulkSnoozeLabel) {
-    hotkeyBulkSnoozeLabel.textContent = `Р С›РЎвЂљР В»Р С•Р В¶Р С‘РЎвЂљРЎРЉ Р Р†РЎвЂ№Р В±РЎР‚Р В°Р Р…Р Р…РЎвЂ№Р Вµ Р Т‘Р С‘Р В°Р В»Р С•Р С–Р С‘ Р Р…Р В° ${formatSnoozeDurationLabel(QUICK_SNOOZE_MINUTES)}`;
+    hotkeyBulkSnoozeLabel.textContent = `Отложить выбранные диалоги на ${formatSnoozeDurationLabel(QUICK_SNOOZE_MINUTES)}`;
   }
 
   const snoozedDialogs = loadSnoozedDialogs();
@@ -923,13 +923,13 @@
   let historyLoading = false;
   let listLoading = false;
   let activeDialogContext = {
-    clientName: 'РІР‚вЂќ',
-    operatorName: 'РІР‚вЂќ',
-    channelName: 'РІР‚вЂќ',
-    business: 'РІР‚вЂќ',
-    location: 'РІР‚вЂќ',
-    status: 'РІР‚вЂќ',
-    createdAt: 'РІР‚вЂќ',
+    clientName: '—',
+    operatorName: '—',
+    channelName: '—',
+    business: '—',
+    location: '—',
+    status: '—',
+    createdAt: '—',
   };
   let completionHideTimer = null;
   let activeAudioPlayer = null;
@@ -1083,8 +1083,8 @@
     if (!slaWindowSelect) {
       return;
     }
-    const optionsMarkup = ['<option value="">SLA: Р Р†РЎРѓР Вµ</option>']
-      .concat(DIALOG_SLA_WINDOW_PRESETS.map((minutes) => `<option value="${minutes}">Р В Р ВµР В°Р С”РЎвЂ Р С‘РЎРЏ РІвЂ°В¤ ${minutes}Р С</option>`))
+    const optionsMarkup = ['<option value="">SLA: все</option>']
+      .concat(DIALOG_SLA_WINDOW_PRESETS.map((minutes) => `<option value="${minutes}">Реакция ≤ ${minutes}м</option>`))
       .join('');
     slaWindowSelect.innerHTML = optionsMarkup;
     slaWindowSelect.value = Number.isFinite(filterState.slaWindowMinutes)
@@ -1261,19 +1261,19 @@
     const normalized = Array.isArray(categories)
       ? categories.map((item) => String(item || '').trim()).filter(Boolean)
       : [];
-    return normalized.length ? normalized.join(', ') : 'РІР‚вЂќ';
+    return normalized.length ? normalized.join(', ') : '—';
   }
 
   function normalizeCategories(value) {
     if (Array.isArray(value)) {
-      return value.map((item) => String(item || '').trim()).filter((item) => item && item !== 'РІР‚вЂќ');
+      return value.map((item) => String(item || '').trim()).filter((item) => item && item !== '—');
     }
     const normalized = String(value || '').trim();
-    if (!normalized || normalized === 'РІР‚вЂќ') return [];
+    if (!normalized || normalized === '—') return [];
     return normalized
       .split(',')
       .map((item) => item.trim())
-      .filter((item) => item && item !== 'РІР‚вЂќ');
+      .filter((item) => item && item !== '—');
   }
 
   function categoryBadgePalette(label) {
@@ -1292,7 +1292,7 @@
   function renderCategoryBadges(categories) {
     const list = normalizeCategories(categories);
     if (!list.length) {
-      return '<span class="text-muted">РІР‚вЂќ</span>';
+      return '<span class="text-muted">—</span>';
     }
     const badges = list.map((category) => {
       const palette = categoryBadgePalette(category);
@@ -1308,7 +1308,7 @@
   function updateSummaryCategories(label) {
     if (detailsCategories) {
       detailsCategories.innerHTML = `
-        <span>Р С™Р В°РЎвЂљР ВµР С–Р С•РЎР‚Р С‘Р С‘:</span>
+        <span>Категории:</span>
         ${renderCategoryBadges(label)}
       `;
     }
@@ -1319,7 +1319,7 @@
       }
     }
     if (activeDialogRow) {
-      const rowLabel = label || 'РІР‚вЂќ';
+      const rowLabel = label || '—';
       activeDialogRow.dataset.categories = rowLabel;
       const categoriesIndex = table.querySelector('th[data-column-key="categories"]')?.cellIndex ?? -1;
       if (categoriesIndex >= 0 && activeDialogRow.children[categoriesIndex]) {
@@ -1339,7 +1339,7 @@
     });
     const data = await resp.json();
     if (!resp.ok || !data?.success) {
-      throw new Error(data?.error || `Р С›РЎв‚¬Р С‘Р В±Р С”Р В° ${resp.status}`);
+      throw new Error(data?.error || `Ошибка ${resp.status}`);
     }
   }
 
@@ -1362,7 +1362,7 @@
           workspaceCategoriesError.classList.remove('d-none');
         }
         if (typeof showNotification === 'function') {
-          showNotification(error.message || 'Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ РЎРѓР С•РЎвЂ¦РЎР‚Р В°Р Р…Р С‘РЎвЂљРЎРЉ Р С”Р В°РЎвЂљР ВµР С–Р С•РЎР‚Р С‘Р С‘', 'error');
+          showNotification(error.message || 'Не удалось сохранить категории', 'error');
         }
       }
     }, 400);
@@ -1503,21 +1503,21 @@
       replyTargetText.textContent = '';
     }
     if (detailsReplyText) {
-      detailsReplyText.placeholder = 'Р вЂ™Р Р†Р ВµР Т‘Р С‘РЎвЂљР Вµ Р С•РЎвЂљР Р†Р ВµРЎвЂљ...';
+      detailsReplyText.placeholder = 'Введите ответ...';
     }
   }
 
   function setReplyTarget(messageId, preview) {
     activeReplyToTelegramId = messageId;
     if (detailsReplyText) {
-      detailsReplyText.placeholder = `Р С›РЎвЂљР Р†Р ВµРЎвЂљ Р Р…Р В° РЎРѓР С•Р С•Р В±РЎвЂ°Р ВµР Р…Р С‘Р Вµ #${messageId}`;
+      detailsReplyText.placeholder = `Ответ на сообщение #${messageId}`;
     }
     if (replyTarget) {
       replyTarget.classList.remove('d-none');
     }
     if (replyTargetText) {
       const safePreview = String(preview || '').trim();
-      replyTargetText.textContent = safePreview || `Р РЋР С•Р С•Р В±РЎвЂ°Р ВµР Р…Р С‘Р Вµ #${messageId}`;
+      replyTargetText.textContent = safePreview || `Сообщение #${messageId}`;
     }
   }
 
@@ -1531,7 +1531,7 @@
       workspaceReplyTargetText.textContent = '';
     }
     if (workspaceComposerText) {
-      workspaceComposerText.placeholder = 'Р вЂ™Р Р†Р ВµР Т‘Р С‘РЎвЂљР Вµ Р С•РЎвЂљР Р†Р ВµРЎвЂљ Р С”Р В»Р С‘Р ВµР Р…РЎвЂљРЎС“РІР‚В¦';
+      workspaceComposerText.placeholder = 'Введите ответ клиенту…';
     }
     if (hadActiveTarget && options.emitTelemetry !== false) {
       emitWorkspaceTelemetry('workspace_reply_target_cleared', {
@@ -1550,14 +1550,14 @@
     }
     activeWorkspaceReplyToTelegramId = normalizedMessageId;
     if (workspaceComposerText) {
-      workspaceComposerText.placeholder = `Р С›РЎвЂљР Р†Р ВµРЎвЂљ Р Р…Р В° РЎРѓР С•Р С•Р В±РЎвЂ°Р ВµР Р…Р С‘Р Вµ #${normalizedMessageId}`;
+      workspaceComposerText.placeholder = `Ответ на сообщение #${normalizedMessageId}`;
     }
     if (workspaceReplyTarget) {
       workspaceReplyTarget.classList.remove('d-none');
     }
     if (workspaceReplyTargetText) {
       const safePreview = String(preview || '').trim();
-      workspaceReplyTargetText.textContent = safePreview || `Р РЋР С•Р С•Р В±РЎвЂ°Р ВµР Р…Р С‘Р Вµ #${normalizedMessageId}`;
+      workspaceReplyTargetText.textContent = safePreview || `Сообщение #${normalizedMessageId}`;
     }
     emitWorkspaceTelemetry('workspace_reply_target_selected', {
       ticketId: activeWorkspaceTicketId,
@@ -1592,7 +1592,7 @@
     if (!src || !mediaPreviewModalEl || !mediaPreviewImage) return;
     resetMediaPreview();
     mediaPreviewImage.src = src;
-    mediaPreviewImage.alt = name || 'Р ВР В·Р С•Р В±РЎР‚Р В°Р В¶Р ВµР Р…Р С‘Р Вµ';
+    mediaPreviewImage.alt = name || 'Изображение';
     mediaPreviewImage.classList.remove('d-none');
     if (mediaPreviewImageControls) {
       mediaPreviewImageControls.classList.remove('d-none');
@@ -1628,7 +1628,7 @@
 
   function avatarInitial(name) {
     const normalized = String(name || '').trim();
-    return normalized ? normalized.charAt(0).toUpperCase() : 'РІР‚вЂќ';
+    return normalized ? normalized.charAt(0).toUpperCase() : '—';
   }
 
   function normalizeIdentity(value) {
@@ -1637,7 +1637,7 @@
 
   function isOwnedByCurrentOperator(responsible) {
     const owner = normalizeIdentity(responsible);
-    if (!owner || owner === 'РІР‚вЂќ' || owner === '-') return false;
+    if (!owner || owner === '—' || owner === '-') return false;
     return owner === normalizeIdentity(OPERATOR_IDENTITY);
   }
 
@@ -1699,7 +1699,7 @@
     const numeric = Number(value);
     if (!Number.isFinite(numeric) || numeric <= 0) return '';
     const capped = Math.min(5, Math.max(1, Math.round(numeric)));
-    return 'РІВвЂ¦'.repeat(capped);
+    return '★'.repeat(capped);
   }
 
   function formatDialogMeta(ticketId, requestNumber) {
@@ -1707,11 +1707,11 @@
     const normalizedRequest = requestNumber ? String(requestNumber) : '';
     if (normalizedRequest) {
       if (normalizedTicketId && normalizedRequest !== normalizedTicketId) {
-        return `РІвЂћвЂ“ Р С•Р В±РЎР‚Р В°РЎвЂ°Р ВµР Р…Р С‘РЎРЏ: ${normalizedRequest} Р’В· ID: ${normalizedTicketId}`;
+        return `№ обращения: ${normalizedRequest} · ID: ${normalizedTicketId}`;
       }
-      return `РІвЂћвЂ“ Р С•Р В±РЎР‚Р В°РЎвЂ°Р ВµР Р…Р С‘РЎРЏ: ${normalizedRequest}`;
+      return `№ обращения: ${normalizedRequest}`;
     }
-    return normalizedTicketId ? `ID Р Т‘Р С‘Р В°Р В»Р С•Р С–Р В°: ${normalizedTicketId}` : '';
+    return normalizedTicketId ? `ID диалога: ${normalizedTicketId}` : '';
   }
 
   function formatDurationMinutes(totalMinutes) {
@@ -1719,19 +1719,19 @@
     const hours = Math.floor(safeValue / 60);
     const minutes = safeValue % 60;
     if (hours > 0) {
-      return `${hours}РЎвЂЎ ${minutes}Р С`;
+      return `${hours}ч ${minutes}м`;
     }
-    return `${minutes}Р С`;
+    return `${minutes}м`;
   }
 
   function computeSlaState(row) {
     if (!row || isResolved(row)) {
-      return { label: 'Р вЂ”Р В°Р С”РЎР‚РЎвЂ№РЎвЂљ', className: 'dialog-sla-closed', title: 'SLA Р Р…Р Вµ Р С—РЎР‚Р С‘Р СР ВµР Р…РЎРЏР ВµРЎвЂљРЎРѓРЎРЏ Р С” Р В·Р В°Р С”РЎР‚РЎвЂ№РЎвЂљР С•Р СРЎС“ Р С•Р В±РЎР‚Р В°РЎвЂ°Р ВµР Р…Р С‘РЎР‹' };
+      return { label: 'Закрыт', className: 'dialog-sla-closed', title: 'SLA не применяется к закрытому обращению' };
     }
     const createdAtRaw = String(row.dataset.createdAt || '').trim();
     const createdAt = parseUtcDateValue(createdAtRaw);
     if (!createdAtRaw || !createdAt) {
-      return { label: 'Р СњР ВµРЎвЂљ Р Т‘Р В°РЎвЂљРЎвЂ№', className: 'dialog-sla-closed', title: 'Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р С•Р С—РЎР‚Р ВµР Т‘Р ВµР В»Р С‘РЎвЂљРЎРЉ Р Р†РЎР‚Р ВµР СРЎРЏ РЎРѓР С•Р В·Р Т‘Р В°Р Р…Р С‘РЎРЏ Р С•Р В±РЎР‚Р В°РЎвЂ°Р ВµР Р…Р С‘РЎРЏ' };
+      return { label: 'Нет даты', className: 'dialog-sla-closed', title: 'Не удалось определить время создания обращения' };
     }
     const ageMinutes = (Date.now() - createdAt.getTime()) / 60000;
     const minutesLeft = SLA_TARGET_MINUTES - ageMinutes;
@@ -1739,22 +1739,22 @@
     const deadlineLabel = formatUtcDate(deadline, { includeTime: true });
     if (minutesLeft <= 0) {
       return {
-        label: `Р СџРЎР‚Р С•РЎРѓРЎР‚Р С•РЎвЂЎР ВµР Р… ${formatDurationMinutes(Math.abs(minutesLeft))}`,
+        label: `Просрочен ${formatDurationMinutes(Math.abs(minutesLeft))}`,
         className: 'dialog-sla-overdue',
-        title: `SLA Р С—РЎР‚Р С•РЎРѓРЎР‚Р С•РЎвЂЎР ВµР Р…. Р вЂќР ВµР Т‘Р В»Р В°Р в„–Р Р…: ${deadlineLabel}`,
+        title: `SLA просрочен. Дедлайн: ${deadlineLabel}`,
       };
     }
     if (minutesLeft <= SLA_WARNING_MINUTES) {
       return {
-        label: `Р В Р С‘РЎРѓР С” ${formatDurationMinutes(minutesLeft)}`,
+        label: `Риск ${formatDurationMinutes(minutesLeft)}`,
         className: 'dialog-sla-risk',
-        title: `Р вЂќР С• Р Т‘Р ВµР Т‘Р В»Р В°Р в„–Р Р…Р В° SLA: ${formatDurationMinutes(minutesLeft)} (Р Т‘Р ВµР Т‘Р В»Р В°Р в„–Р Р…: ${deadlineLabel})`,
+        title: `До дедлайна SLA: ${formatDurationMinutes(minutesLeft)} (дедлайн: ${deadlineLabel})`,
       };
     }
     return {
-      label: `Р вЂќР С• SLA ${formatDurationMinutes(minutesLeft)}`,
+      label: `До SLA ${formatDurationMinutes(minutesLeft)}`,
       className: 'dialog-sla-safe',
-      title: `Р вЂќР С• Р Т‘Р ВµР Т‘Р В»Р В°Р в„–Р Р…Р В° SLA: ${formatDurationMinutes(minutesLeft)} (Р Т‘Р ВµР Т‘Р В»Р В°Р в„–Р Р…: ${deadlineLabel})`,
+      title: `До дедлайна SLA: ${formatDurationMinutes(minutesLeft)} (дедлайн: ${deadlineLabel})`,
     };
   }
 
@@ -1767,15 +1767,15 @@
     const state = computeSlaState(row);
     const criticalPinned = isCriticalSlaDialog(row);
     const escalationRequired = isEscalationRequiredDialog(row);
-    const pinMarker = criticalPinned ? ' СЂСџвЂњРЉ' : '';
-    const escalationMarker = escalationRequired ? ' РІС™В ' : '';
+    const pinMarker = criticalPinned ? ' 📌' : '';
+    const escalationMarker = escalationRequired ? ' ⚠' : '';
     badge.className = `badge rounded-pill dialog-sla-badge ${state.className}`;
     badge.textContent = `${state.label}${pinMarker}${escalationMarker}`;
     const markers = [
-      criticalPinned ? 'Р С’Р Р†РЎвЂљР С•Р С—Р С‘Р Р…: Р С”РЎР‚Р С‘РЎвЂљР С‘РЎвЂЎР Р…РЎвЂ№Р в„– SLA' : '',
-      escalationRequired ? 'Р СћРЎР‚Р ВµР В±РЎС“Р ВµРЎвЂљРЎРѓРЎРЏ РЎРЊРЎРѓР С”Р В°Р В»Р В°РЎвЂ Р С‘РЎРЏ' : '',
-    ].filter(Boolean).join(' Р’В· ');
-    badge.title = markers ? `${state.title || ''} Р’В· ${markers}` : (state.title || '');
+      criticalPinned ? 'Автопин: критичный SLA' : '',
+      escalationRequired ? 'Требуется эскалация' : '',
+    ].filter(Boolean).join(' · ');
+    badge.title = markers ? `${state.title || ''} · ${markers}` : (state.title || '');
   }
 
   function updateAllSlaBadges() {
@@ -1783,24 +1783,24 @@
   }
 
   function renderDialogRow(item) {
-    const ticketId = item?.ticketId || 'РІР‚вЂќ';
+    const ticketId = item?.ticketId || '—';
     const requestNumber = item?.requestNumber;
     const displayNumber = requestNumber || ticketId;
-    const clientName = item?.clientName || item?.username || 'Р СњР ВµР С‘Р В·Р Р†Р ВµРЎРѓРЎвЂљР Р…РЎвЂ№Р в„– Р С”Р В»Р С‘Р ВµР Р…РЎвЂљ';
-    const clientStatus = item?.clientStatus || 'РЎРѓРЎвЂљР В°РЎвЂљРЎС“РЎРѓ Р Р…Р Вµ РЎС“Р С”Р В°Р В·Р В°Р Р…';
-    const channelLabel = item?.channelName || 'Р вЂР ВµР В· Р С”Р В°Р Р…Р В°Р В»Р В°';
-    const businessLabel = item?.business || 'Р вЂР ВµР В· Р В±Р С‘Р В·Р Р…Р ВµРЎРѓР В°';
-    const problemLabel = item?.problem || 'Р СџРЎР‚Р С•Р В±Р В»Р ВµР СР В° Р Р…Р Вµ РЎС“Р С”Р В°Р В·Р В°Р Р…Р В°';
-    const locationLabel = item?.location || [item?.city, item?.locationName].filter(Boolean).join(', ') || 'РІР‚вЂќ';
+    const clientName = item?.clientName || item?.username || 'Неизвестный клиент';
+    const clientStatus = item?.clientStatus || 'статус не указан';
+    const channelLabel = item?.channelName || 'Без канала';
+    const businessLabel = item?.business || 'Без бизнеса';
+    const problemLabel = item?.problem || 'Проблема не указана';
+    const locationLabel = item?.location || [item?.city, item?.locationName].filter(Boolean).join(', ') || '—';
     const statusRaw = item?.status || '';
-    const categories = item?.categoriesSafe || item?.categories || 'РІР‚вЂќ';
+    const categories = item?.categoriesSafe || item?.categories || '—';
     const statusKey = item?.statusKey || '';
     const statusLabel = formatStatusLabel(statusRaw, item?.statusLabel || '', statusKey);
-    const responsible = item?.responsible || item?.resolvedBy || 'РІР‚вЂќ';
+    const responsible = item?.responsible || item?.resolvedBy || '—';
     const canTakeOwnership = !isOwnedByCurrentOperator(responsible);
     const unreadCount = Number(item?.unreadCount) || 0;
-    const createdDate = item?.createdDateSafe || item?.createdDate || 'Р вЂќР В°РЎвЂљР В° Р Р…Р Вµ РЎС“Р С”Р В°Р В·Р В°Р Р…Р В°';
-    const createdTime = item?.createdTimeSafe || item?.createdTime || 'РІР‚вЂќ';
+    const createdDate = item?.createdDateSafe || item?.createdDate || 'Дата не указана';
+    const createdTime = item?.createdTimeSafe || item?.createdTime || '—';
     const ratingValue = Number(item?.rating);
     const ratingStars = formatRatingStars(ratingValue);
     const userId = getDialogUserId(item);
@@ -1820,20 +1820,20 @@
           data-status-key="${escapeHtml(statusKey)}"
           data-location="${escapeHtml(locationLabel)}"
           data-categories="${escapeHtml(categories)}"
-          data-responsible="${escapeHtml(responsible === 'РІР‚вЂќ' ? '' : responsible)}"
+          data-responsible="${escapeHtml(responsible === '—' ? '' : responsible)}"
           data-created-at="${escapeHtml(item?.createdAt || '')}"
           data-unread="${unreadCount}"
           data-rating="${Number.isFinite(ratingValue) ? ratingValue : ''}"
           data-last-message-timestamp="${escapeHtml(item?.lastMessageTimestamp || '')}">
         <td class="dialog-select-column">
-          <input class="form-check-input dialog-row-select" type="checkbox" data-ticket-id="${escapeHtml(ticketId)}" aria-label="Р вЂ™РЎвЂ№Р В±РЎР‚Р В°РЎвЂљРЎРЉ Р Т‘Р С‘Р В°Р В»Р С•Р С–">
+          <input class="form-check-input dialog-row-select" type="checkbox" data-ticket-id="${escapeHtml(ticketId)}" aria-label="Выбрать диалог">
         </td>
         <td>${escapeHtml(displayNumber)}</td>
         <td>
           <div class="d-flex align-items-center gap-2">
             <div class="dialog-avatar" data-avatar-user-id="${escapeHtml(userId)}"
                  data-avatar-name="${escapeHtml(clientName)}">
-              <img class="dialog-avatar-img d-none" alt="Р С’Р Р†Р В°РЎвЂљР В°РЎР‚ Р С”Р В»Р С‘Р ВµР Р…РЎвЂљР В°" data-avatar-img>
+              <img class="dialog-avatar-img d-none" alt="Аватар клиента" data-avatar-img>
               <span class="avatar-circle" data-avatar-initial>${escapeHtml(avatarInitial(clientName))}</span>
             </div>
             <div>
@@ -1865,16 +1865,16 @@
           <div class="small">${escapeHtml(createdTime)}</div>
         </td>
         <td class="dialog-sla-cell">
-          <span class="badge rounded-pill dialog-sla-badge">РІР‚вЂќ</span>
+          <span class="badge rounded-pill dialog-sla-badge">—</span>
         </td>
         <td class="dialog-actions">
-          <a href="#" class="btn btn-sm btn-outline-primary dialog-open-btn" data-ticket-id="${escapeHtml(ticketId)}">Р С›РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљРЎРЉ</a>
-          <button type="button" class="btn btn-sm btn-outline-success dialog-take-btn ${!canTakeOwnership || !canRunAction('can_assign') ? 'd-none' : ''}" data-ticket-id="${escapeHtml(ticketId)}">Р вЂ™Р В·РЎРЏРЎвЂљРЎРЉ РЎРѓР ВµР В±Р Вµ</button>
+          <a href="#" class="btn btn-sm btn-outline-primary dialog-open-btn" data-ticket-id="${escapeHtml(ticketId)}">Открыть</a>
+          <button type="button" class="btn btn-sm btn-outline-success dialog-take-btn ${!canTakeOwnership || !canRunAction('can_assign') ? 'd-none' : ''}" data-ticket-id="${escapeHtml(ticketId)}">Взять себе</button>
           <button type="button" class="btn btn-sm btn-outline-warning dialog-snooze-btn ${isResolvedStatusKey(statusKey) || !canRunAction('can_snooze') ? 'd-none' : ''}" data-ticket-id="${escapeHtml(ticketId)}">${formatSnoozeActionLabel(QUICK_SNOOZE_MINUTES)}</button>
-          <button type="button" class="btn btn-sm btn-outline-danger dialog-close-btn ${isResolvedStatusKey(statusKey) || !canRunAction('can_close') ? 'd-none' : ''}" data-ticket-id="${escapeHtml(ticketId)}">Р вЂ”Р В°Р С”РЎР‚РЎвЂ№РЎвЂљРЎРЉ</button>
+          <button type="button" class="btn btn-sm btn-outline-danger dialog-close-btn ${isResolvedStatusKey(statusKey) || !canRunAction('can_close') ? 'd-none' : ''}" data-ticket-id="${escapeHtml(ticketId)}">Закрыть</button>
           <a href="/tasks" class="btn btn-sm btn-outline-secondary dialog-task-btn"
              data-ticket-id="${escapeHtml(ticketId)}"
-             data-client="${escapeHtml(clientName)}">Р вЂ”Р В°Р Т‘Р В°РЎвЂЎР В°</a>
+             data-client="${escapeHtml(clientName)}">Задача</a>
         </td>
       </tr>
     `;
@@ -1893,7 +1893,7 @@
     const responsibleIndex = table.querySelector('th[data-column-key="responsible"]')?.cellIndex ?? -1;
     const rowCells = row.children;
     if (responsibleIndex >= 0 && rowCells[responsibleIndex]) {
-      rowCells[responsibleIndex].textContent = value || 'РІР‚вЂќ';
+      rowCells[responsibleIndex].textContent = value || '—';
     }
     const takeBtn = row.querySelector('.dialog-take-btn');
     if (takeBtn) {
@@ -1938,7 +1938,7 @@
     const active = Boolean(enabled);
     document.body.classList.toggle('dialog-list-only-mode', active);
     if (dialogListOnlyToggle) {
-      dialogListOnlyToggle.textContent = active ? 'Р СџР С•Р В»Р Р…Р В°РЎРЏ РЎРѓРЎвЂљРЎР‚Р В°Р Р…Р С‘РЎвЂ Р В°' : 'Р СћР С•Р В»РЎРЉР С”Р С• РЎРѓР С—Р С‘РЎРѓР С•Р С”';
+      dialogListOnlyToggle.textContent = active ? 'Полная страница' : 'Только список';
       dialogListOnlyToggle.setAttribute('aria-pressed', active ? 'true' : 'false');
     }
   }
@@ -1978,7 +1978,7 @@
   function exportWorkspaceIncidentCsv() {
     if (!activeWorkspaceTicketId) {
       if (typeof showNotification === 'function') {
-        showNotification('РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р… РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р… РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…, РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р… РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р… РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р….', 'warning');
+        showNotification('������� �������� ������, ����� �������������� ��������.', 'warning');
       }
       return;
     }
@@ -1992,7 +1992,7 @@
 
   function parseRowCategories(row) {
     const categoriesValue = String(row?.dataset?.categories || '').trim();
-    if (!categoriesValue || categoriesValue === 'РІР‚вЂќ') {
+    if (!categoriesValue || categoriesValue === '—') {
       return [];
     }
     return categoriesValue.split(',').map((item) => item.trim()).filter(Boolean);
@@ -2012,7 +2012,7 @@
       const ticketId = row.dataset.ticketId;
       const until = getSnoozeUntil(ticketId);
       snoozeBtn.textContent = until
-        ? `Р С›РЎвЂљР В»Р С•Р В¶Р ВµР Р… Р Т‘Р С• ${formatUtcDate(new Date(until), { includeTime: true })}`
+        ? `Отложен до ${formatUtcDate(new Date(until), { includeTime: true })}`
         : formatSnoozeActionLabel(QUICK_SNOOZE_MINUTES);
     }
   }
@@ -2021,7 +2021,7 @@
     if (!ticketId) return;
     const categories = parseRowCategories(row);
     if (!categories.length) {
-      throw new Error('Р вЂќР В»РЎРЏ Р В±РЎвЂ№РЎРѓРЎвЂљРЎР‚Р С•Р С–Р С• Р В·Р В°Р С”РЎР‚РЎвЂ№РЎвЂљР С‘РЎРЏ РЎС“Р С”Р В°Р В¶Р С‘РЎвЂљР Вµ Р С”Р В°РЎвЂљР ВµР С–Р С•РЎР‚Р С‘РЎР‹ Р Р† Р С”Р В°РЎР‚РЎвЂљР С•РЎвЂЎР С”Р Вµ Р Т‘Р С‘Р В°Р В»Р С•Р С–Р В°.');
+      throw new Error('Для быстрого закрытия укажите категорию в карточке диалога.');
     }
     const btn = triggerButton || null;
     if (btn) btn.disabled = true;
@@ -2032,9 +2032,9 @@
     });
     const data = await resp.json();
     if (!resp.ok || !data?.success) {
-      throw new Error(data?.error || `Р С›РЎв‚¬Р С‘Р В±Р С”Р В° ${resp.status}`);
+      throw new Error(data?.error || `Ошибка ${resp.status}`);
     }
-    updateRowStatus(row, 'resolved', 'Р вЂ”Р В°Р С”РЎР‚РЎвЂ№РЎвЂљ', 'closed', 0);
+    updateRowStatus(row, 'resolved', 'Закрыт', 'closed', 0);
     emitWorkspaceTelemetry('triage_quick_close', { ticketId });
     updateRowSlaBadge(row);
     updateRowQuickActions(row);
@@ -2052,18 +2052,18 @@
       });
       const data = await resp.json();
       if (!resp.ok || !data?.success) {
-        throw new Error(data?.error || `Р С›РЎв‚¬Р С‘Р В±Р С”Р В° ${resp.status}`);
+        throw new Error(data?.error || `Ошибка ${resp.status}`);
       }
       updateRowResponsible(row, data.responsible || '');
       emitWorkspaceTelemetry('triage_quick_assign', { ticketId });
       applyFilters();
       if (typeof showNotification === 'function') {
-        showNotification('Р вЂќР С‘Р В°Р В»Р С•Р С– Р Р…Р В°Р В·Р Р…Р В°РЎвЂЎР ВµР Р… Р Р…Р В° Р Р†Р В°РЎРѓ', 'success');
+        showNotification('Диалог назначен на вас', 'success');
       }
     } catch (error) {
       if (btn) btn.disabled = false;
       if (typeof showNotification === 'function') {
-        showNotification(error.message || 'Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р Р†Р В·РЎРЏРЎвЂљРЎРЉ Р Т‘Р С‘Р В°Р В»Р С•Р С–', 'error');
+        showNotification(error.message || 'Не удалось взять диалог', 'error');
       }
       throw error;
     }
@@ -2081,7 +2081,7 @@
       });
       const data = await resp.json();
       if (!resp.ok || !data?.success) {
-        throw new Error(data?.error || `Р С›РЎв‚¬Р С‘Р В±Р С”Р В° ${resp.status}`);
+        throw new Error(data?.error || `Ошибка ${resp.status}`);
       }
       emitWorkspaceTelemetry('triage_quick_snooze', { ticketId, reason: `minutes:${minutes}` });
     } finally {
@@ -2127,7 +2127,7 @@
       });
       const data = await resp.json();
       if (!resp.ok || !data?.success) {
-        throw new Error(data?.error || `Р С›РЎв‚¬Р С‘Р В±Р С”Р В° ${resp.status}`);
+        throw new Error(data?.error || `Ошибка ${resp.status}`);
       }
       const dialogs = data.dialogs || [];
       syncSlaOrchestrationSignals(data.sla_orchestration || null);
@@ -2160,7 +2160,7 @@
   }
 
   const emptyRow = document.createElement('tr');
-  emptyRow.innerHTML = '<td colspan="13" class="text-center text-muted py-4">Р СњР ВµРЎвЂљ РЎР‚Р ВµР В·РЎС“Р В»РЎРЉРЎвЂљР В°РЎвЂљР С•Р Р†</td>';
+  emptyRow.innerHTML = '<td colspan="13" class="text-center text-muted py-4">Нет результатов</td>';
   emptyRow.classList.add('d-none');
 
   function ensureEmptyRow() {
@@ -2285,7 +2285,7 @@
 
   function isUnassignedDialog(row) {
     const responsible = String(row.dataset.responsible || '').trim().toLowerCase();
-    return !responsible || responsible === 'РІР‚вЂќ' || responsible === '-';
+    return !responsible || responsible === '—' || responsible === '-';
   }
 
   function isOverdueDialog(row) {
@@ -2405,7 +2405,7 @@
       bulkToolbar.classList.toggle('d-none', !canShowBulkToolbar);
     }
     if (bulkCount) {
-      bulkCount.textContent = `Р вЂ™РЎвЂ№Р В±РЎР‚Р В°Р Р…Р С•: ${count}`;
+      bulkCount.textContent = `Выбрано: ${count}`;
     }
     if (bulkTakeBtn) bulkTakeBtn.disabled = !canShowBulkToolbar || !canRunAction('can_bulk') || !canRunAction('can_assign');
     if (bulkSnoozeBtn) bulkSnoozeBtn.disabled = !canShowBulkToolbar || !canRunAction('can_bulk') || !canRunAction('can_snooze');
@@ -2422,13 +2422,13 @@
 
   async function runBulkAction(action) {
     const permissionMap = {
-      take: ['can_bulk', 'can_assign', 'Р СњР В°Р В·Р Р…Р В°РЎвЂЎР С‘РЎвЂљРЎРЉ Р Р†РЎвЂ№Р В±РЎР‚Р В°Р Р…Р Р…РЎвЂ№Р Вµ Р Р…Р В° Р СР ВµР Р…РЎРЏ'],
-      snooze: ['can_bulk', 'can_snooze', `Р С›РЎвЂљР В»Р С•Р В¶Р С‘РЎвЂљРЎРЉ Р Р†РЎвЂ№Р В±РЎР‚Р В°Р Р…Р Р…РЎвЂ№Р Вµ Р Р…Р В° ${formatSnoozeActionLabel(QUICK_SNOOZE_MINUTES).replace('Р С›РЎвЂљР В»Р С•Р В¶Р С‘РЎвЂљРЎРЉ ', '')}`],
-      close: ['can_bulk', 'can_close', 'Р вЂ”Р В°Р С”РЎР‚РЎвЂ№РЎвЂљРЎРЉ Р Р†РЎвЂ№Р В±РЎР‚Р В°Р Р…Р Р…РЎвЂ№Р Вµ'],
+      take: ['can_bulk', 'can_assign', 'Назначить выбранные на меня'],
+      snooze: ['can_bulk', 'can_snooze', `Отложить выбранные на ${formatSnoozeActionLabel(QUICK_SNOOZE_MINUTES).replace('Отложить ', '')}`],
+      close: ['can_bulk', 'can_close', 'Закрыть выбранные'],
     };
     const [bulkPermission, actionPermission, actionTitle] = permissionMap[action] || [];
     if (!canRunAction(bulkPermission) || !canRunAction(actionPermission)) {
-      notifyPermissionDenied(actionTitle || 'Р вЂњРЎР‚РЎС“Р С—Р С—Р С•Р Р†Р С•Р Вµ Р Т‘Р ВµР в„–РЎРѓРЎвЂљР Р†Р С‘Р Вµ');
+      notifyPermissionDenied(actionTitle || 'Групповое действие');
       emitWorkspaceTelemetry('triage_bulk_action', {
         reason: `${action || 'unknown'}:permission_denied`,
       });
@@ -2450,7 +2450,7 @@
     const skippedRows = rows.filter((row) => !eligibleRows.includes(row));
     if (!eligibleRows.length) {
       if (typeof showNotification === 'function') {
-        showNotification('Р СњР ВµРЎвЂљ Р Т‘Р С‘Р В°Р В»Р С•Р С–Р С•Р Р†, Р С—Р С•Р Т‘РЎвЂ¦Р С•Р Т‘РЎРЏРЎвЂ°Р С‘РЎвЂ¦ Р Т‘Р В»РЎРЏ Р Р†РЎвЂ№Р В±РЎР‚Р В°Р Р…Р Р…Р С•Р С–Р С• Р С–РЎР‚РЎС“Р С—Р С—Р С•Р Р†Р С•Р С–Р С• Р Т‘Р ВµР в„–РЎРѓРЎвЂљР Р†Р С‘РЎРЏ.', 'warning');
+        showNotification('Нет диалогов, подходящих для выбранного группового действия.', 'warning');
       }
       emitWorkspaceTelemetry('triage_bulk_action', {
         reason: `${action || 'unknown'}:nothing_eligible:selected=${rows.length}`,
@@ -2458,7 +2458,7 @@
       return;
     }
     if (skippedRows.length && typeof showNotification === 'function') {
-      showNotification(`Р СџРЎР‚Р С•Р С—РЎС“РЎвЂ°Р ВµР Р…Р С• ${skippedRows.length} Р Т‘Р С‘Р В°Р В»Р С•Р С–(Р С•Р Р†): Р Т‘Р ВµР в„–РЎРѓРЎвЂљР Р†Р С‘Р Вµ Р Р…Р ВµР Т‘Р С•РЎРѓРЎвЂљРЎС“Р С—Р Р…Р С• Р Т‘Р В»РЎРЏ РЎвЂљР ВµР С”РЎС“РЎвЂ°Р ВµР С–Р С• РЎРѓРЎвЂљР В°РЎвЂљРЎС“РЎРѓР В°/Р С—РЎР‚Р В°Р Р†.`, 'warning');
+      showNotification(`Пропущено ${skippedRows.length} диалог(ов): действие недоступно для текущего статуса/прав.`, 'warning');
     }
     let processedCount = 0;
     const originalDisabled = [bulkTakeBtn, bulkSnoozeBtn, bulkCloseBtn, bulkClearBtn]
@@ -2493,23 +2493,23 @@
         }
         processedCount += 1;
       } catch (error) {
-        errors.push(`${ticketId}: ${error.message || 'Р С•РЎв‚¬Р С‘Р В±Р С”Р В°'}`);
+        errors.push(`${ticketId}: ${error.message || 'ошибка'}`);
       }
     }
 
     applyFilters();
     if (errors.length) {
       if (typeof showNotification === 'function') {
-        showNotification(`Р В§Р В°РЎРѓРЎвЂљРЎРЉ Р С•Р С—Р ВµРЎР‚Р В°РЎвЂ Р С‘Р в„– Р Р…Р Вµ Р Р†РЎвЂ№Р С—Р С•Р В»Р Р…Р ВµР Р…Р В° (${errors.length}).`, 'error');
+        showNotification(`Часть операций не выполнена (${errors.length}).`, 'error');
       }
       console.warn('Bulk action errors', action, errors);
     } else if (typeof showNotification === 'function') {
       const successMap = {
-        take: 'Р вЂ™РЎвЂ№Р В±РЎР‚Р В°Р Р…Р Р…РЎвЂ№Р Вµ Р Т‘Р С‘Р В°Р В»Р С•Р С–Р С‘ Р Р…Р В°Р В·Р Р…Р В°РЎвЂЎР ВµР Р…РЎвЂ№ Р Р…Р В° Р Р†Р В°РЎРѓ',
+        take: 'Выбранные диалоги назначены на вас',
         snooze: formatBulkSnoozeLabel(QUICK_SNOOZE_MINUTES),
-        close: 'Р вЂ™РЎвЂ№Р В±РЎР‚Р В°Р Р…Р Р…РЎвЂ№Р Вµ Р Т‘Р С‘Р В°Р В»Р С•Р С–Р С‘ Р В·Р В°Р С”РЎР‚РЎвЂ№РЎвЂљРЎвЂ№',
+        close: 'Выбранные диалоги закрыты',
       };
-      showNotification(successMap[action] || 'Р вЂњРЎР‚РЎС“Р С—Р С—Р С•Р Р†Р С•Р Вµ Р Т‘Р ВµР в„–РЎРѓРЎвЂљР Р†Р С‘Р Вµ Р Р†РЎвЂ№Р С—Р С•Р В»Р Р…Р ВµР Р…Р С•', 'success');
+      showNotification(successMap[action] || 'Групповое действие выполнено', 'success');
     }
     emitWorkspaceTelemetry('triage_bulk_action', {
       reason: `${action || 'unknown'}:${errors.length ? 'partial_failure' : 'success'}:processed=${processedCount}:errors=${errors.length}:skipped=${skippedRows.length}`,
@@ -2763,13 +2763,13 @@
 
   function renderExperimentKpiItems(container, items) {
     if (!container) return;
-    const safeItems = Array.isArray(items) && items.length ? items : ['РІР‚вЂќ'];
+    const safeItems = Array.isArray(items) && items.length ? items : ['—'];
     container.innerHTML = safeItems.map((item) => `<li>${escapeHtml(String(item))}</li>`).join('');
   }
 
   function renderExperimentInfoPanel() {
     if (experimentInfoMeta) {
-      experimentInfoMeta.textContent = `Р В­Р С”РЎРѓР С—Р ВµРЎР‚Р С‘Р СР ВµР Р…РЎвЂљ: ${WORKSPACE_AB_TEST_CONFIG.experimentName} Р’В· Р С™Р С•Р С–Р С•РЎР‚РЎвЂљР В°: ${workspaceExperimentContext.cohort} Р’В· Р РЋР ВµР С–Р СР ВµР Р…РЎвЂљ: ${workspaceExperimentContext.operatorSegment}`;
+      experimentInfoMeta.textContent = `Эксперимент: ${WORKSPACE_AB_TEST_CONFIG.experimentName} · Когорта: ${workspaceExperimentContext.cohort} · Сегмент: ${workspaceExperimentContext.operatorSegment}`;
     }
     renderExperimentKpiItems(experimentPrimaryKpis, WORKSPACE_AB_TEST_CONFIG.primaryKpis);
     renderExperimentKpiItems(experimentSecondaryKpis, WORKSPACE_AB_TEST_CONFIG.secondaryKpis);
@@ -2784,16 +2784,16 @@
 
   function formatDeltaPercent(value) {
     const safe = Number(value);
-    if (!Number.isFinite(safe)) return '0.00 Р С—.Р С—.';
+    if (!Number.isFinite(safe)) return '0.00 п.п.';
     const sign = safe > 0 ? '+' : '';
-    return `${sign}${(safe * 100).toFixed(2)} Р С—.Р С—.`;
+    return `${sign}${(safe * 100).toFixed(2)} п.п.`;
   }
 
   function formatDeltaMs(value) {
     const safe = Number(value);
-    if (!Number.isFinite(safe)) return 'РІР‚вЂќ';
+    if (!Number.isFinite(safe)) return '—';
     const sign = safe > 0 ? '+' : '';
-    return `${sign}${Math.round(safe)}Р СРЎРѓ`;
+    return `${sign}${Math.round(safe)}мс`;
   }
 
   function renderExperimentTelemetryGuardrails(guardrails) {
@@ -2816,11 +2816,11 @@
     const summary = `SLO: render_error ${formatGuardrailPercent(rates.render_error)} / fallback ${formatGuardrailPercent(rates.fallback)} / abandon ${formatGuardrailPercent(rates.abandon)} / slow_open ${formatGuardrailPercent(rates.slow_open)}.`;
     if (status === 'attention') {
       experimentTelemetryGuardrailState.classList.add('alert-warning');
-      experimentTelemetryGuardrailState.textContent = `Р СњР В°Р в„–Р Т‘Р ВµР Р…РЎвЂ№ Р С•РЎвЂљР С”Р В»Р С•Р Р…Р ВµР Р…Р С‘РЎРЏ guardrails. ${summary}`;
+      experimentTelemetryGuardrailState.textContent = `Найдены отклонения guardrails. ${summary}`;
       if (alerts.length) {
         experimentTelemetryGuardrailAlerts.classList.remove('d-none');
         experimentTelemetryGuardrailAlerts.innerHTML = alerts.map((alert) => {
-          const message = String(alert?.message || 'Р С›РЎвЂљР С”Р В»Р С•Р Р…Р ВµР Р…Р С‘Р Вµ Р СР ВµРЎвЂљРЎР‚Р С‘Р С”Р С‘');
+          const message = String(alert?.message || 'Отклонение метрики');
           const value = formatGuardrailPercent(alert?.value);
           const threshold = formatGuardrailPercent(alert?.threshold);
           const scope = String(alert?.scope || '').trim();
@@ -2829,22 +2829,22 @@
           const previousValue = Number(alert?.previous_value);
           const delta = Number(alert?.delta);
           const scopeMeta = scope && segment
-            ? ` Р’В· РЎРѓРЎР‚Р ВµР В·: ${scope}=${segment}${events > 0 ? ` Р’В· РЎРѓР С•Р В±РЎвЂ№РЎвЂљР С‘Р в„–: ${events}` : ''}`
+            ? ` · срез: ${scope}=${segment}${events > 0 ? ` · событий: ${events}` : ''}`
             : '';
           const previousMeta = Number.isFinite(previousValue)
-            ? ` Р’В· Р С—РЎР‚Р ВµР Т‘РЎвЂ№Р Т‘РЎС“РЎвЂ°Р ВµР Вµ Р С•Р С”Р Р…Р С•: ${escapeHtml(formatGuardrailPercent(previousValue))}`
+            ? ` · предыдущее окно: ${escapeHtml(formatGuardrailPercent(previousValue))}`
             : '';
           const deltaMeta = Number.isFinite(delta)
-            ? ` Р’В· РћвЂќ: ${escapeHtml(formatDeltaPercent(delta))}`
+            ? ` · Δ: ${escapeHtml(formatDeltaPercent(delta))}`
             : '';
-          return `<li>${escapeHtml(message)} (РЎвЂћР В°Р С”РЎвЂљ: ${escapeHtml(value)} Р’В· Р С—Р С•РЎР‚Р С•Р С–: ${escapeHtml(threshold)}${previousMeta}${deltaMeta}${escapeHtml(scopeMeta)})</li>`;
+          return `<li>${escapeHtml(message)} (факт: ${escapeHtml(value)} · порог: ${escapeHtml(threshold)}${previousMeta}${deltaMeta}${escapeHtml(scopeMeta)})</li>`;
         }).join('');
       }
       return;
     }
 
     experimentTelemetryGuardrailState.classList.add('alert-success');
-    experimentTelemetryGuardrailState.textContent = `Guardrails Р Р† Р Р…Р С•РЎР‚Р СР Вµ. ${summary}`;
+    experimentTelemetryGuardrailState.textContent = `Guardrails в норме. ${summary}`;
   }
 
   function formatRolloutDecisionAction(action) {
@@ -2856,13 +2856,13 @@
 
   function formatKpiOutcomeDelta(metricName, value) {
     const safe = Number(value);
-    if (!Number.isFinite(safe)) return 'РІР‚вЂќ';
+    if (!Number.isFinite(safe)) return '—';
     const isPercentMetric = String(metricName || '').toLowerCase() === 'sla_breach';
     if (isPercentMetric) {
       return formatDeltaPercent(safe);
     }
     const sign = safe > 0 ? '+' : '';
-    return `${sign}${Math.round(safe)}Р СРЎРѓ`;
+    return `${sign}${Math.round(safe)}мс`;
   }
 
 
@@ -2875,16 +2875,16 @@
       experimentRolloutPacketChecklist.classList.add('d-none');
       experimentRolloutPacketChecklist.innerHTML = '';
       experimentRolloutPacketWrap.classList.add('d-none');
-      experimentRolloutPacketRows.innerHTML = '<tr><td colspan="6" class="small text-muted">Governance packet Р С—Р С•РЎРЏР Р†Р С‘РЎвЂљРЎРѓРЎРЏ Р С—Р С•РЎРѓР В»Р Вµ Р С—Р ВµРЎР‚Р Р†РЎвЂ№РЎвЂ¦ telemetry-РЎРѓР С‘Р С–Р Р…Р В°Р В»Р С•Р Р†.</td></tr>';
+      experimentRolloutPacketRows.innerHTML = '<tr><td colspan="6" class="small text-muted">Governance packet появится после первых telemetry-сигналов.</td></tr>';
       return;
     }
 
     const status = String(safePacket?.status || 'attention').trim().toLowerCase();
     const required = Boolean(safePacket?.required);
     const packetReady = Boolean(safePacket?.packet_ready);
-    const summary = String(safePacket?.summary || '').trim() || 'Governance packet Р В·Р В°Р С–РЎР‚РЎС“Р В¶Р ВµР Р….';
+    const summary = String(safePacket?.summary || '').trim() || 'Governance packet загружен.';
     const decisionAction = String(safePacket?.decision_action || 'hold').trim().toUpperCase();
-    const generatedAt = formatTimestamp(safePacket?.generated_at, { includeTime: true, fallback: 'РІР‚вЂќ' });
+    const generatedAt = formatTimestamp(safePacket?.generated_at, { includeTime: true, fallback: '—' });
     const blockingCount = Math.max(0, Number(safePacket?.blocking_count || 0));
     const attentionCount = Math.max(0, Number(safePacket?.attention_count || 0));
     const invalidUtcItems = Array.isArray(safePacket?.invalid_utc_items) ? safePacket.invalid_utc_items : [];
@@ -2908,14 +2908,14 @@
     } else {
       experimentRolloutPacketState.classList.add('alert-warning');
     }
-    experimentRolloutPacketState.textContent = `Governance packet: ${status.toUpperCase()} Р’В· decision ${decisionAction} Р’В· blocking ${blockingCount} Р’В· attention ${attentionCount} Р’В· generated ${generatedAt}. ${summary}`;
+    experimentRolloutPacketState.textContent = `Governance packet: ${status.toUpperCase()} · decision ${decisionAction} · blocking ${blockingCount} · attention ${attentionCount} · generated ${generatedAt}. ${summary}`;
     experimentRolloutPacketState.classList.remove('d-none');
 
     const checks = [
-      { ok: packetReady, label: required ? 'Р СџР С•Р В»Р Р…РЎвЂ№Р в„– governance packet РЎРѓР С•Р В±РЎР‚Р В°Р Р…' : 'Governance packet Р Р…Р Вµ Р В±Р В»Р С•Р С”Р С‘РЎР‚РЎС“Р ВµРЎвЂљ rollout' },
-      { ok: missingItems.length === 0, label: missingItems.length ? `Р СџРЎР‚Р С•Р С—РЎС“РЎвЂ°Р ВµР Р…Р Р…РЎвЂ№Р Вµ РЎРЊР В»Р ВµР СР ВµР Р…РЎвЂљРЎвЂ№: ${missingItems.join(', ')}` : 'Р СњР ВµРЎвЂљ Р С—РЎР‚Р С•Р С—РЎС“РЎвЂ°Р ВµР Р…Р Р…РЎвЂ№РЎвЂ¦ РЎРЊР В»Р ВµР СР ВµР Р…РЎвЂљР С•Р Р† Р С—Р В°Р С”Р ВµРЎвЂљР В°' },
-      { ok: invalidUtcItems.length === 0, label: invalidUtcItems.length ? `UTC-Р С•РЎв‚¬Р С‘Р В±Р С”Р С‘: ${invalidUtcItems.join(', ')}` : 'UTC-Р СР ВµРЎвЂљР С”Р С‘ governance Р Р†Р В°Р В»Р С‘Р Т‘Р Р…РЎвЂ№' },
-      { ok: legacyOnlyScenarios.length === 0, label: legacyOnlyScenarios.length ? `Legacy-only inventory Р С•РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљ: ${legacyOnlyScenarios.join(', ')}` : 'Legacy-only inventory Р С—РЎС“РЎРѓРЎвЂљ' },
+      { ok: packetReady, label: required ? 'Полный governance packet собран' : 'Governance packet не блокирует rollout' },
+      { ok: missingItems.length === 0, label: missingItems.length ? `Пропущенные элементы: ${missingItems.join(', ')}` : 'Нет пропущенных элементов пакета' },
+      { ok: invalidUtcItems.length === 0, label: invalidUtcItems.length ? `UTC-ошибки: ${invalidUtcItems.join(', ')}` : 'UTC-метки governance валидны' },
+      { ok: legacyOnlyScenarios.length === 0, label: legacyOnlyScenarios.length ? `Legacy-only inventory открыт: ${legacyOnlyScenarios.join(', ')}` : 'Legacy-only inventory пуст' },
     ];
     if (legacyOnlyScenarios.length) {
       const legacyActionItems = Array.isArray(legacyInventory?.action_items) ? legacyInventory.action_items : [];
@@ -2925,7 +2925,7 @@
       checks.push({
         ok: overdue === 0,
         label: overdue > 0
-          ? `Sunset commitments overdue: ${overdue}${legacyActionItems.length ? ` Р’В· ${legacyActionItems[0]}` : ''}`
+          ? `Sunset commitments overdue: ${overdue}${legacyActionItems.length ? ` · ${legacyActionItems[0]}` : ''}`
           : `Owner/deadline coverage ${Number(legacyInventory?.owner_coverage_pct || 0)}% / ${Number(legacyInventory?.deadline_coverage_pct || 0)}%`
       });
       if (reviewQueueScenarios.length) {
@@ -2933,7 +2933,7 @@
           ok: legacyInventory?.review_queue_followup_required !== true,
           label: legacyInventory?.review_queue_summary
             ? String(legacyInventory.review_queue_summary)
-            : `Р СџР С•Р Р†РЎвЂљР С•РЎР‚Р Р…Р С• Р С•РЎРѓРЎвЂљР В°РЎР‹РЎвЂљРЎРѓРЎРЏ Р Р† legacy review-queue: ${reviewQueueScenarios.slice(0, 3).join(', ')}${reviewQueueScenarios.length > 3 ? ` +${reviewQueueScenarios.length - 3}` : ''}`
+            : `Повторно остаются в legacy review-queue: ${reviewQueueScenarios.slice(0, 3).join(', ')}${reviewQueueScenarios.length > 3 ? ` +${reviewQueueScenarios.length - 3}` : ''}`
         });
       }
       if (legacyInventory?.review_queue_escalation_required === true) {
@@ -2947,7 +2947,7 @@
         const consolidationCandidates = Array.isArray(legacyInventory?.review_queue_consolidation_candidates) ? legacyInventory.review_queue_consolidation_candidates : [];
         checks.push({
           ok: false,
-          label: `Legacy queue consolidation: ${consolidationCandidates.length ? consolidationCandidates.join(', ') : `${Number(legacyInventory?.review_queue_consolidation_count || 0)} РЎРѓРЎвЂ Р ВµР Р…Р В°РЎР‚Р С‘РЎРЏ(Р ВµР Р†)`}`
+          label: `Legacy queue consolidation: ${consolidationCandidates.length ? consolidationCandidates.join(', ') : `${Number(legacyInventory?.review_queue_consolidation_count || 0)} сценария(ев)`}`
         });
       }
       if (overdueScenarios.length) {
@@ -2959,7 +2959,7 @@
       if (legacyInventory?.repeat_review_required === true) {
         checks.push({
           ok: false,
-          label: `Р СџР С•Р Р†РЎвЂљР С•РЎР‚Р Р…РЎвЂ№Р в„– legacy review Р С•Р В±РЎРЏР В·Р В°РЎвЂљР ВµР В»Р ВµР Р… (${String(legacyInventory?.repeat_review_reason || 'review_due')})${legacyInventory?.repeat_review_due_at_utc ? ` Р’В· due ${formatTimestamp(legacyInventory.repeat_review_due_at_utc, { includeTime: true, fallback: 'РІР‚вЂќ' })}` : ''}`
+          label: `Повторный legacy review обязателен (${String(legacyInventory?.repeat_review_reason || 'review_due')})${legacyInventory?.repeat_review_due_at_utc ? ` · due ${formatTimestamp(legacyInventory.repeat_review_due_at_utc, { includeTime: true, fallback: '—' })}` : ''}`
         });
       }
     }
@@ -2971,26 +2971,26 @@
       checks.push({
         ok: contextContract?.ready === true,
         label: contextContract?.ready === true
-          ? `Context contract ready${focusBlocks.length ? ` Р’В· operator first: ${focusBlocks.join(', ')}` : ''}`
-          : (nextStepSummary || operatorSummary || contextActionItems[0] || 'Context contract РЎвЂљРЎР‚Р ВµР В±РЎС“Р ВµРЎвЂљ action-oriented follow-up')
+          ? `Context contract ready${focusBlocks.length ? ` · operator first: ${focusBlocks.join(', ')}` : ''}`
+          : (nextStepSummary || operatorSummary || contextActionItems[0] || 'Context contract требует action-oriented follow-up')
       });
       if (contextContract?.extra_attributes_compaction_candidate === true) {
         checks.push({
           ok: contextContract?.secondary_noise_management_review_required !== true,
-          label: String(contextContract?.secondary_noise_compaction_summary || contextContract?.extra_attributes_summary || 'Extra attributes РЎвЂљРЎР‚Р ВµР В±РЎС“РЎР‹РЎвЂљ compaction review.')
+          label: String(contextContract?.secondary_noise_compaction_summary || contextContract?.extra_attributes_summary || 'Extra attributes требуют compaction review.')
         });
       }
     }
     if (nextReviewAt) {
-      checks.push({ ok: true, label: `Р РЋР В»Р ВµР Т‘РЎС“РЎР‹РЎвЂ°Р С‘Р в„– review due UTC: ${nextReviewAt}` });
+      checks.push({ ok: true, label: `Следующий review due UTC: ${nextReviewAt}` });
     }
     experimentRolloutPacketChecklist.classList.remove('d-none');
-    experimentRolloutPacketChecklist.innerHTML = checks.map((item) => (`<li>${item.ok ? 'РІСљвЂ¦' : 'РІС™В РїС‘РЏ'} ${escapeHtml(item.label)}</li>`)).join('');
+    experimentRolloutPacketChecklist.innerHTML = checks.map((item) => (`<li>${item.ok ? '✅' : '⚠️'} ${escapeHtml(item.label)}</li>`)).join('');
 
     const items = Array.isArray(safePacket?.items) ? safePacket.items : [];
     if (!items.length) {
       experimentRolloutPacketWrap.classList.add('d-none');
-      experimentRolloutPacketRows.innerHTML = '<tr><td colspan="6" class="small text-muted">Governance packet Р С—Р С•РЎРЏР Р†Р С‘РЎвЂљРЎРѓРЎРЏ Р С—Р С•РЎРѓР В»Р Вµ Р С—Р ВµРЎР‚Р Р†РЎвЂ№РЎвЂ¦ telemetry-РЎРѓР С‘Р С–Р Р…Р В°Р В»Р С•Р Р†.</td></tr>';
+      experimentRolloutPacketRows.innerHTML = '<tr><td colspan="6" class="small text-muted">Governance packet появится после первых telemetry-сигналов.</td></tr>';
       return;
     }
 
@@ -3008,13 +3008,13 @@
       return `
         <tr>
           <td>
-            <div>${escapeHtml(String(item?.label || 'РІР‚вЂќ'))}</div>
+            <div>${escapeHtml(String(item?.label || '—'))}</div>
             ${note ? `<div class="small text-muted">${escapeHtml(note)}</div>` : ''}
           </td>
-          <td>${escapeHtml(String(item?.category || 'РІР‚вЂќ'))}</td>
-          <td>${escapeHtml(String(item?.current_value || 'РІР‚вЂќ'))}</td>
-          <td>${escapeHtml(String(item?.threshold || 'РІР‚вЂќ'))}</td>
-          <td>${escapeHtml(formatTimestamp(item?.measured_at, { includeTime: true, fallback: 'РІР‚вЂќ' }))}</td>
+          <td>${escapeHtml(String(item?.category || '—'))}</td>
+          <td>${escapeHtml(String(item?.current_value || '—'))}</td>
+          <td>${escapeHtml(String(item?.threshold || '—'))}</td>
+          <td>${escapeHtml(formatTimestamp(item?.measured_at, { includeTime: true, fallback: '—' }))}</td>
           <td class="text-end">${badge}</td>
         </tr>
       `;
@@ -3039,7 +3039,7 @@
     });
     if (!rows.length) {
       experimentGapBreakdownWrap.classList.add('d-none');
-      experimentGapBreakdownRows.innerHTML = '<tr><td colspan="5" class="small text-muted">Gap breakdown Р С—Р С•РЎРЏР Р†Р С‘РЎвЂљРЎРѓРЎРЏ Р С—Р С•РЎРѓР В»Р Вµ Р С—Р ВµРЎР‚Р Р†РЎвЂ№РЎвЂ¦ parity/context-gap РЎРѓР С•Р В±РЎвЂ№РЎвЂљР С‘Р в„–.</td></tr>';
+      experimentGapBreakdownRows.innerHTML = '<tr><td colspan="5" class="small text-muted">Gap breakdown появится после первых parity/context-gap событий.</td></tr>';
       return;
     }
     experimentGapBreakdownWrap.classList.remove('d-none');
@@ -3049,7 +3049,7 @@
         <td>${escapeHtml(String(item?.reason || 'unspecified'))}</td>
         <td class="text-end">${escapeHtml(String(Number(item?.events || 0)))}</td>
         <td class="text-end">${escapeHtml(String(Number(item?.tickets || 0)))}</td>
-        <td>${escapeHtml(formatTimestamp(item?.last_seen_at, { includeTime: true, fallback: 'РІР‚вЂќ' }))}</td>
+        <td>${escapeHtml(formatTimestamp(item?.last_seen_at, { includeTime: true, fallback: '—' }))}</td>
       </tr>
     `).join('');
   }
@@ -3059,7 +3059,7 @@
     const items = Array.isArray(scorecard?.items) ? scorecard.items : [];
     if (!items.length) {
       experimentRolloutScorecardWrap.classList.add('d-none');
-      experimentRolloutScorecardRows.innerHTML = '<tr><td colspan="6" class="small text-muted">Rollout scorecard Р С—Р С•РЎРЏР Р†Р С‘РЎвЂљРЎРѓРЎРЏ Р С—Р С•РЎРѓР В»Р Вµ Р С—Р ВµРЎР‚Р Р†РЎвЂ№РЎвЂ¦ telemetry-РЎРѓР С‘Р С–Р Р…Р В°Р В»Р С•Р Р†.</td></tr>';
+      experimentRolloutScorecardRows.innerHTML = '<tr><td colspan="6" class="small text-muted">Rollout scorecard появится после первых telemetry-сигналов.</td></tr>';
       return;
     }
 
@@ -3077,13 +3077,13 @@
       return `
         <tr>
           <td>
-            <div>${escapeHtml(String(item?.label || 'РІР‚вЂќ'))}</div>
+            <div>${escapeHtml(String(item?.label || '—'))}</div>
             ${note ? `<div class="small text-muted">${escapeHtml(note)}</div>` : ''}
           </td>
-          <td>${escapeHtml(String(item?.category || 'РІР‚вЂќ'))}</td>
-          <td>${escapeHtml(String(item?.current_value || 'РІР‚вЂќ'))}</td>
-          <td>${escapeHtml(String(item?.threshold || 'РІР‚вЂќ'))}</td>
-          <td>${escapeHtml(formatTimestamp(item?.measured_at, { includeTime: true, fallback: 'РІР‚вЂќ' }))}</td>
+          <td>${escapeHtml(String(item?.category || '—'))}</td>
+          <td>${escapeHtml(String(item?.current_value || '—'))}</td>
+          <td>${escapeHtml(String(item?.threshold || '—'))}</td>
+          <td>${escapeHtml(formatTimestamp(item?.measured_at, { includeTime: true, fallback: '—' }))}</td>
           <td class="text-end">${badge}</td>
         </tr>
       `;
@@ -3100,13 +3100,13 @@
       experimentRolloutDecisionChecklist.classList.add('d-none');
       experimentRolloutDecisionChecklist.innerHTML = '';
       experimentRolloutKpiOutcomesWrap.classList.add('d-none');
-      experimentRolloutKpiOutcomeRows.innerHTML = '<tr><td colspan="5" class="small text-muted">Р вЂќР В°Р Р…Р Р…РЎвЂ№Р Вµ Р С—Р С•РЎРЏР Р†РЎРЏРЎвЂљРЎРѓРЎРЏ Р С—Р С•РЎРѓР В»Р Вµ Р С—Р ВµРЎР‚Р Р†РЎвЂ№РЎвЂ¦ KPI-РЎРѓР С‘Р С–Р Р…Р В°Р В»Р С•Р Р†.</td></tr>';
+      experimentRolloutKpiOutcomeRows.innerHTML = '<tr><td colspan="5" class="small text-muted">Данные появятся после первых KPI-сигналов.</td></tr>';
       return;
     }
 
     const action = formatRolloutDecisionAction(safeDecision?.action);
     const winner = String(safeDecision?.winner || 'insufficient_data');
-    const rationale = String(safeDecision?.rationale || 'Р В Р ВµРЎв‚¬Р ВµР Р…Р С‘Р Вµ Р В±РЎС“Р Т‘Р ВµРЎвЂљ Р Т‘Р С•РЎРѓРЎвЂљРЎС“Р С—Р Р…Р С• Р С—Р С•РЎРѓР В»Р Вµ Р Р…Р В°Р С”Р С•Р С—Р В»Р ВµР Р…Р С‘РЎРЏ Р Т‘Р В°Р Р…Р Р…РЎвЂ№РЎвЂ¦.');
+    const rationale = String(safeDecision?.rationale || 'Решение будет доступно после накопления данных.');
 
     experimentRolloutDecisionState.classList.remove('d-none', 'alert-success', 'alert-warning', 'alert-danger');
     if (action === 'scale_up') {
@@ -3116,22 +3116,22 @@
     } else {
       experimentRolloutDecisionState.classList.add('alert-warning');
     }
-    experimentRolloutDecisionState.textContent = `Rollout decision: ${action.toUpperCase()} Р’В· winner: ${winner}. ${rationale}`;
+    experimentRolloutDecisionState.textContent = `Rollout decision: ${action.toUpperCase()} · winner: ${winner}. ${rationale}`;
 
     const checks = [
-      { ok: Boolean(safeDecision?.sample_size_ok), label: 'Р вЂќР С•РЎРѓРЎвЂљР В°РЎвЂљР С•РЎвЂЎР Р…Р В°РЎРЏ Р Р†РЎвЂ№Р В±Р С•РЎР‚Р С”Р В° control/test' },
-      { ok: Boolean(safeDecision?.kpi_signal_ready), label: 'Р СџР С•Р С”РЎР‚РЎвЂ№РЎвЂљР С‘Р Вµ KPI-РЎРѓР С‘Р С–Р Р…Р В°Р В»Р С•Р Р† (FRT/TTR/SLA breach)' },
-      { ok: Boolean(safeDecision?.kpi_outcome_ready), label: 'Р вЂњР С•РЎвЂљР С•Р Р†Р Р…Р С•РЎРѓРЎвЂљРЎРЉ KPI-РЎР‚Р ВµР В·РЎС“Р В»РЎРЉРЎвЂљР В°РЎвЂљР С•Р Р† Р С” РЎРѓРЎР‚Р В°Р Р†Р Р…Р ВµР Р…Р С‘РЎР‹' },
-      { ok: !Boolean(safeDecision?.kpi_outcome_regressions), label: 'Р СњР ВµРЎвЂљ Р Т‘Р ВµР С–РЎР‚Р В°Р Т‘Р В°РЎвЂ Р С‘Р С‘ product KPI Р Р† test cohort' },
+      { ok: Boolean(safeDecision?.sample_size_ok), label: 'Достаточная выборка control/test' },
+      { ok: Boolean(safeDecision?.kpi_signal_ready), label: 'Покрытие KPI-сигналов (FRT/TTR/SLA breach)' },
+      { ok: Boolean(safeDecision?.kpi_outcome_ready), label: 'Готовность KPI-результатов к сравнению' },
+      { ok: !Boolean(safeDecision?.kpi_outcome_regressions), label: 'Нет деградации product KPI в test cohort' },
     ];
     experimentRolloutDecisionChecklist.classList.remove('d-none');
-    experimentRolloutDecisionChecklist.innerHTML = checks.map((item) => (`<li>${item.ok ? 'РІСљвЂ¦' : 'РІС™В РїС‘РЏ'} ${escapeHtml(item.label)}</li>`)).join('');
+    experimentRolloutDecisionChecklist.innerHTML = checks.map((item) => (`<li>${item.ok ? '✅' : '⚠️'} ${escapeHtml(item.label)}</li>`)).join('');
 
     const outcomeMetrics = safeComparison?.kpi_outcome_signal?.metrics;
     const metricEntries = outcomeMetrics && typeof outcomeMetrics === 'object' ? Object.entries(outcomeMetrics) : [];
     if (!metricEntries.length) {
       experimentRolloutKpiOutcomesWrap.classList.add('d-none');
-      experimentRolloutKpiOutcomeRows.innerHTML = '<tr><td colspan="5" class="small text-muted">Р вЂќР В°Р Р…Р Р…РЎвЂ№Р Вµ Р С—Р С•РЎРЏР Р†РЎРЏРЎвЂљРЎРѓРЎРЏ Р С—Р С•РЎРѓР В»Р Вµ Р С—Р ВµРЎР‚Р Р†РЎвЂ№РЎвЂ¦ KPI-РЎРѓР С‘Р С–Р Р…Р В°Р В»Р С•Р Р†.</td></tr>';
+      experimentRolloutKpiOutcomeRows.innerHTML = '<tr><td colspan="5" class="small text-muted">Данные появятся после первых KPI-сигналов.</td></tr>';
       return;
     }
     experimentRolloutKpiOutcomesWrap.classList.remove('d-none');
@@ -3148,11 +3148,11 @@
       const controlValue = Number(metric?.control_value);
       const testValue = Number(metric?.test_value);
       const controlDisplay = Number.isFinite(controlValue)
-        ? (String(metricName).toLowerCase() === 'sla_breach' ? formatGuardrailPercent(controlValue) : `${Math.round(controlValue)}Р СРЎРѓ`)
-        : 'РІР‚вЂќ';
+        ? (String(metricName).toLowerCase() === 'sla_breach' ? formatGuardrailPercent(controlValue) : `${Math.round(controlValue)}мс`)
+        : '—';
       const testDisplay = Number.isFinite(testValue)
-        ? (String(metricName).toLowerCase() === 'sla_breach' ? formatGuardrailPercent(testValue) : `${Math.round(testValue)}Р СРЎРѓ`)
-        : 'РІР‚вЂќ';
+        ? (String(metricName).toLowerCase() === 'sla_breach' ? formatGuardrailPercent(testValue) : `${Math.round(testValue)}мс`)
+        : '—';
       return `
         <tr>
           <td>${escapeHtml(String(metricName))}</td>
@@ -3169,11 +3169,11 @@
     if (!experimentTelemetrySummaryRows) return;
     const safeRows = Array.isArray(rows) ? rows : [];
     if (!safeRows.length) {
-      experimentTelemetrySummaryRows.innerHTML = '<tr><td colspan="6" class="small text-muted">Р СњР ВµР Т‘Р С•РЎРѓРЎвЂљР В°РЎвЂљР С•РЎвЂЎР Р…Р С• telemetry-Р Т‘Р В°Р Р…Р Р…РЎвЂ№РЎвЂ¦ Р Т‘Р В»РЎРЏ РЎР‚Р В°РЎРѓРЎвЂЎРЎвЂРЎвЂљР В°.</td></tr>';
+      experimentTelemetrySummaryRows.innerHTML = '<tr><td colspan="6" class="small text-muted">Недостаточно telemetry-данных для расчёта.</td></tr>';
       return;
     }
     experimentTelemetrySummaryRows.innerHTML = safeRows.map((row) => {
-      const avgOpenMs = Number.isFinite(Number(row?.avg_open_ms)) ? Math.round(Number(row.avg_open_ms)) : 'РІР‚вЂќ';
+      const avgOpenMs = Number.isFinite(Number(row?.avg_open_ms)) ? Math.round(Number(row.avg_open_ms)) : '—';
       return `
         <tr>
           <td>${escapeHtml(String(row?.experiment_cohort || 'unknown'))}</td>
@@ -3191,7 +3191,7 @@
     if (!container) return;
     const safeRows = Array.isArray(rows) ? rows : [];
     if (!safeRows.length) {
-      container.innerHTML = '<tr><td colspan="4" class="small text-muted">Р СњР ВµР Т‘Р С•РЎРѓРЎвЂљР В°РЎвЂљР С•РЎвЂЎР Р…Р С• telemetry-Р Т‘Р В°Р Р…Р Р…РЎвЂ№РЎвЂ¦ Р Т‘Р В»РЎРЏ РЎР‚Р В°РЎРѓРЎвЂЎРЎвЂРЎвЂљР В°.</td></tr>';
+      container.innerHTML = '<tr><td colspan="4" class="small text-muted">Недостаточно telemetry-данных для расчёта.</td></tr>';
       return;
     }
     container.innerHTML = safeRows.map((row) => {
@@ -3229,7 +3229,7 @@
   async function loadExperimentTelemetrySummary() {
     if (!experimentTelemetrySummaryRows) return;
     if (experimentTelemetrySummaryState) {
-      experimentTelemetrySummaryState.textContent = 'Р вЂ”Р В°Р С–РЎР‚РЎС“Р В·Р С”Р В° Р В°Р С–РЎР‚Р ВµР С–Р В°РЎвЂљР С•Р Р† telemetryРІР‚В¦';
+      experimentTelemetrySummaryState.textContent = 'Загрузка агрегатов telemetry…';
     }
     try {
       const response = await fetch(`/api/dialogs/workspace-telemetry/summary?days=7&experiment_name=${encodeURIComponent(WORKSPACE_AB_TEST_CONFIG.experimentName)}`);
@@ -3265,10 +3265,10 @@
           ? payload.weekly_review_focus
           : {};
         const weeklyFocusSections = Array.isArray(weeklyReviewFocus?.sections) ? weeklyReviewFocus.sections : [];
-        const avgCurrent = Number.isFinite(Number(totals.avg_open_ms)) ? `${Math.round(Number(totals.avg_open_ms))}Р СРЎРѓ` : 'РІР‚вЂќ';
-        const avgPrevious = Number.isFinite(Number(previousTotals.avg_open_ms)) ? `${Math.round(Number(previousTotals.avg_open_ms))}Р СРЎРѓ` : 'РІР‚вЂќ';
+        const avgCurrent = Number.isFinite(Number(totals.avg_open_ms)) ? `${Math.round(Number(totals.avg_open_ms))}мс` : '—';
+        const avgPrevious = Number.isFinite(Number(previousTotals.avg_open_ms)) ? `${Math.round(Number(previousTotals.avg_open_ms))}мс` : '—';
         const generatedAt = formatWorkspaceDateTime(payload?.generated_at);
-        experimentTelemetrySummaryState.textContent = `Р РЋР С•Р В±РЎвЂ№РЎвЂљР С‘Р в„–: ${Number(totals.events || 0)} (Р С—РЎР‚Р ВµР Т‘. Р С•Р С”Р Р…Р С•: ${Number(previousTotals.events || 0)}) Р’В· Fallback: ${Number(totals.fallbacks || 0)} Р’В· Manual legacy: ${Number(totals.manual_legacy_open_events || 0)} Р’В· Legacy blocked: ${Number(totals.workspace_open_legacy_blocked_events || 0)} Р’В· Inline nav: ${Number(totals.workspace_inline_navigation_events || 0)} Р’В· Rollout packet views: ${Number(totals.workspace_rollout_packet_viewed_events || 0)} Р’В· Secondary context opens: ${Number(totals.context_secondary_details_expanded_events || 0)} (${Number(totals.context_secondary_details_open_rate_pct || 0)}%, ${String(totals.context_secondary_details_usage_level || 'rare')}${totals.context_secondary_details_top_section ? `, top ${String(totals.context_secondary_details_top_section)}` : ''})${Number(totals.context_extra_attributes_expanded_events || 0) > 0 ? ` Р’В· Extra attrs: ${Number(totals.context_extra_attributes_expanded_events || 0)} (${Number(totals.context_extra_attributes_open_rate_pct || 0)}%, ${String(totals.context_extra_attributes_usage_level || 'rare')}${totals.context_extra_attributes_compaction_candidate === true ? `, compact, share ${Number(totals.context_extra_attributes_share_pct_of_secondary || 0)}%` : ''})` : ''} Р’В· P1 control: ${String(p1Control?.status || 'controlled')}${p1Control?.context_noise_trend_status ? ` (${String(p1Control.context_noise_trend_status)})` : ''}${p1Control?.next_action_summary ? ` Р’В· next ${String(p1Control.next_action_summary)}` : ''} Р’В· P2 control: ${String(p2Control?.status || 'controlled')}${p2Control?.sla_churn_trend_status ? ` (${String(p2Control.sla_churn_trend_status)})` : ''}${p2Control?.governance_closure_health ? ` Р’В· closure ${String(p2Control.governance_closure_health)}` : ''}${p2Control?.macro_noise_health ? ` Р’В· macro-noise ${String(p2Control.macro_noise_health)}` : ''}${p2Control?.next_action_summary ? ` Р’В· next ${String(p2Control.next_action_summary)}` : ''} Р’В· Source policy gaps: ${Number(totals.context_attribute_policy_gap_events || 0)} Р’В· Context contract gaps: ${Number(totals.context_contract_gap_events || 0)} Р’В· SLA policy gaps: ${Number(totals.workspace_sla_policy_gap_events || 0)} Р’В· SLA churn: ${Number(totals.workspace_sla_policy_churn_ratio_pct || 0)}% (${String(totals.workspace_sla_policy_churn_level || 'controlled')}) Р’В· SLA path: ${String(slaReviewPathControl?.status || 'controlled')}${slaReviewPathControl?.decision_lead_time_status ? ` (${String(slaReviewPathControl.decision_lead_time_status)})` : ''}${slaReviewPathControl?.minimum_required_review_path_summary ? ` Р’В· ${String(slaReviewPathControl.minimum_required_review_path_summary)}` : ''}${slaReviewPathControl?.cheap_review_path_confirmed === true ? ' Р’В· cheap path confirmed' : ''}${slaReviewPathControl?.next_action_summary ? ` Р’В· next ${String(slaReviewPathControl.next_action_summary)}` : ''}${slaAudit?.cheap_review_path_confirmed === true ? ' Р’В· SLA cheap path confirmed' : ''}${slaAudit?.decision_lead_time_status ? ` Р’В· SLA lead ${String(slaAudit.decision_lead_time_status)}` : ''} Р’В· Macro policy updates: ${Number(totals.workspace_macro_policy_update_events || 0)}${p2Control?.macro_low_signal_backlog_dominant === true ? ` Р’В· macro low-signal ${Number(p2Control.macro_low_signal_advisory_share_pct || 0)}%` : ''} Р’В· Weekly focus: ${weeklyFocusSections.length ? weeklyFocusSections.map((item) => String(item?.key || '')).filter(Boolean).join(', ') : 'none'}${weeklyReviewFocus?.top_priority_key ? ` (top ${String(weeklyReviewFocus.top_priority_key)})` : ''}${weeklyReviewFocus?.focus_health ? `, health ${String(weeklyReviewFocus.focus_health)}` : ''}${weeklyReviewFocus?.priority_mix_summary ? ` Р’В· ${String(weeklyReviewFocus.priority_mix_summary)}` : ''}${weeklyReviewFocus?.next_action_summary ? ` Р’В· next: ${String(weeklyReviewFocus.next_action_summary)}` : ''}${weeklyReviewFocus?.requires_management_review === true ? ' Р’В· management review suggested' : ''} Р’В· Parity gaps: ${Number(totals.workspace_parity_gap_events || 0)} Р’В· Render error: ${Number(totals.render_errors || 0)} Р’В· Avg open: ${avgCurrent} (Р В±РЎвЂ№Р В»Р С• ${avgPrevious}, РћвЂќ ${formatDeltaMs(comparison.avg_open_ms_delta)}) Р’В· Р С›Р В±Р Р…Р С•Р Р†Р В»Р ВµР Р…Р С•: ${generatedAt}.`;
+        experimentTelemetrySummaryState.textContent = `Событий: ${Number(totals.events || 0)} (пред. окно: ${Number(previousTotals.events || 0)}) · Fallback: ${Number(totals.fallbacks || 0)} · Manual legacy: ${Number(totals.manual_legacy_open_events || 0)} · Legacy blocked: ${Number(totals.workspace_open_legacy_blocked_events || 0)} · Inline nav: ${Number(totals.workspace_inline_navigation_events || 0)} · Rollout packet views: ${Number(totals.workspace_rollout_packet_viewed_events || 0)} · Secondary context opens: ${Number(totals.context_secondary_details_expanded_events || 0)} (${Number(totals.context_secondary_details_open_rate_pct || 0)}%, ${String(totals.context_secondary_details_usage_level || 'rare')}${totals.context_secondary_details_top_section ? `, top ${String(totals.context_secondary_details_top_section)}` : ''})${Number(totals.context_extra_attributes_expanded_events || 0) > 0 ? ` · Extra attrs: ${Number(totals.context_extra_attributes_expanded_events || 0)} (${Number(totals.context_extra_attributes_open_rate_pct || 0)}%, ${String(totals.context_extra_attributes_usage_level || 'rare')}${totals.context_extra_attributes_compaction_candidate === true ? `, compact, share ${Number(totals.context_extra_attributes_share_pct_of_secondary || 0)}%` : ''})` : ''} · P1 control: ${String(p1Control?.status || 'controlled')}${p1Control?.context_noise_trend_status ? ` (${String(p1Control.context_noise_trend_status)})` : ''}${p1Control?.next_action_summary ? ` · next ${String(p1Control.next_action_summary)}` : ''} · P2 control: ${String(p2Control?.status || 'controlled')}${p2Control?.sla_churn_trend_status ? ` (${String(p2Control.sla_churn_trend_status)})` : ''}${p2Control?.governance_closure_health ? ` · closure ${String(p2Control.governance_closure_health)}` : ''}${p2Control?.macro_noise_health ? ` · macro-noise ${String(p2Control.macro_noise_health)}` : ''}${p2Control?.next_action_summary ? ` · next ${String(p2Control.next_action_summary)}` : ''} · Source policy gaps: ${Number(totals.context_attribute_policy_gap_events || 0)} · Context contract gaps: ${Number(totals.context_contract_gap_events || 0)} · SLA policy gaps: ${Number(totals.workspace_sla_policy_gap_events || 0)} · SLA churn: ${Number(totals.workspace_sla_policy_churn_ratio_pct || 0)}% (${String(totals.workspace_sla_policy_churn_level || 'controlled')}) · SLA path: ${String(slaReviewPathControl?.status || 'controlled')}${slaReviewPathControl?.decision_lead_time_status ? ` (${String(slaReviewPathControl.decision_lead_time_status)})` : ''}${slaReviewPathControl?.minimum_required_review_path_summary ? ` · ${String(slaReviewPathControl.minimum_required_review_path_summary)}` : ''}${slaReviewPathControl?.cheap_review_path_confirmed === true ? ' · cheap path confirmed' : ''}${slaReviewPathControl?.next_action_summary ? ` · next ${String(slaReviewPathControl.next_action_summary)}` : ''}${slaAudit?.cheap_review_path_confirmed === true ? ' · SLA cheap path confirmed' : ''}${slaAudit?.decision_lead_time_status ? ` · SLA lead ${String(slaAudit.decision_lead_time_status)}` : ''} · Macro policy updates: ${Number(totals.workspace_macro_policy_update_events || 0)}${p2Control?.macro_low_signal_backlog_dominant === true ? ` · macro low-signal ${Number(p2Control.macro_low_signal_advisory_share_pct || 0)}%` : ''} · Weekly focus: ${weeklyFocusSections.length ? weeklyFocusSections.map((item) => String(item?.key || '')).filter(Boolean).join(', ') : 'none'}${weeklyReviewFocus?.top_priority_key ? ` (top ${String(weeklyReviewFocus.top_priority_key)})` : ''}${weeklyReviewFocus?.focus_health ? `, health ${String(weeklyReviewFocus.focus_health)}` : ''}${weeklyReviewFocus?.priority_mix_summary ? ` · ${String(weeklyReviewFocus.priority_mix_summary)}` : ''}${weeklyReviewFocus?.next_action_summary ? ` · next: ${String(weeklyReviewFocus.next_action_summary)}` : ''}${weeklyReviewFocus?.requires_management_review === true ? ' · management review suggested' : ''} · Parity gaps: ${Number(totals.workspace_parity_gap_events || 0)} · Render error: ${Number(totals.render_errors || 0)} · Avg open: ${avgCurrent} (было ${avgPrevious}, Δ ${formatDeltaMs(comparison.avg_open_ms_delta)}) · Обновлено: ${generatedAt}.`;
       }
     } catch (_error) {
       renderExperimentTelemetrySummaryRows([]);
@@ -3280,19 +3280,19 @@
       renderExperimentRolloutDecision(null, null);
       renderExperimentGapBreakdown(null);
       if (experimentTelemetrySummaryState) {
-        experimentTelemetrySummaryState.textContent = 'Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р В·Р В°Р С–РЎР‚РЎС“Р В·Р С‘РЎвЂљРЎРЉ telemetry-Р В°Р С–РЎР‚Р ВµР С–Р В°РЎвЂљРЎвЂ№. Р СџРЎР‚Р С•Р Р†Р ВµРЎР‚РЎРЉРЎвЂљР Вµ API /api/dialogs/workspace-telemetry/summary.';
+        experimentTelemetrySummaryState.textContent = 'Не удалось загрузить telemetry-агрегаты. Проверьте API /api/dialogs/workspace-telemetry/summary.';
       }
     }
   }
 
   function formatWorkspaceDateTime(value) {
-    return formatTimestamp(value, { includeTime: true, fallback: 'РІР‚вЂќ' });
+    return formatTimestamp(value, { includeTime: true, fallback: '—' });
   }
 
   function renderWorkspaceSimpleList(items, formatter) {
     const list = Array.isArray(items) ? items : [];
     if (list.length === 0) {
-      return '<div class="small text-muted">Р СџР С•Р С”Р В° Р Р…Р ВµРЎвЂљ Р Т‘Р В°Р Р…Р Р…РЎвЂ№РЎвЂ¦.</div>';
+      return '<div class="small text-muted">Пока нет данных.</div>';
     }
     return `<ul class="list-unstyled small mb-0">${list.map((item) => `<li class="mb-2">${formatter(item)}</li>`).join('')}</ul>`;
   }
@@ -3320,7 +3320,7 @@
 
   function confirmWorkspaceTicketSwitch(nextTicketId) {
     if (!hasUnsavedWorkspaceComposerChanges(nextTicketId)) return true;
-    const accepted = window.confirm('Р вЂўРЎРѓРЎвЂљРЎРЉ Р Р…Р ВµРЎРѓР С•РЎвЂ¦РЎР‚Р В°Р Р…РЎвЂР Р…Р Р…РЎвЂ№Р Вµ Р С‘Р В·Р СР ВµР Р…Р ВµР Р…Р С‘РЎРЏ Р Р† РЎвЂЎР ВµРЎР‚Р Р…Р С•Р Р†Р С‘Р С”Р Вµ. Р РЋР С•РЎвЂ¦РЎР‚Р В°Р Р…Р С‘РЎвЂљРЎРЉ РЎвЂљР ВµР С”РЎС“РЎвЂ°Р С‘Р в„– РЎвЂЎР ВµРЎР‚Р Р…Р С•Р Р†Р С‘Р С” Р С—Р ВµРЎР‚Р ВµР Т‘ Р С—Р ВµРЎР‚Р ВµР С”Р В»РЎР‹РЎвЂЎР ВµР Р…Р С‘Р ВµР С Р Т‘Р С‘Р В°Р В»Р С•Р С–Р В°?');
+    const accepted = window.confirm('Есть несохранённые изменения в черновике. Сохранить текущий черновик перед переключением диалога?');
     if (accepted) {
       saveWorkspaceDraft(workspaceComposerTicketId, workspaceComposerText?.value || '', { reason: 'manual' });
     }
@@ -3329,7 +3329,7 @@
 
   function updateWorkspaceDraftState(text) {
     if (!workspaceComposerDraftState) return;
-    workspaceComposerDraftState.textContent = text || 'Р В§Р ВµРЎР‚Р Р…Р С•Р Р†Р С‘Р С” Р Р…Р Вµ РЎРѓР С•РЎвЂ¦РЎР‚Р В°Р Р…РЎвЂР Р…';
+    workspaceComposerDraftState.textContent = text || 'Черновик не сохранён';
   }
 
   function saveWorkspaceDraft(ticketId, message, options = {}) {
@@ -3339,12 +3339,12 @@
     try {
       if (!value) {
         localStorage.removeItem(storageKey);
-        updateWorkspaceDraftState('Р В§Р ВµРЎР‚Р Р…Р С•Р Р†Р С‘Р С” Р С•РЎвЂЎР С‘РЎвЂ°Р ВµР Р…');
+        updateWorkspaceDraftState('Черновик очищен');
       } else {
         localStorage.setItem(storageKey, value);
         workspaceDraftLastSavedValue = value;
         if (!options.silent) {
-          updateWorkspaceDraftState(`Р В§Р ВµРЎР‚Р Р…Р С•Р Р†Р С‘Р С” РЎРѓР С•РЎвЂ¦РЎР‚Р В°Р Р…РЎвЂР Р… Р’В· ${new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`);
+          updateWorkspaceDraftState(`Черновик сохранён · ${new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`);
         }
         const now = Date.now();
         const shouldSendDraftTelemetry = options.reason === 'manual'
@@ -3359,7 +3359,7 @@
         }
       }
     } catch (_error) {
-      updateWorkspaceDraftState('Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ РЎРѓР С•РЎвЂ¦РЎР‚Р В°Р Р…Р С‘РЎвЂљРЎРЉ РЎвЂЎР ВµРЎР‚Р Р…Р С•Р Р†Р С‘Р С”');
+      updateWorkspaceDraftState('Не удалось сохранить черновик');
     }
   }
 
@@ -3371,18 +3371,18 @@
       workspaceComposerText.value = stored || '';
       workspaceDraftLastSavedValue = workspaceComposerText.value.trim();
       if (stored) {
-        updateWorkspaceDraftState('Р В§Р ВµРЎР‚Р Р…Р С•Р Р†Р С‘Р С” Р Р†Р С•РЎРѓРЎРѓРЎвЂљР В°Р Р…Р С•Р Р†Р В»Р ВµР Р…');
+        updateWorkspaceDraftState('Черновик восстановлен');
         emitWorkspaceTelemetry('workspace_draft_restored', {
           ticketId,
           length: stored.length,
         });
       } else {
-        updateWorkspaceDraftState('Р В§Р ВµРЎР‚Р Р…Р С•Р Р†Р С‘Р С” Р Р…Р Вµ РЎРѓР С•РЎвЂ¦РЎР‚Р В°Р Р…РЎвЂР Р…');
+        updateWorkspaceDraftState('Черновик не сохранён');
       }
     } catch (_error) {
       workspaceComposerText.value = '';
       workspaceDraftLastSavedValue = '';
-      updateWorkspaceDraftState('Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р В·Р В°Р С–РЎР‚РЎС“Р В·Р С‘РЎвЂљРЎРЉ РЎвЂЎР ВµРЎР‚Р Р…Р С•Р Р†Р С‘Р С”');
+      updateWorkspaceDraftState('Не удалось загрузить черновик');
     }
   }
 
@@ -3420,14 +3420,14 @@
     if (namespace) parts.push(`namespace=${namespace}`);
     if (owner) parts.push(`owner=${owner}`);
     if (reviewedAt) parts.push(`review UTC ${reviewedAt.replace('T', ' ').replace('Z', ' UTC')}`);
-    return parts.join(' Р’В· ');
+    return parts.join(' · ');
   }
 
   function renderWorkspaceMacroPreview(template) {
     activeWorkspaceMacroTemplate = template || null;
     if (!workspaceComposerMacroPreview) return;
     const text = resolveMacroText(template);
-    workspaceComposerMacroPreview.textContent = text || 'Р вЂ™РЎвЂ№Р В±Р ВµРЎР‚Р С‘РЎвЂљР Вµ Р СР В°Р С”РЎР‚Р С•РЎРѓ Р Т‘Р В»РЎРЏ Р С—РЎР‚Р ВµР Т‘Р С—РЎР‚Р С•РЎРѓР СР С•РЎвЂљРЎР‚Р В°.';
+    workspaceComposerMacroPreview.textContent = text || 'Выберите макрос для предпросмотра.';
     if (workspaceComposerMacroMeta) {
       workspaceComposerMacroMeta.textContent = buildMacroGovernanceMeta(template);
     }
@@ -3445,7 +3445,7 @@
       option.value = template?.id
         ? `id:${template.id}`
         : `idx:${Number.isFinite(Number(template?.__macroIndex)) ? Number(template.__macroIndex) : index}`;
-      option.textContent = template?.name || `Р СљР В°Р С”РЎР‚Р С•РЎРѓ ${index + 1}`;
+      option.textContent = template?.name || `Макрос ${index + 1}`;
       workspaceComposerMacroSelect.appendChild(option);
     });
     const selected = nextTemplates.length > 0
@@ -3499,8 +3499,8 @@
       workflowActions: appliedSteps.length ? appliedSteps.join('|') : null,
     });
     if (typeof showNotification === 'function' && (message || appliedSteps.length)) {
-      const workflowSuffix = appliedSteps.length ? `; Р Т‘Р ВµР в„–РЎРѓРЎвЂљР Р†Р С‘РЎРЏ: ${appliedSteps.join(', ')}` : '';
-      showNotification(`Р СљР В°Р С”РЎР‚Р С•РЎРѓ workspace Р С—РЎР‚Р С‘Р СР ВµР Р…РЎвЂР Р…${workflowSuffix}.`, 'success');
+      const workflowSuffix = appliedSteps.length ? `; действия: ${appliedSteps.join(', ')}` : '';
+      showNotification(`Макрос workspace применён${workflowSuffix}.`, 'success');
     }
   }
 
@@ -3513,7 +3513,7 @@
     const replyPreview = workspaceReplyTargetText ? workspaceReplyTargetText.textContent.trim() : '';
     if (!message) return;
     if (workspaceReadonlyMode || workspaceComposerText.disabled) {
-      notifyPermissionDenied('Р С›РЎвЂљР С—РЎР‚Р В°Р Р†Р С”Р В° Р С•РЎвЂљР Р†Р ВµРЎвЂљР В°');
+      notifyPermissionDenied('Отправка ответа');
       return;
     }
     workspaceComposerSend.disabled = true;
@@ -3526,29 +3526,29 @@
       });
       const data = await resp.json();
       if (!resp.ok || !data?.success) {
-        throw new Error(data?.error || `Р С›РЎв‚¬Р С‘Р В±Р С”Р В° ${resp.status}`);
+        throw new Error(data?.error || `Ошибка ${resp.status}`);
       }
       workspaceComposerText.value = '';
       saveWorkspaceDraft(workspaceComposerTicketId, '');
       resetWorkspaceReplyTarget({ reason: 'message_sent' });
       appendWorkspaceMessage({
-        senderName: data.responsible || 'Р С›Р С—Р ВµРЎР‚Р В°РЎвЂљР С•РЎР‚',
+        senderName: data.responsible || 'Оператор',
         messageText: message,
         sentAt: data.timestamp || new Date().toISOString(),
         telegramMessageId: data.telegramMessageId || null,
         replyPreview,
       });
       if (activeDialogRow) {
-        updateRowStatus(activeDialogRow, activeDialogRow.dataset.statusRaw || '', 'Р С•Р В¶Р С‘Р Т‘Р В°Р ВµРЎвЂљ Р С•РЎвЂљР Р†Р ВµРЎвЂљР В° Р С”Р В»Р С‘Р ВµР Р…РЎвЂљР В°', 'waiting_client', 0);
+        updateRowStatus(activeDialogRow, activeDialogRow.dataset.statusRaw || '', 'ожидает ответа клиента', 'waiting_client', 0);
         updateRowResponsible(activeDialogRow, data.responsible || activeDialogRow.dataset.responsible || '');
         applyFilters();
       }
       if (typeof showNotification === 'function') {
-        showNotification('Р РЋР С•Р С•Р В±РЎвЂ°Р ВµР Р…Р С‘Р Вµ Р С•РЎвЂљР С—РЎР‚Р В°Р Р†Р В»Р ВµР Р…Р С•', 'success');
+        showNotification('Сообщение отправлено', 'success');
       }
     } catch (error) {
       if (typeof showNotification === 'function') {
-        showNotification(error.message || 'Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р С•РЎвЂљР С—РЎР‚Р В°Р Р†Р С‘РЎвЂљРЎРЉ РЎРѓР С•Р С•Р В±РЎвЂ°Р ВµР Р…Р С‘Р Вµ', 'error');
+        showNotification(error.message || 'Не удалось отправить сообщение', 'error');
       }
     } finally {
       workspaceComposerSend.disabled = false;
@@ -3561,7 +3561,7 @@
     const canLoadMore = Boolean(activeWorkspaceTicketId) && workspaceMessagesHasMore;
     workspaceMessagesLoadMoreWrap.classList.toggle('d-none', !canLoadMore);
     workspaceMessagesLoadMore.disabled = workspaceMessagesLoadingMore || !canLoadMore;
-    workspaceMessagesLoadMore.textContent = workspaceMessagesLoadingMore ? 'Р вЂ”Р В°Р С–РЎР‚РЎС“Р В·Р С”Р В°РІР‚В¦' : 'Р вЂ”Р В°Р С–РЎР‚РЎС“Р В·Р С‘РЎвЂљРЎРЉ Р ВµРЎвЂ°РЎвЂ';
+    workspaceMessagesLoadMore.textContent = workspaceMessagesLoadingMore ? 'Загрузка…' : 'Загрузить ещё';
   }
 
 
@@ -3575,16 +3575,16 @@
 
   function formatWorkspaceSlaRemaining(minutesLeft) {
     const value = Number(minutesLeft);
-    if (!Number.isFinite(value)) return 'РІР‚вЂќ';
-    if (value === 0) return '0Р С';
+    if (!Number.isFinite(value)) return '—';
+    if (value === 0) return '0м';
     const absValue = Math.abs(Math.round(value));
     const hours = Math.floor(absValue / 60);
     const minutes = absValue % 60;
-    const suffix = value < 0 ? 'Р Р…Р В°Р В·Р В°Р Т‘' : 'Р С•РЎРѓРЎвЂљР В°Р В»Р С•РЎРѓРЎРЉ';
+    const suffix = value < 0 ? 'назад' : 'осталось';
     if (hours > 0) {
-      return `${hours}РЎвЂЎ ${minutes}Р С ${suffix}`;
+      return `${hours}ч ${minutes}м ${suffix}`;
     }
-    return `${minutes}Р С ${suffix}`;
+    return `${minutes}м ${suffix}`;
   }
 
   function mergeWorkspacePayload(basePayload, partialPayload, include) {
@@ -3628,7 +3628,7 @@
   async function reloadWorkspaceSection(include, options = {}) {
     if (!WORKSPACE_V1_ENABLED || !activeWorkspaceTicketId) return;
     const channelId = activeWorkspaceChannelId;
-    setWorkspaceSectionLoading(options.stateElement, options.errorElement, options.statusText || 'Р СџР С•Р Р†РЎвЂљР С•РЎР‚Р Р…Р В°РЎРЏ Р В·Р В°Р С–РЎР‚РЎС“Р В·Р С”Р В°...');
+    setWorkspaceSectionLoading(options.stateElement, options.errorElement, options.statusText || 'Повторная загрузка...');
     try {
       const partialPayload = await preloadWorkspaceContract(activeWorkspaceTicketId, channelId, { include });
       activeWorkspacePayload = mergeWorkspacePayload(activeWorkspacePayload, partialPayload, include);
@@ -3636,7 +3636,7 @@
     } catch (_error) {
       if (options.errorElement) options.errorElement.classList.remove('d-none');
       if (typeof showNotification === 'function') {
-        showNotification(options.failMessage || 'Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р С•Р В±Р Р…Р С•Р Р†Р С‘РЎвЂљРЎРЉ РЎРѓР ВµР С”РЎвЂ Р С‘РЎР‹ workspace.', 'warning');
+        showNotification(options.failMessage || 'Не удалось обновить секцию workspace.', 'warning');
       }
     }
   }
@@ -3662,11 +3662,11 @@
       workspaceMessagesHasMore = messages.has_more === true;
       if (workspaceMessagesState && !workspaceMessagesHasMore) {
         workspaceMessagesState.classList.remove('d-none');
-        workspaceMessagesState.textContent = 'Р СџР С•Р С”Р В°Р В·Р В°Р Р…РЎвЂ№ Р Р†РЎРѓР Вµ РЎРѓР С•Р С•Р В±РЎвЂ°Р ВµР Р…Р С‘РЎРЏ Р С—Р С• Р Т‘Р С‘Р В°Р В»Р С•Р С–РЎС“.';
+        workspaceMessagesState.textContent = 'Показаны все сообщения по диалогу.';
       }
     } catch (_error) {
       if (typeof showNotification === 'function') {
-        showNotification('Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р Т‘Р С•Р С–РЎР‚РЎС“Р В·Р С‘РЎвЂљРЎРЉ РЎРѓР С•Р С•Р В±РЎвЂ°Р ВµР Р…Р С‘РЎРЏ workspace.', 'warning');
+        showNotification('Не удалось догрузить сообщения workspace.', 'warning');
       }
     } finally {
       workspaceMessagesLoadingMore = false;
@@ -3683,15 +3683,15 @@
     const ordered = Array.from(new Set([...templateCategories, ...Array.from(selectedCategories)]));
     if (ordered.length === 0) {
       workspaceCategoriesState.classList.remove('d-none');
-      workspaceCategoriesState.textContent = 'Р С™Р В°РЎвЂљР ВµР С–Р С•РЎР‚Р С‘Р С‘ Р Р…Р Вµ Р Р…Р В°РЎРѓРЎвЂљРЎР‚Р С•Р ВµР Р…РЎвЂ№.';
+      workspaceCategoriesState.textContent = 'Категории не настроены.';
       workspaceCategoriesList.classList.add('d-none');
       workspaceCategoriesList.innerHTML = '';
       return;
     }
     workspaceCategoriesState.classList.remove('d-none');
     workspaceCategoriesState.textContent = selectedCategories.size > 0
-      ? `Р вЂ™РЎвЂ№Р В±РЎР‚Р В°Р Р…Р С•: ${selectedCategories.size}. Р ВР В·Р СР ВµР Р…Р ВµР Р…Р С‘РЎРЏ РЎРѓР С•РЎвЂ¦РЎР‚Р В°Р Р…РЎРЏРЎР‹РЎвЂљРЎРѓРЎРЏ Р В°Р Р†РЎвЂљР С•Р СР В°РЎвЂљР С‘РЎвЂЎР ВµРЎРѓР С”Р С‘.`
-      : 'Р вЂ™РЎвЂ№Р В±Р ВµРЎР‚Р С‘РЎвЂљР Вµ РЎвЂ¦Р С•РЎвЂљРЎРЏ Р В±РЎвЂ№ Р С•Р Т‘Р Р…РЎС“ Р С”Р В°РЎвЂљР ВµР С–Р С•РЎР‚Р С‘РЎР‹ Р Т‘Р В»РЎРЏ Р В·Р В°Р С”РЎР‚РЎвЂ№РЎвЂљР С‘РЎРЏ Р Т‘Р С‘Р В°Р В»Р С•Р С–Р В°.';
+      ? `Выбрано: ${selectedCategories.size}. Изменения сохраняются автоматически.`
+      : 'Выберите хотя бы одну категорию для закрытия диалога.';
     workspaceCategoriesList.classList.remove('d-none');
     workspaceCategoriesList.innerHTML = ordered.map((category) => {
       const selected = selectedCategories.has(category);
@@ -3935,7 +3935,7 @@
   function buildWorkspaceNavigationStateText(navigation) {
     const safeNavigation = navigation && typeof navigation === 'object' ? navigation : null;
     if (!safeNavigation) {
-      return 'Р С›РЎвЂЎР ВµРЎР‚Р ВµР Т‘РЎРЉ Р Р…Р Вµ Р С•Р С—РЎР‚Р ВµР Т‘Р ВµР В»Р ВµР Р…Р В°';
+      return 'Очередь не определена';
     }
     if (typeof safeNavigation.summary === 'string' && safeNavigation.summary.trim()) {
       return safeNavigation.summary.trim();
@@ -3943,11 +3943,11 @@
     const position = Number(safeNavigation.position || 0);
     const total = Number(safeNavigation.total || 0);
     if (position > 0 && total > 0) {
-      return `Р СџР С•Р В·Р С‘РЎвЂ Р С‘РЎРЏ ${position} Р С‘Р В· ${total}.`;
+      return `Позиция ${position} из ${total}.`;
     }
     return safeNavigation.enabled === false
-      ? 'Inline navigation Р С•РЎвЂљР С”Р В»РЎР‹РЎвЂЎР ВµР Р…Р В°.'
-      : 'Р СћР ВµР С”РЎС“РЎвЂ°Р С‘Р в„– Р Т‘Р С‘Р В°Р В»Р С•Р С– Р С•РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљ Р Р†Р Р…Р Вµ Р В°Р С”РЎвЂљР С‘Р Р†Р Р…Р С•Р в„– Р С•РЎвЂЎР ВµРЎР‚Р ВµР Т‘Р С‘.';
+      ? 'Inline navigation отключена.'
+      : 'Текущий диалог открыт вне активной очереди.';
   }
 
   function getWorkspaceNavigationTarget(direction, navigation) {
@@ -3973,14 +3973,14 @@
     if (workspaceNavPrevBtn) {
       workspaceNavPrevBtn.disabled = !navigationEnabled || !previous;
       workspaceNavPrevBtn.title = previous
-        ? `${previous.ticketId}${previous.clientName ? ` Р’В· ${previous.clientName}` : ''}${previous.status ? ` Р’В· ${previous.status}` : ''}`
-        : 'Р СџРЎР‚Р ВµР Т‘РЎвЂ№Р Т‘РЎС“РЎвЂ°Р С‘Р в„– Р Т‘Р С‘Р В°Р В»Р С•Р С– Р Р…Р ВµР Т‘Р С•РЎРѓРЎвЂљРЎС“Р С—Р ВµР Р…';
+        ? `${previous.ticketId}${previous.clientName ? ` · ${previous.clientName}` : ''}${previous.status ? ` · ${previous.status}` : ''}`
+        : 'Предыдущий диалог недоступен';
     }
     if (workspaceNavNextBtn) {
       workspaceNavNextBtn.disabled = !navigationEnabled || !next;
       workspaceNavNextBtn.title = next
-        ? `${next.ticketId}${next.clientName ? ` Р’В· ${next.clientName}` : ''}${next.status ? ` Р’В· ${next.status}` : ''}`
-        : 'Р РЋР В»Р ВµР Т‘РЎС“РЎР‹РЎвЂ°Р С‘Р в„– Р Т‘Р С‘Р В°Р В»Р С•Р С– Р Р…Р ВµР Т‘Р С•РЎРѓРЎвЂљРЎС“Р С—Р ВµР Р…';
+        ? `${next.ticketId}${next.clientName ? ` · ${next.clientName}` : ''}${next.status ? ` · ${next.status}` : ''}`
+        : 'Следующий диалог недоступен';
     }
     if (workspaceNavState) {
       workspaceNavState.textContent = buildWorkspaceNavigationStateText(navigation);
@@ -4069,7 +4069,7 @@
         const snippet = escapeHtml(String(item?.snippet || ''));
         const reply = escapeHtml(String(item?.reply || item?.snippet || ''));
         const explain = escapeHtml(String(item?.explain || '').trim());
-        const sourceBadge = `${escapeHtml(source || 'source')}${scoreLabel ? ` РїС—Р… ${escapeHtml(scoreLabel)}` : ''}`;
+        const sourceBadge = `${escapeHtml(source || 'source')}${scoreLabel ? ` � ${escapeHtml(scoreLabel)}` : ''}`;
         const rawSource = escapeHtml(String(item?.source || '').trim());
         const rawTitle = escapeHtml(String(item?.title || '').trim());
         const rawSnippet = escapeHtml(String(item?.snippet || '').trim());
@@ -4169,16 +4169,16 @@
   function renderAiReviewQueueRows(items) {
     if (!aiReviewQueueBody) return;
     if (!Array.isArray(items) || items.length === 0) {
-      aiReviewQueueBody.innerHTML = '<tr><td colspan="5" class="text-muted text-center py-3">Р С›РЎвЂЎР ВµРЎР‚Р ВµР Т‘РЎРЉ РЎР‚Р ВµР Р†Р С‘Р В·Р С‘Р в„– Р С—РЎС“РЎРѓРЎвЂљР В°.</td></tr>';
+      aiReviewQueueBody.innerHTML = '<tr><td colspan="5" class="text-muted text-center py-3">Очередь ревизий пуста.</td></tr>';
       return;
     }
     aiReviewQueueBody.innerHTML = items.map((item) => {
       const queryKey = String(item?.query_key || '').trim();
       const ticketId = String(item?.last_ticket_id || '').trim();
-      const question = escapeHtml(String(item?.query_text || '').trim() || 'РІР‚вЂќ');
-      const current = escapeHtml(String(item?.solution_text || '').trim() || 'РІР‚вЂќ');
-      const pending = escapeHtml(String(item?.pending_solution_text || '').trim() || 'РІР‚вЂќ');
-      const dialogLabel = ticketId ? `#${escapeHtml(ticketId)}` : 'РІР‚вЂќ';
+      const question = escapeHtml(String(item?.query_text || '').trim() || '—');
+      const current = escapeHtml(String(item?.solution_text || '').trim() || '—');
+      const pending = escapeHtml(String(item?.pending_solution_text || '').trim() || '—');
+      const dialogLabel = ticketId ? `#${escapeHtml(ticketId)}` : '—';
       return `
         <tr data-ai-review-query-key="${escapeHtml(queryKey)}" data-ai-review-ticket-id="${escapeHtml(ticketId)}">
           <td class="small">${question}</td>
@@ -4187,9 +4187,9 @@
           <td>${dialogLabel}</td>
           <td class="text-end">
             <div class="btn-group btn-group-sm" role="group">
-              <button class="btn btn-outline-primary" type="button" data-ai-review-open ${ticketId ? '' : 'disabled'}>Р С›РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљРЎРЉ</button>
-              <button class="btn btn-success" type="button" data-ai-review-approve>Р СџРЎР‚Р С‘Р Р…РЎРЏРЎвЂљРЎРЉ</button>
-              <button class="btn btn-outline-secondary" type="button" data-ai-review-reject>Р С›РЎвЂљР С”Р В»Р С•Р Р…Р С‘РЎвЂљРЎРЉ</button>
+              <button class="btn btn-outline-primary" type="button" data-ai-review-open ${ticketId ? '' : 'disabled'}>Открыть</button>
+              <button class="btn btn-success" type="button" data-ai-review-approve>Принять</button>
+              <button class="btn btn-outline-secondary" type="button" data-ai-review-reject>Отклонить</button>
             </div>
           </td>
         </tr>
@@ -4199,7 +4199,7 @@
 
   async function loadAiReviewQueue() {
     if (!aiReviewQueueSection || !aiReviewQueueState || !aiReviewQueueBody) return;
-    aiReviewQueueState.textContent = 'Р вЂ”Р В°Р С–РЎР‚РЎС“Р В·Р С”Р В° Р С•РЎвЂЎР ВµРЎР‚Р ВµР Т‘Р С‘ РЎР‚Р ВµР Р†Р С‘Р В·Р С‘Р в„–РІР‚В¦';
+    aiReviewQueueState.textContent = 'Загрузка очереди ревизий…';
     try {
       const resp = await fetch('/api/dialogs/ai-reviews?limit=30', {
         credentials: 'same-origin',
@@ -4211,25 +4211,25 @@
       }
       const items = Array.isArray(payload.items) ? payload.items : [];
       aiReviewQueueState.textContent = items.length
-        ? `Р СњР В°Р в„–Р Т‘Р ВµР Р…Р С• РЎР‚Р ВµР Р†Р С‘Р В·Р С‘Р в„–: ${items.length}`
-        : 'Р С›РЎвЂЎР ВµРЎР‚Р ВµР Т‘РЎРЉ РЎР‚Р ВµР Р†Р С‘Р В·Р С‘Р в„– Р С—РЎС“РЎРѓРЎвЂљР В°.';
+        ? `Найдено ревизий: ${items.length}`
+        : 'Очередь ревизий пуста.';
       renderAiReviewQueueRows(items);
     } catch (error) {
-      aiReviewQueueState.textContent = `Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р В·Р В°Р С–РЎР‚РЎС“Р В·Р С‘РЎвЂљРЎРЉ Р С•РЎвЂЎР ВµРЎР‚Р ВµР Т‘РЎРЉ РЎР‚Р ВµР Р†Р С‘Р В·Р С‘Р в„–: ${error.message || 'unknown_error'}`;
-      aiReviewQueueBody.innerHTML = '<tr><td colspan="5" class="text-danger text-center py-3">Р С›РЎв‚¬Р С‘Р В±Р С”Р В° Р В·Р В°Р С–РЎР‚РЎС“Р В·Р С”Р С‘ Р С•РЎвЂЎР ВµРЎР‚Р ВµР Т‘Р С‘ РЎР‚Р ВµР Р†Р С‘Р В·Р С‘Р в„–.</td></tr>';
+      aiReviewQueueState.textContent = `Не удалось загрузить очередь ревизий: ${error.message || 'unknown_error'}`;
+      aiReviewQueueBody.innerHTML = '<tr><td colspan="5" class="text-danger text-center py-3">Ошибка загрузки очереди ревизий.</td></tr>';
     }
   }
 
   function formatRatePercent(value) {
     const numeric = Number(value);
-    if (!Number.isFinite(numeric)) return 'РїС—Р…';
+    if (!Number.isFinite(numeric)) return '�';
     return `${(numeric * 100).toFixed(1)}%`;
   }
 
   function renderAiMonitoringAlerts(alerts) {
     if (!aiMonitoringAlerts) return;
     if (!Array.isArray(alerts) || alerts.length === 0) {
-      aiMonitoringAlerts.innerHTML = '<div class="text-muted">РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р… РїС—Р…РїС—Р…РїС—Р….</div>';
+      aiMonitoringAlerts.innerHTML = '<div class="text-muted">������� ���.</div>';
       return;
     }
     aiMonitoringAlerts.innerHTML = alerts.map((alert) => {
@@ -4240,14 +4240,14 @@
       const message = escapeHtml(String(alert?.message || 'AI alert'));
       const value = formatRatePercent(alert?.value);
       const threshold = formatRatePercent(alert?.threshold);
-      return `<div class="${cls}"><div>${message}</div><div class="small text-muted">value: ${value} РїС—Р… threshold: ${threshold}</div></div>`;
+      return `<div class="${cls}"><div>${message}</div><div class="small text-muted">value: ${value} � threshold: ${threshold}</div></div>`;
     }).join('');
   }
 
   function renderAiMonitoringRunbook(items) {
     if (!aiMonitoringRunbook) return;
     if (!Array.isArray(items) || !items.length) {
-      aiMonitoringRunbook.innerHTML = '<li>Runbook РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р….</li>';
+      aiMonitoringRunbook.innerHTML = '<li>Runbook ����������.</li>';
       return;
     }
     aiMonitoringRunbook.innerHTML = items.map((item) => `<li>${escapeHtml(String(item || ''))}</li>`).join('');
@@ -4256,7 +4256,7 @@
   function renderAiMonitoringEvents(items) {
     if (!aiMonitoringEvents) return;
     if (!Array.isArray(items) || !items.length) {
-      aiMonitoringEvents.innerHTML = '<div class="text-muted">РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р… РїС—Р…РїС—Р…РїС—Р….</div>';
+      aiMonitoringEvents.innerHTML = '<div class="text-muted">������� ���.</div>';
       return;
     }
     aiMonitoringEvents.innerHTML = items.slice(0, 12).map((item) => {
@@ -4316,7 +4316,7 @@
 
   async function loadAiMonitoringSummary(days = 7) {
     if (!aiMonitoringSection || !aiMonitoringState) return;
-    aiMonitoringState.textContent = 'РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р… AI-РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…';
+    aiMonitoringState.textContent = '�������� AI-������';
     try {
       const resp = await fetch(`/api/dialogs/ai-monitoring/summary?days=${encodeURIComponent(days)}`, {
         credentials: 'same-origin',
@@ -4336,9 +4336,9 @@
       renderAiMonitoringRunbook(summary.runbook?.items);
       await loadAiMonitoringEvents(days, 50);
       const windowDays = Number(summary.window_days || days);
-      aiMonitoringState.textContent = `РїС—Р…РїС—Р…РїС—Р…РїС—Р…: ${Number.isFinite(windowDays) ? windowDays : days} РїС—Р…РїС—Р… РїС—Р… РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р… ${formatUtcDate(summary.generated_at, { includeTime: true })}`;
+      aiMonitoringState.textContent = `����: ${Number.isFinite(windowDays) ? windowDays : days} �� � ��������� ${formatUtcDate(summary.generated_at, { includeTime: true })}`;
     } catch (error) {
-      aiMonitoringState.textContent = `РїС—Р…РїС—Р… РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р… РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р… AI-РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…: ${error.message || 'unknown_error'}`;
+      aiMonitoringState.textContent = `�� ������� ��������� AI-�������: ${error.message || 'unknown_error'}`;
       renderAiMonitoringAlerts([]);
       renderAiMonitoringRunbook([]);
       renderAiMonitoringEvents([]);
@@ -4400,13 +4400,13 @@
     if (workspaceReplyTargetClear) workspaceReplyTargetClear.disabled = !canReplyInWorkspace || composer.reply_target_supported === false;
 
     if (workspaceConversationTitle) {
-      workspaceConversationTitle.textContent = `Р вЂќР С‘Р В°Р В»Р С•Р С– #${conversation.ticketId || 'РІР‚вЂќ'}`;
+      workspaceConversationTitle.textContent = `Диалог #${conversation.ticketId || '—'}`;
     }
     if (workspaceConversationMeta) {
-      const status = conversation.statusLabel || conversation.status || 'РІР‚вЂќ';
-      const assignee = conversation.responsible || 'Р В±Р ВµР В· Р С•РЎвЂљР Р†Р ВµРЎвЂљРЎРѓРЎвЂљР Р†Р ВµР Р…Р Р…Р С•Р С–Р С•';
+      const status = conversation.statusLabel || conversation.status || '—';
+      const assignee = conversation.responsible || 'без ответственного';
       const createdAt = formatWorkspaceDateTime(conversation.createdAt || conversation.created_at);
-      workspaceConversationMeta.textContent = `Р РЋРЎвЂљР В°РЎвЂљРЎС“РЎРѓ: ${status} Р’В· Р С›РЎвЂљР Р†Р ВµРЎвЂљРЎРѓРЎвЂљР Р†Р ВµР Р…Р Р…РЎвЂ№Р в„–: ${assignee} Р’В· Р РЋР С•Р В·Р Т‘Р В°Р Р…: ${createdAt}`;
+      workspaceConversationMeta.textContent = `Статус: ${status} · Ответственный: ${assignee} · Создан: ${createdAt}`;
     }
     renderWorkspaceNavigation(navigation);
     updateWorkspaceActionButtons(conversation, permissions || {});
@@ -4416,7 +4416,7 @@
       workspaceMessagesState.classList.toggle('d-none', Array.isArray(messages.items) && messages.items.length > 0);
       workspaceMessagesState.textContent = Array.isArray(messages.items) && messages.items.length > 0
         ? ''
-        : 'Р РЋР С•Р С•Р В±РЎвЂ°Р ВµР Р…Р С‘РЎРЏ Р С•РЎвЂљРЎРѓРЎС“РЎвЂљРЎРѓРЎвЂљР Р†РЎС“РЎР‹РЎвЂљ Р С‘Р В»Р С‘ Р ВµРЎвЂ°РЎвЂ Р Р…Р Вµ Р В·Р В°Р С–РЎР‚РЎС“Р В¶Р ВµР Р…РЎвЂ№.';
+        : 'Сообщения отсутствуют или ещё не загружены.';
     }
     if (workspaceMessagesList) {
       const items = Array.isArray(messages.items) ? messages.items : [];
@@ -4453,11 +4453,11 @@
       if (workspaceHistoryContent) {
         workspaceHistoryContent.classList.remove('d-none');
         workspaceHistoryContent.innerHTML = renderWorkspaceSimpleList(contextHistory, (item) => {
-          const ticketId = escapeHtml(item.ticket_id || item.ticketId || 'РІР‚вЂќ');
-          const status = escapeHtml(item.status || 'РІР‚вЂќ');
+          const ticketId = escapeHtml(item.ticket_id || item.ticketId || '—');
+          const status = escapeHtml(item.status || '—');
           const createdAt = escapeHtml(formatWorkspaceDateTime(item.created_at || item.createdAt));
-          const problem = escapeHtml(item.problem || 'Р вЂР ВµР В· Р С•Р С—Р С‘РЎРѓР В°Р Р…Р С‘РЎРЏ');
-          return `<div><strong>#${ticketId}</strong> Р’В· <span class="text-muted">${status}</span></div><div class="text-muted">${createdAt}</div><div>${problem}</div>`;
+          const problem = escapeHtml(item.problem || 'Без описания');
+          return `<div><strong>#${ticketId}</strong> · <span class="text-muted">${status}</span></div><div class="text-muted">${createdAt}</div><div>${problem}</div>`;
         });
       }
     } else {
@@ -4473,11 +4473,11 @@
       if (workspaceRelatedEventsContent) {
         workspaceRelatedEventsContent.classList.remove('d-none');
         workspaceRelatedEventsContent.innerHTML = renderWorkspaceSimpleList(relatedEvents, (item) => {
-          const actor = escapeHtml(item.actor || 'Р РЋР С‘РЎРѓРЎвЂљР ВµР СР В°');
+          const actor = escapeHtml(item.actor || 'Система');
           const type = escapeHtml(item.type || 'event');
           const timestamp = escapeHtml(formatWorkspaceDateTime(item.timestamp));
-          const detail = escapeHtml(item.detail || 'РІР‚вЂќ');
-          return `<div><strong>${actor}</strong> Р’В· <span class="text-muted">${type}</span></div><div class="text-muted">${timestamp}</div><div>${detail}</div>`;
+          const detail = escapeHtml(item.detail || '—');
+          return `<div><strong>${actor}</strong> · <span class="text-muted">${type}</span></div><div class="text-muted">${timestamp}</div><div>${detail}</div>`;
         });
       }
     } else {
@@ -4531,16 +4531,16 @@
                 <span class="badge ${policyBadgeClass}">${escapeHtml(String(policy.status || 'unknown'))}</span>
                 ${policy.action ? `<span class="badge text-bg-light border">${escapeHtml(String(policy.action))}</span>` : ''}
               </div>
-              ${policyMeta.length ? `<div class="small text-muted mt-1">${escapeHtml(policyMeta.join(' Р’В· '))}</div>` : ''}
+              ${policyMeta.length ? `<div class="small text-muted mt-1">${escapeHtml(policyMeta.join(' · '))}</div>` : ''}
               ${policy.summary ? `<div class="small text-muted mt-1">${escapeHtml(String(policy.summary))}</div>` : ''}
               ${policyIssues.length ? `<div class="small text-warning mt-1">Issues: ${escapeHtml(policyIssues.join(', '))}</div>` : ''}
             </div>`
           : '';
         const escalationHint = sla.escalation_required === true
-          ? '<div class="small text-danger mt-1">Р СћРЎР‚Р ВµР В±РЎС“Р ВµРЎвЂљРЎРѓРЎРЏ РЎРЊРЎРѓР С”Р В°Р В»Р В°РЎвЂ Р С‘РЎРЏ: Р С•Р С”Р Р…Р С• SLA Р С”РЎР‚Р С‘РЎвЂљР С‘РЎвЂЎР Р…Р С•Р Вµ.</div>'
+          ? '<div class="small text-danger mt-1">Требуется эскалация: окно SLA критичное.</div>'
           : '';
         workspaceSlaContent.classList.remove('d-none');
-        workspaceSlaContent.innerHTML = `<div class="small">Р РЋР С•РЎРѓРЎвЂљР С•РЎРЏР Р…Р С‘Р Вµ: <span class="badge ${badgeClass}">${escapeHtml(sla.state)}</span></div><div class="small text-muted">Р вЂќР С• Р Т‘Р ВµР Т‘Р В»Р В°Р в„–Р Р…Р В°: ${escapeHtml(remaining)}</div><div class="small text-muted">Р вЂќР ВµР Т‘Р В»Р В°Р в„–Р Р…: ${escapeHtml(formatWorkspaceDateTime(sla.deadline_at))}</div>${escalationHint}${policyMarkup}`;
+        workspaceSlaContent.innerHTML = `<div class="small">Состояние: <span class="badge ${badgeClass}">${escapeHtml(sla.state)}</span></div><div class="small text-muted">До дедлайна: ${escapeHtml(remaining)}</div><div class="small text-muted">Дедлайн: ${escapeHtml(formatWorkspaceDateTime(sla.deadline_at))}</div>${escalationHint}${policyMarkup}`;
       }
     } else {
       if (workspaceSlaState) workspaceSlaState.classList.add('d-none');
@@ -4599,11 +4599,11 @@
   function workspaceContextViolationSeverityLabel(severity) {
     switch (String(severity || '').trim().toLowerCase()) {
       case 'high':
-        return 'Р РЋРЎР‚Р С•РЎвЂЎР Р…Р С•';
+        return 'Срочно';
       case 'medium':
-        return 'Р СњРЎС“Р В¶Р Р…Р С• Р Т‘Р ВµР в„–РЎРѓРЎвЂљР Р†Р С‘Р Вµ';
+        return 'Нужно действие';
       default:
-        return 'Р С™ РЎРѓР Р†Р ВµР Т‘Р ВµР Р…Р С‘РЎР‹';
+        return 'К сведению';
     }
   }
 
@@ -4620,25 +4620,25 @@
 
   function renderWorkspaceClientProfile(client, context = {}) {
     if (!client || typeof client !== 'object') {
-      return '<div class="small text-muted">Р СџРЎР‚Р С•РЎвЂћР С‘Р В»РЎРЉ Р С”Р В»Р С‘Р ВµР Р…РЎвЂљР В° Р Р…Р ВµР Т‘Р С•РЎРѓРЎвЂљРЎС“Р С—Р ВµР Р….</div>';
+      return '<div class="small text-muted">Профиль клиента недоступен.</div>';
     }
     const fields = [
       ['ID', client.id],
       ['Username', client.username],
-      ['Р РЋРЎвЂљР В°РЎвЂљРЎС“РЎРѓ', client.status],
-      ['Р С™Р В°Р Р…Р В°Р В»', client.channel],
-      ['Р вЂР С‘Р В·Р Р…Р ВµРЎРѓ', client.business],
-      ['Р вЂєР С•Р С”Р В°РЎвЂ Р С‘РЎРЏ', client.location],
-      ['Р С›РЎвЂљР Р†Р ВµРЎвЂљРЎРѓРЎвЂљР Р†Р ВµР Р…Р Р…РЎвЂ№Р в„–', client.responsible],
-      ['Р СњР ВµР С—РЎР‚Р С•РЎвЂЎР С‘РЎвЂљР В°Р Р…Р Р…РЎвЂ№Р Вµ', client.unread_count],
-      ['Р С›РЎвЂ Р ВµР Р…Р С”Р В°', client.rating],
-      ['Р СџР С•РЎРѓР В»Р ВµР Т‘Р Р…Р ВµР Вµ РЎРѓР С•Р С•Р В±РЎвЂ°Р ВµР Р…Р С‘Р Вµ', formatWorkspaceDateTime(client.last_message_at)],
-      ['Р вЂ™РЎРѓР ВµР С–Р С• Р Т‘Р С‘Р В°Р В»Р С•Р С–Р С•Р Р†', client.total_dialogs],
-      ['Р С›РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљРЎвЂ№РЎвЂ¦ Р Т‘Р С‘Р В°Р В»Р С•Р С–Р С•Р Р†', client.open_dialogs],
-      ['Р вЂ”Р В°Р С”РЎР‚РЎвЂ№РЎвЂљР С• Р В·Р В° 30 Р Т‘Р Р…Р ВµР в„–', client.resolved_30d],
-      ['Р СџР ВµРЎР‚Р Р†Р С•Р Вµ Р С•Р В±РЎР‚Р В°РЎвЂ°Р ВµР Р…Р С‘Р Вµ', formatWorkspaceDateTime(client.first_seen_at)],
-      ['Р СџР С•РЎРѓР В»Р ВµР Т‘Р Р…РЎРЏРЎРЏ Р В°Р С”РЎвЂљР С‘Р Р†Р Р…Р С•РЎРѓРЎвЂљРЎРЉ РЎвЂљР С‘Р С”Р ВµРЎвЂљР В°', formatWorkspaceDateTime(client.last_ticket_activity_at)],
-      ['Р Р‡Р В·РЎвЂ№Р С”', client.language],
+      ['Статус', client.status],
+      ['Канал', client.channel],
+      ['Бизнес', client.business],
+      ['Локация', client.location],
+      ['Ответственный', client.responsible],
+      ['Непрочитанные', client.unread_count],
+      ['Оценка', client.rating],
+      ['Последнее сообщение', formatWorkspaceDateTime(client.last_message_at)],
+      ['Всего диалогов', client.total_dialogs],
+      ['Открытых диалогов', client.open_dialogs],
+      ['Закрыто за 30 дней', client.resolved_30d],
+      ['Первое обращение', formatWorkspaceDateTime(client.first_seen_at)],
+      ['Последняя активность тикета', formatWorkspaceDateTime(client.last_ticket_activity_at)],
+      ['Язык', client.language],
     ];
     const reservedClientKeys = new Set([
       'id',
@@ -4682,13 +4682,13 @@
       : 0;
     const profileRuleSummary = [];
     if (totalRequiredProfileFields > 0) {
-      profileRuleSummary.push(`Р С›Р В±РЎРЏР В·Р В°РЎвЂљР ВµР В»РЎРЉР Р…РЎвЂ№РЎвЂ¦ Р С—Р С•Р В»Р ВµР в„–: ${totalRequiredProfileFields}`);
+      profileRuleSummary.push(`Обязательных полей: ${totalRequiredProfileFields}`);
     }
     if (activeProfileSegments.length) {
-      profileRuleSummary.push(`Р РЋР ВµР С–Р СР ВµР Р…РЎвЂљРЎвЂ№: ${activeProfileSegments.join(', ')}`);
+      profileRuleSummary.push(`Сегменты: ${activeProfileSegments.join(', ')}`);
     }
     const healthBanner = profileHealth && profileHealth.enabled === true
-      ? `<div class="alert ${profileHealth.ready ? 'alert-success' : 'alert-warning'} py-2 px-3 small mb-2">${profileHealth.ready ? `Р С™Р С•Р Р…РЎвЂљР ВµР С”РЎРѓРЎвЂљ Р С”Р В»Р С‘Р ВµР Р…РЎвЂљР В° Р С–Р С•РЎвЂљР С•Р Р† (${Number(profileHealth.coverage_pct || 100)}%).` : `Р СњРЎС“Р В¶Р Р…Р С• Р Т‘Р С•Р В·Р В°Р С—Р С•Р В»Р Р…Р С‘РЎвЂљРЎРЉ Р С”Р С•Р Р…РЎвЂљР ВµР С”РЎРѓРЎвЂљ (${Number(profileHealth.coverage_pct || 0)}%): ${escapeHtml(missingFields.join(', ') || 'Р Р…Р ВµРЎвЂљ Р С•Р В±РЎРЏР В·Р В°РЎвЂљР ВµР В»РЎРЉР Р…РЎвЂ№РЎвЂ¦ Р С—Р С•Р В»Р ВµР в„–')}.`}${profileRuleSummary.length ? `<div class="text-muted mt-1">${escapeHtml(profileRuleSummary.join(' Р’В· '))}</div>` : ''}<div class="text-muted mt-1">Р СџРЎР‚Р С•Р Р†Р ВµРЎР‚Р ВµР Р…Р С•: ${escapeHtml(formatWorkspaceDateTime(profileHealth.checked_at_utc || profileHealth.checked_at))}</div></div>`
+      ? `<div class="alert ${profileHealth.ready ? 'alert-success' : 'alert-warning'} py-2 px-3 small mb-2">${profileHealth.ready ? `Контекст клиента готов (${Number(profileHealth.coverage_pct || 100)}%).` : `Нужно дозаполнить контекст (${Number(profileHealth.coverage_pct || 0)}%): ${escapeHtml(missingFields.join(', ') || 'нет обязательных полей')}.`}${profileRuleSummary.length ? `<div class="text-muted mt-1">${escapeHtml(profileRuleSummary.join(' · '))}</div>` : ''}<div class="text-muted mt-1">Проверено: ${escapeHtml(formatWorkspaceDateTime(profileHealth.checked_at_utc || profileHealth.checked_at))}</div></div>`
       : '';
     const profileMatchCandidates = context?.profile_match_candidates && typeof context.profile_match_candidates === 'object'
       ? context.profile_match_candidates
@@ -4702,8 +4702,8 @@
     const clientCardUrl = Number.isFinite(Number(client?.id)) ? `/client/${Number(client.id)}` : null;
     const profileMatchSection = profileMatchCandidates && profileMatchFields.length
       ? `<details class="mt-2"${profileMatchReviewFields.length ? ' open' : ''}>
-          <summary class="small fw-semibold">Р РЋР С•Р С—Р С•РЎРѓРЎвЂљР В°Р Р†Р В»Р ВµР Р…Р С‘Р Вµ Р Т‘Р В°Р Р…Р Р…РЎвЂ№РЎвЂ¦ <span class="text-muted fw-normal">(${profileMatchReviewFields.length}/${profileMatchFields.length})</span></summary>
-          <div class="small text-muted mt-1">Р СџРЎР‚Р С•Р Р†Р ВµРЎР‚РЎРЉРЎвЂљР Вµ Р С—РЎР‚Р ВµР Т‘Р В»Р С•Р В¶Р ВµР Р…Р Р…РЎвЂ№Р Вµ РЎРѓР С•Р Р†Р С—Р В°Р Т‘Р ВµР Р…Р С‘РЎРЏ Р С—Р С• Р В±Р С‘Р В·Р Р…Р ВµРЎРѓРЎС“, Р В»Р С•Р С”Р В°РЎвЂ Р С‘Р С‘, Р С–Р С•РЎР‚Р С•Р Т‘РЎС“ Р С‘ РЎРѓРЎвЂљРЎР‚Р В°Р Р…Р Вµ.</div>
+          <summary class="small fw-semibold">Сопоставление данных <span class="text-muted fw-normal">(${profileMatchReviewFields.length}/${profileMatchFields.length})</span></summary>
+          <div class="small text-muted mt-1">Проверьте предложенные совпадения по бизнесу, локации, городу и стране.</div>
           <div class="d-flex flex-column gap-2 mt-2">
             ${profileMatchFields.map((field) => {
               const incomingValue = String(field?.incoming_value || '').trim();
@@ -4715,16 +4715,16 @@
                   const matchType = String(candidate?.match_type || '').trim();
                   const confidence = Number(candidate?.confidence || 0);
                   const confidenceLabel = Number.isFinite(confidence) ? `${Math.round(confidence * 100)}%` : '';
-                  return `${escapeHtml(value)}${matchType ? ` (${escapeHtml(matchType)})` : ''}${confidenceLabel ? ` Р’В· ${escapeHtml(confidenceLabel)}` : ''}`;
+                  return `${escapeHtml(value)}${matchType ? ` (${escapeHtml(matchType)})` : ''}${confidenceLabel ? ` · ${escapeHtml(confidenceLabel)}` : ''}`;
                 }).join('; ')
-                : 'Р Р…Р ВµРЎвЂљ РЎРѓР С•Р Р†Р С—Р В°Р Т‘Р ВµР Р…Р С‘Р в„–';
+                : 'нет совпадений';
               return `<div class="border rounded px-2 py-1 bg-white">
-                  <div class="small"><span class="fw-semibold">${escapeHtml(label)}:</span> <span class="text-body">${escapeHtml(incomingValue || 'РІР‚вЂќ')}</span></div>
-                  <div class="small text-muted">Р С™Р В°Р Р…Р Т‘Р С‘Р Т‘Р В°РЎвЂљРЎвЂ№: ${candidateLine}</div>
+                  <div class="small"><span class="fw-semibold">${escapeHtml(label)}:</span> <span class="text-body">${escapeHtml(incomingValue || '—')}</span></div>
+                  <div class="small text-muted">Кандидаты: ${candidateLine}</div>
                 </div>`;
             }).join('')}
           </div>
-          ${clientCardUrl ? `<a class="btn btn-sm btn-outline-primary mt-2" href="${clientCardUrl}" target="_blank" rel="noopener noreferrer">Р С›РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљРЎРЉ Р С”Р В°РЎР‚РЎвЂљР С•РЎвЂЎР С”РЎС“ Р С”Р В»Р С‘Р ВµР Р…РЎвЂљР В° Р Т‘Р В»РЎРЏ Р С—РЎР‚Р В°Р Р†Р С•Р С”</a>` : ''}
+          ${clientCardUrl ? `<a class="btn btn-sm btn-outline-primary mt-2" href="${clientCardUrl}" target="_blank" rel="noopener noreferrer">Открыть карточку клиента для правок</a>` : ''}
         </details>`
       : '';
 
@@ -4751,10 +4751,10 @@
     };
     const contextBlocksSection = contextBlocksHealth && contextBlocksHealth.enabled === true && contextBlocks.length
       ? `<div class="alert ${contextBlocksHealth.ready ? 'alert-success' : 'alert-warning'} py-2 px-3 small mb-2">
-          <div class="fw-semibold mb-1">Р СџРЎР‚Р С‘Р С•РЎР‚Р С‘РЎвЂљР ВµРЎвЂљ customer context</div>
+          <div class="fw-semibold mb-1">Приоритет customer context</div>
           <div>${contextBlocksHealth.ready
-            ? `Р вЂ™РЎРѓР Вµ Р С•Р В±РЎРЏР В·Р В°РЎвЂљР ВµР В»РЎРЉР Р…РЎвЂ№Р Вµ Р В±Р В»Р С•Р С”Р С‘ Р С–Р С•РЎвЂљР С•Р Р†РЎвЂ№ (${Number(contextBlocksHealth.coverage_pct || 100)}%).`
-            : `Р СџР С•Р С”РЎР‚РЎвЂ№РЎвЂљР С‘Р Вµ Р С•Р В±РЎРЏР В·Р В°РЎвЂљР ВµР В»РЎРЉР Р…РЎвЂ№РЎвЂ¦ Р В±Р В»Р С•Р С”Р С•Р Р†: ${Number(contextBlocksHealth.coverage_pct || 0)}%. Р СњР Вµ РЎвЂ¦Р Р†Р В°РЎвЂљР В°Р ВµРЎвЂљ: ${escapeHtml((Array.isArray(contextBlocksHealth.missing_required_labels) ? contextBlocksHealth.missing_required_labels : []).join(', ') || 'РІР‚вЂќ')}.`}</div>
+            ? `Все обязательные блоки готовы (${Number(contextBlocksHealth.coverage_pct || 100)}%).`
+            : `Покрытие обязательных блоков: ${Number(contextBlocksHealth.coverage_pct || 0)}%. Не хватает: ${escapeHtml((Array.isArray(contextBlocksHealth.missing_required_labels) ? contextBlocksHealth.missing_required_labels : []).join(', ') || '—')}.`}</div>
           <div class="d-flex flex-column gap-2 mt-2">
             ${contextBlocks.map((block) => {
               const meta = [];
@@ -4769,10 +4769,10 @@
               }
               return `<div class="border rounded px-2 py-1 bg-white">
                 <div class="d-flex flex-wrap align-items-center gap-2">
-                  <span class="fw-semibold">${escapeHtml(block.label || block.key || 'Р вЂР В»Р С•Р С”')}</span>
+                  <span class="fw-semibold">${escapeHtml(block.label || block.key || 'Блок')}</span>
                   <span class="badge ${contextBlockBadgeClass(block.status)}">${escapeHtml(String(block.status || 'unavailable'))}</span>
                 </div>
-                ${meta.length ? `<div class="small text-muted mt-1">${escapeHtml(meta.join(' Р’В· '))}</div>` : ''}
+                ${meta.length ? `<div class="small text-muted mt-1">${escapeHtml(meta.join(' · '))}</div>` : ''}
                 ${block.summary ? `<div class="small text-muted">${escapeHtml(String(block.summary))}</div>` : ''}
               </div>`;
             }).join('')}
@@ -4864,13 +4864,13 @@
     const contextSourceRequiredCount = contextSources.filter((source) => source?.required === true).length;
     const contextSourcesSection = contextSources.length
       ? `<details class="mt-2" data-workspace-telemetry-section="context_sources" data-workspace-telemetry-items="${contextSources.length}" data-workspace-telemetry-required="${contextSourceRequiredCount}" data-workspace-telemetry-gaps="${contextSourceIssueCount}" data-workspace-telemetry-hidden="0"${contextSourceIssueCount > 0 ? ' open' : ''}>
-        <summary class="small fw-semibold">Р ВРЎРѓРЎвЂљР С•РЎвЂЎР Р…Р С‘Р С”Р С‘ Р С”Р С•Р Р…РЎвЂљР ВµР С”РЎРѓРЎвЂљР В° <span class="text-muted fw-normal">(${contextSources.length}; required ${contextSourceRequiredCount}; gaps ${contextSourceIssueCount})</span></summary>
-        <div class="small text-muted mt-1">Р РЋР Р†Р ВµРЎР‚Р Р…РЎС“РЎвЂљР С• Р С—Р С• РЎС“Р СР С•Р В»РЎвЂЎР В°Р Р…Р С‘РЎР‹, РЎвЂЎРЎвЂљР С•Р В±РЎвЂ№ primary customer-context Р С•РЎРѓРЎвЂљР В°Р Р†Р В°Р В»РЎРѓРЎРЏ Р Р†РЎвЂ№РЎв‚¬Р Вµ policy-РЎв‚¬РЎС“Р СР В°.</div>
+        <summary class="small fw-semibold">Источники контекста <span class="text-muted fw-normal">(${contextSources.length}; required ${contextSourceRequiredCount}; gaps ${contextSourceIssueCount})</span></summary>
+        <div class="small text-muted mt-1">Свернуто по умолчанию, чтобы primary customer-context оставался выше policy-шума.</div>
         <div class="d-flex flex-column gap-2 mt-2">
           ${contextSources.map((source) => {
             const meta = [];
             if (Number.isFinite(Number(source.matched_attribute_count)) && Number(source.matched_attribute_count) > 0) {
-              meta.push(`${Number(source.matched_attribute_count)} Р В°РЎвЂљРЎР‚.`);
+              meta.push(`${Number(source.matched_attribute_count)} атр.`);
             }
             if (source.updated_at_utc) {
               meta.push(`UTC ${formatWorkspaceDateTime(source.updated_at_utc)}`);
@@ -4878,15 +4878,15 @@
               meta.push(`invalid: ${String(source.updated_at_raw).trim()}`);
             }
             if (source.linked === true) {
-              meta.push('Р ВµРЎРѓРЎвЂљРЎРЉ РЎРѓРЎРѓРЎвЂ№Р В»Р С”Р В°');
+              meta.push('есть ссылка');
             }
             return `<div class="border rounded px-2 py-1">
               <div class="d-flex flex-wrap align-items-center gap-2">
-                <span class="fw-semibold">${escapeHtml(source.label || source.key || 'Р ВРЎРѓРЎвЂљР С•РЎвЂЎР Р…Р С‘Р С”')}</span>
+                <span class="fw-semibold">${escapeHtml(source.label || source.key || 'Источник')}</span>
                 <span class="badge ${sourceBadgeClass(source.status)}">${escapeHtml(sourceStatusLabel(source.status))}</span>
                 ${source.required === true ? '<span class="badge text-bg-light border">required</span>' : ''}
               </div>
-              ${meta.length ? `<div class="small text-muted mt-1">${escapeHtml(meta.join(' Р’В· '))}</div>` : ''}
+              ${meta.length ? `<div class="small text-muted mt-1">${escapeHtml(meta.join(' · '))}</div>` : ''}
               ${source.summary ? `<div class="small text-muted">${escapeHtml(String(source.summary))}</div>` : ''}
             </div>`;
           }).join('')}
@@ -4934,7 +4934,7 @@
     const attributePoliciesSection = attributePolicies.length
       ? `<details class="mt-2" data-workspace-telemetry-section="attribute_policy" data-workspace-telemetry-items="${attributePolicies.length}" data-workspace-telemetry-required="${attributePolicyRequiredCount}" data-workspace-telemetry-gaps="${attributePolicyIssueCount}" data-workspace-telemetry-hidden="0"${attributePolicyIssueCount > 0 ? ' open' : ''}>
         <summary class="small fw-semibold">Source / freshness policy <span class="text-muted fw-normal">(${attributePolicies.length}; required ${attributePolicyRequiredCount}; gaps ${attributePolicyIssueCount})</span></summary>
-        <div class="small text-muted mt-1">Р вЂ™РЎвЂљР С•РЎР‚Р С‘РЎвЂЎР Р…РЎвЂ№Р Вµ policy-Р Т‘Р ВµРЎвЂљР В°Р В»Р С‘ РЎР‚Р В°РЎРѓР С”РЎР‚РЎвЂ№Р Р†Р В°РЎР‹РЎвЂљРЎРѓРЎРЏ Р С•РЎвЂљР Т‘Р ВµР В»РЎРЉР Р…Р С•, РЎвЂЎРЎвЂљР С•Р В±РЎвЂ№ Р Р…Р Вµ Р С”Р С•Р Р…Р С”РЎС“РЎР‚Р С‘РЎР‚Р С•Р Р†Р В°РЎвЂљРЎРЉ РЎРѓ action-oriented contract summary.</div>
+        <div class="small text-muted mt-1">Вторичные policy-детали раскрываются отдельно, чтобы не конкурировать с action-oriented contract summary.</div>
         <div class="d-flex flex-column gap-2 mt-2">
           ${attributePolicies.map((policy) => {
             const meta = [];
@@ -4957,7 +4957,7 @@
                 <span class="badge ${attributePolicyBadgeClass(policy.status)}">${escapeHtml(attributePolicyStatusLabel(policy.status))}</span>
                 ${policy.required === true ? '<span class="badge text-bg-light border">required</span>' : ''}
               </div>
-              ${meta.length ? `<div class="small text-muted mt-1">${escapeHtml(meta.join(' Р’В· '))}</div>` : ''}
+              ${meta.length ? `<div class="small text-muted mt-1">${escapeHtml(meta.join(' · '))}</div>` : ''}
               ${policy.summary ? `<div class="small text-muted">${escapeHtml(String(policy.summary))}</div>` : ''}
             </div>`;
           }).join('')}
@@ -4989,9 +4989,9 @@
         </div>
         <div class="mt-1 fw-semibold">${escapeHtml(detail.shortLabel || detail.operatorMessage)}</div>
         <div class="small text-muted mt-1">${escapeHtml(detail.operatorMessage)}</div>
-        ${detail.nextStep ? `<div class="small mt-1"><span class="text-muted">Р РЋР В»Р ВµР Т‘РЎС“РЎР‹РЎвЂ°Р С‘Р в„– РЎв‚¬Р В°Р С–:</span> ${escapeHtml(detail.nextStep)}</div>` : ''}
+        ${detail.nextStep ? `<div class="small mt-1"><span class="text-muted">Следующий шаг:</span> ${escapeHtml(detail.nextStep)}</div>` : ''}
         ${detail.playbookUrl
-          ? `<div class="small mt-1"><a href="${escapeHtml(detail.playbookUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(detail.actionLabel || detail.playbookLabel)}</a>${detail.playbookSummary ? ` <span class="text-muted">Р’В· ${escapeHtml(detail.playbookSummary)}</span>` : ''}</div>`
+          ? `<div class="small mt-1"><a href="${escapeHtml(detail.playbookUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(detail.actionLabel || detail.playbookLabel)}</a>${detail.playbookSummary ? ` <span class="text-muted">· ${escapeHtml(detail.playbookSummary)}</span>` : ''}</div>`
           : ''}
       </div>`;
     const violationActionsSection = contract.ready === true || contractViolationDetails.length === 0
@@ -4999,7 +4999,7 @@
       : `<div class="d-flex flex-column gap-2 mt-2">
           ${primaryViolationCards.map((detail) => renderViolationCard(detail)).join('')}
           ${extraViolationCards.length
-            ? `<details${progressiveDisclosureReady ? '' : ' open'}><summary class="small text-muted">Р СџР С•Р С”Р В°Р В·Р В°РЎвЂљРЎРЉ Р ВµРЎвЂ°РЎвЂ ${deferredViolationCount}</summary><div class="d-flex flex-column gap-2 mt-2">${extraViolationCards.map((detail) => renderViolationCard(detail)).join('')}</div></details>`
+            ? `<details${progressiveDisclosureReady ? '' : ' open'}><summary class="small text-muted">Показать ещё ${deferredViolationCount}</summary><div class="d-flex flex-column gap-2 mt-2">${extraViolationCards.map((detail) => renderViolationCard(detail)).join('')}</div></details>`
             : ''}
         </div>`;
     const contextContractSection = contract && contract.enabled === true
@@ -5014,25 +5014,25 @@
             ? `<div class="mt-1"><span class="text-muted">Operator first:</span> ${escapeHtml(focusBlocks.join(', '))}</div>`
             : ''}
           ${contractNextStepSummary
-            ? `<div class="mt-1"><span class="text-muted">Р В§РЎвЂљР С• РЎРѓР Т‘Р ВµР В»Р В°РЎвЂљРЎРЉ:</span> ${escapeHtml(contractNextStepSummary)}</div>`
+            ? `<div class="mt-1"><span class="text-muted">Что сделать:</span> ${escapeHtml(contractNextStepSummary)}</div>`
             : (Array.isArray(contract.action_items) && contract.action_items.length
-              ? `<div class="mt-1"><span class="text-muted">Р В§РЎвЂљР С• РЎРѓР Т‘Р ВµР В»Р В°РЎвЂљРЎРЉ:</span> ${escapeHtml(contract.action_items[0])}</div>`
+              ? `<div class="mt-1"><span class="text-muted">Что сделать:</span> ${escapeHtml(contract.action_items[0])}</div>`
               : '')}
           ${deferredViolationCount > 0
-            ? `<div class="mt-1 text-muted">Р С›РЎРѓРЎвЂљР В°Р В»РЎРЉР Р…РЎвЂ№Р Вµ Р Т‘Р ВµРЎвЂљР В°Р В»Р С‘ РЎРѓР С”РЎР‚РЎвЂ№РЎвЂљРЎвЂ№ Р Т‘Р С• РЎР‚Р В°РЎРѓР С”РЎР‚РЎвЂ№РЎвЂљР С‘РЎРЏ: ${deferredViolationCount}.</div>`
+            ? `<div class="mt-1 text-muted">Остальные детали скрыты до раскрытия: ${deferredViolationCount}.</div>`
             : ''}
           ${violationActionsSection}
-          <div class="text-muted mt-1">Р СџРЎР‚Р С•Р Р†Р ВµРЎР‚Р ВµР Р…Р С•: ${escapeHtml(formatWorkspaceDateTime(contract.checked_at_utc || contract.checked_at))}</div>
+          <div class="text-muted mt-1">Проверено: ${escapeHtml(formatWorkspaceDateTime(contract.checked_at_utc || contract.checked_at))}</div>
         </div>`
       : '';
 
     const extraSection = expandedRows || collapsedRows
       ? `<details class="mt-2" data-workspace-telemetry-section="extra_attributes" data-workspace-telemetry-items="${limitedExtraEntries.length}" data-workspace-telemetry-required="0" data-workspace-telemetry-gaps="0" data-workspace-telemetry-hidden="${hiddenByLimitCount}">
-        <summary class="small fw-semibold">Р вЂќР С•Р С—. Р В°РЎвЂљРЎР‚Р С‘Р В±РЎС“РЎвЂљРЎвЂ№ <span class="text-muted fw-normal">(${extraAttributeTotalCount}; visible ${limitedExtraEntries.length}${hiddenByLimitCount > 0 ? `; hidden ${hiddenByLimitCount}` : ''})</span></summary>
-        <div class="small text-muted mt-1">Р вЂ™РЎвЂљР С•РЎР‚Р С•РЎРѓРЎвЂљР ВµР С—Р ВµР Р…Р Р…РЎвЂ№Р Вµ Р С—Р С•Р В»РЎРЏ РЎРѓР С”РЎР‚РЎвЂ№РЎвЂљРЎвЂ№ Р Т‘Р С• РЎР‚Р В°РЎРѓР С”РЎР‚РЎвЂ№РЎвЂљР С‘РЎРЏ, РЎвЂЎРЎвЂљР С•Р В±РЎвЂ№ Р Р…Р Вµ Р С”Р С•Р Р…Р С”РЎС“РЎР‚Р С‘РЎР‚Р С•Р Р†Р В°РЎвЂљРЎРЉ РЎРѓ customer-context contract.</div>
+        <summary class="small fw-semibold">Доп. атрибуты <span class="text-muted fw-normal">(${extraAttributeTotalCount}; visible ${limitedExtraEntries.length}${hiddenByLimitCount > 0 ? `; hidden ${hiddenByLimitCount}` : ''})</span></summary>
+        <div class="small text-muted mt-1">Второстепенные поля скрыты до раскрытия, чтобы не конкурировать с customer-context contract.</div>
         <div class="mt-2">${expandedRows}</div>
-        ${collapsedRows ? `<details class="mt-1"><summary class="small text-muted">Р СџР С•Р С”Р В°Р В·Р В°РЎвЂљРЎРЉ Р ВµРЎвЂ°РЎвЂ ${collapsedExtraEntries.length}</summary><div class="mt-1">${collapsedRows}</div></details>` : ''}
-        ${hiddenByLimitCount > 0 ? `<div class="small text-muted mt-1">Р РЋР С”РЎР‚РЎвЂ№РЎвЂљР С• Р С—Р С• Р В»Р С‘Р СР С‘РЎвЂљРЎС“: ${hiddenByLimitCount}.</div>` : ''}
+        ${collapsedRows ? `<details class="mt-1"><summary class="small text-muted">Показать ещё ${collapsedExtraEntries.length}</summary><div class="mt-1">${collapsedRows}</div></details>` : ''}
+        ${hiddenByLimitCount > 0 ? `<div class="small text-muted mt-1">Скрыто по лимиту: ${hiddenByLimitCount}.</div>` : ''}
       </details>`
       : '';
 
@@ -5044,7 +5044,7 @@
           if (!url || !(url.startsWith('http://') || url.startsWith('https://'))) {
             return '';
           }
-          const label = String(item.label || 'Р СџРЎР‚Р С•РЎвЂћР С‘Р В»РЎРЉ').trim() || 'Р СџРЎР‚Р С•РЎвЂћР С‘Р В»РЎРЉ';
+          const label = String(item.label || 'Профиль').trim() || 'Профиль';
           return `<a class="btn btn-sm btn-outline-secondary" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a>`;
         })
         .filter(Boolean)
@@ -5053,7 +5053,7 @@
       ? `<div class="d-flex flex-wrap gap-2 mt-2">${externalLinks.join('')}</div>`
       : '';
 
-    return `<div class="small"><strong>${escapeHtml(client.name || 'РІР‚вЂќ')}</strong></div>${profileMatchSection}${healthBanner}${contextBlocksSection}${contextContractSection}${rows || '<div class="small text-muted">Р вЂќР С•Р С—Р С•Р В»Р Р…Р С‘РЎвЂљР ВµР В»РЎРЉР Р…РЎвЂ№Р Вµ Р В°РЎвЂљРЎР‚Р С‘Р В±РЎС“РЎвЂљРЎвЂ№ Р С•РЎвЂљРЎРѓРЎС“РЎвЂљРЎРѓРЎвЂљР Р†РЎС“РЎР‹РЎвЂљ.</div>'}${contextSourcesSection}${attributePoliciesSection}${extraSection}${segmentBadges}${linksSection}`;
+    return `<div class="small"><strong>${escapeHtml(client.name || '—')}</strong></div>${profileMatchSection}${healthBanner}${contextBlocksSection}${contextContractSection}${rows || '<div class="small text-muted">Дополнительные атрибуты отсутствуют.</div>'}${contextSourcesSection}${attributePoliciesSection}${extraSection}${segmentBadges}${linksSection}`;
   }
 
   function isWorkspaceClientExtraValue(value) {
@@ -5080,7 +5080,7 @@
       .replace(/[_-]+/g, ' ')
       .replace(/\s+/g, ' ')
       .trim()
-      .replace(/^./, (char) => char.toUpperCase()) || 'Р С’РЎвЂљРЎР‚Р С‘Р В±РЎС“РЎвЂљ';
+      .replace(/^./, (char) => char.toUpperCase()) || 'Атрибут';
   }
 
   function resolveWorkspaceClientAttributeLabelMap(rawLabels) {
@@ -5217,7 +5217,7 @@
     return payload;
   }
 
-  async function reloadWorkspaceForInitialRoute(statusText = 'Р СџР С•Р Р†РЎвЂљР С•РЎР‚Р Р…Р В°РЎРЏ Р В·Р В°Р С–РЎР‚РЎС“Р В·Р С”Р В° Р В»Р ВµР Р…РЎвЂљРЎвЂ№РІР‚В¦') {
+  async function reloadWorkspaceForInitialRoute(statusText = 'Повторная загрузка ленты…') {
     if (!WORKSPACE_V1_ENABLED || !activeWorkspaceTicketId) return;
     const initialRow = rowsList().find((row) => String(row.dataset.ticketId || '') === activeWorkspaceTicketId) || null;
     if (workspaceMessagesError) workspaceMessagesError.classList.add('d-none');
@@ -5258,11 +5258,11 @@
     if (isWorkspaceTemporarilyDisabled()) {
       if (!WORKSPACE_DISABLE_LEGACY_FALLBACK) {
         if (typeof showNotification === 'function') {
-          showNotification('Workspace Р Р†РЎР‚Р ВµР СР ВµР Р…Р Р…Р С• Р Р† cooldown РІР‚вЂќ Р С•РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљ legacy modal Р С”Р В°Р С” rollback.', 'warning');
+          showNotification('Workspace временно в cooldown — открыт legacy modal как rollback.', 'warning');
         }
         openDialogDetails(ticketId, row || activeDialogRow);
       } else if (typeof showNotification === 'function') {
-        showNotification('Legacy modal Р С•РЎвЂљР С”Р В»РЎР‹РЎвЂЎРЎвЂР Р…: Р Т‘Р С•Р В¶Р Т‘Р С‘РЎвЂљР ВµРЎРѓРЎРЉ Р В·Р В°Р Р†Р ВµРЎР‚РЎв‚¬Р ВµР Р…Р С‘РЎРЏ workspace cooldown Р С‘Р В»Р С‘ Р С‘РЎРѓР С—РЎР‚Р В°Р Р†РЎРЉРЎвЂљР Вµ Р С—РЎР‚Р С‘РЎвЂЎР С‘Р Р…РЎС“ Р Т‘Р ВµР С–РЎР‚Р В°Р Т‘Р В°РЎвЂ Р С‘Р С‘ workspace.', 'warning');
+        showNotification('Legacy modal отключён: дождитесь завершения workspace cooldown или исправьте причину деградации workspace.', 'warning');
       }
       return;
     }
@@ -5346,13 +5346,13 @@
           source,
         });
         if (typeof showNotification === 'function') {
-          showNotification('Workspace Р Р†РЎР‚Р ВµР СР ВµР Р…Р Р…Р С• Р С—Р ВµРЎР‚Р ВµР Р†Р ВµР Т‘РЎвЂР Р… Р Р† cooldown Р С‘Р В·-Р В·Р В° РЎРѓР ВµРЎР‚Р С‘Р С‘ Р С•РЎв‚¬Р С‘Р В±Р С•Р С”. Р ВРЎРѓР С—Р С•Р В»РЎРЉР В·РЎС“Р ВµРЎвЂљРЎРѓРЎРЏ legacy-РЎР‚Р ВµР В¶Р С‘Р С.', 'warning');
+          showNotification('Workspace временно переведён в cooldown из-за серии ошибок. Используется legacy-режим.', 'warning');
         }
       }
       const fallbackAllowed = !WORKSPACE_DISABLE_LEGACY_FALLBACK;
       if (fallbackAllowed) {
         if (typeof showNotification === 'function') {
-          showNotification('Workspace Р Р†РЎР‚Р ВµР СР ВµР Р…Р Р…Р С• Р Р…Р ВµР Т‘Р С•РЎРѓРЎвЂљРЎС“Р С—Р ВµР Р… РІР‚вЂќ Р Р†РЎвЂ№Р С—Р С•Р В»Р Р…Р ВµР Р… rollback Р Р† legacy modal.', 'warning');
+          showNotification('Workspace временно недоступен — выполнен rollback в legacy modal.', 'warning');
         }
         openDialogDetails(ticketId, row || activeDialogRow);
         return;
@@ -5361,14 +5361,14 @@
         workspaceShell.classList.remove('d-none');
         if (workspaceMessagesState) {
           workspaceMessagesState.classList.remove('d-none');
-          workspaceMessagesState.textContent = 'Workspace Р Р†РЎР‚Р ВµР СР ВµР Р…Р Р…Р С• Р Р…Р ВµР Т‘Р С•РЎРѓРЎвЂљРЎС“Р С—Р ВµР Р…. Auto-fallback Р Р† legacy Р С•РЎвЂљР С”Р В»РЎР‹РЎвЂЎРЎвЂР Р… РЎвЂљР ВµР С”РЎС“РЎвЂ°Р С‘Р С РЎР‚Р ВµР В¶Р С‘Р СР С•Р С rollout.';
+          workspaceMessagesState.textContent = 'Workspace временно недоступен. Auto-fallback в legacy отключён текущим режимом rollout.';
         }
         if (workspaceMessagesError) {
           workspaceMessagesError.classList.remove('d-none');
         }
       }
       if (typeof showNotification === 'function') {
-        showNotification('Legacy modal Р С•РЎвЂљР С”Р В»РЎР‹РЎвЂЎРЎвЂР Р…: auto-fallback Р Р…Р ВµР Т‘Р С•РЎРѓРЎвЂљРЎС“Р С—Р ВµР Р…. Р СџРЎР‚Р С•Р Р†Р ВµРЎР‚РЎРЉРЎвЂљР Вµ telemetry workspace Р С‘ Р С‘РЎРѓР С—РЎР‚Р В°Р Р†РЎРЉРЎвЂљР Вµ Р С•РЎв‚¬Р С‘Р В±Р С”РЎС“ Р С”Р С•Р Р…РЎвЂљРЎР‚Р В°Р С”РЎвЂљР В°.', 'warning');
+        showNotification('Legacy modal отключён: auto-fallback недоступен. Проверьте telemetry workspace и исправьте ошибку контракта.', 'warning');
       }
       return;
     }
@@ -5450,10 +5450,10 @@
     }
 
     const statusShortcutMap = {
-      '6': 'Р СњР С•Р Р†РЎвЂ№Р в„–',
-      '7': 'Р С›Р В¶Р С‘Р Т‘Р В°Р ВµРЎвЂљ Р С•РЎвЂљР Р†Р ВµРЎвЂљР В° Р С•Р С—Р ВµРЎР‚Р В°РЎвЂљР С•РЎР‚Р В°',
-      '8': 'Р С›Р В¶Р С‘Р Т‘Р В°Р ВµРЎвЂљ Р С•РЎвЂљР Р†Р ВµРЎвЂљР В° Р С”Р В»Р С‘Р ВµР Р…РЎвЂљР В°',
-      '9': 'Р вЂ”Р В°Р С”РЎР‚РЎвЂ№РЎвЂљ',
+      '6': 'Новый',
+      '7': 'Ожидает ответа оператора',
+      '8': 'Ожидает ответа клиента',
+      '9': 'Закрыт',
       '0': '',
     };
 
@@ -5476,7 +5476,7 @@
       persistDialogPreferences();
       applyFilters();
       if (typeof showNotification === 'function') {
-        showNotification(nextSortMode === 'sla_priority' ? 'Р вЂ™Р С”Р В»РЎР‹РЎвЂЎР ВµР Р…Р В° РЎРѓР С•РЎР‚РЎвЂљР С‘РЎР‚Р С•Р Р†Р С”Р В° SLA-first' : 'Р вЂ™Р С”Р В»РЎР‹РЎвЂЎР ВµР Р…Р В° РЎРѓРЎвЂљР В°Р Р…Р Т‘Р В°РЎР‚РЎвЂљР Р…Р В°РЎРЏ РЎРѓР С•РЎР‚РЎвЂљР С‘РЎР‚Р С•Р Р†Р С”Р В°', 'info');
+        showNotification(nextSortMode === 'sla_priority' ? 'Включена сортировка SLA-first' : 'Включена стандартная сортировка', 'info');
       }
       return;
     }
@@ -5484,7 +5484,7 @@
     if (event.shiftKey && key === 'a') {
       event.preventDefault();
       if (!canRunAction('can_bulk') || !canRunAction('can_assign')) {
-        notifyPermissionDenied('Р СњР В°Р В·Р Р…Р В°РЎвЂЎР С‘РЎвЂљРЎРЉ Р Р†РЎвЂ№Р В±РЎР‚Р В°Р Р…Р Р…РЎвЂ№Р Вµ Р Р…Р В° Р СР ВµР Р…РЎРЏ');
+        notifyPermissionDenied('Назначить выбранные на меня');
         return;
       }
       runBulkAction('take');
@@ -5494,7 +5494,7 @@
     if (event.shiftKey && key === 's') {
       event.preventDefault();
       if (!canRunAction('can_bulk') || !canRunAction('can_snooze')) {
-        notifyPermissionDenied(`Р С›РЎвЂљР В»Р С•Р В¶Р С‘РЎвЂљРЎРЉ Р Р†РЎвЂ№Р В±РЎР‚Р В°Р Р…Р Р…РЎвЂ№Р Вµ Р Р…Р В° ${formatSnoozeActionLabel(QUICK_SNOOZE_MINUTES).replace('Р С›РЎвЂљР В»Р С•Р В¶Р С‘РЎвЂљРЎРЉ ', '')}`);
+        notifyPermissionDenied(`Отложить выбранные на ${formatSnoozeActionLabel(QUICK_SNOOZE_MINUTES).replace('Отложить ', '')}`);
         return;
       }
       runBulkAction('snooze');
@@ -5504,7 +5504,7 @@
     if (event.shiftKey && key === 'c') {
       event.preventDefault();
       if (!canRunAction('can_bulk') || !canRunAction('can_close')) {
-        notifyPermissionDenied('Р вЂ”Р В°Р С”РЎР‚РЎвЂ№РЎвЂљРЎРЉ Р Р†РЎвЂ№Р В±РЎР‚Р В°Р Р…Р Р…РЎвЂ№Р Вµ');
+        notifyPermissionDenied('Закрыть выбранные');
         return;
       }
       runBulkAction('close');
@@ -5514,7 +5514,7 @@
     if (key === 'a') {
       event.preventDefault();
       if (!canRunAction('can_assign')) {
-        notifyPermissionDenied('Р СњР В°Р В·Р Р…Р В°РЎвЂЎР С‘РЎвЂљРЎРЉ Р СР Р…Р Вµ');
+        notifyPermissionDenied('Назначить мне');
         return;
       }
       const row = getShortcutTargetRow();
@@ -5525,12 +5525,12 @@
       takeDialog(ticketId, row, takeBtn)
         .then(() => {
           if (typeof showNotification === 'function') {
-            showNotification('Р вЂќР С‘Р В°Р В»Р С•Р С– Р Р…Р В°Р В·Р Р…Р В°РЎвЂЎР ВµР Р… Р Р…Р В° Р Р†Р В°РЎРѓ', 'success');
+            showNotification('Диалог назначен на вас', 'success');
           }
         })
         .catch((error) => {
           if (typeof showNotification === 'function') {
-            showNotification(error.message || 'Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р Р…Р В°Р В·Р Р…Р В°РЎвЂЎР С‘РЎвЂљРЎРЉ Р Т‘Р С‘Р В°Р В»Р С•Р С–', 'error');
+            showNotification(error.message || 'Не удалось назначить диалог', 'error');
           }
         });
       return;
@@ -5553,12 +5553,12 @@
           updateRowQuickActions(row);
           applyFilters();
           if (typeof showNotification === 'function') {
-            showNotification(`Р вЂќР С‘Р В°Р В»Р С•Р С– Р С•РЎвЂљР В»Р С•Р В¶Р ВµР Р… Р Р…Р В° ${formatSnoozeActionLabel(QUICK_SNOOZE_MINUTES).replace('Р С›РЎвЂљР В»Р С•Р В¶Р С‘РЎвЂљРЎРЉ ', '')}`, 'success');
+            showNotification(`Диалог отложен на ${formatSnoozeActionLabel(QUICK_SNOOZE_MINUTES).replace('Отложить ', '')}`, 'success');
           }
         })
         .catch((error) => {
           if (typeof showNotification === 'function') {
-            showNotification(error.message || 'Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р С•РЎвЂљР В»Р С•Р В¶Р С‘РЎвЂљРЎРЉ Р Т‘Р С‘Р В°Р В»Р С•Р С–', 'error');
+            showNotification(error.message || 'Не удалось отложить диалог', 'error');
           }
         });
       return;
@@ -5567,7 +5567,7 @@
     if (key === 'c') {
       event.preventDefault();
       if (!canRunAction('can_close')) {
-        notifyPermissionDenied('Р вЂ”Р В°Р С”РЎР‚РЎвЂ№РЎвЂљРЎРЉ');
+        notifyPermissionDenied('Закрыть');
         return;
       }
       const row = getShortcutTargetRow();
@@ -5580,13 +5580,13 @@
         .then(() => {
           clearSnooze(ticketId);
           if (typeof showNotification === 'function') {
-            showNotification('Р вЂќР С‘Р В°Р В»Р С•Р С– Р В·Р В°Р С”РЎР‚РЎвЂ№РЎвЂљ', 'success');
+            showNotification('Диалог закрыт', 'success');
           }
         })
         .catch((error) => {
           closeBtn.disabled = false;
           if (typeof showNotification === 'function') {
-            showNotification(error.message || 'Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р В·Р В°Р С”РЎР‚РЎвЂ№РЎвЂљРЎРЉ Р Т‘Р С‘Р В°Р В»Р С•Р С–', 'error');
+            showNotification(error.message || 'Не удалось закрыть диалог', 'error');
           }
         });
       return;
@@ -5718,7 +5718,7 @@
   }
 
   function renderSummaryBadge(value, style) {
-    const safeValue = escapeHtml(value || 'РІР‚вЂќ');
+    const safeValue = escapeHtml(value || '—');
     const background = style?.background ? `background-color: ${style.background}` : '';
     const color = style?.text ? `color: ${style.text}` : '';
     const inlineStyle = [background, color].filter(Boolean).join('; ');
@@ -5849,15 +5849,15 @@
   }
 
   function formatDuration(totalMinutes) {
-    if (!Number.isFinite(totalMinutes) || totalMinutes < 0) return 'РІР‚вЂќ';
+    if (!Number.isFinite(totalMinutes) || totalMinutes < 0) return '—';
     const minutes = Math.floor(totalMinutes);
-    if (minutes < 60) return `${minutes} Р СР С‘Р Р…`;
+    if (minutes < 60) return `${minutes} мин`;
     const hours = Math.floor(minutes / 60);
     const restMinutes = minutes % 60;
-    if (hours < 24) return `${hours} РЎвЂЎ ${restMinutes} Р СР С‘Р Р…`;
+    if (hours < 24) return `${hours} ч ${restMinutes} мин`;
     const days = Math.floor(hours / 24);
     const restHours = hours % 24;
-    return `${days} Р Т‘ ${restHours} РЎвЂЎ`;
+    return `${days} д ${restHours} ч`;
   }
 
   function resolveTimeMetricColor(totalMinutes, config) {
@@ -5898,7 +5898,7 @@
   function renderMacroTemplateOptions(templates) {
     if (!macroTemplateSelect) return;
     const nextTemplates = Array.isArray(templates) ? templates : [];
-    buildTemplateOptions(macroTemplateSelect, nextTemplates, 'Р СљР В°Р С”РЎР‚Р С•РЎРѓ');
+    buildTemplateOptions(macroTemplateSelect, nextTemplates, 'Макрос');
     const hasOptions = nextTemplates.length > 0;
     if (macroTemplateSelect) {
       macroTemplateSelect.disabled = !hasOptions;
@@ -5956,10 +5956,10 @@
       wrapper.className = 'border rounded p-2 bg-light';
       const question = document.createElement('div');
       question.className = 'fw-semibold';
-      question.textContent = item?.question || 'Р С™Р С•Р Р…РЎвЂљРЎР‚Р С•Р В»РЎРЉР Р…РЎвЂ№Р в„– Р Р†Р С•Р С—РЎР‚Р С•РЎРѓ';
+      question.textContent = item?.question || 'Контрольный вопрос';
       const action = document.createElement('div');
       action.className = 'text-muted';
-      action.textContent = item?.action || 'Р вЂќР ВµР в„–РЎРѓРЎвЂљР Р†Р С‘Р Вµ';
+      action.textContent = item?.action || 'Действие';
       wrapper.appendChild(question);
       wrapper.appendChild(action);
       completionTemplateList.appendChild(wrapper);
@@ -5973,13 +5973,13 @@
   function renderMacroVariableCatalog(variables) {
     if (!macroVariableCatalog) return;
     if (!Array.isArray(variables) || variables.length === 0) {
-      macroVariableCatalog.textContent = 'Р вЂќР С•РЎРѓРЎвЂљРЎС“Р С—Р Р…РЎвЂ№ РЎв‚¬Р В°Р В±Р В»Р С•Р Р…РЎвЂ№ Р Р†Р С‘Р Т‘Р В° {{ticket_id}} Р С‘ {{client_name}}.';
+      macroVariableCatalog.textContent = 'Доступны шаблоны вида {{ticket_id}} и {{client_name}}.';
       return;
     }
     macroVariableCatalog.innerHTML = '';
     const title = document.createElement('span');
     title.className = 'text-muted';
-    title.textContent = 'Р СџР ВµРЎР‚Р ВµР СР ВµР Р…Р Р…РЎвЂ№Р Вµ: ';
+    title.textContent = 'Переменные: ';
     macroVariableCatalog.appendChild(title);
     variables.forEach((item, index) => {
       const code = document.createElement('code');
@@ -5992,7 +5992,7 @@
       if (label || key) titleParts.push(label || key);
       if (defaultValue) titleParts.push(`default: ${defaultValue}`);
       if (source) titleParts.push(`source: ${source}`);
-      code.title = titleParts.join(' Р’В· ');
+      code.title = titleParts.join(' · ');
       macroVariableCatalog.appendChild(code);
       if (index < variables.length - 1) {
         macroVariableCatalog.appendChild(document.createTextNode(', '));
@@ -6018,16 +6018,16 @@
     macroVariableCatalogInitialized = true;
     macroVariableCatalogTicketId = normalizedTicketId;
     const fallbackVariables = [
-      { key: 'client_name', label: 'Р ВР СРЎРЏ Р С”Р В»Р С‘Р ВµР Р…РЎвЂљР В°' },
-      { key: 'ticket_id', label: 'ID Р С•Р В±РЎР‚Р В°РЎвЂ°Р ВµР Р…Р С‘РЎРЏ' },
-      { key: 'operator_name', label: 'Р ВР СРЎРЏ Р С•Р С—Р ВµРЎР‚Р В°РЎвЂљР С•РЎР‚Р В°' },
-      { key: 'channel_name', label: 'Р С™Р В°Р Р…Р В°Р В» Р С•Р В±РЎР‚Р В°РЎвЂ°Р ВµР Р…Р С‘РЎРЏ' },
-      { key: 'business', label: 'Р вЂР С‘Р В·Р Р…Р ВµРЎРѓ-Р Р…Р В°Р С—РЎР‚Р В°Р Р†Р В»Р ВµР Р…Р С‘Р Вµ' },
-      { key: 'location', label: 'Р вЂєР С•Р С”Р В°РЎвЂ Р С‘РЎРЏ Р С”Р В»Р С‘Р ВµР Р…РЎвЂљР В°' },
-      { key: 'dialog_status', label: 'Р РЋРЎвЂљР В°РЎвЂљРЎС“РЎРѓ Р Т‘Р С‘Р В°Р В»Р С•Р С–Р В°' },
-      { key: 'created_at', label: 'Р вЂќР В°РЎвЂљР В° РЎРѓР С•Р В·Р Т‘Р В°Р Р…Р С‘РЎРЏ' },
-      { key: 'current_date', label: 'Р СћР ВµР С”РЎС“РЎвЂ°Р В°РЎРЏ Р Т‘Р В°РЎвЂљР В°' },
-      { key: 'current_time', label: 'Р СћР ВµР С”РЎС“РЎвЂ°Р ВµР Вµ Р Р†РЎР‚Р ВµР СРЎРЏ' },
+      { key: 'client_name', label: 'Имя клиента' },
+      { key: 'ticket_id', label: 'ID обращения' },
+      { key: 'operator_name', label: 'Имя оператора' },
+      { key: 'channel_name', label: 'Канал обращения' },
+      { key: 'business', label: 'Бизнес-направление' },
+      { key: 'location', label: 'Локация клиента' },
+      { key: 'dialog_status', label: 'Статус диалога' },
+      { key: 'created_at', label: 'Дата создания' },
+      { key: 'current_date', label: 'Текущая дата' },
+      { key: 'current_time', label: 'Текущее время' },
     ];
     try {
       const params = new URLSearchParams();
@@ -6049,14 +6049,14 @@
   function resolveMacroVariables() {
     const now = new Date();
     const variables = {
-      client_name: activeDialogContext.clientName || 'Р С”Р В»Р С‘Р ВµР Р…РЎвЂљ',
-      ticket_id: activeDialogTicketId || 'РІР‚вЂќ',
-      operator_name: activeDialogContext.operatorName || 'Р С•Р С—Р ВµРЎР‚Р В°РЎвЂљР С•РЎР‚',
-      channel_name: activeDialogContext.channelName || 'РІР‚вЂќ',
-      business: activeDialogContext.business || 'РІР‚вЂќ',
-      location: activeDialogContext.location || 'РІР‚вЂќ',
-      dialog_status: activeDialogContext.status || 'РІР‚вЂќ',
-      created_at: activeDialogContext.createdAt || 'РІР‚вЂќ',
+      client_name: activeDialogContext.clientName || 'клиент',
+      ticket_id: activeDialogTicketId || '—',
+      operator_name: activeDialogContext.operatorName || 'оператор',
+      channel_name: activeDialogContext.channelName || '—',
+      business: activeDialogContext.business || '—',
+      location: activeDialogContext.location || '—',
+      dialog_status: activeDialogContext.status || '—',
+      created_at: activeDialogContext.createdAt || '—',
       current_date: now.toLocaleDateString('ru-RU'),
       current_time: now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
     };
@@ -6093,7 +6093,7 @@
       }
       : null;
     const message = resolveMacroText(template);
-    macroTemplatePreview.textContent = message || 'Р вЂ™РЎвЂ№Р В±Р ВµРЎР‚Р С‘РЎвЂљР Вµ Р СР В°Р С”РЎР‚Р С•РЎРѓ Р Т‘Р В»РЎРЏ Р С—РЎР‚Р ВµР Т‘Р С—РЎР‚Р С•РЎРѓР СР С•РЎвЂљРЎР‚Р В°.';
+    macroTemplatePreview.textContent = message || 'Выберите макрос для предпросмотра.';
     macroTemplateMeta.innerHTML = '';
     const tags = Array.isArray(template?.tags) ? template.tags.filter(Boolean) : [];
     tags.forEach((tag) => {
@@ -6106,19 +6106,19 @@
     if (workflow.assignToMe) {
       const badge = document.createElement('span');
       badge.className = 'badge text-bg-info-subtle border';
-      badge.textContent = 'Workflow: Р Р…Р В°Р В·Р Р…Р В°РЎвЂЎР С‘РЎвЂљРЎРЉ Р СР Р…Р Вµ';
+      badge.textContent = 'Workflow: назначить мне';
       macroTemplateMeta.appendChild(badge);
     }
     if (workflow.snoozeMinutes > 0) {
       const badge = document.createElement('span');
       badge.className = 'badge text-bg-info-subtle border';
-      badge.textContent = `Workflow: snooze ${workflow.snoozeMinutes}Р С`;
+      badge.textContent = `Workflow: snooze ${workflow.snoozeMinutes}м`;
       macroTemplateMeta.appendChild(badge);
     }
     if (workflow.closeTicket) {
       const badge = document.createElement('span');
       badge.className = 'badge text-bg-warning-subtle border';
-      badge.textContent = 'Workflow: Р В·Р В°Р С”РЎР‚РЎвЂ№РЎвЂљРЎРЉ РЎвЂљР С‘Р С”Р ВµРЎвЂљ';
+      badge.textContent = 'Workflow: закрыть тикет';
       macroTemplateMeta.appendChild(badge);
     }
     const namespace = String(template?.namespace || '').trim();
@@ -6156,7 +6156,7 @@
       const hasTemplates = templates.length > 0;
       categoryTemplatesSection.classList.toggle('d-none', !hasTemplates);
       if (hasTemplates && categoryTemplateSelect) {
-        buildTemplateOptions(categoryTemplateSelect, templates, 'Р РЃР В°Р В±Р В»Р С•Р Р… Р С”Р В°РЎвЂљР ВµР С–Р С•РЎР‚Р С‘Р в„–');
+        buildTemplateOptions(categoryTemplateSelect, templates, 'Шаблон категорий');
         renderCategoryTemplate(templates[0]);
         syncCategorySelections();
         categoryTemplateSelect.addEventListener('change', () => {
@@ -6172,7 +6172,7 @@
       const hasTemplates = templates.length > 0;
       questionTemplatesSection.classList.toggle('d-none', !hasTemplates);
       if (hasTemplates && questionTemplateSelect) {
-        buildTemplateOptions(questionTemplateSelect, templates, 'Р РЃР В°Р В±Р В»Р С•Р Р… Р Р†Р С•Р С—РЎР‚Р С•РЎРѓР С•Р Р†');
+        buildTemplateOptions(questionTemplateSelect, templates, 'Шаблон вопросов');
         renderQuestionTemplate(templates[0]);
         questionTemplateSelect.addEventListener('change', () => {
           const selected = findTemplateByValue(templates, questionTemplateSelect.value);
@@ -6222,7 +6222,7 @@
       const hasTemplates = templates.length > 0;
       completionTemplatesSection.classList.toggle('d-none', !hasTemplates);
       if (hasTemplates && completionTemplateSelect) {
-        buildTemplateOptions(completionTemplateSelect, templates, 'Р РЃР В°Р В±Р В»Р С•Р Р… Р Т‘Р ВµР в„–РЎРѓРЎвЂљР Р†Р С‘Р в„–');
+        buildTemplateOptions(completionTemplateSelect, templates, 'Шаблон действий');
         renderCompletionTemplate(templates[0]);
         completionTemplateSelect.addEventListener('change', () => {
           const selected = findTemplateByValue(templates, completionTemplateSelect.value);
@@ -6287,18 +6287,18 @@
 
     if (workflow.assignToMe) {
       await takeDialog(ticketId, row, null);
-      steps.push('Р Р…Р В°Р В·Р Р…Р В°РЎвЂЎР С‘РЎвЂљРЎРЉ Р СР Р…Р Вµ');
+      steps.push('назначить мне');
     }
     if (workflow.snoozeMinutes > 0) {
       await snoozeDialog(ticketId, workflow.snoozeMinutes, null);
       setSnooze(ticketId, workflow.snoozeMinutes);
       if (row) updateRowQuickActions(row);
       applyFilters();
-      steps.push(`Р С•РЎвЂљР В»Р С•Р В¶Р С‘РЎвЂљРЎРЉ Р Р…Р В° ${workflow.snoozeMinutes} Р СР С‘Р Р…`);
+      steps.push(`отложить на ${workflow.snoozeMinutes} мин`);
     }
     if (workflow.closeTicket && row) {
       await closeDialogQuick(ticketId, row, null);
-      steps.push('Р В·Р В°Р С”РЎР‚РЎвЂ№РЎвЂљРЎРЉ РЎвЂљР С‘Р С”Р ВµРЎвЂљ');
+      steps.push('закрыть тикет');
     }
 
     return steps;
@@ -6315,8 +6315,8 @@
       insertReplyText(message);
     }
     if (typeof showNotification === 'function' && (message || appliedSteps.length)) {
-      const workflowSuffix = appliedSteps.length ? `; Р Т‘Р ВµР в„–РЎРѓРЎвЂљР Р†Р С‘РЎРЏ: ${appliedSteps.join(', ')}` : '';
-      showNotification(`Р СљР В°Р С”РЎР‚Р С•РЎРѓ Р С—РЎР‚Р С‘Р СР ВµР Р…РЎвЂР Р…${workflowSuffix}.`, 'success');
+      const workflowSuffix = appliedSteps.length ? `; действия: ${appliedSteps.join(', ')}` : '';
+      showNotification(`Макрос применён${workflowSuffix}.`, 'success');
     }
     emitWorkspaceTelemetry('macro_apply', {
       ticketId: activeDialogTicketId,
@@ -6427,12 +6427,12 @@
   function resolveSenderLabel(message, context) {
     const senderType = normalizeMessageSenderByType(message?.messageType, message?.sender);
     if (senderType === 'support') {
-      return context?.operatorName || message?.sender || 'Р С›Р С—Р ВµРЎР‚Р В°РЎвЂљР С•РЎР‚';
+      return context?.operatorName || message?.sender || 'Оператор';
     }
     if (senderType === 'system') {
-      return message?.sender || 'Р РЋР С‘РЎРѓРЎвЂљР ВµР СР В°';
+      return message?.sender || 'Система';
     }
-    return context?.clientName || message?.sender || 'Р С™Р В»Р С‘Р ВµР Р…РЎвЂљ';
+    return context?.clientName || message?.sender || 'Клиент';
   }
 
   function parseUtcDateValue(value) {
@@ -6466,7 +6466,7 @@
 
   function formatUtcDate(date, options = {}) {
     if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
-      return options.fallback || 'РІР‚вЂќ';
+      return options.fallback || '—';
     }
     const day = String(date.getUTCDate()).padStart(2, '0');
     const month = String(date.getUTCMonth() + 1).padStart(2, '0');
@@ -6483,7 +6483,7 @@
   function formatTimestamp(value, options = {}) {
     const parsed = parseUtcDateValue(value);
     if (!parsed) return options.fallback || String(value || '');
-    return formatUtcDate(parsed, { includeTime: options.includeTime, fallback: options.fallback || 'РІР‚вЂќ' });
+    return formatUtcDate(parsed, { includeTime: options.includeTime, fallback: options.fallback || '—' });
   }
 
   function resolveAttachmentKind(messageType, attachment) {
@@ -6515,12 +6515,12 @@
       const hasPath = /[\\/]/.test(message) || /^https?:\/\//i.test(message);
       if (!hasPath) return message;
       const extension = extractExtension(message);
-      return extension ? `Р В¤Р В°Р в„–Р В» ${extension}` : 'Р В¤Р В°Р в„–Р В»';
+      return extension ? `Файл ${extension}` : 'Файл';
     }
 
-    if (!attachment) return 'Р В¤Р В°Р в„–Р В»';
+    if (!attachment) return 'Файл';
     const extension = extractExtension(attachment);
-    return extension ? `Р В¤Р В°Р в„–Р В» ${extension}` : 'Р В¤Р В°Р в„–Р В»';
+    return extension ? `Файл ${extension}` : 'Файл';
   }
 
   function buildMediaMarkup(message) {
@@ -6529,7 +6529,7 @@
     const name = resolveAttachmentName(message.message, message.attachment);
     const downloadLink = `
       <a class="btn btn-sm btn-outline-secondary" href="${message.attachment}" download target="_blank" rel="noopener">
-        Р РЋР С”Р В°РЎвЂЎР В°РЎвЂљРЎРЉ
+        Скачать
       </a>
     `;
     if (kind === 'audio') {
@@ -6537,7 +6537,7 @@
         <div class="chat-media">
           <div class="chat-media-actions">
             <button class="btn btn-sm btn-outline-primary chat-audio-play" type="button"
-              data-audio-src="${message.attachment}">Р вЂ™Р С•РЎРѓР С—РЎР‚Р С•Р С‘Р В·Р Р†Р ВµРЎРѓРЎвЂљР С‘</button>
+              data-audio-src="${message.attachment}">Воспроизвести</button>
             ${downloadLink}
             <span class="chat-media-file-name">${name}</span>
           </div>
@@ -6599,30 +6599,30 @@
     const isEdited = Boolean(message?.editedAt);
     const isSupport = senderType === 'support';
     const replyPreview = message?.replyPreview
-      ? `<div class="small text-muted border-start ps-2 mb-1 chat-message-reply-source">РІвЂ Р„ ${escapeHtml(message.replyPreview)}</div>`
+      ? `<div class="small text-muted border-start ps-2 mb-1 chat-message-reply-source">↪ ${escapeHtml(message.replyPreview)}</div>`
       : '';
     const forwardedBadge = message?.forwardedFrom
-      ? `<div class="small text-muted mb-1">Р СџР ВµРЎР‚Р ВµРЎРѓР В»Р В°Р Р…Р С• Р С•РЎвЂљ ${escapeHtml(message.forwardedFrom)}</div>`
+      ? `<div class="small text-muted mb-1">Переслано от ${escapeHtml(message.forwardedFrom)}</div>`
       : '';
     const bodyText = message?.message ? escapeHtml(message.message).replace(/\n/g, '<br>') : '';
     const fallbackType = message?.messageType && !bodyText ? `[${escapeHtml(message.messageType)}]` : '';
-    const body = isDeleted ? '<span class="text-muted">Р РЋР С•Р С•Р В±РЎвЂ°Р ВµР Р…Р С‘Р Вµ РЎС“Р Т‘Р В°Р В»Р ВµР Р…Р С•</span>' : (bodyText || fallbackType || 'РІР‚вЂќ');
+    const body = isDeleted ? '<span class="text-muted">Сообщение удалено</span>' : (bodyText || fallbackType || '—');
     const originalBlock = isEdited && message?.originalMessage && message.originalMessage !== message.message
-      ? `<div class="small text-muted mt-1"><div>Р вЂРЎвЂ№Р В»Р С•: ${escapeHtml(message.originalMessage)}</div><div>Р РЋРЎвЂљР В°Р В»Р С•: ${escapeHtml(message.message || '')}</div></div>`
+      ? `<div class="small text-muted mt-1"><div>Было: ${escapeHtml(message.originalMessage)}</div><div>Стало: ${escapeHtml(message.message || '')}</div></div>`
       : '';
     const statusBadges = [
-      isEdited ? '<span class="chat-message-meta-badge">РІСљРЏРїС‘РЏ Р ВР В·Р СР ВµР Р…Р ВµР Р…Р С•</span>' : '',
-      isDeleted ? '<span class="chat-message-meta-badge">СЂСџвЂ”вЂ Р Р€Р Т‘Р В°Р В»Р ВµР Р…Р С•</span>' : ''
+      isEdited ? '<span class="chat-message-meta-badge">✏️ Изменено</span>' : '',
+      isDeleted ? '<span class="chat-message-meta-badge">🗑 Удалено</span>' : ''
     ].join(' ');
     const media = isDeleted ? '' : buildMediaMarkup(message);
     const canReply = senderType !== 'system' && message?.telegramMessageId;
     const actionButtons = canReply
       ? `<div class="chat-message-menu">
-          <button class="chat-message-menu-toggle" type="button" data-action-menu aria-label="Р вЂќР ВµР в„–РЎРѓРЎвЂљР Р†Р С‘РЎРЏ РЎРѓ РЎРѓР С•Р С•Р В±РЎвЂ°Р ВµР Р…Р С‘Р ВµР С">РІвЂ№Р‡</button>
+          <button class="chat-message-menu-toggle" type="button" data-action-menu aria-label="Действия с сообщением">⋯</button>
           <div class="chat-message-menu-list">
-            <button class="btn btn-sm btn-outline-secondary" type="button" data-action="reply" data-message-id="${message.telegramMessageId}">Р С›РЎвЂљР Р†Р ВµРЎвЂљР С‘РЎвЂљРЎРЉ</button>
-            ${isSupport ? `<button class="btn btn-sm btn-outline-secondary" type="button" data-action="edit" data-message-id="${message.telegramMessageId}" ${isDeleted ? 'disabled' : ''}>Р В Р ВµР Т‘Р В°Р С”РЎвЂљР С‘РЎР‚Р С•Р Р†Р В°РЎвЂљРЎРЉ</button>` : ''}
-            ${isSupport ? `<button class="btn btn-sm btn-outline-danger" type="button" data-action="delete" data-message-id="${message.telegramMessageId}" ${isDeleted ? 'disabled' : ''}>Р Р€Р Т‘Р В°Р В»Р С‘РЎвЂљРЎРЉ</button>` : ''}
+            <button class="btn btn-sm btn-outline-secondary" type="button" data-action="reply" data-message-id="${message.telegramMessageId}">Ответить</button>
+            ${isSupport ? `<button class="btn btn-sm btn-outline-secondary" type="button" data-action="edit" data-message-id="${message.telegramMessageId}" ${isDeleted ? 'disabled' : ''}>Редактировать</button>` : ''}
+            ${isSupport ? `<button class="btn btn-sm btn-outline-danger" type="button" data-action="delete" data-message-id="${message.telegramMessageId}" ${isDeleted ? 'disabled' : ''}>Удалить</button>` : ''}
           </div>
         </div>`
       : '';
@@ -6649,7 +6649,7 @@
     const senderType = normalizeMessageSenderByType(message?.messageType, message?.sender);
     const text = String(message?.message || '').toLowerCase();
     if (type.includes('feedback') || type.includes('rating')) return true;
-    if (senderType === 'system' && (text.includes('Р С—Р С•РЎРѓРЎвЂљР В°Р Р†РЎРЉРЎвЂљР Вµ Р С•РЎвЂ Р ВµР Р…Р С”РЎС“') || text.includes('Р С•РЎвЂ Р ВµР Р…Р С‘РЎвЂљР Вµ') || text.includes('Р С•РЎвЂ Р ВµР Р…Р С”'))) {
+    if (senderType === 'system' && (text.includes('поставьте оценку') || text.includes('оцените') || text.includes('оценк'))) {
       return true;
     }
     return false;
@@ -6661,7 +6661,7 @@
       ? messages.filter((msg) => !isTechnicalHistoryMessage(msg))
       : [];
     if (filteredMessages.length === 0) {
-      detailsHistory.innerHTML = '<div class="text-muted">Р РЋР С•Р С•Р В±РЎвЂ°Р ВµР Р…Р С‘РЎРЏ Р Р…Р Вµ Р Р…Р В°Р в„–Р Т‘Р ВµР Р…РЎвЂ№.</div>';
+      detailsHistory.innerHTML = '<div class="text-muted">Сообщения не найдены.</div>';
       lastHistoryMarker = 'empty';
       return;
     }
@@ -6712,7 +6712,7 @@
       });
       const data = await resp.json();
       if (!resp.ok || !data?.success) {
-        throw new Error(data?.error || `Р С›РЎв‚¬Р С‘Р В±Р С”Р В° ${resp.status}`);
+        throw new Error(data?.error || `Ошибка ${resp.status}`);
       }
       const messages = data.messages || [];
       const marker = historyMarker(messages);
@@ -6743,7 +6743,7 @@
     if (!detailsResolve) return;
     const resolved = String(statusRaw || '').toLowerCase() === 'resolved';
     detailsResolve.disabled = resolved;
-    detailsResolve.textContent = resolved ? 'Р С›Р В±РЎР‚Р В°РЎвЂ°Р ВµР Р…Р С‘Р Вµ Р В·Р В°Р С”РЎР‚РЎвЂ№РЎвЂљР С•' : 'Р вЂ”Р В°Р С”РЎР‚РЎвЂ№РЎвЂљРЎРЉ Р С•Р В±РЎР‚Р В°РЎвЂ°Р ВµР Р…Р С‘Р Вµ';
+    detailsResolve.textContent = resolved ? 'Обращение закрыто' : 'Закрыть обращение';
     if (detailsReopen) {
       detailsReopen.disabled = !resolved;
       detailsReopen.classList.toggle('d-none', !resolved);
@@ -6791,26 +6791,26 @@
     if (statusKey) {
       switch (statusKey) {
         case 'auto_processing':
-          return 'Р Р† Р В°Р Р†РЎвЂљР С•Р СР В°РЎвЂљР С‘РЎвЂЎР ВµРЎРѓР С”Р С•Р в„– Р С•Р В±РЎР‚Р В°Р В±Р С•РЎвЂљР С”Р Вµ';
+          return 'в автоматической обработке';
         case 'auto_closed':
-          return 'Р вЂ”Р В°Р С”РЎР‚РЎвЂ№РЎвЂљ Р В°Р Р†РЎвЂљР С•Р СР В°РЎвЂљР С‘РЎвЂЎР ВµРЎРѓР С”Р С‘';
+          return 'Закрыт автоматически';
         case 'closed':
-          return 'Р вЂ”Р В°Р С”РЎР‚РЎвЂ№РЎвЂљ';
+          return 'Закрыт';
         case 'waiting_operator':
-          return 'Р С•Р В¶Р С‘Р Т‘Р В°Р ВµРЎвЂљ Р С•РЎвЂљР Р†Р ВµРЎвЂљР В° Р С•Р С—Р ВµРЎР‚Р В°РЎвЂљР С•РЎР‚Р В°';
+          return 'ожидает ответа оператора';
         case 'waiting_client':
-          return 'Р С•Р В¶Р С‘Р Т‘Р В°Р ВµРЎвЂљ Р С•РЎвЂљР Р†Р ВµРЎвЂљР В° Р С”Р В»Р С‘Р ВµР Р…РЎвЂљР В°';
+          return 'ожидает ответа клиента';
         case 'new':
-          return 'Р Р…Р С•Р Р†РЎвЂ№Р в„–';
+          return 'новый';
         default:
-          return 'РІР‚вЂќ';
+          return '—';
       }
     }
     const normalized = String(raw || '').toLowerCase();
-    if (normalized === 'resolved' || normalized === 'closed') return 'Р вЂ”Р В°Р С”РЎР‚РЎвЂ№РЎвЂљ';
-    if (normalized === 'pending') return 'Р С•Р В¶Р С‘Р Т‘Р В°Р ВµРЎвЂљ Р С•РЎвЂљР Р†Р ВµРЎвЂљР В° Р С•Р С—Р ВµРЎР‚Р В°РЎвЂљР С•РЎР‚Р В°';
-    if (normalized) return 'Р С•Р В¶Р С‘Р Т‘Р В°Р ВµРЎвЂљ Р С•РЎвЂљР Р†Р ВµРЎвЂљР В° Р С”Р В»Р С‘Р ВµР Р…РЎвЂљР В°';
-    return 'РІР‚вЂќ';
+    if (normalized === 'resolved' || normalized === 'closed') return 'Закрыт';
+    if (normalized === 'pending') return 'ожидает ответа оператора';
+    if (normalized) return 'ожидает ответа клиента';
+    return '—';
   }
 
   function isResolvedStatus(statusRaw, statusKey, statusLabel) {
@@ -6845,7 +6845,7 @@
       detailsRating.textContent = '';
       detailsRating.classList.add('d-none');
     }
-    if (detailsSummary) detailsSummary.innerHTML = '<div>Р вЂ”Р В°Р С–РЎР‚РЎС“Р В·Р С”Р В°...</div>';
+    if (detailsSummary) detailsSummary.innerHTML = '<div>Загрузка...</div>';
     if (detailsHistory) detailsHistory.innerHTML = '';
     if (detailsReplyText) detailsReplyText.value = '';
     if (detailsOpenClientCard) {
@@ -6868,7 +6868,7 @@
       });
       const data = await resp.json();
       if (!resp.ok) {
-        throw new Error(data?.error || `Р С›РЎв‚¬Р С‘Р В±Р С”Р В° ${resp.status}`);
+        throw new Error(data?.error || `Ошибка ${resp.status}`);
       }
       const summary = data.summary || {};
       selectedCategories = new Set(Array.isArray(data.categories) ? data.categories.filter(Boolean).map((item) => String(item).trim()) : []);
@@ -6885,29 +6885,29 @@
       const createdAt = summary.createdAt || summary.created_at;
       const createdLabel = [createdDate, createdTime].filter(Boolean).join(' ')
         || createdAt
-        || 'РІР‚вЂќ';
+        || '—';
       const createdDisplay = formatTimestamp(createdLabel, { includeTime: true });
       const resolvedDisplay = formatTimestamp(resolvedAt || '', { includeTime: true });
       const responsibleLabel = summary.responsible
         || resolvedBy
         || fallbackRow?.dataset.responsible
-        || 'РІР‚вЂќ';
+        || '—';
       const clientName = summary.clientName
         || summary.username
         || fallbackRow?.dataset.client
-        || 'РІР‚вЂќ';
-      const clientStatus = summary.clientStatus || fallbackRow?.dataset.clientStatus || 'РІР‚вЂќ';
-      const channelLabel = summary.channelName || fallbackRow?.dataset.channel || 'РІР‚вЂќ';
-      const businessLabel = summary.business || fallbackRow?.dataset.business || 'РІР‚вЂќ';
+        || '—';
+      const clientStatus = summary.clientStatus || fallbackRow?.dataset.clientStatus || '—';
+      const channelLabel = summary.channelName || fallbackRow?.dataset.channel || '—';
+      const businessLabel = summary.business || fallbackRow?.dataset.business || '—';
       const statusRaw = summary.status || fallbackRow?.dataset.statusRaw || '';
       const statusKey = summary.statusKey || fallbackRow?.dataset.statusKey || '';
       const statusLabel = formatStatusLabel(statusRaw, summary.statusLabel || fallbackRow?.dataset.status, statusKey);
-      const locationLabel = summary.locationName || summary.city || fallbackRow?.dataset.location || 'РІР‚вЂќ';
-      const problemLabel = summary.problem || fallbackRow?.dataset.problem || 'РІР‚вЂќ';
+      const locationLabel = summary.locationName || summary.city || fallbackRow?.dataset.location || '—';
+      const problemLabel = summary.problem || fallbackRow?.dataset.problem || '—';
       const selectedCategoriesLabel = formatCategoriesLabel(Array.from(selectedCategories));
-      const categoriesLabel = selectedCategoriesLabel !== 'РІР‚вЂќ'
+      const categoriesLabel = selectedCategoriesLabel !== '—'
         ? selectedCategoriesLabel
-        : (summary.categoriesSafe || summary.categories || fallbackRow?.dataset.categories || 'РІР‚вЂќ');
+        : (summary.categoriesSafe || summary.categories || fallbackRow?.dataset.categories || '—');
       const requestNumber = summary.requestNumber || fallbackRow?.dataset.requestNumber || '';
       const ratingValue = summary.rating ?? fallbackRow?.dataset.rating;
       const ratingStars = formatRatingStars(ratingValue);
@@ -6930,7 +6930,7 @@
           detailsOpenClientCard.setAttribute('aria-disabled', 'true');
         }
       }
-      updateSummaryCategories(categoriesLabel || 'РІР‚вЂќ');
+      updateSummaryCategories(categoriesLabel || '—');
       if (detailsProblem) detailsProblem.textContent = problemLabel;
       if (detailsMeta) detailsMeta.textContent = formatDialogMeta(ticketId, requestNumber);
       if (detailsRating) {
@@ -6943,37 +6943,37 @@
         }
       }
       const summaryItems = [
-        ['Р С™Р В»Р С‘Р ВµР Р…РЎвЂљ', summary.clientName || summary.username || fallbackRow?.dataset.client || 'РІР‚вЂќ'],
-        ['Р РЋРЎвЂљР В°РЎвЂљРЎС“РЎРѓ Р С”Р В»Р С‘Р ВµР Р…РЎвЂљР В°', summary.clientStatus || fallbackRow?.dataset.clientStatus || 'РІР‚вЂќ'],
-        ['Р РЋРЎвЂљР В°РЎвЂљРЎС“РЎРѓ', statusLabel || 'РІР‚вЂќ'],
-        ['Р С™Р В°Р Р…Р В°Р В»', summary.channelName || fallbackRow?.dataset.channel || 'РІР‚вЂќ'],
-        ['Р вЂР С‘Р В·Р Р…Р ВµРЎРѓ', businessLabel],
-        ['Р СџРЎР‚Р С•Р В±Р В»Р ВµР СР В°', summary.problem || fallbackRow?.dataset.problem || 'РІР‚вЂќ'],
-        ['Р вЂєР С•Р С”Р В°РЎвЂ Р С‘РЎРЏ', summary.locationName || summary.city || fallbackRow?.dataset.location || 'РІР‚вЂќ'],
-        ['Р С™Р В°РЎвЂљР ВµР С–Р С•РЎР‚Р С‘Р С‘', categoriesLabel || 'РІР‚вЂќ'],
-        ['Р С›РЎвЂљР Р†Р ВµРЎвЂљРЎРѓРЎвЂљР Р†Р ВµР Р…Р Р…РЎвЂ№Р в„–', responsibleLabel],
-        ['Р РЋР С•Р В·Р Т‘Р В°Р Р…', createdDisplay || createdLabel],
+        ['Клиент', summary.clientName || summary.username || fallbackRow?.dataset.client || '—'],
+        ['Статус клиента', summary.clientStatus || fallbackRow?.dataset.clientStatus || '—'],
+        ['Статус', statusLabel || '—'],
+        ['Канал', summary.channelName || fallbackRow?.dataset.channel || '—'],
+        ['Бизнес', businessLabel],
+        ['Проблема', summary.problem || fallbackRow?.dataset.problem || '—'],
+        ['Локация', summary.locationName || summary.city || fallbackRow?.dataset.location || '—'],
+        ['Категории', categoriesLabel || '—'],
+        ['Ответственный', responsibleLabel],
+        ['Создан', createdDisplay || createdLabel],
       ];
       activeDialogContext = {
         clientName,
-        operatorName: responsibleLabel || 'Р С›Р С—Р ВµРЎР‚Р В°РЎвЂљР С•РЎР‚',
+        operatorName: responsibleLabel || 'Оператор',
         channelName: channelLabel,
         business: businessLabel,
         location: locationLabel,
-        status: statusLabel || 'РІР‚вЂќ',
-        createdAt: createdDisplay || createdLabel || 'РІР‚вЂќ',
+        status: statusLabel || '—',
+        createdAt: createdDisplay || createdLabel || '—',
       };
       if (detailsSummary) {
         detailsSummary.innerHTML = summaryItems.map(([label, value]) => {
-          const safeValue = value || 'РІР‚вЂќ';
+          const safeValue = value || '—';
           let renderedValue = `<span class="text-dark">${escapeHtml(safeValue)}</span>`;
-          if (label === 'Р РЋРЎвЂљР В°РЎвЂљРЎС“РЎРѓ') {
+          if (label === 'Статус') {
             renderedValue = renderSummaryBadge(safeValue, resolveSummaryBadgeStyle('status', safeValue));
           }
-          if (label === 'Р С™Р В°Р Р…Р В°Р В»') {
+          if (label === 'Канал') {
             renderedValue = renderSummaryBadge(safeValue, resolveSummaryBadgeStyle('channel', safeValue));
           }
-          if (label === 'Р вЂР С‘Р В·Р Р…Р ВµРЎРѓ') {
+          if (label === 'Бизнес') {
             const businessKey = String(safeValue || '').trim();
             const businessStyle = BUSINESS_STYLE_MAP[businessKey] || {};
             renderedValue = renderSummaryBadge(safeValue, {
@@ -6981,14 +6981,14 @@
               text: businessStyle.text || SUMMARY_BADGE_STYLES.default.text,
             });
           }
-          if (label === 'Р С™Р В»Р С‘Р ВµР Р…РЎвЂљ' && safeValue !== 'РІР‚вЂќ' && clientUserId) {
+          if (label === 'Клиент' && safeValue !== '—' && clientUserId) {
             renderedValue = `<a class="dialog-summary-value-link" href="/client/${encodeURIComponent(clientUserId)}" target="_blank" rel="noopener">${escapeHtml(safeValue)}</a>`;
           }
-          if (label === 'Р С›РЎвЂљР Р†Р ВµРЎвЂљРЎРѓРЎвЂљР Р†Р ВµР Р…Р Р…РЎвЂ№Р в„–' && safeValue !== 'РІР‚вЂќ') {
+          if (label === 'Ответственный' && safeValue !== '—') {
             renderedValue = `<a class="dialog-summary-value-link" href="/users/${encodeURIComponent(safeValue)}" target="_blank" rel="noopener">${escapeHtml(safeValue)}</a>`;
           }
-          const fieldAttr = label === 'Р С™Р В°РЎвЂљР ВµР С–Р С•РЎР‚Р С‘Р С‘' ? ' data-summary-field="categories"' : '';
-          const valueMarkup = label === 'Р С™Р В°РЎвЂљР ВµР С–Р С•РЎР‚Р С‘Р С‘'
+          const fieldAttr = label === 'Категории' ? ' data-summary-field="categories"' : '';
+          const valueMarkup = label === 'Категории'
             ? `<span data-summary-value>${renderCategoryBadges(safeValue)}</span>`
             : renderedValue;
           return `
@@ -7008,23 +7008,23 @@
         const totalMinutes = Number.isFinite(createdAtTimestamp)
           ? Math.max(0, Math.floor((endTimestamp - createdAtTimestamp) / 60000))
           : null;
-        const timeLabel = totalMinutes === null ? 'РІР‚вЂќ' : formatDuration(totalMinutes);
+        const timeLabel = totalMinutes === null ? '—' : formatDuration(totalMinutes);
         const timeColor = totalMinutes === null ? null : resolveTimeMetricColor(totalMinutes, timeMetricsConfig);
         const metrics = [
-          { label: 'Р РЋР С•Р В·Р Т‘Р В°Р Р…Р С•', value: createdDisplay },
-          { label: 'Р вЂ™РЎР‚Р ВµР СРЎРЏ Р С•Р В±РЎР‚Р В°РЎвЂ°Р ВµР Р…Р С‘РЎРЏ', value: timeLabel, color: timeColor },
-          { label: 'Р вЂ”Р В°Р С”РЎР‚РЎвЂ№РЎвЂљР С•', value: resolvedDisplay || 'РІР‚вЂќ' },
-          { label: 'Р С™Р В°Р Р…Р В°Р В»', value: channelLabel },
-          { label: 'Р вЂР С‘Р В·Р Р…Р ВµРЎРѓ', value: businessLabel },
-          { label: 'Р С›РЎвЂљР Р†Р ВµРЎвЂљРЎРѓРЎвЂљР Р†Р ВµР Р…Р Р…РЎвЂ№Р в„–', value: responsibleLabel },
+          { label: 'Создано', value: createdDisplay },
+          { label: 'Время обращения', value: timeLabel, color: timeColor },
+          { label: 'Закрыто', value: resolvedDisplay || '—' },
+          { label: 'Канал', value: channelLabel },
+          { label: 'Бизнес', value: businessLabel },
+          { label: 'Ответственный', value: responsibleLabel },
         ];
         detailsMetrics.innerHTML = metrics.map((item) => `
           <div class="dialog-metric-item">
             <span>${item.label}</span>
             ${
               item.color
-                ? `<span class="dialog-time-metric-badge" style="background-color: ${item.color};">${item.value || 'РІР‚вЂќ'}</span>`
-                : `<span>${item.value || 'РІР‚вЂќ'}</span>`
+                ? `<span class="dialog-time-metric-badge" style="background-color: ${item.color};">${item.value || '—'}</span>`
+                : `<span>${item.value || '—'}</span>`
             }
           </div>
         `).join('');
@@ -7045,7 +7045,7 @@
         message: error?.message || String(error || ''),
       });
       if (detailsSummary) {
-        detailsSummary.innerHTML = `<div class="text-danger">Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р В·Р В°Р С–РЎР‚РЎС“Р В·Р С‘РЎвЂљРЎРЉ Р Т‘Р ВµРЎвЂљР В°Р В»Р С‘: ${error.message}</div>`;
+        detailsSummary.innerHTML = `<div class="text-danger">Не удалось загрузить детали: ${error.message}</div>`;
       }
     }
 
@@ -7106,7 +7106,7 @@
     if (takeBtn) {
       event.preventDefault();
       if (!canRunAction('can_assign')) {
-        notifyPermissionDenied('Р СњР В°Р В·Р Р…Р В°РЎвЂЎР С‘РЎвЂљРЎРЉ Р СР Р…Р Вµ');
+        notifyPermissionDenied('Назначить мне');
         return;
       }
       const ticketId = takeBtn.dataset.ticketId;
@@ -7131,12 +7131,12 @@
           updateRowQuickActions(row);
           applyFilters();
           if (typeof showNotification === 'function') {
-            showNotification(`Р вЂќР С‘Р В°Р В»Р С•Р С– Р С•РЎвЂљР В»Р С•Р В¶Р ВµР Р… Р Р…Р В° ${formatSnoozeActionLabel(QUICK_SNOOZE_MINUTES).replace('Р С›РЎвЂљР В»Р С•Р В¶Р С‘РЎвЂљРЎРЉ ', '')}`, 'success');
+            showNotification(`Диалог отложен на ${formatSnoozeActionLabel(QUICK_SNOOZE_MINUTES).replace('Отложить ', '')}`, 'success');
           }
         })
         .catch((error) => {
           if (typeof showNotification === 'function') {
-            showNotification(error.message || 'Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р С•РЎвЂљР В»Р С•Р В¶Р С‘РЎвЂљРЎРЉ Р Т‘Р С‘Р В°Р В»Р С•Р С–', 'error');
+            showNotification(error.message || 'Не удалось отложить диалог', 'error');
           }
         });
       return;
@@ -7145,7 +7145,7 @@
     if (closeBtn) {
       event.preventDefault();
       if (!canRunAction('can_close')) {
-        notifyPermissionDenied('Р вЂ”Р В°Р С”РЎР‚РЎвЂ№РЎвЂљРЎРЉ');
+        notifyPermissionDenied('Закрыть');
         return;
       }
       const ticketId = closeBtn.dataset.ticketId;
@@ -7156,12 +7156,12 @@
         .then(() => {
           clearSnooze(ticketId);
           if (typeof showNotification === 'function') {
-            showNotification('Р вЂќР С‘Р В°Р В»Р С•Р С– Р В·Р В°Р С”РЎР‚РЎвЂ№РЎвЂљ', 'success');
+            showNotification('Диалог закрыт', 'success');
           }
         })
         .catch((error) => {
           if (typeof showNotification === 'function') {
-            showNotification(error.message || 'Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р В·Р В°Р С”РЎР‚РЎвЂ№РЎвЂљРЎРЉ Р Т‘Р С‘Р В°Р В»Р С•Р С–', 'error');
+            showNotification(error.message || 'Не удалось закрыть диалог', 'error');
           }
           closeBtn.disabled = false;
         });
@@ -7250,7 +7250,7 @@
       if (!activeWorkspaceTicketId || !activeDialogRow) return;
       try {
         await takeDialog(activeWorkspaceTicketId, activeDialogRow, workspaceAssignBtn);
-        await refreshActiveWorkspaceContract({ successMessage: 'Р вЂќР С‘Р В°Р В»Р С•Р С– Р Р…Р В°Р В·Р Р…Р В°РЎвЂЎР ВµР Р… Р Р…Р В° Р Р†Р В°РЎРѓ.' });
+        await refreshActiveWorkspaceContract({ successMessage: 'Диалог назначен на вас.' });
       } catch (_error) {
         // notification is already shown inside takeDialog
       }
@@ -7267,11 +7267,11 @@
           updateRowQuickActions(activeDialogRow);
         }
         if (typeof showNotification === 'function') {
-          showNotification(`Р вЂќР С‘Р В°Р В»Р С•Р С– Р С•РЎвЂљР В»Р С•Р В¶Р ВµР Р… Р Р…Р В° ${formatSnoozeDurationLabel(QUICK_SNOOZE_MINUTES)}.`, 'success');
+          showNotification(`Диалог отложен на ${formatSnoozeDurationLabel(QUICK_SNOOZE_MINUTES)}.`, 'success');
         }
       } catch (error) {
         if (typeof showNotification === 'function') {
-          showNotification(error.message || 'Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р С•РЎвЂљР В»Р С•Р В¶Р С‘РЎвЂљРЎРЉ Р Т‘Р С‘Р В°Р В»Р С•Р С–', 'error');
+          showNotification(error.message || 'Не удалось отложить диалог', 'error');
         }
       }
     });
@@ -7285,7 +7285,7 @@
         const categories = Array.from(selectedCategories);
         if (!categories.length) {
           renderWorkspaceCategories();
-          throw new Error('Р вЂ™РЎвЂ№Р В±Р ВµРЎР‚Р С‘РЎвЂљР Вµ РЎвЂ¦Р С•РЎвЂљРЎРЏ Р В±РЎвЂ№ Р С•Р Т‘Р Р…РЎС“ Р С”Р В°РЎвЂљР ВµР С–Р С•РЎР‚Р С‘РЎР‹ Р С—Р ВµРЎР‚Р ВµР Т‘ Р В·Р В°Р С”РЎР‚РЎвЂ№РЎвЂљР С‘Р ВµР С Р Т‘Р С‘Р В°Р В»Р С•Р С–Р В°.');
+          throw new Error('Выберите хотя бы одну категорию перед закрытием диалога.');
         }
         const response = await fetch(`/api/dialogs/${encodeURIComponent(activeWorkspaceTicketId)}/resolve`, {
           method: 'POST',
@@ -7294,13 +7294,13 @@
         });
         const payload = await response.json();
         if (!response.ok || !payload?.success) {
-          throw new Error(payload?.error || `Р С›РЎв‚¬Р С‘Р В±Р С”Р В° ${response.status}`);
+          throw new Error(payload?.error || `Ошибка ${response.status}`);
         }
-        await refreshActiveWorkspaceContract({ successMessage: 'Р вЂќР С‘Р В°Р В»Р С•Р С– Р В·Р В°Р С”РЎР‚РЎвЂ№РЎвЂљ.' });
+        await refreshActiveWorkspaceContract({ successMessage: 'Диалог закрыт.' });
       } catch (error) {
         workspaceResolveBtn.disabled = false;
         if (typeof showNotification === 'function') {
-          showNotification(error.message || 'Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р В·Р В°Р С”РЎР‚РЎвЂ№РЎвЂљРЎРЉ Р Т‘Р С‘Р В°Р В»Р С•Р С–', 'error');
+          showNotification(error.message || 'Не удалось закрыть диалог', 'error');
         }
       }
     });
@@ -7309,7 +7309,7 @@
   if (workspaceReopenBtn) {
     workspaceReopenBtn.addEventListener('click', async () => {
       if (!activeWorkspaceTicketId) return;
-      if (!window.confirm('Р СџР ВµРЎР‚Р ВµР С•РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљРЎРЉ Р В·Р В°Р С”РЎР‚РЎвЂ№РЎвЂљР С•Р Вµ Р С•Р В±РЎР‚Р В°РЎвЂ°Р ВµР Р…Р С‘Р Вµ?')) {
+      if (!window.confirm('Переоткрыть закрытое обращение?')) {
         return;
       }
       workspaceReopenBtn.disabled = true;
@@ -7320,12 +7320,12 @@
         });
         const payload = await response.json();
         if (!response.ok || !payload?.success) {
-          throw new Error(payload?.error || `Р С›РЎв‚¬Р С‘Р В±Р С”Р В° ${response.status}`);
+          throw new Error(payload?.error || `Ошибка ${response.status}`);
         }
-        await refreshActiveWorkspaceContract({ successMessage: 'Р вЂќР С‘Р В°Р В»Р С•Р С– Р С—Р ВµРЎР‚Р ВµР С•РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљ.' });
+        await refreshActiveWorkspaceContract({ successMessage: 'Диалог переоткрыт.' });
       } catch (error) {
         if (typeof showNotification === 'function') {
-          showNotification(error.message || 'Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р С—Р ВµРЎР‚Р ВµР С•РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљРЎРЉ Р Т‘Р С‘Р В°Р В»Р С•Р С–', 'error');
+          showNotification(error.message || 'Не удалось переоткрыть диалог', 'error');
         }
       } finally {
         workspaceReopenBtn.disabled = false;
@@ -7357,11 +7357,11 @@
       }
       let legacyOpenReason = 'manual_rollback';
       if (policy.enabled && policy.reasonRequired) {
-        const answer = window.prompt('Р Р€Р С”Р В°Р В¶Р С‘РЎвЂљР Вµ Р С—РЎР‚Р С‘РЎвЂЎР С‘Р Р…РЎС“ manual legacy-open (UTC policy checkpoint):', 'manual_rollback');
+        const answer = window.prompt('Укажите причину manual legacy-open (UTC policy checkpoint):', 'manual_rollback');
         legacyOpenReason = String(answer || '').trim();
         if (!legacyOpenReason) {
           if (typeof showNotification === 'function') {
-            showNotification('Legacy modal Р Р…Р Вµ Р С•РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљ: РЎвЂљРЎР‚Р ВµР В±РЎС“Р ВµРЎвЂљРЎРѓРЎРЏ Р С—РЎР‚Р С‘РЎвЂЎР С‘Р Р…Р В° manual open.', 'warning');
+            showNotification('Legacy modal не открыт: требуется причина manual open.', 'warning');
           }
           return;
         }
@@ -7398,7 +7398,7 @@
         const categories = Array.from(selectedCategories);
         if (!categories.length) {
           openCategoryPanel();
-          throw new Error('Р Р€Р С”Р В°Р В¶Р С‘РЎвЂљР Вµ РЎвЂ¦Р С•РЎвЂљРЎРЏ Р В±РЎвЂ№ Р С•Р Т‘Р Р…РЎС“ Р С”Р В°РЎвЂљР ВµР С–Р С•РЎР‚Р С‘РЎР‹ Р С•Р В±РЎР‚Р В°РЎвЂ°Р ВµР Р…Р С‘РЎРЏ Р С—Р ВµРЎР‚Р ВµР Т‘ Р В·Р В°Р С”РЎР‚РЎвЂ№РЎвЂљР С‘Р ВµР С.');
+          throw new Error('Укажите хотя бы одну категорию обращения перед закрытием.');
         }
         const resp = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/resolve`, {
           method: 'POST',
@@ -7407,15 +7407,15 @@
         });
         const data = await resp.json();
         if (!resp.ok || !data?.success) {
-          throw new Error(data?.error || `Р С›РЎв‚¬Р С‘Р В±Р С”Р В° ${resp.status}`);
+          throw new Error(data?.error || `Ошибка ${resp.status}`);
         }
         await openDialogDetails(ticketId, activeDialogRow);
         if (typeof showNotification === 'function') {
-          showNotification('Р вЂќР С‘Р В°Р В»Р С•Р С– Р В·Р В°Р С”РЎР‚РЎвЂ№РЎвЂљ', 'success');
+          showNotification('Диалог закрыт', 'success');
         }
       } catch (error) {
         if (typeof showNotification === 'function') {
-          showNotification(error.message || 'Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р В·Р В°Р С”РЎР‚РЎвЂ№РЎвЂљРЎРЉ Р Т‘Р С‘Р В°Р В»Р С•Р С–', 'error');
+          showNotification(error.message || 'Не удалось закрыть диалог', 'error');
         }
         detailsResolve.disabled = false;
       }
@@ -7426,7 +7426,7 @@
     detailsReopen.addEventListener('click', async () => {
       const ticketId = resolveDetailsTicketId();
       if (!ticketId) return;
-      if (!window.confirm('Р СџР ВµРЎР‚Р ВµР С•РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљРЎРЉ Р В·Р В°Р С”РЎР‚РЎвЂ№РЎвЂљР С•Р Вµ Р С•Р В±РЎР‚Р В°РЎвЂ°Р ВµР Р…Р С‘Р Вµ?')) {
+      if (!window.confirm('Переоткрыть закрытое обращение?')) {
         return;
       }
       detailsReopen.disabled = true;
@@ -7437,15 +7437,15 @@
         });
         const data = await resp.json();
         if (!resp.ok || !data?.success) {
-          throw new Error(data?.error || `Р С›РЎв‚¬Р С‘Р В±Р С”Р В° ${resp.status}`);
+          throw new Error(data?.error || `Ошибка ${resp.status}`);
         }
         await openDialogDetails(ticketId, activeDialogRow);
         if (typeof showNotification === 'function') {
-          showNotification('Р вЂќР С‘Р В°Р В»Р С•Р С– Р С—Р ВµРЎР‚Р ВµР С•РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљ', 'success');
+          showNotification('Диалог переоткрыт', 'success');
         }
       } catch (error) {
         if (typeof showNotification === 'function') {
-          showNotification(error.message || 'Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р С—Р ВµРЎР‚Р ВµР С•РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљРЎРЉ Р Т‘Р С‘Р В°Р В»Р С•Р С–', 'error');
+          showNotification(error.message || 'Не удалось переоткрыть диалог', 'error');
         }
       } finally {
         detailsReopen.disabled = false;
@@ -7467,28 +7467,28 @@
         });
         const data = await resp.json();
         if (!resp.ok || !data?.success) {
-          throw new Error(data?.error || `Р С›РЎв‚¬Р С‘Р В±Р С”Р В° ${resp.status}`);
+          throw new Error(data?.error || `Ошибка ${resp.status}`);
         }
         detailsReplyText.value = '';
         resetReplyTarget();
         activeDialogContext.operatorName = data.responsible || activeDialogContext.operatorName;
         appendHistoryMessage({
-          sender: data.responsible || 'Р С›Р С—Р ВµРЎР‚Р В°РЎвЂљР С•РЎР‚',
+          sender: data.responsible || 'Оператор',
           message,
           timestamp: data.timestamp || new Date().toISOString(),
           messageType: 'operator_message',
         });
         if (activeDialogRow) {
-          updateRowStatus(activeDialogRow, activeDialogRow.dataset.statusRaw || '', 'Р С•Р В¶Р С‘Р Т‘Р В°Р ВµРЎвЂљ Р С•РЎвЂљР Р†Р ВµРЎвЂљР В° Р С”Р В»Р С‘Р ВµР Р…РЎвЂљР В°', 'waiting_client', 0);
+          updateRowStatus(activeDialogRow, activeDialogRow.dataset.statusRaw || '', 'ожидает ответа клиента', 'waiting_client', 0);
           updateRowResponsible(activeDialogRow, data.responsible || activeDialogRow.dataset.responsible || '');
           applyFilters();
         }
         if (typeof showNotification === 'function') {
-          showNotification('Р РЋР С•Р С•Р В±РЎвЂ°Р ВµР Р…Р С‘Р Вµ Р С•РЎвЂљР С—РЎР‚Р В°Р Р†Р В»Р ВµР Р…Р С•', 'success');
+          showNotification('Сообщение отправлено', 'success');
         }
       } catch (error) {
         if (typeof showNotification === 'function') {
-          showNotification(error.message || 'Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р С•РЎвЂљР С—РЎР‚Р В°Р Р†Р С‘РЎвЂљРЎРЉ РЎРѓР С•Р С•Р В±РЎвЂ°Р ВµР Р…Р С‘Р Вµ', 'error');
+          showNotification(error.message || 'Не удалось отправить сообщение', 'error');
         }
       } finally {
         detailsReplySend.disabled = false;
@@ -7503,7 +7503,7 @@
   }
 
   function renderWorkspaceMessageItem(message) {
-    const author = message?.senderName || message?.senderRole || 'Р Р€РЎвЂЎР В°РЎРѓРЎвЂљР Р…Р С‘Р С”';
+    const author = message?.senderName || message?.senderRole || 'Участник';
     const timestamp = formatWorkspaceDateTime(message?.sentAt || message?.createdAt);
     const text = String(message?.messageText || message?.message || '').trim();
     const replyPreviewText = String(message?.replyPreview || message?.reply_preview || '').trim();
@@ -7518,15 +7518,15 @@
     const mediaMarkup = normalizedMessage.attachment ? buildMediaMarkup(normalizedMessage) : '';
     const textMarkup = text ? `<div class="workspace-message-body">${escapeHtml(text)}</div>` : '';
     const replyPreviewMarkup = replyPreviewText
-      ? `<div class="small text-muted border-start ps-2 mb-1 workspace-message-reply-source">РІвЂ Р„ ${escapeHtml(replyPreviewText)}</div>`
+      ? `<div class="small text-muted border-start ps-2 mb-1 workspace-message-reply-source">↪ ${escapeHtml(replyPreviewText)}</div>`
       : '';
     const replyTargetSupported = activeWorkspacePayload?.composer?.reply_target_supported !== false;
     const canReply = replyTargetSupported && Number.isFinite(telegramMessageId) && senderType !== 'system';
     const actionMarkup = canReply
-      ? `<div class="mt-2"><button class="btn btn-sm btn-outline-secondary" type="button" data-workspace-action="reply" data-message-id="${telegramMessageId}">Р С›РЎвЂљР Р†Р ВµРЎвЂљР С‘РЎвЂљРЎРЉ</button></div>`
+      ? `<div class="mt-2"><button class="btn btn-sm btn-outline-secondary" type="button" data-workspace-action="reply" data-message-id="${telegramMessageId}">Ответить</button></div>`
       : '';
-    const fallbackMarkup = textMarkup || mediaMarkup ? '' : '<div>РІР‚вЂќ</div>';
-    return `<article class="workspace-message-item" data-telegram-message-id="${Number.isFinite(telegramMessageId) ? telegramMessageId : ''}"><div class="workspace-message-meta">${escapeHtml(author)} Р’В· ${escapeHtml(timestamp)}</div>${replyPreviewMarkup}${textMarkup}${mediaMarkup}${fallbackMarkup}${actionMarkup}</article>`;
+    const fallbackMarkup = textMarkup || mediaMarkup ? '' : '<div>—</div>';
+    return `<article class="workspace-message-item" data-telegram-message-id="${Number.isFinite(telegramMessageId) ? telegramMessageId : ''}"><div class="workspace-message-meta">${escapeHtml(author)} · ${escapeHtml(timestamp)}</div>${replyPreviewMarkup}${textMarkup}${mediaMarkup}${fallbackMarkup}${actionMarkup}</article>`;
   }
 
   async function sendMediaFiles(files, options = {}) {
@@ -7551,12 +7551,12 @@
         });
         const data = await resp.json();
         if (!resp.ok || !data?.success) {
-          throw new Error(data?.error || `Р С›РЎв‚¬Р С‘Р В±Р С”Р В° ${resp.status}`);
+          throw new Error(data?.error || `Ошибка ${resp.status}`);
         }
         activeDialogContext.operatorName = data.responsible || activeDialogContext.operatorName;
         if (appendHistory) {
           appendHistoryMessage({
-            sender: data.responsible || 'Р С›Р С—Р ВµРЎР‚Р В°РЎвЂљР С•РЎР‚',
+            sender: data.responsible || 'Оператор',
             message: data.message || '',
             timestamp: data.timestamp || new Date().toISOString(),
             messageType: data.messageType || 'operator_media',
@@ -7564,7 +7564,7 @@
           });
         }
         if (activeDialogRow) {
-          updateRowStatus(activeDialogRow, activeDialogRow.dataset.statusRaw || '', 'Р С•Р В¶Р С‘Р Т‘Р В°Р ВµРЎвЂљ Р С•РЎвЂљР Р†Р ВµРЎвЂљР В° Р С”Р В»Р С‘Р ВµР Р…РЎвЂљР В°', 'waiting_client', 0);
+          updateRowStatus(activeDialogRow, activeDialogRow.dataset.statusRaw || '', 'ожидает ответа клиента', 'waiting_client', 0);
         }
         if (ticketId === activeWorkspaceTicketId) {
           emitWorkspaceTelemetry('workspace_media_sent', {
@@ -7580,11 +7580,11 @@
         detailsReplyText.value = '';
       }
       if (typeof showNotification === 'function') {
-        showNotification(options.successMessage || 'Р СљР ВµР Т‘Р С‘Р В° Р С•РЎвЂљР С—РЎР‚Р В°Р Р†Р В»Р ВµР Р…Р С•', 'success');
+        showNotification(options.successMessage || 'Медиа отправлено', 'success');
       }
     } catch (error) {
       if (typeof showNotification === 'function') {
-        showNotification(error.message || options.errorMessage || 'Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р С•РЎвЂљР С—РЎР‚Р В°Р Р†Р С‘РЎвЂљРЎРЉ Р СР ВµР Т‘Р С‘Р В°', 'error');
+        showNotification(error.message || options.errorMessage || 'Не удалось отправить медиа', 'error');
       }
     } finally {
       if (sendButton) sendButton.disabled = false;
@@ -7628,7 +7628,7 @@
       }
       if (action === 'edit') {
         const current = button.closest('.chat-message')?.querySelector('div:nth-of-type(2)')?.textContent || '';
-        const nextText = window.prompt('Р вЂ™Р Р†Р ВµР Т‘Р С‘РЎвЂљР Вµ Р Р…Р С•Р Р†РЎвЂ№Р в„– РЎвЂљР ВµР С”РЎРѓРЎвЂљ РЎРѓР С•Р С•Р В±РЎвЂ°Р ВµР Р…Р С‘РЎРЏ:', current.trim());
+        const nextText = window.prompt('Введите новый текст сообщения:', current.trim());
         if (!nextText || !nextText.trim()) return;
         const resp = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/edit`, {
           method: 'POST',
@@ -7636,19 +7636,19 @@
           body: JSON.stringify({ telegramMessageId: messageId, message: nextText.trim() }),
         });
         const data = await resp.json();
-        if (!resp.ok || !data?.success) throw new Error(data?.error || `Р С›РЎв‚¬Р С‘Р В±Р С”Р В° ${resp.status}`);
+        if (!resp.ok || !data?.success) throw new Error(data?.error || `Ошибка ${resp.status}`);
         await refreshHistory();
         return;
       }
       if (action === 'delete') {
-        if (!window.confirm('Р Р€Р Т‘Р В°Р В»Р С‘РЎвЂљРЎРЉ РЎРѓР С•Р С•Р В±РЎвЂ°Р ВµР Р…Р С‘Р Вµ РЎС“ Р С”Р В»Р С‘Р ВµР Р…РЎвЂљР В°?')) return;
+        if (!window.confirm('Удалить сообщение у клиента?')) return;
         const resp = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/delete`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ telegramMessageId: messageId }),
         });
         const data = await resp.json();
-        if (!resp.ok || !data?.success) throw new Error(data?.error || `Р С›РЎв‚¬Р С‘Р В±Р С”Р В° ${resp.status}`);
+        if (!resp.ok || !data?.success) throw new Error(data?.error || `Ошибка ${resp.status}`);
         await refreshHistory();
       }
     });
@@ -7855,7 +7855,7 @@
       selectedCategories = new Set();
       syncCategorySelections();
       renderWorkspaceCategories();
-      updateSummaryCategories('РІР‚вЂќ');
+      updateSummaryCategories('—');
       scheduleCategorySave();
     });
   }
@@ -7947,14 +7947,14 @@
           });
           const payload = await resp.json().catch(() => ({}));
           if (!resp.ok || payload.success === false) throw new Error(payload.error || (`HTTP ${resp.status}`));
-          if (typeof showNotification === 'function') showNotification('Р СџРЎР‚Р В°Р Р†Р С”Р В° Р С—РЎР‚Р С‘Р Р…РЎРЏРЎвЂљР В°', 'success');
+          if (typeof showNotification === 'function') showNotification('Правка принята', 'success');
           loadAiReviewQueue();
           if (ticketId && String(activeWorkspaceTicketId || '') === ticketId) {
             loadWorkspaceAiReview(ticketId);
             loadWorkspaceAiSuggestions(ticketId);
           }
         } catch (error) {
-          if (typeof showNotification === 'function') showNotification(`Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р С—РЎР‚Р С‘Р Р…РЎРЏРЎвЂљРЎРЉ Р С—РЎР‚Р В°Р Р†Р С”РЎС“: ${error.message || 'unknown_error'}`, 'warning');
+          if (typeof showNotification === 'function') showNotification(`Не удалось принять правку: ${error.message || 'unknown_error'}`, 'warning');
         }
         return;
       }
@@ -7967,14 +7967,14 @@
           });
           const payload = await resp.json().catch(() => ({}));
           if (!resp.ok || payload.success === false) throw new Error(payload.error || (`HTTP ${resp.status}`));
-          if (typeof showNotification === 'function') showNotification('Р СџРЎР‚Р В°Р Р†Р С”Р В° Р С•РЎвЂљР С”Р В»Р С•Р Р…Р ВµР Р…Р В°', 'success');
+          if (typeof showNotification === 'function') showNotification('Правка отклонена', 'success');
           loadAiReviewQueue();
           if (ticketId && String(activeWorkspaceTicketId || '') === ticketId) {
             loadWorkspaceAiReview(ticketId);
             loadWorkspaceAiSuggestions(ticketId);
           }
         } catch (error) {
-          if (typeof showNotification === 'function') showNotification(`Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р С•РЎвЂљР С”Р В»Р С•Р Р…Р С‘РЎвЂљРЎРЉ Р С—РЎР‚Р В°Р Р†Р С”РЎС“: ${error.message || 'unknown_error'}`, 'warning');
+          if (typeof showNotification === 'function') showNotification(`Не удалось отклонить правку: ${error.message || 'unknown_error'}`, 'warning');
         }
       }
     });
@@ -7993,9 +7993,9 @@
         if (!resp.ok || payload.success === false) throw new Error(payload.error || `HTTP ${resp.status}`);
         loadWorkspaceAiReview(ticketId);
         loadWorkspaceAiSuggestions(ticketId);
-        if (typeof showNotification === 'function') showNotification('Р СџРЎР‚Р В°Р Р†Р С”Р В° AI-РЎР‚Р ВµРЎв‚¬Р ВµР Р…Р С‘РЎРЏ Р С—РЎР‚Р С‘Р Р…РЎРЏРЎвЂљР В°', 'success');
+        if (typeof showNotification === 'function') showNotification('Правка AI-решения принята', 'success');
       } catch (error) {
-        if (typeof showNotification === 'function') showNotification(`Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р С—РЎР‚Р С‘Р Р…РЎРЏРЎвЂљРЎРЉ Р С—РЎР‚Р В°Р Р†Р С”РЎС“: ${error.message || 'unknown_error'}`, 'warning');
+        if (typeof showNotification === 'function') showNotification(`Не удалось принять правку: ${error.message || 'unknown_error'}`, 'warning');
       }
     });
   }
@@ -8012,9 +8012,9 @@
         const payload = await resp.json().catch(() => ({}));
         if (!resp.ok || payload.success === false) throw new Error(payload.error || `HTTP ${resp.status}`);
         loadWorkspaceAiReview(ticketId);
-        if (typeof showNotification === 'function') showNotification('Р С›РЎРѓРЎвЂљР В°Р Р†Р В»Р ВµР Р…Р С• РЎвЂљР ВµР С”РЎС“РЎвЂ°Р ВµР Вµ AI-РЎР‚Р ВµРЎв‚¬Р ВµР Р…Р С‘Р Вµ', 'success');
+        if (typeof showNotification === 'function') showNotification('Оставлено текущее AI-решение', 'success');
       } catch (error) {
-        if (typeof showNotification === 'function') showNotification(`Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р С•РЎвЂљР С”Р В»Р С•Р Р…Р С‘РЎвЂљРЎРЉ Р С—РЎР‚Р В°Р Р†Р С”РЎС“: ${error.message || 'unknown_error'}`, 'warning');
+        if (typeof showNotification === 'function') showNotification(`Не удалось отклонить правку: ${error.message || 'unknown_error'}`, 'warning');
       }
     });
   }
@@ -8059,11 +8059,11 @@
         const card = rejectBtn.closest('article');
         if (card) card.remove();
         if (typeof showNotification === 'function') {
-          showNotification('РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р… РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р… РїС—Р… РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р… РїС—Р… feedback-loop', 'info');
+          showNotification('��������� ��������� � ���������� � feedback-loop', 'info');
         }
       } catch (error) {
         if (typeof showNotification === 'function') {
-          showNotification(`РїС—Р…РїС—Р… РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р… РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р… РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…: ${error.message || 'unknown_error'}`, 'warning');
+          showNotification(`�� ������� ��������� ���������: ${error.message || 'unknown_error'}`, 'warning');
         }
       }
     });
@@ -8078,10 +8078,10 @@
         await updateWorkspaceAiControl(ticketId, {
           ai_disabled: disableMode,
           reason: disableMode ? 'disabled_by_operator' : 'enabled_by_operator',
-        }, disableMode ? 'AI РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р… РїС—Р…РїС—Р…РїС—Р… РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р… РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…' : 'AI РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р… РїС—Р…РїС—Р…РїС—Р… РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р… РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…');
+        }, disableMode ? 'AI �������� ��� �������� �������' : 'AI ������� ��� �������� �������');
       } catch (error) {
         if (typeof showNotification === 'function') {
-          showNotification(`РїС—Р…РїС—Р… РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р… РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р… РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р… AI: ${error.message || 'unknown_error'}`, 'warning');
+          showNotification(`�� ������� �������� ����� AI: ${error.message || 'unknown_error'}`, 'warning');
         }
       }
     });
@@ -8097,10 +8097,10 @@
           ai_disabled: false,
           auto_reply_blocked: true,
           reason: 'handoff_no_auto_reply',
-        }, 'РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р… РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р… РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…, РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р… AI РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…');
+        }, '������ ������� ���������, ���������� AI ���������');
       } catch (error) {
         if (typeof showNotification === 'function') {
-          showNotification(`РїС—Р…РїС—Р… РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р… РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р…РїС—Р… handoff: ${error.message || 'unknown_error'}`, 'warning');
+          showNotification(`�� ������� ��������� handoff: ${error.message || 'unknown_error'}`, 'warning');
         }
       }
     });
@@ -8134,7 +8134,7 @@
         await applyMacroTemplate();
       } catch (error) {
         if (typeof showNotification === 'function') {
-          showNotification(error?.message || 'Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р С—РЎР‚Р С‘Р СР ВµР Р…Р С‘РЎвЂљРЎРЉ Р СР В°Р С”РЎР‚Р С•РЎРѓ', 'error');
+          showNotification(error?.message || 'Не удалось применить макрос', 'error');
         }
       }
     });
@@ -8221,7 +8221,7 @@
         if (!src) return;
         if (activeAudioPlayer && activeAudioSource === src && !activeAudioPlayer.paused) {
           activeAudioPlayer.pause();
-          playButton.textContent = 'Р вЂ™Р С•РЎРѓР С—РЎР‚Р С•Р С‘Р В·Р Р†Р ВµРЎРѓРЎвЂљР С‘';
+          playButton.textContent = 'Воспроизвести';
           return;
         }
         if (activeAudioPlayer) {
@@ -8229,12 +8229,12 @@
         }
         activeAudioPlayer = new Audio(src);
         activeAudioSource = src;
-        playButton.textContent = 'Р СџР В°РЎС“Р В·Р В°';
+        playButton.textContent = 'Пауза';
         activeAudioPlayer.addEventListener('ended', () => {
-          playButton.textContent = 'Р вЂ™Р С•РЎРѓР С—РЎР‚Р С•Р С‘Р В·Р Р†Р ВµРЎРѓРЎвЂљР С‘';
+          playButton.textContent = 'Воспроизвести';
         });
         activeAudioPlayer.play().catch(() => {
-          playButton.textContent = 'Р вЂ™Р С•РЎРѓР С—РЎР‚Р С•Р С‘Р В·Р Р†Р ВµРЎРѓРЎвЂљР С‘';
+          playButton.textContent = 'Воспроизвести';
         });
         return;
       }
@@ -8272,8 +8272,8 @@
       reloadWorkspaceSection('messages', {
         stateElement: workspaceMessagesState,
         errorElement: workspaceMessagesError,
-        statusText: 'Р СџР С•Р Р†РЎвЂљР С•РЎР‚Р Р…Р В°РЎРЏ Р В·Р В°Р С–РЎР‚РЎС“Р В·Р С”Р В° Р В»Р ВµР Р…РЎвЂљРЎвЂ№РІР‚В¦',
-        failMessage: 'Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р С•Р В±Р Р…Р С•Р Р†Р С‘РЎвЂљРЎРЉ Р В»Р ВµР Р…РЎвЂљРЎС“ workspace.',
+        statusText: 'Повторная загрузка ленты…',
+        failMessage: 'Не удалось обновить ленту workspace.',
       });
     });
   }
@@ -8306,7 +8306,7 @@
         if (!src) return;
         if (activeAudioPlayer && activeAudioSource === src && !activeAudioPlayer.paused) {
           activeAudioPlayer.pause();
-          playButton.textContent = 'Р вЂ™Р С•РЎРѓР С—РЎР‚Р С•Р С‘Р В·Р Р†Р ВµРЎРѓРЎвЂљР С‘';
+          playButton.textContent = 'Воспроизвести';
           return;
         }
         if (activeAudioPlayer) {
@@ -8314,12 +8314,12 @@
         }
         activeAudioPlayer = new Audio(src);
         activeAudioSource = src;
-        playButton.textContent = 'Р СџР В°РЎС“Р В·Р В°';
+        playButton.textContent = 'Пауза';
         activeAudioPlayer.addEventListener('ended', () => {
-          playButton.textContent = 'Р вЂ™Р С•РЎРѓР С—РЎР‚Р С•Р С‘Р В·Р Р†Р ВµРЎРѓРЎвЂљР С‘';
+          playButton.textContent = 'Воспроизвести';
         });
         activeAudioPlayer.play().catch(() => {
-          playButton.textContent = 'Р вЂ™Р С•РЎРѓР С—РЎР‚Р С•Р С‘Р В·Р Р†Р ВµРЎРѓРЎвЂљР С‘';
+          playButton.textContent = 'Воспроизвести';
         });
         return;
       }
@@ -8344,8 +8344,8 @@
       reloadWorkspaceSection('context', {
         stateElement: workspaceClientState,
         errorElement: workspaceClientError,
-        statusText: 'Р СџР С•Р Р†РЎвЂљР С•РЎР‚Р Р…Р В°РЎРЏ Р В·Р В°Р С–РЎР‚РЎС“Р В·Р С”Р В° Р С—РЎР‚Р С•РЎвЂћР С‘Р В»РЎРЏ Р С”Р В»Р С‘Р ВµР Р…РЎвЂљР В°РІР‚В¦',
-        failMessage: 'Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р С•Р В±Р Р…Р С•Р Р†Р С‘РЎвЂљРЎРЉ Р С—РЎР‚Р С•РЎвЂћР С‘Р В»РЎРЉ Р С”Р В»Р С‘Р ВµР Р…РЎвЂљР В°.',
+        statusText: 'Повторная загрузка профиля клиента…',
+        failMessage: 'Не удалось обновить профиль клиента.',
       });
     });
   }
@@ -8355,8 +8355,8 @@
       reloadWorkspaceSection('context', {
         stateElement: workspaceHistoryState,
         errorElement: workspaceHistoryError,
-        statusText: 'Р СџР С•Р Р†РЎвЂљР С•РЎР‚Р Р…Р В°РЎРЏ Р В·Р В°Р С–РЎР‚РЎС“Р В·Р С”Р В° Р С‘РЎРѓРЎвЂљР С•РЎР‚Р С‘Р С‘ Р С”Р В»Р С‘Р ВµР Р…РЎвЂљР В°РІР‚В¦',
-        failMessage: 'Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р С•Р В±Р Р…Р С•Р Р†Р С‘РЎвЂљРЎРЉ Р С‘РЎРѓРЎвЂљР С•РЎР‚Р С‘РЎР‹ Р С”Р В»Р С‘Р ВµР Р…РЎвЂљР В°.',
+        statusText: 'Повторная загрузка истории клиента…',
+        failMessage: 'Не удалось обновить историю клиента.',
       });
     });
   }
@@ -8366,8 +8366,8 @@
       reloadWorkspaceSection('context', {
         stateElement: workspaceRelatedEventsState,
         errorElement: workspaceRelatedEventsError,
-        statusText: 'Р СџР С•Р Р†РЎвЂљР С•РЎР‚Р Р…Р В°РЎРЏ Р В·Р В°Р С–РЎР‚РЎС“Р В·Р С”Р В° РЎРѓР Р†РЎРЏР В·Р В°Р Р…Р Р…РЎвЂ№РЎвЂ¦ РЎРѓР С•Р В±РЎвЂ№РЎвЂљР С‘Р в„–РІР‚В¦',
-        failMessage: 'Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р С•Р В±Р Р…Р С•Р Р†Р С‘РЎвЂљРЎРЉ РЎРѓР Р†РЎРЏР В·Р В°Р Р…Р Р…РЎвЂ№Р Вµ РЎРѓР С•Р В±РЎвЂ№РЎвЂљР С‘РЎРЏ.',
+        statusText: 'Повторная загрузка связанных событий…',
+        failMessage: 'Не удалось обновить связанные события.',
       });
     });
   }
@@ -8377,8 +8377,8 @@
       reloadWorkspaceSection('sla', {
         stateElement: workspaceSlaState,
         errorElement: workspaceSlaError,
-        statusText: 'Р СџР С•Р Р†РЎвЂљР С•РЎР‚Р Р…Р В°РЎРЏ Р В·Р В°Р С–РЎР‚РЎС“Р В·Р С”Р В° SLA-Р С”Р С•Р Р…РЎвЂљР ВµР С”РЎРѓРЎвЂљР В°РІР‚В¦',
-        failMessage: 'Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р С•Р В±Р Р…Р С•Р Р†Р С‘РЎвЂљРЎРЉ SLA-Р С”Р С•Р Р…РЎвЂљР ВµР С”РЎРѓРЎвЂљ.',
+        statusText: 'Повторная загрузка SLA-контекста…',
+        failMessage: 'Не удалось обновить SLA-контекст.',
       });
     });
   }
@@ -8408,8 +8408,8 @@
           reloadWorkspaceSection('messages', {
             stateElement: workspaceMessagesState,
             errorElement: workspaceMessagesError,
-            statusText: 'Р С›Р В±Р Р…Р С•Р Р†Р В»Р ВµР Р…Р С‘Р Вµ Р В»Р ВµР Р…РЎвЂљРЎвЂ№ Р С—Р С•РЎРѓР В»Р Вµ Р С•РЎвЂљР С—РЎР‚Р В°Р Р†Р С”Р С‘ Р СР ВµР Т‘Р С‘Р В°РІР‚В¦',
-            failMessage: 'Р СљР ВµР Т‘Р С‘Р В° Р С•РЎвЂљР С—РЎР‚Р В°Р Р†Р В»Р ВµР Р…Р С•, Р Р…Р С• Р В»Р ВµР Р…РЎвЂљР В° workspace Р Р…Р Вµ Р С•Р В±Р Р…Р С•Р Р†Р С‘Р В»Р В°РЎРѓРЎРЉ Р В°Р Р†РЎвЂљР С•Р СР В°РЎвЂљР С‘РЎвЂЎР ВµРЎРѓР С”Р С‘.',
+            statusText: 'Обновление ленты после отправки медиа…',
+            failMessage: 'Медиа отправлено, но лента workspace не обновилась автоматически.',
           });
         },
       });
@@ -8467,7 +8467,7 @@
         await applyWorkspaceMacroTemplate();
       } catch (error) {
         if (typeof showNotification === 'function') {
-          showNotification(error?.message || 'Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р С—РЎР‚Р С‘Р СР ВµР Р…Р С‘РЎвЂљРЎРЉ macro workflow', 'error');
+          showNotification(error?.message || 'Не удалось применить macro workflow', 'error');
         }
       }
     });
