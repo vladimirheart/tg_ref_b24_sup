@@ -40,12 +40,12 @@
     }
     if (mobileToggleBtn) {
       const icon = mobileToggleBtn.querySelector('.icon');
-      if (icon) icon.textContent = shouldOpen ? '×' : '☰';
-      mobileToggleBtn.setAttribute('aria-label', shouldOpen ? 'Закрыть меню' : 'Открыть меню');
+      if (icon) icon.textContent = shouldOpen ? 'Г—' : 'в°';
+      mobileToggleBtn.setAttribute('aria-label', shouldOpen ? 'Р—Р°РєСЂС‹С‚СЊ РјРµРЅСЋ' : 'РћС‚РєСЂС‹С‚СЊ РјРµРЅСЋ');
     }
   }
 
-  // оборачиваем страницу, чтобы не было пустоты справа
+  // РѕР±РѕСЂР°С‡РёРІР°РµРј СЃС‚СЂР°РЅРёС†Сѓ, С‡С‚РѕР±С‹ РЅРµ Р±С‹Р»Рѕ РїСѓСЃС‚РѕС‚С‹ СЃРїСЂР°РІР°
   function ensureLayoutWrap() {
     const root = document.body;
     if (!root.classList.contains('with-sidebar')) root.classList.add('with-sidebar');
@@ -112,6 +112,41 @@
   }
   applyState();
 
+  function setDensityMode(mode) {
+    const nextMode = mode === DENSITY_COMPACT ? DENSITY_COMPACT : DENSITY_COMFORTABLE;
+    root.classList.toggle('density-compact', nextMode === DENSITY_COMPACT);
+    root.classList.toggle('density-comfortable', nextMode !== DENSITY_COMPACT);
+    if (densityModeBtn) {
+      const isCompact = nextMode === DENSITY_COMPACT;
+      densityModeBtn.setAttribute('aria-pressed', isCompact ? 'true' : 'false');
+      densityModeBtn.textContent = isCompact ? 'в–¤' : 'в—«';
+      densityModeBtn.title = `РџР»РѕС‚РЅРѕСЃС‚СЊ РёРЅС‚РµСЂС„РµР№СЃР°: ${isCompact ? 'compact' : 'comfortable'}`;
+    }
+    try {
+      localStorage.setItem(LS_KEY_DENSITY_MODE, nextMode);
+    } catch (_error) {
+      // ignore storage write errors
+    }
+  }
+
+  function loadDensityMode() {
+    let stored = DENSITY_COMFORTABLE;
+    try {
+      const raw = String(localStorage.getItem(LS_KEY_DENSITY_MODE) || '').trim().toLowerCase();
+      if (raw === DENSITY_COMPACT || raw === DENSITY_COMFORTABLE) {
+        stored = raw;
+      }
+    } catch (_error) {
+      stored = DENSITY_COMFORTABLE;
+    }
+    setDensityMode(stored);
+  }
+
+  function toggleDensityMode() {
+    const compactEnabled = root.classList.contains('density-compact');
+    setDensityMode(compactEnabled ? DENSITY_COMFORTABLE : DENSITY_COMPACT);
+  }
+
   function syncSidebarForViewport() {
     if (!isMobileViewport()) {
       setMobileOpen(false);
@@ -150,8 +185,8 @@
     'users',
   ];
   const NAV_TITLE_DEFAULT = '';
-  const NAV_TITLE_EDITING = 'Перетащите пункты, чтобы изменить порядок';
-  const NAV_ORDER_HINT = 'Нажмите на иконку «⇅», чтобы изменить расположение страниц';
+  const NAV_TITLE_EDITING = 'РџРµСЂРµС‚Р°С‰РёС‚Рµ РїСѓРЅРєС‚С‹, С‡С‚РѕР±С‹ РёР·РјРµРЅРёС‚СЊ РїРѕСЂСЏРґРѕРє';
+  const NAV_ORDER_HINT = 'РќР°Р¶РјРёС‚Рµ РЅР° РёРєРѕРЅРєСѓ В«в‡…В», С‡С‚РѕР±С‹ РёР·РјРµРЅРёС‚СЊ СЂР°СЃРїРѕР»РѕР¶РµРЅРёРµ СЃС‚СЂР°РЅРёС†';
   const resetOrderBtn = document.getElementById('resetSidebarOrderBtn');
   const editOrderBtn = document.getElementById('editSidebarOrderBtn');
   let isEditingOrder = false;
@@ -319,11 +354,11 @@
     if (editOrderBtn) {
       const icon = editOrderBtn.querySelector('.icon');
       if (icon) {
-        icon.textContent = isEditingOrder ? '✔️' : '⇅';
+        icon.textContent = isEditingOrder ? 'вњ”пёЏ' : 'в‡…';
       }
       editOrderBtn.classList.toggle('active', isEditingOrder);
       editOrderBtn.setAttribute('aria-pressed', isEditingOrder ? 'true' : 'false');
-      const label = isEditingOrder ? 'Завершить редактирование порядка' : 'Редактировать порядок';
+      const label = isEditingOrder ? 'Р—Р°РІРµСЂС€РёС‚СЊ СЂРµРґР°РєС‚РёСЂРѕРІР°РЅРёРµ РїРѕСЂСЏРґРєР°' : 'Р РµРґР°РєС‚РёСЂРѕРІР°С‚СЊ РїРѕСЂСЏРґРѕРє';
       editOrderBtn.setAttribute('aria-label', label);
       editOrderBtn.setAttribute('title', label);
     }
@@ -406,7 +441,7 @@
     togglePasswordMessage(changePasswordError, '');
     togglePasswordMessage(changePasswordSuccess, '');
     if (changePasswordSpinner) changePasswordSpinner.classList.add('d-none');
-    if (changePasswordSubmitText) changePasswordSubmitText.textContent = 'Сменить пароль';
+    if (changePasswordSubmitText) changePasswordSubmitText.textContent = 'РЎРјРµРЅРёС‚СЊ РїР°СЂРѕР»СЊ';
   }
 
   function ensureChangePasswordModal() {
@@ -448,20 +483,20 @@
       const confirmPassword = (formData.get('confirm_password') || '').toString().trim();
 
       if (!currentPassword) {
-        togglePasswordMessage(changePasswordError, 'Укажите текущий пароль.');
+        togglePasswordMessage(changePasswordError, 'РЈРєР°Р¶РёС‚Рµ С‚РµРєСѓС‰РёР№ РїР°СЂРѕР»СЊ.');
         return;
       }
       if (!newPassword) {
-        togglePasswordMessage(changePasswordError, 'Новый пароль не может быть пустым.');
+        togglePasswordMessage(changePasswordError, 'РќРѕРІС‹Р№ РїР°СЂРѕР»СЊ РЅРµ РјРѕР¶РµС‚ Р±С‹С‚СЊ РїСѓСЃС‚С‹Рј.');
         return;
       }
       if (newPassword !== confirmPassword) {
-        togglePasswordMessage(changePasswordError, 'Новый пароль и подтверждение не совпадают.');
+        togglePasswordMessage(changePasswordError, 'РќРѕРІС‹Р№ РїР°СЂРѕР»СЊ Рё РїРѕРґС‚РІРµСЂР¶РґРµРЅРёРµ РЅРµ СЃРѕРІРїР°РґР°СЋС‚.');
         return;
       }
 
       if (changePasswordSpinner) changePasswordSpinner.classList.remove('d-none');
-      if (changePasswordSubmitText) changePasswordSubmitText.textContent = 'Сохранение...';
+      if (changePasswordSubmitText) changePasswordSubmitText.textContent = 'РЎРѕС…СЂР°РЅРµРЅРёРµ...';
 
       try {
         const response = await fetch('/profile/password', {
@@ -476,13 +511,13 @@
         });
         const payload = await response.json().catch(() => ({}));
         if (!response.ok || !payload.success) {
-          const message = payload && payload.error ? payload.error : 'Не удалось изменить пароль.';
+          const message = payload && payload.error ? payload.error : 'РќРµ СѓРґР°Р»РѕСЃСЊ РёР·РјРµРЅРёС‚СЊ РїР°СЂРѕР»СЊ.';
           togglePasswordMessage(changePasswordError, message);
           return;
         }
-        togglePasswordMessage(changePasswordSuccess, payload.message || 'Пароль успешно обновлён.');
+        togglePasswordMessage(changePasswordSuccess, payload.message || 'РџР°СЂРѕР»СЊ СѓСЃРїРµС€РЅРѕ РѕР±РЅРѕРІР»С‘РЅ.');
         if (changePasswordSpinner) changePasswordSpinner.classList.add('d-none');
-        if (changePasswordSubmitText) changePasswordSubmitText.textContent = 'Готово';
+        if (changePasswordSubmitText) changePasswordSubmitText.textContent = 'Р“РѕС‚РѕРІРѕ';
         const modal = ensureChangePasswordModal();
         if (modal) {
           setTimeout(() => {
@@ -490,17 +525,17 @@
           }, 1400);
         }
       } catch (error) {
-        togglePasswordMessage(changePasswordError, 'Ошибка соединения. Попробуйте позже.');
+        togglePasswordMessage(changePasswordError, 'РћС€РёР±РєР° СЃРѕРµРґРёРЅРµРЅРёСЏ. РџРѕРїСЂРѕР±СѓР№С‚Рµ РїРѕР·Р¶Рµ.');
       } finally {
         if (changePasswordSpinner) changePasswordSpinner.classList.add('d-none');
-        if (changePasswordSubmitText && changePasswordSubmitText.textContent !== 'Готово') {
-          changePasswordSubmitText.textContent = 'Сменить пароль';
+        if (changePasswordSubmitText && changePasswordSubmitText.textContent !== 'Р“РѕС‚РѕРІРѕ') {
+          changePasswordSubmitText.textContent = 'РЎРјРµРЅРёС‚СЊ РїР°СЂРѕР»СЊ';
         }
       }
     });
   }
 
-  // hover раскрытие, если не pinned
+  // hover СЂР°СЃРєСЂС‹С‚РёРµ, РµСЃР»Рё РЅРµ pinned
   sidebar.addEventListener('mouseenter', () => {
     if (hoverLeaveTimer) {
       clearTimeout(hoverLeaveTimer);
@@ -522,7 +557,7 @@
     }
   });
 
-  // клик по "📌"
+  // РєР»РёРє РїРѕ "рџ“Њ"
   if (pinBtn) {
     pinBtn.addEventListener('click', () => {
       pinned = !pinned;
@@ -536,6 +571,7 @@
       toggleDensityMode();
     });
   }
+  loadDensityMode();
 
   const bellWrapper = document.getElementById('notify-bell-wrapper');
   const bellDropdown = document.getElementById('notify-dropdown');
@@ -664,14 +700,14 @@
     const read = Array.isArray(readItems) ? readItems.filter(Boolean) : [];
 
     if (!unread.length && !read.length) {
-      bellDropdown.innerHTML = '<div class="notif-item text-muted">Новых уведомлений нет</div>';
+      bellDropdown.innerHTML = '<div class="notif-item text-muted">РќРѕРІС‹С… СѓРІРµРґРѕРјР»РµРЅРёР№ РЅРµС‚</div>';
       return;
     }
     const renderSection = (items, title, unreadFlag) => {
       if (!items.length) return '';
       const sectionTitle = `<div class="notif-section-title">${escapeHtml(title)}</div>`;
       const markup = items.map((item) => {
-        const text = escapeHtml(item.text || 'Уведомление');
+        const text = escapeHtml(item.text || 'РЈРІРµРґРѕРјР»РµРЅРёРµ');
         const url = (item.url || '').trim();
         const dateStr = formatNotificationTime(item.created_at);
         const linkStart = url ? `<a class="stretched-link" data-notification-link href="${escapeHtml(url)}" rel="noopener">` : '';
@@ -688,15 +724,15 @@
     };
 
     const parts = [];
-    parts.push(renderSection(unread, 'Непрочитанные', true));
-    parts.push(renderSection(read, 'Прочитанные', false));
+    parts.push(renderSection(unread, 'РќРµРїСЂРѕС‡РёС‚Р°РЅРЅС‹Рµ', true));
+    parts.push(renderSection(read, 'РџСЂРѕС‡РёС‚Р°РЅРЅС‹Рµ', false));
     bellDropdown.innerHTML = parts.filter(Boolean).join('');
   }
 
   async function loadNotifications() {
     if (!bellDropdown) return;
     bellDropdown.hidden = false;
-    bellDropdown.innerHTML = '<div class="notif-item text-muted">Загрузка...</div>';
+    bellDropdown.innerHTML = '<div class="notif-item text-muted">Р—Р°РіСЂСѓР·РєР°...</div>';
     notificationsOpen = true;
     if (bellBtn) bellBtn.setAttribute('aria-expanded', 'true');
     try {
@@ -710,7 +746,7 @@
       lastUnreadCount = payload.unread.length;
 
     } catch (error) {
-      bellDropdown.innerHTML = '<div class="notif-item text-danger">Не удалось загрузить уведомления</div>';
+      bellDropdown.innerHTML = '<div class="notif-item text-danger">РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ СѓРІРµРґРѕРјР»РµРЅРёСЏ</div>';
     }
   }
 
@@ -754,7 +790,7 @@
       setBellCount(newCount);
       if (hasInitialUnread && newCount > lastUnreadCount) {
         const diff = newCount - lastUnreadCount;
-        const message = diff === 1 ? 'Новое оповещение' : `Новых оповещений: ${diff}`;
+        const message = diff === 1 ? 'РќРѕРІРѕРµ РѕРїРѕРІРµС‰РµРЅРёРµ' : `РќРѕРІС‹С… РѕРїРѕРІРµС‰РµРЅРёР№: ${diff}`;
         showNotificationToast(message);
       }
       lastUnreadCount = newCount;
@@ -824,59 +860,16 @@
   setInterval(updateUnblockRequestCount, 30000);
 })();
 
-// Авто-активация пункта меню по текущему пути
+// РђРІС‚Рѕ-Р°РєС‚РёРІР°С†РёСЏ РїСѓРЅРєС‚Р° РјРµРЅСЋ РїРѕ С‚РµРєСѓС‰РµРјСѓ РїСѓС‚Рё
 (function markActiveNav(){
-  const path = location.pathname.replace(/\/+$/, '');     // без хвостового слеша
+  const path = location.pathname.replace(/\/+$/, '');     // Р±РµР· С…РІРѕСЃС‚РѕРІРѕРіРѕ СЃР»РµС€Р°
   document.querySelectorAll('.sidebar .nav-link[href]').forEach(a=>{
     const href = (a.getAttribute('href') || '').replace(/\/+$/, '');
     if (!href) return;
-    // точное совпадение или «раздел» (например, /tickets и /tickets/123)
+    // С‚РѕС‡РЅРѕРµ СЃРѕРІРїР°РґРµРЅРёРµ РёР»Рё В«СЂР°Р·РґРµР»В» (РЅР°РїСЂРёРјРµСЂ, /tickets Рё /tickets/123)
     if (path === href || (href && path.startsWith(href + '/'))) {
       a.classList.add('active');
     }
   });
 })();
 
-(function markActiveNav(){
-  const path = location.pathname.replace(/\/+$/, '');
-  document.querySelectorAll('.sidebar .nav-link[href]').forEach(a=>{
-    const href = (a.getAttribute('href')||'').replace(/\/+$/, '');
-    if (href && (path === href || path.startsWith(href + '/'))) a.classList.add('active');
-  });
-})();
-  function setDensityMode(mode) {
-    const nextMode = mode === DENSITY_COMPACT ? DENSITY_COMPACT : DENSITY_COMFORTABLE;
-    root.classList.toggle('density-compact', nextMode === DENSITY_COMPACT);
-    root.classList.toggle('density-comfortable', nextMode !== DENSITY_COMPACT);
-    if (densityModeBtn) {
-      const isCompact = nextMode === DENSITY_COMPACT;
-      densityModeBtn.setAttribute('aria-pressed', isCompact ? 'true' : 'false');
-      densityModeBtn.textContent = isCompact ? '▤' : '◫';
-      densityModeBtn.title = `Плотность интерфейса: ${isCompact ? 'compact' : 'comfortable'}`;
-    }
-    try {
-      localStorage.setItem(LS_KEY_DENSITY_MODE, nextMode);
-    } catch (_error) {
-      // ignore storage write errors
-    }
-  }
-
-  function loadDensityMode() {
-    let stored = DENSITY_COMFORTABLE;
-    try {
-      const raw = String(localStorage.getItem(LS_KEY_DENSITY_MODE) || '').trim().toLowerCase();
-      if (raw === DENSITY_COMPACT || raw === DENSITY_COMFORTABLE) {
-        stored = raw;
-      }
-    } catch (_error) {
-      stored = DENSITY_COMFORTABLE;
-    }
-    setDensityMode(stored);
-  }
-
-  function toggleDensityMode() {
-    const compactEnabled = root.classList.contains('density-compact');
-    setDensityMode(compactEnabled ? DENSITY_COMFORTABLE : DENSITY_COMPACT);
-  }
-
-  loadDensityMode();
