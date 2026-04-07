@@ -204,6 +204,9 @@
   const detailsReopen = document.getElementById('dialogDetailsReopen');
   const detailsProblem = document.getElementById('dialogDetailsProblem');
   const detailsMetrics = document.getElementById('dialogDetailsMetrics');
+  const detailsAiState = document.getElementById('dialogDetailsAiState');
+  const detailsAiList = document.getElementById('dialogDetailsAiList');
+  const detailsAiRefresh = document.getElementById('dialogDetailsAiRefresh');
   const detailsSidebar = document.getElementById('dialogDetailsSidebar');
   const detailsResizeHandle = document.getElementById('dialogDetailsResizeHandle');
   const detailsReplyText = document.getElementById('dialogReplyText');
@@ -4173,6 +4176,57 @@
     }
   }
 
+  async function loadDetailsAiSuggestions(ticketId) {
+    if (!detailsAiState || !detailsAiList) return;
+    const normalizedTicketId = String(ticketId || '').trim();
+    if (!normalizedTicketId) {
+      detailsAiState.textContent = 'Откройте диалог для загрузки подсказок.';
+      detailsAiList.classList.add('d-none');
+      detailsAiList.innerHTML = '';
+      return;
+    }
+    detailsAiState.textContent = 'Загрузка подсказок AI...';
+    detailsAiList.classList.add('d-none');
+    detailsAiList.innerHTML = '';
+    try {
+      const resp = await fetch(`/api/dialogs/${encodeURIComponent(normalizedTicketId)}/ai-suggestions?limit=3`, {
+        credentials: 'same-origin',
+        cache: 'no-store',
+      });
+      const payload = await resp.json().catch(() => ({}));
+      if (!resp.ok || payload.success === false) {
+        throw new Error(payload.error || (`HTTP ${resp.status}`));
+      }
+      const items = Array.isArray(payload.items) ? payload.items : [];
+      if (!items.length) {
+        detailsAiState.textContent = payload.processing
+          ? 'AI обрабатывает диалог, подсказки скоро появятся.'
+          : 'Пока нет подсказок для этого диалога.';
+        return;
+      }
+      detailsAiState.textContent = payload.processing
+        ? 'AI обрабатывает диалог. Подсказки уже доступны:'
+        : 'Подсказки AI для оператора:';
+      detailsAiList.innerHTML = items.map((item, index) => {
+        const title = escapeHtml(String(item?.title || `Вариант ${index + 1}`));
+        const explain = escapeHtml(String(item?.explain || ''));
+        const reply = String(item?.reply || item?.snippet || '').trim();
+        const replyEscaped = escapeHtml(reply);
+        return `
+          <article class="border rounded p-2">
+            <div class="fw-semibold small mb-1">${title}</div>
+            ${explain ? `<div class="small text-muted mb-1">${explain}</div>` : ''}
+            <div class="small mb-2">${replyEscaped || '—'}</div>
+            <button class="btn btn-sm btn-outline-primary" type="button" data-details-ai-insert="${replyEscaped}">Вставить в ответ</button>
+          </article>
+        `;
+      }).join('');
+      detailsAiList.classList.remove('d-none');
+    } catch (error) {
+      detailsAiState.textContent = `Не удалось загрузить подсказки: ${error.message || 'unknown_error'}`;
+    }
+  }
+
   async function sendAiSuggestionFeedback(ticketId, payload) {
     const normalizedTicketId = String(ticketId || '').trim();
     if (!normalizedTicketId) return false;
@@ -6923,6 +6977,11 @@
     }
     if (detailsSummary) detailsSummary.innerHTML = '<div>Загрузка...</div>';
     if (detailsHistory) detailsHistory.innerHTML = '';
+    if (detailsAiState) detailsAiState.textContent = 'Загрузка подсказок AI...';
+    if (detailsAiList) {
+      detailsAiList.innerHTML = '';
+      detailsAiList.classList.add('d-none');
+    }
     if (detailsReplyText) detailsReplyText.value = '';
     if (detailsOpenClientCard) {
       detailsOpenClientCard.dataset.userId = '';
@@ -6931,6 +6990,7 @@
       detailsOpenClientCard.setAttribute('aria-disabled', 'true');
     }
 
+    showModalSafe(detailsModalEl, detailsModal);
     try {
       const url = withChannelParam(`/api/dialogs/${encodeURIComponent(ticketId)}`, activeDialogChannelId);
       debugLog('openDialogDetails.fetch.start', { url });
@@ -7106,6 +7166,7 @@
         `).join('');
       }
       renderHistory(data.history || []);
+      loadDetailsAiSuggestions(ticketId);
       updateResolveButton(statusRaw);
       if (statusRaw || statusKey) {
         updateRowStatus(activeDialogRow, statusRaw, statusLabel, statusKey, summary.unreadCount);
@@ -7125,7 +7186,6 @@
       }
     }
 
-    showModalSafe(detailsModalEl, detailsModal);
     startHistoryPolling();
     debugLog('openDialogDetails.finish', {
       ticketId,
@@ -7945,6 +8005,12 @@
     });
   }
 
+  if (detailsAiRefresh) {
+    detailsAiRefresh.addEventListener('click', () => {
+      loadDetailsAiSuggestions(activeDialogTicketId);
+    });
+  }
+
   if (aiReviewQueueRefresh) {
     aiReviewQueueRefresh.addEventListener('click', () => {
       loadAiReviewQueue();
@@ -8141,6 +8207,29 @@
         if (typeof showNotification === 'function') {
           showNotification(`�� ������� ��������� ���������: ${error.message || 'unknown_error'}`, 'warning');
         }
+      }
+    });
+  }
+
+  if (detailsAiList) {
+    detailsAiList.addEventListener('click', (event) => {
+      const btn = event.target instanceof Element ? event.target.closest('[data-details-ai-insert]') : null;
+      if (!btn || !detailsReplyText) return;
+      const suggestion = String(btn.getAttribute('data-details-ai-insert') || '').trim();
+      if (!suggestion) return;
+      const decoded = suggestion
+        .replaceAll('&lt;', '<')
+        .replaceAll('&gt;', '>')
+        .replaceAll('&quot;', '"')
+        .replaceAll('&#39;', "'")
+        .replaceAll('&amp;', '&');
+      detailsReplyText.value = detailsReplyText.value
+        ? `${detailsReplyText.value}\n\n${decoded}`
+        : decoded;
+      detailsReplyText.focus();
+      detailsReplyText.dispatchEvent(new Event('input', { bubbles: true }));
+      if (typeof showNotification === 'function') {
+        showNotification('Подсказка AI добавлена в поле ответа', 'success');
       }
     });
   }

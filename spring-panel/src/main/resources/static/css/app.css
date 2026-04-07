@@ -1893,6 +1893,22 @@ body,
   max-width: 100%;
 }
 
+/* Instant modal rendering to avoid lag */
+.modal.fade .modal-dialog,
+.modal.fade.show .modal-dialog,
+.modal.fade.showing .modal-dialog,
+.modal.fade.modal-closing .modal-dialog {
+  transform: none !important;
+  opacity: 1 !important;
+  transition: none !important;
+}
+
+.modal,
+.modal-backdrop {
+  transition: none !important;
+  animation: none !important;
+}
+
 .modal-header,
 .modal-body,
 .modal-footer {
