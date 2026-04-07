@@ -1373,13 +1373,59 @@
   }
 
   function applyColumnState() {
+    if (!table) return;
+    const headerRow = table.tHead?.rows?.[0];
+    if (!headerRow) return;
     columnMeta.forEach(({ key }) => {
       const visible = columnState[key] !== false;
-      const selector = `[data-column-key="${key}"]`;
-      table.querySelectorAll(selector).forEach((cell) => {
-        cell.classList.toggle('d-none', !visible);
+      const headerCell = headerRow.querySelector(`th[data-column-key="${key}"]`);
+      if (!headerCell) return;
+      const columnIndex = headerCell.cellIndex;
+      headerCell.classList.toggle('d-none', !visible);
+      Array.from(table.tBodies || []).forEach((tbody) => {
+        Array.from(tbody.rows || []).forEach((row) => {
+          const cell = row.children?.[columnIndex];
+          if (cell) {
+            cell.classList.toggle('d-none', !visible);
+          }
+        });
       });
     });
+  }
+
+  function buildDialogItemMarker(item) {
+    return [
+      item?.ticketId || '',
+      item?.requestNumber || '',
+      item?.clientName || item?.username || '',
+      item?.clientStatus || '',
+      item?.channelId || '',
+      item?.channelName || '',
+      item?.business || '',
+      item?.problem || '',
+      item?.location || item?.city || item?.locationName || '',
+      item?.categoriesSafe || item?.categories || '',
+      item?.responsible || item?.resolvedBy || '',
+      item?.status || '',
+      item?.statusKey || '',
+      Number(item?.unreadCount) || 0,
+      item?.lastMessageTimestamp || '',
+      item?.createdAt || '',
+      item?.createdDateSafe || item?.createdDate || '',
+      item?.createdTimeSafe || item?.createdTime || '',
+      Number(item?.rating) || 0,
+      getDialogUserId(item) || '',
+    ].join('|');
+  }
+
+  function createDialogRowElement(item) {
+    const wrapper = document.createElement('tbody');
+    wrapper.innerHTML = renderDialogRow(item).trim();
+    const row = wrapper.firstElementChild;
+    if (!row) return null;
+    row.dataset.dialogMarker = buildDialogItemMarker(item);
+    hydrateAvatars(row);
+    return row;
   }
 
   function buildColumnsList() {
@@ -2092,10 +2138,39 @@
   function syncDialogsTable(dialogs) {
     const tbody = table.tBodies[0];
     if (!tbody) return;
-    tbody.innerHTML = Array.isArray(dialogs) && dialogs.length
-      ? dialogs.map((item) => renderDialogRow(item)).join('')
-      : '';
-    hydrateAvatars(tbody);
+    const nextDialogs = Array.isArray(dialogs) ? dialogs : [];
+    const existingByTicketId = new Map(
+      rowsList().map((row) => [String(row.dataset.ticketId || ''), row])
+    );
+    const orderedRows = [];
+    nextDialogs.forEach((item) => {
+      const ticketId = String(item?.ticketId || '');
+      if (!ticketId) return;
+      const nextMarker = buildDialogItemMarker(item);
+      const existingRow = existingByTicketId.get(ticketId);
+      if (existingRow) {
+        existingByTicketId.delete(ticketId);
+        if (String(existingRow.dataset.dialogMarker || '') === nextMarker) {
+          orderedRows.push(existingRow);
+          return;
+        }
+      }
+      const nextRow = createDialogRowElement(item);
+      if (nextRow) orderedRows.push(nextRow);
+    });
+
+    existingByTicketId.forEach((row) => {
+      row.remove();
+    });
+
+    orderedRows.forEach((row) => {
+      tbody.appendChild(row);
+    });
+
+    if (!orderedRows.length) {
+      rowsList().forEach((row) => row.remove());
+    }
+
     applyColumnState();
     applyBusinessCellStyles();
     restoreColumnWidths();
