@@ -86,10 +86,22 @@ public class ChannelApiController {
         if (name.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("success", false, "error", "Название канала обязательно"));
         }
+        String platform = normalizePlatform(stringValue(data.getOrDefault("platform", "telegram")));
+        String token = stringValue(data.get("token"));
+        Map<String, Object> platformConfig = null;
+        if (data.containsKey("platform_config") || data.containsKey("settings")) {
+            Object raw = firstValue(data, "platform_config", "settings");
+            platformConfig = parsePlatformConfigPayload(raw);
+        }
+        String validationError = validatePlatformConfiguration(platform, token, platformConfig);
+        if (!validationError.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "error", validationError));
+        }
+
         Channel channel = new Channel();
         channel.setChannelName(name);
         channel.setDescription(stringValue(data.get("description")));
-        channel.setPlatform(stringValue(data.getOrDefault("platform", "telegram")));
+        channel.setPlatform(platform);
         channel.setCredentialId(parseLong(data.get("credential_id")));
         channel.setActive(parseBoolean(data.getOrDefault("is_active", true)));
         channel.setMaxQuestions(parseInteger(data.get("max_questions")));
@@ -97,9 +109,8 @@ public class ChannelApiController {
         channel.setQuestionTemplateId(stringValue(data.get("question_template_id")));
         channel.setRatingTemplateId(stringValue(data.get("rating_template_id")));
         channel.setAutoActionTemplateId(stringValue(data.get("auto_action_template_id")));
-        if (data.containsKey("platform_config") || data.containsKey("settings")) {
-            Object raw = firstValue(data, "platform_config", "settings");
-            channel.setPlatformConfig(serializeIfNeeded(raw));
+        if (platformConfig != null) {
+            channel.setPlatformConfig(serializeIfNeeded(platformConfig));
         }
         if (data.containsKey("delivery_settings") || data.containsKey("deliverySettings")) {
             Object raw = firstValue(data, "delivery_settings", "deliverySettings");
@@ -112,7 +123,6 @@ public class ChannelApiController {
                 return ResponseEntity.badRequest().body(Map.of("success", false, "error", ex.getMessage()));
             }
         }
-        String token = stringValue(data.get("token"));
         channel.setToken(token.isEmpty() ? generateToken() : token);
         channel.setFilters("{}");
         if (isBlank(channel.getQuestionsCfg())) {
@@ -260,6 +270,7 @@ public class ChannelApiController {
         boolean updated = false;
         boolean tokenChanged = false;
         boolean platformChanged = false;
+        boolean platformSensitiveChanged = false;
 
         if (data.containsKey("channel_name") || data.containsKey("name")) {
             String name = stringValue(firstValue(data, "channel_name", "name"));
@@ -275,19 +286,21 @@ public class ChannelApiController {
         }
 
         if (data.containsKey("platform")) {
-            String platform = stringValue(data.get("platform")).toLowerCase();
+            String platform = normalizePlatform(stringValue(data.get("platform")));
             if (!platform.isEmpty()) {
                 channel.setPlatform(platform);
                 updated = true;
                 platformChanged = true;
+                platformSensitiveChanged = true;
             }
         }
 
         if (data.containsKey("platform_config") || data.containsKey("settings")) {
             Object raw = firstValue(data, "platform_config", "settings");
-            String encoded = serializeIfNeeded(raw);
+            String encoded = serializeIfNeeded(parsePlatformConfigPayload(raw));
             channel.setPlatformConfig(encoded);
             updated = true;
+            platformSensitiveChanged = true;
         }
 
         if (data.containsKey("filters")) {
@@ -365,11 +378,20 @@ public class ChannelApiController {
                 channel.setToken(token);
                 updated = true;
                 tokenChanged = true;
+                platformSensitiveChanged = true;
             }
         }
 
         if (!updated) {
             return ResponseEntity.badRequest().body(Map.of("success", false, "error", "Нет полей для обновления"));
+        }
+
+        if (platformSensitiveChanged) {
+            Map<String, Object> effectivePlatformConfig = parseJsonMap(channel.getPlatformConfig());
+            String validationError = validatePlatformConfiguration(channel.getPlatform(), channel.getToken(), effectivePlatformConfig);
+            if (!validationError.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("success", false, "error", validationError));
+            }
         }
 
         channel.setUpdatedAt(OffsetDateTime.now());
@@ -515,6 +537,58 @@ public class ChannelApiController {
         } catch (NumberFormatException ex) {
             return null;
         }
+    }
+
+    private String normalizePlatform(String rawPlatform) {
+        String value = stringValue(rawPlatform).toLowerCase();
+        return value.isEmpty() ? "telegram" : value;
+    }
+
+    private Map<String, Object> parsePlatformConfigPayload(Object raw) {
+        if (raw == null) {
+            return new LinkedHashMap<>();
+        }
+        if (raw instanceof Map<?, ?> map) {
+            Map<String, Object> normalized = new LinkedHashMap<>();
+            map.forEach((key, value) -> normalized.put(Objects.toString(key, ""), value));
+            return normalized;
+        }
+        if (raw instanceof String text && !text.isBlank()) {
+            try {
+                JsonNode node = objectMapper.readTree(text);
+                if (node != null && node.isObject()) {
+                    return objectMapper.convertValue(node, objectMapper.getTypeFactory()
+                        .constructMapType(LinkedHashMap.class, String.class, Object.class));
+                }
+            } catch (Exception ex) {
+                log.debug("Unable to parse platform_config payload: {}", ex.getMessage());
+            }
+        }
+        return new LinkedHashMap<>();
+    }
+
+    private String validatePlatformConfiguration(String rawPlatform, String token, Map<String, Object> platformConfig) {
+        String platform = normalizePlatform(rawPlatform);
+        if (("telegram".equals(platform) || "vk".equals(platform) || "max".equals(platform)) && isBlank(token)) {
+            return switch (platform) {
+                case "vk" -> "Для VK необходимо указать токен сообщества (ключ доступа).";
+                case "max" -> "Для MAX необходимо указать bot token.";
+                default -> "Для Telegram необходимо указать токен бота.";
+            };
+        }
+        if (!"vk".equals(platform)) {
+            return "";
+        }
+        Map<String, Object> config = platformConfig != null ? platformConfig : Map.of();
+        Integer groupId = parseInteger(firstValue(config, "group_id", "groupId"));
+        String confirmation = stringValue(firstValue(config, "confirmation_token", "confirmationToken"));
+        if (groupId == null || groupId <= 0) {
+            return "Для VK укажите корректный ID сообщества (group_id).";
+        }
+        if (confirmation.isEmpty()) {
+            return "Для VK укажите код подтверждения Callback API.";
+        }
+        return "";
     }
 
     private String generateToken() {
