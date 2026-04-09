@@ -17,7 +17,7 @@
     <div class="page-header-card mb-4">
         <span class="page-kicker">Operations</span>
         <h1 class="page-title">AI Ops</h1>
-        <p class="page-subtitle">Отдельная панель для мониторинга качества AI-агента, алертов и журналов событий.</p>
+        <p class="page-subtitle">Панель мониторинга качества AI-агента, алертов и событий.</p>
     </div>
 
     <section class="card shadow-sm mb-4">
@@ -47,17 +47,18 @@
             <div id="aiOpsEvents" class="small text-muted">-</div>
         </div>
     </section>
+
     <section class="card shadow-sm mb-4">
         <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-2">
             <strong>AI Solution Memory</strong>
-            <button class="btn btn-sm btn-outline-secondary" id="aiOpsMemoryRefresh" type="button">Refresh</button>
+            <button class="btn btn-sm btn-outline-secondary" id="aiOpsMemoryRefresh" type="button">Обновить</button>
         </div>
         <div class="card-body">
             <div class="d-flex flex-wrap gap-2 mb-2">
-                <input type="text" class="form-control form-control-sm ai-ops-filter-input" id="aiOpsMemoryQuery" placeholder="Search by question/answer">
-                <button class="btn btn-sm btn-outline-secondary" id="aiOpsMemorySearch" type="button">Search</button>
+                <input type="text" class="form-control form-control-sm ai-ops-filter-input" id="aiOpsMemoryQuery" placeholder="Поиск по вопросу/ответу">
+                <button class="btn btn-sm btn-outline-secondary" id="aiOpsMemorySearch" type="button">Поиск</button>
             </div>
-            <div class="small text-muted mb-2" id="aiOpsMemoryState">Loading...</div>
+            <div class="small text-muted mb-2" id="aiOpsMemoryState">Загрузка...</div>
             <div id="aiOpsMemoryList" class="small text-muted">-</div>
         </div>
     </section>

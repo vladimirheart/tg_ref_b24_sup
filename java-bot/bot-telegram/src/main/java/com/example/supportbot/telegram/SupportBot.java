@@ -1,4 +1,4 @@
-﻿package com.example.supportbot.telegram;
+package com.example.supportbot.telegram;
 
 import com.example.supportbot.config.BotProperties;
 import com.example.supportbot.entity.Channel;

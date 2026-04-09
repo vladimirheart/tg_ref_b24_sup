@@ -713,6 +713,13 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         sendText(actor, channelId, builder.toString());
     }
 
+    private boolean isClosedStatus(String status) {
+        if (status == null) {
+            return false;
+        }
+        return "closed".equalsIgnoreCase(status) || "resolved".equalsIgnoreCase(status);
+    }
+
     private void finalizeConversation(GroupActor actor, ConversationSession session) {
         sessions.remove(session.userId());
         Channel channel = getChannel();

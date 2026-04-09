@@ -194,12 +194,13 @@ public class BotSettingsService {
             requestedQuestionTemplateId = optionalString(channelConfig.get("question_template_id"));
         }
         if (!requestedQuestionTemplateId.isBlank()) {
+            String selectedQuestionTemplateId = requestedQuestionTemplateId;
             Map<String, Object> selectedQuestionTemplate = questionTemplates.stream()
-                    .filter(template -> Objects.equals(optionalString(template.get("id")), requestedQuestionTemplateId))
+                    .filter(template -> Objects.equals(optionalString(template.get("id")), selectedQuestionTemplateId))
                     .findFirst()
                     .orElse(null);
             if (selectedQuestionTemplate != null) {
-                result.put("active_template_id", requestedQuestionTemplateId);
+                result.put("active_template_id", selectedQuestionTemplateId);
                 result.put("question_flow", castList(selectedQuestionTemplate.get("question_flow")));
             }
         }
@@ -213,12 +214,13 @@ public class BotSettingsService {
             requestedRatingTemplateId = optionalString(channelConfig.get("rating_template_id"));
         }
         if (!requestedRatingTemplateId.isBlank()) {
+            String selectedRatingTemplateId = requestedRatingTemplateId;
             Map<String, Object> selectedRatingTemplate = ratingTemplates.stream()
-                    .filter(template -> Objects.equals(optionalString(template.get("id")), requestedRatingTemplateId))
+                    .filter(template -> Objects.equals(optionalString(template.get("id")), selectedRatingTemplateId))
                     .findFirst()
                     .orElse(null);
             if (selectedRatingTemplate != null) {
-                result.put("active_rating_template_id", requestedRatingTemplateId);
+                result.put("active_rating_template_id", selectedRatingTemplateId);
                 Map<String, Object> currentRating = result.get("rating_system") instanceof Map<?, ?> map
                         ? convertToMap(map)
                         : new LinkedHashMap<>();
