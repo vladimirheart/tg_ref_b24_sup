@@ -16,16 +16,20 @@ public class QuestionTemplateDto {
     @JsonProperty("description")
     private String description;
 
+    @JsonProperty("start_message")
+    private String startMessage;
+
     @JsonProperty("question_flow")
     private List<QuestionFlowItemDto> questionFlow;
 
     public QuestionTemplateDto() {
     }
 
-    public QuestionTemplateDto(String id, String name, String description, List<QuestionFlowItemDto> questionFlow) {
+    public QuestionTemplateDto(String id, String name, String description, String startMessage, List<QuestionFlowItemDto> questionFlow) {
         this.id = id;
         this.name = name;
         this.description = description;
+        this.startMessage = startMessage;
         this.questionFlow = questionFlow;
     }
 
@@ -51,6 +55,14 @@ public class QuestionTemplateDto {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public String getStartMessage() {
+        return startMessage;
+    }
+
+    public void setStartMessage(String startMessage) {
+        this.startMessage = startMessage;
     }
 
     public List<QuestionFlowItemDto> getQuestionFlow() {
