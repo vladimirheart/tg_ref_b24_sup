@@ -50,45 +50,172 @@
       margin-bottom: 1rem;
     }
 
+    .settings-overview {
+      border: 1px solid color-mix(in srgb, var(--color-border) 82%, transparent);
+      border-radius: 1rem;
+      background:
+        linear-gradient(140deg, color-mix(in srgb, var(--secondary) 20%, white), color-mix(in srgb, var(--card) 96%, white));
+      box-shadow: 0 0.35rem 1rem rgba(15, 23, 42, 0.08);
+    }
+    .settings-overview__stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.75rem;
+    }
+    .settings-overview__stat {
+      border: 1px solid color-mix(in srgb, var(--color-border) 78%, transparent);
+      border-radius: 0.85rem;
+      background: color-mix(in srgb, var(--card) 93%, white);
+      padding: 0.75rem 0.85rem;
+    }
+    .settings-overview__stat-value {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--color-text);
+      line-height: 1;
+    }
+    .settings-overview__stat-label {
+      margin-top: 0.25rem;
+      font-size: 0.82rem;
+      color: var(--color-text-muted);
+    }
+    .settings-overview__list {
+      margin: 0;
+      padding-left: 1rem;
+      color: var(--color-text-muted);
+    }
+    .settings-overview__list li + li {
+      margin-top: 0.35rem;
+    }
+
+    .settings-tiles .settings-tile .card-body {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      gap: 0.6rem;
+    }
+    .settings-tiles .settings-tile:focus-visible {
+      outline: 3px solid color-mix(in srgb, var(--primary) 38%, transparent);
+      outline-offset: 2px;
+    }
+    .settings-tiles .settings-tile__head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+    .settings-tiles .settings-tile__open {
+      color: var(--color-text-muted);
+      font-size: 1rem;
+      margin-top: 0.35rem;
+    }
     .settings-tiles .settings-tile--accent .tile-icon {
       background: color-mix(in srgb, var(--primary) 18%, white);
       color: var(--primary);
     }
 
     .settings-tiles .settings-tile .card-title {
-      text-align: center;
+      text-align: left;
       color: var(--color-text);
       font-weight: 600;
+      margin-bottom: 0;
+      line-height: 1.28;
     }
-    .settings-tiles .settings-tile .tile-description {
-      margin-top: 0.6rem;
+    .settings-tiles .settings-tile .card-text {
+      margin-bottom: 0;
+      text-align: left;
     }
-    .settings-tiles .settings-tile .tile-description-toggle {
-      border: 0;
-      background: transparent;
-      padding: 0;
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: var(--primary);
+    .settings-tiles .settings-tile__tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      margin-top: auto;
+      padding-top: 0.25rem;
+    }
+    .settings-tiles .settings-tile__tag {
       display: inline-flex;
       align-items: center;
-      gap: 0.35rem;
-      text-decoration: none;
+      border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
+      border-radius: 999px;
+      padding: 0.15rem 0.5rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--color-text-muted);
+      background: color-mix(in srgb, var(--card) 94%, white);
     }
-    .settings-tiles .settings-tile .tile-description-toggle .tile-description-icon {
-      transition: transform 0.18s ease;
-      font-size: 0.8rem;
+    .settings-tiles .settings-tile__footer {
+      margin-top: 0.2rem;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--primary);
+      letter-spacing: 0.01em;
     }
-    .settings-tiles .settings-tile .tile-description-toggle[aria-expanded="true"] .tile-description-icon {
-      transform: rotate(180deg);
-    }
-    .settings-tiles .settings-tile .tile-description-collapse {
-      margin-top: 0.4rem;
-      margin-bottom: 0;
-    }
-
     .settings-tiles .settings-tile--accent .card-text {
       color: var(--color-text-muted);
+    }
+
+    .modal .modal-content {
+      border: 1px solid color-mix(in srgb, var(--color-border) 82%, transparent);
+      border-radius: 1rem;
+      overflow: hidden;
+      box-shadow: 0 1rem 2rem rgba(15, 23, 42, 0.16);
+    }
+
+    .modal .modal-header {
+      border-bottom: 1px solid color-mix(in srgb, var(--color-border) 78%, transparent);
+      background:
+        linear-gradient(180deg, color-mix(in srgb, var(--secondary) 20%, white), color-mix(in srgb, var(--card) 96%, white));
+    }
+
+    .modal .modal-header .modal-title {
+      color: var(--color-text);
+      font-weight: 700;
+      letter-spacing: 0.01em;
+    }
+
+    .modal .modal-body {
+      background: color-mix(in srgb, var(--card) 97%, white);
+    }
+
+    .modal .modal-body > .nav-tabs {
+      padding: 0.35rem;
+      border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
+      border-radius: 0.75rem;
+      background: color-mix(in srgb, var(--secondary) 20%, white);
+      gap: 0.25rem;
+    }
+
+    .modal .modal-body > .nav-tabs .nav-link {
+      border-radius: 0.6rem;
+      border: 0;
+      color: var(--color-text-muted);
+    }
+
+    .modal .modal-body > .nav-tabs .nav-link.active {
+      color: var(--primary);
+      background: color-mix(in srgb, var(--card) 96%, white);
+      box-shadow: 0 0.25rem 0.7rem rgba(15, 23, 42, 0.08);
+    }
+
+    .settings-modal-lead {
+      border: 1px solid color-mix(in srgb, var(--color-border) 78%, transparent);
+      border-radius: 0.85rem;
+      background: color-mix(in srgb, var(--secondary) 24%, white);
+      color: var(--color-text-muted);
+      padding: 0.75rem 0.9rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.6rem;
+      margin-bottom: 1rem;
+    }
+
+    .settings-modal-lead i {
+      color: var(--primary);
+      margin-top: 0.05rem;
+    }
+
+    .settings-modal-lead__text {
+      min-width: 0;
     }
 
     .it-section-accordion .accordion-button {
@@ -1152,6 +1279,11 @@
         transition: none !important;
       }
     }
+    @media (max-width: 991.98px) {
+      .settings-overview__stats {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </head>
 <body class="with-sidebar sidebar-pinned">
@@ -1165,103 +1297,220 @@
       <p class="page-subtitle">Каналы, доступы, справочники и оформление панели в одном рабочем пространстве.</p>
     </div>
 
+    <div class="card settings-overview mb-4">
+      <div class="card-body p-3 p-lg-4">
+        <div class="row g-3 align-items-start">
+          <div class="col-xl-7">
+            <h5 class="mb-2">Единый центр управления системой</h5>
+            <p class="text-muted mb-3">Здесь собраны ключевые модули, влияющие на доступы, маршрутизацию обращений, качество данных и визуальный контур панели.</p>
+            <div class="settings-overview__stats">
+              <div class="settings-overview__stat">
+                <div class="settings-overview__stat-value">11</div>
+                <div class="settings-overview__stat-label">рабочих модулей</div>
+              </div>
+              <div class="settings-overview__stat">
+                <div class="settings-overview__stat-value">3</div>
+                <div class="settings-overview__stat-label">канала ботов</div>
+              </div>
+              <div class="settings-overview__stat">
+                <div class="settings-overview__stat-value">1</div>
+                <div class="settings-overview__stat-label">точка администрирования</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-xl-5">
+            <div class="fw-semibold mb-2">Рекомендуемый порядок работы</div>
+            <ul class="settings-overview__list small">
+              <li>Сначала каналы и права доступа, затем структура локаций и справочники.</li>
+              <li>После изменения диалогов проверьте шаблоны и автоответы в каналах.</li>
+              <li>Оформление интерфейса меняйте в конце, когда данные и маршруты уже настроены.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4 settings-tiles">
       <div class="col">
-        <div class="card settings-tile h-100" role="button" data-bs-toggle="modal" data-bs-target="#channelsModal">
+        <div class="card settings-tile h-100" role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#channelsModal">
           <div class="card-body">
-            <div class="tile-icon">🤖</div>
-            <h5 class="card-title">Каналы (боты)</h5>
+            <div class="settings-tile__head">
+              <div class="tile-icon">🤖</div>
+              <i class="bi bi-arrow-up-right settings-tile__open" aria-hidden="true"></i>
+            </div>
+            <h5 class="card-title">Каналы и запуск ботов</h5>
             <p class="card-text text-muted">Подключайте и управляйте ботами в Telegram, VK и MAX.</p>
+            <div class="settings-tile__tags">
+              <span class="settings-tile__tag">Telegram</span>
+              <span class="settings-tile__tag">VK</span>
+              <span class="settings-tile__tag">MAX</span>
+            </div>
+            <div class="settings-tile__footer">Открыть управление каналами</div>
           </div>
         </div>
       </div>
 
       <div class="col">
-        <div class="card settings-tile h-100" role="button" data-bs-toggle="modal" data-bs-target="#managerBindingsModal">
+        <div class="card settings-tile h-100" role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#managerBindingsModal">
           <div class="card-body">
-            <div class="tile-icon">🧭</div>
+            <div class="settings-tile__head">
+              <div class="tile-icon">🧭</div>
+              <i class="bi bi-arrow-up-right settings-tile__open" aria-hidden="true"></i>
+            </div>
             <h5 class="card-title">Привязка управляющих к локациям</h5>
             <p class="card-text text-muted" data-manager-bindings-summary>Назначьте управляющих и руководителей с датами действия.</p>
+            <div class="settings-tile__tags">
+              <span class="settings-tile__tag">Роли</span>
+              <span class="settings-tile__tag">Периоды</span>
+            </div>
+            <div class="settings-tile__footer">Открыть матрицу привязок</div>
           </div>
         </div>
       </div>
 
       <div class="col">
-        <div class="card settings-tile h-100" role="button" data-bs-toggle="modal" data-bs-target="#reportingModal">
+        <div class="card settings-tile h-100" role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#reportingModal">
           <div class="card-body">
-            <div class="tile-icon">📊</div>
-            <h5 class="card-title">Конструктор автoотчётов</h5>
+            <div class="settings-tile__head">
+              <div class="tile-icon">📊</div>
+              <i class="bi bi-arrow-up-right settings-tile__open" aria-hidden="true"></i>
+            </div>
+            <h5 class="card-title">Конструктор автоотчётов</h5>
             <p class="card-text text-muted" data-reporting-summary>Настройте регулярные отчёты для групп и пользователей.</p>
+            <div class="settings-tile__tags">
+              <span class="settings-tile__tag">Рассылки</span>
+              <span class="settings-tile__tag">Периодичность</span>
+            </div>
+            <div class="settings-tile__footer">Открыть настройки отчётов</div>
           </div>
         </div>
       </div>
 
       <div class="col">
-        <div class="card settings-tile h-100" role="button" data-bs-toggle="modal" data-bs-target="#panelDesignSettingsModal">
+        <div class="card settings-tile h-100" role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#panelDesignSettingsModal">
           <div class="card-body">
-            <div class="tile-icon">🎨</div>
+            <div class="settings-tile__head">
+              <div class="tile-icon">🎨</div>
+              <i class="bi bi-arrow-up-right settings-tile__open" aria-hidden="true"></i>
+            </div>
             <h5 class="card-title">Настройки оформления панели</h5>
             <p class="card-text text-muted">Управляйте темой интерфейса, статусами клиентов и метками бизнесов.</p>
+            <div class="settings-tile__tags">
+              <span class="settings-tile__tag">Тема</span>
+              <span class="settings-tile__tag">Статусы</span>
+              <span class="settings-tile__tag">Брендинг</span>
+            </div>
+            <div class="settings-tile__footer">Открыть визуальные параметры</div>
           </div>
         </div>
       </div>
 
       <div class="col">
-        <div class="card settings-tile settings-tile--accent h-100" role="button" data-bs-toggle="modal" data-bs-target="#categoriesModal">
+        <div class="card settings-tile settings-tile--accent h-100" role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#categoriesModal">
           <div class="card-body">
-            <div class="tile-icon">🗂️</div>
+            <div class="settings-tile__head">
+              <div class="tile-icon">🗂️</div>
+              <i class="bi bi-arrow-up-right settings-tile__open" aria-hidden="true"></i>
+            </div>
             <h5 class="card-title">Настройка диалогов</h5>
             <p class="card-text text-muted">Управляйте шаблонами категорий, вопросов и действий.</p>
+            <div class="settings-tile__tags">
+              <span class="settings-tile__tag">Сценарии</span>
+              <span class="settings-tile__tag">Автозакрытие</span>
+            </div>
+            <div class="settings-tile__footer">Открыть конструктор диалогов</div>
           </div>
         </div>
       </div>
 
       <div class="col">
-        <div class="card settings-tile settings-tile--accent h-100" role="button" data-bs-toggle="modal" data-bs-target="#parametersModal">
+        <div class="card settings-tile settings-tile--accent h-100" role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#parametersModal">
           <div class="card-body">
-            <div class="tile-icon">🧩</div>
+            <div class="settings-tile__head">
+              <div class="tile-icon">🧩</div>
+              <i class="bi bi-arrow-up-right settings-tile__open" aria-hidden="true"></i>
+            </div>
             <h5 class="card-title">Параметры партнёров</h5>
             <p class="card-text text-muted">Обновляйте справочники и значения для форм.</p>
+            <div class="settings-tile__tags">
+              <span class="settings-tile__tag">Справочники</span>
+              <span class="settings-tile__tag">Поля форм</span>
+            </div>
+            <div class="settings-tile__footer">Открыть параметры партнёров</div>
           </div>
         </div>
       </div>
 
       <div class="col">
-        <div class="card settings-tile settings-tile--accent h-100" role="button" data-bs-toggle="modal" data-bs-target="#itConnectionsModal">
+        <div class="card settings-tile settings-tile--accent h-100" role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#itConnectionsModal">
           <div class="card-body">
-            <div class="tile-icon">🖧</div>
+            <div class="settings-tile__head">
+              <div class="tile-icon">🖧</div>
+              <i class="bi bi-arrow-up-right settings-tile__open" aria-hidden="true"></i>
+            </div>
             <h5 class="card-title">Подключения IT-блока</h5>
             <p class="card-text text-muted">Управляйте подключениями и профилями провайдеров.</p>
+            <div class="settings-tile__tags">
+              <span class="settings-tile__tag">Интеграции</span>
+              <span class="settings-tile__tag">Сети</span>
+            </div>
+            <div class="settings-tile__footer">Открыть IT-подключения</div>
           </div>
         </div>
       </div>
 
       <div class="col">
-        <div class="card settings-tile settings-tile--accent h-100" role="button" data-bs-toggle="modal" data-bs-target="#usersModal">
+        <div class="card settings-tile settings-tile--accent h-100" role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#usersModal">
           <div class="card-body">
-            <div class="tile-icon">👥</div>
+            <div class="settings-tile__head">
+              <div class="tile-icon">👥</div>
+              <i class="bi bi-arrow-up-right settings-tile__open" aria-hidden="true"></i>
+            </div>
             <h5 class="card-title">Пользователи панели и настройки доступа</h5>
             <p class="card-text text-muted">Создавайте роли, настраивайте права и управляйте пользователями.</p>
+            <div class="settings-tile__tags">
+              <span class="settings-tile__tag">Права</span>
+              <span class="settings-tile__tag">Роли</span>
+              <span class="settings-tile__tag">Оргструктура</span>
+            </div>
+            <div class="settings-tile__footer">Открыть управление доступом</div>
           </div>
         </div>
       </div>
 
       <div class="col">
-        <div class="card settings-tile settings-tile--accent h-100" role="button" data-bs-toggle="modal" data-bs-target="#locationsModal">
+        <div class="card settings-tile settings-tile--accent h-100" role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#locationsModal">
           <div class="card-body">
-            <div class="tile-icon">🧭</div>
+            <div class="settings-tile__head">
+              <div class="tile-icon">🧭</div>
+              <i class="bi bi-arrow-up-right settings-tile__open" aria-hidden="true"></i>
+            </div>
             <h5 class="card-title">Структура локаций</h5>
             <p class="card-text text-muted">Управляйте деревом бизнесов, типов и локаций.</p>
+            <div class="settings-tile__tags">
+              <span class="settings-tile__tag">Бизнес</span>
+              <span class="settings-tile__tag">Города</span>
+              <span class="settings-tile__tag">Точки</span>
+            </div>
+            <div class="settings-tile__footer">Открыть дерево локаций</div>
           </div>
         </div>
       </div>
 
       <div class="col">
-        <div class="card settings-tile settings-tile--accent h-100" role="button" data-bs-toggle="modal" data-bs-target="#legalEntitiesModal">
+        <div class="card settings-tile settings-tile--accent h-100" role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#legalEntitiesModal">
           <div class="card-body">
-            <div class="tile-icon">🏢</div>
+            <div class="settings-tile__head">
+              <div class="tile-icon">🏢</div>
+              <i class="bi bi-arrow-up-right settings-tile__open" aria-hidden="true"></i>
+            </div>
             <h5 class="card-title">Юридические лица</h5>
             <p class="card-text text-muted">Управляйте реквизитами и контактами партнёров.</p>
+            <div class="settings-tile__tags">
+              <span class="settings-tile__tag">Реквизиты</span>
+              <span class="settings-tile__tag">Контакты</span>
+            </div>
+            <div class="settings-tile__footer">Открыть юрлица</div>
           </div>
         </div>
       </div>
@@ -1270,15 +1519,25 @@
         <div
           class="card settings-tile settings-tile--accent h-100"
           role="button"
+          tabindex="0"
           data-bs-toggle="modal"
           data-bs-target="#inputFormattingModal"
         >
           <div class="card-body">
-            <div class="tile-icon"><i class="bi bi-input-cursor-text"></i></div>
+            <div class="settings-tile__head">
+              <div class="tile-icon"><i class="bi bi-input-cursor-text"></i></div>
+              <i class="bi bi-arrow-up-right settings-tile__open" aria-hidden="true"></i>
+            </div>
             <h5 class="card-title">Настройка вводимых данных</h5>
             <p class="card-text text-muted">
               Централизуйте требования для телефонов, e-mail и адресов.
             </p>
+            <div class="settings-tile__tags">
+              <span class="settings-tile__tag">Телефоны</span>
+              <span class="settings-tile__tag">E-mail</span>
+              <span class="settings-tile__tag">Адреса</span>
+            </div>
+            <div class="settings-tile__footer">Открыть правила валидации</div>
           </div>
         </div>
       </div>
@@ -1289,12 +1548,13 @@
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="inputFormattingModalLabel">🧾 Настройка вводимых данных</h5>
+            <h5 class="modal-title" id="inputFormattingModalLabel">Настройка вводимых данных</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
           </div>
           <div class="modal-body">
-            <div class="alert alert-light border mb-4" role="alert">
-              Определите единые правила форматирования и проверки для телефонов, электронных адресов и почтовых адресов. Эти настройки используются формами по всей системе.
+            <div class="settings-modal-lead" role="note">
+              <i class="bi bi-info-circle-fill" aria-hidden="true"></i>
+              <div class="settings-modal-lead__text">Определите единые правила форматирования и проверки для телефонов, электронных адресов и почтовых адресов. Эти настройки используются формами по всей системе.</div>
             </div>
 
             <div class="card mb-4 shadow-sm border-0">
@@ -1593,11 +1853,15 @@
       <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="usersModalLabel">👥 Пользователи панели и настройки доступа</h5>
+            <h5 class="modal-title" id="usersModalLabel">Пользователи панели и настройки доступа</h5>
             <button type="button" class="btn btn-outline-warning btn-sm me-2" data-bs-toggle="modal" data-bs-target="#passwordResetRequestsModal" th:if="${canManagePasswordResetRequests}">Заявки на восстановление</button>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
           </div>
           <div class="modal-body">
+            <div class="settings-modal-lead" role="note">
+              <i class="bi bi-shield-lock-fill" aria-hidden="true"></i>
+              <div class="settings-modal-lead__text">Управляйте пользователями, ролями и оргструктурой из одного окна, чтобы не терять связность прав доступа.</div>
+            </div>
             <div
               class="auth-management"
               data-auth-management
@@ -1957,10 +2221,14 @@
       <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="categoriesModalLabel">🗂️ Настройка диалогов</h5>
+            <h5 class="modal-title" id="categoriesModalLabel">Настройка диалогов</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
           </div>
           <div class="modal-body">
+            <div class="settings-modal-lead" role="note">
+              <i class="bi bi-diagram-3-fill" aria-hidden="true"></i>
+              <div class="settings-modal-lead__text">Соберите устойчивый сценарий: категории, вопросы и правила завершения, чтобы агент одинаково обрабатывал обращения.</div>
+            </div>
             <ul class="nav nav-tabs" id="dialogSettingsTabs" role="tablist">
               <li class="nav-item" role="presentation">
                 <button
@@ -3513,11 +3781,14 @@
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="locationsModalLabel">🧭 Структура локаций</h5>
+            <h5 class="modal-title" id="locationsModalLabel">Структура локаций</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
           </div>
           <div class="modal-body">
-            <p class="mb-3">Редактируйте бизнес → тип → город → локации. При открытии дерево свёрнуто до уровня типов.</p>
+            <div class="settings-modal-lead" role="note">
+              <i class="bi bi-geo-alt-fill" aria-hidden="true"></i>
+              <div class="settings-modal-lead__text">Редактируйте структуру бизнес → тип → город → локации. При открытии дерево свёрнуто до уровня типов для быстрого старта.</div>
+            </div>
             <div class="d-flex flex-wrap gap-2 mb-3">
               <button class="btn btn-sm btn-primary" type="button" onclick="openAddLocationWizard()">Добавить запись</button>
               <button class="btn btn-sm btn-success" type="button" onclick="addBusiness()">+ Добавить бизнес</button>
@@ -3590,7 +3861,7 @@
       <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="statusesModalLabel">🏷️ Статусы клиентов</h5>
+            <h5 class="modal-title" id="statusesModalLabel">Статусы клиентов</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
           </div>
           <div class="modal-body">
@@ -3626,7 +3897,7 @@
       <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="businessStylesModalLabel">🏢 Метки бизнесов</h5>
+            <h5 class="modal-title" id="businessStylesModalLabel">Метки бизнесов</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
           </div>
           <div class="modal-body">
@@ -3653,10 +3924,14 @@
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="parametersModalLabel">🧩 Параметры партнёров</h5>
+            <h5 class="modal-title" id="parametersModalLabel">Параметры партнёров</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
           </div>
           <div class="modal-body">
+            <div class="settings-modal-lead" role="note">
+              <i class="bi bi-sliders2-vertical" aria-hidden="true"></i>
+              <div class="settings-modal-lead__text">Поддерживайте справочники в актуальном виде: параметры отсюда используются в формах, карточках и фильтрах по всей панели.</div>
+            </div>
             <ul class="nav nav-tabs mb-3" id="partnerParametersTabs" role="tablist">
               <li class="nav-item" role="presentation">
                 <button
@@ -3821,10 +4096,14 @@
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="legalEntitiesModalLabel">🏢 Юридические лица</h5>
+            <h5 class="modal-title" id="legalEntitiesModalLabel">Юридические лица</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
           </div>
           <div class="modal-body">
+            <div class="settings-modal-lead" role="note">
+              <i class="bi bi-building-fill" aria-hidden="true"></i>
+              <div class="settings-modal-lead__text">Ведите единый реестр юридических лиц с реквизитами и ответственными контактами, чтобы формы и карточки не расходились по данным.</div>
+            </div>
             <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
               <div>
                 <h6 class="mb-1">Справочник юридических лиц</h6>
@@ -3870,10 +4149,14 @@
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="itConnectionsModalLabel">🖧 Подключения IT-блока</h5>
+            <h5 class="modal-title" id="itConnectionsModalLabel">Подключения IT-блока</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
           </div>
           <div class="modal-body">
+            <div class="settings-modal-lead" role="note">
+              <i class="bi bi-hdd-network-fill" aria-hidden="true"></i>
+              <div class="settings-modal-lead__text">Настройте оборудование, провайдеров и маршруты в одном контуре, чтобы эксплуатация и поддержка опирались на единый источник данных.</div>
+            </div>
             <div
               class="row row-cols-1 row-cols-sm-2 row-cols-xl-4 g-3 mb-4 settings-tiles"
               data-it-section-tiles
@@ -4463,15 +4746,18 @@
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="panelDesignSettingsModalLabel">🎨 Настройки оформления панели</h5>
+            <h5 class="modal-title" id="panelDesignSettingsModalLabel">Настройки оформления панели</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
           </div>
           <div class="modal-body">
-            <p class="text-muted mb-3">Выберите, что хотите настроить:</p>
+            <div class="settings-modal-lead" role="note">
+              <i class="bi bi-palette-fill" aria-hidden="true"></i>
+              <div class="settings-modal-lead__text">Сначала выберите раздел оформления, затем внесите точечные изменения в тему, статусы и бизнес-метки.</div>
+            </div>
             <div class="d-grid gap-2">
-              <button type="button" class="btn btn-outline-primary text-start" data-bs-toggle="modal" data-bs-target="#appearanceModal" data-bs-dismiss="modal">🎨 Оформление интерфейса</button>
-              <button type="button" class="btn btn-outline-primary text-start" data-bs-toggle="modal" data-bs-target="#statusesModal" data-bs-dismiss="modal">🏷️ Статусы клиентов</button>
-              <button type="button" class="btn btn-outline-primary text-start" data-bs-toggle="modal" data-bs-target="#businessStylesModal" data-bs-dismiss="modal">🏢 Метки бизнесов</button>
+              <button type="button" class="btn btn-outline-primary text-start" data-bs-toggle="modal" data-bs-target="#appearanceModal" data-bs-dismiss="modal">Оформление интерфейса</button>
+              <button type="button" class="btn btn-outline-primary text-start" data-bs-toggle="modal" data-bs-target="#statusesModal" data-bs-dismiss="modal">Статусы клиентов</button>
+              <button type="button" class="btn btn-outline-primary text-start" data-bs-toggle="modal" data-bs-target="#businessStylesModal" data-bs-dismiss="modal">Метки бизнесов</button>
             </div>
           </div>
           <div class="modal-footer">
@@ -4531,10 +4817,14 @@
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="reportingModalLabel">📊 Конструктор автoотчётов</h5>
+            <h5 class="modal-title" id="reportingModalLabel">Конструктор автоотчётов</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
           </div>
           <div class="modal-body">
+            <div class="settings-modal-lead" role="note">
+              <i class="bi bi-graph-up-arrow" aria-hidden="true"></i>
+              <div class="settings-modal-lead__text">Соберите шаблон автоотчёта: период, канал доставки и источники данных. Конфигурация сохраняется для выбранного бота.</div>
+            </div>
             <div class="alert alert-info d-none" role="alert" data-reporting-feedback></div>
             <div class="form-check form-switch mb-3">
               <input class="form-check-input" type="checkbox" role="switch" id="reportingEnabled" data-reporting-enabled>
@@ -4588,10 +4878,14 @@
       <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title">🧭 Привязка управляющих к локациям</h5>
+            <h5 class="modal-title">Привязка управляющих к локациям</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
           </div>
           <div class="modal-body">
+            <div class="settings-modal-lead" role="note">
+              <i class="bi bi-diagram-2-fill" aria-hidden="true"></i>
+              <div class="settings-modal-lead__text">Назначайте управляющих и руководителей по локациям с периодами действия, чтобы маршрутизация эскалаций была предсказуемой.</div>
+            </div>
             <div class="alert alert-info d-none" data-manager-bindings-feedback></div>
             <datalist id="managerBindingsLocationOptions"></datalist>
             <datalist id="managerBindingsManagerOptions"></datalist>
@@ -4616,10 +4910,14 @@
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="channelsModalLabel">🤖 Каналы (боты)</h5>
+            <h5 class="modal-title" id="channelsModalLabel">Каналы (боты)</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
           </div>
           <div class="modal-body">
+            <div class="settings-modal-lead" role="note">
+              <i class="bi bi-robot" aria-hidden="true"></i>
+              <div class="settings-modal-lead__text">Подключайте каналы, шаблоны и автоматические действия в едином месте, чтобы бот запускался и отвечал по согласованным правилам.</div>
+            </div>
             <ul class="nav nav-tabs" id="channelsTabs" role="tablist">
               <li class="nav-item" role="presentation">
                 <button
@@ -21343,7 +21641,7 @@
 
   window.addChannel = addChannel;
 
-  // === Конструктор автoотчётов ===
+  // === Конструктор автоотчётов ===
   const reportingState = {
     config: normalizeReportingConfig(REPORTING_CONFIG_INITIAL || {}),
     channelsLoaded: false,
@@ -21557,43 +21855,19 @@
   }
   function initSettingsTileDescriptions() {
     const tiles = document.querySelectorAll('.settings-tiles > .col .settings-tile[role="button"]');
-    let collapseIndex = 0;
     tiles.forEach((tile) => {
-      const body = tile.querySelector('.card-body');
-      const description = body ? body.querySelector('.card-text.text-muted') : null;
-      if (!body || !description) {
+      if (!(tile instanceof HTMLElement)) {
         return;
       }
-      if (description.dataset.managerBindingsSummary !== undefined || description.dataset.reportingSummary !== undefined) {
-        return;
+      if (!tile.hasAttribute('tabindex')) {
+        tile.setAttribute('tabindex', '0');
       }
-      collapseIndex += 1;
-      const collapseId = `settingsTileDescription${collapseIndex}`;
-      description.id = collapseId;
-      description.classList.add('collapse', 'tile-description-collapse');
-      description.classList.remove('mb-0');
-      const wrapper = document.createElement('div');
-      wrapper.className = 'tile-description';
-      wrapper.setAttribute('data-tile-collapse', 'true');
-      const toggle = document.createElement('button');
-      toggle.type = 'button';
-      toggle.className = 'tile-description-toggle';
-      toggle.setAttribute('data-bs-toggle', 'collapse');
-      toggle.setAttribute('data-bs-target', `#${collapseId}`);
-      toggle.setAttribute('aria-expanded', 'false');
-      toggle.setAttribute('aria-controls', collapseId);
-      toggle.innerHTML = 'Описание <i class="bi bi-chevron-down tile-description-icon" aria-hidden="true"></i>';
-      wrapper.appendChild(toggle);
-      wrapper.appendChild(description);
-      body.appendChild(wrapper);
-      wrapper.addEventListener('click', (event) => {
-        event.stopPropagation();
-      });
-      toggle.addEventListener('click', (event) => {
-        event.stopPropagation();
-      });
-      description.addEventListener('click', (event) => {
-        event.stopPropagation();
+      tile.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') {
+          return;
+        }
+        event.preventDefault();
+        tile.click();
       });
     });
   }
