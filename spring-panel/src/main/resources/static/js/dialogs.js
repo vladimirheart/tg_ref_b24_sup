@@ -150,6 +150,8 @@
   const workspaceAiControlState = document.getElementById('workspaceAiControlState');
   const workspaceAiReviewBox = document.getElementById('workspaceAiReviewBox');
   const workspaceAiReviewQuestion = document.getElementById('workspaceAiReviewQuestion');
+  const workspaceAiReviewProblemSelect = document.getElementById('workspaceAiReviewProblemSelect');
+  const workspaceAiReviewSolutionSelect = document.getElementById('workspaceAiReviewSolutionSelect');
   const workspaceAiReviewCurrent = document.getElementById('workspaceAiReviewCurrent');
   const workspaceAiReviewPending = document.getElementById('workspaceAiReviewPending');
   const workspaceAiReviewApprove = document.getElementById('workspaceAiReviewApprove');
@@ -4475,10 +4477,50 @@
     }
   }
 
+  function formatAiReviewMessageOption(item) {
+    const text = String(item?.text || '').replace(/\s+/g, ' ').trim();
+    const shortText = text.length > 120 ? `${text.slice(0, 117)}...` : text;
+    const timestamp = formatUtcDate(item?.timestamp, { includeTime: true, fallback: '' });
+    if (timestamp && shortText) return `${timestamp} · ${shortText}`;
+    if (shortText) return shortText;
+    if (timestamp) return timestamp;
+    return 'Сообщение без текста';
+  }
+
+  function renderAiReviewMessageSelect(selectEl, candidates, selectedId, emptyLabel) {
+    if (!selectEl) return;
+    const list = Array.isArray(candidates) ? candidates : [];
+    const selected = String(selectedId || '').trim();
+    selectEl.innerHTML = '';
+    if (!list.length) {
+      const emptyOption = document.createElement('option');
+      emptyOption.value = '';
+      emptyOption.textContent = emptyLabel;
+      selectEl.appendChild(emptyOption);
+      selectEl.disabled = true;
+      return;
+    }
+    list.forEach((item, index) => {
+      const option = document.createElement('option');
+      const id = Number(item?.id);
+      option.value = Number.isFinite(id) && id > 0 ? String(id) : '';
+      option.textContent = formatAiReviewMessageOption(item);
+      if (selected && option.value === selected) {
+        option.selected = true;
+      } else if (!selected && index === list.length - 1) {
+        option.selected = true;
+      }
+      selectEl.appendChild(option);
+    });
+    selectEl.disabled = false;
+  }
+
   async function loadWorkspaceAiReview(ticketId) {
     const normalizedTicketId = String(ticketId || '').trim();
     if (!workspaceAiReviewBox) return;
     workspaceAiReviewBox.classList.add('d-none');
+    renderAiReviewMessageSelect(workspaceAiReviewProblemSelect, [], null, 'Нет сообщений клиента');
+    renderAiReviewMessageSelect(workspaceAiReviewSolutionSelect, [], null, 'Нет сообщений оператора');
     if (!normalizedTicketId) return;
     try {
       const resp = await fetch(`/api/dialogs/${encodeURIComponent(normalizedTicketId)}/ai-review`, {
@@ -4493,6 +4535,18 @@
         const question = String(review.query_text || '').trim();
         workspaceAiReviewQuestion.textContent = `Для обучения AI подтвердите соответствие: какое сообщение клиента описывает проблему и какое сообщение оператора является решением. ${question}`;
       }
+      renderAiReviewMessageSelect(
+        workspaceAiReviewProblemSelect,
+        review.problem_message_candidates,
+        review.selected_problem_message_id,
+        'Нет сообщений клиента'
+      );
+      renderAiReviewMessageSelect(
+        workspaceAiReviewSolutionSelect,
+        review.solution_message_candidates,
+        review.selected_solution_message_id,
+        'Нет сообщений оператора'
+      );
       if (workspaceAiReviewCurrent) workspaceAiReviewCurrent.textContent = String(review.current_solution || '').trim();
       if (workspaceAiReviewPending) workspaceAiReviewPending.textContent = String(review.pending_solution || '').trim();
       workspaceAiReviewBox.classList.remove('d-none');
@@ -8129,10 +8183,17 @@
     workspaceAiReviewApprove.addEventListener('click', async () => {
       const ticketId = String(activeWorkspaceTicketId || workspaceComposerTicketId || '').trim();
       if (!ticketId) return;
+      const clientMessageId = Number(workspaceAiReviewProblemSelect?.value || '');
+      const operatorMessageId = Number(workspaceAiReviewSolutionSelect?.value || '');
+      const payloadBody = {};
+      if (Number.isFinite(clientMessageId) && clientMessageId > 0) payloadBody.clientMessageId = clientMessageId;
+      if (Number.isFinite(operatorMessageId) && operatorMessageId > 0) payloadBody.operatorMessageId = operatorMessageId;
       try {
         const resp = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/ai-review/approve`, {
           method: 'POST',
           credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payloadBody),
         });
         const payload = await resp.json().catch(() => ({}));
         if (!resp.ok || payload.success === false) throw new Error(payload.error || `HTTP ${resp.status}`);
