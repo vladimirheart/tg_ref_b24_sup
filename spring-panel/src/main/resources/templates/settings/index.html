@@ -5011,7 +5011,7 @@
                       </div>
                       <div class="small text-muted mt-3 mb-0">Для VK используется Callback API. После настройки запустите сервис <code>python vk_webhook_support.py</code>.</div>
                     </div>
-                    <div class="text-muted small mb-0">Для Telegram токен проверяется через <code>getMe</code>. Для VK можно использовать Callback API без токена. Для MAX достаточно bot token и названия канала.</div>
+                    <div class="text-muted small mb-0">Для Telegram токен проверяется через <code>getMe</code>. Для VK и MAX нужен рабочий токен бота, иначе процесс не сможет полноценно обрабатывать сообщения.</div>
                   </div>
                 </div>
 
@@ -5332,8 +5332,8 @@
             <div class="fw-semibold mb-1">Что понадобится</div>
             <ul class="mb-0 small ps-3 text-body-secondary">
               <li>Для Telegram — токен из @BotFather и название канала для панели.</li>
-              <li>Для VK — ID сообщества, код подтверждения Callback API и при необходимости секретный ключ.</li>
-              <li>Для MAX — bot token сервиса и название канала в панели.</li>
+              <li>Для VK — токен сообщества (доступ к сообщениям), ID сообщества, код подтверждения Callback API и при необходимости секретный ключ.</li>
+              <li>Для MAX — bot token, название канала в панели и при необходимости webhook secret.</li>
             </ul>
           </div>
           <div id="addChannelValidationAlert" class="alert alert-warning d-none small" role="alert" aria-live="polite"></div>
@@ -5392,7 +5392,8 @@
               <div class="alert alert-info small mt-3 mb-0" role="alert">
                 <div class="fw-semibold mb-1">Настройка VK Callback API</div>
                 <ol class="mb-0 ps-3">
-                  <li>В сообществе откройте «Работа с API» → «Callback API» и укажите адрес вида <code>https://ваш-домен/webhooks/vk/&lt;group_id&gt;</code>.</li>
+                  <li>Создайте ключ доступа сообщества с правами сообщений: «Работа с API» → «Ключи доступа».</li>
+                  <li>В «Callback API» укажите адрес вида <code>https://ваш-домен/webhooks/vk/&lt;group_id&gt;</code>.</li>
                   <li>Вставьте код подтверждения и при необходимости секретный ключ, чтобы включить проверку запросов.</li>
                   <li>Активируйте события сообщений и перед запуском сервиса выполните <code>python vk_webhook_support.py</code>.</li>
                 </ol>
@@ -5406,11 +5407,19 @@
                   <div class="form-text">Если задан, входящие webhook-запросы MAX должны содержать тот же secret в заголовке.</div>
                 </div>
               </div>
+              <div class="alert alert-info small mt-3 mb-0" role="alert">
+                <div class="fw-semibold mb-1">Как подключить MAX</div>
+                <ol class="mb-0 ps-3">
+                  <li>Получите bot token в кабинете интеграций MAX и вставьте его в поле «Токен MAX-бота».</li>
+                  <li>Укажите endpoint для входящих событий: <code>https://ваш-домен/webhooks/max</code>.</li>
+                  <li>Если настроен webhook secret, передавайте его в заголовке <code>X-Max-Bot-Api-Secret</code>.</li>
+                </ol>
+              </div>
             </div>
           </div>
         </div>
         <div class="modal-footer">
-          <div class="text-muted small me-auto">Для Telegram токен проверяется через <code>getMe</code>. Для VK можно использовать Callback API без токена. Для MAX токен сохраняется как учётные данные канала.</div>
+          <div class="text-muted small me-auto">Для Telegram токен проверяется через <code>getMe</code>. Для VK и MAX токен обязателен для рабочего запуска бота.</div>
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
           <button type="button" class="btn btn-primary" onclick="addChannel()">Добавить канал</button>
         </div>
@@ -5685,6 +5694,12 @@
           <div class="mt-4 d-flex flex-column flex-lg-row gap-3 align-items-lg-center">
             <button type="button" class="btn btn-outline-primary d-none" id="channelEditorVkButton">Настроить VK вебхук…</button>
             <div class="text-muted small ms-lg-auto" data-channel-editor-hint></div>
+          </div>
+          <div class="mt-3 d-none" id="channelEditorMaxWebhookBlock">
+            <label class="form-label" for="channelEditorMaxWebhookSecret">Webhook secret MAX <span class="text-muted">(опционально)</span></label>
+            <input class="form-control" id="channelEditorMaxWebhookSecret" placeholder="Сверяется с заголовком X-Max-Bot-Api-Secret" />
+            <div class="form-text">Используйте тот же secret, который передаёт провайдер MAX в заголовке webhook-запроса.</div>
+            <div class="small text-muted mt-2">Webhook URL: <code data-channel-editor-max-webhook-url>—</code></div>
           </div>
         </div>
         <div class="modal-footer">
@@ -19019,6 +19034,9 @@
   const channelEditorNewTokenInput = document.getElementById('channelEditorNewToken');
   const channelEditorSupportHint = document.querySelector('[data-channel-editor-support-hint]');
   const channelEditorVkBtn = document.getElementById('channelEditorVkButton');
+  const channelEditorMaxWebhookBlock = document.getElementById('channelEditorMaxWebhookBlock');
+  const channelEditorMaxWebhookSecretInput = document.getElementById('channelEditorMaxWebhookSecret');
+  const channelEditorMaxWebhookUrlEl = document.querySelector('[data-channel-editor-max-webhook-url]');
   const channelEditorBotStartBtn = document.getElementById('channelEditorBotStartBtn');
   const channelEditorBotStopBtn = document.getElementById('channelEditorBotStopBtn');
   const channelEditorBotStatusEl = document.querySelector('[data-channel-editor-bot-status]');
@@ -20424,12 +20442,10 @@
       const link = buildPublicFormUrl(channel);
       channelEditorPublicLinkEl.textContent = link || 'Публичная ссылка появится после сохранения.';
     }
-    if (channelEditorHintEl) {
-      channelEditorHintEl.textContent = 'Изменения вступят в силу сразу после сохранения.';
-    }
     configureChannelEditorSelect(channelEditorQuestionSelect, QUESTION_TEMPLATES, channel.question_template_id, DEFAULT_QUESTION_TEMPLATE_ID, 'question_template_id');
     configureChannelEditorSelect(channelEditorRatingSelect, RATING_TEMPLATES, channel.rating_template_id, DEFAULT_RATING_TEMPLATE_ID, 'rating_template_id');
     configureChannelEditorSelect(channelEditorAutoSelect, AUTO_ACTION_TEMPLATES, channel.auto_action_template_id, DEFAULT_AUTO_ACTION_TEMPLATE_ID, 'auto_action_template_id');
+    const platformConfig = parsePlatformConfig(channel.platform_config);
     const supportChatValue = channel.support_chat_id ?? '';
     const deliverySettings = parseDeliverySettings(channel.delivery_settings);
     if (channelEditorSupportChatInput) {
@@ -20447,6 +20463,18 @@
     if (channelEditorScheduleSimultaneousInput) {
       channelEditorScheduleSimultaneousInput.checked = Boolean(deliverySettings.schedule_simultaneous);
     }
+    if (channelEditorMaxWebhookSecretInput) {
+      const maxSecret = String(
+        platformConfig.secret
+          ?? platformConfig.webhook_secret
+          ?? platformConfig.webhookSecret
+          ?? ''
+      ).trim();
+      channelEditorMaxWebhookSecretInput.value = maxSecret;
+    }
+    if (channelEditorMaxWebhookUrlEl) {
+      channelEditorMaxWebhookUrlEl.textContent = `${window.location.origin}/webhooks/max`;
+    }
     applyRouteToInputs('channel', channel.network_route);
     updateSupportChatHint(supportChatValue);
     if (channelEditorTestMessageInput) {
@@ -20459,6 +20487,22 @@
     setTestStatus('—');
     if (channelEditorVkBtn) {
       channelEditorVkBtn.classList.toggle('d-none', channel.platform !== 'vk');
+    }
+    if (channelEditorMaxWebhookBlock) {
+      channelEditorMaxWebhookBlock.classList.toggle('d-none', channel.platform !== 'max');
+    }
+    if (channelEditorHintEl) {
+      if (channel.platform === 'vk') {
+        const groupId = platformConfig.group_id ?? platformConfig.groupId ?? '';
+        const callbackUrl = groupId
+          ? `${window.location.origin}/webhooks/vk/${groupId}`
+          : `${window.location.origin}/webhooks/vk/<group_id>`;
+        channelEditorHintEl.textContent = `VK Callback URL: ${callbackUrl}`;
+      } else if (channel.platform === 'max') {
+        channelEditorHintEl.textContent = `MAX webhook URL: ${window.location.origin}/webhooks/max (secret в заголовке X-Max-Bot-Api-Secret).`;
+      } else {
+        channelEditorHintEl.textContent = 'Изменения вступят в силу сразу после сохранения.';
+      }
     }
     updateBotStatusLabel('загрузка');
     updateBotControls(false);
@@ -21051,6 +21095,22 @@
         nameInput?.focus();
         return;
       }
+    } else if (platform === 'vk') {
+      if (!token && !channelName) {
+        notifyChannelStatus('Для VK заполните токен сообщества и название канала в панели.', 'warning');
+        tokenInput?.focus();
+        return;
+      }
+      if (!token) {
+        notifyChannelStatus('Для VK необходим токен сообщества (Работа с API → Ключи доступа).', 'warning');
+        tokenInput?.focus();
+        return;
+      }
+      if (!channelName) {
+        notifyChannelStatus('Для VK укажите название канала в панели.', 'warning');
+        nameInput?.focus();
+        return;
+      }
     } else if (platform === 'max') {
       if (!token && !channelName) {
         notifyChannelStatus('Для MAX заполните токен бота и название канала в панели.', 'warning');
@@ -21067,10 +21127,17 @@
         nameInput?.focus();
         return;
       }
-    } else if (!channelName) {
-      notifyChannelStatus('Укажите название канала.', 'warning');
-      nameInput?.focus();
-      return;
+    } else {
+      if (!token) {
+        notifyChannelStatus('Укажите токен бота.', 'warning');
+        tokenInput?.focus();
+        return;
+      }
+      if (!channelName) {
+        notifyChannelStatus('Укажите название канала.', 'warning');
+        nameInput?.focus();
+        return;
+      }
     }
 
     const payload = {
@@ -21168,6 +21235,15 @@
     };
 
     const currentChannel = CHANNELS_REGISTRY.get(String(id));
+    const currentPlatform = String(currentChannel?.platform || '').toLowerCase();
+    const currentPlatformConfig = parsePlatformConfig(currentChannel?.platform_config);
+    if (currentPlatform === 'max') {
+      const maxSecret = channelEditorMaxWebhookSecretInput?.value?.trim() || '';
+      body.platform_config = {
+        ...currentPlatformConfig,
+        secret: maxSecret || null,
+      };
+    }
     const existingQuestionsCfg = parseQuestionsCfg(currentChannel?.questions_cfg);
     if (channelEditorQuestionSelect && !channelEditorQuestionSelect.disabled) {
       const value = channelEditorQuestionSelect.value || '';
@@ -21289,7 +21365,7 @@
     const maxContainer = document.getElementById('max_webhook_container');
     const platform = platformSelect?.value || 'telegram';
     if (tokenContainer) {
-      tokenContainer.classList.toggle('d-none', platform === 'vk');
+      tokenContainer.classList.remove('d-none');
     }
     if (vkContainer) {
       vkContainer.style.display = platform === 'vk' ? '' : 'none';
@@ -21297,19 +21373,21 @@
     if (maxContainer) {
       maxContainer.style.display = platform === 'max' ? '' : 'none';
     }
+    if (platform === 'vk') {
+      if (tokenLabel) tokenLabel.textContent = 'Токен сообщества VK';
+      if (tokenInput) tokenInput.placeholder = 'Ключ доступа сообщества VK';
+      if (tokenHelp) tokenHelp.textContent = 'Возьмите в VK: Работа с API → Ключи доступа. Нужны права сообщений.';
+      return;
+    }
     if (platform === 'max') {
       if (tokenLabel) tokenLabel.textContent = 'Токен MAX-бота';
-      if (tokenInput) tokenInput.placeholder = 'Токен бота MAX';
-      if (tokenHelp) tokenHelp.textContent = 'Используется как учётные данные канала MAX.';
-    } else {
-      if (tokenLabel) tokenLabel.textContent = 'Токен бота';
-      if (tokenInput) tokenInput.placeholder = 'Токен из BotFather';
-      if (tokenHelp) {
-        tokenHelp.textContent = platform === 'vk'
-          ? 'Для VK токен можно не указывать, если используется Callback API.'
-          : 'Проверяется автоматически для Telegram.';
-      }
+      if (tokenInput) tokenInput.placeholder = 'Bot token MAX';
+      if (tokenHelp) tokenHelp.textContent = 'Возьмите в кабинете интеграций MAX. Используется как основной auth-токен.';
+      return;
     }
+    if (tokenLabel) tokenLabel.textContent = 'Токен бота';
+    if (tokenInput) tokenInput.placeholder = 'Токен из BotFather';
+    if (tokenHelp) tokenHelp.textContent = 'Проверяется автоматически для Telegram.';
   }
 
   function initChannelsManagement() {
