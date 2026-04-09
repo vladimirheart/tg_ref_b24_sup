@@ -2,9 +2,10 @@ package com.example.panel.service;
 
 import com.example.panel.entity.Channel;
 import com.example.panel.repository.ChannelRepository;
-import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -23,7 +24,7 @@ public class BotAutoStartService {
         this.botProcessService = botProcessService;
     }
 
-    @PostConstruct
+    @EventListener(ApplicationReadyEvent.class)
     public void autoStartActiveBots() {
         try {
             List<Channel> channels = channelRepository.findAll();
@@ -33,10 +34,6 @@ public class BotAutoStartService {
                     continue;
                 }
                 if (!Boolean.TRUE.equals(channel.getActive())) {
-                    continue;
-                }
-                String token = channel.getToken();
-                if (token == null || token.isBlank()) {
                     continue;
                 }
                 BotProcessService.BotProcessStatus status = botProcessService.start(channel);
