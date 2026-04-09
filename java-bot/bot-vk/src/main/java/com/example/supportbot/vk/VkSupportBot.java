@@ -3,6 +3,7 @@ package com.example.supportbot.vk;
 import com.example.supportbot.config.VkBotProperties;
 import com.example.supportbot.entity.Channel;
 import com.example.supportbot.entity.PendingFeedbackRequest;
+import com.example.supportbot.entity.TicketActive;
 import com.example.supportbot.service.AttachmentService;
 import com.example.supportbot.service.BlacklistService;
 import com.example.supportbot.service.ChannelService;
@@ -48,6 +49,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -252,7 +254,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
             return;
         }
 
-        ConversationSession session = sessions.computeIfAbsent(fromId, id -> startSession(actor, message, channel));
+        ConversationSession session = sessions.get(fromId);
         if ("/cancel".equalsIgnoreCase(text)) {
             log.info("Received /cancel from VK user {}", fromId);
             sessions.remove(fromId);
@@ -263,6 +265,14 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
             log.info("Received /unblock from VK user {}", fromId);
             handleUnblockRequest(actor, peerId, fromId, channel);
             return;
+        }
+
+        if (session == null) {
+            if (handleActiveTicketMessage(actor, message, channel, text)) {
+                return;
+            }
+            session = startSession(actor, message, channel);
+            sessions.put(fromId, session);
         }
 
         if (session.awaitingReuseDecision()) {
@@ -286,7 +296,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                 sendText(actor, peerId, "Сейчас нет доступных вариантов для выбора. Обратитесь к администратору.");
                 return;
             }
-            resolvedAnswer = resolvePresetAnswer(resolvedAnswer, options);
+            resolvedAnswer = resolvePresetAnswer(resolvedAnswer, options, current, session.settings());
             if (!options.contains(resolvedAnswer)) {
                 sendText(actor, peerId, "Введите один из вариантов: " + String.join(", ", options));
                 return;
@@ -344,6 +354,13 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                         "city", Optional.ofNullable(last.getCity()).orElse(""),
                         "location_name", Optional.ofNullable(last.getLocationName()).orElse("")
                 )));
+        String startAutoReply = botSettingsService.startAutoReply(
+                settings,
+                "Здравствуйте! Опишите, пожалуйста, ваш вопрос, чтобы мы могли быстрее помочь."
+        );
+        if (startAutoReply != null && !startAutoReply.isBlank()) {
+            sendText(actor, message.getPeerId(), startAutoReply);
+        }
         promptCurrentQuestion(actor, session);
         return session;
     }
@@ -422,7 +439,10 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         return text.toString();
     }
 
-    private String resolvePresetAnswer(String rawAnswer, List<String> options) {
+    private String resolvePresetAnswer(String rawAnswer,
+                                       List<String> options,
+                                       QuestionFlowItemDto question,
+                                       BotSettingsDto settings) {
         if (rawAnswer == null) {
             return "";
         }
@@ -443,7 +463,61 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                 return option;
             }
         }
+        if (isBusinessPresetQuestion(question)) {
+            String normalizedInput = normalizeAlias(trimmed);
+            if (!normalizedInput.isBlank()) {
+                Map<String, List<String>> aliases = botSettingsService.businessAliases(settings);
+                for (Map.Entry<String, List<String>> aliasEntry : aliases.entrySet()) {
+                    String canonicalBusiness = aliasEntry.getKey();
+                    if (normalizedInput.equals(normalizeAlias(canonicalBusiness))) {
+                        String matched = matchOptionByValue(options, canonicalBusiness);
+                        if (matched != null) {
+                            return matched;
+                        }
+                    }
+                    for (String alias : aliasEntry.getValue()) {
+                        if (normalizedInput.equals(normalizeAlias(alias))) {
+                            String matched = matchOptionByValue(options, canonicalBusiness);
+                            if (matched != null) {
+                                return matched;
+                            }
+                        }
+                    }
+                }
+            }
+        }
         return trimmed;
+    }
+
+    private boolean isBusinessPresetQuestion(QuestionFlowItemDto question) {
+        if (question == null || question.getPreset() == null) {
+            return false;
+        }
+        String group = question.getPreset().group();
+        String field = question.getPreset().field();
+        return "locations".equalsIgnoreCase(group) && "business".equalsIgnoreCase(field);
+    }
+
+    private String matchOptionByValue(List<String> options, String value) {
+        if (options == null || value == null) {
+            return null;
+        }
+        for (String option : options) {
+            if (option != null && option.equalsIgnoreCase(value)) {
+                return option;
+            }
+        }
+        return null;
+    }
+
+    private String normalizeAlias(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.trim()
+                .toLowerCase(Locale.ROOT)
+                .replace('ё', 'е')
+                .replaceAll("[\\p{Punct}\\s]+", "");
     }
 
     private List<String> resolvePresetOptions(QuestionFlowItemDto current, Map<String, String> answers) {
@@ -572,6 +646,71 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         Map<String, Object> merged = botSettingsService.buildLocationPresets(locationTree(), baseDefinitions);
         cachedPresetDefinitions = merged != null ? merged : new LinkedHashMap<>();
         return cachedPresetDefinitions;
+    }
+
+    private boolean handleActiveTicketMessage(GroupActor actor, Message message, Channel channel, String text) {
+        Optional<String> activeTicketId = resolveActiveTicketId(message);
+        if (activeTicketId.isEmpty()) {
+            return false;
+        }
+        String ticketId = activeTicketId.get();
+        Optional<TicketService.TicketWithUser> ticketDetails = ticketService.findByTicketId(ticketId);
+        if (ticketDetails.isEmpty()) {
+            return false;
+        }
+        if (isClosedStatus(ticketDetails.get().status())) {
+            return false;
+        }
+        Long userId = message.getFromId();
+        String username = userId != null ? userId.toString() : null;
+        boolean hasAttachments = message.getAttachments() != null && !message.getAttachments().isEmpty();
+        String clientText = text != null && !text.isBlank()
+                ? text
+                : (hasAttachments ? "[вложение от клиента]" : "");
+        if (clientText.isBlank()) {
+            return false;
+        }
+        String messageType = hasAttachments && (text == null || text.isBlank()) ? "attachment" : "text";
+        chatHistoryService.storeUserMessage(
+                userId,
+                null,
+                clientText,
+                channel,
+                ticketId,
+                messageType,
+                null,
+                null,
+                null
+        );
+        ticketService.registerActivity(ticketId, username);
+        relayActiveMessageToOperators(actor, ticketId, clientText, userId, hasAttachments);
+        return true;
+    }
+
+    private Optional<String> resolveActiveTicketId(Message message) {
+        Long userId = message != null ? message.getFromId() : null;
+        String username = userId != null ? userId.toString() : null;
+        return ticketService.findActiveTicketForUser(userId, username).map(TicketActive::getTicketId);
+    }
+
+    private void relayActiveMessageToOperators(GroupActor actor,
+                                               String ticketId,
+                                               String text,
+                                               Long userId,
+                                               boolean hasAttachments) {
+        Long channelId = properties.getChannelId();
+        if (channelId == null || channelId <= 0) {
+            return;
+        }
+        String senderLabel = userId != null ? String.valueOf(userId) : "клиент";
+        StringBuilder builder = new StringBuilder();
+        builder.append("Новый ответ клиента ").append(senderLabel).append("\n");
+        builder.append("ID заявки: #").append(ticketId).append("\n");
+        builder.append(text);
+        if (hasAttachments) {
+            builder.append("\nВ сообщении есть вложения.");
+        }
+        sendText(actor, channelId, builder.toString());
     }
 
     private void finalizeConversation(GroupActor actor, ConversationSession session) {
