@@ -6,11 +6,11 @@ import com.example.panel.service.BotProcessService;
 import com.example.panel.service.BotProcessService.BotProcessStatus;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -26,10 +26,7 @@ public class BotProcessApiController {
         this.channelRepository = channelRepository;
     }
 
-    @RequestMapping(
-        value = "/{channelId}/start",
-        method = {RequestMethod.POST, RequestMethod.GET, RequestMethod.PUT, RequestMethod.PATCH, RequestMethod.DELETE}
-    )
+    @PostMapping("/{channelId}/start")
     public ResponseEntity<Map<String, Object>> start(@PathVariable Long channelId) {
         Channel channel = channelRepository.findById(channelId).orElse(null);
         if (channel == null) {
@@ -42,10 +39,7 @@ public class BotProcessApiController {
         return ResponseEntity.ok(buildStatusResponse(status.running(), status.message(), status.startedAt()));
     }
 
-    @RequestMapping(
-        value = "/{channelId}/stop",
-        method = {RequestMethod.POST, RequestMethod.GET, RequestMethod.PUT, RequestMethod.PATCH, RequestMethod.DELETE}
-    )
+    @PostMapping("/{channelId}/stop")
     public ResponseEntity<Map<String, Object>> stop(@PathVariable Long channelId) {
         BotProcessStatus status = botProcessService.stop(channelId);
         return ResponseEntity.ok(buildStatusResponse(true, status.message(), null));

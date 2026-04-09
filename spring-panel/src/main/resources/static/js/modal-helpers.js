@@ -111,7 +111,7 @@
 
     if (!modalEl || typeof bootstrap === 'undefined' || !bootstrap?.Modal) {
       if (message) {
-        window.alert([title, message].filter(Boolean).join('\n'));
+        console.error([title, message].filter(Boolean).join('\n'));
       }
       if (typeof onHidden === 'function') {
         onHidden();
