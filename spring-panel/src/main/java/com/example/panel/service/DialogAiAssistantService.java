@@ -1,4 +1,4 @@
-﻿package com.example.panel.service;
+package com.example.panel.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -116,9 +116,6 @@ public class DialogAiAssistantService {
             ));
             return;
         }
-
-        // AI agent takes ownership before operator picks up the dialog.
-        dialogService.assignResponsibleIfMissing(t, "ai_agent");
 
         if (requiresHumanImmediately(m)) {
             markProcessing(t, "manual_requested", null, null, "escalate", "manual_requested", null, resolveAgentMode());
@@ -356,18 +353,13 @@ public class DialogAiAssistantService {
     public Map<String, Object> loadPendingReview(String ticketId) {
         String t = trim(ticketId);
         if (t == null) return Map.of("pending", false);
-        String lastClient = loadLastClientMessage(t);
-        if (!StringUtils.hasText(lastClient)) return Map.of("pending", false);
-        String key = buildKey(lastClient);
         try {
-            List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-                    "SELECT query_key, query_text, solution_text, pending_solution_text, review_required, updated_at FROM ai_agent_solution_memory WHERE query_key = ? LIMIT 1",
-                    key
-            );
-            if (rows.isEmpty()) return Map.of("pending", false);
-            Map<String, Object> row = rows.get(0);
-            boolean pending = isTrue(row.get("review_required")) && trim(safe(row.get("pending_solution_text"))) != null;
-            if (!pending) return Map.of("pending", false, "query_key", key);
+            Map<String, Object> row = loadPendingReviewRowByTicket(t);
+            if (row == null) return Map.of("pending", false);
+            String key = trim(safe(row.get("query_key")));
+            if (key == null) return Map.of("pending", false);
+            List<Map<String, Object>> problemCandidates = loadReviewMessageCandidates(t, false, 20);
+            List<Map<String, Object>> solutionCandidates = loadReviewMessageCandidates(t, true, 20);
             Map<String, Object> payload = new LinkedHashMap<>();
             payload.put("pending", true);
             payload.put("ticket_id", t);
@@ -376,6 +368,10 @@ public class DialogAiAssistantService {
             payload.put("current_solution", safe(row.get("solution_text")));
             payload.put("pending_solution", safe(row.get("pending_solution_text")));
             payload.put("updated_at", safe(row.get("updated_at")));
+            payload.put("problem_message_candidates", problemCandidates);
+            payload.put("solution_message_candidates", solutionCandidates);
+            payload.put("selected_problem_message_id", resolveReviewMessageSelection(problemCandidates, safe(row.get("query_text"))));
+            payload.put("selected_solution_message_id", resolveReviewMessageSelection(solutionCandidates, safe(row.get("pending_solution_text"))));
             return payload;
         } catch (Exception ex) {
             return Map.of("pending", false);
@@ -383,20 +379,123 @@ public class DialogAiAssistantService {
     }
 
     public boolean approvePendingReview(String ticketId, String operator) {
+        return approvePendingReview(ticketId, operator, null, null);
+    }
+
+    public boolean approvePendingReview(String ticketId, String operator, Long clientMessageId, Long operatorMessageId) {
         String t = trim(ticketId);
         if (t == null) return false;
-        String lastClient = loadLastClientMessage(t);
-        if (!StringUtils.hasText(lastClient)) return false;
-        String key = buildKey(lastClient);
         try {
-            int updated = jdbcTemplate.update(
-                    "UPDATE ai_agent_solution_memory SET solution_text = pending_solution_text, pending_solution_text = NULL, review_required = 0, times_confirmed = COALESCE(times_confirmed,0) + 1, last_operator = ?, updated_at = CURRENT_TIMESTAMP WHERE query_key = ? AND COALESCE(review_required,0) = 1 AND trim(COALESCE(pending_solution_text,'')) <> ''",
-                    trim(operator),
-                    key
-            );
-            if (updated > 0) {
+            Map<String, Object> reviewRow = loadPendingReviewRowByTicket(t);
+            if (reviewRow == null) return false;
+            String sourceKey = trim(safe(reviewRow.get("query_key")));
+            if (sourceKey == null) return false;
+
+            String selectedClientMessage = loadReviewMessageText(t, clientMessageId, false);
+            String selectedOperatorMessage = loadReviewMessageText(t, operatorMessageId, true);
+
+            String resolvedQueryText = trim(selectedClientMessage);
+            if (resolvedQueryText == null) resolvedQueryText = trim(safe(reviewRow.get("query_text")));
+            if (resolvedQueryText == null) resolvedQueryText = loadLastClientMessage(t);
+
+            String resolvedSolutionText = trim(selectedOperatorMessage);
+            if (resolvedSolutionText == null) resolvedSolutionText = trim(safe(reviewRow.get("pending_solution_text")));
+
+            if (resolvedQueryText == null || resolvedSolutionText == null) {
+                return false;
+            }
+
+            String targetKey = buildKey(resolvedQueryText);
+            String safeOperator = trim(operator);
+            int sourceUpdated;
+            if (targetKey.equals(sourceKey)) {
+                sourceUpdated = jdbcTemplate.update(
+                        """
+                        UPDATE ai_agent_solution_memory
+                           SET query_text = ?,
+                               solution_text = ?,
+                               pending_solution_text = NULL,
+                               review_required = 0,
+                               times_confirmed = COALESCE(times_confirmed,0) + 1,
+                               last_operator = ?,
+                               last_ticket_id = ?,
+                               last_client_message = ?,
+                               updated_at = CURRENT_TIMESTAMP
+                         WHERE query_key = ?
+                           AND COALESCE(review_required,0) = 1
+                           AND trim(COALESCE(pending_solution_text,'')) <> ''
+                        """,
+                        cut(resolvedQueryText, 600),
+                        cut(resolvedSolutionText, 2000),
+                        safeOperator,
+                        t,
+                        cut(resolvedQueryText, 600),
+                        sourceKey
+                );
+            } else {
+                int targetUpdated = jdbcTemplate.update(
+                        """
+                        UPDATE ai_agent_solution_memory
+                           SET query_text = ?,
+                               solution_text = ?,
+                               review_required = 0,
+                               pending_solution_text = NULL,
+                               times_confirmed = COALESCE(times_confirmed,0) + 1,
+                               last_operator = ?,
+                               last_ticket_id = ?,
+                               last_client_message = ?,
+                               updated_at = CURRENT_TIMESTAMP
+                         WHERE query_key = ?
+                        """,
+                        cut(resolvedQueryText, 600),
+                        cut(resolvedSolutionText, 2000),
+                        safeOperator,
+                        t,
+                        cut(resolvedQueryText, 600),
+                        targetKey
+                );
+                if (targetUpdated == 0) {
+                    jdbcTemplate.update(
+                            """
+                            INSERT INTO ai_agent_solution_memory(
+                                query_key, query_text, solution_text, source,
+                                times_used, times_confirmed, times_corrected,
+                                review_required, pending_solution_text,
+                                last_operator, last_ticket_id, last_client_message,
+                                created_at, updated_at
+                            ) VALUES (?, ?, ?, 'operator', 0, 1, 0, 0, NULL, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                            """,
+                            targetKey,
+                            cut(resolvedQueryText, 600),
+                            cut(resolvedSolutionText, 2000),
+                            safeOperator,
+                            t,
+                            cut(resolvedQueryText, 600)
+                    );
+                }
+                sourceUpdated = jdbcTemplate.update(
+                        """
+                        UPDATE ai_agent_solution_memory
+                           SET pending_solution_text = NULL,
+                               review_required = 0,
+                               last_operator = ?,
+                               updated_at = CURRENT_TIMESTAMP
+                         WHERE query_key = ?
+                           AND COALESCE(review_required,0) = 1
+                        """,
+                        safeOperator,
+                        sourceKey
+                );
+            }
+            if (sourceUpdated > 0) {
                 clearProcessing(t, "operator_correction_approved", null);
-                recordAiEvent(t, "ai_agent_correction_approved", trim(operator), "review", "approved", null, null, null, null);
+                Map<String, Object> payload = new LinkedHashMap<>();
+                payload.put("query_key", targetKey);
+                payload.put("source_query_key", sourceKey);
+                payload.put("message_mapping_updated", !targetKey.equals(sourceKey));
+                if (clientMessageId != null && clientMessageId > 0) payload.put("client_message_id", clientMessageId);
+                if (operatorMessageId != null && operatorMessageId > 0) payload.put("operator_message_id", operatorMessageId);
+                recordAiEvent(t, "ai_agent_correction_approved", safeOperator, "review", "approved", null, null, null, payload);
                 return true;
             }
             return false;
@@ -408,10 +507,11 @@ public class DialogAiAssistantService {
     public boolean rejectPendingReview(String ticketId, String operator) {
         String t = trim(ticketId);
         if (t == null) return false;
-        String lastClient = loadLastClientMessage(t);
-        if (!StringUtils.hasText(lastClient)) return false;
-        String key = buildKey(lastClient);
         try {
+            Map<String, Object> reviewRow = loadPendingReviewRowByTicket(t);
+            if (reviewRow == null) return false;
+            String key = trim(safe(reviewRow.get("query_key")));
+            if (key == null) return false;
             int updated = jdbcTemplate.update(
                     "UPDATE ai_agent_solution_memory SET pending_solution_text = NULL, review_required = 0, last_operator = ?, updated_at = CURRENT_TIMESTAMP WHERE query_key = ? AND COALESCE(review_required,0) = 1",
                     trim(operator),
@@ -425,6 +525,109 @@ public class DialogAiAssistantService {
             return false;
         } catch (Exception ex) {
             return false;
+        }
+    }
+
+    private Map<String, Object> loadPendingReviewRowByTicket(String ticketId) {
+        String t = trim(ticketId);
+        if (t == null) {
+            return null;
+        }
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                """
+                SELECT query_key, query_text, solution_text, pending_solution_text, updated_at
+                  FROM ai_agent_solution_memory
+                 WHERE last_ticket_id = ?
+                   AND COALESCE(review_required,0) = 1
+                   AND trim(COALESCE(pending_solution_text,'')) <> ''
+                 ORDER BY COALESCE(updated_at, created_at) DESC
+                 LIMIT 1
+                """,
+                t
+        );
+        if (!rows.isEmpty()) {
+            return rows.get(0);
+        }
+        String lastClient = loadLastClientMessage(t);
+        if (!StringUtils.hasText(lastClient)) {
+            return null;
+        }
+        String key = buildKey(lastClient);
+        List<Map<String, Object>> fallbackRows = jdbcTemplate.queryForList(
+                """
+                SELECT query_key, query_text, solution_text, pending_solution_text, updated_at
+                  FROM ai_agent_solution_memory
+                 WHERE query_key = ?
+                   AND COALESCE(review_required,0) = 1
+                   AND trim(COALESCE(pending_solution_text,'')) <> ''
+                 LIMIT 1
+                """,
+                key
+        );
+        return fallbackRows.isEmpty() ? null : fallbackRows.get(0);
+    }
+
+    private List<Map<String, Object>> loadReviewMessageCandidates(String ticketId, boolean operatorMessages, int limit) {
+        String t = trim(ticketId);
+        if (t == null) {
+            return List.of();
+        }
+        int safeLimit = Math.max(1, Math.min(limit, 50));
+        String senderFilter = operatorMessages
+                ? "IN ('operator','support','admin','system')"
+                : "NOT IN ('operator','support','admin','system','ai_agent')";
+        try {
+            List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                    "SELECT id, sender, message, timestamp FROM chat_history WHERE ticket_id = ? AND lower(COALESCE(sender,'')) " + senderFilter + " AND message IS NOT NULL AND trim(message) <> '' ORDER BY id DESC LIMIT ?",
+                    t,
+                    safeLimit
+            );
+            List<Map<String, Object>> out = new ArrayList<>();
+            for (int i = rows.size() - 1; i >= 0; i--) {
+                Map<String, Object> row = rows.get(i);
+                Map<String, Object> item = new LinkedHashMap<>();
+                item.put("id", toLong(row.get("id")));
+                item.put("sender", safe(row.get("sender")));
+                item.put("text", safe(row.get("message")));
+                item.put("timestamp", safe(row.get("timestamp")));
+                out.add(item);
+            }
+            return out;
+        } catch (Exception ex) {
+            return List.of();
+        }
+    }
+
+    private Long resolveReviewMessageSelection(List<Map<String, Object>> candidates, String targetText) {
+        String target = trim(targetText);
+        if (target == null || candidates == null || candidates.isEmpty()) {
+            return null;
+        }
+        for (Map<String, Object> candidate : candidates) {
+            if (target.equals(trim(safe(candidate.get("text"))))) {
+                return toLong(candidate.get("id"));
+            }
+        }
+        return toLong(candidates.get(candidates.size() - 1).get("id"));
+    }
+
+    private String loadReviewMessageText(String ticketId, Long messageId, boolean operatorMessage) {
+        String t = trim(ticketId);
+        if (t == null || messageId == null || messageId <= 0) {
+            return null;
+        }
+        String senderFilter = operatorMessage
+                ? "IN ('operator','support','admin','system')"
+                : "NOT IN ('operator','support','admin','system','ai_agent')";
+        try {
+            return jdbcTemplate.query(
+                    "SELECT message FROM chat_history WHERE ticket_id = ? AND id = ? AND lower(COALESCE(sender,'')) " + senderFilter + " AND message IS NOT NULL AND trim(message) <> '' LIMIT 1",
+                    rs -> rs.next() ? trim(rs.getString("message")) : null,
+                    t,
+                    messageId
+            );
+        } catch (Exception ex) {
+            return null;
         }
     }
 
@@ -1421,6 +1624,7 @@ public class DialogAiAssistantService {
     private String cut(String text, int len) { String t = trim(text); if (t == null) return ""; String c = t.replaceAll("\\s+", " ").trim(); return c.length() <= len ? c : c.substring(0, Math.max(0, len - 3)) + "..."; }
     private String safe(Object v) { return v != null ? String.valueOf(v) : ""; }
     private String trim(String v) { if (!StringUtils.hasText(v)) return null; String t = v.trim(); return t.isEmpty() ? null : t; }
+    private Long toLong(Object v) { try { if (v == null) return null; return Long.parseLong(String.valueOf(v)); } catch (Exception ex) { return null; } }
     private int toInt(Object v) { try { return Integer.parseInt(String.valueOf(v)); } catch (Exception ex) { return 0; } }
     private boolean isTrue(Object v) { if (v instanceof Boolean b) return b; String n = String.valueOf(v).trim().toLowerCase(Locale.ROOT); return "1".equals(n) || "true".equals(n) || "yes".equals(n) || "on".equals(n); }
     private String formatScore(double score) { return String.format(Locale.ROOT, "%.2f", Math.max(0d, Math.min(1d, score))); }
