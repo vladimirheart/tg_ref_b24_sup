@@ -25,6 +25,7 @@
 
   const templateNameInput = templateModalEl ? templateModalEl.querySelector('[data-bot-template-name]') : null;
   const templateDescriptionInput = templateModalEl ? templateModalEl.querySelector('[data-bot-template-description]') : null;
+  const templateStartMessageInput = templateModalEl ? templateModalEl.querySelector('[data-bot-template-start-message]') : null;
   const questionsContainer = templateModalEl ? templateModalEl.querySelector('[data-bot-questions-container]') : null;
   const addQuestionButtons = templateModalEl ? templateModalEl.querySelectorAll('[data-bot-question-add]') : [];
   const presetHintsEl = templateModalEl ? templateModalEl.querySelector('[data-bot-preset-hints]') : null;
@@ -371,6 +372,9 @@
       id,
       name: template && typeof template.name === 'string' ? template.name : 'Шаблон вопросов',
       description: template && typeof template.description === 'string' ? template.description : '',
+      startMessage: template && typeof template.startMessage === 'string'
+        ? template.startMessage
+        : (template && typeof template.start_message === 'string' ? template.start_message : ''),
       questionFlow,
     };
   }
@@ -511,6 +515,8 @@ const id = ensureQuestionId(source.id);
     const templateId = ensureTemplateId(raw.id || `tpl_${index}`);
     const name = typeof raw.name === 'string' && raw.name.trim() ? raw.name.trim() : 'Шаблон вопросов';
     const description = typeof raw.description === 'string' ? raw.description.trim() : '';
+    const startMessageRaw = raw.start_message ?? raw.startMessage;
+    const startMessage = typeof startMessageRaw === 'string' ? startMessageRaw.trim() : '';
     let flowSource = raw.question_flow;
     if (!Array.isArray(flowSource)) {
       flowSource = raw.questionFlow;
@@ -532,6 +538,7 @@ const id = ensureQuestionId(source.id);
       id: templateId,
       name,
       description,
+      startMessage,
       questionFlow,
     };
   }
@@ -592,6 +599,7 @@ const id = ensureQuestionId(source.id);
       const fallbackTemplate = normalizeTemplate(
         {
           id: source.active_template_id || generateTemplateId(),
+          start_message: source.start_message ?? source.startMessage ?? '',
           name: 'Импортированный сценарий',
           question_flow: fallbackFlow,
         },
@@ -607,6 +615,7 @@ const id = ensureQuestionId(source.id);
         {
           id: generateTemplateId(),
           name: 'Базовый шаблон вопросов',
+          start_message: source.start_message ?? source.startMessage ?? '',
           question_flow: BOT_SETTINGS_INITIAL.question_flow,
         },
         0,
@@ -623,6 +632,7 @@ const id = ensureQuestionId(source.id);
           id: generateTemplateId(),
           name: 'Шаблон вопросов',
           description: '',
+          startMessage: '',
           questionFlow: [
             {
               id: generateQuestionId(),
@@ -732,6 +742,7 @@ const id = ensureQuestionId(source.id);
         id: template.id,
         name: template.name || 'Шаблон вопросов',
         description: template.description || '',
+        startMessage: template.startMessage || '',
         questionFlow: template.questionFlow.map((question) => ({ ...question })),
         questionsCount: template.questionFlow.length,
       })),
@@ -792,6 +803,7 @@ const id = ensureQuestionId(source.id);
     templateId: null,
     name: '',
     description: '',
+    startMessage: '',
     questionFlow: [],
   };
 
@@ -1590,12 +1602,14 @@ const id = ensureQuestionId(source.id);
       editorState.templateId = template.id;
       editorState.name = template.name;
       editorState.description = template.description;
+      editorState.startMessage = template.startMessage || '';
       editorState.questionFlow = template.questionFlow.map((question) => cloneQuestion(question));
     } else {
       editorState.index = -1;
       editorState.templateId = generateTemplateId();
       editorState.name = 'Новый шаблон вопросов';
       editorState.description = '';
+      editorState.startMessage = '';
       editorState.questionFlow = [];
     }
     if (templateNameInput) {
@@ -1603,6 +1617,9 @@ const id = ensureQuestionId(source.id);
     }
     if (templateDescriptionInput) {
       templateDescriptionInput.value = editorState.description || '';
+    }
+    if (templateStartMessageInput) {
+      templateStartMessageInput.value = editorState.startMessage || '';
     }
     setTemplateStatus('', false);
     renderQuestions();
@@ -1612,6 +1629,7 @@ const id = ensureQuestionId(source.id);
   function saveTemplateFromEditor() {
     const name = templateNameInput ? templateNameInput.value.trim() : '';
     const description = templateDescriptionInput ? templateDescriptionInput.value.trim() : '';
+    const startMessage = templateStartMessageInput ? templateStartMessageInput.value.trim() : '';
     if (!name) {
       setTemplateStatus('Укажите название шаблона.', true);
       if (templateNameInput) {
@@ -1658,6 +1676,7 @@ const id = ensureQuestionId(source.id);
       id: editorState.templateId || generateTemplateId(),
       name,
       description,
+      startMessage,
       questionFlow: normalizedQuestions.map((question) => ({
         id: question.id,
         type: question.type,
@@ -1677,6 +1696,7 @@ const id = ensureQuestionId(source.id);
         id: templatePayload.id,
         name: templatePayload.name,
         description: templatePayload.description,
+        startMessage: templatePayload.startMessage,
         questionFlow: templatePayload.questionFlow.map((question) => ({
           id: question.id,
           type: question.type,
@@ -1691,6 +1711,7 @@ const id = ensureQuestionId(source.id);
         id: templatePayload.id,
         name: templatePayload.name,
         description: templatePayload.description,
+        startMessage: templatePayload.startMessage,
         questionFlow: templatePayload.questionFlow.map((question) => ({
           id: question.id,
           type: question.type,
@@ -1883,6 +1904,7 @@ const id = ensureQuestionId(source.id);
       id: template.id,
       name: template.name,
       description: template.description,
+      start_message: String(template.startMessage || template.start_message || '').trim(),
       question_flow: template.questionFlow.map(serializeQuestion),
     }));
     let activeTemplateId = state.activeTemplateId;
