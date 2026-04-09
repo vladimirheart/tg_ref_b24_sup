@@ -3,6 +3,7 @@ package com.example.supportbot.settings.dto;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
+import java.util.Map;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class BotSettingsDto {
@@ -28,6 +29,9 @@ public class BotSettingsDto {
     @JsonProperty("unblock_request_cooldown_minutes")
     private Integer unblockRequestCooldownMinutes;
 
+    @JsonProperty("business_aliases")
+    private Map<String, List<String>> businessAliases;
+
     public BotSettingsDto() {
     }
 
@@ -38,7 +42,8 @@ public class BotSettingsDto {
             List<RatingTemplateDto> ratingTemplates,
             String activeRatingTemplateId,
             RatingSystemDto ratingSystem,
-            Integer unblockRequestCooldownMinutes) {
+            Integer unblockRequestCooldownMinutes,
+            Map<String, List<String>> businessAliases) {
         this.questionTemplates = questionTemplates;
         this.activeTemplateId = activeTemplateId;
         this.questionFlow = questionFlow;
@@ -46,6 +51,7 @@ public class BotSettingsDto {
         this.activeRatingTemplateId = activeRatingTemplateId;
         this.ratingSystem = ratingSystem;
         this.unblockRequestCooldownMinutes = unblockRequestCooldownMinutes;
+        this.businessAliases = businessAliases;
     }
 
     public List<QuestionTemplateDto> getQuestionTemplates() {
@@ -102,5 +108,13 @@ public class BotSettingsDto {
 
     public void setUnblockRequestCooldownMinutes(Integer unblockRequestCooldownMinutes) {
         this.unblockRequestCooldownMinutes = unblockRequestCooldownMinutes;
+    }
+
+    public Map<String, List<String>> getBusinessAliases() {
+        return businessAliases;
+    }
+
+    public void setBusinessAliases(Map<String, List<String>> businessAliases) {
+        this.businessAliases = businessAliases;
     }
 }

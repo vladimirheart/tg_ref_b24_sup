@@ -67,12 +67,17 @@ public class BotSettingsService {
      * Falls back to defaults if the config is missing or invalid.
      */
     public BotSettingsDto loadFromChannel(Channel channel) {
-        if (channel == null || channel.getQuestionsCfg() == null) {
-            return buildDefaultSettings();
+        Map<String, Object> sharedSettings = sharedConfigService.loadSettings();
+        Object sharedBotSettingsRaw = sharedSettings.get("bot_settings");
+        Map<String, Object> raw = convertToMap(sharedBotSettingsRaw);
+        if (raw.isEmpty() && channel != null && channel.getQuestionsCfg() != null) {
+            raw = convertToMap(channel.getQuestionsCfg());
         }
-        Map<String, Object> raw = convertToMap(channel.getQuestionsCfg());
         Map<String, Object> sanitized = sanitizeBotSettingsInternal(raw,
                 sharedConfigService.presetDefinitions(), 10);
+        if (channel != null) {
+            sanitized = mergeChannelTemplateSelection(sanitized, channel);
+        }
         return objectMapper.convertValue(sanitized, BotSettingsDto.class);
     }
 
@@ -142,6 +147,35 @@ public class BotSettingsService {
         return Optional.ofNullable(ratingResponses(settings).get(key));
     }
 
+    public String startAutoReply(BotSettingsDto settings, String defaultPrompt) {
+        if (settings == null) {
+            return defaultPrompt;
+        }
+        if (settings.getQuestionTemplates() != null && settings.getActiveTemplateId() != null) {
+            for (var template : settings.getQuestionTemplates()) {
+                if (template == null || template.getId() == null) {
+                    continue;
+                }
+                if (template.getId().equals(settings.getActiveTemplateId())) {
+                    String message = optionalString(template.getStartMessage());
+                    if (!message.isBlank()) {
+                        return message;
+                    }
+                    break;
+                }
+            }
+        }
+        return defaultPrompt;
+    }
+
+    public Map<String, List<String>> businessAliases(BotSettingsDto settings) {
+        if (settings == null || settings.getBusinessAliases() == null) {
+            return Collections.emptyMap();
+        }
+        Map<String, List<String>> sanitized = sanitizeBusinessAliases(settings.getBusinessAliases());
+        return sanitized.isEmpty() ? Collections.emptyMap() : sanitized;
+    }
+
     // Internal helpers for settings sanitization ----------------------------
 
     private Map<String, Object> convertToMap(Object raw) {
@@ -174,10 +208,10 @@ public class BotSettingsService {
         List<Map<String, Object>> defaultQuestions = new ArrayList<>();
         int order = 1;
         Object[][] defaults = new Object[][]{
-            {"locations", "business", "Выберите бизнес"},
-            {"locations", "location_type", "Выберите тип бизнеса"},
-            {"locations", "city", "Выберите город"},
-            {"locations", "location_name", "Укажите локацию"}
+            {"locations", "business", "Р’С‹Р±РµСЂРёС‚Рµ Р±РёР·РЅРµСЃ"},
+            {"locations", "location_type", "Р’С‹Р±РµСЂРёС‚Рµ С‚РёРї Р±РёР·РЅРµСЃР°"},
+            {"locations", "city", "Р’С‹Р±РµСЂРёС‚Рµ РіРѕСЂРѕРґ"},
+            {"locations", "location_name", "РЈРєР°Р¶РёС‚Рµ Р»РѕРєР°С†РёСЋ"}
         };
         for (Object[] triple : defaults) {
             String group = triple[0].toString();
@@ -199,7 +233,7 @@ public class BotSettingsService {
         String defaultRatingTemplateId = "rating-template-default";
         Map<String, Object> defaultRatingTemplate = new LinkedHashMap<>();
         defaultRatingTemplate.put("id", defaultRatingTemplateId);
-        defaultRatingTemplate.put("name", "Базовый сценарий оценок");
+        defaultRatingTemplate.put("name", "Р‘Р°Р·РѕРІС‹Р№ СЃС†РµРЅР°СЂРёР№ РѕС†РµРЅРѕРє");
         defaultRatingTemplate.put("prompt_text", ratingPrompt);
         defaultRatingTemplate.put("scale_size", defaultScale);
         defaultRatingTemplate.put("responses", buildDefaultResponses(defaultScale));
@@ -207,8 +241,8 @@ public class BotSettingsService {
         Map<String, Object> settings = new LinkedHashMap<>();
         settings.put("question_templates", List.of(Map.of(
                 "id", defaultTemplateId,
-                "name", "Основной шаблон вопросов",
-                "question_flow", defaultQuestions)));
+                "name", "РћСЃРЅРѕРІРЅРѕР№ С€Р°Р±Р»РѕРЅ РІРѕРїСЂРѕСЃРѕРІ",
+                "start_message", "Здравствуйте! Подскажите, пожалуйста, детали обращения, чтобы мы быстрее помогли.",`r`n                "question_flow", defaultQuestions)));
         settings.put("active_template_id", defaultTemplateId);
         settings.put("rating_templates", List.of(defaultRatingTemplate));
         settings.put("active_rating_template_id", defaultRatingTemplateId);
@@ -218,7 +252,7 @@ public class BotSettingsService {
                 "responses", buildDefaultResponses(defaultScale)));
         settings.put("question_flow", defaultQuestions);
         settings.put("unblock_request_cooldown_minutes", 60);
-        return settings;
+        settings.put("business_aliases", Map.of(`r`n                "Блинбери", List.of("бб", "bb")`r`n        ));`r`n        return settings;
     }
 
     private Map<PresetKey, Map<String, Object>> preparePresetLookup(Map<String, Object> definitions) {
@@ -288,7 +322,7 @@ public class BotSettingsService {
                 seenIds.add(templateId);
                 String name = optionalString(templateMap.get("name"));
                 if (name.isBlank()) {
-                    name = "Шаблон вопросов";
+                    name = "РЁР°Р±Р»РѕРЅ РІРѕРїСЂРѕСЃРѕРІ";
                 }
                 String description = optionalString(templateMap.get("description"));
                 Object flowSource = templateMap.get("question_flow");
@@ -305,7 +339,7 @@ public class BotSettingsService {
                 }
                 Map<String, Object> templateEntry = new LinkedHashMap<>();
                 templateEntry.put("id", templateId);
-                templateEntry.put("name", name.isBlank() ? "Шаблон вопросов" : name);
+                templateEntry.put("name", name.isBlank() ? "РЁР°Р±Р»РѕРЅ РІРѕРїСЂРѕСЃРѕРІ" : name);
                 templateEntry.put("question_flow", sanitizedFlow);
                 if (!description.isBlank()) {
                     templateEntry.put("description", description);
@@ -322,7 +356,7 @@ public class BotSettingsService {
         if (!fallbackFlow.isEmpty() && templates.isEmpty()) {
             Map<String, Object> imported = new LinkedHashMap<>();
             imported.put("id", defaultsValue(defaults, "question_templates", 0, "id"));
-            imported.put("name", "Импортированный сценарий");
+            imported.put("name", "РРјРїРѕСЂС‚РёСЂРѕРІР°РЅРЅС‹Р№ СЃС†РµРЅР°СЂРёР№");
             imported.put("question_flow", fallbackFlow);
             templates.add(imported);
         }
@@ -354,7 +388,7 @@ public class BotSettingsService {
                 seenRatingIds.add(templateId);
                 String name = optionalString(templateMap.get("name"));
                 if (name.isBlank()) {
-                    name = "Шаблон оценок";
+                    name = "РЁР°Р±Р»РѕРЅ РѕС†РµРЅРѕРє";
                 }
                 String description = optionalString(templateMap.get("description"));
                 int scale = normalizeScale(templateMap.get("scale_size"), templateMap.get("scale"), templateMap.get("scaleSize"), defaults, maxScale);
@@ -394,7 +428,7 @@ public class BotSettingsService {
             String templateId = ensureUuid(ratingSystem.get("id"));
             entry.put("id", templateId);
             String name = optionalString(ratingSystem.get("name"));
-            entry.put("name", name.isBlank() ? "Шаблон оценок" : name);
+            entry.put("name", name.isBlank() ? "РЁР°Р±Р»РѕРЅ РѕС†РµРЅРѕРє" : name);
             String description = optionalString(ratingSystem.get("description"));
             int scale = normalizeScale(ratingSystem.get("scale_size"), ratingSystem.get("scale"), ratingSystem.get("scaleSize"), defaults, maxScale);
             String prompt = optionalString(ratingSystem.get("prompt_text"));
@@ -626,7 +660,7 @@ public class BotSettingsService {
         List<Map<String, Object>> responses = new ArrayList<>();
         int upper = Math.max(scale, 1);
         for (int value = 1; value <= upper; value++) {
-            String text = collected.getOrDefault(value, defaultsMap.getOrDefault(value, "Спасибо за вашу оценку %d!".formatted(value)));
+            String text = collected.getOrDefault(value, defaultsMap.getOrDefault(value, "РЎРїР°СЃРёР±Рѕ Р·Р° РІР°С€Сѓ РѕС†РµРЅРєСѓ %d!".formatted(value)));
             Map<String, Object> entry = new LinkedHashMap<>();
             entry.put("value", value);
             entry.put("text", text);
@@ -938,7 +972,7 @@ public class BotSettingsService {
         for (int value = 1; value <= upperBound; value++) {
             Map<String, Object> response = new LinkedHashMap<>();
             response.put("value", value);
-            response.put("text", "Спасибо за вашу оценку %d! Нам важно ваше мнение.".formatted(value));
+            response.put("text", "РЎРїР°СЃРёР±Рѕ Р·Р° РІР°С€Сѓ РѕС†РµРЅРєСѓ %d! РќР°Рј РІР°Р¶РЅРѕ РІР°С€Рµ РјРЅРµРЅРёРµ.".formatted(value));
             responses.add(response);
         }
         return responses;
@@ -946,9 +980,9 @@ public class BotSettingsService {
 
     private String defaultRatingPrompt(int scale) {
         if (scale <= 1) {
-            return "Пожалуйста, оцените качество ответа: отправьте число 1.";
+            return "РџРѕР¶Р°Р»СѓР№СЃС‚Р°, РѕС†РµРЅРёС‚Рµ РєР°С‡РµСЃС‚РІРѕ РѕС‚РІРµС‚Р°: РѕС‚РїСЂР°РІСЊС‚Рµ С‡РёСЃР»Рѕ 1.";
         }
-        return "Пожалуйста, оцените качество ответа от 1 до %d.".formatted(scale);
+        return "РџРѕР¶Р°Р»СѓР№СЃС‚Р°, РѕС†РµРЅРёС‚Рµ РєР°С‡РµСЃС‚РІРѕ РѕС‚РІРµС‚Р° РѕС‚ 1 РґРѕ %d.".formatted(scale);
     }
 
     private String ensureUuid(Object value) {
