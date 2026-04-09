@@ -2,7 +2,8 @@
 
 **Статус:** Требуется деятельность  
 **Дата:** 8 апреля 2026  
-**Приоритет:** ВЫСОКИЙ
+**Приоритет:** ВЫСОКИЙ  
+**Актуализация:** 9 апреля 2026 (см. `docs/ARCHITECTURE_AUDIT_VALIDATION_2026-04-09.md`)
 
 ---
 
@@ -31,9 +32,9 @@
 | Средний размер сервиса | 500 строк | **200 строк** |
 | Сервисы с интерфейсами | 0% | **100%** |
 | Дублирующийся код | ~15% | **< 5%** |
-| Unit-тесты | 0% test classes | **70%+ code coverage** |
-| Use of raw JDBC | High | **0% (JPA only)** |
-| API versioning | Отсутствует | **/api/v1, /api/v2** |
+| Unit-тесты | 18 test classes в `spring-panel` | **70%+ code coverage** |
+| Use of raw JDBC | High | **снижение, SQL только где обосновано** |
+| API versioning | Частично отсутствует | **/api/v1 для приоритетных API** |
 
 ---
 
@@ -90,24 +91,20 @@ public class DialogApiController {
 
 ---
 
-#### ✅ 1.2 Добавить GlobalExceptionHandler
+#### ✅ 1.2 Расширить существующий RestExceptionHandler до полноценного GlobalExceptionHandler
 
 **Что делать:**
-- Создать класс `GlobalExceptionHandler` с аннотацией `@RestControllerAdvice`
+- Перевести текущий `RestExceptionHandler` на `@RestControllerAdvice`
 - Создать пользовательские исключения (ResourceNotFoundException, BusinessLogicException, etc)
 - Заменить все try-catch блоки на выброс исключений
 
 **Локация:**
 ```
 src/main/java/com/example/panel/
-├── exception/
-│   ├── PanelException.java (базовое)
-│   ├── ResourceNotFoundException.java
-│   ├── BusinessLogicException.java
-│   ├── UnauthorizedException.java
-│   └── GlobalExceptionHandler.java
-└── model/response/
-    └── ErrorResponse.java
+├── config/
+│   └── RestExceptionHandler.java
+└── model/
+    └── ApiErrorResponse.java
 ```
 
 **Пример структуры исключений:**
@@ -660,7 +657,7 @@ class DialogApiControllerTest {
 | Фаза | Задача | Статус | Спринт | Owner |
 |------|--------|--------|--------|-------|
 | 1 | Интерфейсы для сервисов | TODO | Sprint 1-2 | |
-| 1 | GlobalExceptionHandler | TODO | Sprint 1-2 | |
+| 1 | RestControllerAdvice (единый error contract) | TODO | Sprint 1-2 | |
 | 1 | Bot Adapter Pattern (базовая) | TODO | Sprint 1-2 | |
 | 2 | DialogService → Query/Command | TODO | Sprint 3-5 | |
 | 2 | DTO слой | TODO | Sprint 3-5 | |
@@ -681,13 +678,13 @@ class DialogApiControllerTest {
 Встреча с архитектором проекта для согласования спринтов.
 
 **Какие есть риски?**
-- Потенциальные боте регрессии во время рефакторинга (требуется обширное тестирование)
+- Потенциальные регрессии в ботах во время рефакторинга (требуется обширное тестирование)
 - Задержки в развертывании новых функций во время переписи
 
 **Как минимизировать риски?**
 - Каждую фазу работы начинать с полного coverage unit-тестами
 - Deployment новых версий в staging перед production
--备份БД перед большими изменениями
+- Резервное копирование БД перед большими изменениями
 
 ---
 

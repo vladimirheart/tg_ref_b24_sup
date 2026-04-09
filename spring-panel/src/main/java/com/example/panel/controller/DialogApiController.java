@@ -2892,13 +2892,19 @@ public class DialogApiController {
 
     @PostMapping("/{ticketId}/ai-review/approve")
     public ResponseEntity<?> approveAiReview(@PathVariable String ticketId,
+                                             @RequestBody(required = false) AiReviewApproveRequest request,
                                              Authentication authentication) {
         ResponseEntity<Map<String, Object>> permissionDenied = requireDialogPermission(authentication, "can_reply", "ai_review_approve", ticketId);
         if (permissionDenied != null) {
             return permissionDenied;
         }
         String operator = authentication != null ? authentication.getName() : null;
-        boolean updated = dialogAiAssistantService.approvePendingReview(ticketId, operator);
+        boolean updated = dialogAiAssistantService.approvePendingReview(
+                ticketId,
+                operator,
+                request != null ? request.clientMessageId() : null,
+                request != null ? request.operatorMessageId() : null
+        );
         return ResponseEntity.ok(Map.of("success", true, "updated", updated));
     }
 
@@ -5071,6 +5077,9 @@ public class DialogApiController {
     public record AiControlRequest(@JsonAlias({"ai_disabled", "aiDisabled"}) Boolean aiDisabled,
                                    @JsonAlias({"auto_reply_blocked", "autoReplyBlocked"}) Boolean autoReplyBlocked,
                                    String reason) {}
+
+    public record AiReviewApproveRequest(@JsonAlias({"client_message_id", "clientMessageId"}) Long clientMessageId,
+                                         @JsonAlias({"operator_message_id", "operatorMessageId"}) Long operatorMessageId) {}
 
     public record AiSolutionMemoryUpdateRequest(@JsonAlias({"query_text", "queryText"}) String queryText,
                                                 @JsonAlias({"solution_text", "solutionText"}) String solutionText,

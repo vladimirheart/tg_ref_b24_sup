@@ -39,11 +39,10 @@ import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 
 @RestController
-@RequestMapping("/api/tasks")
+@RequestMapping({"/api/tasks", "/api/v1/tasks"})
 @PreAuthorize("hasAuthority('PAGE_TASKS')")
 public class TaskApiController {
 
@@ -95,13 +94,8 @@ public class TaskApiController {
 
     @GetMapping("/{id}")
     public ResponseEntity<Map<String, Object>> get(@PathVariable Long id) {
-        Optional<Task> taskOpt = taskRepository.findById(id);
-        if (taskOpt.isEmpty()) {
-            log.warn("Task {} not found when requesting details", id);
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(Map.of("error", "Task not found"));
-        }
-        Task task = taskOpt.get();
+        Task task = taskRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Task not found"));
         Map<String, Object> dto = toDetailedDto(task);
         int commentsCount = dto.getOrDefault("comments", List.of()) instanceof List<?> comments
                 ? comments.size() : 0;
@@ -161,7 +155,7 @@ public class TaskApiController {
     public Map<String, Object> delete(@PathVariable Long id) {
         if (!taskRepository.existsById(id)) {
             log.warn("Attempt to delete missing task {}", id);
-            return Map.of("ok", false, "error", "Task not found");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Task not found");
         }
         commentRepository.deleteAll(commentRepository.findByTaskIdOrderByCreatedAtAsc(id));
         historyRepository.deleteAll(historyRepository.findByTaskIdOrderByAtDesc(id));
@@ -175,7 +169,8 @@ public class TaskApiController {
                                           @RequestParam String html,
                                           @RequestParam(name = "author", required = false) String author,
                                           Authentication authentication) {
-        Task task = taskRepository.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        Task task = taskRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Task not found"));
         TaskComment comment = new TaskComment();
         comment.setTask(task);
         comment.setAuthor(StringUtils.hasText(author) ? author : "");
