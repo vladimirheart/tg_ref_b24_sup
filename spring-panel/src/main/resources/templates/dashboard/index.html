@@ -915,8 +915,6 @@ async function loadDashboardData() {
       restaurants: currentFilters.restaurants
     };
 
-    console.log('Отправляемые данные:', requestData);
-
     // Используем POST запрос
     const response = await fetch('/api/dashboard/data', {
       method: 'POST',
@@ -938,7 +936,6 @@ async function loadDashboardData() {
     }
 
     const data = await response.json();
-    console.log('Полученные данные:', data);
 
     // Обновляем статистику
     updateStats(data.stats, data.time_stats, data.staff_time_stats);
@@ -1133,11 +1130,8 @@ function updateStaffTimeStats(staffStats) {
             return;
         }
 
-        console.log('Данные для графиков:', chartData);
-
         // Проверяем каждый набор данных
         Object.keys(chartData).forEach(key => {
-            console.log(`График ${key}:`, chartData[key]);
             if (!chartData[key] || Object.keys(chartData[key]).length === 0) {
                 console.warn(`Нет данных для графика: ${key}`);
                 showNotification(`Нет данных для графика: ${key}`, 'warning');

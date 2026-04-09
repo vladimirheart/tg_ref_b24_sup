@@ -9,7 +9,9 @@ object_passport_uploads/
 attachments/
 /java-bot/target/
 /java-bot/**/target/
+/java-bot/.m2/
 /spring-panel/.m2/
+/logs/
 
 /spring-panel/target/
 *.patch

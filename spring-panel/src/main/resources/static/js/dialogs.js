@@ -9,11 +9,15 @@
 
   function debugLog(message, payload) {
     if (!DEBUG_DIALOGS) return;
-    if (payload === undefined) {
-      console.log(`[dialogs-debug] ${message}`);
-      return;
+    const history = window.__dialogsDebugEvents = window.__dialogsDebugEvents || [];
+    history.push({
+      ts: Date.now(),
+      message,
+      payload: payload === undefined ? null : payload,
+    });
+    if (history.length > 300) {
+      history.shift();
     }
-    console.log(`[dialogs-debug] ${message}`, payload);
   }
 
   if (DEBUG_DIALOGS) {
@@ -2029,7 +2033,7 @@
   function exportWorkspaceIncidentCsv() {
     if (!activeWorkspaceTicketId) {
       if (typeof showNotification === 'function') {
-        showNotification('������� �������� ������, ����� �������������� ��������.', 'warning');
+        showNotification('Сначала откройте диалог, чтобы экспортировать инцидент.', 'warning');
       }
       return;
     }
@@ -4354,14 +4358,14 @@
 
   function formatRatePercent(value) {
     const numeric = Number(value);
-    if (!Number.isFinite(numeric)) return '�';
+    if (!Number.isFinite(numeric)) return '—';
     return `${(numeric * 100).toFixed(1)}%`;
   }
 
   function renderAiMonitoringAlerts(alerts) {
     if (!aiMonitoringAlerts) return;
     if (!Array.isArray(alerts) || alerts.length === 0) {
-      aiMonitoringAlerts.innerHTML = '<div class="text-muted">������� ���.</div>';
+      aiMonitoringAlerts.innerHTML = '<div class="text-muted">Алертов нет.</div>';
       return;
     }
     aiMonitoringAlerts.innerHTML = alerts.map((alert) => {
@@ -4372,14 +4376,14 @@
       const message = escapeHtml(String(alert?.message || 'AI alert'));
       const value = formatRatePercent(alert?.value);
       const threshold = formatRatePercent(alert?.threshold);
-      return `<div class="${cls}"><div>${message}</div><div class="small text-muted">value: ${value} � threshold: ${threshold}</div></div>`;
+      return `<div class="${cls}"><div>${message}</div><div class="small text-muted">value: ${value} / threshold: ${threshold}</div></div>`;
     }).join('');
   }
 
   function renderAiMonitoringRunbook(items) {
     if (!aiMonitoringRunbook) return;
     if (!Array.isArray(items) || !items.length) {
-      aiMonitoringRunbook.innerHTML = '<li>Runbook ����������.</li>';
+      aiMonitoringRunbook.innerHTML = '<li>Runbook недоступен.</li>';
       return;
     }
     aiMonitoringRunbook.innerHTML = items.map((item) => `<li>${escapeHtml(String(item || ''))}</li>`).join('');
@@ -4388,7 +4392,7 @@
   function renderAiMonitoringEvents(items) {
     if (!aiMonitoringEvents) return;
     if (!Array.isArray(items) || !items.length) {
-      aiMonitoringEvents.innerHTML = '<div class="text-muted">������� ���.</div>';
+      aiMonitoringEvents.innerHTML = '<div class="text-muted">Событий нет.</div>';
       return;
     }
     aiMonitoringEvents.innerHTML = items.slice(0, 12).map((item) => {
@@ -4448,7 +4452,7 @@
 
   async function loadAiMonitoringSummary(days = 7) {
     if (!aiMonitoringSection || !aiMonitoringState) return;
-    aiMonitoringState.textContent = '�������� AI-������';
+    aiMonitoringState.textContent = 'Загрузка AI-сводки';
     try {
       const resp = await fetch(`/api/dialogs/ai-monitoring/summary?days=${encodeURIComponent(days)}`, {
         credentials: 'same-origin',
@@ -4468,9 +4472,9 @@
       renderAiMonitoringRunbook(summary.runbook?.items);
       await loadAiMonitoringEvents(days, 50);
       const windowDays = Number(summary.window_days || days);
-      aiMonitoringState.textContent = `����: ${Number.isFinite(windowDays) ? windowDays : days} �� � ��������� ${formatUtcDate(summary.generated_at, { includeTime: true })}`;
+      aiMonitoringState.textContent = `Окно: ${Number.isFinite(windowDays) ? windowDays : days} дн / обновлено ${formatUtcDate(summary.generated_at, { includeTime: true })}`;
     } catch (error) {
-      aiMonitoringState.textContent = `�� ������� ��������� AI-�������: ${error.message || 'unknown_error'}`;
+      aiMonitoringState.textContent = `Не удалось загрузить AI-сводку: ${error.message || 'unknown_error'}`;
       renderAiMonitoringAlerts([]);
       renderAiMonitoringRunbook([]);
       renderAiMonitoringEvents([]);
@@ -8265,11 +8269,11 @@
         const card = rejectBtn.closest('article');
         if (card) card.remove();
         if (typeof showNotification === 'function') {
-          showNotification('��������� ��������� � ���������� � feedback-loop', 'info');
+          showNotification('Подсказка отклонена и отправлена в feedback-loop', 'info');
         }
       } catch (error) {
         if (typeof showNotification === 'function') {
-          showNotification(`�� ������� ��������� ���������: ${error.message || 'unknown_error'}`, 'warning');
+          showNotification(`Не удалось отклонить подсказку: ${error.message || 'unknown_error'}`, 'warning');
         }
       }
     });
@@ -8307,10 +8311,10 @@
         await updateWorkspaceAiControl(ticketId, {
           ai_disabled: disableMode,
           reason: disableMode ? 'disabled_by_operator' : 'enabled_by_operator',
-        }, disableMode ? 'AI �������� ��� �������� �������' : 'AI ������� ��� �������� �������');
+        }, disableMode ? 'AI отключен для этого диалога' : 'AI включен для этого диалога');
       } catch (error) {
         if (typeof showNotification === 'function') {
-          showNotification(`�� ������� �������� ����� AI: ${error.message || 'unknown_error'}`, 'warning');
+          showNotification(`Не удалось изменить режим AI: ${error.message || 'unknown_error'}`, 'warning');
         }
       }
     });
@@ -8326,10 +8330,10 @@
           ai_disabled: false,
           auto_reply_blocked: true,
           reason: 'handoff_no_auto_reply',
-        }, '������ ������� ���������, ���������� AI ���������');
+        }, 'Диалог передан оператору, автоответ AI отключен');
       } catch (error) {
         if (typeof showNotification === 'function') {
-          showNotification(`�� ������� ��������� handoff: ${error.message || 'unknown_error'}`, 'warning');
+          showNotification(`Не удалось выполнить handoff: ${error.message || 'unknown_error'}`, 'warning');
         }
       }
     });

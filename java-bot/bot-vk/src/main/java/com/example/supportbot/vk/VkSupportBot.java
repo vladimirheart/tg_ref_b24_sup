@@ -15,26 +15,25 @@ import com.example.supportbot.service.UnblockRequestService;
 import com.example.supportbot.settings.BotSettingsService;
 import com.example.supportbot.settings.dto.BotSettingsDto;
 import com.example.supportbot.settings.dto.QuestionFlowItemDto;
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.vk.api.sdk.callback.longpoll.BotsLongPoll;
-import com.vk.api.sdk.callback.longpoll.responses.GetLongPollEventsResponse;
-import com.vk.api.sdk.callback.longpoll.responses.LongPollGroupUpdates;
 import com.vk.api.sdk.client.VkApiClient;
 import com.vk.api.sdk.client.actors.GroupActor;
+import com.vk.api.sdk.exceptions.ApiException;
 import com.vk.api.sdk.exceptions.ClientException;
-import com.vk.api.sdk.exceptions.LongPollServerKeyExpiredException;
-import com.vk.api.sdk.exceptions.LongPollServerTsException;
 import com.vk.api.sdk.httpclient.HttpTransportClient;
+import com.vk.api.sdk.objects.callback.longpoll.responses.GetLongPollEventsResponse;
 import com.vk.api.sdk.objects.messages.AudioMessage;
 import com.vk.api.sdk.objects.messages.Message;
 import com.vk.api.sdk.objects.messages.MessageAttachment;
 import com.vk.api.sdk.objects.messages.MessageAttachmentType;
 import com.vk.api.sdk.objects.docs.Doc;
+import com.vk.api.sdk.objects.groups.responses.GetLongPollServerResponse;
 import com.vk.api.sdk.objects.photos.Photo;
 import com.vk.api.sdk.objects.photos.PhotoSizes;
-import com.vk.api.sdk.objects.video.Video;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -81,10 +80,11 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
     private final PublicFormConversationLinkService publicFormConversationLinkService;
     private final SharedConfigService sharedConfigService;
     private final ObjectMapper objectMapper;
+    private final Gson gson;
     private final VkApiClient vkClient;
     private final HttpClient httpClient;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
-    private final Map<Integer, ConversationSession> sessions = new ConcurrentHashMap<>();
+    private final Map<Long, ConversationSession> sessions = new ConcurrentHashMap<>();
 
     private volatile boolean running = false;
     private volatile Channel cachedChannel;
@@ -115,6 +115,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         this.publicFormConversationLinkService = publicFormConversationLinkService;
         this.sharedConfigService = sharedConfigService;
         this.objectMapper = objectMapper;
+        this.gson = new Gson();
         this.vkClient = new VkApiClient(new HttpTransportClient());
         this.httpClient = HttpClient.newBuilder().build();
     }
@@ -140,12 +141,18 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
 
     private void runLoop() {
         GroupActor actor = createActor();
-        BotsLongPoll poller = new BotsLongPoll(vkClient, actor);
+        LongPollState state = fetchLongPollState(actor);
         while (running) {
             try {
-                poller.runBot(response -> handleUpdates(actor, response));
-            } catch (LongPollServerTsException | LongPollServerKeyExpiredException e) {
-                log.warn("VK long poll server state expired, restarting", e);
+                GetLongPollEventsResponse response = vkClient.longPoll()
+                        .getEvents(state.server(), state.key(), state.ts())
+                        .waitTime(25)
+                        .execute();
+                state = state.withTs(response != null ? response.getTs() : state.ts());
+                handleUpdates(actor, response);
+            } catch (ApiException | ClientException e) {
+                log.warn("VK long poll state refresh required, requesting new server", e);
+                state = fetchLongPollState(actor);
             } catch (Exception ex) {
                 log.error("VK long poll failed", ex);
             }
@@ -158,27 +165,53 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
     }
 
     private GroupActor createActor() {
-        return new GroupActor(properties.getGroupId(), properties.getToken());
+        Integer groupId = properties.getGroupId();
+        if (groupId == null) {
+            throw new IllegalStateException("VK groupId is not configured");
+        }
+        return new GroupActor(groupId.longValue(), properties.getToken());
+    }
+
+    private LongPollState fetchLongPollState(GroupActor actor) {
+        try {
+            GetLongPollServerResponse response = vkClient.groupsLongPoll()
+                    .getLongPollServer(actor, actor.getGroupId())
+                    .execute();
+            if (response == null || response.getServer() == null || response.getKey() == null || response.getTs() == null) {
+                throw new IllegalStateException("VK long poll server response is incomplete");
+            }
+            return new LongPollState(response.getServer(), response.getKey(), response.getTs());
+        } catch (ApiException | ClientException e) {
+            throw new IllegalStateException("Failed to initialize VK long poll server", e);
+        }
     }
 
     private void handleUpdates(GroupActor actor, GetLongPollEventsResponse response) {
-        if (response == null) {
+        if (response == null || response.getUpdates() == null) {
             return;
         }
         log.info("Received VK long poll response with {} update(s)", response.getUpdates().size());
-        for (LongPollGroupUpdates update : response.getUpdates()) {
-            if ("message_new".equals(update.getType())) {
-                Message message = update.getObject().getMessage();
-                if (message != null) {
-                    onMessage(actor, message);
-                }
+        for (JsonObject update : response.getUpdates()) {
+            if (update == null || !update.has("type") || !"message_new".equals(update.get("type").getAsString())) {
+                continue;
+            }
+            if (!update.has("object") || !update.get("object").isJsonObject()) {
+                continue;
+            }
+            JsonObject object = update.getAsJsonObject("object");
+            if (!object.has("message")) {
+                continue;
+            }
+            Message message = gson.fromJson(object.get("message"), Message.class);
+            if (message != null) {
+                onMessage(actor, message);
             }
         }
     }
 
     private void onMessage(GroupActor actor, Message message) {
-        Integer fromId = message.getFromId();
-        Integer peerId = message.getPeerId();
+        Long fromId = message.getFromId();
+        Long peerId = message.getPeerId();
         if (fromId == null || peerId == null || !peerId.equals(fromId)) {
             // ignore group chats
             log.info("Ignoring VK message from peer {} user {}: not a direct message", peerId, fromId);
@@ -186,12 +219,12 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         }
         logIncomingMessage(message);
         Channel channel = getChannel();
-        BlacklistService.BlacklistStatus status = blacklistService.getStatus(fromId.longValue());
+        BlacklistService.BlacklistStatus status = blacklistService.getStatus(fromId);
         if (status.blacklisted()) {
             log.info("Blocked message from blacklisted VK user {}", fromId);
             String text = Optional.ofNullable(message.getText()).orElse("").trim();
             if ("/unblock".equalsIgnoreCase(text)) {
-                handleUnblockRequest(actor, peerId, fromId.longValue(), channel);
+                handleUnblockRequest(actor, peerId, fromId, channel);
             } else {
                 sendText(actor, peerId, status.unblockRequested()
                         ? "Ваш аккаунт заблокирован. Запрос уже на рассмотрении."
@@ -203,7 +236,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         String text = Optional.ofNullable(message.getText()).orElse("").trim();
         String publicFormToken = extractPublicFormContinueToken(text);
         if (publicFormToken != null) {
-            handlePublicFormContinue(actor, peerId, fromId.longValue(), null, channel, publicFormToken);
+            handlePublicFormContinue(actor, peerId, fromId, null, channel, publicFormToken);
             return;
         }
         if ("/start".equalsIgnoreCase(text)) {
@@ -215,7 +248,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         }
         if (isMyTicketsCommand(text)) {
             log.info("Received my tickets command from VK user {}", fromId);
-            handleMyTickets(actor, peerId, fromId.longValue());
+            handleMyTickets(actor, peerId, fromId);
             return;
         }
 
@@ -228,14 +261,13 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         }
         if ("/unblock".equalsIgnoreCase(text)) {
             log.info("Received /unblock from VK user {}", fromId);
-            handleUnblockRequest(actor, peerId, fromId.longValue(), channel);
+            handleUnblockRequest(actor, peerId, fromId, channel);
             return;
         }
 
         if (session.awaitingReuseDecision()) {
             if (!session.consumeReuseDecision(text)) {
-                sendText(actor, peerId, "Ответьте 'да', чтобы использовать прошлые значения, или 'нет', чтобы заполнить заново.",
-                        null);
+                sendText(actor, peerId, "Ответьте 'да', чтобы использовать прошлые значения, или 'нет', чтобы заполнить заново.");
                 return;
             }
             if (session.isComplete()) {
@@ -277,7 +309,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         if (!text.matches("\\d+")) {
             return false;
         }
-        Optional<PendingFeedbackRequest> pendingOpt = feedbackService.findActiveRequest(message.getFromId().longValue(), channel);
+        Optional<PendingFeedbackRequest> pendingOpt = feedbackService.findActiveRequest(message.getFromId(), channel);
         if (pendingOpt.isEmpty()) {
             return false;
         }
@@ -338,7 +370,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
     }
 
     private void handlePublicFormContinue(GroupActor actor,
-                                          Integer peerId,
+                                          Long peerId,
                                           Long userId,
                                           String username,
                                           Channel channel,
@@ -549,11 +581,11 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         String requestNumber = result.groupMessageId() != null ? result.groupMessageId().toString() : result.ticketId();
         log.info("Created VK ticket {} for user {}", result.ticketId(), session.userId());
         for (HistoryEvent event : session.history()) {
-            chatHistoryService.storeEntry(event.userId().longValue(), null, channel, result.ticketId(), event.text(), event.messageType(), event.attachment());
+            chatHistoryService.storeEntry(event.userId(), null, channel, result.ticketId(), event.text(), event.messageType(), event.attachment(), null, null);
         }
         sendText(actor, session.peerId(), "Спасибо! Ваше обращение №" + requestNumber + " отправлено оператору.");
         if (properties.getChannelId() != null && properties.getChannelId() > 0) {
-            sendText(actor, properties.getChannelId().intValue(), session.buildSummary(result.ticketId()));
+            sendText(actor, properties.getChannelId().longValue(), session.buildSummary(result.ticketId()));
         }
         int scale = botSettingsService.ratingScale(session.settings(), 5);
         String prompt = botSettingsService.ratingPrompt(session.settings(), "Оцените заявку {ticket_id} по шкале 1-{scale}")
@@ -573,7 +605,6 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                     case PHOTO -> handlePhoto(attachment.getPhoto(), session);
                     case DOC -> handleDoc(attachment.getDoc(), session);
                     case AUDIO_MESSAGE -> handleAudioMessage(attachment.getAudioMessage(), session);
-                    case VIDEO -> handleVideo(attachment.getVideo(), session);
                     default -> log.debug("Unhandled attachment type {}", attachment.getType());
                 }
             } catch (Exception e) {
@@ -607,13 +638,6 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         storeFromUrl(audio.getLinkOgg().toString(), "ogg", session, MessageAttachmentType.AUDIO_MESSAGE.getValue());
     }
 
-    private void handleVideo(Video video, ConversationSession session) throws Exception {
-        if (video == null || video.getPlayer() == null) {
-            return;
-        }
-        storeFromUrl(video.getPlayer().toString(), "mp4", session, "video");
-    }
-
     private void storeFromUrl(String url, String extension, ConversationSession session, String messageType) throws IOException, InterruptedException {
         HttpRequest request = HttpRequest.newBuilder(URI.create(url)).GET().build();
         HttpResponse<InputStream> response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
@@ -633,38 +657,38 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         try {
             log.info("Sending VK direct message to peer {}: {}", peerId, summarizeText(text));
             vkClient.messages()
-                    .send(actor)
-                    .peerId(peerId)
+                    .sendDeprecated(actor)
+                    .peerId(peerId.longValue())
                     .randomId(ThreadLocalRandom.current().nextInt())
                     .message(text)
                     .execute();
             return true;
-        } catch (ClientException e) {
+        } catch (ApiException | ClientException e) {
             log.error("Failed to send VK message to peer {}", peerId, e);
             return false;
         }
     }
 
-    private void sendText(GroupActor actor, int peerId, String text) {
+    private void sendText(GroupActor actor, Long peerId, String text) {
         if (text == null || text.isBlank()) {
             return;
         }
         try {
             log.info("Sending VK message to peer {}: {}", peerId, summarizeText(text));
             vkClient.messages()
-                    .send(actor)
+                    .sendDeprecated(actor)
                     .peerId(peerId)
                     .randomId(ThreadLocalRandom.current().nextInt())
                     .message(text)
                     .execute();
-        } catch (ClientException e) {
+        } catch (ApiException | ClientException e) {
             log.error("Failed to send VK message to peer {}", peerId, e);
         }
     }
 
     @Scheduled(cron = "0 0 * * * *")
     public void sendUnblockDigest() {
-        Integer channelId = properties.getChannelId();
+        Long channelId = properties.getChannelId();
         if (channelId == null || channelId <= 0) {
             return;
         }
@@ -690,7 +714,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
 
     private void notifyOperatorsAboutUnblockRequest(GroupActor actor,
                                                     com.example.supportbot.entity.ClientUnblockRequest request) {
-        Integer channelId = properties.getChannelId();
+        Long channelId = properties.getChannelId();
         if (channelId == null || channelId <= 0 || request == null) {
             return;
         }
@@ -710,7 +734,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         sendText(actor, channelId, builder.toString());
     }
 
-    private void sendOperatorMessage(Integer channelId, String text) {
+    private void sendOperatorMessage(Long channelId, String text) {
         if (channelId == null || channelId <= 0 || text == null || text.isBlank()) {
             return;
         }
@@ -725,7 +749,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         return value.format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm"));
     }
 
-    private void handleUnblockRequest(GroupActor actor, int peerId, long userId, Channel channel) {
+    private void handleUnblockRequest(GroupActor actor, Long peerId, Long userId, Channel channel) {
         BotSettingsDto settings = botSettingsService.loadFromChannel(channel);
         int cooldownMinutes = botSettingsService.unblockRequestCooldownMinutes(settings, 60);
         Duration cooldown = cooldownMinutes > 0 ? Duration.ofMinutes(cooldownMinutes) : Duration.ZERO;
@@ -780,7 +804,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         return "мои заявки".equals(normalized);
     }
 
-    private void handleMyTickets(GroupActor actor, int peerId, long userId) {
+    private void handleMyTickets(GroupActor actor, Long peerId, Long userId) {
         List<TicketService.TicketSummary> tickets = ticketService.findRecentTicketsForUser(userId, 10);
         sendText(actor, peerId, formatTicketsResponse(tickets));
     }
@@ -848,12 +872,18 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         return Integer.MAX_VALUE;
     }
 
-    private record HistoryEvent(Integer userId, String text, String messageType, String attachment) {
+    private record LongPollState(URI server, String key, String ts) {
+        private LongPollState withTs(String nextTs) {
+            return new LongPollState(server, key, nextTs != null ? nextTs : ts);
+        }
+    }
+
+    private record HistoryEvent(Long userId, String text, String messageType, String attachment) {
     }
 
     private static final class ConversationSession {
-        private final int peerId;
-        private final int userId;
+        private final Long peerId;
+        private final Long userId;
         private final List<QuestionFlowItemDto> flow;
         private final BotSettingsDto settings;
         private final Map<String, String> answers = new LinkedHashMap<>();
@@ -863,7 +893,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         private boolean reuseDecisionPending = false;
         private int currentIndex = 0;
 
-        ConversationSession(int peerId, int userId, List<QuestionFlowItemDto> flow, BotSettingsDto settings) {
+        ConversationSession(Long peerId, Long userId, List<QuestionFlowItemDto> flow, BotSettingsDto settings) {
             this.peerId = peerId;
             this.userId = userId;
             this.flow = flow;
@@ -906,11 +936,11 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
             return answers;
         }
 
-        int peerId() {
+        Long peerId() {
             return peerId;
         }
 
-        int userId() {
+        Long userId() {
             return userId;
         }
 

@@ -382,7 +382,7 @@
             }
             window.location.reload();
           } catch (error) {
-            alert(`Не удалось создать задачу: ${error.message || 'unknown_error'}`);
+            console.error(`Не удалось создать задачу: ${error.message || 'unknown_error'}`);
           }
         }, { capture: true });
       }

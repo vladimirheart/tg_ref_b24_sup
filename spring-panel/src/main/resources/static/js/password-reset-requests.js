@@ -111,7 +111,7 @@
             throw new Error((data && data.error) || 'Операция не выполнена.');
           }
           if (action === 'approve' && data.temporary_password) {
-            window.alert('Временный пароль: ' + data.temporary_password + '\nПередайте его пользователю безопасным каналом.');
+            showError('Временный пароль: ' + data.temporary_password + '\nПередайте его пользователю безопасным каналом.');
           }
           load();
         })

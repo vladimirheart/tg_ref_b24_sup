@@ -274,46 +274,46 @@
                     </div>
                     <div class="col-12 col-xl-4">
                         <div class="workspace-panel-block mb-3" id="workspaceMetaTabs">
-                            <div class="workspace-tabs mb-3" role="tablist" aria-label="�������� �������">
-                                <button class="workspace-tab-btn is-active" data-workspace-tab="client" type="button" role="tab" aria-selected="true">������</button>
+                            <div class="workspace-tabs mb-3" role="tablist" aria-label="Вкладки workspace">
+                                <button class="workspace-tab-btn is-active" data-workspace-tab="client" type="button" role="tab" aria-selected="true">Клиент</button>
                                 <button class="workspace-tab-btn" data-workspace-tab="sla" type="button" role="tab" aria-selected="false">SLA</button>
                                 <button class="workspace-tab-btn" data-workspace-tab="ai" type="button" role="tab" aria-selected="false">AI</button>
-                                <button class="workspace-tab-btn" data-workspace-tab="history" type="button" role="tab" aria-selected="false">�������</button>
+                                <button class="workspace-tab-btn" data-workspace-tab="history" type="button" role="tab" aria-selected="false">История</button>
                             </div>
                             <section class="workspace-tab-panel" data-workspace-tab-panel="client" id="workspaceClientBlock">
-                                <div class="small text-muted mb-2">������</div>
-                                <div id="workspaceClientState" class="small text-muted">�������� ��������</div>
+                                <div class="small text-muted mb-2">Клиент</div>
+                                <div id="workspaceClientState" class="small text-muted">Загрузка данных</div>
                                 <div id="workspaceClientContent" class="d-none"></div>
                                 <div id="workspaceClientError" class="d-none alert alert-warning py-2 px-3 mt-2 mb-0 small">
-                                    ������� ������� �������� ����������.
-                                    <button class="btn btn-link btn-sm p-0" id="workspaceClientRetry" type="button">���������</button>
+                                    Не удалось загрузить данные клиента.
+                                    <button class="btn btn-link btn-sm p-0" id="workspaceClientRetry" type="button">Повторить</button>
                                 </div>
                             </section>
                             <section class="workspace-tab-panel d-none" data-workspace-tab-panel="sla" id="workspaceSlaBlock">
                                 <div class="small text-muted mb-2">SLA</div>
-                                <div id="workspaceSlaState" class="small text-muted">�������� SLA�</div>
+                                <div id="workspaceSlaState" class="small text-muted">Загрузка SLA…</div>
                                 <div id="workspaceSlaContent" class="d-none"></div>
                                 <div id="workspaceSlaError" class="d-none alert alert-warning py-2 px-3 mt-2 mb-0 small">
-                                    SLA-�������� �������� ����������.
-                                    <button class="btn btn-link btn-sm p-0" id="workspaceSlaRetry" type="button">���������</button>
+                                    Не удалось загрузить SLA-данные.
+                                    <button class="btn btn-link btn-sm p-0" id="workspaceSlaRetry" type="button">Повторить</button>
                                 </div>
                             </section>
                             <section class="workspace-tab-panel d-none" data-workspace-tab-panel="ai" id="workspaceRelatedEventsBlock">
-                                <div class="small text-muted mb-2">��������� �������</div>
-                                <div id="workspaceRelatedEventsState" class="small text-muted">�������� �������</div>
+                                <div class="small text-muted mb-2">Связанные события</div>
+                                <div id="workspaceRelatedEventsState" class="small text-muted">Загрузка событий</div>
                                 <div id="workspaceRelatedEventsContent" class="d-none"></div>
                                 <div id="workspaceRelatedEventsError" class="d-none alert alert-warning py-2 px-3 mt-2 mb-0 small">
-                                    ������� �������� ����������.
-                                    <button class="btn btn-link btn-sm p-0" id="workspaceRelatedEventsRetry" type="button">���������</button>
+                                    Не удалось загрузить события.
+                                    <button class="btn btn-link btn-sm p-0" id="workspaceRelatedEventsRetry" type="button">Повторить</button>
                                 </div>
                             </section>
                             <section class="workspace-tab-panel d-none" data-workspace-tab-panel="history" id="workspaceHistoryBlock">
-                                <div class="small text-muted mb-2">������� ���������</div>
-                                <div id="workspaceHistoryState" class="small text-muted">�������� �������</div>
+                                <div class="small text-muted mb-2">История изменений</div>
+                                <div id="workspaceHistoryState" class="small text-muted">Загрузка истории</div>
                                 <div id="workspaceHistoryContent" class="d-none"></div>
                                 <div id="workspaceHistoryError" class="d-none alert alert-warning py-2 px-3 mt-2 mb-0 small">
-                                    ������� ������� �������� ����������.
-                                    <button class="btn btn-link btn-sm p-0" id="workspaceHistoryRetry" type="button">���������</button>
+                                    Не удалось загрузить историю.
+                                    <button class="btn btn-link btn-sm p-0" id="workspaceHistoryRetry" type="button">Повторить</button>
                                 </div>
                             </section>
                         </div>
@@ -1046,11 +1046,15 @@
       || String(localStorage.getItem('debugDialogs') || '').trim() === '1';
     const dbg = (message, payload) => {
       if (!debugDialogs) return;
-      if (payload === undefined) {
-        console.log(`[dialogs-debug] ${message}`);
-        return;
+      const history = window.__dialogsDebugEvents = window.__dialogsDebugEvents || [];
+      history.push({
+        ts: Date.now(),
+        message,
+        payload: payload === undefined ? null : payload,
+      });
+      if (history.length > 300) {
+        history.shift();
       }
-      console.log(`[dialogs-debug] ${message}`, payload);
     };
 
     const initialTicketFromModel = /*[[${initialDialogTicketId}]]*/ null;
