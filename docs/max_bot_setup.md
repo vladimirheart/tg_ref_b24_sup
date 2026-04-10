@@ -46,3 +46,7 @@ curl -X POST "https://platform-api.max.ru/subscriptions" \
    - бот отвечает в диалоге;
    - в панели создаётся заявка;
    - входящее сообщение попадает в историю диалога.
+
+## Update (2026-04-10)
+
+MAX bot now runs in long polling mode by default. You do not need to configure a public webhook endpoint for normal operation. Webhook code is kept in the repository only as a fallback path.

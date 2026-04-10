@@ -16,7 +16,7 @@ public class MaxBotApplication {
         SpringApplication app = new SpringApplication(MaxBotApplication.class);
         String[] effectiveArgs = java.util.stream.Stream.concat(
                 java.util.Arrays.stream(args),
-                java.util.stream.Stream.of("--spring.main.web-application-type=servlet"))
+                java.util.stream.Stream.of("--spring.main.web-application-type=none"))
             .toArray(String[]::new);
         app.run(effectiveArgs);
     }
