@@ -5209,11 +5209,11 @@
                             </select>
                           </div>
                           <div class="mb-3 d-none" data-network-route-profile="project">
-                            <label class="form-label" for="projectNetworkProfileId">Профиль</label>
-                            <select class="form-select" id="projectNetworkProfileId">
+                            <label class="form-label" for="projectNetworkProfileId">Профили (failover по порядку)</label>
+                            <select class="form-select" id="projectNetworkProfileId" multiple size="4">
                               <option value="">Выберите профиль…</option>
                             </select>
-                            <div class="form-text">Профиль подставит готовый прокси/VPN и будет использоваться как ссылка, а не как разовая копия настроек.</div>
+                            <div class="form-text">Первый профиль — основной, дальше резервные. При проблеме соединения система переключится на следующий доступный профиль.</div>
                           </div>
                           <div class="row g-2 d-none" data-network-route-proxy="project">
                             <div class="col-12 col-md-4">
@@ -5265,6 +5265,11 @@
                               <textarea class="form-control" id="projectVpnNotes" rows="2" placeholder="Что нужно поднять на сервере или в окружении"></textarea>
                             </div>
                           </div>
+                          <div class="mt-3">
+                            <label class="form-label" for="projectFailoverDowntimeSeconds">Время недоступности, сек</label>
+                            <input class="form-control" id="projectFailoverDowntimeSeconds" type="number" min="10" max="86400" step="1" value="120">
+                            <div class="form-text">Если маршрут не прошёл проверку доступности, он исключается на это время перед новой попыткой.</div>
+                          </div>
                           <div class="form-text mt-3" data-network-route-summary="project">Сначала выберите режим. Для отдельного прокси заполните host/port, для VPN — название, endpoint и путь к конфигу.</div>
                         </div>
                       </div>
@@ -5283,11 +5288,11 @@
                             </select>
                           </div>
                           <div class="mb-3 d-none" data-network-route-profile="bots">
-                            <label class="form-label" for="botsNetworkProfileId">Профиль</label>
-                            <select class="form-select" id="botsNetworkProfileId">
+                            <label class="form-label" for="botsNetworkProfileId">Профили (failover по порядку)</label>
+                            <select class="form-select" id="botsNetworkProfileId" multiple size="4">
                               <option value="">Выберите профиль…</option>
                             </select>
-                            <div class="form-text">Можно выбрать отдельный профиль только для процессов ботов.</div>
+                            <div class="form-text">Можно выбрать отдельную цепочку профилей только для процессов ботов.</div>
                           </div>
                           <div class="row g-2 d-none" data-network-route-proxy="bots">
                             <div class="col-12 col-md-4">
@@ -5338,6 +5343,11 @@
                               <label class="form-label" for="botsVpnNotes">Примечание</label>
                               <textarea class="form-control" id="botsVpnNotes" rows="2" placeholder="Опишите, как эта подсистема должна подключаться"></textarea>
                             </div>
+                          </div>
+                          <div class="mt-3">
+                            <label class="form-label" for="botsFailoverDowntimeSeconds">Время недоступности, сек</label>
+                            <input class="form-control" id="botsFailoverDowntimeSeconds" type="number" min="10" max="86400" step="1" value="120">
+                            <div class="form-text">Недоступный маршрут временно исключается и бот-процессы переключаются на следующий из списка.</div>
                           </div>
                           <div class="form-text mt-3" data-network-route-summary="bots">Если выбрать «Наследовать проект», боты будут использовать маршрут из левого блока без дублирования настроек.</div>
                         </div>
@@ -5555,15 +5565,15 @@
                 <div class="col-12 col-md-6 col-xl-4">
                   <label class="form-label" for="new_max_secret">Webhook secret MAX <span class="text-muted">(опционально)</span></label>
                   <input id="new_max_secret" class="form-control" placeholder="Будет сверяться с X-Max-Bot-Api-Secret">
-                  <div class="form-text">Если задан, входящие webhook-запросы MAX должны содержать тот же secret в заголовке.</div>
+                  <div class="form-text">Поле используется только как запасной параметр для webhook-режима (fallback).</div>
                 </div>
               </div>
               <div class="alert alert-info small mt-3 mb-0" role="alert">
                 <div class="fw-semibold mb-1">Как подключить MAX</div>
                 <ol class="mb-0 ps-3">
                   <li>Получите bot token в кабинете интеграций MAX и вставьте его в поле «Токен MAX-бота».</li>
-                  <li>Укажите endpoint для входящих событий: <code>https://ваш-домен/webhooks/max/&lt;channel_id&gt;</code>.</li>
-                  <li>Если настроен webhook secret, передавайте его в заголовке <code>X-Max-Bot-Api-Secret</code>.</li>
+                  <li>Бот работает через <strong>long polling</strong>: отдельный webhook endpoint для MAX настраивать не нужно.</li>
+                  <li>Если позже потребуется вернуться к webhook-режиму, secret можно сохранить заранее в этом блоке.</li>
                 </ol>
               </div>
             </div>
@@ -5788,11 +5798,11 @@
               </div>
             </div>
             <div class="mt-3 d-none" data-network-route-profile="channel">
-              <label class="form-label" for="channelEditorNetworkProfileId">Профиль</label>
-              <select class="form-select" id="channelEditorNetworkProfileId">
+              <label class="form-label" for="channelEditorNetworkProfileId">Профили (failover по порядку)</label>
+              <select class="form-select" id="channelEditorNetworkProfileId" multiple size="4">
                 <option value="">Выберите профиль…</option>
               </select>
-              <div class="form-text">Профиль можно переиспользовать для нескольких ботов, не дублируя логины, хосты и VPN endpoint.</div>
+              <div class="form-text">Профиль можно переиспользовать для нескольких ботов; порядок выбора определяет failover-цепочку.</div>
             </div>
             <div class="row g-3 mt-1 d-none" data-network-route-proxy="channel">
               <div class="col-12 col-md-3">
@@ -5844,6 +5854,11 @@
                 <textarea class="form-control" id="channelEditorVpnNotes" rows="2" placeholder="Любые инструкции для инфраструктуры"></textarea>
               </div>
             </div>
+            <div class="mt-3">
+              <label class="form-label" for="channelEditorFailoverDowntimeSeconds">Время недоступности, сек</label>
+              <input class="form-control" id="channelEditorFailoverDowntimeSeconds" type="number" min="10" max="86400" step="1" value="120" />
+              <div class="form-text">Если выбранный маршрут не доступен, бот перейдёт к следующему и вернётся к этому после истечения интервала.</div>
+            </div>
             <div class="form-text mt-2" data-network-route-summary="channel">Если оставить «Наследовать настройки ботов», конкретный бот возьмёт маршрут из блока «Подсистема ботов».</div>
             <div class="form-text mt-1">Настройки применяются только к выбранному боту и имеют приоритет над общими параметрами подсистемы.</div>
           </div>
@@ -5852,10 +5867,9 @@
             <div class="text-muted small ms-lg-auto" data-channel-editor-hint></div>
           </div>
           <div class="mt-3 d-none" id="channelEditorMaxWebhookBlock">
-            <label class="form-label" for="channelEditorMaxWebhookSecret">Webhook secret MAX <span class="text-muted">(опционально)</span></label>
+            <label class="form-label" for="channelEditorMaxWebhookSecret">MAX secret для fallback webhook <span class="text-muted">(опционально)</span></label>
             <input class="form-control" id="channelEditorMaxWebhookSecret" placeholder="Сверяется с заголовком X-Max-Bot-Api-Secret" />
-            <div class="form-text">Используйте тот же secret, который передаёт провайдер MAX в заголовке webhook-запроса.</div>
-            <div class="small text-muted mt-2">Webhook URL: <code data-channel-editor-max-webhook-url>—</code></div>
+            <div class="form-text">Сейчас MAX работает через long polling, поле оставлено только для быстрого возврата к webhook-режиму.</div>
           </div>
         </div>
         <div class="modal-footer">
@@ -19228,6 +19242,7 @@
   const projectVpnEndpointInput = document.getElementById('projectVpnEndpoint');
   const projectVpnConfigPathInput = document.getElementById('projectVpnConfigPath');
   const projectVpnNotesInput = document.getElementById('projectVpnNotes');
+  const projectFailoverDowntimeSecondsInput = document.getElementById('projectFailoverDowntimeSeconds');
   const botsNetworkModeInput = document.getElementById('botsNetworkMode');
   const botsProxySchemeInput = document.getElementById('botsProxyScheme');
   const botsProxyHostInput = document.getElementById('botsProxyHost');
@@ -19239,6 +19254,7 @@
   const botsVpnEndpointInput = document.getElementById('botsVpnEndpoint');
   const botsVpnConfigPathInput = document.getElementById('botsVpnConfigPath');
   const botsVpnNotesInput = document.getElementById('botsVpnNotes');
+  const botsFailoverDowntimeSecondsInput = document.getElementById('botsFailoverDowntimeSeconds');
   const projectNetworkProfileIdInput = document.getElementById('projectNetworkProfileId');
   const botsNetworkProfileIdInput = document.getElementById('botsNetworkProfileId');
   const channelEditorNetworkModeInput = document.getElementById('channelEditorNetworkMode');
@@ -19252,6 +19268,7 @@
   const channelEditorVpnEndpointInput = document.getElementById('channelEditorVpnEndpoint');
   const channelEditorVpnConfigPathInput = document.getElementById('channelEditorVpnConfigPath');
   const channelEditorVpnNotesInput = document.getElementById('channelEditorVpnNotes');
+  const channelEditorFailoverDowntimeSecondsInput = document.getElementById('channelEditorFailoverDowntimeSeconds');
   const channelEditorNetworkProfileIdInput = document.getElementById('channelEditorNetworkProfileId');
   const integrationNetworkProfilesBody = document.getElementById('integrationNetworkProfilesBody');
   const integrationNetworkProfilesSaveBtn = document.querySelector('[data-integration-network-profiles-save]');
@@ -19442,15 +19459,58 @@
     return getIntegrationNetworkProfileOptions().find((item) => item.id === normalizedId) || null;
   }
 
+  function normalizeProfileIds(rawProfileIds, fallbackProfileId = '') {
+    const result = [];
+    const source = Array.isArray(rawProfileIds) ? rawProfileIds : [];
+    source.forEach((value) => {
+      const normalized = String(value || '').trim();
+      if (normalized && !result.includes(normalized)) {
+        result.push(normalized);
+      }
+    });
+    const fallback = String(fallbackProfileId || '').trim();
+    if (fallback && !result.includes(fallback)) {
+      result.unshift(fallback);
+    }
+    return result;
+  }
+
+  function normalizeFailoverDowntimeSeconds(raw) {
+    const parsed = Number.parseInt(raw, 10);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      return 120;
+    }
+    return Math.min(86400, Math.max(10, parsed));
+  }
+
+  function collectMultiSelectValues(selectEl) {
+    if (!selectEl) return [];
+    return Array.from(selectEl.selectedOptions || [])
+      .map((option) => String(option?.value || '').trim())
+      .filter((value) => value);
+  }
+
+  function applyMultiSelectValues(selectEl, values) {
+    if (!selectEl) return;
+    const selected = new Set(normalizeProfileIds(values));
+    Array.from(selectEl.options || []).forEach((option) => {
+      option.selected = selected.has(option.value);
+    });
+  }
+
   function normalizeNetworkRoute(raw, allowInherit = false) {
     const source = raw && typeof raw === 'object' ? raw : {};
     const allowed = allowInherit ? ['inherit', 'direct', 'profile', 'proxy', 'vpn'] : ['direct', 'profile', 'proxy', 'vpn'];
     const mode = allowed.includes(String(source.mode || '').toLowerCase())
       ? String(source.mode).toLowerCase()
       : (allowInherit ? 'inherit' : 'direct');
+    const profileId = String(source.profile_id || source.profileId || '').trim();
+    const profileIds = normalizeProfileIds(source.profile_ids || source.profileIds, profileId);
     return {
       mode,
-      profile_id: String(source.profile_id || source.profileId || '').trim(),
+      profile_id: profileId || profileIds[0] || '',
+      profile_ids: profileIds,
+      failover_downtime_seconds: normalizeFailoverDowntimeSeconds(source.failover_downtime_seconds ?? source.failoverDowntimeSeconds),
       proxy: normalizeNetworkProxyConfig(source.proxy),
       vpn: normalizeNetworkVpnConfig(source.vpn),
     };
@@ -19498,7 +19558,8 @@
     const normalized = normalizeNetworkRoute(route, scope !== 'project');
     if (scope === 'project') {
       if (projectNetworkModeInput) projectNetworkModeInput.value = normalized.mode;
-      if (projectNetworkProfileIdInput) projectNetworkProfileIdInput.value = normalized.profile_id;
+      if (projectNetworkProfileIdInput) applyMultiSelectValues(projectNetworkProfileIdInput, normalized.profile_ids);
+      if (projectFailoverDowntimeSecondsInput) projectFailoverDowntimeSecondsInput.value = String(normalized.failover_downtime_seconds || 120);
       if (projectProxySchemeInput) projectProxySchemeInput.value = normalized.proxy.scheme;
       if (projectProxyHostInput) projectProxyHostInput.value = normalized.proxy.host;
       if (projectProxyPortInput) projectProxyPortInput.value = String(normalized.proxy.port || 8080);
@@ -19511,7 +19572,8 @@
       if (projectVpnNotesInput) projectVpnNotesInput.value = normalized.vpn.notes;
     } else if (scope === 'bots') {
       if (botsNetworkModeInput) botsNetworkModeInput.value = normalized.mode;
-      if (botsNetworkProfileIdInput) botsNetworkProfileIdInput.value = normalized.profile_id;
+      if (botsNetworkProfileIdInput) applyMultiSelectValues(botsNetworkProfileIdInput, normalized.profile_ids);
+      if (botsFailoverDowntimeSecondsInput) botsFailoverDowntimeSecondsInput.value = String(normalized.failover_downtime_seconds || 120);
       if (botsProxySchemeInput) botsProxySchemeInput.value = normalized.proxy.scheme;
       if (botsProxyHostInput) botsProxyHostInput.value = normalized.proxy.host;
       if (botsProxyPortInput) botsProxyPortInput.value = String(normalized.proxy.port || 8080);
@@ -19524,7 +19586,8 @@
       if (botsVpnNotesInput) botsVpnNotesInput.value = normalized.vpn.notes;
     } else if (scope === 'channel') {
       if (channelEditorNetworkModeInput) channelEditorNetworkModeInput.value = normalized.mode;
-      if (channelEditorNetworkProfileIdInput) channelEditorNetworkProfileIdInput.value = normalized.profile_id;
+      if (channelEditorNetworkProfileIdInput) applyMultiSelectValues(channelEditorNetworkProfileIdInput, normalized.profile_ids);
+      if (channelEditorFailoverDowntimeSecondsInput) channelEditorFailoverDowntimeSecondsInput.value = String(normalized.failover_downtime_seconds || 120);
       if (channelEditorProxySchemeInput) channelEditorProxySchemeInput.value = normalized.proxy.scheme;
       if (channelEditorProxyHostInput) channelEditorProxyHostInput.value = normalized.proxy.host;
       if (channelEditorProxyPortInput) channelEditorProxyPortInput.value = String(normalized.proxy.port || 8080);
@@ -19541,9 +19604,12 @@
 
   function collectRouteFromInputs(scope) {
     if (scope === 'project') {
+      const profileIds = collectMultiSelectValues(projectNetworkProfileIdInput);
       return normalizeNetworkRoute({
         mode: projectNetworkModeInput?.value || 'direct',
-        profile_id: projectNetworkProfileIdInput?.value || '',
+        profile_id: profileIds[0] || '',
+        profile_ids: profileIds,
+        failover_downtime_seconds: projectFailoverDowntimeSecondsInput?.value || 120,
         proxy: {
           scheme: projectProxySchemeInput?.value || 'http',
           host: projectProxyHostInput?.value || '',
@@ -19561,9 +19627,12 @@
       }, false);
     }
     if (scope === 'bots') {
+      const profileIds = collectMultiSelectValues(botsNetworkProfileIdInput);
       return normalizeNetworkRoute({
         mode: botsNetworkModeInput?.value || 'inherit',
-        profile_id: botsNetworkProfileIdInput?.value || '',
+        profile_id: profileIds[0] || '',
+        profile_ids: profileIds,
+        failover_downtime_seconds: botsFailoverDowntimeSecondsInput?.value || 120,
         proxy: {
           scheme: botsProxySchemeInput?.value || 'http',
           host: botsProxyHostInput?.value || '',
@@ -19580,9 +19649,12 @@
         },
       }, true);
     }
+    const profileIds = collectMultiSelectValues(channelEditorNetworkProfileIdInput);
     return normalizeNetworkRoute({
       mode: channelEditorNetworkModeInput?.value || 'inherit',
-      profile_id: channelEditorNetworkProfileIdInput?.value || '',
+      profile_id: profileIds[0] || '',
+      profile_ids: profileIds,
+      failover_downtime_seconds: channelEditorFailoverDowntimeSecondsInput?.value || 120,
       proxy: {
         scheme: channelEditorProxySchemeInput?.value || 'http',
         host: channelEditorProxyHostInput?.value || '',
@@ -19602,13 +19674,18 @@
 
   function describeRouteSummary(scope) {
     const route = collectRouteFromInputs(scope);
-    const profile = route.mode === 'profile' ? findIntegrationNetworkProfile(route.profile_id) : null;
+    const profileNames = (route.profile_ids || [])
+      .map((id) => findIntegrationNetworkProfile(id))
+      .filter((item) => Boolean(item))
+      .map((item) => item.name || item.id);
+    const profileChainText = profileNames.length ? profileNames.join(' → ') : 'цепочка не задана';
+    const ttlText = `${route.failover_downtime_seconds || 120} сек`;
     if (scope === 'project') {
       if (route.mode === 'profile') {
-        if (!profile) {
+        if (!profileNames.length) {
           return 'Для проекта выбран режим «Профиль», но сам профиль ещё не указан или был удалён.';
         }
-        return `Весь проект использует профиль «${profile.name || profile.id}» (${profile.mode === 'vpn' ? 'VPN' : 'прокси'}). При изменении профиля маршрут обновится без ручного копирования настроек.`;
+        return `Весь проект использует цепочку профилей: ${profileChainText}. При недоступности текущего маршрута переключение идёт на следующий, время блокировки — ${ttlText}.`;
       }
       if (route.mode === 'proxy') {
         const host = route.proxy.host || 'host не указан';
@@ -19626,10 +19703,10 @@
         return 'Боты наследуют маршрут проекта. Это удобно, когда панели и ботам нужен один и тот же прокси/VPN.';
       }
       if (route.mode === 'profile') {
-        if (!profile) {
+        if (!profileNames.length) {
           return 'Для подсистемы ботов выбран режим «Профиль», но профиль не найден.';
         }
-        return `Боты используют профиль «${profile.name || profile.id}». Панель при этом может остаться на своём маршруте.`;
+        return `Боты используют цепочку профилей: ${profileChainText}. При ошибке соединения идёт автоматический failover, TTL недоступности — ${ttlText}.`;
       }
       if (route.mode === 'proxy') {
         const host = route.proxy.host || 'host не указан';
@@ -19645,10 +19722,10 @@
       return 'Этот бот наследует маршрут подсистемы ботов. Если там тоже стоит наследование, в итоге будет использован маршрут проекта.';
     }
     if (route.mode === 'profile') {
-      if (!profile) {
+      if (!profileNames.length) {
         return 'Для этого бота выбран профиль, но сам профиль ещё не назначен.';
       }
-      return `Этот бот использует профиль «${profile.name || profile.id}» и не зависит от ручных настроек прокси/VPN в других блоках.`;
+      return `Этот бот использует цепочку профилей: ${profileChainText}. Переключение между профилями выполняется автоматически, TTL — ${ttlText}.`;
     }
     if (route.mode === 'proxy') {
       const host = route.proxy.host || 'host не указан';
@@ -19696,6 +19773,14 @@
   async function saveIntegrationNetworkSettings() {
     const projectRoute = collectRouteFromInputs('project');
     const botsRoute = collectRouteFromInputs('bots');
+    if (projectRoute.mode === 'profile' && !(projectRoute.profile_ids || []).length) {
+      showPopup('Для маршрута «Весь проект» выберите хотя бы один профиль в цепочке failover.');
+      return;
+    }
+    if (botsRoute.mode === 'profile' && !(botsRoute.profile_ids || []).length) {
+      showPopup('Для маршрута «Подсистема ботов» выберите хотя бы один профиль в цепочке failover.');
+      return;
+    }
     if (projectRoute.mode === 'proxy' && projectRoute.proxy.scheme === 'vless' && !String(projectRoute.proxy.token || '').trim()) {
       showPopup('Для маршрута «Весь проект» в режиме VLESS заполните token.');
       return;
@@ -19750,17 +19835,15 @@
       channelEditorNetworkProfileIdInput,
     ].forEach((selectEl) => {
       if (!selectEl) return;
-      const currentValue = selectEl.value;
-      selectEl.innerHTML = '<option value="">Выберите профиль…</option>';
+      const currentValues = collectMultiSelectValues(selectEl);
+      selectEl.innerHTML = '';
       options.forEach((profile) => {
         const option = document.createElement('option');
         option.value = profile.id;
         option.textContent = `${profile.name || profile.id} · ${profile.mode === 'vpn' ? 'VPN' : 'Прокси'}`;
         selectEl.appendChild(option);
       });
-      if (options.some((profile) => profile.id === currentValue)) {
-        selectEl.value = currentValue;
-      }
+      applyMultiSelectValues(selectEl, currentValues);
     });
   }
 
@@ -19861,14 +19944,15 @@
   function resetMissingIntegrationNetworkProfileSelections() {
     ['project', 'bots', 'channel'].forEach((scope) => {
       const route = collectRouteFromInputs(scope);
-      if (route.mode === 'profile' && route.profile_id && !findIntegrationNetworkProfile(route.profile_id)) {
+      if (route.mode === 'profile') {
         const selectEl = scope === 'project'
           ? projectNetworkProfileIdInput
           : scope === 'bots'
             ? botsNetworkProfileIdInput
             : channelEditorNetworkProfileIdInput;
         if (selectEl) {
-          selectEl.value = '';
+          const validIds = (route.profile_ids || []).filter((id) => Boolean(findIntegrationNetworkProfile(id)));
+          applyMultiSelectValues(selectEl, validIds);
         }
       }
       updateNetworkRouteSummary(scope);
@@ -20704,11 +20788,6 @@
       ).trim();
       channelEditorMaxWebhookSecretInput.value = maxSecret;
     }
-    if (channelEditorMaxWebhookUrlEl) {
-      channelEditorMaxWebhookUrlEl.textContent = channel?.id
-        ? `${window.location.origin}/webhooks/max/${channel.id}`
-        : `${window.location.origin}/webhooks/max/<channel_id>`;
-    }
     applyRouteToInputs('channel', channel.network_route);
     updateSupportChatHint(supportChatValue);
     if (channelEditorTestMessageInput) {
@@ -20733,10 +20812,7 @@
           : `${window.location.origin}/webhooks/vk/<group_id>`;
         channelEditorHintEl.textContent = `VK Callback URL: ${callbackUrl}`;
       } else if (channel.platform === 'max') {
-        const maxWebhookUrl = channel.id
-          ? `${window.location.origin}/webhooks/max/${channel.id}`
-          : `${window.location.origin}/webhooks/max/<channel_id>`;
-        channelEditorHintEl.textContent = `MAX webhook URL: ${maxWebhookUrl} (secret в заголовке X-Max-Bot-Api-Secret).`;
+        channelEditorHintEl.textContent = 'MAX работает через long polling: отдельный webhook endpoint не требуется.';
       } else {
         channelEditorHintEl.textContent = 'Изменения вступят в силу сразу после сохранения.';
       }
@@ -21464,6 +21540,10 @@
     }
 
     const channelRoute = collectRouteFromInputs('channel');
+    if (channelRoute.mode === 'profile' && !(channelRoute.profile_ids || []).length) {
+      showPopup('Для бота в режиме «Профиль» выберите хотя бы один профиль failover.');
+      return;
+    }
     if (channelRoute.mode === 'proxy' && channelRoute.proxy.scheme === 'vless' && !String(channelRoute.proxy.token || '').trim()) {
       showPopup('Для VLESS-маршрута бота заполните token.');
       return;

@@ -26,14 +26,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.stereotype.Component;
 
-@RestController
-@RequestMapping("/webhooks/max")
+@Component
+// @RestController
+// @RequestMapping("/webhooks/max")
 public class MaxWebhookController {
 
     private static final Logger log = LoggerFactory.getLogger(MaxWebhookController.class);
@@ -72,10 +69,10 @@ public class MaxWebhookController {
         this.objectMapper = objectMapper;
     }
 
-    @PostMapping
+    // @PostMapping
     public ResponseEntity<Map<String, Object>> handleUpdate(
-        @RequestBody JsonNode update,
-        @RequestHeader(value = "X-Max-Bot-Api-Secret", required = false) String secret
+        JsonNode update,
+        String secret
     ) {
         if (!properties.isEnabled()) {
             return ResponseEntity.ok(Map.of("ok", true, "ignored", "max-bot-disabled"));
