@@ -101,7 +101,10 @@
                th:classappend="${active}=='channels' ? ' active'"
                th:href="@{/channels}">
                 <span class="icon" aria-hidden="true">📡</span>
-                <span class="label">Каналы</span>
+                <span class="label d-inline-flex align-items-center gap-2">
+                    <span>Каналы</span>
+                    <span class="sidebar-bot-mini-indicators" data-sidebar-bot-mini-indicators hidden aria-label="Статусы ботов"></span>
+                </span>
             </a>
             <a class="nav-link" data-page-key="settings" th:if="${canViewSettings}"
                th:classappend="${active}=='settings' ? ' active'"
@@ -184,6 +187,45 @@
     </div>
 
     <style id="modal-animations-style">
+        .sidebar-bot-mini-indicators {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            min-height: 0.75rem;
+        }
+
+        .sidebar-bot-mini-dot {
+            width: 0.55rem;
+            height: 0.55rem;
+            border-radius: 999px;
+            background: #adb5bd;
+            border: 1px solid rgba(255, 255, 255, 0.7);
+            box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08);
+            display: inline-block;
+        }
+
+        .sidebar-bot-mini-dot--running {
+            background: #16a34a;
+        }
+
+        .sidebar-bot-mini-dot--stopped {
+            background: #dc2626;
+        }
+
+        .sidebar-bot-mini-dot--inactive {
+            background: #94a3b8;
+        }
+
+        .sidebar-bot-mini-dot--error {
+            background: #d97706;
+        }
+
+        .sidebar-bot-mini-more {
+            font-size: 0.68rem;
+            color: #6c757d;
+            line-height: 1;
+        }
+
         .modal.fade .modal-dialog {
             transform: translateY(8px);
             opacity: 0;
