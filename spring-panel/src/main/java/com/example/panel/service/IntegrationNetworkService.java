@@ -127,6 +127,48 @@ public class IntegrationNetworkService {
         return builder.build();
     }
 
+    public RouteProbeResult probeProfileRoute(Map<String, Object> rawProfile) {
+        RouteSettings route = RouteSettings.fromMap(rawProfile, false);
+        return probeRoute(route);
+    }
+
+    public RouteProbeResult probeRoute(RouteSettings route) {
+        RouteSettings normalized = route != null ? route : RouteSettings.direct();
+        String key = routeKey(normalized);
+        long unavailableUntilMillis = readUnavailableUntil(key);
+        long now = System.currentTimeMillis();
+        long cooldownMillis = Math.max(0L, unavailableUntilMillis - now);
+        int cooldownSeconds = (int) Math.ceil(cooldownMillis / 1000.0d);
+        boolean reachable = isRouteReachable(normalized);
+        if (reachable) {
+            clearUnavailable(key);
+            unavailableUntilMillis = 0L;
+            cooldownSeconds = 0;
+        }
+        String host = "";
+        int port = 0;
+        if ("proxy".equals(normalized.mode()) && normalized.proxySettings() != null) {
+            host = stringValue(normalized.proxySettings().host());
+            port = normalized.proxySettings().port();
+        } else if ("vpn".equals(normalized.mode())) {
+            Endpoint endpoint = parseEndpoint(normalized.vpnEndpoint());
+            if (endpoint != null) {
+                host = stringValue(endpoint.host());
+                port = endpoint.port();
+            }
+        }
+        String message = buildProbeMessage(normalized, reachable, cooldownSeconds);
+        return new RouteProbeResult(
+            normalized.mode(),
+            reachable,
+            message,
+            host,
+            port,
+            unavailableUntilMillis,
+            cooldownSeconds
+        );
+    }
+
     private RouteSettings resolveProjectRoute(Map<String, Object> settings) {
         Map<String, Object> integrationNetwork = mapValue(settings.get("integration_network"));
         Map<String, Object> project = mapValue(integrationNetwork.get("project"));
@@ -317,6 +359,56 @@ public class IntegrationNetworkService {
         routeUnavailableUntil.remove(key);
     }
 
+    private long readUnavailableUntil(String key) {
+        if (!hasText(key)) {
+            return 0L;
+        }
+        Long unavailableUntil = routeUnavailableUntil.get(key);
+        if (unavailableUntil == null) {
+            return 0L;
+        }
+        if (System.currentTimeMillis() >= unavailableUntil) {
+            routeUnavailableUntil.remove(key);
+            return 0L;
+        }
+        return unavailableUntil;
+    }
+
+    private String buildProbeMessage(RouteSettings route, boolean reachable, int cooldownSeconds) {
+        if (route == null) {
+            return "Маршрут не задан.";
+        }
+        if ("direct".equals(route.mode())) {
+            return "Режим direct: проверка сети не требуется.";
+        }
+        if ("inherit".equals(route.mode())) {
+            return "Режим inherit: используется унаследованный маршрут.";
+        }
+        if ("proxy".equals(route.mode())) {
+            ProxySettings proxy = route.proxySettings();
+            if (proxy == null || !proxy.isConfigured()) {
+                return "Прокси-профиль заполнен не полностью.";
+            }
+            if (reachable) {
+                return "Прокси доступен.";
+            }
+            if (cooldownSeconds > 0) {
+                return "Прокси недоступен, действует failover cooldown.";
+            }
+            return "Прокси недоступен.";
+        }
+        if ("vpn".equals(route.mode())) {
+            if (reachable) {
+                return "VPN endpoint доступен.";
+            }
+            if (cooldownSeconds > 0) {
+                return "VPN endpoint недоступен, действует failover cooldown.";
+            }
+            return "VPN endpoint недоступен.";
+        }
+        return reachable ? "Маршрут доступен." : "Маршрут недоступен.";
+    }
+
     private String routeKey(RouteSettings route) {
         if (route == null) {
             return "";
@@ -341,6 +433,15 @@ public class IntegrationNetworkService {
     }
 
     private record Endpoint(String host, int port) {
+    }
+
+    public record RouteProbeResult(String mode,
+                                   boolean reachable,
+                                   String message,
+                                   String host,
+                                   int port,
+                                   long unavailableUntilMillis,
+                                   int cooldownSeconds) {
     }
 
     private Map<String, Object> extractChannelRoute(Channel channel) {

@@ -858,6 +858,110 @@
 
   updateUnblockRequestCount();
   setInterval(updateUnblockRequestCount, 30000);
+
+  const botMiniIndicatorsEl = sidebar.querySelector('[data-sidebar-bot-mini-indicators]');
+  const MAX_SIDEBAR_BOT_DOTS = 8;
+
+  function normalizeSidebarChannelName(channel) {
+    if (!channel || typeof channel !== 'object') return 'Бот';
+    const name = channel.channel_name || channel.channelName || channel.name;
+    if (typeof name === 'string' && name.trim()) {
+      return name.trim();
+    }
+    const channelId = channel.id ?? channel.channel_id ?? '';
+    return channelId ? `Бот #${channelId}` : 'Бот';
+  }
+
+  function createSidebarBotDot(statusCode, title) {
+    const dot = document.createElement('span');
+    dot.className = 'sidebar-bot-mini-dot';
+    if (statusCode === 'running') {
+      dot.classList.add('sidebar-bot-mini-dot--running');
+    } else if (statusCode === 'stopped') {
+      dot.classList.add('sidebar-bot-mini-dot--stopped');
+    } else if (statusCode === 'inactive') {
+      dot.classList.add('sidebar-bot-mini-dot--inactive');
+    } else {
+      dot.classList.add('sidebar-bot-mini-dot--error');
+    }
+    dot.title = title || '';
+    return dot;
+  }
+
+  async function resolveSidebarBotRuntimeStatus(channel) {
+    const channelId = Number(channel?.id ?? channel?.channel_id);
+    const name = normalizeSidebarChannelName(channel);
+    if (!Number.isFinite(channelId)) {
+      return { code: 'error', title: `${name}: не найден id` };
+    }
+    if (!(channel?.is_active === true || channel?.is_active === 1)) {
+      return { code: 'inactive', title: `${name}: канал выключен` };
+    }
+    try {
+      const response = await fetch(`/api/bots/${channelId}/status`);
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload?.error || `HTTP ${response.status}`);
+      }
+      const status = String(payload?.status || '').trim().toLowerCase();
+      if (status === 'running') {
+        return { code: 'running', title: `${name}: процесс запущен` };
+      }
+      if (status === 'stopped') {
+        return { code: 'stopped', title: `${name}: процесс остановлен` };
+      }
+      return { code: 'error', title: `${name}: ${payload?.status || 'неизвестный статус'}` };
+    } catch (_error) {
+      return { code: 'error', title: `${name}: ошибка проверки` };
+    }
+  }
+
+  function renderSidebarBotMiniIndicators(items, overflowCount) {
+    if (!botMiniIndicatorsEl) return;
+    botMiniIndicatorsEl.innerHTML = '';
+    if (!Array.isArray(items) || !items.length) {
+      botMiniIndicatorsEl.hidden = true;
+      return;
+    }
+    items.forEach((item) => {
+      botMiniIndicatorsEl.appendChild(createSidebarBotDot(item.code, item.title));
+    });
+    if (overflowCount > 0) {
+      const more = document.createElement('span');
+      more.className = 'sidebar-bot-mini-more';
+      more.textContent = `+${overflowCount}`;
+      more.title = `Ещё ботов: ${overflowCount}`;
+      botMiniIndicatorsEl.appendChild(more);
+    }
+    botMiniIndicatorsEl.hidden = false;
+  }
+
+  async function refreshSidebarBotMiniIndicators() {
+    if (!botMiniIndicatorsEl) return;
+    try {
+      const channelsResponse = await fetch('/api/channels');
+      if (!channelsResponse.ok) {
+        throw new Error(`HTTP ${channelsResponse.status}`);
+      }
+      const payload = await channelsResponse.json().catch(() => ({}));
+      const channels = Array.isArray(payload?.channels) ? payload.channels : [];
+      if (!channels.length) {
+        renderSidebarBotMiniIndicators([], 0);
+        return;
+      }
+      const visibleChannels = channels.slice(0, MAX_SIDEBAR_BOT_DOTS);
+      const overflowCount = Math.max(0, channels.length - visibleChannels.length);
+      const statuses = await Promise.all(
+        visibleChannels.map((channel) => resolveSidebarBotRuntimeStatus(channel))
+      );
+      renderSidebarBotMiniIndicators(statuses, overflowCount);
+    } catch (_error) {
+      renderSidebarBotMiniIndicators([], 0);
+    }
+  }
+
+  refreshSidebarBotMiniIndicators();
+  setInterval(refreshSidebarBotMiniIndicators, 30000);
 })();
 
 // Авто-активация пункта меню по текущему пути
@@ -872,4 +976,3 @@
     }
   });
 })();
-
