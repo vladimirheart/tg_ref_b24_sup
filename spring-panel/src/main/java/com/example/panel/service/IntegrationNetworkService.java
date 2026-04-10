@@ -59,6 +59,7 @@ public class IntegrationNetworkService {
         }
         if ("proxy".equals(resolved.mode()) && resolved.proxySettings() != null && resolved.proxySettings().isConfigured()) {
             ProxySettings proxy = resolved.proxySettings();
+            String normalizedScheme = proxy.scheme().toLowerCase(Locale.ROOT);
             env.put("APP_NETWORK_PROXY_SCHEME", proxy.scheme());
             env.put("APP_NETWORK_PROXY_HOST", proxy.host());
             env.put("APP_NETWORK_PROXY_PORT", Integer.toString(proxy.port()));
@@ -74,7 +75,7 @@ public class IntegrationNetworkService {
             env.put("HTTPS_PROXY", proxyUrl);
             env.put("http_proxy", proxyUrl);
             env.put("https_proxy", proxyUrl);
-            if (proxy.scheme().toLowerCase(Locale.ROOT).startsWith("socks")) {
+            if (normalizedScheme.startsWith("socks") || "vless".equals(normalizedScheme)) {
                 env.put("ALL_PROXY", proxyUrl);
                 env.put("all_proxy", proxyUrl);
             }
@@ -166,7 +167,7 @@ public class IntegrationNetworkService {
     private String buildJavaToolOptions(ProxySettings proxy) {
         List<String> options = new ArrayList<>();
         String scheme = proxy.scheme().toLowerCase(Locale.ROOT);
-        if (scheme.startsWith("socks")) {
+        if (scheme.startsWith("socks") || "vless".equals(scheme)) {
             options.add("-DsocksProxyHost=" + proxy.host());
             options.add("-DsocksProxyPort=" + proxy.port());
             if (hasText(proxy.username())) {
@@ -298,11 +299,15 @@ public class IntegrationNetworkService {
             if (scheme.isEmpty()) {
                 scheme = "http";
             }
+            String normalizedScheme = scheme.toLowerCase(Locale.ROOT);
+            if (!List.of("http", "https", "socks5", "socks4", "vless").contains(normalizedScheme)) {
+                normalizedScheme = "http";
+            }
             String host = string(raw.get("host"));
             int port = integer(raw.get("port"));
             String username = string(raw.get("username"));
             String password = string(raw.get("password"));
-            return new ProxySettings(scheme, host, port, username, password);
+            return new ProxySettings(normalizedScheme, host, port, username, password);
         }
 
         public boolean isConfigured() {

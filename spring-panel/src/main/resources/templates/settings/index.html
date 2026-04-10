@@ -4506,6 +4506,7 @@
                       <option value="https">HTTPS</option>
                       <option value="socks5">SOCKS5</option>
                       <option value="socks4">SOCKS4</option>
+                      <option value="vless">VLESS</option>
                     </select>
                   </div>
                   <div class="col-12 col-md-5">
@@ -5117,6 +5118,7 @@
                                 <option value="https">HTTPS</option>
                                 <option value="socks5">SOCKS5</option>
                                 <option value="socks4">SOCKS4</option>
+                                <option value="vless">VLESS</option>
                               </select>
                             </div>
                             <div class="col-12 col-md-5">
@@ -5186,6 +5188,7 @@
                                 <option value="https">HTTPS</option>
                                 <option value="socks5">SOCKS5</option>
                                 <option value="socks4">SOCKS4</option>
+                                <option value="vless">VLESS</option>
                               </select>
                             </div>
                             <div class="col-12 col-md-5">
@@ -5686,6 +5689,7 @@
                   <option value="https">HTTPS</option>
                   <option value="socks5">SOCKS5</option>
                   <option value="socks4">SOCKS4</option>
+                  <option value="vless">VLESS</option>
                 </select>
               </div>
               <div class="col-12 col-md-5">
@@ -16937,6 +16941,20 @@
     });
   }
 
+  function sanitizeInt(value, min, max, fallback) {
+    const parsed = Number.parseInt(value, 10);
+    if (!Number.isFinite(parsed)) {
+      return fallback;
+    }
+    if (parsed < min) {
+      return min;
+    }
+    if (parsed > max) {
+      return max;
+    }
+    return parsed;
+  }
+
   function collectDialogSlaConfig() {
     const inputs = getDialogSlaInputs();
     const errors = [];
@@ -19252,7 +19270,7 @@
     const source = raw && typeof raw === 'object' ? raw : {};
     const port = Number.parseInt(source.port, 10);
     return {
-      scheme: ['http', 'https', 'socks5', 'socks4'].includes(String(source.scheme || '').toLowerCase())
+      scheme: ['http', 'https', 'socks5', 'socks4', 'vless'].includes(String(source.scheme || '').toLowerCase())
         ? String(source.scheme).toLowerCase()
         : 'http',
       host: String(source.host || '').trim(),
@@ -22033,5 +22051,3 @@
   <script src="/js/bot-settings.js"></script>
 </body>
 </html>
-
-

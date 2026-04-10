@@ -24,6 +24,28 @@
   const filters = { eventType: '', actor: '' };
   const memoryFilters = { query: '' };
 
+  function getCookieValue(name) {
+    const cookies = String(document.cookie || '').split(';');
+    const expected = `${encodeURIComponent(name)}=`;
+    for (const cookie of cookies) {
+      const value = cookie.trim();
+      if (value.startsWith(expected)) {
+        return decodeURIComponent(value.slice(expected.length));
+      }
+    }
+    return '';
+  }
+
+  function withCsrfHeaders(headers = {}) {
+    const tokenFromMeta = document.querySelector('meta[name="_csrf"]')?.getAttribute('content') || '';
+    const token = tokenFromMeta || getCookieValue('XSRF-TOKEN');
+    if (!token) return headers;
+    return {
+      ...headers,
+      'X-XSRF-TOKEN': token,
+    };
+  }
+
   function escapeHtml(value) {
     return String(value || '')
       .replace(/&/g, '&amp;')
@@ -213,7 +235,7 @@
       const resp = await fetch(`/api/dialogs/ai-solution-memory/${encodeURIComponent(key)}`, {
         method: 'POST',
         credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json' },
+        headers: withCsrfHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(body),
       });
       const payload = await resp.json().catch(() => ({}));
@@ -280,7 +302,7 @@
       const resp = await fetch(`/api/dialogs/ai-solution-memory/${encodeURIComponent(key)}/rollback`, {
         method: 'POST',
         credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json' },
+        headers: withCsrfHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ history_id: historyId }),
       });
       const payload = await resp.json().catch(() => ({}));
@@ -315,6 +337,7 @@
       const resp = await fetch(`/api/dialogs/ai-solution-memory/${encodeURIComponent(key)}`, {
         method: 'DELETE',
         credentials: 'same-origin',
+        headers: withCsrfHeaders(),
       });
       const payload = await resp.json().catch(() => ({}));
       if (!resp.ok || payload.success === false || payload.deleted === false) {

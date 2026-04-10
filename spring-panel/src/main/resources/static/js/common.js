@@ -52,97 +52,105 @@ if (typeof window !== 'undefined' && window.fetch) {
 
 // Функция для показа уведомлений (например, об ошибках или успехе)
 function showNotification(message, type = 'info', containerId = 'notification-container') {
-    // Убедимся, что контейнер для уведомлений существует
-    let container = document.getElementById(containerId);
-    if (!container) {
-        container = document.createElement('div');
-        container.id = containerId;
+    let overlay = document.getElementById(containerId);
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = containerId;
+        document.body.appendChild(overlay);
     }
 
-    // Всегда перемещаем контейнер уведомлений в конец <body>,
-    // чтобы он гарантированно располагался поверх всех наложений.
-    document.body.appendChild(container);
+    overlay.innerHTML = '';
+    overlay.style.position = 'fixed';
+    overlay.style.inset = '0';
+    overlay.style.zIndex = '2147483647';
+    overlay.style.display = 'flex';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+    overlay.style.padding = '1rem';
+    overlay.style.background = 'rgba(15, 23, 42, 0.38)';
+    overlay.style.pointerEvents = 'auto';
 
-    container.style.position = 'fixed';
-    container.style.inset = '0';
-    // Делаем уведомление поверх модальных окон Bootstrap (кастомный z-index модалок — 99999)
-    container.style.zIndex = '2147483647';
-    container.style.display = 'flex';
-    container.style.flexDirection = 'column';
-    container.style.alignItems = 'center';
-    container.style.justifyContent = 'center';
-    container.style.gap = '0.75rem';
-    container.style.pointerEvents = 'none';
-    container.style.padding = '1rem';
+    const popup = document.createElement('div');
+    popup.style.width = 'min(92vw, 520px)';
+    popup.style.background = '#ffffff';
+    popup.style.border = '1px solid rgba(15, 23, 42, 0.15)';
+    popup.style.borderRadius = '0.9rem';
+    popup.style.boxShadow = '0 1rem 2rem rgba(15, 23, 42, 0.28)';
+    popup.style.overflow = 'hidden';
 
-    const alertClass = type === 'error' ? 'alert-danger' :
-                       type === 'success' ? 'alert-success' :
-                       type === 'warning' ? 'alert-warning' : 'alert-info';
+    const header = document.createElement('div');
+    header.style.display = 'flex';
+    header.style.alignItems = 'center';
+    header.style.justifyContent = 'space-between';
+    header.style.padding = '0.8rem 1rem';
+    header.style.gap = '0.75rem';
 
-    const alertEl = document.createElement('div');
-    alertEl.className = `alert ${alertClass} alert-dismissible fade show shadow`;
-    alertEl.setAttribute('role', 'alert');
-    alertEl.style.pointerEvents = 'auto';
-    alertEl.style.minWidth = 'min(90vw, 320px)';
-    alertEl.style.maxWidth = 'min(90vw, 480px)';
-    alertEl.style.margin = '0 auto';
-    alertEl.style.textAlign = 'center';
+    const tone = type === 'error'
+        ? { title: '\u041E\u0448\u0438\u0431\u043A\u0430', bg: '#fee2e2', fg: '#991b1b' }
+        : type === 'warning'
+            ? { title: '\u0412\u043D\u0438\u043C\u0430\u043D\u0438\u0435', bg: '#fef3c7', fg: '#92400e' }
+            : type === 'success'
+                ? { title: '\u0423\u0441\u043F\u0435\u0448\u043D\u043E', bg: '#dcfce7', fg: '#166534' }
+                : { title: '\u0421\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0435', bg: '#dbeafe', fg: '#1e3a8a' };
+    header.style.background = tone.bg;
+    header.style.color = tone.fg;
 
-    const messageWrap = document.createElement('div');
-    messageWrap.className = 'notification-message';
-    if (message instanceof Node) {
-        messageWrap.appendChild(message);
-    } else {
-        messageWrap.innerHTML = message;
-    }
-    alertEl.appendChild(messageWrap);
+    const title = document.createElement('strong');
+    title.textContent = tone.title;
+    header.appendChild(title);
 
     const closeBtn = document.createElement('button');
     closeBtn.type = 'button';
     closeBtn.className = 'btn-close';
     closeBtn.setAttribute('aria-label', 'Close');
-    alertEl.appendChild(closeBtn);
+    header.appendChild(closeBtn);
 
-    container.appendChild(alertEl);
+    const body = document.createElement('div');
+    body.style.padding = '1rem';
+    body.style.lineHeight = '1.45';
+    body.style.color = '#0f172a';
+    if (message instanceof Node) {
+        body.appendChild(message);
+    } else {
+        body.innerHTML = String(message || '');
+    }
 
-    let dismissed = false;
-    const removeAlert = () => {
-        if (dismissed) return;
-        clearTimeout(autoHideTimer);
-        dismissed = true;
-        alertEl.classList.remove('show');
-        const cleanup = () => {
-            alertEl.remove();
-            if (!container.hasChildNodes()) {
-                container.remove();
-            }
-        };
+    const footer = document.createElement('div');
+    footer.style.display = 'flex';
+    footer.style.justifyContent = 'flex-end';
+    footer.style.padding = '0 1rem 1rem';
+    const okBtn = document.createElement('button');
+    okBtn.type = 'button';
+    okBtn.className = 'btn btn-primary btn-sm';
+    okBtn.textContent = '\u041E\u041A';
+    footer.appendChild(okBtn);
 
-        if (alertEl.classList.contains('fade')) {
-            alertEl.addEventListener('transitionend', cleanup, { once: true });
-        } else {
-            cleanup();
-        }
+    popup.appendChild(header);
+    popup.appendChild(body);
+    popup.appendChild(footer);
+    overlay.appendChild(popup);
+
+    let closed = false;
+    const closePopup = () => {
+        if (closed) return;
+        closed = true;
+        overlay.remove();
     };
 
-    const autoHideTimer = setTimeout(removeAlert, 2000);
+    const autoHideMs = (type === 'error' || type === 'warning') ? 4500 : 3000;
+    const timer = setTimeout(closePopup, autoHideMs);
+    const closeAndClear = () => {
+        clearTimeout(timer);
+        closePopup();
+    };
 
-    closeBtn.addEventListener('click', (event) => {
-        event.preventDefault();
-        removeAlert();
-    });
-
-    alertEl.addEventListener('contextmenu', (event) => {
-        event.preventDefault();
-        removeAlert();
-    });
-
-    alertEl.addEventListener('pointerdown', (event) => {
-        if (event.button === 2) {
-            event.preventDefault();
-            removeAlert();
+    closeBtn.addEventListener('click', closeAndClear);
+    okBtn.addEventListener('click', closeAndClear);
+    overlay.addEventListener('click', (event) => {
+        if (event.target === overlay) {
+            closeAndClear();
         }
-    });
+    }, { once: true });
 }
 
 function showPopup(message, type = 'info', containerId = 'notification-container') {
