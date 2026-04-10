@@ -27,6 +27,7 @@ import org.springframework.stereotype.Service;
 public class BotProcessService {
 
     private static final Logger log = LoggerFactory.getLogger(BotProcessService.class);
+    private static final Pattern UNSAFE_FILENAME_CHARS = Pattern.compile("[^a-zA-Z0-9._-]+");
 
     private final SharedConfigService sharedConfigService;
     private final SqliteDataSourceProperties ticketsDbProperties;
@@ -74,7 +75,7 @@ public class BotProcessService {
                 "spring-boot:run"
             );
             builder.directory(botWorkingDir.toFile());
-            Path logFile = resolveLogFile(botWorkingDir);
+            Path logFile = resolveLogFile(botWorkingDir, channel);
             Path processOutputLogFile = resolveProcessOutputLogFile(logFile);
             Files.createDirectories(logFile.getParent());
             Files.createDirectories(processOutputLogFile.getParent());
@@ -279,13 +280,15 @@ public class BotProcessService {
         }
     }
 
-    private Path resolveLogFile(Path botWorkingDir) {
+    private Path resolveLogFile(Path botWorkingDir, Channel channel) {
         String override = System.getenv("APP_BOT_LOG_PATH");
         if (override != null && !override.isBlank()) {
             return Paths.get(override).toAbsolutePath().normalize();
         }
         Path logDir = botWorkingDir.resolve("../logs").normalize();
-        return logDir.resolve("support-bot.log").toAbsolutePath().normalize();
+        String platform = sanitizeFileNameSegment(Objects.toString(channel != null ? channel.getPlatform() : null, "telegram"));
+        String channelId = channel != null && channel.getId() != null ? String.valueOf(channel.getId()) : "unknown";
+        return logDir.resolve("support-bot-" + platform + "-" + channelId + ".log").toAbsolutePath().normalize();
     }
 
     private Path resolvePidFile(Path botWorkingDir, Long channelId) {
@@ -303,6 +306,12 @@ public class BotProcessService {
         return (parent != null ? parent.resolve(processFileName) : Paths.get(processFileName))
             .toAbsolutePath()
             .normalize();
+    }
+
+    private String sanitizeFileNameSegment(String value) {
+        String sanitized = UNSAFE_FILENAME_CHARS.matcher(Objects.toString(value, "").trim()).replaceAll("-");
+        sanitized = sanitized.replaceAll("^-+", "").replaceAll("-+$", "");
+        return sanitized.isBlank() ? "unknown" : sanitized.toLowerCase();
     }
 
     private Path resolveMavenRepoDir(Path botWorkingDir) {
