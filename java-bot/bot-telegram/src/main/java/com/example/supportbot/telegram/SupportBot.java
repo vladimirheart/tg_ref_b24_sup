@@ -66,7 +66,7 @@ public class SupportBot extends TelegramLongPollingBot {
 
     private static final Logger log = LoggerFactory.getLogger(SupportBot.class);
     private static final int MAX_LOG_TEXT_LENGTH = 160;
-    private static final String BACK_BUTTON = "РќР°Р·Р°Рґ";
+    private static final String BACK_BUTTON = "Назад";
 
     private final BotProperties properties;
     private final BlacklistService blacklistService;
@@ -128,9 +128,10 @@ public class SupportBot extends TelegramLongPollingBot {
                 usernameConfigured ? username : "(missing)",
                 tokenConfigured ? maskToken(token) : "(missing)",
                 channelId);
+        String networkMode = env("APP_NETWORK_MODE").toLowerCase(Locale.ROOT);
         String proxyHost = env("APP_NETWORK_PROXY_HOST");
         int proxyPort = parsePositiveInt(env("APP_NETWORK_PROXY_PORT"));
-        if (!proxyHost.isBlank() && proxyPort > 0) {
+        if ("proxy".equals(networkMode) && !proxyHost.isBlank() && proxyPort > 0) {
             log.info("Telegram client will use proxy {}://{}:{}",
                     env("APP_NETWORK_PROXY_SCHEME").isBlank() ? "http" : env("APP_NETWORK_PROXY_SCHEME"),
                     proxyHost,
@@ -380,7 +381,7 @@ public class SupportBot extends TelegramLongPollingBot {
         }
         channelService.updateSupportChatId(channel, newSupportChatId);
         cachedChannel = channel;
-        sendSupportChatConfirmation(message.getChatId(), "Р“СЂСѓРїРїР° РїСЂРёРІСЏР·Р°РЅР° Р°РІС‚РѕРјР°С‚РёС‡РµСЃРєРё. РЈРІРµРґРѕРјР»РµРЅРёСЏ Р±СѓРґСѓС‚ РїСЂРёС…РѕРґРёС‚СЊ СЃСЋРґР°.");
+        sendSupportChatConfirmation(message.getChatId(), "Группа привязана автоматически. Уведомления будут приходить сюда.");
         return true;
     }
 
@@ -393,22 +394,22 @@ public class SupportBot extends TelegramLongPollingBot {
             return false;
         }
         if (!isGroupChat(message)) {
-            sendSupportChatConfirmation(message.getChatId(), "РљРѕРјР°РЅРґР° /confirm СЂР°Р±РѕС‚Р°РµС‚ С‚РѕР»СЊРєРѕ РІ РіСЂСѓРїРїРµ, РіРґРµ РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ Р±РѕС‚.");
+            sendSupportChatConfirmation(message.getChatId(), "Команда /confirm работает только в группе, где должен быть бот.");
             return true;
         }
         if (!isSenderAdmin(message)) {
-            sendSupportChatConfirmation(message.getChatId(), "РўРѕР»СЊРєРѕ Р°РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂ РјРѕР¶РµС‚ РїРѕРґС‚РІРµСЂРґРёС‚СЊ РіСЂСѓРїРїСѓ РґР»СЏ СѓРІРµРґРѕРјР»РµРЅРёР№.");
+            sendSupportChatConfirmation(message.getChatId(), "Только администратор может подтвердить группу для уведомлений.");
             return true;
         }
         String newSupportChatId = String.valueOf(message.getChatId());
         String currentSupportChatId = channel.getSupportChatId();
         if (newSupportChatId.equals(currentSupportChatId)) {
-            sendSupportChatConfirmation(message.getChatId(), "Р­С‚Р° РіСЂСѓРїРїР° СѓР¶Рµ РїСЂРёРІСЏР·Р°РЅР° Рє СѓРІРµРґРѕРјР»РµРЅРёСЏРј.");
+            sendSupportChatConfirmation(message.getChatId(), "Эта группа уже привязана к уведомлениям.");
             return true;
         }
         channelService.updateSupportChatId(channel, newSupportChatId);
         cachedChannel = channel;
-        sendSupportChatConfirmation(message.getChatId(), "Р“СЂСѓРїРїР° РїРѕРґС‚РІРµСЂР¶РґРµРЅР°. РЈРІРµРґРѕРјР»РµРЅРёСЏ Р±СѓРґСѓС‚ РїСЂРёС…РѕРґРёС‚СЊ СЃСЋРґР°.");
+        sendSupportChatConfirmation(message.getChatId(), "Группа подтверждена. Уведомления будут приходить сюда.");
         return true;
     }
 
@@ -501,7 +502,7 @@ public class SupportBot extends TelegramLongPollingBot {
         if (ticketOpt.isEmpty()) {
             SendMessage warning = SendMessage.builder()
                     .chatId(chatId)
-                    .text("РќРµ СѓРґР°Р»РѕСЃСЊ РЅР°Р№С‚Рё Р·Р°СЏРІРєСѓ СЃ ID " + ticketReference.ticketId)
+                    .text("Не удалось найти заявку с ID " + ticketReference.ticketId)
                     .build();
             try {
                 execute(warning);
@@ -595,7 +596,7 @@ public class SupportBot extends TelegramLongPollingBot {
             int scale = botSettingsService.ratingScale(settings, 5);
             SendMessage retry = SendMessage.builder()
                     .chatId(message.getChatId())
-                    .text("РћС‚РїСЂР°РІСЊС‚Рµ С‡РёСЃР»Рѕ РѕС‚ 1 РґРѕ " + scale)
+                    .text("Отправьте число от 1 до " + scale)
                     .build();
             try {
                 execute(retry);
@@ -607,7 +608,7 @@ public class SupportBot extends TelegramLongPollingBot {
 
         int rating = Integer.parseInt(text);
         feedbackService.storeFeedback(pendingOpt.get(), rating);
-        String response = botSettingsService.ratingResponseFor(settings, rating).orElse("РЎРїР°СЃРёР±Рѕ Р·Р° РѕС†РµРЅРєСѓ!");
+        String response = botSettingsService.ratingResponseFor(settings, rating).orElse("Спасибо за оценку!");
         SendMessage confirmation = SendMessage.builder()
                 .chatId(message.getChatId())
                 .text(response)
@@ -859,7 +860,7 @@ public class SupportBot extends TelegramLongPollingBot {
         }
         SendMessage warning = SendMessage.builder()
                 .chatId(message.getChatId())
-                .text("Активного диалога нет. Напишите сообщение, и я создам новое обращение.")
+                .text("��������� ������� ���. �������� ���������, � � ������ ����� ���������.")
                 .replyMarkup(new ReplyKeyboardRemove(true))
                 .build();
         try {
@@ -875,7 +876,7 @@ public class SupportBot extends TelegramLongPollingBot {
         }
         SendMessage warning = SendMessage.builder()
                 .chatId(message.getChatId())
-                .text("Р”РёР°Р»РѕРі Р·Р°РєСЂС‹С‚. РћРїРµСЂР°С‚РѕСЂ СЃРјРѕР¶РµС‚ РѕС‚РєСЂС‹С‚СЊ РµРіРѕ СЃРЅРѕРІР°, РїРѕСЃР»Рµ СЌС‚РѕРіРѕ РІС‹ СЃРјРѕР¶РµС‚Рµ РїСЂРѕРґРѕР»Р¶РёС‚СЊ РїРµСЂРµРїРёСЃРєСѓ.")
+                .text("Диалог закрыт. Оператор сможет открыть его снова, после этого вы сможете продолжить переписку.")
                 .replyMarkup(new ReplyKeyboardRemove(true))
                 .build();
         try {
@@ -955,17 +956,17 @@ public class SupportBot extends TelegramLongPollingBot {
                 attachmentPath);
         String senderLabel = username != null && !username.isBlank()
                 ? "@" + username
-                : (userId != null ? String.valueOf(userId) : "РєР»РёРµРЅС‚");
+                : (userId != null ? String.valueOf(userId) : "клиент");
         StringBuilder builder = new StringBuilder();
-        builder.append("РќРѕРІС‹Р№ РѕС‚РІРµС‚ РєР»РёРµРЅС‚Р° ").append(senderLabel).append("\n");
-        builder.append("ID Р·Р°СЏРІРєРё: #").append(ticketId).append("\n");
+        builder.append("Новый ответ клиента ").append(senderLabel).append("\n");
+        builder.append("ID заявки: #").append(ticketId).append("\n");
         if (text != null && !text.isBlank()) {
             builder.append(text);
         } else {
             builder.append("[").append(messageType).append("]");
         }
         if (attachmentPath != null && !attachmentPath.isBlank()) {
-            builder.append("\nР’Р»РѕР¶РµРЅРёРµ: ").append(attachmentPath);
+            builder.append("\nВложение: ").append(attachmentPath);
         }
         SendMessage toChannel = SendMessage.builder()
                 .chatId(channelId)
@@ -1018,12 +1019,12 @@ public class SupportBot extends TelegramLongPollingBot {
             return;
         }
         StringBuilder builder = new StringBuilder();
-        builder.append("РЎРІРѕРґРєР° РїРѕ СЂР°Р·Р±Р»РѕРєРёСЂРѕРІРєР°Рј: ").append(pending).append(" РІ РѕР¶РёРґР°РЅРёРё.\n");
+        builder.append("Сводка по разблокировкам: ").append(pending).append(" в ожидании.\n");
         var recent = unblockRequestService.findRecentPending(3);
         if (!recent.isEmpty()) {
-            builder.append("РџРѕСЃР»РµРґРЅРёРµ Р·Р°РїСЂРѕСЃС‹:\n");
+            builder.append("Последние запросы:\n");
             for (var request : recent) {
-                builder.append("вЂў ").append(request.getUserId());
+                builder.append("• ").append(request.getUserId());
                 if (request.getCreatedAt() != null) {
                     builder.append(" (").append(formatTimestamp(request.getCreatedAt())).append(")");
                 }
@@ -1039,18 +1040,18 @@ public class SupportBot extends TelegramLongPollingBot {
             return;
         }
         StringBuilder builder = new StringBuilder();
-        builder.append("РќРѕРІС‹Р№ Р·Р°РїСЂРѕСЃ РЅР° СЂР°Р·Р±Р»РѕРєРёСЂРѕРІРєСѓ\n");
+        builder.append("Новый запрос на разблокировку\n");
         if (request.getId() != null) {
-            builder.append("Р—Р°СЏРІРєР°: #").append(request.getId()).append("\n");
+            builder.append("Заявка: #").append(request.getId()).append("\n");
         }
-        builder.append("РљР»РёРµРЅС‚: ").append(request.getUserId()).append("\n");
+        builder.append("Клиент: ").append(request.getUserId()).append("\n");
         if (request.getReason() != null && !request.getReason().isBlank()) {
-            builder.append("РџСЂРёС‡РёРЅР°: ").append(request.getReason()).append("\n");
+            builder.append("Причина: ").append(request.getReason()).append("\n");
         }
         if (request.getCreatedAt() != null) {
-            builder.append("РЎРѕР·РґР°РЅ: ").append(formatTimestamp(request.getCreatedAt())).append("\n");
+            builder.append("Создан: ").append(formatTimestamp(request.getCreatedAt())).append("\n");
         }
-        builder.append("РЎС‚Р°С‚СѓСЃ: ").append(request.getStatus());
+        builder.append("Статус: ").append(request.getStatus());
         sendOperatorMessage(channelId, builder.toString());
     }
 
@@ -1082,39 +1083,39 @@ public class SupportBot extends TelegramLongPollingBot {
                 : null;
         if (decision.created()) {
             return requestId == null
-                    ? "Р—Р°РїСЂРѕСЃ РЅР° СЂР°Р·Р±Р»РѕРєРёСЂРѕРІРєСѓ РѕС‚РїСЂР°РІР»РµРЅ РѕРїРµСЂР°С‚РѕСЂСѓ."
-                    : "Р—Р°РїСЂРѕСЃ РЅР° СЂР°Р·Р±Р»РѕРєРёСЂРѕРІРєСѓ РѕС‚РїСЂР°РІР»РµРЅ РѕРїРµСЂР°С‚РѕСЂСѓ. РќРѕРјРµСЂ Р·Р°СЏРІРєРё: " + requestId + ".";
+                    ? "Запрос на разблокировку отправлен оператору."
+                    : "Запрос на разблокировку отправлен оператору. Номер заявки: " + requestId + ".";
         }
         Duration retryAfter = decision.retryAfter();
         if (retryAfter != null && !retryAfter.isZero() && !retryAfter.isNegative()) {
             String retryText = formatRetryAfter(retryAfter);
             if (requestId != null) {
-                return "Р—Р°РїСЂРѕСЃ СѓР¶Рµ Р·Р°СЂРµРіРёСЃС‚СЂРёСЂРѕРІР°РЅ РїРѕРґ РЅРѕРјРµСЂРѕРј " + requestId
-                        + ". РџРѕРІС‚РѕСЂРЅРѕ РјРѕР¶РЅРѕ РѕС‚РїСЂР°РІРёС‚СЊ С‡РµСЂРµР· " + retryText + ".";
+                return "Запрос уже зарегистрирован под номером " + requestId
+                        + ". Повторно можно отправить через " + retryText + ".";
             }
-            return "Р—Р°РїСЂРѕСЃ СѓР¶Рµ Р·Р°СЂРµРіРёСЃС‚СЂРёСЂРѕРІР°РЅ. РџРѕРІС‚РѕСЂРЅРѕ РјРѕР¶РЅРѕ РѕС‚РїСЂР°РІРёС‚СЊ С‡РµСЂРµР· " + retryText + ".";
+            return "Запрос уже зарегистрирован. Повторно можно отправить через " + retryText + ".";
         }
         return requestId == null
-                ? "Р—Р°РїСЂРѕСЃ СѓР¶Рµ РЅР° СЂР°СЃСЃРјРѕС‚СЂРµРЅРёРё."
-                : "Р—Р°РїСЂРѕСЃ СѓР¶Рµ РЅР° СЂР°СЃСЃРјРѕС‚СЂРµРЅРёРё. РќРѕРјРµСЂ Р·Р°СЏРІРєРё: " + requestId + ".";
+                ? "Запрос уже на рассмотрении."
+                : "Запрос уже на рассмотрении. Номер заявки: " + requestId + ".";
     }
 
     private String formatRetryAfter(Duration retryAfter) {
         long seconds = retryAfter.getSeconds();
         if (seconds <= 0) {
-            return "РЅРµСЃРєРѕР»СЊРєРѕ РјРёРЅСѓС‚";
+            return "несколько минут";
         }
         long minutes = (seconds + 59) / 60;
         if (minutes <= 1) {
-            return "РјРµРЅРµРµ РјРёРЅСѓС‚С‹";
+            return "менее минуты";
         }
-        return minutes + " РјРёРЅ.";
+        return minutes + " мин.";
     }
 
     private void handleBlacklistedUser(Message message, BlacklistService.BlacklistStatus status) {
         String text = status.unblockRequested()
-                ? "Р’Р°С€ Р°РєРєР°СѓРЅС‚ Р·Р°Р±Р»РѕРєРёСЂРѕРІР°РЅ. Р—Р°РїСЂРѕСЃ СѓР¶Рµ РЅР° СЂР°СЃСЃРјРѕС‚СЂРµРЅРёРё."
-                : "Р’Р°С€ Р°РєРєР°СѓРЅС‚ Р·Р°Р±Р»РѕРєРёСЂРѕРІР°РЅ. РћС‚РїСЂР°РІСЊС‚Рµ /unblock, С‡С‚РѕР±С‹ РїРѕРґР°С‚СЊ Р·Р°РїСЂРѕСЃ РЅР° СЂР°Р·Р±Р»РѕРєРёСЂРѕРІРєСѓ.";
+                ? "Ваш аккаунт заблокирован. Запрос уже на рассмотрении."
+                : "Ваш аккаунт заблокирован. Отправьте /unblock, чтобы подать запрос на разблокировку.";
         SendMessage warning = SendMessage.builder()
                 .chatId(message.getChatId())
                 .text(text)
@@ -1197,7 +1198,7 @@ public class SupportBot extends TelegramLongPollingBot {
             log.info("User {} attempted to start a new conversation while one is active", existing.userId());
             SendMessage warning = SendMessage.builder()
                     .chatId(message.getChatId())
-                    .text("РЈ РІР°СЃ СѓР¶Рµ РµСЃС‚СЊ Р°РєС‚РёРІРЅР°СЏ Р·Р°СЏРІРєР°. РћС‚РїСЂР°РІСЊС‚Рµ /cancel, С‡С‚РѕР±С‹ РЅР°С‡Р°С‚СЊ Р·Р°РЅРѕРІРѕ.")
+                    .text("У вас уже есть активная заявка. Отправьте /cancel, чтобы начать заново.")
                     .replyMarkup(new ReplyKeyboardRemove(true))
                     .build();
             try {
@@ -1212,7 +1213,7 @@ public class SupportBot extends TelegramLongPollingBot {
         BotSettingsDto settings = loadSettings();
         List<QuestionFlowItemDto> flow = new ArrayList<>(Optional.ofNullable(settings.getQuestionFlow()).orElseGet(List::of));
         flow.sort(Comparator.comparingInt(QuestionFlowItemDto::getOrder));
-        flow.add(new QuestionFlowItemDto("problem", "text", "РћРїРёС€РёС‚Рµ РїСЂРѕР±Р»РµРјСѓ", flow.size() + 1, null, List.of()));
+        flow.add(new QuestionFlowItemDto("problem", "text", "Опишите проблему", flow.size() + 1, null, List.of()));
 
         ConversationSession session = new ConversationSession(flow, message.getChatId(), message.getFrom(), settings);
         log.info("Starting conversation for user {} chat {} with {} questions",
@@ -1230,7 +1231,7 @@ public class SupportBot extends TelegramLongPollingBot {
         log.info("Conversation initialized for user {} - sending first prompt", session.userId());
         String startAutoReply = botSettingsService.startAutoReply(
                 settings,
-                "Здравствуйте! Опишите, пожалуйста, ваш вопрос, чтобы мы могли быстрее помочь."
+                "������������! �������, ����������, ��� ������, ����� �� ����� ������� ������."
         );
         if (startAutoReply != null && !startAutoReply.isBlank()) {
             SendMessage greeting = SendMessage.builder()
@@ -1277,9 +1278,9 @@ public class SupportBot extends TelegramLongPollingBot {
         if (!result.success()) {
             text = result.error();
         } else if (result.closed()) {
-            text = "Р”РёР°Р»РѕРі #" + result.ticketId() + " РїСЂРёРІСЏР·Р°РЅ Рє СЌС‚РѕРјСѓ Р±РѕС‚Сѓ. РЎРµР№С‡Р°СЃ РѕРЅ Р·Р°РєСЂС‹С‚, РЅРѕ РїРѕСЃР»Рµ РїРµСЂРµРѕС‚РєСЂС‹С‚РёСЏ РІС‹ СЃРјРѕР¶РµС‚Рµ РїСЂРѕРґРѕР»Р¶РёС‚СЊ РїРµСЂРµРїРёСЃРєСѓ Р·РґРµСЃСЊ.";
+            text = "Диалог #" + result.ticketId() + " привязан к этому боту. Сейчас он закрыт, но после переоткрытия вы сможете продолжить переписку здесь.";
         } else {
-            text = "Р”РёР°Р»РѕРі #" + result.ticketId() + " РїСЂРёРІСЏР·Р°РЅ Рє СЌС‚РѕРјСѓ Р±РѕС‚Сѓ. РџСЂРѕРґРѕР»Р¶Р°Р№С‚Рµ РїРµСЂРµРїРёСЃРєСѓ Р·РґРµСЃСЊ РѕРґРЅРёРј СЃРѕРѕР±С‰РµРЅРёРµРј.";
+            text = "Диалог #" + result.ticketId() + " привязан к этому боту. Продолжайте переписку здесь одним сообщением.";
         }
         SendMessage reply = SendMessage.builder()
                 .chatId(message.getChatId())
@@ -1298,7 +1299,7 @@ public class SupportBot extends TelegramLongPollingBot {
             if (!session.consumeReuseDecision(message.getText())) {
                 SendMessage retry = SendMessage.builder()
                         .chatId(session.chatId())
-                        .text("РћС‚РІРµС‚СЊС‚Рµ 'РґР°' С‡С‚РѕР±С‹ РїРѕРІС‚РѕСЂРёС‚СЊ РїСЂРѕС€Р»С‹Рµ РґР°РЅРЅС‹Рµ РёР»Рё 'РЅРµС‚' С‡С‚РѕР±С‹ Р·Р°РїРѕР»РЅРёС‚СЊ Р·Р°РЅРѕРІРѕ.")
+                        .text("Ответьте 'да' чтобы повторить прошлые данные или 'нет' чтобы заполнить заново.")
                         .replyMarkup(new ReplyKeyboardRemove(true))
                         .build();
                 try {
@@ -1330,7 +1331,7 @@ public class SupportBot extends TelegramLongPollingBot {
             if (options.isEmpty()) {
                 SendMessage retry = SendMessage.builder()
                         .chatId(session.chatId())
-                        .text("РЎРµР№С‡Р°СЃ РЅРµС‚ РґРѕСЃС‚СѓРїРЅС‹С… РІР°СЂРёР°РЅС‚РѕРІ РґР»СЏ РІС‹Р±РѕСЂР°. РћР±СЂР°С‚РёС‚РµСЃСЊ Рє Р°РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂСѓ.")
+                        .text("Сейчас нет доступных вариантов для выбора. Обратитесь к администратору.")
                         .replyMarkup(new ReplyKeyboardRemove(true))
                         .build();
                 try {
@@ -1344,7 +1345,7 @@ public class SupportBot extends TelegramLongPollingBot {
             if (!options.contains(resolvedAnswer)) {
                 SendMessage retry = SendMessage.builder()
                         .chatId(session.chatId())
-                        .text("Р’РІРµРґРёС‚Рµ РѕРґРёРЅ РёР· РІР°СЂРёР°РЅС‚РѕРІ С‚РµРєСЃС‚РѕРј: " + String.join(", ", options))
+                        .text("Введите один из вариантов текстом: " + String.join(", ", options))
                         .replyMarkup(new ReplyKeyboardRemove(true))
                         .build();
                 try {
@@ -1403,14 +1404,14 @@ public class SupportBot extends TelegramLongPollingBot {
     private String buildQuestionPromptText(QuestionFlowItemDto current, List<String> options, boolean includeBack) {
         StringBuilder text = new StringBuilder(Optional.ofNullable(current.getText()).orElse(""));
         if (options != null && !options.isEmpty()) {
-            text.append("\n\nР’Р°СЂРёР°РЅС‚С‹:");
+            text.append("\n\nВарианты:");
             for (int i = 0; i < options.size(); i++) {
                 text.append("\n").append(i + 1).append(". ").append(options.get(i));
             }
-            text.append("\nРњРѕР¶РЅРѕ РѕС‚РІРµС‚РёС‚СЊ РЅРѕРјРµСЂРѕРј (1, 2, ...) РёР»Рё С‚РµРєСЃС‚РѕРј РІР°СЂРёР°РЅС‚Р°.");
+            text.append("\nМожно ответить номером (1, 2, ...) или текстом варианта.");
         }
         if (includeBack) {
-            text.append("\n\nР§С‚РѕР±С‹ РІРµСЂРЅСѓС‚СЊСЃСЏ Рє РїСЂРµРґС‹РґСѓС‰РµРјСѓ РІРѕРїСЂРѕСЃСѓ, РЅР°РїРёС€РёС‚Рµ \"").append(BACK_BUTTON).append("\".");
+            text.append("\n\nЧтобы вернуться к предыдущему вопросу, напишите \"").append(BACK_BUTTON).append("\".");
         }
         return text.toString();
     }
@@ -1492,7 +1493,7 @@ public class SupportBot extends TelegramLongPollingBot {
         }
         return value.trim()
                 .toLowerCase(Locale.ROOT)
-                .replace('ё', 'е')
+                .replace('�', '�')
                 .replaceAll("[\\p{Punct}\\s]+", "");
     }
 
@@ -1501,7 +1502,7 @@ public class SupportBot extends TelegramLongPollingBot {
             return false;
         }
         String normalized = text.trim().toLowerCase().replaceAll("\\s+", " ");
-        return "РјРѕРё Р·Р°СЏРІРєРё".equals(normalized);
+        return "мои заявки".equals(normalized);
     }
 
     private void handleMyTickets(Message message) {
@@ -1524,15 +1525,15 @@ public class SupportBot extends TelegramLongPollingBot {
 
     private String formatTicketsResponse(List<TicketService.TicketSummary> tickets) {
         if (tickets.isEmpty()) {
-            return "РЈ РІР°СЃ РїРѕРєР° РЅРµС‚ Р·Р°СЏРІРѕРє.";
+            return "У вас пока нет заявок.";
         }
-        StringBuilder builder = new StringBuilder("Р’Р°С€Рё Р·Р°СЏРІРєРё:\n\n");
+        StringBuilder builder = new StringBuilder("Ваши заявки:\n\n");
         for (TicketService.TicketSummary ticket : tickets) {
-            builder.append("#").append(Optional.ofNullable(ticket.ticketId()).orElse("вЂ”")).append("\n");
-            builder.append("Р РµСЃС‚РѕСЂР°РЅ: ").append(formatRestaurant(ticket)).append("\n");
-            builder.append("РџСЂРѕР±Р»РµРјР°: ").append(Optional.ofNullable(ticket.problem()).filter(s -> !s.isBlank()).orElse("вЂ”"))
+            builder.append("#").append(Optional.ofNullable(ticket.ticketId()).orElse("—")).append("\n");
+            builder.append("Ресторан: ").append(formatRestaurant(ticket)).append("\n");
+            builder.append("Проблема: ").append(Optional.ofNullable(ticket.problem()).filter(s -> !s.isBlank()).orElse("—"))
                     .append("\n");
-            builder.append("РћС†РµРЅРєР°: ").append(Optional.ofNullable(ticket.rating()).map(Object::toString).orElse("вЂ”"))
+            builder.append("Оценка: ").append(Optional.ofNullable(ticket.rating()).map(Object::toString).orElse("—"))
                     .append("\n\n");
         }
         return builder.toString().trim();
@@ -1544,7 +1545,7 @@ public class SupportBot extends TelegramLongPollingBot {
         addIfPresent(parts, ticket.locationType());
         addIfPresent(parts, ticket.city());
         addIfPresent(parts, ticket.locationName());
-        return parts.isEmpty() ? "вЂ”" : String.join(", ", parts);
+        return parts.isEmpty() ? "—" : String.join(", ", parts);
     }
 
     private void addIfPresent(List<String> parts, String value) {
@@ -1755,7 +1756,7 @@ public class SupportBot extends TelegramLongPollingBot {
         String requestNumber = ticket.groupMessageId() != null ? ticket.groupMessageId().toString() : ticket.ticketId();
         SendMessage confirmation = SendMessage.builder()
                 .chatId(session.chatId())
-                .text("РЎРїР°СЃРёР±Рѕ! Р’Р°С€Рµ РѕР±СЂР°С‰РµРЅРёРµ в„–" + requestNumber + " РѕС‚РїСЂР°РІР»РµРЅРѕ РѕРїРµСЂР°С‚РѕСЂСѓ. РњС‹ СЃРІСЏР¶РµРјСЃСЏ СЃ РІР°РјРё РїРѕСЃР»Рµ РѕР±СЂР°Р±РѕС‚РєРё.")
+                .text("Спасибо! Ваше обращение №" + requestNumber + " отправлено оператору. Мы свяжемся с вами после обработки.")
                 .replyMarkup(new ReplyKeyboardRemove(true))
                 .build();
         try {
@@ -1775,7 +1776,7 @@ public class SupportBot extends TelegramLongPollingBot {
         log.info("Conversation cancelled for user {}", session.userId());
         SendMessage cancelled = SendMessage.builder()
                 .chatId(message.getChatId())
-                .text("РўРµРєСѓС‰Р°СЏ Р·Р°СЏРІРєР° РѕС‚РјРµРЅРµРЅР°.")
+                .text("Текущая заявка отменена.")
                 .replyMarkup(new ReplyKeyboardRemove(true))
                 .build();
         try {
@@ -1923,12 +1924,12 @@ public class SupportBot extends TelegramLongPollingBot {
                 return false;
             }
             String normalized = decision.trim().toLowerCase();
-            if (normalized.startsWith("Рґ") || normalized.startsWith("y")) {
+            if (normalized.startsWith("д") || normalized.startsWith("y")) {
                 applyCachedAnswers();
                 reuseDecisionPending = false;
                 return true;
             }
-            if (normalized.startsWith("РЅ") || normalized.startsWith("n")) {
+            if (normalized.startsWith("н") || normalized.startsWith("n")) {
                 reuseDecisionPending = false;
                 return true;
             }
@@ -1950,25 +1951,25 @@ public class SupportBot extends TelegramLongPollingBot {
         }
 
         String reusePrompt() {
-            return "РСЃРїРѕР»СЊР·РѕРІР°С‚СЊ РїСЂРѕС€Р»С‹Рµ Р·РЅР°С‡РµРЅРёСЏ? " +
-                    String.format("Р‘РёР·РЅРµСЃ: %s, РўРёРї: %s, Р“РѕСЂРѕРґ: %s, Р›РѕРєР°С†РёСЏ: %s. РћС‚РІРµС‚СЊС‚Рµ 'РґР°' РёР»Рё 'РЅРµС‚'.",
-                            cachedAnswers.getOrDefault("business", "вЂ”"),
-                            cachedAnswers.getOrDefault("location_type", "вЂ”"),
-                            cachedAnswers.getOrDefault("city", "вЂ”"),
-                            cachedAnswers.getOrDefault("location_name", "вЂ”"));
+            return "Использовать прошлые значения? " +
+                    String.format("Бизнес: %s, Тип: %s, Город: %s, Локация: %s. Ответьте 'да' или 'нет'.",
+                            cachedAnswers.getOrDefault("business", "—"),
+                            cachedAnswers.getOrDefault("location_type", "—"),
+                            cachedAnswers.getOrDefault("city", "—"),
+                            cachedAnswers.getOrDefault("location_name", "—"));
         }
 
         String buildSummary(String ticketId) {
             StringBuilder builder = new StringBuilder();
-            builder.append("РќРѕРІР°СЏ Р·Р°СЏРІРєР° #").append(ticketId).append(" РѕС‚ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ ").append(userId()).append("\n");
-            builder.append("РЎРѕР·РґР°РЅР°: ").append(startedAt).append("\n\n");
+            builder.append("Новая заявка #").append(ticketId).append(" от пользователя ").append(userId()).append("\n");
+            builder.append("Создана: ").append(startedAt).append("\n\n");
             for (QuestionFlowItemDto item : flow) {
                 String answerKey = answerKeyFor(item);
                 String answer = answerKey != null ? answers.getOrDefault(answerKey, "") : "";
                 builder.append(item.getText()).append(": ").append(answer).append("\n");
             }
             if (!attachments.isEmpty()) {
-                builder.append("\nР’Р»РѕР¶РµРЅРёСЏ:\n");
+                builder.append("\nВложения:\n");
                 for (Path attachment : attachments) {
                     builder.append("- ").append(attachment).append("\n");
                 }
@@ -2011,13 +2012,13 @@ public class SupportBot extends TelegramLongPollingBot {
 
     private String summarizeText(String text) {
         if (text == null) {
-            return "вЂ”";
+            return "—";
         }
         String normalized = text.replace("\n", " ").replace("\r", " ").trim();
         if (normalized.length() > MAX_LOG_TEXT_LENGTH) {
-            return normalized.substring(0, MAX_LOG_TEXT_LENGTH) + "вЂ¦";
+            return normalized.substring(0, MAX_LOG_TEXT_LENGTH) + "…";
         }
-        return normalized.isEmpty() ? "вЂ”" : normalized;
+        return normalized.isEmpty() ? "—" : normalized;
     }
 
     private String describeAttachments(Message message) {
@@ -2061,6 +2062,11 @@ public class SupportBot extends TelegramLongPollingBot {
 
     private static DefaultBotOptions resolveTelegramBotOptionsFromEnv() {
         DefaultBotOptions options = new DefaultBotOptions();
+        String networkMode = env("APP_NETWORK_MODE").toLowerCase(Locale.ROOT);
+        if (!"proxy".equals(networkMode)) {
+            options.setProxyType(DefaultBotOptions.ProxyType.NO_PROXY);
+            return options;
+        }
         String scheme = env("APP_NETWORK_PROXY_SCHEME").toLowerCase(Locale.ROOT);
         String host = env("APP_NETWORK_PROXY_HOST");
         int port = parsePositiveInt(env("APP_NETWORK_PROXY_PORT"));
@@ -2111,7 +2117,7 @@ public class SupportBot extends TelegramLongPollingBot {
         if (trimmed.length() <= 8) {
             return "****" + trimmed.length();
         }
-        return trimmed.substring(0, 4) + "вЂ¦" + trimmed.substring(trimmed.length() - 4) + " (" + trimmed.length() + ")";
+        return trimmed.substring(0, 4) + "…" + trimmed.substring(trimmed.length() - 4) + " (" + trimmed.length() + ")";
     }
 }
 

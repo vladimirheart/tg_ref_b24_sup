@@ -69,6 +69,9 @@ public class IntegrationNetworkService {
             if (hasText(proxy.password())) {
                 env.put("APP_NETWORK_PROXY_PASSWORD", proxy.password());
             }
+            if (hasText(proxy.token())) {
+                env.put("APP_NETWORK_PROXY_TOKEN", proxy.token());
+            }
 
             String proxyUrl = buildProxyUrl(proxy);
             env.put("HTTP_PROXY", proxyUrl);
@@ -153,7 +156,10 @@ public class IntegrationNetworkService {
     private String buildProxyUrl(ProxySettings proxy) {
         StringBuilder value = new StringBuilder();
         value.append(proxy.scheme()).append("://");
-        if (hasText(proxy.username())) {
+        String scheme = proxy.scheme().toLowerCase(Locale.ROOT);
+        if ("vless".equals(scheme) && hasText(proxy.token())) {
+            value.append(proxy.token()).append('@');
+        } else if (hasText(proxy.username())) {
             value.append(proxy.username());
             if (hasText(proxy.password())) {
                 value.append(':').append(proxy.password());
@@ -285,10 +291,10 @@ public class IntegrationNetworkService {
         }
     }
 
-    public record ProxySettings(String scheme, String host, int port, String username, String password) {
+    public record ProxySettings(String scheme, String host, int port, String username, String password, String token) {
 
         public static ProxySettings empty() {
-            return new ProxySettings("http", "", 0, "", "");
+            return new ProxySettings("http", "", 0, "", "", "");
         }
 
         public static ProxySettings fromMap(Map<String, Object> raw) {
@@ -307,10 +313,17 @@ public class IntegrationNetworkService {
             int port = integer(raw.get("port"));
             String username = string(raw.get("username"));
             String password = string(raw.get("password"));
-            return new ProxySettings(normalizedScheme, host, port, username, password);
+            String token = string(raw.get("token"));
+            if (token.isEmpty() && "vless".equals(normalizedScheme)) {
+                token = !username.isEmpty() ? username : password;
+            }
+            return new ProxySettings(normalizedScheme, host, port, username, password, token);
         }
 
         public boolean isConfigured() {
+            if ("vless".equals(scheme.toLowerCase(Locale.ROOT))) {
+                return !host.isBlank() && port > 0 && !token.isBlank();
+            }
             return !host.isBlank() && port > 0;
         }
 

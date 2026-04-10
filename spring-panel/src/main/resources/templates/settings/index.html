@@ -4618,13 +4618,17 @@
                     <label class="form-label" for="integrationNetworkProfileProxyPortInput">Порт</label>
                     <input type="number" class="form-control" id="integrationNetworkProfileProxyPortInput" data-integration-network-profile-proxy-port min="1" max="65535" step="1" placeholder="3128">
                   </div>
-                  <div class="col-12 col-md-6">
+                  <div class="col-12 col-md-6" data-proxy-auth="integration-profile">
                     <label class="form-label" for="integrationNetworkProfileProxyUsernameInput">Логин</label>
                     <input type="text" class="form-control" id="integrationNetworkProfileProxyUsernameInput" data-integration-network-profile-proxy-username placeholder="Опционально">
                   </div>
-                  <div class="col-12 col-md-6">
+                  <div class="col-12 col-md-6" data-proxy-auth="integration-profile">
                     <label class="form-label" for="integrationNetworkProfileProxyPasswordInput">Пароль</label>
                     <input type="password" class="form-control" id="integrationNetworkProfileProxyPasswordInput" data-integration-network-profile-proxy-password placeholder="Опционально">
+                  </div>
+                  <div class="col-12 d-none" data-proxy-token="integration-profile">
+                    <label class="form-label" for="integrationNetworkProfileProxyTokenInput">Token</label>
+                    <input type="text" class="form-control" id="integrationNetworkProfileProxyTokenInput" data-integration-network-profile-proxy-token placeholder="UUID / token для VLESS">
                   </div>
                 </div>
               </div>
@@ -5230,13 +5234,17 @@
                               <label class="form-label" for="projectProxyPort">Порт</label>
                               <input class="form-control" id="projectProxyPort" type="number" min="1" max="65535" step="1" placeholder="8080">
                             </div>
-                            <div class="col-12 col-md-6">
+                            <div class="col-12 col-md-6" data-proxy-auth="project">
                               <label class="form-label" for="projectProxyUsername">Логин</label>
                               <input class="form-control" id="projectProxyUsername" placeholder="Опционально">
                             </div>
-                            <div class="col-12 col-md-6">
+                            <div class="col-12 col-md-6" data-proxy-auth="project">
                               <label class="form-label" for="projectProxyPassword">Пароль</label>
                               <input class="form-control" id="projectProxyPassword" type="password" placeholder="Опционально">
+                            </div>
+                            <div class="col-12 d-none" data-proxy-token="project">
+                              <label class="form-label" for="projectProxyToken">Token</label>
+                              <input class="form-control" id="projectProxyToken" placeholder="UUID / token для VLESS">
                             </div>
                           </div>
                           <div class="row g-2 d-none" data-network-route-vpn="project">
@@ -5300,13 +5308,17 @@
                               <label class="form-label" for="botsProxyPort">Порт</label>
                               <input class="form-control" id="botsProxyPort" type="number" min="1" max="65535" step="1" placeholder="8080">
                             </div>
-                            <div class="col-12 col-md-6">
+                            <div class="col-12 col-md-6" data-proxy-auth="bots">
                               <label class="form-label" for="botsProxyUsername">Логин</label>
                               <input class="form-control" id="botsProxyUsername" placeholder="Опционально">
                             </div>
-                            <div class="col-12 col-md-6">
+                            <div class="col-12 col-md-6" data-proxy-auth="bots">
                               <label class="form-label" for="botsProxyPassword">Пароль</label>
                               <input class="form-control" id="botsProxyPassword" type="password" placeholder="Опционально">
+                            </div>
+                            <div class="col-12 d-none" data-proxy-token="bots">
+                              <label class="form-label" for="botsProxyToken">Token</label>
+                              <input class="form-control" id="botsProxyToken" placeholder="UUID / token для VLESS">
                             </div>
                           </div>
                           <div class="row g-2 d-none" data-network-route-vpn="bots">
@@ -5801,13 +5813,17 @@
                 <label class="form-label" for="channelEditorProxyPort">Порт</label>
                 <input class="form-control" id="channelEditorProxyPort" type="number" min="1" max="65535" step="1" placeholder="8080" />
               </div>
-              <div class="col-12 col-md-6">
+              <div class="col-12 col-md-6" data-proxy-auth="channel">
                 <label class="form-label" for="channelEditorProxyUsername">Логин</label>
                 <input class="form-control" id="channelEditorProxyUsername" placeholder="Опционально" />
               </div>
-              <div class="col-12 col-md-6">
+              <div class="col-12 col-md-6" data-proxy-auth="channel">
                 <label class="form-label" for="channelEditorProxyPassword">Пароль</label>
                 <input class="form-control" id="channelEditorProxyPassword" type="password" placeholder="Опционально" />
+              </div>
+              <div class="col-12 d-none" data-proxy-token="channel">
+                <label class="form-label" for="channelEditorProxyToken">Token</label>
+                <input class="form-control" id="channelEditorProxyToken" placeholder="UUID / token для VLESS" />
               </div>
             </div>
             <div class="row g-3 mt-1 d-none" data-network-route-vpn="channel">
@@ -19207,6 +19223,7 @@
   const projectProxyPortInput = document.getElementById('projectProxyPort');
   const projectProxyUsernameInput = document.getElementById('projectProxyUsername');
   const projectProxyPasswordInput = document.getElementById('projectProxyPassword');
+  const projectProxyTokenInput = document.getElementById('projectProxyToken');
   const projectVpnNameInput = document.getElementById('projectVpnName');
   const projectVpnEndpointInput = document.getElementById('projectVpnEndpoint');
   const projectVpnConfigPathInput = document.getElementById('projectVpnConfigPath');
@@ -19217,6 +19234,7 @@
   const botsProxyPortInput = document.getElementById('botsProxyPort');
   const botsProxyUsernameInput = document.getElementById('botsProxyUsername');
   const botsProxyPasswordInput = document.getElementById('botsProxyPassword');
+  const botsProxyTokenInput = document.getElementById('botsProxyToken');
   const botsVpnNameInput = document.getElementById('botsVpnName');
   const botsVpnEndpointInput = document.getElementById('botsVpnEndpoint');
   const botsVpnConfigPathInput = document.getElementById('botsVpnConfigPath');
@@ -19229,6 +19247,7 @@
   const channelEditorProxyPortInput = document.getElementById('channelEditorProxyPort');
   const channelEditorProxyUsernameInput = document.getElementById('channelEditorProxyUsername');
   const channelEditorProxyPasswordInput = document.getElementById('channelEditorProxyPassword');
+  const channelEditorProxyTokenInput = document.getElementById('channelEditorProxyToken');
   const channelEditorVpnNameInput = document.getElementById('channelEditorVpnName');
   const channelEditorVpnEndpointInput = document.getElementById('channelEditorVpnEndpoint');
   const channelEditorVpnConfigPathInput = document.getElementById('channelEditorVpnConfigPath');
@@ -19252,6 +19271,7 @@
   const integrationNetworkProfileProxyPortInput = integrationNetworkProfileEditorModalEl ? integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-proxy-port]') : null;
   const integrationNetworkProfileProxyUsernameInput = integrationNetworkProfileEditorModalEl ? integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-proxy-username]') : null;
   const integrationNetworkProfileProxyPasswordInput = integrationNetworkProfileEditorModalEl ? integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-proxy-password]') : null;
+  const integrationNetworkProfileProxyTokenInput = integrationNetworkProfileEditorModalEl ? integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-proxy-token]') : null;
   const integrationNetworkProfileVpnNameInput = integrationNetworkProfileEditorModalEl ? integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-vpn-name]') : null;
   const integrationNetworkProfileVpnEndpointInput = integrationNetworkProfileEditorModalEl ? integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-vpn-endpoint]') : null;
   const integrationNetworkProfileVpnConfigPathInput = integrationNetworkProfileEditorModalEl ? integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-vpn-config-path]') : null;
@@ -19369,15 +19389,21 @@
 
   function normalizeNetworkProxyConfig(raw) {
     const source = raw && typeof raw === 'object' ? raw : {};
+    const scheme = String(source.scheme || '').toLowerCase();
+    const token = String(source.token || '').trim();
+    const fallbackToken = scheme === 'vless'
+      ? (token || String(source.username || source.password || '').trim())
+      : token;
     const port = Number.parseInt(source.port, 10);
     return {
-      scheme: ['http', 'https', 'socks5', 'socks4', 'vless'].includes(String(source.scheme || '').toLowerCase())
-        ? String(source.scheme).toLowerCase()
+      scheme: ['http', 'https', 'socks5', 'socks4', 'vless'].includes(scheme)
+        ? scheme
         : 'http',
       host: String(source.host || '').trim(),
       port: Number.isFinite(port) && port > 0 && port <= 65535 ? port : 8080,
       username: String(source.username || '').trim(),
       password: String(source.password || '').trim(),
+      token: fallbackToken,
     };
   }
 
@@ -19438,6 +19464,36 @@
     };
   }
 
+  function isVlessScheme(value) {
+    return String(value || '').trim().toLowerCase() === 'vless';
+  }
+
+  function toggleProxyCredentialFields(scope) {
+    let scheme = '';
+    let authRows = [];
+    let tokenRows = [];
+    if (scope === 'project') {
+      scheme = projectProxySchemeInput?.value || '';
+      authRows = Array.from(document.querySelectorAll('[data-proxy-auth="project"]'));
+      tokenRows = Array.from(document.querySelectorAll('[data-proxy-token="project"]'));
+    } else if (scope === 'bots') {
+      scheme = botsProxySchemeInput?.value || '';
+      authRows = Array.from(document.querySelectorAll('[data-proxy-auth="bots"]'));
+      tokenRows = Array.from(document.querySelectorAll('[data-proxy-token="bots"]'));
+    } else if (scope === 'channel') {
+      scheme = channelEditorProxySchemeInput?.value || '';
+      authRows = Array.from(document.querySelectorAll('[data-proxy-auth="channel"]'));
+      tokenRows = Array.from(document.querySelectorAll('[data-proxy-token="channel"]'));
+    } else if (scope === 'integration-profile') {
+      scheme = integrationNetworkProfileProxySchemeInput?.value || '';
+      authRows = Array.from(integrationNetworkProfileEditorModalEl?.querySelectorAll('[data-proxy-auth="integration-profile"]') || []);
+      tokenRows = Array.from(integrationNetworkProfileEditorModalEl?.querySelectorAll('[data-proxy-token="integration-profile"]') || []);
+    }
+    const showToken = isVlessScheme(scheme);
+    authRows.forEach((el) => el.classList.toggle('d-none', showToken));
+    tokenRows.forEach((el) => el.classList.toggle('d-none', !showToken));
+  }
+
   function applyRouteToInputs(scope, route) {
     const normalized = normalizeNetworkRoute(route, scope !== 'project');
     if (scope === 'project') {
@@ -19448,6 +19504,7 @@
       if (projectProxyPortInput) projectProxyPortInput.value = String(normalized.proxy.port || 8080);
       if (projectProxyUsernameInput) projectProxyUsernameInput.value = normalized.proxy.username;
       if (projectProxyPasswordInput) projectProxyPasswordInput.value = normalized.proxy.password;
+      if (projectProxyTokenInput) projectProxyTokenInput.value = normalized.proxy.token || '';
       if (projectVpnNameInput) projectVpnNameInput.value = normalized.vpn.name;
       if (projectVpnEndpointInput) projectVpnEndpointInput.value = normalized.vpn.endpoint;
       if (projectVpnConfigPathInput) projectVpnConfigPathInput.value = normalized.vpn.config_path;
@@ -19460,6 +19517,7 @@
       if (botsProxyPortInput) botsProxyPortInput.value = String(normalized.proxy.port || 8080);
       if (botsProxyUsernameInput) botsProxyUsernameInput.value = normalized.proxy.username;
       if (botsProxyPasswordInput) botsProxyPasswordInput.value = normalized.proxy.password;
+      if (botsProxyTokenInput) botsProxyTokenInput.value = normalized.proxy.token || '';
       if (botsVpnNameInput) botsVpnNameInput.value = normalized.vpn.name;
       if (botsVpnEndpointInput) botsVpnEndpointInput.value = normalized.vpn.endpoint;
       if (botsVpnConfigPathInput) botsVpnConfigPathInput.value = normalized.vpn.config_path;
@@ -19472,6 +19530,7 @@
       if (channelEditorProxyPortInput) channelEditorProxyPortInput.value = String(normalized.proxy.port || 8080);
       if (channelEditorProxyUsernameInput) channelEditorProxyUsernameInput.value = normalized.proxy.username;
       if (channelEditorProxyPasswordInput) channelEditorProxyPasswordInput.value = normalized.proxy.password;
+      if (channelEditorProxyTokenInput) channelEditorProxyTokenInput.value = normalized.proxy.token || '';
       if (channelEditorVpnNameInput) channelEditorVpnNameInput.value = normalized.vpn.name;
       if (channelEditorVpnEndpointInput) channelEditorVpnEndpointInput.value = normalized.vpn.endpoint;
       if (channelEditorVpnConfigPathInput) channelEditorVpnConfigPathInput.value = normalized.vpn.config_path;
@@ -19491,6 +19550,7 @@
           port: projectProxyPortInput?.value || 8080,
           username: projectProxyUsernameInput?.value || '',
           password: projectProxyPasswordInput?.value || '',
+          token: projectProxyTokenInput?.value || '',
         },
         vpn: {
           name: projectVpnNameInput?.value || '',
@@ -19510,6 +19570,7 @@
           port: botsProxyPortInput?.value || 8080,
           username: botsProxyUsernameInput?.value || '',
           password: botsProxyPasswordInput?.value || '',
+          token: botsProxyTokenInput?.value || '',
         },
         vpn: {
           name: botsVpnNameInput?.value || '',
@@ -19528,6 +19589,7 @@
         port: channelEditorProxyPortInput?.value || 8080,
         username: channelEditorProxyUsernameInput?.value || '',
         password: channelEditorProxyPasswordInput?.value || '',
+        token: channelEditorProxyTokenInput?.value || '',
       },
       vpn: {
         name: channelEditorVpnNameInput?.value || '',
@@ -19618,6 +19680,7 @@
     document.querySelectorAll(`[data-network-route-vpn="${scope}"]`).forEach((el) => {
       el.classList.toggle('d-none', mode !== 'vpn');
     });
+    toggleProxyCredentialFields(scope);
     updateNetworkRouteSummary(scope);
   }
 
@@ -19631,10 +19694,20 @@
   }
 
   async function saveIntegrationNetworkSettings() {
+    const projectRoute = collectRouteFromInputs('project');
+    const botsRoute = collectRouteFromInputs('bots');
+    if (projectRoute.mode === 'proxy' && projectRoute.proxy.scheme === 'vless' && !String(projectRoute.proxy.token || '').trim()) {
+      showPopup('Для маршрута «Весь проект» в режиме VLESS заполните token.');
+      return;
+    }
+    if (botsRoute.mode === 'proxy' && botsRoute.proxy.scheme === 'vless' && !String(botsRoute.proxy.token || '').trim()) {
+      showPopup('Для маршрута «Подсистема ботов» в режиме VLESS заполните token.');
+      return;
+    }
     const payload = {
       integration_network: {
-        project: collectRouteFromInputs('project'),
-        bots: collectRouteFromInputs('bots'),
+        project: projectRoute,
+        bots: botsRoute,
       },
     };
     try {
@@ -19743,11 +19816,13 @@
     if (integrationNetworkProfileProxyPortInput) integrationNetworkProfileProxyPortInput.value = String(normalized.proxy.port || 8080);
     if (integrationNetworkProfileProxyUsernameInput) integrationNetworkProfileProxyUsernameInput.value = normalized.proxy.username;
     if (integrationNetworkProfileProxyPasswordInput) integrationNetworkProfileProxyPasswordInput.value = normalized.proxy.password;
+    if (integrationNetworkProfileProxyTokenInput) integrationNetworkProfileProxyTokenInput.value = normalized.proxy.token || '';
     if (integrationNetworkProfileVpnNameInput) integrationNetworkProfileVpnNameInput.value = normalized.vpn.name;
     if (integrationNetworkProfileVpnEndpointInput) integrationNetworkProfileVpnEndpointInput.value = normalized.vpn.endpoint;
     if (integrationNetworkProfileVpnConfigPathInput) integrationNetworkProfileVpnConfigPathInput.value = normalized.vpn.config_path;
     if (integrationNetworkProfileVpnNotesInput) integrationNetworkProfileVpnNotesInput.value = normalized.vpn.notes;
     toggleIntegrationNetworkProfileModeFields();
+    toggleProxyCredentialFields('integration-profile');
   }
 
   function openIntegrationNetworkProfileEditor(index) {
@@ -19768,6 +19843,9 @@
     const mode = integrationNetworkProfileModeInput?.value === 'vpn' ? 'vpn' : 'proxy';
     integrationNetworkProfileProxyFields?.classList.toggle('d-none', mode !== 'proxy');
     integrationNetworkProfileVpnFields?.classList.toggle('d-none', mode !== 'vpn');
+    if (mode === 'proxy') {
+      toggleProxyCredentialFields('integration-profile');
+    }
   }
 
   function collectIntegrationNetworkProfilePayload() {
@@ -21380,12 +21458,18 @@
       body.support_chat_id = supportValue || null;
     }
 
+    const channelRoute = collectRouteFromInputs('channel');
+    if (channelRoute.mode === 'proxy' && channelRoute.proxy.scheme === 'vless' && !String(channelRoute.proxy.token || '').trim()) {
+      showPopup('Для VLESS-маршрута бота заполните token.');
+      return;
+    }
+
     body.delivery_settings = {
       broadcast_channel_id: channelEditorBroadcastChannelInput?.value?.trim() || null,
       schedule_to_group: channelEditorScheduleToGroupInput?.checked ?? true,
       schedule_to_channel: channelEditorScheduleToChannelInput?.checked ?? false,
       schedule_simultaneous: channelEditorScheduleSimultaneousInput?.checked ?? false,
-      network_route: collectRouteFromInputs('channel'),
+      network_route: channelRoute,
     };
 
     const currentChannel = CHANNELS_REGISTRY.get(String(id));
@@ -21561,6 +21645,9 @@
     projectNetworkModeInput?.addEventListener('change', () => toggleNetworkRouteFields('project'));
     botsNetworkModeInput?.addEventListener('change', () => toggleNetworkRouteFields('bots'));
     channelEditorNetworkModeInput?.addEventListener('change', () => toggleNetworkRouteFields('channel'));
+    projectProxySchemeInput?.addEventListener('change', () => toggleProxyCredentialFields('project'));
+    botsProxySchemeInput?.addEventListener('change', () => toggleProxyCredentialFields('bots'));
+    channelEditorProxySchemeInput?.addEventListener('change', () => toggleProxyCredentialFields('channel'));
     projectNetworkProfileIdInput?.addEventListener('change', () => updateNetworkRouteSummary('project'));
     botsNetworkProfileIdInput?.addEventListener('change', () => updateNetworkRouteSummary('bots'));
     channelEditorNetworkProfileIdInput?.addEventListener('change', () => updateNetworkRouteSummary('channel'));
@@ -21568,6 +21655,7 @@
     integrationNetworkProfilesAddBtn?.addEventListener('click', () => openIntegrationNetworkProfileEditor(null));
     integrationNetworkProfilesSaveBtn?.addEventListener('click', saveIntegrationNetworkProfiles);
     integrationNetworkProfileModeInput?.addEventListener('change', toggleIntegrationNetworkProfileModeFields);
+    integrationNetworkProfileProxySchemeInput?.addEventListener('change', () => toggleProxyCredentialFields('integration-profile'));
     integrationNetworkProfilesBody?.addEventListener('click', (event) => {
       const actionButton = event.target.closest('[data-action]');
       if (!actionButton) return;
@@ -21601,6 +21689,7 @@
           port: integrationNetworkProfileProxyPortInput?.value || 8080,
           username: integrationNetworkProfileProxyUsernameInput?.value || '',
           password: integrationNetworkProfileProxyPasswordInput?.value || '',
+          token: integrationNetworkProfileProxyTokenInput?.value || '',
         },
         vpn: {
           name: integrationNetworkProfileVpnNameInput?.value || '',
@@ -21615,6 +21704,10 @@
       }
       if (mode === 'proxy' && !draft.proxy.host) {
         showPopup('Для прокси-профиля укажите host.');
+        return;
+      }
+      if (mode === 'proxy' && draft.proxy.scheme === 'vless' && !String(draft.proxy.token || '').trim()) {
+        showPopup('Для VLESS укажите token.');
         return;
       }
       if (mode === 'vpn' && !draft.vpn.name && !draft.vpn.endpoint) {
