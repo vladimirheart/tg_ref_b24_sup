@@ -98,6 +98,7 @@ class BotProcessServiceTest {
 
         private TestableBotProcessService(Duration readinessTimeout, Duration pollInterval) {
             super(mock(SharedConfigService.class), mock(com.example.panel.config.SqliteDataSourceProperties.class),
+                mock(com.example.panel.config.BotProcessProperties.class),
                 mock(IntegrationNetworkService.class), mock(com.fasterxml.jackson.databind.ObjectMapper.class));
             this.readinessTimeout = readinessTimeout;
             this.pollInterval = pollInterval;

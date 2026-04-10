@@ -1,6 +1,7 @@
 package com.example.panel.service;
 
 import com.example.panel.config.SqliteDataSourceProperties;
+import com.example.panel.config.BotProcessProperties;
 import com.example.panel.entity.Channel;
 import com.example.panel.model.channel.BotCredential;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -40,6 +41,7 @@ public class BotProcessService {
 
     private final SharedConfigService sharedConfigService;
     private final SqliteDataSourceProperties ticketsDbProperties;
+    private final BotProcessProperties botProcessProperties;
     private final IntegrationNetworkService integrationNetworkService;
     private final ObjectMapper objectMapper;
     private final Map<Long, Process> processes = new ConcurrentHashMap<>();
@@ -48,10 +50,12 @@ public class BotProcessService {
 
     public BotProcessService(SharedConfigService sharedConfigService,
                              SqliteDataSourceProperties ticketsDbProperties,
+                             BotProcessProperties botProcessProperties,
                              IntegrationNetworkService integrationNetworkService,
                              ObjectMapper objectMapper) {
         this.sharedConfigService = sharedConfigService;
         this.ticketsDbProperties = ticketsDbProperties;
+        this.botProcessProperties = botProcessProperties;
         this.integrationNetworkService = integrationNetworkService;
         this.objectMapper = objectMapper;
     }
@@ -121,6 +125,9 @@ public class BotProcessService {
                 env.put("MAX_BOT_TOKEN", credential.token());
                 env.put("MAX_CHANNEL_ID", Objects.toString(channel.getId(), "0"));
                 env.put("MAX_SUPPORT_CHAT_ID", Objects.toString(channel.getSupportChatId(), ""));
+                env.put("SERVER_PORT", String.valueOf(botProcessProperties.resolveMaxPort(channelId)));
+                env.put("SERVER_ADDRESS", botProcessProperties.getHost());
+                env.put("SPRING_MAIN_WEB_APPLICATION_TYPE", "servlet");
                 String secret = readString(platformConfig, "secret", "webhook_secret", "webhookSecret");
                 if (!secret.isBlank()) {
                     env.put("MAX_WEBHOOK_SECRET", secret);

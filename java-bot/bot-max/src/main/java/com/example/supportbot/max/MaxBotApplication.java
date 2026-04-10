@@ -14,7 +14,10 @@ public class MaxBotApplication {
 
     public static void main(String[] args) {
         SpringApplication app = new SpringApplication(MaxBotApplication.class);
-        app.setDefaultProperties(java.util.Map.of("spring.main.web-application-type", "servlet"));
-        app.run(args);
+        String[] effectiveArgs = java.util.stream.Stream.concat(
+                java.util.Arrays.stream(args),
+                java.util.stream.Stream.of("--spring.main.web-application-type=servlet"))
+            .toArray(String[]::new);
+        app.run(effectiveArgs);
     }
 }
