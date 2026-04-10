@@ -1,13 +1,19 @@
 package com.example.panel.service;
 
 import com.example.panel.config.SqliteDataSourceProperties;
+import com.example.panel.config.BotProcessProperties;
 import com.example.panel.entity.Channel;
 import com.example.panel.model.channel.BotCredential;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -27,9 +33,15 @@ import org.springframework.stereotype.Service;
 public class BotProcessService {
 
     private static final Logger log = LoggerFactory.getLogger(BotProcessService.class);
+    private static final Pattern UNSAFE_FILENAME_CHARS = Pattern.compile("[^a-zA-Z0-9._-]+");
+    private static final Pattern SPRING_BOOT_STARTED_PATTERN =
+        Pattern.compile("(?m)\\bStarted\\s+.+Application\\s+in\\s+.+$");
+    private static final Pattern STARTUP_FAILURE_PATTERN =
+        Pattern.compile("(?m)^\\*{10,}\\s*$\\R^APPLICATION FAILED TO START\\s*$", Pattern.MULTILINE);
 
     private final SharedConfigService sharedConfigService;
     private final SqliteDataSourceProperties ticketsDbProperties;
+    private final BotProcessProperties botProcessProperties;
     private final IntegrationNetworkService integrationNetworkService;
     private final ObjectMapper objectMapper;
     private final Map<Long, Process> processes = new ConcurrentHashMap<>();
@@ -38,10 +50,12 @@ public class BotProcessService {
 
     public BotProcessService(SharedConfigService sharedConfigService,
                              SqliteDataSourceProperties ticketsDbProperties,
+                             BotProcessProperties botProcessProperties,
                              IntegrationNetworkService integrationNetworkService,
                              ObjectMapper objectMapper) {
         this.sharedConfigService = sharedConfigService;
         this.ticketsDbProperties = ticketsDbProperties;
+        this.botProcessProperties = botProcessProperties;
         this.integrationNetworkService = integrationNetworkService;
         this.objectMapper = objectMapper;
     }
@@ -74,10 +88,11 @@ public class BotProcessService {
                 "spring-boot:run"
             );
             builder.directory(botWorkingDir.toFile());
-            Path logFile = resolveLogFile(botWorkingDir);
+            Path logFile = resolveLogFile(botWorkingDir, channel);
             Path processOutputLogFile = resolveProcessOutputLogFile(logFile);
             Files.createDirectories(logFile.getParent());
             Files.createDirectories(processOutputLogFile.getParent());
+            long processOutputStartOffset = Files.exists(processOutputLogFile) ? Files.size(processOutputLogFile) : 0L;
             builder.redirectErrorStream(true);
             builder.redirectOutput(ProcessBuilder.Redirect.appendTo(processOutputLogFile.toFile()));
             Map<String, String> env = builder.environment();
@@ -110,6 +125,9 @@ public class BotProcessService {
                 env.put("MAX_BOT_TOKEN", credential.token());
                 env.put("MAX_CHANNEL_ID", Objects.toString(channel.getId(), "0"));
                 env.put("MAX_SUPPORT_CHAT_ID", Objects.toString(channel.getSupportChatId(), ""));
+                env.put("SERVER_PORT", String.valueOf(botProcessProperties.resolveMaxPort(channelId)));
+                env.put("SERVER_ADDRESS", botProcessProperties.getHost());
+                env.put("SPRING_MAIN_WEB_APPLICATION_TYPE", "servlet");
                 String secret = readString(platformConfig, "secret", "webhook_secret", "webhookSecret");
                 if (!secret.isBlank()) {
                     env.put("MAX_WEBHOOK_SECRET", secret);
@@ -119,12 +137,20 @@ public class BotProcessService {
             env.put("APP_BOT_LOG_PATH", logFile.toString());
             env.putAll(integrationNetworkService.buildProcessEnvironment(integrationNetworkService.resolveBotRoute(channel)));
             Process process = builder.start();
-            processes.put(channelId, process);
             OffsetDateTime now = OffsetDateTime.now();
+            BotProcessStatus startupStatus =
+                awaitProcessReadiness(process, processOutputLogFile, processOutputStartOffset, channelId, now);
+            if (!startupStatus.running()) {
+                if (process.isAlive()) {
+                    stopProcess(process.toHandle(), "startup-readiness-failure", channelId);
+                }
+                return startupStatus;
+            }
+            processes.put(channelId, process);
             startedAt.put(channelId, now);
             writePidFile(botWorkingDir, channelId, process.pid());
             log.info("Started bot process for channel {} at {}", channelId, now);
-            return BotProcessStatus.running(now);
+            return startupStatus;
         } catch (Exception ex) {
             log.error("Failed to start bot process for channel {}", channelId, ex);
             return BotProcessStatus.error("Не удалось запустить бота: " + ex.getMessage());
@@ -279,13 +305,53 @@ public class BotProcessService {
         }
     }
 
-    private Path resolveLogFile(Path botWorkingDir) {
+    BotProcessStatus awaitProcessReadiness(Process process,
+                                           Path processOutputLogFile,
+                                           long processOutputStartOffset,
+                                           Long channelId,
+                                           OffsetDateTime startedAt) {
+        long deadlineNanos = System.nanoTime() + startupReadinessTimeout().toNanos();
+        String latestStartupLog = "";
+        while (System.nanoTime() < deadlineNanos) {
+            latestStartupLog = readProcessOutputSince(processOutputLogFile, processOutputStartOffset);
+            if (containsStartupFailure(latestStartupLog)) {
+                String failureMessage = extractStartupFailureMessage(latestStartupLog);
+                log.warn("Bot process for channel {} reported startup failure: {}", channelId, failureMessage);
+                return BotProcessStatus.error(failureMessage);
+            }
+            if (containsStartedMarker(latestStartupLog) && process.isAlive()) {
+                return BotProcessStatus.running(startedAt);
+            }
+            if (!process.isAlive()) {
+                String failureMessage = extractEarlyExitMessage(latestStartupLog);
+                log.warn("Bot process for channel {} exited during startup: {}", channelId, failureMessage);
+                return BotProcessStatus.error(failureMessage);
+            }
+            try {
+                Thread.sleep(startupPollInterval().toMillis());
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+                return BotProcessStatus.error("Ожидание готовности бота было прервано.");
+            }
+        }
+        latestStartupLog = readProcessOutputSince(processOutputLogFile, processOutputStartOffset);
+        if (containsStartedMarker(latestStartupLog) && process.isAlive()) {
+            return BotProcessStatus.running(startedAt);
+        }
+        String timeoutMessage = extractStartupTimeoutMessage(latestStartupLog);
+        log.warn("Bot process for channel {} did not confirm readiness in time: {}", channelId, timeoutMessage);
+        return BotProcessStatus.error(timeoutMessage);
+    }
+
+    private Path resolveLogFile(Path botWorkingDir, Channel channel) {
         String override = System.getenv("APP_BOT_LOG_PATH");
         if (override != null && !override.isBlank()) {
             return Paths.get(override).toAbsolutePath().normalize();
         }
         Path logDir = botWorkingDir.resolve("../logs").normalize();
-        return logDir.resolve("support-bot.log").toAbsolutePath().normalize();
+        String platform = sanitizeFileNameSegment(Objects.toString(channel != null ? channel.getPlatform() : null, "telegram"));
+        String channelId = channel != null && channel.getId() != null ? String.valueOf(channel.getId()) : "unknown";
+        return logDir.resolve("support-bot-" + platform + "-" + channelId + ".log").toAbsolutePath().normalize();
     }
 
     private Path resolvePidFile(Path botWorkingDir, Long channelId) {
@@ -305,8 +371,128 @@ public class BotProcessService {
             .normalize();
     }
 
+    private String sanitizeFileNameSegment(String value) {
+        String sanitized = UNSAFE_FILENAME_CHARS.matcher(Objects.toString(value, "").trim()).replaceAll("-");
+        sanitized = sanitized.replaceAll("^-+", "").replaceAll("-+$", "");
+        return sanitized.isBlank() ? "unknown" : sanitized.toLowerCase();
+    }
+
+    Duration startupReadinessTimeout() {
+        return Duration.ofSeconds(45);
+    }
+
+    Duration startupPollInterval() {
+        return Duration.ofMillis(250);
+    }
+
     private Path resolveMavenRepoDir(Path botWorkingDir) {
         return botWorkingDir.resolve("../spring-panel/.m2/repository").toAbsolutePath().normalize();
+    }
+
+    private String readProcessOutputSince(Path processOutputLogFile, long startOffset) {
+        if (processOutputLogFile == null || !Files.exists(processOutputLogFile)) {
+            return "";
+        }
+        try (var channel = Files.newByteChannel(processOutputLogFile, StandardOpenOption.READ);
+             var buffer = new ByteArrayOutputStream()) {
+            long size = channel.size();
+            channel.position(Math.min(Math.max(startOffset, 0L), size));
+            byte[] chunk = new byte[4096];
+            int read;
+            while ((read = channel.read(java.nio.ByteBuffer.wrap(chunk))) > 0) {
+                buffer.write(chunk, 0, read);
+            }
+            return buffer.toString(StandardCharsets.UTF_8);
+        } catch (IOException ex) {
+            log.warn("Failed to read process output log {}", processOutputLogFile, ex);
+            return "";
+        }
+    }
+
+    private boolean containsStartedMarker(String processOutput) {
+        return processOutput != null && SPRING_BOOT_STARTED_PATTERN.matcher(processOutput).find();
+    }
+
+    private boolean containsStartupFailure(String processOutput) {
+        return processOutput != null && STARTUP_FAILURE_PATTERN.matcher(processOutput).find();
+    }
+
+    private String extractStartupFailureMessage(String processOutput) {
+        if (processOutput == null || processOutput.isBlank()) {
+            return "Бот завершился во время старта.";
+        }
+        String description = extractSectionValue(processOutput, "Description:");
+        if (!description.isBlank()) {
+            return "Бот не прошёл инициализацию: " + description;
+        }
+        String action = extractSectionValue(processOutput, "Action:");
+        if (!action.isBlank()) {
+            return "Бот не прошёл инициализацию: " + action;
+        }
+        String lastLine = lastNonBlankLine(processOutput);
+        if (!lastLine.isBlank()) {
+            return "Бот не прошёл инициализацию: " + lastLine;
+        }
+        return "Бот не прошёл инициализацию.";
+    }
+
+    private String extractEarlyExitMessage(String processOutput) {
+        if (containsStartupFailure(processOutput)) {
+            return extractStartupFailureMessage(processOutput);
+        }
+        String lastLine = lastNonBlankLine(processOutput);
+        if (!lastLine.isBlank()) {
+            return "Бот завершился во время старта: " + lastLine;
+        }
+        return "Бот завершился во время старта без подтверждения готовности.";
+    }
+
+    private String extractStartupTimeoutMessage(String processOutput) {
+        String lastLine = lastNonBlankLine(processOutput);
+        if (!lastLine.isBlank()) {
+            return "Не удалось подтвердить готовность бота после старта. Последняя строка лога: " + lastLine;
+        }
+        return "Не удалось подтвердить готовность бота после старта.";
+    }
+
+    private String extractSectionValue(String processOutput, String sectionHeader) {
+        String[] lines = Objects.toString(processOutput, "").split("\\R");
+        boolean inSection = false;
+        StringBuilder section = new StringBuilder();
+        for (String line : lines) {
+            if (!inSection) {
+                if (sectionHeader.equals(line.trim())) {
+                    inSection = true;
+                }
+                continue;
+            }
+            String trimmed = line.trim();
+            if (trimmed.isEmpty()) {
+                if (section.length() > 0) {
+                    break;
+                }
+                continue;
+            }
+            if (trimmed.endsWith(":") && section.length() > 0) {
+                break;
+            }
+            if (section.length() > 0) {
+                section.append(' ');
+            }
+            section.append(trimmed);
+        }
+        return section.toString();
+    }
+
+    private String lastNonBlankLine(String processOutput) {
+        String[] lines = Objects.toString(processOutput, "").split("\\R");
+        for (int i = lines.length - 1; i >= 0; i--) {
+            String trimmed = lines[i].trim();
+            if (!trimmed.isEmpty()) {
+                return trimmed;
+            }
+        }
+        return "";
     }
 
     private void writePidFile(Path botWorkingDir, Long channelId, long pid) {

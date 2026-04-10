@@ -5562,7 +5562,7 @@
                 <div class="fw-semibold mb-1">Как подключить MAX</div>
                 <ol class="mb-0 ps-3">
                   <li>Получите bot token в кабинете интеграций MAX и вставьте его в поле «Токен MAX-бота».</li>
-                  <li>Укажите endpoint для входящих событий: <code>https://ваш-домен/webhooks/max</code>.</li>
+                  <li>Укажите endpoint для входящих событий: <code>https://ваш-домен/webhooks/max/&lt;channel_id&gt;</code>.</li>
                   <li>Если настроен webhook secret, передавайте его в заголовке <code>X-Max-Bot-Api-Secret</code>.</li>
                 </ol>
               </div>
@@ -20705,7 +20705,9 @@
       channelEditorMaxWebhookSecretInput.value = maxSecret;
     }
     if (channelEditorMaxWebhookUrlEl) {
-      channelEditorMaxWebhookUrlEl.textContent = `${window.location.origin}/webhooks/max`;
+      channelEditorMaxWebhookUrlEl.textContent = channel?.id
+        ? `${window.location.origin}/webhooks/max/${channel.id}`
+        : `${window.location.origin}/webhooks/max/<channel_id>`;
     }
     applyRouteToInputs('channel', channel.network_route);
     updateSupportChatHint(supportChatValue);
@@ -20731,7 +20733,10 @@
           : `${window.location.origin}/webhooks/vk/<group_id>`;
         channelEditorHintEl.textContent = `VK Callback URL: ${callbackUrl}`;
       } else if (channel.platform === 'max') {
-        channelEditorHintEl.textContent = `MAX webhook URL: ${window.location.origin}/webhooks/max (secret в заголовке X-Max-Bot-Api-Secret).`;
+        const maxWebhookUrl = channel.id
+          ? `${window.location.origin}/webhooks/max/${channel.id}`
+          : `${window.location.origin}/webhooks/max/<channel_id>`;
+        channelEditorHintEl.textContent = `MAX webhook URL: ${maxWebhookUrl} (secret в заголовке X-Max-Bot-Api-Secret).`;
       } else {
         channelEditorHintEl.textContent = 'Изменения вступят в силу сразу после сохранения.';
       }

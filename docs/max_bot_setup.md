@@ -29,13 +29,15 @@ curl -X POST "https://platform-api.max.ru/subscriptions" \
   -H "Authorization: <MAX_BOT_TOKEN>" \
   -H "Content-Type: application/json" \
   -d '{
-    "url": "https://<your-domain>/webhooks/max",
+    "url": "https://<your-domain>/webhooks/max/<channel_id>",
     "update_types": ["message_created"],
     "secret": "<optional-secret>"
   }'
 ```
 
 Если указываете `secret`, проверка выполняется по заголовку `X-Max-Bot-Api-Secret`.
+`<channel_id>` — это ID канала из панели; endpoint принимает webhook в `spring-panel`
+и проксирует его во внутренний процесс `bot-max`.
 
 ## 5. Проверка
 
