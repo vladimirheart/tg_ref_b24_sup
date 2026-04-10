@@ -41,6 +41,7 @@ import org.telegram.telegrambots.meta.api.objects.stickers.Sticker;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardRemove;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
+import org.telegram.telegrambots.bots.DefaultBotOptions;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
@@ -99,7 +100,7 @@ public class SupportBot extends TelegramLongPollingBot {
                       PublicFormConversationLinkService publicFormConversationLinkService,
                       SharedConfigService sharedConfigService,
                       ObjectMapper objectMapper) {
-        super(properties.getToken());
+        super(resolveTelegramBotOptionsFromEnv(), properties.getToken());
         this.properties = properties;
         this.blacklistService = blacklistService;
         this.unblockRequestService = unblockRequestService;
@@ -127,6 +128,14 @@ public class SupportBot extends TelegramLongPollingBot {
                 usernameConfigured ? username : "(missing)",
                 tokenConfigured ? maskToken(token) : "(missing)",
                 channelId);
+        String proxyHost = env("APP_NETWORK_PROXY_HOST");
+        int proxyPort = parsePositiveInt(env("APP_NETWORK_PROXY_PORT"));
+        if (!proxyHost.isBlank() && proxyPort > 0) {
+            log.info("Telegram client will use proxy {}://{}:{}",
+                    env("APP_NETWORK_PROXY_SCHEME").isBlank() ? "http" : env("APP_NETWORK_PROXY_SCHEME"),
+                    proxyHost,
+                    proxyPort);
+        }
 
         if (!tokenConfigured) {
             log.warn("Telegram bot token is not configured; check TELEGRAM_BOT_TOKEN or support-bot.token");
@@ -2048,6 +2057,50 @@ public class SupportBot extends TelegramLongPollingBot {
     @Override
     public String getBotToken() {
         return properties.getToken();
+    }
+
+    private static DefaultBotOptions resolveTelegramBotOptionsFromEnv() {
+        DefaultBotOptions options = new DefaultBotOptions();
+        String scheme = env("APP_NETWORK_PROXY_SCHEME").toLowerCase(Locale.ROOT);
+        String host = env("APP_NETWORK_PROXY_HOST");
+        int port = parsePositiveInt(env("APP_NETWORK_PROXY_PORT"));
+
+        if (!host.isBlank() && port > 0) {
+            options.setProxyHost(host);
+            options.setProxyPort(port);
+            options.setProxyType(resolveProxyType(scheme));
+        } else {
+            options.setProxyType(DefaultBotOptions.ProxyType.NO_PROXY);
+        }
+        return options;
+    }
+
+    private static DefaultBotOptions.ProxyType resolveProxyType(String scheme) {
+        if (scheme == null) {
+            return DefaultBotOptions.ProxyType.HTTP;
+        }
+        return switch (scheme.toLowerCase(Locale.ROOT)) {
+            case "socks4" -> DefaultBotOptions.ProxyType.SOCKS4;
+            case "socks5", "vless" -> DefaultBotOptions.ProxyType.SOCKS5;
+            default -> DefaultBotOptions.ProxyType.HTTP;
+        };
+    }
+
+    private static int parsePositiveInt(String value) {
+        if (value == null || value.isBlank()) {
+            return 0;
+        }
+        try {
+            int parsed = Integer.parseInt(value.trim());
+            return parsed > 0 ? parsed : 0;
+        } catch (NumberFormatException ex) {
+            return 0;
+        }
+    }
+
+    private static String env(String key) {
+        String value = System.getenv(key);
+        return value == null ? "" : value.trim();
     }
 
     private String maskToken(String token) {
