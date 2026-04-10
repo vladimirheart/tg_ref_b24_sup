@@ -33,7 +33,7 @@ public class DialogAiAssistantService {
     private static final Logger log = LoggerFactory.getLogger(DialogAiAssistantService.class);
     private static final Pattern TOKEN_SPLIT = Pattern.compile("[^\\p{IsAlphabetic}\\p{IsDigit}]+");
     private static final Pattern ENTITY_HINT_PATTERN = Pattern.compile("(#?[\\p{L}]{2,}[\\-_]?[0-9]{2,}|\\+?[0-9][0-9\\-()\\s]{6,}|[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,})");
-    private static final Set<String> STOP = Set.of("Р С‘","Р Р†","Р Р…Р В°","Р Р…Р Вµ","РЎвЂЎРЎвЂљР С•","Р С”Р В°Р С”","Р Т‘Р В»РЎРЏ","Р С‘Р В»Р С‘","Р С—Р С•","Р С‘Р В·","Р С”","РЎС“","Р С•","Р С•Р В±","the","a","an","to","of","in","on","for","and","or","is","are","be");
+    private static final Set<String> STOP = Set.of("и","в","на","не","что","как","для","или","по","из","к","у","о","об","the","a","an","to","of","in","on","for","and","or","is","are","be");
     private static final double AUTO_REPLY_THRESHOLD_DEFAULT = 0.62d;
     private static final double SUGGEST_THRESHOLD_DEFAULT = 0.46d;
     private static final double DIFFERENCE_THRESHOLD_DEFAULT = 0.42d;
@@ -748,7 +748,7 @@ public class DialogAiAssistantService {
             double s = scoreByTokens(q, entities, join(qt, st));
             int conf = toInt(row.get("times_confirmed")), corr = toInt(row.get("times_corrected"));
             s = Math.max(0d, Math.min(1d, s + Math.min(0.20d, conf * 0.02d) - Math.min(0.12d, corr * 0.02d)));
-            if (s > 0d) out.add(new AiSuggestion("memory", "Р СџРЎР‚Р С•Р Р†Р ВµРЎР‚Р ВµР Р…Р Р…Р С•Р Вµ РЎР‚Р ВµРЎв‚¬Р ВµР Р…Р С‘Р Вµ", cut(st, 320), s, trim(key)));
+            if (s > 0d) out.add(new AiSuggestion("memory", "Проверенное решение", cut(st, 320), s, trim(key)));
         }
         return out;
     }
@@ -760,7 +760,7 @@ public class DialogAiAssistantService {
             String title = safe(row.get("title"));
             String text = cleanTextForRetrieval(join(title, safe(row.get("summary")), safe(row.get("content"))));
             double s = scoreByTokens(q, entities, text);
-            if (s > 0d) out.add(new AiSuggestion("knowledge", StringUtils.hasText(title) ? title : "Р РЋРЎвЂљР В°РЎвЂљРЎРЉРЎРЏ Р В±Р В°Р В·РЎвЂ№ Р В·Р Р…Р В°Р Р…Р С‘Р в„–", cut(text, 280), s, null));
+            if (s > 0d) out.add(new AiSuggestion("knowledge", StringUtils.hasText(title) ? title : "Статья базы знаний", cut(text, 280), s, null));
         }
         return out;
     }
@@ -772,7 +772,7 @@ public class DialogAiAssistantService {
             String title = safe(row.get("title"));
             String text = cleanTextForRetrieval(join(title, stripHtml(safe(row.get("body_html"))), safe(row.get("status"))));
             double s = scoreByTokens(q, entities, text);
-            if (s > 0d) out.add(new AiSuggestion("tasks", StringUtils.hasText(title) ? title : "Р СџР С•РЎвЂ¦Р С•Р В¶Р В°РЎРЏ Р В·Р В°Р Т‘Р В°РЎвЂЎР В°", cut(text, 280), s, null));
+            if (s > 0d) out.add(new AiSuggestion("tasks", StringUtils.hasText(title) ? title : "Похожая задача", cut(text, 280), s, null));
         }
         return out;
     }
@@ -784,7 +784,7 @@ public class DialogAiAssistantService {
             String ticket = safe(row.get("ticket_id"));
             String msg = cleanTextForRetrieval(safe(row.get("message")));
             double s = scoreByTokens(q, entities, msg);
-            if (s > 0d) out.add(new AiSuggestion("history", StringUtils.hasText(ticket) ? "Р СџР С•РЎвЂ¦Р С•Р В¶Р С‘Р в„– Р Т‘Р С‘Р В°Р В»Р С•Р С– #" + ticket : "Р СџР С•РЎвЂ¦Р С•Р В¶Р С‘Р в„– Р Т‘Р С‘Р В°Р В»Р С•Р С–", cut(msg, 260), s, null));
+            if (s > 0d) out.add(new AiSuggestion("history", StringUtils.hasText(ticket) ? "Похожий диалог #" + ticket : "Похожий диалог", cut(msg, 260), s, null));
         }
         return out;
     }
@@ -827,7 +827,7 @@ public class DialogAiAssistantService {
             double boosted = Math.max(0d, Math.min(1d, s + 0.12d));
             out.add(new AiSuggestion(
                     "applicant_history",
-                    StringUtils.hasText(prevTicket) ? "Р ВРЎРѓРЎвЂљР С•РЎР‚Р С‘РЎРЏ Р В·Р В°РЎРЏР Р†Р С‘РЎвЂљР ВµР В»РЎРЏ #" + prevTicket : "Р ВРЎРѓРЎвЂљР С•РЎР‚Р С‘РЎРЏ Р В·Р В°РЎРЏР Р†Р С‘РЎвЂљР ВµР В»РЎРЏ",
+                    StringUtils.hasText(prevTicket) ? "История заявителя #" + prevTicket : "История заявителя",
                     cut(msg, 260),
                     boosted,
                     null
@@ -1013,6 +1013,42 @@ public class DialogAiAssistantService {
                 return true;
             }
             return false;
+        } catch (Exception ex) {
+            return false;
+        }
+    }
+
+    public boolean deleteSolutionMemory(String queryKey, String operator) {
+        String key = trim(queryKey);
+        if (key == null) {
+            return false;
+        }
+        try {
+            Map<String, Object> before = loadSolutionMemoryByKey(key);
+            if (before == null) {
+                return false;
+            }
+            int deleted = jdbcTemplate.update(
+                    "DELETE FROM ai_agent_solution_memory WHERE query_key = ?",
+                    key
+            );
+            if (deleted <= 0) {
+                return false;
+            }
+            insertSolutionMemoryHistory(
+                    key,
+                    trim(operator),
+                    "manual",
+                    "delete",
+                    safe(before.get("query_text")),
+                    safe(before.get("solution_text")),
+                    isTrue(before.get("review_required")),
+                    null,
+                    null,
+                    false,
+                    "manual_delete"
+            );
+            return true;
         } catch (Exception ex) {
             return false;
         }
@@ -1466,12 +1502,12 @@ public class DialogAiAssistantService {
     private String buildAutoReply(AiSuggestion s) {
         String body = cleanTextForRetrieval(s != null ? s.snippet : null);
         if (!StringUtils.hasText(body)) {
-            body = "Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р С—Р С•Р Т‘Р С–Р С•РЎвЂљР С•Р Р†Р С‘РЎвЂљРЎРЉ Р С•РЎвЂљР Р†Р ВµРЎвЂљ Р С—Р С• РЎРЊРЎвЂљР С•Р СРЎС“ Р В·Р В°Р С—РЎР‚Р С•РЎРѓРЎС“.";
+            body = "Не удалось найти точный ответ в базе. Ниже безопасный общий план действий.";
         }
         List<String> steps = splitIntoSteps(body, 3);
         StringBuilder reply = new StringBuilder();
-        reply.append("Р С›РЎвЂљР Р†Р ВµРЎвЂљ: ").append(cut(firstSentence(body), 220)).append("\n\n");
-        reply.append("Р В§РЎвЂљР С• РЎРѓР Т‘Р ВµР В»Р В°РЎвЂљРЎРЉ:\n");
+        reply.append("Коротко: ").append(cut(firstSentence(body), 220)).append("\n\n");
+        reply.append("Что сделать:\n");
         if (steps.isEmpty()) {
             reply.append("1. ").append(cut(body, 280)).append("\n");
         } else {
@@ -1479,35 +1515,55 @@ public class DialogAiAssistantService {
                 reply.append(i + 1).append(". ").append(steps.get(i)).append("\n");
             }
         }
-        reply.append("\nР вЂўРЎРѓР В»Р С‘ РЎРЊРЎвЂљР С• Р Р…Р Вµ Р С—Р С•Р СР С•Р С–Р В»Р С•, Р С—Р С•Р Т‘Р С”Р В»РЎР‹РЎвЂЎР С‘Р С Р С•Р С—Р ВµРЎР‚Р В°РЎвЂљР С•РЎР‚Р В° Р С‘ РЎС“РЎвЂљР С•РЎвЂЎР Р…Р С‘Р С Р Т‘Р ВµРЎвЂљР В°Р В»Р С‘.");
+        reply.append("\nЕсли после этих шагов проблема не решится, напишите, что именно не сработало.");
         return reply.toString();
     }
+
     private String buildOperatorReplySuggestion(AiSuggestion s) {
         String sourceLabel = switch (s.source) {
-            case "memory" -> "Р С—Р В°Р СРЎРЏРЎвЂљРЎРЉ РЎР‚Р ВµРЎв‚¬Р ВµР Р…Р С‘Р в„–";
-            case "knowledge" -> "Р В±Р В°Р В·Р В° Р В·Р Р…Р В°Р Р…Р С‘Р в„–";
-            case "tasks" -> "Р С—Р С•РЎвЂ¦Р С•Р В¶Р С‘Р Вµ Р В·Р В°Р Т‘Р В°РЎвЂЎР С‘";
-            case "history" -> "Р С‘РЎРѓРЎвЂљР С•РЎР‚Р С‘РЎРЏ Р Т‘Р С‘Р В°Р В»Р С•Р С–Р С•Р Р†";
-            case "applicant_history" -> "Р С‘РЎРѓРЎвЂљР С•РЎР‚Р С‘РЎРЏ Р В·Р В°РЎРЏР Р†Р С‘РЎвЂљР ВµР В»РЎРЏ";
-            default -> "РЎР‚Р В°Р В±Р С•РЎвЂЎР С‘Р Вµ Р С‘РЎРѓРЎвЂљР С•РЎвЂЎР Р…Р С‘Р С”Р С‘";
+            case "memory" -> "память подтвержденных решений";
+            case "knowledge" -> "база знаний";
+            case "tasks" -> "связанные задачи";
+            case "history" -> "история похожих диалогов";
+            case "applicant_history" -> "история заявителя";
+            default -> "доступные данные";
         };
         String prepared = buildAutoReply(s);
-        return "Р СџР С• Р С‘РЎРѓРЎвЂљР С•РЎвЂЎР Р…Р С‘Р С”РЎС“ \"" + sourceLabel + "\" Р С—РЎР‚Р ВµР Т‘Р В»Р В°Р С–Р В°Р ВµРЎвЂљРЎРѓРЎРЏ:\n\n" + prepared;
+        return "Подсказка на основе источника \"" + sourceLabel + "\":\n\n" + prepared;
     }
+
     private String buildSuggestionExplain(AiSuggestion s) {
         String sourceExplain = switch (String.valueOf(s.source).toLowerCase(Locale.ROOT)) {
-            case "memory" -> "Р С›РЎРѓР Р…Р С•Р Р†Р В°Р Р…Р С• Р Р…Р В° РЎР‚Р В°Р Р…Р ВµР Вµ Р С—Р С•Р Т‘РЎвЂљР Р†Р ВµРЎР‚Р В¶Р Т‘Р ВµР Р…Р Р…Р С•Р С РЎР‚Р ВµРЎв‚¬Р ВµР Р…Р С‘Р С‘.";
-            case "knowledge" -> "Р С›РЎРѓР Р…Р С•Р Р†Р В°Р Р…Р С• Р Р…Р В° РЎРѓРЎвЂљР В°РЎвЂљРЎРЉР Вµ Р С‘Р В· Р В±Р В°Р В·РЎвЂ№ Р В·Р Р…Р В°Р Р…Р С‘Р в„–.";
-            case "tasks" -> "Р С›РЎРѓР Р…Р С•Р Р†Р В°Р Р…Р С• Р Р…Р В° Р С—Р С•РЎвЂ¦Р С•Р В¶Р С‘РЎвЂ¦ Р В·Р В°Р Т‘Р В°РЎвЂЎР В°РЎвЂ¦.";
-            case "history" -> "Р С›РЎРѓР Р…Р С•Р Р†Р В°Р Р…Р С• Р Р…Р В° Р С—Р С•РЎвЂ¦Р С•Р В¶Р С‘РЎвЂ¦ Р Т‘Р С‘Р В°Р В»Р С•Р С–Р В°РЎвЂ¦.";
-            case "applicant_history" -> "Р С›РЎРѓР Р…Р С•Р Р†Р В°Р Р…Р С• Р Р…Р В° Р С—РЎР‚Р ВµР Т‘РЎвЂ№Р Т‘РЎС“РЎвЂ°Р С‘РЎвЂ¦ Р С•Р В±РЎР‚Р В°РЎвЂ°Р ВµР Р…Р С‘РЎРЏРЎвЂ¦ Р В·Р В°РЎРЏР Р†Р С‘РЎвЂљР ВµР В»РЎРЏ.";
-            default -> "Р С›РЎРѓР Р…Р С•Р Р†Р В°Р Р…Р С• Р Р…Р В° РЎР‚Р ВµР В»Р ВµР Р†Р В°Р Р…РЎвЂљР Р…РЎвЂ№РЎвЂ¦ Р С‘РЎРѓРЎвЂљР С•РЎвЂЎР Р…Р С‘Р С”Р В°РЎвЂ¦.";
+            case "memory" -> "Подсказка выбрана из подтвержденной памяти решений.";
+            case "knowledge" -> "Подсказка собрана из базы знаний.";
+            case "tasks" -> "Подсказка опирается на связанные задачи и инструкции.";
+            case "history" -> "Подсказка основана на похожих диалогах.";
+            case "applicant_history" -> "Подсказка учитывает историю заявителя.";
+            default -> "Подсказка сформирована на основе доступных данных.";
         };
-        return sourceExplain + " Р Р€РЎР‚Р С•Р Р†Р ВµР Р…РЎРЉ РЎС“Р Р†Р ВµРЎР‚Р ВµР Р…Р Р…Р С•РЎРѓРЎвЂљР С‘: " + formatScore(s.score) + ".";
+        return sourceExplain + " Итоговый confidence: " + formatScore(s.score) + ".";
     }
-    private void notifyOperatorsEscalation(String ticketId, String msg, String reason) { String t = "AI-Р В°Р С–Р ВµР Р…РЎвЂљ РЎРЊРЎРѓР С”Р В°Р В»Р С‘РЎР‚Р С•Р Р†Р В°Р В» Р С•Р В±РЎР‚Р В°РЎвЂ°Р ВµР Р…Р С‘Р Вµ " + ticketId + ". " + reason; if (StringUtils.hasText(msg)) t += " Р вЂ™Р С•Р С—РЎР‚Р С•РЎРѓ Р С”Р В»Р С‘Р ВµР Р…РЎвЂљР В°: " + cut(msg, 140); notificationService.notifyAllOperators(t, "/dialogs?ticketId=" + ticketId, null); }
+
+    private void notifyOperatorsEscalation(String ticketId, String msg, String reason) {
+        String text = "AI-агент эскалировал обращение " + ticketId + ". " + reason;
+        if (StringUtils.hasText(msg)) {
+            text += " Вопрос клиента: " + cut(msg, 140);
+        }
+        notificationService.notifyAllOperators(text, "/dialogs?ticketId=" + ticketId, null);
+    }
+
     private boolean isAgentEnabled() { try { Object d = sharedConfigService.loadSettings().get("dialog_config"); if (d instanceof Map<?,?> m) { Object e = m.get("ai_agent_enabled"); if (e instanceof Boolean b) return b; String n = String.valueOf(e).trim().toLowerCase(Locale.ROOT); return !"false".equals(n) && !"0".equals(n) && !"off".equals(n); } } catch (Exception ex) { log.debug("ai_agent_enabled read failed: {}", ex.getMessage()); } return true; }
-    private boolean requiresHumanImmediately(String m) { String n = String.valueOf(m).toLowerCase(Locale.ROOT); return n.contains("Р С•Р С—Р ВµРЎР‚Р В°РЎвЂљР С•РЎР‚") || n.contains("РЎвЂЎР ВµР В»Р С•Р Р†Р ВµР С”") || n.contains("Р СР ВµР Р…Р ВµР Т‘Р В¶Р ВµРЎР‚") || n.contains("Р С—Р С•Р В·Р Р†Р С•Р Р…Р С‘РЎвЂљР Вµ"); }
+
+    private boolean requiresHumanImmediately(String m) {
+        String n = normalize(m);
+        return n.contains("оператор")
+                || n.contains("человек")
+                || n.contains("менеджер")
+                || n.contains("позвон")
+                || n.contains("свяж")
+                || n.contains("живой");
+    }
+
     private boolean isMeaningfullyDifferent(String a, String b) { return similarity(a, b) < resolveDifferenceThreshold(); }
     private double similarity(String a, String b) { Set<String> x = tokenize(a), y = tokenize(b); if (x.isEmpty() || y.isEmpty()) return 0d; int i = 0; for (String t : x) if (y.contains(t)) i++; int u = x.size() + y.size() - i; return u <= 0 ? 0d : i / (double) u; }
     private double scoreByTokens(Set<String> q, Set<String> entities, String src) {

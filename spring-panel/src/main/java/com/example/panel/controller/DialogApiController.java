@@ -26,6 +26,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -2991,6 +2992,18 @@ public class DialogApiController {
                 operator
         );
         return ResponseEntity.ok(Map.of("success", true, "updated", updated));
+    }
+
+    @DeleteMapping("/ai-solution-memory/{queryKey}")
+    public ResponseEntity<?> deleteAiSolutionMemory(@PathVariable String queryKey,
+                                                    Authentication authentication) {
+        ResponseEntity<Map<String, Object>> permissionDenied = requireDialogPermission(authentication, "can_reply", "ai_solution_memory_delete", null);
+        if (permissionDenied != null) {
+            return permissionDenied;
+        }
+        String operator = authentication != null ? authentication.getName() : null;
+        boolean deleted = dialogAiAssistantService.deleteSolutionMemory(queryKey, operator);
+        return ResponseEntity.ok(Map.of("success", true, "deleted", deleted));
     }
 
     @GetMapping("/ai-solution-memory/{queryKey}/history")

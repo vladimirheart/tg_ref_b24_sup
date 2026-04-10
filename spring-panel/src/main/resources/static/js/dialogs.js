@@ -4154,7 +4154,7 @@
         const snippet = escapeHtml(String(item?.snippet || ''));
         const reply = escapeHtml(String(item?.reply || item?.snippet || ''));
         const explain = escapeHtml(String(item?.explain || '').trim());
-        const sourceBadge = `${escapeHtml(source || 'source')}${scoreLabel ? ` � ${escapeHtml(scoreLabel)}` : ''}`;
+        const sourceBadge = `${escapeHtml(source || 'source')}${scoreLabel ? ` · ${escapeHtml(scoreLabel)}` : ''}`;
         const rawSource = escapeHtml(String(item?.source || '').trim());
         const rawTitle = escapeHtml(String(item?.title || '').trim());
         const rawSnippet = escapeHtml(String(item?.snippet || '').trim());

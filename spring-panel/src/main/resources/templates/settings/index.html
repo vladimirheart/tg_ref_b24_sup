@@ -197,6 +197,41 @@
       box-shadow: 0 0.25rem 0.7rem rgba(15, 23, 42, 0.08);
     }
 
+    .settings-menu-tabs {
+      padding: 0.35rem;
+      border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
+      border-radius: 0.75rem;
+      background: color-mix(in srgb, var(--secondary) 20%, white);
+      gap: 0.25rem;
+    }
+
+    .settings-menu-tabs .nav-link {
+      border-radius: 0.6rem;
+      border: 0;
+      color: var(--color-text-muted);
+    }
+
+    .settings-menu-tabs .nav-link.active {
+      color: var(--primary);
+      background: color-mix(in srgb, var(--card) 96%, white);
+      box-shadow: 0 0.25rem 0.7rem rgba(15, 23, 42, 0.08);
+    }
+
+    .settings-tab-content {
+      margin-top: 0.85rem;
+    }
+
+    .settings-tab-content > .tab-pane {
+      border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
+      border-radius: 0.9rem;
+      background: color-mix(in srgb, var(--card) 97%, white);
+      padding: 1rem;
+    }
+
+    .settings-tab-content > .tab-pane > * + * {
+      margin-top: 1rem;
+    }
+
     .settings-modal-lead {
       border: 1px solid color-mix(in srgb, var(--color-border) 78%, transparent);
       border-radius: 0.85rem;
@@ -1873,7 +1908,7 @@
             >
               <div class="alert alert-danger d-none" role="alert" data-auth-message></div>
 
-              <ul class="nav nav-tabs" role="tablist" data-auth-tabs>
+              <ul class="nav nav-tabs settings-menu-tabs" role="tablist" data-auth-tabs>
                 <li class="nav-item" role="presentation">
                   <button class="nav-link active" id="auth-users-tab" data-bs-toggle="tab" data-bs-target="#settingsAuthUsers" type="button" role="tab">Пользователи</button>
                 </li>
@@ -1885,7 +1920,7 @@
                 </li>
               </ul>
 
-              <div class="tab-content pt-3">
+              <div class="tab-content pt-3 settings-tab-content">
                 <div class="tab-pane fade show active" id="settingsAuthUsers" role="tabpanel" data-auth-users-section>
                   <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2 mb-3">
                     <div class="text-muted small">Управляйте карточками пользователей, контактами и доступом.</div>
@@ -2229,7 +2264,7 @@
               <i class="bi bi-diagram-3-fill" aria-hidden="true"></i>
               <div class="settings-modal-lead__text">Соберите устойчивый сценарий: категории, вопросы и правила завершения, чтобы агент одинаково обрабатывал обращения.</div>
             </div>
-            <ul class="nav nav-tabs" id="dialogSettingsTabs" role="tablist">
+            <ul class="nav nav-tabs settings-menu-tabs" id="dialogSettingsTabs" role="tablist">
               <li class="nav-item" role="presentation">
                 <button
                   class="nav-link active"
@@ -2316,7 +2351,7 @@
               </li>
             </ul>
 
-            <div class="tab-content pt-3" id="dialogSettingsTabsContent">
+            <div class="tab-content pt-3 settings-tab-content" id="dialogSettingsTabsContent">
               <div
                 class="tab-pane fade show active"
                 id="dialog-settings-categories"
@@ -3932,7 +3967,7 @@
               <i class="bi bi-sliders2-vertical" aria-hidden="true"></i>
               <div class="settings-modal-lead__text">Поддерживайте справочники в актуальном виде: параметры отсюда используются в формах, карточках и фильтрах по всей панели.</div>
             </div>
-            <ul class="nav nav-tabs mb-3" id="partnerParametersTabs" role="tablist">
+            <ul class="nav nav-tabs settings-menu-tabs mb-3" id="partnerParametersTabs" role="tablist">
               <li class="nav-item" role="presentation">
                 <button
                   class="nav-link active"
@@ -3976,7 +4011,7 @@
                 </button>
               </li>
             </ul>
-            <div class="tab-content" id="partnerParametersTabsContent">
+            <div class="tab-content settings-tab-content" id="partnerParametersTabsContent">
               <div
                 class="tab-pane fade show active"
                 id="partnerParametersTabContragents"
@@ -4918,7 +4953,7 @@
               <i class="bi bi-robot" aria-hidden="true"></i>
               <div class="settings-modal-lead__text">Подключайте каналы, шаблоны и автоматические действия в едином месте, чтобы бот запускался и отвечал по согласованным правилам.</div>
             </div>
-            <ul class="nav nav-tabs" id="channelsTabs" role="tablist">
+            <ul class="nav nav-tabs settings-menu-tabs" id="channelsTabs" role="tablist">
               <li class="nav-item" role="presentation">
                 <button
                   class="nav-link active"
@@ -4963,7 +4998,7 @@
               </li>
             </ul>
 
-            <div class="tab-content pt-3" id="channelsTabsContent">
+            <div class="tab-content pt-3 settings-tab-content" id="channelsTabsContent">
               <div
                 class="tab-pane fade show active"
                 id="channels-manage"

@@ -16,6 +16,7 @@ public class MvcConfig implements WebMvcConfigurer {
     @Override
     public void addViewControllers(ViewControllerRegistry registry) {
         registry.addViewController("/login").setViewName("auth/login");
+        registry.addRedirectViewController("/favicon.ico", "/iguana-icon.svg");
 
         registry.addViewController("/error/403").setViewName("error/403");
         registry.addViewController("/error/404").setViewName("error/404");
