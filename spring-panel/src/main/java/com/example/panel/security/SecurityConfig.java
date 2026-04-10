@@ -39,6 +39,7 @@ public class SecurityConfig {
                                 "/login",
                                 "/api/password-reset-requests/public",
                                 "/public/forms/**", "/api/public/forms/**",
+                                "/webhooks/max/**",
                                 "/error", "/error/**"
                         ).permitAll()
                         .anyRequest().authenticated()
@@ -57,7 +58,7 @@ public class SecurityConfig {
                 )
                 .csrf(csrf -> csrf
                         .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
-                        .ignoringRequestMatchers("/api/public/forms/**")
+                        .ignoringRequestMatchers("/api/public/forms/**", "/webhooks/max/**")
                 )
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
