@@ -129,6 +129,7 @@
           </label>
           <button class="btn btn-sm btn-outline-primary" type="button" data-memory-save="${key}">Save</button>
           <button class="btn btn-sm btn-outline-secondary" type="button" data-memory-history="${key}">History</button>
+          <button class="btn btn-sm btn-outline-danger" type="button" data-memory-delete="${key}">Delete</button>
           <span class="small text-muted" data-memory-row-state></span>
         </div>
         <div class="small mt-2" data-memory-history-list></div>
@@ -300,6 +301,33 @@
     }
   }
 
+  async function deleteSolutionMemoryRow(button) {
+    if (!button) return;
+    const key = String(button.getAttribute('data-memory-delete') || '').trim();
+    const row = button.closest('[data-memory-row]');
+    const stateRowEl = row?.querySelector('[data-memory-row-state]');
+    if (!key || !row) return;
+    const confirmed = window.confirm('Delete this memory record? This action cannot be undone.');
+    if (!confirmed) return;
+    button.disabled = true;
+    if (stateRowEl) stateRowEl.textContent = 'deleting...';
+    try {
+      const resp = await fetch(`/api/dialogs/ai-solution-memory/${encodeURIComponent(key)}`, {
+        method: 'DELETE',
+        credentials: 'same-origin',
+      });
+      const payload = await resp.json().catch(() => ({}));
+      if (!resp.ok || payload.success === false || payload.deleted === false) {
+        throw new Error(payload.error || 'delete_failed');
+      }
+      await loadSolutionMemory(100);
+    } catch (error) {
+      if (stateRowEl) stateRowEl.textContent = `error: ${error.message || 'unknown_error'}`;
+    } finally {
+      button.disabled = false;
+    }
+  }
+
   function exportEventsCsv(days = 7, limit = 200) {
     const href = `/api/dialogs/ai-monitoring/events?${buildEventsQuery(days, limit, 'csv')}`;
     const link = document.createElement('a');
@@ -339,6 +367,8 @@
       if (historyBtn) loadSolutionMemoryHistory(historyBtn);
       const rollbackBtn = event.target.closest('[data-memory-rollback]');
       if (rollbackBtn) rollbackSolutionMemory(rollbackBtn);
+      const deleteBtn = event.target.closest('[data-memory-delete]');
+      if (deleteBtn) deleteSolutionMemoryRow(deleteBtn);
     });
   }
 
