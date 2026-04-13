@@ -120,6 +120,7 @@ public class SslCertificateMonitoringApiController {
         dto.put("enabled", item.getEnabled());
         dto.put("monitor_status", item.getMonitorStatus());
         dto.put("status_level", monitoringService.resolveSeverity(item));
+        dto.put("availability", monitoringService.resolveAvailability(item));
         dto.put("error_message", item.getErrorMessage());
         dto.put("days_left", item.getDaysLeft());
         dto.put("expires_at", item.getExpiresAt());

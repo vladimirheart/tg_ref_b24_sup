@@ -37,6 +37,10 @@
                 <div class="col-12 col-lg-6">
                     <label class="form-label" for="siteEndpointInput">URL или домен</label>
                     <input class="form-control" id="siteEndpointInput" placeholder="https://example.com или example.com:8443" required>
+                    <div class="form-text mt-1">
+                        Правила: только HTTPS, можно вводить домен без протокола, порт опционален.
+                        Кириллические домены поддерживаются (например, https://сушивесла.рф).
+                    </div>
                 </div>
                 <div class="col-12 col-lg-2 d-flex align-items-end">
                     <div class="form-check form-switch mb-2">
@@ -67,6 +71,7 @@
                         <th>Сайт</th>
                         <th>Endpoint</th>
                         <th>Статус</th>
+                        <th>Доступность</th>
                         <th>Истекает</th>
                         <th>Осталось</th>
                         <th>Последняя проверка</th>
@@ -76,7 +81,7 @@
                     </thead>
                     <tbody id="certificateSitesTableBody">
                     <tr>
-                        <td colspan="8" class="text-center text-muted py-4">Загрузка...</td>
+                        <td colspan="9" class="text-center text-muted py-4">Загрузка...</td>
                     </tr>
                     </tbody>
                 </table>
