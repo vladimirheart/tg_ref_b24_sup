@@ -68,6 +68,7 @@ public class DialogReplyService {
         }
         if (hasWebFormSession(ticketId)) {
             String timestamp = logOutgoingMessage(target, ticketId, message, "operator_message", null, replyToTelegramId, safeSender);
+            touchTicketActivity(ticketId, target.userId());
             dialogService.assignResponsibleIfMissing(ticketId, operator);
             return DialogReplyResult.success(timestamp, null);
         }
@@ -112,6 +113,7 @@ public class DialogReplyService {
         }
 
         String timestamp = logOutgoingMessage(target, ticketId, message, "operator_message", telegramMessageId, replyToTelegramId, safeSender);
+        touchTicketActivity(ticketId, target.userId());
         dialogService.assignResponsibleIfMissing(ticketId, operator);
         return DialogReplyResult.success(timestamp, telegramMessageId);
     }
@@ -235,38 +237,31 @@ public class DialogReplyService {
         if (hasWebFormSession(ticketId)) {
             return DialogMediaReplyResult.error("Для внешней формы доступны только текстовые ответы в общем окне диалога.");
         }
-        if (channel.getPlatform() != null && !"telegram".equalsIgnoreCase(channel.getPlatform())) {
-            return DialogMediaReplyResult.error("Отправка доступна только для Telegram-каналов.");
-        }
+        String contentType = file.getContentType();
+        String platform = normalizePlatform(channel.getPlatform());
         if (!StringUtils.hasText(channel.getToken())) {
-            return DialogMediaReplyResult.error("Не задан токен Telegram-бота для канала.");
+            return DialogMediaReplyResult.error(
+                "max".equals(platform) ? "Не задан токен MAX-бота для канала." : "Не задан токен Telegram-бота для канала."
+            );
         }
 
-        String contentType = file.getContentType();
-        String method = resolveTelegramMethod(contentType, originalName);
-        String fieldName = resolveTelegramField(method);
         Long telegramMessageId = null;
-        try {
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create("https://api.telegram.org/bot" + channel.getToken() + "/" + method))
-                    .header("Content-Type", "multipart/form-data; boundary=" + MultipartPayload.BOUNDARY)
-                    .POST(HttpRequest.BodyPublishers.ofByteArray(buildMultipartBody(
-                            target.userId(),
-                            caption,
-                            fieldName,
-                            file
-                    )))
-                    .build();
-            HttpResponse<String> response = TELEGRAM_HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() / 100 != 2) {
-                return DialogMediaReplyResult.error("Ошибка отправки файла в Telegram.");
+        String telegramResponseBody = null;
+        String transportError;
+        if ("max".equals(platform)) {
+            transportError = sendMaxMedia(channel, target.userId(), file, caption, originalName);
+        } else if ("telegram".equals(platform)) {
+            MediaTransportResult result = sendTelegramMedia(channel, target.userId(), file, caption, originalName);
+            transportError = result.error();
+            telegramResponseBody = result.responseBody();
+            if (transportError == null) {
+                telegramMessageId = extractTelegramMessageId(telegramResponseBody);
             }
-            telegramMessageId = extractTelegramMessageId(response.body());
-        } catch (InterruptedException ex) {
-            Thread.currentThread().interrupt();
-            return DialogMediaReplyResult.error("Не удалось отправить файл в Telegram.");
-        } catch (IOException ex) {
-            return DialogMediaReplyResult.error("Не удалось отправить файл в Telegram.");
+        } else {
+            transportError = "Отправка медиа пока поддерживается только для Telegram и MAX.";
+        }
+        if (transportError != null) {
+            return DialogMediaReplyResult.error(transportError);
         }
 
         String timestamp = OffsetDateTime.now().toString();
@@ -285,6 +280,7 @@ public class DialogReplyService {
                 target.channelId(),
                 telegramMessageId
         );
+        touchTicketActivity(ticketId, target.userId());
         dialogService.assignResponsibleIfMissing(ticketId, operator);
         return DialogMediaReplyResult.success(timestamp, telegramMessageId, storedName, messageType, caption);
     }
@@ -348,6 +344,37 @@ public class DialogReplyService {
         };
     }
 
+    private void touchTicketActivity(String ticketId, Long userId) {
+        if (!StringUtils.hasText(ticketId) || userId == null) {
+            return;
+        }
+        String identity = Long.toString(userId);
+        String timestamp = OffsetDateTime.now().toString();
+        int updated = jdbcTemplate.update("""
+                UPDATE ticket_active
+                   SET last_seen = ?,
+                       user_identity = CASE
+                           WHEN user_identity IS NULL OR trim(user_identity) = '' THEN ?
+                           ELSE user_identity
+                       END
+                 WHERE ticket_id = ?
+                """,
+                timestamp,
+                identity,
+                ticketId
+        );
+        if (updated == 0) {
+            jdbcTemplate.update("""
+                    INSERT INTO ticket_active(ticket_id, user_identity, last_seen)
+                    VALUES (?, ?, ?)
+                    """,
+                    ticketId,
+                    identity,
+                    timestamp
+            );
+        }
+    }
+
     private boolean hasWebFormSession(String ticketId) {
         if (!StringUtils.hasText(ticketId)) {
             return false;
@@ -400,6 +427,189 @@ public class DialogReplyService {
         }
     }
 
+    private MediaTransportResult sendTelegramMedia(Channel channel,
+                                                   Long userId,
+                                                   MultipartFile file,
+                                                   String caption,
+                                                   String originalName) {
+        if (userId == null) {
+            return MediaTransportResult.error("Не удалось определить получателя в Telegram.");
+        }
+        String method = resolveTelegramMethod(file.getContentType(), originalName);
+        String fieldName = resolveTelegramField(method);
+        try {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("https://api.telegram.org/bot" + channel.getToken() + "/" + method))
+                    .header("Content-Type", "multipart/form-data; boundary=" + MultipartPayload.BOUNDARY)
+                    .POST(HttpRequest.BodyPublishers.ofByteArray(buildTelegramMultipartBody(
+                            userId,
+                            caption,
+                            fieldName,
+                            file
+                    )))
+                    .build();
+            HttpResponse<String> response = TELEGRAM_HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() / 100 != 2) {
+                return MediaTransportResult.error("Ошибка отправки файла в Telegram.");
+            }
+            return MediaTransportResult.success(response.body());
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            return MediaTransportResult.error("Не удалось отправить файл в Telegram.");
+        } catch (IOException ex) {
+            return MediaTransportResult.error("Не удалось отправить файл в Telegram.");
+        }
+    }
+
+    private String sendMaxMedia(Channel channel,
+                                Long userId,
+                                MultipartFile file,
+                                String caption,
+                                String originalName) {
+        if (userId == null) {
+            return "Не удалось определить получателя в MAX.";
+        }
+        String uploadType = resolveMaxUploadType(file.getContentType(), originalName);
+        String attachmentType = resolveMaxAttachmentType(uploadType);
+        Map<String, Object> uploadInit = createMaxUpload(channel.getToken(), uploadType);
+        if (uploadInit == null) {
+            return "Не удалось создать upload-сессию в MAX.";
+        }
+        String uploadUrl = firstNonBlank(
+            stringValue(uploadInit.get("url")),
+            stringValue(uploadInit.get("upload_url"))
+        );
+        if (!StringUtils.hasText(uploadUrl)) {
+            return "MAX не вернул URL загрузки файла.";
+        }
+        Map<String, Object> uploadedPayload = uploadMaxBinary(channel.getToken(), uploadUrl, file);
+        if (uploadedPayload == null || uploadedPayload.isEmpty()) {
+            return "Не удалось загрузить файл в MAX.";
+        }
+        if (!uploadedPayload.containsKey("token") && uploadInit.containsKey("token")) {
+            uploadedPayload.put("token", uploadInit.get("token"));
+        }
+        Map<String, Object> requestBody = new LinkedHashMap<>();
+        if (StringUtils.hasText(caption)) {
+            requestBody.put("text", caption.trim());
+        }
+        requestBody.put("attachments", List.of(Map.of(
+            "type", attachmentType,
+            "payload", uploadedPayload
+        )));
+        try {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("https://platform-api.max.ru/messages?user_id=" + userId))
+                    .header("Authorization", channel.getToken())
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(requestBody), StandardCharsets.UTF_8))
+                    .build();
+            HttpResponse<String> response = TELEGRAM_HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            if (response.statusCode() / 100 == 2) {
+                return null;
+            }
+            return "Ошибка отправки файла в MAX.";
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            return "Не удалось отправить файл в MAX.";
+        } catch (Exception ex) {
+            return "Не удалось отправить файл в MAX.";
+        }
+    }
+
+    private Map<String, Object> createMaxUpload(String token, String uploadType) {
+        try {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("https://platform-api.max.ru/uploads?type=" + URLEncoder.encode(uploadType, StandardCharsets.UTF_8)))
+                    .header("Authorization", token)
+                    .POST(HttpRequest.BodyPublishers.noBody())
+                    .build();
+            HttpResponse<String> response = TELEGRAM_HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            if (response.statusCode() / 100 != 2) {
+                return null;
+            }
+            return readJsonObject(response.body());
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
+    private Map<String, Object> uploadMaxBinary(String token, String uploadUrl, MultipartFile file) {
+        try {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(uploadUrl))
+                    .header("Authorization", token)
+                    .header("Content-Type", "multipart/form-data; boundary=" + MultipartPayload.BOUNDARY)
+                    .POST(HttpRequest.BodyPublishers.ofByteArray(buildSingleFileMultipartBody("data", file)))
+                    .build();
+            HttpResponse<String> response = TELEGRAM_HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            if (response.statusCode() / 100 != 2) {
+                return null;
+            }
+            return readJsonObject(response.body());
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
+    private Map<String, Object> readJsonObject(String body) {
+        if (!StringUtils.hasText(body)) {
+            return null;
+        }
+        try {
+            JsonNode root = objectMapper.readTree(body);
+            if (root == null || !root.isObject()) {
+                return null;
+            }
+            return objectMapper.convertValue(root, Map.class);
+        } catch (IOException ex) {
+            return null;
+        }
+    }
+
+    private String normalizePlatform(String platform) {
+        return platform != null ? platform.trim().toLowerCase() : "telegram";
+    }
+
+    private String resolveMaxUploadType(String contentType, String originalName) {
+        String messageType = resolveMessageType(contentType, originalName);
+        return switch (messageType) {
+            case "audio" -> "audio";
+            case "video" -> "video";
+            case "image", "animation" -> "image";
+            default -> "file";
+        };
+    }
+
+    private String resolveMaxAttachmentType(String uploadType) {
+        return switch (uploadType) {
+            case "audio" -> "audio";
+            case "video" -> "video";
+            case "image" -> "image";
+            default -> "file";
+        };
+    }
+
+    private String firstNonBlank(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            if (StringUtils.hasText(value)) {
+                return value.trim();
+            }
+        }
+        return null;
+    }
+
+    private String stringValue(Object value) {
+        if (value == null) {
+            return null;
+        }
+        String normalized = String.valueOf(value).trim();
+        return normalized.isEmpty() ? null : normalized;
+    }
+
     public record DialogReplyResult(boolean success, String error, String timestamp, Long telegramMessageId) {
         public static DialogReplyResult error(String error) {
             return new DialogReplyResult(false, error, null, null);
@@ -431,6 +641,16 @@ public class DialogReplyService {
     }
 
     private record DialogReplyTarget(Long userId, Long channelId) {}
+
+    private record MediaTransportResult(String error, String responseBody) {
+        private static MediaTransportResult success(String responseBody) {
+            return new MediaTransportResult(null, responseBody);
+        }
+
+        private static MediaTransportResult error(String error) {
+            return new MediaTransportResult(error, null);
+        }
+    }
 
     private static String resolveMessageType(String contentType, String filename) {
         String lower = contentType != null ? contentType.toLowerCase() : "";
@@ -469,13 +689,24 @@ public class DialogReplyService {
         };
     }
 
-    private static byte[] buildMultipartBody(Long chatId, String caption, String fieldName, MultipartFile file) {
+    private static byte[] buildTelegramMultipartBody(Long chatId, String caption, String fieldName, MultipartFile file) {
         try {
             List<byte[]> parts = new ArrayList<>();
             parts.add(MultipartPayload.field("chat_id", String.valueOf(chatId)));
             if (StringUtils.hasText(caption)) {
                 parts.add(MultipartPayload.field("caption", caption));
             }
+            parts.add(MultipartPayload.file(fieldName, file));
+            parts.add(MultipartPayload.finish());
+            return MultipartPayload.combine(parts);
+        } catch (IOException ex) {
+            throw new UncheckedIOException("Failed to build multipart body", ex);
+        }
+    }
+
+    private static byte[] buildSingleFileMultipartBody(String fieldName, MultipartFile file) {
+        try {
+            List<byte[]> parts = new ArrayList<>();
             parts.add(MultipartPayload.file(fieldName, file));
             parts.add(MultipartPayload.finish());
             return MultipartPayload.combine(parts);

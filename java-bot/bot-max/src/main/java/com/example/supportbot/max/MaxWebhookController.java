@@ -140,7 +140,6 @@ public class MaxWebhookController {
             ticketService.updateClientProfile(ticketId, clientProfile.username(), clientProfile.clientName());
             ticketService.registerActivity(ticketId, clientProfile.identity());
             notifyOperatorsAboutActiveMessage(channel, ticketId, clientProfile, clientText, messageType, attachmentRef, attachments.size());
-            messagingService.sendToUser(channel, userId, "Сообщение добавлено в заявку #" + ticketId + ".");
             return ResponseEntity.ok(Map.of("ok", true, "ticket_id", ticketId));
         }
 
