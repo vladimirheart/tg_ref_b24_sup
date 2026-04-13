@@ -22,6 +22,9 @@
         <java.version>17</java.version>
         <flyway.version>10.17.0</flyway.version>
         <lombok.version>1.18.38</lombok.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <maven.compiler.encoding>UTF-8</maven.compiler.encoding>
     </properties>
 
     <dependencies>

@@ -28,6 +28,7 @@ import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 @Service
 public class BotProcessService {
@@ -135,6 +136,8 @@ public class BotProcessService {
             }
             env.putIfAbsent("SPRING_PROFILES_ACTIVE", "default");
             env.put("APP_BOT_LOG_PATH", logFile.toString());
+            appendEnvOption(env, "JAVA_TOOL_OPTIONS", "-Dfile.encoding=UTF-8");
+            appendEnvOption(env, "JAVA_TOOL_OPTIONS", "-Dsun.jnu.encoding=UTF-8");
             env.putAll(integrationNetworkService.buildProcessEnvironment(integrationNetworkService.resolveBotRoute(channel)));
             Process process = builder.start();
             OffsetDateTime now = OffsetDateTime.now();
@@ -303,6 +306,18 @@ public class BotProcessService {
         } catch (NumberFormatException ex) {
             return null;
         }
+    }
+
+    private void appendEnvOption(Map<String, String> env, String key, String option) {
+        if (env == null || !StringUtils.hasText(key) || !StringUtils.hasText(option)) {
+            return;
+        }
+        String existing = Objects.toString(env.get(key), "").trim();
+        if (existing.contains(option)) {
+            return;
+        }
+        String updated = existing.isBlank() ? option.trim() : existing + " " + option.trim();
+        env.put(key, updated);
     }
 
     BotProcessStatus awaitProcessReadiness(Process process,

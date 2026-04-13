@@ -1,5 +1,7 @@
 package com.example.panel.entity;
 
+import com.example.panel.converter.LenientOffsetDateTimeConverter;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -42,18 +44,23 @@ public class SslCertificateMonitor {
     private Integer daysLeft;
 
     @Column(name = "expires_at")
+    @Convert(converter = LenientOffsetDateTimeConverter.class)
     private OffsetDateTime expiresAt;
 
     @Column(name = "last_checked_at")
+    @Convert(converter = LenientOffsetDateTimeConverter.class)
     private OffsetDateTime lastCheckedAt;
 
     @Column(name = "last_notified_at")
+    @Convert(converter = LenientOffsetDateTimeConverter.class)
     private OffsetDateTime lastNotifiedAt;
 
     @Column(name = "created_at", nullable = false)
+    @Convert(converter = LenientOffsetDateTimeConverter.class)
     private OffsetDateTime createdAt;
 
     @Column(name = "updated_at", nullable = false)
+    @Convert(converter = LenientOffsetDateTimeConverter.class)
     private OffsetDateTime updatedAt;
 
     public Long getId() {
