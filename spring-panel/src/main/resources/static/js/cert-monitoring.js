@@ -87,11 +87,54 @@
     });
   }
 
+  function getCookieValue(name) {
+    const cookies = document.cookie ? document.cookie.split(';') : [];
+    const encodedName = `${encodeURIComponent(name)}=`;
+    for (const raw of cookies) {
+      const value = raw.trim();
+      if (value.startsWith(encodedName)) {
+        return decodeURIComponent(value.slice(encodedName.length));
+      }
+    }
+    return '';
+  }
+
+  function getCsrfToken() {
+    const tokenFromMeta = document.querySelector('meta[name="_csrf"]')?.getAttribute('content') || '';
+    if (tokenFromMeta) return tokenFromMeta;
+    const tokenFromInput = document.querySelector('input[name="_csrf"]')?.value || '';
+    if (tokenFromInput) return tokenFromInput;
+    return getCookieValue('XSRF-TOKEN');
+  }
+
+  function withCsrf(init = {}) {
+    const method = String(init.method || 'GET').toUpperCase();
+    if (['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes(method)) {
+      return init;
+    }
+    const token = getCsrfToken();
+    if (!token) {
+      return init;
+    }
+    const headers = new Headers(init.headers || {});
+    if (!headers.has('X-XSRF-TOKEN')) {
+      headers.set('X-XSRF-TOKEN', token);
+    }
+    if (!headers.has('X-CSRF-TOKEN')) {
+      headers.set('X-CSRF-TOKEN', token);
+    }
+    return {
+      ...init,
+      headers,
+    };
+  }
+
   async function requestJson(url, init = {}) {
+    const requestInit = withCsrf(init);
     const response = await fetch(url, {
       credentials: 'same-origin',
       cache: 'no-store',
-      ...init,
+      ...requestInit,
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok || data.success === false) {
