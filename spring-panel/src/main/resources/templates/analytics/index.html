@@ -17,10 +17,13 @@
             <h1 class="h3 mb-1">Аналитика</h1>
             <p class="text-muted mb-0">Сводка по обращениям и активности клиентов.</p>
         </div>
-        <form method="post" th:action="@{/analytics/export}">
-            <input type="hidden" name="_csrf" th:value="${_csrf.token}">
-            <button class="btn btn-success" type="submit">Экспорт CSV</button>
-        </form>
+        <div class="d-flex flex-wrap gap-2">
+            <a class="btn btn-outline-primary" th:href="@{/analytics/certificates}">Мониторинг SSL</a>
+            <form method="post" th:action="@{/analytics/export}">
+                <input type="hidden" name="_csrf" th:value="${_csrf.token}">
+                <button class="btn btn-success" type="submit">Экспорт CSV</button>
+            </form>
+        </div>
     </div>
 
     <div class="card border-0 shadow-sm mb-4">
