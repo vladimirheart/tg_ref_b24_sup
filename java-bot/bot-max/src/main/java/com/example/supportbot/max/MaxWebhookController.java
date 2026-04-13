@@ -11,6 +11,7 @@ import com.example.supportbot.service.SharedConfigService;
 import com.example.supportbot.service.TicketService;
 import com.example.supportbot.settings.BotSettingsService;
 import com.example.supportbot.settings.dto.BotSettingsDto;
+import com.example.supportbot.settings.dto.PresetReference;
 import com.example.supportbot.settings.dto.QuestionFlowItemDto;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -34,6 +35,7 @@ import org.springframework.stereotype.Component;
 public class MaxWebhookController {
 
     private static final Logger log = LoggerFactory.getLogger(MaxWebhookController.class);
+    private static final List<String> CORE_LOCATION_FIELDS = List.of("business", "location_type", "city", "location_name");
 
     private final MaxBotProperties properties;
     private final ChannelService channelService;
@@ -188,9 +190,7 @@ public class MaxWebhookController {
 
     private ConversationSession startSession(Long userId, Long chatId, String username, Channel channel) {
         BotSettingsDto settings = botSettingsService.loadFromChannel(channel);
-        List<QuestionFlowItemDto> flow = new ArrayList<>(Optional.ofNullable(settings.getQuestionFlow()).orElseGet(List::of));
-        flow.sort(Comparator.comparingInt(QuestionFlowItemDto::getOrder));
-        flow.add(new QuestionFlowItemDto("problem", "text", "Опишите проблему", flow.size() + 1, null, List.of()));
+        List<QuestionFlowItemDto> flow = buildIncidentFlow(settings);
 
         ConversationSession session = new ConversationSession(userId, chatId, username, flow, settings);
         ticketService.findLastMessage(userId)
@@ -201,6 +201,57 @@ public class MaxWebhookController {
                         "location_name", Optional.ofNullable(last.getLocationName()).orElse("")
                 )));
         return session;
+    }
+
+    private List<QuestionFlowItemDto> buildIncidentFlow(BotSettingsDto settings) {
+        List<QuestionFlowItemDto> source = new ArrayList<>(Optional.ofNullable(settings.getQuestionFlow()).orElseGet(List::of));
+        source.sort(Comparator.comparingInt(QuestionFlowItemDto::getOrder));
+
+        Map<String, QuestionFlowItemDto> byField = new LinkedHashMap<>();
+        for (QuestionFlowItemDto item : source) {
+            if (item == null || item.getPreset() == null) {
+                continue;
+            }
+            String field = item.getPreset().field();
+            String group = item.getPreset().group();
+            if (!"locations".equalsIgnoreCase(group) || field == null || field.isBlank()) {
+                continue;
+            }
+            if (CORE_LOCATION_FIELDS.contains(field) && !byField.containsKey(field)) {
+                byField.put(field, item);
+            }
+        }
+
+        List<QuestionFlowItemDto> normalized = new ArrayList<>();
+        int order = 1;
+        for (String field : CORE_LOCATION_FIELDS) {
+            QuestionFlowItemDto existing = byField.get(field);
+            String text = existing != null ? existing.getText() : defaultPrompt(field);
+            List<String> excluded = existing != null && existing.getExcludedOptions() != null
+                    ? existing.getExcludedOptions()
+                    : List.of();
+            normalized.add(new QuestionFlowItemDto(
+                    field,
+                    "preset",
+                    (text == null || text.isBlank()) ? defaultPrompt(field) : text,
+                    order++,
+                    new PresetReference("locations", field),
+                    excluded
+            ));
+        }
+
+        normalized.add(new QuestionFlowItemDto("problem", "text", "Опишите проблему", order, null, List.of()));
+        return normalized;
+    }
+
+    private String defaultPrompt(String field) {
+        return switch (field) {
+            case "business" -> "Бизнес";
+            case "location_type" -> "Тип бизнеса";
+            case "city" -> "Город";
+            case "location_name" -> "Локация";
+            default -> field;
+        };
     }
 
     private void promptCurrentQuestion(Channel channel, ConversationSession session) {
