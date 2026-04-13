@@ -90,9 +90,11 @@ public class MaxWebhookController {
         JsonNode message = update.path("message");
         Long userId = asLong(message.path("sender").path("user_id"));
         Long chatId = asLong(message.path("recipient").path("chat_id"));
-        String text = text(message.path("body"), "text").trim();
-        String username = text(message.path("sender"), "username");
-        if (userId == null || text.isBlank()) {
+        String text = extractMessageText(message);
+        MaxClientProfile clientProfile = resolveClientProfile(message, userId);
+        List<MaxIncomingAttachment> attachments = extractIncomingAttachments(message);
+        boolean hasAttachments = !attachments.isEmpty();
+        if (userId == null || (text.isBlank() && !hasAttachments)) {
             return ResponseEntity.ok(Map.of("ok", true, "ignored", "missing-user-or-text"));
         }
 
@@ -101,7 +103,7 @@ public class MaxWebhookController {
         String publicFormToken = extractPublicFormContinueToken(text);
         if (publicFormToken != null) {
             PublicFormConversationLinkService.LinkResult result =
-                    publicFormConversationLinkService.bindSessionToChannel(publicFormToken, userId, username, channel);
+                    publicFormConversationLinkService.bindSessionToChannel(publicFormToken, userId, clientProfile.username(), channel);
             if (!result.success()) {
                 messagingService.sendToUser(channel, userId, result.error());
             } else if (result.closed()) {
@@ -115,7 +117,7 @@ public class MaxWebhookController {
         }
 
         if ("/start".equalsIgnoreCase(text)) {
-            ConversationSession session = startSession(userId, chatId, username, channel);
+            ConversationSession session = startSession(userId, chatId, clientProfile.username(), clientProfile.clientName(), channel);
             sessions.put(userId, session);
             promptCurrentQuestion(channel, session);
             return ResponseEntity.ok(Map.of("ok", true));
@@ -127,17 +129,23 @@ public class MaxWebhookController {
             return ResponseEntity.ok(Map.of("ok", true, "cancelled", true));
         }
 
-        Optional<TicketActive> active = ticketService.findActiveTicketForUser(userId, username);
+        Optional<TicketActive> active = ticketService.findActiveTicketForUser(userId, clientProfile.identity());
         if (active.isPresent()) {
             sessions.remove(userId);
             String ticketId = active.get().getTicketId();
-            chatHistoryService.storeUserMessage(userId, null, text, channel, ticketId, "text", null, null, null);
+            String clientText = !text.isBlank() ? text : "[вложение от клиента]";
+            String messageType = hasAttachments ? normalizeAttachmentType(attachments.get(0).type()) : "text";
+            String attachmentRef = hasAttachments ? attachments.get(0).urlOrName() : null;
+            chatHistoryService.storeUserMessage(userId, null, clientText, channel, ticketId, messageType, attachmentRef, null, null);
+            ticketService.updateClientProfile(ticketId, clientProfile.username(), clientProfile.clientName());
+            ticketService.registerActivity(ticketId, clientProfile.identity());
+            notifyOperatorsAboutActiveMessage(channel, ticketId, clientProfile, clientText, messageType, attachmentRef, attachments.size());
             messagingService.sendToUser(channel, userId, "Сообщение добавлено в заявку #" + ticketId + ".");
             return ResponseEntity.ok(Map.of("ok", true, "ticket_id", ticketId));
         }
 
         ConversationSession session = sessions.computeIfAbsent(userId, ignored -> {
-            ConversationSession created = startSession(userId, chatId, username, channel);
+            ConversationSession created = startSession(userId, chatId, clientProfile.username(), clientProfile.clientName(), channel);
             promptCurrentQuestion(channel, created);
             return created;
         });
@@ -188,11 +196,11 @@ public class MaxWebhookController {
         return ResponseEntity.ok(Map.of("ok", true, "question_prompted", true));
     }
 
-    private ConversationSession startSession(Long userId, Long chatId, String username, Channel channel) {
+    private ConversationSession startSession(Long userId, Long chatId, String username, String clientName, Channel channel) {
         BotSettingsDto settings = botSettingsService.loadFromChannel(channel);
         List<QuestionFlowItemDto> flow = buildIncidentFlow(settings);
 
-        ConversationSession session = new ConversationSession(userId, chatId, username, flow, settings);
+        ConversationSession session = new ConversationSession(userId, chatId, username, clientName, flow, settings);
         ticketService.findLastMessage(userId)
                 .ifPresent(last -> session.enableReusePrompt(Map.of(
                         "business", Optional.ofNullable(last.getBusiness()).orElse(""),
@@ -272,6 +280,7 @@ public class MaxWebhookController {
         TicketService.TicketCreationResult created = ticketService.createTicket(
                 session.userId(),
                 session.username(),
+                session.clientName(),
                 session.answers(),
                 channel
         );
@@ -457,6 +466,183 @@ public class MaxWebhookController {
         return cachedPresetDefinitions;
     }
 
+    private String extractMessageText(JsonNode message) {
+        if (message == null || message.isNull() || message.isMissingNode()) {
+            return "";
+        }
+        String bodyText = text(message.path("body"), "text").trim();
+        if (!bodyText.isBlank()) {
+            return bodyText;
+        }
+        return text(message, "text").trim();
+    }
+
+    private MaxClientProfile resolveClientProfile(JsonNode message, Long userId) {
+        JsonNode sender = message != null ? message.path("sender") : null;
+        String username = firstNonBlank(
+                text(sender, "username"),
+                text(sender, "user_name"),
+                text(sender, "screen_name"),
+                text(sender, "login")
+        );
+        String clientName = firstNonBlank(
+                text(sender, "name"),
+                text(sender, "display_name"),
+                joinNames(text(sender, "first_name"), text(sender, "last_name")),
+                joinNames(text(sender, "firstName"), text(sender, "lastName")),
+                username
+        );
+        if ((username == null || username.isBlank()) && userId != null) {
+            username = "max_" + userId;
+        }
+        if ((clientName == null || clientName.isBlank()) && userId != null) {
+            clientName = "MAX user " + userId;
+        }
+        return new MaxClientProfile(trimOrNull(username), trimOrNull(clientName), userId);
+    }
+
+    private List<MaxIncomingAttachment> extractIncomingAttachments(JsonNode message) {
+        List<MaxIncomingAttachment> result = new ArrayList<>();
+        if (message == null || message.isNull() || message.isMissingNode()) {
+            return result;
+        }
+        collectIncomingAttachments(result, message.path("attachments"));
+        JsonNode body = message.path("body");
+        collectIncomingAttachments(result, body.path("attachments"));
+        collectIncomingAttachments(result, body.path("media"));
+        collectIncomingAttachments(result, body.path("files"));
+        return result;
+    }
+
+    private void collectIncomingAttachments(List<MaxIncomingAttachment> result, JsonNode node) {
+        if (node == null || node.isNull() || node.isMissingNode()) {
+            return;
+        }
+        if (node.isArray()) {
+            for (JsonNode item : node) {
+                addIncomingAttachment(result, item);
+            }
+            return;
+        }
+        addIncomingAttachment(result, node);
+    }
+
+    private void addIncomingAttachment(List<MaxIncomingAttachment> result, JsonNode raw) {
+        if (raw == null || raw.isNull() || raw.isMissingNode()) {
+            return;
+        }
+        String type = firstNonBlank(
+                text(raw, "type"),
+                text(raw, "kind"),
+                text(raw, "media_type"),
+                text(raw, "mime_type"),
+                "attachment"
+        );
+        String url = firstNonBlank(
+                text(raw, "url"),
+                text(raw, "link"),
+                text(raw, "download_url"),
+                text(raw, "downloadUrl"),
+                text(raw, "src"),
+                text(raw.path("file"), "url"),
+                text(raw.path("photo"), "url"),
+                text(raw.path("video"), "url"),
+                text(raw.path("payload"), "url")
+        );
+        String name = firstNonBlank(
+                text(raw, "name"),
+                text(raw, "file_name"),
+                text(raw, "filename"),
+                text(raw.path("file"), "name")
+        );
+        if ((url == null || url.isBlank()) && (name == null || name.isBlank())) {
+            return;
+        }
+        result.add(new MaxIncomingAttachment(type, trimOrNull(url), trimOrNull(name)));
+    }
+
+    private String normalizeAttachmentType(String rawType) {
+        String type = rawType == null ? "" : rawType.trim().toLowerCase();
+        if (type.contains("animation") || type.contains("gif")) {
+            return "animation";
+        }
+        if (type.contains("video")) {
+            return "video";
+        }
+        if (type.contains("audio") || type.contains("voice")) {
+            return "audio";
+        }
+        if (type.contains("photo") || type.contains("image") || type.contains("sticker")) {
+            return "photo";
+        }
+        if (type.contains("doc") || type.contains("file")) {
+            return "document";
+        }
+        return "attachment";
+    }
+
+    private void notifyOperatorsAboutActiveMessage(Channel channel,
+                                                   String ticketId,
+                                                   MaxClientProfile clientProfile,
+                                                   String text,
+                                                   String messageType,
+                                                   String attachmentRef,
+                                                   int attachmentCount) {
+        if (channel == null || ticketId == null || ticketId.isBlank()) {
+            return;
+        }
+        StringBuilder builder = new StringBuilder();
+        builder.append("Новый ответ клиента ").append(clientProfile.displayLabel()).append("\n");
+        builder.append("ID заявки: #").append(ticketId).append("\n");
+        if (text != null && !text.isBlank()) {
+            builder.append(text);
+        } else {
+            builder.append("[").append(messageType).append("]");
+        }
+        if (attachmentRef != null && !attachmentRef.isBlank()) {
+            builder.append("\nВложение: ").append(attachmentRef);
+        } else if (attachmentCount > 0) {
+            builder.append("\nВложений: ").append(attachmentCount);
+        }
+        messagingService.sendToSupportChat(channel, builder.toString());
+    }
+
+    private String joinNames(String first, String last) {
+        String left = trimOrNull(first);
+        String right = trimOrNull(last);
+        if (left == null && right == null) {
+            return null;
+        }
+        if (left == null) {
+            return right;
+        }
+        if (right == null) {
+            return left;
+        }
+        return left + " " + right;
+    }
+
+    private String firstNonBlank(String... values) {
+        if (values == null || values.length == 0) {
+            return null;
+        }
+        for (String value : values) {
+            String normalized = trimOrNull(value);
+            if (normalized != null) {
+                return normalized;
+            }
+        }
+        return null;
+    }
+
+    private String trimOrNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String normalized = value.trim();
+        return normalized.isEmpty() ? null : normalized;
+    }
+
     private boolean secretValid(String provided) {
         String expected = properties.getWebhookSecret();
         if (expected == null || expected.isBlank()) {
@@ -509,6 +695,37 @@ public class MaxWebhookController {
         return null;
     }
 
+    private record MaxIncomingAttachment(String type, String url, String name) {
+        String urlOrName() {
+            if (url != null && !url.isBlank()) {
+                return url;
+            }
+            return name;
+        }
+    }
+
+    private record MaxClientProfile(String username, String clientName, Long userId) {
+        String identity() {
+            if (username != null && !username.isBlank()) {
+                return username;
+            }
+            return userId != null ? userId.toString() : null;
+        }
+
+        String displayLabel() {
+            if (clientName != null && !clientName.isBlank()) {
+                if (username != null && !username.isBlank() && !clientName.equalsIgnoreCase(username)) {
+                    return clientName + " (@" + username + ")";
+                }
+                return clientName;
+            }
+            if (username != null && !username.isBlank()) {
+                return "@" + username;
+            }
+            return userId != null ? "MAX user " + userId : "клиент";
+        }
+    }
+
     private record HistoryEvent(Long userId, String text, String messageType) {
     }
 
@@ -516,6 +733,7 @@ public class MaxWebhookController {
         private final Long userId;
         private final Long chatId;
         private final String username;
+        private final String clientName;
         private final List<QuestionFlowItemDto> flow;
         private final BotSettingsDto settings;
         private final Map<String, String> answers = new LinkedHashMap<>();
@@ -528,11 +746,13 @@ public class MaxWebhookController {
         ConversationSession(Long userId,
                             Long chatId,
                             String username,
+                            String clientName,
                             List<QuestionFlowItemDto> flow,
                             BotSettingsDto settings) {
             this.userId = userId;
             this.chatId = chatId;
             this.username = username;
+            this.clientName = clientName;
             this.flow = flow;
             this.settings = settings;
         }
@@ -579,6 +799,10 @@ public class MaxWebhookController {
 
         String username() {
             return username;
+        }
+
+        String clientName() {
+            return clientName;
         }
 
         BotSettingsDto settings() {

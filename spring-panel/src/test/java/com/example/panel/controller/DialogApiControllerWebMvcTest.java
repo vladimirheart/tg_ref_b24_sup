@@ -1889,6 +1889,25 @@ class DialogApiControllerWebMvcTest {
     }
 
     @Test
+    void replyReturnsSuccessWhenTransportMessageIdIsNull() throws Exception {
+        when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(true);
+        when(dialogReplyService.sendReply("T-1", "max reply", null, "operator"))
+                .thenReturn(DialogReplyService.DialogReplyResult.success("2026-01-01T10:00:00Z", null));
+
+        mockMvc.perform(post("/api/dialogs/T-1/reply")
+                        .with(user("operator"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "message": "max reply"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.timestamp").value("2026-01-01T10:00:00Z"));
+    }
+
+    @Test
     void replyWithMediaAllowsNullCaptionInResponse() throws Exception {
         when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(true);
         when(attachmentService.storeTicketAttachment(org.mockito.ArgumentMatchers.any(), eq("T-1"), org.mockito.ArgumentMatchers.any()))

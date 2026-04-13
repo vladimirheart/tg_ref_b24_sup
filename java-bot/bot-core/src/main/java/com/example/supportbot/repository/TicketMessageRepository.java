@@ -9,4 +9,6 @@ public interface TicketMessageRepository extends JpaRepository<TicketMessage, Lo
     Optional<TicketMessage> findTopByUserIdOrderByCreatedAtDesc(Long userId);
 
     List<TicketMessage> findTop10ByUserIdOrderByCreatedAtDesc(Long userId);
+
+    Optional<TicketMessage> findByTicketId(String ticketId);
 }

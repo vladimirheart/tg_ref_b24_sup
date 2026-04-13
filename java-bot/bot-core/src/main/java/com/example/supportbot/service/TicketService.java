@@ -28,6 +28,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 @Service
 public class TicketService {
@@ -63,8 +64,19 @@ public class TicketService {
                                              String username,
                                              Map<String, String> answers,
                                              Channel channel) {
+        return createTicket(userId, username, null, answers, channel);
+    }
+
+    @Transactional
+    public TicketCreationResult createTicket(long userId,
+                                             String username,
+                                             String clientName,
+                                             Map<String, String> answers,
+                                             Channel channel) {
         OffsetDateTime now = OffsetDateTime.now();
         String ticketId = UUID.randomUUID().toString();
+        String normalizedUsername = normalizeUsername(username, userId);
+        String normalizedClientName = normalizeClientName(clientName);
 
         TicketMessage message = new TicketMessage();
         message.setId(now.toInstant().toEpochMilli());
@@ -77,7 +89,8 @@ public class TicketService {
         message.setCreatedAt(now);
         message.setCreatedDate(now.toLocalDate());
         message.setCreatedTime(TIME_FORMATTER.format(now));
-        message.setUsername(username);
+        message.setUsername(normalizedUsername);
+        message.setClientName(normalizedClientName);
         message.setTicketId(ticketId);
         message.setChannel(channel);
         messageRepository.save(message);
@@ -101,7 +114,7 @@ public class TicketService {
 
         TicketActive active = new TicketActive();
         active.setTicketId(ticketId);
-        active.setUser(username != null ? username : Long.toString(userId));
+        active.setUser(normalizedUsername != null ? normalizedUsername : Long.toString(userId));
         active.setLastSeen(now);
         ticketActiveRepository.save(active);
 
@@ -280,6 +293,44 @@ public class TicketService {
     }
 
     @Transactional
+    public void updateClientProfile(String ticketId, String username, String clientName) {
+        if (!StringUtils.hasText(ticketId)) {
+            return;
+        }
+        String normalizedUsername = normalizeUsername(username, null);
+        String normalizedClientName = normalizeClientName(clientName);
+
+        messageRepository.findByTicketId(ticketId).ifPresent(message -> {
+            boolean changed = false;
+            if (StringUtils.hasText(normalizedUsername)
+                    && !normalizedUsername.equals(message.getUsername())) {
+                message.setUsername(normalizedUsername);
+                changed = true;
+            }
+            if (StringUtils.hasText(normalizedClientName)
+                    && !normalizedClientName.equals(message.getClientName())) {
+                message.setClientName(normalizedClientName);
+                changed = true;
+            }
+            if (changed) {
+                message.setUpdatedAt(OffsetDateTime.now());
+                message.setUpdatedBy("profile_sync");
+                messageRepository.save(message);
+            }
+        });
+
+        if (StringUtils.hasText(normalizedUsername)) {
+            ticketActiveRepository.findById(ticketId).ifPresent(active -> {
+                if (!normalizedUsername.equals(active.getUser())) {
+                    active.setUser(normalizedUsername);
+                    active.setLastSeen(OffsetDateTime.now());
+                    ticketActiveRepository.save(active);
+                }
+            });
+        }
+    }
+
+    @Transactional
     public void ensureFeedbackRequest(String ticketId, Long userId, Channel channel, String source) {
         OffsetDateTime now = OffsetDateTime.now();
         boolean markAsSent = "user_prompt".equalsIgnoreCase(source);
@@ -365,5 +416,22 @@ public class TicketService {
             return left;
         }
         return Comparator.comparing(Feedback::getTimestamp).compare(left, right) >= 0 ? left : right;
+    }
+
+    private String normalizeUsername(String username, Long userId) {
+        if (StringUtils.hasText(username)) {
+            return username.trim();
+        }
+        if (userId != null && userId > 0) {
+            return Long.toString(userId);
+        }
+        return null;
+    }
+
+    private String normalizeClientName(String clientName) {
+        if (!StringUtils.hasText(clientName)) {
+            return null;
+        }
+        return clientName.trim();
     }
 }
