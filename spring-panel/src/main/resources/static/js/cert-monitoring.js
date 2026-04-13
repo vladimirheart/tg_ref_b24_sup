@@ -51,10 +51,18 @@
     return '<span class="badge text-bg-secondary">Error</span>';
   }
 
+  function resolveAvailabilityBadge(item) {
+    const availability = String(item?.availability || '').toLowerCase();
+    if (availability === 'up') return '<span class="badge text-bg-success">UP</span>';
+    if (availability === 'down') return '<span class="badge text-bg-danger">DOWN</span>';
+    if (availability === 'disabled') return '<span class="badge text-bg-secondary">Disabled</span>';
+    return '<span class="badge text-bg-secondary">Unknown</span>';
+  }
+
   function renderSitesTable() {
     if (!tableBody) return;
     if (!sites.length) {
-      tableBody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">Пока нет сайтов для мониторинга.</td></tr>';
+      tableBody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">Пока нет сайтов для мониторинга.</td></tr>';
       return;
     }
     tableBody.innerHTML = '';
@@ -71,6 +79,7 @@
           <div class="small text-muted">${escapeHtml(site.host || '')}:${escapeHtml(site.port || '')}</div>
         </td>
         <td>${resolveStatusBadge(site)}</td>
+        <td>${resolveAvailabilityBadge(site)}</td>
         <td>${formatDateTime(site.expires_at)}</td>
         <td>${formatDaysLeft(site.days_left)}</td>
         <td>${formatDateTime(site.last_checked_at)}</td>
@@ -145,13 +154,13 @@
 
   async function loadSites() {
     if (!tableBody) return;
-    tableBody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">Загрузка...</td></tr>';
+    tableBody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">Загрузка...</td></tr>';
     try {
       const data = await requestJson('/api/monitoring/certificates/sites');
       sites = Array.isArray(data.items) ? data.items : [];
       renderSitesTable();
     } catch (error) {
-      tableBody.innerHTML = `<tr><td colspan="8" class="text-center text-danger py-4">${escapeHtml(error.message)}</td></tr>`;
+      tableBody.innerHTML = `<tr><td colspan="9" class="text-center text-danger py-4">${escapeHtml(error.message)}</td></tr>`;
     }
   }
 

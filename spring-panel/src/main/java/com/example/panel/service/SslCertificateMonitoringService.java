@@ -12,6 +12,7 @@ import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
+import java.net.IDN;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.security.cert.Certificate;
@@ -37,6 +38,10 @@ public class SslCertificateMonitoringService {
     public static final String STATUS_EXPIRED = "expired";
     public static final String STATUS_ERROR = "error";
     public static final String STATUS_DISABLED = "disabled";
+    public static final String AVAILABILITY_UP = "up";
+    public static final String AVAILABILITY_DOWN = "down";
+    public static final String AVAILABILITY_DISABLED = "disabled";
+    public static final String AVAILABILITY_UNKNOWN = "unknown";
 
     private static final int DEFAULT_HTTPS_PORT = 443;
     private static final int EXPIRY_NOTIFICATION_THRESHOLD_DAYS = 14;
@@ -59,7 +64,7 @@ public class SslCertificateMonitoringService {
     }
 
     public SslCertificateMonitor createSite(String siteName, String endpointUrl, Boolean enabled) {
-        EndpointTarget target = parseEndpoint(endpointUrl);
+        EndpointTarget target = parseEndpointSafe(endpointUrl);
         if (repository.findByEndpointUrl(target.normalizedUrl()).isPresent()) {
             throw new IllegalArgumentException("Этот сайт уже добавлен в мониторинг");
         }
@@ -82,7 +87,7 @@ public class SslCertificateMonitoringService {
             .orElseThrow(() -> new IllegalArgumentException("Сайт мониторинга не найден"));
         Long monitorId = monitor.getId();
 
-        EndpointTarget target = parseEndpoint(endpointUrl);
+        EndpointTarget target = parseEndpointSafe(endpointUrl);
         repository.findByEndpointUrl(target.normalizedUrl()).ifPresent(existing -> {
             if (!existing.getId().equals(monitorId)) {
                 throw new IllegalArgumentException("Этот сайт уже добавлен в мониторинг");
@@ -141,6 +146,23 @@ public class SslCertificateMonitoringService {
             return STATUS_ERROR;
         }
         return deriveStatusByDays(daysLeft);
+    }
+
+    public String resolveAvailability(SslCertificateMonitor monitor) {
+        if (monitor == null) {
+            return AVAILABILITY_UNKNOWN;
+        }
+        if (!Boolean.TRUE.equals(monitor.getEnabled())) {
+            return AVAILABILITY_DISABLED;
+        }
+        String status = normalizeStatus(monitor.getMonitorStatus());
+        if (STATUS_ERROR.equals(status)) {
+            return AVAILABILITY_DOWN;
+        }
+        if (status.isEmpty()) {
+            return AVAILABILITY_UNKNOWN;
+        }
+        return AVAILABILITY_UP;
     }
 
     private SslCertificateMonitor refreshMonitor(SslCertificateMonitor monitor, boolean withNotifications) {
@@ -306,6 +328,103 @@ public class SslCertificateMonitoringService {
         return new EndpointTarget(normalizedUrl, normalizedHost, port);
     }
 
+    private EndpointTarget parseEndpointSafe(String rawEndpoint) {
+        if (!StringUtils.hasText(rawEndpoint)) {
+            throw new IllegalArgumentException("Укажите URL или домен сайта");
+        }
+        String candidate = rawEndpoint.trim();
+        if (!candidate.matches("^[a-zA-Z][a-zA-Z0-9+.-]*://.*$")) {
+            candidate = "https://" + candidate;
+        }
+        URI uri;
+        try {
+            uri = URI.create(candidate);
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("Некорректный URL сайта");
+        }
+
+        String scheme = Optional.ofNullable(uri.getScheme()).orElse("https").toLowerCase(Locale.ROOT);
+        if (!"https".equals(scheme)) {
+            throw new IllegalArgumentException("Поддерживаются только HTTPS-адреса");
+        }
+
+        HostPort hostPort = extractHostPort(uri);
+        if (!StringUtils.hasText(hostPort.host())) {
+            throw new IllegalArgumentException(
+                "Не удалось определить host сайта. Пример: https://example.com или example.com:8443"
+            );
+        }
+
+        String host = hostPort.host().trim();
+        String asciiHost;
+        try {
+            asciiHost = IDN.toASCII(host, IDN.ALLOW_UNASSIGNED).toLowerCase(Locale.ROOT);
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalArgumentException("Некорректный домен сайта");
+        }
+        if (!StringUtils.hasText(asciiHost)) {
+            throw new IllegalArgumentException("Некорректный домен сайта");
+        }
+
+        int port = hostPort.port() != null ? hostPort.port() : DEFAULT_HTTPS_PORT;
+        if (port < 1 || port > 65535) {
+            throw new IllegalArgumentException("Порт сайта должен быть в диапазоне 1-65535");
+        }
+
+        String normalizedUrl = "https://" + asciiHost + (port == DEFAULT_HTTPS_PORT ? "" : ":" + port);
+        return new EndpointTarget(normalizedUrl, asciiHost, port);
+    }
+
+    private HostPort extractHostPort(URI uri) {
+        String host = uri.getHost();
+        Integer port = uri.getPort() > 0 ? uri.getPort() : null;
+        if (StringUtils.hasText(host)) {
+            return new HostPort(host, port);
+        }
+
+        String authority = uri.getRawAuthority();
+        if (!StringUtils.hasText(authority)) {
+            return new HostPort(null, port);
+        }
+        String value = authority.trim();
+        int at = value.lastIndexOf('@');
+        if (at >= 0 && at < value.length() - 1) {
+            value = value.substring(at + 1);
+        }
+
+        if (value.startsWith("[")) {
+            int endBracket = value.indexOf(']');
+            if (endBracket > 1) {
+                String ipv6Host = value.substring(1, endBracket);
+                Integer ipv6Port = null;
+                if (endBracket + 1 < value.length() && value.charAt(endBracket + 1) == ':') {
+                    ipv6Port = parseSitePort(value.substring(endBracket + 2));
+                }
+                return new HostPort(ipv6Host, ipv6Port);
+            }
+        }
+
+        int firstColon = value.indexOf(':');
+        int lastColon = value.lastIndexOf(':');
+        if (firstColon > 0 && firstColon == lastColon) {
+            String parsedHost = value.substring(0, firstColon);
+            Integer parsedPort = parseSitePort(value.substring(firstColon + 1));
+            return new HostPort(parsedHost, parsedPort);
+        }
+        return new HostPort(value, null);
+    }
+
+    private Integer parseSitePort(String rawPort) {
+        if (!StringUtils.hasText(rawPort)) {
+            return null;
+        }
+        try {
+            return Integer.parseInt(rawPort.trim());
+        } catch (NumberFormatException ex) {
+            throw new IllegalArgumentException("Некорректный порт сайта");
+        }
+    }
+
     private String trimErrorMessage(String value) {
         if (!StringUtils.hasText(value)) {
             return "Не удалось проверить сертификат";
@@ -318,6 +437,9 @@ public class SslCertificateMonitoringService {
     }
 
     private record EndpointTarget(String normalizedUrl, String host, int port) {
+    }
+
+    private record HostPort(String host, Integer port) {
     }
 
     private record CertificateProbe(OffsetDateTime expiresAt, int daysLeft) {
