@@ -2551,12 +2551,12 @@ public class DialogApiController {
                 "/dialogs?ticketId=" + ticketId,
                 operator
         );
-        return ResponseEntity.ok(Map.of(
-                "success", true,
-                "timestamp", result.timestamp(),
-                "telegramMessageId", result.telegramMessageId(),
-                "responsible", operator
-        ));
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("success", true);
+        payload.put("timestamp", result.timestamp());
+        payload.put("telegramMessageId", result.telegramMessageId());
+        payload.put("responsible", operator);
+        return ResponseEntity.ok(payload);
     }
 
 

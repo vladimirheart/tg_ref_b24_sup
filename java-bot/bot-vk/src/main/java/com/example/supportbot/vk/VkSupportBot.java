@@ -38,11 +38,14 @@ import com.vk.api.sdk.objects.photos.PhotoSizes;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -63,12 +66,14 @@ import org.springframework.beans.factory.DisposableBean;
 import org.springframework.context.SmartLifecycle;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 @Component
 public class VkSupportBot implements SmartLifecycle, DisposableBean {
 
     private static final Logger log = LoggerFactory.getLogger(VkSupportBot.class);
     private static final int MAX_LOG_TEXT_LENGTH = 160;
+    private static final Duration VK_PROFILE_CACHE_TTL = Duration.ofMinutes(30);
 
     private final VkBotProperties properties;
     private final BlacklistService blacklistService;
@@ -87,6 +92,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
     private final HttpClient httpClient;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final Map<Long, ConversationSession> sessions = new ConcurrentHashMap<>();
+    private final Map<Long, CachedVkProfile> vkProfileCache = new ConcurrentHashMap<>();
 
     private volatile boolean running = false;
     private volatile Channel cachedChannel;
@@ -236,9 +242,10 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         }
 
         String text = Optional.ofNullable(message.getText()).orElse("").trim();
+        VkClientProfile clientProfile = resolveVkClientProfile(fromId);
         String publicFormToken = extractPublicFormContinueToken(text);
         if (publicFormToken != null) {
-            handlePublicFormContinue(actor, peerId, fromId, null, channel, publicFormToken);
+            handlePublicFormContinue(actor, peerId, fromId, clientProfile.username(), channel, publicFormToken);
             return;
         }
         if ("/start".equalsIgnoreCase(text)) {
@@ -268,10 +275,10 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         }
 
         if (session == null) {
-            if (handleActiveTicketMessage(actor, message, channel, text)) {
+            if (handleActiveTicketMessage(actor, message, channel, text, clientProfile)) {
                 return;
             }
-            session = startSession(actor, message, channel);
+            session = startSession(actor, message, channel, clientProfile);
             sessions.put(fromId, session);
         }
 
@@ -336,13 +343,83 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         return true;
     }
 
-    private ConversationSession startSession(GroupActor actor, Message message, Channel channel) {
+    private VkClientProfile resolveVkClientProfile(Long userId) {
+        if (userId == null || userId <= 0) {
+            return VkClientProfile.empty(userId);
+        }
+        Instant now = Instant.now();
+        CachedVkProfile cached = vkProfileCache.get(userId);
+        if (cached != null && cached.profile() != null && cached.expiresAt() != null && cached.expiresAt().isAfter(now)) {
+            return cached.profile();
+        }
+        VkClientProfile resolved = fetchVkClientProfile(userId);
+        vkProfileCache.put(userId, new CachedVkProfile(resolved, now.plus(VK_PROFILE_CACHE_TTL)));
+        return resolved;
+    }
+
+    private VkClientProfile fetchVkClientProfile(Long userId) {
+        if (userId == null || userId <= 0 || !StringUtils.hasText(properties.getToken())) {
+            return VkClientProfile.empty(userId);
+        }
+        try {
+            String query = "user_ids=" + userId
+                    + "&fields=screen_name"
+                    + "&access_token=" + URLEncoder.encode(properties.getToken(), StandardCharsets.UTF_8)
+                    + "&v=5.199";
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("https://api.vk.com/method/users.get?" + query))
+                    .timeout(Duration.ofSeconds(10))
+                    .GET()
+                    .build();
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            if (response.statusCode() / 100 != 2) {
+                return VkClientProfile.empty(userId);
+            }
+            JsonNode root = objectMapper.readTree(response.body());
+            if (!root.path("error").isMissingNode() && !root.path("error").isNull()) {
+                return VkClientProfile.empty(userId);
+            }
+            JsonNode responseNode = root.path("response");
+            if (!responseNode.isArray() || responseNode.isEmpty()) {
+                return VkClientProfile.empty(userId);
+            }
+            JsonNode userNode = responseNode.get(0);
+            String screenName = trimOrNull(userNode.path("screen_name").asText(""));
+            String firstName = trimOrNull(userNode.path("first_name").asText(""));
+            String lastName = trimOrNull(userNode.path("last_name").asText(""));
+            String username = screenName != null ? screenName : ("id" + userId);
+            String clientName = trimOrNull((firstName == null ? "" : firstName) + " " + (lastName == null ? "" : lastName));
+            if (clientName == null) {
+                clientName = username;
+            }
+            return new VkClientProfile(username, clientName, userId);
+        } catch (Exception ex) {
+            log.debug("Failed to resolve VK profile for {}: {}", userId, ex.getMessage());
+            return VkClientProfile.empty(userId);
+        }
+    }
+
+    private String trimOrNull(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        return value.trim();
+    }
+
+    private ConversationSession startSession(GroupActor actor, Message message, Channel channel, VkClientProfile clientProfile) {
         BotSettingsDto settings = botSettingsService.loadFromChannel(channel);
         List<QuestionFlowItemDto> flow = new ArrayList<>(Optional.ofNullable(settings.getQuestionFlow()).orElseGet(List::of));
         flow.sort(Comparator.comparingInt(QuestionFlowItemDto::getOrder));
         flow.add(new QuestionFlowItemDto("problem", "text", "Опишите проблему", flow.size() + 1, null, List.of()));
 
-        ConversationSession session = new ConversationSession(message.getPeerId(), message.getFromId(), flow, settings);
+        ConversationSession session = new ConversationSession(
+                message.getPeerId(),
+                message.getFromId(),
+                clientProfile != null ? clientProfile.username() : null,
+                clientProfile != null ? clientProfile.clientName() : null,
+                flow,
+                settings
+        );
         log.info("Starting VK conversation for user {} peer {} with {} questions",
                 session.userId(),
                 session.peerId(),
@@ -648,8 +725,12 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         return cachedPresetDefinitions;
     }
 
-    private boolean handleActiveTicketMessage(GroupActor actor, Message message, Channel channel, String text) {
-        Optional<String> activeTicketId = resolveActiveTicketId(message);
+    private boolean handleActiveTicketMessage(GroupActor actor,
+                                              Message message,
+                                              Channel channel,
+                                              String text,
+                                              VkClientProfile clientProfile) {
+        Optional<String> activeTicketId = resolveActiveTicketId(message, clientProfile);
         if (activeTicketId.isEmpty()) {
             return false;
         }
@@ -662,7 +743,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
             return false;
         }
         Long userId = message.getFromId();
-        String username = userId != null ? userId.toString() : null;
+        String username = clientProfile != null ? clientProfile.identity() : (userId != null ? userId.toString() : null);
         boolean hasAttachments = message.getAttachments() != null && !message.getAttachments().isEmpty();
         String clientText = text != null && !text.isBlank()
                 ? text
@@ -682,14 +763,16 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                 null,
                 null
         );
+        ticketService.updateClientProfile(ticketId, clientProfile != null ? clientProfile.username() : null,
+                clientProfile != null ? clientProfile.clientName() : null);
         ticketService.registerActivity(ticketId, username);
-        relayActiveMessageToOperators(actor, ticketId, clientText, userId, hasAttachments);
+        relayActiveMessageToOperators(actor, ticketId, clientText, userId, hasAttachments, clientProfile);
         return true;
     }
 
-    private Optional<String> resolveActiveTicketId(Message message) {
+    private Optional<String> resolveActiveTicketId(Message message, VkClientProfile clientProfile) {
         Long userId = message != null ? message.getFromId() : null;
-        String username = userId != null ? userId.toString() : null;
+        String username = clientProfile != null ? clientProfile.identity() : (userId != null ? userId.toString() : null);
         return ticketService.findActiveTicketForUser(userId, username).map(TicketActive::getTicketId);
     }
 
@@ -697,12 +780,15 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                                                String ticketId,
                                                String text,
                                                Long userId,
-                                               boolean hasAttachments) {
+                                               boolean hasAttachments,
+                                               VkClientProfile clientProfile) {
         Long channelId = properties.getChannelId();
         if (channelId == null || channelId <= 0) {
             return;
         }
-        String senderLabel = userId != null ? String.valueOf(userId) : "клиент";
+        String senderLabel = clientProfile != null
+                ? clientProfile.displayLabel()
+                : (userId != null ? String.valueOf(userId) : "client");
         StringBuilder builder = new StringBuilder();
         builder.append("Новый ответ клиента ").append(senderLabel).append("\n");
         builder.append("ID заявки: #").append(ticketId).append("\n");
@@ -723,7 +809,13 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
     private void finalizeConversation(GroupActor actor, ConversationSession session) {
         sessions.remove(session.userId());
         Channel channel = getChannel();
-        TicketService.TicketCreationResult result = ticketService.createTicket(session.userId(), null, session.answers(), channel);
+        TicketService.TicketCreationResult result = ticketService.createTicket(
+                session.userId(),
+                session.username(),
+                session.clientName(),
+                session.answers(),
+                channel
+        );
         String requestNumber = result.groupMessageId() != null ? result.groupMessageId().toString() : result.ticketId();
         log.info("Created VK ticket {} for user {}", result.ticketId(), session.userId());
         for (HistoryEvent event : session.history()) {
@@ -1024,12 +1116,45 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         }
     }
 
+    private record CachedVkProfile(VkClientProfile profile, Instant expiresAt) {
+    }
+
+    private record VkClientProfile(String username, String clientName, Long userId) {
+        static VkClientProfile empty(Long userId) {
+            String fallback = userId != null ? "id" + userId : null;
+            return new VkClientProfile(fallback, fallback, userId);
+        }
+
+        String identity() {
+            if (StringUtils.hasText(username)) {
+                return username.trim();
+            }
+            return userId != null ? userId.toString() : null;
+        }
+
+        String displayLabel() {
+            if (StringUtils.hasText(clientName)) {
+                if (StringUtils.hasText(username)
+                        && !clientName.trim().equalsIgnoreCase(username.trim())) {
+                    return clientName.trim() + " (@" + username.trim() + ")";
+                }
+                return clientName.trim();
+            }
+            if (StringUtils.hasText(username)) {
+                return "@" + username.trim();
+            }
+            return userId != null ? String.valueOf(userId) : "client";
+        }
+    }
+
     private record HistoryEvent(Long userId, String text, String messageType, String attachment) {
     }
 
     private static final class ConversationSession {
         private final Long peerId;
         private final Long userId;
+        private final String username;
+        private final String clientName;
         private final List<QuestionFlowItemDto> flow;
         private final BotSettingsDto settings;
         private final Map<String, String> answers = new LinkedHashMap<>();
@@ -1039,9 +1164,16 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         private boolean reuseDecisionPending = false;
         private int currentIndex = 0;
 
-        ConversationSession(Long peerId, Long userId, List<QuestionFlowItemDto> flow, BotSettingsDto settings) {
+        ConversationSession(Long peerId,
+                            Long userId,
+                            String username,
+                            String clientName,
+                            List<QuestionFlowItemDto> flow,
+                            BotSettingsDto settings) {
             this.peerId = peerId;
             this.userId = userId;
+            this.username = username;
+            this.clientName = clientName;
             this.flow = flow;
             this.settings = settings;
         }
@@ -1088,6 +1220,14 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
 
         Long userId() {
             return userId;
+        }
+
+        String username() {
+            return username;
+        }
+
+        String clientName() {
+            return clientName;
         }
 
         BotSettingsDto settings() {

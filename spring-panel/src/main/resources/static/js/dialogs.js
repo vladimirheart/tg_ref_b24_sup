@@ -7697,6 +7697,12 @@
         sendReply();
       }
     });
+    detailsReplyText.addEventListener('paste', (event) => {
+      const files = extractClipboardImageFiles(event);
+      if (!files.length) return;
+      event.preventDefault();
+      sendMediaFiles(files);
+    });
   }
 
   function renderWorkspaceMessageItem(message) {
@@ -7789,6 +7795,59 @@
         mediaInput.value = '';
       }
     }
+  }
+
+  function extractClipboardImageFiles(event) {
+    const items = Array.from(event?.clipboardData?.items || []);
+    if (!items.length) return [];
+    const files = [];
+    let sequence = 1;
+    const mimeToExtension = (mimeType) => {
+      const normalized = String(mimeType || '').toLowerCase();
+      if (!normalized) return 'png';
+      if (normalized.includes('jpeg') || normalized.includes('jpg')) return 'jpg';
+      if (normalized.includes('webp')) return 'webp';
+      if (normalized.includes('gif')) return 'gif';
+      if (normalized.includes('bmp')) return 'bmp';
+      if (normalized.includes('svg')) return 'svg';
+      if (normalized.includes('png')) return 'png';
+      return 'png';
+    };
+    for (const item of items) {
+      if (item?.kind !== 'file' || !String(item.type || '').startsWith('image/')) continue;
+      const file = item.getAsFile ? item.getAsFile() : null;
+      if (!file) continue;
+      if (file instanceof File && file.name) {
+        files.push(file);
+        continue;
+      }
+      const extension = mimeToExtension(file.type);
+      const generatedName = `clipboard-${Date.now()}-${sequence++}.${extension}`;
+      files.push(new File([file], generatedName, { type: file.type || 'image/png' }));
+    }
+    return files;
+  }
+
+  async function sendWorkspaceMediaFiles(files) {
+    await sendMediaFiles(files, {
+      ticketId: activeWorkspaceTicketId,
+      caption: workspaceComposerText?.value || '',
+      sendButton: workspaceComposerSend,
+      mediaInput: workspaceComposerMedia,
+      appendHistory: false,
+      afterSuccess: () => {
+        if (workspaceComposerText) {
+          workspaceComposerText.value = '';
+        }
+        saveWorkspaceDraft(workspaceComposerTicketId, '');
+        reloadWorkspaceSection('messages', {
+          stateElement: workspaceMessagesState,
+          errorElement: workspaceMessagesError,
+          statusText: 'Обновление ленты после отправки медиа…',
+          failMessage: 'Медиа отправлено, но лента workspace не обновилась автоматически.',
+        });
+      },
+    });
   }
 
 
@@ -8627,25 +8686,7 @@
       workspaceComposerMedia.click();
     });
     workspaceComposerMedia.addEventListener('change', async () => {
-      await sendMediaFiles(workspaceComposerMedia.files, {
-        ticketId: activeWorkspaceTicketId,
-        caption: workspaceComposerText?.value || '',
-        sendButton: workspaceComposerSend,
-        mediaInput: workspaceComposerMedia,
-        appendHistory: false,
-        afterSuccess: () => {
-          if (workspaceComposerText) {
-            workspaceComposerText.value = '';
-          }
-          saveWorkspaceDraft(workspaceComposerTicketId, '');
-          reloadWorkspaceSection('messages', {
-            stateElement: workspaceMessagesState,
-            errorElement: workspaceMessagesError,
-            statusText: 'Обновление ленты после отправки медиа…',
-            failMessage: 'Медиа отправлено, но лента workspace не обновилась автоматически.',
-          });
-        },
-      });
+      await sendWorkspaceMediaFiles(workspaceComposerMedia.files);
     });
   }
 
@@ -8658,6 +8699,12 @@
   if (workspaceComposerText) {
     workspaceComposerText.addEventListener('input', () => {
       scheduleWorkspaceDraftAutosave();
+    });
+    workspaceComposerText.addEventListener('paste', (event) => {
+      const files = extractClipboardImageFiles(event);
+      if (!files.length || !activeWorkspaceTicketId) return;
+      event.preventDefault();
+      sendWorkspaceMediaFiles(files);
     });
     workspaceComposerText.addEventListener('keydown', (event) => {
       if (((event.ctrlKey || event.metaKey || event.altKey) && event.key === 'Enter')) {
