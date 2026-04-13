@@ -5,7 +5,7 @@ import org.flywaydb.core.api.migration.Context;
 
 import java.sql.Statement;
 
-public class V20__create_ssl_certificate_monitors extends BaseJavaMigration {
+public class V28__create_ssl_certificate_monitors extends BaseJavaMigration {
 
     @Override
     public void migrate(Context context) throws Exception {
