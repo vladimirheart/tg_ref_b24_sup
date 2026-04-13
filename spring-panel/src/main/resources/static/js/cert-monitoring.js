@@ -1,5 +1,6 @@
 (function () {
   const tableBody = document.getElementById('certificateSitesTableBody');
+  const tableHead = document.querySelector('#certificateMonitoringTable thead');
   const createForm = document.getElementById('certificateSiteCreateForm');
   const refreshAllBtn = document.getElementById('refreshAllCertificatesBtn');
   const siteNameInput = document.getElementById('siteNameInput');
@@ -15,6 +16,26 @@
   const editModal = editModalEl && window.bootstrap ? new bootstrap.Modal(editModalEl) : null;
 
   let sites = [];
+  const sortState = {
+    key: 'site',
+    direction: 'asc',
+  };
+
+  const statusRank = {
+    ok: 1,
+    warning: 2,
+    critical: 3,
+    expired: 4,
+    error: 5,
+    disabled: 6,
+  };
+
+  const availabilityRank = {
+    up: 1,
+    down: 2,
+    unknown: 3,
+    disabled: 4,
+  };
 
   function escapeHtml(value) {
     if (value === null || value === undefined) return '';
@@ -41,8 +62,119 @@
     return `${numeric} дн`;
   }
 
+  function normalizeStatus(item) {
+    return String(item?.status_level || item?.monitor_status || '').toLowerCase();
+  }
+
+  function normalizeAvailability(item) {
+    return String(item?.availability || '').toLowerCase();
+  }
+
+  function resolveSiteDisplayName(item) {
+    return String(item?.site_display_name || item?.site_name || item?.host_display || item?.host || 'Сайт');
+  }
+
+  function resolveHostDisplay(item) {
+    return String(item?.host_display || item?.host || '').trim();
+  }
+
+  function resolveEndpointDisplay(item) {
+    return String(item?.endpoint_display || item?.endpoint_url || '').trim();
+  }
+
+  function sameText(left, right) {
+    return String(left || '').trim().toLowerCase() === String(right || '').trim().toLowerCase();
+  }
+
+  function parseTimestamp(value) {
+    if (!value) return null;
+    const timestamp = Date.parse(value);
+    return Number.isFinite(timestamp) ? timestamp : null;
+  }
+
+  function compareNullable(left, right, comparator) {
+    const leftMissing = left === null || left === undefined || left === '';
+    const rightMissing = right === null || right === undefined || right === '';
+    if (leftMissing && rightMissing) return 0;
+    if (leftMissing) return 1;
+    if (rightMissing) return -1;
+    return comparator(left, right);
+  }
+
+  function compareStrings(left, right) {
+    return String(left).localeCompare(String(right), 'ru', { sensitivity: 'base', numeric: true });
+  }
+
+  function compareSites(left, right) {
+    const key = sortState.key;
+    const direction = sortState.direction === 'desc' ? -1 : 1;
+    let result = 0;
+
+    if (key === 'site') {
+      result = compareNullable(resolveSiteDisplayName(left), resolveSiteDisplayName(right), compareStrings);
+    } else if (key === 'endpoint') {
+      result = compareNullable(resolveEndpointDisplay(left), resolveEndpointDisplay(right), compareStrings);
+    } else if (key === 'status') {
+      const leftRank = statusRank[normalizeStatus(left)] ?? 99;
+      const rightRank = statusRank[normalizeStatus(right)] ?? 99;
+      result = leftRank - rightRank;
+    } else if (key === 'availability') {
+      const leftRank = availabilityRank[normalizeAvailability(left)] ?? 99;
+      const rightRank = availabilityRank[normalizeAvailability(right)] ?? 99;
+      result = leftRank - rightRank;
+    } else if (key === 'expires_at') {
+      result = compareNullable(parseTimestamp(left?.expires_at), parseTimestamp(right?.expires_at), (a, b) => a - b);
+    } else if (key === 'days_left') {
+      result = compareNullable(left?.days_left, right?.days_left, (a, b) => Number(a) - Number(b));
+    } else if (key === 'last_checked_at') {
+      result = compareNullable(parseTimestamp(left?.last_checked_at), parseTimestamp(right?.last_checked_at), (a, b) => a - b);
+    } else if (key === 'error') {
+      result = compareNullable(left?.error_message, right?.error_message, compareStrings);
+    }
+
+    if (result === 0) {
+      result = Number(left?.id || 0) - Number(right?.id || 0);
+    }
+    return result * direction;
+  }
+
+  function getSortedSites() {
+    return [...sites].sort(compareSites);
+  }
+
+  function updateSortIndicators() {
+    if (!tableHead) return;
+    tableHead.querySelectorAll('.sortable-button[data-sort-key]').forEach((button) => {
+      const indicator = button.querySelector('.sort-indicator');
+      const isActive = button.dataset.sortKey === sortState.key;
+      button.classList.toggle('active', isActive);
+      if (!indicator) return;
+      if (!isActive) {
+        indicator.textContent = '↕';
+      } else {
+        indicator.textContent = sortState.direction === 'asc' ? '↑' : '↓';
+      }
+    });
+  }
+
+  function resolveStatusCellClass(item) {
+    const level = normalizeStatus(item);
+    if (['ok', 'warning', 'critical', 'expired', 'error', 'disabled'].includes(level)) {
+      return `status-cell status-${level}`;
+    }
+    return 'status-cell status-error';
+  }
+
+  function resolveAvailabilityCellClass(item) {
+    const availability = normalizeAvailability(item);
+    if (['up', 'down', 'disabled', 'unknown'].includes(availability)) {
+      return `availability-cell availability-${availability}`;
+    }
+    return 'availability-cell availability-unknown';
+  }
+
   function resolveStatusBadge(item) {
-    const level = String(item?.status_level || item?.monitor_status || '').toLowerCase();
+    const level = normalizeStatus(item);
     if (level === 'ok') return '<span class="badge text-bg-success">OK</span>';
     if (level === 'warning') return '<span class="badge text-bg-warning">Warning</span>';
     if (level === 'critical') return '<span class="badge text-bg-danger">Critical</span>';
@@ -52,7 +184,7 @@
   }
 
   function resolveAvailabilityBadge(item) {
-    const availability = String(item?.availability || '').toLowerCase();
+    const availability = normalizeAvailability(item);
     if (availability === 'up') return '<span class="badge text-bg-success">UP</span>';
     if (availability === 'down') return '<span class="badge text-bg-danger">DOWN</span>';
     if (availability === 'disabled') return '<span class="badge text-bg-secondary">Disabled</span>';
@@ -61,25 +193,33 @@
 
   function renderSitesTable() {
     if (!tableBody) return;
+    updateSortIndicators();
     if (!sites.length) {
       tableBody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">Пока нет сайтов для мониторинга.</td></tr>';
       return;
     }
     tableBody.innerHTML = '';
-    sites.forEach((site) => {
+    getSortedSites().forEach((site) => {
+      const siteDisplayName = resolveSiteDisplayName(site);
+      const hostDisplay = resolveHostDisplay(site);
+      const endpointDisplay = resolveEndpointDisplay(site);
+      const technicalEndpoint = String(site.endpoint_url || '').trim();
+      const showHostLine = hostDisplay && !sameText(siteDisplayName, hostDisplay);
+      const showTechnicalEndpoint = technicalEndpoint && !sameText(technicalEndpoint, endpointDisplay);
       const row = document.createElement('tr');
       row.dataset.siteId = String(site.id);
       row.innerHTML = `
         <td>
-          <div class="fw-semibold">${escapeHtml(site.site_name || site.host || 'Сайт')}</div>
+          <div class="fw-semibold">${escapeHtml(siteDisplayName)}</div>
+          ${showHostLine ? `<div class="small font-monospace text-muted">${escapeHtml(hostDisplay)}</div>` : ''}
           <div class="small text-muted">${site.enabled ? 'Активен' : 'Выключен'}</div>
         </td>
         <td>
-          <div class="font-monospace">${escapeHtml(site.endpoint_url || '')}</div>
-          <div class="small text-muted">${escapeHtml(site.host || '')}:${escapeHtml(site.port || '')}</div>
+          <div class="font-monospace">${escapeHtml(endpointDisplay)}</div>
+          ${showTechnicalEndpoint ? `<div class="small text-muted font-monospace">${escapeHtml(technicalEndpoint)}</div>` : ''}
         </td>
-        <td>${resolveStatusBadge(site)}</td>
-        <td>${resolveAvailabilityBadge(site)}</td>
+        <td class="${resolveStatusCellClass(site)}">${resolveStatusBadge(site)}</td>
+        <td class="${resolveAvailabilityCellClass(site)}">${resolveAvailabilityBadge(site)}</td>
         <td>${formatDateTime(site.expires_at)}</td>
         <td>${formatDaysLeft(site.days_left)}</td>
         <td>${formatDateTime(site.last_checked_at)}</td>
@@ -294,6 +434,20 @@
     if (button.dataset.action === 'delete') {
       deleteSite(siteId);
     }
+  });
+
+  tableHead?.addEventListener('click', (event) => {
+    const button = event.target.closest('.sortable-button[data-sort-key]');
+    if (!button) return;
+    const selectedKey = String(button.dataset.sortKey || '').trim();
+    if (!selectedKey) return;
+    if (sortState.key === selectedKey) {
+      sortState.direction = sortState.direction === 'asc' ? 'desc' : 'asc';
+    } else {
+      sortState.key = selectedKey;
+      sortState.direction = 'asc';
+    }
+    renderSitesTable();
   });
 
   createForm?.addEventListener('submit', createSite);

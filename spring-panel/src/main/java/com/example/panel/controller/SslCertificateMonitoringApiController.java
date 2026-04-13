@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.net.IDN;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -111,11 +112,17 @@ public class SslCertificateMonitoringApiController {
     }
 
     private Map<String, Object> toDto(SslCertificateMonitor item) {
+        String displayHost = toUnicodeHost(item.getHost());
+        String displaySiteName = resolveDisplaySiteName(item.getSiteName(), item.getHost(), displayHost);
+        String displayEndpoint = buildDisplayEndpoint(displayHost, item.getPort());
         Map<String, Object> dto = new LinkedHashMap<>();
         dto.put("id", item.getId());
         dto.put("site_name", item.getSiteName());
+        dto.put("site_display_name", displaySiteName);
         dto.put("endpoint_url", item.getEndpointUrl());
+        dto.put("endpoint_display", displayEndpoint);
         dto.put("host", item.getHost());
+        dto.put("host_display", displayHost);
         dto.put("port", item.getPort());
         dto.put("enabled", item.getEnabled());
         dto.put("monitor_status", item.getMonitorStatus());
@@ -129,6 +136,48 @@ public class SslCertificateMonitoringApiController {
         dto.put("created_at", item.getCreatedAt());
         dto.put("updated_at", item.getUpdatedAt());
         return dto;
+    }
+
+    private String toUnicodeHost(String host) {
+        if (host == null || host.isBlank()) {
+            return "";
+        }
+        String trimmed = host.trim();
+        try {
+            String unicode = IDN.toUnicode(trimmed, IDN.ALLOW_UNASSIGNED);
+            return unicode != null && !unicode.isBlank() ? unicode : trimmed;
+        } catch (Exception ignored) {
+            return trimmed;
+        }
+    }
+
+    private String resolveDisplaySiteName(String siteName, String host, String displayHost) {
+        if (siteName == null || siteName.isBlank()) {
+            return displayHost;
+        }
+        String trimmed = siteName.trim();
+        if (host != null && !host.isBlank() && trimmed.equalsIgnoreCase(host.trim())) {
+            return displayHost;
+        }
+        if (trimmed.startsWith("xn--") || trimmed.contains(".xn--")) {
+            try {
+                String unicode = IDN.toUnicode(trimmed, IDN.ALLOW_UNASSIGNED);
+                if (unicode != null && !unicode.isBlank()) {
+                    return unicode;
+                }
+            } catch (Exception ignored) {
+                // fallback to original value
+            }
+        }
+        return trimmed;
+    }
+
+    private String buildDisplayEndpoint(String displayHost, Integer port) {
+        if (displayHost == null || displayHost.isBlank()) {
+            return "";
+        }
+        int safePort = port != null && port > 0 ? port : 443;
+        return safePort == 443 ? "https://" + displayHost : "https://" + displayHost + ":" + safePort;
     }
 
     private record SitePayload(String siteName, String endpointUrl, Boolean enabled) {

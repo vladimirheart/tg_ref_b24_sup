@@ -10,6 +10,48 @@
     <link rel="stylesheet" th:href="@{/css/style.css}">
     <link rel="stylesheet" th:href="@{/css/sidebar.css}">
     <link rel="stylesheet" th:href="@{/css/app.css}">
+    <style>
+        .sortable-th {
+            white-space: nowrap;
+        }
+        .sortable-button {
+            border: 0;
+            background: transparent;
+            padding: 0;
+            font: inherit;
+            color: inherit;
+            display: inline-flex;
+            align-items: center;
+            gap: .3rem;
+            cursor: pointer;
+        }
+        .sortable-button .sort-indicator {
+            color: var(--bs-secondary-color);
+            font-size: .85em;
+            line-height: 1;
+        }
+        .sortable-button.active .sort-indicator {
+            color: var(--bs-primary);
+        }
+        td.status-cell.status-ok,
+        td.availability-cell.availability-up {
+            background-color: rgba(25, 135, 84, .12);
+        }
+        td.status-cell.status-warning {
+            background-color: rgba(255, 193, 7, .2);
+        }
+        td.status-cell.status-critical,
+        td.status-cell.status-expired,
+        td.availability-cell.availability-down {
+            background-color: rgba(220, 53, 69, .12);
+        }
+        td.status-cell.status-disabled,
+        td.status-cell.status-error,
+        td.availability-cell.availability-disabled,
+        td.availability-cell.availability-unknown {
+            background-color: rgba(108, 117, 125, .1);
+        }
+    </style>
 </head>
 <body class="with-sidebar sidebar-pinned">
 <div th:replace="~{fragments/navbar :: navbar('analytics')}"></div>
@@ -65,17 +107,49 @@
                 <span class="badge text-bg-secondary">Error/Disabled</span>
             </div>
             <div class="table-responsive">
-                <table class="table align-middle mb-0">
+                <table class="table align-middle mb-0" id="certificateMonitoringTable">
                     <thead class="table-light">
                     <tr>
-                        <th>Сайт</th>
-                        <th>Endpoint</th>
-                        <th>Статус</th>
-                        <th>Доступность</th>
-                        <th>Истекает</th>
-                        <th>Осталось</th>
-                        <th>Последняя проверка</th>
-                        <th>Ошибка</th>
+                        <th class="sortable-th">
+                            <button type="button" class="sortable-button" data-sort-key="site">
+                                Сайт <span class="sort-indicator">↕</span>
+                            </button>
+                        </th>
+                        <th class="sortable-th">
+                            <button type="button" class="sortable-button" data-sort-key="endpoint">
+                                Endpoint <span class="sort-indicator">↕</span>
+                            </button>
+                        </th>
+                        <th class="sortable-th">
+                            <button type="button" class="sortable-button" data-sort-key="status">
+                                Статус <span class="sort-indicator">↕</span>
+                            </button>
+                        </th>
+                        <th class="sortable-th">
+                            <button type="button" class="sortable-button" data-sort-key="availability">
+                                Доступность <span class="sort-indicator">↕</span>
+                            </button>
+                        </th>
+                        <th class="sortable-th">
+                            <button type="button" class="sortable-button" data-sort-key="expires_at">
+                                Истекает <span class="sort-indicator">↕</span>
+                            </button>
+                        </th>
+                        <th class="sortable-th">
+                            <button type="button" class="sortable-button" data-sort-key="days_left">
+                                Осталось <span class="sort-indicator">↕</span>
+                            </button>
+                        </th>
+                        <th class="sortable-th">
+                            <button type="button" class="sortable-button" data-sort-key="last_checked_at">
+                                Последняя проверка <span class="sort-indicator">↕</span>
+                            </button>
+                        </th>
+                        <th class="sortable-th">
+                            <button type="button" class="sortable-button" data-sort-key="error">
+                                Ошибка <span class="sort-indicator">↕</span>
+                            </button>
+                        </th>
                         <th class="text-end">Действия</th>
                     </tr>
                     </thead>
