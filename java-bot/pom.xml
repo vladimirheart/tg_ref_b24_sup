@@ -29,6 +29,9 @@
         <java.version>17</java.version>
         <vk.java.sdk.version>1.0.16</vk.java.sdk.version>
         <telegram.bots.version>6.9.7.1</telegram.bots.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <maven.compiler.encoding>UTF-8</maven.compiler.encoding>
     </properties>
 
     <dependencyManagement>
