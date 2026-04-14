@@ -14,12 +14,26 @@
   <script src="/js/common.js"></script>
   <style>
     .settings-tiles .settings-tile {
+      position: relative;
+      overflow: hidden;
       border: 1px solid color-mix(in srgb, var(--color-border) 88%, transparent);
-      border-radius: 1rem;
+      border-radius: 1.2rem;
       background: color-mix(in srgb, var(--card) 95%, white);
-      box-shadow: 0 0.25rem 0.8rem rgba(15, 23, 42, 0.06);
+      box-shadow: 0 0.5rem 1.2rem rgba(15, 23, 42, 0.07);
       cursor: pointer;
-      transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+      transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+    }
+
+    .settings-tiles .settings-tile::after {
+      content: '';
+      position: absolute;
+      inset: auto -10% -28% auto;
+      width: 8rem;
+      height: 8rem;
+      border-radius: 999px;
+      background: radial-gradient(circle at center, color-mix(in srgb, var(--secondary) 24%, white), transparent 72%);
+      pointer-events: none;
+      opacity: 0.8;
     }
 
     .settings-tiles .settings-tile--accent {
@@ -29,13 +43,14 @@
 
     .settings-tiles .settings-tile.is-active {
       border-color: color-mix(in srgb, var(--primary) 34%, var(--color-border));
-      box-shadow: 0 0.45rem 1rem rgba(13, 110, 253, 0.12);
+      box-shadow: 0 0.9rem 1.8rem rgba(18, 33, 23, 0.12);
       background: color-mix(in srgb, var(--secondary) 42%, white);
     }
 
     .settings-tiles .settings-tile:hover {
       border-color: color-mix(in srgb, var(--color-border) 88%, transparent);
-      box-shadow: 0 0.45rem 1.15rem rgba(15, 23, 42, 0.1);
+      box-shadow: 0 1rem 2rem rgba(15, 23, 42, 0.12);
+      transform: translateY(-3px);
     }
 
     .settings-tiles .settings-tile .tile-icon {
@@ -52,10 +67,10 @@
 
     .settings-overview {
       border: 1px solid color-mix(in srgb, var(--color-border) 82%, transparent);
-      border-radius: 1rem;
+      border-radius: 1.3rem;
       background:
         linear-gradient(140deg, color-mix(in srgb, var(--secondary) 20%, white), color-mix(in srgb, var(--card) 96%, white));
-      box-shadow: 0 0.35rem 1rem rgba(15, 23, 42, 0.08);
+      box-shadow: 0 0.75rem 1.8rem rgba(15, 23, 42, 0.08);
     }
     .settings-overview__stats {
       display: grid;
@@ -64,9 +79,10 @@
     }
     .settings-overview__stat {
       border: 1px solid color-mix(in srgb, var(--color-border) 78%, transparent);
-      border-radius: 0.85rem;
-      background: color-mix(in srgb, var(--card) 93%, white);
-      padding: 0.75rem 0.85rem;
+      border-radius: 1rem;
+      background: linear-gradient(180deg, color-mix(in srgb, var(--card) 96%, white), color-mix(in srgb, var(--secondary) 14%, white));
+      padding: 0.82rem 0.92rem;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
     }
     .settings-overview__stat-value {
       font-size: 1.15rem;
@@ -121,11 +137,25 @@
 
     .settings-page-hero {
       position: relative;
+      isolation: isolate;
       overflow: hidden;
+      border-radius: 1.45rem !important;
       border: 1px solid color-mix(in srgb, var(--color-border) 78%, transparent) !important;
       background:
         linear-gradient(145deg, color-mix(in srgb, var(--secondary) 24%, white), color-mix(in srgb, var(--card) 95%, white)) !important;
-      box-shadow: 0 0.75rem 1.6rem rgba(15, 23, 42, 0.12);
+      box-shadow: 0 1rem 2.2rem rgba(15, 23, 42, 0.12);
+    }
+
+    .settings-page-hero::before {
+      content: '';
+      position: absolute;
+      inset: -35% auto auto -8%;
+      width: 14rem;
+      height: 14rem;
+      border-radius: 999px;
+      background: radial-gradient(circle at center, color-mix(in srgb, var(--chart-3) 22%, white), transparent 72%);
+      pointer-events: none;
+      z-index: -1;
     }
 
     .settings-page-hero::after {
@@ -137,6 +167,22 @@
       border-radius: 999px;
       background: radial-gradient(circle at center, color-mix(in srgb, var(--primary) 30%, transparent), transparent 68%);
       pointer-events: none;
+    }
+
+    .settings-page-hero .page-kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.35rem 0.7rem;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--card) 90%, white);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+    }
+
+    .settings-page-hero .page-title,
+    .settings-page-hero .page-subtitle {
+      position: relative;
+      z-index: 1;
     }
 
     .settings-overview--chromed {
@@ -226,15 +272,22 @@
 
     .modal .modal-content {
       border: 1px solid color-mix(in srgb, var(--color-border) 82%, transparent);
-      border-radius: 1rem;
+      border-radius: 1.35rem;
       overflow: hidden;
-      box-shadow: 0 1rem 2rem rgba(15, 23, 42, 0.16);
+      background:
+        linear-gradient(180deg, color-mix(in srgb, var(--card) 97%, white), color-mix(in srgb, var(--secondary) 12%, white));
+      box-shadow: 0 1.25rem 2.8rem rgba(15, 23, 42, 0.18);
     }
 
     .modal .modal-header {
+      position: sticky;
+      top: 0;
+      z-index: 2;
       border-bottom: 1px solid color-mix(in srgb, var(--color-border) 78%, transparent);
       background:
         linear-gradient(180deg, color-mix(in srgb, var(--secondary) 20%, white), color-mix(in srgb, var(--card) 96%, white));
+      padding: 1rem 1.15rem;
+      backdrop-filter: blur(12px);
     }
 
     .modal .modal-header .modal-title {
@@ -245,6 +298,39 @@
 
     .modal .modal-body {
       background: color-mix(in srgb, var(--card) 97%, white);
+      padding: 1.1rem 1.15rem 1.25rem;
+    }
+
+    .modal .modal-footer {
+      border-top: 1px solid color-mix(in srgb, var(--color-border) 74%, transparent);
+      background:
+        linear-gradient(180deg, color-mix(in srgb, var(--card) 96%, white), color-mix(in srgb, var(--secondary) 14%, white));
+      padding: 0.95rem 1.15rem 1.05rem;
+      gap: 0.65rem;
+    }
+
+    .modal .btn-close {
+      border-radius: 999px;
+      padding: 0.7rem;
+      background-color: color-mix(in srgb, var(--card) 92%, white);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+      opacity: 0.78;
+    }
+
+    .modal .btn-close:hover,
+    .modal .btn-close:focus-visible {
+      opacity: 1;
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.72),
+        0 0 0 0.2rem color-mix(in srgb, var(--primary) 16%, transparent);
+    }
+
+    .modal .card,
+    .modal .accordion-item,
+    .modal .table-responsive {
+      border-radius: 1rem !important;
+      overflow: hidden;
+      box-shadow: 0 0.55rem 1.2rem rgba(15, 23, 42, 0.06);
     }
 
     .modal .modal-body > .nav-tabs {
@@ -270,21 +356,21 @@
     .settings-menu-tabs {
       padding: 0.35rem;
       border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
-      border-radius: 0.75rem;
+      border-radius: 0.95rem;
       background: linear-gradient(130deg, color-mix(in srgb, var(--secondary) 26%, white), color-mix(in srgb, var(--card) 96%, white));
       backdrop-filter: blur(6px);
-      gap: 0.25rem;
+      gap: 0.35rem;
     }
 
     .settings-menu-tabs .nav-link {
-      border-radius: 0.6rem;
+      border-radius: 0.8rem;
       border: 0;
       color: var(--color-text-muted);
       display: inline-flex;
       align-items: center;
       gap: 0.45rem;
       font-weight: 600;
-      padding: 0.5rem 0.72rem;
+      padding: 0.58rem 0.78rem;
     }
 
     .settings-menu-tabs .nav-link.active {
@@ -300,10 +386,10 @@
 
     .settings-tab-content > .tab-pane {
       border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
-      border-radius: 0.9rem;
+      border-radius: 1rem;
       background:
         linear-gradient(180deg, color-mix(in srgb, var(--secondary) 16%, white), color-mix(in srgb, var(--card) 97%, white) 52%);
-      padding: 1rem;
+      padding: 1.1rem;
       box-shadow: inset 0 1px 0 color-mix(in srgb, white 55%, transparent), 0 0.45rem 1rem rgba(15, 23, 42, 0.06);
     }
 
