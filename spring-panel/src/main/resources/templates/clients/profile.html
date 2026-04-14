@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="_csrf" th:content="${_csrf.token}">
+    <title th:text="'Карточка клиента — ' + ${profile.header.userId}">Карточка клиента</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link rel="stylesheet" th:href="@{/css/sidebar.css}">
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+    <script src="/js/common.js"></script>
+</head>
+<body class="with-sidebar sidebar-pinned">
+<div th:replace="~{fragments/navbar :: navbar('clients')}"></div>
+<main class="main-content container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+        <div>
+            <h1 class="h3 mb-1">Карточка клиента</h1>
+            <p class="text-muted mb-0" th:text="'ID: ' + ${profile.header.userId}">ID</p>
+        </div>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            <a class="btn btn-outline-secondary" th:href="@{/clients}">← Назад</a>
+            <button class="btn btn-outline-danger"
+                    type="button"
+                    th:if="${!profile.blacklist.blacklisted}"
+                    th:attr="data-blacklist-user-id=${profile.header.userId}"
+                    onclick="openBlacklistModal(this)">Заблокировать</button>
+            <button class="btn btn-success"
+                    type="button"
+                    th:if="${profile.blacklist.blacklisted}"
+                    th:attr="data-blacklist-user-id=${profile.header.userId}"
+                    onclick="removeBlacklist(this)">Разблокировать</button>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Основная информация</h5>
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <img class="client-profile-avatar zoomable-avatar"
+                             th:src="@{/avatar/{id}(id=${profile.header.userId})}"
+                             th:attr="data-fullsrc=@{/avatar/{id}(id=${profile.header.userId}, full=1)}"
+                             alt="Аватар клиента"
+                             loading="lazy"
+                             decoding="async"
+                             onerror="this.onerror=null;this.src='/avatar_default.svg';">
+                        <div>
+                            <div><strong>Источник клиента:</strong> <span th:text="${profile.header.sourceLabel} ?: '—'">—</span></div>
+                            <div><strong th:text="${profile.header.sourceIdentifierLabel} ?: 'ID клиента в источнике'">ID клиента в источнике</strong>: <code th:text="${profile.header.userId}">0</code></div>
+                            <div class="small text-muted mt-1" th:if="${profile.header.sourceIdentifierHint != null}" th:text="${profile.header.sourceIdentifierHint}">Показывается внешний идентификатор клиента.</div>
+                            <div><strong>Имя:</strong> <span id="clientExternalName" th:text="${profile.header.clientName} ?: '—'">—</span></div>
+                            <div><strong>Юзернейм:</strong> <span id="clientUsernameDisplay" th:text="${profile.header.username} ?: '—'">—</span></div>
+                            <div class="mt-2">
+                                <strong>Blacklist:</strong>
+                                <span class="badge text-bg-danger" th:if="${profile.blacklist.blacklisted}">Да</span>
+                                <span class="badge text-bg-secondary" th:if="${!profile.blacklist.blacklisted}">Нет</span>
+                                <span class="badge text-bg-warning ms-1" th:if="${profile.blacklist.unblockRequested}">Запрос на снятие</span>
+                                <div class="small text-muted mt-1"
+                                     th:if="${profile.blacklist.addedAt != null || profile.blacklist.addedBy != null}">
+                                    <span th:if="${profile.blacklist.addedAt != null}"
+                                          th:text="'Заблокирован: ' + ${profile.blacklist.addedAt}">Заблокирован</span>
+                                    <span th:if="${profile.blacklist.addedBy != null}"
+                                          th:text="${profile.blacklist.addedAt != null ? ' • Оператор: ' : 'Оператор: '} + ${profile.blacklist.addedBy}">Оператор</span>
+                                </div>
+                                <div class="small mt-1" th:if="${profile.blacklist.reason != null}"
+                                     th:text="'Причина: ' + ${profile.blacklist.reason}">Причина</div>
+                                <div class="small mt-1 text-muted" th:if="${profile.blacklist.blockedFor != null}"
+                                     th:text="'В блокировке: ' + ${profile.blacklist.blockedFor}">В блокировке</div>
+                            </div>
+                            <div class="mt-3">
+                                <div><strong>Имя в БД:</strong>
+                                    <span id="clientNameDisplay" th:text="${profile.header.clientName} ?: '—'">—</span>
+                                </div>
+                                <button class="btn btn-sm btn-outline-primary mt-2" type="button" data-bs-toggle="modal" data-bs-target="#clientNameModal">
+                                    ✏️ Редактировать имя
+                                </button>
+                            </div>
+                            <div class="mt-3">
+                                <div><strong>Статус клиента:</strong>
+                                    <span id="clientStatusDisplay" th:text="${profile.clientStatus} ?: '—'">—</span>
+                                </div>
+                                <button class="btn btn-sm btn-outline-info mt-2" type="button" data-bs-toggle="modal" data-bs-target="#clientStatusModal">
+                                    🏷️ Изменить статус
+                                </button>
+                            </div>
+                            <div class="mt-3">
+                                <button class="btn btn-sm btn-outline-secondary" type="button" id="refreshExternalInfoBtn"
+                                        th:text="${profile.header.sourceKey == 'web_form'
+                                            ? '🔄 Проверить данные в канале продолжения'
+                                            : (profile.header.platform != null
+                                                ? '🔄 Обновить данные из ' + (profile.header.platform == 'vk' ? 'VK' : (profile.header.platform == 'max' ? 'MAX' : 'Telegram'))
+                                                : '🔄 Обновить данные из …')}">
+                                    🔄 Обновить данные из Telegram/VK
+                                </button>
+                                <div class="text-muted small mt-1"
+                                     th:text="${profile.header.sourceKey == 'web_form'
+                                        ? 'Для обращений из внешних форм данные подтянутся только если диалог уже привязан к Telegram/VK/MAX.'
+                                        : 'Обновит имя и юзернейм из внешних источников.'}">
+                                    Обновит имя и юзернейм из внешних источников.
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-3" th:if="${!#lists.isEmpty(profile.blacklistHistory)}">
+                            <button class="btn btn-sm btn-outline-dark"
+                                    type="button"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#blacklistHistoryModal">
+                                📜 История блэклиста
+                            </button>
+                        </div>
+                    </div>
+                    <div class="border rounded p-3 bg-light">
+                        <div class="text-muted small text-uppercase fw-semibold">Средняя оценка диалогов</div>
+                        <div class="h4 mb-0"
+                             th:text="${profile.averageRating != null ? #numbers.formatDecimal(profile.averageRating, 1, 2) : '—'}">—</div>
+                        <div class="text-muted small">из 5</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-8">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Статистика</h5>
+                    <div class="stats-chart mb-3" role="img" aria-label="Диаграмма обращений">
+                        <div class="stats-chart-segment stats-chart-resolved"
+                             th:style="'width:' + (${profile.stats.total} > 0 ? (${profile.stats.resolved} * 100.0 / ${profile.stats.total}) : 0) + '%'"></div>
+                        <div class="stats-chart-segment stats-chart-pending"
+                             th:style="'width:' + (${profile.stats.total} > 0 ? (${profile.stats.pending} * 100.0 / ${profile.stats.total}) : 0) + '%'"></div>
+                    </div>
+                    <div class="d-flex flex-wrap gap-3">
+                        <div>
+                            <div class="text-muted small">Всего заявок</div>
+                            <div class="h4 mb-0" th:text="${profile.stats.total}">0</div>
+                        </div>
+                        <div>
+                            <div class="text-muted small">Решено</div>
+                            <div class="h4 mb-0" th:text="${profile.stats.resolved}">0</div>
+                        </div>
+                        <div>
+                            <div class="text-muted small">Ожидают</div>
+                            <div class="h4 mb-0" th:text="${profile.stats.pending}">0</div>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <div class="text-muted small text-uppercase fw-semibold">Оценки диалогов</div>
+                        <div class="rating-chart mt-2">
+                            <div class="rating-chart-row" th:each="stat : ${profile.ratingStats}">
+                                <div class="rating-chart-label" th:text="${stat.label}">5★</div>
+                                <div class="rating-chart-bar">
+                                    <div class="rating-chart-fill"
+                                         th:style="'width:' + (${profile.ratingTotal} > 0 ? (${stat.count} * 100.0 / ${profile.ratingTotal}) : 0) + '%'"></div>
+                                </div>
+                                <div class="rating-chart-value" th:text="${stat.count}">0</div>
+                            </div>
+                        </div>
+                        <div class="text-muted small mt-2" th:text="'Всего оценок: ' + ${profile.ratingTotal}">Всего оценок: 0</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4" id="clientPhonesCard">
+        <div class="card-body">
+            <h5 class="card-title">📞 Телефоны клиента</h5>
+            <h6 class="mt-3">Из Telegram (только для чтения)</h6>
+            <div th:if="${#lists.isEmpty(profile.phonesTelegram)}" class="text-muted">Клиент ещё не поделился номером через Telegram.</div>
+            <ul class="list-group mb-3" th:if="${!#lists.isEmpty(profile.phonesTelegram)}">
+                <li class="list-group-item d-flex justify-content-between align-items-center"
+                    th:each="phone : ${profile.phonesTelegram}">
+                    <span>
+                        <strong th:text="${phone.phone()}">+7</strong>
+                        <span class="text-muted" th:text="${phone.label()} != null ? '(' + phone.label() + ')' : '(из Telegram)'">(из Telegram)</span>
+                    </span>
+                    <small class="text-muted" th:text="${phone.createdAt()}">—</small>
+                </li>
+            </ul>
+
+            <h6 class="mt-3">Добавленные вручную</h6>
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead>
+                    <tr>
+                        <th>Телефон</th>
+                        <th>Метка</th>
+                        <th>Добавлен</th>
+                        <th></th>
+                    </tr>
+                    </thead>
+                    <tbody id="manualPhonesTbody">
+                    <tr th:if="${#lists.isEmpty(profile.phonesManual)}">
+                        <td colspan="4" class="text-center text-muted py-3">Телефоны не добавлены</td>
+                    </tr>
+                    <tr th:each="phone : ${profile.phonesManual}" th:attr="data-id=${phone.id()}">
+                        <td><strong th:text="${phone.phone()}">+7</strong></td>
+                        <td>
+                            <input class="form-control form-control-sm phone-label-input"
+                                   th:value="${phone.label()}"
+                                   placeholder="личный/рабочий/…">
+                        </td>
+                        <td><small class="text-muted" th:text="${phone.createdAt()}">—</small></td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-outline-primary" type="button"
+                                    th:attr="data-user-id=${profile.header.userId},data-phone-id=${phone.id()}"
+                                    onclick="savePhoneLabel(this)">💾</button>
+                            <button class="btn btn-sm btn-outline-danger" type="button"
+                                    th:attr="data-user-id=${profile.header.userId},data-phone-id=${phone.id()}"
+                                    onclick="archivePhone(this)">🗑</button>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="row g-2 mt-2">
+                <div class="col-md-4">
+                    <input id="newPhoneInput" class="form-control" placeholder="+7…">
+                </div>
+                <div class="col-md-4">
+                    <input id="newPhoneLabelInput" class="form-control" placeholder="личный / рабочий / другое">
+                </div>
+                <div class="col-md-4 d-flex flex-column flex-sm-row gap-2">
+                    <button class="btn btn-primary flex-fill" type="button" onclick="addManualPhone()">➕ Добавить телефон</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h5 class="card-title">📝 История юзернейма</h5>
+            <div th:if="${#lists.isEmpty(profile.usernameHistory)}" class="text-muted">Нет данных по изменению юзернейма.</div>
+            <ul class="list-group" th:if="${!#lists.isEmpty(profile.usernameHistory)}">
+                <li class="list-group-item d-flex justify-content-between align-items-center"
+                    th:each="entry, iter : ${profile.usernameHistory}">
+                    <span>
+                        <span class="badge bg-success me-2" th:if="${iter.index == 0}">Текущий</span>
+                        <span th:text="'@' + ${entry.username()}">@username</span>
+                    </span>
+                    <small class="text-muted" th:text="${entry.seenAt()} ?: '—'">—</small>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4 searchable-collapse">
+        <div class="card-header p-0">
+            <button class="btn btn-link text-decoration-none collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#clientAnalyticsCollapse" aria-expanded="false">
+                📈 Аналитика по обращениям
+            </button>
+        </div>
+        <div id="clientAnalyticsCollapse" class="collapse">
+            <div class="card-body">
+                <div th:if="${#lists.isEmpty(profile.categoryStats) and #lists.isEmpty(profile.locationStats)}" class="text-muted">
+                    Недостаточно данных для аналитики.
+                </div>
+                <div th:if="${!#lists.isEmpty(profile.categoryStats) or !#lists.isEmpty(profile.locationStats)}">
+                    <div class="mb-3">
+                        <input type="search" class="form-control form-control-sm" id="clientAnalyticsSearch" placeholder="Поиск по темам и локациям">
+                    </div>
+                    <div id="clientAnalyticsList">
+                        <div class="searchable-group mb-3" data-group-container="categories">
+                            <div class="small text-muted text-uppercase fw-semibold mb-2">Темы обращений</div>
+                            <div class="list-group list-group-flush">
+                                <div class="list-group-item d-flex justify-content-between align-items-center"
+                                     th:each="item : ${profile.categoryStats}"
+                                     th:attr="data-search-value=${item.label()},data-group-key='categories'">
+                                    <span th:text="${item.label()}">—</span>
+                                    <span class="badge bg-info" th:text="${item.count()}">0</span>
+                                </div>
+                                <div class="list-group-item text-muted" th:if="${#lists.isEmpty(profile.categoryStats)}">Темы не найдены</div>
+                            </div>
+                        </div>
+                        <div class="searchable-group" data-group-container="locations">
+                            <div class="small text-muted text-uppercase fw-semibold mb-2">Локации</div>
+                            <div class="list-group list-group-flush">
+                                <div class="list-group-item d-flex justify-content-between align-items-center"
+                                     th:each="item : ${profile.locationStats}"
+                                     th:attr="data-search-value=${item.label()},data-group-key='locations'">
+                                    <span th:text="${item.label()}">—</span>
+                                    <span class="badge bg-secondary" th:text="${item.count()}">0</span>
+                                </div>
+                                <div class="list-group-item text-muted" th:if="${#lists.isEmpty(profile.locationStats)}">Локации не найдены</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-muted small mt-3" id="clientAnalyticsEmpty" style="display: none;">Совпадений не найдено.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm searchable-collapse">
+        <div class="card-header p-0">
+            <button class="btn btn-link text-decoration-none collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#clientTicketsCollapse" aria-expanded="false">
+                📋 Заявки клиента
+            </button>
+        </div>
+        <div id="clientTicketsCollapse" class="collapse">
+            <div class="card-body" th:if="${!#lists.isEmpty(profile.tickets)}">
+                <input type="search" class="form-control form-control-sm" id="clientTicketsSearch" placeholder="Поиск по заявкам">
+            </div>
+            <div class="accordion border-top" id="clientTicketsAccordion">
+                <div class="p-4 text-center text-muted" th:if="${#lists.isEmpty(profile.tickets)}">Заявки отсутствуют</div>
+                <div class="accordion-item"
+                     th:each="ticket, iter : ${profile.tickets}"
+                     th:attr="data-search-value=${ticket.ticketId} + ' ' + ${ticket.problem} + ' ' + ${ticket.business} + ' ' + ${ticket.city} + ' ' + ${ticket.locationName} + ' ' + ${ticket.status} + ' ' + ${ticket.channelName}">
+                    <h2 class="accordion-header" th:attr="id='ticket-heading-' + ${iter.index}">
+                        <button class="accordion-button collapsed" type="button"
+                                th:attr="data-bs-target='#ticket-collapse-' + ${iter.index},aria-controls='ticket-collapse-' + ${iter.index}"
+                                data-bs-toggle="collapse" aria-expanded="false">
+                            <span th:text="${ticket.ticketId}">—</span>
+                            <span class="ms-2" th:text="${ticket.business} ?: '—'">—</span>
+                            <span class="text-muted ms-2" th:text="${ticket.city} != null ? '(' + ${ticket.city} + ')' : ''"></span>
+                        </button>
+                    </h2>
+                    <div class="accordion-collapse collapse"
+                         th:attr="id='ticket-collapse-' + ${iter.index},aria-labelledby='ticket-heading-' + ${iter.index}"
+                         data-bs-parent="#clientTicketsAccordion">
+                        <div class="accordion-body">
+                            <p><strong>Проблема:</strong> <span th:text="${ticket.problem} ?: '—'">—</span></p>
+                            <p><strong>Категория:</strong> <span th:text="${ticket.category} ?: '—'">—</span></p>
+                            <p><strong>Локация:</strong> <span th:text="${ticket.locationName} ?: '—'">—</span></p>
+                            <p><strong>Статус:</strong> <span th:text="${ticket.status} ?: '—'">—</span></p>
+                            <p><strong>Создан:</strong> <span th:text="${ticket.createdAt} ?: '—'">—</span></p>
+                            <p><strong>Решен:</strong> <span th:text="${ticket.resolvedAt} ?: '—'">—</span></p>
+                            <p><strong>Канал:</strong> <span th:text="${ticket.channelName} ?: '—'">—</span></p>
+                            <button class="btn btn-sm btn-outline-secondary"
+                                    type="button"
+                                    th:attr="data-ticket-id=${ticket.ticketId},data-channel-id=${ticket.channelId}"
+                                    onclick="openClientHistory(this)">
+                                Показать историю
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="text-muted small mt-3 px-4" id="clientTicketsEmpty" style="display: none;">Совпадений не найдено.</div>
+        </div>
+    </div>
+</main>
+
+<div class="modal fade" id="clientNameModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form class="modal-content" id="clientNameForm">
+            <div class="modal-header">
+                <h5 class="modal-title">Редактировать имя в БД</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <label for="clientNameInput" class="form-label">Имя клиента</label>
+                <input type="text" class="form-control" id="clientNameInput" th:value="${profile.header.clientName}">
+                <div class="alert alert-danger mt-3 d-none" role="alert" id="clientNameError"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="submit" class="btn btn-primary">Сохранить</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal fade" id="clientStatusModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form class="modal-content" id="clientStatusForm">
+            <div class="modal-header">
+                <h5 class="modal-title">Изменить статус клиента</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <label for="clientStatusSelect" class="form-label">Статус</label>
+                <select class="form-select" id="clientStatusSelect">
+                    <option value="">Без статуса</option>
+                    <option th:each="status : ${clientStatuses}"
+                            th:value="${status}"
+                            th:selected="${status} == ${profile.clientStatus}"
+                            th:text="${status}">Статус</option>
+                </select>
+                <div class="alert alert-danger mt-3 d-none" role="alert" id="clientStatusError"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="submit" class="btn btn-primary">Сохранить</button>
+            </div>
+        </form>
+    </div>
+</div>
+<div class="modal fade" id="avatarModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-body text-center">
+                <img id="avatarModalImage" src="" alt="Аватар клиента" class="img-fluid rounded">
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="clientHistoryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title">История переписки</h5>
+                    <div class="text-muted small" id="clientHistoryMeta">—</div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <div class="chat-history" id="clientHistoryMessages"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="blacklistModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form class="modal-content" id="blacklistForm" novalidate>
+            <div class="modal-header">
+                <h5 class="modal-title">Заблокировать клиента</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-muted mb-2">
+                    Укажите причину блокировки для клиента <code data-blacklist-user-id></code>.
+                </p>
+                <label for="blacklistReason" class="form-label">Причина блокировки</label>
+                <textarea class="form-control" id="blacklistReason" name="reason" rows="3"></textarea>
+                <div class="alert alert-danger mt-3 d-none" role="alert" data-blacklist-feedback="error"></div>
+                <div class="alert alert-success mt-3 d-none" role="alert" data-blacklist-feedback="success"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="submit" class="btn btn-danger" data-blacklist-submit>
+                    <span data-blacklist-submit-text>Заблокировать</span>
+                    <span class="spinner-border spinner-border-sm ms-2 d-none" role="status" aria-hidden="true" data-blacklist-loading></span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal fade" id="blacklistHistoryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">История блэклиста</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <div th:if="${#lists.isEmpty(profile.blacklistHistory)}" class="text-muted">История отсутствует.</div>
+                <ul class="list-unstyled small mb-0" th:if="${!#lists.isEmpty(profile.blacklistHistory)}">
+                    <li class="mb-3" th:each="entry : ${profile.blacklistHistory}">
+                        <div class="d-flex flex-wrap gap-2 align-items-center">
+                            <span class="text-muted" th:text="${entry.at}">—</span>
+                            <span class="fw-semibold" th:text="${entry.actionLabel}">—</span>
+                            <span th:if="${entry.actor != null}" th:text="'• ' + ${entry.actor}">—</span>
+                        </div>
+                        <div class="text-muted" th:if="${entry.reason != null}" th:text="${entry.reason}">—</div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+<script th:inline="javascript">
+    const clientUserId = /*[[${profile.header.userId}]]*/ 0;
+    const avatarImg = document.querySelector('.zoomable-avatar');
+    const avatarModalEl = document.getElementById('avatarModal');
+    const avatarModalImage = document.getElementById('avatarModalImage');
+    let avatarModalInstance = null;
+
+    if (avatarImg && avatarModalEl && avatarModalImage) {
+        avatarImg.addEventListener('click', () => {
+            avatarModalImage.src = avatarImg.dataset.fullsrc || avatarImg.src;
+            if (!avatarModalInstance) {
+                avatarModalInstance = new bootstrap.Modal(avatarModalEl);
+            }
+            avatarModalInstance.show();
+        });
+    }
+
+    const blacklistModalEl = document.getElementById('blacklistModal');
+    const blacklistForm = document.getElementById('blacklistForm');
+    const blacklistReason = document.getElementById('blacklistReason');
+    const blacklistUserPlaceholder = blacklistModalEl?.querySelector('[data-blacklist-user-id]');
+    const blacklistSubmit = blacklistModalEl?.querySelector('[data-blacklist-submit]');
+    const blacklistSubmitText = blacklistModalEl?.querySelector('[data-blacklist-submit-text]');
+    const blacklistLoading = blacklistModalEl?.querySelector('[data-blacklist-loading]');
+    const blacklistError = blacklistModalEl?.querySelector('[data-blacklist-feedback="error"]');
+    const blacklistSuccess = blacklistModalEl?.querySelector('[data-blacklist-feedback="success"]');
+    let blacklistModalInstance = null;
+
+    function resetBlacklistFeedback() {
+        if (blacklistError) {
+            blacklistError.classList.add('d-none');
+            blacklistError.textContent = '';
+        }
+        if (blacklistSuccess) {
+            blacklistSuccess.classList.add('d-none');
+            blacklistSuccess.textContent = '';
+        }
+    }
+
+    window.openBlacklistModal = function (button) {
+        if (!blacklistModalEl) return;
+        const userId = button?.dataset?.blacklistUserId;
+        if (blacklistUserPlaceholder) {
+            blacklistUserPlaceholder.textContent = userId || '';
+        }
+        blacklistModalEl.dataset.userId = userId || '';
+        if (blacklistReason) {
+            blacklistReason.value = '';
+        }
+        resetBlacklistFeedback();
+        if (!blacklistModalInstance) {
+            blacklistModalInstance = new bootstrap.Modal(blacklistModalEl);
+        }
+        blacklistModalInstance.show();
+    };
+
+    if (blacklistForm) {
+        blacklistForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const userId = blacklistModalEl?.dataset?.userId;
+            if (!userId) return;
+            resetBlacklistFeedback();
+            if (blacklistSubmit) {
+                blacklistSubmit.disabled = true;
+            }
+            if (blacklistLoading) {
+                blacklistLoading.classList.remove('d-none');
+            }
+            try {
+                const formData = new FormData();
+                formData.append('user_id', userId);
+                formData.append('reason', blacklistReason?.value?.trim() || '');
+                const response = await fetch('/api/blacklist/add', {
+                    method: 'POST',
+                    body: formData
+                });
+                const payload = await response.json();
+                if (!response.ok || !payload.ok) {
+                    const message = payload.error || 'Не удалось добавить в blacklist';
+                    if (blacklistError) {
+                        blacklistError.textContent = message;
+                        blacklistError.classList.remove('d-none');
+                    }
+                    return;
+                }
+                if (blacklistSuccess) {
+                    blacklistSuccess.textContent = payload.message || 'Клиент заблокирован';
+                    blacklistSuccess.classList.remove('d-none');
+                }
+                setTimeout(() => window.location.reload(), 600);
+            } catch (error) {
+                if (blacklistError) {
+                    blacklistError.textContent = 'Ошибка соединения. Попробуйте ещё раз.';
+                    blacklistError.classList.remove('d-none');
+                }
+            } finally {
+                if (blacklistSubmit) {
+                    blacklistSubmit.disabled = false;
+                }
+                if (blacklistLoading) {
+                    blacklistLoading.classList.add('d-none');
+                }
+            }
+        });
+    }
+
+    window.removeBlacklist = async function (button) {
+        const userId = button?.dataset?.blacklistUserId;
+        if (!userId) return;
+        if (!confirm('Разблокировать клиента?')) {
+            return;
+        }
+        const formData = new FormData();
+        formData.append('user_id', userId);
+        const response = await fetch('/api/blacklist/remove', {
+            method: 'POST',
+            body: formData
+        });
+        const payload = await response.json();
+        if (response.ok && payload.ok) {
+            window.location.reload();
+        } else {
+            showPopup(payload.error || 'Не удалось снять блокировку');
+        }
+    };
+
+    const clientNameForm = document.getElementById('clientNameForm');
+    const clientNameInput = document.getElementById('clientNameInput');
+    const clientNameDisplay = document.getElementById('clientNameDisplay');
+    const clientNameError = document.getElementById('clientNameError');
+
+    if (clientNameForm) {
+        clientNameForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            if (!clientNameInput) return;
+            if (clientNameError) {
+                clientNameError.classList.add('d-none');
+                clientNameError.textContent = '';
+            }
+            try {
+                const response = await fetch(`/api/clients/${clientUserId}/name`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ client_name: clientNameInput.value || '' })
+                });
+                const payload = await response.json();
+                if (!response.ok || !payload.ok) {
+                    throw new Error(payload.error || 'Ошибка сохранения имени');
+                }
+                if (clientNameDisplay) {
+                    clientNameDisplay.textContent = payload.client_name || '—';
+                }
+                const modal = bootstrap.Modal.getInstance(document.getElementById('clientNameModal'));
+                if (modal) {
+                    modal.hide();
+                }
+            } catch (error) {
+                if (clientNameError) {
+                    clientNameError.textContent = error?.message || 'Ошибка соединения';
+                    clientNameError.classList.remove('d-none');
+                }
+            }
+        });
+    }
+
+    const clientStatusForm = document.getElementById('clientStatusForm');
+    const clientStatusSelect = document.getElementById('clientStatusSelect');
+    const clientStatusDisplay = document.getElementById('clientStatusDisplay');
+    const clientStatusError = document.getElementById('clientStatusError');
+    const refreshExternalInfoBtn = document.getElementById('refreshExternalInfoBtn');
+    const clientExternalName = document.getElementById('clientExternalName');
+    const clientUsernameDisplay = document.getElementById('clientUsernameDisplay');
+
+    if (clientStatusForm) {
+        clientStatusForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            if (!clientStatusSelect) return;
+            if (clientStatusError) {
+                clientStatusError.classList.add('d-none');
+                clientStatusError.textContent = '';
+            }
+            try {
+                const response = await fetch(`/api/clients/${clientUserId}/status`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ client_status: clientStatusSelect.value || '' })
+                });
+                const payload = await response.json();
+                if (!response.ok || !payload.ok) {
+                    throw new Error(payload.error || 'Ошибка сохранения статуса');
+                }
+                if (clientStatusDisplay) {
+                    clientStatusDisplay.textContent = payload.client_status || '—';
+                }
+                const modal = bootstrap.Modal.getInstance(document.getElementById('clientStatusModal'));
+                if (modal) {
+                    modal.hide();
+                }
+            } catch (error) {
+                if (clientStatusError) {
+                    clientStatusError.textContent = error?.message || 'Ошибка соединения';
+                    clientStatusError.classList.remove('d-none');
+                }
+            }
+        });
+    }
+
+    if (refreshExternalInfoBtn) {
+        refreshExternalInfoBtn.addEventListener('click', async () => {
+            if (!clientUserId) return;
+            const originalText = refreshExternalInfoBtn.innerHTML;
+            refreshExternalInfoBtn.disabled = true;
+            refreshExternalInfoBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Обновляем...';
+            try {
+                const response = await fetch(`/api/clients/${clientUserId}/refresh`, { method: 'POST' });
+                const payload = await response.json();
+                if (!response.ok || !payload.ok) {
+                    throw new Error(payload.error || 'Не удалось обновить данные');
+                }
+                if (clientExternalName && payload.client_name) {
+                    clientExternalName.textContent = payload.client_name;
+                }
+                if (clientNameDisplay && payload.client_name) {
+                    clientNameDisplay.textContent = payload.client_name;
+                }
+                if (clientUsernameDisplay && payload.username) {
+                    clientUsernameDisplay.textContent = payload.username;
+                }
+                if (payload.avatar_updated && avatarImg) {
+                    const src = avatarImg.getAttribute('src')?.split('?')[0] || avatarImg.src;
+                    const fullSrc = avatarImg.dataset.fullsrc?.split('?')[0] || avatarImg.dataset.fullsrc || src;
+                    const cacheKey = `?v=${Date.now()}`;
+                    avatarImg.src = `${src}${cacheKey}`;
+                    avatarImg.dataset.fullsrc = `${fullSrc}${cacheKey}`;
+                }
+                const level = payload.level || 'success';
+                const message = payload.message || 'Данные обновлены.';
+                showNotification(message, level);
+            } catch (error) {
+                showNotification(error?.message || 'Ошибка соединения', 'error');
+            } finally {
+                refreshExternalInfoBtn.disabled = false;
+                refreshExternalInfoBtn.innerHTML = originalText;
+            }
+        });
+    }
+
+    function ensureManualPhonesPlaceholderHidden() {
+        const tbody = document.getElementById('manualPhonesTbody');
+        if (!tbody) return;
+        const placeholder = tbody.querySelector('tr td[colspan="4"]');
+        if (placeholder) {
+            placeholder.parentElement?.remove();
+        }
+    }
+
+    window.addManualPhone = async function () {
+        const phoneInput = document.getElementById('newPhoneInput');
+        const labelInput = document.getElementById('newPhoneLabelInput');
+        const phone = (phoneInput?.value || '').trim();
+        const label = (labelInput?.value || '').trim();
+        if (!phone) {
+            showPopup('Введите телефон');
+            return;
+        }
+        try {
+            const response = await fetch(`/api/clients/${clientUserId}/phones`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phone, label })
+            });
+            const payload = await response.json();
+            if (!response.ok || !payload.ok) {
+                throw new Error(payload.error || 'Не удалось добавить телефон');
+            }
+            const tbody = document.getElementById('manualPhonesTbody');
+            if (tbody) {
+                ensureManualPhonesPlaceholderHidden();
+                const row = document.createElement('tr');
+                row.dataset.id = payload.id;
+                row.innerHTML = `
+                    <td><strong>${payload.phone}</strong></td>
+                    <td><input class="form-control form-control-sm phone-label-input" value="${payload.label || ''}" placeholder="личный/рабочий/…"></td>
+                    <td><small class="text-muted">${payload.created_at || '—'}</small></td>
+                    <td class="text-end">
+                        <button class="btn btn-sm btn-outline-primary" type="button" data-user-id="${clientUserId}" data-phone-id="${payload.id}" onclick="savePhoneLabel(this)">💾</button>
+                        <button class="btn btn-sm btn-outline-danger" type="button" data-user-id="${clientUserId}" data-phone-id="${payload.id}" onclick="archivePhone(this)">🗑</button>
+                    </td>
+                `;
+                tbody.prepend(row);
+            }
+            if (phoneInput) phoneInput.value = '';
+            if (labelInput) labelInput.value = '';
+        } catch (error) {
+            showPopup(error?.message || 'Ошибка соединения');
+        }
+    };
+
+    window.savePhoneLabel = async function (button) {
+        const userId = button?.dataset?.userId;
+        const phoneId = button?.dataset?.phoneId;
+        const row = button?.closest('tr');
+        const input = row?.querySelector('.phone-label-input');
+        if (!userId || !phoneId || !input) return;
+        try {
+            const response = await fetch(`/api/clients/${userId}/phones/${phoneId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ label: input.value || '' })
+            });
+            const payload = await response.json();
+            if (!response.ok || !payload.ok) {
+                throw new Error(payload.error || 'Не удалось сохранить метку');
+            }
+        } catch (error) {
+            showPopup(error?.message || 'Ошибка соединения');
+        }
+    };
+
+    window.archivePhone = async function (button) {
+        const userId = button?.dataset?.userId;
+        const phoneId = button?.dataset?.phoneId;
+        if (!userId || !phoneId) return;
+        if (!confirm('Убрать телефон из активных?')) return;
+        try {
+            const response = await fetch(`/api/clients/${userId}/phones/${phoneId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ active: false })
+            });
+            const payload = await response.json();
+            if (!response.ok || !payload.ok) {
+                throw new Error(payload.error || 'Не удалось убрать телефон');
+            }
+            const row = button.closest('tr');
+            if (row) {
+                row.remove();
+            }
+        } catch (error) {
+            showPopup(error?.message || 'Ошибка соединения');
+        }
+    };
+
+    function normalizeMessageSender(sender) {
+        const value = String(sender || '').toLowerCase();
+        if (value.includes('support') || value.includes('operator') || value.includes('admin')) {
+            return 'support';
+        }
+        return 'user';
+    }
+
+    function formatMessageTimestamp(value) {
+        if (!value) return '';
+        const numeric = typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : value;
+        const parsed = new Date(numeric);
+        if (!Number.isNaN(parsed.getTime())) {
+            const day = String(parsed.getDate()).padStart(2, '0');
+            const month = String(parsed.getMonth() + 1).padStart(2, '0');
+            const year = parsed.getFullYear();
+            return `${day}:${month}:${year}`;
+        }
+        return value;
+    }
+
+    function renderClientHistory(messages) {
+        const container = document.getElementById('clientHistoryMessages');
+        if (!container) return;
+        if (!Array.isArray(messages) || messages.length === 0) {
+            container.innerHTML = '<div class="text-muted">Сообщения не найдены.</div>';
+            return;
+        }
+        container.innerHTML = messages.map((msg) => {
+            const senderType = normalizeMessageSender(msg.sender);
+            const timestamp = formatMessageTimestamp(msg.timestamp);
+            const bodyText = msg.message ? msg.message.replace(/\n/g, '<br>') : '';
+            const fallbackType = msg.messageType && !bodyText ? `[${msg.messageType}]` : '';
+            const body = bodyText || fallbackType || '—';
+            let attachment = '';
+            if (msg.attachment) {
+                attachment = `<div class="small"><a href="${msg.attachment}" target="_blank" rel="noopener">Вложение</a></div>`;
+            }
+            return `
+                <div class="chat-message ${senderType}">
+                    <div class="d-flex justify-content-between small text-muted mb-1">
+                        <span>${msg.sender || 'Пользователь'}</span>
+                        <span>${timestamp}</span>
+                    </div>
+                    <div>${body}</div>
+                    ${attachment}
+                </div>
+            `;
+        }).join('');
+    }
+
+    let clientHistoryModalInstance = null;
+    let clientHistoryTicketId = null;
+
+    window.openClientHistory = async function (button) {
+        const ticketId = button?.dataset?.ticketId;
+        const channelId = button?.dataset?.channelId;
+        if (!ticketId) return;
+        clientHistoryTicketId = ticketId;
+        const meta = document.getElementById('clientHistoryMeta');
+        if (meta) {
+            meta.textContent = `ID заявки: ${ticketId}`;
+        }
+        const container = document.getElementById('clientHistoryMessages');
+        if (container) {
+            container.innerHTML = '<div class="text-muted">Загрузка истории...</div>';
+        }
+        if (!clientHistoryModalInstance) {
+            clientHistoryModalInstance = new bootstrap.Modal(document.getElementById('clientHistoryModal'));
+        }
+        clientHistoryModalInstance.show();
+
+        try {
+            const query = channelId ? `?channelId=${encodeURIComponent(channelId)}` : '';
+            const response = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}${query}`, { credentials: 'same-origin' });
+            const payload = await response.json();
+            if (!response.ok) {
+                throw new Error(payload?.error || 'Не удалось загрузить историю');
+            }
+            renderClientHistory(payload.history || []);
+        } catch (error) {
+            if (container) {
+                container.innerHTML = `<div class="text-danger">${error?.message || 'Ошибка соединения'}</div>`;
+            }
+        }
+    };
+
+    const ticketsSearch = document.getElementById('clientTicketsSearch');
+    if (ticketsSearch) {
+        ticketsSearch.addEventListener('input', () => {
+            const query = ticketsSearch.value.trim().toLowerCase();
+            let visibleCount = 0;
+            document.querySelectorAll('#clientTicketsAccordion .accordion-item').forEach((item) => {
+                const haystack = (item.dataset.searchValue || '').toLowerCase();
+                const matches = !query || haystack.includes(query);
+                item.classList.toggle('d-none', !matches);
+                if (matches) {
+                    visibleCount += 1;
+                }
+            });
+            const emptyIndicator = document.getElementById('clientTicketsEmpty');
+            if (emptyIndicator) {
+                emptyIndicator.style.display = visibleCount ? 'none' : '';
+            }
+        });
+    }
+
+    function initSearch(inputId, selector, options = {}) {
+        const input = document.getElementById(inputId);
+        if (!input) return;
+        const items = Array.from(document.querySelectorAll(selector));
+        if (!items.length) return;
+
+        const groupContainers = {};
+        if (options.groupContainerSelector) {
+            document.querySelectorAll(options.groupContainerSelector).forEach((el) => {
+                const key = el.dataset.groupContainer;
+                if (key) groupContainers[key] = el;
+            });
+        }
+
+        const emptyIndicator = options.emptyIndicatorId ? document.getElementById(options.emptyIndicatorId) : null;
+
+        const applyFilter = () => {
+            const query = input.value.trim().toLowerCase();
+            let visibleCount = 0;
+            const visibleByGroup = {};
+            items.forEach((item) => {
+                const value = (item.dataset.searchValue || '').toLowerCase();
+                const groupKey = item.dataset.groupKey || '';
+                const matches = !query || value.includes(query);
+                item.classList.toggle('d-none', !matches);
+                if (matches) {
+                    visibleCount += 1;
+                    visibleByGroup[groupKey] = (visibleByGroup[groupKey] || 0) + 1;
+                }
+            });
+
+            Object.entries(groupContainers).forEach(([key, container]) => {
+                const hasVisible = (visibleByGroup[key] || 0) > 0;
+                container.classList.toggle('d-none', !hasVisible);
+            });
+
+            if (emptyIndicator) {
+                emptyIndicator.style.display = visibleCount ? 'none' : '';
+            }
+        };
+
+        input.addEventListener('input', applyFilter);
+        applyFilter();
+    }
+
+    initSearch('clientAnalyticsSearch', '#clientAnalyticsList [data-search-value]', {
+        groupContainerSelector: '#clientAnalyticsList [data-group-container]',
+        emptyIndicatorId: 'clientAnalyticsEmpty',
+    });
+</script>
+</body>
+</html>

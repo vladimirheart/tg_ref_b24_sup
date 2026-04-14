@@ -1,0 +1,241 @@
+2026-04-13 09:21:43.248+03:00 DEBUG [main] o.s.boot.ApplicationEnvironment - Activating profiles [default]
+2026-04-13 09:21:43.255+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
+2026-04-13 09:21:43.316+03:00 INFO  [main] c.e.s.t.TelegramBotApplication - Starting TelegramBotApplication using Java 25.0.2 with PID 33156 (C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-telegram\target\classes started by SinicinVV in C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-telegram)
+2026-04-13 09:21:43.317+03:00 INFO  [main] c.e.s.t.TelegramBotApplication - The following 1 profile is active: "default"
+2026-04-13 09:21:43.318+03:00 DEBUG [main] o.s.boot.SpringApplication - Loading source class com.example.supportbot.telegram.TelegramBotApplication
+2026-04-13 09:21:43.856+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-04-13 09:21:43.984+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 121 ms. Found 30 JPA repository interfaces.
+2026-04-13 09:21:44.444+03:00 DEBUG [main] o.s.b.c.p.s.ConfigurationPropertySourcesPropertyResolver$DefaultResolver - Found key 'APP_DB_TICKETS' in PropertySource 'systemEnvironment' with value of type String
+2026-04-13 09:21:44.583+03:00 INFO  [main] o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-04-13 09:21:44.677+03:00 INFO  [main] org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
+2026-04-13 09:21:44.722+03:00 INFO  [main] o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
+2026-04-13 09:21:45.023+03:00 INFO  [main] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-04-13 09:21:46.771+03:00 INFO  [main] o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-04-13 09:21:46.775+03:00 INFO  [main] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-04-13 09:21:46.784+03:00 DEBUG [main] o.s.b.c.p.s.ConfigurationPropertySourcesPropertyResolver$DefaultResolver - Found key 'GROUP_CHAT_ID' in PropertySource 'systemEnvironment' with value of type String
+2026-04-13 09:21:46.785+03:00 DEBUG [main] o.s.b.c.p.s.ConfigurationPropertySourcesPropertyResolver$DefaultResolver - Found key 'TELEGRAM_BOT_TOKEN' in PropertySource 'systemEnvironment' with value of type String
+2026-04-13 09:21:46.785+03:00 DEBUG [main] o.s.b.c.p.s.ConfigurationPropertySourcesPropertyResolver$DefaultResolver - Found key 'TELEGRAM_BOT_USERNAME' in PropertySource 'systemEnvironment' with value of type String
+2026-04-13 09:21:47.178+03:00 DEBUG [main] o.s.b.c.p.s.ConfigurationPropertySourcesPropertyResolver$DefaultResolver - Found key 'APP_BOT_LOG_PATH' in PropertySource 'systemEnvironment' with value of type String
+2026-04-13 09:21:47.223+03:00 DEBUG [main] o.s.b.a.AutoConfigurationPackages - @EnableAutoConfiguration was declared on a class in the package 'com.example.supportbot.telegram'. Automatic @Repository and @Entity scanning is enabled.
+2026-04-13 09:21:47.356+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing SQL statement [ALTER TABLE chat_history ADD COLUMN original_message TEXT]
+2026-04-13 09:21:47.370+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing SQL statement [ALTER TABLE chat_history ADD COLUMN forwarded_from TEXT]
+2026-04-13 09:21:47.575+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Initializing Telegram bot configuration check
+2026-04-13 09:21:47.576+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Telegram bot configuration: username='tst_int_SV_bot' token=8391…kzYU (46) channelId=-4961108450
+2026-04-13 09:21:47.577+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Telegram client will use proxy vless://185.237.223.25:7878
+2026-04-13 09:29:55.255+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
+2026-04-13 09:29:55.293+03:00 INFO  [main] c.e.s.t.TelegramBotApplication - Starting TelegramBotApplication using Java 25.0.2 with PID 10712 (C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-telegram\target\classes started by SinicinVV in C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-telegram)
+2026-04-13 09:29:55.294+03:00 INFO  [main] c.e.s.t.TelegramBotApplication - The following 1 profile is active: "default"
+2026-04-13 09:29:55.678+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-04-13 09:29:55.782+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 97 ms. Found 30 JPA repository interfaces.
+2026-04-13 09:29:56.184+03:00 INFO  [main] o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-04-13 09:29:56.229+03:00 INFO  [main] org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
+2026-04-13 09:29:56.249+03:00 INFO  [main] o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
+2026-04-13 09:29:56.424+03:00 INFO  [main] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-04-13 09:29:57.659+03:00 INFO  [main] o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-04-13 09:29:57.664+03:00 INFO  [main] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-04-13 09:29:59.033+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Initializing Telegram bot configuration check
+2026-04-13 09:29:59.034+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Telegram bot configuration: username='tst_int_SV_bot' token=8391…kzYU (46) channelId=-4961108450
+2026-04-13 09:29:59.035+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Telegram client will use proxy vless://185.237.223.25:7878
+2026-04-13 10:06:45.207+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
+2026-04-13 10:06:45.264+03:00 INFO  [main] c.e.s.t.TelegramBotApplication - Starting TelegramBotApplication using Java 25.0.2 with PID 16308 (C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-telegram\target\classes started by SinicinVV in C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-telegram)
+2026-04-13 10:06:45.266+03:00 INFO  [main] c.e.s.t.TelegramBotApplication - The following 1 profile is active: "default"
+2026-04-13 10:06:45.692+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-04-13 10:06:45.802+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 100 ms. Found 30 JPA repository interfaces.
+2026-04-13 10:06:46.230+03:00 INFO  [main] o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-04-13 10:06:46.280+03:00 INFO  [main] org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
+2026-04-13 10:06:46.306+03:00 INFO  [main] o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
+2026-04-13 10:06:46.518+03:00 INFO  [main] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-04-13 10:06:48.798+03:00 INFO  [main] o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-04-13 10:06:48.806+03:00 INFO  [main] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-04-13 10:06:50.940+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Initializing Telegram bot configuration check
+2026-04-13 10:06:50.942+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Telegram bot configuration: username='tst_int_SV_bot' token=8391…kzYU (46) channelId=-4961108450
+2026-04-13 10:06:50.942+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Telegram client will use proxy vless://185.237.223.25:7878
+2026-04-13 10:06:51.397+03:00 INFO  [main] o.a.http.impl.execchain.RetryExec - I/O exception (java.net.SocketException) caught when processing request to {s}->https://api.telegram.org:443: Connection reset
+2026-04-13 10:06:51.397+03:00 INFO  [main] o.a.http.impl.execchain.RetryExec - Retrying request to {s}->https://api.telegram.org:443
+2026-04-13 10:06:51.952+03:00 INFO  [main] o.a.http.impl.execchain.RetryExec - I/O exception (java.net.SocketException) caught when processing request to {s}->https://api.telegram.org:443: Connection reset
+2026-04-13 10:06:51.952+03:00 INFO  [main] o.a.http.impl.execchain.RetryExec - Retrying request to {s}->https://api.telegram.org:443
+2026-04-13 10:06:52.161+03:00 INFO  [main] o.a.http.impl.execchain.RetryExec - I/O exception (java.net.SocketException) caught when processing request to {s}->https://api.telegram.org:443: Connection reset
+2026-04-13 10:06:52.162+03:00 INFO  [main] o.a.http.impl.execchain.RetryExec - Retrying request to {s}->https://api.telegram.org:443
+2026-04-13 10:06:52.364+03:00 ERROR [main] c.e.supportbot.telegram.SupportBot - Telegram API connectivity check failed while calling getMe. The configured token may still be valid, but the application could not establish a stable HTTPS connection to api.telegram.org:443. Verify outbound network access, firewall/proxy rules, TLS interception, and antivirus filtering.
+org.telegram.telegrambots.meta.exceptions.TelegramApiException: Unable to execute getme method
+	at org.telegram.telegrambots.bots.DefaultAbsSender.sendApiMethod(DefaultAbsSender.java:1184)
+	at org.telegram.telegrambots.meta.bots.AbsSender.execute(AbsSender.java:61)
+	at com.example.supportbot.telegram.SupportBot.verifyBotCredentials(SupportBot.java:163)
+	at com.example.supportbot.telegram.SupportBot.logBotConfiguration(SupportBot.java:148)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.beans.factory.annotation.InitDestroyAnnotationBeanPostProcessor$LifecycleMethod.invoke(InitDestroyAnnotationBeanPostProcessor.java:457)
+	at org.springframework.beans.factory.annotation.InitDestroyAnnotationBeanPostProcessor$LifecycleMetadata.invokeInitMethods(InitDestroyAnnotationBeanPostProcessor.java:401)
+	at org.springframework.beans.factory.annotation.InitDestroyAnnotationBeanPostProcessor.postProcessBeforeInitialization(InitDestroyAnnotationBeanPostProcessor.java:219)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.applyBeanPostProcessorsBeforeInitialization(AbstractAutowireCapableBeanFactory.java:422)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.initializeBean(AbstractAutowireCapableBeanFactory.java:1778)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:600)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:522)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:326)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:234)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:324)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:200)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.preInstantiateSingletons(DefaultListableBeanFactory.java:975)
+	at org.springframework.context.support.AbstractApplicationContext.finishBeanFactoryInitialization(AbstractApplicationContext.java:962)
+	at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:624)
+	at org.springframework.boot.SpringApplication.refresh(SpringApplication.java:754)
+	at org.springframework.boot.SpringApplication.refreshContext(SpringApplication.java:456)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:334)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1354)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1343)
+	at com.example.supportbot.telegram.TelegramBotApplication.main(TelegramBotApplication.java:16)
+Caused by: java.net.SocketException: Connection reset
+	at java.base/sun.nio.ch.NioSocketImpl.implRead(NioSocketImpl.java:316)
+	at java.base/sun.nio.ch.NioSocketImpl.read(NioSocketImpl.java:354)
+	at java.base/sun.nio.ch.NioSocketImpl$1.read(NioSocketImpl.java:798)
+	at java.base/java.net.SocksSocketImpl.readSocksReply(SocksSocketImpl.java:106)
+	at java.base/java.net.SocksSocketImpl.connect(SocksSocketImpl.java:347)
+	at java.base/java.net.Socket.connect(Socket.java:659)
+	at org.apache.http.conn.ssl.SSLConnectionSocketFactory.connectSocket(SSLConnectionSocketFactory.java:368)
+	at org.telegram.telegrambots.facilities.proxysocketfactorys.SocksSSLConnectionSocketFactory.connectSocket(SocksSSLConnectionSocketFactory.java:40)
+	at org.apache.http.impl.conn.DefaultHttpClientConnectionOperator.connect(DefaultHttpClientConnectionOperator.java:142)
+	at org.apache.http.impl.conn.PoolingHttpClientConnectionManager.connect(PoolingHttpClientConnectionManager.java:376)
+	at org.apache.http.impl.execchain.MainClientExec.establishRoute(MainClientExec.java:393)
+	at org.apache.http.impl.execchain.MainClientExec.execute(MainClientExec.java:236)
+	at org.apache.http.impl.execchain.ProtocolExec.execute(ProtocolExec.java:186)
+	at org.apache.http.impl.execchain.RetryExec.execute(RetryExec.java:89)
+	at org.apache.http.impl.execchain.RedirectExec.execute(RedirectExec.java:110)
+	at org.apache.http.impl.client.InternalHttpClient.doExecute(InternalHttpClient.java:185)
+	at org.apache.http.impl.client.CloseableHttpClient.execute(CloseableHttpClient.java:83)
+	at org.telegram.telegrambots.bots.DefaultAbsSender.sendHttpPostRequest(DefaultAbsSender.java:1216)
+	at org.telegram.telegrambots.bots.DefaultAbsSender.sendMethodRequest(DefaultAbsSender.java:1212)
+	at org.telegram.telegrambots.bots.DefaultAbsSender.sendApiMethod(DefaultAbsSender.java:1181)
+	... 25 common frames omitted
+2026-04-13 10:06:52.371+03:00 WARN  [main] o.s.aop.framework.CglibAopProxy - Unable to proxy interface-implementing method [public final org.telegram.telegrambots.bots.DefaultBotOptions org.telegram.telegrambots.bots.DefaultAbsSender.getOptions()] because it is marked as final, consider using interface-based JDK proxies instead.
+2026-04-13 10:06:54.023+03:00 INFO  [main] o.a.http.impl.execchain.RetryExec - I/O exception (java.net.SocketException) caught when processing request to {s}->https://api.telegram.org:443: Connection reset
+2026-04-13 10:06:54.024+03:00 INFO  [main] o.a.http.impl.execchain.RetryExec - Retrying request to {s}->https://api.telegram.org:443
+2026-04-13 10:06:54.286+03:00 INFO  [main] o.a.http.impl.execchain.RetryExec - I/O exception (java.net.SocketException) caught when processing request to {s}->https://api.telegram.org:443: Connection reset
+2026-04-13 10:06:54.286+03:00 INFO  [main] o.a.http.impl.execchain.RetryExec - Retrying request to {s}->https://api.telegram.org:443
+2026-04-13 10:06:54.568+03:00 INFO  [main] o.a.http.impl.execchain.RetryExec - I/O exception (java.net.SocketException) caught when processing request to {s}->https://api.telegram.org:443: Connection reset
+2026-04-13 10:06:54.569+03:00 INFO  [main] o.a.http.impl.execchain.RetryExec - Retrying request to {s}->https://api.telegram.org:443
+2026-04-13 10:06:54.769+03:00 ERROR [main] c.e.s.t.TelegramLongPollingLifecycle - Failed to start Telegram long polling because the application could not reach api.telegram.org over HTTPS. The bot token may still be valid, but the bot will not receive updates until network connectivity is restored.
+org.telegram.telegrambots.meta.exceptions.TelegramApiRequestException: Error removing old webhook
+	at org.telegram.telegrambots.util.WebhookUtils.clearWebhook(WebhookUtils.java:113)
+	at org.telegram.telegrambots.bots.TelegramLongPollingBot.clearWebhook(TelegramLongPollingBot.java:41)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:354)
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:716)
+	at com.example.supportbot.telegram.SupportBot$$SpringCGLIB$$0.clearWebhook(<generated>)
+	at org.telegram.telegrambots.meta.TelegramBotsApi.registerBot(TelegramBotsApi.java:65)
+	at com.example.supportbot.telegram.TelegramLongPollingLifecycle.start(TelegramLongPollingLifecycle.java:33)
+	at org.springframework.context.support.DefaultLifecycleProcessor.doStart(DefaultLifecycleProcessor.java:288)
+	at org.springframework.context.support.DefaultLifecycleProcessor$LifecycleGroup.start(DefaultLifecycleProcessor.java:471)
+	at java.base/java.lang.Iterable.forEach(Iterable.java:75)
+	at org.springframework.context.support.DefaultLifecycleProcessor.startBeans(DefaultLifecycleProcessor.java:260)
+	at org.springframework.context.support.DefaultLifecycleProcessor.onRefresh(DefaultLifecycleProcessor.java:205)
+	at org.springframework.context.support.AbstractApplicationContext.finishRefresh(AbstractApplicationContext.java:981)
+	at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:627)
+	at org.springframework.boot.SpringApplication.refresh(SpringApplication.java:754)
+	at org.springframework.boot.SpringApplication.refreshContext(SpringApplication.java:456)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:334)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1354)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1343)
+	at com.example.supportbot.telegram.TelegramBotApplication.main(TelegramBotApplication.java:16)
+Caused by: org.telegram.telegrambots.meta.exceptions.TelegramApiException: Unable to execute deleteWebhook method
+	at org.telegram.telegrambots.bots.DefaultAbsSender.sendApiMethod(DefaultAbsSender.java:1184)
+	at org.telegram.telegrambots.meta.bots.AbsSender.execute(AbsSender.java:61)
+	at org.telegram.telegrambots.util.WebhookUtils.clearWebhook(WebhookUtils.java:108)
+	... 21 common frames omitted
+Caused by: java.net.SocketException: Connection reset
+	at java.base/sun.nio.ch.NioSocketImpl.implRead(NioSocketImpl.java:316)
+	at java.base/sun.nio.ch.NioSocketImpl.read(NioSocketImpl.java:354)
+	at java.base/sun.nio.ch.NioSocketImpl$1.read(NioSocketImpl.java:798)
+	at java.base/java.net.SocksSocketImpl.readSocksReply(SocksSocketImpl.java:106)
+	at java.base/java.net.SocksSocketImpl.connect(SocksSocketImpl.java:347)
+	at java.base/java.net.Socket.connect(Socket.java:659)
+	at org.apache.http.conn.ssl.SSLConnectionSocketFactory.connectSocket(SSLConnectionSocketFactory.java:368)
+	at org.telegram.telegrambots.facilities.proxysocketfactorys.SocksSSLConnectionSocketFactory.connectSocket(SocksSSLConnectionSocketFactory.java:40)
+	at org.apache.http.impl.conn.DefaultHttpClientConnectionOperator.connect(DefaultHttpClientConnectionOperator.java:142)
+	at org.apache.http.impl.conn.PoolingHttpClientConnectionManager.connect(PoolingHttpClientConnectionManager.java:376)
+	at org.apache.http.impl.execchain.MainClientExec.establishRoute(MainClientExec.java:393)
+	at org.apache.http.impl.execchain.MainClientExec.execute(MainClientExec.java:236)
+	at org.apache.http.impl.execchain.ProtocolExec.execute(ProtocolExec.java:186)
+	at org.apache.http.impl.execchain.RetryExec.execute(RetryExec.java:89)
+	at org.apache.http.impl.execchain.RedirectExec.execute(RedirectExec.java:110)
+	at org.apache.http.impl.client.InternalHttpClient.doExecute(InternalHttpClient.java:185)
+	at org.apache.http.impl.client.CloseableHttpClient.execute(CloseableHttpClient.java:83)
+	at org.telegram.telegrambots.bots.DefaultAbsSender.sendHttpPostRequest(DefaultAbsSender.java:1216)
+	at org.telegram.telegrambots.bots.DefaultAbsSender.sendMethodRequest(DefaultAbsSender.java:1212)
+	at org.telegram.telegrambots.bots.DefaultAbsSender.sendApiMethod(DefaultAbsSender.java:1181)
+	... 23 common frames omitted
+2026-04-13 10:06:54.800+03:00 INFO  [main] c.e.s.t.TelegramBotApplication - Started TelegramBotApplication in 10.119 seconds (process running for 10.414)
+2026-04-13 11:10:16.507+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
+2026-04-13 11:10:16.542+03:00 INFO  [main] c.e.s.t.TelegramBotApplication - Starting TelegramBotApplication using Java 25.0.2 with PID 30196 (C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-telegram\target\classes started by SinicinVV in C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-telegram)
+2026-04-13 11:10:16.543+03:00 INFO  [main] c.e.s.t.TelegramBotApplication - The following 1 profile is active: "default"
+2026-04-13 11:10:16.878+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-04-13 11:10:16.949+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 64 ms. Found 30 JPA repository interfaces.
+2026-04-13 11:10:17.305+03:00 INFO  [main] o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-04-13 11:10:17.346+03:00 INFO  [main] org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
+2026-04-13 11:10:17.364+03:00 INFO  [main] o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
+2026-04-13 11:10:17.523+03:00 INFO  [main] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-04-13 11:10:18.505+03:00 INFO  [main] o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-04-13 11:10:18.507+03:00 INFO  [main] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-04-13 11:10:19.447+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Initializing Telegram bot configuration check
+2026-04-13 11:10:19.450+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Telegram bot configuration: username='tst_int_SV_bot' token=8391…kzYU (46) channelId=-4961108450
+2026-04-13 11:10:19.450+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Telegram client will use proxy vless://185.237.223.25:7878
+2026-04-13 11:26:35.809+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
+2026-04-13 11:26:35.848+03:00 INFO  [main] c.e.s.t.TelegramBotApplication - Starting TelegramBotApplication using Java 25.0.2 with PID 27852 (C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-telegram\target\classes started by SinicinVV in C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-telegram)
+2026-04-13 11:26:35.849+03:00 INFO  [main] c.e.s.t.TelegramBotApplication - The following 1 profile is active: "default"
+2026-04-13 11:26:36.268+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-04-13 11:26:36.379+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 104 ms. Found 30 JPA repository interfaces.
+2026-04-13 11:26:36.776+03:00 INFO  [main] o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-04-13 11:26:36.822+03:00 INFO  [main] org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
+2026-04-13 11:26:36.845+03:00 INFO  [main] o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
+2026-04-13 11:26:37.038+03:00 INFO  [main] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-04-13 11:26:38.539+03:00 INFO  [main] o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-04-13 11:26:38.555+03:00 INFO  [main] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-04-13 11:26:40.036+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Initializing Telegram bot configuration check
+2026-04-13 11:26:40.038+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Telegram bot configuration: username='tst_int_SV_bot' token=8391…kzYU (46) channelId=-4961108450
+2026-04-13 11:26:40.038+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Telegram client will use proxy vless://185.237.223.25:7878
+2026-04-13 11:26:40.526+03:00 INFO  [main] o.a.http.impl.execchain.RetryExec - I/O exception (java.net.SocketException) caught when processing request to {s}->https://api.telegram.org:443: Malformed reply from SOCKS server
+2026-04-13 11:26:40.526+03:00 INFO  [main] o.a.http.impl.execchain.RetryExec - Retrying request to {s}->https://api.telegram.org:443
+2026-04-13 11:26:40.958+03:00 INFO  [main] o.a.http.impl.execchain.RetryExec - I/O exception (java.net.SocketException) caught when processing request to {s}->https://api.telegram.org:443: Connection reset
+2026-04-13 11:26:40.959+03:00 INFO  [main] o.a.http.impl.execchain.RetryExec - Retrying request to {s}->https://api.telegram.org:443
+2026-04-13 11:55:07.780+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
+2026-04-13 11:55:07.823+03:00 INFO  [main] c.e.s.t.TelegramBotApplication - Starting TelegramBotApplication using Java 25.0.2 with PID 6748 (C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-telegram\target\classes started by SinicinVV in C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-telegram)
+2026-04-13 11:55:07.824+03:00 INFO  [main] c.e.s.t.TelegramBotApplication - The following 1 profile is active: "default"
+2026-04-13 11:55:08.231+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-04-13 11:55:08.334+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 96 ms. Found 30 JPA repository interfaces.
+2026-04-13 11:55:08.744+03:00 INFO  [main] o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-04-13 11:55:08.792+03:00 INFO  [main] org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
+2026-04-13 11:55:08.815+03:00 INFO  [main] o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
+2026-04-13 11:55:09.009+03:00 INFO  [main] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-04-13 11:55:10.135+03:00 INFO  [main] o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-04-13 11:55:10.137+03:00 INFO  [main] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-04-13 11:55:10.687+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Initializing Telegram bot configuration check
+2026-04-13 11:55:10.688+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Telegram bot configuration: username='tst_int_SV_bot' token=8391…kzYU (46) channelId=-4961108450
+2026-04-13 11:55:10.688+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Telegram client will use proxy vless://185.237.223.25:7878
+2026-04-13 15:06:06.856+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
+2026-04-13 15:06:06.909+03:00 INFO  [main] c.e.s.t.TelegramBotApplication - Starting TelegramBotApplication using Java 25.0.2 with PID 38648 (C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-telegram\target\classes started by SinicinVV in C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-telegram)
+2026-04-13 15:06:06.910+03:00 INFO  [main] c.e.s.t.TelegramBotApplication - The following 1 profile is active: "default"
+2026-04-13 15:06:07.358+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-04-13 15:06:07.463+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 97 ms. Found 30 JPA repository interfaces.
+2026-04-13 15:06:07.924+03:00 INFO  [main] o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-04-13 15:06:07.980+03:00 INFO  [main] org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
+2026-04-13 15:06:08.014+03:00 INFO  [main] o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
+2026-04-13 15:06:08.272+03:00 INFO  [main] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-04-13 15:06:10.398+03:00 INFO  [main] o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-04-13 15:06:10.408+03:00 INFO  [main] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-04-13 15:06:11.984+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Initializing Telegram bot configuration check
+2026-04-13 15:06:11.986+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Telegram bot configuration: username='tst_int_SV_bot' token=8391…kzYU (46) channelId=-4961108450
+2026-04-13 15:06:11.986+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Telegram client will use proxy vless://185.237.223.25:7878
+2026-04-13 17:04:08.194+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
+2026-04-13 17:04:08.247+03:00 INFO  [main] c.e.s.t.TelegramBotApplication - Starting TelegramBotApplication using Java 25.0.2 with PID 35504 (C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-telegram\target\classes started by SinicinVV in C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-telegram)
+2026-04-13 17:04:08.248+03:00 INFO  [main] c.e.s.t.TelegramBotApplication - The following 1 profile is active: "default"
+2026-04-13 17:04:08.887+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-04-13 17:04:09.037+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 140 ms. Found 30 JPA repository interfaces.
+2026-04-13 17:04:09.727+03:00 INFO  [main] o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-04-13 17:04:09.812+03:00 INFO  [main] org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
+2026-04-13 17:04:09.860+03:00 INFO  [main] o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
+2026-04-13 17:04:10.170+03:00 INFO  [main] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-04-13 17:04:13.829+03:00 INFO  [main] o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-04-13 17:04:13.835+03:00 INFO  [main] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-04-13 17:04:15.670+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Initializing Telegram bot configuration check
+2026-04-13 17:04:15.673+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Telegram bot configuration: username='tst_int_SV_bot' token=8391…kzYU (46) channelId=-4961108450
+2026-04-13 17:04:15.674+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Telegram client will use proxy vless://185.237.223.25:7878

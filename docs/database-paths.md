@@ -1,0 +1,28 @@
+📁 Пути к базам данных
+
+Java-панель и Java-бот используют отдельные SQLite-файлы для разных доменов данных. Если файл отсутствует, он будет создан автоматически при запуске.
+
+## SQLite-файлы
+
+- `APP_DB_TICKETS` — заявки и сообщения.
+- `APP_DB_USERS` — пользователи панели.
+- `APP_DB_CLIENTS` — данные клиентов.
+- `APP_DB_KNOWLEDGE` — база знаний.
+- `APP_DB_OBJECTS` — база объектов.
+- `APP_DB_SETTINGS` — общие настройки и связи между базами.
+- `APP_DB_BOT` — общая база бота (если не используете режим отдельных баз на каждый бот).
+- `APP_BOT_DATABASE_DIR` — каталог, где создаются базы вида `bot-<channelId>.db`.
+
+## Пример
+
+```bash
+export APP_DB_TICKETS="/srv/iguana/tickets.db"
+export APP_DB_USERS="/srv/iguana/users.db"
+export APP_DB_CLIENTS="/srv/iguana/clients.db"
+export APP_DB_KNOWLEDGE="/srv/iguana/knowledge_base.db"
+export APP_DB_OBJECTS="/srv/iguana/objects.db"
+export APP_DB_SETTINGS="/srv/iguana/settings.db"
+export APP_BOT_DATABASE_DIR="/srv/iguana/bots"
+```
+
+Панель автоматически зарегистрирует пути в таблице `database_registry` внутри `settings.db`, чтобы фиксировать связи между базами.

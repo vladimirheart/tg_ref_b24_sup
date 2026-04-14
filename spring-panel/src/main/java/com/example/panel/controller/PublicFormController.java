@@ -1,0 +1,56 @@
+package com.example.panel.controller;
+
+import com.example.panel.model.publicform.PublicFormConfig;
+import com.example.panel.service.PublicFormService;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.server.ResponseStatusException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.Optional;
+
+@Controller
+@RequestMapping("/public/forms")
+@Validated
+public class PublicFormController {
+
+    private static final Logger log = LoggerFactory.getLogger(PublicFormController.class);
+
+    private final PublicFormService publicFormService;
+
+    public PublicFormController(PublicFormService publicFormService) {
+        this.publicFormService = publicFormService;
+    }
+
+    @GetMapping("/{channelId}")
+    public String view(@PathVariable String channelId,
+                       @RequestParam(value = "token", required = false) String token,
+                       @RequestParam(value = "dialog", required = false) String dialog,
+                       Model model) {
+        Optional<PublicFormConfig> config = publicFormService.loadConfigRaw(channelId);
+        if (config.isEmpty()) {
+            log.warn("Public form requested for unknown channel {}", channelId);
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        }
+        if (!config.get().enabled()) {
+            int disabledStatus = config.get().disabledStatus();
+            HttpStatus status = HttpStatus.resolve(disabledStatus);
+            throw new ResponseStatusException(status != null ? status : HttpStatus.NOT_FOUND);
+        }
+        String initialToken = Optional.ofNullable(token).filter(t -> !t.isBlank()).orElse(dialog);
+        model.addAttribute("channelId", config.get().channelId());
+        model.addAttribute("channelRef", channelId);
+        model.addAttribute("channelName", config.get().channelName());
+        model.addAttribute("initialToken", Optional.ofNullable(initialToken).orElse(""));
+        log.info("Serving public form for channel {} (ref: {}), initial token present: {}", config.get().channelId(), channelId,
+                initialToken != null && !initialToken.isBlank());
+        return "public/form";
+    }
+}

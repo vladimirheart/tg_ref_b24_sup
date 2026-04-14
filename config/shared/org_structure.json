@@ -1,0 +1,22 @@
+{
+  "nodes": [
+    {
+      "id": "461ee227-e466-446b-85c1-c9f3343fc6e9",
+      "name": "Управляющая компания",
+      "members": [],
+      "parent_id": null
+    },
+    {
+      "id": "9056bbbc-7e1f-4bcd-ad84-3016dba6c82d",
+      "name": "IT-Dep",
+      "members": [],
+      "parent_id": "461ee227-e466-446b-85c1-c9f3343fc6e9"
+    },
+    {
+      "id": "bd5d83e9-42b9-4a63-a14c-9a959b608461",
+      "name": "ITS",
+      "members": [],
+      "parent_id": "9056bbbc-7e1f-4bcd-ad84-3016dba6c82d"
+    }
+  ]
+}

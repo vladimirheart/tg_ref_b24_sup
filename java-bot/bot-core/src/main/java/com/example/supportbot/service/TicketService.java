@@ -1,0 +1,437 @@
+package com.example.supportbot.service;
+
+import com.example.supportbot.entity.Channel;
+import com.example.supportbot.entity.Feedback;
+import com.example.supportbot.entity.PendingFeedbackRequest;
+import com.example.supportbot.entity.Ticket;
+import com.example.supportbot.entity.TicketActive;
+import com.example.supportbot.entity.TicketId;
+import com.example.supportbot.entity.TicketMessage;
+import com.example.supportbot.entity.TicketSpan;
+import com.example.supportbot.repository.FeedbackRepository;
+import com.example.supportbot.repository.PendingFeedbackRequestRepository;
+import com.example.supportbot.repository.TicketActiveRepository;
+import com.example.supportbot.repository.TicketMessageRepository;
+import com.example.supportbot.repository.TicketRepository;
+import com.example.supportbot.repository.TicketSpanRepository;
+import java.time.Duration;
+import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
+@Service
+public class TicketService {
+
+    private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss");
+
+    private final TicketRepository ticketRepository;
+    private final TicketMessageRepository messageRepository;
+    private final PendingFeedbackRequestRepository pendingFeedbackRequestRepository;
+    private final TicketSpanRepository ticketSpanRepository;
+    private final TicketActiveRepository ticketActiveRepository;
+    private final ChatHistoryService chatHistoryService;
+    private final FeedbackRepository feedbackRepository;
+
+    public TicketService(TicketRepository ticketRepository,
+                         TicketMessageRepository messageRepository,
+                         PendingFeedbackRequestRepository pendingFeedbackRequestRepository,
+                         TicketSpanRepository ticketSpanRepository,
+                         TicketActiveRepository ticketActiveRepository,
+                         ChatHistoryService chatHistoryService,
+                         FeedbackRepository feedbackRepository) {
+        this.ticketRepository = ticketRepository;
+        this.messageRepository = messageRepository;
+        this.pendingFeedbackRequestRepository = pendingFeedbackRequestRepository;
+        this.ticketSpanRepository = ticketSpanRepository;
+        this.ticketActiveRepository = ticketActiveRepository;
+        this.chatHistoryService = chatHistoryService;
+        this.feedbackRepository = feedbackRepository;
+    }
+
+    @Transactional
+    public TicketCreationResult createTicket(long userId,
+                                             String username,
+                                             Map<String, String> answers,
+                                             Channel channel) {
+        return createTicket(userId, username, null, answers, channel);
+    }
+
+    @Transactional
+    public TicketCreationResult createTicket(long userId,
+                                             String username,
+                                             String clientName,
+                                             Map<String, String> answers,
+                                             Channel channel) {
+        OffsetDateTime now = OffsetDateTime.now();
+        String ticketId = UUID.randomUUID().toString();
+        String normalizedUsername = normalizeUsername(username, userId);
+        String normalizedClientName = normalizeClientName(clientName);
+
+        TicketMessage message = new TicketMessage();
+        message.setId(now.toInstant().toEpochMilli());
+        message.setUserId(userId);
+        message.setBusiness(answers.getOrDefault("business", ""));
+        message.setLocationType(answers.getOrDefault("location_type", ""));
+        message.setCity(answers.getOrDefault("city", ""));
+        message.setLocationName(answers.getOrDefault("location_name", ""));
+        message.setProblem(answers.getOrDefault("problem", ""));
+        message.setCreatedAt(now);
+        message.setCreatedDate(now.toLocalDate());
+        message.setCreatedTime(TIME_FORMATTER.format(now));
+        message.setUsername(normalizedUsername);
+        message.setClientName(normalizedClientName);
+        message.setTicketId(ticketId);
+        message.setChannel(channel);
+        messageRepository.save(message);
+
+        Ticket ticket = new Ticket();
+        ticket.setId(new TicketId(userId, ticketId));
+        ticket.setGroupMessageId(message.getId());
+        ticket.setStatus("open");
+        ticket.setChannel(channel);
+        ticket.setReopenCount(0);
+        ticket.setClosedCount(0);
+        ticket.setWorkTimeTotalSec(0L);
+        ticket.setLastReopenAt(now);
+        ticketRepository.save(ticket);
+
+        TicketSpan span = new TicketSpan();
+        span.setTicketId(ticketId);
+        span.setSpanNumber(1);
+        span.setStartedAt(now);
+        ticketSpanRepository.save(span);
+
+        TicketActive active = new TicketActive();
+        active.setTicketId(ticketId);
+        active.setUser(normalizedUsername != null ? normalizedUsername : Long.toString(userId));
+        active.setLastSeen(now);
+        ticketActiveRepository.save(active);
+
+        return new TicketCreationResult(ticketId, message.getId(), "open");
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<TicketMessage> findLastMessage(long userId) {
+        return messageRepository.findTopByUserIdOrderByCreatedAtDesc(userId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<TicketSummary> findRecentTicketsForUser(long userId, int limit) {
+        if (limit <= 0) {
+            return List.of();
+        }
+        List<TicketMessage> messages = messageRepository.findTop10ByUserIdOrderByCreatedAtDesc(userId);
+        if (messages.isEmpty()) {
+            return List.of();
+        }
+        if (messages.size() > limit) {
+            messages = messages.subList(0, limit);
+        }
+        List<String> ticketIds = messages.stream()
+                .map(TicketMessage::getTicketId)
+                .filter(id -> id != null && !id.isBlank())
+                .toList();
+        Map<String, Feedback> latestFeedback = feedbackRepository.findByTicketIdIn(ticketIds).stream()
+                .filter(feedback -> feedback.getTicketId() != null)
+                .collect(Collectors.toMap(
+                        Feedback::getTicketId,
+                        Function.identity(),
+                        (left, right) -> pickLatestFeedback(left, right)));
+        return messages.stream()
+                .map(message -> new TicketSummary(
+                        message.getTicketId(),
+                        message.getProblem(),
+                        message.getBusiness(),
+                        message.getLocationType(),
+                        message.getCity(),
+                        message.getLocationName(),
+                        Optional.ofNullable(latestFeedback.get(message.getTicketId()))
+                                .map(Feedback::getRating)
+                                .orElse(null),
+                        message.getCreatedAt()))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<TicketActive> findActiveTicketForUser(Long userId, String username) {
+        List<String> identities = new ArrayList<>();
+        if (userId != null && userId > 0) {
+            identities.add(userId.toString());
+        }
+        if (username != null && !username.isBlank()) {
+            identities.add(username);
+        }
+        if (identities.isEmpty()) {
+            return Optional.empty();
+        }
+        List<TicketActive> active = ticketActiveRepository.findByUserInOrderByLastSeenDesc(identities);
+        return active.isEmpty() ? Optional.empty() : Optional.of(active.get(0));
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<TicketWithUser> findByTicketId(String ticketId) {
+        return ticketRepository.findByIdTicketId(ticketId)
+                .map(ticket -> new TicketWithUser(ticket.getUserId(), ticket.getTicketId(), ticket.getStatus()));
+    }
+
+    @Transactional
+    public Optional<Ticket> reopenTicket(String ticketId) {
+        Optional<Ticket> ticketOpt = ticketRepository.findByIdTicketId(ticketId);
+        if (ticketOpt.isEmpty()) {
+            return Optional.empty();
+        }
+        Ticket ticket = ticketOpt.get();
+        OffsetDateTime now = OffsetDateTime.now();
+        ticket.setStatus("open");
+        ticket.setReopenCount(Optional.ofNullable(ticket.getReopenCount()).orElse(0) + 1);
+        ticket.setLastReopenAt(now);
+        ticketRepository.save(ticket);
+
+        int nextSpan = ticketSpanRepository.findTopByTicketIdOrderBySpanNumberDesc(ticketId)
+                .map(span -> span.getSpanNumber() + 1)
+                .orElse(1);
+        TicketSpan span = new TicketSpan();
+        span.setTicketId(ticketId);
+        span.setSpanNumber(nextSpan);
+        span.setStartedAt(now);
+        ticketSpanRepository.save(span);
+
+        TicketActive active = new TicketActive();
+        active.setTicketId(ticketId);
+        active.setUser(ticket.getUserId() != null ? ticket.getUserId().toString() : "");
+        active.setLastSeen(now);
+        ticketActiveRepository.save(active);
+
+        chatHistoryService.storeSystemEvent(ticket.getUserId(), ticketId, ticket.getChannel(),
+                "Заявка переоткрыта оператором.");
+
+        return Optional.of(ticket);
+    }
+
+    @Transactional
+    public boolean closeTicket(String ticketId, String resolvedBy, String source) {
+        Optional<Ticket> ticketOpt = ticketRepository.findByIdTicketId(ticketId);
+        if (ticketOpt.isEmpty()) {
+            return false;
+        }
+
+        Ticket ticket = ticketOpt.get();
+        OffsetDateTime now = OffsetDateTime.now();
+        ticket.setStatus("closed");
+        ticket.setResolvedAt(now);
+        ticket.setResolvedBy(resolvedBy);
+        ticket.setClosedCount(Optional.ofNullable(ticket.getClosedCount()).orElse(0) + 1);
+        Long totalWork = Optional.ofNullable(ticket.getWorkTimeTotalSec()).orElse(0L);
+        long spanSeconds = closeOpenSpan(ticketId, now);
+        ticket.setWorkTimeTotalSec(totalWork + spanSeconds);
+        ticketRepository.save(ticket);
+
+        ticketActiveRepository.findById(ticketId).ifPresent(ticketActiveRepository::delete);
+
+        chatHistoryService.storeSystemEvent(ticket.getUserId(), ticketId, ticket.getChannel(),
+                "Заявка закрыта. Причина: " + Optional.ofNullable(source).orElse("оператор"));
+
+        pendingFeedbackRequestRepository.findFirstByTicketIdOrderByCreatedAtDesc(ticketId)
+                .ifPresentOrElse(request -> {
+                    request.setExpiresAt(now.plusDays(1));
+                    if (source != null && !source.isBlank()) {
+                        request.setSource(source);
+                    }
+                    pendingFeedbackRequestRepository.save(request);
+                }, () -> createPendingFeedback(ticket, source, now));
+        return true;
+    }
+
+    @Transactional
+    public int closeInactiveTickets(Duration inactivityLimit) {
+        OffsetDateTime threshold = OffsetDateTime.now().minus(inactivityLimit);
+        int closed = 0;
+        for (TicketActive active : ticketActiveRepository.findAll()) {
+            if (active.getLastSeen() != null && active.getLastSeen().isBefore(threshold)) {
+                Optional<Ticket> ticketOpt = ticketRepository.findByIdTicketId(active.getTicketId());
+                if (ticketOpt.isEmpty()) {
+                    ticketActiveRepository.delete(active);
+                    continue;
+                }
+                Ticket ticket = ticketOpt.get();
+                if (isResolvedStatus(ticket.getStatus())) {
+                    ticketActiveRepository.delete(active);
+                    continue;
+                }
+                if (closeTicket(active.getTicketId(), "auto_close", "inactivity")) {
+                    closed++;
+                }
+            }
+        }
+        return closed;
+    }
+
+    @Transactional
+    public void registerActivity(String ticketId, String username) {
+        OffsetDateTime now = OffsetDateTime.now();
+        TicketActive active = ticketActiveRepository.findById(ticketId).orElseGet(() -> {
+            TicketActive placeholder = new TicketActive();
+            placeholder.setTicketId(ticketId);
+            return placeholder;
+        });
+        active.setLastSeen(now);
+        if (active.getUser() == null || active.getUser().isBlank()) {
+            active.setUser(username);
+        }
+        ticketActiveRepository.save(active);
+    }
+
+    @Transactional
+    public void updateClientProfile(String ticketId, String username, String clientName) {
+        if (!StringUtils.hasText(ticketId)) {
+            return;
+        }
+        String normalizedUsername = normalizeUsername(username, null);
+        String normalizedClientName = normalizeClientName(clientName);
+
+        messageRepository.findByTicketId(ticketId).ifPresent(message -> {
+            boolean changed = false;
+            if (StringUtils.hasText(normalizedUsername)
+                    && !normalizedUsername.equals(message.getUsername())) {
+                message.setUsername(normalizedUsername);
+                changed = true;
+            }
+            if (StringUtils.hasText(normalizedClientName)
+                    && !normalizedClientName.equals(message.getClientName())) {
+                message.setClientName(normalizedClientName);
+                changed = true;
+            }
+            if (changed) {
+                message.setUpdatedAt(OffsetDateTime.now());
+                message.setUpdatedBy("profile_sync");
+                messageRepository.save(message);
+            }
+        });
+
+        if (StringUtils.hasText(normalizedUsername)) {
+            ticketActiveRepository.findById(ticketId).ifPresent(active -> {
+                if (!normalizedUsername.equals(active.getUser())) {
+                    active.setUser(normalizedUsername);
+                    active.setLastSeen(OffsetDateTime.now());
+                    ticketActiveRepository.save(active);
+                }
+            });
+        }
+    }
+
+    @Transactional
+    public void ensureFeedbackRequest(String ticketId, Long userId, Channel channel, String source) {
+        OffsetDateTime now = OffsetDateTime.now();
+        boolean markAsSent = "user_prompt".equalsIgnoreCase(source);
+        pendingFeedbackRequestRepository.findFirstByTicketIdOrderByCreatedAtDesc(ticketId)
+                .ifPresentOrElse(request -> {
+                    request.setExpiresAt(now.plusDays(1));
+                    request.setSource(source);
+                    if (markAsSent && request.getSentAt() == null) {
+                        request.setSentAt(now);
+                    }
+                    pendingFeedbackRequestRepository.save(request);
+                }, () -> {
+                    PendingFeedbackRequest request = new PendingFeedbackRequest();
+                    request.setUserId(userId);
+                    request.setChannel(channel);
+                    request.setTicketId(ticketId);
+                    request.setSource(source);
+                    request.setCreatedAt(now);
+                    request.setExpiresAt(now.plusDays(1));
+                    if (markAsSent) {
+                        request.setSentAt(now);
+                    }
+                    pendingFeedbackRequestRepository.save(request);
+                });
+    }
+
+    private long closeOpenSpan(String ticketId, OffsetDateTime now) {
+        return ticketSpanRepository.findFirstByTicketIdAndEndedAtIsNullOrderBySpanNumberDesc(ticketId)
+                .map(span -> {
+                    span.setEndedAt(now);
+                    span.setDurationSeconds((int) Duration.between(span.getStartedAt(), now).getSeconds());
+                    ticketSpanRepository.save(span);
+                    return span.getDurationSeconds().longValue();
+                })
+                .orElse(0L);
+    }
+
+    private void createPendingFeedback(Ticket ticket, String source, OffsetDateTime now) {
+        PendingFeedbackRequest request = new PendingFeedbackRequest();
+        request.setUserId(ticket.getUserId());
+        request.setChannel(ticket.getChannel());
+        request.setTicketId(ticket.getTicketId());
+        request.setSource(source);
+        request.setCreatedAt(now);
+        request.setExpiresAt(now.plusDays(1));
+        pendingFeedbackRequestRepository.save(request);
+    }
+
+    private boolean isResolvedStatus(String status) {
+        if (status == null) {
+            return false;
+        }
+        String normalized = status.trim().toLowerCase();
+        return "resolved".equals(normalized) || "closed".equals(normalized);
+    }
+
+    public record TicketCreationResult(String ticketId, Long groupMessageId, String status) {
+    }
+
+    public record TicketWithUser(Long userId, String ticketId, String status) {
+    }
+
+    public record TicketSummary(String ticketId,
+                                String problem,
+                                String business,
+                                String locationType,
+                                String city,
+                                String locationName,
+                                Integer rating,
+                                OffsetDateTime createdAt) {
+    }
+
+    private static Feedback pickLatestFeedback(Feedback left, Feedback right) {
+        OffsetDateTime leftTime = left.getTimestamp();
+        OffsetDateTime rightTime = right.getTimestamp();
+        if (leftTime == null && rightTime == null) {
+            return right;
+        }
+        if (leftTime == null) {
+            return right;
+        }
+        if (rightTime == null) {
+            return left;
+        }
+        return Comparator.comparing(Feedback::getTimestamp).compare(left, right) >= 0 ? left : right;
+    }
+
+    private String normalizeUsername(String username, Long userId) {
+        if (StringUtils.hasText(username)) {
+            return username.trim();
+        }
+        if (userId != null && userId > 0) {
+            return Long.toString(userId);
+        }
+        return null;
+    }
+
+    private String normalizeClientName(String clientName) {
+        if (!StringUtils.hasText(clientName)) {
+            return null;
+        }
+        return clientName.trim();
+    }
+}
