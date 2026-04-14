@@ -390,6 +390,7 @@
                         th:data-location="${dialog.location()}"
                         th:data-categories="${dialog.categoriesSafe()}"
                         th:data-responsible="${dialog.responsible()}"
+                        th:data-responsible-avatar-url="${dialog.responsibleAvatarUrl()}"
                         th:data-created-at="${dialog.createdAt()}"
                         th:data-unread="${dialog.unreadCount()}"
                         th:data-rating="${dialog.rating()}"
@@ -421,7 +422,11 @@
                             </div>
                             <div class="small text-warning" th:if="${dialog.ratingStars() != ''}" th:text="${dialog.ratingStars()}">★★★★★</div>
                         </td>
-                        <td th:text="${dialog.channelLabel()}">—</td>
+                        <td>
+                            <span class="dialog-channel-pill"
+                                  th:classappend="${dialog.channelToneClass()}"
+                                  th:text="${dialog.channelLabel()}">—</span>
+                        </td>
                         <td class="dialog-business-cell" th:data-business="${dialog.businessLabel()}">
                             <div class="dialog-business-pill">
                                 <span class="dialog-business-icon d-none" aria-hidden="true"></span>
@@ -431,7 +436,21 @@
                         <td class="text-truncate dialog-problem-cell" th:text="${dialog.problemSafe()}">—</td>
                         <td th:text="${dialog.location()} ?: '—'">—</td>
                         <td th:text="${dialog.categoriesSafe()}">—</td>
-                        <td th:text="${dialog.responsible()} ?: '—'">—</td>
+                        <td>
+                            <div class="dialog-responsible-cell" th:if="${dialog.responsible() != null and !#strings.isEmpty(dialog.responsible())}">
+                                <span class="dialog-responsible-avatar" th:classappend="${dialog.responsibleAvatarUrl() != null and !#strings.isEmpty(dialog.responsibleAvatarUrl())} ? ' has-image'">
+                                    <img th:if="${dialog.responsibleAvatarUrl() != null and !#strings.isEmpty(dialog.responsibleAvatarUrl())}"
+                                         th:src="${dialog.responsibleAvatarUrl()}"
+                                         alt="Аватар ответственного"
+                                         loading="lazy"
+                                         decoding="async"/>
+                                    <span th:if="${dialog.responsibleAvatarUrl() == null or #strings.isEmpty(dialog.responsibleAvatarUrl())}"
+                                          th:text="${dialog.responsibleAvatarInitial()}">—</span>
+                                </span>
+                                <span class="dialog-responsible-name" th:text="${dialog.responsible()}">—</span>
+                            </div>
+                            <span class="text-muted" th:if="${dialog.responsible() == null or #strings.isEmpty(dialog.responsible())}">—</span>
+                        </td>
                         <td>
                             <div class="small text-muted" th:text="${dialog.createdDateSafe()}">—</div>
                             <div class="small" th:text="${dialog.createdTimeSafe()}">—</div>

@@ -9,6 +9,7 @@ import com.example.panel.model.dialog.DialogPreviousHistoryPage;
 import com.example.panel.model.dialog.DialogSummary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.ConnectionCallback;
@@ -108,11 +109,14 @@ public class DialogService {
     );
 
     private final JdbcTemplate jdbcTemplate;
+    private final JdbcTemplate usersJdbcTemplate;
     private final SharedConfigService sharedConfigService;
 
     public DialogService(JdbcTemplate jdbcTemplate,
+                         @Qualifier("usersJdbcTemplate") JdbcTemplate usersJdbcTemplate,
                          SharedConfigService sharedConfigService) {
         this.jdbcTemplate = jdbcTemplate;
+        this.usersJdbcTemplate = usersJdbcTemplate;
         this.sharedConfigService = sharedConfigService;
     }
 
@@ -266,7 +270,7 @@ public class DialogService {
                   ORDER BY substr(COALESCE(m.created_at, t.created_at), 1, 19) DESC,
                            t.ticket_id DESC
                     """.formatted(ratingSelect);
-            return jdbcTemplate.query(sql, (rs, rowNum) -> new DialogListItem(
+            List<DialogListItem> items = jdbcTemplate.query(sql, (rs, rowNum) -> new DialogListItem(
                     rs.getString("ticket_id"),
                     rs.getObject("request_number") != null ? rs.getLong("request_number") : null,
                     rs.getObject("user_id") != null ? rs.getLong("user_id") : null,
@@ -293,6 +297,7 @@ public class DialogService {
                     rs.getObject("rating") != null ? rs.getInt("rating") : null,
                     rs.getString("categories")
             ), currentOperator);
+            return enrichResponsibleProfiles(items);
         } catch (DataAccessException ex) {
             log.warn("Unable to load dialogs, returning empty list: {}", summarizeDataAccessException(ex));
             return List.of();
@@ -458,11 +463,140 @@ public class DialogService {
                     rs.getObject("rating") != null ? rs.getInt("rating") : null,
                     rs.getString("categories")
             ), operator, ticketId);
-            return items.isEmpty() ? Optional.empty() : Optional.of(items.get(0));
+            List<DialogListItem> enriched = enrichResponsibleProfiles(items);
+            return enriched.isEmpty() ? Optional.empty() : Optional.of(enriched.get(0));
         } catch (DataAccessException ex) {
             log.warn("Unable to load dialog {} details: {}", ticketId, summarizeDataAccessException(ex));
             return Optional.empty();
         }
+    }
+
+    private List<DialogListItem> enrichResponsibleProfiles(List<DialogListItem> items) {
+        if (items == null || items.isEmpty()) {
+            return List.of();
+        }
+        Map<String, ResponsibleProfile> profileByIdentity = loadResponsibleProfiles(items);
+        if (profileByIdentity.isEmpty()) {
+            return items;
+        }
+        List<DialogListItem> enriched = new ArrayList<>(items.size());
+        for (DialogListItem item : items) {
+            String identity = resolveResponsibleIdentity(item);
+            ResponsibleProfile profile = identity != null ? profileByIdentity.get(identity) : null;
+            if (profile == null) {
+                enriched.add(item);
+                continue;
+            }
+            enriched.add(new DialogListItem(
+                    item.ticketId(),
+                    item.requestNumber(),
+                    item.userId(),
+                    item.username(),
+                    item.clientName(),
+                    item.business(),
+                    item.channelId(),
+                    item.channelName(),
+                    item.city(),
+                    item.locationName(),
+                    item.problem(),
+                    item.createdAt(),
+                    item.status(),
+                    item.aiProcessing(),
+                    item.resolvedBy(),
+                    item.resolvedAt(),
+                    item.rawResponsible(),
+                    item.createdDate(),
+                    item.createdTime(),
+                    item.clientStatus(),
+                    item.lastMessageSender(),
+                    item.lastMessageTimestamp(),
+                    item.unreadCount(),
+                    item.rating(),
+                    item.categories(),
+                    profile.displayName(),
+                    profile.avatarUrl()
+            ));
+        }
+        return enriched;
+    }
+
+    private Map<String, ResponsibleProfile> loadResponsibleProfiles(List<DialogListItem> items) {
+        Set<String> identities = new LinkedHashSet<>();
+        for (DialogListItem item : items) {
+            String identity = resolveResponsibleIdentity(item);
+            if (identity != null) {
+                identities.add(identity);
+            }
+        }
+        if (identities.isEmpty()) {
+            return Map.of();
+        }
+        try {
+            String placeholders = identities.stream().map(identity -> "?").collect(Collectors.joining(", "));
+            String sql = """
+                    SELECT username, full_name, photo
+                      FROM users
+                     WHERE lower(username) IN (%s)
+                    """.formatted(placeholders);
+            Map<String, ResponsibleProfile> profiles = new LinkedHashMap<>();
+            usersJdbcTemplate.query(sql, rs -> {
+                while (rs.next()) {
+                    String username = normalizeIdentity(rs.getString("username"));
+                    if (username == null) {
+                        continue;
+                    }
+                    String displayName = trimToNull(rs.getString("full_name"));
+                    if (displayName == null) {
+                        displayName = trimToNull(rs.getString("username"));
+                    }
+                    profiles.put(username, new ResponsibleProfile(displayName, resolveAvatarUrl(rs.getString("photo"))));
+                }
+            }, identities.toArray());
+            return profiles;
+        } catch (DataAccessException ex) {
+            log.warn("Unable to load responsible profiles for dialog list: {}", summarizeDataAccessException(ex));
+            return Map.of();
+        }
+    }
+
+    private String resolveResponsibleIdentity(DialogListItem item) {
+        if (item == null) {
+            return null;
+        }
+        String responsibleIdentity = normalizeIdentity(item.rawResponsible());
+        if (responsibleIdentity != null) {
+            return responsibleIdentity;
+        }
+        String resolvedByIdentity = normalizeIdentity(item.resolvedBy());
+        if (resolvedByIdentity != null && !resolvedByIdentity.contains("auto") && !resolvedByIdentity.contains("авто")) {
+            return resolvedByIdentity;
+        }
+        return null;
+    }
+
+    private String normalizeIdentity(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        String normalized = value.trim().toLowerCase(Locale.ROOT);
+        return normalized.isEmpty() ? null : normalized;
+    }
+
+    private String resolveAvatarUrl(String photo) {
+        if (!StringUtils.hasText(photo)) {
+            return null;
+        }
+        String trimmed = photo.trim();
+        if (trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith("data:")) {
+            return trimmed;
+        }
+        if (trimmed.startsWith("/")) {
+            return trimmed;
+        }
+        return "/avatars/" + trimmed;
+    }
+
+    private record ResponsibleProfile(String displayName, String avatarUrl) {
     }
 
     public void assignResponsibleIfMissing(String ticketId, String username) {

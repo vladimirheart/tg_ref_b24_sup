@@ -1423,6 +1423,7 @@
       item?.location || item?.city || item?.locationName || '',
       item?.categoriesSafe || item?.categories || '',
       item?.responsible || item?.resolvedBy || '',
+      item?.responsibleAvatarUrl || '',
       item?.status || '',
       item?.statusKey || '',
       Number(item?.unreadCount) || 0,
@@ -1694,6 +1695,58 @@
     return normalized ? normalized.charAt(0).toUpperCase() : '—';
   }
 
+  function resolveChannelToneKey(label) {
+    const normalized = String(label || '').trim().toLowerCase();
+    if (!normalized) return 'custom';
+    if (normalized.includes('telegram') || normalized.startsWith('tg') || normalized.includes(' тг')) return 'telegram';
+    if (normalized.includes('vk') || normalized.includes('вк')) return 'vk';
+    if (normalized.includes('max') || normalized.includes('мах')) return 'max';
+    if (normalized.includes('form')
+      || normalized.includes('форма')
+      || normalized.includes('web')
+      || normalized.includes('site')
+      || normalized.includes('external')
+      || normalized.includes('внеш')) return 'form';
+    return 'custom';
+  }
+
+  function renderChannelBadge(label) {
+    const safeLabel = String(label || '').trim() || 'Без канала';
+    const tone = resolveChannelToneKey(safeLabel);
+    return `<span class="dialog-channel-pill channel-tone-${escapeHtml(tone)}">${escapeHtml(safeLabel)}</span>`;
+  }
+
+  function buildResponsibleAvatarSpec(responsible, avatarUrl = '') {
+    const safeLabel = String(responsible || '').trim();
+    const safeAvatarUrl = String(avatarUrl || '').trim();
+    if (!safeLabel || safeLabel === '—') {
+      return null;
+    }
+    const currentOperatorOwned = normalizeIdentity(safeLabel) === normalizeIdentity(OPERATOR_IDENTITY)
+      || normalizeIdentity(safeLabel) === normalizeIdentity(OPERATOR_DISPLAY_NAME);
+    return {
+      label: safeLabel,
+      avatarUrl: safeAvatarUrl || (currentOperatorOwned ? String(OPERATOR_AVATAR_URL || '').trim() : ''),
+      initial: avatarInitial(safeLabel),
+    };
+  }
+
+  function renderResponsibleCell(responsible, avatarUrl = '') {
+    const spec = buildResponsibleAvatarSpec(responsible, avatarUrl);
+    if (!spec) {
+      return '<span class="text-muted">—</span>';
+    }
+    const avatarMarkup = spec.avatarUrl
+      ? `<span class="dialog-responsible-avatar has-image"><img src="${escapeHtml(spec.avatarUrl)}" alt="Аватар ответственного"></span>`
+      : `<span class="dialog-responsible-avatar"><span>${escapeHtml(spec.initial)}</span></span>`;
+    return `
+      <div class="dialog-responsible-cell">
+        ${avatarMarkup}
+        <span class="dialog-responsible-name">${escapeHtml(spec.label)}</span>
+      </div>
+    `;
+  }
+
   function normalizeIdentity(value) {
     return String(value || '').trim().toLowerCase();
   }
@@ -1892,7 +1945,7 @@
     const escalationRequired = isEscalationRequiredDialog(row);
     const pinMarker = criticalPinned ? ' 📌' : '';
     const escalationMarker = escalationRequired ? ' ⚠' : '';
-    badge.className = `badge rounded-pill dialog-sla-badge ${state.className}`;
+    badge.className = `badge rounded-pill dialog-sla-badge ${state.className}${criticalPinned ? ' is-pinned' : ''}${escalationRequired ? ' is-escalation' : ''}`;
     badge.textContent = `${state.label}${pinMarker}${escalationMarker}`;
     const markers = [
       criticalPinned ? 'Автопин: критичный SLA' : '',
@@ -1920,6 +1973,7 @@
     const statusKey = item?.statusKey || '';
     const statusLabel = formatStatusLabel(statusRaw, item?.statusLabel || '', statusKey);
     const responsible = item?.responsible || item?.resolvedBy || '—';
+    const responsibleAvatarUrl = item?.responsibleAvatarUrl || '';
     const canTakeOwnership = !isOwnedByCurrentOperator(responsible);
     const unreadCount = Number(item?.unreadCount) || 0;
     const createdDate = item?.createdDateSafe || item?.createdDate || 'Дата не указана';
@@ -1944,6 +1998,7 @@
           data-location="${escapeHtml(locationLabel)}"
           data-categories="${escapeHtml(categories)}"
           data-responsible="${escapeHtml(responsible === '—' ? '' : responsible)}"
+          data-responsible-avatar-url="${escapeHtml(responsibleAvatarUrl)}"
           data-created-at="${escapeHtml(item?.createdAt || '')}"
           data-unread="${unreadCount}"
           data-rating="${Number.isFinite(ratingValue) ? ratingValue : ''}"
@@ -1972,7 +2027,7 @@
           </div>
           ${ratingStars ? `<div class="small text-warning">${escapeHtml(ratingStars)}</div>` : ''}
         </td>
-        <td>${escapeHtml(channelLabel)}</td>
+        <td>${renderChannelBadge(channelLabel)}</td>
         <td class="dialog-business-cell" data-business="${escapeHtml(businessLabel)}">
           <div class="dialog-business-pill">
             <span class="dialog-business-icon d-none" aria-hidden="true"></span>
@@ -1982,7 +2037,7 @@
         <td class="text-truncate" style="max-width: 260px;">${escapeHtml(problemLabel)}</td>
         <td>${escapeHtml(locationLabel)}</td>
         <td>${escapeHtml(categories)}</td>
-        <td>${escapeHtml(responsible)}</td>
+        <td>${renderResponsibleCell(responsible, responsibleAvatarUrl)}</td>
         <td>
           <div class="small text-muted">${escapeHtml(createdDate)}</div>
           <div class="small">${escapeHtml(createdTime)}</div>
@@ -2009,14 +2064,16 @@
     if (summaryResolved) summaryResolved.textContent = String(summary?.resolvedTickets ?? 0);
   }
 
-  function updateRowResponsible(row, responsible) {
+  function updateRowResponsible(row, responsible, options = {}) {
     if (!row) return;
     const value = String(responsible || '').trim();
+    const avatarUrl = String(options.avatarUrl || row.dataset.responsibleAvatarUrl || '').trim();
     row.dataset.responsible = value;
+    row.dataset.responsibleAvatarUrl = avatarUrl;
     const responsibleIndex = table.querySelector('th[data-column-key="responsible"]')?.cellIndex ?? -1;
     const rowCells = row.children;
     if (responsibleIndex >= 0 && rowCells[responsibleIndex]) {
-      rowCells[responsibleIndex].textContent = value || '—';
+      rowCells[responsibleIndex].innerHTML = renderResponsibleCell(value || '—', avatarUrl);
     }
     const takeBtn = row.querySelector('.dialog-take-btn');
     if (takeBtn) {

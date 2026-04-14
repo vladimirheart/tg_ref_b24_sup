@@ -626,7 +626,7 @@ body {
     justify-content: center;
     font-weight: 700;
     color: #fff;
-    background: linear-gradient(135deg, #0d6efd, #6f42c1);
+    background: linear-gradient(135deg, var(--chart-2), var(--primary));
 }
 
 .dialog-table .dot {
@@ -657,6 +657,49 @@ body {
     font-weight: 500;
 }
 
+.dialog-channel-pill {
+    display: inline-flex;
+    align-items: center;
+    min-height: 34px;
+    padding: 0 0.82rem;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+}
+
+.dialog-channel-pill.channel-tone-telegram {
+    background: color-mix(in srgb, #2aabee 18%, white);
+    border-color: color-mix(in srgb, #2aabee 32%, transparent);
+    color: #0f4e78;
+}
+
+.dialog-channel-pill.channel-tone-vk {
+    background: color-mix(in srgb, #2787f5 18%, white);
+    border-color: color-mix(in srgb, #2787f5 34%, transparent);
+    color: #0d4ea6;
+}
+
+.dialog-channel-pill.channel-tone-max {
+    background: color-mix(in srgb, #ff8b2b 18%, white);
+    border-color: color-mix(in srgb, #ff8b2b 34%, transparent);
+    color: #8f430d;
+}
+
+.dialog-channel-pill.channel-tone-form {
+    background: color-mix(in srgb, var(--chart-5) 16%, white);
+    border-color: color-mix(in srgb, var(--chart-5) 28%, transparent);
+    color: #345d19;
+}
+
+.dialog-channel-pill.channel-tone-custom {
+    background: color-mix(in srgb, var(--chart-2) 14%, white);
+    border-color: color-mix(in srgb, var(--chart-2) 26%, transparent);
+    color: color-mix(in srgb, var(--primary) 82%, #0f172a);
+}
+
 .dialog-business-icon img {
     width: 18px;
     height: 18px;
@@ -674,7 +717,7 @@ body {
 
 .dialog-status-badge {
   border: 1px solid transparent;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .dialog-status-badge.status-new {
@@ -723,29 +766,43 @@ body {
 }
 
 .dialog-sla-badge {
-  min-width: 130px;
+  min-width: 140px;
   text-align: center;
+  border: 1px solid transparent;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
 }
 
 
 .dialog-sla-badge.dialog-sla-safe {
-  background-color: #0f5132;
+  background: linear-gradient(135deg, #1f6b4f, #2f8b6d);
+  border-color: color-mix(in srgb, #1f6b4f 44%, transparent);
   color: #fff;
 }
 
 .dialog-sla-badge.dialog-sla-risk {
-  background-color: #664d03;
-  color: #fff;
+  background: linear-gradient(135deg, #c88d1d, #e1ab3c);
+  border-color: color-mix(in srgb, #c88d1d 44%, transparent);
+  color: #fffdf7;
 }
 
 .dialog-sla-badge.dialog-sla-overdue {
-  background-color: #842029;
+  background: linear-gradient(135deg, #b44343, #da6666);
+  border-color: color-mix(in srgb, #b44343 42%, transparent);
   color: #fff;
 }
 
 .dialog-sla-badge.dialog-sla-closed {
-  background-color: #6c757d;
+  background: linear-gradient(135deg, #60716a, #7c8d86);
+  border-color: color-mix(in srgb, #60716a 40%, transparent);
   color: #fff;
+}
+
+.dialog-sla-badge.is-pinned {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 0 0 2px color-mix(in srgb, var(--destructive) 22%, transparent);
+}
+
+.dialog-sla-badge.is-escalation {
+  position: relative;
 }
 
 .dialog-table tbody tr.dialog-priority-breached {
@@ -766,6 +823,43 @@ body {
 
 .dialog-table tbody tr.dialog-priority-escalation-required {
   box-shadow: inset 4px 0 0 0 rgba(220, 53, 69, 0.85);
+}
+
+.dialog-responsible-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-width: 0;
+}
+
+.dialog-responsible-avatar {
+  width: 2rem;
+  height: 2rem;
+  flex: 0 0 2rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--chart-3) 56%, white), color-mix(in srgb, var(--chart-2) 38%, white));
+  color: var(--color-text);
+  font-size: 0.74rem;
+  font-weight: 800;
+  border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
+  overflow: hidden;
+  box-shadow: 0 8px 16px rgba(18, 33, 23, 0.08);
+}
+
+.dialog-responsible-avatar.has-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.dialog-responsible-name {
+  min-width: 0;
+  font-weight: 600;
+  color: var(--color-text);
 }
 
 .dialog-actions .btn:focus-visible,
