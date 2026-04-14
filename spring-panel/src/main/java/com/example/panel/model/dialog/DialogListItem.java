@@ -31,7 +31,9 @@ public record DialogListItem(String ticketId,
                              String lastMessageTimestamp,
                              Integer unreadCount,
                              Integer rating,
-                             String categories) {
+                             String categories,
+                             String responsibleDisplayName,
+                             String responsibleAvatarUrl) {
 
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd.MM.yyyy");
     private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss");
@@ -84,7 +86,9 @@ public record DialogListItem(String ticketId,
                 lastMessageTimestamp,
                 unreadCount,
                 rating,
-                categories);
+                categories,
+                null,
+                null);
     }
 
     public String avatarInitial() {
@@ -177,6 +181,33 @@ public record DialogListItem(String ticketId,
         return "Без канала";
     }
 
+    public String channelToneKey() {
+        String label = channelLabel();
+        String normalized = label == null ? "" : label.trim().toLowerCase();
+        if (normalized.contains("telegram") || normalized.startsWith("tg") || normalized.contains(" тг")) {
+            return "telegram";
+        }
+        if (normalized.contains("vk") || normalized.contains("вк")) {
+            return "vk";
+        }
+        if (normalized.contains("max") || normalized.contains("мах")) {
+            return "max";
+        }
+        if (normalized.contains("form")
+                || normalized.contains("форма")
+                || normalized.contains("web")
+                || normalized.contains("site")
+                || normalized.contains("external")
+                || normalized.contains("внеш")) {
+            return "form";
+        }
+        return "custom";
+    }
+
+    public String channelToneClass() {
+        return " channel-tone-" + channelToneKey();
+    }
+
     public String businessLabel() {
         if (business != null && !business.isBlank()) {
             return business;
@@ -202,6 +233,9 @@ public record DialogListItem(String ticketId,
     }
 
     public String responsible() {
+        if (responsibleDisplayName != null && !responsibleDisplayName.isBlank()) {
+            return responsibleDisplayName;
+        }
         if (responsible != null && !responsible.isBlank()) {
             return responsible;
         }
@@ -212,6 +246,18 @@ public record DialogListItem(String ticketId,
             return resolvedBy;
         }
         return null;
+    }
+
+    public String rawResponsible() {
+        return responsible;
+    }
+
+    public String responsibleAvatarInitial() {
+        String label = responsible();
+        if (label != null && !label.isBlank()) {
+            return label.substring(0, 1).toUpperCase();
+        }
+        return "—";
     }
 
     public String categoriesSafe() {

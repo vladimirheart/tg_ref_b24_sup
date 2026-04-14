@@ -114,6 +114,10 @@ public class NotificationService {
 
     public void notifyDialogParticipants(String ticketId, String text, String url, String excludedIdentity) {
         Set<String> recipients = findDialogRecipients(ticketId);
+        if (recipients.isEmpty()) {
+            notifyAllOperators(text, url, excludedIdentity);
+            return;
+        }
         notifyUsersExcluding(recipients, excludedIdentity, text, url);
     }
 
@@ -121,7 +125,20 @@ public class NotificationService {
         if (!StringUtils.hasText(text)) {
             return;
         }
-        Set<String> userColumns = loadUsersTableColumns();
+        Set<String> recipients = new LinkedHashSet<>();
+        recipients.addAll(loadOperatorRecipients(usersJdbcTemplate));
+        recipients.addAll(loadOperatorRecipients(jdbcTemplate));
+        notifyUsersExcluding(recipients, excludedIdentity, text, url);
+    }
+
+    private Set<String> loadOperatorRecipients(JdbcTemplate source) {
+        if (source == null) {
+            return Set.of();
+        }
+        Set<String> userColumns = loadUsersTableColumns(source);
+        if (userColumns.isEmpty() || !userColumns.contains("username")) {
+            return Set.of();
+        }
         StringBuilder sql = new StringBuilder("""
                 SELECT username
                   FROM users
@@ -134,23 +151,24 @@ public class NotificationService {
             sql.append(" AND COALESCE(is_blocked, 0) = 0");
         }
         Set<String> recipients = new LinkedHashSet<>();
-        usersJdbcTemplate.query(
-                sql.toString(),
-                rs -> {
-                    while (rs.next()) {
-                        String username = normalizeRecipient(rs.getString("username"));
-                        if (StringUtils.hasText(username)) {
-                            recipients.add(username);
-                        }
+        try {
+            source.query(sql.toString(), rs -> {
+                while (rs.next()) {
+                    String username = normalizeRecipient(rs.getString("username"));
+                    if (StringUtils.hasText(username)) {
+                        recipients.add(username);
                     }
                 }
-        );
-        notifyUsersExcluding(recipients, excludedIdentity, text, url);
+            });
+        } catch (Exception ex) {
+            return Set.of();
+        }
+        return recipients;
     }
 
-    private Set<String> loadUsersTableColumns() {
+    private Set<String> loadUsersTableColumns(JdbcTemplate source) {
         try {
-            return new HashSet<>(usersJdbcTemplate.query(
+            return new HashSet<>(source.query(
                     "PRAGMA table_info(users)",
                     (rs, rowNum) -> rs.getString("name")
             ));

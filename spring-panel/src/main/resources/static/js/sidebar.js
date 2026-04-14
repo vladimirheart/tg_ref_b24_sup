@@ -580,6 +580,7 @@
   let toastTimer = null;
   let lastUnreadCount = 0;
   let hasInitialUnread = false;
+  const csrfToken = document.querySelector('meta[name="_csrf"]')?.getAttribute('content') || '';
 
   const HTML_ESCAPE_RE = /[&<>"']/g;
   const HTML_ESCAPE_MAP = {
@@ -736,7 +737,10 @@
     notificationsOpen = true;
     if (bellBtn) bellBtn.setAttribute('aria-expanded', 'true');
     try {
-      const response = await fetch('/api/notifications');
+      const response = await fetch('/api/notifications', {
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json' },
+      });
       if (!response.ok) throw new Error('Failed to load notifications');
       const data = await response.json();
       const payload = normalizeNotificationPayload(data);
@@ -763,7 +767,18 @@
       const notificationId = itemEl?.dataset?.id;
       if (notificationId) {
         try {
-          await fetch(`/api/notifications/${notificationId}/read`, { method: 'POST' });
+          if (csrfToken) {
+            await fetch(`/api/notifications/${notificationId}/read`, {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: { 'X-CSRF-TOKEN': csrfToken },
+            });
+          } else {
+            await fetch(`/api/notifications/${notificationId}/read`, {
+              method: 'POST',
+              credentials: 'same-origin',
+            });
+          }
         } catch (_error) {
           // ignore read marker errors
         }
@@ -783,10 +798,14 @@
 
   async function updateNotificationCount() {
     try {
-      const response = await fetch('/api/notifications/unread_count');
+      const response = await fetch('/api/notifications/unread_count', {
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json' },
+      });
       if (!response.ok) return;
       const data = await response.json();
       const newCount = Number(data.unread ?? data.count ?? 0);
+      const previousCount = lastUnreadCount;
       setBellCount(newCount);
       if (hasInitialUnread && newCount > lastUnreadCount) {
         const diff = newCount - lastUnreadCount;
@@ -795,6 +814,9 @@
       }
       lastUnreadCount = newCount;
       hasInitialUnread = true;
+      if (notificationsOpen && newCount !== previousCount) {
+        await loadNotifications();
+      }
     } catch (error) {
       /* ignore */
     }
