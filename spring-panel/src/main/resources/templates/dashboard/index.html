@@ -1135,7 +1135,6 @@
 
 <script>
     let charts = {};
-    const inactiveByChart = {}; // { [canvasId]: Set<number> }
     const chartPaletteCache = {};
 
     function withAlpha(color, alpha) {
@@ -1171,13 +1170,16 @@
         getChartCssColor('--chart-2', '#1d8b88'),
         getChartCssColor('--chart-3', '#d9a441'),
         getChartCssColor('--chart-4', '#d46a6a'),
-        getChartCssColor('--chart-5', '#7fa43a')
+        getChartCssColor('--chart-5', '#7fa43a'),
+        '#2f7bd1',
+        '#ef8a25',
+        '#c9557d'
       ];
       if (variant === 'warm') {
-        return [base[2], base[3], base[0], base[1], base[4]];
+        return [base[2], base[6], base[3], base[7], base[0], base[4], base[1], base[5]];
       }
       if (variant === 'cool') {
-        return [base[1], base[0], base[4], base[2], base[3]];
+        return [base[1], base[5], base[0], base[4], base[7], base[2], base[3], base[6]];
       }
       return base;
     }
@@ -1533,7 +1535,7 @@ async function loadDashboardData() {
     if (st.by_channel) {
       const dataByChannel = {};
       st.by_channel.forEach(x => { dataByChannel[x.name || '—'] = x.total || 0; });
-      updateChart('chartByChannel', 'bar', dataByChannel, '#36a2eb', true);
+      updateChart('chartByChannel', 'bar', dataByChannel, getChartPalette('cool'), true);
     }
 
     // Вызов обновления статистики по сотрудникам
@@ -1670,12 +1672,9 @@ function updateStaffTimeStats(staffStats) {
         const ds = chart.data.datasets[0];
         if (!ds) return;
         const meta = chart.getDatasetMeta(0);
-        const canvasId = chart.canvas.id;
-        const inactive = inactiveByChart[canvasId] || new Set();
         const data = ds.data || [];
 
-        // сумма только активных (не выключенных)
-        const visibleTotal = data.reduce((sum, v, i) => sum + (inactive.has(i) ? 0 : (v||0)), 0);
+        const visibleTotal = data.reduce((sum, value) => sum + (Number(value) || 0), 0);
 
         ctx.save();
         ctx.font = '600 12px "DM Sans", sans-serif';
@@ -1970,10 +1969,7 @@ function updateChart(canvasId, type, data, backgroundColor, showValues = false) 
   const baseColors = labels.map((_, idx) => palette[idx % palette.length]);
   const isBar = type === 'bar';
   const theme = getChartTheme();
-
-  // контейнер для «выключенных»
-  if (!inactiveByChart[canvasId]) inactiveByChart[canvasId] = new Set();
-  const inactive = inactiveByChart[canvasId];
+  canvas.onclick = null;
 
   charts[canvasId] = new Chart(canvas, {
     type: isBar ? 'bar' : type,
@@ -1984,17 +1980,10 @@ function updateChart(canvasId, type, data, backgroundColor, showValues = false) 
         borderRadius: 12,
         borderSkipped: false,
         maxBarThickness: 26,
-        backgroundColor: (ctx) => {
-          const i = ctx.dataIndex;
-          const base = baseColors[i % baseColors.length];
-          const alpha = inactive.has(i) ? 0.25 : 1;
-          return withAlpha(base, alpha);
-        },
-        borderColor: (ctx) => {
-          const i = ctx.dataIndex;
-          const base = baseColors[i % baseColors.length];
-          return withAlpha(base, inactive.has(i) ? 0.3 : 0.96);
-        }
+        backgroundColor: baseColors,
+        hoverBackgroundColor: baseColors,
+        borderColor: baseColors.map((color) => withAlpha(color, 0.92)),
+        borderWidth: 1.5
       }]
     },
     options: {
@@ -2014,7 +2003,7 @@ function updateChart(canvasId, type, data, backgroundColor, showValues = false) 
             label: (context) => {
               const raw = context.raw ?? 0;
               const ds = context.dataset.data || [];
-              const visTotal = ds.reduce((s, v, idx) => s + (inactive.has(idx) ? 0 : (v||0)), 0);
+              const visTotal = ds.reduce((sum, value) => sum + (Number(value) || 0), 0);
               const pct = visTotal > 0 ? ((raw / visTotal) * 100).toFixed(1) : '0.0';
               return `${context.label}: ${raw} (${pct}%)`;
             }
@@ -2025,17 +2014,6 @@ function updateChart(canvasId, type, data, backgroundColor, showValues = false) 
     },
     plugins: (showValues && isBar) ? [BarValueLabels] : []
   });
-
-  // клик по столбику = переключаем «активность» (делаем бледным/нормальным)
-  if (isBar) {
-    canvas.onclick = (evt) => {
-      const pts = charts[canvasId].getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
-      if (!pts || !pts.length) return;
-      const i = pts[0].index;
-      if (inactive.has(i)) inactive.delete(i); else inactive.add(i);
-      charts[canvasId].update();
-    };
-  }
 }
 
 function updateStaffWorkloadChart(staffStats) {
