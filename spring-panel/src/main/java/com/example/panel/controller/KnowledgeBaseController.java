@@ -2,7 +2,9 @@ package com.example.panel.controller;
 
 import com.example.panel.model.knowledge.KnowledgeArticleCommand;
 import com.example.panel.model.knowledge.KnowledgeArticleDetails;
+import com.example.panel.model.knowledge.KnowledgeBaseNotionConfigForm;
 import com.example.panel.service.KnowledgeBaseService;
+import com.example.panel.service.KnowledgeBaseNotionService;
 import com.example.panel.service.NavigationService;
 import com.example.panel.service.NotificationService;
 import com.example.panel.service.PermissionService;
@@ -20,6 +22,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.io.IOException;
 import java.util.List;
@@ -34,17 +37,20 @@ public class KnowledgeBaseController {
 
     private final PermissionService permissionService;
     private final KnowledgeBaseService knowledgeBaseService;
+    private final KnowledgeBaseNotionService knowledgeBaseNotionService;
     private final AttachmentService attachmentService;
     private final NavigationService navigationService;
     private final NotificationService notificationService;
 
     public KnowledgeBaseController(PermissionService permissionService,
                                    KnowledgeBaseService knowledgeBaseService,
+                                   KnowledgeBaseNotionService knowledgeBaseNotionService,
                                    AttachmentService attachmentService,
                                    NavigationService navigationService,
                                    NotificationService notificationService) {
         this.permissionService = permissionService;
         this.knowledgeBaseService = knowledgeBaseService;
+        this.knowledgeBaseNotionService = knowledgeBaseNotionService;
         this.attachmentService = attachmentService;
         this.navigationService = navigationService;
         this.notificationService = notificationService;
@@ -58,6 +64,10 @@ public class KnowledgeBaseController {
         var canCreate = permissionService.hasAuthority(authentication, "PAGE_KNOWLEDGE_BASE");
         model.addAttribute("articles", articles);
         model.addAttribute("canCreate", canCreate);
+        if (!model.containsAttribute("notionConfig")) {
+            model.addAttribute("notionConfig", knowledgeBaseNotionService.buildForm());
+        }
+        model.addAttribute("notionHasToken", knowledgeBaseNotionService.hasSavedToken());
         log.info("Knowledge base list requested by {}: {} articles, canCreate={}"
                 , authentication != null ? authentication.getName() : "anonymous", articles.size(), canCreate);
         return "knowledge/list";
@@ -109,6 +119,60 @@ public class KnowledgeBaseController {
         }
         model.addAttribute("message", "Файл загружен");
         return "redirect:/knowledge-base";
+    }
+
+    @PostMapping("/notion/settings")
+    @PreAuthorize("hasAuthority('PAGE_KNOWLEDGE_BASE')")
+    public String saveNotionSettings(KnowledgeBaseNotionConfigForm form, RedirectAttributes redirectAttributes) {
+        try {
+            knowledgeBaseNotionService.saveConfig(form);
+            redirectAttributes.addFlashAttribute("notionMessageType", "success");
+            redirectAttributes.addFlashAttribute("notionMessage", "Подключение к Notion сохранено.");
+        } catch (Exception ex) {
+            redirectAttributes.addFlashAttribute("notionMessageType", "danger");
+            redirectAttributes.addFlashAttribute("notionMessage", ex.getMessage());
+            redirectAttributes.addFlashAttribute("notionConfig", form);
+        }
+        return "redirect:/knowledge-base#notion-import";
+    }
+
+    @PostMapping("/notion/test")
+    @PreAuthorize("hasAuthority('PAGE_KNOWLEDGE_BASE')")
+    public String testNotionConnection(RedirectAttributes redirectAttributes) {
+        try {
+            var result = knowledgeBaseNotionService.testConnection();
+            redirectAttributes.addFlashAttribute("notionMessageType", "success");
+            redirectAttributes.addFlashAttribute(
+                "notionMessage",
+                "Подключение проверено: найдено " + result.matchedPages() + " статей из " + result.totalPages()
+                    + " по фильтру авторов (" + result.mode() + ")."
+            );
+        } catch (Exception ex) {
+            redirectAttributes.addFlashAttribute("notionMessageType", "danger");
+            redirectAttributes.addFlashAttribute("notionMessage", ex.getMessage());
+        }
+        return "redirect:/knowledge-base#notion-import";
+    }
+
+    @PostMapping("/notion/import")
+    @PreAuthorize("hasAuthority('PAGE_KNOWLEDGE_BASE')")
+    public String importFromNotion(Authentication authentication, RedirectAttributes redirectAttributes) {
+        try {
+            var result = knowledgeBaseNotionService.importArticles();
+            String actor = authentication != null ? authentication.getName() : null;
+            String message = "Импорт Notion завершён: создано " + result.created()
+                + ", обновлено " + result.updated()
+                + ", пропущено " + result.skipped()
+                + ", совпадений " + result.matchedPages()
+                + " из " + result.totalPages() + ".";
+            notificationService.notifyAllOperators(message, "/knowledge-base", actor);
+            redirectAttributes.addFlashAttribute("notionMessageType", "success");
+            redirectAttributes.addFlashAttribute("notionMessage", message);
+        } catch (Exception ex) {
+            redirectAttributes.addFlashAttribute("notionMessageType", "danger");
+            redirectAttributes.addFlashAttribute("notionMessage", ex.getMessage());
+        }
+        return "redirect:/knowledge-base#notion-import";
     }
 
     private KnowledgeArticleDetails emptyArticle() {
