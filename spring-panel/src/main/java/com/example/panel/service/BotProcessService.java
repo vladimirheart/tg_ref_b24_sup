@@ -138,6 +138,8 @@ public class BotProcessService {
             env.put("APP_BOT_LOG_PATH", logFile.toString());
             appendEnvOption(env, "JAVA_TOOL_OPTIONS", "-Dfile.encoding=UTF-8");
             appendEnvOption(env, "JAVA_TOOL_OPTIONS", "-Dsun.jnu.encoding=UTF-8");
+            appendEnvOption(env, "JAVA_TOOL_OPTIONS", "-Dsun.stdout.encoding=UTF-8");
+            appendEnvOption(env, "JAVA_TOOL_OPTIONS", "-Dsun.stderr.encoding=UTF-8");
             env.putAll(integrationNetworkService.buildProcessEnvironment(integrationNetworkService.resolveBotRoute(channel)));
             Process process = builder.start();
             OffsetDateTime now = OffsetDateTime.now();

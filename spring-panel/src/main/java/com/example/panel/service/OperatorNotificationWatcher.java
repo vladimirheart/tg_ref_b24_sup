@@ -72,6 +72,16 @@ public class OperatorNotificationWatcher {
                         if (!StringUtils.hasText(ticketId)) {
                             continue;
                         }
+                        if (isInactivityAutoCloseEvent(sender, messageType, message)) {
+                            String text = "Диалог " + ticketId + " автоматически закрыт из-за отсутствия активности.";
+                            Set<String> recipients = notificationService.findDialogRecipients(ticketId);
+                            if (recipients.isEmpty()) {
+                                notificationService.notifyAllOperators(text, "/dialogs?ticketId=" + ticketId, null);
+                            } else {
+                                notificationService.notifyUsers(recipients, text, "/dialogs?ticketId=" + ticketId);
+                            }
+                            continue;
+                        }
                         if (!isExternalDialogEvent(sender, messageType)) {
                             continue;
                         }
@@ -213,6 +223,22 @@ public class OperatorNotificationWatcher {
             case "operator", "support", "admin", "system" -> true;
             default -> false;
         };
+    }
+
+    private boolean isInactivityAutoCloseEvent(String sender, String messageType, String message) {
+        if (!"system".equals(sender)) {
+            return false;
+        }
+        if (!"system_event".equals(messageType) && !"system_notification".equals(messageType)) {
+            return false;
+        }
+        if (!StringUtils.hasText(message)) {
+            return false;
+        }
+        String normalized = message.trim().toLowerCase(Locale.ROOT);
+        return normalized.contains("автоматически закрыт")
+                && normalized.contains("отсутств")
+                && normalized.contains("активност");
     }
 
     private String normalizeSender(String value) {

@@ -8,6 +8,7 @@ import com.example.supportbot.entity.TicketActive;
 import com.example.supportbot.entity.TicketId;
 import com.example.supportbot.entity.TicketMessage;
 import com.example.supportbot.entity.TicketSpan;
+import com.example.supportbot.repository.ChatHistoryRepository;
 import com.example.supportbot.repository.FeedbackRepository;
 import com.example.supportbot.repository.PendingFeedbackRequestRepository;
 import com.example.supportbot.repository.TicketActiveRepository;
@@ -19,6 +20,7 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -34,12 +36,15 @@ import org.springframework.util.StringUtils;
 public class TicketService {
 
     private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss");
+    private static final String AUTO_CLOSE_RESOLVED_BY = "auto_close";
+    private static final List<String> ACTIVITY_SENDERS = Arrays.asList("client", "operator", "support", "admin", "ai_agent");
 
     private final TicketRepository ticketRepository;
     private final TicketMessageRepository messageRepository;
     private final PendingFeedbackRequestRepository pendingFeedbackRequestRepository;
     private final TicketSpanRepository ticketSpanRepository;
     private final TicketActiveRepository ticketActiveRepository;
+    private final ChatHistoryRepository chatHistoryRepository;
     private final ChatHistoryService chatHistoryService;
     private final FeedbackRepository feedbackRepository;
 
@@ -48,6 +53,7 @@ public class TicketService {
                          PendingFeedbackRequestRepository pendingFeedbackRequestRepository,
                          TicketSpanRepository ticketSpanRepository,
                          TicketActiveRepository ticketActiveRepository,
+                         ChatHistoryRepository chatHistoryRepository,
                          ChatHistoryService chatHistoryService,
                          FeedbackRepository feedbackRepository) {
         this.ticketRepository = ticketRepository;
@@ -55,6 +61,7 @@ public class TicketService {
         this.pendingFeedbackRequestRepository = pendingFeedbackRequestRepository;
         this.ticketSpanRepository = ticketSpanRepository;
         this.ticketActiveRepository = ticketActiveRepository;
+        this.chatHistoryRepository = chatHistoryRepository;
         this.chatHistoryService = chatHistoryService;
         this.feedbackRepository = feedbackRepository;
     }
@@ -239,8 +246,12 @@ public class TicketService {
 
         ticketActiveRepository.findById(ticketId).ifPresent(ticketActiveRepository::delete);
 
-        chatHistoryService.storeSystemEvent(ticket.getUserId(), ticketId, ticket.getChannel(),
-                "Заявка закрыта. Причина: " + Optional.ofNullable(source).orElse("оператор"));
+        chatHistoryService.storeSystemEvent(
+                ticket.getUserId(),
+                ticketId,
+                ticket.getChannel(),
+                resolveCloseEventText(source)
+        );
 
         pendingFeedbackRequestRepository.findFirstByTicketIdOrderByCreatedAtDesc(ticketId)
                 .ifPresentOrElse(request -> {
@@ -258,7 +269,8 @@ public class TicketService {
         OffsetDateTime threshold = OffsetDateTime.now().minus(inactivityLimit);
         int closed = 0;
         for (TicketActive active : ticketActiveRepository.findAll()) {
-            if (active.getLastSeen() != null && active.getLastSeen().isBefore(threshold)) {
+            OffsetDateTime lastActivity = resolveLastActivityAt(active);
+            if (lastActivity != null && lastActivity.isBefore(threshold)) {
                 Optional<Ticket> ticketOpt = ticketRepository.findByIdTicketId(active.getTicketId());
                 if (ticketOpt.isEmpty()) {
                     ticketActiveRepository.delete(active);
@@ -269,7 +281,7 @@ public class TicketService {
                     ticketActiveRepository.delete(active);
                     continue;
                 }
-                if (closeTicket(active.getTicketId(), "auto_close", "inactivity")) {
+                if (closeTicket(active.getTicketId(), AUTO_CLOSE_RESOLVED_BY, "inactivity")) {
                     closed++;
                 }
             }
@@ -385,6 +397,40 @@ public class TicketService {
         }
         String normalized = status.trim().toLowerCase();
         return "resolved".equals(normalized) || "closed".equals(normalized);
+    }
+
+    private OffsetDateTime resolveLastActivityAt(TicketActive active) {
+        OffsetDateTime latest = active != null ? active.getLastSeen() : null;
+        String ticketId = active != null ? active.getTicketId() : null;
+        if (!StringUtils.hasText(ticketId)) {
+            return latest;
+        }
+        OffsetDateTime historyActivity = chatHistoryRepository
+                .findTopByTicketIdAndSenderInOrderByIdDesc(ticketId, ACTIVITY_SENDERS)
+                .map(history -> parseTimestamp(history.getTimestamp()))
+                .orElse(null);
+        if (historyActivity != null && (latest == null || historyActivity.isAfter(latest))) {
+            return historyActivity;
+        }
+        return latest;
+    }
+
+    private OffsetDateTime parseTimestamp(String raw) {
+        if (!StringUtils.hasText(raw)) {
+            return null;
+        }
+        try {
+            return OffsetDateTime.parse(raw.trim());
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private String resolveCloseEventText(String source) {
+        if ("inactivity".equalsIgnoreCase(source)) {
+            return "Диалог автоматически закрыт из-за отсутствия активности.";
+        }
+        return "Заявка закрыта. Причина: " + Optional.ofNullable(source).orElse("оператор");
     }
 
     public record TicketCreationResult(String ticketId, Long groupMessageId, String status) {
