@@ -211,9 +211,48 @@ body {
     font-size: var(--dialog-font-size, 0.95rem);
 }
 
+.chat-message-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+
+.chat-message-avatar {
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 999px;
+    flex: 0 0 2.25rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in srgb, var(--muted) 82%, white);
+    color: var(--foreground);
+    font-size: 0.82rem;
+    font-weight: 700;
+    border: 1px solid color-mix(in srgb, var(--color-border) 86%, transparent);
+    overflow: hidden;
+}
+
+.chat-message-avatar.has-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
 .chat-message.user { background: color-mix(in srgb, var(--secondary) 70%, white); margin-right: auto; }
 .chat-message.support { background: color-mix(in srgb, var(--accent) 75%, white); margin-right: auto; }
 .chat-message.system { background: color-mix(in srgb, var(--muted) 85%, white); margin-right: auto; }
+
+.chat-message-row.is-archived-history .chat-message-avatar,
+.chat-message-avatar.is-archived-history {
+    background: color-mix(in srgb, #cbd5e1 82%, white);
+}
+
+.chat-message.is-archived-history {
+    background: color-mix(in srgb, #e2e8f0 82%, white);
+    border: 1px solid color-mix(in srgb, #94a3b8 35%, transparent);
+}
 
 
 .chat-message.is-deleted {
@@ -296,6 +335,27 @@ body {
     overflow-y: auto;
     align-items: flex-start;
     font-size: var(--dialog-font-size, 0.95rem);
+}
+
+.dialog-history-controls {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    padding: 0.25rem 0 0.5rem;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--card) 98%, white), color-mix(in srgb, var(--card) 88%, transparent));
+}
+
+.chat-history-archive-section {
+    border: 1px solid color-mix(in srgb, #94a3b8 28%, transparent);
+    border-radius: 0.9rem;
+    background: linear-gradient(180deg, color-mix(in srgb, #f8fafc 96%, white), color-mix(in srgb, #e2e8f0 84%, white));
+    padding: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+.chat-history-archive-head {
+    border-left: 3px solid color-mix(in srgb, #64748b 58%, transparent);
+    padding-left: 0.75rem;
 }
 
 .chat-message-header {
@@ -1151,6 +1211,38 @@ body {
     object-fit: contain;
     transform-origin: center center;
     transition: transform 0.2s ease;
+}
+
+.workspace-message-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border-radius: 0.9rem;
+  background: color-mix(in srgb, var(--color-surface-soft) 82%, white);
+  border: 1px solid color-mix(in srgb, var(--color-border) 82%, transparent);
+}
+
+.workspace-message-avatar {
+  width: 2.25rem;
+  height: 2.25rem;
+  flex-basis: 2.25rem;
+}
+
+.workspace-message-content {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.workspace-message-meta {
+  font-size: 0.82rem;
+  color: var(--muted-foreground);
+  margin-bottom: 0.35rem;
+}
+
+.workspace-message-body {
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 /* Unified visual system */

@@ -48,7 +48,9 @@
                              decoding="async"
                              onerror="this.onerror=null;this.src='/avatar_default.svg';">
                         <div>
-                            <div><strong>ID Telegram:</strong> <code th:text="${profile.header.userId}">0</code></div>
+                            <div><strong>Источник клиента:</strong> <span th:text="${profile.header.sourceLabel} ?: '—'">—</span></div>
+                            <div><strong th:text="${profile.header.sourceIdentifierLabel} ?: 'ID клиента в источнике'">ID клиента в источнике</strong>: <code th:text="${profile.header.userId}">0</code></div>
+                            <div class="small text-muted mt-1" th:if="${profile.header.sourceIdentifierHint != null}" th:text="${profile.header.sourceIdentifierHint}">Показывается внешний идентификатор клиента.</div>
                             <div><strong>Имя:</strong> <span id="clientExternalName" th:text="${profile.header.clientName} ?: '—'">—</span></div>
                             <div><strong>Юзернейм:</strong> <span id="clientUsernameDisplay" th:text="${profile.header.username} ?: '—'">—</span></div>
                             <div class="mt-2">
@@ -86,10 +88,19 @@
                             </div>
                             <div class="mt-3">
                                 <button class="btn btn-sm btn-outline-secondary" type="button" id="refreshExternalInfoBtn"
-                                        th:text="${profile.header.platform != null ? '🔄 Обновить данные из ' + (profile.header.platform == 'vk' ? 'VK' : 'Telegram') : '🔄 Обновить данные из …'}">
+                                        th:text="${profile.header.sourceKey == 'web_form'
+                                            ? '🔄 Проверить данные в канале продолжения'
+                                            : (profile.header.platform != null
+                                                ? '🔄 Обновить данные из ' + (profile.header.platform == 'vk' ? 'VK' : (profile.header.platform == 'max' ? 'MAX' : 'Telegram'))
+                                                : '🔄 Обновить данные из …')}">
                                     🔄 Обновить данные из Telegram/VK
                                 </button>
-                                <div class="text-muted small mt-1">Обновит имя и юзернейм из внешних источников.</div>
+                                <div class="text-muted small mt-1"
+                                     th:text="${profile.header.sourceKey == 'web_form'
+                                        ? 'Для обращений из внешних форм данные подтянутся только если диалог уже привязан к Telegram/VK/MAX.'
+                                        : 'Обновит имя и юзернейм из внешних источников.'}">
+                                    Обновит имя и юзернейм из внешних источников.
+                                </div>
                             </div>
                         </div>
                         <div class="mt-3" th:if="${!#lists.isEmpty(profile.blacklistHistory)}">

@@ -6,6 +6,8 @@ import com.example.panel.model.dialog.DialogDetails;
 import com.example.panel.service.DialogNotificationService;
 import com.example.panel.service.DialogReplyService;
 import com.example.panel.service.DialogService;
+import com.example.panel.service.DialogAiAssistantService;
+import com.example.panel.service.NotificationService;
 import com.example.panel.service.PermissionService;
 import com.example.panel.service.PublicFormService;
 import com.example.panel.service.SlaEscalationWebhookNotifier;
@@ -71,10 +73,16 @@ class DialogApiControllerWebMvcTest {
     private PermissionService permissionService;
 
     @MockBean
+    private NotificationService notificationService;
+
+    @MockBean
     private SlaEscalationWebhookNotifier slaEscalationWebhookNotifier;
 
     @MockBean
     private PublicFormService publicFormService;
+
+    @MockBean
+    private DialogAiAssistantService dialogAiAssistantService;
 
     @Test
     void snoozeRejectsInvalidDuration() throws Exception {

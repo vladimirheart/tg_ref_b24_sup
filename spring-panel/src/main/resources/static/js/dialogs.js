@@ -604,6 +604,8 @@
   });
   const STORAGE_WORKSPACE_AB = 'iguana:dialogs:workspace-ab-cohort';
   const OPERATOR_IDENTITY = String(document.body?.dataset?.operatorIdentity || 'anonymous').trim() || 'anonymous';
+  const OPERATOR_DISPLAY_NAME = String(document.body?.dataset?.operatorDisplayName || OPERATOR_IDENTITY || 'Оператор').trim() || 'Оператор';
+  const OPERATOR_AVATAR_URL = String(document.body?.dataset?.operatorAvatarUrl || '').trim();
   const STORAGE_WORKSPACE_DRAFT_PREFIX = 'iguana:dialogs:workspace-draft:';
   const WORKSPACE_DRAFT_AUTOSAVE_DELAY_MS = Math.max(300, Math.min(5000, Number(window.DIALOG_CONFIG?.workspace_draft_autosave_delay_ms) || 900));
   const WORKSPACE_DRAFT_TELEMETRY_MIN_INTERVAL_MS = Math.max(5000, Math.min(120000, Number(window.DIALOG_CONFIG?.workspace_draft_telemetry_interval_ms) || 30000));
@@ -933,6 +935,7 @@
   let listLoading = false;
   let activeDialogContext = {
     clientName: '—',
+    clientUserId: '',
     operatorName: '—',
     channelName: '—',
     business: '—',
@@ -940,6 +943,11 @@
     status: '—',
     createdAt: '—',
   };
+  let activeDialogCurrentMessages = [];
+  let previousDialogHistoryBatches = [];
+  let previousDialogHistoryNextOffset = 0;
+  let previousDialogHistoryHasMore = true;
+  let previousDialogHistoryLoading = false;
   let completionHideTimer = null;
   let activeAudioPlayer = null;
   let activeAudioSource = null;
@@ -1700,6 +1708,66 @@
     const normalized = String(userId || '').trim();
     if (!normalized) return '';
     return `/avatar/${encodeURIComponent(normalized)}`;
+  }
+
+  function renderMessageAvatar(spec, extraClassName = '') {
+    const safeInitial = escapeHtml(String(spec?.initial || '—').trim() || '—');
+    const safeLabel = escapeHtml(String(spec?.label || '').trim() || 'Аватар');
+    const safeSrc = String(spec?.src || '').trim();
+    const classes = ['chat-message-avatar'];
+    if (extraClassName) classes.push(extraClassName);
+    if (safeSrc) classes.push('has-image');
+    const classAttr = classes.join(' ');
+    if (safeSrc) {
+      return `<span class="${classAttr}" aria-hidden="true"><img src="${escapeHtml(safeSrc)}" alt="${safeLabel}"></span>`;
+    }
+    return `<span class="${classAttr}" aria-hidden="true"><span>${safeInitial}</span></span>`;
+  }
+
+  function resolveDialogMessageAvatarSpec(message, context) {
+    const senderType = normalizeMessageSenderByType(message?.messageType, message?.sender);
+    if (senderType === 'support') {
+      return {
+        src: OPERATOR_AVATAR_URL,
+        initial: avatarInitial(OPERATOR_DISPLAY_NAME),
+        label: OPERATOR_DISPLAY_NAME || 'Оператор',
+      };
+    }
+    if (senderType === 'system') {
+      return {
+        src: '',
+        initial: 'S',
+        label: 'Система',
+      };
+    }
+    return {
+      src: buildAvatarUrl(context?.clientUserId),
+      initial: avatarInitial(context?.clientName || message?.sender),
+      label: context?.clientName || message?.sender || 'Клиент',
+    };
+  }
+
+  function resolveWorkspaceMessageAvatarSpec(message) {
+    const senderRole = String(message?.senderRole || message?.sender || '').trim().toLowerCase();
+    if (senderRole === 'operator' || senderRole === 'support' || senderRole === 'admin' || senderRole === 'ai_agent') {
+      return {
+        src: OPERATOR_AVATAR_URL,
+        initial: avatarInitial(OPERATOR_DISPLAY_NAME),
+        label: OPERATOR_DISPLAY_NAME || 'Оператор',
+      };
+    }
+    if (senderRole === 'system') {
+      return {
+        src: '',
+        initial: 'S',
+        label: 'Система',
+      };
+    }
+    return {
+      src: buildAvatarUrl(activeDialogContext?.clientUserId),
+      initial: avatarInitial(activeDialogContext?.clientName || message?.senderName || message?.senderRole),
+      label: activeDialogContext?.clientName || message?.senderName || 'Клиент',
+    };
   }
 
   function getDialogUserId(source) {
@@ -4571,6 +4639,18 @@
     const composer = payload?.composer || {};
     const parity = payload?.meta?.parity || null;
     const navigation = payload?.meta?.navigation || null;
+    const workspaceClient = context?.client && typeof context.client === 'object' ? context.client : {};
+
+    activeDialogContext = {
+      clientName: String(workspaceClient?.name || conversation?.clientName || conversation?.username || activeDialogContext.clientName || '—').trim() || '—',
+      clientUserId: String(workspaceClient?.id || getDialogUserId(conversation) || activeDialogContext.clientUserId || '').trim(),
+      operatorName: String(conversation?.responsible || OPERATOR_DISPLAY_NAME || activeDialogContext.operatorName || 'Оператор').trim() || 'Оператор',
+      channelName: String(conversation?.channelName || workspaceClient?.channel || activeDialogContext.channelName || '—').trim() || '—',
+      business: String(conversation?.business || workspaceClient?.business || activeDialogContext.business || '—').trim() || '—',
+      location: String(workspaceClient?.location || conversation?.locationName || conversation?.city || activeDialogContext.location || '—').trim() || '—',
+      status: String(conversation?.statusLabel || conversation?.status || activeDialogContext.status || '—').trim() || '—',
+      createdAt: formatWorkspaceDateTime(conversation?.createdAt || conversation?.created_at || activeDialogContext.createdAt || '—'),
+    };
 
     const readonlyReason = resolveWorkspaceReadonlyReason(permissions);
     setWorkspaceReadonlyMode(Boolean(readonlyReason), readonlyReason);
@@ -6618,7 +6698,7 @@
   function resolveSenderLabel(message, context) {
     const senderType = normalizeMessageSenderByType(message?.messageType, message?.sender);
     if (senderType === 'support') {
-      return context?.operatorName || message?.sender || 'Оператор';
+      return context?.operatorName || message?.sender || OPERATOR_DISPLAY_NAME || 'Оператор';
     }
     if (senderType === 'system') {
       return message?.sender || 'Система';
@@ -6782,13 +6862,14 @@
     `;
   }
 
-  function messageToHtml(message) {
+  function messageToHtml(message, options = {}) {
     const senderType = normalizeMessageSenderByType(message?.messageType, message?.sender);
     const senderLabel = resolveSenderLabel(message, activeDialogContext);
     const timestamp = formatTimestamp(message?.timestamp, { includeTime: true });
     const isDeleted = Boolean(message?.deletedAt);
     const isEdited = Boolean(message?.editedAt);
     const isSupport = senderType === 'support';
+    const archivedHistory = options.archivedHistory === true;
     const replyPreview = message?.replyPreview
       ? `<div class="small text-muted border-start ps-2 mb-1 chat-message-reply-source">↪ ${escapeHtml(message.replyPreview)}</div>`
       : '';
@@ -6803,10 +6884,11 @@
       : '';
     const statusBadges = [
       isEdited ? '<span class="chat-message-meta-badge">✏️ Изменено</span>' : '',
-      isDeleted ? '<span class="chat-message-meta-badge">🗑 Удалено</span>' : ''
+      isDeleted ? '<span class="chat-message-meta-badge">🗑 Удалено</span>' : '',
+      archivedHistory ? '<span class="chat-message-meta-badge">Архив</span>' : '',
     ].join(' ');
     const media = isDeleted ? '' : buildMediaMarkup(message);
-    const canReply = senderType !== 'system' && message?.telegramMessageId;
+    const canReply = !archivedHistory && senderType !== 'system' && message?.telegramMessageId;
     const actionButtons = canReply
       ? `<div class="chat-message-menu">
           <button class="chat-message-menu-toggle" type="button" data-action-menu aria-label="Действия с сообщением">⋯</button>
@@ -6817,20 +6899,27 @@
           </div>
         </div>`
       : '';
+    const avatarMarkup = renderMessageAvatar(
+      resolveDialogMessageAvatarSpec(message, activeDialogContext),
+      archivedHistory ? 'is-archived-history' : '',
+    );
 
     return `
-      <div class="chat-message ${senderType} ${isDeleted ? 'is-deleted' : ''}" data-telegram-message-id="${message?.telegramMessageId || ''}">
-        <div class="chat-message-header">
-          <span>${escapeHtml(senderLabel)}</span>
-          <span>${escapeHtml(timestamp)}</span>
+      <div class="chat-message-row ${senderType} ${archivedHistory ? 'is-archived-history' : ''}" data-telegram-message-id="${message?.telegramMessageId || ''}">
+        ${avatarMarkup}
+        <div class="chat-message ${senderType} ${isDeleted ? 'is-deleted' : ''} ${archivedHistory ? 'is-archived-history' : ''}">
+          <div class="chat-message-header">
+            <span>${escapeHtml(senderLabel)}</span>
+            <span>${escapeHtml(timestamp)}</span>
+          </div>
+          ${statusBadges ? `<div class="small text-muted mb-1">${statusBadges}</div>` : ''}
+          ${forwardedBadge}
+          ${replyPreview}
+          <div class="chat-message-body">${body}</div>
+          ${originalBlock}
+          ${media}
+          ${actionButtons}
         </div>
-        ${statusBadges ? `<div class="small text-muted mb-1">${statusBadges}</div>` : ''}
-        ${forwardedBadge}
-        ${replyPreview}
-        <div class="chat-message-body">${body}</div>
-        ${originalBlock}
-        ${media}
-        ${actionButtons}
       </div>
     `;
   }
@@ -6846,31 +6935,88 @@
     return false;
   }
 
-  function renderHistory(messages) {
-    if (!detailsHistory) return;
-    const filteredMessages = Array.isArray(messages)
-      ? messages.filter((msg) => !isTechnicalHistoryMessage(msg))
+  function resetPreviousDialogHistoryState() {
+    previousDialogHistoryBatches = [];
+    previousDialogHistoryNextOffset = 0;
+    previousDialogHistoryHasMore = true;
+    previousDialogHistoryLoading = false;
+  }
+
+  function renderPreviousDialogHistoryControls() {
+    const disabled = previousDialogHistoryLoading || !activeDialogTicketId || !previousDialogHistoryHasMore;
+    const buttonLabel = previousDialogHistoryLoading
+      ? 'Загружаем предыдущие обращения…'
+      : (previousDialogHistoryHasMore ? 'Загрузить предыдущие сообщения' : 'Предыдущих обращений больше нет');
+    const helperText = previousDialogHistoryBatches.length > 0
+      ? `Подгружено обращений: ${previousDialogHistoryBatches.length}. Архив показан отдельным цветом.`
+      : 'Можно подгрузить переписку из предыдущих обращений этого клиента.';
+    return `
+      <div class="dialog-history-controls">
+        <button class="btn btn-sm btn-outline-secondary" type="button" data-action="load-previous-history" ${disabled ? 'disabled' : ''}>${escapeHtml(buttonLabel)}</button>
+        <div class="small text-muted mt-2">${escapeHtml(helperText)}</div>
+      </div>
+    `;
+  }
+
+  function renderArchivedHistoryBatch(batch) {
+    const messages = Array.isArray(batch?.messages)
+      ? batch.messages.filter((msg) => !isTechnicalHistoryMessage(msg))
       : [];
-    if (filteredMessages.length === 0) {
-      detailsHistory.innerHTML = '<div class="text-muted">Сообщения не найдены.</div>';
-      lastHistoryMarker = 'empty';
-      return;
+    const ticketId = String(batch?.ticketId || '—').trim() || '—';
+    const createdAt = formatTimestamp(batch?.createdAt || batch?.created_at, { includeTime: true, fallback: '—' });
+    const status = String(batch?.status || '—').trim() || '—';
+    const problem = String(batch?.problem || 'Без описания').trim() || 'Без описания';
+    const sourceLabel = String(batch?.sourceLabel || batch?.source_label || '').trim();
+    const channelName = String(batch?.channelName || batch?.channel_name || '').trim();
+    const meta = [sourceLabel, channelName, createdAt].filter(Boolean).join(' · ');
+    const body = messages.length
+      ? messages.map((msg) => messageToHtml(msg, { archivedHistory: true })).join('')
+      : '<div class="small text-muted">В обращении не найдено сообщений.</div>';
+    return `
+      <section class="chat-history-archive-section">
+        <div class="chat-history-archive-head">
+          <div class="fw-semibold">Предыдущее обращение #${escapeHtml(ticketId)}</div>
+          <div class="small text-muted">${escapeHtml(meta || 'Архивная переписка')}</div>
+          <div class="small text-muted">Статус: ${escapeHtml(status)}</div>
+          <div class="small mt-1">${escapeHtml(problem)}</div>
+        </div>
+        <div class="d-flex flex-column gap-2 mt-3">
+          ${body}
+        </div>
+      </section>
+    `;
+  }
+
+  function renderDialogHistory(options = {}) {
+    if (!detailsHistory) return;
+    const currentMessages = Array.isArray(activeDialogCurrentMessages)
+      ? activeDialogCurrentMessages.filter((msg) => !isTechnicalHistoryMessage(msg))
+      : [];
+    const controlsMarkup = renderPreviousDialogHistoryControls();
+    const archivedMarkup = previousDialogHistoryBatches.map(renderArchivedHistoryBatch).join('');
+    const currentMarkup = currentMessages.length
+      ? currentMessages.map((msg) => messageToHtml(msg)).join('')
+      : '<div class="text-muted">Сообщения не найдены.</div>';
+    detailsHistory.innerHTML = `${controlsMarkup}${archivedMarkup}${currentMarkup}`;
+    if (options.scrollToBottom !== false) {
+      detailsHistory.scrollTop = detailsHistory.scrollHeight;
     }
+  }
+
+  function renderHistory(messages, options = {}) {
+    activeDialogCurrentMessages = Array.isArray(messages) ? messages : [];
+    const filteredMessages = activeDialogCurrentMessages.filter((msg) => !isTechnicalHistoryMessage(msg));
     lastHistoryMarker = historyMarker(filteredMessages);
-    detailsHistory.innerHTML = filteredMessages.map((msg) => messageToHtml(msg)).join('');
-    detailsHistory.scrollTop = detailsHistory.scrollHeight;
+    renderDialogHistory(options);
   }
 
   function appendHistoryMessage(message) {
     if (!detailsHistory) return;
     if (isTechnicalHistoryMessage(message)) return;
-    const wrapper = document.createElement('div');
-    wrapper.innerHTML = messageToHtml(message);
-    const node = wrapper.firstElementChild;
-    if (node) {
-      detailsHistory.appendChild(node);
-    }
-    detailsHistory.scrollTop = detailsHistory.scrollHeight;
+    activeDialogCurrentMessages = Array.isArray(activeDialogCurrentMessages)
+      ? [...activeDialogCurrentMessages, message]
+      : [message];
+    renderDialogHistory({ scrollToBottom: true });
     lastHistoryMarker = `local:${Date.now()}`;
   }
 
@@ -6890,6 +7036,48 @@
     if (!channelId) return path;
     const separator = path.includes('?') ? '&' : '?';
     return `${path}${separator}channelId=${encodeURIComponent(channelId)}`;
+  }
+
+  async function loadPreviousDialogHistory() {
+    if (!activeDialogTicketId || previousDialogHistoryLoading || !previousDialogHistoryHasMore) return;
+    previousDialogHistoryLoading = true;
+    renderDialogHistory({ scrollToBottom: false });
+    try {
+      const previousHeight = detailsHistory ? detailsHistory.scrollHeight : 0;
+      const previousScrollTop = detailsHistory ? detailsHistory.scrollTop : 0;
+      const resp = await fetch(`/api/dialogs/${encodeURIComponent(activeDialogTicketId)}/history/previous?offset=${encodeURIComponent(previousDialogHistoryNextOffset)}`, {
+        credentials: 'same-origin',
+        cache: 'no-store',
+      });
+      const data = await resp.json();
+      if (!resp.ok || data?.success === false) {
+        throw new Error(data?.error || `Ошибка ${resp.status}`);
+      }
+      if (data?.batch) {
+        previousDialogHistoryBatches = [data.batch, ...previousDialogHistoryBatches];
+        previousDialogHistoryNextOffset = Number.isInteger(data?.next_offset)
+          ? Number(data.next_offset)
+          : (previousDialogHistoryNextOffset + 1);
+        previousDialogHistoryHasMore = data?.has_more === true;
+        renderDialogHistory({ scrollToBottom: false });
+        if (detailsHistory) {
+          const nextHeight = detailsHistory.scrollHeight;
+          detailsHistory.scrollTop = previousScrollTop + Math.max(0, nextHeight - previousHeight);
+        }
+      } else {
+        previousDialogHistoryHasMore = false;
+        renderDialogHistory({ scrollToBottom: false });
+      }
+    } catch (error) {
+      previousDialogHistoryHasMore = previousDialogHistoryHasMore || previousDialogHistoryBatches.length === 0;
+      renderDialogHistory({ scrollToBottom: false });
+      if (typeof showNotification === 'function') {
+        showNotification(error.message || 'Не удалось загрузить предыдущие сообщения', 'warning');
+      }
+    } finally {
+      previousDialogHistoryLoading = false;
+      renderDialogHistory({ scrollToBottom: false });
+    }
   }
 
   async function refreshHistory() {
@@ -7036,8 +7224,12 @@
       detailsRating.textContent = '';
       detailsRating.classList.add('d-none');
     }
+    resetPreviousDialogHistoryState();
     if (detailsSummary) detailsSummary.innerHTML = '<div>Загрузка...</div>';
-    if (detailsHistory) detailsHistory.innerHTML = '';
+    if (detailsHistory) {
+      activeDialogCurrentMessages = [];
+      renderDialogHistory({ scrollToBottom: false });
+    }
     if (detailsAiState) detailsAiState.textContent = 'Загрузка подсказок AI...';
     if (detailsAiList) {
       detailsAiList.innerHTML = '';
@@ -7153,6 +7345,7 @@
       ];
       activeDialogContext = {
         clientName,
+        clientUserId,
         operatorName: responsibleLabel || 'Оператор',
         channelName: channelLabel,
         business: businessLabel,
@@ -7670,7 +7863,7 @@
         resetReplyTarget();
         activeDialogContext.operatorName = data.responsible || activeDialogContext.operatorName;
         appendHistoryMessage({
-          sender: data.responsible || 'Оператор',
+          sender: OPERATOR_DISPLAY_NAME || data.responsible || 'Оператор',
           message,
           timestamp: data.timestamp || new Date().toISOString(),
           messageType: 'operator_message',
@@ -7729,7 +7922,8 @@
       ? `<div class="mt-2"><button class="btn btn-sm btn-outline-secondary" type="button" data-workspace-action="reply" data-message-id="${telegramMessageId}">Ответить</button></div>`
       : '';
     const fallbackMarkup = textMarkup || mediaMarkup ? '' : '<div>—</div>';
-    return `<article class="workspace-message-item" data-telegram-message-id="${Number.isFinite(telegramMessageId) ? telegramMessageId : ''}"><div class="workspace-message-meta">${escapeHtml(author)} · ${escapeHtml(timestamp)}</div>${replyPreviewMarkup}${textMarkup}${mediaMarkup}${fallbackMarkup}${actionMarkup}</article>`;
+    const avatarMarkup = renderMessageAvatar(resolveWorkspaceMessageAvatarSpec(message), 'workspace-message-avatar');
+    return `<article class="workspace-message-item" data-telegram-message-id="${Number.isFinite(telegramMessageId) ? telegramMessageId : ''}">${avatarMarkup}<div class="workspace-message-content"><div class="workspace-message-meta">${escapeHtml(author)} · ${escapeHtml(timestamp)}</div>${replyPreviewMarkup}${textMarkup}${mediaMarkup}${fallbackMarkup}${actionMarkup}</div></article>`;
   }
 
   async function sendMediaFiles(files, options = {}) {
@@ -7759,7 +7953,7 @@
         activeDialogContext.operatorName = data.responsible || activeDialogContext.operatorName;
         if (appendHistory) {
           appendHistoryMessage({
-            sender: data.responsible || 'Оператор',
+            sender: OPERATOR_DISPLAY_NAME || data.responsible || 'Оператор',
             message: data.message || '',
             timestamp: data.timestamp || new Date().toISOString(),
             messageType: data.messageType || 'operator_media',
@@ -7853,6 +8047,11 @@
 
   if (detailsHistory) {
     detailsHistory.addEventListener('click', async (event) => {
+      const loadPreviousButton = event.target.closest('button[data-action="load-previous-history"]');
+      if (loadPreviousButton) {
+        await loadPreviousDialogHistory();
+        return;
+      }
       const menuToggle = event.target.closest('[data-action-menu]');
       if (menuToggle) {
         const menu = menuToggle.closest('.chat-message-menu');
@@ -7883,7 +8082,7 @@
         return;
       }
       if (action === 'edit') {
-        const current = button.closest('.chat-message')?.querySelector('div:nth-of-type(2)')?.textContent || '';
+        const current = button.closest('.chat-message')?.querySelector('.chat-message-body')?.textContent || '';
         const nextText = window.prompt('Введите новый текст сообщения:', current.trim());
         if (!nextText || !nextText.trim()) return;
         const resp = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/edit`, {
@@ -8059,6 +8258,18 @@
       if (detailsReplyText) detailsReplyText.value = '';
       if (detailsReplyMedia) detailsReplyMedia.value = '';
       resetReplyTarget();
+      activeDialogCurrentMessages = [];
+      resetPreviousDialogHistoryState();
+      activeDialogContext = {
+        clientName: '—',
+        clientUserId: '',
+        operatorName: '—',
+        channelName: '—',
+        business: '—',
+        location: '—',
+        status: '—',
+        createdAt: '—',
+      };
       selectedCategories = new Set();
       stopHistoryPolling();
       if (WORKSPACE_V1_ENABLED && isWorkspaceDialogPath(window.location.pathname)) {

@@ -16,6 +16,7 @@ import org.springframework.util.StringUtils;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -120,13 +121,19 @@ public class AlertQueueService {
         if (!StringUtils.hasText(department)) {
             return List.of();
         }
+        Set<String> userColumns = loadUsersTableColumns();
+        String enabledColumn = userColumns.contains("enabled") ? "enabled" : "1 AS enabled";
+        String blockedColumn = userColumns.contains("is_blocked") ? "is_blocked" : "0 AS is_blocked";
+        String lastPortalActivityColumn = userColumns.contains("last_portal_activity_at")
+                ? "last_portal_activity_at"
+                : "NULL AS last_portal_activity_at";
         String sql = """
-                SELECT username, department, enabled,
-                       is_blocked,
-                       last_portal_activity_at
+                SELECT username, department, %s,
+                       %s,
+                       %s
                   FROM users
                  WHERE lower(trim(COALESCE(department, ''))) = lower(trim(?))
-                """;
+                """.formatted(enabledColumn, blockedColumn, lastPortalActivityColumn);
         try {
             return usersJdbcTemplate.query(sql, (rs, rowNum) -> {
                 String username = rs.getString("username");
@@ -145,6 +152,18 @@ public class AlertQueueService {
         } catch (DataAccessException ex) {
             log.warn("Unable to resolve alert queue recipients: {}", ex.getMessage());
             return List.of();
+        }
+    }
+
+    private Set<String> loadUsersTableColumns() {
+        try {
+            return new HashSet<>(usersJdbcTemplate.query(
+                    "PRAGMA table_info(users)",
+                    (rs, rowNum) -> rs.getString("name")
+            ));
+        } catch (DataAccessException ex) {
+            log.warn("Unable to inspect users schema for alert queue: {}", ex.getMessage());
+            return Set.of();
         }
     }
 

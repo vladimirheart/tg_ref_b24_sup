@@ -3,6 +3,7 @@ package com.example.panel.controller;
 import com.example.panel.model.dialog.ChatMessageDto;
 import com.example.panel.model.dialog.DialogDetails;
 import com.example.panel.model.dialog.DialogListItem;
+import com.example.panel.model.dialog.DialogPreviousHistoryPage;
 import com.example.panel.model.dialog.DialogSummary;
 import com.example.panel.service.DialogNotificationService;
 import com.example.panel.service.DialogReplyService;
@@ -282,6 +283,28 @@ public class DialogApiController {
                 "success", true,
                 "messages", history
         );
+    }
+
+    @GetMapping("/{ticketId}/history/previous")
+    public ResponseEntity<?> previousHistory(@PathVariable String ticketId,
+                                             @RequestParam(value = "offset", required = false, defaultValue = "0") Integer offset) {
+        int resolvedOffset = offset != null ? Math.max(0, offset) : 0;
+        Optional<DialogPreviousHistoryPage> page = dialogService.loadPreviousDialogHistory(ticketId, resolvedOffset);
+        if (page.isEmpty()) {
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "batch", null,
+                    "has_more", false,
+                    "next_offset", resolvedOffset
+            ));
+        }
+        DialogPreviousHistoryPage historyPage = page.get();
+        return ResponseEntity.ok(mapWithNullableValues(
+                "success", true,
+                "batch", historyPage.batch(),
+                "has_more", historyPage.hasMore(),
+                "next_offset", historyPage.nextOffset()
+        ));
     }
 
     @PostMapping("/macro/dry-run")
