@@ -94,7 +94,7 @@
         "view" : "all",
         "sort_mode" : "default",
         "page_size" : "all",
-        "updated_at_utc" : "2026-04-14T06:28:56.403402200Z"
+        "updated_at_utc" : "2026-04-14T08:20:32.073755800Z"
       }
     }
   },
@@ -257,5 +257,19 @@
       } ]
     }
   },
-  "unblock_request_cooldown_minutes" : 1
+  "unblock_request_cooldown_minutes" : 1,
+  "knowledge_base_config" : {
+    "enabled" : true,
+    "source_url" : "https://www.notion.so/blinberry-group",
+    "token" : "",
+    "authors" : [ "Синицын Владимир", "Лемешкин Андрей", "Egor", "Канделаки Данил", "Шумкова Дарья" ],
+    "title_property" : "Name",
+    "author_property" : "Автор",
+    "summary_property" : "Краткое описание",
+    "department_property" : "Подразделение",
+    "article_type_property" : "Тип статьи",
+    "direction_property" : "Направление",
+    "direction_subtype_property" : "Поднаправление",
+    "status_property" : "Статус"
+  }
 }
