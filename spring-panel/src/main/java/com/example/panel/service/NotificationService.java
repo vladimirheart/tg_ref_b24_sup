@@ -12,6 +12,7 @@ import org.springframework.util.StringUtils;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -120,14 +121,21 @@ public class NotificationService {
         if (!StringUtils.hasText(text)) {
             return;
         }
-        Set<String> recipients = new LinkedHashSet<>();
-        usersJdbcTemplate.query(
-                """
+        Set<String> userColumns = loadUsersTableColumns();
+        StringBuilder sql = new StringBuilder("""
                 SELECT username
                   FROM users
-                 WHERE COALESCE(enabled, 1) = 1
-                   AND COALESCE(is_blocked, 0) = 0
-                """,
+                 WHERE 1 = 1
+                """);
+        if (userColumns.contains("enabled")) {
+            sql.append(" AND COALESCE(enabled, 1) = 1");
+        }
+        if (userColumns.contains("is_blocked")) {
+            sql.append(" AND COALESCE(is_blocked, 0) = 0");
+        }
+        Set<String> recipients = new LinkedHashSet<>();
+        usersJdbcTemplate.query(
+                sql.toString(),
                 rs -> {
                     while (rs.next()) {
                         String username = normalizeRecipient(rs.getString("username"));
@@ -138,6 +146,17 @@ public class NotificationService {
                 }
         );
         notifyUsersExcluding(recipients, excludedIdentity, text, url);
+    }
+
+    private Set<String> loadUsersTableColumns() {
+        try {
+            return new HashSet<>(usersJdbcTemplate.query(
+                    "PRAGMA table_info(users)",
+                    (rs, rowNum) -> rs.getString("name")
+            ));
+        } catch (Exception ex) {
+            return Set.of();
+        }
     }
 
     private NotificationDto toDto(Notification entity) {

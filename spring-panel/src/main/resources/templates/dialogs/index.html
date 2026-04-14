@@ -107,7 +107,10 @@
     </style>
 </head>
 <body class="with-sidebar sidebar-pinned dialog-compact-mode"
-      th:attr="data-initial-dialog-ticket-id=${initialDialogTicketId},data-operator-identity=${operatorIdentity}">
+      th:attr="data-initial-dialog-ticket-id=${initialDialogTicketId},
+               data-operator-identity=${operatorIdentity},
+               data-operator-display-name=${sidebarUserDisplayName},
+               data-operator-avatar-url=${sidebarUserAvatarUrl}">
 <div th:replace="~{fragments/navbar :: navbar('dialogs')}"></div>
 
 <main class="main-content container-fluid py-4">
@@ -1098,4 +1101,3 @@
 
 </body>
 </html>
-

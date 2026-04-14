@@ -6,6 +6,10 @@ public record ClientProfileHeader(
         String clientName,
         Long channelId,
         String channelName,
-        String platform
+        String platform,
+        String sourceKey,
+        String sourceLabel,
+        String sourceIdentifierLabel,
+        String sourceIdentifierHint
 ) {
 }

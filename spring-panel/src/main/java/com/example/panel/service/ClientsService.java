@@ -148,7 +148,20 @@ public class ClientsService {
                     ,
                     m.channel_id,
                     c.channel_name,
-                    c.platform
+                    c.platform,
+                    CASE
+                        WHEN EXISTS (
+                            SELECT 1
+                              FROM web_form_sessions w
+                             WHERE w.ticket_id = m.ticket_id
+                        ) THEN 'web_form'
+                        WHEN lower(COALESCE(c.platform, '')) = 'vk' THEN 'vk'
+                        WHEN lower(COALESCE(c.platform, '')) = 'max' THEN 'max'
+                        WHEN lower(COALESCE(c.platform, '')) = 'telegram'
+                             OR c.platform IS NULL
+                             OR trim(COALESCE(c.platform, '')) = '' THEN 'telegram'
+                        ELSE lower(c.platform)
+                    END AS source_key
                 FROM messages m
                 LEFT JOIN channels c ON m.channel_id = c.id
                 WHERE m.user_id = ?
@@ -162,7 +175,11 @@ public class ClientsService {
                     rs.getString("client_name"),
                     rs.getObject("channel_id") != null ? rs.getLong("channel_id") : null,
                     rs.getString("channel_name"),
-                    rs.getString("platform")
+                    rs.getString("platform"),
+                    normalizeClientSourceKey(rs.getString("source_key"), rs.getString("platform")),
+                    resolveClientSourceLabel(rs.getString("source_key"), rs.getString("platform")),
+                    resolveClientSourceIdentifierLabel(rs.getString("source_key"), rs.getString("platform")),
+                    resolveClientSourceIdentifierHint(rs.getString("source_key"), rs.getString("platform"))
                 )
                 : null,
             userId
@@ -265,6 +282,43 @@ public class ClientsService {
             phonesTelegram,
             phonesManual
         ));
+    }
+
+    private String normalizeClientSourceKey(String sourceKey, String platform) {
+        String normalizedSource = sourceKey != null ? sourceKey.trim().toLowerCase() : "";
+        if (!normalizedSource.isEmpty()) {
+            return normalizedSource;
+        }
+        String normalizedPlatform = platform != null ? platform.trim().toLowerCase() : "";
+        return normalizedPlatform.isEmpty() ? "telegram" : normalizedPlatform;
+    }
+
+    private String resolveClientSourceLabel(String sourceKey, String platform) {
+        return switch (normalizeClientSourceKey(sourceKey, platform)) {
+            case "vk" -> "VK";
+            case "max" -> "MAX";
+            case "web_form" -> "Внешняя форма";
+            case "telegram" -> "Telegram";
+            default -> "Неизвестный источник";
+        };
+    }
+
+    private String resolveClientSourceIdentifierLabel(String sourceKey, String platform) {
+        return switch (normalizeClientSourceKey(sourceKey, platform)) {
+            case "vk" -> "ID клиента в VK";
+            case "max" -> "ID клиента в MAX";
+            case "web_form" -> "ID клиента во внешней форме";
+            case "telegram" -> "ID клиента в Telegram";
+            default -> "ID клиента в источнике";
+        };
+    }
+
+    private String resolveClientSourceIdentifierHint(String sourceKey, String platform) {
+        return switch (normalizeClientSourceKey(sourceKey, platform)) {
+            case "web_form" -> "Для внешней формы используется внутренний синтетический идентификатор сессии клиента.";
+            case "vk", "max", "telegram" -> "Показывается внешний идентификатор клиента в исходном канале.";
+            default -> "Показывается идентификатор клиента в исходном канале.";
+        };
     }
 
     private List<ClientUsernameEntry> loadUsernameHistory(long userId) {

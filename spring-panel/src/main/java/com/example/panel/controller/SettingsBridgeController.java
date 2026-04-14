@@ -1628,6 +1628,11 @@ public class SettingsBridgeController {
         return Map.of("success", true, "items", items);
     }
 
+    public Map<String, Object> updateItEquipment(long itemId,
+                                                 Map<String, Object> payload) {
+        return updateItEquipment(itemId, payload, null);
+    }
+
     @DeleteMapping("/api/settings/it-equipment/{itemId}")
     @PreAuthorize("hasAuthority('PAGE_SETTINGS')")
     public Map<String, Object> deleteItEquipment(@PathVariable long itemId,
