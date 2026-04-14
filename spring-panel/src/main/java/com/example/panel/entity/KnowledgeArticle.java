@@ -42,6 +42,15 @@ public class KnowledgeArticle {
 
     private String attachments;
 
+    private String externalSource;
+
+    private String externalId;
+
+    private String externalUrl;
+
+    @Convert(converter = LenientOffsetDateTimeConverter.class)
+    private OffsetDateTime externalUpdatedAt;
+
     @Convert(converter = LenientOffsetDateTimeConverter.class)
     private OffsetDateTime createdAt;
 
@@ -134,6 +143,38 @@ public class KnowledgeArticle {
 
     public void setAttachments(String attachments) {
         this.attachments = attachments;
+    }
+
+    public String getExternalSource() {
+        return externalSource;
+    }
+
+    public void setExternalSource(String externalSource) {
+        this.externalSource = externalSource;
+    }
+
+    public String getExternalId() {
+        return externalId;
+    }
+
+    public void setExternalId(String externalId) {
+        this.externalId = externalId;
+    }
+
+    public String getExternalUrl() {
+        return externalUrl;
+    }
+
+    public void setExternalUrl(String externalUrl) {
+        this.externalUrl = externalUrl;
+    }
+
+    public OffsetDateTime getExternalUpdatedAt() {
+        return externalUpdatedAt;
+    }
+
+    public void setExternalUpdatedAt(OffsetDateTime externalUpdatedAt) {
+        this.externalUpdatedAt = externalUpdatedAt;
     }
 
     public OffsetDateTime getCreatedAt() {
