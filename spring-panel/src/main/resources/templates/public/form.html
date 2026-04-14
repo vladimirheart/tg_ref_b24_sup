@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Обращение в поддержку</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link rel="stylesheet" th:href="@{/css/sidebar.css}">
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+    <style>
+        body { background: var(--color-bg); }
+        .form-card,
+        .chat-card {
+            border-radius: 20px;
+            border: 1px solid transparent;
+            box-shadow: var(--color-shadow);
+            background:
+                linear-gradient(color-mix(in srgb, var(--card) 95%, white), color-mix(in srgb, var(--secondary) 20%, white)),
+                conic-gradient(
+                    from var(--gradient-angle),
+                    color-mix(in srgb, var(--gradient-primary) 54%, transparent),
+                    color-mix(in srgb, var(--gradient-secondary) 45%, transparent),
+                    color-mix(in srgb, var(--gradient-accent) 55%, transparent),
+                    color-mix(in srgb, var(--gradient-primary) 54%, transparent)
+                );
+            background-origin: padding-box, border-box;
+            background-clip: padding-box, border-box;
+        }
+        .form-card { padding: 2rem; animation: gradient-rotate 10s linear infinite; }
+        .chat-card { display: flex; flex-direction: column; height: 520px; animation: gradient-rotate 14s linear infinite; }
+        .chat-history { flex: 1; overflow-y: auto; padding: 1rem; background: color-mix(in srgb, var(--secondary) 22%, white); }
+        .chat-message { border-radius: 12px; padding: 0.75rem 1rem; margin-bottom: 0.75rem; max-width: 80%; word-break: break-word; }
+        .chat-message.user { background: color-mix(in srgb, var(--secondary) 72%, white); margin-left: auto; }
+        .chat-message.support { background: color-mix(in srgb, var(--accent) 72%, white); margin-right: auto; }
+        .chat-footer { border-top: 1px solid var(--color-border); padding: 0.75rem 1rem; background: color-mix(in srgb, var(--card) 94%, white); }
+    </style>
+</head>
+<body>
+<div class="container py-5">
+    <div class="page-header-card text-center mb-4">
+        <div class="badge rounded-pill text-bg-primary px-3 py-2" th:text="${channelName} ?: 'Обращение'">Канал</div>
+        <h1 class="page-title mt-3 mb-2">Создать обращение</h1>
+        <p class="page-subtitle mx-auto">Заполните форму и следите за ответом службы поддержки.</p>
+    </div>
+    <div class="row g-4">
+        <div class="col-12 col-lg-6">
+            <div class="form-card">
+                <form id="publicForm" class="needs-validation" novalidate>
+                    <div class="mb-3">
+                        <label class="form-label">Имя</label>
+                        <input type="text" class="form-control" name="clientName" placeholder="Как к вам обращаться?">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Контакт для связи</label>
+                        <input type="text" class="form-control" name="clientContact" placeholder="Телефон, e-mail или мессенджер">
+                    </div>
+                    <div data-role="dynamic-questions"></div>
+                    <div class="mb-3">
+                        <label class="form-label">Опишите проблему</label>
+                        <textarea class="form-control" name="message" rows="6" required></textarea>
+                        <div class="invalid-feedback">Опишите проблему, чтобы мы могли помочь.</div>
+                    </div>
+                    <div class="mb-3 d-none" data-role="captcha-container">
+                        <label class="form-label">CAPTCHA токен</label>
+                        <input type="text" class="form-control" name="captchaToken" placeholder="Введите токен CAPTCHA">
+                        <div class="form-text">Поле включается, если для канала активирована CAPTCHA-защита.</div>
+                    </div>
+                    <button class="btn btn-primary w-100" type="submit">Отправить</button>
+                    <div class="alert alert-danger mt-3 d-none" role="alert" data-role="error"></div>
+                    <div class="alert alert-success mt-3 d-none" role="alert" data-role="success"></div>
+                    <div class="alert alert-info mt-3 d-none" role="alert" data-role="continuation-box">
+                        <div class="fw-semibold mb-2" data-role="continuation-title">Продолжить через бота</div>
+                        <div class="small mb-2" data-role="continuation-hint"></div>
+                        <div class="input-group input-group-sm mb-2">
+                            <input type="text" class="form-control font-monospace" data-role="continuation-command" readonly>
+                            <button class="btn btn-outline-secondary" type="button" data-role="continuation-copy">Скопировать</button>
+                        </div>
+                        <a class="btn btn-sm btn-primary d-none" target="_blank" rel="noopener" data-role="continuation-link">Открыть бота</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <div class="col-12 col-lg-6">
+            <div class="chat-card">
+                <div class="chat-history" data-role="history">
+                    <div class="text-muted text-center mt-5" data-role="placeholder">Здесь появится история диалога.</div>
+                </div>
+                <div class="chat-footer">
+                    <div class="small text-muted" data-role="status">Диалог не создан</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+<script th:inline="javascript">
+    window.PUBLIC_FORM_INITIAL = {
+        channelRef: /*[[${channelRef}]]*/ 'demo',
+        initialToken: /*[[${initialToken}]]*/ '',
+        channelId: /*[[${channelId}]]*/ null
+    };
+</script>
+<script th:src="@{/js/content-disclosure.js}"></script>
+<script th:src="@{/js/public-form.js}"></script>
+</body>
+</html>

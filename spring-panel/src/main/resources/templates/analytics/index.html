@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Аналитика — Support Panel</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link rel="stylesheet" th:href="@{/css/sidebar.css}">
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body class="with-sidebar sidebar-pinned">
+<div th:replace="~{fragments/navbar :: navbar('analytics')}"></div>␊
+<main class="main-content container-fluid py-4">
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
+        <div>
+            <h1 class="h3 mb-1">Аналитика</h1>
+            <p class="text-muted mb-0">Сводка по обращениям и активности клиентов.</p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <a class="btn btn-outline-primary" th:href="@{/analytics/certificates}">Мониторинг SSL</a>
+            <form method="post" th:action="@{/analytics/export}">
+                <input type="hidden" name="_csrf" th:value="${_csrf.token}">
+                <button class="btn btn-success" type="submit">Экспорт CSV</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+            <div>
+                <h2 class="h5 mb-1">Кросс-продуктовые KPI дашборды</h2>
+                <p class="text-muted mb-2">Внешние BI-доски для omni-channel и финансовых метрик, подключаемые через настройки.</p>
+                <div class="d-flex flex-wrap gap-2 small">
+                    <span class="badge"
+                          th:classappend="${!#strings.isEmpty(crossProductOmnichannelDashboardUrl)} ? ' text-bg-success' : (${crossProductDashboardLinksRequired} ? ' text-bg-danger' : ' text-bg-secondary')"
+                          th:text="${!#strings.isEmpty(crossProductOmnichannelDashboardUrl)} ? 'Omni-channel: ссылка настроена' : (${crossProductDashboardLinksRequired} ? 'Omni-channel: ссылка обязательна' : 'Omni-channel: ссылка не задана')">Omni-channel status</span>
+                    <span class="badge"
+                          th:classappend="${!#strings.isEmpty(crossProductFinanceDashboardUrl)} ? ' text-bg-success' : (${crossProductDashboardLinksRequired} ? ' text-bg-danger' : ' text-bg-secondary')"
+                          th:text="${!#strings.isEmpty(crossProductFinanceDashboardUrl)} ? 'Финансы: ссылка настроена' : (${crossProductDashboardLinksRequired} ? 'Финансы: ссылка обязательна' : 'Финансы: ссылка не задана')">Finance status</span>
+                    <span class="badge" th:classappend="${crossProductDashboardLinksRequired} ? ' text-bg-warning' : ' text-bg-light border'"
+                          th:text="${crossProductDashboardLinksRequired} ? 'Gate links=required' : 'Gate links=optional'">Gate links</span>
+                    <span class="badge" th:classappend="${crossProductOmnichannelReady} ? ' text-bg-success' : ' text-bg-secondary'"
+                          th:text="${crossProductOmnichannelReady} ? 'Omni KPI: ready' : 'Omni KPI: pending'">Omni KPI status</span>
+                    <span class="badge" th:classappend="${crossProductFinanceReady} ? ' text-bg-success' : ' text-bg-secondary'"
+                          th:text="${crossProductFinanceReady} ? 'Finance KPI: ready' : 'Finance KPI: pending'">Finance KPI status</span>
+                    <span class="badge"
+                          th:classappend="${!#strings.isEmpty(crossProductDependencyTicketUrl)} ? ' text-bg-success' : (${crossProductDependencyTicketRequired} ? ' text-bg-danger' : ' text-bg-secondary')"
+                          th:text="${!#strings.isEmpty(crossProductDependencyTicketUrl)} ? 'Dependency ticket: указан' : (${crossProductDependencyTicketRequired} ? 'Dependency ticket: обязателен' : 'Dependency ticket: optional')">Dependency ticket status</span>
+                    <span class="badge"
+                          th:classappend="${crossProductDependencyTicketFreshnessRequired} ? ' text-bg-warning' : ' text-bg-light border'"
+                          th:text="${crossProductDependencyTicketFreshnessRequired} ? 'Gate dependency freshness=required' : 'Gate dependency freshness=optional'">Dependency freshness gate</span>
+                </div>
+                <p class="small text-muted mt-2 mb-0"
+                   th:if="${crossProductDependencyTicketFreshnessRequired and !#strings.isEmpty(crossProductDependencyTicketUpdatedAt)}"
+                   th:text="${'Dependency ticket updated: ' + crossProductDependencyTicketUpdatedAt + ' · TTL: ' + crossProductDependencyTicketTtlHours + 'h'}">Dependency ticket updated: n/a</p>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+                <a class="btn btn-outline-primary" target="_blank" rel="noopener noreferrer"
+                   th:if="${!#strings.isEmpty(crossProductOmnichannelDashboardUrl)}"
+                   th:href="${crossProductOmnichannelDashboardUrl}"
+                   th:text="${!#strings.isEmpty(crossProductOmnichannelDashboardLabel) ? crossProductOmnichannelDashboardLabel : 'Omni-channel KPI dashboard'}">Omni-channel KPI dashboard</a>
+                <a class="btn btn-outline-success" target="_blank" rel="noopener noreferrer"
+                   th:if="${!#strings.isEmpty(crossProductFinanceDashboardUrl)}"
+                   th:href="${crossProductFinanceDashboardUrl}"
+                   th:text="${!#strings.isEmpty(crossProductFinanceDashboardLabel) ? crossProductFinanceDashboardLabel : 'Финансовый KPI dashboard'}">Финансовый KPI dashboard</a>
+                <a class="btn btn-outline-dark" target="_blank" rel="noopener noreferrer"
+                   th:if="${!#strings.isEmpty(crossProductDependencyTicketUrl)}"
+                   th:href="${crossProductDependencyTicketUrl}">Dependency ticket</a>
+                <a class="btn btn-outline-secondary" th:href="@{/settings#dialogSlaEscalationSection}">Открыть настройки BI bridge</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-12">
+            <div class="card shadow-sm" id="workspaceTelemetryCard">
+                <div class="card-header bg-white d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2">
+                    <div>
+                        <h2 class="h5 mb-0">Workspace rollout guardrails</h2>
+                        <small class="text-muted">Операционные алерты и KPI по `workspace_v1` из серверной telemetry.</small>
+                    </div>
+                    <div class="d-flex flex-wrap align-items-center gap-2">
+                        <label class="small text-muted" for="workspaceTelemetryDays">Окно:</label>
+                        <select class="form-select form-select-sm analytics-control-auto" id="workspaceTelemetryDays">
+                            <option value="7" selected>7 дней</option>
+                            <option value="14">14 дней</option>
+                            <option value="30">30 дней</option>
+                        </select>
+                        <input type="text" class="form-control form-control-sm analytics-control-md" id="workspaceTelemetryExperiment" placeholder="experiment_name (опц.)">
+                        <input type="datetime-local" class="form-control form-control-sm analytics-control-sm" id="workspaceTelemetryFromUtc" aria-label="From UTC" title="Начало окна (UTC)">
+                        <input type="datetime-local" class="form-control form-control-sm analytics-control-sm" id="workspaceTelemetryToUtc" aria-label="To UTC" title="Конец окна (UTC)">
+                        <select class="form-select form-select-sm analytics-control-auto" id="workspaceTelemetryScope" aria-label="Срез guardrails">
+                            <option value="all" selected>Срез: все</option>
+                            <option value="global">Только global</option>
+                            <option value="shift">По сменам</option>
+                            <option value="team">По командам</option>
+                        </select>
+                        <input type="search" class="form-control form-control-sm analytics-control-lg" id="workspaceTelemetrySegment" placeholder="segment (напр. night/team-a)">
+                        <button class="btn btn-sm btn-outline-secondary" type="button" id="workspaceTelemetryResetWindow">Сбросить окно</button>
+                        <button class="btn btn-sm btn-outline-primary" type="button" id="workspaceTelemetryRefresh">Обновить</button>
+                        <button class="btn btn-sm btn-outline-secondary" type="button" id="workspaceTelemetryExportCsv">CSV guardrails</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3 mb-3" id="workspaceTelemetryMetrics">
+                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">События</div><div class="h5 mb-0" data-metric="events">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Render error</div><div class="h5 mb-0" data-metric="render_errors">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Fallbacks</div><div class="h5 mb-0" data-metric="fallbacks">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Abandon</div><div class="h5 mb-0" data-metric="abandons">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Slow open</div><div class="h5 mb-0" data-metric="slow_open_events">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Avg open ms</div><div class="h5 mb-0" data-metric="avg_open_ms">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">KPI FRT events</div><div class="h5 mb-0" data-metric="kpi_frt_events">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">KPI TTR events</div><div class="h5 mb-0" data-metric="kpi_ttr_events">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">KPI SLA breach events</div><div class="h5 mb-0" data-metric="kpi_sla_breach_events">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">KPI Dialogs/shift events</div><div class="h5 mb-0" data-metric="kpi_dialogs_per_shift_events">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">KPI CSAT events</div><div class="h5 mb-0" data-metric="kpi_csat_events">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Workspace opens</div><div class="h5 mb-0" data-metric="workspace_open_events">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Inline navigation</div><div class="h5 mb-0" data-metric="workspace_inline_navigation_events">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Manual legacy opens</div><div class="h5 mb-0" data-metric="manual_legacy_open_events">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Legacy opens blocked</div><div class="h5 mb-0" data-metric="workspace_open_legacy_blocked_events">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Context gaps</div><div class="h5 mb-0" data-metric="context_profile_gap_events">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Source gaps</div><div class="h5 mb-0" data-metric="context_source_gap_events">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Policy gaps</div><div class="h5 mb-0" data-metric="context_attribute_policy_gap_events">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Block gaps</div><div class="h5 mb-0" data-metric="context_block_gap_events">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Parity gaps</div><div class="h5 mb-0" data-metric="workspace_parity_gap_events">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Context ready %</div><div class="h5 mb-0" data-metric="context_profile_ready_rate">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Sources ready %</div><div class="h5 mb-0" data-metric="context_source_ready_rate">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Policy ready %</div><div class="h5 mb-0" data-metric="context_attribute_policy_ready_rate">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Blocks ready %</div><div class="h5 mb-0" data-metric="context_block_ready_rate">—</div></div></div>
+                        <div class="col-6 col-lg-2"><div class="border rounded p-2 h-100"><div class="text-muted small">Parity ready %</div><div class="h5 mb-0" data-metric="workspace_parity_ready_rate">—</div></div></div>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 mb-3">
+                        <span class="badge text-bg-success d-none" id="workspaceTelemetryGuardrailsOk">Guardrails: OK</span>
+                        <span class="badge text-bg-warning d-none" id="workspaceTelemetryGuardrailsAttention">Guardrails: attention</span>
+                        <small class="text-muted" id="workspaceTelemetryUpdatedAt"></small>
+                    </div>
+                    <div class="alert d-none mb-2" id="workspaceTelemetryRolloutDecision" role="status"></div>
+                    <div class="small text-muted mb-3" id="workspaceTelemetryKpiSignalState"></div>
+                    <div class="card border-0 bg-light-subtle mb-3" id="workspaceTelemetryScorecardCard">
+                        <div class="card-body">
+                            <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2 mb-2">
+                                <div>
+                                    <h3 class="h6 mb-1">Rollout scorecard</h3>
+                                    <p class="small text-muted mb-0">Формальное решение по rollout: sample size → guardrails → product outcome → external checkpoints.</p>
+                                </div>
+                                <small class="text-muted" id="workspaceTelemetryScorecardUpdatedAt"></small>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-sm align-middle mb-0">
+                                    <thead>
+                                    <tr>
+                                        <th>Проверка</th>
+                                        <th>Статус</th>
+                                        <th>Текущее значение</th>
+                                        <th>Порог / условие</th>
+                                        <th>UTC</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody id="workspaceTelemetryScorecardTable">
+                                    <tr>
+                                        <td colspan="5" class="text-muted text-center py-3">Загрузка scorecard...</td>
+                                    </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card border-0 bg-light-subtle mb-3" id="workspaceTelemetryPacketCard">
+                        <div class="card-body">
+                            <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2 mb-2">
+                                <div>
+                                    <h3 class="h6 mb-1">Rollout governance packet</h3>
+                                    <p class="small text-muted mb-0">Обязательный пакет для decision-loop: scorecard, parity snapshot, external gate, incident history и owner sign-off.</p>
+                                </div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge text-bg-secondary" id="workspaceTelemetryPacketStatus">Packet: —</span>
+                                    <small class="text-muted" id="workspaceTelemetryPacketUpdatedAt"></small>
+                                </div>
+                            </div>
+                            <div class="row g-3 mb-3">
+                                <div class="col-12 col-lg-4">
+                                    <div class="border rounded p-3 h-100">
+                                        <div class="text-muted small">Owner sign-off</div>
+                                        <div class="fw-semibold" id="workspaceTelemetryPacketOwnerState">—</div>
+                                        <div class="small text-muted" id="workspaceTelemetryPacketOwnerMeta"></div>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-lg-4">
+                                    <div class="border rounded p-3 h-100">
+                                        <div class="text-muted small">Parity snapshot</div>
+                                        <div class="fw-semibold" id="workspaceTelemetryPacketParityState">—</div>
+                                        <div class="small text-muted" id="workspaceTelemetryPacketParityMeta"></div>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-lg-4">
+                                    <div class="border rounded p-3 h-100">
+                                        <div class="text-muted small">Incident history</div>
+                                        <div class="fw-semibold" id="workspaceTelemetryPacketIncidentState">—</div>
+                                        <div class="small text-muted" id="workspaceTelemetryPacketIncidentMeta"></div>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-lg-4">
+                                    <div class="border rounded p-3 h-100">
+                                        <div class="text-muted small">Weekly review</div>
+                                        <div class="fw-semibold" id="workspaceTelemetryPacketReviewState">—</div>
+                                        <div class="small text-muted" id="workspaceTelemetryPacketReviewMeta"></div>
+                                        <div class="mt-2">
+                                            <label for="workspaceTelemetryReviewBy" class="form-label form-label-sm mb-1">Reviewed by</label>
+                                            <input type="text" class="form-control form-control-sm" id="workspaceTelemetryReviewBy" placeholder="operator@example">
+                                        </div>
+                                        <div class="mt-2">
+                                            <label for="workspaceTelemetryReviewAtUtc" class="form-label form-label-sm mb-1">Reviewed at (UTC)</label>
+                                            <input type="datetime-local" class="form-control form-control-sm" id="workspaceTelemetryReviewAtUtc">
+                                        </div>
+                                        <div class="mt-2">
+                                            <label for="workspaceTelemetryReviewNote" class="form-label form-label-sm mb-1">Review note (optional)</label>
+                                            <textarea class="form-control form-control-sm" id="workspaceTelemetryReviewNote" rows="2" maxlength="500" placeholder="Короткий follow-up: parity-gap, incident action, owner next step"></textarea>
+                                        </div>
+                                        <div class="mt-2">
+                                            <label for="workspaceTelemetryReviewDecisionAction" class="form-label form-label-sm mb-1">Decision (go/hold/rollback)</label>
+                                            <select class="form-select form-select-sm" id="workspaceTelemetryReviewDecisionAction">
+                                                <option value="">Не указан</option>
+                                                <option value="go">Go</option>
+                                                <option value="hold">Hold</option>
+                                                <option value="rollback">Rollback</option>
+                                            </select>
+                                        </div>
+                                        <div class="mt-2">
+                                            <label for="workspaceTelemetryReviewIncidentFollowup" class="form-label form-label-sm mb-1">Incident follow-up (optional)</label>
+                                            <input type="text" class="form-control form-control-sm" id="workspaceTelemetryReviewIncidentFollowup" maxlength="255" placeholder="INC-123 / ссылка на postmortem">
+                                        </div>
+                                        <div class="mt-2">
+                                            <label for="workspaceTelemetryReviewRequiredCriteria" class="form-label form-label-sm mb-1">Required criteria (CSV)</label>
+                                            <input type="text" class="form-control form-control-sm" id="workspaceTelemetryReviewRequiredCriteria" maxlength="500" placeholder="sample_size_ready, guardrails_ok, parity_snapshot_ready">
+                                        </div>
+                                        <div class="mt-2">
+                                            <label for="workspaceTelemetryReviewCheckedCriteria" class="form-label form-label-sm mb-1">Criteria covered in this review (CSV)</label>
+                                            <input type="text" class="form-control form-control-sm" id="workspaceTelemetryReviewCheckedCriteria" maxlength="500" placeholder="sample_size_ready, guardrails_ok">
+                                        </div>
+                                        <div class="d-flex align-items-center gap-2 mt-2">
+                                            <button type="button" class="btn btn-sm btn-outline-primary" id="workspaceTelemetryReviewConfirm">Подтвердить review</button>
+                                            <small class="text-muted" id="workspaceTelemetryReviewActionState"></small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-lg-4">
+                                    <div class="border rounded p-3 h-100">
+                                        <div class="text-muted small">Parity exit criteria</div>
+                                        <div class="fw-semibold" id="workspaceTelemetryPacketExitState">—</div>
+                                        <div class="small text-muted" id="workspaceTelemetryPacketExitMeta"></div>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-lg-4">
+                                    <div class="border rounded p-3 h-100">
+                                        <div class="text-muted small">Legacy-only scenarios</div>
+                                        <div class="fw-semibold" id="workspaceTelemetryPacketLegacyState">—</div>
+                                        <div class="small text-muted" id="workspaceTelemetryPacketLegacyMeta"></div>
+                                        <div class="mt-2">
+                                            <label for="workspaceTelemetryLegacyScenarios" class="form-label form-label-sm mb-1">Scenarios (CSV)</label>
+                                            <input type="text" class="form-control form-control-sm" id="workspaceTelemetryLegacyScenarios" placeholder="attachments_edit, inline_reopen">
+                                        </div>
+                                        <div class="mt-2">
+                                            <label for="workspaceTelemetryLegacyReviewedBy" class="form-label form-label-sm mb-1">Reviewed by</label>
+                                            <input type="text" class="form-control form-control-sm" id="workspaceTelemetryLegacyReviewedBy" placeholder="ops.lead">
+                                        </div>
+                                        <div class="mt-2">
+                                            <label for="workspaceTelemetryLegacyReviewedAtUtc" class="form-label form-label-sm mb-1">Reviewed at (UTC)</label>
+                                            <input type="datetime-local" class="form-control form-control-sm" id="workspaceTelemetryLegacyReviewedAtUtc">
+                                        </div>
+                                        <div class="mt-2">
+                                            <label for="workspaceTelemetryLegacyReviewNote" class="form-label form-label-sm mb-1">Review note (optional)</label>
+                                            <input type="text" class="form-control form-control-sm" id="workspaceTelemetryLegacyReviewNote" maxlength="500" placeholder="Почему сценарий остаётся legacy-only и когда закрываем">
+                                        </div>
+                                        <div class="mt-2">
+                                            <label for="workspaceTelemetryLegacyScenarioMetadata" class="form-label form-label-sm mb-1">Owner + sunset deadline by scenario (JSON)</label>
+                                            <textarea class="form-control form-control-sm font-monospace" id="workspaceTelemetryLegacyScenarioMetadata" rows="4" placeholder='{"attachments_edit":{"owner":"workspace-core","deadline_at_utc":"2026-04-15T12:00:00Z","note":"reply composer parity"}}'></textarea>
+                                        </div>
+                                        <div class="small text-muted mt-2" id="workspaceTelemetryLegacyInventorySummary"></div>
+                                        <div class="small text-muted mt-2" id="workspaceTelemetryLegacyQueueSummary"></div>
+                                        <div class="d-flex align-items-center gap-2 mt-2">
+                                            <button type="button" class="btn btn-sm btn-outline-primary" id="workspaceTelemetryLegacySave">Сохранить inventory</button>
+                                            <small class="text-muted" id="workspaceTelemetryLegacyActionState"></small>
+                                        </div>
+                                    </div>
+                                </div>
+    <div class="col-12 col-lg-4">
+    <div class="border rounded p-3 h-100">
+        <div class="text-muted small">Legacy manual-open policy</div>
+        <div class="fw-semibold" id="workspaceTelemetryPacketLegacyUsageState">—</div>
+        <div class="small text-muted" id="workspaceTelemetryPacketLegacyUsageMeta"></div>
+        <div class="mt-2">
+            <label for="workspaceTelemetryLegacyUsageReviewedBy" class="form-label form-label-sm mb-1">Reviewed by</label>
+            <input type="text" class="form-control form-control-sm" id="workspaceTelemetryLegacyUsageReviewedBy" placeholder="ops.lead">
+        </div>
+        <div class="mt-2">
+            <label for="workspaceTelemetryLegacyUsageReviewedAtUtc" class="form-label form-label-sm mb-1">Reviewed at (UTC)</label>
+            <input type="datetime-local" class="form-control form-control-sm" id="workspaceTelemetryLegacyUsageReviewedAtUtc">
+        </div>
+        <div class="mt-2">
+            <label for="workspaceTelemetryLegacyUsageMaxSharePct" class="form-label form-label-sm mb-1">Max manual legacy share % (optional)</label>
+            <input type="number" min="0" max="100" class="form-control form-control-sm" id="workspaceTelemetryLegacyUsageMaxSharePct" placeholder="10">
+        </div>
+        <div class="mt-2">
+            <label for="workspaceTelemetryLegacyUsageMinWorkspaceOpens" class="form-label form-label-sm mb-1">Min workspace opens in window (optional)</label>
+            <input type="number" min="0" max="100000" class="form-control form-control-sm" id="workspaceTelemetryLegacyUsageMinWorkspaceOpens" placeholder="50">
+        </div>
+        <div class="mt-2">
+            <label for="workspaceTelemetryLegacyUsageMaxShareDeltaPct" class="form-label form-label-sm mb-1">Max share delta pp vs previous window (optional)</label>
+            <input type="number" min="0" max="100" class="form-control form-control-sm" id="workspaceTelemetryLegacyUsageMaxShareDeltaPct" placeholder="5">
+        </div>
+        <div class="mt-2">
+            <label for="workspaceTelemetryLegacyUsageMaxBlockedShareDeltaPct" class="form-label form-label-sm mb-1">Max blocked share delta pp vs previous window (optional)</label>
+            <input type="number" min="0" max="100" class="form-control form-control-sm" id="workspaceTelemetryLegacyUsageMaxBlockedShareDeltaPct" placeholder="3">
+        </div>
+        <div class="mt-2">
+            <label for="workspaceTelemetryLegacyUsageDecision" class="form-label form-label-sm mb-1">Decision (go/hold)</label>
+            <select class="form-select form-select-sm" id="workspaceTelemetryLegacyUsageDecision">
+                <option value="">Не указан</option>
+                <option value="go">Go</option>
+                <option value="hold">Hold</option>
+            </select>
+        </div>
+        <div class="mt-2">
+            <label for="workspaceTelemetryLegacyUsageReviewNote" class="form-label form-label-sm mb-1">Review note (optional)</label>
+            <input type="text" class="form-control form-control-sm" id="workspaceTelemetryLegacyUsageReviewNote" maxlength="500" placeholder="Почему legacy-open доля допустима / какой follow-up">
+        </div>
+        <div class="d-flex align-items-center gap-2 mt-2">
+            <button type="button" class="btn btn-sm btn-outline-primary" id="workspaceTelemetryLegacyUsageSave">Сохранить policy</button>
+                                        </div>
+                                        <div class="mt-2">
+                                            <label for="workspaceTelemetryLegacyUsageAllowedReasons" class="form-label form-label-sm mb-1">Allowed manual-open reasons (CSV, optional)</label>
+                                            <input type="text" class="form-control form-control-sm" id="workspaceTelemetryLegacyUsageAllowedReasons" maxlength="500" placeholder="manual_rollback, attachment_gap, reply_threading_gap">
+                                        </div>
+                                        <div class="form-check mt-2">
+                                            <input class="form-check-input" type="checkbox" id="workspaceTelemetryLegacyUsageReasonCatalogRequired">
+                                            <label class="form-check-label" for="workspaceTelemetryLegacyUsageReasonCatalogRequired">
+                                                Block legacy-open when reason is outside allowed catalog
+                                            </label>
+                                        </div>
+                                        <div class="mt-2">
+                                            <label for="workspaceTelemetryLegacyUsageBlockedReasonsReviewed" class="form-label form-label-sm mb-1">Blocked reasons reviewed (CSV)</label>
+                                            <input type="text" class="form-control form-control-sm" id="workspaceTelemetryLegacyUsageBlockedReasonsReviewed" maxlength="500" placeholder="policy_hold, invalid_review_timestamp, missing_reason">
+                                        </div>
+                                        <div class="mt-2">
+                                            <label for="workspaceTelemetryLegacyUsageBlockedReasonsFollowup" class="form-label form-label-sm mb-1">Blocked reasons follow-up</label>
+                                            <input type="text" class="form-control form-control-sm" id="workspaceTelemetryLegacyUsageBlockedReasonsFollowup" maxlength="500" placeholder="Что делаем по top blocked reasons: тикет / owner / next action">
+                                        </div>
+                                        <div class="d-flex align-items-center gap-2 mt-2">
+            <small class="text-muted" id="workspaceTelemetryLegacyUsageActionState"></small>
+        </div>
+    </div>
+</div>
+                                <div class="col-12">
+                                    <div class="border rounded p-3 h-100">
+                                        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2 mb-2">
+                                            <div>
+                                                <div class="text-muted small">Customer context minimum profile</div>
+                                                <div class="fw-semibold" id="workspaceTelemetryPacketContextState">—</div>
+                                                <div class="small text-muted" id="workspaceTelemetryPacketContextMeta"></div>
+                                                <div class="small text-muted mt-2" id="workspaceTelemetryContextActionSummary"></div>
+                                                <div class="small text-muted mt-2" id="workspaceTelemetryContextNoiseSummary"></div>
+                                            </div>
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" role="switch" id="workspaceTelemetryContextRequired">
+                                                <label class="form-check-label small" for="workspaceTelemetryContextRequired">Blocking gate</label>
+                                            </div>
+                                        </div>
+                                        <div class="row g-2">
+                                            <div class="col-12 col-lg-6">
+                                                <label for="workspaceTelemetryContextScenarios" class="form-label form-label-sm mb-1">Scenarios (CSV)</label>
+                                                <input type="text" class="form-control form-control-sm" id="workspaceTelemetryContextScenarios" placeholder="incident, billing, technical_support">
+                                            </div>
+                                            <div class="col-12 col-lg-6">
+                                                <label for="workspaceTelemetryContextMandatoryFields" class="form-label form-label-sm mb-1">Mandatory fields (CSV)</label>
+                                                <input type="text" class="form-control form-control-sm" id="workspaceTelemetryContextMandatoryFields" placeholder="full_name, crm_tier, contract_status">
+                                            </div>
+                                            <div class="col-12 col-lg-6">
+                                                <label for="workspaceTelemetryContextSourceOfTruth" class="form-label form-label-sm mb-1">Source-of-truth (CSV)</label>
+                                                <input type="text" class="form-control form-control-sm" id="workspaceTelemetryContextSourceOfTruth" placeholder="crm_tier:crm, contract_status:billing_api">
+                                            </div>
+                                            <div class="col-12 col-lg-6">
+                                                <label for="workspaceTelemetryContextPriorityBlocks" class="form-label form-label-sm mb-1">Priority blocks (CSV)</label>
+                                                <input type="text" class="form-control form-control-sm" id="workspaceTelemetryContextPriorityBlocks" placeholder="customer, sla, related_events">
+                                            </div>
+                                            <div class="col-12">
+                                                <label for="workspaceTelemetryContextPlaybooks" class="form-label form-label-sm mb-1">Context-gap playbooks (JSON)</label>
+                                                <textarea class="form-control form-control-sm font-monospace" id="workspaceTelemetryContextPlaybooks" rows="4" placeholder='{"mandatory_field:phone":{"label":"Как дозаполнить телефон","url":"https://wiki.company.local/playbooks/phone","summary":"Спросить клиента и обновить CRM"},"source_of_truth":{"label":"Source-of-truth guide","url":"https://wiki.company.local/playbooks/context-sources"}}'></textarea>
+                                            </div>
+                                            <div class="col-12">
+                                                <details class="border rounded p-2 bg-body-tertiary">
+                                                    <summary class="small">Advanced scenario overrides</summary>
+                                                    <div class="row g-2 mt-2">
+                                                        <div class="col-12">
+                                                            <label for="workspaceTelemetryContextScenarioMandatoryFields" class="form-label form-label-sm mb-1">Mandatory fields by scenario (JSON)</label>
+                                                            <textarea class="form-control form-control-sm" id="workspaceTelemetryContextScenarioMandatoryFields" rows="3" placeholder='{"billing":["contract_status","crm_tier"],"incident":["full_name","phone"]}'></textarea>
+                                                        </div>
+                                                        <div class="col-12 col-lg-6">
+                                                            <label for="workspaceTelemetryContextScenarioSourceOfTruth" class="form-label form-label-sm mb-1">Source-of-truth by scenario (JSON)</label>
+                                                            <textarea class="form-control form-control-sm" id="workspaceTelemetryContextScenarioSourceOfTruth" rows="3" placeholder='{"billing":["contract_status:billing_api"],"incident":["severity:incident_hub"]}'></textarea>
+                                                        </div>
+                                                        <div class="col-12 col-lg-6">
+                                                            <label for="workspaceTelemetryContextScenarioPriorityBlocks" class="form-label form-label-sm mb-1">Priority blocks by scenario (JSON)</label>
+                                                            <textarea class="form-control form-control-sm" id="workspaceTelemetryContextScenarioPriorityBlocks" rows="3" placeholder='{"billing":["customer","sla"],"incident":["related_events","sla"]}'></textarea>
+                                                        </div>
+                                                    </div>
+                                                </details>
+                                            </div>
+                                            <div class="col-12 col-lg-3">
+                                                <label for="workspaceTelemetryContextReviewedBy" class="form-label form-label-sm mb-1">Reviewed by</label>
+                                                <input type="text" class="form-control form-control-sm" id="workspaceTelemetryContextReviewedBy" placeholder="ops.lead">
+                                            </div>
+                                            <div class="col-12 col-lg-3">
+                                                <label for="workspaceTelemetryContextReviewedAtUtc" class="form-label form-label-sm mb-1">Reviewed at (UTC)</label>
+                                                <input type="datetime-local" class="form-control form-control-sm" id="workspaceTelemetryContextReviewedAtUtc">
+                                            </div>
+                                            <div class="col-12 col-lg-6">
+                                                <label for="workspaceTelemetryContextReviewNote" class="form-label form-label-sm mb-1">Review note (optional)</label>
+                                                <input type="text" class="form-control form-control-sm" id="workspaceTelemetryContextReviewNote" maxlength="500" placeholder="owner, source updates, stale-data follow-up">
+                                            </div>
+                                        </div>
+                                        <div class="d-flex align-items-center gap-2 mt-2">
+                                            <button type="button" class="btn btn-sm btn-outline-primary" id="workspaceTelemetryContextSave">Сохранить minimum profile</button>
+                                            <small class="text-muted" id="workspaceTelemetryContextActionState"></small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="alert alert-warning d-none mb-3" id="workspaceTelemetryPacketSummary"></div>
+                            <div class="table-responsive">
+                                <table class="table table-sm align-middle mb-0">
+                                    <thead>
+                                    <tr>
+                                        <th>Компонент</th>
+                                        <th>Статус</th>
+                                        <th>Текущее значение</th>
+                                        <th>Требование</th>
+                                        <th>UTC</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody id="workspaceTelemetryPacketTable">
+                                    <tr>
+                                        <td colspan="5" class="text-muted text-center py-3">Загрузка governance packet...</td>
+                                    </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card border-0 bg-light-subtle mb-3" id="workspaceTelemetrySlaPolicyAuditCard">
+                        <div class="card-body">
+                            <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2 mb-2">
+                                <div>
+                                    <h3 class="h6 mb-1">SLA routing governance audit</h3>
+                                    <p class="small text-muted mb-0">Dry-run аудит конфигурации SLA policy: конфликты, слишком широкие и неиспользуемые routing rules, ownership и UTC-review.</p>
+                                </div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge text-bg-secondary" id="workspaceTelemetrySlaPolicyAuditStatus">Audit: —</span>
+                                    <small class="text-muted" id="workspaceTelemetrySlaPolicyAuditUpdatedAt"></small>
+                                </div>
+                            </div>
+                            <div class="row g-3 mb-3">
+                                <div class="col-12 col-lg-4">
+                                    <div class="border rounded p-3 h-100">
+                                        <div class="text-muted small">Snapshot</div>
+                                        <div class="fw-semibold" id="workspaceTelemetrySlaPolicyAuditSummary">—</div>
+                                        <div class="small text-muted" id="workspaceTelemetrySlaPolicyAuditMeta"></div>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-lg-4">
+                                    <div class="border rounded p-3 h-100">
+                                        <div class="text-muted small">Rule layers</div>
+                                        <div class="fw-semibold" id="workspaceTelemetrySlaPolicyAuditLayers">—</div>
+                                        <div class="small text-muted" id="workspaceTelemetrySlaPolicyAuditLayersMeta"></div>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-lg-4">
+                                    <div class="border rounded p-3 h-100">
+                                        <div class="text-muted small">Preview routing</div>
+                                        <div class="fw-semibold" id="workspaceTelemetrySlaPolicyAuditPreview">—</div>
+                                        <div class="small text-muted" id="workspaceTelemetrySlaPolicyAuditPreviewMeta"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="alert alert-warning d-none mb-3" id="workspaceTelemetrySlaPolicyAuditIssueSummary"></div>
+                            <div class="small text-muted mb-3" id="workspaceTelemetrySlaPolicyAuditSummaryCompact"></div>
+                            <div class="border rounded p-3 mb-3 bg-body" id="workspaceTelemetrySlaPolicyReviewForm">
+                                <div class="small text-muted mb-2">Governance review checkpoint (UTC)</div>
+                                <div class="row g-2">
+                                    <div class="col-12 col-lg-3">
+                                        <label for="workspaceTelemetrySlaPolicyReviewedBy" class="form-label form-label-sm mb-1">Reviewed by</label>
+                                        <input type="text" class="form-control form-control-sm" id="workspaceTelemetrySlaPolicyReviewedBy" placeholder="ops.lead">
+                                    </div>
+                                    <div class="col-12 col-lg-3">
+                                        <label for="workspaceTelemetrySlaPolicyReviewedAtUtc" class="form-label form-label-sm mb-1">Reviewed at (UTC)</label>
+                                        <input type="datetime-local" class="form-control form-control-sm" id="workspaceTelemetrySlaPolicyReviewedAtUtc">
+                                    </div>
+                                    <div class="col-12 col-lg-3">
+                                        <label for="workspaceTelemetrySlaPolicyDecision" class="form-label form-label-sm mb-1">Decision</label>
+                                        <select class="form-select form-select-sm" id="workspaceTelemetrySlaPolicyDecision">
+                                            <option value="">—</option>
+                                            <option value="go">Go</option>
+                                            <option value="hold">Hold</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-12 col-lg-3">
+                                        <label for="workspaceTelemetrySlaPolicyDryRunTicketId" class="form-label form-label-sm mb-1">Dry-run ticket ID</label>
+                                        <input type="text" class="form-control form-control-sm" id="workspaceTelemetrySlaPolicyDryRunTicketId" maxlength="80" placeholder="INC-1234">
+                                    </div>
+                                    <div class="col-12">
+                                        <label for="workspaceTelemetrySlaPolicyReviewNote" class="form-label form-label-sm mb-1">Review note (optional)</label>
+                                        <input type="text" class="form-control form-control-sm" id="workspaceTelemetrySlaPolicyReviewNote" maxlength="500" placeholder="conflict cleanup, broad route review, owner follow-up">
+                                    </div>
+                                </div>
+                                <div class="small text-muted mt-2" id="workspaceTelemetrySlaPolicyReviewMeta"></div>
+                                <div class="d-flex align-items-center gap-2 mt-2">
+                                    <button type="button" class="btn btn-sm btn-outline-primary" id="workspaceTelemetrySlaPolicySaveReview">Сохранить SLA review</button>
+                                    <small class="text-muted" id="workspaceTelemetrySlaPolicyActionState"></small>
+                                </div>
+                            </div>
+                            <div class="row g-3">
+                                <div class="col-12 col-xl-5">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm align-middle mb-0">
+                                            <thead>
+                                            <tr>
+                                                <th>Issue</th>
+                                                <th>Rule</th>
+                                                <th>Класс</th>
+                                                <th>Деталь</th>
+                                            </tr>
+                                            </thead>
+                                            <tbody id="workspaceTelemetrySlaPolicyAuditIssuesTable">
+                                            <tr>
+                                                <td colspan="4" class="text-muted text-center py-3">Загрузка audit...</td>
+                                            </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-xl-7">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm align-middle mb-0">
+                                            <thead>
+                                            <tr>
+                                                <th>Rule</th>
+                                                <th>Layer</th>
+                                                <th>Status</th>
+                                                <th class="text-end">Matched</th>
+                                                <th class="text-end">Selected</th>
+                                                <th class="text-end">Coverage</th>
+                                                <th>Owner / review</th>
+                                            </tr>
+                                            </thead>
+                                            <tbody id="workspaceTelemetrySlaPolicyAuditRulesTable">
+                                            <tr>
+                                                <td colspan="7" class="text-muted text-center py-3">Загрузка audit...</td>
+                                            </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card border-0 bg-light-subtle mb-3" id="workspaceTelemetryMacroGovernanceCard">
+                        <div class="card-body">
+                            <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2 mb-2">
+                                <div>
+                                    <h3 class="h6 mb-1">Macro governance audit</h3>
+                                    <p class="small text-muted mb-0">Ownership, namespace, UTC-review freshness и cleanup-сигналы по опубликованным macro templates.</p>
+                                </div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge text-bg-secondary" id="workspaceTelemetryMacroGovernanceStatus">Audit: —</span>
+                                    <small class="text-muted" id="workspaceTelemetryMacroGovernanceUpdatedAt"></small>
+                                </div>
+                            </div>
+                            <div class="row g-3 mb-3">
+                                <div class="col-12 col-lg-4">
+                                    <div class="border rounded p-3 h-100">
+                                        <div class="text-muted small">Snapshot</div>
+                                        <div class="fw-semibold" id="workspaceTelemetryMacroGovernanceSummary">—</div>
+                                        <div class="small text-muted" id="workspaceTelemetryMacroGovernanceMeta"></div>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-lg-4">
+                                    <div class="border rounded p-3 h-100">
+                                        <div class="text-muted small">Requirements</div>
+                                        <div class="fw-semibold" id="workspaceTelemetryMacroGovernanceRequirements">—</div>
+                                        <div class="small text-muted" id="workspaceTelemetryMacroGovernanceRequirementsMeta"></div>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-lg-4">
+                                    <div class="border rounded p-3 h-100">
+                                        <div class="text-muted small">Cleanup</div>
+                                        <div class="fw-semibold" id="workspaceTelemetryMacroGovernanceCleanup">—</div>
+                                        <div class="small text-muted" id="workspaceTelemetryMacroGovernanceCleanupMeta"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="alert alert-warning d-none mb-3" id="workspaceTelemetryMacroGovernanceIssueSummary"></div>
+                            <div class="small text-muted mb-3" id="workspaceTelemetryMacroGovernanceSummaryCompact"></div>
+                            <div class="border rounded p-3 mb-3 bg-body" id="workspaceTelemetryMacroGovernanceReviewForm">
+                                <div class="small text-muted mb-2">Governance review checkpoint (UTC)</div>
+                                <div class="row g-2">
+                                    <div class="col-12 col-lg-3">
+                                        <label for="workspaceTelemetryMacroGovernanceReviewedBy" class="form-label form-label-sm mb-1">Reviewed by</label>
+                                        <input type="text" class="form-control form-control-sm" id="workspaceTelemetryMacroGovernanceReviewedBy" placeholder="ops.lead">
+                                    </div>
+                                    <div class="col-12 col-lg-3">
+                                        <label for="workspaceTelemetryMacroGovernanceReviewedAtUtc" class="form-label form-label-sm mb-1">Reviewed at (UTC)</label>
+                                        <input type="datetime-local" class="form-control form-control-sm" id="workspaceTelemetryMacroGovernanceReviewedAtUtc">
+                                    </div>
+                                    <div class="col-12 col-lg-3">
+                                        <label for="workspaceTelemetryMacroGovernanceDecision" class="form-label form-label-sm mb-1">Decision</label>
+                                        <select class="form-select form-select-sm" id="workspaceTelemetryMacroGovernanceDecision">
+                                            <option value="">—</option>
+                                            <option value="go">Go</option>
+                                            <option value="hold">Hold</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-12 col-lg-3">
+                                        <label for="workspaceTelemetryMacroGovernanceCleanupTicketId" class="form-label form-label-sm mb-1">Cleanup ticket ID</label>
+                                        <input type="text" class="form-control form-control-sm" id="workspaceTelemetryMacroGovernanceCleanupTicketId" maxlength="80" placeholder="MACRO-1234">
+                                    </div>
+                                    <div class="col-12">
+                                        <label for="workspaceTelemetryMacroGovernanceReviewNote" class="form-label form-label-sm mb-1">Review note (optional)</label>
+                                        <input type="text" class="form-control form-control-sm" id="workspaceTelemetryMacroGovernanceReviewNote" maxlength="500" placeholder="owner cleanup backlog, namespace split, deprecation follow-up">
+                                    </div>
+                                </div>
+                                <div class="d-flex align-items-center gap-2 mt-2">
+                                    <button type="button" class="btn btn-sm btn-outline-primary" id="workspaceTelemetryMacroGovernanceSaveReview">Сохранить macro review</button>
+                                    <small class="text-muted" id="workspaceTelemetryMacroGovernanceActionState"></small>
+                                </div>
+                            </div>
+                            <div class="border rounded p-3 mb-3 bg-body" id="workspaceTelemetryMacroExternalCatalogPolicyForm">
+                                <div class="small text-muted mb-2">External catalog compatibility checkpoint (UTC)</div>
+                                <div class="row g-2">
+                                    <div class="col-12 col-lg-3">
+                                        <label for="workspaceTelemetryMacroExternalCatalogVerifiedBy" class="form-label form-label-sm mb-1">Verified by</label>
+                                        <input type="text" class="form-control form-control-sm" id="workspaceTelemetryMacroExternalCatalogVerifiedBy" placeholder="ops.lead">
+                                    </div>
+                                    <div class="col-12 col-lg-3">
+                                        <label for="workspaceTelemetryMacroExternalCatalogVerifiedAtUtc" class="form-label form-label-sm mb-1">Verified at (UTC)</label>
+                                        <input type="datetime-local" class="form-control form-control-sm" id="workspaceTelemetryMacroExternalCatalogVerifiedAtUtc">
+                                    </div>
+                                    <div class="col-12 col-lg-3">
+                                        <label for="workspaceTelemetryMacroExternalCatalogExpectedVersion" class="form-label form-label-sm mb-1">Expected version</label>
+                                        <input type="text" class="form-control form-control-sm" id="workspaceTelemetryMacroExternalCatalogExpectedVersion" maxlength="120" placeholder="2026.03.24">
+                                    </div>
+                                    <div class="col-12 col-lg-3">
+                                        <label for="workspaceTelemetryMacroExternalCatalogObservedVersion" class="form-label form-label-sm mb-1">Observed version</label>
+                                        <input type="text" class="form-control form-control-sm" id="workspaceTelemetryMacroExternalCatalogObservedVersion" maxlength="120" placeholder="2026.03.24">
+                                    </div>
+                                    <div class="col-12 col-lg-3">
+                                        <label for="workspaceTelemetryMacroExternalCatalogDecision" class="form-label form-label-sm mb-1">Decision</label>
+                                        <select class="form-select form-select-sm" id="workspaceTelemetryMacroExternalCatalogDecision">
+                                            <option value="">—</option>
+                                            <option value="go">Go</option>
+                                            <option value="hold">Hold</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-12 col-lg-3">
+                                        <label for="workspaceTelemetryMacroExternalCatalogReviewTtlHours" class="form-label form-label-sm mb-1">Review TTL (hours)</label>
+                                        <input type="number" class="form-control form-control-sm" id="workspaceTelemetryMacroExternalCatalogReviewTtlHours" min="1" max="2160" placeholder="168">
+                                    </div>
+                                    <div class="col-12 col-lg-6">
+                                        <label for="workspaceTelemetryMacroExternalCatalogReviewNote" class="form-label form-label-sm mb-1">Review note (optional)</label>
+                                        <input type="text" class="form-control form-control-sm" id="workspaceTelemetryMacroExternalCatalogReviewNote" maxlength="500" placeholder="verified external payload contract and variable compatibility">
+                                    </div>
+                                </div>
+                                <div class="d-flex align-items-center gap-2 mt-2">
+                                    <button type="button" class="btn btn-sm btn-outline-primary" id="workspaceTelemetryMacroExternalCatalogSavePolicy">Сохранить external catalog policy</button>
+                                    <small class="text-muted" id="workspaceTelemetryMacroExternalCatalogActionState"></small>
+                                </div>
+                            </div>
+                            <div class="border rounded p-3 mb-3 bg-body" id="workspaceTelemetryMacroDeprecationPolicyForm">
+                                <div class="small text-muted mb-2">Deprecation policy checkpoint (UTC)</div>
+                                <div class="row g-2">
+                                    <div class="col-12 col-lg-3">
+                                        <label for="workspaceTelemetryMacroDeprecationReviewedBy" class="form-label form-label-sm mb-1">Reviewed by</label>
+                                        <input type="text" class="form-control form-control-sm" id="workspaceTelemetryMacroDeprecationReviewedBy" placeholder="ops.lead">
+                                    </div>
+                                    <div class="col-12 col-lg-3">
+                                        <label for="workspaceTelemetryMacroDeprecationReviewedAtUtc" class="form-label form-label-sm mb-1">Reviewed at (UTC)</label>
+                                        <input type="datetime-local" class="form-control form-control-sm" id="workspaceTelemetryMacroDeprecationReviewedAtUtc">
+                                    </div>
+                                    <div class="col-12 col-lg-3">
+                                        <label for="workspaceTelemetryMacroDeprecationDecision" class="form-label form-label-sm mb-1">Decision</label>
+                                        <select class="form-select form-select-sm" id="workspaceTelemetryMacroDeprecationDecision">
+                                            <option value="">—</option>
+                                            <option value="go">Go</option>
+                                            <option value="hold">Hold</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-12 col-lg-3">
+                                        <label for="workspaceTelemetryMacroDeprecationReviewTtlHours" class="form-label form-label-sm mb-1">Review TTL (hours)</label>
+                                        <input type="number" class="form-control form-control-sm" id="workspaceTelemetryMacroDeprecationReviewTtlHours" min="1" max="2160" placeholder="168">
+                                    </div>
+                                    <div class="col-12 col-lg-4">
+                                        <label for="workspaceTelemetryMacroDeprecationTicketId" class="form-label form-label-sm mb-1">Deprecation ticket ID</label>
+                                        <input type="text" class="form-control form-control-sm" id="workspaceTelemetryMacroDeprecationTicketId" maxlength="80" placeholder="MACRO-DEP-42">
+                                    </div>
+                                    <div class="col-12 col-lg-8">
+                                        <label for="workspaceTelemetryMacroDeprecationReviewNote" class="form-label form-label-sm mb-1">Review note (optional)</label>
+                                        <input type="text" class="form-control form-control-sm" id="workspaceTelemetryMacroDeprecationReviewNote" maxlength="500" placeholder="deprecated templates reviewed with owner and communication timeline">
+                                    </div>
+                                </div>
+                                <div class="d-flex align-items-center gap-2 mt-2">
+                                    <button type="button" class="btn btn-sm btn-outline-primary" id="workspaceTelemetryMacroDeprecationSavePolicy">Сохранить deprecation policy</button>
+                                    <small class="text-muted" id="workspaceTelemetryMacroDeprecationActionState"></small>
+                                </div>
+                            </div>
+                            <div class="row g-3">
+                                <div class="col-12 col-xl-5">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm align-middle mb-0">
+                                            <thead>
+                                            <tr>
+                                                <th>Issue</th>
+                                                <th>Макрос</th>
+                                                <th>Класс</th>
+                                                <th>Деталь</th>
+                                            </tr>
+                                            </thead>
+                                            <tbody id="workspaceTelemetryMacroGovernanceIssuesTable">
+                                            <tr>
+                                                <td colspan="4" class="text-muted text-center py-3">Загрузка audit...</td>
+                                            </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-xl-7">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm align-middle mb-0">
+                                            <thead>
+                                            <tr>
+                                                <th>Macro</th>
+                                                <th>Status</th>
+                                                <th>Owner / namespace</th>
+                                                <th>Review UTC</th>
+                                                <th class="text-end">Usage</th>
+                                                <th>Cleanup</th>
+                                            </tr>
+                                            </thead>
+                                            <tbody id="workspaceTelemetryMacroGovernanceTemplatesTable">
+                                            <tr>
+                                                <td colspan="6" class="text-muted text-center py-3">Загрузка audit...</td>
+                                            </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="small text-muted mb-2" id="workspaceTelemetryFilterState"></div>
+                    <div class="alert alert-warning d-none mb-3" id="workspaceTelemetryAlertBox"></div>
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead>
+                            <tr>
+                                <th>Метрика</th>
+                                <th>Текущее значение</th>
+                                <th>Порог</th>
+                                <th>Контекст</th>
+                            </tr>
+                            </thead>
+                            <tbody id="workspaceTelemetryAlertsTable">
+                            <tr>
+                                <td colspan="4" class="text-muted text-center py-3">Загрузка данных...</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <hr class="my-4">
+                    <div class="row g-3">
+                        <div class="col-12 col-xl-6">
+                            <h3 class="h6 mb-2">Срез по сменам</h3>
+                            <div class="table-responsive">
+                                <table class="table table-sm align-middle mb-0">
+                                    <thead>
+                                    <tr>
+                                        <th>Смена</th>
+                                        <th class="text-end">События</th>
+                                        <th class="text-end">Render error</th>
+                                        <th class="text-end">Fallback</th>
+                                        <th class="text-end">Abandon</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody id="workspaceTelemetryShiftTable">
+                                    <tr>
+                                        <td colspan="5" class="text-muted text-center py-3">Загрузка данных...</td>
+                                    </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="col-12 col-xl-6">
+                            <h3 class="h6 mb-2">Срез по командам</h3>
+                            <div class="table-responsive">
+                                <table class="table table-sm align-middle mb-0">
+                                    <thead>
+                                    <tr>
+                                        <th>Команда</th>
+                                        <th class="text-end">События</th>
+                                        <th class="text-end">Render error</th>
+                                        <th class="text-end">Fallback</th>
+                                        <th class="text-end">Abandon</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody id="workspaceTelemetryTeamTable">
+                                    <tr>
+                                        <td colspan="5" class="text-muted text-center py-3">Загрузка данных...</td>
+                                    </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <h3 class="h6 mb-2">Top risk-сегменты (для BI/incident разборов)</h3>
+                            <div class="table-responsive">
+                                <table class="table table-sm align-middle mb-0">
+                                    <thead>
+                                    <tr>
+                                        <th>Сегмент</th>
+                                        <th class="text-end">События</th>
+                                        <th class="text-end">Render error</th>
+                                        <th class="text-end">Fallback</th>
+                                        <th class="text-end">Abandon</th>
+                                        <th class="text-end">Risk score</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody id="workspaceTelemetryRiskSegmentsTable">
+                                    <tr>
+                                        <td colspan="6" class="text-muted text-center py-3">Загрузка данных...</td>
+                                    </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="small text-muted mt-2" id="workspaceTelemetryRiskFormula">Risk score = 100 × (render_error_rate + fallback_rate + abandon_rate).</div>
+                        </div>
+                        <div class="col-12">
+                            <h3 class="h6 mb-2">Parity / customer context blockers</h3>
+                            <p class="small text-muted mb-3">Top причины, из-за которых workspace ещё не дотягивает до полного parity и customer context minimum profile.</p>
+                            <div class="row g-3">
+                                <div class="col-12 col-xl-6">
+                                    <div class="card border-0 bg-light-subtle h-100">
+                                        <div class="card-body">
+                                            <h4 class="h6 mb-2">Missing customer profile fields</h4>
+                                            <div class="table-responsive">
+                                                <table class="table table-sm align-middle mb-0">
+                                                    <thead>
+                                                    <tr>
+                                                        <th>Причина</th>
+                                                        <th class="text-end">Events</th>
+                                                        <th class="text-end">Tickets</th>
+                                                        <th class="text-nowrap">Last seen UTC</th>
+                                                    </tr>
+                                                    </thead>
+                                                    <tbody id="workspaceTelemetryProfileGapTable">
+                                                    <tr>
+                                                        <td colspan="4" class="text-muted text-center py-3">Загрузка данных...</td>
+                                                    </tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-xl-6">
+                                    <div class="card border-0 bg-light-subtle h-100">
+                                        <div class="card-body">
+                                            <h4 class="h6 mb-2">Blocking context sources</h4>
+                                            <div class="table-responsive">
+                                                <table class="table table-sm align-middle mb-0">
+                                                    <thead>
+                                                    <tr>
+                                                        <th>Причина</th>
+                                                        <th class="text-end">Events</th>
+                                                        <th class="text-end">Tickets</th>
+                                                        <th class="text-nowrap">Last seen UTC</th>
+                                                    </tr>
+                                                    </thead>
+                                                    <tbody id="workspaceTelemetrySourceGapTable">
+                                                    <tr>
+                                                        <td colspan="4" class="text-muted text-center py-3">Загрузка данных...</td>
+                                                    </tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-xl-6">
+                                    <div class="card border-0 bg-light-subtle h-100">
+                                        <div class="card-body">
+                                            <h4 class="h6 mb-2">Source / freshness policy gaps</h4>
+                                            <div class="table-responsive">
+                                                <table class="table table-sm align-middle mb-0">
+                                                    <thead>
+                                                    <tr>
+                                                        <th>Причина</th>
+                                                        <th class="text-end">Events</th>
+                                                        <th class="text-end">Tickets</th>
+                                                        <th class="text-nowrap">Last seen UTC</th>
+                                                    </tr>
+                                                    </thead>
+                                                    <tbody id="workspaceTelemetryAttributePolicyGapTable">
+                                                    <tr>
+                                                        <td colspan="4" class="text-muted text-center py-3">Загрузка данных...</td>
+                                                    </tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-xl-6">
+                                    <div class="card border-0 bg-light-subtle h-100">
+                                        <div class="card-body">
+                                            <h4 class="h6 mb-2">Missing context blocks</h4>
+                                            <div class="table-responsive">
+                                                <table class="table table-sm align-middle mb-0">
+                                                    <thead>
+                                                    <tr>
+                                                        <th>Причина</th>
+                                                        <th class="text-end">Events</th>
+                                                        <th class="text-end">Tickets</th>
+                                                        <th class="text-nowrap">Last seen UTC</th>
+                                                    </tr>
+                                                    </thead>
+                                                    <tbody id="workspaceTelemetryBlockGapTable">
+                                                    <tr>
+                                                        <td colspan="4" class="text-muted text-center py-3">Загрузка данных...</td>
+                                                    </tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-xl-6">
+                                    <div class="card border-0 bg-light-subtle h-100">
+                                        <div class="card-body">
+                                            <h4 class="h6 mb-2">Parity gaps vs legacy</h4>
+                                            <div class="table-responsive">
+                                                <table class="table table-sm align-middle mb-0">
+                                                    <thead>
+                                                    <tr>
+                                                        <th>Причина</th>
+                                                        <th class="text-end">Events</th>
+                                                        <th class="text-end">Tickets</th>
+                                                        <th class="text-nowrap">Last seen UTC</th>
+                                                    </tr>
+                                                    </thead>
+                                                    <tbody id="workspaceTelemetryParityGapTable">
+                                                    <tr>
+                                                        <td colspan="4" class="text-muted text-center py-3">Загрузка данных...</td>
+                                                    </tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-lg-7">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="h5 mb-0">Заявки по направлениям</h2>
+                        <small class="text-muted">Группировка по бизнесу, городу и статусу.</small>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive analytics-scroll-area">
+                        <table class="table table-striped align-middle">
+                            <thead>
+                            <tr>
+                                <th>Бизнес</th>
+                                <th>Город</th>
+                                <th>Статус</th>
+                                <th class="text-end">Количество</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr th:if="${#lists.isEmpty(ticketSummary)}">
+                                <td colspan="4" class="text-center text-muted py-4">Нет данных для отображения</td>
+                            </tr>
+                            <tr th:each="row : ${ticketSummary}">
+                                <td th:text="${row.business} ?: '—'"></td>
+                                <td th:text="${row.city} ?: '—'"></td>
+                                <td>
+                                    <span th:classappend="${row.status} == 'resolved' ? 'badge text-bg-success' : (${row.status} == 'pending' ? 'badge text-bg-warning' : 'badge text-bg-secondary')"
+                                          th:text="${row.status} ?: '—'"></span>
+                                </td>
+                                <td class="text-end fw-semibold" th:text="${row.total}"></td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-lg-5">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white">
+                    <h2 class="h5 mb-0">Активные клиенты</h2>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush analytics-scroll-area">
+                        <div class="list-group-item text-muted" th:if="${#lists.isEmpty(clientSummary)}">Нет активных клиентов</div>
+                        <div class="list-group-item" th:each="client : ${clientSummary}">
+                            <div class="d-flex justify-content-between">
+                                <span class="fw-semibold" th:text="${client.username} ?: 'Без имени'"></span>
+                                <span class="badge text-bg-primary" th:text="${client.totalTickets}"></span>
+                            </div>
+                            <div class="text-muted small" th:text="${client.lastContact} != null ? 'Последний контакт: ' + client.lastContact : 'Нет данных'"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+<script th:src="@{/js/analytics.js}"></script>
+</body>
+</html>

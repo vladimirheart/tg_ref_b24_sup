@@ -1,0 +1,1443 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="_csrf" th:content="${_csrf.token}" />
+  <title>Отчёты — iguana</title>
+  <link rel="icon" type="image/svg+xml" th:href="@{/iguana-icon.svg}" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+  <link th:href="@{/css/style.css}" rel="stylesheet" />
+  <link th:href="@{/css/sidebar.css(v='2')}" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ru.js"></script>
+  <script th:src="@{/js/common.js}"></script>
+  <style>
+    body {
+      padding-top: 0;
+      background-color: var(--color-bg);
+    }
+    .card { margin-bottom: 20px; }
+    .chart-container { height: 300px; }
+    .stats-value {
+      font-size: 2.15rem;
+      font-weight: 700;
+      font-family: var(--font-serif);
+      line-height: 1.1;
+    }
+    .stats-change { font-size: 0.9rem; }
+    .positive-change { color: var(--chart-3); }
+    .negative-change { color: var(--destructive); }
+    .filter-section {
+      padding: 1.25rem;
+      border-radius: 1.25rem;
+      margin-bottom: 20px;
+      background:
+        linear-gradient(color-mix(in srgb, var(--card) 94%, white), color-mix(in srgb, var(--secondary) 26%, white)),
+        conic-gradient(
+          from var(--gradient-angle),
+          color-mix(in srgb, var(--gradient-primary) 48%, transparent),
+          color-mix(in srgb, var(--gradient-secondary) 42%, transparent),
+          color-mix(in srgb, var(--gradient-accent) 52%, transparent),
+          color-mix(in srgb, var(--gradient-primary) 48%, transparent)
+        );
+      background-origin: padding-box, border-box;
+      background-clip: padding-box, border-box;
+      border: 1px solid transparent;
+      box-shadow: var(--color-shadow);
+      animation: gradient-rotate 12s linear infinite;
+    }
+    .chart-value-label {
+      font-size: 0.75rem;
+      font-weight: bold;
+      fill: var(--color-text);
+    }
+    .period-presets {
+      display: flex;
+      gap: 10px;
+      margin-top: 5px;
+      flex-wrap: wrap;
+    }
+    .period-preset-btn {
+      padding: 0.45rem 0.75rem;
+      font-size: 0.75rem;
+      border: 1px solid color-mix(in srgb, var(--color-border) 85%, transparent);
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--card) 88%, white);
+      color: var(--color-text);
+      cursor: pointer;
+      transition: transform 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
+    }
+    .period-preset-btn:hover {
+      transform: translateY(-1px);
+      background: color-mix(in srgb, var(--secondary) 40%, white);
+    }
+    .period-preset-btn.active {
+      background: linear-gradient(135deg, var(--primary), var(--chart-2));
+      color: var(--primary-foreground);
+      border-color: color-mix(in srgb, var(--primary) 55%, var(--chart-4));
+    }
+    .container-fluid {
+      padding-left: 20px;
+      padding-right: 20px;
+    }
+    .navbar {
+      position: fixed !important;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 1030;
+      margin-bottom: 0;
+    }
+    .restaurant-filter-container {
+      position: relative;
+    }
+    .restaurant-filter-container .select2-container {
+      width: 100% !important;
+    }
+    .filter-buttons {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .filter-buttons .btn {
+      white-space: nowrap;
+    }
+    .notification-container {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 9999;
+    }
+    .notification {
+      background: color-mix(in srgb, var(--card) 95%, white);
+      border-radius: 1rem;
+      padding: 15px;
+      margin-bottom: 10px;
+      box-shadow: var(--color-shadow);
+      border-left: 4px solid;
+      min-width: 300px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .notification.success {
+      border-left-color: #28a745;
+    }
+    .notification.error {
+      border-left-color: #dc3545;
+    }
+    .notification.warning {
+      border-left-color: #ffc107;
+    }
+    .notification.info {
+      border-left-color: #17a2b8;
+    }
+    .notification-close {
+      background: none;
+      border: none;
+      font-size: 1.125rem;
+      cursor: pointer;
+      color: #6c757d;
+    }
+    .notification-close:hover {
+      color: #000;
+    }
+    /* Новые стили для расположения фильтров и карточки */
+    .filters-and-stats-row {
+      display: flex;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+    .filters-column {
+      flex: 1;
+      min-width: 300px;
+    }
+    .stats-column {
+      flex: 0 0 300px;
+      margin-left: 20px;
+    }
+    .card-sm {
+      height: 90%; /* Уменьшаем на 10% */
+    }
+    /* Новые стили для круговых диаграмм с легендой справа */
+    .pie-chart-container {
+      display: flex;
+      align-items: center;
+      height: 100%;
+    }
+    .pie-chart-wrapper {
+      flex: 0 0 60%;
+      position: relative;
+      height: 300px;
+    }
+    .pie-chart-legend {
+      flex: 0 0 40%;
+      padding-left: 30px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    .pie-chart-legend-item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 8px;
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .pie-chart-legend-item.hidden {
+      opacity: 0.5;
+    }
+    .pie-chart-legend-color {
+      width: 16px;
+      height: 16px;
+      margin-right: 8px;
+      border-radius: 3px;
+    }
+    .pie-chart-legend-label {
+      display: flex;
+      justify-content: space-between;
+      flex-grow: 1;
+    }
+    .pie-chart-legend-value {
+      font-weight: bold;
+      margin-left: 10px;
+    }
+
+    @media (max-width: 768px) {
+      .filters-and-stats-row {
+        flex-direction: column;
+      }
+      .stats-column {
+        margin-left: 0;
+        margin-top: 20px;
+        flex: 1;
+      }
+      .pie-chart-container {
+        flex-direction: column;
+      }
+      .pie-chart-wrapper {
+        flex: 0 0 100%;
+        width: 100%;
+      }
+      .pie-chart-legend {
+        flex: 0 0 100%;
+        padding-left: 0;
+        padding-top: 20px;
+        width: 100%;
+      }
+    }
+    .stats-column .card {
+      margin-bottom: 15px;
+    }
+
+    .stats-column .card:last-child {
+      margin-bottom: 0;
+    }
+
+    .time-stats-card {
+      color: var(--primary-foreground);
+      background:
+        linear-gradient(135deg, color-mix(in srgb, var(--chart-4) 82%, #022c22), color-mix(in srgb, var(--chart-2) 76%, #0f766e)),
+        conic-gradient(
+          from var(--gradient-angle),
+          #ecfeff,
+          rgba(255, 255, 255, 0.55),
+          #bbf7d0,
+          rgba(255, 255, 255, 0.55),
+          #ecfeff
+        );
+      border: 1px solid transparent;
+      background-origin: padding-box, border-box;
+      background-clip: padding-box, border-box;
+    }
+
+    .time-stats-value {
+      font-size: 1.8rem;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+
+    .time-stats-details {
+      font-size: 0.85rem;
+      opacity: 0.9;
+    }
+
+    .time-stats-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      opacity: 0.8;
+    }
+    /* Стили для статистики по сотрудникам */
+    .staff-time-stats {
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .staff-time-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding: 10px 0;
+      border-bottom: 1px solid #f0f0f0;
+      flex-direction: column;
+    }
+
+    .staff-time-item:last-child {
+      border-bottom: none;
+    }
+
+    .staff-time-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      margin-bottom: 5px;
+    }
+
+    .staff-time-name {
+      font-weight: bold;
+      flex: 1;
+    }
+
+    .staff-time-total {
+      font-weight: bold;
+      color: var(--color-text-muted);
+    }
+
+    .staff-time-details {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      width: 100%;
+      font-size: 0.85rem;
+    }
+
+    .staff-time-detail {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .staff-time-label {
+      font-size: 0.75rem;
+      color: var(--color-text-muted);
+      margin-bottom: 2px;
+    }
+
+    .staff-time-value {
+      font-weight: 500;
+    }
+
+    .staff-time-avg { color: var(--chart-3); }
+    .staff-time-response { color: var(--chart-2); }
+    .staff-time-count { color: var(--color-text-muted); }
+    .top-sticky-bar { position: sticky; top: 0; z-index: 1030; }
+    .toast, .alert[data-role="loaded-hint"] { z-index: 1020 !important; }
+    .page-title { margin-top: 0 !important; }
+    header h1, .content h1, .container h1 { margin-top: 0 !important; }
+    .reports-title {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      margin-bottom: 1.25rem;
+    }
+    .reports-title h2 {
+      margin: 0;
+      font-family: var(--font-serif);
+      font-size: 2.25rem;
+      letter-spacing: -0.02em;
+    }
+    .reports-kicker {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.35rem 0.75rem;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--accent) 85%, white);
+      color: var(--accent-foreground);
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .nav-tabs {
+      border-bottom-color: color-mix(in srgb, var(--color-border) 82%, transparent);
+    }
+    .nav-tabs .nav-link {
+      border: 1px solid transparent;
+      border-radius: 999px;
+      color: var(--color-text-muted);
+      font-weight: 600;
+    }
+    .nav-tabs .nav-link.active {
+      background: color-mix(in srgb, var(--card) 92%, white);
+      color: var(--color-text);
+      border-color: color-mix(in srgb, var(--primary) 26%, var(--color-border));
+      box-shadow: 0 8px 24px rgba(34, 197, 94, 0.12);
+    }
+  </style>
+</head>
+<body class="with-sidebar sidebar-pinned">
+  <div th:replace="~{fragments/navbar :: navbar(${activePage})}"></div>
+  <main class="main-content container-fluid">
+  <div class="container-fluid mt-4">
+    <div class="reports-title">
+      <span class="reports-kicker">Support Intelligence</span>
+      <h2>📈 Отчёты поддержки</h2>
+    </div>
+
+    <ul class="nav nav-tabs mb-3" id="reportsTabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="tab-dashboard" data-bs-toggle="tab" data-bs-target="#reports-dashboard" type="button" role="tab">Дашборд</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-managers" data-bs-toggle="tab" data-bs-target="#reports-managers" type="button" role="tab">Отчёты по управляющим</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-olap" data-bs-toggle="tab" data-bs-target="#reports-olap" type="button" role="tab">Конструктор отчётов</button>
+      </li>
+    </ul>
+
+    <div class="tab-content">
+      <div class="tab-pane fade show active" id="reports-dashboard" role="tabpanel">
+
+    <!-- Фильтры и статистика в одной строке -->
+    <div class="filters-and-stats-row">
+      <!-- Колонка с фильтрами -->
+      <div class="filters-column">
+        <div class="filter-section gradient-border-stop-hover">
+          <div class="row">
+            <div class="col-md-12">
+              <label for="dateRange">Период:</label>
+              <input type="text" id="dateRange" class="form-control" placeholder="Выберите период">
+              <div class="period-presets">
+                <button class="period-preset-btn" data-preset="week">Текущая неделя</button>
+                <button class="period-preset-btn" data-preset="month">Текущий месяц</button>
+                <button class="period-preset-btn" data-preset="quarter">Текущий квартал</button>
+                <button class="period-preset-btn" data-preset="year">Текущий год</button>
+                <button class="period-preset-btn" data-preset="all">За всё время</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="row mt-3">
+            <div class="col-md-12">
+              <label for="restaurantFilter">Ресторан:</label>
+              <select id="restaurantFilter" class="form-control" multiple="multiple">
+                <option th:each="restaurant : ${restaurants}" th:value="${restaurant}" th:text="${restaurant}"></option>
+              </select>
+            </div>
+          </div>
+
+          <div class="row mt-3">
+            <div class="col-md-12">
+              <div class="filter-buttons">
+                <button id="applyFilters" class="btn btn-primary">Применить</button>
+                <button id="resetFilters" class="btn btn-secondary">Сбросить</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Колонка со статистикой -->
+      <div class="stats-column">
+        <!-- Карточка общего количества заявок -->
+        <div class="card text-center gradient-border-hover">
+          <div class="card-body">
+            <h5 class="card-title">Всего заявок</h5>
+            <div class="stats-value" id="totalTickets">0</div>
+            <div class="stats-change" id="totalTicketsChange"></div>
+          </div>
+        </div>
+
+        <!-- НОВАЯ КАРТОЧКА - ЗАТРАЧЕННОЕ ВРЕМЯ -->
+        <div class="card text-center time-stats-card mt-3 gradient-border-stop-hover">
+          <div class="card-body">
+            <h5 class="card-title">⏱️ Затраченное время</h5>
+            <div class="time-stats-value" id="totalTime">0 ч</div>
+            <div class="time-stats-details">
+              <div class="time-stats-label">Среднее время на заявку</div>
+              <div id="avgTimePerTicket">0 мин</div>
+              <div class="time-stats-label">Обработано заявок</div>
+              <div id="resolvedCount">0</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Время по сотрудникам -->
+    <div class="card mt-3 gradient-border-hover">
+        <div class="card-body">
+            <h5 class="card-title">⏱️ Время по сотрудникам</h5>
+            <div id="staffTimeStats" class="staff-time-stats">
+                <div class="text-center text-muted py-3">Нет данных</div>
+            </div>
+        </div>
+    </div>
+
+      <!-- График по каналам -->
+      <div class="col-md-6">
+        <div class="card gradient-border-hover">
+          <div class="card-body">
+            <h5 class="card-title">Заявки по каналам</h5>
+            <div class="chart-container">
+              <canvas id="chartByChannel"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    <!-- Остальная часть дашборда (графики) -->
+    <div class="row">
+      <!-- По бизнесу (круговая) -->
+      <div class="col-md-6">
+          <div class="card gradient-border-hover">
+              <div class="card-body">
+                  <h5 class="card-title">По бизнесу</h5>
+                  <div class="pie-chart-container">
+                    <div class="pie-chart-wrapper">
+                      <canvas id="businessChart"></canvas>
+                    </div>
+                    <div class="pie-chart-legend" id="businessLegend"></div>
+                  </div>
+              </div>
+          </div>
+      </div>
+
+      <!-- По сетям (круговая) -->
+      <div class="col-md-6">
+          <div class="card gradient-border-hover">
+              <div class="card-body">
+                  <h5 class="card-title">По сетям</h5>
+                  <div class="pie-chart-container">
+                    <div class="pie-chart-wrapper">
+                      <canvas id="networkChart"></canvas>
+                    </div>
+                    <div class="pie-chart-legend" id="networkLegend"></div>
+                  </div>
+              </div>
+          </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <!-- Категории -->
+      <div class="col-md-6">
+        <div class="card gradient-border-hover">
+          <div class="card-body">
+            <h5 class="card-title">Категории обращений</h5>
+            <div class="chart-container">
+              <canvas id="categoryChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Города -->
+      <div class="col-md-6">
+        <div class="card gradient-border-hover">
+          <div class="card-body">
+            <h5 class="card-title">По городам</h5>
+            <div class="chart-container">
+              <canvas id="cityChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <!-- Рестораны -->
+      <div class="col-md-12">
+        <div class="card gradient-border-hover">
+          <div class="card-body">
+            <h5 class="card-title">По ресторанам (топ-10)</h5>
+            <div class="chart-container">
+              <canvas id="restaurantChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+      </div>
+
+      <div class="tab-pane fade" id="reports-managers" role="tabpanel">
+        <div class="card mb-3 gradient-border-hover">
+          <div class="card-body">
+            <div class="row g-3 align-items-end">
+              <div class="col-md-6">
+                <label for="managerDateRange" class="form-label">Период отчёта</label>
+                <input type="text" id="managerDateRange" class="form-control" placeholder="Выберите период">
+              </div>
+              <div class="col-md-3">
+                <button class="btn btn-primary w-100" id="applyManagerFilters">Применить период</button>
+              </div>
+              <div class="col-md-3">
+                <button class="btn btn-outline-secondary w-100" id="resetManagerFilters">Текущий месяц</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card gradient-border-hover">
+          <div class="card-body">
+            <h5 class="card-title">Срез по руководителям управляющих</h5>
+            <div id="supervisorSummary" class="text-muted">Нет данных</div>
+          </div>
+        </div>
+        <div class="accordion mt-3" id="managerAccordion"></div>
+      </div>
+
+      <div class="tab-pane fade" id="reports-olap" role="tabpanel">
+        <div class="card gradient-border-hover">
+          <div class="card-body">
+            <div class="row g-3 align-items-end">
+              <div class="col-md-4">
+                <label class="form-label">Измерение</label>
+                <select class="form-select" id="olapDimension">
+                  <option value="location">Локация</option>
+                  <option value="city">Город</option>
+                  <option value="category">Категория</option>
+                  <option value="responsible">Ответственный</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label d-block">Источники данных</label>
+                <div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" id="olapAppeals" checked><label class="form-check-label" for="olapAppeals">Обращения</label></div>
+                <div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" id="olapTasks" checked><label class="form-check-label" for="olapTasks">Задачи</label></div>
+                <div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" id="olapChanges" checked><label class="form-check-label" for="olapChanges">Изменения системы</label></div>
+              </div>
+              <div class="col-md-2">
+                <button class="btn btn-primary w-100" id="buildOlap">Собрать</button>
+              </div>
+            </div>
+            <div class="table-responsive mt-3">
+              <table class="table table-sm table-striped">
+                <thead><tr><th>Измерение</th><th>Обращения</th><th>Задачи</th><th>Изменения системы</th></tr></thead>
+                <tbody id="olapTableBody"><tr><td colspan="4" class="text-muted">Нет данных</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  <!-- Контейнер для уведомлений -->
+  <div class="notification-container" id="notificationContainer"></div>
+
+<script>
+    let charts = {};
+    const inactiveByChart = {}; // { [canvasId]: Set<number> }
+
+    function withAlpha(color, alpha) {
+      if (!color) return `rgba(0,0,0,${alpha})`;
+      const s = color.toString().trim();
+      if (s.startsWith('rgb')) {
+        const parts = s.replace(/rgba?\(|\)|\s/g,'').split(',');
+        const [r,g,b] = parts.map(Number);
+        return `rgba(${r||0},${g||0},${b||0},${alpha})`;
+      }
+      if (s[0] === '#') {
+        let r,g,b;
+        if (s.length === 4) { r=parseInt(s[1]+s[1],16); g=parseInt(s[2]+s[2],16); b=parseInt(s[3]+s[3],16); }
+        else { r=parseInt(s.slice(1,3),16); g=parseInt(s.slice(3,5),16); b=parseInt(s.slice(5,7),16); }
+        return `rgba(${r},${g},${b},${alpha})`;
+      }
+      return color;
+    }
+    let currentFilters = {
+      startDate: null,
+      endDate: null,
+      restaurants: []
+    };
+    let managerFilters = {
+      startDate: null,
+      endDate: null
+    };
+
+    function getCurrentMonthRange() {
+      const now = new Date();
+      return {
+        startDate: new Date(now.getFullYear(), now.getMonth(), 1),
+        endDate: new Date(now.getFullYear(), now.getMonth() + 1, 0)
+      };
+    }
+
+    function applyManagerMonthDefaults() {
+      const range = getCurrentMonthRange();
+      managerFilters.startDate = range.startDate.toISOString().split('T')[0];
+      managerFilters.endDate = range.endDate.toISOString().split('T')[0];
+      const picker = document.querySelector('#managerDateRange')?._flatpickr;
+      if (picker) {
+        picker.setDate([range.startDate, range.endDate], true);
+      }
+    }
+
+    // Хранилище для данных легенд
+    const legendData = {
+      businessChart: { labels: [], values: [], total: 0 },
+      networkChart: { labels: [], values: [], total: 0 }
+    };
+
+    // Инициализация фильтров
+    document.addEventListener('DOMContentLoaded', function() {
+      // Установка текущего месяца по умолчанию
+      const monthRange = getCurrentMonthRange();
+      const firstDay = monthRange.startDate;
+      const lastDay = monthRange.endDate;
+
+      currentFilters.startDate = firstDay.toISOString().split('T')[0];
+      currentFilters.endDate = lastDay.toISOString().split('T')[0];
+      managerFilters.startDate = currentFilters.startDate;
+      managerFilters.endDate = currentFilters.endDate;
+
+      // Инициализация datepicker
+      flatpickr("#dateRange", {
+        mode: "range",
+        locale: "ru",
+        dateFormat: "d.m.Y",
+        defaultDate: [firstDay, lastDay],
+        onChange: function(selectedDates, dateStr, instance) {
+          if (selectedDates.length === 2) {
+            currentFilters.startDate = selectedDates[0].toISOString().split('T')[0];
+            currentFilters.endDate = selectedDates[1].toISOString().split('T')[0];
+            // Сброс активного пресета при ручном выборе дат
+            document.querySelectorAll('.period-preset-btn').forEach(btn => {
+              btn.classList.remove('active');
+            });
+          }
+        }
+      });
+
+      // Инициализация select2 для ресторанов
+      $('#restaurantFilter').select2({
+        placeholder: "Все рестораны",
+        allowClear: true,
+        width: '100%'
+      });
+
+      flatpickr("#managerDateRange", {
+        mode: "range",
+        locale: "ru",
+        dateFormat: "d.m.Y",
+        defaultDate: [firstDay, lastDay],
+        onChange: function(selectedDates) {
+          if (selectedDates.length === 2) {
+            managerFilters.startDate = selectedDates[0].toISOString().split('T')[0];
+            managerFilters.endDate = selectedDates[1].toISOString().split('T')[0];
+          }
+        }
+      });
+
+      // Обработчики кнопок пресетов периода
+      document.querySelectorAll('.period-preset-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const preset = this.dataset.preset;
+          setPeriodPreset(preset);
+
+          // Активируем выбранный пресет
+          document.querySelectorAll('.period-preset-btn').forEach(b => {
+            b.classList.remove('active');
+          });
+          this.classList.add('active');
+        });
+      });
+
+      // Активируем пресет текущего месяца по умолчанию
+      document.querySelector('[data-preset="month"]').classList.add('active');
+
+      // Загрузка данных
+      loadDashboardData();
+      loadManagerReport();
+
+      // Обработчики кнопок
+      document.getElementById('applyFilters').addEventListener('click', () => {
+        loadDashboardData();
+        loadManagerReport();
+      });
+      document.getElementById('resetFilters').addEventListener('click', function() {
+        $('#restaurantFilter').val(null).trigger('change');
+        setPeriodPreset('month'); // Сброс к текущему месяцу
+        currentFilters.restaurants = [];
+        loadDashboardData();
+        loadManagerReport();
+      });
+
+      document.getElementById('applyManagerFilters')?.addEventListener('click', () => loadManagerReport(true));
+      document.getElementById('resetManagerFilters')?.addEventListener('click', () => {
+        applyManagerMonthDefaults();
+        loadManagerReport(true);
+      });
+      document.getElementById('buildOlap')?.addEventListener('click', buildOlapReport);
+      document.getElementById('tab-managers')?.addEventListener('shown.bs.tab', () => loadManagerReport(true));
+      document.getElementById('tab-olap')?.addEventListener('shown.bs.tab', buildOlapReport);
+    });
+
+    // Установка периода по пресету
+    function setPeriodPreset(preset) {
+      const now = new Date();
+      let startDate, endDate;
+
+      switch(preset) {
+        case 'week':
+          // Начало текучной недели (понедельник)
+          const monday = new Date(now);
+          monday.setDate(now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1));
+          startDate = new Date(monday);
+          endDate = new Date(now);
+          break;
+
+        case 'month':
+          // Текущий месяц
+          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+          endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+          break;
+
+        case 'quarter':
+          // Текущий квартал
+          const currentQuarter = Math.floor(now.getMonth() / 3);
+          startDate = new Date(now.getFullYear(), currentQuarter * 3, 1);
+          endDate = new Date(now.getFullYear(), (currentQuarter + 1) * 3, 0);
+          break;
+
+        case 'year':
+          // Текущий год
+          startDate = new Date(now.getFullYear(), 0, 1);
+          endDate = new Date(now.getFullYear(), 11, 31);
+          break;
+
+        case 'all':
+          // За всё время (устанавливаем null)
+          startDate = null;
+          endDate = null;
+          break;
+      }
+
+      if (startDate && endDate) {
+        currentFilters.startDate = startDate.toISOString().split('T')[0];
+        currentFilters.endDate = endDate.toISOString().split('T')[0];
+        flatpickr("#dateRange").setDate([startDate, endDate], true);
+      } else {
+        currentFilters.startDate = null;
+        currentFilters.endDate = null;
+        flatpickr("#dateRange").clear();
+      }
+    }
+
+    // Загрузка данных дашборда
+async function loadManagerReport(showError = false) {
+  const accordion = document.getElementById('managerAccordion');
+  const supervisor = document.getElementById('supervisorSummary');
+  if (!accordion || !supervisor) {
+    return;
+  }
+
+  try {
+    const response = await fetch('/api/dashboard/manager-report', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        startDate: managerFilters.startDate,
+        endDate: managerFilters.endDate,
+        restaurants: currentFilters.restaurants || []
+      })
+    });
+    const data = await response.json();
+    if (!response.ok || data.success === false) {
+      throw new Error(data.error || 'Ошибка загрузки отчёта');
+    }
+
+    const supervisorRows = Object.entries(data.supervisors || {}).map(([name, total]) => `${name}: ${total}`).join(' · ');
+    supervisor.textContent = supervisorRows || 'Нет данных';
+    const managers = Array.isArray(data.managers) ? data.managers : [];
+    if (!managers.length) {
+      accordion.innerHTML = '<div class="text-muted">Нет данных по управляющим за выбранный период.</div>';
+      return;
+    }
+
+    accordion.innerHTML = managers.map((item, idx) => {
+      const body = (item.locations || []).map((loc) => `<li class="list-group-item d-flex justify-content-between"><span>${loc.location}</span><strong>${loc.count}</strong></li>`).join('');
+      return `<div class="accordion-item"><h2 class="accordion-header"><button class="accordion-button ${idx ? 'collapsed' : ''}" type="button" data-bs-toggle="collapse" data-bs-target="#mgr-${idx}">${item.manager} · ${item.total} обращ.</button></h2><div id="mgr-${idx}" class="accordion-collapse collapse ${idx ? '' : 'show'}"><div class="accordion-body"><div class="small text-muted mb-2">Руководитель: ${item.supervisor || '—'}</div><ul class="list-group">${body}</ul></div></div></div>`;
+    }).join('');
+  } catch (error) {
+    console.error('Ошибка загрузки отчёта по управляющим:', error);
+    accordion.innerHTML = '<div class="text-danger">Не удалось загрузить отчёт по управляющим.</div>';
+    if (showError) {
+      showNotification('Ошибка отчёта по управляющим: ' + error.message, 'error');
+    }
+  }
+}
+
+async function buildOlapReport() {
+  const response = await fetch('/api/dashboard/olap-preview', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      filters: { startDate: currentFilters.startDate, endDate: currentFilters.endDate, restaurants: currentFilters.restaurants || [] },
+      olap: {
+        dimension: document.getElementById('olapDimension')?.value || 'location',
+        includeAppeals: document.getElementById('olapAppeals')?.checked !== false,
+        includeTasks: document.getElementById('olapTasks')?.checked !== false,
+        includeSystemChanges: document.getElementById('olapChanges')?.checked !== false,
+      }
+    })
+  });
+  const data = await response.json();
+  const tbody = document.getElementById('olapTableBody');
+  if (!tbody) return;
+  if (!response.ok || data.success === false) {
+    tbody.innerHTML = '<tr><td colspan="4" class="text-danger">Ошибка загрузки</td></tr>';
+    return;
+  }
+  const rows = Array.isArray(data.rows) ? data.rows : [];
+  tbody.innerHTML = rows.map((row) => `<tr><td>${row.dimension}</td><td>${row.appeals ?? 0}</td><td>${row.tasks ?? 0}</td><td>${row.system_changes ?? 0}</td></tr>`).join('');
+}
+
+async function loadDashboardData() {
+  try {
+    showNotification('Загрузка данных...', 'info');
+
+    // Обновляем фильтры
+    const selectedRestaurants = $('#restaurantFilter').val();
+    currentFilters.restaurants = selectedRestaurants ? selectedRestaurants : [];
+
+    // Формируем данные для отправки
+    const requestData = {
+      startDate: currentFilters.startDate,
+      endDate: currentFilters.endDate,
+      restaurants: currentFilters.restaurants
+    };
+
+    // Используем POST запрос
+    const response = await fetch('/api/dashboard/data', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestData)
+    });
+
+    if (!response.ok) {
+      let errorData;
+      try {
+        errorData = await response.json();
+      } catch (e) {
+        errorData = await response.text();
+      }
+      console.error('Ошибка сервера:', response.status, errorData);
+      throw new Error(`Ошибка загрузки данных: ${response.status} ${JSON.stringify(errorData)}`);
+    }
+
+    const data = await response.json();
+
+    // Обновляем статистику
+    updateStats(data.stats, data.time_stats, data.staff_time_stats);
+    const st = await (await fetch('/stats_data')).json();
+    if (st.by_channel) {
+      const dataByChannel = {};
+      st.by_channel.forEach(x => { dataByChannel[x.name || '—'] = x.total || 0; });
+      updateChart('chartByChannel', 'bar', dataByChannel, '#36a2eb', true);
+    }
+
+    // Вызов обновления статистики по сотрудникам
+    updateStaffTimeStats(data.staff_time_stats);
+
+    // Обновляем графики
+    updateCharts(data.charts);
+
+    showNotification('Данные успешно загружены', 'success');
+
+  } catch (error) {
+    console.error('Ошибка:', error);
+    showNotification('Ошибка загрузки данных дашборда: ' + error.message, 'error');
+  }
+}
+
+    // Функция для показа уведомлений
+    function showNotification(message, type = 'info') {
+      const container = document.getElementById('notificationContainer');
+      // Очищаем предыдущие уведомления
+      container.innerHTML = '';
+
+      const notification = document.createElement('div');
+      notification.className = `notification ${type}`;
+      notification.innerHTML = `
+        <div>${message}</div>
+        <button class="notification-close">&times;</button>
+      `;
+
+      const closeButton = notification.querySelector('.notification-close');
+      closeButton.addEventListener('click', function() {
+        container.removeChild(notification);
+      });
+
+      // Автоматическое закрытие через 5 секунд
+      setTimeout(() => {
+        if (notification.parentNode === container) {
+          container.removeChild(notification);
+        }
+      }, 5000);
+
+      container.appendChild(notification);
+    }
+
+    // Обновление статистических карточек
+function updateStats(stats, timeStats, staffTimeStats) {
+  // Проверяем наличие всех необходимых данных
+  if (!stats || !stats.current) {
+    console.error('Некорректные данные статистики:', stats);
+    showNotification('Некорректные данные статистики', 'error');
+    return;
+  }
+
+  // Обновление общей статистики заявок
+  document.getElementById('totalTickets').textContent = stats.current.total || 0;
+  updateComparison('totalTicketsChange', stats.current.total, stats.previous?.total);
+
+  // Обновление данных о времени
+  if (timeStats) {
+    document.getElementById('totalTime').textContent = timeStats.formatted_total || '0 ч';
+    document.getElementById('avgTimePerTicket').textContent = timeStats.formatted_avg || '0 мин';
+    document.getElementById('resolvedCount').textContent = timeStats.resolved_count || '0';
+  } else {
+    // Если данных о времени нет, показываем нули
+    document.getElementById('totalTime').textContent = '0 ч';
+    document.getElementById('avgTimePerTicket').textContent = '0 мин';
+    document.getElementById('resolvedCount').textContent = '0';
+  }
+}
+
+// Обновление статистики по сотрудникам
+function updateStaffTimeStats(staffStats) {
+    const container = document.getElementById('staffTimeStats');
+
+    // Проверяем, что staffStats существует и является массивом
+    if (!staffStats || !Array.isArray(staffStats) || staffStats.length === 0) {
+        container.innerHTML = '<div class="text-center text-muted py-3">Нет данных</div>';
+        return;
+    }
+
+    let html = '';
+    staffStats.forEach(staff => {
+        html += `
+            <div class="staff-time-item">
+                <div class="staff-time-header">
+                    <div class="staff-time-name">${staff.name}</div>
+                    <div class="staff-time-total">${staff.formatted_total}</div>
+                </div>
+                <div class="staff-time-details">
+                    <div class="staff-time-detail">
+                        <div class="staff-time-label">Обработано заявок</div>
+                        <div class="staff-time-value staff-time-count">${staff.resolved_count}</div>
+                    </div>
+                    <div class="staff-time-detail">
+                        <div class="staff-time-label">Среднее время на заявку</div>
+                        <div class="staff-time-value staff-time-avg">${staff.formatted_avg}</div>
+                    </div>
+                    <div class="staff-time-detail">
+                        <div class="staff-time-label">Среднее время ответа</div>
+                        <div class="staff-time-value staff-time-response">${staff.formatted_avg_response}</div>
+                    </div>
+                    <div class="staff-time-detail">
+                        <div class="staff-time-label">Эффективность</div>
+                        <div class="staff-time-value">${staff.resolved_count > 0 ? Math.round(staff.total_minutes / staff.resolved_count) : 0} мин/заявка</div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+}
+
+    // Обновление сравнения месяц-к-месяцу
+    function updateComparison(elementId, currentValue, previousValue) {
+      const element = document.getElementById(elementId);
+      if (!previousValue || previousValue === 0) {
+        element.innerHTML = 'Нет данных за предыдущий период';
+        element.className = 'stats-change';
+        return;
+      }
+
+      const change = ((currentValue - previousValue) / previousValue) * 100;
+      const changeText = `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`;
+
+      element.innerHTML = changeText;
+      element.className = `stats-change ${change >= 0 ? 'positive-change' : 'negative-change'}`;
+    }
+
+    // Пплагин подписей для H-bar
+    const BarValueLabels = {
+      id: 'BarValueLabels',
+      afterDatasetsDraw(chart) {
+        const {ctx, chartArea} = chart;
+        const ds = chart.data.datasets[0];
+        if (!ds) return;
+        const meta = chart.getDatasetMeta(0);
+        const canvasId = chart.canvas.id;
+        const inactive = inactiveByChart[canvasId] || new Set();
+        const data = ds.data || [];
+
+        // сумма только активных (не выключенных)
+        const visibleTotal = data.reduce((sum, v, i) => sum + (inactive.has(i) ? 0 : (v||0)), 0);
+
+        ctx.save();
+        ctx.font = '12px Arial';
+        ctx.textBaseline = 'middle';
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#000';
+
+        meta.data.forEach((barEl, i) => {
+          if (!barEl) return;
+          const val = data[i] ?? 0;
+          const pct = visibleTotal > 0 ? ((val / visibleTotal) * 100).toFixed(1) : '0.0';
+          const text = `${val} (${pct}%)`;
+
+          const pad = 6;
+          const tw = ctx.measureText(text).width;
+
+          // для горизонтального bar: base — левый край оси, x — конец столбика
+          let x = barEl.base + pad; // попробуем внутри «слева»
+          const y = barEl.y;
+
+          // если текст не помещается справа — переносим перед концом столбика, но не выходим за границы
+          const maxX = chartArea.right - pad;
+          if (x + tw > maxX) x = Math.max(barEl.x - tw - pad, chartArea.left + pad);
+
+          // финальные «стопоры»
+          if (x < chartArea.left + pad) x = chartArea.left + pad;
+          if (x + tw > chartArea.right - pad) x = chartArea.right - pad - tw;
+
+          ctx.fillText(text, x, y);
+        });
+
+        ctx.restore();
+      }
+    };
+
+    // Обновление всех графиков
+    function updateCharts(chartData) {
+        if (!chartData) {
+            console.error('Нет данных для графиков');
+            showNotification('Нет данных для графиков', 'warning');
+            return;
+        }
+
+        // Проверяем каждый набор данных
+        Object.keys(chartData).forEach(key => {
+            if (!chartData[key] || Object.keys(chartData[key]).length === 0) {
+                console.warn(`Нет данных для графика: ${key}`);
+                showNotification(`Нет данных для графика: ${key}`, 'warning');
+            }
+        });
+
+        // Круговые диаграммы с отдельной легендой
+        updatePieChartWithLegend('businessChart', 'businessLegend', chartData.business, ['#ff6384', '#36a2eb', '#ffce56', '#4bc0c0', '#9966ff']);
+        updatePieChartWithLegend('networkChart', 'networkLegend', chartData.network, ['#f7ee68', '#f74d4d', '#cfc102', '#ff7a7a']);
+
+        // Столбчатые диаграммы
+        updateChart('categoryChart', 'bar', chartData.category, '#36a2eb', true);
+        updateChart('cityChart', 'bar', chartData.city, '#4bc0c0', true);
+        updateChart('restaurantChart', 'bar', chartData.restaurant, '#9966ff', true);
+    }
+
+// Обновление круговой диаграммы с отдельной легендой
+function updatePieChartWithLegend(canvasId, legendId, data, colors) {
+  const ctx = document.getElementById(canvasId);
+  const legendContainer = document.getElementById(legendId);
+
+  // Проверяем, существуют ли элементы
+  if (!ctx || !legendContainer) {
+    console.warn(`Элементы с ID ${canvasId} или ${legendId} не найдены на странице`);
+    return;
+  }
+
+  // Уничтожаем предыдущий график если существует
+  if (charts[canvasId]) {
+    charts[canvasId].destroy();
+    delete charts[canvasId];
+  }
+
+  // Очищаем легенду
+  legendContainer.innerHTML = '';
+
+  if (!data || Object.keys(data).length === 0) {
+    console.warn(`Нет данных для графика: ${canvasId}`);
+    // Показываем сообщение об отсутствии данных
+    if (ctx.parentElement) {
+      ctx.style.display = 'none';
+
+      if (!ctx.parentElement.querySelector('.no-data-message')) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'text-center text-muted py-5 no-data-message';
+        messageDiv.textContent = 'Нет данных для отображения';
+        ctx.parentElement.appendChild(messageDiv);
+      }
+    }
+    return;
+  }
+
+  // Восстанавливаем canvas если он был скрыт
+  ctx.style.display = 'block';
+
+  // Удаляем сообщение об отсутствии данных, если оно есть
+  const messageDiv = ctx.parentElement.querySelector('.no-data-message');
+  if (messageDiv) {
+    ctx.parentElement.removeChild(messageDiv);
+  }
+
+  // Сохраняем данные для легенды
+  const labels = Object.keys(data);
+  const values = Object.values(data);
+  const total = values.reduce((sum, value) => sum + value, 0);
+
+  legendData[canvasId] = {
+    labels: labels,
+    values: values,
+    total: total
+  };
+
+  // Создаем легенду
+  labels.forEach((label, index) => {
+    const value = values[index];
+    const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+
+    const legendItem = document.createElement('div');
+    legendItem.className = 'pie-chart-legend-item';
+    legendItem.dataset.index = index;
+
+    const colorBox = document.createElement('div');
+    colorBox.className = 'pie-chart-legend-color';
+    colorBox.style.backgroundColor = colors[index % colors.length];
+
+    const legendLabel = document.createElement('div');
+    legendLabel.className = 'pie-chart-legend-label';
+    legendLabel.innerHTML = `
+      <span>${label}</span>
+      <span class="pie-chart-legend-value">${value} (${percentage}%)</span>
+    `;
+
+    legendItem.appendChild(colorBox);
+    legendItem.appendChild(legendLabel);
+    legendContainer.appendChild(legendItem);
+
+    // Добавляем обработчик клика для скрытия/показа элемента
+    legendItem.addEventListener('click', function() {
+      toggleChartElement(canvasId, parseInt(this.dataset.index));
+    });
+  });
+
+  // Создаем круговую диаграмму без встроенной легенды
+  const chartConfig = {
+    type: 'pie',
+    data: {
+      labels: labels,
+      datasets: [{
+        data: values,
+        backgroundColor: colors
+      }]
+    },
+    options: {
+      plugins: {
+        legend: {
+          display: false // Отключаем встроенную легенду
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              const percentage = ((context.raw / total) * 100).toFixed(1);
+              return `${context.label}: ${context.raw} (${percentage}%)`;
+            }
+          }
+        }
+      }
+    }
+  };
+
+  charts[canvasId] = new Chart(ctx, chartConfig);
+setTimeout(() => {
+  const chart = charts[canvasId];
+  if (chart) {
+    const meta = chart.getDatasetMeta(0);
+    if (meta && meta.data) {
+      meta.data.forEach((dataItem, index) => {
+        dataItem.hidden = false;
+      });
+    }
+  }
+}, 100);
+}
+
+// Функция для скрытия/показа элемента на круговой диаграмме
+function toggleChartElement(canvasId, index) {
+  const chart = charts[canvasId];
+  const legendId = canvasId === 'businessChart' ? 'businessLegend' : 'networkLegend';
+  const legendContainer = document.getElementById(legendId);
+  const legendItem = legendContainer.querySelector(`[data-index="${index}"]`);
+
+  if (!chart || !legendItem) return;
+
+  // Получаем метаданные правильным способом
+  const meta = chart.getDatasetMeta(0);
+  if (!meta || !meta.data[index]) return;
+
+  // Получаем текущее состояние элемента
+  const currentHidden = meta.data[index].hidden;
+
+  // Переключаем видимость
+  meta.data[index].hidden = !currentHidden;
+  chart.update();
+
+  // Обновляем стиль элемента легенды
+  if (currentHidden) {
+    legendItem.classList.remove('hidden');
+  } else {
+    legendItem.classList.add('hidden');
+  }
+
+  // Обновляем значения в легенде с учетом скрытых элементов
+  updateLegendValues(canvasId);
+}
+
+// Обновление значений в легенде с учетом скрытых элементов
+function updateLegendValues(canvasId) {
+  const chart = charts[canvasId];
+  const legendId = canvasId === 'businessChart' ? 'businessLegend' : 'networkLegend';
+  const legendContainer = document.getElementById(legendId);
+  const data = legendData[canvasId];
+
+  if (!chart || !legendContainer || !data) return;
+
+  // Получаем метаданные правильным способом
+  const meta = chart.getDatasetMeta(0);
+  if (!meta) return;
+
+  // Вычисляем новую сумму с учетом скрытых элементов
+  let visibleTotal = 0;
+
+  data.values.forEach((value, index) => {
+    if (!meta.data[index] || !meta.data[index].hidden) {
+      visibleTotal += value;
+    }
+  });
+
+  // Обновляем значения в легенде
+  const legendItems = legendContainer.querySelectorAll('.pie-chart-legend-item');
+  legendItems.forEach(item => {
+    const index = parseInt(item.dataset.index);
+    const value = data.values[index];
+
+    // Проверяем, существует ли элемент и скрыт ли он
+    const isHidden = meta.data[index] && meta.data[index].hidden;
+
+    let percentage;
+    if (isHidden) {
+      percentage = '0.0';
+    } else {
+      percentage = visibleTotal > 0 ? ((value / visibleTotal) * 100).toFixed(1) : '0.0';
+    }
+
+    const valueElement = item.querySelector('.pie-chart-legend-value');
+    if (valueElement) {
+      valueElement.textContent = `${isHidden ? '—' : value} (${percentage}%)`;
+    }
+  });
+}
+
+// Обновление конкретного графика (для bar charts)
+function updateChart(canvasId, type, data, backgroundColor, showValues = false) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) { console.warn(`Элемент с ID ${canvasId} не найден`); return; }
+
+  if (charts[canvasId]) { charts[canvasId].destroy(); delete charts[canvasId]; }
+
+  if (!data || Object.keys(data).length === 0) {
+    canvas.style.display = 'none';
+    if (!canvas.parentElement.querySelector('.no-data-message')) {
+      const m = document.createElement('div');
+      m.className = 'text-center text-muted py-5 no-data-message';
+      m.textContent = 'Нет данных для отображения';
+      canvas.parentElement.appendChild(m);
+    }
+    return;
+  }
+  canvas.style.display = 'block';
+  const msg = canvas.parentElement.querySelector('.no-data-message');
+  if (msg) msg.remove();
+
+  const labels = Object.keys(data);
+  const values = Object.values(data);
+  const baseColors = Array.isArray(backgroundColor) ? backgroundColor : labels.map(() => backgroundColor || '#36a2eb');
+  const isBar = type === 'bar';
+
+  // контейнер для «выключенных»
+  if (!inactiveByChart[canvasId]) inactiveByChart[canvasId] = new Set();
+  const inactive = inactiveByChart[canvasId];
+
+  charts[canvasId] = new Chart(canvas, {
+    type: isBar ? 'bar' : type,
+    data: {
+      labels,
+      datasets: [{
+        data: values,
+        backgroundColor: (ctx) => {
+          const i = ctx.dataIndex;
+          const base = baseColors[i % baseColors.length];
+          const alpha = inactive.has(i) ? 0.25 : 1;
+          return withAlpha(base, alpha);
+        }
+      }]
+    },
+    options: {
+      indexAxis: isBar ? 'y' : 'x',
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: isBar ? {
+        x: { beginAtZero: true, ticks: { callback: v => v } }
+      } : {},
+      plugins: {
+        legend: { display: type === 'pie' }, // для bar — скрываем легенду
+        tooltip: {
+          filter: (tipItem) => tipItem.datasetIndex === 0,
+          callbacks: {
+            label: (context) => {
+              const raw = context.raw ?? 0;
+              const ds = context.dataset.data || [];
+              const visTotal = ds.reduce((s, v, idx) => s + (inactive.has(idx) ? 0 : (v||0)), 0);
+              const pct = visTotal > 0 ? ((raw / visTotal) * 100).toFixed(1) : '0.0';
+              return `${context.label}: ${raw} (${pct}%)`;
+            }
+          }
+        }
+      },
+      animation: false
+    },
+    plugins: (showValues && isBar) ? [BarValueLabels] : []
+  });
+
+  // клик по столбику = переключаем «активность» (делаем бледным/нормальным)
+  if (isBar) {
+    canvas.onclick = (evt) => {
+      const pts = charts[canvasId].getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
+      if (!pts || !pts.length) return;
+      const i = pts[0].index;
+      if (inactive.has(i)) inactive.delete(i); else inactive.add(i);
+      charts[canvasId].update();
+    };
+  }
+}
+
+  </script>
+ </main>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script th:src="@{/js/sidebar.js}"></script>
+  <script th:src="@{/js/modal-transitions.js}"></script>
+</body>
+</html>

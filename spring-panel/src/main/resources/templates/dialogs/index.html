@@ -1,0 +1,1103 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="_csrf" th:content="${_csrf != null ? _csrf.token : ''}" />
+    <title>Диалоги — iguana</title>
+    <link rel="icon" type="image/svg+xml" th:href="@{/iguana-icon.svg}" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link rel="stylesheet" th:href="@{/css/sidebar.css}">
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+    <script th:src="@{/js/common.js}"></script>
+    <style>
+        .dialogs-hero,
+        .dialogs-summary-card,
+        .dialogs-table-card,
+        .workspace-shell-card {
+            overflow: hidden;
+        }
+        .dialogs-toolbar-card .card-body,
+        .dialogs-summary-card .card-body {
+            background:
+                linear-gradient(color-mix(in srgb, var(--card) 96%, white), color-mix(in srgb, var(--secondary) 18%, white)),
+                linear-gradient(180deg, transparent, transparent);
+        }
+        .dialogs-title {
+            margin: 0;
+            font-family: var(--font-serif);
+            font-size: 2rem;
+            line-height: 1.05;
+        }
+        .dialog-toolbar-search {
+            min-width: min(22rem, 100%);
+        }
+        .dialog-status-group .btn.active {
+            background: linear-gradient(135deg, var(--primary), var(--chart-2));
+            border-color: color-mix(in srgb, var(--primary) 55%, var(--chart-4));
+            color: var(--primary-foreground);
+        }
+        .workspace-panel-block {
+            border: 1px solid color-mix(in srgb, var(--color-border) 82%, transparent);
+            border-radius: 1rem;
+            padding: 1rem;
+            background: color-mix(in srgb, var(--color-surface-soft) 78%, white);
+        }
+        .workspace-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.35rem;
+        }
+        .workspace-tab-btn {
+            border: 1px solid color-mix(in srgb, var(--color-border) 82%, transparent);
+            background: color-mix(in srgb, var(--card) 95%, white);
+            color: var(--foreground);
+            border-radius: 999px;
+            padding: 0.3rem 0.7rem;
+            font-size: 0.8rem;
+            line-height: 1.2;
+        }
+        .workspace-tab-btn.is-active {
+            background: linear-gradient(135deg, var(--primary), var(--chart-2));
+            border-color: color-mix(in srgb, var(--primary) 55%, var(--chart-4));
+            color: var(--primary-foreground);
+        }
+        .workspace-tab-panel.d-none {
+            display: none !important;
+        }
+        .dialog-summary-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+            padding: 0.75rem 1rem;
+            min-width: 12rem;
+            border-radius: 1rem;
+            border: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
+            background: color-mix(in srgb, var(--card) 94%, white);
+        }
+        .dialog-summary-item .h5 {
+            font-family: var(--font-serif);
+        }
+        body.dialog-compact-mode .dialogs-hero {
+            display: none;
+        }
+        body.dialog-compact-mode .dialogs-toolbar-card .card-body,
+        body.dialog-compact-mode .dialogs-table-card .card-body,
+        body.dialog-compact-mode .workspace-shell-card .card-body {
+            padding: 0.75rem !important;
+        }
+        body.dialog-compact-mode .workspace-panel-block {
+            padding: 0.75rem;
+            border-radius: 0.75rem;
+        }
+        body.dialog-compact-mode .card {
+            box-shadow: none;
+        }
+        body.dialog-compact-mode .page-title {
+            font-size: 1.4rem;
+        }
+        body.dialog-compact-mode .dialog-summary-item {
+            min-width: 9rem;
+            padding: 0.5rem 0.75rem;
+        }
+        body.dialog-list-only-mode .dialogs-extra-section {
+            display: none !important;
+        }
+    </style>
+</head>
+<body class="with-sidebar sidebar-pinned dialog-compact-mode"
+      th:attr="data-initial-dialog-ticket-id=${initialDialogTicketId},
+               data-operator-identity=${operatorIdentity},
+               data-operator-display-name=${sidebarUserDisplayName},
+               data-operator-avatar-url=${sidebarUserAvatarUrl}">
+<div th:replace="~{fragments/navbar :: navbar('dialogs')}"></div>
+
+<main class="main-content container-fluid py-4">
+    <div class="page-header-card dialogs-hero dialogs-extra-section">
+        <div class="d-flex flex-wrap justify-content-between gap-3 align-items-end">
+            <div>
+                <span class="page-kicker">Conversation Desk</span>
+                <h1 class="page-title">Диалоги</h1>
+                <p class="page-subtitle">Единое рабочее место для очереди обращений, SLA и быстрых действий операторов.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4 dialogs-toolbar-card gradient-border-hover dialogs-extra-section">
+        <div class="card-body py-3">
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+                <h2 class="dialogs-title me-2">Диалоги</h2>
+                <input type="search" id="dialogQuickSearch" class="form-control form-control-sm dialog-toolbar-search flex-grow-1" placeholder="Поиск по обращению, клиенту или каналу">
+                <button class="btn btn-outline-primary btn-sm" id="dialogFiltersBtn" type="button" data-bs-toggle="modal" data-bs-target="#dialogFiltersModal">Фильтры</button>
+                <button class="btn btn-outline-secondary btn-sm" id="dialogColumnsBtn" type="button" data-bs-toggle="modal" data-bs-target="#dialogColumnsModal">Колонки</button>
+                <button class="btn btn-outline-secondary btn-sm" id="dialogCompactToggle" type="button">Compact mode</button>
+                <a class="btn btn-outline-secondary btn-sm" href="/ai-ops">AI Ops</a>
+                <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#dialogToolbarAdvanced" aria-expanded="false" aria-controls="dialogToolbarAdvanced">Ещё параметры</button>
+            </div>
+            <div class="mt-3 dialog-status-group">
+                <div class="btn-group flex-wrap" role="group" aria-label="Статусы диалогов">
+                    <button class="btn btn-outline-secondary btn-sm active" type="button" data-dialog-view="all">Все</button>
+                    <button class="btn btn-outline-secondary btn-sm" type="button" data-dialog-view="active">Активные</button>
+                    <button class="btn btn-outline-secondary btn-sm" type="button" data-dialog-view="new">Новые</button>
+                    <button class="btn btn-outline-secondary btn-sm" type="button" data-dialog-view="unassigned">Без ответственного</button>
+                    <button class="btn btn-outline-secondary btn-sm" type="button" data-dialog-view="overdue">Просроченные</button>
+                    <button class="btn btn-outline-secondary btn-sm" type="button" data-dialog-view="sla_critical">SLA критичные</button>
+                    <button class="btn btn-outline-secondary btn-sm" type="button" data-dialog-view="escalation_required">Нужна эскалация</button>
+                </div>
+            </div>
+            <div class="collapse mt-3" id="dialogToolbarAdvanced">
+                <div class="d-flex flex-wrap gap-2 align-items-center dialog-toolbar-controls">
+                    <select class="form-select form-select-sm dialog-toolbar-page-size" id="dialogSlaWindow" aria-label="Требует реакции в ближайшие N минут">
+                        <option value="">SLA: все</option>
+                        <option value="15">Реакция ≤ 15м</option>
+                        <option value="30">Реакция ≤ 30м</option>
+                        <option value="60">Реакция ≤ 60м</option>
+                        <option value="120">Реакция ≤ 120м</option>
+                    </select>
+                    <select class="form-select form-select-sm dialog-toolbar-page-size" id="dialogSortMode" aria-label="Режим сортировки диалогов">
+                        <option value="default">Сортировка: стандарт</option>
+                        <option value="sla_priority">Сортировка: SLA-first</option>
+                    </select>
+                    <button class="btn btn-outline-info btn-sm" id="dialogExperimentInfoBtn" type="button" data-bs-toggle="modal" data-bs-target="#dialogExperimentInfoModal">🧪 Эксперимент</button>
+                    <button class="btn btn-outline-dark btn-sm" id="dialogHotkeysBtn" type="button" data-bs-toggle="modal" data-bs-target="#dialogHotkeysModal">⌨ Шорткаты</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <section id="dialogsWorkspaceShell" class="d-none mb-4 dialogs-extra-section" aria-live="polite">
+        <div class="card shadow-sm workspace-shell-card gradient-border-hover">
+            <div class="card-body">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                    <div>
+                        <h2 class="h5 mb-1" id="workspaceConversationTitle">Workspace</h2>
+                        <p class="small text-muted mb-0" id="workspaceConversationMeta">Загрузка карточки диалога…</p>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2 align-items-center">
+                        <div class="btn-group" role="group" aria-label="Навигация по очереди workspace">
+                            <button class="btn btn-sm btn-outline-secondary" id="workspaceNavPrevBtn" type="button">← Предыдущий</button>
+                            <button class="btn btn-sm btn-outline-secondary" id="workspaceNavNextBtn" type="button">Следующий →</button>
+                        </div>
+                        <span class="small text-muted" id="workspaceNavState">Очередь не определена</span>
+                        <button class="btn btn-sm btn-outline-success" id="workspaceAssignBtn" type="button">Назначить мне</button>
+                        <button class="btn btn-sm btn-outline-warning" id="workspaceSnoozeBtn" type="button">Отложить на 1ч</button>
+                        <button class="btn btn-sm btn-outline-danger" id="workspaceResolveBtn" type="button">Закрыть</button>
+                        <button class="btn btn-sm btn-outline-secondary d-none" id="workspaceReopenBtn" type="button">Переоткрыть</button>
+                        <a class="btn btn-sm btn-outline-secondary" id="workspaceCreateTaskBtn" th:href="@{/tasks(create=1)}">Задача</a>
+                        <button class="btn btn-sm btn-outline-primary" id="workspaceAiIncidentExport" type="button">Экспорт инцидента</button>
+                        <button class="btn btn-sm btn-outline-dark" id="workspaceLegacyBtn" type="button">Legacy modal</button>
+                        <a class="btn btn-sm btn-outline-secondary" href="/dialogs">Вернуться к списку</a>
+                    </div>
+                </div>
+                <div id="workspaceRolloutBanner" class="d-none alert alert-info py-2 px-3 small mb-3" role="status" aria-live="polite"></div>
+                <div id="workspaceParityBanner" class="d-none alert py-2 px-3 small mb-3" role="status" aria-live="polite"></div>
+                <div id="workspaceReadonlyBanner" class="d-none alert alert-warning py-2 px-3 small" role="status" aria-live="polite">
+                    Workspace открыт в режиме только чтения: действия изменения временно недоступны.
+                </div>
+                <div class="row g-3">
+                    <div class="col-12 col-xl-8">
+                        <div class="workspace-panel-block mb-3" id="workspaceMessagesBlock">
+                            <div class="small text-muted" id="workspaceMessagesState">Загрузка ленты…</div>
+                            <div id="workspaceMessagesList" class="d-none"></div>
+                            <div class="mt-2 d-none" id="workspaceMessagesLoadMoreWrap">
+                                <button class="btn btn-sm btn-outline-secondary" id="workspaceMessagesLoadMore" type="button">Загрузить ещё</button>
+                            </div>
+                            <div id="workspaceMessagesError" class="d-none alert alert-warning py-2 px-3 mt-2 mb-0 small">
+                                Не удалось загрузить сообщения. <button class="btn btn-link btn-sm p-0" id="workspaceMessagesRetry" type="button">Повторить</button>
+                            </div>
+                        </div>
+                        <div class="workspace-panel-block" id="workspaceComposerBlock">
+                            <div class="small text-muted mb-2">Ответ оператору</div>
+                            <div class="workspace-composer-macro d-none mb-2" id="workspaceComposerMacroSection">
+                                <label class="form-label form-label-sm mb-1" for="workspaceComposerMacroSearch">Макросы</label>
+                                <input
+                                    class="form-control form-control-sm mb-1"
+                                    id="workspaceComposerMacroSearch"
+                                    type="search"
+                                    placeholder="Поиск макроса по названию, тегам или тексту"
+                                    autocomplete="off"
+                                >
+                                <div class="d-flex flex-wrap gap-2 align-items-center">
+                                    <select class="form-select form-select-sm" id="workspaceComposerMacroSelect" aria-label="Выбор макроса для workspace"></select>
+                                    <button class="btn btn-sm btn-outline-secondary" id="workspaceComposerMacroApply" type="button">Вставить макрос</button>
+                                </div>
+                                <div class="small text-muted mt-1" id="workspaceComposerMacroPreview">Выберите макрос для предпросмотра.</div>
+                                <div class="small text-muted mt-1" id="workspaceComposerMacroMeta"></div>
+                            </div>
+                            <div class="d-none alert alert-secondary py-2 px-3 small mb-2" id="workspaceReplyTarget">
+                                <div class="d-flex align-items-start justify-content-between gap-2">
+                                    <div>
+                                        <div class="fw-semibold">Ответ на сообщение</div>
+                                        <div id="workspaceReplyTargetText">—</div>
+                                    </div>
+                                    <button class="btn btn-link btn-sm p-0" id="workspaceReplyTargetClear" type="button">Очистить</button>
+                                </div>
+                            </div>
+                            <div class="alert alert-light border py-2 px-3 small mb-2" id="workspaceAiSuggestionsSection">
+                                <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap">
+                                    <div class="fw-semibold">AI-подсказки ответа</div>
+                                    <button class="btn btn-sm btn-outline-secondary" id="workspaceAiSuggestionsRefresh" type="button">Обновить</button>
+                                </div>
+                                <div class="d-flex flex-wrap gap-2 mt-2">
+                                    <button class="btn btn-sm btn-outline-danger" id="workspaceAiDisableForDialog" type="button">Отключить AI для диалога</button>
+                                    <button class="btn btn-sm btn-outline-warning" id="workspaceAiHandoffNoAutoReply" type="button">Передать мне и без автоответов</button>
+                                </div>
+                                <div class="small text-muted mt-1" id="workspaceAiControlState">Режим AI для диалога не загружен.</div>
+                                <div class="text-muted mt-1" id="workspaceAiSuggestionsState">Подсказки загружаются…</div>
+                                <div class="alert alert-warning mt-2 mb-0 d-none" id="workspaceAiReviewBox">
+                                    <div class="fw-semibold mb-1">Требуется ревизия AI-решения</div>
+                                    <div class="small mb-1" id="workspaceAiReviewQuestion"></div>
+                                    <div class="small mt-2">
+                                        <label class="form-label form-label-sm mb-1" for="workspaceAiReviewProblemSelect">Сообщение клиента (описание проблемы)</label>
+                                        <select class="form-select form-select-sm" id="workspaceAiReviewProblemSelect"></select>
+                                    </div>
+                                    <div class="small mt-2">
+                                        <label class="form-label form-label-sm mb-1" for="workspaceAiReviewSolutionSelect">Сообщение оператора (решение)</label>
+                                        <select class="form-select form-select-sm" id="workspaceAiReviewSolutionSelect"></select>
+                                    </div>
+                                    <div class="small"><strong>Текущее:</strong> <span id="workspaceAiReviewCurrent"></span></div>
+                                    <div class="small"><strong>Предложено оператором:</strong> <span id="workspaceAiReviewPending"></span></div>
+                                    <div class="d-flex gap-2 mt-2">
+                                        <button class="btn btn-sm btn-success" id="workspaceAiReviewApprove" type="button">Принять правку</button>
+                                        <button class="btn btn-sm btn-outline-secondary" id="workspaceAiReviewReject" type="button">Оставить текущее</button>
+                                    </div>
+                                </div>
+                                <div class="d-flex flex-column gap-2 mt-2 d-none" id="workspaceAiSuggestionsList"></div>
+                            </div>
+                            <textarea class="form-control form-control-sm mb-2" id="workspaceComposerText" rows="4" placeholder="Введите ответ клиенту…"></textarea>
+                            <div class="d-flex flex-wrap align-items-center gap-2">
+                                <button class="btn btn-sm btn-primary" id="workspaceComposerSend" type="button">Отправить (Ctrl/Cmd/Alt+Enter)</button>
+                                <button class="btn btn-sm btn-outline-secondary" id="workspaceComposerMediaTrigger" type="button">Прикрепить медиа</button>
+                                <button class="btn btn-sm btn-outline-secondary" id="workspaceComposerSaveDraft" type="button">Сохранить черновик (Ctrl/Cmd/Alt+S)</button>
+                                <span class="small text-muted" id="workspaceComposerDraftState">Черновик не сохранён</span>
+                            </div>
+                            <input class="d-none" type="file" id="workspaceComposerMedia" multiple>
+                        </div>
+                    </div>
+                    <div class="col-12 col-xl-4">
+                        <div class="workspace-panel-block mb-3" id="workspaceMetaTabs">
+                            <div class="workspace-tabs mb-3" role="tablist" aria-label="Вкладки workspace">
+                                <button class="workspace-tab-btn is-active" data-workspace-tab="client" type="button" role="tab" aria-selected="true">Клиент</button>
+                                <button class="workspace-tab-btn" data-workspace-tab="sla" type="button" role="tab" aria-selected="false">SLA</button>
+                                <button class="workspace-tab-btn" data-workspace-tab="ai" type="button" role="tab" aria-selected="false">AI</button>
+                                <button class="workspace-tab-btn" data-workspace-tab="history" type="button" role="tab" aria-selected="false">История</button>
+                            </div>
+                            <section class="workspace-tab-panel" data-workspace-tab-panel="client" id="workspaceClientBlock">
+                                <div class="small text-muted mb-2">Клиент</div>
+                                <div id="workspaceClientState" class="small text-muted">Загрузка данных</div>
+                                <div id="workspaceClientContent" class="d-none"></div>
+                                <div id="workspaceClientError" class="d-none alert alert-warning py-2 px-3 mt-2 mb-0 small">
+                                    Не удалось загрузить данные клиента.
+                                    <button class="btn btn-link btn-sm p-0" id="workspaceClientRetry" type="button">Повторить</button>
+                                </div>
+                            </section>
+                            <section class="workspace-tab-panel d-none" data-workspace-tab-panel="sla" id="workspaceSlaBlock">
+                                <div class="small text-muted mb-2">SLA</div>
+                                <div id="workspaceSlaState" class="small text-muted">Загрузка SLA…</div>
+                                <div id="workspaceSlaContent" class="d-none"></div>
+                                <div id="workspaceSlaError" class="d-none alert alert-warning py-2 px-3 mt-2 mb-0 small">
+                                    Не удалось загрузить SLA-данные.
+                                    <button class="btn btn-link btn-sm p-0" id="workspaceSlaRetry" type="button">Повторить</button>
+                                </div>
+                            </section>
+                            <section class="workspace-tab-panel d-none" data-workspace-tab-panel="ai" id="workspaceRelatedEventsBlock">
+                                <div class="small text-muted mb-2">Связанные события</div>
+                                <div id="workspaceRelatedEventsState" class="small text-muted">Загрузка событий</div>
+                                <div id="workspaceRelatedEventsContent" class="d-none"></div>
+                                <div id="workspaceRelatedEventsError" class="d-none alert alert-warning py-2 px-3 mt-2 mb-0 small">
+                                    Не удалось загрузить события.
+                                    <button class="btn btn-link btn-sm p-0" id="workspaceRelatedEventsRetry" type="button">Повторить</button>
+                                </div>
+                            </section>
+                            <section class="workspace-tab-panel d-none" data-workspace-tab-panel="history" id="workspaceHistoryBlock">
+                                <div class="small text-muted mb-2">История изменений</div>
+                                <div id="workspaceHistoryState" class="small text-muted">Загрузка истории</div>
+                                <div id="workspaceHistoryContent" class="d-none"></div>
+                                <div id="workspaceHistoryError" class="d-none alert alert-warning py-2 px-3 mt-2 mb-0 small">
+                                    Не удалось загрузить историю.
+                                    <button class="btn btn-link btn-sm p-0" id="workspaceHistoryRetry" type="button">Повторить</button>
+                                </div>
+                            </section>
+                        </div>
+                        <div class="workspace-panel-block mt-3" id="workspaceCategoriesBlock">
+                            <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+                                <div class="small text-muted">Категории</div>
+                                <button class="btn btn-link btn-sm p-0 text-decoration-none" id="workspaceCategoriesClear" type="button">Сбросить</button>
+                            </div>
+                            <div id="workspaceCategoriesState" class="small text-muted">Загрузка категорий…</div>
+                            <div id="workspaceCategoriesList" class="d-flex flex-wrap gap-2 d-none"></div>
+                            <div id="workspaceCategoriesError" class="d-none alert alert-warning py-2 px-3 mt-2 mb-0 small">
+                                Не удалось сохранить категории.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div class="dialog-bulk-toolbar d-flex flex-wrap align-items-center gap-2 mb-3 d-none dialogs-extra-section" id="dialogBulkToolbar">
+        <span class="small text-muted" id="dialogBulkCount">Выбрано: 0</span>
+        <button class="btn btn-outline-success btn-sm" id="dialogBulkTakeBtn" type="button" disabled>Назначить выбранные на меня</button>
+        <button class="btn btn-outline-warning btn-sm" id="dialogBulkSnoozeBtn" type="button" disabled>Отложить выбранные</button>
+        <button class="btn btn-outline-danger btn-sm" id="dialogBulkCloseBtn" type="button" disabled>Закрыть выбранные</button>
+        <button class="btn btn-link btn-sm text-decoration-none" id="dialogBulkClearBtn" type="button" disabled>Снять выделение</button>
+    </div>
+
+    <div class="card shadow-sm dialogs-table-card gradient-border-hover">
+        <div class="card-body">
+            <div class="d-flex justify-content-end mb-2">
+                <button class="btn btn-outline-secondary btn-sm" id="dialogListOnlyToggle" type="button">Только список</button>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-striped align-middle dialog-table" id="dialogsTable">
+                    <thead>
+                    <tr>
+                        <th class="dialog-select-column">
+                            <input class="form-check-input" type="checkbox" id="dialogSelectAll" aria-label="Выбрать все видимые диалоги">
+                        </th>
+                        <th data-column-key="ticket">№ обращения</th>
+                        <th data-column-key="client">Клиент</th>
+                        <th data-column-key="status">Статус</th>
+                        <th data-column-key="channel">Канал</th>
+                        <th data-column-key="business">Бизнес</th>
+                        <th data-column-key="problem">Проблема</th>
+                        <th data-column-key="location">Локация</th>
+                        <th data-column-key="categories">Категории</th>
+                        <th data-column-key="responsible">Ответственный</th>
+                        <th data-column-key="created">Дата</th>
+                        <th data-column-key="sla">SLA</th>
+                        <th data-column-key="actions">Действия</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:if="${#lists.isEmpty(dialogs)}">
+                        <td colspan="13" class="text-center text-muted py-4">Диалоги не найдены</td>
+                    </tr>
+                    <tr th:each="dialog : ${dialogs}"
+                        th:data-ticket-id="${dialog.ticketId}"
+                        th:data-client="${dialog.displayClientName()}"
+                        th:data-client-status="${dialog.clientStatusLabel()}"
+                        th:data-user-id="${dialog.userId()}"
+                        th:data-channel-id="${dialog.channelId()}"
+                        th:data-channel="${dialog.channelLabel()}"
+                        th:data-business="${dialog.businessLabel()}"
+                        th:data-problem="${dialog.problemSafe()}"
+                        th:data-status="${dialog.statusLabel()}"
+                        th:data-status-raw="${dialog.status()}"
+                        th:data-status-key="${dialog.statusKey()}"
+                        th:data-location="${dialog.location()}"
+                        th:data-categories="${dialog.categoriesSafe()}"
+                        th:data-responsible="${dialog.responsible()}"
+                        th:data-created-at="${dialog.createdAt()}"
+                        th:data-unread="${dialog.unreadCount()}"
+                        th:data-rating="${dialog.rating()}"
+                        th:data-request-number="${dialog.requestNumber()}"
+                        th:data-last-message-timestamp="${dialog.lastMessageTimestamp()}">
+                        <td class="dialog-select-column">
+                            <input class="form-check-input dialog-row-select" type="checkbox" th:data-ticket-id="${dialog.ticketId}" aria-label="Выбрать диалог">
+                        </td>
+                        <td th:text="${dialog.displayTicketNumber()}">—</td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="dialog-avatar"
+                                     th:attr="data-avatar-user-id=${dialog.userId}, data-avatar-name=${dialog.displayClientName()}">
+                                    <img class="dialog-avatar-img d-none" alt="Аватар клиента" data-avatar-img>
+                                    <span class="avatar-circle" data-avatar-initial th:text="${dialog.avatarInitial()}">—</span>
+                                </div>
+                                <div>
+                                    <div class="fw-semibold" th:text="${dialog.displayClientName()}">Клиент</div>
+                                    <div class="small text-muted" th:text="${dialog.clientStatusLabel()}">статус</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge rounded-pill" th:classappend="${dialog.statusClass()}" th:text="${dialog.statusLabel()}">Открыт</span>
+                                <span class="badge dialog-unread-count"
+                                      th:classappend="${dialog.unreadCount() != null and dialog.unreadCount() > 0} ? '' : ' d-none'"
+                                      th:text="${dialog.unreadCount()}">0</span>
+                            </div>
+                            <div class="small text-warning" th:if="${dialog.ratingStars() != ''}" th:text="${dialog.ratingStars()}">★★★★★</div>
+                        </td>
+                        <td th:text="${dialog.channelLabel()}">—</td>
+                        <td class="dialog-business-cell" th:data-business="${dialog.businessLabel()}">
+                            <div class="dialog-business-pill">
+                                <span class="dialog-business-icon d-none" aria-hidden="true"></span>
+                                <span class="dialog-business-text" th:text="${dialog.businessLabel()}">—</span>
+                            </div>
+                        </td>
+                        <td class="text-truncate dialog-problem-cell" th:text="${dialog.problemSafe()}">—</td>
+                        <td th:text="${dialog.location()} ?: '—'">—</td>
+                        <td th:text="${dialog.categoriesSafe()}">—</td>
+                        <td th:text="${dialog.responsible()} ?: '—'">—</td>
+                        <td>
+                            <div class="small text-muted" th:text="${dialog.createdDateSafe()}">—</div>
+                            <div class="small" th:text="${dialog.createdTimeSafe()}">—</div>
+                        </td>
+                        <td class="dialog-sla-cell">
+                            <span class="badge rounded-pill dialog-sla-badge">—</span>
+                        </td>
+                        <td class="dialog-actions">
+                            <a th:href="@{/dialogs/{ticketId}(ticketId=${dialog.ticketId})}"
+                               class="btn btn-sm btn-outline-primary dialog-open-btn"
+                               th:data-ticket-id="${dialog.ticketId}">Открыть</a>
+                            <button type="button" class="btn btn-sm btn-outline-success dialog-take-btn"
+                                    th:data-ticket-id="${dialog.ticketId}"
+                                    th:classappend="${dialog.responsible() != null and !#strings.isEmpty(dialog.responsible())} ? ' d-none' : ''">Назначить мне</button>
+                            <button type="button" class="btn btn-sm btn-outline-warning dialog-snooze-btn"
+                                    th:data-ticket-id="${dialog.ticketId}"
+                                    th:classappend="${dialog.statusKey() == 'closed' or dialog.statusKey() == 'auto_closed'} ? ' d-none' : ''">Отложить 1ч</button>
+                            <button type="button" class="btn btn-sm btn-outline-danger dialog-close-btn"
+                                    th:data-ticket-id="${dialog.ticketId}"
+                                    th:classappend="${dialog.statusKey() == 'closed' or dialog.statusKey() == 'auto_closed'} ? ' d-none' : ''">Закрыть</button>
+                            <a th:href="@{/tasks(create=1,ticketId=${dialog.ticketId},client=${dialog.displayClientName()})}" class="btn btn-sm btn-outline-secondary dialog-task-btn"
+                               th:data-ticket-id="${dialog.ticketId}"
+                               th:data-client="${dialog.displayClientName()}">Задача</a>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-end mt-3">
+        <div class="d-flex align-items-center gap-2">
+            <label class="small text-muted mb-0" for="dialogPageSize">Количество диалогов</label>
+            <select class="form-select form-select-sm dialog-toolbar-page-size" id="dialogPageSize" aria-label="Количество диалогов на странице">
+                <option value="10">10 / стр.</option>
+                <option value="20">20 / стр.</option>
+                <option value="50">50 / стр.</option>
+                <option value="100">100 / стр.</option>
+                <option value="all">Все</option>
+            </select>
+        </div>
+    </div>
+</main>
+
+<div class="modal fade" id="dialogFiltersModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Фильтры</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <form id="dialogFiltersForm">
+                    <div class="mb-3">
+                        <label class="form-label" for="dialogFilterSearch">Поиск</label>
+                        <input type="text" class="form-control" id="dialogFilterSearch" name="search" placeholder="Поиск по клиенту, проблеме или ID">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="dialogFilterStatus">Статус</label>
+                        <select class="form-select" id="dialogFilterStatus" name="status">
+                            <option value="">Все</option>
+                            <option value="Новый">Новый</option>
+                            <option value="Ожидает ответа оператора">Ожидает ответа оператора</option>
+                            <option value="Ожидает ответа клиента">Ожидает ответа клиента</option>
+                            <option value="Закрыт">Закрыт</option>
+                            <option value="Закрыт автоматически">Закрыт автоматически</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" id="dialogFiltersReset">Сбросить</button>
+                <button type="button" class="btn btn-primary" id="dialogFiltersApply">Применить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="dialogColumnsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Колонки</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-2" id="dialogColumnsList"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" id="dialogColumnsReset">По умолчанию</button>
+                <button type="button" class="btn btn-primary" id="dialogColumnsApply">Применить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade resizable-modal" id="dialogDetailsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="dialog-details-header">
+                    <div class="dialog-details-avatar" id="dialogDetailsAvatar" aria-hidden="true">
+                        <img class="dialog-details-avatar-img d-none" alt="Аватар клиента" data-avatar-img>
+                        <span class="dialog-details-avatar-initial" data-avatar-initial>—</span>
+                    </div>
+                    <div>
+                        <h5 class="modal-title mb-1">Детали диалога</h5>
+                        <div class="text-muted small d-flex flex-wrap gap-2">
+                            <span id="dialogDetailsMeta"></span>
+                            <span class="text-warning d-none" id="dialogDetailsRating"></span>
+                            <span class="badge dialog-unread-count d-none" id="dialogDetailsUnreadCount"></span>
+                        </div>
+                        <div class="small text-muted dialog-details-categories" id="dialogDetailsCategories">Категории: —</div>
+                        <div class="small">
+                            <span class="fw-semibold" id="dialogDetailsClientName">—</span>
+                            <span class="text-muted" id="dialogDetailsClientStatus">—</span>
+                        </div>
+                        <div class="mt-1">
+                            <button class="btn btn-sm btn-outline-primary" id="dialogDetailsOpenClientCard" type="button" disabled>Открыть карточку клиента</button>
+                        </div>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <div class="dialog-details-layout">
+                    <div class="dialog-details-sidebar" id="dialogDetailsSidebar">
+                        <div class="dialog-details-section">
+                            <div class="fw-semibold mb-2">Сводка</div>
+                            <div class="d-flex flex-column gap-1" id="dialogDetailsSummary"></div>
+                        </div>
+                        <div class="dialog-details-section">
+                            <div class="fw-semibold mb-2">Проблема</div>
+                            <div class="dialog-details-problem" id="dialogDetailsProblem">—</div>
+                        </div>
+                        <div class="dialog-details-section">
+                            <div class="fw-semibold mb-2">Метрики</div>
+                            <div class="d-flex flex-column gap-2 small" id="dialogDetailsMetrics"></div>
+                        </div>
+                        <div class="dialog-details-section">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <div class="fw-semibold">AI-помощник</div>
+                                <button class="btn btn-sm btn-outline-secondary" id="dialogDetailsAiRefresh" type="button">Обновить</button>
+                            </div>
+                            <div class="small text-muted" id="dialogDetailsAiState">Откройте диалог для загрузки подсказок.</div>
+                            <div class="d-flex flex-column gap-2 mt-2 d-none" id="dialogDetailsAiList"></div>
+                        </div>
+                        <div class="dialog-details-section dialog-templates-dropdown" id="dialogCompletionTemplatesSection">
+                            <button class="dialog-templates-toggle" type="button" id="dialogCompletionTemplatesToggle">
+                                Шаблоны действий
+                                <span class="dialog-templates-caret" aria-hidden="true">▾</span>
+                            </button>
+                            <div class="dialog-templates-menu" id="dialogCompletionTemplatesMenu">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <div class="fw-semibold small">Набор шаблонов</div>
+                                    <select class="form-select form-select-sm w-auto" id="dialogCompletionTemplateSelect"></select>
+                                </div>
+                                <div class="d-flex flex-column gap-2 small" id="dialogCompletionTemplateList"></div>
+                                <div class="text-muted small d-none" id="dialogCompletionTemplateEmpty">Шаблоны действий не настроены.</div>
+                            </div>
+                        </div>
+                        <div class="dialog-details-resize-handle" id="dialogDetailsResizeHandle" aria-hidden="true"></div>
+                    </div>
+                    <div class="dialog-details-main">
+                        <div class="card shadow-sm border-0 h-100">
+                            <div class="card-body d-flex flex-column">
+                                <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+                                    <div class="fw-semibold">История сообщений</div>
+                                    <label class="dialog-font-control small text-muted">
+                                        Размер шрифта
+                                        <input type="range" class="form-range" id="dialogFontSizeRange" min="12" max="18" step="1" value="14">
+                                    </label>
+                                </div>
+                                <div class="d-flex flex-column gap-2 chat-history flex-grow-1" id="dialogDetailsHistory"></div>
+                                <div class="dialog-details-composer mt-3">
+                                    <label class="form-label small text-muted" for="dialogReplyText">Ответ клиенту</label>
+                                    <div class="dialog-composer-panels">
+                                        <div class="dialog-template-panel" id="dialogEmojiPanel">
+                                            <div class="fw-semibold small mb-2">Эмодзи</div>
+                                            <div class="d-flex flex-wrap gap-2" id="dialogEmojiList"></div>
+                                        </div>
+                                        <div class="dialog-template-panel" id="dialogQuestionTemplatesSection">
+                                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                                <div class="fw-semibold small">Шаблоны вопросов</div>
+                                                <select class="form-select form-select-sm w-auto" id="dialogQuestionTemplateSelect"></select>
+                                            </div>
+                                            <div class="d-flex flex-column gap-2" id="dialogQuestionTemplateList"></div>
+                                            <div class="text-muted small d-none" id="dialogQuestionTemplateEmpty">Шаблоны вопросов не настроены.</div>
+                                        </div>
+                                        <div class="dialog-template-panel" id="dialogMacroTemplatesSection">
+                                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                                <div class="fw-semibold small">Макросы ответа</div>
+                                                <select class="form-select form-select-sm w-auto" id="dialogMacroTemplateSelect"></select>
+                                            </div>
+                                            <input
+                                                type="search"
+                                                class="form-control form-control-sm mb-2"
+                                                id="dialogMacroTemplateSearch"
+                                                placeholder="Поиск макроса по названию, тегу или тексту"
+                                                aria-label="Поиск макроса"
+                                            >
+                                            <div class="small text-muted" id="dialogMacroTemplatePreview">Выберите макрос для предпросмотра.</div>
+                                            <div class="mt-2 d-flex flex-wrap gap-2" id="dialogMacroTemplateMeta"></div>
+                                            <div class="form-text small mt-2" id="dialogMacroVariableCatalog">Загрузка доступных переменных…</div>
+                                            <div class="mt-2">
+                                                <button class="btn btn-outline-primary btn-sm" type="button" id="dialogMacroTemplateApply">Применить в ответ</button>
+                                            </div>
+                                            <div class="text-muted small d-none" id="dialogMacroTemplateEmpty">Макросы не настроены.</div>
+                                        </div>
+                                    </div>
+                                    <div class="dialog-composer-input mt-2">
+                                        <div class="dialog-composer-textarea">
+                                            <textarea class="form-control" id="dialogReplyText" rows="2" placeholder="Введите ответ..."></textarea>
+                                            <div class="dialog-composer-overlay">
+                                                <button class="dialog-template-icon" type="button" data-template-toggle="question"
+                                                        aria-label="Шаблоны вопросов" data-tooltip="Шаблоны вопросов">
+                                                    ❓
+                                                </button>
+                                                <button class="dialog-template-icon" type="button" data-template-toggle="macro"
+                                                        aria-label="Макросы ответа" data-tooltip="Макросы ответа">
+                                                    ⚡
+                                                </button>
+                                                <button class="dialog-template-icon" type="button" id="dialogReplyEmojiTrigger"
+                                                        aria-label="Добавить эмодзи" data-tooltip="Добавить эмодзи">
+                                                    😀
+                                                </button>
+                                                <button class="dialog-template-icon" type="button" id="dialogReplyMediaTrigger"
+                                                        aria-label="Добавить медиа" data-tooltip="Добавить медиа">
+                                                    📎
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <button class="btn btn-primary" type="button" id="dialogReplySend">Отправить</button>
+                                        <input class="d-none" type="file" id="dialogReplyMedia" multiple>
+                                    </div>
+                                    <div class="dialog-reply-target d-none" id="dialogReplyTarget">
+                                        <div class="small text-muted">Ответ на сообщение:</div>
+                                        <div class="dialog-reply-target-text" id="dialogReplyTargetText"></div>
+                                        <button class="btn btn-sm btn-link p-0" type="button" id="dialogReplyTargetClear">Сбросить</button>
+                                    </div>
+                                    <div class="form-text">Сообщение будет отправлено в активный диалог клиента.</div>
+                                </div>
+                                <div class="dialog-details-section mt-3">
+                                    <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+                                        <div class="fw-semibold">Категории обращения</div>
+                                        <button class="btn btn-outline-secondary btn-sm" type="button" data-template-toggle="category">
+                                            Выбрать
+                                        </button>
+                                    </div>
+                                    <div class="dialog-template-panel is-open" id="dialogCategoryTemplatesSection">
+                                        <div class="d-flex align-items-center justify-content-between mb-2">
+                                            <div class="fw-semibold small">Набор категорий</div>
+                                            <select class="form-select form-select-sm w-auto" id="dialogCategoryTemplateSelect"></select>
+                                        </div>
+                                        <div class="d-flex flex-wrap gap-2 small" id="dialogCategoryTemplateList"></div>
+                                        <div class="text-muted small d-none" id="dialogCategoryTemplateEmpty">Категории не настроены.</div>
+                                        <div class="form-text small mt-2">Выбор сохраняется автоматически.</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <a class="btn btn-outline-secondary" id="dialogDetailsCreateTask" th:href="@{/tasks(create=1)}">Создать задачу</a>
+                <button type="button" class="btn btn-outline-success" id="dialogDetailsResolve">Закрыть обращение</button>
+                <button type="button" class="btn btn-outline-warning d-none" id="dialogDetailsReopen">Переоткрыть обращение</button>
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="dialogHotkeysModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Горячие клавиши</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <ul class="list-group list-group-flush dialog-hotkeys-list">
+                    <li class="list-group-item d-flex justify-content-between align-items-center"><span>Фокус на быстрый поиск</span><kbd>/</kbd></li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center"><span>Показать окно шорткатов</span><kbd>?</kbd></li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center"><span>Все / Активные / Новые / Без ответственного / Просроченные</span><span><kbd>Alt</kbd> + <kbd>1..5</kbd></span></li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center"><span>Фильтр по статусам: Новый / Оператор / Клиент / Закрыт / Сброс</span><span><kbd>Alt</kbd> + <kbd>6..0</kbd></span></li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center"><span>Переключить режим сортировки (стандарт / SLA-first)</span><span><kbd>Alt</kbd> + <kbd>L</kbd></span></li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center"><span>Открыть следующий диалог</span><span><kbd>Alt</kbd> + <kbd>↓</kbd></span></li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center"><span>Открыть предыдущий диалог</span><span><kbd>Alt</kbd> + <kbd>↑</kbd></span></li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center"><span>Назначить диалог на себя (из списка)</span><span><kbd>Alt</kbd> + <kbd>A</kbd></span></li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center"><span id="dialogHotkeySingleSnoozeLabel">Отложить диалог (из списка)</span><span><kbd>Alt</kbd> + <kbd>S</kbd></span></li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center"><span>Быстро закрыть диалог (из списка)</span><span><kbd>Alt</kbd> + <kbd>C</kbd></span></li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center"><span>Закрыть/переоткрыть открытый диалог</span><span><kbd>Alt</kbd> + <kbd>R</kbd></span></li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center"><span>Отправить сообщение из workspace</span><span><kbd>Ctrl/Cmd/Alt</kbd> + <kbd>Enter</kbd></span></li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center"><span>Сохранить черновик workspace</span><span><kbd>Ctrl/Cmd/Alt</kbd> + <kbd>S</kbd></span></li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center"><span>Назначить выбранные диалоги на себя</span><span><kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>A</kbd></span></li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center"><span id="dialogHotkeyBulkSnoozeLabel">Отложить выбранные диалоги</span><span><kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>S</kbd></span></li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center"><span>Закрыть выбранные диалоги</span><span><kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>C</kbd></span></li>
+                </ul>
+                <p class="text-muted small mb-0 mt-3">Шорткаты отключаются во время ввода текста и работы с модальными формами.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="dialogMediaPreviewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Просмотр медиа</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <video class="w-100 d-none" id="dialogMediaPreviewVideo" controls></video>
+                <img class="w-100 d-none dialog-media-preview-image" id="dialogMediaPreviewImage" alt="Просмотр изображения">
+            </div>
+            <div class="modal-footer">
+                <div class="btn-group d-none" id="dialogMediaImageControls" role="group" aria-label="Управление изображением">
+                    <button class="btn btn-outline-secondary" type="button" id="dialogMediaZoomOut">Уменьшить</button>
+                    <button class="btn btn-outline-secondary" type="button" id="dialogMediaZoomIn">Увеличить</button>
+                </div>
+                <a class="btn btn-outline-primary d-none" href="#" id="dialogMediaDownloadLink" download target="_blank" rel="noopener">Скачать</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="dialogExperimentInfoModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">A/B критерии workspace-эксперимента</h5>
+                <div class="d-flex align-items-center gap-2 me-2">
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="dialogExperimentTelemetryRefreshBtn">Обновить</button>
+                    <div class="form-check form-switch mb-0">
+                        <input class="form-check-input" type="checkbox" role="switch" id="dialogExperimentTelemetryAutoRefresh" checked>
+                        <label class="form-check-label small" for="dialogExperimentTelemetryAutoRefresh">Автообновление</label>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-muted mb-3" id="dialogExperimentInfoMeta">Данные об эксперименте загружаются…</p>
+                <div class="row g-3">
+                    <div class="col-12 col-md-6">
+                        <h6 class="mb-2">Primary KPI</h6>
+                        <ul class="small mb-0" id="dialogExperimentPrimaryKpis"></ul>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <h6 class="mb-2">Secondary KPI</h6>
+                        <ul class="small mb-0" id="dialogExperimentSecondaryKpis"></ul>
+                    </div>
+                </div>
+                <hr class="my-3">
+                <h6 class="mb-2">Срез production-метрик (последние 7 дней)</h6>
+                <p class="small text-muted mb-2" id="dialogExperimentTelemetrySummaryState">Загрузка агрегатов telemetry…</p>
+                <div class="alert alert-success py-2 px-3 small d-none" id="dialogExperimentTelemetryGuardrailState" role="status"></div>
+                <ul class="small mb-2 ps-3 d-none" id="dialogExperimentTelemetryGuardrailAlerts"></ul>
+                <div class="alert py-2 px-3 small d-none" id="dialogExperimentRolloutDecisionState" role="status"></div>
+                <ul class="small mb-2 ps-3 d-none" id="dialogExperimentRolloutDecisionChecklist"></ul>
+                <div class="alert py-2 px-3 small d-none" id="dialogExperimentRolloutPacketState" role="status"></div>
+                <ul class="small mb-2 ps-3 d-none" id="dialogExperimentRolloutPacketChecklist"></ul>
+                <div class="table-responsive mb-2 d-none" id="dialogExperimentRolloutPacketWrap">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead>
+                        <tr>
+                            <th scope="col">Элемент пакета</th>
+                            <th scope="col">Категория</th>
+                            <th scope="col">Текущее состояние</th>
+                            <th scope="col">Порог</th>
+                            <th scope="col">UTC</th>
+                            <th scope="col" class="text-end">Статус</th>
+                        </tr>
+                        </thead>
+                        <tbody id="dialogExperimentRolloutPacketRows">
+                        <tr><td colspan="6" class="small text-muted">Governance packet появится после первых telemetry-сигналов.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="table-responsive mb-2 d-none" id="dialogExperimentRolloutScorecardWrap">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead>
+                        <tr>
+                            <th scope="col">Чекпоинт</th>
+                            <th scope="col">Категория</th>
+                            <th scope="col">Текущее состояние</th>
+                            <th scope="col">Порог</th>
+                            <th scope="col">UTC</th>
+                            <th scope="col" class="text-end">Статус</th>
+                        </tr>
+                        </thead>
+                        <tbody id="dialogExperimentRolloutScorecardRows">
+                        <tr><td colspan="6" class="small text-muted">Rollout scorecard появится после первых telemetry-сигналов.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="table-responsive mb-2 d-none" id="dialogExperimentRolloutKpiOutcomesWrap">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead>
+                        <tr>
+                            <th scope="col">KPI</th>
+                            <th scope="col" class="text-end">Control</th>
+                            <th scope="col" class="text-end">Test</th>
+                            <th scope="col" class="text-end">Δ</th>
+                            <th scope="col" class="text-end">Статус</th>
+                        </tr>
+                        </thead>
+                        <tbody id="dialogExperimentRolloutKpiOutcomeRows">
+                        <tr><td colspan="5" class="small text-muted">Данные появятся после первых KPI-сигналов.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="table-responsive mb-2 d-none" id="dialogExperimentGapBreakdownWrap">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead>
+                        <tr>
+                            <th scope="col">Gap category</th>
+                            <th scope="col">Reason</th>
+                            <th scope="col" class="text-end">Events</th>
+                            <th scope="col" class="text-end">Tickets</th>
+                            <th scope="col">Last seen UTC</th>
+                        </tr>
+                        </thead>
+                        <tbody id="dialogExperimentGapBreakdownRows">
+                        <tr><td colspan="5" class="small text-muted">Gap breakdown появится после первых parity/context-gap событий.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead>
+                        <tr>
+                            <th scope="col">Когорта</th>
+                            <th scope="col">Сегмент</th>
+                            <th scope="col" class="text-end">События</th>
+                            <th scope="col" class="text-end">Fallback</th>
+                            <th scope="col" class="text-end">Render error</th>
+                            <th scope="col" class="text-end">Avg open (ms)</th>
+                        </tr>
+                        </thead>
+                        <tbody id="dialogExperimentTelemetrySummaryRows">
+                        <tr><td colspan="6" class="small text-muted">Данные появятся после первых событий.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <hr class="my-3">
+                <div class="row g-3">
+                    <div class="col-12 col-lg-6">
+                        <h6 class="mb-2">Операционный срез по сменам</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead>
+                                <tr>
+                                    <th scope="col">Смена</th>
+                                    <th scope="col" class="text-end">События</th>
+                                    <th scope="col" class="text-end">Fallback %</th>
+                                    <th scope="col" class="text-end">Render error %</th>
+                                </tr>
+                                </thead>
+                                <tbody id="dialogExperimentTelemetryShiftRows">
+                                <tr><td colspan="4" class="small text-muted">Данные появятся после первых событий.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="col-12 col-lg-6">
+                        <h6 class="mb-2">Операционный срез по командам</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead>
+                                <tr>
+                                    <th scope="col">Команда</th>
+                                    <th scope="col" class="text-end">События</th>
+                                    <th scope="col" class="text-end">Fallback %</th>
+                                    <th scope="col" class="text-end">Render error %</th>
+                                </tr>
+                                </thead>
+                                <tbody id="dialogExperimentTelemetryTeamRows">
+                                <tr><td colspan="4" class="small text-muted">Данные появятся после первых событий.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+<script th:inline="javascript">
+  const RAW_DIALOG_CONFIG = /*[[${settingsPayload['dialog_config']}]]*/ {};
+  window.DIALOG_CONFIG = RAW_DIALOG_CONFIG && typeof RAW_DIALOG_CONFIG === 'object' ? RAW_DIALOG_CONFIG : {};
+  const RAW_BUSINESS_CELL_STYLES = /*[[${settingsPayload['business_cell_styles']}]]*/ {};
+  window.BUSINESS_CELL_STYLES = RAW_BUSINESS_CELL_STYLES && typeof RAW_BUSINESS_CELL_STYLES === 'object'
+    ? RAW_BUSINESS_CELL_STYLES
+    : {};
+</script>
+<script th:src="@{/js/dialogs.js}"></script>
+<script>
+  (() => {
+    const STORAGE_COMPACT_MODE = 'iguana:dialogs:compact-mode';
+    const compactBtn = document.getElementById('dialogCompactToggle');
+    const columnsModal = document.getElementById('dialogColumnsModal');
+    const columnsList = document.getElementById('dialogColumnsList');
+    const columnsApply = document.getElementById('dialogColumnsApply');
+    const columnsReset = document.getElementById('dialogColumnsReset');
+    const table = document.getElementById('dialogsTable');
+
+    function applyCompact(enabled) {
+      document.body.classList.toggle('dialog-compact-mode', Boolean(enabled));
+      if (compactBtn) {
+        compactBtn.textContent = enabled ? 'Standard mode' : 'Compact mode';
+        compactBtn.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+      }
+    }
+
+    try {
+      const stored = String(localStorage.getItem(STORAGE_COMPACT_MODE) || '').trim().toLowerCase();
+      if (stored === '') {
+        localStorage.setItem(STORAGE_COMPACT_MODE, '1');
+        applyCompact(true);
+      } else {
+        applyCompact(stored === '1' || stored === 'true' || stored === 'on');
+      }
+    } catch (_e) {
+      applyCompact(true);
+    }
+
+    if (compactBtn) {
+      compactBtn.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        const next = !document.body.classList.contains('dialog-compact-mode');
+        applyCompact(next);
+        try {
+          localStorage.setItem(STORAGE_COMPACT_MODE, next ? '1' : '0');
+        } catch (_e) {
+          // ignore
+        }
+      }, true);
+    }
+
+    function buildColumnsFallback() {
+      if (!columnsList || !table) return;
+      const headers = Array.from(table.querySelectorAll('thead th[data-column-key]'));
+      if (!headers.length) return;
+      if (columnsList.querySelector('[data-column-toggle]')) return;
+      columnsList.innerHTML = '';
+      headers.forEach((th) => {
+        const key = String(th.getAttribute('data-column-key') || '').trim();
+        if (!key) return;
+        const label = String((th.textContent || '').trim() || key);
+        const col = document.createElement('div');
+        col.className = 'col-12 col-sm-6';
+        col.innerHTML = '<label class="dialog-column-option">'
+          + `<input type="checkbox" class="form-check-input" data-column-toggle="${key}" checked>`
+          + `<span>${label}</span>`
+          + '</label>';
+        columnsList.appendChild(col);
+      });
+    }
+
+    function applyColumnsFallback() {
+      if (!columnsList || !table) return;
+      const head = table.tHead ? Array.from(table.tHead.rows[0].cells) : [];
+      const rows = table.tBodies.length ? Array.from(table.tBodies[0].rows) : [];
+      columnsList.querySelectorAll('[data-column-toggle]').forEach((checkbox) => {
+        const key = checkbox.getAttribute('data-column-toggle');
+        const header = table.querySelector(`th[data-column-key="${key}"]`);
+        if (!header) return;
+        const index = header.cellIndex;
+        const hide = !checkbox.checked;
+        header.classList.toggle('d-none', hide);
+        rows.forEach((row) => {
+          if (row.cells[index]) {
+            row.cells[index].classList.toggle('d-none', hide);
+          }
+        });
+      });
+    }
+
+    if (columnsModal) {
+      columnsModal.addEventListener('show.bs.modal', buildColumnsFallback);
+    }
+    if (columnsApply) {
+      columnsApply.addEventListener('click', () => {
+        if (!columnsList.querySelector('[data-column-toggle]')) {
+          buildColumnsFallback();
+        }
+        applyColumnsFallback();
+      }, true);
+    }
+    if (columnsReset) {
+      columnsReset.addEventListener('click', () => {
+        if (!columnsList.querySelector('[data-column-toggle]')) {
+          buildColumnsFallback();
+        }
+        columnsList.querySelectorAll('[data-column-toggle]').forEach((checkbox) => {
+          checkbox.checked = true;
+        });
+        applyColumnsFallback();
+      }, true);
+    }
+  })();
+</script>
+<script th:inline="javascript">
+  (() => {
+    const debugDialogs = (new URLSearchParams(window.location.search || '')).get('debugDialogs') === '1'
+      || String(localStorage.getItem('debugDialogs') || '').trim() === '1';
+    const dbg = (message, payload) => {
+      if (!debugDialogs) return;
+      const history = window.__dialogsDebugEvents = window.__dialogsDebugEvents || [];
+      history.push({
+        ts: Date.now(),
+        message,
+        payload: payload === undefined ? null : payload,
+      });
+      if (history.length > 300) {
+        history.shift();
+      }
+    };
+
+    const initialTicketFromModel = /*[[${initialDialogTicketId}]]*/ null;
+    const pathMatch = (window.location.pathname || '').match(/^\/dialogs\/([^/]+)$/);
+    const initialTicketFromPath = pathMatch && pathMatch[1] ? decodeURIComponent(pathMatch[1]) : null;
+    const ticketId = initialTicketFromModel || initialTicketFromPath;
+    dbg('template.fallback.init', {
+      ticketIdFromModel: initialTicketFromModel,
+      ticketIdFromPath: initialTicketFromPath,
+      resolvedTicketId: ticketId,
+      href: window.location.href,
+    });
+    if (!ticketId) return;
+
+    let attempts = 0;
+    const maxAttempts = 12;
+    const openWhenReady = () => {
+      attempts += 1;
+      dbg('template.fallback.attempt', {
+        attempts,
+        hasOpenFn: typeof window.openDialogDetailsByTicketId === 'function',
+      });
+      if (typeof window.openDialogDetailsByTicketId === 'function') {
+        window.openDialogDetailsByTicketId(ticketId);
+        return;
+      }
+      if (attempts < maxAttempts) {
+        window.setTimeout(openWhenReady, 250);
+      }
+    };
+
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+      window.setTimeout(openWhenReady, 120);
+    } else {
+      document.addEventListener('DOMContentLoaded', () => {
+        window.setTimeout(openWhenReady, 120);
+      }, { once: true });
+    }
+  })();
+</script>
+
+</body>
+</html>

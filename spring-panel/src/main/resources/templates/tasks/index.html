@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Задачи — iguana</title>
+  <link rel="icon" type="image/svg+xml" th:href="@{/iguana-icon.svg}" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous" />
+  <link th:href="@{/css/style.css}" rel="stylesheet" />
+  <link th:href="@{/css/sidebar.css}" rel="stylesheet" />
+  <style>
+    .table thead th.sortable { cursor: pointer; }
+    .table thead th.sortable .sort-ind { opacity: .5; font-size: .85em; }
+    .filters-toggle { cursor:pointer; }
+    details#historyDetails summary { cursor:pointer; }
+        .overdue {
+  background-color: rgba(220, 53, 69, 0.1) !important;
+}
+
+.overdue .pulsating {
+  animation: pulse 2s infinite;
+  color: #dc3545;
+  font-weight: bold;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+    #taskModal .modal-dialog {
+      max-width: none;
+      width: 90vw;
+      margin-left: 0;
+      margin-right: 10vw;
+    }
+
+    #taskModal .modal-content {
+      min-height: 90vh;
+    }
+
+    @media (max-width: 992px) {
+      #taskModal .modal-dialog {
+        width: 100vw;
+        margin: 0;
+      }
+
+      #taskModal .modal-content {
+        min-height: 100vh;
+        border-radius: 0;
+      }
+    }
+
+    .tasks-metrics .badge {
+      font-size: 0.95rem;
+    }
+
+    .tasks-sticky-bar {
+      position: sticky;
+      top: 0;
+      z-index: 1015;
+      padding: 1rem 1.25rem 0.95rem;
+      margin-bottom: 1.5rem;
+      background:
+        linear-gradient(color-mix(in srgb, var(--card) 95%, white), color-mix(in srgb, var(--secondary) 26%, white)),
+        conic-gradient(
+          from var(--gradient-angle),
+          color-mix(in srgb, var(--gradient-primary) 48%, transparent),
+          color-mix(in srgb, var(--gradient-secondary) 40%, transparent),
+          color-mix(in srgb, var(--gradient-accent) 52%, transparent),
+          color-mix(in srgb, var(--gradient-primary) 48%, transparent)
+        );
+      border: 1px solid transparent;
+      border-radius: 1.25rem;
+      background-origin: padding-box, border-box;
+      background-clip: padding-box, border-box;
+      box-shadow: var(--color-shadow);
+      animation: gradient-rotate 14s linear infinite;
+    }
+
+    .tasks-sticky-bar > *:last-child {
+      margin-bottom: 0;
+    }
+    .tasks-title {
+      margin: 0;
+      font-family: var(--font-serif);
+      font-size: 2rem;
+    }
+    .tasks-table-card {
+      overflow: hidden;
+    }
+  </style>
+</head>
+<body class="with-sidebar sidebar-pinned">
+  <div th:replace="~{fragments/navbar :: navbar('tasks')}"></div>
+  <datalist id="usersList">
+  <option th:each="u : ${users}" th:value="${u.username}"></option>
+</datalist>
+
+  <main class="main-content container-fluid">
+
+    <div class="tasks-sticky-bar">
+      <div class="d-flex align-items-center justify-content-between mb-3 gap-3">
+        <div>
+          <span class="page-kicker">Task Flow</span>
+          <h3 class="tasks-title">Задачи</h3>
+        </div>
+        <div class="d-flex gap-2 flex-wrap justify-content-end">
+                  <button id="filtersBtn" class="btn btn-outline-secondary">Фильтры</button>
+                  <button id="createTaskBtn" class="btn btn-primary">Создать задачу</button>
+                  <a id="exportBtn" class="btn btn-outline-secondary" href="#">Выгрузить в Excel</a>
+                </div>
+      </div>
+
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 tasks-metrics">
+        <div class="d-flex flex-wrap align-items-center gap-3">
+          <span class="badge bg-primary-subtle text-primary-emphasis">
+            Всего задач: <span id="tasksTotal" th:text="${#lists.size(tasks)}">0</span>
+          </span>
+          <span class="badge bg-secondary-subtle text-secondary-emphasis">
+            На странице: <span id="tasksShown" th:text="${#lists.size(tasks)}">0</span>
+          </span>
+          <span id="tasksSummary" class="text-muted small" th:text="${#lists.isEmpty(tasks)} ? 'Показано 0 из 0 · Страница 1/1' : 'Показано ' + ${#lists.size(tasks)} + ' из ' + ${#lists.size(tasks)}">Показано 0 из 0 · Страница 1/1</span>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <label for="pageSizeSel" class="form-label m-0 text-muted small">На странице</label>
+          <select id="pageSizeSel" class="form-select form-select-sm tasks-page-size-select">
+            <option value="10">10</option>
+            <option value="20" selected>20</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Фильтры как на аналитике: сворачиваемый блок -->
+  <div class="modal" tabindex="-1" id="filtersModal">
+          <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                  <div class="modal-header">
+                        <h5 class="modal-title">Фильтры</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                  </div>
+                  <div class="modal-body">
+                        <form id="filters" class="row g-2 align-items-end">
+                          <div class="col-md-4">
+                                <label class="form-label">Номер</label>
+                                <input type="text" name="num" class="form-control" placeholder="DL_12 или 15">
+                          </div>
+                          <div class="col-md-4">
+                                <label class="form-label">Название</label>
+                                <input type="text" name="title" class="form-control">
+                          </div>
+                          <div class="col-md-4">
+                                <label class="form-label">Исполнитель</label>
+                                <input type="text" name="assignee" class="form-control" list="usersList" placeholder="email/логин/имя">
+                          </div>
+
+                          <div class="col-md-4">
+                                <label class="form-label">Тег</label>
+                                <input type="text" name="tag" class="form-control">
+                          </div>
+                          <div class="col-md-4">
+                                <label class="form-label">Статус</label>
+                                <select name="status" class="form-select">
+                                  <option value="">Любой</option>
+                                  <option>Новая</option>
+                                  <option>В работе</option>
+                                  <option>Ожидание</option>
+                                  <option>Завершена</option>
+                                  <option>Отменена</option>
+                                </select>
+                          </div>
+
+                          <div class="col-md-6">
+                                <label class="form-label">Период создания</label>
+                                <div class="d-flex gap-1">
+                                  <input type="date" name="created_from" class="form-control">
+                                  <input type="date" name="created_to" class="form-control">
+                                </div>
+                          </div>
+
+                          <div class="col-md-6">
+                                <label class="form-label">Период дедлайна</label>
+                                <div class="d-flex gap-1">
+                                  <input type="date" name="due_from" class="form-control">
+                                  <input type="date" name="due_to" class="form-control">
+                                </div>
+                          </div>
+                        </form>
+                  </div>
+                  <div class="modal-footer">
+                        <button id="resetFiltersBtn" class="btn btn-outline-secondary me-auto">Сбросить</button>
+                        <button id="applyFiltersBtn" class="btn btn-primary">Применить</button>
+                  </div>
+                </div>
+          </div>
+    </div>
+
+    <div class="card shadow-sm tasks-table-card gradient-border-hover">
+      <div class="table-responsive">
+        <table class="table align-middle mb-0" id="tasksTable">
+          <thead class="table-light">
+            <tr>
+              <th scope="col" class="sortable" data-sort="num">Номер <span class="sort-ind">↕</span></th>
+              <th scope="col" class="sortable" data-sort="title">Название <span class="sort-ind">↕</span></th>
+              <th scope="col" class="sortable" data-sort="status">Статус <span class="sort-ind">↕</span></th>
+              <th scope="col" class="sortable" data-sort="assignee">Исполнитель <span class="sort-ind">↕</span></th>
+              <th scope="col" class="sortable" data-sort="tag">Тег <span class="sort-ind">↕</span></th>
+              <th scope="col" class="sortable" data-sort="due_at">Дедлайн <span class="sort-ind">↕</span></th>
+              <th scope="col">Действия</th>
+            </tr>
+          </thead>
+          <tbody id="tasksBody">
+            <tr th:if="${#lists.isEmpty(tasks)}">
+              <td colspan="7" class="text-center text-muted py-4">Задачи не загружены</td>
+            </tr>
+            <tr th:each="task : ${tasks}" class="server-rendered">
+              <td th:text="${task.seq != null ? 'DL_' + task.seq : 'DL_' + task.id}"></td>
+              <td>
+                <div class="fw-semibold" th:text="${task.title} ?: 'Без названия'"></div>
+                <div class="text-muted small" th:utext="${task.bodyHtml} ?: ''"></div>
+              </td>
+              <td>
+                <span class="badge text-bg-secondary" th:text="${task.status} ?: '—'"></span>
+              </td>
+              <td th:text="${task.assignee} ?: '—'"></td>
+              <td th:text="${task.tag} ?: '—'"></td>
+              <td th:text="${task.dueAt} ?: '—'"></td>
+              <td class="text-muted small">Загрузка...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mt-3">
+      <div id="paginationInfo" class="text-muted"></div>
+      <nav>
+        <ul class="pagination mb-0" id="pagination"></ul>
+      </nav>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal fade" id="taskModal" tabindex="-1" aria-labelledby="taskModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-xl">
+        <div class="modal-content">
+          <div class="modal-header">
+            <div>
+              <h5 class="modal-title" id="taskModalLabel">Задача</h5>
+              <small id="taskMeta" class="text-muted"></small>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" data-task-close></button>
+          </div>
+          <div class="modal-body">
+            <div class="alert alert-warning d-none" id="taskAlert"></div>
+            <form id="taskForm" class="row g-3">
+              <input type="hidden" id="taskId" />
+              <div class="col-md-7 border-end">
+                <label class="form-label">Название</label>
+                <div class="input-group mb-3">
+                  <span class="input-group-text">№</span>
+                  <input type="text" name="num" class="form-control" placeholder="DL_" />
+                  <input type="text" name="title" class="form-control" placeholder="Название задачи" required />
+                </div>
+
+                <label class="form-label">Описание</label>
+                <div class="card bg-light-subtle border-0 shadow-sm mb-3">
+                  <div class="card-body p-0">
+                    <textarea name="description" class="form-control border-0 rounded-3" rows="8" placeholder="Детали задачи..."></textarea>
+                  </div>
+                </div>
+
+                <details class="mb-3" id="historyDetails">
+                  <summary class="text-muted small mb-2">История изменений</summary>
+                  <div id="taskHistory" class="p-3 bg-light border rounded">Пусто</div>
+                </details>
+
+                <label class="form-label">Комментарий</label>
+                <div class="input-group mb-3">
+                  <select name="status" class="form-select tasks-status-select">
+                    <option>Новая</option>
+                    <option>В работе</option>
+                    <option>Ожидание</option>
+                    <option>Завершена</option>
+                    <option>Отменена</option>
+                  </select>
+                  <textarea name="comment" class="form-control" placeholder="Комментарий к изменению"></textarea>
+                </div>
+
+                <label class="form-label">Добавить вложения</label>
+                <div class="border rounded p-3 mb-3 bg-light">
+                  <div class="mb-2">Пока заглушка — прикрепите файл ссылкой в описании</div>
+                </div>
+              </div>
+
+              <div class="col-md-5">
+                <label class="form-label">Назначить</label>
+                <select name="assignee" class="form-select" list="usersList">
+                  <option value="" selected>Не выбрано</option>
+                  <option th:each="u : ${users}" th:text="${u.username}" th:value="${u.username}"></option>
+                </select>
+
+                <label class="form-label mt-2">Клиент</label>
+                <input type="text" name="customer" class="form-control" placeholder="Ссылка или имя клиента">
+
+                <label class="form-label mt-2">Доступ и ссылки</label>
+                <textarea name="access_data" class="form-control" rows="3" placeholder="URL, токены и т.д."></textarea>
+
+                <label class="form-label mt-2">Соисполнители</label>
+                <input type="text" name="co" class="form-control" list="usersList" placeholder="через запятую">
+
+                <label class="form-label mt-2">Наблюдатели</label>
+                <input type="text" name="watchers" class="form-control" list="usersList" placeholder="через запятую">
+
+                <label class="form-label mt-2">Тег</label>
+                <input type="text" name="tag" class="form-control" placeholder="#backend, #ui...">
+
+                <div class="mt-3">
+                  <label class="form-label">Крайний срок</label>
+                  <input type="datetime-local" name="due_at" class="form-control">
+                  <div class="form-text">
+                    Осталось: <span id="timeLeft">—</span><br>
+                    Создано: <span id="createdAt">—</span>
+                  </div>
+                </div>
+              </div>
+            </form>
+          </div>
+
+          <div class="modal-footer">
+            <button id="deleteTaskBtn" class="btn btn-outline-danger me-auto" hidden>Удалить</button>
+            <button type="button" class="btn btn-secondary" data-task-close>Закрыть</button>
+            <button id="saveTaskBtn" class="btn btn-primary">Сохранить</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+  <script th:src="@{/js/modal-helpers.js}"></script>
+  <script th:src="@{/js/sidebar.js}"></script>
+  <script th:src="@{/js/tasks.js}"></script>
+  <script>
+    (() => {
+      const createBtn = document.getElementById('createTaskBtn');
+      const modalEl = document.getElementById('taskModal');
+      const saveBtn = document.getElementById('saveTaskBtn');
+      const form = document.getElementById('taskForm');
+
+      if (createBtn && modalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+        createBtn.addEventListener('click', () => {
+          if (window.__tasksPrimaryReady) return;
+          bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        }, { capture: true });
+      }
+
+      if (saveBtn && form) {
+        saveBtn.addEventListener('click', async (event) => {
+          if (window.__tasksPrimaryReady) return;
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          const fd = new FormData();
+          fd.append('id', String(document.getElementById('taskId')?.value || '').trim());
+          fd.append('title', String(form.querySelector('[name="title"]')?.value || '').trim());
+          fd.append('body_html', String(form.querySelector('[name="description"]')?.value || '').trim());
+          fd.append('assignee', String(form.querySelector('[name="assignee"]')?.value || '').trim());
+          fd.append('co', String(form.querySelector('[name="co"]')?.value || '').trim());
+          fd.append('watchers', String(form.querySelector('[name="watchers"]')?.value || '').trim());
+          fd.append('tag', String(form.querySelector('[name="tag"]')?.value || '').trim());
+          fd.append('due_at', String(form.querySelector('[name="due_at"]')?.value || '').trim());
+          fd.append('status', String(form.querySelector('[name="status"]')?.value || '').trim() || 'Новая');
+          try {
+            const resp = await fetch('/api/tasks', { method: 'POST', credentials: 'same-origin', body: fd });
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok || data?.ok === false) {
+              throw new Error(data?.error || `HTTP ${resp.status}`);
+            }
+            window.location.reload();
+          } catch (error) {
+            console.error(`Не удалось создать задачу: ${error.message || 'unknown_error'}`);
+          }
+        }, { capture: true });
+      }
+    })();
+  </script>
+  <script th:src="@{/js/modal-transitions.js}"></script>
+</body>
+</html>
