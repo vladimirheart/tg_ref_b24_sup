@@ -400,14 +400,17 @@
       display: flex;
       flex-wrap: wrap;
       gap: 0.7rem;
+      align-items: center;
     }
 
     .filter-buttons .btn {
-      min-width: 140px;
-      min-height: 48px;
+      min-width: 108px;
+      min-height: 40px;
+      padding: 0.45rem 0.9rem;
       border-radius: 999px;
       font-weight: 700;
-      box-shadow: 0 16px 28px rgba(18, 33, 23, 0.08);
+      font-size: 0.84rem;
+      box-shadow: 0 12px 22px rgba(18, 33, 23, 0.08);
     }
 
     .metrics-grid {
@@ -544,6 +547,10 @@
       position: relative;
       min-height: 320px;
       height: 320px;
+      padding: 0.9rem;
+      border-radius: 1.35rem;
+      background: rgba(255, 255, 255, 0.66);
+      border: 1px solid color-mix(in srgb, var(--color-border) 10%, transparent);
     }
 
     .pie-chart-container {
@@ -557,6 +564,10 @@
       flex: 1 1 58%;
       position: relative;
       min-height: 320px;
+      padding: 0.9rem;
+      border-radius: 1.35rem;
+      background: rgba(255, 255, 255, 0.66);
+      border: 1px solid color-mix(in srgb, var(--color-border) 10%, transparent);
     }
 
     .pie-chart-legend {
@@ -613,6 +624,10 @@
       max-height: 360px;
       overflow-y: auto;
       padding-right: 0.2rem;
+      padding: 1rem;
+      border-radius: 1.35rem;
+      background: rgba(255, 255, 255, 0.64);
+      border: 1px solid color-mix(in srgb, var(--color-border) 10%, transparent);
     }
 
     .staff-time-item {
@@ -624,7 +639,7 @@
     }
 
     .staff-time-item:first-child {
-      padding-top: 0.35rem;
+      padding-top: 0.15rem;
     }
 
     .staff-time-item:last-child {
@@ -744,6 +759,11 @@
     .reports-subpanel {
       display: grid;
       gap: 1rem;
+    }
+
+    .chart-container canvas,
+    .pie-chart-wrapper canvas {
+      filter: drop-shadow(0 12px 18px rgba(18, 33, 23, 0.06));
     }
 
     .reports-subpanel .card {
@@ -963,6 +983,19 @@
           <article class="chart-panel">
             <div class="chart-panel-head">
               <div>
+                <span class="section-kicker">Команда</span>
+                <h3 class="chart-panel-title">Нагрузка по сотрудникам</h3>
+                <p class="chart-panel-copy">Сравнение трудозатрат и количества закрытых заявок по команде в одном графике.</p>
+              </div>
+            </div>
+            <div class="chart-container">
+              <canvas id="staffWorkloadChart"></canvas>
+            </div>
+          </article>
+
+          <article class="chart-panel">
+            <div class="chart-panel-head">
+              <div>
                 <span class="section-kicker">Бизнес</span>
                 <h3 class="chart-panel-title">По бизнесу</h3>
                 <p class="chart-panel-copy">Структура обращений по бизнес-направлениям с кликабельной легендой.</p>
@@ -1103,6 +1136,7 @@
 <script>
     let charts = {};
     const inactiveByChart = {}; // { [canvasId]: Set<number> }
+    const chartPaletteCache = {};
 
     function withAlpha(color, alpha) {
       if (!color) return `rgba(0,0,0,${alpha})`;
@@ -1120,6 +1154,96 @@
       }
       return color;
     }
+
+    function getChartCssColor(token, fallback) {
+      const key = `${token}:${fallback}`;
+      if (chartPaletteCache[key]) {
+        return chartPaletteCache[key];
+      }
+      const value = getComputedStyle(document.documentElement).getPropertyValue(token).trim();
+      chartPaletteCache[key] = value || fallback;
+      return chartPaletteCache[key];
+    }
+
+    function getChartPalette(variant = 'default') {
+      const base = [
+        getChartCssColor('--chart-1', '#1f6b4f'),
+        getChartCssColor('--chart-2', '#1d8b88'),
+        getChartCssColor('--chart-3', '#d9a441'),
+        getChartCssColor('--chart-4', '#d46a6a'),
+        getChartCssColor('--chart-5', '#7fa43a')
+      ];
+      if (variant === 'warm') {
+        return [base[2], base[3], base[0], base[1], base[4]];
+      }
+      if (variant === 'cool') {
+        return [base[1], base[0], base[4], base[2], base[3]];
+      }
+      return base;
+    }
+
+    function getChartTheme() {
+      return {
+        grid: withAlpha(getChartCssColor('--color-border', '#cad6c7'), 0.18),
+        text: getChartCssColor('--color-text', '#132117'),
+        muted: getChartCssColor('--color-text-muted', '#536055'),
+        border: withAlpha(getChartCssColor('--color-surface', '#ffffff'), 0.95)
+      };
+    }
+
+    function buildAxisOptions(horizontal = false) {
+      const theme = getChartTheme();
+      return horizontal
+        ? {
+            x: {
+              beginAtZero: true,
+              grid: { color: theme.grid, drawBorder: false },
+              border: { display: false },
+              ticks: { color: theme.muted }
+            },
+            y: {
+              grid: { display: false, drawBorder: false },
+              border: { display: false },
+              ticks: { color: theme.text }
+            }
+          }
+        : {
+            x: {
+              grid: { display: false, drawBorder: false },
+              border: { display: false },
+              ticks: { color: theme.muted }
+            },
+            y: {
+              beginAtZero: true,
+              grid: { color: theme.grid, drawBorder: false },
+              border: { display: false },
+              ticks: { color: theme.muted }
+            }
+          };
+    }
+
+    function buildCommonPlugins(showLegend = false) {
+      const theme = getChartTheme();
+      return {
+        legend: {
+          display: showLegend,
+          labels: {
+            color: theme.text,
+            usePointStyle: true,
+            boxWidth: 10,
+            boxHeight: 10
+          }
+        },
+        tooltip: {
+          backgroundColor: withAlpha(theme.text, 0.94),
+          titleColor: '#ffffff',
+          bodyColor: '#ffffff',
+          padding: 12,
+          cornerRadius: 14
+        }
+      };
+    }
+
     let currentFilters = {
       startDate: null,
       endDate: null,
@@ -1370,8 +1494,6 @@ async function buildOlapReport() {
 
 async function loadDashboardData() {
   try {
-    showNotification('Загрузка данных...', 'info');
-
     // Обновляем фильтры
     const selectedRestaurants = $('#restaurantFilter').val();
     currentFilters.restaurants = selectedRestaurants ? selectedRestaurants : [];
@@ -1416,11 +1538,10 @@ async function loadDashboardData() {
 
     // Вызов обновления статистики по сотрудникам
     updateStaffTimeStats(data.staff_time_stats);
+    updateStaffWorkloadChart(data.staff_time_stats);
 
     // Обновляем графики
     updateCharts(data.charts);
-
-    showNotification('Данные успешно загружены', 'success');
 
   } catch (error) {
     console.error('Ошибка:', error);
@@ -1557,10 +1678,10 @@ function updateStaffTimeStats(staffStats) {
         const visibleTotal = data.reduce((sum, v, i) => sum + (inactive.has(i) ? 0 : (v||0)), 0);
 
         ctx.save();
-        ctx.font = '12px Arial';
+        ctx.font = '600 12px "DM Sans", sans-serif';
         ctx.textBaseline = 'middle';
         ctx.textAlign = 'left';
-        ctx.fillStyle = '#000';
+        ctx.fillStyle = getChartTheme().text;
 
         meta.data.forEach((barEl, i) => {
           if (!barEl) return;
@@ -1594,7 +1715,6 @@ function updateStaffTimeStats(staffStats) {
     function updateCharts(chartData) {
         if (!chartData) {
             console.error('Нет данных для графиков');
-            showNotification('Нет данных для графиков', 'warning');
             return;
         }
 
@@ -1602,18 +1722,17 @@ function updateStaffTimeStats(staffStats) {
         Object.keys(chartData).forEach(key => {
             if (!chartData[key] || Object.keys(chartData[key]).length === 0) {
                 console.warn(`Нет данных для графика: ${key}`);
-                showNotification(`Нет данных для графика: ${key}`, 'warning');
             }
         });
 
         // Круговые диаграммы с отдельной легендой
-        updatePieChartWithLegend('businessChart', 'businessLegend', chartData.business, ['#ff6384', '#36a2eb', '#ffce56', '#4bc0c0', '#9966ff']);
-        updatePieChartWithLegend('networkChart', 'networkLegend', chartData.network, ['#f7ee68', '#f74d4d', '#cfc102', '#ff7a7a']);
+        updatePieChartWithLegend('businessChart', 'businessLegend', chartData.business, getChartPalette('default'));
+        updatePieChartWithLegend('networkChart', 'networkLegend', chartData.network, getChartPalette('warm'));
 
         // Столбчатые диаграммы
-        updateChart('categoryChart', 'bar', chartData.category, '#36a2eb', true);
-        updateChart('cityChart', 'bar', chartData.city, '#4bc0c0', true);
-        updateChart('restaurantChart', 'bar', chartData.restaurant, '#9966ff', true);
+        updateChart('categoryChart', 'bar', chartData.category, getChartPalette('default'), true);
+        updateChart('cityChart', 'bar', chartData.city, getChartPalette('cool'), true);
+        updateChart('restaurantChart', 'bar', chartData.restaurant, getChartPalette('warm'), true);
     }
 
 // Обновление круговой диаграммы с отдельной легендой
@@ -1703,21 +1822,26 @@ function updatePieChartWithLegend(canvasId, legendId, data, colors) {
   });
 
   // Создаем круговую диаграмму без встроенной легенды
+  const theme = getChartTheme();
   const chartConfig = {
     type: 'pie',
     data: {
       labels: labels,
       datasets: [{
         data: values,
-        backgroundColor: colors
+        backgroundColor: colors,
+        borderColor: theme.border,
+        borderWidth: 2,
+        hoverOffset: 8
       }]
     },
     options: {
+      responsive: true,
+      maintainAspectRatio: false,
       plugins: {
-        legend: {
-          display: false // Отключаем встроенную легенду
-        },
+        ...buildCommonPlugins(false),
         tooltip: {
+          ...buildCommonPlugins(false).tooltip,
           callbacks: {
             label: function(context) {
               const percentage = ((context.raw / total) * 100).toFixed(1);
@@ -1842,8 +1966,10 @@ function updateChart(canvasId, type, data, backgroundColor, showValues = false) 
 
   const labels = Object.keys(data);
   const values = Object.values(data);
-  const baseColors = Array.isArray(backgroundColor) ? backgroundColor : labels.map(() => backgroundColor || '#36a2eb');
+  const palette = Array.isArray(backgroundColor) && backgroundColor.length ? backgroundColor : getChartPalette('default');
+  const baseColors = labels.map((_, idx) => palette[idx % palette.length]);
   const isBar = type === 'bar';
+  const theme = getChartTheme();
 
   // контейнер для «выключенных»
   if (!inactiveByChart[canvasId]) inactiveByChart[canvasId] = new Set();
@@ -1855,11 +1981,19 @@ function updateChart(canvasId, type, data, backgroundColor, showValues = false) 
       labels,
       datasets: [{
         data: values,
+        borderRadius: 12,
+        borderSkipped: false,
+        maxBarThickness: 26,
         backgroundColor: (ctx) => {
           const i = ctx.dataIndex;
           const base = baseColors[i % baseColors.length];
           const alpha = inactive.has(i) ? 0.25 : 1;
           return withAlpha(base, alpha);
+        },
+        borderColor: (ctx) => {
+          const i = ctx.dataIndex;
+          const base = baseColors[i % baseColors.length];
+          return withAlpha(base, inactive.has(i) ? 0.3 : 0.96);
         }
       }]
     },
@@ -1867,12 +2001,14 @@ function updateChart(canvasId, type, data, backgroundColor, showValues = false) 
       indexAxis: isBar ? 'y' : 'x',
       responsive: true,
       maintainAspectRatio: false,
-      scales: isBar ? {
-        x: { beginAtZero: true, ticks: { callback: v => v } }
-      } : {},
+      layout: {
+        padding: { top: 6, right: 12, bottom: 6, left: 6 }
+      },
+      scales: buildAxisOptions(isBar),
       plugins: {
-        legend: { display: type === 'pie' }, // для bar — скрываем легенду
+        ...buildCommonPlugins(false),
         tooltip: {
+          ...buildCommonPlugins(false).tooltip,
           filter: (tipItem) => tipItem.datasetIndex === 0,
           callbacks: {
             label: (context) => {
@@ -1900,6 +2036,106 @@ function updateChart(canvasId, type, data, backgroundColor, showValues = false) 
       charts[canvasId].update();
     };
   }
+}
+
+function updateStaffWorkloadChart(staffStats) {
+  const canvas = document.getElementById('staffWorkloadChart');
+  if (!canvas) return;
+
+  if (charts.staffWorkloadChart) {
+    charts.staffWorkloadChart.destroy();
+    delete charts.staffWorkloadChart;
+  }
+
+  const parent = canvas.parentElement;
+  if (!staffStats || !Array.isArray(staffStats) || !staffStats.length) {
+    canvas.style.display = 'none';
+    if (parent && !parent.querySelector('.no-data-message')) {
+      const messageDiv = document.createElement('div');
+      messageDiv.className = 'text-center text-muted py-5 no-data-message';
+      messageDiv.textContent = 'Нет данных для отображения';
+      parent.appendChild(messageDiv);
+    }
+    return;
+  }
+
+  canvas.style.display = 'block';
+  parent?.querySelector('.no-data-message')?.remove();
+
+  const theme = getChartTheme();
+  const palette = getChartPalette('cool');
+  const labels = staffStats.map(staff => staff.name || '—');
+  const resolved = staffStats.map(staff => Number(staff.resolved_count || 0));
+  const minutes = staffStats.map(staff => Number(staff.total_minutes || 0));
+
+  charts.staffWorkloadChart = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          type: 'bar',
+          label: 'Минуты работы',
+          data: minutes,
+          backgroundColor: minutes.map((_, idx) => withAlpha(palette[idx % palette.length], 0.78)),
+          borderColor: minutes.map((_, idx) => withAlpha(palette[idx % palette.length], 0.96)),
+          borderWidth: 1,
+          borderRadius: 12,
+          borderSkipped: false,
+          maxBarThickness: 28,
+          yAxisID: 'y'
+        },
+        {
+          type: 'line',
+          label: 'Закрыто заявок',
+          data: resolved,
+          borderColor: getChartCssColor('--chart-3', '#d9a441'),
+          backgroundColor: withAlpha(getChartCssColor('--chart-3', '#d9a441'), 0.18),
+          pointBackgroundColor: getChartCssColor('--chart-3', '#d9a441'),
+          pointBorderColor: '#ffffff',
+          pointRadius: 4,
+          pointHoverRadius: 5,
+          borderWidth: 2,
+          tension: 0.35,
+          yAxisID: 'y1'
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: {
+        padding: { top: 6, right: 12, bottom: 6, left: 6 }
+      },
+      scales: {
+        x: {
+          grid: { display: false, drawBorder: false },
+          border: { display: false },
+          ticks: { color: theme.muted }
+        },
+        y: {
+          beginAtZero: true,
+          grid: { color: theme.grid, drawBorder: false },
+          border: { display: false },
+          ticks: { color: theme.muted }
+        },
+        y1: {
+          beginAtZero: true,
+          position: 'right',
+          grid: { display: false, drawBorder: false },
+          border: { display: false },
+          ticks: { color: theme.muted }
+        }
+      },
+      plugins: {
+        ...buildCommonPlugins(true),
+        tooltip: {
+          ...buildCommonPlugins(true).tooltip
+        }
+      },
+      animation: false
+    }
+  });
 }
 
   </script>

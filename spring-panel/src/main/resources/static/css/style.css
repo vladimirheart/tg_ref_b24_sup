@@ -443,20 +443,30 @@ body, html {
 
 .form-control,
 .form-select {
-  border-radius: var(--radius-md);
-  border-color: var(--color-border);
-  background-color: var(--color-surface);
+  min-height: 44px;
+  padding: 0.62rem 0.88rem;
+  border-radius: 1rem;
+  border-color: color-mix(in srgb, var(--color-border) 18%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--color-surface) 94%, white), color-mix(in srgb, var(--color-bg-muted) 18%, white));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
 }
 
 .form-control:focus,
 .form-select:focus {
   border-color: color-mix(in srgb, var(--color-accent) 45%, #fff);
-  box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--color-accent) 20%, transparent);
+  box-shadow:
+    0 0 0 0.2rem color-mix(in srgb, var(--color-accent) 16%, transparent),
+    0 14px 26px rgba(18, 33, 23, 0.08);
 }
 
 .btn {
-  border-radius: 10px;
-  font-weight: 500;
+  min-height: 40px;
+  padding: 0.52rem 0.92rem;
+  border-radius: 999px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  box-shadow: 0 14px 22px rgba(18, 33, 23, 0.08);
 }
 
 .btn-primary {
@@ -467,6 +477,28 @@ body, html {
 .btn-primary:hover,
 .btn-primary:focus-visible {
   filter: brightness(1.03);
+  transform: translateY(-1px);
+}
+
+.btn-outline-primary,
+.btn-outline-secondary,
+.btn-outline-dark,
+.btn-outline-light {
+  border-color: color-mix(in srgb, var(--color-border) 16%, transparent);
+  background: color-mix(in srgb, var(--color-surface) 82%, white);
+}
+
+.btn-outline-primary:hover,
+.btn-outline-secondary:hover,
+.btn-outline-dark:hover,
+.btn-outline-light:hover,
+.btn-outline-primary:focus-visible,
+.btn-outline-secondary:focus-visible,
+.btn-outline-dark:focus-visible,
+.btn-outline-light:focus-visible {
+  transform: translateY(-1px);
+  background: color-mix(in srgb, var(--color-accent) 10%, white);
+  border-color: color-mix(in srgb, var(--color-accent) 20%, transparent);
 }
 
 .text-muted {
@@ -496,6 +528,31 @@ a:not([class]) {
 
 .bg-light {
   background-color: color-mix(in srgb, var(--color-bg-muted) 75%, var(--color-surface)) !important;
+}
+
+.nav-tabs {
+  gap: 0.45rem;
+  border-bottom-color: color-mix(in srgb, var(--color-border) 12%, transparent);
+}
+
+.nav-tabs .nav-link {
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: var(--color-text-muted);
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.52);
+}
+
+.nav-tabs .nav-link.active,
+.nav-tabs .nav-item.show .nav-link {
+  color: var(--color-text);
+  border-color: color-mix(in srgb, var(--color-accent) 18%, transparent);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--color-accent) 14%, white), rgba(255, 255, 255, 0.92));
+  box-shadow: 0 14px 24px rgba(18, 33, 23, 0.08);
+}
+
+.table {
+  border-color: color-mix(in srgb, var(--color-border) 12%, transparent);
 }
 
 [data-theme='dark'] .bg-light {
