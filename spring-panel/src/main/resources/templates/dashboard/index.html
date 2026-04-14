@@ -23,376 +23,827 @@
       padding-top: 0;
       background-color: var(--color-bg);
     }
-    .card { margin-bottom: 20px; }
-    .chart-container { height: 300px; }
-    .stats-value {
-      font-size: 2.15rem;
-      font-weight: 700;
-      font-family: var(--font-serif);
-      line-height: 1.1;
+
+    .reports-shell {
+      padding: 2rem 0 2.5rem;
     }
-    .stats-change { font-size: 0.9rem; }
-    .positive-change { color: var(--chart-3); }
-    .negative-change { color: var(--destructive); }
-    .filter-section {
-      padding: 1.25rem;
-      border-radius: 1.25rem;
-      margin-bottom: 20px;
+
+    .reports-hero {
+      position: relative;
+      display: grid;
+      grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.9fr);
+      gap: 1.5rem;
+      margin-bottom: 1.5rem;
+      padding: 1.6rem;
+      border-radius: 2rem;
+      overflow: hidden;
       background:
-        linear-gradient(color-mix(in srgb, var(--card) 94%, white), color-mix(in srgb, var(--secondary) 26%, white)),
-        conic-gradient(
-          from var(--gradient-angle),
-          color-mix(in srgb, var(--gradient-primary) 48%, transparent),
-          color-mix(in srgb, var(--gradient-secondary) 42%, transparent),
-          color-mix(in srgb, var(--gradient-accent) 52%, transparent),
-          color-mix(in srgb, var(--gradient-primary) 48%, transparent)
-        );
-      background-origin: padding-box, border-box;
-      background-clip: padding-box, border-box;
+        radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--chart-2) 20%, transparent), transparent 34%),
+        radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--chart-3) 24%, transparent), transparent 28%),
+        linear-gradient(135deg, color-mix(in srgb, var(--card) 92%, white), color-mix(in srgb, var(--secondary) 8%, white));
+      border: 1px solid color-mix(in srgb, var(--color-border) 12%, transparent);
+      box-shadow: 0 30px 60px rgba(18, 33, 23, 0.12);
+    }
+
+    .reports-hero::after {
+      content: "";
+      position: absolute;
+      inset: auto -8% -35% auto;
+      width: 340px;
+      height: 340px;
+      border-radius: 50%;
+      background: radial-gradient(circle, color-mix(in srgb, var(--chart-3) 18%, transparent), transparent 68%);
+      pointer-events: none;
+    }
+
+    .reports-hero-copy,
+    .reports-hero-visual {
+      position: relative;
+      z-index: 1;
+    }
+
+    .reports-kicker {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.38rem 0.8rem;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--chart-3) 22%, white);
+      color: color-mix(in srgb, var(--accent-foreground) 92%, var(--color-text));
+      font-size: 0.74rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+    }
+
+    .reports-hero-title {
+      margin: 1rem 0 0.6rem;
+      font-family: var(--font-serif);
+      font-size: clamp(2.2rem, 3.8vw, 3.5rem);
+      line-height: 0.98;
+      letter-spacing: -0.05em;
+      max-width: 11ch;
+    }
+
+    .reports-hero-description {
+      max-width: 58ch;
+      margin: 0;
+      color: var(--color-text-muted);
+      font-size: 1rem;
+      line-height: 1.65;
+    }
+
+    .reports-hero-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.7rem;
+      margin-top: 1.2rem;
+    }
+
+    .reports-pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 34px;
+      padding: 0 0.9rem;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.74);
+      border: 1px solid color-mix(in srgb, var(--color-border) 12%, transparent);
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+
+    .reports-hero-visual {
+      display: flex;
+      align-items: stretch;
+      justify-content: center;
+      min-height: 100%;
+    }
+
+    .reports-hero-visual-frame {
+      position: relative;
+      width: 100%;
+      min-height: 100%;
+      padding: 1.4rem;
+      border-radius: 1.7rem;
+      background:
+        linear-gradient(145deg, color-mix(in srgb, var(--primary) 85%, #123524), color-mix(in srgb, var(--chart-2) 60%, #0f766e));
+      color: #f7faf7;
+      box-shadow: 0 28px 46px rgba(17, 42, 24, 0.26);
+      overflow: hidden;
+    }
+
+    .reports-hero-visual-frame::before,
+    .reports-hero-visual-frame::after {
+      content: "";
+      position: absolute;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.1);
+      pointer-events: none;
+    }
+
+    .reports-hero-visual-frame::before {
+      width: 220px;
+      height: 220px;
+      top: -80px;
+      right: -40px;
+    }
+
+    .reports-hero-visual-frame::after {
+      width: 160px;
+      height: 160px;
+      bottom: -48px;
+      left: -48px;
+    }
+
+    .reports-hero-logo {
+      width: 86px;
+      height: 86px;
+      display: inline-flex;
+      padding: 1rem;
+      border-radius: 1.5rem;
+      background: rgba(255, 255, 255, 0.14);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 18px 36px rgba(0, 0, 0, 0.18);
+    }
+
+    .reports-hero-visual-copy {
+      margin-top: 2rem;
+      max-width: 24rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+    }
+
+    .reports-hero-visual-copy strong {
+      font-size: 1.9rem;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      line-height: 1;
+    }
+
+    .reports-hero-visual-label {
+      font-size: 0.74rem;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: rgba(255, 255, 255, 0.78);
+      font-weight: 800;
+    }
+
+    .reports-hero-visual-copy span:last-child {
+      color: rgba(255, 255, 255, 0.78);
+      line-height: 1.55;
+    }
+
+    .reports-hero-floating {
+      position: absolute;
+      display: inline-flex;
+      align-items: center;
+      min-height: 34px;
+      padding: 0 0.8rem;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.18);
+      backdrop-filter: blur(8px);
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .reports-hero-floating--primary {
+      top: 1rem;
+      right: 1rem;
+    }
+
+    .reports-hero-floating--secondary {
+      left: 1.4rem;
+      bottom: 1.2rem;
+    }
+
+    .reports-tab-nav {
+      display: inline-flex;
+      flex-wrap: wrap;
+      gap: 0.55rem;
+      padding: 0.4rem;
+      margin-bottom: 1.35rem;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.58);
+      border: 1px solid color-mix(in srgb, var(--color-border) 10%, transparent);
+      box-shadow: 0 16px 32px rgba(18, 33, 23, 0.08);
+    }
+
+    .reports-tab-nav .nav-item {
+      margin: 0;
+    }
+
+    .reports-tab-nav .nav-link {
       border: 1px solid transparent;
-      box-shadow: var(--color-shadow);
-      animation: gradient-rotate 12s linear infinite;
+      border-radius: 999px;
+      padding: 0.72rem 1rem;
+      color: var(--color-text-muted);
+      font-weight: 700;
+      background: transparent;
     }
-    .chart-value-label {
-      font-size: 0.75rem;
-      font-weight: bold;
-      fill: var(--color-text);
+
+    .reports-tab-nav .nav-link.active {
+      background: linear-gradient(135deg, color-mix(in srgb, var(--primary) 18%, white), color-mix(in srgb, var(--chart-2) 14%, white));
+      color: var(--color-text);
+      border-color: color-mix(in srgb, var(--primary) 20%, transparent);
+      box-shadow: 0 12px 24px rgba(18, 33, 23, 0.1);
     }
+
+    .dashboard-overview-grid,
+    .dashboard-grid {
+      display: grid;
+      gap: 1.2rem;
+      margin-bottom: 1.2rem;
+    }
+
+    .dashboard-overview-grid {
+      grid-template-columns: minmax(0, 1.08fr) minmax(320px, 0.92fr);
+    }
+
+    .dashboard-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .chart-panel,
+    .filter-panel,
+    .metrics-panel {
+      position: relative;
+      overflow: hidden;
+      border-radius: 1.8rem;
+      border: 1px solid color-mix(in srgb, var(--color-border) 10%, transparent);
+      background:
+        linear-gradient(180deg, color-mix(in srgb, var(--card) 96%, white), color-mix(in srgb, var(--secondary) 4%, white));
+      box-shadow: 0 24px 44px rgba(18, 33, 23, 0.1);
+    }
+
+    .filter-panel,
+    .metrics-panel,
+    .chart-panel {
+      padding: 1.35rem;
+    }
+
+    .filter-panel::before,
+    .metrics-panel::before,
+    .chart-panel::before {
+      content: "";
+      position: absolute;
+      inset: auto -12% -28% auto;
+      width: 180px;
+      height: 180px;
+      border-radius: 50%;
+      background: radial-gradient(circle, color-mix(in srgb, var(--chart-3) 14%, transparent), transparent 68%);
+      pointer-events: none;
+    }
+
+    .panel-head {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 1.15rem;
+    }
+
+    .panel-head h3 {
+      margin: 0.35rem 0 0;
+      font-size: 1.35rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+    }
+
+    .panel-head p {
+      margin: 0.45rem 0 0;
+      color: var(--color-text-muted);
+      font-size: 0.9rem;
+      line-height: 1.55;
+    }
+
+    .section-kicker,
+    .section-chip {
+      display: inline-flex;
+      align-items: center;
+      min-height: 30px;
+      padding: 0 0.78rem;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+
+    .section-kicker {
+      background: color-mix(in srgb, var(--chart-3) 16%, white);
+      color: color-mix(in srgb, var(--accent-foreground) 88%, var(--color-text));
+    }
+
+    .section-chip {
+      background: color-mix(in srgb, var(--primary) 12%, white);
+      color: var(--color-accent);
+    }
+
+    .filter-grid {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .filter-block label {
+      display: block;
+      margin-bottom: 0.45rem;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--color-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .filter-panel .form-control,
+    .filter-panel .form-select {
+      min-height: 50px;
+      border-radius: 1rem;
+      border-color: color-mix(in srgb, var(--color-border) 16%, transparent);
+      background: rgba(255, 255, 255, 0.78);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+    }
+
     .period-presets {
       display: flex;
-      gap: 10px;
-      margin-top: 5px;
       flex-wrap: wrap;
+      gap: 0.6rem;
+      margin-top: 0.9rem;
     }
+
     .period-preset-btn {
-      padding: 0.45rem 0.75rem;
-      font-size: 0.75rem;
-      border: 1px solid color-mix(in srgb, var(--color-border) 85%, transparent);
+      padding: 0.55rem 0.84rem;
       border-radius: 999px;
-      background: color-mix(in srgb, var(--card) 88%, white);
+      border: 1px solid color-mix(in srgb, var(--color-border) 12%, transparent);
+      background: rgba(255, 255, 255, 0.78);
       color: var(--color-text);
       cursor: pointer;
-      transition: transform 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
+      font-size: 0.78rem;
+      font-weight: 700;
+      transition: transform 0.18s ease, background-color 0.18s ease, border-color 0.18s ease;
     }
+
     .period-preset-btn:hover {
       transform: translateY(-1px);
-      background: color-mix(in srgb, var(--secondary) 40%, white);
+      background: color-mix(in srgb, var(--secondary) 10%, white);
     }
+
     .period-preset-btn.active {
       background: linear-gradient(135deg, var(--primary), var(--chart-2));
       color: var(--primary-foreground);
-      border-color: color-mix(in srgb, var(--primary) 55%, var(--chart-4));
+      border-color: transparent;
     }
-    .container-fluid {
-      padding-left: 20px;
-      padding-right: 20px;
-    }
-    .navbar {
-      position: fixed !important;
-      top: 0;
-      left: 0;
-      right: 0;
-      z-index: 1030;
-      margin-bottom: 0;
-    }
-    .restaurant-filter-container {
-      position: relative;
-    }
-    .restaurant-filter-container .select2-container {
-      width: 100% !important;
-    }
+
     .filter-buttons {
       display: flex;
-      gap: 10px;
-      margin-top: 10px;
-    }
-    .filter-buttons .btn {
-      white-space: nowrap;
-    }
-    .notification-container {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      z-index: 9999;
-    }
-    .notification {
-      background: color-mix(in srgb, var(--card) 95%, white);
-      border-radius: 1rem;
-      padding: 15px;
-      margin-bottom: 10px;
-      box-shadow: var(--color-shadow);
-      border-left: 4px solid;
-      min-width: 300px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .notification.success {
-      border-left-color: #28a745;
-    }
-    .notification.error {
-      border-left-color: #dc3545;
-    }
-    .notification.warning {
-      border-left-color: #ffc107;
-    }
-    .notification.info {
-      border-left-color: #17a2b8;
-    }
-    .notification-close {
-      background: none;
-      border: none;
-      font-size: 1.125rem;
-      cursor: pointer;
-      color: #6c757d;
-    }
-    .notification-close:hover {
-      color: #000;
-    }
-    /* Новые стили для расположения фильтров и карточки */
-    .filters-and-stats-row {
-      display: flex;
       flex-wrap: wrap;
-      margin-bottom: 20px;
+      gap: 0.7rem;
     }
-    .filters-column {
-      flex: 1;
-      min-width: 300px;
+
+    .filter-buttons .btn {
+      min-width: 140px;
+      min-height: 48px;
+      border-radius: 999px;
+      font-weight: 700;
+      box-shadow: 0 16px 28px rgba(18, 33, 23, 0.08);
     }
-    .stats-column {
-      flex: 0 0 300px;
-      margin-left: 20px;
+
+    .metrics-grid {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
     }
-    .card-sm {
-      height: 90%; /* Уменьшаем на 10% */
+
+    .metric-card {
+      min-height: 170px;
+      padding: 1.15rem;
+      border-radius: 1.45rem;
+      background: rgba(255, 255, 255, 0.74);
+      border: 1px solid color-mix(in srgb, var(--color-border) 10%, transparent);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 0.8rem;
     }
-    /* Новые стили для круговых диаграмм с легендой справа */
+
+    .metric-card--primary {
+      background: linear-gradient(145deg, color-mix(in srgb, var(--primary) 12%, white), rgba(255, 255, 255, 0.86));
+    }
+
+    .metric-card--spotlight {
+      background: linear-gradient(145deg, color-mix(in srgb, var(--chart-2) 82%, #13413a), color-mix(in srgb, var(--primary) 88%, #123724));
+      color: #f8fbf8;
+      grid-row: span 2;
+      min-height: 100%;
+      box-shadow: 0 26px 40px rgba(18, 41, 30, 0.22);
+    }
+
+    .metric-card--note {
+      background: linear-gradient(145deg, color-mix(in srgb, var(--chart-3) 18%, white), rgba(255, 255, 255, 0.84));
+    }
+
+    .metric-label {
+      display: inline-flex;
+      align-items: center;
+      font-size: 0.75rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--color-text-muted);
+    }
+
+    .metric-card--spotlight .metric-label,
+    .metric-card--spotlight .metric-foot,
+    .metric-card--spotlight .metric-mini-label {
+      color: rgba(255, 255, 255, 0.76);
+    }
+
+    .metric-value {
+      font-size: clamp(2rem, 3vw, 3rem);
+      line-height: 0.98;
+      letter-spacing: -0.05em;
+      font-weight: 800;
+      font-family: var(--font-serif);
+    }
+
+    .metric-foot {
+      font-size: 0.88rem;
+      color: var(--color-text-muted);
+      line-height: 1.45;
+    }
+
+    .metric-mini-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.75rem;
+    }
+
+    .metric-mini-label {
+      display: block;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--color-text-muted);
+    }
+
+    .metric-mini-value {
+      display: block;
+      margin-top: 0.28rem;
+      font-size: 1.05rem;
+      font-weight: 700;
+    }
+
+    .metric-note-text {
+      margin: 0;
+      font-size: 0.94rem;
+      line-height: 1.6;
+      color: var(--color-text-muted);
+    }
+
+    .positive-change {
+      color: var(--chart-5);
+    }
+
+    .negative-change {
+      color: var(--destructive);
+    }
+
+    .chart-panel--wide {
+      grid-column: span 2;
+    }
+
+    .chart-panel-head {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .chart-panel-title {
+      margin: 0.35rem 0 0;
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+    }
+
+    .chart-panel-copy {
+      margin: 0.42rem 0 0;
+      color: var(--color-text-muted);
+      font-size: 0.9rem;
+      line-height: 1.55;
+    }
+
+    .chart-container {
+      position: relative;
+      min-height: 320px;
+      height: 320px;
+    }
+
     .pie-chart-container {
       display: flex;
-      align-items: center;
-      height: 100%;
+      gap: 1rem;
+      align-items: stretch;
+      min-height: 320px;
     }
+
     .pie-chart-wrapper {
-      flex: 0 0 60%;
+      flex: 1 1 58%;
       position: relative;
-      height: 300px;
+      min-height: 320px;
     }
+
     .pie-chart-legend {
-      flex: 0 0 40%;
-      padding-left: 30px;
-      max-height: 300px;
+      flex: 1 1 42%;
+      max-height: 320px;
       overflow-y: auto;
+      padding-left: 0.25rem;
     }
+
     .pie-chart-legend-item {
       display: flex;
       align-items: center;
-      margin-bottom: 8px;
-      font-size: 0.875rem;
+      gap: 0.75rem;
+      margin-bottom: 0.7rem;
+      padding: 0.72rem 0.8rem;
+      border-radius: 1rem;
+      background: rgba(255, 255, 255, 0.66);
+      border: 1px solid color-mix(in srgb, var(--color-border) 10%, transparent);
+      font-size: 0.86rem;
       cursor: pointer;
-      transition: opacity 0.2s;
+      transition: opacity 0.18s ease, transform 0.18s ease;
     }
+
+    .pie-chart-legend-item:hover {
+      transform: translateX(2px);
+    }
+
     .pie-chart-legend-item.hidden {
-      opacity: 0.5;
+      opacity: 0.48;
     }
+
     .pie-chart-legend-color {
       width: 16px;
       height: 16px;
-      margin-right: 8px;
-      border-radius: 3px;
+      border-radius: 999px;
+      flex-shrink: 0;
     }
+
     .pie-chart-legend-label {
       display: flex;
       justify-content: space-between;
+      gap: 0.75rem;
       flex-grow: 1;
     }
+
     .pie-chart-legend-value {
-      font-weight: bold;
-      margin-left: 10px;
+      font-weight: 700;
+      white-space: nowrap;
     }
 
-    @media (max-width: 768px) {
-      .filters-and-stats-row {
-        flex-direction: column;
-      }
-      .stats-column {
-        margin-left: 0;
-        margin-top: 20px;
-        flex: 1;
-      }
-      .pie-chart-container {
-        flex-direction: column;
-      }
-      .pie-chart-wrapper {
-        flex: 0 0 100%;
-        width: 100%;
-      }
-      .pie-chart-legend {
-        flex: 0 0 100%;
-        padding-left: 0;
-        padding-top: 20px;
-        width: 100%;
-      }
-    }
-    .stats-column .card {
-      margin-bottom: 15px;
-    }
-
-    .stats-column .card:last-child {
-      margin-bottom: 0;
-    }
-
-    .time-stats-card {
-      color: var(--primary-foreground);
-      background:
-        linear-gradient(135deg, color-mix(in srgb, var(--chart-4) 82%, #022c22), color-mix(in srgb, var(--chart-2) 76%, #0f766e)),
-        conic-gradient(
-          from var(--gradient-angle),
-          #ecfeff,
-          rgba(255, 255, 255, 0.55),
-          #bbf7d0,
-          rgba(255, 255, 255, 0.55),
-          #ecfeff
-        );
-      border: 1px solid transparent;
-      background-origin: padding-box, border-box;
-      background-clip: padding-box, border-box;
-    }
-
-    .time-stats-value {
-      font-size: 1.8rem;
-      font-weight: bold;
-      margin-bottom: 5px;
-    }
-
-    .time-stats-details {
-      font-size: 0.85rem;
-      opacity: 0.9;
-    }
-
-    .time-stats-label {
-      font-size: 0.75rem;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      opacity: 0.8;
-    }
-    /* Стили для статистики по сотрудникам */
     .staff-time-stats {
-      max-height: 300px;
+      position: relative;
+      z-index: 1;
+      max-height: 360px;
       overflow-y: auto;
+      padding-right: 0.2rem;
     }
 
     .staff-time-item {
       display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      padding: 10px 0;
-      border-bottom: 1px solid #f0f0f0;
       flex-direction: column;
+      gap: 0.8rem;
+      padding: 1rem 0;
+      border-bottom: 1px solid color-mix(in srgb, var(--color-border) 10%, transparent);
+    }
+
+    .staff-time-item:first-child {
+      padding-top: 0.35rem;
     }
 
     .staff-time-item:last-child {
       border-bottom: none;
+      padding-bottom: 0;
     }
 
     .staff-time-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
+      gap: 1rem;
       width: 100%;
-      margin-bottom: 5px;
     }
 
     .staff-time-name {
-      font-weight: bold;
-      flex: 1;
+      font-weight: 800;
+      font-size: 1rem;
+      letter-spacing: -0.01em;
     }
 
     .staff-time-total {
-      font-weight: bold;
-      color: var(--color-text-muted);
+      display: inline-flex;
+      align-items: center;
+      min-height: 34px;
+      padding: 0 0.8rem;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--primary) 10%, white);
+      color: var(--color-accent);
+      font-weight: 800;
     }
 
     .staff-time-details {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      width: 100%;
-      font-size: 0.85rem;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 0.75rem;
     }
 
     .staff-time-detail {
-      display: flex;
-      flex-direction: column;
+      padding: 0.85rem;
+      border-radius: 1rem;
+      background: rgba(255, 255, 255, 0.66);
+      border: 1px solid color-mix(in srgb, var(--color-border) 8%, transparent);
     }
 
     .staff-time-label {
-      font-size: 0.75rem;
+      display: block;
+      margin-bottom: 0.2rem;
+      font-size: 0.72rem;
       color: var(--color-text-muted);
-      margin-bottom: 2px;
-    }
-
-    .staff-time-value {
-      font-weight: 500;
-    }
-
-    .staff-time-avg { color: var(--chart-3); }
-    .staff-time-response { color: var(--chart-2); }
-    .staff-time-count { color: var(--color-text-muted); }
-    .top-sticky-bar { position: sticky; top: 0; z-index: 1030; }
-    .toast, .alert[data-role="loaded-hint"] { z-index: 1020 !important; }
-    .page-title { margin-top: 0 !important; }
-    header h1, .content h1, .container h1 { margin-top: 0 !important; }
-    .reports-title {
-      display: flex;
-      align-items: center;
-      gap: 0.85rem;
-      margin-bottom: 1.25rem;
-    }
-    .reports-title h2 {
-      margin: 0;
-      font-family: var(--font-serif);
-      font-size: 2.25rem;
-      letter-spacing: -0.02em;
-    }
-    .reports-kicker {
-      display: inline-flex;
-      align-items: center;
-      padding: 0.35rem 0.75rem;
-      border-radius: 999px;
-      background: color-mix(in srgb, var(--accent) 85%, white);
-      color: var(--accent-foreground);
-      font-size: 0.78rem;
-      font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.08em;
     }
-    .nav-tabs {
-      border-bottom-color: color-mix(in srgb, var(--color-border) 82%, transparent);
+
+    .staff-time-value {
+      font-weight: 700;
     }
-    .nav-tabs .nav-link {
-      border: 1px solid transparent;
-      border-radius: 999px;
+
+    .staff-time-avg {
+      color: var(--chart-3);
+    }
+
+    .staff-time-response {
+      color: var(--chart-2);
+    }
+
+    .staff-time-count {
       color: var(--color-text-muted);
-      font-weight: 600;
     }
-    .nav-tabs .nav-link.active {
-      background: color-mix(in srgb, var(--card) 92%, white);
-      color: var(--color-text);
-      border-color: color-mix(in srgb, var(--primary) 26%, var(--color-border));
-      box-shadow: 0 8px 24px rgba(34, 197, 94, 0.12);
+
+    .notification-container {
+      position: fixed;
+      top: 24px;
+      right: 24px;
+      z-index: 9999;
+    }
+
+    .notification {
+      min-width: 320px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0.95rem 1rem;
+      margin-bottom: 0.85rem;
+      border-radius: 1.1rem;
+      background: color-mix(in srgb, var(--color-surface) 92%, white);
+      border: 1px solid color-mix(in srgb, var(--color-border) 12%, transparent);
+      box-shadow: 0 24px 40px rgba(18, 33, 23, 0.14);
+      backdrop-filter: blur(10px);
+    }
+
+    .notification.success {
+      border-left: 4px solid var(--chart-5);
+    }
+
+    .notification.error {
+      border-left: 4px solid var(--destructive);
+    }
+
+    .notification.warning {
+      border-left: 4px solid var(--chart-3);
+    }
+
+    .notification.info {
+      border-left: 4px solid var(--chart-2);
+    }
+
+    .notification-close {
+      border: 0;
+      background: transparent;
+      color: var(--color-text-muted);
+      font-size: 1.1rem;
+      cursor: pointer;
+    }
+
+    .reports-subpanel {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .reports-subpanel .card {
+      margin-bottom: 0;
+    }
+
+    @media (max-width: 1199.98px) {
+      .reports-hero,
+      .dashboard-overview-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .metrics-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    @media (max-width: 991.98px) {
+      .dashboard-grid,
+      .metrics-grid,
+      .staff-time-details {
+        grid-template-columns: 1fr;
+      }
+
+      .chart-panel--wide {
+        grid-column: span 1;
+      }
+
+      .pie-chart-container {
+        flex-direction: column;
+      }
+
+      .pie-chart-legend {
+        padding-left: 0;
+        max-height: none;
+      }
+    }
+
+    @media (max-width: 767.98px) {
+      .reports-shell {
+        padding-top: 1rem;
+      }
+
+      .reports-hero {
+        padding: 1.2rem;
+        border-radius: 1.6rem;
+      }
+
+      .reports-hero-title {
+        max-width: none;
+      }
+
+      .filter-buttons .btn,
+      .notification {
+        min-width: 0;
+        width: 100%;
+      }
+
+      .notification-container {
+        left: 12px;
+        right: 12px;
+        top: 12px;
+      }
+
+      .notification {
+        min-width: 0;
+      }
     }
   </style>
 </head>
 <body class="with-sidebar sidebar-pinned">
   <div th:replace="~{fragments/navbar :: navbar(${activePage})}"></div>
   <main class="main-content container-fluid">
-  <div class="container-fluid mt-4">
-    <div class="reports-title">
-      <span class="reports-kicker">Support Intelligence</span>
-      <h2>📈 Отчёты поддержки</h2>
-    </div>
+  <div class="reports-shell">
+    <section class="reports-hero">
+      <div class="reports-hero-copy">
+        <span class="reports-kicker">Support Intelligence</span>
+        <h1 class="reports-hero-title">Операционный центр поддержки iguana</h1>
+        <p class="reports-hero-description">Единая точка обзора для нагрузки, времени обработки, работы команды и динамики каналов. Дашборд собран как control center: быстрое чтение сверху и подробные графики ниже.</p>
+        <div class="reports-hero-pills">
+          <span class="reports-pill">Live support metrics</span>
+          <span class="reports-pill">Team response tracking</span>
+          <span class="reports-pill">Channel health</span>
+        </div>
+      </div>
+      <div class="reports-hero-visual">
+        <div class="reports-hero-visual-frame">
+          <img th:src="@{/iguana-icon.svg}" alt="Логотип iguana" class="reports-hero-logo" loading="lazy" decoding="async" />
+          <div class="reports-hero-visual-copy">
+            <span class="reports-hero-visual-label">Command view</span>
+            <strong>Support dashboard</strong>
+            <span>Сводите фильтры, KPI, staff time и графики в один читаемый рабочий ритм без прыжков по экрану.</span>
+          </div>
+          <span class="reports-hero-floating reports-hero-floating--primary">Live analytics</span>
+          <span class="reports-hero-floating reports-hero-floating--secondary">Ops + charts</span>
+        </div>
+      </div>
+    </section>
 
-    <ul class="nav nav-tabs mb-3" id="reportsTabs" role="tablist">
+    <ul class="nav nav-tabs reports-tab-nav" id="reportsTabs" role="tablist">
       <li class="nav-item" role="presentation">
         <button class="nav-link active" id="tab-dashboard" data-bs-toggle="tab" data-bs-target="#reports-dashboard" type="button" role="tab">Дашборд</button>
       </li>
@@ -406,170 +857,184 @@
 
     <div class="tab-content">
       <div class="tab-pane fade show active" id="reports-dashboard" role="tabpanel">
-
-    <!-- Фильтры и статистика в одной строке -->
-    <div class="filters-and-stats-row">
-      <!-- Колонка с фильтрами -->
-      <div class="filters-column">
-        <div class="filter-section gradient-border-stop-hover">
-          <div class="row">
-            <div class="col-md-12">
-              <label for="dateRange">Период:</label>
-              <input type="text" id="dateRange" class="form-control" placeholder="Выберите период">
-              <div class="period-presets">
-                <button class="period-preset-btn" data-preset="week">Текущая неделя</button>
-                <button class="period-preset-btn" data-preset="month">Текущий месяц</button>
-                <button class="period-preset-btn" data-preset="quarter">Текущий квартал</button>
-                <button class="period-preset-btn" data-preset="year">Текущий год</button>
-                <button class="period-preset-btn" data-preset="all">За всё время</button>
+        <section class="dashboard-overview-grid">
+          <div class="filter-panel">
+            <div class="panel-head">
+              <div>
+                <span class="section-kicker">Фильтры</span>
+                <h3>Соберите нужный срез</h3>
+                <p>Период, рестораны и быстрые пресеты собраны в одном control-блоке, чтобы отчёт не распадался на отдельные формы.</p>
               </div>
+              <span class="section-chip">Live query</span>
             </div>
-          </div>
-
-          <div class="row mt-3">
-            <div class="col-md-12">
-              <label for="restaurantFilter">Ресторан:</label>
-              <select id="restaurantFilter" class="form-control" multiple="multiple">
-                <option th:each="restaurant : ${restaurants}" th:value="${restaurant}" th:text="${restaurant}"></option>
-              </select>
-            </div>
-          </div>
-
-          <div class="row mt-3">
-            <div class="col-md-12">
+            <div class="filter-grid">
+              <div class="filter-block">
+                <label for="dateRange">Период</label>
+                <input type="text" id="dateRange" class="form-control" placeholder="Выберите период">
+                <div class="period-presets">
+                  <button class="period-preset-btn" data-preset="week">Текущая неделя</button>
+                  <button class="period-preset-btn" data-preset="month">Текущий месяц</button>
+                  <button class="period-preset-btn" data-preset="quarter">Текущий квартал</button>
+                  <button class="period-preset-btn" data-preset="year">Текущий год</button>
+                  <button class="period-preset-btn" data-preset="all">За всё время</button>
+                </div>
+              </div>
+              <div class="filter-block">
+                <label for="restaurantFilter">Ресторан</label>
+                <select id="restaurantFilter" class="form-control" multiple="multiple">
+                  <option th:each="restaurant : ${restaurants}" th:value="${restaurant}" th:text="${restaurant}"></option>
+                </select>
+              </div>
               <div class="filter-buttons">
                 <button id="applyFilters" class="btn btn-primary">Применить</button>
-                <button id="resetFilters" class="btn btn-secondary">Сбросить</button>
+                <button id="resetFilters" class="btn btn-outline-secondary">Сбросить</button>
               </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      <!-- Колонка со статистикой -->
-      <div class="stats-column">
-        <!-- Карточка общего количества заявок -->
-        <div class="card text-center gradient-border-hover">
-          <div class="card-body">
-            <h5 class="card-title">Всего заявок</h5>
-            <div class="stats-value" id="totalTickets">0</div>
-            <div class="stats-change" id="totalTicketsChange"></div>
-          </div>
-        </div>
-
-        <!-- НОВАЯ КАРТОЧКА - ЗАТРАЧЕННОЕ ВРЕМЯ -->
-        <div class="card text-center time-stats-card mt-3 gradient-border-stop-hover">
-          <div class="card-body">
-            <h5 class="card-title">⏱️ Затраченное время</h5>
-            <div class="time-stats-value" id="totalTime">0 ч</div>
-            <div class="time-stats-details">
-              <div class="time-stats-label">Среднее время на заявку</div>
-              <div id="avgTimePerTicket">0 мин</div>
-              <div class="time-stats-label">Обработано заявок</div>
-              <div id="resolvedCount">0</div>
+          <div class="metrics-panel">
+            <div class="panel-head">
+              <div>
+                <span class="section-kicker">Control center</span>
+                <h3>Ключевые метрики смены</h3>
+                <p>Быстрое чтение сверху: объём, трудозатраты, темп обработки и краткий операционный акцент.</p>
+              </div>
+            </div>
+            <div class="metrics-grid">
+              <article class="metric-card metric-card--primary">
+                <span class="metric-label">Всего заявок</span>
+                <strong class="metric-value" id="totalTickets">0</strong>
+                <span class="metric-foot" id="totalTicketsChange">Нет данных за предыдущий период</span>
+              </article>
+              <article class="metric-card metric-card--spotlight">
+                <span class="metric-label">Затраченное время</span>
+                <strong class="metric-value" id="totalTime">0 ч</strong>
+                <div class="metric-mini-grid">
+                  <div>
+                    <span class="metric-mini-label">Среднее на заявку</span>
+                    <span class="metric-mini-value" id="avgTimePerTicket">0 мин</span>
+                  </div>
+                  <div>
+                    <span class="metric-mini-label">Обработано</span>
+                    <span class="metric-mini-value" id="resolvedCount">0</span>
+                  </div>
+                </div>
+              </article>
+              <article class="metric-card">
+                <span class="metric-label">Ритм обзора</span>
+                <strong class="metric-value">Live</strong>
+                <span class="metric-foot">Смотрите объём, каналы и структуру обращений на одном экране без переходов между секциями.</span>
+              </article>
+              <article class="metric-card metric-card--note">
+                <span class="metric-label">Фокус панели</span>
+                <p class="metric-note-text">Интерфейс собран как dashboard для ежедневной работы команды: минимум визуального шума, максимум читаемости и быстрых действий.</p>
+              </article>
             </div>
           </div>
-        </div>
-      </div>
-    </div>
+        </section>
 
-    <!-- Время по сотрудникам -->
-    <div class="card mt-3 gradient-border-hover">
-        <div class="card-body">
-            <h5 class="card-title">⏱️ Время по сотрудникам</h5>
+        <section class="dashboard-grid">
+          <article class="chart-panel chart-panel--wide">
+            <div class="chart-panel-head">
+              <div>
+                <span class="section-kicker">Команда</span>
+                <h3 class="chart-panel-title">Время по сотрудникам</h3>
+                <p class="chart-panel-copy">Сколько времени команда реально тратит на закрытие обращений и как выглядит средняя скорость реакции по каждому участнику.</p>
+              </div>
+            </div>
             <div id="staffTimeStats" class="staff-time-stats">
-                <div class="text-center text-muted py-3">Нет данных</div>
+              <div class="text-center text-muted py-3">Нет данных</div>
             </div>
-        </div>
-    </div>
+          </article>
 
-      <!-- График по каналам -->
-      <div class="col-md-6">
-        <div class="card gradient-border-hover">
-          <div class="card-body">
-            <h5 class="card-title">Заявки по каналам</h5>
+          <article class="chart-panel">
+            <div class="chart-panel-head">
+              <div>
+                <span class="section-kicker">Каналы</span>
+                <h3 class="chart-panel-title">Заявки по каналам</h3>
+                <p class="chart-panel-copy">Понимание, откуда приходит основной объём обращений и где растёт нагрузка.</p>
+              </div>
+            </div>
             <div class="chart-container">
               <canvas id="chartByChannel"></canvas>
             </div>
-          </div>
-        </div>
-      </div>
-    <!-- Остальная часть дашборда (графики) -->
-    <div class="row">
-      <!-- По бизнесу (круговая) -->
-      <div class="col-md-6">
-          <div class="card gradient-border-hover">
-              <div class="card-body">
-                  <h5 class="card-title">По бизнесу</h5>
-                  <div class="pie-chart-container">
-                    <div class="pie-chart-wrapper">
-                      <canvas id="businessChart"></canvas>
-                    </div>
-                    <div class="pie-chart-legend" id="businessLegend"></div>
-                  </div>
-              </div>
-          </div>
-      </div>
+          </article>
 
-      <!-- По сетям (круговая) -->
-      <div class="col-md-6">
-          <div class="card gradient-border-hover">
-              <div class="card-body">
-                  <h5 class="card-title">По сетям</h5>
-                  <div class="pie-chart-container">
-                    <div class="pie-chart-wrapper">
-                      <canvas id="networkChart"></canvas>
-                    </div>
-                    <div class="pie-chart-legend" id="networkLegend"></div>
-                  </div>
+          <article class="chart-panel">
+            <div class="chart-panel-head">
+              <div>
+                <span class="section-kicker">Бизнес</span>
+                <h3 class="chart-panel-title">По бизнесу</h3>
+                <p class="chart-panel-copy">Структура обращений по бизнес-направлениям с кликабельной легендой.</p>
               </div>
-          </div>
-      </div>
-    </div>
+            </div>
+            <div class="pie-chart-container">
+              <div class="pie-chart-wrapper">
+                <canvas id="businessChart"></canvas>
+              </div>
+              <div class="pie-chart-legend" id="businessLegend"></div>
+            </div>
+          </article>
 
-    <div class="row">
-      <!-- Категории -->
-      <div class="col-md-6">
-        <div class="card gradient-border-hover">
-          <div class="card-body">
-            <h5 class="card-title">Категории обращений</h5>
+          <article class="chart-panel">
+            <div class="chart-panel-head">
+              <div>
+                <span class="section-kicker">Сети</span>
+                <h3 class="chart-panel-title">По сетям</h3>
+                <p class="chart-panel-copy">Распределение обращений по сетям и плотность трафика внутри операционной структуры.</p>
+              </div>
+            </div>
+            <div class="pie-chart-container">
+              <div class="pie-chart-wrapper">
+                <canvas id="networkChart"></canvas>
+              </div>
+              <div class="pie-chart-legend" id="networkLegend"></div>
+            </div>
+          </article>
+
+          <article class="chart-panel">
+            <div class="chart-panel-head">
+              <div>
+                <span class="section-kicker">Категории</span>
+                <h3 class="chart-panel-title">Категории обращений</h3>
+                <p class="chart-panel-copy">Какие типы запросов формируют повестку периода и где накапливается повторяемая нагрузка.</p>
+              </div>
+            </div>
             <div class="chart-container">
               <canvas id="categoryChart"></canvas>
             </div>
-          </div>
-        </div>
-      </div>
+          </article>
 
-      <!-- Города -->
-      <div class="col-md-6">
-        <div class="card gradient-border-hover">
-          <div class="card-body">
-            <h5 class="card-title">По городам</h5>
+          <article class="chart-panel">
+            <div class="chart-panel-head">
+              <div>
+                <span class="section-kicker">География</span>
+                <h3 class="chart-panel-title">По городам</h3>
+                <p class="chart-panel-copy">Быстрый взгляд на территориальное распределение потока и локальные перегревы.</p>
+              </div>
+            </div>
             <div class="chart-container">
               <canvas id="cityChart"></canvas>
             </div>
-          </div>
-        </div>
-      </div>
-    </div>
+          </article>
 
-    <div class="row">
-      <!-- Рестораны -->
-      <div class="col-md-12">
-        <div class="card gradient-border-hover">
-          <div class="card-body">
-            <h5 class="card-title">По ресторанам (топ-10)</h5>
+          <article class="chart-panel chart-panel--wide">
+            <div class="chart-panel-head">
+              <div>
+                <span class="section-kicker">Локации</span>
+                <h3 class="chart-panel-title">По ресторанам (топ-10)</h3>
+                <p class="chart-panel-copy">Наиболее нагруженные точки и их вклад в общий объём обращений за выбранный период.</p>
+              </div>
+            </div>
             <div class="chart-container">
               <canvas id="restaurantChart"></canvas>
             </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+          </article>
+        </section>
       </div>
 
       <div class="tab-pane fade" id="reports-managers" role="tabpanel">
+        <div class="reports-subpanel">
         <div class="card mb-3 gradient-border-hover">
           <div class="card-body">
             <div class="row g-3 align-items-end">
@@ -593,9 +1058,11 @@
           </div>
         </div>
         <div class="accordion mt-3" id="managerAccordion"></div>
+        </div>
       </div>
 
       <div class="tab-pane fade" id="reports-olap" role="tabpanel">
+        <div class="reports-subpanel">
         <div class="card gradient-border-hover">
           <div class="card-body">
             <div class="row g-3 align-items-end">
@@ -625,6 +1092,7 @@
               </table>
             </div>
           </div>
+        </div>
         </div>
       </div>
     </div>
