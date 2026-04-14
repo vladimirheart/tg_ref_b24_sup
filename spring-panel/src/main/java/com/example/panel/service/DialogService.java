@@ -6592,7 +6592,7 @@ public class DialogService {
             return;
         }
         String source = "operator_close";
-        if (StringUtils.hasText(resolvedBy) && "Авто-система".equalsIgnoreCase(resolvedBy.trim())) {
+        if (isAutoCloseResolvedBy(resolvedBy)) {
             source = "auto_close";
         }
         try {
@@ -6631,6 +6631,14 @@ public class DialogService {
     }
 
     private record TicketOwner(long userId, long channelId) {
+    }
+
+    private boolean isAutoCloseResolvedBy(String resolvedBy) {
+        if (!StringUtils.hasText(resolvedBy)) {
+            return false;
+        }
+        String normalized = resolvedBy.trim().toLowerCase(Locale.ROOT);
+        return "авто-система".equals(normalized) || "auto_close".equals(normalized);
     }
 
     public ResolveResult reopenTicket(String ticketId, String operator) {

@@ -383,7 +383,10 @@ BEGIN
             NEW.user_id,
             NEW.channel_id,
             NEW.ticket_id,
-            CASE WHEN NEW.resolved_by = 'Авто-система' THEN 'auto_close' ELSE 'operator_close' END,
+            CASE
+                WHEN lower(COALESCE(NEW.resolved_by, '')) IN ('auto_close', 'авто-система') THEN 'auto_close'
+                ELSE 'operator_close'
+            END,
             CURRENT_TIMESTAMP,
             CURRENT_TIMESTAMP + INTERVAL '5 minutes'
         )

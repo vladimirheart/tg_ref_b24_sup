@@ -205,6 +205,9 @@ public record DialogListItem(String ticketId,
         if (responsible != null && !responsible.isBlank()) {
             return responsible;
         }
+        if (isAutoClosed()) {
+            return "Авто-система";
+        }
         if (resolvedBy != null && !resolvedBy.isBlank()) {
             return resolvedBy;
         }
