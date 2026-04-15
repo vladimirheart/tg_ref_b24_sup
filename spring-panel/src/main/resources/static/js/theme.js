@@ -1,7 +1,10 @@
 // panel/static/theme.js
 (function () {
-  const THEME_STORAGE_KEY = 'iguana:theme';
-  const PALETTE_STORAGE_KEY = 'iguana:theme-palette';
+  const prefApi = window.iguanaUiPreferences || null;
+  const THEME_PREF_KEY = 'theme';
+  const PALETTE_PREF_KEY = 'themePalette';
+  const THEME_STORAGE_KEY = prefApi ? prefApi.getStorageKey(THEME_PREF_KEY) : 'iguana:theme';
+  const PALETTE_STORAGE_KEY = prefApi ? prefApi.getStorageKey(PALETTE_PREF_KEY) : 'iguana:theme-palette';
   const root = document.documentElement;
   const media = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
 
@@ -42,7 +45,7 @@
   function applyTheme(theme) {
     const normalized = normalizeTheme(theme);
     const effective = resolveEffective(normalized);
-    const palette = normalizePalette(localStorage.getItem(PALETTE_STORAGE_KEY) || 'neo');
+    const palette = normalizePalette(prefApi ? prefApi.get(PALETTE_PREF_KEY) : localStorage.getItem(PALETTE_STORAGE_KEY) || 'neo');
     if (root) {
       root.dataset.themeChoice = normalized;
       root.dataset.theme = effective;
@@ -56,7 +59,7 @@
 
   function applyPalette(palette) {
     const normalized = normalizePalette(palette);
-    const theme = normalizeTheme(localStorage.getItem(THEME_STORAGE_KEY) || 'light');
+    const theme = normalizeTheme(prefApi ? prefApi.get(THEME_PREF_KEY) : localStorage.getItem(THEME_STORAGE_KEY) || 'light');
     const effective = resolveEffective(theme);
     if (root) {
       root.dataset.themePalette = normalized;
@@ -72,20 +75,29 @@
     }));
   }
 
-  const savedTheme = normalizeTheme(localStorage.getItem(THEME_STORAGE_KEY) || 'light');
-  const savedPalette = normalizePalette(localStorage.getItem(PALETTE_STORAGE_KEY) || 'neo');
-  localStorage.setItem(THEME_STORAGE_KEY, savedTheme);
-  localStorage.setItem(PALETTE_STORAGE_KEY, savedPalette);
+  const savedTheme = normalizeTheme(prefApi ? prefApi.get(THEME_PREF_KEY) : localStorage.getItem(THEME_STORAGE_KEY) || 'light');
+  const savedPalette = normalizePalette(prefApi ? prefApi.get(PALETTE_PREF_KEY) : localStorage.getItem(PALETTE_STORAGE_KEY) || 'neo');
+  if (prefApi) {
+    prefApi.set(THEME_PREF_KEY, savedTheme, 'theme-bootstrap');
+    prefApi.set(PALETTE_PREF_KEY, savedPalette, 'theme-bootstrap');
+  } else {
+    localStorage.setItem(THEME_STORAGE_KEY, savedTheme);
+    localStorage.setItem(PALETTE_STORAGE_KEY, savedPalette);
+  }
   applyTheme(savedTheme);
   applyPalette(savedPalette);
 
   const apiTheme = {
     get() {
-      return normalizeTheme(localStorage.getItem(THEME_STORAGE_KEY) || 'light');
+      return normalizeTheme(prefApi ? prefApi.get(THEME_PREF_KEY) : localStorage.getItem(THEME_STORAGE_KEY) || 'light');
     },
     set(theme) {
       const normalized = normalizeTheme(theme);
-      localStorage.setItem(THEME_STORAGE_KEY, normalized);
+      if (prefApi) {
+        prefApi.set(THEME_PREF_KEY, normalized, 'theme-api');
+      } else {
+        localStorage.setItem(THEME_STORAGE_KEY, normalized);
+      }
       applyTheme(normalized);
     },
     apply: applyTheme,
@@ -93,11 +105,15 @@
 
   const apiPalette = {
     get() {
-      return normalizePalette(localStorage.getItem(PALETTE_STORAGE_KEY) || 'neo');
+      return normalizePalette(prefApi ? prefApi.get(PALETTE_PREF_KEY) : localStorage.getItem(PALETTE_STORAGE_KEY) || 'neo');
     },
     set(palette) {
       const normalized = normalizePalette(palette);
-      localStorage.setItem(PALETTE_STORAGE_KEY, normalized);
+      if (prefApi) {
+        prefApi.set(PALETTE_PREF_KEY, normalized, 'theme-api');
+      } else {
+        localStorage.setItem(PALETTE_STORAGE_KEY, normalized);
+      }
       applyPalette(normalized);
     },
     apply: applyPalette,
@@ -114,13 +130,26 @@
     });
   }
 
-  window.addEventListener('storage', (event) => {
-    if (event.key === THEME_STORAGE_KEY) {
-      applyTheme(event.newValue || 'light');
+  document.addEventListener('ui-preference:change', (event) => {
+    const detail = event && event.detail ? event.detail : {};
+    if (detail.name === THEME_PREF_KEY) {
+      applyTheme(detail.value || 'light');
       return;
     }
-    if (event.key === PALETTE_STORAGE_KEY) {
-      applyPalette(event.newValue || 'neo');
+    if (detail.name === PALETTE_PREF_KEY) {
+      applyPalette(detail.value || 'neo');
     }
   });
+
+  if (!prefApi) {
+    window.addEventListener('storage', (event) => {
+      if (event.key === THEME_STORAGE_KEY) {
+        applyTheme(event.newValue || 'light');
+        return;
+      }
+      if (event.key === PALETTE_STORAGE_KEY) {
+        applyPalette(event.newValue || 'neo');
+      }
+    });
+  }
 })();

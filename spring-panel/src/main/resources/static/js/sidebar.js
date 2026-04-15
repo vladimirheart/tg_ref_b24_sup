@@ -2,6 +2,7 @@
 (function () {
   const sidebar = document.getElementById('app-sidebar');
   if (!sidebar) return;
+  const prefApi = window.iguanaUiPreferences || null;
 
   const pinBtn = document.getElementById('pinSidebarBtn');
   const densityModeBtn = document.getElementById('densityModeBtn');
@@ -19,14 +20,52 @@
   const changePasswordSubmitText = changePasswordModalEl ? changePasswordModalEl.querySelector('[data-change-password-submit-text]') : null;
   let changePasswordModalInstance = null;
 
-  const LS_KEY_PIN = 'sidebarPinned';
-  const LS_KEY_DENSITY_MODE = 'uiDensityMode';
+  const PREF_KEY_PIN = 'sidebarPinned';
+  const PREF_KEY_DENSITY_MODE = 'uiDensityMode';
+  const PREF_KEY_NAV_ORDER = 'sidebarNavOrder';
   const DENSITY_COMFORTABLE = 'comfortable';
   const DENSITY_COMPACT = 'compact';
-  let pinned = localStorage.getItem(LS_KEY_PIN) === '1';
+  let pinned = (prefApi ? prefApi.get(PREF_KEY_PIN) : localStorage.getItem(PREF_KEY_PIN)) === '1';
   const HOVER_LEAVE_DELAY_MS = 1000;
   let hoverLeaveTimer = null;
   const MOBILE_BREAKPOINT = 991.98;
+
+  function getPreference(name, fallback = null) {
+    if (prefApi) {
+      const value = prefApi.get(name);
+      return value == null ? fallback : value;
+    }
+    try {
+      const value = localStorage.getItem(name);
+      return value == null ? fallback : value;
+    } catch (_error) {
+      return fallback;
+    }
+  }
+
+  function setPreference(name, value, source = 'sidebar') {
+    if (prefApi) {
+      return prefApi.set(name, value, source);
+    }
+    try {
+      localStorage.setItem(name, value);
+      return value;
+    } catch (_error) {
+      return null;
+    }
+  }
+
+  function removePreference(name, source = 'sidebar') {
+    if (prefApi) {
+      prefApi.remove(name, source);
+      return;
+    }
+    try {
+      localStorage.removeItem(name);
+    } catch (_error) {
+      // ignore storage errors
+    }
+  }
 
   function isMobileViewport() {
     return window.innerWidth <= MOBILE_BREAKPOINT;
@@ -112,7 +151,7 @@
   }
   applyState();
 
-  function setDensityMode(mode) {
+  function setDensityMode(mode, options = {}) {
     const nextMode = mode === DENSITY_COMPACT ? DENSITY_COMPACT : DENSITY_COMFORTABLE;
     root.classList.toggle('density-compact', nextMode === DENSITY_COMPACT);
     root.classList.toggle('density-comfortable', nextMode !== DENSITY_COMPACT);
@@ -122,24 +161,26 @@
       densityModeBtn.textContent = isCompact ? '▤' : '◫';
       densityModeBtn.title = `Плотность интерфейса: ${isCompact ? 'compact' : 'comfortable'}`;
     }
-    try {
-      localStorage.setItem(LS_KEY_DENSITY_MODE, nextMode);
-    } catch (_error) {
-      // ignore storage write errors
+    if (options.persist !== false) {
+      try {
+        setPreference(PREF_KEY_DENSITY_MODE, nextMode, 'sidebar-density');
+      } catch (_error) {
+        // ignore storage write errors
+      }
     }
   }
 
   function loadDensityMode() {
     let stored = DENSITY_COMFORTABLE;
     try {
-      const raw = String(localStorage.getItem(LS_KEY_DENSITY_MODE) || '').trim().toLowerCase();
+      const raw = String(getPreference(PREF_KEY_DENSITY_MODE, '') || '').trim().toLowerCase();
       if (raw === DENSITY_COMPACT || raw === DENSITY_COMFORTABLE) {
         stored = raw;
       }
     } catch (_error) {
       stored = DENSITY_COMFORTABLE;
     }
-    setDensityMode(stored);
+    setDensityMode(stored, { persist: false });
   }
 
   function toggleDensityMode() {
@@ -168,7 +209,6 @@
   syncSidebarForViewport();
 
   const nav = sidebar.querySelector('.sidebar-nav');
-  const ORDER_STORAGE_KEY = 'sidebarNavOrder';
   const DEFAULT_ORDER = [
     'dialogs',
     'ai-ops',
@@ -250,17 +290,17 @@
     const current = sanitizeOrder(getNavLinks().map((link) => link.dataset.pageKey));
     const def = normalizedDefaultOrder();
     if (JSON.stringify(current) === JSON.stringify(def)) {
-      localStorage.removeItem(ORDER_STORAGE_KEY);
+      removePreference(PREF_KEY_NAV_ORDER, 'sidebar-order');
     } else {
-      localStorage.setItem(ORDER_STORAGE_KEY, JSON.stringify(current));
+      setPreference(PREF_KEY_NAV_ORDER, current, 'sidebar-order');
     }
   }
 
   function loadSavedOrder() {
     try {
-      const raw = localStorage.getItem(ORDER_STORAGE_KEY);
-      if (!raw) return null;
-      const parsed = JSON.parse(raw);
+      const parsed = prefApi
+        ? getPreference(PREF_KEY_NAV_ORDER, null)
+        : JSON.parse(String(getPreference(PREF_KEY_NAV_ORDER, 'null')));
       if (!Array.isArray(parsed)) return null;
       return sanitizeOrder(parsed);
     } catch (error) {
@@ -403,7 +443,7 @@
     if (resetOrderBtn) {
       resetOrderBtn.addEventListener('click', () => {
         applyOrder(DEFAULT_ORDER);
-        localStorage.removeItem(ORDER_STORAGE_KEY);
+        removePreference(PREF_KEY_NAV_ORDER, 'sidebar-order-reset');
         setEditingOrder(false);
       });
     }
@@ -561,7 +601,7 @@
   if (pinBtn) {
     pinBtn.addEventListener('click', () => {
       pinned = !pinned;
-      localStorage.setItem(LS_KEY_PIN, pinned ? '1' : '0');
+      setPreference(PREF_KEY_PIN, pinned ? '1' : '0', 'sidebar-pin');
       applyState();
     });
   }
@@ -572,6 +612,22 @@
     });
   }
   loadDensityMode();
+
+  document.addEventListener('ui-preference:change', (event) => {
+    const detail = event && event.detail ? event.detail : {};
+    if (detail.name === PREF_KEY_DENSITY_MODE) {
+      setDensityMode(detail.value === DENSITY_COMPACT ? DENSITY_COMPACT : DENSITY_COMFORTABLE, { persist: false });
+      return;
+    }
+    if (detail.name === PREF_KEY_PIN) {
+      pinned = detail.value === '1';
+      applyState();
+      return;
+    }
+    if (detail.name === PREF_KEY_NAV_ORDER && nav) {
+      applyOrder(Array.isArray(detail.value) ? detail.value : DEFAULT_ORDER);
+    }
+  });
 
   const bellWrapper = document.getElementById('notify-bell-wrapper');
   const bellDropdown = document.getElementById('notify-dropdown');

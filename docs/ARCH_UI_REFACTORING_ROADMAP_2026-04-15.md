@@ -56,6 +56,11 @@
 - перестать смешивать persisted visual settings из JSON и локальные operator
   preferences в одном потоке.
 
+Статус:
+
+- начато частично: введён общий runtime-модуль для browser-only preferences,
+  на который переведены `theme` и `sidebar`.
+
 Что сделать:
 
 - ввести `UiPreferenceService`/`UiPreferenceController` для операторских UI
