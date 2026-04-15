@@ -6,8 +6,8 @@ import com.example.panel.model.dialog.DialogListItem;
 import com.example.panel.model.dialog.DialogPreviousHistoryPage;
 import com.example.panel.service.DialogService;
 import com.example.panel.service.DialogAiAssistantService;
+import com.example.panel.service.DialogAuthorizationService;
 import com.example.panel.service.NotificationService;
-import com.example.panel.service.PermissionService;
 import com.example.panel.service.SlaEscalationWebhookNotifier;
 import com.example.panel.service.SharedConfigService;
 import com.fasterxml.jackson.annotation.JsonAlias;
@@ -56,7 +56,6 @@ import java.util.ArrayList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.Set;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -69,11 +68,10 @@ public class DialogApiController {
 
     private final DialogService dialogService;
     private final SharedConfigService sharedConfigService;
-    private final PermissionService permissionService;
+    private final DialogAuthorizationService dialogAuthorizationService;
     private final NotificationService notificationService;
     private final SlaEscalationWebhookNotifier slaEscalationWebhookNotifier;
     private final DialogAiAssistantService dialogAiAssistantService;
-    private static final long QUICK_ACTION_TARGET_MS = 1500;
     private static final int DEFAULT_SLA_TARGET_MINUTES = 24 * 60;
     private static final int DEFAULT_SLA_WARNING_MINUTES = 4 * 60;
     private static final int DEFAULT_WORKSPACE_LIMIT = 50;
@@ -165,13 +163,13 @@ public class DialogApiController {
 
     public DialogApiController(DialogService dialogService,
                                SharedConfigService sharedConfigService,
-                               PermissionService permissionService,
+                               DialogAuthorizationService dialogAuthorizationService,
                                NotificationService notificationService,
                                SlaEscalationWebhookNotifier slaEscalationWebhookNotifier,
                                DialogAiAssistantService dialogAiAssistantService) {
         this.dialogService = dialogService;
         this.sharedConfigService = sharedConfigService;
-        this.permissionService = permissionService;
+        this.dialogAuthorizationService = dialogAuthorizationService;
         this.notificationService = notificationService;
         this.slaEscalationWebhookNotifier = slaEscalationWebhookNotifier;
         this.dialogAiAssistantService = dialogAiAssistantService;
@@ -685,7 +683,7 @@ public class DialogApiController {
         Map<String, Object> workspaceSlaPolicyRaw = slaEscalationWebhookNotifier.buildRoutingPolicySnapshot(summary, settings);
         Map<String, Object> workspaceSlaPolicy = workspaceSlaPolicyRaw != null ? workspaceSlaPolicyRaw : Map.of();
         Map<String, Object> workspacePermissions = includeSections.contains("permissions")
-                ? resolveWorkspacePermissions(authentication)
+                ? dialogAuthorizationService.resolveWorkspacePermissions(authentication)
                 : Map.of(
                 "can_reply", false,
                 "can_assign", false,
@@ -2183,60 +2181,6 @@ public class DialogApiController {
         String text = value != null ? String.valueOf(value) : "";
         String escaped = text.replace("\"", "\"\"");
         return "\"" + escaped + "\"";
-    }
-
-    private <T> T withQuickActionTiming(String action, String ticketId, Supplier<T> supplier) {
-        long startedAtMs = System.currentTimeMillis();
-        try {
-            return supplier.get();
-        } finally {
-            long elapsedMs = System.currentTimeMillis() - startedAtMs;
-            if (elapsedMs > QUICK_ACTION_TARGET_MS) {
-                log.warn("Quick action '{}' for ticket '{}' exceeded target: {}ms > {}ms", action, ticketId, elapsedMs, QUICK_ACTION_TARGET_MS);
-            } else {
-                log.debug("Quick action '{}' for ticket '{}' completed in {}ms", action, ticketId, elapsedMs);
-            }
-        }
-    }
-
-    private void logQuickAction(String actor, String ticketId, String action, String result, String detail) {
-        String safeActor = actor != null ? actor : "anonymous";
-        String safeDetail = detail != null ? detail : "";
-        log.info("Dialog quick action: actor='{}', ticket='{}', action='{}', result='{}', detail='{}'",
-                safeActor,
-                ticketId,
-                action,
-                result,
-                safeDetail);
-        dialogService.logDialogActionAudit(ticketId, safeActor, action, result, safeDetail);
-    }
-
-    private Map<String, Object> resolveWorkspacePermissions(Authentication authentication) {
-        boolean canDialog = permissionService.hasAuthority(authentication, "PAGE_DIALOGS");
-        boolean canBulk = canDialog && (permissionService.hasAuthority(authentication, "DIALOG_BULK_ACTIONS")
-                || permissionService.hasAuthority(authentication, "ROLE_ADMIN"));
-        return Map.of(
-                "can_reply", canDialog,
-                "can_assign", canDialog,
-                "can_close", canDialog,
-                "can_snooze", canDialog,
-                "can_bulk", canBulk
-        );
-    }
-
-    private ResponseEntity<Map<String, Object>> requireDialogPermission(Authentication authentication,
-                                                                         String permission,
-                                                                         String action,
-                                                                         String ticketId) {
-        Map<String, Object> permissions = resolveWorkspacePermissions(authentication);
-        boolean allowed = Boolean.TRUE.equals(permissions.get(permission));
-        if (allowed) {
-            return null;
-        }
-        String operator = authentication != null ? authentication.getName() : null;
-        logQuickAction(operator, ticketId, action, "forbidden", "Недостаточно прав: " + permission);
-        return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(Map.of("success", false, "error", "Недостаточно прав для выполнения действия"));
     }
 
     private int resolveDialogConfigMinutes(String key, int fallbackValue) {

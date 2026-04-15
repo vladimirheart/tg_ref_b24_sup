@@ -2,8 +2,8 @@ package com.example.panel.controller;
 
 import com.example.panel.service.DialogQuickActionService;
 import com.example.panel.service.DialogReplyService;
+import com.example.panel.service.DialogAuthorizationService;
 import com.example.panel.service.DialogService;
-import com.example.panel.service.PermissionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -33,22 +33,19 @@ public class DialogQuickActionsController {
     private static final long QUICK_ACTION_TARGET_MS = 1500;
 
     private final DialogQuickActionService dialogQuickActionService;
-    private final DialogService dialogService;
-    private final PermissionService permissionService;
+    private final DialogAuthorizationService dialogAuthorizationService;
 
     public DialogQuickActionsController(DialogQuickActionService dialogQuickActionService,
-                                        DialogService dialogService,
-                                        PermissionService permissionService) {
+                                        DialogAuthorizationService dialogAuthorizationService) {
         this.dialogQuickActionService = dialogQuickActionService;
-        this.dialogService = dialogService;
-        this.permissionService = permissionService;
+        this.dialogAuthorizationService = dialogAuthorizationService;
     }
 
     @PostMapping("/{ticketId}/reply")
     public ResponseEntity<?> reply(@PathVariable String ticketId,
                                    @RequestBody DialogReplyRequest request,
                                    Authentication authentication) {
-        ResponseEntity<Map<String, Object>> permissionDenied = requireDialogPermission(authentication, "can_reply", "reply", ticketId);
+        ResponseEntity<Map<String, Object>> permissionDenied = dialogAuthorizationService.requirePermission(authentication, "can_reply", "reply", ticketId);
         if (permissionDenied != null) {
             return permissionDenied;
         }
@@ -75,7 +72,7 @@ public class DialogQuickActionsController {
     public ResponseEntity<?> editMessage(@PathVariable String ticketId,
                                          @RequestBody DialogEditRequest request,
                                          Authentication authentication) {
-        ResponseEntity<Map<String, Object>> permissionDenied = requireDialogPermission(authentication, "can_reply", "edit", ticketId);
+        ResponseEntity<Map<String, Object>> permissionDenied = dialogAuthorizationService.requirePermission(authentication, "can_reply", "edit", ticketId);
         if (permissionDenied != null) {
             return permissionDenied;
         }
@@ -97,7 +94,7 @@ public class DialogQuickActionsController {
     public ResponseEntity<?> deleteMessage(@PathVariable String ticketId,
                                            @RequestBody DialogDeleteRequest request,
                                            Authentication authentication) {
-        ResponseEntity<Map<String, Object>> permissionDenied = requireDialogPermission(authentication, "can_reply", "delete", ticketId);
+        ResponseEntity<Map<String, Object>> permissionDenied = dialogAuthorizationService.requirePermission(authentication, "can_reply", "delete", ticketId);
         if (permissionDenied != null) {
             return permissionDenied;
         }
@@ -119,7 +116,7 @@ public class DialogQuickActionsController {
                                             @RequestParam("file") MultipartFile file,
                                             @RequestParam(value = "message", required = false) String message,
                                             Authentication authentication) throws IOException {
-        ResponseEntity<Map<String, Object>> permissionDenied = requireDialogPermission(authentication, "can_reply", "reply_media", ticketId);
+        ResponseEntity<Map<String, Object>> permissionDenied = dialogAuthorizationService.requirePermission(authentication, "can_reply", "reply_media", ticketId);
         if (permissionDenied != null) {
             return permissionDenied;
         }
@@ -137,7 +134,7 @@ public class DialogQuickActionsController {
                                      @RequestBody(required = false) DialogResolveRequest request,
                                      Authentication authentication) {
         return withQuickActionTiming("quick_close", ticketId, () -> {
-            ResponseEntity<Map<String, Object>> permissionDenied = requireDialogPermission(authentication, "can_close", "quick_close", ticketId);
+            ResponseEntity<Map<String, Object>> permissionDenied = dialogAuthorizationService.requirePermission(authentication, "can_close", "quick_close", ticketId);
             if (permissionDenied != null) {
                 return permissionDenied;
             }
@@ -145,16 +142,16 @@ public class DialogQuickActionsController {
             List<String> categories = request != null ? request.categories() : List.of();
             DialogService.ResolveResult result = dialogQuickActionService.resolveTicket(ticketId, operator, categories);
             if (!result.exists()) {
-                logQuickAction(operator, ticketId, "quick_close", "not_found", "Диалог не найден");
+                dialogAuthorizationService.logDialogAction(operator, ticketId, "quick_close", "not_found", "Диалог не найден");
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(Map.of("success", false, "error", "Диалог не найден"));
             }
             if (result.error() != null) {
-                logQuickAction(operator, ticketId, "quick_close", "error", result.error());
+                dialogAuthorizationService.logDialogAction(operator, ticketId, "quick_close", "error", result.error());
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                         .body(Map.of("success", false, "error", result.error()));
             }
-            logQuickAction(operator, ticketId, "quick_close", "success", result.updated() ? "updated" : "noop");
+            dialogAuthorizationService.logDialogAction(operator, ticketId, "quick_close", "success", result.updated() ? "updated" : "noop");
             return ResponseEntity.ok(Map.of("success", true, "updated", result.updated()));
         });
     }
@@ -162,7 +159,7 @@ public class DialogQuickActionsController {
     @PostMapping("/{ticketId}/reopen")
     public ResponseEntity<?> reopen(@PathVariable String ticketId,
                                     Authentication authentication) {
-        ResponseEntity<Map<String, Object>> permissionDenied = requireDialogPermission(authentication, "can_close", "reopen", ticketId);
+        ResponseEntity<Map<String, Object>> permissionDenied = dialogAuthorizationService.requirePermission(authentication, "can_close", "reopen", ticketId);
         if (permissionDenied != null) {
             return permissionDenied;
         }
@@ -183,7 +180,7 @@ public class DialogQuickActionsController {
     public ResponseEntity<?> updateCategories(@PathVariable String ticketId,
                                               @RequestBody(required = false) DialogCategoriesRequest request,
                                               Authentication authentication) {
-        ResponseEntity<Map<String, Object>> permissionDenied = requireDialogPermission(authentication, "can_close", "categories", ticketId);
+        ResponseEntity<Map<String, Object>> permissionDenied = dialogAuthorizationService.requirePermission(authentication, "can_close", "categories", ticketId);
         if (permissionDenied != null) {
             return permissionDenied;
         }
@@ -196,23 +193,23 @@ public class DialogQuickActionsController {
     public ResponseEntity<?> take(@PathVariable String ticketId,
                                   Authentication authentication) {
         return withQuickActionTiming("take", ticketId, () -> {
-            ResponseEntity<Map<String, Object>> permissionDenied = requireDialogPermission(authentication, "can_assign", "take", ticketId);
+            ResponseEntity<Map<String, Object>> permissionDenied = dialogAuthorizationService.requirePermission(authentication, "can_assign", "take", ticketId);
             if (permissionDenied != null) {
                 return permissionDenied;
             }
             String operator = authentication != null ? authentication.getName() : null;
             if (!StringUtils.hasText(operator)) {
-                logQuickAction(null, ticketId, "take", "unauthorized", "Требуется авторизация");
+                dialogAuthorizationService.logDialogAction(null, ticketId, "take", "unauthorized", "Требуется авторизация");
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body(Map.of("success", false, "error", "Требуется авторизация"));
             }
             Optional<String> responsible = dialogQuickActionService.takeTicket(ticketId, operator);
             if (responsible.isEmpty()) {
-                logQuickAction(operator, ticketId, "take", "not_found", "Диалог не найден");
+                dialogAuthorizationService.logDialogAction(operator, ticketId, "take", "not_found", "Диалог не найден");
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(Map.of("success", false, "error", "Диалог не найден"));
             }
-            logQuickAction(operator, ticketId, "take", "success", "responsible_assigned");
+            dialogAuthorizationService.logDialogAction(operator, ticketId, "take", "success", "responsible_assigned");
             return ResponseEntity.ok(Map.of("success", true, "responsible", responsible.get()));
         });
     }
@@ -222,17 +219,17 @@ public class DialogQuickActionsController {
                                     @RequestBody(required = false) DialogSnoozeRequest request,
                                     Authentication authentication) {
         return withQuickActionTiming("snooze", ticketId, () -> {
-            ResponseEntity<Map<String, Object>> permissionDenied = requireDialogPermission(authentication, "can_snooze", "snooze", ticketId);
+            ResponseEntity<Map<String, Object>> permissionDenied = dialogAuthorizationService.requirePermission(authentication, "can_snooze", "snooze", ticketId);
             if (permissionDenied != null) {
                 return permissionDenied;
             }
             String operator = authentication != null ? authentication.getName() : "anonymous";
             Integer minutes = request != null ? request.minutes() : null;
             if (minutes == null || minutes <= 0) {
-                logQuickAction(operator, ticketId, "snooze", "error", "Некорректная длительность snooze");
+                dialogAuthorizationService.logDialogAction(operator, ticketId, "snooze", "error", "Некорректная длительность snooze");
                 return ResponseEntity.badRequest().body(Map.of("success", false, "error", "Некорректная длительность snooze"));
             }
-            logQuickAction(operator, ticketId, "snooze", "success", "minutes=" + minutes);
+            dialogAuthorizationService.logDialogAction(operator, ticketId, "snooze", "success", "minutes=" + minutes);
             return ResponseEntity.ok(Map.of("success", true));
         });
     }
@@ -249,46 +246,6 @@ public class DialogQuickActionsController {
                 log.debug("Quick action '{}' for ticket '{}' completed in {}ms", action, ticketId, elapsedMs);
             }
         }
-    }
-
-    private void logQuickAction(String actor, String ticketId, String action, String result, String detail) {
-        String safeActor = actor != null ? actor : "anonymous";
-        String safeDetail = detail != null ? detail : "";
-        log.info("Dialog quick action: actor='{}', ticket='{}', action='{}', result='{}', detail='{}'",
-                safeActor,
-                ticketId,
-                action,
-                result,
-                safeDetail);
-        dialogService.logDialogActionAudit(ticketId, safeActor, action, result, safeDetail);
-    }
-
-    private Map<String, Object> resolveWorkspacePermissions(Authentication authentication) {
-        boolean canDialog = permissionService.hasAuthority(authentication, "PAGE_DIALOGS");
-        boolean canBulk = canDialog && (permissionService.hasAuthority(authentication, "DIALOG_BULK_ACTIONS")
-                || permissionService.hasAuthority(authentication, "ROLE_ADMIN"));
-        return Map.of(
-                "can_reply", canDialog,
-                "can_assign", canDialog,
-                "can_close", canDialog,
-                "can_snooze", canDialog,
-                "can_bulk", canBulk
-        );
-    }
-
-    private ResponseEntity<Map<String, Object>> requireDialogPermission(Authentication authentication,
-                                                                        String permission,
-                                                                        String action,
-                                                                        String ticketId) {
-        Map<String, Object> permissions = resolveWorkspacePermissions(authentication);
-        boolean allowed = Boolean.TRUE.equals(permissions.get(permission));
-        if (allowed) {
-            return null;
-        }
-        String operator = authentication != null ? authentication.getName() : null;
-        logQuickAction(operator, ticketId, action, "forbidden", "Недостаточно прав: " + permission);
-        return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(Map.of("success", false, "error", "Недостаточно прав для выполнения действия"));
     }
 
     public record DialogReplyRequest(String message, Long replyToTelegramId) {}
