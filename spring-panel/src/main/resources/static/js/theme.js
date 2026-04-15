@@ -73,7 +73,7 @@
   }
 
   const savedTheme = normalizeTheme(localStorage.getItem(THEME_STORAGE_KEY) || 'light');
-  const savedPalette = 'mono';
+  const savedPalette = normalizePalette(localStorage.getItem(PALETTE_STORAGE_KEY) || 'neo');
   localStorage.setItem(THEME_STORAGE_KEY, savedTheme);
   localStorage.setItem(PALETTE_STORAGE_KEY, savedPalette);
   applyTheme(savedTheme);

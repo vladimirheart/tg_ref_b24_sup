@@ -505,6 +505,26 @@ body, html {
   color: var(--color-text-muted) !important;
 }
 
+.text-primary,
+.link-primary {
+  color: var(--color-accent) !important;
+}
+
+.text-success,
+.text-success-emphasis {
+  color: var(--chart-2) !important;
+}
+
+.text-warning,
+.text-warning-emphasis {
+  color: var(--chart-3) !important;
+}
+
+.text-danger,
+.text-danger-emphasis {
+  color: var(--destructive) !important;
+}
+
 a.link-primary,
 a.link-secondary,
 a.link-light,
@@ -528,6 +548,28 @@ a:not([class]) {
 
 .bg-light {
   background-color: color-mix(in srgb, var(--color-bg-muted) 75%, var(--color-surface)) !important;
+}
+
+.bg-body-tertiary {
+  background-color: color-mix(in srgb, var(--color-bg-muted) 75%, var(--color-surface)) !important;
+}
+
+.bg-primary-subtle {
+  background-color: color-mix(in srgb, var(--color-accent) 12%, var(--color-surface)) !important;
+}
+
+.bg-success-subtle {
+  background-color: color-mix(in srgb, var(--chart-2) 12%, var(--color-surface)) !important;
+}
+
+.bg-warning-subtle {
+  background-color: color-mix(in srgb, var(--chart-3) 16%, var(--color-surface)) !important;
+}
+
+.spinner-border.text-primary,
+.spinner-border.text-success,
+.spinner-border.text-warning {
+  color: currentColor !important;
 }
 
 .nav-tabs {
