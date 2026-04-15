@@ -135,6 +135,18 @@
       background: radial-gradient(circle at center, color-mix(in srgb, var(--chart-2) 36%, white), transparent 72%);
     }
 
+    :root {
+      --settings-sheet-sidebar-offset: calc(var(--sidebar-w, 308px) + 0.85rem);
+    }
+
+    body.with-sidebar.sidebar-collapsed {
+      --settings-sheet-sidebar-offset: calc(var(--sidebar-w-collapsed, 84px) + 0.85rem);
+    }
+
+    body.with-sidebar.sidebar-hovering {
+      --settings-sheet-sidebar-offset: calc(var(--sidebar-w, 308px) + 0.85rem);
+    }
+
     .settings-page-hero {
       position: relative;
       isolation: isolate;
@@ -373,6 +385,105 @@
       color: var(--primary);
       background: color-mix(in srgb, var(--card) 96%, white);
       box-shadow: 0 0.25rem 0.7rem rgba(15, 23, 42, 0.08);
+    }
+
+    .settings-sheet-modal {
+      --settings-sheet-gap: 0.9rem;
+      --settings-sheet-width: min(1120px, calc(100vw - var(--settings-sheet-sidebar-offset) - 1.1rem));
+      background:
+        linear-gradient(90deg, transparent 0, transparent calc(var(--settings-sheet-sidebar-offset) - 0.5rem), rgba(11, 23, 16, 0.06) calc(var(--settings-sheet-sidebar-offset) + 1.2rem));
+      pointer-events: none;
+    }
+
+    .settings-sheet-modal .modal-dialog {
+      position: fixed;
+      inset: var(--settings-sheet-gap) var(--settings-sheet-gap) var(--settings-sheet-gap) auto;
+      margin: 0;
+      width: var(--settings-sheet-width);
+      max-width: none;
+      height: calc(100vh - (var(--settings-sheet-gap) * 2));
+      overflow: hidden;
+      resize: none;
+      transform: translateX(28px) scale(1);
+      pointer-events: auto;
+    }
+
+    .settings-sheet-modal.show .modal-dialog {
+      transform: translateX(0) scale(1);
+    }
+
+    .settings-sheet-modal.is-expanded {
+      --settings-sheet-width: calc(100vw - var(--settings-sheet-sidebar-offset) - 0.85rem);
+    }
+
+    .settings-sheet-modal .modal-content {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      border-radius: 1.5rem;
+      box-shadow: 0 1.5rem 3rem rgba(15, 23, 42, 0.22);
+    }
+
+    .settings-sheet-modal .modal-header,
+    .settings-sheet-modal .modal-footer {
+      flex-shrink: 0;
+    }
+
+    .settings-sheet-modal .modal-body {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow: auto;
+      padding-right: 1.2rem;
+    }
+
+    .settings-sheet-modal .modal-title {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .settings-sheet-modal .modal-title::before {
+      content: '';
+      width: 0.6rem;
+      height: 0.6rem;
+      border-radius: 999px;
+      background: linear-gradient(135deg, var(--primary), var(--chart-2));
+      box-shadow: 0 0 0 0.22rem color-mix(in srgb, var(--primary) 16%, transparent);
+      flex-shrink: 0;
+    }
+
+    .settings-sheet-actions {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      margin-left: auto;
+      padding-left: 1rem;
+    }
+
+    .settings-sheet-toggle {
+      width: 2.3rem;
+      height: 2.3rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      border: 1px solid color-mix(in srgb, var(--color-border) 78%, transparent);
+      background: color-mix(in srgb, var(--card) 92%, white);
+      color: var(--color-text-muted);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+      transition: transform 0.18s ease, background-color 0.18s ease, border-color 0.18s ease;
+    }
+
+    .settings-sheet-toggle:hover,
+    .settings-sheet-toggle:focus-visible {
+      transform: translateY(-1px);
+      background: color-mix(in srgb, var(--secondary) 20%, white);
+      border-color: color-mix(in srgb, var(--primary) 24%, transparent);
+      color: var(--primary);
+    }
+
+    .settings-sheet-toggle i {
+      pointer-events: none;
     }
 
     .settings-menu-tabs {
@@ -1524,6 +1635,25 @@
       .settings-surface::after {
         display: none;
       }
+      .settings-sheet-modal {
+        --settings-sheet-sidebar-offset: 0px;
+        background: rgba(11, 23, 16, 0.18);
+        pointer-events: auto;
+      }
+      .settings-sheet-modal .modal-dialog {
+        position: relative;
+        inset: auto;
+        width: min(100vw - 1rem, 100%);
+        height: auto;
+        min-height: calc(100vh - 1rem);
+        margin: 0.5rem auto;
+      }
+      .settings-sheet-modal .modal-content {
+        min-height: calc(100vh - 1rem);
+      }
+      .settings-sheet-modal .modal-body {
+        padding-right: 1.05rem;
+      }
       .settings-menu-tabs {
         overflow-x: auto;
         flex-wrap: nowrap;
@@ -1814,7 +1944,7 @@
     </div>
 
     <!-- Настройка вводимых данных -->
-    <div class="modal fade" id="inputFormattingModal" tabindex="-1" aria-labelledby="inputFormattingModalLabel" aria-hidden="true">
+    <div class="modal fade settings-sheet-modal" id="inputFormattingModal" tabindex="-1" aria-labelledby="inputFormattingModalLabel" aria-hidden="true" data-settings-sheet data-bs-backdrop="false" data-bs-focus="false">
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
@@ -2119,7 +2249,7 @@
     </div>
 
     <!-- Пользователи -->
-    <div class="modal fade" id="usersModal" tabindex="-1" aria-labelledby="usersModalLabel" aria-hidden="true">
+    <div class="modal fade settings-sheet-modal" id="usersModal" tabindex="-1" aria-labelledby="usersModalLabel" aria-hidden="true" data-settings-sheet data-bs-backdrop="false" data-bs-focus="false">
       <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
@@ -2487,7 +2617,7 @@
     </div>
 
     <!-- Настройки диалогов -->
-    <div class="modal fade" id="categoriesModal" tabindex="-1" aria-labelledby="categoriesModalLabel" aria-hidden="true">
+    <div class="modal fade settings-sheet-modal" id="categoriesModal" tabindex="-1" aria-labelledby="categoriesModalLabel" aria-hidden="true" data-settings-sheet data-bs-backdrop="false" data-bs-focus="false">
       <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
@@ -4047,7 +4177,7 @@
     </div>
 
     <!-- Локации -->
-    <div class="modal fade" id="locationsModal" tabindex="-1" aria-labelledby="locationsModalLabel" aria-hidden="true">
+    <div class="modal fade settings-sheet-modal" id="locationsModal" tabindex="-1" aria-labelledby="locationsModalLabel" aria-hidden="true" data-settings-sheet data-bs-backdrop="false" data-bs-focus="false">
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
@@ -4190,7 +4320,7 @@
     </div>
 
     <!-- Параметры партнёров -->
-    <div class="modal fade" id="parametersModal" tabindex="-1" aria-labelledby="parametersModalLabel" aria-hidden="true">
+    <div class="modal fade settings-sheet-modal" id="parametersModal" tabindex="-1" aria-labelledby="parametersModalLabel" aria-hidden="true" data-settings-sheet data-bs-backdrop="false" data-bs-focus="false">
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
@@ -4362,7 +4492,7 @@
       </div>
     </div>
 
-    <div class="modal fade" id="legalEntitiesModal" tabindex="-1" aria-labelledby="legalEntitiesModalLabel" aria-hidden="true">
+    <div class="modal fade settings-sheet-modal" id="legalEntitiesModal" tabindex="-1" aria-labelledby="legalEntitiesModalLabel" aria-hidden="true" data-settings-sheet data-bs-backdrop="false" data-bs-focus="false">
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
@@ -4415,7 +4545,7 @@
     </div>
 
     <!-- Подключения IT-блока и профили провайдеров -->
-    <div class="modal fade" id="itConnectionsModal" tabindex="-1" aria-labelledby="itConnectionsModalLabel" aria-hidden="true">
+    <div class="modal fade settings-sheet-modal" id="itConnectionsModal" tabindex="-1" aria-labelledby="itConnectionsModalLabel" aria-hidden="true" data-settings-sheet data-bs-backdrop="false" data-bs-focus="false">
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
@@ -5072,7 +5202,7 @@
                 <label class="form-label fw-semibold">Стиль интерфейса</label>
                 <div class="form-check">
                   <input class="form-check-input" type="radio" name="themePaletteOption" id="themePaletteNeo" value="neo">
-                  <label class="form-check-label" for="themePaletteNeo">Neo Contrast (индиго + бирюза)</label>
+                  <label class="form-check-label" for="themePaletteNeo">Neo Contrast (зелёный + бирюза + янтарный)</label>
                 </div>
                 <div class="form-check">
                   <input class="form-check-input" type="radio" name="themePaletteOption" id="themePaletteMono" value="mono">
@@ -22577,9 +22707,92 @@
       });
     });
   }
+
+  function updateSettingsModalBodyLock() {
+    const openBlockingModals = Array.from(document.querySelectorAll('.modal.show'))
+      .filter((modal) => modal instanceof HTMLElement && !modal.hasAttribute('data-settings-sheet'));
+    if (openBlockingModals.length) {
+      return;
+    }
+    document.body.classList.remove('modal-open');
+    document.body.style.removeProperty('overflow');
+    document.body.style.removeProperty('padding-right');
+  }
+
+  function resolveSettingsTileForModal(modal) {
+    if (!(modal instanceof HTMLElement) || !modal.id) {
+      return null;
+    }
+    return document.querySelector(`.settings-tile[data-bs-target="#${modal.id}"]`);
+  }
+
+  function syncSettingsSheetToggle(modal, toggle) {
+    if (!(modal instanceof HTMLElement) || !(toggle instanceof HTMLElement)) {
+      return;
+    }
+    const expanded = modal.classList.contains('is-expanded');
+    toggle.setAttribute('aria-pressed', expanded ? 'true' : 'false');
+    toggle.setAttribute('aria-label', expanded ? 'Свернуть панель' : 'Развернуть панель');
+    toggle.innerHTML = expanded
+      ? '<i class="bi bi-arrows-angle-contract" aria-hidden="true"></i>'
+      : '<i class="bi bi-arrows-angle-expand" aria-hidden="true"></i>';
+  }
+
+  function initSettingsSheetModals() {
+    const sheetModals = Array.from(document.querySelectorAll('[data-settings-sheet]'));
+    sheetModals.forEach((modal) => {
+      if (!(modal instanceof HTMLElement)) {
+        return;
+      }
+      const header = modal.querySelector('.modal-header');
+      const closeButton = header ? header.querySelector('.btn-close') : null;
+      if (header && closeButton && !header.querySelector('[data-settings-sheet-toggle]')) {
+        const actions = document.createElement('div');
+        actions.className = 'settings-sheet-actions';
+
+        const expandButton = document.createElement('button');
+        expandButton.type = 'button';
+        expandButton.className = 'settings-sheet-toggle';
+        expandButton.setAttribute('data-settings-sheet-toggle', '');
+        syncSettingsSheetToggle(modal, expandButton);
+        expandButton.addEventListener('click', () => {
+          modal.classList.toggle('is-expanded');
+          syncSettingsSheetToggle(modal, expandButton);
+        });
+
+        actions.appendChild(expandButton);
+        actions.appendChild(closeButton);
+        header.appendChild(actions);
+      }
+
+      modal.addEventListener('shown.bs.modal', () => {
+        const tile = resolveSettingsTileForModal(modal);
+        tile?.classList.add('is-active');
+        updateSettingsModalBodyLock();
+      });
+
+      modal.addEventListener('hidden.bs.modal', () => {
+        modal.classList.remove('is-expanded');
+        const tile = resolveSettingsTileForModal(modal);
+        tile?.classList.remove('is-active');
+        const toggle = modal.querySelector('[data-settings-sheet-toggle]');
+        syncSettingsSheetToggle(modal, toggle);
+        updateSettingsModalBodyLock();
+      });
+    });
+
+    document.addEventListener('shown.bs.modal', () => {
+      window.requestAnimationFrame(updateSettingsModalBodyLock);
+    });
+    document.addEventListener('hidden.bs.modal', () => {
+      window.requestAnimationFrame(updateSettingsModalBodyLock);
+    });
+  }
+
   document.addEventListener('DOMContentLoaded', () => {
     initReporting();
     initSettingsTileDescriptions();
+    initSettingsSheetModals();
   });
 
   </script>
