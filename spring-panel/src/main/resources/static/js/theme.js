@@ -13,10 +13,10 @@
   }
 
   function normalizePalette(palette) {
-    if (palette === 'neo' || palette === 'mono') {
+    if (palette === 'neo' || palette === 'catppuccin' || palette === 'amber-minimal') {
       return palette;
     }
-    return 'mono';
+    return 'neo';
   }
 
   function syncBodyDatasets(themeValue, paletteValue) {
@@ -42,7 +42,7 @@
   function applyTheme(theme) {
     const normalized = normalizeTheme(theme);
     const effective = resolveEffective(normalized);
-    const palette = normalizePalette(localStorage.getItem(PALETTE_STORAGE_KEY) || 'mono');
+    const palette = normalizePalette(localStorage.getItem(PALETTE_STORAGE_KEY) || 'neo');
     if (root) {
       root.dataset.themeChoice = normalized;
       root.dataset.theme = effective;
