@@ -6,12 +6,12 @@
   <meta name="_csrf" th:content="${_csrf.token}" />
   <title>Настройки — iguana</title>
   <link rel="icon" type="image/svg+xml" href="/iguana-icon.svg" />
+  <th:block th:replace="~{fragments/ui-head :: uiHead}"></th:block>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet" />
   <link href="/css/style.css" rel="stylesheet" />
   <link href="/css/sidebar.css" rel="stylesheet" />
   <link href="/css/app.css" rel="stylesheet" />
-  <script src="/js/ui-config.js"></script>
   <script src="/js/common.js"></script>
   <style>
     .settings-tiles .settings-tile {

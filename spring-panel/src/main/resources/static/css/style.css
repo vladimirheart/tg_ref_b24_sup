@@ -113,6 +113,31 @@ body[data-ui-page='dialogs'] {
   --ui-page-max-width: 1760px;
 }
 
+body[data-ui-page='ai-ops'] {
+  --ui-page-max-width: 1760px;
+  --ui-panel-shadow: 0 24px 44px rgba(18, 33, 23, 0.12);
+}
+
+body[data-ui-page='analytics'] {
+  --ui-page-max-width: 1720px;
+}
+
+body[data-ui-page='clients'],
+body[data-ui-page='knowledge'],
+body[data-ui-page='channels'],
+body[data-ui-page='users'] {
+  --ui-page-max-width: 1680px;
+}
+
+body[data-ui-page='tasks'],
+body[data-ui-page='passports'] {
+  --ui-page-max-width: 1640px;
+}
+
+body[data-ui-page='public'] {
+  --ui-page-max-width: 1320px;
+}
+
 :root[data-theme='dark']:not([data-theme-palette]),
 :root[data-theme='dark'][data-theme-palette='neo'],
 :root.dark[data-theme-palette='neo'],
