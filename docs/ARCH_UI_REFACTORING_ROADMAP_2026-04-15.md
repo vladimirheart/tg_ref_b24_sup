@@ -106,6 +106,16 @@
   `DialogTriagePreferencesController`.
 - продолжено: quick actions (`reply/edit/delete/media/resolve/reopen/categories/take/snooze`)
   вынесены в `DialogQuickActionsController` и `DialogQuickActionService`.
+- продолжено: macro API (`/macro/dry-run`, `/macro/variables`) вынесен в
+  `DialogMacroController` и `DialogMacroService`.
+- продолжено: workspace telemetry API и summary orchestration вынесены в
+  `DialogWorkspaceTelemetryController` и `DialogWorkspaceTelemetryService`.
+- продолжено: AI ops API (`ai-suggestions`, `ai-control`, `ai-review`,
+  `ai-solution-memory`, `ai-monitoring`) вынесен в
+  `DialogAiOpsController` и `DialogAiOpsService`.
+- поддерживающий слой: dialog permission checks и audit logging вынесены в
+  общий `DialogAuthorizationService`, чтобы новые dialog controllers не
+  дублировали права и forbidden-audit.
 
 ### Phase 4. Settings Domain Split
 
