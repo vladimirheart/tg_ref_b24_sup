@@ -295,7 +295,9 @@ public class DialogService {
                     rs.getString("last_sender_time"),
                     rs.getObject("unread_count") != null ? rs.getInt("unread_count") : 0,
                     rs.getObject("rating") != null ? rs.getInt("rating") : null,
-                    rs.getString("categories")
+                    rs.getString("categories"),
+                    null,
+                    null
             ), currentOperator);
             return enrichResponsibleProfiles(items);
         } catch (DataAccessException ex) {
@@ -461,7 +463,9 @@ public class DialogService {
                     rs.getString("last_sender_time"),
                     rs.getObject("unread_count") != null ? rs.getInt("unread_count") : 0,
                     rs.getObject("rating") != null ? rs.getInt("rating") : null,
-                    rs.getString("categories")
+                    rs.getString("categories"),
+                    null,
+                    null
             ), operator, ticketId);
             List<DialogListItem> enriched = enrichResponsibleProfiles(items);
             return enriched.isEmpty() ? Optional.empty() : Optional.of(enriched.get(0));
@@ -579,6 +583,14 @@ public class DialogService {
             return null;
         }
         String normalized = value.trim().toLowerCase(Locale.ROOT);
+        return normalized.isEmpty() ? null : normalized;
+    }
+
+    private String trimToNull(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        String normalized = value.trim();
         return normalized.isEmpty() ? null : normalized;
     }
 
