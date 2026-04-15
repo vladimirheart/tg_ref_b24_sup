@@ -11,6 +11,7 @@
   <link href="/css/style.css" rel="stylesheet" />
   <link href="/css/sidebar.css" rel="stylesheet" />
   <link href="/css/app.css" rel="stylesheet" />
+  <script src="/js/ui-config.js"></script>
   <script src="/js/common.js"></script>
   <style>
     .settings-tiles .settings-tile {
@@ -1664,18 +1665,18 @@
     }
   </style>
 </head>
-<body class="with-sidebar sidebar-pinned">
+<body class="with-sidebar sidebar-pinned" data-ui-page="settings">
   <div th:replace="~{fragments/navbar :: navbar('settings')}"></div>
   <main class="main-content container-fluid">
 
-  <div class="container mt-4 settings-surface">
-    <div class="page-header-card settings-page-hero">
+  <div class="container-fluid mt-4 settings-surface page-shell page-shell--settings page-shell--flush">
+    <div class="page-header-card settings-page-hero page-hero">
       <span class="page-kicker">Workspace Control</span>
       <h2 class="page-title">⚙️ Настройки системы</h2>
       <p class="page-subtitle">Каналы, доступы, справочники и оформление панели в одном рабочем пространстве.</p>
     </div>
 
-    <div class="card settings-overview settings-overview--chromed mb-4">
+    <div class="card settings-overview settings-overview--chromed mb-4 control-panel">
       <div class="card-body p-3 p-lg-4">
         <div class="row g-3 align-items-start">
           <div class="col-xl-7">

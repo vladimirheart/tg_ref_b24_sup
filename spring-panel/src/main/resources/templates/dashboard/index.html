@@ -11,12 +11,14 @@
   <link href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" rel="stylesheet" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
   <link th:href="@{/css/style.css}" rel="stylesheet" />
+  <link th:href="@{/css/app.css}" rel="stylesheet" />
   <link th:href="@{/css/sidebar.css(v='2')}" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
   <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ru.js"></script>
+  <script th:src="@{/js/ui-config.js}"></script>
   <script th:src="@{/js/common.js}"></script>
   <style>
     body {
@@ -970,11 +972,11 @@
     }
   </style>
 </head>
-<body class="with-sidebar sidebar-pinned">
+<body class="with-sidebar sidebar-pinned" data-ui-page="dashboard">
   <div th:replace="~{fragments/navbar :: navbar(${activePage})}"></div>
   <main class="main-content container-fluid">
-  <div class="reports-shell">
-    <section class="reports-hero">
+  <div class="reports-shell page-shell page-shell--dashboard">
+    <section class="reports-hero page-hero">
       <div class="reports-hero-copy">
         <span class="reports-kicker">Support Intelligence</span>
         <h1 class="reports-hero-title">Операционный центр поддержки iguana</h1>
@@ -1042,7 +1044,7 @@
     <div class="tab-content">
       <div class="tab-pane fade show active" id="reports-dashboard" role="tabpanel">
         <section class="dashboard-overview-grid">
-          <div class="filter-panel">
+          <div class="filter-panel control-panel">
             <div class="panel-head">
               <div>
                 <span class="section-kicker">Фильтры</span>
@@ -1076,7 +1078,7 @@
             </div>
           </div>
 
-          <div class="metrics-panel">
+          <div class="metrics-panel control-panel">
             <div class="panel-head">
               <div>
                 <span class="section-kicker">Control center</span>
@@ -1122,7 +1124,7 @@
         </section>
 
         <section class="dashboard-grid">
-          <article class="chart-panel chart-panel--wide">
+          <article class="chart-panel chart-panel--wide data-panel">
             <div class="chart-panel-head">
               <div>
                 <span class="section-kicker">Команда</span>
@@ -1135,7 +1137,7 @@
             </div>
           </article>
 
-          <article class="chart-panel">
+          <article class="chart-panel data-panel">
             <div class="chart-panel-head">
               <div>
                 <span class="section-kicker">Каналы</span>
@@ -1148,7 +1150,7 @@
             </div>
           </article>
 
-          <article class="chart-panel">
+          <article class="chart-panel data-panel">
             <div class="chart-panel-head">
               <div>
                 <span class="section-kicker">Команда</span>
@@ -1161,7 +1163,7 @@
             </div>
           </article>
 
-          <article class="chart-panel">
+          <article class="chart-panel data-panel">
             <div class="chart-panel-head">
               <div>
                 <span class="section-kicker">Бизнес</span>
@@ -1177,7 +1179,7 @@
             </div>
           </article>
 
-          <article class="chart-panel">
+          <article class="chart-panel data-panel">
             <div class="chart-panel-head">
               <div>
                 <span class="section-kicker">Сети</span>
@@ -1193,7 +1195,7 @@
             </div>
           </article>
 
-          <article class="chart-panel">
+          <article class="chart-panel data-panel">
             <div class="chart-panel-head">
               <div>
                 <span class="section-kicker">Категории</span>
@@ -1206,7 +1208,7 @@
             </div>
           </article>
 
-          <article class="chart-panel">
+          <article class="chart-panel data-panel">
             <div class="chart-panel-head">
               <div>
                 <span class="section-kicker">География</span>
@@ -1219,7 +1221,7 @@
             </div>
           </article>
 
-          <article class="chart-panel chart-panel--wide">
+          <article class="chart-panel chart-panel--wide data-panel">
             <div class="chart-panel-head">
               <div>
                 <span class="section-kicker">Локации</span>
