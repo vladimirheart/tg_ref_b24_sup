@@ -61,11 +61,11 @@
 - начато частично: введён общий runtime-модуль для browser-only preferences,
   на который переведены `theme` и `sidebar`;
 - добавлен server-backed bootstrap/sync слой для operator UI preferences.
+- triage preferences диалогов переведены на server-backed storage с
+  backward-compatible fallback к legacy shared JSON.
 
 Что сделать:
 
-- ввести `UiPreferenceService`/`UiPreferenceController` для операторских UI
-  предпочтений;
 - зафиксировать перечень допустимых browser-prefs:
   `theme`, `palette`, `density`, `sidebar pin/order`, `dialogs view state`;
 - убрать raw color-значения из runtime-конфигов там, где они должны зависеть от
@@ -91,6 +91,12 @@
 
 - сначала выделять read-only slices и DTO mapping;
 - затем переносить write-сценарии.
+
+Статус:
+
+- начато: triage preference сценарий вынесен из `DialogApiController` в
+  отдельный `DialogTriagePreferenceService`, что даёт первый read/write slice
+  без изменения внешнего API для фронта.
 
 ### Phase 4. Settings Domain Split
 

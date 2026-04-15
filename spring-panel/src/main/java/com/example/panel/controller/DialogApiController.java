@@ -9,6 +9,7 @@ import com.example.panel.service.DialogNotificationService;
 import com.example.panel.service.DialogReplyService;
 import com.example.panel.service.DialogService;
 import com.example.panel.service.DialogAiAssistantService;
+import com.example.panel.service.DialogTriagePreferenceService;
 import com.example.panel.service.NotificationService;
 import com.example.panel.service.PermissionService;
 import com.example.panel.service.PublicFormService;
@@ -84,6 +85,7 @@ public class DialogApiController {
     private final PublicFormService publicFormService;
     private final SlaEscalationWebhookNotifier slaEscalationWebhookNotifier;
     private final DialogAiAssistantService dialogAiAssistantService;
+    private final DialogTriagePreferenceService dialogTriagePreferenceService;
     private static final long QUICK_ACTION_TARGET_MS = 1500;
     private static final int DEFAULT_SLA_TARGET_MINUTES = 24 * 60;
     private static final int DEFAULT_SLA_WARNING_MINUTES = 4 * 60;
@@ -183,7 +185,8 @@ public class DialogApiController {
                                NotificationService notificationService,
                                PublicFormService publicFormService,
                                SlaEscalationWebhookNotifier slaEscalationWebhookNotifier,
-                               DialogAiAssistantService dialogAiAssistantService) {
+                               DialogAiAssistantService dialogAiAssistantService,
+                               DialogTriagePreferenceService dialogTriagePreferenceService) {
         this.dialogService = dialogService;
         this.dialogReplyService = dialogReplyService;
         this.dialogNotificationService = dialogNotificationService;
@@ -194,6 +197,7 @@ public class DialogApiController {
         this.publicFormService = publicFormService;
         this.slaEscalationWebhookNotifier = slaEscalationWebhookNotifier;
         this.dialogAiAssistantService = dialogAiAssistantService;
+        this.dialogTriagePreferenceService = dialogTriagePreferenceService;
     }
 
     @GetMapping
@@ -2474,7 +2478,7 @@ public class DialogApiController {
         }
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("success", true);
-        payload.put("preferences", loadOperatorTriagePreferences(operator));
+        payload.put("preferences", dialogTriagePreferenceService.loadForOperator(operator));
         return ResponseEntity.ok(payload);
     }
 
@@ -2489,35 +2493,20 @@ public class DialogApiController {
         if (request == null) {
             return ResponseEntity.badRequest().body(Map.of("success", false, "error", "request body is required"));
         }
-        String view = normalizeDialogView(request.view());
-        String sortMode = normalizeSortMode(request.sortMode());
-        Integer slaWindowMinutes = normalizeSlaWindowMinutes(request.slaWindowMinutes());
-        String pageSize = normalizePageSizePreference(request.pageSize());
-
-        Map<String, Object> settings = new LinkedHashMap<>(sharedConfigService.loadSettings());
-        Map<String, Object> dialogConfig = settings.get("dialog_config") instanceof Map<?, ?> map
-                ? new LinkedHashMap<>(OBJECT_MAPPER.convertValue(map, new TypeReference<Map<String, Object>>() {}))
-                : new LinkedHashMap<>();
-        Map<String, Object> byOperator = dialogConfig.get("workspace_triage_preferences_by_operator") instanceof Map<?, ?> map
-                ? new LinkedHashMap<>(OBJECT_MAPPER.convertValue(map, new TypeReference<Map<String, Object>>() {}))
-                : new LinkedHashMap<>();
-        Map<String, Object> operatorPreferences = byOperator.get(operator) instanceof Map<?, ?> map
-                ? new LinkedHashMap<>(OBJECT_MAPPER.convertValue(map, new TypeReference<Map<String, Object>>() {}))
-                : new LinkedHashMap<>();
-        operatorPreferences.put("view", view);
-        operatorPreferences.put("sort_mode", sortMode);
-        if (slaWindowMinutes != null) {
-            operatorPreferences.put("sla_window_minutes", slaWindowMinutes);
-        } else {
-            operatorPreferences.remove("sla_window_minutes");
-        }
-        operatorPreferences.put("page_size", pageSize);
-        String updatedAtUtc = Instant.now().toString();
-        operatorPreferences.put("updated_at_utc", updatedAtUtc);
-        byOperator.put(operator, operatorPreferences);
-        dialogConfig.put("workspace_triage_preferences_by_operator", byOperator);
-        settings.put("dialog_config", dialogConfig);
-        sharedConfigService.saveSettings(settings);
+        String view = dialogTriagePreferenceService.normalizeView(request.view());
+        String sortMode = dialogTriagePreferenceService.normalizeSortMode(request.sortMode());
+        Integer slaWindowMinutes = dialogTriagePreferenceService.normalizeSlaWindowMinutes(request.slaWindowMinutes());
+        String pageSize = dialogTriagePreferenceService.normalizePageSizePreference(request.pageSize());
+        Map<String, Object> savedPreferences = dialogTriagePreferenceService.saveForOperator(
+                operator,
+                view,
+                sortMode,
+                slaWindowMinutes,
+                pageSize
+        );
+        String updatedAtUtc = savedPreferences.get("updated_at_utc") instanceof String value
+                ? value
+                : Instant.now().toString();
 
         dialogService.logWorkspaceTelemetry(
                 operator,
@@ -2542,7 +2531,7 @@ public class DialogApiController {
 
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("success", true);
-        payload.put("preferences", loadOperatorTriagePreferences(operator));
+        payload.put("preferences", savedPreferences);
         payload.put("updated_at_utc", updatedAtUtc);
         return ResponseEntity.ok(payload);
     }
@@ -3222,96 +3211,6 @@ public class DialogApiController {
         }
         String normalized = value.trim();
         return normalized.isEmpty() ? null : normalized;
-    }
-
-    private Map<String, Object> loadOperatorTriagePreferences(String operator) {
-        if (!StringUtils.hasText(operator)) {
-            return Map.of();
-        }
-        Map<String, Object> settings = sharedConfigService.loadSettings();
-        Object rawDialogConfig = settings.get("dialog_config");
-        if (!(rawDialogConfig instanceof Map<?, ?> dialogConfig)) {
-            return Map.of();
-        }
-        Object rawByOperator = dialogConfig.get("workspace_triage_preferences_by_operator");
-        if (!(rawByOperator instanceof Map<?, ?> byOperator)) {
-            return Map.of();
-        }
-        Object rawPreferences = byOperator.get(operator);
-        if (!(rawPreferences instanceof Map<?, ?> preferences)) {
-            return Map.of();
-        }
-        String view = normalizeDialogView(preferences.get("view"));
-        String sortMode = normalizeSortMode(preferences.get("sort_mode"));
-        Integer slaWindowMinutes = normalizeSlaWindowMinutes(preferences.get("sla_window_minutes"));
-        String pageSize = normalizePageSizePreference(preferences.get("page_size"));
-        String updatedAtUtc = normalizeUtcTimestamp(preferences.get("updated_at_utc"));
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("view", view);
-        payload.put("sort_mode", sortMode);
-        payload.put("page_size", pageSize);
-        if (slaWindowMinutes != null) {
-            payload.put("sla_window_minutes", slaWindowMinutes);
-        }
-        if (updatedAtUtc != null) {
-            payload.put("updated_at_utc", updatedAtUtc);
-        }
-        return payload;
-    }
-
-    private String normalizeDialogView(Object rawValue) {
-        String value = trimToNull(String.valueOf(rawValue));
-        if (!StringUtils.hasText(value)) {
-            return "all";
-        }
-        return switch (value.toLowerCase()) {
-            case "active", "new", "unassigned", "overdue", "sla_critical", "escalation_required" -> value.toLowerCase();
-            default -> "all";
-        };
-    }
-
-    private String normalizeSortMode(Object rawValue) {
-        String value = trimToNull(String.valueOf(rawValue));
-        if (!StringUtils.hasText(value)) {
-            return "default";
-        }
-        return "sla_priority".equalsIgnoreCase(value) ? "sla_priority" : "default";
-    }
-
-    private Integer normalizeSlaWindowMinutes(Object rawValue) {
-        if (rawValue == null) {
-            return null;
-        }
-        int parsed;
-        if (rawValue instanceof Number number) {
-            parsed = number.intValue();
-        } else {
-            try {
-                parsed = Integer.parseInt(String.valueOf(rawValue).trim());
-            } catch (NumberFormatException ex) {
-                return null;
-            }
-        }
-        return switch (parsed) {
-            case 15, 30, 60, 120, 240 -> parsed;
-            default -> null;
-        };
-    }
-
-    private String normalizePageSizePreference(Object rawValue) {
-        String value = trimToNull(String.valueOf(rawValue));
-        if (!StringUtils.hasText(value)) {
-            return "20";
-        }
-        if ("all".equalsIgnoreCase(value)) {
-            return "all";
-        }
-        try {
-            int parsed = Integer.parseInt(value);
-            return parsed > 0 ? String.valueOf(parsed) : "20";
-        } catch (NumberFormatException ex) {
-            return "20";
-        }
     }
 
     private int resolveIntegerDialogConfigValue(Object rawValue, int fallbackValue, int min, int max) {
