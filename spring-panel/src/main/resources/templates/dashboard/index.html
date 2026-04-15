@@ -1306,6 +1306,12 @@
 <script>
     let charts = {};
     const chartPaletteCache = {};
+    const dashboardRenderCache = {
+      channelData: null,
+      chartData: null,
+      staffStats: null
+    };
+    let themeRedrawTimer = null;
 
     function withAlpha(color, alpha) {
       if (!color) return `rgba(0,0,0,${alpha})`;
@@ -1334,6 +1340,84 @@
       return chartPaletteCache[key];
     }
 
+    function clearChartPaletteCache() {
+      Object.keys(chartPaletteCache).forEach((key) => delete chartPaletteCache[key]);
+    }
+
+    function getChartProfile() {
+      const paletteName = document.documentElement.dataset.themePalette || 'neo';
+      const isDark = document.documentElement.dataset.theme === 'dark';
+      const base = {
+        paletteName,
+        isDark,
+        surface: getChartCssColor('--color-surface', isDark ? '#16221c' : '#ffffff'),
+        text: getChartCssColor('--color-text', isDark ? '#eff8f1' : '#132117'),
+        accent: getChartCssColor('--color-accent', '#d9a441'),
+        primary: getChartCssColor('--color-primary', '#1f6b4f'),
+        secondary: getChartCssColor('--color-secondary', '#1d8b88')
+      };
+
+      if (paletteName === 'catppuccin') {
+        return {
+          ...base,
+          doughnutCutout: '68%',
+          barStartAlpha: isDark ? 0.94 : 0.9,
+          barEndAlpha: isDark ? 0.38 : 0.2,
+          lineColor: getChartCssColor('--chart-2', '#89b4fa'),
+          lineFill: withAlpha(getChartCssColor('--chart-2', '#89b4fa'), isDark ? 0.22 : 0.12),
+          pointBorder: isDark ? '#1e1e2e' : '#eff1f5',
+          tooltipBackground: isDark ? withAlpha('#1e1e2e', 0.98) : withAlpha('#4c4f69', 0.94),
+          tooltipText: '#f9fbff'
+        };
+      }
+
+      if (paletteName === 'amber-minimal') {
+        return {
+          ...base,
+          doughnutCutout: '70%',
+          barStartAlpha: isDark ? 0.94 : 0.92,
+          barEndAlpha: isDark ? 0.34 : 0.18,
+          lineColor: getChartCssColor('--chart-3', '#f3d49a'),
+          lineFill: withAlpha(getChartCssColor('--chart-3', '#f3d49a'), isDark ? 0.24 : 0.14),
+          pointBorder: isDark ? '#221b15' : '#fffdf8',
+          tooltipBackground: isDark ? withAlpha('#221b15', 0.98) : withAlpha('#3b2a18', 0.94),
+          tooltipText: '#fff8ef'
+        };
+      }
+
+      return {
+        ...base,
+        doughnutCutout: '64%',
+        barStartAlpha: isDark ? 0.92 : 0.9,
+        barEndAlpha: isDark ? 0.36 : 0.18,
+        lineColor: getChartCssColor('--chart-3', '#d9a441'),
+        lineFill: withAlpha(getChartCssColor('--chart-3', '#d9a441'), isDark ? 0.22 : 0.14),
+        pointBorder: isDark ? '#10231a' : '#ffffff',
+        tooltipBackground: isDark ? withAlpha('#132117', 0.98) : withAlpha('#132117', 0.94),
+        tooltipText: '#f4faf6'
+      };
+    }
+
+    function buildCanvasGradient(canvas, color, direction = 'vertical') {
+      const ctx = canvas?.getContext?.('2d');
+      if (!ctx) {
+        return color;
+      }
+      const profile = getChartProfile();
+      const width = canvas.clientWidth || canvas.width || 320;
+      const height = canvas.clientHeight || canvas.height || 220;
+      const gradient = direction === 'horizontal'
+        ? ctx.createLinearGradient(0, 0, width, 0)
+        : ctx.createLinearGradient(0, 0, 0, height);
+      gradient.addColorStop(0, withAlpha(color, profile.barStartAlpha));
+      gradient.addColorStop(1, withAlpha(color, profile.barEndAlpha));
+      return gradient;
+    }
+
+    function buildChartFills(canvas, colors, direction = 'vertical') {
+      return colors.map((color) => buildCanvasGradient(canvas, color, direction));
+    }
+
     function getChartPalette(variant = 'default') {
       const base = [
         getChartCssColor('--chart-1', '#1f6b4f'),
@@ -1341,9 +1425,9 @@
         getChartCssColor('--chart-3', '#d9a441'),
         getChartCssColor('--chart-4', '#d46a6a'),
         getChartCssColor('--chart-5', '#7fa43a'),
-        '#2f7bd1',
-        '#ef8a25',
-        '#c9557d'
+        getChartCssColor('--color-secondary', '#2f7bd1'),
+        getChartCssColor('--color-accent', '#ef8a25'),
+        getChartCssColor('--color-primary', '#c9557d')
       ];
       if (variant === 'warm') {
         return [base[2], base[6], base[3], base[7], base[0], base[4], base[1], base[5]];
@@ -1355,11 +1439,14 @@
     }
 
     function getChartTheme() {
+      const profile = getChartProfile();
       return {
-        grid: withAlpha(getChartCssColor('--color-border', '#cad6c7'), 0.18),
+        grid: withAlpha(getChartCssColor('--color-border', '#cad6c7'), profile.isDark ? 0.28 : 0.42),
         text: getChartCssColor('--color-text', '#132117'),
         muted: getChartCssColor('--color-text-muted', '#536055'),
-        border: withAlpha(getChartCssColor('--color-surface', '#ffffff'), 0.95)
+        border: withAlpha(getChartCssColor('--color-surface', '#ffffff'), profile.isDark ? 0.88 : 0.96),
+        tooltipBackground: profile.tooltipBackground,
+        tooltipText: profile.tooltipText
       };
     }
 
@@ -1383,7 +1470,11 @@
             x: {
               grid: { display: false, drawBorder: false },
               border: { display: false },
-              ticks: { color: theme.muted }
+              ticks: {
+                color: theme.muted,
+                maxRotation: 0,
+                minRotation: 0
+              }
             },
             y: {
               beginAtZero: true,
@@ -1402,14 +1493,16 @@
           labels: {
             color: theme.text,
             usePointStyle: true,
+            pointStyle: 'circle',
             boxWidth: 10,
             boxHeight: 10
           }
         },
         tooltip: {
-          backgroundColor: withAlpha(theme.text, 0.94),
-          titleColor: '#ffffff',
-          bodyColor: '#ffffff',
+          backgroundColor: theme.tooltipBackground,
+          titleColor: theme.tooltipText,
+          bodyColor: theme.tooltipText,
+          displayColors: true,
           padding: 12,
           cornerRadius: 14
         }
@@ -1705,19 +1798,42 @@ async function loadDashboardData() {
     if (st.by_channel) {
       const dataByChannel = {};
       st.by_channel.forEach(x => { dataByChannel[x.name || '—'] = x.total || 0; });
-      updateChart('chartByChannel', 'bar', dataByChannel, getChartPalette('cool'), true);
+      dashboardRenderCache.channelData = dataByChannel;
+      updateChart('chartByChannel', 'bar', dataByChannel, getChartPalette('cool'), true, {
+        horizontal: false,
+        showLegend: false,
+        maxBars: 7
+      });
     }
 
     // Вызов обновления статистики по сотрудникам
     updateStaffTimeStats(data.staff_time_stats);
+    dashboardRenderCache.staffStats = Array.isArray(data.staff_time_stats) ? data.staff_time_stats : [];
     updateStaffWorkloadChart(data.staff_time_stats);
 
     // Обновляем графики
+    dashboardRenderCache.chartData = data.charts || {};
     updateCharts(data.charts);
 
   } catch (error) {
     console.error('Ошибка:', error);
     showNotification('Ошибка загрузки данных дашборда: ' + error.message, 'error');
+  }
+}
+
+function rerenderDashboardCharts() {
+  if (dashboardRenderCache.channelData && Object.keys(dashboardRenderCache.channelData).length) {
+    updateChart('chartByChannel', 'bar', dashboardRenderCache.channelData, getChartPalette('cool'), true, {
+      horizontal: false,
+      showLegend: false,
+      maxBars: 7
+    });
+  }
+  if (dashboardRenderCache.staffStats && dashboardRenderCache.staffStats.length) {
+    updateStaffWorkloadChart(dashboardRenderCache.staffStats);
+  }
+  if (dashboardRenderCache.chartData && Object.keys(dashboardRenderCache.chartData).length) {
+    updateCharts(dashboardRenderCache.chartData);
   }
 }
 
@@ -1848,8 +1964,6 @@ function updateStaffTimeStats(staffStats) {
 
         ctx.save();
         ctx.font = '600 12px "DM Sans", sans-serif';
-        ctx.textBaseline = 'middle';
-        ctx.textAlign = 'left';
         ctx.fillStyle = getChartTheme().text;
 
         meta.data.forEach((barEl, i) => {
@@ -1857,22 +1971,30 @@ function updateStaffTimeStats(staffStats) {
           const val = data[i] ?? 0;
           const pct = visibleTotal > 0 ? ((val / visibleTotal) * 100).toFixed(1) : '0.0';
           const text = `${val} (${pct}%)`;
-
+          const isHorizontal = chart.options.indexAxis === 'y';
           const pad = 6;
           const tw = ctx.measureText(text).width;
 
-          // для горизонтального bar: base — левый край оси, x — конец столбика
-          let x = barEl.base + pad; // попробуем внутри «слева»
-          const y = barEl.y;
+          if (isHorizontal) {
+            ctx.textBaseline = 'middle';
+            ctx.textAlign = 'left';
+            let x = barEl.base + pad;
+            const y = barEl.y;
+            const maxX = chartArea.right - pad;
+            if (x + tw > maxX) x = Math.max(barEl.x - tw - pad, chartArea.left + pad);
+            if (x < chartArea.left + pad) x = chartArea.left + pad;
+            if (x + tw > chartArea.right - pad) x = chartArea.right - pad - tw;
+            ctx.fillText(text, x, y);
+            return;
+          }
 
-          // если текст не помещается справа — переносим перед концом столбика, но не выходим за границы
-          const maxX = chartArea.right - pad;
-          if (x + tw > maxX) x = Math.max(barEl.x - tw - pad, chartArea.left + pad);
-
-          // финальные «стопоры»
-          if (x < chartArea.left + pad) x = chartArea.left + pad;
-          if (x + tw > chartArea.right - pad) x = chartArea.right - pad - tw;
-
+          ctx.textBaseline = 'bottom';
+          ctx.textAlign = 'center';
+          const x = barEl.x;
+          let y = barEl.y - 8;
+          if (y < chartArea.top + 12) {
+            y = Math.min(barEl.base - 12, chartArea.bottom - 8);
+          }
           ctx.fillText(text, x, y);
         });
 
@@ -1899,15 +2021,25 @@ function updateStaffTimeStats(staffStats) {
         updatePieChartWithLegend('networkChart', 'networkLegend', chartData.network, getChartPalette('warm'));
 
         // Столбчатые диаграммы
-        updateChart('categoryChart', 'bar', chartData.category, getChartPalette('default'), true);
-        updateChart('cityChart', 'bar', chartData.city, getChartPalette('cool'), true);
-        updateChart('restaurantChart', 'bar', chartData.restaurant, getChartPalette('warm'), true);
+        updateChart('categoryChart', 'bar', chartData.category, getChartPalette('default'), true, {
+          horizontal: true,
+          maxBars: 7
+        });
+        updateChart('cityChart', 'bar', chartData.city, getChartPalette('cool'), true, {
+          horizontal: false,
+          maxBars: 6
+        });
+        updateChart('restaurantChart', 'bar', chartData.restaurant, getChartPalette('warm'), true, {
+          horizontal: true,
+          maxBars: 7
+        });
     }
 
 // Обновление круговой диаграммы с отдельной легендой
 function updatePieChartWithLegend(canvasId, legendId, data, colors) {
   const ctx = document.getElementById(canvasId);
   const legendContainer = document.getElementById(legendId);
+  const profile = getChartProfile();
 
   // Проверяем, существуют ли элементы
   if (!ctx || !legendContainer) {
@@ -1993,20 +2125,24 @@ function updatePieChartWithLegend(canvasId, legendId, data, colors) {
   // Создаем круговую диаграмму без встроенной легенды
   const theme = getChartTheme();
   const chartConfig = {
-    type: 'pie',
+    type: 'doughnut',
     data: {
       labels: labels,
       datasets: [{
         data: values,
         backgroundColor: colors,
         borderColor: theme.border,
-        borderWidth: 2,
-        hoverOffset: 8
+        borderWidth: 3,
+        spacing: 4,
+        hoverOffset: 10
       }]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      cutout: profile.doughnutCutout,
+      rotation: -90,
+      radius: '92%',
       plugins: {
         ...buildCommonPlugins(false),
         tooltip: {
@@ -2018,7 +2154,8 @@ function updatePieChartWithLegend(canvasId, legendId, data, colors) {
             }
           }
         }
-      }
+      },
+      animation: false
     }
   };
 
@@ -2112,8 +2249,8 @@ function updateLegendValues(canvasId) {
   });
 }
 
-// Обновление конкретного графика (для bar charts)
-function updateChart(canvasId, type, data, backgroundColor, showValues = false) {
+// Обновление конкретного графика
+function updateChart(canvasId, type, data, backgroundColor, showValues = false, options = {}) {
   const canvas = document.getElementById(canvasId);
   if (!canvas) { console.warn(`Элемент с ID ${canvasId} не найден`); return; }
 
@@ -2136,38 +2273,53 @@ function updateChart(canvasId, type, data, backgroundColor, showValues = false) 
   const labels = Object.keys(data);
   const values = Object.values(data);
   const palette = Array.isArray(backgroundColor) && backgroundColor.length ? backgroundColor : getChartPalette('default');
-  const baseColors = labels.map((_, idx) => palette[idx % palette.length]);
-  const isBar = type === 'bar';
+  const limitedLabels = typeof options.maxBars === 'number' && options.maxBars > 0
+    ? labels.slice(0, options.maxBars)
+    : labels;
+  const limitedValues = typeof options.maxBars === 'number' && options.maxBars > 0
+    ? values.slice(0, options.maxBars)
+    : values;
+  const baseColors = limitedLabels.map((_, idx) => palette[idx % palette.length]);
+  const chartType = type === 'pie' ? 'doughnut' : type;
+  const isBar = chartType === 'bar';
+  const isHorizontalBar = isBar ? options.horizontal !== false : false;
   const theme = getChartTheme();
+  const fills = buildChartFills(canvas, baseColors, isHorizontalBar ? 'horizontal' : 'vertical');
   canvas.onclick = null;
 
   charts[canvasId] = new Chart(canvas, {
-    type: isBar ? 'bar' : type,
+    type: chartType,
     data: {
-      labels,
+      labels: limitedLabels,
       datasets: [{
-        data: values,
-        borderRadius: 12,
+        data: limitedValues,
+        borderRadius: isBar ? (isHorizontalBar ? 16 : 18) : 0,
         borderSkipped: false,
-        maxBarThickness: 26,
-        backgroundColor: baseColors,
-        hoverBackgroundColor: baseColors,
+        maxBarThickness: isHorizontalBar ? 28 : 42,
+        categoryPercentage: isHorizontalBar ? 0.8 : 0.68,
+        barPercentage: isHorizontalBar ? 0.9 : 0.82,
+        backgroundColor: isBar ? fills : baseColors,
+        hoverBackgroundColor: isBar ? fills : baseColors,
         borderColor: baseColors.map((color) => withAlpha(color, 0.92)),
-        borderWidth: 1.5
+        borderWidth: isBar ? 1.5 : 2
       }]
     },
     options: {
-      indexAxis: isBar ? 'y' : 'x',
+      indexAxis: isHorizontalBar ? 'y' : 'x',
       responsive: true,
       maintainAspectRatio: false,
       layout: {
         padding: { top: 6, right: 12, bottom: 6, left: 6 }
       },
-      scales: buildAxisOptions(isBar),
+      scales: isBar ? buildAxisOptions(isHorizontalBar) : undefined,
+      interaction: {
+        mode: 'index',
+        intersect: false
+      },
       plugins: {
-        ...buildCommonPlugins(false),
+        ...buildCommonPlugins(Boolean(options.showLegend)),
         tooltip: {
-          ...buildCommonPlugins(false).tooltip,
+          ...buildCommonPlugins(Boolean(options.showLegend)).tooltip,
           filter: (tipItem) => tipItem.datasetIndex === 0,
           callbacks: {
             label: (context) => {
@@ -2211,10 +2363,13 @@ function updateStaffWorkloadChart(staffStats) {
   parent?.querySelector('.no-data-message')?.remove();
 
   const theme = getChartTheme();
+  const profile = getChartProfile();
   const palette = getChartPalette('cool');
   const labels = staffStats.map(staff => staff.name || '—');
   const resolved = staffStats.map(staff => Number(staff.resolved_count || 0));
   const minutes = staffStats.map(staff => Number(staff.total_minutes || 0));
+  const barBaseColors = minutes.map((_, idx) => palette[idx % palette.length]);
+  const barFills = buildChartFills(canvas, barBaseColors, 'vertical');
 
   charts.staffWorkloadChart = new Chart(canvas, {
     type: 'bar',
@@ -2225,26 +2380,28 @@ function updateStaffWorkloadChart(staffStats) {
           type: 'bar',
           label: 'Минуты работы',
           data: minutes,
-          backgroundColor: minutes.map((_, idx) => withAlpha(palette[idx % palette.length], 0.78)),
-          borderColor: minutes.map((_, idx) => withAlpha(palette[idx % palette.length], 0.96)),
+          backgroundColor: barFills,
+          borderColor: barBaseColors.map((color) => withAlpha(color, 0.94)),
           borderWidth: 1,
-          borderRadius: 12,
+          borderRadius: 16,
           borderSkipped: false,
-          maxBarThickness: 28,
+          maxBarThickness: 34,
           yAxisID: 'y'
         },
         {
           type: 'line',
           label: 'Закрыто заявок',
           data: resolved,
-          borderColor: getChartCssColor('--chart-3', '#d9a441'),
-          backgroundColor: withAlpha(getChartCssColor('--chart-3', '#d9a441'), 0.18),
-          pointBackgroundColor: getChartCssColor('--chart-3', '#d9a441'),
-          pointBorderColor: '#ffffff',
-          pointRadius: 4,
-          pointHoverRadius: 5,
-          borderWidth: 2,
-          tension: 0.35,
+          borderColor: profile.lineColor,
+          backgroundColor: profile.lineFill,
+          pointBackgroundColor: profile.lineColor,
+          pointBorderColor: profile.pointBorder,
+          pointBorderWidth: 2,
+          pointRadius: 4.5,
+          pointHoverRadius: 5.5,
+          borderWidth: 3,
+          fill: true,
+          tension: 0.36,
           yAxisID: 'y1'
         }
       ]
@@ -2254,6 +2411,10 @@ function updateStaffWorkloadChart(staffStats) {
       maintainAspectRatio: false,
       layout: {
         padding: { top: 6, right: 12, bottom: 6, left: 6 }
+      },
+      interaction: {
+        mode: 'index',
+        intersect: false
       },
       scales: {
         x: {
@@ -2285,6 +2446,16 @@ function updateStaffWorkloadChart(staffStats) {
     }
   });
 }
+
+document.addEventListener('theme:change', () => {
+  clearChartPaletteCache();
+  if (themeRedrawTimer) {
+    clearTimeout(themeRedrawTimer);
+  }
+  themeRedrawTimer = setTimeout(() => {
+    rerenderDashboardCharts();
+  }, 80);
+});
 
   </script>
  </main>
