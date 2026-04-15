@@ -116,6 +116,8 @@
 - поддерживающий слой: dialog permission checks и audit logging вынесены в
   общий `DialogAuthorizationService`, чтобы новые dialog controllers не
   дублировали права и forbidden-audit.
+- продолжено: `DialogQuickActionsController` переведён на общий
+  `DialogAuthorizationService`, а локальные permission helper'ы удалены.
 
 ### Phase 4. Settings Domain Split
 
@@ -139,6 +141,8 @@
   `SettingsParameterService`.
 - продолжено: `it-equipment` API вынесен в `SettingsItEquipmentController` и
   `SettingsItEquipmentService`.
+- продолжено: macro template governance и normalization для dialog settings
+  вынесены из `SettingsBridgeController` в `SettingsMacroTemplateService`.
 
 ### Phase 5. Process And Runtime Boundary
 
