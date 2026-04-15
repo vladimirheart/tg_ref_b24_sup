@@ -118,6 +118,9 @@
   дублировали права и forbidden-audit.
 - продолжено: `DialogQuickActionsController` переведён на общий
   `DialogAuthorizationService`, а локальные permission helper'ы удалены.
+- завершено на controller/service уровне: оставшийся workspace flow вынесен в
+  `DialogWorkspaceController` и `DialogWorkspaceService`, а сам старый
+  `DialogApiController` больше не нужен как точка концентрации домена.
 
 ### Phase 4. Settings Domain Split
 
@@ -143,6 +146,9 @@
   `SettingsItEquipmentService`.
 - продолжено: macro template governance и normalization для dialog settings
   вынесены из `SettingsBridgeController` в `SettingsMacroTemplateService`.
+- продолжено: основной update-use-case `/settings` вынесен из
+  `SettingsBridgeController` в `SettingsUpdateService`, а bridge-controller
+  оставлен thin-wrapper'ом над service-слоем.
 
 ### Phase 5. Process And Runtime Boundary
 

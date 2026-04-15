@@ -1,15 +1,9 @@
-package com.example.panel.controller;
+package com.example.panel.service;
 
 import com.example.panel.model.dialog.ChatMessageDto;
 import com.example.panel.model.dialog.DialogDetails;
 import com.example.panel.model.dialog.DialogListItem;
 import com.example.panel.model.dialog.DialogPreviousHistoryPage;
-import com.example.panel.service.DialogService;
-import com.example.panel.service.DialogAiAssistantService;
-import com.example.panel.service.DialogAuthorizationService;
-import com.example.panel.service.NotificationService;
-import com.example.panel.service.SlaEscalationWebhookNotifier;
-import com.example.panel.service.SharedConfigService;
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -19,16 +13,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
-import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -59,12 +45,10 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-@RestController
-@RequestMapping("/api/dialogs")
-@Validated
-public class DialogApiController {
+@Service
+public class DialogWorkspaceService {
 
-    private static final Logger log = LoggerFactory.getLogger(DialogApiController.class);
+    private static final Logger log = LoggerFactory.getLogger(DialogWorkspaceService.class);
 
     private final DialogService dialogService;
     private final SharedConfigService sharedConfigService;
@@ -161,12 +145,12 @@ public class DialogApiController {
             macroVariable("current_time", "Текущее время")
     );
 
-    public DialogApiController(DialogService dialogService,
-                               SharedConfigService sharedConfigService,
-                               DialogAuthorizationService dialogAuthorizationService,
-                               NotificationService notificationService,
-                               SlaEscalationWebhookNotifier slaEscalationWebhookNotifier,
-                               DialogAiAssistantService dialogAiAssistantService) {
+    public DialogWorkspaceService(DialogService dialogService,
+                                  SharedConfigService sharedConfigService,
+                                  DialogAuthorizationService dialogAuthorizationService,
+                                  NotificationService notificationService,
+                                  SlaEscalationWebhookNotifier slaEscalationWebhookNotifier,
+                                  DialogAiAssistantService dialogAiAssistantService) {
         this.dialogService = dialogService;
         this.sharedConfigService = sharedConfigService;
         this.dialogAuthorizationService = dialogAuthorizationService;
@@ -547,12 +531,11 @@ public class DialogApiController {
         return variable;
     }
 
-    @GetMapping("/{ticketId}/workspace")
-    public ResponseEntity<?> workspace(@PathVariable String ticketId,
-                                       @RequestParam(value = "channelId", required = false) Long channelId,
-                                       @RequestParam(value = "include", required = false) String include,
-                                       @RequestParam(value = "limit", required = false) Integer limit,
-                                       @RequestParam(value = "cursor", required = false) String cursor,
+    public ResponseEntity<?> workspace(String ticketId,
+                                       Long channelId,
+                                       String include,
+                                       Integer limit,
+                                       String cursor,
                                        Authentication authentication) {
         String operator = authentication != null ? authentication.getName() : null;
         dialogService.markDialogAsRead(ticketId, operator);
