@@ -100,6 +100,8 @@
 - начато: list endpoint `/api/dialogs` вынесен в отдельные
   `DialogListController` и `DialogListReadService`, а SLA orchestration списка
   больше не собирается внутри монолитного controller.
+- продолжено: read-only endpoints `details/history/public-form-metrics`
+  вынесены в `DialogReadController` и `DialogReadService`.
 
 ### Phase 4. Settings Domain Split
 
@@ -115,6 +117,12 @@
 - `BotSettingsController`;
 - `ReferenceDataSettingsController`;
 - `PartnerNetworkSettingsController`.
+
+Статус:
+
+- начато: parameters API `/api/settings/parameters` и связанная логика
+  location/parameter sync вынесены в `SettingsParametersController` и
+  `SettingsParameterService`.
 
 ### Phase 5. Process And Runtime Boundary
 

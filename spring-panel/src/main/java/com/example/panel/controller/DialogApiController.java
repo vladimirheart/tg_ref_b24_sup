@@ -199,64 +199,6 @@ public class DialogApiController {
         this.dialogTriagePreferenceService = dialogTriagePreferenceService;
     }
 
-    @GetMapping("/public-form-metrics")
-    public Map<String, Object> publicFormMetrics(@RequestParam(value = "channelId", required = false) Long channelId) {
-        return Map.of(
-                "success", true,
-                "metrics", publicFormService.loadMetricsSnapshot(channelId)
-        );
-    }
-
-    @GetMapping("/{ticketId}")
-    public ResponseEntity<?> details(@PathVariable String ticketId,
-                                     @RequestParam(value = "channelId", required = false) Long channelId,
-                                     Authentication authentication) {
-        String operator = authentication != null ? authentication.getName() : null;
-        dialogService.markDialogAsRead(ticketId, operator);
-        Optional<DialogDetails> details = dialogService.loadDialogDetails(ticketId, channelId, operator);
-        log.info("Dialog details requested for ticket {} (channelId={}): {}", ticketId, channelId,
-                details.map(d -> "found").orElse("not found"));
-        return details.<ResponseEntity<?>>map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(Map.of("success", false, "error", "Диалог не найден")));
-    }
-
-    @GetMapping("/{ticketId}/history")
-    public Map<String, Object> history(@PathVariable String ticketId,
-                                        @RequestParam(value = "channelId", required = false) Long channelId,
-                                        Authentication authentication) {
-        String operator = authentication != null ? authentication.getName() : null;
-        dialogService.markDialogAsRead(ticketId, operator);
-        List<ChatMessageDto> history = dialogService.loadHistory(ticketId, channelId);
-        log.info("History requested for ticket {} (channelId={}): {} messages", ticketId, channelId, history.size());
-        return Map.of(
-                "success", true,
-                "messages", history
-        );
-    }
-
-    @GetMapping("/{ticketId}/history/previous")
-    public ResponseEntity<?> previousHistory(@PathVariable String ticketId,
-                                             @RequestParam(value = "offset", required = false, defaultValue = "0") Integer offset) {
-        int resolvedOffset = offset != null ? Math.max(0, offset) : 0;
-        Optional<DialogPreviousHistoryPage> page = dialogService.loadPreviousDialogHistory(ticketId, resolvedOffset);
-        if (page.isEmpty()) {
-            return ResponseEntity.ok(Map.of(
-                    "success", true,
-                    "batch", null,
-                    "has_more", false,
-                    "next_offset", resolvedOffset
-            ));
-        }
-        DialogPreviousHistoryPage historyPage = page.get();
-        return ResponseEntity.ok(mapWithNullableValues(
-                "success", true,
-                "batch", historyPage.batch(),
-                "has_more", historyPage.hasMore(),
-                "next_offset", historyPage.nextOffset()
-        ));
-    }
-
     @PostMapping("/macro/dry-run")
     public ResponseEntity<?> dryRunMacro(@RequestBody(required = false) MacroDryRunRequest request,
                                          Authentication authentication) {
