@@ -97,6 +97,9 @@
 - начато: triage preference сценарий вынесен из `DialogApiController` в
   отдельный `DialogTriagePreferenceService`, что даёт первый read/write slice
   без изменения внешнего API для фронта.
+- начато: list endpoint `/api/dialogs` вынесен в отдельные
+  `DialogListController` и `DialogListReadService`, а SLA orchestration списка
+  больше не собирается внутри монолитного controller.
 
 ### Phase 4. Settings Domain Split
 
