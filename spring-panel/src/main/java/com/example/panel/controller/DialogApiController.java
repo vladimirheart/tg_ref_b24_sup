@@ -8,7 +8,6 @@ import com.example.panel.service.DialogNotificationService;
 import com.example.panel.service.DialogReplyService;
 import com.example.panel.service.DialogService;
 import com.example.panel.service.DialogAiAssistantService;
-import com.example.panel.service.DialogTriagePreferenceService;
 import com.example.panel.service.NotificationService;
 import com.example.panel.service.PermissionService;
 import com.example.panel.service.PublicFormService;
@@ -84,7 +83,6 @@ public class DialogApiController {
     private final PublicFormService publicFormService;
     private final SlaEscalationWebhookNotifier slaEscalationWebhookNotifier;
     private final DialogAiAssistantService dialogAiAssistantService;
-    private final DialogTriagePreferenceService dialogTriagePreferenceService;
     private static final long QUICK_ACTION_TARGET_MS = 1500;
     private static final int DEFAULT_SLA_TARGET_MINUTES = 24 * 60;
     private static final int DEFAULT_SLA_WARNING_MINUTES = 4 * 60;
@@ -184,8 +182,7 @@ public class DialogApiController {
                                NotificationService notificationService,
                                PublicFormService publicFormService,
                                SlaEscalationWebhookNotifier slaEscalationWebhookNotifier,
-                               DialogAiAssistantService dialogAiAssistantService,
-                               DialogTriagePreferenceService dialogTriagePreferenceService) {
+                               DialogAiAssistantService dialogAiAssistantService) {
         this.dialogService = dialogService;
         this.dialogReplyService = dialogReplyService;
         this.dialogNotificationService = dialogNotificationService;
@@ -196,7 +193,6 @@ public class DialogApiController {
         this.publicFormService = publicFormService;
         this.slaEscalationWebhookNotifier = slaEscalationWebhookNotifier;
         this.dialogAiAssistantService = dialogAiAssistantService;
-        this.dialogTriagePreferenceService = dialogTriagePreferenceService;
     }
 
     @PostMapping("/macro/dry-run")
@@ -2355,73 +2351,6 @@ public class DialogApiController {
             }
         }
         return "";
-    }
-
-    @GetMapping("/triage-preferences")
-    public ResponseEntity<?> triagePreferences(Authentication authentication) {
-        String operator = authentication != null ? authentication.getName() : null;
-        if (!StringUtils.hasText(operator)) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("success", false, "error", "Требуется авторизация"));
-        }
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("success", true);
-        payload.put("preferences", dialogTriagePreferenceService.loadForOperator(operator));
-        return ResponseEntity.ok(payload);
-    }
-
-    @PostMapping("/triage-preferences")
-    public ResponseEntity<?> updateTriagePreferences(@RequestBody(required = false) TriagePreferencesRequest request,
-                                                     Authentication authentication) {
-        String operator = authentication != null ? authentication.getName() : null;
-        if (!StringUtils.hasText(operator)) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("success", false, "error", "Требуется авторизация"));
-        }
-        if (request == null) {
-            return ResponseEntity.badRequest().body(Map.of("success", false, "error", "request body is required"));
-        }
-        String view = dialogTriagePreferenceService.normalizeView(request.view());
-        String sortMode = dialogTriagePreferenceService.normalizeSortMode(request.sortMode());
-        Integer slaWindowMinutes = dialogTriagePreferenceService.normalizeSlaWindowMinutes(request.slaWindowMinutes());
-        String pageSize = dialogTriagePreferenceService.normalizePageSizePreference(request.pageSize());
-        Map<String, Object> savedPreferences = dialogTriagePreferenceService.saveForOperator(
-                operator,
-                view,
-                sortMode,
-                slaWindowMinutes,
-                pageSize
-        );
-        String updatedAtUtc = savedPreferences.get("updated_at_utc") instanceof String value
-                ? value
-                : Instant.now().toString();
-
-        dialogService.logWorkspaceTelemetry(
-                operator,
-                "triage_preferences_saved",
-                "triage",
-                null,
-                "view=%s;sort=%s;sla=%s;page=%s".formatted(
-                        view,
-                        sortMode,
-                        slaWindowMinutes != null ? slaWindowMinutes : "all",
-                        pageSize),
-                null,
-                "triage_preferences.v1",
-                null,
-                null,
-                null,
-                null,
-                List.of(),
-                List.of(),
-                null,
-                null);
-
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("success", true);
-        payload.put("preferences", savedPreferences);
-        payload.put("updated_at_utc", updatedAtUtc);
-        return ResponseEntity.ok(payload);
     }
 
     @PostMapping("/{ticketId}/reply")
@@ -4910,8 +4839,4 @@ public class DialogApiController {
 
     public record AiSolutionMemoryRollbackRequest(@JsonAlias({"history_id", "historyId"}) Long historyId) {}
 
-    public record TriagePreferencesRequest(@JsonAlias("view") String view,
-                                           @JsonAlias("sort_mode") String sortMode,
-                                           @JsonAlias("sla_window_minutes") Integer slaWindowMinutes,
-                                           @JsonAlias("page_size") String pageSize) {}
 }

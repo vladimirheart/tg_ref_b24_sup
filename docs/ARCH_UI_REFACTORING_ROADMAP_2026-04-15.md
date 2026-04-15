@@ -102,6 +102,8 @@
   больше не собирается внутри монолитного controller.
 - продолжено: read-only endpoints `details/history/public-form-metrics`
   вынесены в `DialogReadController` и `DialogReadService`.
+- продолжено: endpoint-слой triage preferences вынесен в
+  `DialogTriagePreferencesController`.
 
 ### Phase 4. Settings Domain Split
 
@@ -123,6 +125,8 @@
 - начато: parameters API `/api/settings/parameters` и связанная логика
   location/parameter sync вынесены в `SettingsParametersController` и
   `SettingsParameterService`.
+- продолжено: `it-equipment` API вынесен в `SettingsItEquipmentController` и
+  `SettingsItEquipmentService`.
 
 ### Phase 5. Process And Runtime Boundary
 
