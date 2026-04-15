@@ -59,7 +59,8 @@
 Статус:
 
 - начато частично: введён общий runtime-модуль для browser-only preferences,
-  на который переведены `theme` и `sidebar`.
+  на который переведены `theme` и `sidebar`;
+- добавлен server-backed bootstrap/sync слой для operator UI preferences.
 
 Что сделать:
 

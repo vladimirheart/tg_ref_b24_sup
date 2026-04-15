@@ -1,4 +1,11 @@
 <th:block xmlns:th="http://www.thymeleaf.org" th:fragment="uiHead">
+    <script th:inline="javascript">
+        window.__IGUANA_UI_PREFS_BOOTSTRAP__ = /*[[${uiPreferencesBootstrap}]]*/ {};
+        window.__IGUANA_UI_PREFS_META__ = {
+            syncEnabled: /*[[${uiPreferencesSyncEnabled}]]*/ false,
+            endpoint: /*[[@{/profile/ui-preferences}]]*/ '/profile/ui-preferences'
+        };
+    </script>
     <script th:src="@{/js/ui-preferences.js}"></script>
     <script th:src="@{/js/theme.js}"></script>
     <script th:src="@{/js/ui-config.js}"></script>

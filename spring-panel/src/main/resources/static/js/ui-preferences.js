@@ -11,6 +11,17 @@
       return null;
     }
   })();
+  const bootstrapPrefs = root.__IGUANA_UI_PREFS_BOOTSTRAP__ && typeof root.__IGUANA_UI_PREFS_BOOTSTRAP__ === 'object'
+    ? root.__IGUANA_UI_PREFS_BOOTSTRAP__
+    : {};
+  const syncMeta = root.__IGUANA_UI_PREFS_META__ && typeof root.__IGUANA_UI_PREFS_META__ === 'object'
+    ? root.__IGUANA_UI_PREFS_META__
+    : {};
+  const syncEnabled = syncMeta.syncEnabled === true;
+  const syncEndpoint = typeof syncMeta.endpoint === 'string' && syncMeta.endpoint.trim()
+    ? syncMeta.endpoint.trim()
+    : '/profile/ui-preferences';
+  let syncTimer = null;
 
   function normalizeTheme(value) {
     return value === 'dark' || value === 'light' || value === 'auto' ? value : 'light';
@@ -100,6 +111,53 @@
     }));
   }
 
+  function snapshot() {
+    const result = {};
+    Object.keys(REGISTRY).forEach((name) => {
+      const value = get(name);
+      if (value != null && value !== '') {
+        result[name] = value;
+      }
+    });
+    return result;
+  }
+
+  async function flushRemoteSync() {
+    syncTimer = null;
+    if (!syncEnabled || !syncEndpoint) {
+      return;
+    }
+    const csrfToken = document.querySelector('meta[name="_csrf"]')?.getAttribute('content') || '';
+    const headers = { 'Content-Type': 'application/json' };
+    if (csrfToken) {
+      headers['X-CSRF-TOKEN'] = csrfToken;
+    }
+    try {
+      await fetch(syncEndpoint, {
+        method: 'PUT',
+        credentials: 'same-origin',
+        headers,
+        body: JSON.stringify(snapshot()),
+      });
+    } catch (_error) {
+      // ignore preference sync failures; local runtime remains the fallback
+    }
+  }
+
+  function scheduleRemoteSync(source) {
+    if (!syncEnabled) {
+      return;
+    }
+    const suppressedSource = source === 'bootstrap' || source === 'storage' || source === 'server';
+    if (suppressedSource) {
+      return;
+    }
+    if (syncTimer) {
+      clearTimeout(syncTimer);
+    }
+    syncTimer = root.setTimeout(flushRemoteSync, 300);
+  }
+
   function readRawByStorageKey(storageKey) {
     if (!storage || !storageKey) {
       return null;
@@ -137,6 +195,7 @@
     }
     const parsed = config.parse ? config.parse(normalized) : normalized;
     dispatchPreferenceChange(name, parsed, source);
+    scheduleRemoteSync(source);
     return parsed;
   }
 
@@ -150,6 +209,7 @@
     }
     const fallbackValue = config.parse ? config.parse(config.fallback) : config.fallback;
     dispatchPreferenceChange(name, fallbackValue, source);
+    scheduleRemoteSync(source);
   }
 
   function getStorageKey(name) {
@@ -160,8 +220,16 @@
     get,
     set,
     remove,
+    snapshot,
     getStorageKey,
     registry: REGISTRY,
+  });
+
+  Object.entries(bootstrapPrefs).forEach(([name, value]) => {
+    if (!REGISTRY[name]) {
+      return;
+    }
+    set(name, value, 'bootstrap');
   });
 
   root.addEventListener('storage', (event) => {
