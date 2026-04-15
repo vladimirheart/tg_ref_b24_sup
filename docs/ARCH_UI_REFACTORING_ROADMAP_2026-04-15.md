@@ -153,6 +153,12 @@
   в `SettingsTopLevelUpdateService`.
 - продолжено: обработка `locations` и связанный parameter sync вынесены из
   `SettingsUpdateService` в `SettingsLocationsUpdateService`.
+- продолжено: giant `dialog_config` update flow вынесен из
+  `SettingsUpdateService` в `SettingsDialogConfigUpdateService`, а сам
+  `SettingsUpdateService` сокращён до orchestration-слоя.
+- продолжено: общие timestamp/datamart validation helper'ы для `dialog_config`
+  вынесены в `SettingsDialogConfigSupportService`, чтобы уменьшить внутреннюю
+  перегрузку `SettingsDialogConfigUpdateService`.
 
 ### Phase 5. Process And Runtime Boundary
 
