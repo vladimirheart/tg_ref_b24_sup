@@ -159,6 +159,10 @@
 - продолжено: общие timestamp/datamart validation helper'ы для `dialog_config`
   вынесены в `SettingsDialogConfigSupportService`, чтобы уменьшить внутреннюю
   перегрузку `SettingsDialogConfigUpdateService`.
+- продолжено: `SettingsDialogConfigUpdateService` разрезан на поддомены
+  `SettingsDialogSlaAiConfigService`, `SettingsDialogWorkspaceConfigService`,
+  `SettingsDialogPublicFormConfigService` и coordinator/router слой без giant
+  списка `payload.containsKey(...)`.
 
 ### Phase 5. Process And Runtime Boundary
 
