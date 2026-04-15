@@ -12,6 +12,108 @@ body {
     min-height: 100vh;
 }
 
+.page-shell {
+    width: min(100%, var(--ui-page-max-width));
+    margin: 0 auto;
+    padding: var(--ui-page-padding-y) var(--ui-page-padding-x) var(--ui-page-padding-bottom);
+}
+
+.page-shell--flush {
+    padding-top: 0;
+}
+
+.page-hero {
+    position: relative;
+    overflow: hidden;
+}
+
+.ui-panel,
+.control-panel,
+.data-panel {
+    position: relative;
+    border: 1px solid var(--ui-panel-border);
+    border-radius: var(--ui-panel-radius);
+    background: var(--ui-panel-bg);
+    box-shadow: var(--ui-panel-shadow);
+}
+
+.ui-panel {
+    padding: var(--ui-panel-padding);
+}
+
+.control-panel {
+    padding: var(--ui-panel-padding-lg);
+}
+
+.data-panel {
+    padding: var(--ui-panel-padding);
+}
+
+.page-section-kicker {
+    display: inline-flex;
+    align-items: center;
+    min-height: 30px;
+    padding: 0 0.78rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    background: color-mix(in srgb, var(--accent) 18%, white);
+    color: color-mix(in srgb, var(--accent-foreground) 88%, var(--color-text));
+}
+
+.page-section-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.page-section-title {
+    margin: 0.4rem 0 0;
+    font-size: 1.3rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+}
+
+.page-section-copy {
+    margin: 0.45rem 0 0;
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+    line-height: 1.55;
+}
+
+body[data-ui-density='compact'] .ui-panel,
+body[data-ui-density='compact'] .data-panel {
+    padding: calc(var(--ui-panel-padding) - 0.1rem);
+}
+
+body[data-ui-density='compact'] .control-panel {
+    padding: calc(var(--ui-panel-padding-lg) - 0.15rem);
+}
+
+body[data-ui-page='dashboard'] .page-shell--dashboard {
+    padding-top: calc(var(--ui-page-padding-y) + 0.35rem);
+}
+
+body[data-ui-page='settings'][data-ui-density='compact'] .settings-tiles .settings-tile .card-body {
+    gap: 0.45rem;
+}
+
+body[data-ui-page='settings'][data-ui-density='compact'] .settings-tiles .settings-tile__footer {
+    font-size: 0.72rem;
+}
+
+body[data-ui-page='dialogs'][data-ui-density='comfortable'] .dialogs-toolbar-card .card-body {
+    padding: 1rem 1.1rem;
+}
+
+body[data-ui-page='dialogs'][data-ui-density='comfortable'] .workspace-shell-card .card-body {
+    padding: 1.05rem 1.1rem;
+}
+
 .navbar-brand {
     font-weight: 700;
     letter-spacing: 0.2px;

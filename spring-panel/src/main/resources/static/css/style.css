@@ -12,6 +12,21 @@
   --page-min-width: 320px;
   font-size: 80%;
   --page-min-height: 100vh;
+  --ui-density: comfortable;
+  --ui-hero: default;
+  --ui-shell: default;
+  --ui-panel: default;
+  --ui-page-gap: 1.5rem;
+  --ui-page-max-width: 1640px;
+  --ui-page-padding-x: 1.25rem;
+  --ui-page-padding-y: 1.5rem;
+  --ui-page-padding-bottom: 2rem;
+  --ui-panel-radius: 1.35rem;
+  --ui-panel-padding: 1.15rem;
+  --ui-panel-padding-lg: 1.4rem;
+  --ui-panel-shadow: 0 20px 38px rgba(18, 33, 23, 0.1);
+  --ui-panel-bg: linear-gradient(180deg, color-mix(in srgb, var(--card) 96%, white), color-mix(in srgb, var(--secondary) 10%, white));
+  --ui-panel-border: color-mix(in srgb, var(--color-border) 12%, transparent);
   --card: #ffffff;
   --ring: #4d9d74;
   --input: #76837a;
@@ -76,6 +91,26 @@
   --gradient-surface: var(--card);
   --border-animation-duration: 10s;
   color-scheme: light;
+}
+
+body[data-ui-density='compact'] {
+  --ui-page-gap: 1.2rem;
+  --ui-panel-radius: 1.1rem;
+  --ui-panel-padding: 1rem;
+  --ui-panel-padding-lg: 1.15rem;
+}
+
+body[data-ui-page='settings'] {
+  --ui-page-max-width: 1680px;
+}
+
+body[data-ui-page='dashboard'] {
+  --ui-page-max-width: 1720px;
+  --ui-panel-shadow: 0 24px 44px rgba(18, 33, 23, 0.12);
+}
+
+body[data-ui-page='dialogs'] {
+  --ui-page-max-width: 1760px;
 }
 
 :root[data-theme='dark']:not([data-theme-palette='mono']),
