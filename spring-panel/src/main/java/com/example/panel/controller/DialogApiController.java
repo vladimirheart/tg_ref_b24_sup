@@ -4,24 +4,20 @@ import com.example.panel.model.dialog.ChatMessageDto;
 import com.example.panel.model.dialog.DialogDetails;
 import com.example.panel.model.dialog.DialogListItem;
 import com.example.panel.model.dialog.DialogPreviousHistoryPage;
-import com.example.panel.service.DialogNotificationService;
-import com.example.panel.service.DialogReplyService;
 import com.example.panel.service.DialogService;
 import com.example.panel.service.DialogAiAssistantService;
 import com.example.panel.service.NotificationService;
 import com.example.panel.service.PermissionService;
-import com.example.panel.service.PublicFormService;
 import com.example.panel.service.SlaEscalationWebhookNotifier;
 import com.example.panel.service.SharedConfigService;
-import com.example.panel.storage.AttachmentService;
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
@@ -33,9 +29,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -74,13 +68,9 @@ public class DialogApiController {
     private static final Logger log = LoggerFactory.getLogger(DialogApiController.class);
 
     private final DialogService dialogService;
-    private final DialogReplyService dialogReplyService;
-    private final DialogNotificationService dialogNotificationService;
-    private final AttachmentService attachmentService;
     private final SharedConfigService sharedConfigService;
     private final PermissionService permissionService;
     private final NotificationService notificationService;
-    private final PublicFormService publicFormService;
     private final SlaEscalationWebhookNotifier slaEscalationWebhookNotifier;
     private final DialogAiAssistantService dialogAiAssistantService;
     private static final long QUICK_ACTION_TARGET_MS = 1500;
@@ -174,23 +164,15 @@ public class DialogApiController {
     );
 
     public DialogApiController(DialogService dialogService,
-                               DialogReplyService dialogReplyService,
-                               DialogNotificationService dialogNotificationService,
-                               AttachmentService attachmentService,
                                SharedConfigService sharedConfigService,
                                PermissionService permissionService,
                                NotificationService notificationService,
-                               PublicFormService publicFormService,
                                SlaEscalationWebhookNotifier slaEscalationWebhookNotifier,
                                DialogAiAssistantService dialogAiAssistantService) {
         this.dialogService = dialogService;
-        this.dialogReplyService = dialogReplyService;
-        this.dialogNotificationService = dialogNotificationService;
-        this.attachmentService = attachmentService;
         this.sharedConfigService = sharedConfigService;
         this.permissionService = permissionService;
         this.notificationService = notificationService;
-        this.publicFormService = publicFormService;
         this.slaEscalationWebhookNotifier = slaEscalationWebhookNotifier;
         this.dialogAiAssistantService = dialogAiAssistantService;
     }
@@ -2351,280 +2333,6 @@ public class DialogApiController {
             }
         }
         return "";
-    }
-
-    @PostMapping("/{ticketId}/reply")
-    public ResponseEntity<?> reply(@PathVariable String ticketId,
-                                   @RequestBody DialogReplyRequest request,
-                                   Authentication authentication) {
-        ResponseEntity<Map<String, Object>> permissionDenied = requireDialogPermission(authentication, "can_reply", "reply", ticketId);
-        if (permissionDenied != null) {
-            return permissionDenied;
-        }
-        String operator = authentication != null ? authentication.getName() : null;
-        dialogAiAssistantService.clearProcessing(ticketId, "operator_reply", null);
-        DialogReplyService.DialogReplyResult result = dialogReplyService.sendReply(
-                ticketId,
-                request.message(),
-                request.replyToTelegramId(),
-                operator
-        );
-        if (!result.success()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(Map.of("success", false, "error", result.error()));
-        }
-        dialogAiAssistantService.registerOperatorReply(ticketId, request.message(), operator);
-        notificationService.notifyDialogParticipants(
-                ticketId,
-                "Новое сообщение в обращении " + ticketId,
-                "/dialogs?ticketId=" + ticketId,
-                operator
-        );
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("success", true);
-        payload.put("timestamp", result.timestamp());
-        payload.put("telegramMessageId", result.telegramMessageId());
-        payload.put("responsible", operator);
-        return ResponseEntity.ok(payload);
-    }
-
-
-    @PostMapping("/{ticketId}/edit")
-    public ResponseEntity<?> editMessage(@PathVariable String ticketId,
-                                         @RequestBody DialogEditRequest request,
-                                         Authentication authentication) {
-        ResponseEntity<Map<String, Object>> permissionDenied = requireDialogPermission(authentication, "can_reply", "edit", ticketId);
-        if (permissionDenied != null) {
-            return permissionDenied;
-        }
-        String operator = authentication != null ? authentication.getName() : null;
-        DialogReplyService.DialogReplyResult result = dialogReplyService.editOperatorMessage(
-                ticketId,
-                request.telegramMessageId(),
-                request.message(),
-                operator
-        );
-        if (!result.success()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(Map.of("success", false, "error", result.error()));
-        }
-        notificationService.notifyDialogParticipants(
-                ticketId,
-                "Сообщение в обращении " + ticketId + " было отредактировано",
-                "/dialogs?ticketId=" + ticketId,
-                operator
-        );
-        return ResponseEntity.ok(Map.of("success", true, "timestamp", result.timestamp()));
-    }
-
-    @PostMapping("/{ticketId}/delete")
-    public ResponseEntity<?> deleteMessage(@PathVariable String ticketId,
-                                           @RequestBody DialogDeleteRequest request,
-                                           Authentication authentication) {
-        ResponseEntity<Map<String, Object>> permissionDenied = requireDialogPermission(authentication, "can_reply", "delete", ticketId);
-        if (permissionDenied != null) {
-            return permissionDenied;
-        }
-        String operator = authentication != null ? authentication.getName() : null;
-        DialogReplyService.DialogReplyResult result = dialogReplyService.deleteOperatorMessage(
-                ticketId,
-                request.telegramMessageId(),
-                operator
-        );
-        if (!result.success()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(Map.of("success", false, "error", result.error()));
-        }
-        notificationService.notifyDialogParticipants(
-                ticketId,
-                "Сообщение в обращении " + ticketId + " было удалено",
-                "/dialogs?ticketId=" + ticketId,
-                operator
-        );
-        return ResponseEntity.ok(Map.of("success", true, "timestamp", result.timestamp()));
-    }
-
-    @PostMapping(value = "/{ticketId}/media", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<?> replyWithMedia(@PathVariable String ticketId,
-                                            @RequestParam("file") MultipartFile file,
-                                            @RequestParam(value = "message", required = false) String message,
-                                            Authentication authentication) throws IOException {
-        ResponseEntity<Map<String, Object>> permissionDenied = requireDialogPermission(authentication, "can_reply", "reply_media", ticketId);
-        if (permissionDenied != null) {
-            return permissionDenied;
-        }
-        String operator = authentication != null ? authentication.getName() : null;
-        dialogAiAssistantService.clearProcessing(ticketId, "operator_reply_media", null);
-        var metadata = attachmentService.storeTicketAttachment(authentication, ticketId, file);
-        var result = dialogReplyService.sendMediaReply(ticketId, file, message, operator, metadata.storedName(), metadata.originalName());
-        if (!result.success()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(Map.of("success", false, "error", result.error()));
-        }
-        dialogAiAssistantService.registerOperatorReply(ticketId, message, operator);
-        String attachmentUrl = "/api/attachments/tickets/" + ticketId + "/" + result.storedName();
-        Map<String, Object> response = new java.util.LinkedHashMap<>();
-        response.put("success", true);
-        response.put("timestamp", result.timestamp());
-        response.put("telegramMessageId", result.telegramMessageId());
-        response.put("responsible", operator);
-        response.put("attachment", attachmentUrl);
-        response.put("messageType", result.messageType());
-        response.put("message", result.message());
-        notificationService.notifyDialogParticipants(
-                ticketId,
-                "Новое медиа-сообщение в обращении " + ticketId,
-                "/dialogs?ticketId=" + ticketId,
-                operator
-        );
-        return ResponseEntity.ok(response);
-    }
-
-    @PostMapping("/{ticketId}/resolve")
-    public ResponseEntity<?> resolve(@PathVariable String ticketId,
-                                     @RequestBody(required = false) DialogResolveRequest request,
-                                     Authentication authentication) {
-        return withQuickActionTiming("quick_close", ticketId, () -> {
-            ResponseEntity<Map<String, Object>> permissionDenied = requireDialogPermission(authentication, "can_close", "quick_close", ticketId);
-            if (permissionDenied != null) {
-                return permissionDenied;
-            }
-            String operator = authentication != null ? authentication.getName() : null;
-            List<String> categories = request != null ? request.categories() : List.of();
-            DialogService.ResolveResult result = dialogService.resolveTicket(ticketId, operator, categories);
-            if (!result.exists()) {
-                logQuickAction(operator, ticketId, "quick_close", "not_found", "Диалог не найден");
-                return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(Map.of("success", false, "error", "Диалог не найден"));
-            }
-            if (result.error() != null) {
-                logQuickAction(operator, ticketId, "quick_close", "error", result.error());
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body(Map.of("success", false, "error", result.error()));
-            }
-            if (result.updated()) {
-                dialogAiAssistantService.clearProcessing(ticketId, "resolved", null);
-                dialogNotificationService.notifyResolved(ticketId);
-                notificationService.notifyDialogParticipants(
-                        ticketId,
-                        "Обращение " + ticketId + " закрыто",
-                        "/dialogs?ticketId=" + ticketId,
-                        operator
-                );
-            }
-            logQuickAction(operator, ticketId, "quick_close", "success", result.updated() ? "updated" : "noop");
-            return ResponseEntity.ok(Map.of("success", true, "updated", result.updated()));
-        });
-    }
-
-    @PostMapping("/{ticketId}/reopen")
-    public ResponseEntity<?> reopen(@PathVariable String ticketId,
-                                    Authentication authentication) {
-        ResponseEntity<Map<String, Object>> permissionDenied = requireDialogPermission(authentication, "can_close", "reopen", ticketId);
-        if (permissionDenied != null) {
-            return permissionDenied;
-        }
-        String operator = authentication != null ? authentication.getName() : null;
-        DialogService.ResolveResult result = dialogService.reopenTicket(ticketId, operator);
-        if (!result.exists()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(Map.of("success", false, "error", "Диалог не найден"));
-        }
-        if (result.error() != null) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(Map.of("success", false, "error", result.error()));
-        }
-        if (result.updated()) {
-            dialogAiAssistantService.clearProcessing(ticketId, "reopened", null);
-            dialogNotificationService.notifyReopened(ticketId);
-            notificationService.notifyDialogParticipants(
-                    ticketId,
-                    "Обращение " + ticketId + " снова открыто",
-                    "/dialogs?ticketId=" + ticketId,
-                    operator
-            );
-        }
-        return ResponseEntity.ok(Map.of("success", true, "updated", result.updated()));
-    }
-
-    @PostMapping("/{ticketId}/categories")
-    public ResponseEntity<?> updateCategories(@PathVariable String ticketId,
-                                              @RequestBody(required = false) DialogCategoriesRequest request,
-                                              Authentication authentication) {
-        ResponseEntity<Map<String, Object>> permissionDenied = requireDialogPermission(authentication, "can_close", "categories", ticketId);
-        if (permissionDenied != null) {
-            return permissionDenied;
-        }
-        String operator = authentication != null ? authentication.getName() : null;
-        dialogService.assignResponsibleIfMissing(ticketId, operator);
-        dialogService.setTicketCategories(ticketId, request != null ? request.categories() : List.of());
-        notificationService.notifyDialogParticipants(
-                ticketId,
-                "В обращении " + ticketId + " обновлены категории",
-                "/dialogs?ticketId=" + ticketId,
-                operator
-        );
-        return ResponseEntity.ok(Map.of("success", true));
-    }
-
-    @PostMapping("/{ticketId}/take")
-    public ResponseEntity<?> take(@PathVariable String ticketId,
-                                  Authentication authentication) {
-        return withQuickActionTiming("take", ticketId, () -> {
-            ResponseEntity<Map<String, Object>> permissionDenied = requireDialogPermission(authentication, "can_assign", "take", ticketId);
-            if (permissionDenied != null) {
-                return permissionDenied;
-            }
-            String operator = authentication != null ? authentication.getName() : null;
-            if (operator == null || operator.isBlank()) {
-                logQuickAction(null, ticketId, "take", "unauthorized", "Требуется авторизация");
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(Map.of("success", false, "error", "Требуется авторизация"));
-            }
-            Optional<DialogListItem> dialog = dialogService.findDialog(ticketId, operator);
-            if (dialog.isEmpty()) {
-                logQuickAction(operator, ticketId, "take", "not_found", "Диалог не найден");
-                return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(Map.of("success", false, "error", "Диалог не найден"));
-            }
-
-            dialogService.assignResponsibleIfMissingOrRedirected(ticketId, operator, operator);
-            dialogAiAssistantService.clearProcessing(ticketId, "operator_take", null);
-
-            Optional<DialogListItem> updated = dialogService.findDialog(ticketId, operator);
-            String responsible = updated.map(DialogListItem::responsible).orElse(dialog.get().responsible());
-            notificationService.notifyDialogParticipants(
-                    ticketId,
-                    "Обращение " + ticketId + " взято в работу оператором " + operator,
-                    "/dialogs?ticketId=" + ticketId,
-                    operator
-            );
-            logQuickAction(operator, ticketId, "take", "success", "responsible_assigned");
-            return ResponseEntity.ok(Map.of(
-                    "success", true,
-                    "responsible", responsible != null && !responsible.isBlank() ? responsible : operator
-            ));
-        });
-    }
-
-    @PostMapping("/{ticketId}/snooze")
-    public ResponseEntity<?> snooze(@PathVariable String ticketId,
-                                    @RequestBody(required = false) DialogSnoozeRequest request,
-                                    Authentication authentication) {
-        return withQuickActionTiming("snooze", ticketId, () -> {
-            ResponseEntity<Map<String, Object>> permissionDenied = requireDialogPermission(authentication, "can_snooze", "snooze", ticketId);
-            if (permissionDenied != null) {
-                return permissionDenied;
-            }
-            String operator = authentication != null ? authentication.getName() : "anonymous";
-            Integer minutes = request != null ? request.minutes() : null;
-            if (minutes == null || minutes <= 0) {
-                logQuickAction(operator, ticketId, "snooze", "error", "Некорректная длительность snooze");
-                return ResponseEntity.badRequest().body(Map.of("success", false, "error", "Некорректная длительность snooze"));
-            }
-            logQuickAction(operator, ticketId, "snooze", "success", "minutes=" + minutes);
-            return ResponseEntity.ok(Map.of("success", true));
-        });
     }
 
     @GetMapping("/{ticketId}/ai-suggestions")
@@ -4807,18 +4515,6 @@ public class DialogApiController {
     public record MacroDryRunRequest(@JsonAlias({"ticket_id", "ticketId"}) String ticketId,
                                      @JsonAlias({"template_text", "templateText", "text"}) String templateText,
                                      Map<String, String> variables) {}
-
-    public record DialogReplyRequest(String message, Long replyToTelegramId) {}
-
-    public record DialogResolveRequest(List<String> categories) {}
-
-    public record DialogEditRequest(Long telegramMessageId, String message) {}
-
-    public record DialogDeleteRequest(Long telegramMessageId) {}
-
-    public record DialogCategoriesRequest(List<String> categories) {}
-
-    public record DialogSnoozeRequest(Integer minutes) {}
 
     public record AiSuggestionFeedbackRequest(String decision,
                                               String source,
