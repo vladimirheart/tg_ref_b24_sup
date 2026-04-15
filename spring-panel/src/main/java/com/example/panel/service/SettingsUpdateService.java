@@ -32,6 +32,8 @@ public class SettingsUpdateService {
     private final SharedConfigService sharedConfigService;
     private final SettingsCatalogService settingsCatalogService;
     private final SettingsMacroTemplateService settingsMacroTemplateService;
+    private final SettingsTopLevelUpdateService settingsTopLevelUpdateService;
+    private final SettingsLocationsUpdateService settingsLocationsUpdateService;
     private final SettingsParameterService settingsParameterService;
     private final NotificationService notificationService;
     private final ObjectMapper objectMapper;
@@ -40,6 +42,8 @@ public class SettingsUpdateService {
                                  SharedConfigService sharedConfigService,
                                  SettingsCatalogService settingsCatalogService,
                                  SettingsMacroTemplateService settingsMacroTemplateService,
+                                 SettingsTopLevelUpdateService settingsTopLevelUpdateService,
+                                 SettingsLocationsUpdateService settingsLocationsUpdateService,
                                  SettingsParameterService settingsParameterService,
                                  NotificationService notificationService,
                                  ObjectMapper objectMapper) {
@@ -47,6 +51,8 @@ public class SettingsUpdateService {
         this.sharedConfigService = sharedConfigService;
         this.settingsCatalogService = settingsCatalogService;
         this.settingsMacroTemplateService = settingsMacroTemplateService;
+        this.settingsTopLevelUpdateService = settingsTopLevelUpdateService;
+        this.settingsLocationsUpdateService = settingsLocationsUpdateService;
         this.settingsParameterService = settingsParameterService;
         this.notificationService = notificationService;
         this.objectMapper = objectMapper;
@@ -56,90 +62,8 @@ public class SettingsUpdateService {
                                               Authentication authentication) {
         try {
             Map<String, Object> settings = new LinkedHashMap<>(sharedConfigService.loadSettings());
-            boolean modified = false;
+            boolean modified = settingsTopLevelUpdateService.applyTopLevelUpdates(payload, settings);
             List<String> updateWarnings = new ArrayList<>();
-
-            if (payload.containsKey("auto_close_hours")) {
-                Object raw = payload.get("auto_close_hours");
-                settings.put("auto_close_hours", raw);
-                modified = true;
-            }
-
-            if (payload.containsKey("auto_close_config")) {
-                settings.put("auto_close_config", payload.get("auto_close_config"));
-                modified = true;
-            }
-
-            if (payload.containsKey("categories")) {
-                Object raw = payload.get("categories");
-                List<String> categories = new ArrayList<>();
-                if (raw instanceof List<?> list) {
-                    for (Object item : list) {
-                        String value = item != null ? item.toString().trim() : "";
-                        if (!value.isEmpty()) {
-                            categories.add(value);
-                        }
-                    }
-                }
-                settings.put("categories", categories);
-                modified = true;
-            }
-
-            if (payload.containsKey("client_statuses")) {
-                List<String> statuses = new ArrayList<>();
-                Object raw = payload.get("client_statuses");
-                if (raw instanceof List<?> list) {
-                    for (Object item : list) {
-                        String value = item != null ? item.toString().trim() : "";
-                        if (!value.isEmpty() && !statuses.contains(value)) {
-                            statuses.add(value);
-                        }
-                    }
-                }
-                settings.put("client_statuses", statuses);
-                modified = true;
-            }
-
-            if (payload.containsKey("client_status_colors")) {
-                Map<String, String> colors = new LinkedHashMap<>();
-                Object raw = payload.get("client_status_colors");
-                if (raw instanceof Map<?, ?> map) {
-                    map.forEach((key, value) -> {
-                        String name = key != null ? key.toString().trim() : "";
-                        String color = value != null ? value.toString().trim() : "";
-                        if (StringUtils.hasText(name) && StringUtils.hasText(color)) {
-                            colors.put(name, color);
-                        }
-                    });
-                }
-                settings.put("client_status_colors", colors);
-                modified = true;
-            }
-
-            if (payload.containsKey("business_cell_styles")) {
-                settings.put("business_cell_styles", payload.get("business_cell_styles"));
-                modified = true;
-            }
-
-            if (payload.containsKey("network_profiles")) {
-                settings.put("network_profiles", payload.get("network_profiles"));
-                modified = true;
-            }
-
-            if (payload.containsKey("bot_settings")) {
-                settings.put("bot_settings", payload.get("bot_settings"));
-                modified = true;
-            }
-
-            if (payload.containsKey("integration_network")) {
-                settings.put("integration_network", payload.get("integration_network"));
-                modified = true;
-            }
-
-            if (payload.containsKey("integration_network_profiles")) {
-                settings.put("integration_network_profiles", payload.get("integration_network_profiles"));
-                modified = true;
-            }
 
             if (payload.containsKey("dialog_category_templates")
                 || payload.containsKey("dialog_question_templates")
@@ -1348,25 +1272,11 @@ public class SettingsUpdateService {
                 modified = true;
             }
 
-            if (payload.containsKey("reporting_config")) {
-                settings.put("reporting_config", payload.get("reporting_config"));
-                modified = true;
-            }
-
-            if (payload.containsKey("manager_location_bindings")) {
-                settings.put("manager_location_bindings", payload.get("manager_location_bindings"));
-                modified = true;
-            }
-
             if (modified) {
                 sharedConfigService.saveSettings(settings);
             }
 
-            if (payload.containsKey("locations")) {
-                Object locationsPayload = payload.get("locations");
-                sharedConfigService.saveLocations(locationsPayload);
-                settingsParameterService.syncParametersFromLocationsPayload(locationsPayload);
-            }
+            settingsLocationsUpdateService.applyLocationsUpdate(payload);
 
             if (!updateWarnings.isEmpty()) {
                 return Map.of("success", true, "warnings", updateWarnings);
