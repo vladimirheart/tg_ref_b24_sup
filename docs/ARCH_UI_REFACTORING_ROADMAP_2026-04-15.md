@@ -149,6 +149,10 @@
 - продолжено: основной update-use-case `/settings` вынесен из
   `SettingsBridgeController` в `SettingsUpdateService`, а bridge-controller
   оставлен thin-wrapper'ом над service-слоем.
+- продолжено: базовые top-level settings вынесены из `SettingsUpdateService`
+  в `SettingsTopLevelUpdateService`.
+- продолжено: обработка `locations` и связанный parameter sync вынесены из
+  `SettingsUpdateService` в `SettingsLocationsUpdateService`.
 
 ### Phase 5. Process And Runtime Boundary
 
