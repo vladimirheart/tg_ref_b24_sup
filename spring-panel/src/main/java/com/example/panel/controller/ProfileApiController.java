@@ -7,6 +7,7 @@ import java.sql.SQLException;
 import java.util.Locale;
 import java.util.Map;
 import javax.sql.DataSource;
+import com.example.panel.service.UiPreferenceService;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -23,11 +24,40 @@ public class ProfileApiController {
 
     private final JdbcTemplate usersJdbcTemplate;
     private final PasswordEncoder passwordEncoder;
+    private final UiPreferenceService uiPreferenceService;
 
     public ProfileApiController(@Qualifier("usersJdbcTemplate") JdbcTemplate usersJdbcTemplate,
-                                PasswordEncoder passwordEncoder) {
+                                PasswordEncoder passwordEncoder,
+                                UiPreferenceService uiPreferenceService) {
         this.usersJdbcTemplate = usersJdbcTemplate;
         this.passwordEncoder = passwordEncoder;
+        this.uiPreferenceService = uiPreferenceService;
+    }
+
+    @org.springframework.web.bind.annotation.GetMapping("/profile/ui-preferences")
+    public ResponseEntity<Map<String, Object>> loadUiPreferences(Authentication authentication) {
+        if (authentication == null || !StringUtils.hasText(authentication.getName())) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(Map.of("success", false, "error", "Не удалось определить пользователя."));
+        }
+        return ResponseEntity.ok(Map.of(
+            "success", true,
+            "preferences", uiPreferenceService.loadForUser(authentication.getName())
+        ));
+    }
+
+    @org.springframework.web.bind.annotation.PutMapping("/profile/ui-preferences")
+    public ResponseEntity<Map<String, Object>> updateUiPreferences(Authentication authentication,
+                                                                   @RequestBody Map<String, Object> payload) {
+        if (authentication == null || !StringUtils.hasText(authentication.getName())) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(Map.of("success", false, "error", "Не удалось определить пользователя."));
+        }
+        Map<String, Object> saved = uiPreferenceService.saveForUser(authentication.getName(), payload);
+        return ResponseEntity.ok(Map.of(
+            "success", true,
+            "preferences", saved
+        ));
     }
 
     @PostMapping("/profile/password")
