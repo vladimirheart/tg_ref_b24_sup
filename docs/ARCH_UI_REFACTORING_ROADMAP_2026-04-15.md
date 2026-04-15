@@ -104,6 +104,8 @@
   вынесены в `DialogReadController` и `DialogReadService`.
 - продолжено: endpoint-слой triage preferences вынесен в
   `DialogTriagePreferencesController`.
+- продолжено: quick actions (`reply/edit/delete/media/resolve/reopen/categories/take/snooze`)
+  вынесены в `DialogQuickActionsController` и `DialogQuickActionService`.
 
 ### Phase 4. Settings Domain Split
 
