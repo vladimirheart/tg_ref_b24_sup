@@ -185,6 +185,13 @@
 - формализовать contract между panel и `java-bot`;
 - отдельно покрыть readiness/status contract тестами.
 
+Статус:
+
+- начато: `BotProcessService` переведён на launcher strategy с
+  `app.bots.launch-mode` и `jar-first` запуском готовых артефактов;
+- `spring-boot:run` оставлен как controlled fallback для dev-сценария;
+- добавлены тесты на выбор launcher plan и сохранён readiness probe контракт.
+
 ### Phase 6. Test Safety Net
 
 Цель:

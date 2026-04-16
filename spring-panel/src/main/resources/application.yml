@@ -50,6 +50,7 @@ app:
       path: ${APP_DB_SETTINGS:settings.db}
   bots:
     database-dir: ${APP_BOT_DATABASE_DIR:../bot_databases}
+    launch-mode: ${APP_BOT_LAUNCH_MODE:auto} # auto -> prefer built jar, fallback to spring-boot:run
   storage:
     attachments: ${APP_STORAGE_ATTACHMENTS:../attachments}
     knowledge-base: ${APP_STORAGE_KNOWLEDGE_BASE:${APP_STORAGE_ATTACHMENTS:../attachments}/knowledge_base}
