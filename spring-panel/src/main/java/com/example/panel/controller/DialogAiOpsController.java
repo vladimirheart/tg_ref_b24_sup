@@ -124,6 +124,29 @@ public class DialogAiOpsController {
         return ResponseEntity.ok(dialogAiOpsService.rejectReview(ticketId, operator));
     }
 
+    @PostMapping("/{ticketId}/ai-learning/mapping")
+    public ResponseEntity<?> submitAiLearningMapping(@PathVariable String ticketId,
+                                                     @RequestBody(required = false) AiLearningMappingRequest request,
+                                                     Authentication authentication) {
+        ResponseEntity<Map<String, Object>> denied = dialogAuthorizationService.requirePermission(authentication, "can_reply", "ai_learning_mapping", ticketId);
+        if (denied != null) {
+            return denied;
+        }
+        if (request == null || !StringUtils.hasText(request.clientProblemMessage()) || !StringUtils.hasText(request.operatorSolutionMessage())) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "error", "client_problem_message and operator_solution_message are required"
+            ));
+        }
+        String operator = authentication != null ? authentication.getName() : null;
+        return ResponseEntity.ok(dialogAiOpsService.submitLearningMapping(
+                ticketId,
+                request.clientProblemMessage(),
+                request.operatorSolutionMessage(),
+                operator
+        ));
+    }
+
     @GetMapping("/ai-reviews")
     public ResponseEntity<?> aiReviewsQueue(@RequestParam(value = "limit", required = false) Integer limit,
                                             Authentication authentication) {
@@ -256,6 +279,10 @@ public class DialogAiOpsController {
 
     public record AiReviewApproveRequest(@JsonAlias({"client_message_id", "clientMessageId"}) Long clientMessageId,
                                          @JsonAlias({"operator_message_id", "operatorMessageId"}) Long operatorMessageId) {
+    }
+
+    public record AiLearningMappingRequest(@JsonAlias({"client_problem_message", "clientProblemMessage"}) String clientProblemMessage,
+                                           @JsonAlias({"operator_solution_message", "operatorSolutionMessage"}) String operatorSolutionMessage) {
     }
 
     public record AiSolutionMemoryUpdateRequest(@JsonAlias({"query_text", "queryText"}) String queryText,
