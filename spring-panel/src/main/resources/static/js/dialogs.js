@@ -159,6 +159,7 @@
   const workspaceAiReviewCurrent = document.getElementById('workspaceAiReviewCurrent');
   const workspaceAiReviewPending = document.getElementById('workspaceAiReviewPending');
   const workspaceAiReviewApprove = document.getElementById('workspaceAiReviewApprove');
+  const workspaceAiReviewLearn = document.getElementById('workspaceAiReviewLearn');
   const workspaceAiReviewReject = document.getElementById('workspaceAiReviewReject');
   const workspaceAssignBtn = document.getElementById('workspaceAssignBtn');
   const workspaceSnoozeBtn = document.getElementById('workspaceSnoozeBtn');
@@ -665,6 +666,8 @@
   let workspaceDraftAutosaveTimer = null;
   let workspaceDraftLastSavedValue = '';
   let workspaceDraftLastTelemetryAt = 0;
+  let workspaceAiReviewProblemCandidates = [];
+  let workspaceAiReviewSolutionCandidates = [];
   let workspaceLastProfileGapSignature = '';
   let workspaceLastContextSourceGapSignature = '';
   let workspaceLastAttributePolicyGapSignature = '';
@@ -4644,10 +4647,25 @@
     selectEl.disabled = false;
   }
 
+  function resolveAiReviewSelectedMessageText(selectEl, candidates) {
+    const selectedValue = String(selectEl?.value || '').trim();
+    if (!selectedValue) return '';
+    const list = Array.isArray(candidates) ? candidates : [];
+    for (const item of list) {
+      const id = Number(item?.id);
+      if (Number.isFinite(id) && String(id) === selectedValue) {
+        return String(item?.text || '').trim();
+      }
+    }
+    return '';
+  }
+
   async function loadWorkspaceAiReview(ticketId) {
     const normalizedTicketId = String(ticketId || '').trim();
     if (!workspaceAiReviewBox) return;
     workspaceAiReviewBox.classList.add('d-none');
+    workspaceAiReviewProblemCandidates = [];
+    workspaceAiReviewSolutionCandidates = [];
     renderAiReviewMessageSelect(workspaceAiReviewProblemSelect, [], null, 'Нет сообщений клиента');
     renderAiReviewMessageSelect(workspaceAiReviewSolutionSelect, [], null, 'Нет сообщений оператора');
     if (!normalizedTicketId) return;
@@ -4670,12 +4688,14 @@
         review.selected_problem_message_id,
         'Нет сообщений клиента'
       );
+      workspaceAiReviewProblemCandidates = Array.isArray(review.problem_message_candidates) ? review.problem_message_candidates : [];
       renderAiReviewMessageSelect(
         workspaceAiReviewSolutionSelect,
         review.solution_message_candidates,
         review.selected_solution_message_id,
         'Нет сообщений оператора'
       );
+      workspaceAiReviewSolutionCandidates = Array.isArray(review.solution_message_candidates) ? review.solution_message_candidates : [];
       if (workspaceAiReviewCurrent) workspaceAiReviewCurrent.textContent = String(review.current_solution || '').trim();
       if (workspaceAiReviewPending) workspaceAiReviewPending.textContent = String(review.pending_solution || '').trim();
       workspaceAiReviewBox.classList.remove('d-none');
@@ -8533,6 +8553,51 @@
         if (typeof showNotification === 'function') showNotification('Правка AI-решения принята', 'success');
       } catch (error) {
         if (typeof showNotification === 'function') showNotification(`Не удалось принять правку: ${error.message || 'unknown_error'}`, 'warning');
+      }
+    });
+  }
+
+  if (workspaceAiReviewLearn) {
+    workspaceAiReviewLearn.addEventListener('click', async () => {
+      const ticketId = String(activeWorkspaceTicketId || workspaceComposerTicketId || '').trim();
+      if (!ticketId) return;
+      const clientProblemMessage = resolveAiReviewSelectedMessageText(
+        workspaceAiReviewProblemSelect,
+        workspaceAiReviewProblemCandidates
+      );
+      const operatorSolutionMessage = resolveAiReviewSelectedMessageText(
+        workspaceAiReviewSolutionSelect,
+        workspaceAiReviewSolutionCandidates
+      );
+      if (!clientProblemMessage || !operatorSolutionMessage) {
+        if (typeof showNotification === 'function') {
+          showNotification('Выберите сообщение клиента и сообщение оператора для обучения.', 'warning');
+        }
+        return;
+      }
+      try {
+        const resp = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/ai-learning/mapping`, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            clientProblemMessage,
+            operatorSolutionMessage,
+          }),
+        });
+        const payload = await resp.json().catch(() => ({}));
+        if (!resp.ok || payload.success === false || payload.updated !== true) {
+          throw new Error(payload.error || `HTTP ${resp.status}`);
+        }
+        loadWorkspaceAiReview(ticketId);
+        loadWorkspaceAiSuggestions(ticketId);
+        if (typeof showNotification === 'function') {
+          showNotification('Пара проблема/решение сохранена в базу знаний AI.', 'success');
+        }
+      } catch (error) {
+        if (typeof showNotification === 'function') {
+          showNotification(`Не удалось сохранить разметку: ${error.message || 'unknown_error'}`, 'warning');
+        }
       }
     });
   }
