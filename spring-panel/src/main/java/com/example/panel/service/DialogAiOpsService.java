@@ -85,6 +85,21 @@ public class DialogAiOpsService {
         return Map.of("success", true, "updated", dialogAiAssistantService.rejectPendingReview(ticketId, operator));
     }
 
+    public Map<String, Object> submitLearningMapping(String ticketId,
+                                                     String clientProblemMessage,
+                                                     String operatorSolutionMessage,
+                                                     String operator) {
+        return Map.of(
+                "success", true,
+                "updated", dialogAiAssistantService.submitOperatorLearningMapping(
+                        ticketId,
+                        clientProblemMessage,
+                        operatorSolutionMessage,
+                        operator
+                )
+        );
+    }
+
     public Map<String, Object> loadReviewsQueue(Integer limit) {
         return Map.of("success", true, "items", dialogAiAssistantService.loadPendingReviewsQueue(limit));
     }

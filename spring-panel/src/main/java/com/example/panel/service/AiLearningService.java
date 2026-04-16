@@ -21,10 +21,14 @@ public class AiLearningService {
 
     private final JdbcTemplate jdbcTemplate;
     private final AiPolicyService aiPolicyService;
+    private final AiIntentService aiIntentService;
 
-    public AiLearningService(JdbcTemplate jdbcTemplate, AiPolicyService aiPolicyService) {
+    public AiLearningService(JdbcTemplate jdbcTemplate,
+                             AiPolicyService aiPolicyService,
+                             AiIntentService aiIntentService) {
         this.jdbcTemplate = jdbcTemplate;
         this.aiPolicyService = aiPolicyService;
+        this.aiIntentService = aiIntentService;
     }
 
     public UpsertResult upsertLearningSolution(String ticketId,
@@ -37,6 +41,7 @@ public class AiLearningService {
         if (question == null || reply == null) {
             return null;
         }
+        AiIntentService.IntentMatch intentMatch = aiIntentService.extract(question);
         String key = buildKey(question);
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
                 "SELECT solution_text,pending_solution_text,review_required FROM ai_agent_solution_memory WHERE query_key=? LIMIT 1",
@@ -57,6 +62,7 @@ public class AiLearningService {
                     true,
                     "learned_from_operator_reply_pending_review"
             );
+            applyIntentMetadata(key, intentMatch);
             return new UpsertResult(key, "inserted_draft");
         }
         Map<String, Object> existing = rows.get(0);
@@ -86,6 +92,7 @@ public class AiLearningService {
                     "pending_solution_kept"
             );
             applyDraftGovernance(key);
+            applyIntentMetadata(key, intentMatch);
             return new UpsertResult(key, "pending_unchanged");
         }
         if (currentSolution != null && !isMeaningfullyDifferent(currentSolution, reply, differenceThreshold)) {
@@ -110,6 +117,7 @@ public class AiLearningService {
                     review,
                     "operator_confirmed_existing_solution"
             );
+            applyIntentMetadata(key, intentMatch);
             return new UpsertResult(key, "confirmed_existing");
         }
         jdbcTemplate.update(
@@ -135,6 +143,7 @@ public class AiLearningService {
                 "operator_reply_requires_review"
         );
         applyDraftGovernance(key);
+        applyIntentMetadata(key, intentMatch);
         return new UpsertResult(key, "pending_review_requested");
     }
 
@@ -209,6 +218,31 @@ public class AiLearningService {
             );
         } catch (Exception ignored) {
             // Backward compatibility for DB without governance columns.
+        }
+    }
+
+    private void applyIntentMetadata(String key, AiIntentService.IntentMatch intentMatch) {
+        String normalizedKey = trim(key);
+        if (normalizedKey == null || intentMatch == null) {
+            return;
+        }
+        try {
+            jdbcTemplate.update(
+                    """
+                    UPDATE ai_agent_solution_memory
+                       SET intent_key = ?,
+                           slot_signature = ?,
+                           slots_json = ?,
+                           updated_at = CURRENT_TIMESTAMP
+                     WHERE query_key = ?
+                    """,
+                    cut(trim(intentMatch.intentKey()), 120),
+                    cut(trim(intentMatch.slotSignature()), 300),
+                    cut(trim(intentMatch.slotsJson()), 3000),
+                    normalizedKey
+            );
+        } catch (Exception ignored) {
+            // Backward compatibility for DB without intent columns.
         }
     }
 

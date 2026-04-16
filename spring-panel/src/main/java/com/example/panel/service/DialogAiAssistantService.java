@@ -133,6 +133,7 @@ public class DialogAiAssistantService {
         }
 
         mode = preRouting.effectiveMode();
+        dialogService.assignResponsibleIfMissing(t, "ai_agent");
         markProcessing(t, "processing", null, null, "processing", "incoming_message", null, mode);
         List<AiSuggestion> suggestions = findSuggestions(t, m, DEFAULT_SUGGESTION_LIMIT);
         String sourceHits = encodeSourceHits(suggestions);
@@ -288,6 +289,39 @@ public class DialogAiAssistantService {
             jdbcTemplate.update("UPDATE ai_agent_solution_memory SET review_required = 1, pending_solution_text = ?, updated_at = CURRENT_TIMESTAMP WHERE query_key = ?", cut(r, 2000), key);
         } catch (Exception ex) {
             log.debug("registerOperatorReply failed for {}: {}", ticketId, ex.getMessage());
+        }
+    }
+
+    public boolean submitOperatorLearningMapping(String ticketId,
+                                                 String clientProblemMessage,
+                                                 String operatorSolutionMessage,
+                                                 String operator) {
+        String t = trim(ticketId);
+        String client = trim(clientProblemMessage);
+        String solution = trim(operatorSolutionMessage);
+        if (t == null || client == null || solution == null) {
+            return false;
+        }
+        try {
+            AiLearningService.UpsertResult result = aiLearningService.upsertLearningSolution(
+                    t,
+                    client,
+                    solution,
+                    trim(operator),
+                    resolveDifferenceThreshold()
+            );
+            if (result == null) {
+                return false;
+            }
+            clearProcessing(t, "operator_learning_mapping_submitted", null, "review", "operator_mapping_submitted", null);
+            recordAiEvent(t, "ai_agent_operator_mapping_submitted", trim(operator), "review", "operator_mapping_submitted", null, null, result.action(), Map.of(
+                    "query_key", result.queryKey(),
+                    "mapping_action", result.action()
+            ));
+            return true;
+        } catch (Exception ex) {
+            log.debug("submitOperatorLearningMapping failed for {}: {}", ticketId, ex.getMessage());
+            return false;
         }
     }
 
