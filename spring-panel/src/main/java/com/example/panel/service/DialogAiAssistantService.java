@@ -68,6 +68,7 @@ public class DialogAiAssistantService {
     private final DialogReplyService dialogReplyService;
     private final NotificationService notificationService;
     private final SharedConfigService sharedConfigService;
+    private final AiPolicyService aiPolicyService;
     private final ObjectMapper objectMapper;
 
     public DialogAiAssistantService(JdbcTemplate jdbcTemplate,
@@ -75,12 +76,14 @@ public class DialogAiAssistantService {
                                     DialogReplyService dialogReplyService,
                                     NotificationService notificationService,
                                     SharedConfigService sharedConfigService,
+                                    AiPolicyService aiPolicyService,
                                     ObjectMapper objectMapper) {
         this.jdbcTemplate = jdbcTemplate;
         this.dialogService = dialogService;
         this.dialogReplyService = dialogReplyService;
         this.notificationService = notificationService;
         this.sharedConfigService = sharedConfigService;
+        this.aiPolicyService = aiPolicyService;
         this.objectMapper = objectMapper;
     }
 
@@ -94,39 +97,48 @@ public class DialogAiAssistantService {
         IncomingClientPayload payload = normalizeIncomingPayload(t, message, messageType, attachment);
         if (payload == null) {
             clearProcessing(t, "ignored_media_noise", null, "ignored", "junk_or_noise_media", null);
-            recordAiEvent(t, "ai_agent_message_ignored", null, "ignored", "junk_or_noise_media", null, null, "Ignored non-actionable media/noise message", null);
+            recordAiEvent(t, "ai_agent_message_ignored", null, "ignored", "junk_or_noise_media", null, null, "Ignored non-actionable media/noise message", Map.of(
+                    "policy_stage", "normalize_input",
+                    "policy_outcome", "ignored",
+                    "sensitive_topic", 0
+            ));
             return;
         }
         String m = payload.message();
 
         DialogAiControl control = loadDialogControl(t);
-        if (control.aiDisabled()) {
-            clearProcessing(t, "disabled_for_dialog", control.reason(), "disabled", "dialog_override_disabled", null);
-            recordAiEvent(t, "ai_agent_disabled_for_dialog", null, "disabled", "dialog_override_disabled", null, null, control.reason(), Map.of(
-                    "ai_disabled", true,
-                    "auto_reply_blocked", control.autoReplyBlocked()
-            ));
-            return;
-        }
-
-        if (!isAgentEnabled()) {
-            clearProcessing(t, "disabled", null, "disabled", "config_disabled", null);
-            recordAiEvent(t, "ai_agent_decision_made", null, "disabled", "config_disabled", null, null, "Agent disabled in dialog_config", Map.of(
-                    "action", "disabled"
-            ));
-            return;
-        }
-
-        if (requiresHumanImmediately(m)) {
-            markProcessing(t, "manual_requested", null, null, "escalate", "manual_requested", null, resolveAgentMode());
-            notifyOperatorsEscalation(t, m, "Client requested operator.");
-            recordAiEvent(t, "ai_agent_escalated", null, "escalate", "manual_requested", null, null, "Client explicitly requested operator", Map.of(
-                    "message_preview", cut(m, 200)
-            ));
-            return;
-        }
-
         String mode = resolveAgentMode();
+        boolean agentEnabled = isAgentEnabled();
+        PolicyOrderDecision preRouting = evaluatePreRoutingPolicy(t, m, mode, control, agentEnabled);
+        if (preRouting.stopProcessing()) {
+            clearProcessing(t, preRouting.action(), preRouting.detail(), preRouting.decisionType(), preRouting.decisionReason(), null, preRouting.effectiveMode());
+            if ("escalate".equals(preRouting.decisionType())) {
+                notifyOperatorsEscalation(t, m, preRouting.detail());
+            }
+            recordAiEvent(
+                    t,
+                    preRouting.eventType(),
+                    null,
+                    preRouting.decisionType(),
+                    preRouting.decisionReason(),
+                    null,
+                    null,
+                    preRouting.detail(),
+                    mergePayloads(
+                            preRouting.sensitiveMatch().asPayload(),
+                            Map.of(
+                                    "policy_stage", preRouting.policyStage(),
+                                    "policy_outcome", preRouting.policyOutcome(),
+                                    "message_preview", cut(m, 200),
+                                    "ai_disabled", control.aiDisabled(),
+                                    "auto_reply_blocked", control.autoReplyBlocked()
+                            )
+                    )
+            );
+            return;
+        }
+
+        mode = preRouting.effectiveMode();
         markProcessing(t, "processing", null, null, "processing", "incoming_message", null, mode);
         List<AiSuggestion> suggestions = findSuggestions(t, m, DEFAULT_SUGGESTION_LIMIT);
         String sourceHits = encodeSourceHits(suggestions);
@@ -135,7 +147,10 @@ public class DialogAiAssistantService {
             markProcessing(t, "no_match", null, "No relevant sources found.", "escalate", "no_match", sourceHits, mode);
             notifyOperatorsEscalation(t, m, "AI agent did not find a relevant answer.");
             recordAiEvent(t, "ai_agent_escalated", null, "escalate", "no_match", null, null, "No relevant sources", Map.of(
-                    "source_hits", sourceHits
+                    "source_hits", sourceHits,
+                    "policy_stage", "4_evidence",
+                    "policy_outcome", "insufficient_evidence",
+                    "sensitive_topic", preRouting.sensitiveMatch().matched() ? 1 : 0
             ));
             return;
         }
@@ -148,7 +163,12 @@ public class DialogAiAssistantService {
             markProcessing(t, "escalated", top, "Mode escalate_only is enabled", "escalate", "mode_escalate_only", sourceHits, mode);
             notifyOperatorsEscalation(t, m, "AI mode is escalate_only.");
             recordAiEvent(t, "ai_agent_escalated", null, "escalate", "mode_escalate_only", top.source, top.score, "Escalate-only mode", Map.of(
-                    "source_hits", sourceHits
+                    "source_hits", sourceHits,
+                    "policy_stage", "7_auto_reply_allowed",
+                    "policy_outcome", "blocked_by_mode",
+                    "top_candidate_trust", top.trustLevel,
+                    "top_candidate_source_type", top.sourceType,
+                    "sensitive_topic", preRouting.sensitiveMatch().matched() ? 1 : 0
             ));
             return;
         }
@@ -158,15 +178,29 @@ public class DialogAiAssistantService {
             notifyOperatorsEscalation(t, m, "Low confidence score: " + formatScore(top.score));
             recordAiEvent(t, "ai_agent_escalated", null, "escalate", "below_suggest_threshold", top.source, top.score, "Low confidence", Map.of(
                     "source_hits", sourceHits,
-                    "suggest_threshold", suggestThreshold
+                    "suggest_threshold", suggestThreshold,
+                    "policy_stage", "5_confidence",
+                    "policy_outcome", "below_suggest_threshold",
+                    "top_candidate_trust", top.trustLevel,
+                    "top_candidate_source_type", top.sourceType,
+                    "sensitive_topic", preRouting.sensitiveMatch().matched() ? 1 : 0
             ));
             return;
         }
 
-        if (MODE_ASSIST_ONLY.equals(mode) || top.score < autoReplyThreshold || control.autoReplyBlocked()) {
+        boolean sourceEligibleForAutoReply = aiPolicyService.isAutoReplyEligibleSource(
+                top.source,
+                top.status,
+                top.trustLevel,
+                top.sourceType,
+                top.safetyLevel
+        );
+        if (MODE_ASSIST_ONLY.equals(mode) || top.score < autoReplyThreshold || control.autoReplyBlocked() || !sourceEligibleForAutoReply) {
             String decisionReason = control.autoReplyBlocked()
                     ? "dialog_override_auto_reply_blocked"
-                    : (MODE_ASSIST_ONLY.equals(mode) ? "mode_assist_only" : "below_auto_reply_threshold");
+                    : (MODE_ASSIST_ONLY.equals(mode)
+                    ? "mode_assist_only"
+                    : (!sourceEligibleForAutoReply ? "untrusted_source_for_auto_reply" : "below_auto_reply_threshold"));
             markProcessing(
                     t,
                     "suggest_only",
@@ -179,7 +213,12 @@ public class DialogAiAssistantService {
             );
             recordAiEvent(t, "ai_agent_suggestion_shown", null, "suggest_only", decisionReason, top.source, top.score, "Suggestion shown to operator", Map.of(
                     "source_hits", sourceHits,
-                    "auto_reply_threshold", autoReplyThreshold
+                    "auto_reply_threshold", autoReplyThreshold,
+                    "policy_stage", "7_auto_reply_allowed",
+                    "policy_outcome", "suggest_only",
+                    "top_candidate_trust", top.trustLevel,
+                    "top_candidate_source_type", top.sourceType,
+                    "sensitive_topic", preRouting.sensitiveMatch().matched() ? 1 : 0
             ));
             return;
         }
@@ -189,7 +228,12 @@ public class DialogAiAssistantService {
             markProcessing(t, "auto_reply_suppressed", top, guard.reason(), "suppressed", "loop_guard", sourceHits, mode);
             notifyOperatorsEscalation(t, m, "Auto-reply suppressed by loop guard: " + guard.reason());
             recordAiEvent(t, "ai_agent_decision_made", null, "suppressed", "loop_guard", top.source, top.score, guard.reason(), Map.of(
-                    "source_hits", sourceHits
+                    "source_hits", sourceHits,
+                    "policy_stage", "6_loop_guard",
+                    "policy_outcome", "suppressed",
+                    "top_candidate_trust", top.trustLevel,
+                    "top_candidate_source_type", top.sourceType,
+                    "sensitive_topic", preRouting.sensitiveMatch().matched() ? 1 : 0
             ));
             return;
         }
@@ -200,7 +244,12 @@ public class DialogAiAssistantService {
             markProcessing(t, "send_failed", top, result.error(), "escalate", "send_failed", sourceHits, mode);
             notifyOperatorsEscalation(t, m, "Failed to send AI reply: " + result.error());
             recordAiEvent(t, "ai_agent_escalated", null, "escalate", "send_failed", top.source, top.score, result.error(), Map.of(
-                    "source_hits", sourceHits
+                    "source_hits", sourceHits,
+                    "policy_stage", "7_auto_reply_allowed",
+                    "policy_outcome", "send_failed",
+                    "top_candidate_trust", top.trustLevel,
+                    "top_candidate_source_type", top.sourceType,
+                    "sensitive_topic", preRouting.sensitiveMatch().matched() ? 1 : 0
             ));
             return;
         }
@@ -211,7 +260,12 @@ public class DialogAiAssistantService {
         markProcessing(t, "auto_replied", top, null, "auto_reply", "score_above_threshold", sourceHits, mode);
         recordAiEvent(t, "ai_agent_auto_reply_sent", "ai_agent", "auto_reply", "score_above_threshold", top.source, top.score, "Auto reply sent", Map.of(
                 "source_hits", sourceHits,
-                "reply_preview", cut(reply, 300)
+                "reply_preview", cut(reply, 300),
+                "policy_stage", "7_auto_reply_allowed",
+                "policy_outcome", "auto_reply",
+                "top_candidate_trust", top.trustLevel,
+                "top_candidate_source_type", top.sourceType,
+                "sensitive_topic", preRouting.sensitiveMatch().matched() ? 1 : 0
         ));
     }
 
@@ -432,6 +486,20 @@ public class DialogAiAssistantService {
                         cut(resolvedQueryText, 600),
                         sourceKey
                 );
+                if (sourceUpdated > 0) {
+                    applyMemoryGovernance(
+                            sourceKey,
+                            "approved",
+                            "medium",
+                            null,
+                            null,
+                            null,
+                            "normal",
+                            "operator",
+                            true,
+                            safeOperator
+                    );
+                }
             } else {
                 int targetUpdated = jdbcTemplate.update(
                         """
@@ -473,6 +541,18 @@ public class DialogAiAssistantService {
                             cut(resolvedQueryText, 600)
                     );
                 }
+                applyMemoryGovernance(
+                        targetKey,
+                        "approved",
+                        "medium",
+                        null,
+                        null,
+                        null,
+                        "normal",
+                        "operator",
+                        true,
+                        safeOperator
+                );
                 sourceUpdated = jdbcTemplate.update(
                         """
                         UPDATE ai_agent_solution_memory
@@ -486,6 +566,20 @@ public class DialogAiAssistantService {
                         safeOperator,
                         sourceKey
                 );
+                if (sourceUpdated > 0) {
+                    applyMemoryGovernance(
+                            sourceKey,
+                            "deprecated",
+                            "low",
+                            null,
+                            null,
+                            null,
+                            "normal",
+                            "operator",
+                            false,
+                            safeOperator
+                    );
+                }
             }
             if (sourceUpdated > 0) {
                 clearProcessing(t, "operator_correction_approved", null);
@@ -518,6 +612,18 @@ public class DialogAiAssistantService {
                     key
             );
             if (updated > 0) {
+                applyMemoryGovernance(
+                        key,
+                        "rejected",
+                        "low",
+                        null,
+                        null,
+                        null,
+                        "normal",
+                        "operator",
+                        false,
+                        trim(operator)
+                );
                 clearProcessing(t, "operator_correction_rejected", null);
                 recordAiEvent(t, "ai_agent_correction_rejected", trim(operator), "review", "rejected", null, null, null, null);
                 return true;
@@ -738,7 +844,25 @@ public class DialogAiAssistantService {
     private List<AiSuggestion> loadMemoryCandidates(Set<String> q, Set<String> entities, int limit) {
         List<Map<String, Object>> rows;
         try {
-            rows = jdbcTemplate.queryForList("SELECT query_key, query_text, solution_text, times_confirmed, times_corrected FROM ai_agent_solution_memory WHERE COALESCE(review_required,0)=0 AND solution_text IS NOT NULL AND trim(solution_text)<>'' ORDER BY COALESCE(updated_at, created_at) DESC LIMIT ?", limit);
+            rows = jdbcTemplate.queryForList(
+                    """
+                    SELECT query_key, query_text, solution_text, times_confirmed, times_corrected,
+                           status, trust_level, source_type, safety_level
+                      FROM ai_agent_solution_memory
+                     WHERE COALESCE(review_required,0)=0
+                       AND solution_text IS NOT NULL
+                       AND trim(solution_text)<>''
+                       AND lower(COALESCE(status,'approved')) IN ('approved','draft')
+                       AND (
+                           expires_at IS NULL
+                           OR trim(COALESCE(expires_at,'')) = ''
+                           OR datetime(substr(expires_at,1,19)) >= datetime('now')
+                       )
+                     ORDER BY COALESCE(updated_at, created_at) DESC
+                     LIMIT ?
+                    """,
+                    limit
+            );
         } catch (Exception ex) {
             return List.of();
         }
@@ -748,7 +872,19 @@ public class DialogAiAssistantService {
             double s = scoreByTokens(q, entities, join(qt, st));
             int conf = toInt(row.get("times_confirmed")), corr = toInt(row.get("times_corrected"));
             s = Math.max(0d, Math.min(1d, s + Math.min(0.20d, conf * 0.02d) - Math.min(0.12d, corr * 0.02d)));
-            if (s > 0d) out.add(new AiSuggestion("memory", "Проверенное решение", cut(st, 320), s, trim(key)));
+            String status = aiPolicyService.normalizeStatus(safe(row.get("status")), "approved");
+            String trustLevel = aiPolicyService.normalizeTrustLevel(safe(row.get("trust_level")), "low");
+            String sourceType = aiPolicyService.normalizeSourceType("memory", safe(row.get("source_type")));
+            String safetyLevel = aiPolicyService.normalizeSafetyLevel(safe(row.get("safety_level")), "normal");
+            if ("draft".equals(status)) {
+                s = Math.max(0d, Math.min(1d, s - 0.12d));
+            }
+            if ("low".equals(trustLevel)) {
+                s = Math.max(0d, Math.min(1d, s - 0.08d));
+            }
+            if (s > 0d) {
+                out.add(new AiSuggestion("memory", "Проверенное решение", cut(st, 320), s, trim(key), status, trustLevel, sourceType, safetyLevel));
+            }
         }
         return out;
     }
@@ -760,7 +896,7 @@ public class DialogAiAssistantService {
             String title = safe(row.get("title"));
             String text = cleanTextForRetrieval(join(title, safe(row.get("summary")), safe(row.get("content"))));
             double s = scoreByTokens(q, entities, text);
-            if (s > 0d) out.add(new AiSuggestion("knowledge", StringUtils.hasText(title) ? title : "Статья базы знаний", cut(text, 280), s, null));
+            if (s > 0d) out.add(new AiSuggestion("knowledge", StringUtils.hasText(title) ? title : "Статья базы знаний", cut(text, 280), s, null, "approved", "high", "knowledge", "normal"));
         }
         return out;
     }
@@ -772,7 +908,7 @@ public class DialogAiAssistantService {
             String title = safe(row.get("title"));
             String text = cleanTextForRetrieval(join(title, stripHtml(safe(row.get("body_html"))), safe(row.get("status"))));
             double s = scoreByTokens(q, entities, text);
-            if (s > 0d) out.add(new AiSuggestion("tasks", StringUtils.hasText(title) ? title : "Похожая задача", cut(text, 280), s, null));
+            if (s > 0d) out.add(new AiSuggestion("tasks", StringUtils.hasText(title) ? title : "Похожая задача", cut(text, 280), s, null, "draft", "low", "tasks", "normal"));
         }
         return out;
     }
@@ -784,7 +920,7 @@ public class DialogAiAssistantService {
             String ticket = safe(row.get("ticket_id"));
             String msg = cleanTextForRetrieval(safe(row.get("message")));
             double s = scoreByTokens(q, entities, msg);
-            if (s > 0d) out.add(new AiSuggestion("history", StringUtils.hasText(ticket) ? "Похожий диалог #" + ticket : "Похожий диалог", cut(msg, 260), s, null));
+            if (s > 0d) out.add(new AiSuggestion("history", StringUtils.hasText(ticket) ? "Похожий диалог #" + ticket : "Похожий диалог", cut(msg, 260), s, null, "draft", "low", "history", "normal"));
         }
         return out;
     }
@@ -830,7 +966,11 @@ public class DialogAiAssistantService {
                     StringUtils.hasText(prevTicket) ? "История заявителя #" + prevTicket : "История заявителя",
                     cut(msg, 260),
                     boosted,
-                    null
+                    null,
+                    "draft",
+                    "low",
+                    "applicant_history",
+                    "normal"
             ));
         }
         return out;
@@ -842,6 +982,18 @@ public class DialogAiAssistantService {
         List<Map<String, Object>> rows = jdbcTemplate.queryForList("SELECT solution_text,pending_solution_text,review_required FROM ai_agent_solution_memory WHERE query_key=? LIMIT 1", key);
         if (rows.isEmpty()) {
             jdbcTemplate.update("INSERT INTO ai_agent_solution_memory(query_key,query_text,solution_text,source,times_used,times_confirmed,times_corrected,review_required,pending_solution_text,last_operator,last_ticket_id,last_client_message,created_at,updated_at) VALUES (?,?,?,?,0,1,0,0,NULL,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)", key, cut(q, 600), cut(r, 2000), "operator", trim(operator), trim(ticketId), cut(q, 600));
+            applyMemoryGovernance(
+                    key,
+                    "approved",
+                    "medium",
+                    null,
+                    null,
+                    null,
+                    "normal",
+                    "operator",
+                    true,
+                    trim(operator)
+            );
             insertSolutionMemoryHistory(
                     key,
                     trim(operator),
@@ -862,6 +1014,18 @@ public class DialogAiAssistantService {
         boolean review = isTrue(ex.get("review_required"));
         if (review && pending != null && !isMeaningfullyDifferent(pending, r)) {
             jdbcTemplate.update("UPDATE ai_agent_solution_memory SET query_text=?,solution_text=?,review_required=0,pending_solution_text=NULL,times_confirmed=COALESCE(times_confirmed,0)+1,last_operator=?,last_ticket_id=?,last_client_message=?,updated_at=CURRENT_TIMESTAMP WHERE query_key=?", cut(q, 600), cut(r, 2000), trim(operator), trim(ticketId), cut(q, 600), key);
+            applyMemoryGovernance(
+                    key,
+                    "approved",
+                    "medium",
+                    null,
+                    null,
+                    null,
+                    "normal",
+                    "operator",
+                    true,
+                    trim(operator)
+            );
             insertSolutionMemoryHistory(
                     key,
                     trim(operator),
@@ -879,6 +1043,18 @@ public class DialogAiAssistantService {
         }
         if (sol != null && isMeaningfullyDifferent(sol, r)) {
             jdbcTemplate.update("UPDATE ai_agent_solution_memory SET query_text=?,review_required=1,pending_solution_text=?,times_corrected=COALESCE(times_corrected,0)+1,last_operator=?,last_ticket_id=?,last_client_message=?,updated_at=CURRENT_TIMESTAMP WHERE query_key=?", cut(q, 600), cut(r, 2000), trim(operator), trim(ticketId), cut(q, 600), key);
+            applyMemoryGovernance(
+                    key,
+                    "draft",
+                    "low",
+                    null,
+                    null,
+                    null,
+                    "normal",
+                    "operator",
+                    false,
+                    trim(operator)
+            );
             insertSolutionMemoryHistory(
                     key,
                     trim(operator),
@@ -895,6 +1071,18 @@ public class DialogAiAssistantService {
             return key;
         }
         jdbcTemplate.update("UPDATE ai_agent_solution_memory SET query_text=?,solution_text=?,review_required=0,pending_solution_text=NULL,times_confirmed=COALESCE(times_confirmed,0)+1,last_operator=?,last_ticket_id=?,last_client_message=?,updated_at=CURRENT_TIMESTAMP WHERE query_key=?", cut(q, 600), cut(r, 2000), trim(operator), trim(ticketId), cut(q, 600), key);
+        applyMemoryGovernance(
+                key,
+                "approved",
+                "medium",
+                null,
+                null,
+                null,
+                "normal",
+                "operator",
+                true,
+                trim(operator)
+        );
         insertSolutionMemoryHistory(
                 key,
                 trim(operator),
@@ -915,7 +1103,7 @@ public class DialogAiAssistantService {
         int safeLimit = Math.max(1, Math.min(limit != null ? limit : 25, 200));
         try {
             return jdbcTemplate.queryForList(
-                    "SELECT query_key, query_text, solution_text, pending_solution_text, last_ticket_id, updated_at, times_confirmed, times_corrected FROM ai_agent_solution_memory WHERE COALESCE(review_required,0)=1 AND trim(COALESCE(pending_solution_text,''))<>'' ORDER BY COALESCE(updated_at, created_at) DESC LIMIT ?",
+                    "SELECT query_key, query_text, solution_text, pending_solution_text, last_ticket_id, updated_at, times_confirmed, times_corrected, status, trust_level, safety_level FROM ai_agent_solution_memory WHERE COALESCE(review_required,0)=1 AND trim(COALESCE(pending_solution_text,''))<>'' ORDER BY COALESCE(updated_at, created_at) DESC LIMIT ?",
                     safeLimit
             );
         } catch (Exception ex) {
@@ -932,6 +1120,8 @@ public class DialogAiAssistantService {
                         """
                         SELECT query_key, query_text, solution_text, pending_solution_text, review_required,
                                times_used, times_confirmed, times_corrected, last_operator, last_ticket_id,
+                               status, trust_level, intent_key, slot_signature, scope_channel, scope_business, scope_location,
+                               safety_level, source_type, last_verified_at, expires_at, verified_by,
                                created_at, updated_at
                           FROM ai_agent_solution_memory
                          ORDER BY COALESCE(updated_at, created_at) DESC
@@ -945,6 +1135,8 @@ public class DialogAiAssistantService {
                     """
                     SELECT query_key, query_text, solution_text, pending_solution_text, review_required,
                            times_used, times_confirmed, times_corrected, last_operator, last_ticket_id,
+                           status, trust_level, intent_key, slot_signature, scope_channel, scope_business, scope_location,
+                           safety_level, source_type, last_verified_at, expires_at, verified_by,
                            created_at, updated_at
                       FROM ai_agent_solution_memory
                      WHERE lower(COALESCE(query_text,'')) LIKE ?
@@ -997,6 +1189,18 @@ public class DialogAiAssistantService {
                     key
             );
             if (updated > 0) {
+                applyMemoryGovernance(
+                        key,
+                        requireReview ? "draft" : "approved",
+                        requireReview ? "low" : "medium",
+                        null,
+                        null,
+                        null,
+                        "normal",
+                        "operator",
+                        !requireReview,
+                        trim(operator)
+                );
                 insertSolutionMemoryHistory(
                         key,
                         trim(operator),
@@ -1131,6 +1335,18 @@ public class DialogAiAssistantService {
                     key
             );
             if (updated > 0) {
+                applyMemoryGovernance(
+                        key,
+                        rollbackReview ? "draft" : "approved",
+                        rollbackReview ? "low" : "medium",
+                        null,
+                        null,
+                        null,
+                        "normal",
+                        "operator",
+                        !rollbackReview,
+                        trim(operator)
+                );
                 insertSolutionMemoryHistory(
                         key,
                         trim(operator),
@@ -1248,31 +1464,47 @@ public class DialogAiAssistantService {
         String event = trim(eventType);
         String who = trim(actor);
         try {
-            List<Object> params = new ArrayList<>();
-            StringBuilder sql = new StringBuilder("""
-                    SELECT id, ticket_id, event_type, actor, decision_type, decision_reason, source, score, detail, payload_json, created_at
-                      FROM ai_agent_event_log
-                     WHERE datetime(substr(COALESCE(created_at,''),1,19)) >= datetime('now', ?)
-                    """);
-            params.add(sinceExpr);
-            if (ticket != null) {
-                sql.append(" AND ticket_id = ?");
-                params.add(ticket);
+            return loadMonitoringEventsWithColumns(sinceExpr, safeLimit, ticket, event, who, true);
+        } catch (Exception fallback) {
+            try {
+                return loadMonitoringEventsWithColumns(sinceExpr, safeLimit, ticket, event, who, false);
+            } catch (Exception ex) {
+                return List.of();
             }
-            if (event != null) {
-                sql.append(" AND lower(COALESCE(event_type,'')) = ?");
-                params.add(event.toLowerCase(Locale.ROOT));
-            }
-            if (who != null) {
-                sql.append(" AND lower(COALESCE(actor,'')) = ?");
-                params.add(who.toLowerCase(Locale.ROOT));
-            }
-            sql.append(" ORDER BY id DESC LIMIT ?");
-            params.add(safeLimit);
-            return jdbcTemplate.queryForList(sql.toString(), params.toArray());
-        } catch (Exception ex) {
-            return List.of();
         }
+    }
+
+    private List<Map<String, Object>> loadMonitoringEventsWithColumns(String sinceExpr,
+                                                                      int safeLimit,
+                                                                      String ticket,
+                                                                      String event,
+                                                                      String who,
+                                                                      boolean extendedColumns) {
+        List<Object> params = new ArrayList<>();
+        String selectColumns = extendedColumns
+                ? "id, ticket_id, event_type, actor, decision_type, decision_reason, source, score, detail, payload_json, policy_stage, policy_outcome, intent_key, sensitive_topic, top_candidate_trust, top_candidate_source_type, created_at"
+                : "id, ticket_id, event_type, actor, decision_type, decision_reason, source, score, detail, payload_json, created_at";
+        StringBuilder sql = new StringBuilder("""
+                SELECT %s
+                  FROM ai_agent_event_log
+                 WHERE datetime(substr(COALESCE(created_at,''),1,19)) >= datetime('now', ?)
+                """.formatted(selectColumns));
+        params.add(sinceExpr);
+        if (ticket != null) {
+            sql.append(" AND ticket_id = ?");
+            params.add(ticket);
+        }
+        if (event != null) {
+            sql.append(" AND lower(COALESCE(event_type,'')) = ?");
+            params.add(event.toLowerCase(Locale.ROOT));
+        }
+        if (who != null) {
+            sql.append(" AND lower(COALESCE(actor,'')) = ?");
+            params.add(who.toLowerCase(Locale.ROOT));
+        }
+        sql.append(" ORDER BY id DESC LIMIT ?");
+        params.add(safeLimit);
+        return jdbcTemplate.queryForList(sql.toString(), params.toArray());
     }
 
     public boolean approvePendingReviewByKey(String queryKey, String operator) {
@@ -1289,6 +1521,20 @@ public class DialogAiAssistantService {
                     trim(operator),
                     key
             );
+            if (updated > 0) {
+                applyMemoryGovernance(
+                        key,
+                        "approved",
+                        "medium",
+                        null,
+                        null,
+                        null,
+                        "normal",
+                        "operator",
+                        true,
+                        trim(operator)
+                );
+            }
             if (updated > 0 && ticketId != null) {
                 clearProcessing(ticketId, "operator_correction_approved", null);
                 recordAiEvent(ticketId, "ai_agent_correction_approved", trim(operator), "review", "approved", null, null, null, Map.of(
@@ -1315,6 +1561,20 @@ public class DialogAiAssistantService {
                     trim(operator),
                     key
             );
+            if (updated > 0) {
+                applyMemoryGovernance(
+                        key,
+                        "rejected",
+                        "low",
+                        null,
+                        null,
+                        null,
+                        "normal",
+                        "operator",
+                        false,
+                        trim(operator)
+                );
+            }
             if (updated > 0 && ticketId != null) {
                 clearProcessing(ticketId, "operator_correction_rejected", null);
                 recordAiEvent(ticketId, "ai_agent_correction_rejected", trim(operator), "review", "rejected", null, null, null, Map.of(
@@ -1541,7 +1801,8 @@ public class DialogAiAssistantService {
             case "applicant_history" -> "Подсказка учитывает историю заявителя.";
             default -> "Подсказка сформирована на основе доступных данных.";
         };
-        return sourceExplain + " Итоговый confidence: " + formatScore(s.score) + ".";
+        String trust = StringUtils.hasText(s.trustLevel) ? s.trustLevel : "unknown";
+        return sourceExplain + " Итоговый confidence: " + formatScore(s.score) + ". trust=" + trust + ".";
     }
 
     private void notifyOperatorsEscalation(String ticketId, String msg, String reason) {
@@ -1617,7 +1878,17 @@ public class DialogAiAssistantService {
         List<AiSuggestion> weighted = new ArrayList<>();
         for (AiSuggestion candidate : candidates) {
             double score = applySourceWeight(candidate.source, candidate.score);
-            weighted.add(new AiSuggestion(candidate.source, candidate.title, candidate.snippet, score, candidate.memoryKey));
+            weighted.add(new AiSuggestion(
+                    candidate.source,
+                    candidate.title,
+                    candidate.snippet,
+                    score,
+                    candidate.memoryKey,
+                    candidate.status,
+                    candidate.trustLevel,
+                    candidate.sourceType,
+                    candidate.safetyLevel
+            ));
         }
         Map<String, AiSuggestion> bestBySource = new HashMap<>();
         for (AiSuggestion candidate : weighted) {
@@ -1642,7 +1913,17 @@ public class DialogAiAssistantService {
             }
             double tokenCover = queryTokens.isEmpty() ? 0d : similarity(String.join(" ", queryTokens), candidate.snippet);
             double adjusted = Math.max(0d, Math.min(1d, candidate.score - penalty + Math.min(0.06d, tokenCover * 0.1d)));
-            reranked.add(new AiSuggestion(candidate.source, candidate.title, candidate.snippet, adjusted, candidate.memoryKey));
+            reranked.add(new AiSuggestion(
+                    candidate.source,
+                    candidate.title,
+                    candidate.snippet,
+                    adjusted,
+                    candidate.memoryKey,
+                    candidate.status,
+                    candidate.trustLevel,
+                    candidate.sourceType,
+                    candidate.safetyLevel
+            ));
         }
         return reranked;
     }
@@ -1813,6 +2094,142 @@ public class DialogAiAssistantService {
             return DialogAiControl.DEFAULT;
         }
     }
+    private PolicyOrderDecision evaluatePreRoutingPolicy(String ticketId,
+                                                         String message,
+                                                         String baseMode,
+                                                         DialogAiControl control,
+                                                         boolean agentEnabled) {
+        AiPolicyService.SensitiveTopicMatch sensitiveMatch = aiPolicyService.detectSensitiveTopic(message);
+        String effectiveMode = aiPolicyService.applySensitiveModeOverride(baseMode, sensitiveMatch);
+
+        if (control.aiDisabled()) {
+            return new PolicyOrderDecision(
+                    true,
+                    "disabled_for_dialog",
+                    "ai_agent_disabled_for_dialog",
+                    "disabled",
+                    "dialog_override_disabled",
+                    "1_dialog_override",
+                    "blocked",
+                    effectiveMode,
+                    control.reason() != null ? control.reason() : "Dialog override disabled AI",
+                    sensitiveMatch
+            );
+        }
+        if (!agentEnabled) {
+            return new PolicyOrderDecision(
+                    true,
+                    "disabled",
+                    "ai_agent_decision_made",
+                    "disabled",
+                    "config_disabled",
+                    "1_global_config",
+                    "blocked",
+                    effectiveMode,
+                    "Agent disabled in dialog_config",
+                    sensitiveMatch
+            );
+        }
+        if (aiPolicyService.requiresEscalation(sensitiveMatch)) {
+            return new PolicyOrderDecision(
+                    true,
+                    "sensitive_topic_escalated",
+                    "ai_agent_escalated",
+                    "escalate",
+                    "sensitive_topic_escalate_only",
+                    "2_sensitive_topic",
+                    "escalate",
+                    effectiveMode,
+                    "Sensitive topic routed to operator: " + trim(sensitiveMatch.topicKey()),
+                    sensitiveMatch
+            );
+        }
+        if (requiresHumanImmediately(message)) {
+            return new PolicyOrderDecision(
+                    true,
+                    "manual_requested",
+                    "ai_agent_escalated",
+                    "escalate",
+                    "manual_requested",
+                    "3_human_request",
+                    "escalate",
+                    effectiveMode,
+                    "Client requested operator.",
+                    sensitiveMatch
+            );
+        }
+        return new PolicyOrderDecision(
+                false,
+                "continue",
+                "ai_agent_decision_made",
+                "processing",
+                "continue",
+                "precheck_passed",
+                "continue",
+                effectiveMode,
+                null,
+                sensitiveMatch
+        );
+    }
+
+    private Map<String, Object> mergePayloads(Map<String, Object> left, Map<String, Object> right) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        if (left != null && !left.isEmpty()) {
+            payload.putAll(left);
+        }
+        if (right != null && !right.isEmpty()) {
+            payload.putAll(right);
+        }
+        return payload;
+    }
+
+    private void applyMemoryGovernance(String queryKey,
+                                       String status,
+                                       String trustLevel,
+                                       String intentKey,
+                                       String slotSignature,
+                                       String scopeChannel,
+                                       String safetyLevel,
+                                       String sourceType,
+                                       boolean verified,
+                                       String verifiedBy) {
+        String key = trim(queryKey);
+        if (key == null) {
+            return;
+        }
+        try {
+            jdbcTemplate.update(
+                    """
+                    UPDATE ai_agent_solution_memory
+                       SET status = ?,
+                           trust_level = ?,
+                           intent_key = ?,
+                           slot_signature = ?,
+                           scope_channel = COALESCE(scope_channel, ?),
+                           safety_level = ?,
+                           source_type = ?,
+                           last_verified_at = CASE WHEN ? = 1 THEN CURRENT_TIMESTAMP ELSE last_verified_at END,
+                           verified_by = CASE WHEN ? = 1 THEN ? ELSE verified_by END,
+                           updated_at = CURRENT_TIMESTAMP
+                     WHERE query_key = ?
+                    """,
+                    aiPolicyService.normalizeStatus(status, "draft"),
+                    aiPolicyService.normalizeTrustLevel(trustLevel, "low"),
+                    cut(trim(intentKey), 120),
+                    cut(trim(slotSignature), 300),
+                    cut(trim(scopeChannel), 120),
+                    aiPolicyService.normalizeSafetyLevel(safetyLevel, "normal"),
+                    aiPolicyService.normalizeSourceType("memory", sourceType),
+                    verified ? 1 : 0,
+                    verified ? 1 : 0,
+                    cut(trim(verifiedBy), 120),
+                    key
+            );
+        } catch (Exception ignored) {
+            // Backward compatibility for databases where governance columns are not present yet.
+        }
+    }
+
     private String encodeSourceHits(List<AiSuggestion> suggestions) {
         if (suggestions == null || suggestions.isEmpty()) return null;
         List<Map<String, Object>> payload = new ArrayList<>();
@@ -1822,6 +2239,10 @@ public class DialogAiAssistantService {
             row.put("title", s.title);
             row.put("score", Math.round(Math.max(0d, Math.min(1d, s.score)) * 1000d) / 1000d);
             row.put("memory_key", s.memoryKey);
+            row.put("status", s.status);
+            row.put("trust_level", s.trustLevel);
+            row.put("source_type", s.sourceType);
+            row.put("safety_level", s.safetyLevel);
             payload.add(row);
         }
         try {
@@ -1861,6 +2282,39 @@ public class DialogAiAssistantService {
                                Map<String, Object> payload) {
         String type = trim(eventType);
         if (type == null) return;
+        String policyStage = payload != null ? trim(safe(payload.get("policy_stage"))) : null;
+        String policyOutcome = payload != null ? trim(safe(payload.get("policy_outcome"))) : null;
+        String intentKey = payload != null ? trim(safe(payload.get("intent_key"))) : null;
+        Integer sensitiveTopic = payload != null && isTrue(payload.get("sensitive_topic")) ? 1 : 0;
+        String topCandidateTrust = payload != null ? trim(safe(payload.get("top_candidate_trust"))) : null;
+        String topCandidateSourceType = payload != null ? trim(safe(payload.get("top_candidate_source_type"))) : null;
+        try {
+            jdbcTemplate.update("""
+                    INSERT INTO ai_agent_event_log(
+                        ticket_id, event_type, actor, decision_type, decision_reason, source, score, detail, payload_json,
+                        policy_stage, policy_outcome, intent_key, sensitive_topic, top_candidate_trust, top_candidate_source_type, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                    """,
+                    trim(ticketId),
+                    cut(type, 80),
+                    trim(actor),
+                    trim(decisionType),
+                    trim(decisionReason),
+                    trim(source),
+                    score,
+                    cut(detail, 2000),
+                    payload != null && !payload.isEmpty() ? cut(toJson(payload), 5000) : null,
+                    cut(policyStage, 80),
+                    cut(policyOutcome, 80),
+                    cut(intentKey, 120),
+                    sensitiveTopic,
+                    cut(topCandidateTrust, 32),
+                    cut(topCandidateSourceType, 64)
+            );
+            return;
+        } catch (Exception ignored) {
+            // Fallback for pre-migration schema.
+        }
         try {
             jdbcTemplate.update("""
                     INSERT INTO ai_agent_event_log(
@@ -1929,6 +2383,17 @@ public class DialogAiAssistantService {
     }
 
     private record AutoReplyGuard(boolean allowed, String reason) {}
+    private record PolicyOrderDecision(boolean stopProcessing,
+                                       String action,
+                                       String eventType,
+                                       String decisionType,
+                                       String decisionReason,
+                                       String policyStage,
+                                       String policyOutcome,
+                                       String effectiveMode,
+                                       String detail,
+                                       AiPolicyService.SensitiveTopicMatch sensitiveMatch) {
+    }
     private record DialogAiControl(boolean aiDisabled,
                                    boolean autoReplyBlocked,
                                    String reason,
@@ -1939,9 +2404,34 @@ public class DialogAiAssistantService {
     private record IncomingClientPayload(String message, String type, String attachment) {}
 
     private static final class AiSuggestion {
-        final String source; final String title; final String snippet; final double score; final String memoryKey;
-        AiSuggestion(String source, String title, String snippet, double score, String memoryKey) {
-            this.source = source; this.title = title; this.snippet = snippet; this.score = score; this.memoryKey = memoryKey;
+        final String source;
+        final String title;
+        final String snippet;
+        final double score;
+        final String memoryKey;
+        final String status;
+        final String trustLevel;
+        final String sourceType;
+        final String safetyLevel;
+
+        AiSuggestion(String source,
+                     String title,
+                     String snippet,
+                     double score,
+                     String memoryKey,
+                     String status,
+                     String trustLevel,
+                     String sourceType,
+                     String safetyLevel) {
+            this.source = source;
+            this.title = title;
+            this.snippet = snippet;
+            this.score = score;
+            this.memoryKey = memoryKey;
+            this.status = status;
+            this.trustLevel = trustLevel;
+            this.sourceType = sourceType;
+            this.safetyLevel = safetyLevel;
         }
     }
 }
