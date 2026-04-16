@@ -1,6 +1,7 @@
 package com.example.panel.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 
 import java.io.IOException;
@@ -8,6 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.OffsetDateTime;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -20,9 +22,13 @@ class BotProcessServiceTest {
     private Process process;
 
     @AfterEach
-    void tearDown() {
-        if (process != null && process.isAlive()) {
-            process.destroyForcibly();
+    void tearDown() throws Exception {
+        if (process != null) {
+            if (process.isAlive()) {
+                process.destroyForcibly();
+            }
+            process.waitFor(5, TimeUnit.SECONDS);
+            process = null;
         }
     }
 
@@ -72,6 +78,48 @@ class BotProcessServiceTest {
         assertThat(status.message()).contains("Не удалось подтвердить готовность бота");
     }
 
+    @Test
+    void resolveLaunchPlanPrefersJarInAutoModeWhenArtifactExists() throws Exception {
+        Path botWorkingDir = tempDir.resolve("java-bot");
+        Path jar = botWorkingDir.resolve("bot-telegram").resolve("target").resolve("bot-telegram-0.0.1-SNAPSHOT.jar");
+        Files.createDirectories(jar.getParent());
+        Files.writeString(jar, "fake");
+
+        BotProcessService service = createRuntimeService("auto");
+
+        BotProcessService.BotLaunchPlan plan = service.resolveLaunchPlan(botWorkingDir, "bot-telegram");
+
+        assertThat(plan.description()).startsWith("jar:");
+        assertThat(plan.command()).contains("-jar");
+        assertThat(plan.command()).contains(jar.toAbsolutePath().normalize().toString());
+    }
+
+    @Test
+    void resolveLaunchPlanHonorsExplicitMavenMode() throws Exception {
+        Path botWorkingDir = tempDir.resolve("java-bot");
+        Path jar = botWorkingDir.resolve("bot-telegram").resolve("target").resolve("bot-telegram-0.0.1-SNAPSHOT.jar");
+        Files.createDirectories(jar.getParent());
+        Files.writeString(jar, "fake");
+
+        BotProcessService service = createRuntimeService("maven");
+
+        BotProcessService.BotLaunchPlan plan = service.resolveLaunchPlan(botWorkingDir, "bot-telegram");
+
+        assertThat(plan.description()).isEqualTo("maven:spring-boot-run:bot-telegram");
+        assertThat(plan.command().get(0)).endsWith("mvnw.cmd");
+        assertThat(plan.command()).contains("spring-boot:run");
+    }
+
+    @Test
+    void resolveLaunchPlanFailsInJarModeWithoutArtifact() {
+        Path botWorkingDir = tempDir.resolve("java-bot");
+        BotProcessService service = createRuntimeService("jar");
+
+        assertThatThrownBy(() -> service.resolveLaunchPlan(botWorkingDir, "bot-telegram"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Не найден собранный jar");
+    }
+
     private Process launchProbe(String mode, Path processLog) throws IOException {
         ProcessBuilder builder = new ProcessBuilder(
             javaCommand(),
@@ -89,6 +137,18 @@ class BotProcessServiceTest {
         Path javaHome = Path.of(System.getProperty("java.home"));
         String executable = System.getProperty("os.name", "").toLowerCase().contains("win") ? "java.exe" : "java";
         return javaHome.resolve("bin").resolve(executable).toString();
+    }
+
+    private BotProcessService createRuntimeService(String launchMode) {
+        com.example.panel.config.BotProcessProperties properties = new com.example.panel.config.BotProcessProperties();
+        properties.setLaunchMode(launchMode);
+        return new BotProcessService(
+                mock(SharedConfigService.class),
+                mock(com.example.panel.config.SqliteDataSourceProperties.class),
+                properties,
+                mock(IntegrationNetworkService.class),
+                mock(com.fasterxml.jackson.databind.ObjectMapper.class)
+        );
     }
 
     private static final class TestableBotProcessService extends BotProcessService {

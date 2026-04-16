@@ -15,6 +15,7 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -77,17 +78,8 @@ public class BotProcessService {
             String botModule = resolveBotModule(channel);
             Path botWorkingDir = resolveBotWorkingDir();
             Files.createDirectories(resolveMavenRepoDir(botWorkingDir));
-            ProcessBuilder builder = new ProcessBuilder(
-                mvnwCommand(),
-                "-Dmaven.repo.local=" + resolveMavenRepoDir(botWorkingDir),
-                "-q",
-                "-Dorg.slf4j.simpleLogger.showDateTime=true",
-                "-Dorg.slf4j.simpleLogger.dateTimeFormat=yyyy-MM-dd HH:mm:ss.SSSXXX",
-                "-pl",
-                botModule,
-                "-am",
-                "spring-boot:run"
-            );
+            BotLaunchPlan launchPlan = resolveLaunchPlan(botWorkingDir, botModule);
+            ProcessBuilder builder = new ProcessBuilder(launchPlan.command());
             builder.directory(botWorkingDir.toFile());
             Path logFile = resolveLogFile(botWorkingDir, channel);
             Path processOutputLogFile = resolveProcessOutputLogFile(logFile);
@@ -154,7 +146,7 @@ public class BotProcessService {
             processes.put(channelId, process);
             startedAt.put(channelId, now);
             writePidFile(botWorkingDir, channelId, process.pid());
-            log.info("Started bot process for channel {} at {}", channelId, now);
+            log.info("Started bot process for channel {} at {} via {}", channelId, now, launchPlan.description());
             return startupStatus;
         } catch (Exception ex) {
             log.error("Failed to start bot process for channel {}", channelId, ex);
@@ -570,6 +562,79 @@ public class BotProcessService {
         return os.contains("win") ? "mvnw.cmd" : "./mvnw";
     }
 
+    String javaCommand() {
+        Path javaHome = Path.of(System.getProperty("java.home"));
+        String executable = System.getProperty("os.name", "").toLowerCase().contains("win") ? "java.exe" : "java";
+        return javaHome.resolve("bin").resolve(executable).toString();
+    }
+
+    BotLaunchPlan resolveLaunchPlan(Path botWorkingDir, String botModule) {
+        BotProcessProperties.LaunchMode launchMode = botProcessProperties.resolveLaunchMode();
+        Path executableJar = resolveExecutableJar(botWorkingDir, botModule);
+        if (launchMode == BotProcessProperties.LaunchMode.JAR) {
+            if (executableJar == null) {
+                throw new IllegalStateException("Не найден собранный jar для модуля " + botModule
+                        + ". Соберите java-bot или переключите app.bots.launch-mode в auto/maven.");
+            }
+            return jarLaunchPlan(executableJar);
+        }
+        if (launchMode == BotProcessProperties.LaunchMode.AUTO && executableJar != null) {
+            return jarLaunchPlan(executableJar);
+        }
+        return mavenLaunchPlan(botWorkingDir, botModule);
+    }
+
+    Path resolveExecutableJar(Path botWorkingDir, String botModule) {
+        if (botWorkingDir == null || !StringUtils.hasText(botModule)) {
+            return null;
+        }
+        Path targetDir = botWorkingDir.resolve(botModule).resolve("target").normalize();
+        if (!Files.isDirectory(targetDir)) {
+            return null;
+        }
+        try (Stream<Path> files = Files.list(targetDir)) {
+            return files
+                .filter(path -> Files.isRegularFile(path) && path.getFileName().toString().endsWith(".jar"))
+                .filter(path -> {
+                    String name = path.getFileName().toString().toLowerCase();
+                    return !name.startsWith("original-") && !name.contains("-plain");
+                })
+                .sorted((left, right) -> {
+                    try {
+                        return Files.getLastModifiedTime(right).compareTo(Files.getLastModifiedTime(left));
+                    } catch (IOException ex) {
+                        return right.getFileName().toString().compareTo(left.getFileName().toString());
+                    }
+                })
+                .findFirst()
+                .orElse(null);
+        } catch (IOException ex) {
+            log.warn("Failed to resolve executable jar for module {}", botModule, ex);
+            return null;
+        }
+    }
+
+    private BotLaunchPlan jarLaunchPlan(Path executableJar) {
+        return new BotLaunchPlan(
+                List.of(javaCommand(), "-jar", executableJar.toAbsolutePath().normalize().toString()),
+                "jar:" + executableJar.getFileName()
+        );
+    }
+
+    private BotLaunchPlan mavenLaunchPlan(Path botWorkingDir, String botModule) {
+        List<String> command = new ArrayList<>();
+        command.add(mvnwCommand());
+        command.add("-Dmaven.repo.local=" + resolveMavenRepoDir(botWorkingDir));
+        command.add("-q");
+        command.add("-Dorg.slf4j.simpleLogger.showDateTime=true");
+        command.add("-Dorg.slf4j.simpleLogger.dateTimeFormat=yyyy-MM-dd HH:mm:ss.SSSXXX");
+        command.add("-pl");
+        command.add(botModule);
+        command.add("-am");
+        command.add("spring-boot:run");
+        return new BotLaunchPlan(command, "maven:spring-boot-run:" + botModule);
+    }
+
     private void waitForExit(ProcessHandle handle, long timeoutSeconds) {
         try {
             handle.onExit().get(timeoutSeconds, TimeUnit.SECONDS);
@@ -577,6 +642,8 @@ public class BotProcessService {
             log.warn("Failed to wait for bot process termination for channel", ex);
         }
     }
+
+    record BotLaunchPlan(List<String> command, String description) {}
 
     private Long parseChannelIdFromPidFile(String fileName) {
         Matcher matcher = PID_FILE_PATTERN.matcher(fileName);
