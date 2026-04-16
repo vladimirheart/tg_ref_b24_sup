@@ -1,6 +1,7 @@
 # Architecture And UI Refactoring Roadmap
 
-Дата: `2026-04-15`
+Дата старта: `2026-04-15`
+Обновлено: `2026-04-16`
 
 ## Цель
 
@@ -14,16 +15,32 @@
 
 ## Текущее состояние
 
-Основные проблемы, зафиксированные в аудите:
+На `2026-04-16` базовый план уже частично реализован в коде, поэтому roadmap
+нужно читать не как wishlist, а как карту оставшихся работ.
 
-- слишком большие классы и контроллеры: `DialogService`, `DialogApiController`,
-  `SettingsBridgeController`;
-- смешение `JPA`, raw `JdbcTemplate`, JSON-конфигов и `localStorage` без единой
-  модели источников правды;
-- позднее применение темы через sidebar-fragment;
-- ограниченный охват `ui-config` только частью страниц;
-- крупные inline `style/script` блоки в `settings`, `dashboard`, `dialogs`;
-- слабое тестовое покрытие для безопасного рефакторинга.
+Что уже достигнуто:
+
+- UI runtime foundation и ранний head-bootstrap внедрены;
+- browser/server-backed UI preferences заведены и частично нормализованы;
+- controller/service split для домена `dialogs` выполнен на уровне transport и
+  основных orchestration flows;
+- `settings` выведен из режима giant controller/update-method и разрезан по
+  нескольким поддоменам;
+- `dialog_config` больше не обновляется через один giant service;
+- runtime boundary для ботов уже начал уходить от жёсткого `spring-boot:run`;
+- появилась минимальная test safety net для наиболее рискованных новых слоёв.
+
+Что остаётся главными hotspots:
+
+- `DialogService` всё ещё слишком крупный и остаётся главным кандидатом на
+  service-level split по bounded context;
+- в `settings` ещё не выделены оставшиеся крупные поддомены уровня
+  `catalog/reference/bot-settings/partner-network`;
+- Phase 5 начат, но ещё не доведён до полноценного runtime contract между
+  `spring-panel` и `java-bot`;
+- Phase 6 пока даёт только точечную страховку, а не широкий regression net;
+- крупные inline `style/script` блоки в `settings`, `dashboard`, `dialogs`
+  остаются техническим долгом UI-слоя.
 
 ## Фазы
 
@@ -37,7 +54,7 @@
 
 Статус:
 
-- выполнено в рамках текущего этапа.
+- завершено.
 
 Что включено:
 
@@ -58,19 +75,24 @@
 
 Статус:
 
-- начато частично: введён общий runtime-модуль для browser-only preferences,
-  на который переведены `theme` и `sidebar`;
-- добавлен server-backed bootstrap/sync слой для operator UI preferences.
+- выполнено частично и стабилизировано как foundation-слой.
+
+Что уже сделано:
+
+- введён общий runtime-модуль для browser-only preferences;
+- на него переведены `theme` и `sidebar`;
+- добавлен server-backed bootstrap/sync слой для operator UI preferences;
 - triage preferences диалогов переведены на server-backed storage с
   backward-compatible fallback к legacy shared JSON.
 
-Что сделать:
+Что остаётся:
 
-- зафиксировать перечень допустимых browser-prefs:
-  `theme`, `palette`, `density`, `sidebar pin/order`, `dialogs view state`;
-- убрать raw color-значения из runtime-конфигов там, где они должны зависеть от
-  design tokens;
-- описать ownership для `settings.json`, `localStorage`, DB-параметров.
+- формально зафиксировать ownership для `settings.json`, `localStorage`,
+  `settings_parameters` и server-backed UI prefs;
+- дочистить места, где runtime всё ещё может зависеть от raw visual values,
+  а не от tokens/theme semantics;
+- при необходимости выделить отдельный documented contract для operator UI
+  preferences.
 
 ### Phase 3. Dialog Domain Split
 
@@ -122,6 +144,20 @@
   `DialogWorkspaceController` и `DialogWorkspaceService`, а сам старый
   `DialogApiController` больше не нужен как точка концентрации домена.
 
+Что это значит practically:
+
+- transport-layer split домена `dialogs` в основном завершён;
+- следующий значимый этап для `dialogs` уже не про controllers, а про
+  разрезание самого `DialogService` на service-level bounded contexts.
+
+Что остаётся:
+
+- service-level split `DialogService` на list/workspace/history/SLA/AI и related
+  mapping layers;
+- при необходимости вынести DTO mapping и summary assembly из giant service;
+- расширить targeted WebMvc/service tests под новую controller/service
+  раскладку.
+
 ### Phase 4. Settings Domain Split
 
 Цель:
@@ -172,6 +208,21 @@
   `DialogApiControllerWebMvcTest` синхронизирован с новой controller-разбивкой,
   чтобы не ломать `testCompile`.
 
+Что это значит practically:
+
+- основные самые рискованные giant flows в `settings` уже разрезаны;
+- `SettingsBridgeController` и `SettingsUpdateService` больше не являются
+  единственными точками концентрации домена.
+
+Что остаётся:
+
+- выделить remaining subdomains уровня `catalog/reference data`,
+  `partner/network`, `bot/integration settings`, если они всё ещё живут в
+  слишком общих слоях;
+- при необходимости сузить remaining responsibilities
+  `SettingsDialogWorkspaceConfigService`, если он снова начнёт разрастаться;
+- расширить тестовую страховку вокруг settings update/routing контрактов.
+
 ### Phase 5. Process And Runtime Boundary
 
 Цель:
@@ -192,6 +243,16 @@
 - `spring-boot:run` оставлен как controlled fallback для dev-сценария;
 - добавлены тесты на выбор launcher plan и сохранён readiness probe контракт.
 
+Что остаётся:
+
+- формализовать contract между panel и `java-bot` на уровне launcher inputs,
+  env contract и status/readiness expectations;
+- определить preferred production path: prebuilt jars, launcher scripts или
+  отдельный supervisor/service;
+- при необходимости добавить explicit build/discovery contract для bot jars,
+  чтобы panel не гадала по `target/*.jar`;
+- расширить runtime tests от launcher plan до end-to-end process contract.
+
 ### Phase 6. Test Safety Net
 
 Цель:
@@ -205,17 +266,61 @@
 - integration tests для shared config и DB path resolution;
 - runtime contract tests для bot process orchestration.
 
+Статус:
+
+- начато точечно, но не завершено как системный слой.
+
+Что уже есть:
+
+- unit-тесты на `dialog_config` routing/validation;
+- test coverage на readiness/startup contract в `BotProcessService`;
+- legacy WebMvc test-слой частично синхронизирован с новой controller
+  структурой.
+
+Что остаётся:
+
+- smoke tests для `theme/ui bootstrap`;
+- отдельные WebMvc tests под новые dialog/settings controllers;
+- integration tests для shared config path/env resolution;
+- более широкий runtime contract test для launcher strategy и bot lifecycle.
+
+## Где мы сейчас
+
+Если смотреть по смыслу, а не по номерам:
+
+1. `Phase 1` завершён.
+2. `Phase 2` стабилизирован и требует скорее нормализации ownership, чем
+   срочной архитектурной ломки.
+3. `Phase 3` завершён на controller boundary и ждёт service-level split
+   `DialogService`.
+4. `Phase 4` выполнен по самым рискованным giant flows и требует добивки
+   remaining subdomains.
+5. `Phase 5` уже начат в коде.
+6. `Phase 6` начат точечно, но пока не превращён в полноценную safety net.
+
+## Следующий Фокус
+
+Наиболее логичный следующий шаг после текущего состояния:
+
+1. Продолжить `Phase 5` и закрепить runtime contract между panel и bot runtime.
+2. Параллельно расширять `Phase 6`, чтобы следующие рефакторинги шли под
+   лучшей страховкой.
+3. После этого вернуться к service-level split `DialogService`, который
+   остаётся самым большим архитектурным риском.
+
 ## Порядок выполнения
 
-1. Закончить foundation и убедиться, что страницы стабильно применяют тему и
-   page presets.
-2. Вынести UI preferences в отдельный поток хранения.
-3. Резать `dialogs` по read-only сценариям.
-4. Резать `settings`.
-5. Только после этого трогать bot runtime boundary.
+Актуальный порядок после уже выполненных этапов:
+
+1. Довести `Phase 5` от launcher strategy до более явного runtime contract.
+2. Расширить `Phase 6`, чтобы новые refactor-проходы не шли почти без тестов.
+3. Вернуться к `dialogs` и резать `DialogService` по service-level bounded
+   contexts.
+4. Добить remaining `settings` subdomains, если они ещё остаются в общих слоях.
 
 ## Что не делать сейчас
 
 - не начинать большой перенос всех SQL сценариев на JPA;
-- не переписывать одновременно `dialogs`, `settings` и `dashboard`;
+- не переписывать одновременно `DialogService`, `settings` subdomains и bot
+  runtime contract;
 - не смешивать визуальный редизайн с архитектурным рефакторингом сервиса.
