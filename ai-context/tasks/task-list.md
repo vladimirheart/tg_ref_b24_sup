@@ -44,10 +44,10 @@
 🟢 [01-022] Ввести общий UI config/preset слой для dashboard, settings и dialogs
 🟢 [01-023] Заменить дополнительные темы на Catppuccin и Amber Minimal, сохранив штатную тему и обновив графики дашборда
 🟣 [01-024] Начать поэтапный рефакторинг архитектуры и UI runtime по итогам аудита
-🟠 [01-025] Вынести AI decision policy в отдельный движок с явным policy order и режимами AUTO_REPLY/SUGGEST/ESCALATE
-🟠 [01-026] Добавить sensitive-topic слой и policy-ограничения для рискованных тем клиентских обращений
-🟠 [01-027] Ввести trust/freshness модель памяти и запретить auto-reply из слабых источников
-🟠 [01-028] Разделить AI orchestration на специализированные сервисы и исправить learning semantics
+🟣 [01-025] Вынести AI decision policy в отдельный движок с явным policy order и режимами AUTO_REPLY/SUGGEST/ESCALATE
+🟣 [01-026] Добавить sensitive-topic слой и policy-ограничения для рискованных тем клиентских обращений
+🟣 [01-027] Ввести trust/freshness модель памяти и запретить auto-reply из слабых источников
+🟡 [01-028] Разделить AI orchestration на специализированные сервисы и исправить learning semantics
 🟠 [01-029] Внедрить intent+slots модель, intent catalog и базовый intent extraction pipeline
 🟠 [01-030] Реализовать hybrid retrieval, consistency checks и канонические knowledge units
 🟠 [01-031] Добавить decision trace API, offline eval-контур и расширенный KPI-мониторинг AI-агента
