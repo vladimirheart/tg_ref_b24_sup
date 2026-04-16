@@ -163,6 +163,14 @@
   `SettingsDialogSlaAiConfigService`, `SettingsDialogWorkspaceConfigService`,
   `SettingsDialogPublicFormConfigService` и coordinator/router слой без giant
   списка `payload.containsKey(...)`.
+- завершено для текущего этапа: coordinator `dialog_config` дополнительно
+  разгружен через `SettingsDialogTemplateConfigService` и
+  `SettingsDialogRuntimeConfigService`, так что template/macro governance и
+  базовые runtime-настройки больше не живут в одном giant update-method.
+- добавлена минимальная test safety net: routing/validation для нового
+  `dialog_config` split покрыты unit-тестами, а legacy
+  `DialogApiControllerWebMvcTest` синхронизирован с новой controller-разбивкой,
+  чтобы не ломать `testCompile`.
 
 ### Phase 5. Process And Runtime Boundary
 
