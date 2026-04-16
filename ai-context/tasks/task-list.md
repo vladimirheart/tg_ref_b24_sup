@@ -50,6 +50,6 @@
 🟢 [01-028] Разделить AI orchestration на специализированные сервисы и исправить learning semantics
 🟢 [01-029] Внедрить intent+slots модель, intent catalog и базовый intent extraction pipeline
 🟢 [01-030] Реализовать hybrid retrieval, consistency checks и канонические knowledge units
-🟠 [01-031] Добавить decision trace API, offline eval-контур и расширенный KPI-мониторинг AI-агента
-🟠 [01-032] Подключить LLM как контролируемый слой (parser/rewrite/composer/explainer) с output guard
+🟣 [01-031] Добавить decision trace API, offline eval-контур и расширенный KPI-мониторинг AI-агента
+🟣 [01-032] Подключить LLM как контролируемый слой (parser/rewrite/composer/explainer) с output guard
 

@@ -36,6 +36,36 @@ public class SettingsDialogSlaAiConfigService {
         if (payload.containsKey("dialog_ai_agent_max_auto_replies_per_dialog")) {
             dialogConfig.put("ai_agent_max_auto_replies_per_dialog", payload.get("dialog_ai_agent_max_auto_replies_per_dialog"));
         }
+        if (payload.containsKey("dialog_ai_agent_llm_enabled")) {
+            dialogConfig.put("ai_agent_llm_enabled", payload.get("dialog_ai_agent_llm_enabled"));
+        }
+        if (payload.containsKey("dialog_ai_agent_llm_provider")) {
+            dialogConfig.put("ai_agent_llm_provider", payload.get("dialog_ai_agent_llm_provider"));
+        }
+        if (payload.containsKey("dialog_ai_agent_llm_endpoint")) {
+            dialogConfig.put("ai_agent_llm_endpoint", payload.get("dialog_ai_agent_llm_endpoint"));
+        }
+        if (payload.containsKey("dialog_ai_agent_llm_model")) {
+            dialogConfig.put("ai_agent_llm_model", payload.get("dialog_ai_agent_llm_model"));
+        }
+        if (payload.containsKey("dialog_ai_agent_llm_timeout_ms")) {
+            dialogConfig.put("ai_agent_llm_timeout_ms", payload.get("dialog_ai_agent_llm_timeout_ms"));
+        }
+        if (payload.containsKey("dialog_ai_agent_llm_roles")) {
+            dialogConfig.put("ai_agent_llm_roles", payload.get("dialog_ai_agent_llm_roles"));
+        }
+        if (payload.containsKey("dialog_ai_agent_llm_rollout_mode")) {
+            dialogConfig.put("ai_agent_llm_rollout_mode", payload.get("dialog_ai_agent_llm_rollout_mode"));
+        }
+        if (payload.containsKey("dialog_ai_agent_llm_rollout_percent")) {
+            dialogConfig.put("ai_agent_llm_rollout_percent", payload.get("dialog_ai_agent_llm_rollout_percent"));
+        }
+        if (payload.containsKey("dialog_ai_agent_llm_output_guard_enabled")) {
+            dialogConfig.put("ai_agent_llm_output_guard_enabled", payload.get("dialog_ai_agent_llm_output_guard_enabled"));
+        }
+        if (payload.containsKey("dialog_ai_agent_offline_eval_enabled")) {
+            dialogConfig.put("ai_agent_offline_eval_enabled", payload.get("dialog_ai_agent_offline_eval_enabled"));
+        }
         if (payload.containsKey("dialog_sla_critical_escalation_enabled")) {
             dialogConfig.put("sla_critical_escalation_enabled", payload.get("dialog_sla_critical_escalation_enabled"));
         }

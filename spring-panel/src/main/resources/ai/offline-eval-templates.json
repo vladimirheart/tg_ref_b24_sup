@@ -1,0 +1,126 @@
+{
+  "dataset_version": "2026-04-16.offline-eval.v1",
+  "variants_per_template": 30,
+  "businesses": [
+    "блинбери",
+    "сушивесла",
+    "пиццафабрика",
+    "bb"
+  ],
+  "channels": [
+    "telegram",
+    "vk",
+    "max",
+    "web_form"
+  ],
+  "locations": [
+    "центр",
+    "юг",
+    "север",
+    "мега"
+  ],
+  "amounts": [
+    "499",
+    "799",
+    "1290",
+    "1590"
+  ],
+  "templates": [
+    {
+      "id": "order_status",
+      "message": "Подскажите, где мой заказ #{order_id} по {business} в {channel} для точки {location}?",
+      "expected_intent": "order_status",
+      "expected_auto_reply_allowed": true,
+      "expected_requires_operator": false,
+      "expect_confirmed": true
+    },
+    {
+      "id": "delivery_delay",
+      "message": "Доставка по заказу #{order_id} из {business} в {location} опоздала, что делать?",
+      "expected_intent": "delivery_delay",
+      "expected_auto_reply_allowed": false,
+      "expected_requires_operator": false,
+      "expect_confirmed": false
+    },
+    {
+      "id": "refund_request",
+      "message": "Хочу возврат по заказу #{order_id} из {business}, сумма {amount} руб.",
+      "expected_intent": "refund_request",
+      "expected_auto_reply_allowed": false,
+      "expected_requires_operator": true,
+      "expect_confirmed": false
+    },
+    {
+      "id": "payment_issue",
+      "message": "По заказу #{order_id} в {business} списали {amount} руб., оплата не прошла.",
+      "expected_intent": "payment_issue",
+      "expected_auto_reply_allowed": false,
+      "expected_requires_operator": true,
+      "expect_confirmed": false
+    },
+    {
+      "id": "food_quality",
+      "message": "В заказе #{order_id} из {business} в {location} еда холодная и невкусная.",
+      "expected_intent": "food_quality",
+      "expected_auto_reply_allowed": false,
+      "expected_requires_operator": false,
+      "expect_confirmed": false
+    },
+    {
+      "id": "cancel_order",
+      "message": "Нужно отменить заказ #{order_id} в {business} для точки {location}.",
+      "expected_intent": "cancel_order",
+      "expected_auto_reply_allowed": false,
+      "expected_requires_operator": false,
+      "expect_confirmed": false
+    },
+    {
+      "id": "technical_issue",
+      "message": "В {channel} не работает приложение {business}, заказ #{order_id} не открывается.",
+      "expected_intent": "technical_issue",
+      "expected_auto_reply_allowed": false,
+      "expected_requires_operator": false,
+      "expect_confirmed": false
+    },
+    {
+      "id": "loyalty_program",
+      "message": "Почему в {business} в {channel} не начислились бонусы за заказ #{order_id}?",
+      "expected_intent": "loyalty_program",
+      "expected_auto_reply_allowed": false,
+      "expected_requires_operator": false,
+      "expect_confirmed": false
+    },
+    {
+      "id": "operator_request",
+      "message": "Соедините меня с оператором по заказу #{order_id} из {business}.",
+      "expected_intent": "operator_request",
+      "expected_auto_reply_allowed": false,
+      "expected_requires_operator": true,
+      "expect_confirmed": false
+    },
+    {
+      "id": "allergy_question",
+      "message": "Есть ли аллергены в заказе #{order_id} из {business} для точки {location}?",
+      "expected_intent": "allergy_question",
+      "expected_auto_reply_allowed": false,
+      "expected_requires_operator": true,
+      "expect_confirmed": false
+    },
+    {
+      "id": "general_support",
+      "message": "Подскажите по {business} в {location}, не понимаю как оформить заказ в {channel}.",
+      "expected_intent": "general_support",
+      "expected_auto_reply_allowed": false,
+      "expected_requires_operator": false,
+      "expect_confirmed": false
+    },
+    {
+      "id": "booking_table",
+      "message": "Хочу забронировать столик в {business} на локации {location}, канал {channel}.",
+      "expected_intent": "general_support",
+      "expected_auto_reply_allowed": false,
+      "expected_requires_operator": false,
+      "expect_confirmed": false
+    }
+  ]
+}

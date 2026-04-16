@@ -147,11 +147,52 @@ public class DialogAiOpsController {
         ));
     }
 
+    @GetMapping("/{ticketId}/ai-decision-trace")
+    public ResponseEntity<?> aiDecisionTrace(@PathVariable String ticketId,
+                                             @RequestParam(value = "limit", required = false) Integer limit,
+                                             Authentication authentication) {
+        ResponseEntity<Map<String, Object>> denied = dialogAuthorizationService.requirePermission(authentication, "can_reply", "ai_decision_trace", ticketId);
+        return denied != null ? denied : ResponseEntity.ok(dialogAiOpsService.loadDecisionTrace(ticketId, limit));
+    }
+
+    @PostMapping("/{ticketId}/ai-reclassify")
+    public ResponseEntity<?> aiReclassify(@PathVariable String ticketId,
+                                          @RequestBody(required = false) AiDebugMessageRequest request,
+                                          Authentication authentication) {
+        ResponseEntity<Map<String, Object>> denied = dialogAuthorizationService.requirePermission(authentication, "can_reply", "ai_reclassify", ticketId);
+        if (denied != null) {
+            return denied;
+        }
+        return ResponseEntity.ok(dialogAiOpsService.reclassify(
+                ticketId,
+                request != null ? request.message() : null,
+                request != null ? request.messageType() : null,
+                request != null ? request.attachment() : null
+        ));
+    }
+
+    @PostMapping("/{ticketId}/ai-retrieve-debug")
+    public ResponseEntity<?> aiRetrieveDebug(@PathVariable String ticketId,
+                                             @RequestBody(required = false) AiRetrieveDebugRequest request,
+                                             Authentication authentication) {
+        ResponseEntity<Map<String, Object>> denied = dialogAuthorizationService.requirePermission(authentication, "can_reply", "ai_retrieve_debug", ticketId);
+        if (denied != null) {
+            return denied;
+        }
+        return ResponseEntity.ok(dialogAiOpsService.retrieveDebug(
+                ticketId,
+                request != null ? request.message() : null,
+                request != null ? request.messageType() : null,
+                request != null ? request.attachment() : null,
+                request != null ? request.limit() : null
+        ));
+    }
+
     @GetMapping("/ai-reviews")
     public ResponseEntity<?> aiReviewsQueue(@RequestParam(value = "limit", required = false) Integer limit,
                                             Authentication authentication) {
         ResponseEntity<Map<String, Object>> denied = dialogAuthorizationService.requirePermission(authentication, "can_reply", "ai_reviews_queue", null);
-        return denied != null ? denied : ResponseEntity.ok(dialogAiOpsService.loadReviewsQueue(limit));
+        return denied != null ? denied : ResponseEntity.ok(Map.of("success", true, "items", dialogAiOpsService.loadPendingReviewsQueue(limit)));
     }
 
     @PostMapping("/ai-reviews/{queryKey}/approve")
@@ -237,6 +278,74 @@ public class DialogAiOpsController {
         return ResponseEntity.ok(dialogAiOpsService.rollbackSolutionMemory(queryKey, request.historyId(), operator));
     }
 
+    @GetMapping("/ai-intents")
+    public ResponseEntity<?> aiIntents(@RequestParam(value = "limit", required = false) Integer limit,
+                                       @RequestParam(value = "query", required = false) String query,
+                                       @RequestParam(value = "enabled", required = false) Boolean enabled,
+                                       Authentication authentication) {
+        ResponseEntity<Map<String, Object>> denied = dialogAuthorizationService.requirePermission(authentication, "can_reply", "ai_intents", null);
+        return denied != null ? denied : ResponseEntity.ok(dialogAiOpsService.loadIntents(limit, query, enabled));
+    }
+
+    @PostMapping("/ai-intents")
+    public ResponseEntity<?> upsertAiIntent(@RequestBody(required = false) AiIntentUpsertRequest request,
+                                            Authentication authentication) {
+        ResponseEntity<Map<String, Object>> denied = dialogAuthorizationService.requirePermission(authentication, "can_reply", "ai_intents_update", null);
+        if (denied != null) {
+            return denied;
+        }
+        if (request == null || !StringUtils.hasText(request.intentKey())) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "error", "intent_key is required"));
+        }
+        return ResponseEntity.ok(dialogAiOpsService.upsertIntent(
+                request.intentKey(),
+                request.title(),
+                request.description(),
+                request.patternHints(),
+                request.slotSchemaJson(),
+                request.enabled(),
+                request.priority(),
+                request.autoReplyAllowed(),
+                request.assistOnly(),
+                request.requiresOperator(),
+                request.safetyLevel(),
+                request.notes()
+        ));
+    }
+
+    @GetMapping("/ai-knowledge-units")
+    public ResponseEntity<?> aiKnowledgeUnits(@RequestParam(value = "limit", required = false) Integer limit,
+                                              @RequestParam(value = "query", required = false) String query,
+                                              @RequestParam(value = "status", required = false) String status,
+                                              Authentication authentication) {
+        ResponseEntity<Map<String, Object>> denied = dialogAuthorizationService.requirePermission(authentication, "can_reply", "ai_knowledge_units", null);
+        return denied != null ? denied : ResponseEntity.ok(dialogAiOpsService.loadKnowledgeUnits(limit, query, status));
+    }
+
+    @PostMapping("/ai-knowledge-units")
+    public ResponseEntity<?> upsertAiKnowledgeUnit(@RequestBody(required = false) AiKnowledgeUnitUpsertRequest request,
+                                                   Authentication authentication) {
+        ResponseEntity<Map<String, Object>> denied = dialogAuthorizationService.requirePermission(authentication, "can_reply", "ai_knowledge_units_update", null);
+        if (denied != null) {
+            return denied;
+        }
+        if (request == null || !StringUtils.hasText(request.bodyText())) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "error", "body_text is required"));
+        }
+        return ResponseEntity.ok(dialogAiOpsService.upsertKnowledgeUnit(
+                request.unitKey(),
+                request.title(),
+                request.bodyText(),
+                request.intentKey(),
+                request.slotSignature(),
+                request.business(),
+                request.location(),
+                request.channel(),
+                request.status(),
+                request.sourceRef()
+        ));
+    }
+
     @GetMapping("/ai-monitoring/summary")
     public ResponseEntity<?> aiMonitoringSummary(@RequestParam(value = "days", required = false) Integer days,
                                                  Authentication authentication) {
@@ -265,6 +374,22 @@ public class DialogAiOpsController {
         return ResponseEntity.ok(Map.of("success", true, "items", items));
     }
 
+    @GetMapping("/ai-monitoring/offline-eval")
+    public ResponseEntity<?> aiOfflineEval(Authentication authentication) {
+        ResponseEntity<Map<String, Object>> denied = dialogAuthorizationService.requirePermission(authentication, "can_reply", "ai_offline_eval", null);
+        return denied != null ? denied : ResponseEntity.ok(dialogAiOpsService.loadOfflineEvalSummary());
+    }
+
+    @PostMapping("/ai-monitoring/offline-eval/run")
+    public ResponseEntity<?> runAiOfflineEval(Authentication authentication) {
+        ResponseEntity<Map<String, Object>> denied = dialogAuthorizationService.requirePermission(authentication, "can_reply", "ai_offline_eval_run", null);
+        if (denied != null) {
+            return denied;
+        }
+        String operator = authentication != null ? authentication.getName() : null;
+        return ResponseEntity.ok(dialogAiOpsService.runOfflineEvalNow(operator));
+    }
+
     public record AiSuggestionFeedbackRequest(String decision,
                                               String source,
                                               String title,
@@ -285,11 +410,48 @@ public class DialogAiOpsController {
                                            @JsonAlias({"operator_solution_message", "operatorSolutionMessage"}) String operatorSolutionMessage) {
     }
 
+    public record AiDebugMessageRequest(String message,
+                                        @JsonAlias({"message_type", "messageType"}) String messageType,
+                                        String attachment) {
+    }
+
+    public record AiRetrieveDebugRequest(String message,
+                                         @JsonAlias({"message_type", "messageType"}) String messageType,
+                                         String attachment,
+                                         Integer limit) {
+    }
+
     public record AiSolutionMemoryUpdateRequest(@JsonAlias({"query_text", "queryText"}) String queryText,
                                                 @JsonAlias({"solution_text", "solutionText"}) String solutionText,
                                                 @JsonAlias({"review_required", "reviewRequired"}) Boolean reviewRequired) {
     }
 
     public record AiSolutionMemoryRollbackRequest(@JsonAlias({"history_id", "historyId"}) Long historyId) {
+    }
+
+    public record AiIntentUpsertRequest(@JsonAlias({"intent_key", "intentKey"}) String intentKey,
+                                        String title,
+                                        String description,
+                                        @JsonAlias({"pattern_hints", "patternHints"}) String patternHints,
+                                        @JsonAlias({"slot_schema_json", "slotSchemaJson"}) String slotSchemaJson,
+                                        Boolean enabled,
+                                        Integer priority,
+                                        @JsonAlias({"auto_reply_allowed", "autoReplyAllowed"}) Boolean autoReplyAllowed,
+                                        @JsonAlias({"assist_only", "assistOnly"}) Boolean assistOnly,
+                                        @JsonAlias({"requires_operator", "requiresOperator"}) Boolean requiresOperator,
+                                        @JsonAlias({"safety_level", "safetyLevel"}) String safetyLevel,
+                                        String notes) {
+    }
+
+    public record AiKnowledgeUnitUpsertRequest(@JsonAlias({"unit_key", "unitKey"}) String unitKey,
+                                               String title,
+                                               @JsonAlias({"body_text", "bodyText"}) String bodyText,
+                                               @JsonAlias({"intent_key", "intentKey"}) String intentKey,
+                                               @JsonAlias({"slot_signature", "slotSignature"}) String slotSignature,
+                                               String business,
+                                               String location,
+                                               String channel,
+                                               String status,
+                                               @JsonAlias({"source_ref", "sourceRef"}) String sourceRef) {
     }
 }
