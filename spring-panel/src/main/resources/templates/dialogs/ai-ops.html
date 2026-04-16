@@ -84,6 +84,8 @@
                         <div class="small mb-1">iiko: <span id="employeeDiscountIikoState">-</span></div>
                         <div class="small mb-1" id="employeeDiscountSecretsState">-</div>
                         <div class="small text-muted" id="employeeDiscountConnectionMessage">-</div>
+                        <div class="fw-semibold small mt-3 mb-2">Сохранённые URL-профили</div>
+                        <div id="employeeDiscountProfiles" class="small text-muted">-</div>
                     </div>
                 </div>
                 <div class="col-lg-8">
@@ -98,47 +100,23 @@
                                 <input type="password" class="form-control form-control-sm" id="employeeDiscountBitrixWebhookUrl" placeholder="Пусто = сохранить текущий секрет">
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label form-label-sm">iiko group name</label>
-                                <input class="form-control form-control-sm" id="employeeDiscountIikoGroupName" placeholder="main-chain">
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label form-label-sm">iiko base URL</label>
+                                <label class="form-label form-label-sm">iiko URL</label>
                                 <input class="form-control form-control-sm" id="employeeDiscountIikoBaseUrl" placeholder="https://...">
                             </div>
                             <div class="col-md-4">
+                                <label class="form-label form-label-sm">iiko API login</label>
+                                <input class="form-control form-control-sm" id="employeeDiscountIikoApiLogin" placeholder="user_id">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label form-label-sm">iiko API secret</label>
+                                <input type="password" class="form-control form-control-sm" id="employeeDiscountIikoApiSecret" placeholder="user_secret">
+                            </div>
+                            <div class="col-md-6">
                                 <label class="form-label form-label-sm">iiko organization id</label>
                                 <input class="form-control form-control-sm" id="employeeDiscountIikoOrganizationId" placeholder="id организации">
                             </div>
-                            <div class="col-md-4">
-                                <label class="form-label form-label-sm">iiko login</label>
-                                <input class="form-control form-control-sm" id="employeeDiscountIikoLogin" placeholder="login">
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label form-label-sm">iiko password</label>
-                                <input type="password" class="form-control form-control-sm" id="employeeDiscountIikoPassword" placeholder="Пусто = сохранить текущий секрет">
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label form-label-sm">iiko token</label>
-                                <input type="password" class="form-control form-control-sm" id="employeeDiscountIikoToken" placeholder="Пусто = сохранить текущий секрет">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label form-label-sm">categories URL</label>
-                                <input class="form-control form-control-sm" id="employeeDiscountIikoCategoriesUrl" placeholder="/api/... или https://...">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label form-label-sm">wallets URL</label>
-                                <input class="form-control form-control-sm" id="employeeDiscountIikoWalletsUrl" placeholder="/api/... или https://...">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label form-label-sm">customer lookup URL</label>
-                                <input class="form-control form-control-sm" id="employeeDiscountIikoCustomerLookupUrl" placeholder="/api/... или https://...">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label form-label-sm">customer update URL</label>
-                                <input class="form-control form-control-sm" id="employeeDiscountIikoCustomerUpdateUrl" placeholder="/api/... или https://...">
-                            </div>
                             <div class="col-12">
-                                <div class="form-text small">Секретные поля не возвращаются обратно в UI. Если оставить `webhook`, `password` или `token` пустыми, панель сохранит уже существующее секретное значение.</div>
+                                <div class="form-text small">Шаг 0: укажите URL и креды для этого URL, затем сохраните профиль. Секретные поля не возвращаются обратно в UI. Если оставить `webhook` или `api secret` пустыми, панель сохранит уже существующее секретное значение.</div>
                             </div>
                         </div>
                     </div>
@@ -162,14 +140,6 @@
                                 <label class="form-label form-label-sm">Title markers</label>
                                 <textarea class="form-control form-control-sm" rows="3" id="employeeDiscountTitleMarkers" placeholder="Опционально, по одному на строку"></textarea>
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label form-label-sm">IDs категорий скидок для снятия</label>
-                                <textarea class="form-control form-control-sm" rows="3" id="employeeDiscountCategoryIds" placeholder="id по одному на строку"></textarea>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label form-label-sm">IDs кошельков-исключений</label>
-                                <textarea class="form-control form-control-sm" rows="3" id="employeeDiscountWalletIds" placeholder="id по одному на строку"></textarea>
-                            </div>
                             <div class="col-12">
                                 <label class="form-check-label small">
                                     <input type="checkbox" class="form-check-input me-1" id="employeeDiscountDryRunDefault">
@@ -182,6 +152,7 @@
             </div>
 
             <div class="d-flex flex-wrap gap-2 mb-3">
+                <button class="btn btn-sm btn-outline-secondary" id="employeeDiscountLoadOrganizations" type="button">Загрузить организации iiko</button>
                 <button class="btn btn-sm btn-outline-secondary" id="employeeDiscountLoadGroups" type="button">Загрузить группы Bitrix24</button>
                 <button class="btn btn-sm btn-outline-secondary" id="employeeDiscountPreview" type="button">Preview отбора задач</button>
                 <button class="btn btn-sm btn-outline-secondary" id="employeeDiscountLoadCategories" type="button">Загрузить категории iiko</button>
@@ -195,6 +166,8 @@
             <div class="row g-3">
                 <div class="col-lg-6">
                     <div class="border rounded p-3 h-100">
+                        <div class="fw-semibold small mb-2">Организации iiko</div>
+                        <div id="employeeDiscountOrganizations" class="small text-muted mb-3">-</div>
                         <div class="fw-semibold small mb-2">Группы Bitrix24</div>
                         <div id="employeeDiscountGroups" class="small text-muted">-</div>
                     </div>

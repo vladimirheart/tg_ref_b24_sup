@@ -2,10 +2,17 @@
   const stateEl = document.getElementById('employeeDiscountState');
   if (!stateEl) return;
 
+  const state = {
+    activeProfileUrl: '',
+    selectedCategoryIds: new Set(),
+    selectedWalletIds: new Set(),
+  };
+
   const refreshBtn = document.getElementById('employeeDiscountRefresh');
   const saveBtn = document.getElementById('employeeDiscountSave');
   const saveCredentialsBtn = document.getElementById('employeeDiscountSaveCredentials');
   const loadGroupsBtn = document.getElementById('employeeDiscountLoadGroups');
+  const loadOrganizationsBtn = document.getElementById('employeeDiscountLoadOrganizations');
   const previewBtn = document.getElementById('employeeDiscountPreview');
   const loadCategoriesBtn = document.getElementById('employeeDiscountLoadCategories');
   const loadWalletsBtn = document.getElementById('employeeDiscountLoadWallets');
@@ -17,6 +24,8 @@
   const iikoStateEl = document.getElementById('employeeDiscountIikoState');
   const secretsStateEl = document.getElementById('employeeDiscountSecretsState');
   const connectionMessageEl = document.getElementById('employeeDiscountConnectionMessage');
+  const profilesEl = document.getElementById('employeeDiscountProfiles');
+  const orgsEl = document.getElementById('employeeDiscountOrganizations');
   const groupsEl = document.getElementById('employeeDiscountGroups');
   const previewEl = document.getElementById('employeeDiscountPreviewList');
   const categoriesEl = document.getElementById('employeeDiscountCategories');
@@ -26,23 +35,15 @@
 
   const bitrixPortalUrlInput = document.getElementById('employeeDiscountBitrixPortalUrl');
   const bitrixWebhookUrlInput = document.getElementById('employeeDiscountBitrixWebhookUrl');
-  const iikoGroupNameInput = document.getElementById('employeeDiscountIikoGroupName');
   const iikoBaseUrlInput = document.getElementById('employeeDiscountIikoBaseUrl');
-  const iikoLoginInput = document.getElementById('employeeDiscountIikoLogin');
-  const iikoPasswordInput = document.getElementById('employeeDiscountIikoPassword');
-  const iikoTokenInput = document.getElementById('employeeDiscountIikoToken');
+  const iikoApiLoginInput = document.getElementById('employeeDiscountIikoApiLogin');
+  const iikoApiSecretInput = document.getElementById('employeeDiscountIikoApiSecret');
   const iikoOrganizationIdInput = document.getElementById('employeeDiscountIikoOrganizationId');
-  const iikoCategoriesUrlInput = document.getElementById('employeeDiscountIikoCategoriesUrl');
-  const iikoWalletsUrlInput = document.getElementById('employeeDiscountIikoWalletsUrl');
-  const iikoCustomerLookupUrlInput = document.getElementById('employeeDiscountIikoCustomerLookupUrl');
-  const iikoCustomerUpdateUrlInput = document.getElementById('employeeDiscountIikoCustomerUpdateUrl');
 
   const groupIdInput = document.getElementById('employeeDiscountGroupId');
   const titleMarkersInput = document.getElementById('employeeDiscountTitleMarkers');
   const checklistLabelsInput = document.getElementById('employeeDiscountChecklistLabels');
   const phoneRegexInput = document.getElementById('employeeDiscountPhoneRegex');
-  const categoryIdsInput = document.getElementById('employeeDiscountCategoryIds');
-  const walletIdsInput = document.getElementById('employeeDiscountWalletIds');
   const dryRunDefaultInput = document.getElementById('employeeDiscountDryRunDefault');
 
   function getCookieValue(name) {
@@ -95,34 +96,59 @@
     if (titleMarkersInput) titleMarkersInput.value = Array.isArray(data.task_title_markers) ? data.task_title_markers.join('\n') : '';
     if (checklistLabelsInput) checklistLabelsInput.value = Array.isArray(data.checklist_labels) ? data.checklist_labels.join('\n') : '';
     if (phoneRegexInput) phoneRegexInput.value = data.phone_regex || '';
-    if (categoryIdsInput) categoryIdsInput.value = Array.isArray(data.selected_discount_category_ids) ? data.selected_discount_category_ids.join('\n') : '';
-    if (walletIdsInput) walletIdsInput.value = Array.isArray(data.excluded_wallet_ids) ? data.excluded_wallet_ids.join('\n') : '';
     if (dryRunDefaultInput) dryRunDefaultInput.checked = !!data.dry_run_by_default;
+  }
+
+  function renderProfiles(items) {
+    if (!profilesEl) return;
+    if (!Array.isArray(items) || !items.length) {
+      profilesEl.innerHTML = '<div class="text-muted">URL-профили ещё не сохранены.</div>';
+      return;
+    }
+    profilesEl.innerHTML = items.map((item) => `
+      <button class="btn btn-sm ${item.active ? 'btn-primary' : 'btn-outline-secondary'} me-2 mb-2" type="button" data-profile-url="${escapeHtml(item.base_url)}">
+        ${escapeHtml(item.base_url)}
+      </button>
+    `).join('');
   }
 
   function fillCredentials(credentials) {
     const data = credentials || {};
     const bitrix = data.bitrix24 || {};
-    const iiko = data.iiko || {};
+    const activeProfile = data.iiko || {};
+    const profiles = Array.isArray(data.iiko_profiles) ? data.iiko_profiles : [];
+
+    state.activeProfileUrl = data.active_iiko_profile_url || activeProfile.base_url || '';
+    state.selectedCategoryIds = new Set(Array.isArray(activeProfile.selected_discount_category_ids) ? activeProfile.selected_discount_category_ids : []);
+    state.selectedWalletIds = new Set(Array.isArray(activeProfile.selected_wallet_ids) ? activeProfile.selected_wallet_ids : []);
+
     if (scopeEl) scopeEl.textContent = data.scope || '-';
     if (bitrixPortalUrlInput) bitrixPortalUrlInput.value = bitrix.portal_url || '';
     if (bitrixWebhookUrlInput) bitrixWebhookUrlInput.value = '';
-    if (iikoGroupNameInput) iikoGroupNameInput.value = iiko.group_name || '';
-    if (iikoBaseUrlInput) iikoBaseUrlInput.value = iiko.base_url || '';
-    if (iikoLoginInput) iikoLoginInput.value = iiko.login || '';
-    if (iikoPasswordInput) iikoPasswordInput.value = '';
-    if (iikoTokenInput) iikoTokenInput.value = '';
-    if (iikoOrganizationIdInput) iikoOrganizationIdInput.value = iiko.organization_id || '';
-    if (iikoCategoriesUrlInput) iikoCategoriesUrlInput.value = iiko.categories_url || '';
-    if (iikoWalletsUrlInput) iikoWalletsUrlInput.value = iiko.wallets_url || '';
-    if (iikoCustomerLookupUrlInput) iikoCustomerLookupUrlInput.value = iiko.customer_lookup_url || '';
-    if (iikoCustomerUpdateUrlInput) iikoCustomerUpdateUrlInput.value = iiko.customer_update_url || '';
+    if (iikoBaseUrlInput) iikoBaseUrlInput.value = activeProfile.base_url || '';
+    if (iikoApiLoginInput) iikoApiLoginInput.value = activeProfile.api_login || '';
+    if (iikoApiSecretInput) iikoApiSecretInput.value = '';
+    if (iikoOrganizationIdInput) iikoOrganizationIdInput.value = activeProfile.organization_id || '';
+    renderProfiles(profiles);
 
     const savedSecrets = [];
     savedSecrets.push(bitrix.webhook_saved ? 'webhook Bitrix24 сохранён' : 'webhook Bitrix24 не задан');
-    savedSecrets.push(iiko.password_saved ? 'пароль iiko сохранён' : 'пароль iiko не задан');
-    savedSecrets.push(iiko.token_saved ? `token iiko сохранён (${iiko.auth_mode || 'bearer'})` : `token iiko не задан (${iiko.auth_mode || 'none'})`);
+    savedSecrets.push(activeProfile.api_secret_saved ? 'api secret iiko сохранён' : 'api secret iiko не задан');
+    savedSecrets.push(state.activeProfileUrl ? `активный URL: ${state.activeProfileUrl}` : 'активный URL не выбран');
     if (secretsStateEl) secretsStateEl.textContent = savedSecrets.join(' | ');
+  }
+
+  function renderOrganizations(items) {
+    if (!orgsEl) return;
+    if (!Array.isArray(items) || !items.length) {
+      orgsEl.innerHTML = '<div class="text-muted">Нет данных по организациям.</div>';
+      return;
+    }
+    orgsEl.innerHTML = items.map((item) => `
+      <button class="btn btn-sm btn-outline-secondary me-2 mb-2 text-start" type="button" data-org-id="${escapeHtml(item.id)}">
+        ${escapeHtml(item.name)} <span class="text-muted">#${escapeHtml(item.id)}</span>
+      </button>
+    `).join('');
   }
 
   function renderGroups(items) {
@@ -138,18 +164,27 @@
     `).join('');
   }
 
-  function renderCatalog(target, items) {
+  function renderCatalog(target, items, type) {
     if (!target) return;
+    const selected = type === 'categories' ? state.selectedCategoryIds : state.selectedWalletIds;
     if (!Array.isArray(items) || !items.length) {
       target.innerHTML = '<div class="text-muted">Нет данных.</div>';
       return;
     }
-    target.innerHTML = items.map((item) => `
-      <div class="border rounded p-2 mb-1">
-        <div class="fw-semibold">${escapeHtml(item.name)}</div>
-        <div class="text-muted">id: ${escapeHtml(item.id)}</div>
-      </div>
-    `).join('');
+    target.innerHTML = items.map((item) => {
+      const checked = selected.has(String(item.id || '')) ? 'checked' : '';
+      const secondary = type === 'wallets' ? escapeHtml((item.wallet_names || []).join(', ')) : '';
+      return `
+        <label class="border rounded p-2 mb-1 d-block">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" data-catalog-type="${type}" data-item-id="${escapeHtml(item.id)}" ${checked}>
+            <span class="form-check-label fw-semibold">${escapeHtml(item.name)}</span>
+          </div>
+          <div class="text-muted small">id: ${escapeHtml(item.id)}</div>
+          ${secondary ? `<div class="text-muted small">кошельки: ${secondary}</div>` : ''}
+        </label>
+      `;
+    }).join('');
   }
 
   function renderPreview(items) {
@@ -221,7 +256,9 @@
       fillSettings(status.settings || {});
       fillCredentials(credentials);
       if (bitrixStateEl) bitrixStateEl.textContent = bitrix.reachable ? 'ok' : (bitrix.configured ? 'configured, but unreachable' : 'not configured');
-      if (iikoStateEl) iikoStateEl.textContent = iiko.mutation_ready ? `mutation ready (${iiko.auth_mode || 'none'})` : (iiko.configured ? `discovery only (${iiko.auth_mode || 'none'})` : 'not configured');
+      if (iikoStateEl) iikoStateEl.textContent = iiko.mutation_ready
+        ? `ready | org=${escapeHtml(iiko.organization_id || '-')} | cat=${escapeHtml(iiko.selected_categories_count || 0)} | wallet=${escapeHtml(iiko.selected_wallets_count || 0)}`
+        : (iiko.configured ? 'profile saved, selection incomplete' : 'not configured');
       if (connectionMessageEl) connectionMessageEl.textContent = bitrix.message || '-';
       stateEl.textContent = 'Статус обновлён.';
     } catch (error) {
@@ -230,8 +267,9 @@
   }
 
   async function saveCredentials() {
-    stateEl.textContent = 'Сохраняю личные доступы...';
+    stateEl.textContent = 'Сохраняю URL-профиль и личные доступы...';
     try {
+      const baseUrl = String(iikoBaseUrlInput?.value || '').trim();
       const payload = await requestJson('/api/ai-ops/employee-discounts/credentials', {
         method: 'POST',
         headers: withCsrfHeaders({ 'Content-Type': 'application/json' }),
@@ -240,30 +278,42 @@
             portal_url: bitrixPortalUrlInput?.value || '',
             webhook_url: bitrixWebhookUrlInput?.value || '',
           },
-          iiko: {
-            group_name: iikoGroupNameInput?.value || '',
-            base_url: iikoBaseUrlInput?.value || '',
-            login: iikoLoginInput?.value || '',
-            password: iikoPasswordInput?.value || '',
-            token: iikoTokenInput?.value || '',
+          iiko_profile: {
+            base_url: baseUrl,
+            api_login: iikoApiLoginInput?.value || '',
+            api_secret: iikoApiSecretInput?.value || '',
             organization_id: iikoOrganizationIdInput?.value || '',
-            categories_url: iikoCategoriesUrlInput?.value || '',
-            wallets_url: iikoWalletsUrlInput?.value || '',
-            customer_lookup_url: iikoCustomerLookupUrlInput?.value || '',
-            customer_update_url: iikoCustomerUpdateUrlInput?.value || '',
+            selected_discount_category_ids: Array.from(state.selectedCategoryIds),
+            selected_wallet_ids: Array.from(state.selectedWalletIds),
           },
+          select_profile_url: baseUrl,
         }),
       });
       fillCredentials(payload.credentials || {});
       await loadStatus();
-      stateEl.textContent = 'Личные доступы сохранены.';
+      stateEl.textContent = 'URL-профиль и доступы сохранены.';
     } catch (error) {
       stateEl.textContent = `Ошибка сохранения доступов: ${error.message || 'unknown_error'}`;
     }
   }
 
+  async function selectProfile(profileUrl) {
+    stateEl.textContent = 'Переключаю URL-профиль...';
+    try {
+      const payload = await requestJson('/api/ai-ops/employee-discounts/credentials', {
+        method: 'POST',
+        headers: withCsrfHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ select_profile_url: profileUrl }),
+      });
+      fillCredentials(payload.credentials || {});
+      stateEl.textContent = 'Профиль переключён.';
+    } catch (error) {
+      stateEl.textContent = `Ошибка переключения профиля: ${error.message || 'unknown_error'}`;
+    }
+  }
+
   async function saveSettings() {
-    stateEl.textContent = 'Сохраняю настройки...';
+    stateEl.textContent = 'Сохраняю настройки Bitrix24-анализа...';
     try {
       const payload = await requestJson('/api/ai-ops/employee-discounts/settings', {
         method: 'POST',
@@ -273,8 +323,6 @@
           task_title_markers: parseLines(titleMarkersInput?.value),
           checklist_labels: parseLines(checklistLabelsInput?.value),
           phone_regex: phoneRegexInput?.value || '',
-          selected_discount_category_ids: parseLines(categoryIdsInput?.value),
-          excluded_wallet_ids: parseLines(walletIdsInput?.value),
           dry_run_by_default: !!dryRunDefaultInput?.checked,
         }),
       });
@@ -297,6 +345,18 @@
     }
   }
 
+  async function loadOrganizations() {
+    stateEl.textContent = 'Загружаю организации iiko...';
+    try {
+      const payload = await requestJson('/api/ai-ops/employee-discounts/iiko/organizations');
+      renderOrganizations(payload.items);
+      stateEl.textContent = 'Организации iiko загружены.';
+    } catch (error) {
+      orgsEl.innerHTML = '<div class="text-danger">Не удалось загрузить организации.</div>';
+      stateEl.textContent = `Ошибка организаций: ${error.message || 'unknown_error'}`;
+    }
+  }
+
   async function loadPreview() {
     stateEl.textContent = 'Строю preview задач...';
     try {
@@ -310,11 +370,11 @@
   }
 
   async function loadCategories() {
-    stateEl.textContent = 'Загружаю категории iiko...';
+    stateEl.textContent = 'Загружаю активные категории iiko...';
     try {
       const payload = await requestJson('/api/ai-ops/employee-discounts/iiko/categories');
-      renderCatalog(categoriesEl, payload.items);
-      stateEl.textContent = 'Категории iiko загружены.';
+      renderCatalog(categoriesEl, payload.items, 'categories');
+      stateEl.textContent = 'Категории iiko загружены. Отметьте нужные и сохраните профиль.';
     } catch (error) {
       categoriesEl.innerHTML = '<div class="text-danger">Не удалось загрузить категории.</div>';
       stateEl.textContent = `Ошибка категорий: ${error.message || 'unknown_error'}`;
@@ -322,11 +382,11 @@
   }
 
   async function loadWallets() {
-    stateEl.textContent = 'Загружаю кошельки iiko...';
+    stateEl.textContent = 'Загружаю активные кошельки/программы iiko...';
     try {
       const payload = await requestJson('/api/ai-ops/employee-discounts/iiko/wallets');
-      renderCatalog(walletsEl, payload.items);
-      stateEl.textContent = 'Кошельки iiko загружены.';
+      renderCatalog(walletsEl, payload.items, 'wallets');
+      stateEl.textContent = 'Кошельки/программы iiko загружены. Отметьте нужные и сохраните профиль.';
     } catch (error) {
       walletsEl.innerHTML = '<div class="text-danger">Не удалось загрузить кошельки.</div>';
       stateEl.textContent = `Ошибка кошельков: ${error.message || 'unknown_error'}`;
@@ -369,20 +429,57 @@
     }
   }
 
+  function toggleSelection(type, itemId, checked) {
+    const target = type === 'categories' ? state.selectedCategoryIds : state.selectedWalletIds;
+    if (!itemId) return;
+    if (checked) target.add(itemId);
+    else target.delete(itemId);
+  }
+
   if (refreshBtn) refreshBtn.addEventListener('click', loadStatus);
   if (saveBtn) saveBtn.addEventListener('click', saveSettings);
   if (saveCredentialsBtn) saveCredentialsBtn.addEventListener('click', saveCredentials);
   if (loadGroupsBtn) loadGroupsBtn.addEventListener('click', loadGroups);
+  if (loadOrganizationsBtn) loadOrganizationsBtn.addEventListener('click', loadOrganizations);
   if (previewBtn) previewBtn.addEventListener('click', loadPreview);
   if (loadCategoriesBtn) loadCategoriesBtn.addEventListener('click', loadCategories);
   if (loadWalletsBtn) loadWalletsBtn.addEventListener('click', loadWallets);
   if (runDryBtn) runDryBtn.addEventListener('click', () => runAutomation(true));
   if (runExecBtn) runExecBtn.addEventListener('click', () => runAutomation(false));
+
+  if (profilesEl) {
+    profilesEl.addEventListener('click', (event) => {
+      const btn = event.target.closest('[data-profile-url]');
+      if (!btn) return;
+      selectProfile(btn.getAttribute('data-profile-url') || '');
+    });
+  }
+  if (orgsEl) {
+    orgsEl.addEventListener('click', (event) => {
+      const btn = event.target.closest('[data-org-id]');
+      if (!btn) return;
+      if (iikoOrganizationIdInput) iikoOrganizationIdInput.value = btn.getAttribute('data-org-id') || '';
+    });
+  }
   if (groupsEl) {
     groupsEl.addEventListener('click', (event) => {
       const btn = event.target.closest('[data-group-id]');
       if (!btn) return;
       if (groupIdInput) groupIdInput.value = btn.getAttribute('data-group-id') || '';
+    });
+  }
+  if (categoriesEl) {
+    categoriesEl.addEventListener('change', (event) => {
+      const input = event.target.closest('[data-catalog-type="categories"][data-item-id]');
+      if (!input) return;
+      toggleSelection('categories', input.getAttribute('data-item-id') || '', !!input.checked);
+    });
+  }
+  if (walletsEl) {
+    walletsEl.addEventListener('change', (event) => {
+      const input = event.target.closest('[data-catalog-type="wallets"][data-item-id]');
+      if (!input) return;
+      toggleSelection('wallets', input.getAttribute('data-item-id') || '', !!input.checked);
     });
   }
   if (runsEl) {

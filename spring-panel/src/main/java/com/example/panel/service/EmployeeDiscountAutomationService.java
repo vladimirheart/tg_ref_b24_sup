@@ -67,6 +67,10 @@ public class EmployeeDiscountAutomationService {
         return bitrix24RestService.listWorkgroups(username, query, limit != null ? limit : 25);
     }
 
+    public List<Map<String, Object>> loadIikoOrganizations(String username) {
+        return iikoDirectoryService.loadOrganizations(username);
+    }
+
     public List<Map<String, Object>> loadIikoCategories(String username) {
         return iikoDirectoryService.loadCategories(username);
     }
@@ -125,7 +129,7 @@ public class EmployeeDiscountAutomationService {
             }
 
             try {
-                IikoDirectoryService.MutationResult iikoResult = iikoDirectoryService.disableCorporateDiscount(actor, candidate.phone(), settings);
+                IikoDirectoryService.MutationResult iikoResult = iikoDirectoryService.disableCorporateDiscount(actor, candidate.phone());
                 if (!iikoResult.success()) {
                     errorCount++;
                     saveRunItem(run, candidate.taskId(), candidate.title(), candidate.phone(), "error", iikoResult.message(), candidate.checklistItemId());
