@@ -64,10 +64,120 @@
             <div id="aiOpsMemoryList" class="small text-muted">-</div>
         </div>
     </section>
+
+    <section class="card shadow-sm mb-4">
+        <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <strong>Bitrix24 + iiko automation</strong>
+            <div class="d-flex flex-wrap gap-2">
+                <button class="btn btn-sm btn-outline-secondary" id="employeeDiscountRefresh" type="button">Обновить</button>
+                <button class="btn btn-sm btn-outline-primary" id="employeeDiscountSave" type="button">Сохранить настройки</button>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="row g-3 mb-3">
+                <div class="col-lg-4">
+                    <div class="border rounded p-3 h-100">
+                        <div class="small text-muted mb-1">Local config</div>
+                        <div class="fw-semibold small mb-2" id="employeeDiscountConfigPath">-</div>
+                        <div class="small mb-1">Bitrix24: <span id="employeeDiscountBitrixState">-</span></div>
+                        <div class="small mb-1">iiko discovery: <span id="employeeDiscountIikoState">-</span></div>
+                        <div class="small text-muted" id="employeeDiscountConnectionMessage">-</div>
+                    </div>
+                </div>
+                <div class="col-lg-8">
+                    <div class="border rounded p-3 h-100">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label form-label-sm">Bitrix group id</label>
+                                <input class="form-control form-control-sm" id="employeeDiscountGroupId" placeholder="123">
+                            </div>
+                            <div class="col-md-8">
+                                <label class="form-label form-label-sm">Phone regex</label>
+                                <input class="form-control form-control-sm" id="employeeDiscountPhoneRegex" placeholder="тел. сотрудника ...">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label form-label-sm">Checklist labels</label>
+                                <textarea class="form-control form-control-sm" rows="3" id="employeeDiscountChecklistLabels" placeholder="По одному на строку"></textarea>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label form-label-sm">Title markers</label>
+                                <textarea class="form-control form-control-sm" rows="3" id="employeeDiscountTitleMarkers" placeholder="Опционально, по одному на строку"></textarea>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label form-label-sm">IDs категорий скидок для снятия</label>
+                                <textarea class="form-control form-control-sm" rows="3" id="employeeDiscountCategoryIds" placeholder="id по одному на строку"></textarea>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label form-label-sm">IDs кошельков-исключений</label>
+                                <textarea class="form-control form-control-sm" rows="3" id="employeeDiscountWalletIds" placeholder="id по одному на строку"></textarea>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-check-label small">
+                                    <input type="checkbox" class="form-check-input me-1" id="employeeDiscountDryRunDefault">
+                                    dry-run по умолчанию
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex flex-wrap gap-2 mb-3">
+                <button class="btn btn-sm btn-outline-secondary" id="employeeDiscountLoadGroups" type="button">Загрузить группы Bitrix24</button>
+                <button class="btn btn-sm btn-outline-secondary" id="employeeDiscountPreview" type="button">Preview отбора задач</button>
+                <button class="btn btn-sm btn-outline-secondary" id="employeeDiscountLoadCategories" type="button">Загрузить категории iiko</button>
+                <button class="btn btn-sm btn-outline-secondary" id="employeeDiscountLoadWallets" type="button">Загрузить кошельки iiko</button>
+                <button class="btn btn-sm btn-outline-primary" id="employeeDiscountRunDry" type="button">Запустить dry-run</button>
+                <button class="btn btn-sm btn-outline-danger" id="employeeDiscountRunExec" type="button">Боевой запуск</button>
+            </div>
+
+            <div class="small text-muted mb-3" id="employeeDiscountState">Загрузка...</div>
+
+            <div class="row g-3">
+                <div class="col-lg-6">
+                    <div class="border rounded p-3 h-100">
+                        <div class="fw-semibold small mb-2">Группы Bitrix24</div>
+                        <div id="employeeDiscountGroups" class="small text-muted">-</div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="border rounded p-3 h-100">
+                        <div class="fw-semibold small mb-2">Preview задач</div>
+                        <div id="employeeDiscountPreviewList" class="small text-muted">-</div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="border rounded p-3 h-100">
+                        <div class="fw-semibold small mb-2">Категории iiko</div>
+                        <div id="employeeDiscountCategories" class="small text-muted">-</div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="border rounded p-3 h-100">
+                        <div class="fw-semibold small mb-2">Кошельки iiko</div>
+                        <div id="employeeDiscountWallets" class="small text-muted">-</div>
+                    </div>
+                </div>
+                <div class="col-lg-5">
+                    <div class="border rounded p-3 h-100">
+                        <div class="fw-semibold small mb-2">История запусков</div>
+                        <div id="employeeDiscountRuns" class="small text-muted">-</div>
+                    </div>
+                </div>
+                <div class="col-lg-7">
+                    <div class="border rounded p-3 h-100">
+                        <div class="fw-semibold small mb-2">Детали запуска</div>
+                        <div id="employeeDiscountRunDetails" class="small text-muted">-</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
 <script th:src="@{/js/common.js}"></script>
 <script th:src="@{/js/ai-ops.js}"></script>
+<script th:src="@{/js/employee-discounts.js}"></script>
 </body>
 </html>
