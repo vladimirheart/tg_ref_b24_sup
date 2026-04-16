@@ -3,10 +3,15 @@ package com.example.panel.controller;
 import com.example.panel.model.dialog.ChatMessageDto;
 import com.example.panel.model.dialog.DialogListItem;
 import com.example.panel.model.dialog.DialogDetails;
+import com.example.panel.service.DialogAuthorizationService;
+import com.example.panel.service.DialogListReadService;
 import com.example.panel.service.DialogNotificationService;
+import com.example.panel.service.DialogQuickActionService;
 import com.example.panel.service.DialogReplyService;
+import com.example.panel.service.DialogReadService;
 import com.example.panel.service.DialogService;
 import com.example.panel.service.DialogAiAssistantService;
+import com.example.panel.service.DialogWorkspaceService;
 import com.example.panel.service.NotificationService;
 import com.example.panel.service.PermissionService;
 import com.example.panel.service.PublicFormService;
@@ -47,7 +52,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(DialogApiController.class)
+@WebMvcTest({
+        DialogListController.class,
+        DialogReadController.class,
+        DialogQuickActionsController.class,
+        DialogWorkspaceController.class
+})
 @AutoConfigureMockMvc(addFilters = false)
 class DialogApiControllerWebMvcTest {
 
@@ -62,6 +72,21 @@ class DialogApiControllerWebMvcTest {
 
     @MockBean
     private DialogNotificationService dialogNotificationService;
+
+    @MockBean
+    private DialogQuickActionService dialogQuickActionService;
+
+    @MockBean
+    private DialogAuthorizationService dialogAuthorizationService;
+
+    @MockBean
+    private DialogReadService dialogReadService;
+
+    @MockBean
+    private DialogListReadService dialogListReadService;
+
+    @MockBean
+    private DialogWorkspaceService dialogWorkspaceService;
 
     @MockBean
     private AttachmentService attachmentService;

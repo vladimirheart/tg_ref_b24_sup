@@ -154,13 +154,6 @@ public class SettingsDialogWorkspaceConfigService {
 
     private void applyWorkspaceMacroAndClientSettings(Map<String, Object> payload,
                                                       Map<String, Object> dialogConfig) {
-        putIfPresent(payload, dialogConfig, "dialog_macro_variable_defaults", "macro_variable_defaults");
-        putIfPresent(payload, dialogConfig, "dialog_macro_variable_catalog", "macro_variable_catalog");
-        putIfPresent(payload, dialogConfig, "dialog_macro_variable_catalog_external_url", "macro_variable_catalog_external_url");
-        putIfPresent(payload, dialogConfig, "dialog_macro_variable_catalog_external_timeout_ms", "macro_variable_catalog_external_timeout_ms");
-        putIfPresent(payload, dialogConfig, "dialog_macro_variable_catalog_external_cache_ttl_seconds", "macro_variable_catalog_external_cache_ttl_seconds");
-        putIfPresent(payload, dialogConfig, "dialog_macro_variable_catalog_external_auth_header", "macro_variable_catalog_external_auth_header");
-        putIfPresent(payload, dialogConfig, "dialog_macro_variable_catalog_external_auth_token", "macro_variable_catalog_external_auth_token");
         putIfPresent(payload, dialogConfig, "dialog_workspace_client_crm_profile_url_template", "workspace_client_crm_profile_url_template");
         putIfPresent(payload, dialogConfig, "dialog_workspace_client_crm_profile_label", "workspace_client_crm_profile_label");
         putIfPresent(payload, dialogConfig, "dialog_workspace_client_contract_profile_url_template", "workspace_client_contract_profile_url_template");
