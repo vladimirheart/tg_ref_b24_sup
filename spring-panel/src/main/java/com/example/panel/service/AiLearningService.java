@@ -233,12 +233,18 @@ public class AiLearningService {
                        SET intent_key = ?,
                            slot_signature = ?,
                            slots_json = ?,
+                           scope_channel = COALESCE(?, scope_channel),
+                           scope_business = COALESCE(?, scope_business),
+                           scope_location = COALESCE(?, scope_location),
                            updated_at = CURRENT_TIMESTAMP
                      WHERE query_key = ?
                     """,
                     cut(trim(intentMatch.intentKey()), 120),
                     cut(trim(intentMatch.slotSignature()), 300),
                     cut(trim(intentMatch.slotsJson()), 3000),
+                    cut(trim(intentMatch.slots().get("channel")), 120),
+                    cut(trim(intentMatch.slots().get("business")), 120),
+                    cut(trim(intentMatch.slots().get("location")), 120),
                     normalizedKey
             );
         } catch (Exception ignored) {

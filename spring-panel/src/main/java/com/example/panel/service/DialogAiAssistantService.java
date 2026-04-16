@@ -52,6 +52,7 @@ public class DialogAiAssistantService {
     private final AiDecisionService aiDecisionService;
     private final AiLearningService aiLearningService;
     private final AiMonitoringService aiMonitoringService;
+    private final AiKnowledgeService aiKnowledgeService;
     private final AiInputNormalizerService aiInputNormalizerService;
     private final ObjectMapper objectMapper;
 
@@ -65,6 +66,7 @@ public class DialogAiAssistantService {
                                     AiDecisionService aiDecisionService,
                                     AiLearningService aiLearningService,
                                     AiMonitoringService aiMonitoringService,
+                                    AiKnowledgeService aiKnowledgeService,
                                     AiInputNormalizerService aiInputNormalizerService,
                                     ObjectMapper objectMapper) {
         this.jdbcTemplate = jdbcTemplate;
@@ -77,6 +79,7 @@ public class DialogAiAssistantService {
         this.aiDecisionService = aiDecisionService;
         this.aiLearningService = aiLearningService;
         this.aiMonitoringService = aiMonitoringService;
+        this.aiKnowledgeService = aiKnowledgeService;
         this.aiInputNormalizerService = aiInputNormalizerService;
         this.objectMapper = objectMapper;
     }
@@ -135,18 +138,18 @@ public class DialogAiAssistantService {
         mode = preRouting.effectiveMode();
         dialogService.assignResponsibleIfMissing(t, "ai_agent");
         markProcessing(t, "processing", null, null, "processing", "incoming_message", null, mode);
-        List<AiSuggestion> suggestions = findSuggestions(t, m, DEFAULT_SUGGESTION_LIMIT);
+        AiRetrievalService.RetrievalResult retrievalResult = aiRetrievalService.retrieve(t, m, DEFAULT_SUGGESTION_LIMIT);
+        mode = applyIntentModeOverride(mode, retrievalResult.context().intentPolicy());
+        List<AiSuggestion> suggestions = mapSuggestions(retrievalResult.candidates());
         String sourceHits = encodeSourceHits(suggestions);
 
         if (suggestions.isEmpty()) {
             markProcessing(t, "no_match", null, "No relevant sources found.", "escalate", "no_match", sourceHits, mode);
             notifyOperatorsEscalation(t, m, "AI agent did not find a relevant answer.");
-            recordAiEvent(t, "ai_agent_escalated", null, "escalate", "no_match", null, null, "No relevant sources", Map.of(
-                    "source_hits", sourceHits,
-                    "policy_stage", "4_evidence",
-                    "policy_outcome", "insufficient_evidence",
-                    "sensitive_topic", preRouting.sensitiveMatch().matched() ? 1 : 0
-            ));
+            Map<String, Object> eventPayload = buildRetrievalPayload(sourceHits, null, retrievalResult, preRouting.sensitiveMatch().matched());
+            eventPayload.put("policy_stage", "4_evidence");
+            eventPayload.put("policy_outcome", "insufficient_evidence");
+            recordAiEvent(t, "ai_agent_escalated", null, "escalate", "no_match", null, null, "No relevant sources", eventPayload);
             return;
         }
 
@@ -159,7 +162,8 @@ public class DialogAiAssistantService {
                 top.trustLevel,
                 top.sourceType,
                 top.safetyLevel
-        );
+        ) && retrievalResult.context().intentPolicy().autoReplyAllowed()
+                && !retrievalResult.context().intentPolicy().requiresOperator();
         AiDecisionService.Decision decision = aiDecisionService.evaluateCandidateDecision(
                 mode,
                 top.score,
@@ -184,28 +188,48 @@ public class DialogAiAssistantService {
                     : ("below_suggest_threshold".equals(decision.decisionReason())
                     ? "Low confidence score: " + formatScore(top.score)
                     : "Escalated by decision policy."));
-            recordAiEvent(t, "ai_agent_escalated", null, decision.decisionType(), decision.decisionReason(), top.source, top.score, decision.detail(), Map.of(
-                    "source_hits", sourceHits,
-                    "suggest_threshold", suggestThreshold,
-                    "policy_stage", decision.policyStage(),
-                    "policy_outcome", decision.policyOutcome(),
-                    "top_candidate_trust", top.trustLevel,
-                    "top_candidate_source_type", top.sourceType,
-                    "sensitive_topic", preRouting.sensitiveMatch().matched() ? 1 : 0
-            ));
+            Map<String, Object> eventPayload = buildRetrievalPayload(sourceHits, top, retrievalResult, preRouting.sensitiveMatch().matched());
+            eventPayload.put("suggest_threshold", suggestThreshold);
+            eventPayload.put("policy_stage", decision.policyStage());
+            eventPayload.put("policy_outcome", decision.policyOutcome());
+            recordAiEvent(t, "ai_agent_escalated", null, decision.decisionType(), decision.decisionReason(), top.source, top.score, decision.detail(), eventPayload);
             return;
         }
         if (decision.action() == AiDecisionService.DecisionAction.SUGGEST_ONLY) {
             markProcessing(t, decision.processingAction(), top, null, decision.decisionType(), decision.decisionReason(), sourceHits, mode);
-            recordAiEvent(t, "ai_agent_suggestion_shown", null, decision.decisionType(), decision.decisionReason(), top.source, top.score, "Suggestion shown to operator", Map.of(
-                    "source_hits", sourceHits,
-                    "auto_reply_threshold", autoReplyThreshold,
-                    "policy_stage", decision.policyStage(),
-                    "policy_outcome", decision.policyOutcome(),
-                    "top_candidate_trust", top.trustLevel,
-                    "top_candidate_source_type", top.sourceType,
-                    "sensitive_topic", preRouting.sensitiveMatch().matched() ? 1 : 0
-            ));
+            Map<String, Object> eventPayload = buildRetrievalPayload(sourceHits, top, retrievalResult, preRouting.sensitiveMatch().matched());
+            eventPayload.put("auto_reply_threshold", autoReplyThreshold);
+            eventPayload.put("policy_stage", decision.policyStage());
+            eventPayload.put("policy_outcome", decision.policyOutcome());
+            recordAiEvent(t, "ai_agent_suggestion_shown", null, decision.decisionType(), decision.decisionReason(), top.source, top.score, "Suggestion shown to operator", eventPayload);
+            return;
+        }
+
+        if (!retrievalResult.consistency().autoReplyAllowed()) {
+            String detail = "evidence_conflict".equals(retrievalResult.consistency().reason())
+                    ? "Conflicting evidence across top candidates."
+                    : "Not enough independent confirmations for auto-reply.";
+            String decisionType = retrievalResult.consistency().hasConflict() ? "escalate" : "suggest_only";
+            String decisionReason = retrievalResult.consistency().reason();
+            String action = retrievalResult.consistency().hasConflict() ? "escalated" : "suggest_only";
+            markProcessing(t, action, top, detail, decisionType, decisionReason, sourceHits, mode);
+            if (retrievalResult.consistency().hasConflict()) {
+                notifyOperatorsEscalation(t, m, detail);
+            }
+            Map<String, Object> eventPayload = buildRetrievalPayload(sourceHits, top, retrievalResult, preRouting.sensitiveMatch().matched());
+            eventPayload.put("policy_stage", "6_consistency");
+            eventPayload.put("policy_outcome", retrievalResult.consistency().hasConflict() ? "blocked_by_conflict" : "blocked_by_insufficient_confirmation");
+            recordAiEvent(
+                    t,
+                    retrievalResult.consistency().hasConflict() ? "ai_agent_escalated" : "ai_agent_suggestion_shown",
+                    null,
+                    decisionType,
+                    decisionReason,
+                    top.source,
+                    top.score,
+                    detail,
+                    eventPayload
+            );
             return;
         }
 
@@ -213,14 +237,10 @@ public class DialogAiAssistantService {
         if (!guard.allowed()) {
             markProcessing(t, "auto_reply_suppressed", top, guard.reason(), "suppressed", "loop_guard", sourceHits, mode);
             notifyOperatorsEscalation(t, m, "Auto-reply suppressed by loop guard: " + guard.reason());
-            recordAiEvent(t, "ai_agent_decision_made", null, "suppressed", "loop_guard", top.source, top.score, guard.reason(), Map.of(
-                    "source_hits", sourceHits,
-                    "policy_stage", "6_loop_guard",
-                    "policy_outcome", "suppressed",
-                    "top_candidate_trust", top.trustLevel,
-                    "top_candidate_source_type", top.sourceType,
-                    "sensitive_topic", preRouting.sensitiveMatch().matched() ? 1 : 0
-            ));
+            Map<String, Object> eventPayload = buildRetrievalPayload(sourceHits, top, retrievalResult, preRouting.sensitiveMatch().matched());
+            eventPayload.put("policy_stage", "7_loop_guard");
+            eventPayload.put("policy_outcome", "suppressed");
+            recordAiEvent(t, "ai_agent_decision_made", null, "suppressed", "loop_guard", top.source, top.score, guard.reason(), eventPayload);
             return;
         }
 
@@ -229,14 +249,10 @@ public class DialogAiAssistantService {
         if (!result.success()) {
             markProcessing(t, "send_failed", top, result.error(), "escalate", "send_failed", sourceHits, mode);
             notifyOperatorsEscalation(t, m, "Failed to send AI reply: " + result.error());
-            recordAiEvent(t, "ai_agent_escalated", null, "escalate", "send_failed", top.source, top.score, result.error(), Map.of(
-                    "source_hits", sourceHits,
-                    "policy_stage", "7_auto_reply_allowed",
-                    "policy_outcome", "send_failed",
-                    "top_candidate_trust", top.trustLevel,
-                    "top_candidate_source_type", top.sourceType,
-                    "sensitive_topic", preRouting.sensitiveMatch().matched() ? 1 : 0
-            ));
+            Map<String, Object> eventPayload = buildRetrievalPayload(sourceHits, top, retrievalResult, preRouting.sensitiveMatch().matched());
+            eventPayload.put("policy_stage", "8_auto_reply_allowed");
+            eventPayload.put("policy_outcome", "send_failed");
+            recordAiEvent(t, "ai_agent_escalated", null, "escalate", "send_failed", top.source, top.score, result.error(), eventPayload);
             return;
         }
 
@@ -244,15 +260,11 @@ public class DialogAiAssistantService {
             markMemoryUsage(top.memoryKey);
         }
         markProcessing(t, "auto_replied", top, null, "auto_reply", "score_above_threshold", sourceHits, mode);
-        recordAiEvent(t, "ai_agent_auto_reply_sent", "ai_agent", "auto_reply", "score_above_threshold", top.source, top.score, "Auto reply sent", Map.of(
-                "source_hits", sourceHits,
-                "reply_preview", cut(reply, 300),
-                "policy_stage", "7_auto_reply_allowed",
-                "policy_outcome", "auto_reply",
-                "top_candidate_trust", top.trustLevel,
-                "top_candidate_source_type", top.sourceType,
-                "sensitive_topic", preRouting.sensitiveMatch().matched() ? 1 : 0
-        ));
+        Map<String, Object> eventPayload = buildRetrievalPayload(sourceHits, top, retrievalResult, preRouting.sensitiveMatch().matched());
+        eventPayload.put("reply_preview", cut(reply, 300));
+        eventPayload.put("policy_stage", "8_auto_reply_allowed");
+        eventPayload.put("policy_outcome", "auto_reply");
+        recordAiEvent(t, "ai_agent_auto_reply_sent", "ai_agent", "auto_reply", "score_above_threshold", top.source, top.score, "Auto reply sent", eventPayload);
     }
 
     public void registerOperatorReply(String ticketId, String operatorReply, String operator) {
@@ -609,6 +621,10 @@ public class DialogAiAssistantService {
                 }
             }
             if (sourceUpdated > 0) {
+                aiKnowledgeService.syncFromMemory(targetKey);
+                if (!targetKey.equals(sourceKey)) {
+                    aiKnowledgeService.syncFromMemory(sourceKey);
+                }
                 clearProcessing(t, "operator_correction_approved", null);
                 Map<String, Object> payload = new LinkedHashMap<>();
                 payload.put("query_key", targetKey);
@@ -651,6 +667,7 @@ public class DialogAiAssistantService {
                         false,
                         trim(operator)
                 );
+                aiKnowledgeService.syncFromMemory(key);
                 clearProcessing(t, "operator_correction_rejected", null);
                 recordAiEvent(t, "ai_agent_correction_rejected", trim(operator), "review", "rejected", null, null, null, null);
                 return true;
@@ -850,7 +867,10 @@ public class DialogAiAssistantService {
     }
 
     private List<AiSuggestion> findSuggestions(String ticketId, String query, int limit) {
-        List<AiRetrievalService.Candidate> candidates = aiRetrievalService.findSuggestions(ticketId, query, limit);
+        return mapSuggestions(aiRetrievalService.findSuggestions(ticketId, query, limit));
+    }
+
+    private List<AiSuggestion> mapSuggestions(List<AiRetrievalService.Candidate> candidates) {
         if (candidates.isEmpty()) {
             return List.of();
         }
@@ -865,7 +885,13 @@ public class DialogAiAssistantService {
                     candidate.status(),
                     candidate.trustLevel(),
                     candidate.sourceType(),
-                    candidate.safetyLevel()
+                    candidate.safetyLevel(),
+                    candidate.sourceRef(),
+                    candidate.intentKey(),
+                    candidate.slotSignature(),
+                    candidate.canonicalKey(),
+                    candidate.evidenceCount(),
+                    candidate.trace()
             ));
         }
         return mapped;
@@ -986,6 +1012,7 @@ public class DialogAiAssistantService {
                         requireReview,
                         "manual_edit"
                 );
+                aiKnowledgeService.syncFromMemory(key);
                 return true;
             }
             return false;
@@ -1011,6 +1038,7 @@ public class DialogAiAssistantService {
             if (deleted <= 0) {
                 return false;
             }
+            aiKnowledgeService.forgetMemory(key);
             insertSolutionMemoryHistory(
                     key,
                     trim(operator),
@@ -1132,6 +1160,7 @@ public class DialogAiAssistantService {
                         rollbackReview,
                         "rollback_to_history_id=" + historyId
                 );
+                aiKnowledgeService.syncFromMemory(key);
                 return true;
             }
             return false;
@@ -1179,6 +1208,7 @@ public class DialogAiAssistantService {
                         true,
                         trim(operator)
                 );
+                aiKnowledgeService.syncFromMemory(key);
             }
             if (updated > 0 && ticketId != null) {
                 clearProcessing(ticketId, "operator_correction_approved", null);
@@ -1219,6 +1249,7 @@ public class DialogAiAssistantService {
                         false,
                         trim(operator)
                 );
+                aiKnowledgeService.syncFromMemory(key);
             }
             if (updated > 0 && ticketId != null) {
                 clearProcessing(ticketId, "operator_correction_rejected", null);
@@ -1621,6 +1652,12 @@ public class DialogAiAssistantService {
             row.put("trust_level", s.trustLevel);
             row.put("source_type", s.sourceType);
             row.put("safety_level", s.safetyLevel);
+            row.put("source_ref", s.sourceRef);
+            row.put("intent_key", s.intentKey);
+            row.put("slot_signature", s.slotSignature);
+            row.put("canonical_key", s.canonicalKey);
+            row.put("evidence_count", s.evidenceCount);
+            row.put("trace", s.trace);
             payload.add(row);
         }
         try {
@@ -1628,6 +1665,52 @@ public class DialogAiAssistantService {
         } catch (JsonProcessingException ex) {
             return null;
         }
+    }
+
+    private String applyIntentModeOverride(String currentMode, AiIntentService.IntentPolicy intentPolicy) {
+        if (intentPolicy == null) {
+            return currentMode;
+        }
+        if (intentPolicy.requiresOperator()) {
+            return MODE_ESCALATE_ONLY;
+        }
+        if (intentPolicy.assistOnly() && !MODE_ESCALATE_ONLY.equals(currentMode)) {
+            return MODE_ASSIST_ONLY;
+        }
+        return currentMode;
+    }
+
+    private Map<String, Object> buildRetrievalPayload(String sourceHits,
+                                                      AiSuggestion top,
+                                                      AiRetrievalService.RetrievalResult retrievalResult,
+                                                      boolean sensitiveTopic) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("source_hits", sourceHits);
+        payload.put("sensitive_topic", sensitiveTopic ? 1 : 0);
+        if (retrievalResult != null) {
+            payload.put("support_count", retrievalResult.consistency().supportCount());
+            payload.put("evidence_conflict", retrievalResult.consistency().hasConflict() ? 1 : 0);
+            payload.put("retrieval_consistency_reason", retrievalResult.consistency().reason());
+            if (retrievalResult.context() != null && retrievalResult.context().intentMatch() != null) {
+                String intentKey = trim(retrievalResult.context().intentMatch().intentKey());
+                if (intentKey != null) {
+                    payload.put("intent_key", intentKey);
+                }
+                payload.put("intent_confidence", retrievalResult.context().intentMatch().confidence());
+                payload.put("intent_schema_valid", retrievalResult.context().intentMatch().schemaValid() ? 1 : 0);
+            }
+        }
+        if (top != null) {
+            payload.put("top_candidate_trust", top.trustLevel);
+            payload.put("top_candidate_source_type", top.sourceType);
+            payload.put("top_candidate_source_ref", top.sourceRef);
+            payload.put("top_candidate_intent", top.intentKey);
+            payload.put("top_candidate_slot_signature", top.slotSignature);
+            payload.put("top_candidate_canonical_key", top.canonicalKey);
+            payload.put("top_candidate_evidence_count", top.evidenceCount);
+            payload.put("top_candidate_trace", top.trace);
+        }
+        return payload;
     }
     private Instant parseInstant(Object value) {
         String raw = trim(value != null ? String.valueOf(value) : null);
@@ -1789,6 +1872,12 @@ public class DialogAiAssistantService {
         final String trustLevel;
         final String sourceType;
         final String safetyLevel;
+        final String sourceRef;
+        final String intentKey;
+        final String slotSignature;
+        final String canonicalKey;
+        final int evidenceCount;
+        final String trace;
 
         AiSuggestion(String source,
                      String title,
@@ -1798,7 +1887,13 @@ public class DialogAiAssistantService {
                      String status,
                      String trustLevel,
                      String sourceType,
-                     String safetyLevel) {
+                     String safetyLevel,
+                     String sourceRef,
+                     String intentKey,
+                     String slotSignature,
+                     String canonicalKey,
+                     int evidenceCount,
+                     String trace) {
             this.source = source;
             this.title = title;
             this.snippet = snippet;
@@ -1808,6 +1903,12 @@ public class DialogAiAssistantService {
             this.trustLevel = trustLevel;
             this.sourceType = sourceType;
             this.safetyLevel = safetyLevel;
+            this.sourceRef = sourceRef;
+            this.intentKey = intentKey;
+            this.slotSignature = slotSignature;
+            this.canonicalKey = canonicalKey;
+            this.evidenceCount = evidenceCount;
+            this.trace = trace;
         }
     }
 }
