@@ -430,7 +430,8 @@ public class AiRetrievalService {
                 + ",semantic=" + formatScore(semanticScore)
                 + ",scope=" + scopeMatches
                 + ",evidence=" + vector.evidenceCount()
-                + ",canonical=" + trimOrDefault(vector.canonicalKey(), "none");
+                + ",canonical=" + trimOrDefault(vector.canonicalKey(), "none")
+                + ",stale=" + (isStale(vector.updatedAt()) ? 1 : 0);
 
         return new Candidate(
                 vector.source(),
@@ -447,7 +448,9 @@ public class AiRetrievalService {
                 vector.slotSignature(),
                 vector.canonicalKey(),
                 vector.evidenceCount(),
-                trace
+                trace,
+                vector.updatedAt() != null && !Instant.EPOCH.equals(vector.updatedAt()) ? vector.updatedAt().toString() : null,
+                isStale(vector.updatedAt())
         );
     }
 
@@ -584,6 +587,13 @@ public class AiRetrievalService {
             return 0.01d;
         }
         return 0d;
+    }
+
+    private boolean isStale(Instant updatedAt) {
+        if (updatedAt == null || updatedAt.equals(Instant.EPOCH)) {
+            return false;
+        }
+        return Duration.between(updatedAt, Instant.now()).toDays() > 45;
     }
 
     private Map<String, Integer> countTerms(String value) {
@@ -783,7 +793,9 @@ public class AiRetrievalService {
                             String slotSignature,
                             String canonicalKey,
                             int evidenceCount,
-                            String trace) {
+                            String trace,
+                            String updatedAt,
+                            boolean stale) {
     }
 
     private record TicketScope(String channel, String business, String location) {

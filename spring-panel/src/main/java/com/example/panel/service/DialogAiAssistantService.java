@@ -49,11 +49,13 @@ public class DialogAiAssistantService {
     private final SharedConfigService sharedConfigService;
     private final AiPolicyService aiPolicyService;
     private final AiRetrievalService aiRetrievalService;
+    private final AiIntentService aiIntentService;
     private final AiDecisionService aiDecisionService;
     private final AiLearningService aiLearningService;
     private final AiMonitoringService aiMonitoringService;
     private final AiKnowledgeService aiKnowledgeService;
     private final AiInputNormalizerService aiInputNormalizerService;
+    private final AiControlledLlmService aiControlledLlmService;
     private final ObjectMapper objectMapper;
 
     public DialogAiAssistantService(JdbcTemplate jdbcTemplate,
@@ -63,11 +65,13 @@ public class DialogAiAssistantService {
                                     SharedConfigService sharedConfigService,
                                     AiPolicyService aiPolicyService,
                                     AiRetrievalService aiRetrievalService,
+                                    AiIntentService aiIntentService,
                                     AiDecisionService aiDecisionService,
                                     AiLearningService aiLearningService,
                                     AiMonitoringService aiMonitoringService,
                                     AiKnowledgeService aiKnowledgeService,
                                     AiInputNormalizerService aiInputNormalizerService,
+                                    AiControlledLlmService aiControlledLlmService,
                                     ObjectMapper objectMapper) {
         this.jdbcTemplate = jdbcTemplate;
         this.dialogService = dialogService;
@@ -76,11 +80,13 @@ public class DialogAiAssistantService {
         this.sharedConfigService = sharedConfigService;
         this.aiPolicyService = aiPolicyService;
         this.aiRetrievalService = aiRetrievalService;
+        this.aiIntentService = aiIntentService;
         this.aiDecisionService = aiDecisionService;
         this.aiLearningService = aiLearningService;
         this.aiMonitoringService = aiMonitoringService;
         this.aiKnowledgeService = aiKnowledgeService;
         this.aiInputNormalizerService = aiInputNormalizerService;
+        this.aiControlledLlmService = aiControlledLlmService;
         this.objectMapper = objectMapper;
     }
 
@@ -138,7 +144,9 @@ public class DialogAiAssistantService {
         mode = preRouting.effectiveMode();
         dialogService.assignResponsibleIfMissing(t, "ai_agent");
         markProcessing(t, "processing", null, null, "processing", "incoming_message", null, mode);
-        AiRetrievalService.RetrievalResult retrievalResult = aiRetrievalService.retrieve(t, m, DEFAULT_SUGGESTION_LIMIT);
+        AiControlledLlmService.RewriteResult rewriteResult = aiControlledLlmService.rewriteQuery(t, m);
+        String retrievalQuery = firstNonBlank(trim(rewriteResult.effectiveQuery()), m);
+        AiRetrievalService.RetrievalResult retrievalResult = aiRetrievalService.retrieve(t, retrievalQuery, DEFAULT_SUGGESTION_LIMIT);
         mode = applyIntentModeOverride(mode, retrievalResult.context().intentPolicy());
         List<AiSuggestion> suggestions = mapSuggestions(retrievalResult.candidates());
         String sourceHits = encodeSourceHits(suggestions);
@@ -146,7 +154,7 @@ public class DialogAiAssistantService {
         if (suggestions.isEmpty()) {
             markProcessing(t, "no_match", null, "No relevant sources found.", "escalate", "no_match", sourceHits, mode);
             notifyOperatorsEscalation(t, m, "AI agent did not find a relevant answer.");
-            Map<String, Object> eventPayload = buildRetrievalPayload(sourceHits, null, retrievalResult, preRouting.sensitiveMatch().matched());
+            Map<String, Object> eventPayload = buildRetrievalPayload(sourceHits, null, retrievalResult, preRouting.sensitiveMatch().matched(), rewriteResult);
             eventPayload.put("policy_stage", "4_evidence");
             eventPayload.put("policy_outcome", "insufficient_evidence");
             recordAiEvent(t, "ai_agent_escalated", null, "escalate", "no_match", null, null, "No relevant sources", eventPayload);
@@ -188,8 +196,9 @@ public class DialogAiAssistantService {
                     : ("below_suggest_threshold".equals(decision.decisionReason())
                     ? "Low confidence score: " + formatScore(top.score)
                     : "Escalated by decision policy."));
-            Map<String, Object> eventPayload = buildRetrievalPayload(sourceHits, top, retrievalResult, preRouting.sensitiveMatch().matched());
+            Map<String, Object> eventPayload = buildRetrievalPayload(sourceHits, top, retrievalResult, preRouting.sensitiveMatch().matched(), rewriteResult);
             eventPayload.put("suggest_threshold", suggestThreshold);
+            eventPayload.put("auto_reply_threshold", autoReplyThreshold);
             eventPayload.put("policy_stage", decision.policyStage());
             eventPayload.put("policy_outcome", decision.policyOutcome());
             recordAiEvent(t, "ai_agent_escalated", null, decision.decisionType(), decision.decisionReason(), top.source, top.score, decision.detail(), eventPayload);
@@ -197,8 +206,9 @@ public class DialogAiAssistantService {
         }
         if (decision.action() == AiDecisionService.DecisionAction.SUGGEST_ONLY) {
             markProcessing(t, decision.processingAction(), top, null, decision.decisionType(), decision.decisionReason(), sourceHits, mode);
-            Map<String, Object> eventPayload = buildRetrievalPayload(sourceHits, top, retrievalResult, preRouting.sensitiveMatch().matched());
+            Map<String, Object> eventPayload = buildRetrievalPayload(sourceHits, top, retrievalResult, preRouting.sensitiveMatch().matched(), rewriteResult);
             eventPayload.put("auto_reply_threshold", autoReplyThreshold);
+            eventPayload.put("suggest_threshold", suggestThreshold);
             eventPayload.put("policy_stage", decision.policyStage());
             eventPayload.put("policy_outcome", decision.policyOutcome());
             recordAiEvent(t, "ai_agent_suggestion_shown", null, decision.decisionType(), decision.decisionReason(), top.source, top.score, "Suggestion shown to operator", eventPayload);
@@ -216,7 +226,9 @@ public class DialogAiAssistantService {
             if (retrievalResult.consistency().hasConflict()) {
                 notifyOperatorsEscalation(t, m, detail);
             }
-            Map<String, Object> eventPayload = buildRetrievalPayload(sourceHits, top, retrievalResult, preRouting.sensitiveMatch().matched());
+            Map<String, Object> eventPayload = buildRetrievalPayload(sourceHits, top, retrievalResult, preRouting.sensitiveMatch().matched(), rewriteResult);
+            eventPayload.put("auto_reply_threshold", autoReplyThreshold);
+            eventPayload.put("suggest_threshold", suggestThreshold);
             eventPayload.put("policy_stage", "6_consistency");
             eventPayload.put("policy_outcome", retrievalResult.consistency().hasConflict() ? "blocked_by_conflict" : "blocked_by_insufficient_confirmation");
             recordAiEvent(
@@ -237,19 +249,23 @@ public class DialogAiAssistantService {
         if (!guard.allowed()) {
             markProcessing(t, "auto_reply_suppressed", top, guard.reason(), "suppressed", "loop_guard", sourceHits, mode);
             notifyOperatorsEscalation(t, m, "Auto-reply suppressed by loop guard: " + guard.reason());
-            Map<String, Object> eventPayload = buildRetrievalPayload(sourceHits, top, retrievalResult, preRouting.sensitiveMatch().matched());
+            Map<String, Object> eventPayload = buildRetrievalPayload(sourceHits, top, retrievalResult, preRouting.sensitiveMatch().matched(), rewriteResult);
+            eventPayload.put("auto_reply_threshold", autoReplyThreshold);
+            eventPayload.put("suggest_threshold", suggestThreshold);
             eventPayload.put("policy_stage", "7_loop_guard");
             eventPayload.put("policy_outcome", "suppressed");
             recordAiEvent(t, "ai_agent_decision_made", null, "suppressed", "loop_guard", top.source, top.score, guard.reason(), eventPayload);
             return;
         }
 
-        String reply = buildAutoReply(top);
+        String reply = buildAutoReply(t, m, top, retrievalResult.context().intentPolicy(), true);
         DialogReplyService.DialogReplyResult result = dialogReplyService.sendReply(t, reply, null, null, "ai_agent");
         if (!result.success()) {
             markProcessing(t, "send_failed", top, result.error(), "escalate", "send_failed", sourceHits, mode);
             notifyOperatorsEscalation(t, m, "Failed to send AI reply: " + result.error());
-            Map<String, Object> eventPayload = buildRetrievalPayload(sourceHits, top, retrievalResult, preRouting.sensitiveMatch().matched());
+            Map<String, Object> eventPayload = buildRetrievalPayload(sourceHits, top, retrievalResult, preRouting.sensitiveMatch().matched(), rewriteResult);
+            eventPayload.put("auto_reply_threshold", autoReplyThreshold);
+            eventPayload.put("suggest_threshold", suggestThreshold);
             eventPayload.put("policy_stage", "8_auto_reply_allowed");
             eventPayload.put("policy_outcome", "send_failed");
             recordAiEvent(t, "ai_agent_escalated", null, "escalate", "send_failed", top.source, top.score, result.error(), eventPayload);
@@ -260,8 +276,10 @@ public class DialogAiAssistantService {
             markMemoryUsage(top.memoryKey);
         }
         markProcessing(t, "auto_replied", top, null, "auto_reply", "score_above_threshold", sourceHits, mode);
-        Map<String, Object> eventPayload = buildRetrievalPayload(sourceHits, top, retrievalResult, preRouting.sensitiveMatch().matched());
+        Map<String, Object> eventPayload = buildRetrievalPayload(sourceHits, top, retrievalResult, preRouting.sensitiveMatch().matched(), rewriteResult);
         eventPayload.put("reply_preview", cut(reply, 300));
+        eventPayload.put("auto_reply_threshold", autoReplyThreshold);
+        eventPayload.put("suggest_threshold", suggestThreshold);
         eventPayload.put("policy_stage", "8_auto_reply_allowed");
         eventPayload.put("policy_outcome", "auto_reply");
         recordAiEvent(t, "ai_agent_auto_reply_sent", "ai_agent", "auto_reply", "score_above_threshold", top.source, top.score, "Auto reply sent", eventPayload);
@@ -352,8 +370,8 @@ public class DialogAiAssistantService {
             item.put("score", s.score);
             item.put("score_label", formatScore(s.score));
             item.put("snippet", s.snippet);
-            item.put("reply", buildOperatorReplySuggestion(s));
-            item.put("explain", buildSuggestionExplain(s));
+            item.put("reply", buildOperatorReplySuggestion(t, lastClient, s));
+            item.put("explain", buildSuggestionExplain(t, lastClient, s));
             result.add(item);
         }
         return result;
@@ -809,7 +827,7 @@ public class DialogAiAssistantService {
                 error,
                 suggestion != null ? suggestion.source : null,
                 suggestion != null ? suggestion.score : null,
-                suggestion != null ? trim(buildAutoReply(suggestion)) : null,
+                suggestion != null ? trim(buildDeterministicReply(suggestion)) : null,
                 decisionType,
                 decisionReason,
                 sourceHits
@@ -891,7 +909,9 @@ public class DialogAiAssistantService {
                     candidate.slotSignature(),
                     candidate.canonicalKey(),
                     candidate.evidenceCount(),
-                    candidate.trace()
+                    candidate.trace(),
+                    candidate.updatedAt(),
+                    candidate.stale()
             ));
         }
         return mapped;
@@ -1320,7 +1340,7 @@ public class DialogAiAssistantService {
     }
 
     private String loadLastClientMessage(String ticketId) { return jdbcTemplate.query("SELECT message FROM chat_history WHERE ticket_id=? AND lower(sender) NOT IN ('operator','support','admin','system','ai_agent') AND message IS NOT NULL AND trim(message)<>'' ORDER BY id DESC LIMIT 1", rs -> rs.next() ? trim(rs.getString("message")) : null, ticketId); }
-    private String buildAutoReply(AiSuggestion s) {
+    private String buildDeterministicReply(AiSuggestion s) {
         String body = cleanTextForRetrieval(s != null ? s.snippet : null);
         if (!StringUtils.hasText(body)) {
             body = "Не удалось найти точный ответ в базе. Ниже безопасный общий план действий.";
@@ -1340,7 +1360,31 @@ public class DialogAiAssistantService {
         return reply.toString();
     }
 
-    private String buildOperatorReplySuggestion(AiSuggestion s) {
+    private String buildAutoReply(String ticketId,
+                                  String clientMessage,
+                                  AiSuggestion suggestion,
+                                  AiIntentService.IntentPolicy intentPolicy,
+                                  boolean autoReplyRequested) {
+        String fallback = buildDeterministicReply(suggestion);
+        if (suggestion == null) {
+            return fallback;
+        }
+        if (intentPolicy != null && intentPolicy.requiresOperator() && autoReplyRequested) {
+            return fallback;
+        }
+        String intentKey = firstNonBlank(suggestion.intentKey, intentPolicy != null ? intentPolicy.intentKey() : null);
+        AiControlledLlmService.TextResult composed = aiControlledLlmService.composeReply(
+                ticketId,
+                clientMessage,
+                suggestion.snippet,
+                suggestion.sourceRef,
+                intentKey,
+                autoReplyRequested
+        );
+        return StringUtils.hasText(composed.text()) ? composed.text() : fallback;
+    }
+
+    private String buildOperatorReplySuggestion(String ticketId, String clientMessage, AiSuggestion s) {
         String sourceLabel = switch (s.source) {
             case "memory" -> "память подтвержденных решений";
             case "knowledge" -> "база знаний";
@@ -1349,11 +1393,12 @@ public class DialogAiAssistantService {
             case "applicant_history" -> "история заявителя";
             default -> "доступные данные";
         };
-        String prepared = buildAutoReply(s);
+        AiIntentService.IntentPolicy intentPolicy = aiIntentService.resolvePolicy(s.intentKey);
+        String prepared = buildAutoReply(ticketId, clientMessage, s, intentPolicy, false);
         return "Подсказка на основе источника \"" + sourceLabel + "\":\n\n" + prepared;
     }
 
-    private String buildSuggestionExplain(AiSuggestion s) {
+    private String buildSuggestionExplain(String ticketId, String clientMessage, AiSuggestion s) {
         String sourceExplain = switch (String.valueOf(s.source).toLowerCase(Locale.ROOT)) {
             case "memory" -> "Подсказка выбрана из подтвержденной памяти решений.";
             case "knowledge" -> "Подсказка собрана из базы знаний.";
@@ -1362,8 +1407,23 @@ public class DialogAiAssistantService {
             case "applicant_history" -> "Подсказка учитывает историю заявителя.";
             default -> "Подсказка сформирована на основе доступных данных.";
         };
+        AiControlledLlmService.TextResult explained = aiControlledLlmService.explainSuggestion(
+                ticketId,
+                clientMessage,
+                s.snippet,
+                s.source,
+                s.trustLevel,
+                s.intentKey,
+                s.evidenceCount
+        );
+        if (StringUtils.hasText(explained.text())) {
+            return explained.text();
+        }
         String trust = StringUtils.hasText(s.trustLevel) ? s.trustLevel : "unknown";
-        return sourceExplain + " Итоговый confidence: " + formatScore(s.score) + ". trust=" + trust + ".";
+        return sourceExplain + " Итоговый confidence: " + formatScore(s.score)
+                + ". trust=" + trust
+                + ", intent=" + firstNonBlank(s.intentKey, "unknown")
+                + ", evidence=" + Math.max(1, s.evidenceCount) + ".";
     }
 
     private void notifyOperatorsEscalation(String ticketId, String msg, String reason) {
@@ -1658,6 +1718,8 @@ public class DialogAiAssistantService {
             row.put("canonical_key", s.canonicalKey);
             row.put("evidence_count", s.evidenceCount);
             row.put("trace", s.trace);
+            row.put("updated_at", s.updatedAt);
+            row.put("stale", s.stale ? 1 : 0);
             payload.add(row);
         }
         try {
@@ -1683,10 +1745,17 @@ public class DialogAiAssistantService {
     private Map<String, Object> buildRetrievalPayload(String sourceHits,
                                                       AiSuggestion top,
                                                       AiRetrievalService.RetrievalResult retrievalResult,
-                                                      boolean sensitiveTopic) {
+                                                      boolean sensitiveTopic,
+                                                      AiControlledLlmService.RewriteResult rewriteResult) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("source_hits", sourceHits);
         payload.put("sensitive_topic", sensitiveTopic ? 1 : 0);
+        if (rewriteResult != null) {
+            payload.put("llm_rewrite_used", rewriteResult.usedLlm() ? 1 : 0);
+            payload.put("llm_rewrite_reason", rewriteResult.reason());
+            payload.put("llm_rewrite_query", rewriteResult.rewrittenQuery());
+            payload.put("llm_variant", rewriteResult.variant());
+        }
         if (retrievalResult != null) {
             payload.put("support_count", retrievalResult.consistency().supportCount());
             payload.put("evidence_conflict", retrievalResult.consistency().hasConflict() ? 1 : 0);
@@ -1709,8 +1778,22 @@ public class DialogAiAssistantService {
             payload.put("top_candidate_canonical_key", top.canonicalKey);
             payload.put("top_candidate_evidence_count", top.evidenceCount);
             payload.put("top_candidate_trace", top.trace);
+            payload.put("top_candidate_updated_at", top.updatedAt);
+            payload.put("top_candidate_is_stale", top.stale ? 1 : 0);
         }
         return payload;
+    }
+    private String firstNonBlank(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            String normalized = trim(value);
+            if (normalized != null) {
+                return normalized;
+            }
+        }
+        return null;
     }
     private Instant parseInstant(Object value) {
         String raw = trim(value != null ? String.valueOf(value) : null);
@@ -1878,6 +1961,8 @@ public class DialogAiAssistantService {
         final String canonicalKey;
         final int evidenceCount;
         final String trace;
+        final String updatedAt;
+        final boolean stale;
 
         AiSuggestion(String source,
                      String title,
@@ -1893,7 +1978,9 @@ public class DialogAiAssistantService {
                      String slotSignature,
                      String canonicalKey,
                      int evidenceCount,
-                     String trace) {
+                     String trace,
+                     String updatedAt,
+                     boolean stale) {
             this.source = source;
             this.title = title;
             this.snippet = snippet;
@@ -1909,6 +1996,8 @@ public class DialogAiAssistantService {
             this.canonicalKey = canonicalKey;
             this.evidenceCount = evidenceCount;
             this.trace = trace;
+            this.updatedAt = updatedAt;
+            this.stale = stale;
         }
     }
 }

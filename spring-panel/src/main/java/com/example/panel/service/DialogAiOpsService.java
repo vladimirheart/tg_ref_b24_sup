@@ -10,9 +10,12 @@ import java.util.Map;
 public class DialogAiOpsService {
 
     private final DialogAiAssistantService dialogAiAssistantService;
+    private final AiOpsRuntimeService aiOpsRuntimeService;
 
-    public DialogAiOpsService(DialogAiAssistantService dialogAiAssistantService) {
+    public DialogAiOpsService(DialogAiAssistantService dialogAiAssistantService,
+                              AiOpsRuntimeService aiOpsRuntimeService) {
         this.dialogAiAssistantService = dialogAiAssistantService;
+        this.aiOpsRuntimeService = aiOpsRuntimeService;
     }
 
     public Map<String, Object> loadSuggestions(String ticketId, Integer limit) {
@@ -100,8 +103,36 @@ public class DialogAiOpsService {
         );
     }
 
-    public Map<String, Object> loadReviewsQueue(Integer limit) {
-        return Map.of("success", true, "items", dialogAiAssistantService.loadPendingReviewsQueue(limit));
+    public Map<String, Object> loadDecisionTrace(String ticketId, Integer limit) {
+        return Map.of(
+                "success", true,
+                "trace", aiOpsRuntimeService.loadDecisionTrace(ticketId, limit)
+        );
+    }
+
+    public Map<String, Object> reclassify(String ticketId,
+                                          String message,
+                                          String messageType,
+                                          String attachment) {
+        return Map.of(
+                "success", true,
+                "result", aiOpsRuntimeService.reclassify(ticketId, message, messageType, attachment)
+        );
+    }
+
+    public Map<String, Object> retrieveDebug(String ticketId,
+                                             String message,
+                                             String messageType,
+                                             String attachment,
+                                             Integer limit) {
+        return Map.of(
+                "success", true,
+                "result", aiOpsRuntimeService.retrieveDebug(ticketId, message, messageType, attachment, limit)
+        );
+    }
+
+    public List<Map<String, Object>> loadPendingReviewsQueue(Integer limit) {
+        return dialogAiAssistantService.loadPendingReviewsQueue(limit);
     }
 
     public Map<String, Object> approveReviewByKey(String queryKey, String operator) {
@@ -143,6 +174,72 @@ public class DialogAiOpsService {
         return Map.of("success", true, "updated", dialogAiAssistantService.rollbackSolutionMemory(queryKey, historyId, operator));
     }
 
+    public Map<String, Object> loadIntents(Integer limit, String query, Boolean enabled) {
+        return Map.of("success", true, "items", aiOpsRuntimeService.listIntents(limit, query, enabled));
+    }
+
+    public Map<String, Object> upsertIntent(String intentKey,
+                                            String title,
+                                            String description,
+                                            String patternHints,
+                                            String slotSchemaJson,
+                                            Boolean enabled,
+                                            Integer priority,
+                                            Boolean autoReplyAllowed,
+                                            Boolean assistOnly,
+                                            Boolean requiresOperator,
+                                            String safetyLevel,
+                                            String notes) {
+        return Map.of(
+                "success", true,
+                "updated", aiOpsRuntimeService.upsertIntent(
+                        intentKey,
+                        title,
+                        description,
+                        patternHints,
+                        slotSchemaJson,
+                        enabled,
+                        priority,
+                        autoReplyAllowed,
+                        assistOnly,
+                        requiresOperator,
+                        safetyLevel,
+                        notes
+                )
+        );
+    }
+
+    public Map<String, Object> loadKnowledgeUnits(Integer limit, String query, String status) {
+        return Map.of("success", true, "items", aiOpsRuntimeService.listKnowledgeUnits(limit, query, status));
+    }
+
+    public Map<String, Object> upsertKnowledgeUnit(String unitKey,
+                                                   String title,
+                                                   String bodyText,
+                                                   String intentKey,
+                                                   String slotSignature,
+                                                   String business,
+                                                   String location,
+                                                   String channel,
+                                                   String status,
+                                                   String sourceRef) {
+        return Map.of(
+                "success", true,
+                "updated", aiOpsRuntimeService.upsertKnowledgeUnit(
+                        unitKey,
+                        title,
+                        bodyText,
+                        intentKey,
+                        slotSignature,
+                        business,
+                        location,
+                        channel,
+                        status,
+                        sourceRef
+                )
+        );
+    }
+
     public Map<String, Object> loadMonitoringSummary(Integer days) {
         return Map.of("success", true, "summary", dialogAiAssistantService.loadMonitoringSummary(days));
     }
@@ -153,6 +250,14 @@ public class DialogAiOpsService {
                                                           String eventType,
                                                           String actor) {
         return dialogAiAssistantService.loadMonitoringEvents(days, limit, ticketId, eventType, actor);
+    }
+
+    public Map<String, Object> loadOfflineEvalSummary() {
+        return Map.of("success", true, "offline_eval", aiOpsRuntimeService.loadOfflineEvalSummary());
+    }
+
+    public Map<String, Object> runOfflineEvalNow(String actor) {
+        return Map.of("success", true, "offline_eval", aiOpsRuntimeService.runOfflineEvalNow(actor));
     }
 
     public String buildMonitoringEventsCsv(List<Map<String, Object>> items) {
