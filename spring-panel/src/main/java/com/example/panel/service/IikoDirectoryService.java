@@ -1,6 +1,6 @@
 package com.example.panel.service;
 
-import com.example.panel.service.LocalMachineIntegrationsConfigService.IikoLocalConfig;
+import com.example.panel.service.EmployeeDiscountAutomationCredentialService.IikoCredentials;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -28,13 +28,13 @@ public class IikoDirectoryService {
 
     private static final Logger log = LoggerFactory.getLogger(IikoDirectoryService.class);
 
-    private final LocalMachineIntegrationsConfigService localMachineIntegrationsConfigService;
+    private final EmployeeDiscountAutomationCredentialService credentialService;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
 
-    public IikoDirectoryService(LocalMachineIntegrationsConfigService localMachineIntegrationsConfigService,
+    public IikoDirectoryService(EmployeeDiscountAutomationCredentialService credentialService,
                                 ObjectMapper objectMapper) {
-        this.localMachineIntegrationsConfigService = localMachineIntegrationsConfigService;
+        this.credentialService = credentialService;
         this.objectMapper = objectMapper;
         this.httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(15))
@@ -42,31 +42,38 @@ public class IikoDirectoryService {
             .build();
     }
 
-    public List<Map<String, Object>> loadCategories() {
-        return loadNamedDirectory("categories", localMachineIntegrationsConfigService.loadConfig().iiko().categoriesUrl());
+    public List<Map<String, Object>> loadCategories(String username) {
+        return loadNamedDirectory(username, "categories", credentialService.loadForUser(username).iiko().categoriesUrl());
     }
 
-    public List<Map<String, Object>> loadWallets() {
-        return loadNamedDirectory("wallets", localMachineIntegrationsConfigService.loadConfig().iiko().walletsUrl());
+    public List<Map<String, Object>> loadWallets(String username) {
+        return loadNamedDirectory(username, "wallets", credentialService.loadForUser(username).iiko().walletsUrl());
     }
 
-    public MutationResult disableCorporateDiscount(String phone,
+    public MutationResult disableCorporateDiscount(String username,
+                                                   String phone,
                                                    EmployeeDiscountAutomationSettingsService.EmployeeDiscountAutomationSettings settings) {
-        IikoLocalConfig config = localMachineIntegrationsConfigService.loadConfig().iiko();
+        IikoCredentials config = credentialService.loadForUser(username).iiko();
         if (!StringUtils.hasText(config.customerLookupUrl()) || !StringUtils.hasText(config.customerUpdateUrl())) {
             return new MutationResult(false,
-                "Боевой iiko-мутатор пока не сконфигурирован: задайте customer_lookup_url и customer_update_url в local-machine конфиге.");
+                "Боевой iiko-мутатор пока не сконфигурирован: задайте customer_lookup_url и customer_update_url в личном конфиге пользователя панели.");
         }
         return new MutationResult(false,
             "Боевой iiko-мутатор ожидает точный payload из iikocard-документации. Пока доступны discovery справочников и dry-run.");
     }
 
-    public Map<String, Object> loadStatus() {
-        IikoLocalConfig config = localMachineIntegrationsConfigService.loadConfig().iiko();
+    public Map<String, Object> loadStatus(String username) {
+        IikoCredentials config = credentialService.loadForUser(username).iiko();
         Map<String, Object> status = new LinkedHashMap<>();
-        status.put("configured", StringUtils.hasText(config.baseUrl()) || StringUtils.hasText(config.categoriesUrl()) || StringUtils.hasText(config.walletsUrl()));
+        status.put("configured",
+            StringUtils.hasText(config.baseUrl())
+                || StringUtils.hasText(config.categoriesUrl())
+                || StringUtils.hasText(config.walletsUrl())
+                || StringUtils.hasText(config.customerLookupUrl())
+                || StringUtils.hasText(config.customerUpdateUrl()));
         status.put("group_name", config.groupName());
         status.put("organization_id", config.organizationId());
+        status.put("auth_mode", config.resolveAuthMode());
         status.put("categories_url", maskUrl(config.categoriesUrl()));
         status.put("wallets_url", maskUrl(config.walletsUrl()));
         status.put("mutation_ready",
@@ -74,12 +81,12 @@ public class IikoDirectoryService {
         return status;
     }
 
-    private List<Map<String, Object>> loadNamedDirectory(String label, String url) {
+    private List<Map<String, Object>> loadNamedDirectory(String username, String label, String url) {
         if (!StringUtils.hasText(url)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                "Не задан " + label + "_url в local-machine конфиге iiko.");
+                "Не задан " + label + "_url в личном конфиге пользователя панели.");
         }
-        JsonNode root = executeGet(resolveUrl(localMachineIntegrationsConfigService.loadConfig().iiko(), url));
+        JsonNode root = executeGet(username, resolveUrl(credentialService.loadForUser(username).iiko(), url));
         List<Map<String, Object>> entries = collectNamedObjects(root);
         if (entries.isEmpty()) {
             log.warn("Iiko {} discovery returned no recognizable id/name pairs", label);
@@ -87,16 +94,15 @@ public class IikoDirectoryService {
         return entries;
     }
 
-    private JsonNode executeGet(String url) {
-        IikoLocalConfig config = localMachineIntegrationsConfigService.loadConfig().iiko();
+    private JsonNode executeGet(String username, String url) {
+        IikoCredentials config = credentialService.loadForUser(username).iiko();
         HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(url))
             .timeout(Duration.ofSeconds(30))
             .header("Accept", "application/json")
             .GET();
         if (StringUtils.hasText(config.token())) {
             builder.header("Authorization", "Bearer " + config.token().trim());
-        }
-        if (StringUtils.hasText(config.login()) && StringUtils.hasText(config.password())) {
+        } else if (StringUtils.hasText(config.login()) && StringUtils.hasText(config.password())) {
             String basic = Base64.getEncoder()
                 .encodeToString((config.login().trim() + ":" + config.password().trim()).getBytes(StandardCharsets.UTF_8));
             builder.header("Authorization", "Basic " + basic);
@@ -119,7 +125,7 @@ public class IikoDirectoryService {
         }
     }
 
-    private String resolveUrl(IikoLocalConfig config, String rawUrl) {
+    private String resolveUrl(IikoCredentials config, String rawUrl) {
         if (!StringUtils.hasText(rawUrl)) {
             return "";
         }

@@ -1,6 +1,6 @@
 package com.example.panel.service;
 
-import com.example.panel.service.LocalMachineIntegrationsConfigService.Bitrix24Config;
+import com.example.panel.service.EmployeeDiscountAutomationCredentialService.Bitrix24Credentials;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.HttpStatus;
@@ -25,13 +25,13 @@ import java.util.Map;
 @Service
 public class Bitrix24RestService {
 
-    private final LocalMachineIntegrationsConfigService localMachineIntegrationsConfigService;
+    private final EmployeeDiscountAutomationCredentialService credentialService;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
 
-    public Bitrix24RestService(LocalMachineIntegrationsConfigService localMachineIntegrationsConfigService,
+    public Bitrix24RestService(EmployeeDiscountAutomationCredentialService credentialService,
                                ObjectMapper objectMapper) {
-        this.localMachineIntegrationsConfigService = localMachineIntegrationsConfigService;
+        this.credentialService = credentialService;
         this.objectMapper = objectMapper;
         this.httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(15))
@@ -39,8 +39,8 @@ public class Bitrix24RestService {
             .build();
     }
 
-    public List<Map<String, Object>> listWorkgroups(String query, int limit) {
-        JsonNode root = call("sonet_group.get", query == null || query.isBlank()
+    public List<Map<String, Object>> listWorkgroups(String username, String query, int limit) {
+        JsonNode root = call(username, "sonet_group.get", query == null || query.isBlank()
             ? Map.of()
             : Map.of("FILTER[NAME]", query.trim()));
         List<JsonNode> groups = collectRows(root);
@@ -63,11 +63,11 @@ public class Bitrix24RestService {
         return items;
     }
 
-    public List<Map<String, Object>> listTasksForGroup(Long groupId) {
+    public List<Map<String, Object>> listTasksForGroup(String username, Long groupId) {
         if (groupId == null || groupId <= 0) {
             return List.of();
         }
-        JsonNode root = call("tasks.task.list", Map.of("filter[GROUP_ID]", String.valueOf(groupId)));
+        JsonNode root = call(username, "tasks.task.list", Map.of("filter[GROUP_ID]", String.valueOf(groupId)));
         List<JsonNode> tasks = collectRows(root);
         List<Map<String, Object>> items = new ArrayList<>();
         for (JsonNode task : tasks) {
@@ -75,7 +75,7 @@ public class Bitrix24RestService {
             if (!StringUtils.hasText(id)) {
                 continue;
             }
-            Map<String, Object> details = getTaskDetails(id);
+            Map<String, Object> details = getTaskDetails(username, id);
             if (!details.isEmpty()) {
                 items.add(details);
             }
@@ -83,11 +83,11 @@ public class Bitrix24RestService {
         return items;
     }
 
-    public Map<String, Object> getTaskDetails(String taskId) {
+    public Map<String, Object> getTaskDetails(String username, String taskId) {
         if (!StringUtils.hasText(taskId)) {
             return Map.of();
         }
-        JsonNode root = call("tasks.task.get", Map.of("taskId", taskId));
+        JsonNode root = call(username, "tasks.task.get", Map.of("taskId", taskId));
         JsonNode result = root.path("result");
         JsonNode task = result.has("task") ? result.path("task") : result;
         if (task == null || task.isMissingNode() || task.isNull()) {
@@ -111,11 +111,11 @@ public class Bitrix24RestService {
         return payload;
     }
 
-    public List<Map<String, Object>> listChecklistItems(String taskId) {
+    public List<Map<String, Object>> listChecklistItems(String username, String taskId) {
         if (!StringUtils.hasText(taskId)) {
             return List.of();
         }
-        JsonNode root = call("task.checklistitem.getlist", Map.of("TASKID", taskId));
+        JsonNode root = call(username, "task.checklistitem.getlist", Map.of("TASKID", taskId));
         List<JsonNode> rows = collectRows(root);
         List<Map<String, Object>> items = new ArrayList<>();
         for (JsonNode row : rows) {
@@ -134,28 +134,29 @@ public class Bitrix24RestService {
         return items;
     }
 
-    public void completeChecklistItem(String taskId, String itemId) {
+    public void completeChecklistItem(String username, String taskId, String itemId) {
         if (!StringUtils.hasText(taskId) || !StringUtils.hasText(itemId)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "taskId and itemId are required");
         }
-        call("task.checklistitem.complete", Map.of(
+        call(username, "task.checklistitem.complete", Map.of(
             "TASKID", taskId,
             "ITEMID", itemId
         ));
     }
 
-    public Map<String, Object> loadConnectionStatus() {
-        Bitrix24Config config = localMachineIntegrationsConfigService.loadConfig().bitrix24();
+    public Map<String, Object> loadConnectionStatus(String username) {
+        Bitrix24Credentials config = credentialService.loadForUser(username).bitrix24();
         Map<String, Object> status = new LinkedHashMap<>();
         status.put("configured", StringUtils.hasText(config.webhookUrl()));
         status.put("portal_url", config.portalUrl());
+        status.put("webhook_saved", StringUtils.hasText(config.webhookUrl()));
         if (!StringUtils.hasText(config.webhookUrl())) {
             status.put("reachable", false);
-            status.put("message", "Webhook URL не задан в local-machine конфиге.");
+            status.put("message", "Webhook URL не задан в личном конфиге пользователя панели.");
             return status;
         }
         try {
-            call("server.time", Map.of());
+            call(username, "server.time", Map.of());
             status.put("reachable", true);
             status.put("message", "Bitrix24 webhook отвечает.");
         } catch (Exception ex) {
@@ -165,10 +166,10 @@ public class Bitrix24RestService {
         return status;
     }
 
-    private JsonNode call(String method, Map<String, String> params) {
-        Bitrix24Config config = localMachineIntegrationsConfigService.loadConfig().bitrix24();
+    private JsonNode call(String username, String method, Map<String, String> params) {
+        Bitrix24Credentials config = credentialService.loadForUser(username).bitrix24();
         if (!StringUtils.hasText(config.webhookUrl())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Не задан Bitrix24 webhook URL в local-machine конфиге.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Не задан Bitrix24 webhook URL в личном конфиге пользователя панели.");
         }
         String url = normalizeWebhookUrl(config.webhookUrl(), method);
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))

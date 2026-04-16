@@ -1,18 +1,18 @@
 # Автоматизация Bitrix24 + iiko
 
-Документ описывает новый runtime-контур панели для сценария отключения
-корпоративных скидок сотрудников.
+Документ описывает runtime-контур панели для сценария отключения корпоративных
+скидок сотрудников.
 
 ## Что уже умеет контур
 
-- работать из панели по кнопке;
-- выполнять dry-run без боевых изменений;
-- читать локальный machine-specific конфиг из
-  `ai-context/parameters/local-machine/`;
+- запускаться из панели по кнопке;
+- выполнять `dry-run` без боевых изменений;
+- использовать личные доступы текущего пользователя панели для Bitrix24 и iiko;
 - подключаться к Bitrix24 по webhook;
 - находить группы и задачи;
 - фильтровать только незакрытые задачи, в которых checklist-пункт еще не
   отмечен;
+- извлекать телефон сотрудника из тела задачи;
 - вести историю запусков и результатов по каждой задаче в БД панели.
 
 ## Где находится UI
@@ -20,40 +20,27 @@
 - страница `AI Ops`;
 - блок `Bitrix24 + iiko automation`.
 
-## Где хранить локальные секреты
+## Где теперь хранятся секреты
 
-Создайте локальный файл:
+Секреты больше не привязаны к local-machine файлам.
 
-- `ai-context/parameters/local-machine/integrations.local.json`
+Личные доступы Bitrix24/iiko сохраняются в панели отдельно для каждого
+пользователя через `settings_parameters` с ключом
+`employee_discount_automation_credentials.v1`.
 
-Каталог уже закрыт `.gitignore`, поэтому реальные секреты не попадут в git.
+В UI секретные поля не возвращаются обратно в браузер:
 
-## Рекомендуемый формат локального файла
+- `webhook_url`;
+- `password`;
+- `token`.
 
-```json
-{
-  "bitrix24": {
-    "portal_url": "https://sushivesla.bitrix24.ru",
-    "webhook_url": "https://sushivesla.bitrix24.ru/rest/1/xxxxxxxxxxxx/"
-  },
-  "iiko": {
-    "group_name": "main-chain",
-    "base_url": "",
-    "token": "",
-    "login": "",
-    "password": "",
-    "organization_id": "",
-    "categories_url": "",
-    "wallets_url": "",
-    "customer_lookup_url": "",
-    "customer_update_url": ""
-  }
-}
-```
+Если оставить эти поля пустыми при сохранении, панель сохраняет уже существующее
+секретное значение.
 
-## Что хранится в versioned settings
+## Что хранится в общих versioned settings
 
-В `config/shared/settings.json` сохраняются только non-secret настройки:
+В `config/shared/settings.json` сохраняются только общие non-secret настройки
+автоматизации:
 
 - `bitrix_group_id`;
 - `task_title_markers`;
@@ -63,12 +50,31 @@
 - `excluded_wallet_ids`;
 - `dry_run_by_default`.
 
+## Что хранится в личном конфиге пользователя панели
+
+Личный конфиг пользователя может содержать:
+
+- `bitrix24.portal_url`;
+- `bitrix24.webhook_url`;
+- `iiko.group_name`;
+- `iiko.base_url`;
+- `iiko.login`;
+- `iiko.password`;
+- `iiko.token`;
+- `iiko.organization_id`;
+- `iiko.categories_url`;
+- `iiko.wallets_url`;
+- `iiko.customer_lookup_url`;
+- `iiko.customer_update_url`.
+
 ## Ограничения текущего этапа
 
 - боевой iiko-мутатор требует точных endpoint-ов и payload-формата iikocard;
 - до получения этих данных безопасно использовать discovery справочников и
-  dry-run Bitrix24-отбора;
-- checklist в Bitrix24 отмечается только после успеха по задаче.
+  `dry-run` Bitrix24-отбора;
+- checklist в Bitrix24 отмечается только после успеха по задаче;
+- персональные секреты уже user-scoped, но пока хранятся в БД панели без
+  отдельного слоя шифрования.
 
 ## Что нужно для завершения боевого режима
 
@@ -76,4 +82,5 @@
 - точный endpoint изменения скидочных категорий и кошельков клиента;
 - пример payload-а, которым нужно снимать категории скидок;
 - пример payload-а, которым нужно исключать нужные кошельки;
-- по возможности обезличенный пример request/response из рабочего iikocard-контура.
+- по возможности обезличенный пример request/response из рабочего
+  `iikocard`-контура.

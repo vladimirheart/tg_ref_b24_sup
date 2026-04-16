@@ -70,6 +70,7 @@
             <strong>Bitrix24 + iiko automation</strong>
             <div class="d-flex flex-wrap gap-2">
                 <button class="btn btn-sm btn-outline-secondary" id="employeeDiscountRefresh" type="button">Обновить</button>
+                <button class="btn btn-sm btn-outline-secondary" id="employeeDiscountSaveCredentials" type="button">Сохранить личные доступы</button>
                 <button class="btn btn-sm btn-outline-primary" id="employeeDiscountSave" type="button">Сохранить настройки</button>
             </div>
         </div>
@@ -77,15 +78,73 @@
             <div class="row g-3 mb-3">
                 <div class="col-lg-4">
                     <div class="border rounded p-3 h-100">
-                        <div class="small text-muted mb-1">Local config</div>
-                        <div class="fw-semibold small mb-2" id="employeeDiscountConfigPath">-</div>
+                        <div class="small text-muted mb-1">Личный конфиг пользователя панели</div>
+                        <div class="fw-semibold small mb-2" id="employeeDiscountConfigScope">-</div>
                         <div class="small mb-1">Bitrix24: <span id="employeeDiscountBitrixState">-</span></div>
-                        <div class="small mb-1">iiko discovery: <span id="employeeDiscountIikoState">-</span></div>
+                        <div class="small mb-1">iiko: <span id="employeeDiscountIikoState">-</span></div>
+                        <div class="small mb-1" id="employeeDiscountSecretsState">-</div>
                         <div class="small text-muted" id="employeeDiscountConnectionMessage">-</div>
                     </div>
                 </div>
                 <div class="col-lg-8">
                     <div class="border rounded p-3 h-100">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label form-label-sm">Bitrix24 portal URL</label>
+                                <input class="form-control form-control-sm" id="employeeDiscountBitrixPortalUrl" placeholder="https://sushivesla.bitrix24.ru">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label form-label-sm">Bitrix24 webhook URL</label>
+                                <input type="password" class="form-control form-control-sm" id="employeeDiscountBitrixWebhookUrl" placeholder="Пусто = сохранить текущий секрет">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label form-label-sm">iiko group name</label>
+                                <input class="form-control form-control-sm" id="employeeDiscountIikoGroupName" placeholder="main-chain">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label form-label-sm">iiko base URL</label>
+                                <input class="form-control form-control-sm" id="employeeDiscountIikoBaseUrl" placeholder="https://...">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label form-label-sm">iiko organization id</label>
+                                <input class="form-control form-control-sm" id="employeeDiscountIikoOrganizationId" placeholder="id организации">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label form-label-sm">iiko login</label>
+                                <input class="form-control form-control-sm" id="employeeDiscountIikoLogin" placeholder="login">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label form-label-sm">iiko password</label>
+                                <input type="password" class="form-control form-control-sm" id="employeeDiscountIikoPassword" placeholder="Пусто = сохранить текущий секрет">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label form-label-sm">iiko token</label>
+                                <input type="password" class="form-control form-control-sm" id="employeeDiscountIikoToken" placeholder="Пусто = сохранить текущий секрет">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label form-label-sm">categories URL</label>
+                                <input class="form-control form-control-sm" id="employeeDiscountIikoCategoriesUrl" placeholder="/api/... или https://...">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label form-label-sm">wallets URL</label>
+                                <input class="form-control form-control-sm" id="employeeDiscountIikoWalletsUrl" placeholder="/api/... или https://...">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label form-label-sm">customer lookup URL</label>
+                                <input class="form-control form-control-sm" id="employeeDiscountIikoCustomerLookupUrl" placeholder="/api/... или https://...">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label form-label-sm">customer update URL</label>
+                                <input class="form-control form-control-sm" id="employeeDiscountIikoCustomerUpdateUrl" placeholder="/api/... или https://...">
+                            </div>
+                            <div class="col-12">
+                                <div class="form-text small">Секретные поля не возвращаются обратно в UI. Если оставить `webhook`, `password` или `token` пустыми, панель сохранит уже существующее секретное значение.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12">
+                    <div class="border rounded p-3">
                         <div class="row g-3">
                             <div class="col-md-4">
                                 <label class="form-label form-label-sm">Bitrix group id</label>

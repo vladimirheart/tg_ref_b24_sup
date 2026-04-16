@@ -4,6 +4,7 @@
 
   const refreshBtn = document.getElementById('employeeDiscountRefresh');
   const saveBtn = document.getElementById('employeeDiscountSave');
+  const saveCredentialsBtn = document.getElementById('employeeDiscountSaveCredentials');
   const loadGroupsBtn = document.getElementById('employeeDiscountLoadGroups');
   const previewBtn = document.getElementById('employeeDiscountPreview');
   const loadCategoriesBtn = document.getElementById('employeeDiscountLoadCategories');
@@ -11,9 +12,10 @@
   const runDryBtn = document.getElementById('employeeDiscountRunDry');
   const runExecBtn = document.getElementById('employeeDiscountRunExec');
 
-  const configPathEl = document.getElementById('employeeDiscountConfigPath');
+  const scopeEl = document.getElementById('employeeDiscountConfigScope');
   const bitrixStateEl = document.getElementById('employeeDiscountBitrixState');
   const iikoStateEl = document.getElementById('employeeDiscountIikoState');
+  const secretsStateEl = document.getElementById('employeeDiscountSecretsState');
   const connectionMessageEl = document.getElementById('employeeDiscountConnectionMessage');
   const groupsEl = document.getElementById('employeeDiscountGroups');
   const previewEl = document.getElementById('employeeDiscountPreviewList');
@@ -21,6 +23,19 @@
   const walletsEl = document.getElementById('employeeDiscountWallets');
   const runsEl = document.getElementById('employeeDiscountRuns');
   const runDetailsEl = document.getElementById('employeeDiscountRunDetails');
+
+  const bitrixPortalUrlInput = document.getElementById('employeeDiscountBitrixPortalUrl');
+  const bitrixWebhookUrlInput = document.getElementById('employeeDiscountBitrixWebhookUrl');
+  const iikoGroupNameInput = document.getElementById('employeeDiscountIikoGroupName');
+  const iikoBaseUrlInput = document.getElementById('employeeDiscountIikoBaseUrl');
+  const iikoLoginInput = document.getElementById('employeeDiscountIikoLogin');
+  const iikoPasswordInput = document.getElementById('employeeDiscountIikoPassword');
+  const iikoTokenInput = document.getElementById('employeeDiscountIikoToken');
+  const iikoOrganizationIdInput = document.getElementById('employeeDiscountIikoOrganizationId');
+  const iikoCategoriesUrlInput = document.getElementById('employeeDiscountIikoCategoriesUrl');
+  const iikoWalletsUrlInput = document.getElementById('employeeDiscountIikoWalletsUrl');
+  const iikoCustomerLookupUrlInput = document.getElementById('employeeDiscountIikoCustomerLookupUrl');
+  const iikoCustomerUpdateUrlInput = document.getElementById('employeeDiscountIikoCustomerUpdateUrl');
 
   const groupIdInput = document.getElementById('employeeDiscountGroupId');
   const titleMarkersInput = document.getElementById('employeeDiscountTitleMarkers');
@@ -83,6 +98,31 @@
     if (categoryIdsInput) categoryIdsInput.value = Array.isArray(data.selected_discount_category_ids) ? data.selected_discount_category_ids.join('\n') : '';
     if (walletIdsInput) walletIdsInput.value = Array.isArray(data.excluded_wallet_ids) ? data.excluded_wallet_ids.join('\n') : '';
     if (dryRunDefaultInput) dryRunDefaultInput.checked = !!data.dry_run_by_default;
+  }
+
+  function fillCredentials(credentials) {
+    const data = credentials || {};
+    const bitrix = data.bitrix24 || {};
+    const iiko = data.iiko || {};
+    if (scopeEl) scopeEl.textContent = data.scope || '-';
+    if (bitrixPortalUrlInput) bitrixPortalUrlInput.value = bitrix.portal_url || '';
+    if (bitrixWebhookUrlInput) bitrixWebhookUrlInput.value = '';
+    if (iikoGroupNameInput) iikoGroupNameInput.value = iiko.group_name || '';
+    if (iikoBaseUrlInput) iikoBaseUrlInput.value = iiko.base_url || '';
+    if (iikoLoginInput) iikoLoginInput.value = iiko.login || '';
+    if (iikoPasswordInput) iikoPasswordInput.value = '';
+    if (iikoTokenInput) iikoTokenInput.value = '';
+    if (iikoOrganizationIdInput) iikoOrganizationIdInput.value = iiko.organization_id || '';
+    if (iikoCategoriesUrlInput) iikoCategoriesUrlInput.value = iiko.categories_url || '';
+    if (iikoWalletsUrlInput) iikoWalletsUrlInput.value = iiko.wallets_url || '';
+    if (iikoCustomerLookupUrlInput) iikoCustomerLookupUrlInput.value = iiko.customer_lookup_url || '';
+    if (iikoCustomerUpdateUrlInput) iikoCustomerUpdateUrlInput.value = iiko.customer_update_url || '';
+
+    const savedSecrets = [];
+    savedSecrets.push(bitrix.webhook_saved ? 'webhook Bitrix24 сохранён' : 'webhook Bitrix24 не задан');
+    savedSecrets.push(iiko.password_saved ? 'пароль iiko сохранён' : 'пароль iiko не задан');
+    savedSecrets.push(iiko.token_saved ? `token iiko сохранён (${iiko.auth_mode || 'bearer'})` : `token iiko не задан (${iiko.auth_mode || 'none'})`);
+    if (secretsStateEl) secretsStateEl.textContent = savedSecrets.join(' | ');
   }
 
   function renderGroups(items) {
@@ -175,17 +215,50 @@
     try {
       const payload = await requestJson('/api/ai-ops/employee-discounts/status');
       const status = payload.status || {};
-      const local = status.local_config || {};
+      const credentials = status.credentials || {};
       const bitrix = status.bitrix_connection || {};
       const iiko = status.iiko_connection || {};
       fillSettings(status.settings || {});
-      if (configPathEl) configPathEl.textContent = local.path || '-';
+      fillCredentials(credentials);
       if (bitrixStateEl) bitrixStateEl.textContent = bitrix.reachable ? 'ok' : (bitrix.configured ? 'configured, but unreachable' : 'not configured');
-      if (iikoStateEl) iikoStateEl.textContent = iiko.mutation_ready ? 'mutation ready' : (local.iiko_discovery_configured ? 'discovery only' : 'not configured');
+      if (iikoStateEl) iikoStateEl.textContent = iiko.mutation_ready ? `mutation ready (${iiko.auth_mode || 'none'})` : (iiko.configured ? `discovery only (${iiko.auth_mode || 'none'})` : 'not configured');
       if (connectionMessageEl) connectionMessageEl.textContent = bitrix.message || '-';
       stateEl.textContent = 'Статус обновлён.';
     } catch (error) {
       stateEl.textContent = `Ошибка загрузки статуса: ${error.message || 'unknown_error'}`;
+    }
+  }
+
+  async function saveCredentials() {
+    stateEl.textContent = 'Сохраняю личные доступы...';
+    try {
+      const payload = await requestJson('/api/ai-ops/employee-discounts/credentials', {
+        method: 'POST',
+        headers: withCsrfHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({
+          bitrix24: {
+            portal_url: bitrixPortalUrlInput?.value || '',
+            webhook_url: bitrixWebhookUrlInput?.value || '',
+          },
+          iiko: {
+            group_name: iikoGroupNameInput?.value || '',
+            base_url: iikoBaseUrlInput?.value || '',
+            login: iikoLoginInput?.value || '',
+            password: iikoPasswordInput?.value || '',
+            token: iikoTokenInput?.value || '',
+            organization_id: iikoOrganizationIdInput?.value || '',
+            categories_url: iikoCategoriesUrlInput?.value || '',
+            wallets_url: iikoWalletsUrlInput?.value || '',
+            customer_lookup_url: iikoCustomerLookupUrlInput?.value || '',
+            customer_update_url: iikoCustomerUpdateUrlInput?.value || '',
+          },
+        }),
+      });
+      fillCredentials(payload.credentials || {});
+      await loadStatus();
+      stateEl.textContent = 'Личные доступы сохранены.';
+    } catch (error) {
+      stateEl.textContent = `Ошибка сохранения доступов: ${error.message || 'unknown_error'}`;
     }
   }
 
@@ -298,6 +371,7 @@
 
   if (refreshBtn) refreshBtn.addEventListener('click', loadStatus);
   if (saveBtn) saveBtn.addEventListener('click', saveSettings);
+  if (saveCredentialsBtn) saveCredentialsBtn.addEventListener('click', saveCredentials);
   if (loadGroupsBtn) loadGroupsBtn.addEventListener('click', loadGroups);
   if (previewBtn) previewBtn.addEventListener('click', loadPreview);
   if (loadCategoriesBtn) loadCategoriesBtn.addEventListener('click', loadCategories);

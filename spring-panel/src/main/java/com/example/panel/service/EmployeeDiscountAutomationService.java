@@ -26,32 +26,32 @@ public class EmployeeDiscountAutomationService {
     public static final String AUTOMATION_KEY = "employee_discount_automation";
 
     private final EmployeeDiscountAutomationSettingsService settingsService;
-    private final LocalMachineIntegrationsConfigService localMachineIntegrationsConfigService;
+    private final EmployeeDiscountAutomationCredentialService credentialService;
     private final Bitrix24RestService bitrix24RestService;
     private final IikoDirectoryService iikoDirectoryService;
     private final AutomationRunRepository automationRunRepository;
     private final AutomationRunItemRepository automationRunItemRepository;
 
     public EmployeeDiscountAutomationService(EmployeeDiscountAutomationSettingsService settingsService,
-                                             LocalMachineIntegrationsConfigService localMachineIntegrationsConfigService,
+                                             EmployeeDiscountAutomationCredentialService credentialService,
                                              Bitrix24RestService bitrix24RestService,
                                              IikoDirectoryService iikoDirectoryService,
                                              AutomationRunRepository automationRunRepository,
                                              AutomationRunItemRepository automationRunItemRepository) {
         this.settingsService = settingsService;
-        this.localMachineIntegrationsConfigService = localMachineIntegrationsConfigService;
+        this.credentialService = credentialService;
         this.bitrix24RestService = bitrix24RestService;
         this.iikoDirectoryService = iikoDirectoryService;
         this.automationRunRepository = automationRunRepository;
         this.automationRunItemRepository = automationRunItemRepository;
     }
 
-    public Map<String, Object> loadStatus() {
+    public Map<String, Object> loadStatus(String username) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("settings", settingsService.load().toMap());
-        payload.put("local_config", localMachineIntegrationsConfigService.loadStatus());
-        payload.put("bitrix_connection", bitrix24RestService.loadConnectionStatus());
-        payload.put("iiko_connection", iikoDirectoryService.loadStatus());
+        payload.put("credentials", credentialService.loadClientView(username));
+        payload.put("bitrix_connection", bitrix24RestService.loadConnectionStatus(username));
+        payload.put("iiko_connection", iikoDirectoryService.loadStatus(username));
         return payload;
     }
 
@@ -59,24 +59,28 @@ public class EmployeeDiscountAutomationService {
         return settingsService.save(payload != null ? payload : Map.of());
     }
 
-    public List<Map<String, Object>> listBitrixGroups(String query, Integer limit) {
-        return bitrix24RestService.listWorkgroups(query, limit != null ? limit : 25);
+    public Map<String, Object> saveCredentials(String username, Map<String, Object> payload) {
+        return credentialService.saveForUser(username, payload != null ? payload : Map.of()).toClientMap(username);
     }
 
-    public List<Map<String, Object>> loadIikoCategories() {
-        return iikoDirectoryService.loadCategories();
+    public List<Map<String, Object>> listBitrixGroups(String username, String query, Integer limit) {
+        return bitrix24RestService.listWorkgroups(username, query, limit != null ? limit : 25);
     }
 
-    public List<Map<String, Object>> loadIikoWallets() {
-        return iikoDirectoryService.loadWallets();
+    public List<Map<String, Object>> loadIikoCategories(String username) {
+        return iikoDirectoryService.loadCategories(username);
     }
 
-    public Map<String, Object> previewSelection() {
+    public List<Map<String, Object>> loadIikoWallets(String username) {
+        return iikoDirectoryService.loadWallets(username);
+    }
+
+    public Map<String, Object> previewSelection(String username) {
         EmployeeDiscountAutomationSettings settings = settingsService.load();
         if (settings.bitrixGroupId() == null || settings.bitrixGroupId() <= 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Сначала задайте bitrix_group_id в настройках автоматизации.");
         }
-        List<CandidateTask> candidates = collectCandidates(settings);
+        List<CandidateTask> candidates = collectCandidates(username, settings);
         return Map.of(
             "success", true,
             "group_id", settings.bitrixGroupId(),
@@ -88,7 +92,7 @@ public class EmployeeDiscountAutomationService {
     public Map<String, Object> run(Boolean dryRunRequested, String actor) {
         EmployeeDiscountAutomationSettings settings = settingsService.load();
         boolean dryRun = dryRunRequested != null ? dryRunRequested : settings.dryRunByDefault();
-        List<CandidateTask> candidates = collectCandidates(settings);
+        List<CandidateTask> candidates = collectCandidates(actor, settings);
         OffsetDateTime now = OffsetDateTime.now();
 
         AutomationRun run = new AutomationRun();
@@ -120,18 +124,25 @@ public class EmployeeDiscountAutomationService {
                 continue;
             }
 
-            IikoDirectoryService.MutationResult iikoResult = iikoDirectoryService.disableCorporateDiscount(candidate.phone(), settings);
-            if (!iikoResult.success()) {
-                errorCount++;
-                saveRunItem(run, candidate.taskId(), candidate.title(), candidate.phone(), "error", iikoResult.message(), candidate.checklistItemId());
-                itemPayloads.add(buildItemPayload(candidate, "error", iikoResult.message()));
-                continue;
-            }
+            try {
+                IikoDirectoryService.MutationResult iikoResult = iikoDirectoryService.disableCorporateDiscount(actor, candidate.phone(), settings);
+                if (!iikoResult.success()) {
+                    errorCount++;
+                    saveRunItem(run, candidate.taskId(), candidate.title(), candidate.phone(), "error", iikoResult.message(), candidate.checklistItemId());
+                    itemPayloads.add(buildItemPayload(candidate, "error", iikoResult.message()));
+                    continue;
+                }
 
-            bitrix24RestService.completeChecklistItem(candidate.taskId(), candidate.checklistItemId());
-            successCount++;
-            saveRunItem(run, candidate.taskId(), candidate.title(), candidate.phone(), "success", "Чеклист Bitrix24 отмечен после успешной обработки iiko.", candidate.checklistItemId());
-            itemPayloads.add(buildItemPayload(candidate, "success", "Чеклист Bitrix24 отмечен после успешной обработки iiko."));
+                bitrix24RestService.completeChecklistItem(actor, candidate.taskId(), candidate.checklistItemId());
+                successCount++;
+                saveRunItem(run, candidate.taskId(), candidate.title(), candidate.phone(), "success", "Чеклист Bitrix24 отмечен после успешной обработки iiko.", candidate.checklistItemId());
+                itemPayloads.add(buildItemPayload(candidate, "success", "Чеклист Bitrix24 отмечен после успешной обработки iiko."));
+            } catch (Exception ex) {
+                errorCount++;
+                String message = StringUtils.hasText(ex.getMessage()) ? ex.getMessage() : "Неизвестная ошибка интеграции.";
+                saveRunItem(run, candidate.taskId(), candidate.title(), candidate.phone(), "error", message, candidate.checklistItemId());
+                itemPayloads.add(buildItemPayload(candidate, "error", message));
+            }
         }
 
         run.setFinishedAt(OffsetDateTime.now());
@@ -174,8 +185,8 @@ public class EmployeeDiscountAutomationService {
         );
     }
 
-    private List<CandidateTask> collectCandidates(EmployeeDiscountAutomationSettings settings) {
-        List<Map<String, Object>> tasks = bitrix24RestService.listTasksForGroup(settings.bitrixGroupId());
+    private List<CandidateTask> collectCandidates(String username, EmployeeDiscountAutomationSettings settings) {
+        List<Map<String, Object>> tasks = bitrix24RestService.listTasksForGroup(username, settings.bitrixGroupId());
         List<CandidateTask> candidates = new ArrayList<>();
         Pattern phonePattern = compilePattern(settings.phoneRegex());
         for (Map<String, Object> task : tasks) {
@@ -191,7 +202,7 @@ public class EmployeeDiscountAutomationService {
                 candidates.add(new CandidateTask(taskId, title, "", "", "skipped", "Задача не попала под фильтр title markers."));
                 continue;
             }
-            List<Map<String, Object>> checklistItems = bitrix24RestService.listChecklistItems(taskId);
+            List<Map<String, Object>> checklistItems = bitrix24RestService.listChecklistItems(username, taskId);
             ChecklistMatch checklist = findChecklistItem(checklistItems, settings.checklistLabels());
             if (checklist == null) {
                 candidates.add(new CandidateTask(taskId, title, "", "", "skipped", "Не найден целевой checklist-пункт."));
