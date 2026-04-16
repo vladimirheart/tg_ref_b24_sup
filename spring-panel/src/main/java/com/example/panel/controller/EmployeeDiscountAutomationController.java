@@ -67,6 +67,11 @@ public class EmployeeDiscountAutomationController {
         return Map.of("success", true, "items", employeeDiscountAutomationService.loadIikoCategories(requireUsername(authentication)));
     }
 
+    @GetMapping("/iiko/organizations")
+    public Map<String, Object> organizations(Authentication authentication) {
+        return Map.of("success", true, "items", employeeDiscountAutomationService.loadIikoOrganizations(requireUsername(authentication)));
+    }
+
     @GetMapping("/iiko/wallets")
     public Map<String, Object> wallets(Authentication authentication) {
         return Map.of("success", true, "items", employeeDiscountAutomationService.loadIikoWallets(requireUsername(authentication)));

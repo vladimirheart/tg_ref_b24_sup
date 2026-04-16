@@ -9,6 +9,7 @@ import org.springframework.util.StringUtils;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,10 +30,32 @@ public class EmployeeDiscountAutomationCredentialService {
 
     public EmployeeDiscountAutomationCredentials loadForUser(String username) {
         Map<String, Object> payload = loadStoredPayload(username);
+        Map<String, IikoProfile> profiles = parseProfiles(payload.get("iiko_profiles"));
+        if (profiles.isEmpty()) {
+            IikoProfile legacyProfile = parseLegacyIiko(payload.get("iiko"));
+            if (StringUtils.hasText(legacyProfile.baseUrl())) {
+                profiles.put(normalizeProfileKey(legacyProfile.baseUrl()), legacyProfile);
+            }
+        }
+        String activeProfileUrl = normalizeProfileKey(text(
+            payload.get("active_iiko_profile_url"),
+            payload.get("activeIikoProfileUrl")
+        ));
+        if (!StringUtils.hasText(activeProfileUrl) && !profiles.isEmpty()) {
+            activeProfileUrl = profiles.keySet().iterator().next();
+        }
+        if (StringUtils.hasText(activeProfileUrl) && !profiles.containsKey(activeProfileUrl)) {
+            activeProfileUrl = !profiles.isEmpty() ? profiles.keySet().iterator().next() : "";
+        }
         return new EmployeeDiscountAutomationCredentials(
             parseBitrix(payload.get("bitrix24")),
-            parseIiko(payload.get("iiko"))
+            activeProfileUrl,
+            profiles
         );
+    }
+
+    public IikoProfile loadActiveIikoProfile(String username) {
+        return loadForUser(username).activeIikoProfile();
     }
 
     public Map<String, Object> loadClientView(String username) {
@@ -45,9 +68,49 @@ public class EmployeeDiscountAutomationCredentialService {
         }
         EmployeeDiscountAutomationCredentials current = loadForUser(username);
         Map<String, Object> source = payload != null ? payload : Map.of();
+
+        Bitrix24Credentials bitrix = source.containsKey("bitrix24")
+            ? mergeBitrix(current.bitrix24(), source.get("bitrix24"))
+            : current.bitrix24();
+
+        LinkedHashMap<String, IikoProfile> profiles = new LinkedHashMap<>(current.iikoProfiles());
+        String activeProfileUrl = normalizeProfileKey(text(
+            source.get("select_profile_url"),
+            source.get("active_iiko_profile_url"),
+            current.activeIikoProfileUrl()
+        ));
+
+        if (source.containsKey("iiko_profile")) {
+            Map<String, Object> profileNode = asMap(source.get("iiko_profile"));
+            String requestedBaseUrl = text(profileNode.get("base_url"), profileNode.get("baseUrl"));
+            String profileKey = normalizeProfileKey(requestedBaseUrl);
+            if (!StringUtils.hasText(profileKey) && StringUtils.hasText(activeProfileUrl)) {
+                profileKey = activeProfileUrl;
+            }
+            if (!StringUtils.hasText(profileKey)) {
+                throw new IllegalArgumentException("Для профиля iiko обязательно укажите URL.");
+            }
+            IikoProfile merged = mergeProfile(profiles.get(profileKey), profileNode, profileKey);
+            profiles.put(profileKey, merged);
+            activeProfileUrl = profileKey;
+        }
+
+        String removeProfileUrl = normalizeProfileKey(text(source.get("remove_profile_url")));
+        if (StringUtils.hasText(removeProfileUrl)) {
+            profiles.remove(removeProfileUrl);
+            if (removeProfileUrl.equals(activeProfileUrl)) {
+                activeProfileUrl = profiles.isEmpty() ? "" : profiles.keySet().iterator().next();
+            }
+        }
+
+        if (!StringUtils.hasText(activeProfileUrl) && !profiles.isEmpty()) {
+            activeProfileUrl = profiles.keySet().iterator().next();
+        }
+
         EmployeeDiscountAutomationCredentials updated = new EmployeeDiscountAutomationCredentials(
-            mergeBitrix(current.bitrix24(), source.get("bitrix24")),
-            mergeIiko(current.iiko(), source.get("iiko"))
+            bitrix,
+            activeProfileUrl,
+            profiles
         );
         persistForUser(username, updated);
         return updated;
@@ -61,20 +124,41 @@ public class EmployeeDiscountAutomationCredentialService {
         );
     }
 
-    private IikoCredentials parseIiko(Object raw) {
+    private IikoProfile parseLegacyIiko(Object raw) {
         Map<String, Object> node = asMap(raw);
-        return new IikoCredentials(
-            text(node.get("group_name"), node.get("groupName")),
-            text(node.get("base_url"), node.get("baseUrl")),
-            text(node.get("login")),
-            text(node.get("password")),
+        return new IikoProfile(
+            normalizeProfileKey(text(node.get("base_url"), node.get("baseUrl"))),
+            text(node.get("api_login"), node.get("apiLogin"), node.get("login")),
+            text(node.get("api_secret"), node.get("apiSecret"), node.get("password")),
             text(node.get("organization_id"), node.get("organizationId")),
-            text(node.get("token")),
-            text(node.get("categories_url"), node.get("categoriesUrl")),
-            text(node.get("wallets_url"), node.get("walletsUrl")),
-            text(node.get("customer_lookup_url"), node.get("customerLookupUrl")),
-            text(node.get("customer_update_url"), node.get("customerUpdateUrl"))
+            normalizeStringList(node.get("selected_discount_category_ids")),
+            normalizeStringList(node.get("selected_wallet_ids"))
         );
+    }
+
+    private Map<String, IikoProfile> parseProfiles(Object raw) {
+        Map<String, Object> node = asMap(raw);
+        LinkedHashMap<String, IikoProfile> profiles = new LinkedHashMap<>();
+        for (Map.Entry<String, Object> entry : node.entrySet()) {
+            Map<String, Object> profileNode = asMap(entry.getValue());
+            String baseUrl = normalizeProfileKey(text(
+                profileNode.get("base_url"),
+                profileNode.get("baseUrl"),
+                entry.getKey()
+            ));
+            if (!StringUtils.hasText(baseUrl)) {
+                continue;
+            }
+            profiles.put(baseUrl, new IikoProfile(
+                baseUrl,
+                text(profileNode.get("api_login"), profileNode.get("apiLogin"), profileNode.get("login")),
+                text(profileNode.get("api_secret"), profileNode.get("apiSecret"), profileNode.get("password")),
+                text(profileNode.get("organization_id"), profileNode.get("organizationId")),
+                normalizeStringList(profileNode.get("selected_discount_category_ids")),
+                normalizeStringList(profileNode.get("selected_wallet_ids"))
+            ));
+        }
+        return profiles;
     }
 
     private Bitrix24Credentials mergeBitrix(Bitrix24Credentials current, Object raw) {
@@ -88,22 +172,15 @@ public class EmployeeDiscountAutomationCredentialService {
         );
     }
 
-    private IikoCredentials mergeIiko(IikoCredentials current, Object raw) {
-        Map<String, Object> node = asMap(raw);
-        if (node.isEmpty()) {
-            return current;
-        }
-        return new IikoCredentials(
-            resolvePlain(node, current.groupName(), "group_name", "groupName"),
-            resolvePlain(node, current.baseUrl(), "base_url", "baseUrl"),
-            resolvePlain(node, current.login(), "login"),
-            resolveSecret(node, current.password(), "password"),
-            resolvePlain(node, current.organizationId(), "organization_id", "organizationId"),
-            resolveSecret(node, current.token(), "token"),
-            resolvePlain(node, current.categoriesUrl(), "categories_url", "categoriesUrl"),
-            resolvePlain(node, current.walletsUrl(), "wallets_url", "walletsUrl"),
-            resolvePlain(node, current.customerLookupUrl(), "customer_lookup_url", "customerLookupUrl"),
-            resolvePlain(node, current.customerUpdateUrl(), "customer_update_url", "customerUpdateUrl")
+    private IikoProfile mergeProfile(IikoProfile current, Map<String, Object> node, String profileKey) {
+        IikoProfile fallback = current != null ? current : IikoProfile.empty(profileKey);
+        return new IikoProfile(
+            normalizeProfileKey(resolvePlain(node, fallback.baseUrl(), "base_url", "baseUrl")),
+            resolvePlain(node, fallback.apiLogin(), "api_login", "apiLogin", "login"),
+            resolveSecret(node, fallback.apiSecret(), "api_secret", "apiSecret", "password"),
+            resolvePlain(node, fallback.organizationId(), "organization_id", "organizationId"),
+            normalizeStringListOrDefault(node.get("selected_discount_category_ids"), fallback.selectedDiscountCategoryIds()),
+            normalizeStringListOrDefault(node.get("selected_wallet_ids"), fallback.selectedWalletIds())
         );
     }
 
@@ -196,6 +273,50 @@ public class EmployeeDiscountAutomationCredentialService {
         return objectMapper.convertValue(map, new TypeReference<LinkedHashMap<String, Object>>() {});
     }
 
+    private List<String> normalizeStringList(Object raw) {
+        List<String> values = new ArrayList<>();
+        if (raw instanceof List<?> list) {
+            for (Object item : list) {
+                String value = text(item);
+                if (StringUtils.hasText(value) && !values.contains(value)) {
+                    values.add(value);
+                }
+            }
+            return values;
+        }
+        if (raw instanceof String text) {
+            for (String chunk : text.split("[\\r\\n,;]+")) {
+                if (StringUtils.hasText(chunk)) {
+                    String value = chunk.trim();
+                    if (!values.contains(value)) {
+                        values.add(value);
+                    }
+                }
+            }
+        }
+        return values;
+    }
+
+    private List<String> normalizeStringListOrDefault(Object raw, List<String> fallback) {
+        if (raw == null) {
+            return fallback;
+        }
+        List<String> values = normalizeStringList(raw);
+        return values.isEmpty() ? fallback : values;
+    }
+
+    private String normalizeProfileKey(String rawUrl) {
+        String value = text(rawUrl);
+        if (!StringUtils.hasText(value)) {
+            return "";
+        }
+        String normalized = value.trim();
+        while (normalized.endsWith("/")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        return normalized;
+    }
+
     private String text(Object... values) {
         if (values == null) {
             return "";
@@ -213,16 +334,30 @@ public class EmployeeDiscountAutomationCredentialService {
     }
 
     public record EmployeeDiscountAutomationCredentials(Bitrix24Credentials bitrix24,
-                                                        IikoCredentials iiko) {
+                                                        String activeIikoProfileUrl,
+                                                        Map<String, IikoProfile> iikoProfiles) {
 
         public static EmployeeDiscountAutomationCredentials empty() {
-            return new EmployeeDiscountAutomationCredentials(Bitrix24Credentials.empty(), IikoCredentials.empty());
+            return new EmployeeDiscountAutomationCredentials(Bitrix24Credentials.empty(), "", Map.of());
+        }
+
+        public IikoProfile activeIikoProfile() {
+            if (!StringUtils.hasText(activeIikoProfileUrl)) {
+                return iikoProfiles.values().stream().findFirst().orElse(null);
+            }
+            IikoProfile profile = iikoProfiles.get(activeIikoProfileUrl);
+            return profile != null ? profile : iikoProfiles.values().stream().findFirst().orElse(null);
         }
 
         public Map<String, Object> toStorageMap() {
             Map<String, Object> payload = new LinkedHashMap<>();
             payload.put("bitrix24", bitrix24.toStorageMap());
-            payload.put("iiko", iiko.toStorageMap());
+            payload.put("active_iiko_profile_url", activeIikoProfileUrl);
+            Map<String, Object> profiles = new LinkedHashMap<>();
+            for (Map.Entry<String, IikoProfile> entry : iikoProfiles.entrySet()) {
+                profiles.put(entry.getKey(), entry.getValue().toStorageMap());
+            }
+            payload.put("iiko_profiles", profiles);
             return payload;
         }
 
@@ -230,7 +365,9 @@ public class EmployeeDiscountAutomationCredentialService {
             Map<String, Object> payload = new LinkedHashMap<>();
             payload.put("scope", username != null ? username.trim() : "");
             payload.put("bitrix24", bitrix24.toClientMap());
-            payload.put("iiko", iiko.toClientMap());
+            payload.put("active_iiko_profile_url", activeIikoProfileUrl);
+            payload.put("iiko_profiles", iikoProfiles.values().stream().map(profile -> profile.toClientMap(activeIikoProfileUrl)).toList());
+            payload.put("iiko", activeIikoProfile() != null ? activeIikoProfile().toClientMap(activeIikoProfileUrl) : Map.of());
             return payload;
         }
     }
@@ -257,60 +394,39 @@ public class EmployeeDiscountAutomationCredentialService {
         }
     }
 
-    public record IikoCredentials(String groupName,
-                                  String baseUrl,
-                                  String login,
-                                  String password,
-                                  String organizationId,
-                                  String token,
-                                  String categoriesUrl,
-                                  String walletsUrl,
-                                  String customerLookupUrl,
-                                  String customerUpdateUrl) {
+    public record IikoProfile(String baseUrl,
+                              String apiLogin,
+                              String apiSecret,
+                              String organizationId,
+                              List<String> selectedDiscountCategoryIds,
+                              List<String> selectedWalletIds) {
 
-        public static IikoCredentials empty() {
-            return new IikoCredentials("", "", "", "", "", "", "", "", "", "");
+        public static IikoProfile empty(String baseUrl) {
+            return new IikoProfile(baseUrl, "", "", "", List.of(), List.of());
         }
 
         public Map<String, Object> toStorageMap() {
             Map<String, Object> payload = new LinkedHashMap<>();
-            payload.put("group_name", groupName);
             payload.put("base_url", baseUrl);
-            payload.put("login", login);
-            payload.put("password", password);
+            payload.put("api_login", apiLogin);
+            payload.put("api_secret", apiSecret);
             payload.put("organization_id", organizationId);
-            payload.put("token", token);
-            payload.put("categories_url", categoriesUrl);
-            payload.put("wallets_url", walletsUrl);
-            payload.put("customer_lookup_url", customerLookupUrl);
-            payload.put("customer_update_url", customerUpdateUrl);
+            payload.put("selected_discount_category_ids", selectedDiscountCategoryIds);
+            payload.put("selected_wallet_ids", selectedWalletIds);
             return payload;
         }
 
-        public Map<String, Object> toClientMap() {
+        public Map<String, Object> toClientMap(String activeProfileUrl) {
             Map<String, Object> payload = new LinkedHashMap<>();
-            payload.put("group_name", groupName);
+            payload.put("profile_key", baseUrl);
             payload.put("base_url", baseUrl);
-            payload.put("login", login);
-            payload.put("password_saved", StringUtils.hasText(password));
+            payload.put("api_login", apiLogin);
+            payload.put("api_secret_saved", StringUtils.hasText(apiSecret));
             payload.put("organization_id", organizationId);
-            payload.put("token_saved", StringUtils.hasText(token));
-            payload.put("categories_url", categoriesUrl);
-            payload.put("wallets_url", walletsUrl);
-            payload.put("customer_lookup_url", customerLookupUrl);
-            payload.put("customer_update_url", customerUpdateUrl);
-            payload.put("auth_mode", resolveAuthMode());
+            payload.put("selected_discount_category_ids", selectedDiscountCategoryIds);
+            payload.put("selected_wallet_ids", selectedWalletIds);
+            payload.put("active", StringUtils.hasText(activeProfileUrl) && activeProfileUrl.equals(baseUrl));
             return payload;
-        }
-
-        public String resolveAuthMode() {
-            if (StringUtils.hasText(token)) {
-                return "bearer";
-            }
-            if (StringUtils.hasText(login) && StringUtils.hasText(password)) {
-                return "basic";
-            }
-            return "none";
         }
     }
 }
