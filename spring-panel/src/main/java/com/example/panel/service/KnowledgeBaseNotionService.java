@@ -21,6 +21,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -109,12 +110,13 @@ public class KnowledgeBaseNotionService {
     public ImportResult importArticles() {
         NotionConfig config = loadConfig(true);
         QueryResult queryResult = queryPages(config);
+        Map<String, String> relationDisplayCache = new HashMap<>();
         int created = 0;
         int updated = 0;
         int skipped = 0;
 
         for (JsonNode page : queryResult.matchedPages()) {
-            ImportedArticle article = toImportedArticle(config, page);
+            ImportedArticle article = toImportedArticle(config, page, relationDisplayCache);
             if (!StringUtils.hasText(article.title()) || !StringUtils.hasText(article.content())) {
                 skipped++;
                 continue;
@@ -237,10 +239,11 @@ public class KnowledgeBaseNotionService {
 
         List<JsonNode> totalPages = collectResults(result.body());
         Set<String> authorFilter = normalizeAuthorSet(config.authors());
+        Map<String, String> relationDisplayCache = new HashMap<>();
         List<JsonNode> matchedPages = new ArrayList<>();
         for (JsonNode page : totalPages) {
             JsonNode authorProperty = findProperty(page.path("properties"), config.authorProperty(), null);
-            if (matchesAuthors(authorProperty, authorFilter)) {
+            if (matchesAuthors(authorProperty, authorFilter, config.token(), relationDisplayCache)) {
                 matchedPages.add(page);
             }
         }
@@ -344,27 +347,27 @@ public class KnowledgeBaseNotionService {
         }
     }
 
-    private ImportedArticle toImportedArticle(NotionConfig config, JsonNode page) {
+    private ImportedArticle toImportedArticle(NotionConfig config, JsonNode page, Map<String, String> relationDisplayCache) {
         JsonNode properties = page.path("properties");
         String title = firstNonBlank(
-            extractPropertyText(properties, config.titleProperty(), "title"),
-            extractPropertyText(properties, null, "title"),
+            extractPropertyText(properties, config.titleProperty(), "title", config.token(), relationDisplayCache),
+            extractPropertyText(properties, null, "title", config.token(), relationDisplayCache),
             "Статья без названия"
         );
         String markdown = fetchPageMarkdown(config.token(), page.path("id").asText());
         String summary = firstNonBlank(
-            extractPropertyText(properties, config.summaryProperty(), null),
+            extractPropertyText(properties, config.summaryProperty(), null, config.token(), relationDisplayCache),
             buildSummaryFromMarkdown(markdown)
         );
         return new ImportedArticle(
             title,
-            extractPropertyText(properties, config.authorProperty(), null),
+            extractPropertyText(properties, config.authorProperty(), null, config.token(), relationDisplayCache),
             summary,
-            extractPropertyText(properties, config.departmentProperty(), null),
-            extractPropertyText(properties, config.articleTypeProperty(), null),
-            extractPropertyText(properties, config.directionProperty(), null),
-            extractPropertyText(properties, config.directionSubtypeProperty(), null),
-            extractPropertyText(properties, config.statusProperty(), null),
+            extractPropertyText(properties, config.departmentProperty(), null, config.token(), relationDisplayCache),
+            extractPropertyText(properties, config.articleTypeProperty(), null, config.token(), relationDisplayCache),
+            extractPropertyText(properties, config.directionProperty(), null, config.token(), relationDisplayCache),
+            extractPropertyText(properties, config.directionSubtypeProperty(), null, config.token(), relationDisplayCache),
+            extractPropertyText(properties, config.statusProperty(), null, config.token(), relationDisplayCache),
             trim(markdown),
             page.path("id").asText(),
             page.path("url").asText(null),
@@ -404,11 +407,23 @@ public class KnowledgeBaseNotionService {
     }
 
     private String extractPropertyText(JsonNode properties, String propertyName, String fallbackType) {
-        List<String> values = extractPropertyValues(findProperty(properties, propertyName, fallbackType));
+        return extractPropertyText(properties, propertyName, fallbackType, null, Map.of());
+    }
+
+    private String extractPropertyText(JsonNode properties,
+                                       String propertyName,
+                                       String fallbackType,
+                                       String token,
+                                       Map<String, String> relationDisplayCache) {
+        List<String> values = extractPropertyValues(findProperty(properties, propertyName, fallbackType), token, relationDisplayCache);
         return values.isEmpty() ? null : String.join(", ", values);
     }
 
     private List<String> extractPropertyValues(JsonNode property) {
+        return extractPropertyValues(property, null, Map.of());
+    }
+
+    private List<String> extractPropertyValues(JsonNode property, String token, Map<String, String> relationDisplayCache) {
         List<String> values = new ArrayList<>();
         if (property == null || property.isMissingNode()) {
             return values;
@@ -429,8 +444,11 @@ public class KnowledgeBaseNotionService {
                 addIfHasText(values, StringUtils.hasText(end) ? start + " - " + end : start);
             }
             case "formula" -> addIfHasText(values, readFormulaValue(property.path(type)));
-            case "rollup" -> values.addAll(readRollupValues(property.path(type)));
-            case "relation" -> property.path(type).forEach(item -> addIfHasText(values, item.path("id").asText(null)));
+            case "rollup" -> values.addAll(readRollupValues(property.path(type), token, relationDisplayCache));
+            case "relation" -> property.path(type).forEach(item -> addIfHasText(
+                values,
+                resolveRelationDisplayValue(item.path("id").asText(null), token, relationDisplayCache)
+            ));
             case "unique_id" -> {
                 JsonNode unique = property.path(type);
                 addIfHasText(values, (unique.path("prefix").asText("") + unique.path("number").asText("")).trim());
@@ -469,11 +487,11 @@ public class KnowledgeBaseNotionService {
         };
     }
 
-    private List<String> readRollupValues(JsonNode rollup) {
+    private List<String> readRollupValues(JsonNode rollup, String token, Map<String, String> relationDisplayCache) {
         List<String> values = new ArrayList<>();
         String type = rollup.path("type").asText("");
         switch (type) {
-            case "array" -> rollup.path("array").forEach(item -> values.addAll(extractPropertyValues(item)));
+            case "array" -> rollup.path("array").forEach(item -> values.addAll(extractPropertyValues(item, token, relationDisplayCache)));
             case "number" -> addIfHasText(values, rollup.path("number").asText(null));
             case "date" -> addIfHasText(values, rollup.path("date").path("start").asText(null));
             default -> addIfHasText(values, rollup.asText(null));
@@ -490,6 +508,41 @@ public class KnowledgeBaseNotionService {
             return name;
         }
         return user.path("person").path("email").asText(null);
+    }
+
+    private String resolveRelationDisplayValue(String relationId, String token, Map<String, String> relationDisplayCache) {
+        if (!StringUtils.hasText(relationId)) {
+            return null;
+        }
+        if (!StringUtils.hasText(token)) {
+            return relationId;
+        }
+        if (relationDisplayCache.containsKey(relationId)) {
+            return relationDisplayCache.get(relationId);
+        }
+        ApiResult result = executeGet(token, NOTION_VERSION, "https://api.notion.com/v1/pages/" + relationId, "relation_page");
+        String resolved = relationId;
+        if (result.success()) {
+            resolved = firstNonBlank(readPageTitle(result.body()), relationId);
+        }
+        relationDisplayCache.put(relationId, resolved);
+        return resolved;
+    }
+
+    private String readPageTitle(JsonNode page) {
+        if (page == null || page.isMissingNode()) {
+            return null;
+        }
+        JsonNode properties = page.path("properties");
+        if (properties == null || properties.isMissingNode()) {
+            return null;
+        }
+        for (JsonNode property : properties) {
+            if ("title".equals(property.path("type").asText())) {
+                return readRichText(property.path("title"));
+            }
+        }
+        return null;
     }
 
     private List<String> normalizeAuthors(Object raw) {
@@ -531,11 +584,14 @@ public class KnowledgeBaseNotionService {
         return values;
     }
 
-    private boolean matchesAuthors(JsonNode property, Set<String> authorFilter) {
+    private boolean matchesAuthors(JsonNode property,
+                                   Set<String> authorFilter,
+                                   String token,
+                                   Map<String, String> relationDisplayCache) {
         if (authorFilter.isEmpty()) {
             return true;
         }
-        for (String value : extractPropertyValues(property)) {
+        for (String value : extractPropertyValues(property, token, relationDisplayCache)) {
             for (String part : splitCompositeValue(value)) {
                 String normalized = normalizeValue(part);
                 if (authorFilter.contains(normalized)) {
