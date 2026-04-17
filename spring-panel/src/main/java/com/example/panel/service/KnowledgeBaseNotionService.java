@@ -93,6 +93,7 @@ public class KnowledgeBaseNotionService {
     public void saveConfig(KnowledgeBaseNotionConfigForm form) {
         NotionConfig current = loadConfig(false);
         NotionConfig merged = mergeConfig(current, form);
+        validateSourceReferenceFormat(merged.sourceUrl());
         Map<String, Object> settings = new LinkedHashMap<>(sharedConfigService.loadSettings());
         settings.put(SETTINGS_KEY, toSettingsMap(merged));
         sharedConfigService.saveSettings(settings);
@@ -221,6 +222,7 @@ public class KnowledgeBaseNotionService {
         if (!StringUtils.hasText(config.sourceUrl())) {
             throw new IllegalStateException("Не задана ссылка или ID базы Notion.");
         }
+        validateSourceReferenceFormat(config.sourceUrl());
     }
 
     private QueryResult queryPages(NotionConfig config) {
@@ -230,7 +232,7 @@ public class KnowledgeBaseNotionService {
             ? queryDataSource(config.token(), resolvedDataSourceId)
             : queryLegacyDatabase(config.token(), sourceId);
         if (!result.success()) {
-            throw new IllegalStateException(result.message());
+            throw new IllegalStateException(decorateNotionApiMessage(sourceId, result.message()));
         }
 
         List<JsonNode> totalPages = collectResults(result.body());
@@ -251,15 +253,18 @@ public class KnowledgeBaseNotionService {
             return sourceId;
         }
         ApiResult databaseInfo = retrieveDatabase(token, sourceId);
-        if (!databaseInfo.success()) {
-            return null;
-        }
-        JsonNode dataSources = databaseInfo.body().path("data_sources");
-        if (dataSources.isArray() && dataSources.size() > 0) {
-            String resolved = dataSources.get(0).path("id").asText(null);
-            if (StringUtils.hasText(resolved)) {
-                return resolved;
+        if (databaseInfo.success()) {
+            JsonNode dataSources = databaseInfo.body().path("data_sources");
+            if (dataSources.isArray() && dataSources.size() > 0) {
+                String resolved = dataSources.get(0).path("id").asText(null);
+                if (StringUtils.hasText(resolved)) {
+                    return resolved;
+                }
             }
+            throw new IllegalStateException(buildMissingDataSourceMessage(sourceId, null));
+        }
+        if (containsMissingDataSourceAccessMessage(databaseInfo.message())) {
+            throw new IllegalStateException(buildMissingDataSourceMessage(sourceId, databaseInfo.message()));
         }
         return null;
     }
@@ -546,6 +551,7 @@ public class KnowledgeBaseNotionService {
         if (!StringUtils.hasText(source)) {
             throw new IllegalStateException("Не задана ссылка или ID базы Notion.");
         }
+        validateSourceReferenceFormat(source);
         try {
             URI uri = URI.create(source);
             String path = uri.getPath();
@@ -564,6 +570,60 @@ public class KnowledgeBaseNotionService {
             throw new IllegalStateException("Не удалось извлечь ID базы Notion из ссылки.");
         }
         return direct;
+    }
+
+    void validateSourceReferenceFormat(String rawSource) {
+        String source = trim(rawSource);
+        if (!StringUtils.hasText(source)) {
+            return;
+        }
+        if (StringUtils.hasText(extractUuid(source))) {
+            return;
+        }
+        try {
+            URI uri = URI.create(source);
+            String host = trim(uri.getHost());
+            String path = trim(uri.getPath());
+            String normalizedPath = path != null ? path.replace("/", "") : "";
+            if (StringUtils.hasText(host) && host.contains("notion.so") && !StringUtils.hasText(normalizedPath)) {
+                throw new IllegalStateException(
+                    "Укажите ссылку на конкретную базу Notion или прямой UUID data source. Главная страница Notion без UUID не подходит."
+                );
+            }
+        } catch (IllegalArgumentException ignored) {
+        }
+        throw new IllegalStateException(
+            "Не удалось извлечь UUID из значения источника Notion. Укажите ссылку на конкретную базу или прямой UUID data source / database."
+        );
+    }
+
+    String decorateNotionApiMessage(String sourceIdOrUrl, String message) {
+        if (!StringUtils.hasText(message)) {
+            return message;
+        }
+        if (containsMissingDataSourceAccessMessage(message)) {
+            return buildMissingDataSourceMessage(extractUuid(sourceIdOrUrl), message);
+        }
+        return message;
+    }
+
+    boolean containsMissingDataSourceAccessMessage(String message) {
+        return StringUtils.hasText(message)
+            && message.toLowerCase(Locale.ROOT).contains("does not contain any data sources accessible by this api bot");
+    }
+
+    String buildMissingDataSourceMessage(String sourceId, String originalMessage) {
+        StringBuilder builder = new StringBuilder();
+        builder.append("Notion не нашёл доступный data source");
+        if (StringUtils.hasText(sourceId)) {
+            builder.append(" для базы ").append(sourceId);
+        }
+        builder.append(". Обычно это значит, что вы указали database, linked database/view, wiki database или integration не подключён к исходной базе.");
+        builder.append(" Откройте original database в Notion, добавьте integration через Add connections и вставьте в поле прямой data_source_id.");
+        if (StringUtils.hasText(originalMessage)) {
+            builder.append(" Ответ Notion: ").append(originalMessage);
+        }
+        return builder.toString();
     }
 
     private String extractUuid(String raw) {

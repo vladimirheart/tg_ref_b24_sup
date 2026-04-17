@@ -253,3 +253,566 @@ Caused by: org.sqlite.SQLiteException: [SQLITE_BUSY_SNAPSHOT] Another database c
 2026-04-17 06:46:56.280+03:00 INFO  [SpringApplicationShutdownHook] c.e.panel.service.BotProcessService - Stopping all bot processes due to panel shutdown
 2026-04-17 06:46:56.280+03:00 INFO  [SpringApplicationShutdownHook] c.e.panel.service.BotProcessService - Stopping bot process for channel 2 via shutdown
 2026-04-17 06:46:56.311+03:00 INFO  [SpringApplicationShutdownHook] o.s.o.j.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-04-17 06:54:20.674+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
+2026-04-17 06:54:20.711+03:00 INFO  [main] c.e.p.config.EnvDefaultsInitializer - Applied default SQLite paths for missing APP_DB_* variables: {APP_DB_USERS=C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\users.db, APP_DB_KNOWLEDGE=C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\knowledge_base.db, APP_DB_CLIENTS=C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\clients.db, APP_DB_OBJECT_PASSPORTS=C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\object_passports.db, APP_DB_OBJECTS=C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\objects.db, APP_DB_SETTINGS=C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\settings.db, APP_DB_BOT=C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\bot_database.db, APP_DB_TICKETS=C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\tickets.db}
+2026-04-17 06:54:20.714+03:00 WARN  [main] c.e.p.config.EnvDefaultsInitializer - Environment variable APP_DB_OBJECT_PASSPORTS points to missing file C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\object_passports.db, falling back to defaults.
+2026-04-17 06:54:20.715+03:00 INFO  [main] c.e.p.config.EnvDefaultsInitializer - Applied default SQLite paths for missing APP_DB_* variables: {APP_DB_OBJECT_PASSPORTS=C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\object_passports.db}
+2026-04-17 06:54:20.718+03:00 INFO  [main] com.example.panel.PanelApplication - Starting PanelApplication using Java 25.0.2 with PID 28904 (C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\target\classes started by SinicinVV in C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel)
+2026-04-17 06:54:20.720+03:00 INFO  [main] com.example.panel.PanelApplication - No active profile set, falling back to 1 default profile: "default"
+2026-04-17 06:54:21.747+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-04-17 06:54:21.914+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 160 ms. Found 34 JPA repository interfaces.
+2026-04-17 06:54:22.587+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 8082 (http)
+2026-04-17 06:54:22.598+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Initializing ProtocolHandler ["http-nio-8082"]
+2026-04-17 06:54:22.605+03:00 INFO  [main] o.a.catalina.core.StandardService - Starting service [Tomcat]
+2026-04-17 06:54:22.607+03:00 INFO  [main] o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.20]
+2026-04-17 06:54:22.674+03:00 INFO  [main] o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+2026-04-17 06:54:22.675+03:00 INFO  [main] o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 1913 ms
+2026-04-17 06:54:22.740+03:00 INFO  [main] c.e.p.c.SqliteDataSourceConfiguration - Using SQLite database at C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\bot_database.db
+2026-04-17 06:54:23.098+03:00 INFO  [main] org.flywaydb.core.FlywayExecutor - Database: jdbc:sqlite:C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\bot_database.db (SQLite 3.43)
+2026-04-17 06:54:23.154+03:00 INFO  [main] o.f.core.internal.command.DbValidate - Successfully validated 36 migrations (execution time 00:00.042s)
+2026-04-17 06:54:23.160+03:00 INFO  [main] o.f.core.internal.command.DbMigrate - Current version of schema "main": 33
+2026-04-17 06:54:23.161+03:00 WARN  [main] o.f.core.internal.command.DbMigrate - outOfOrder mode is active. Migration of schema "main" may not be reproducible.
+2026-04-17 06:54:23.166+03:00 INFO  [main] o.f.core.internal.command.DbMigrate - Schema "main" is up to date. No migration necessary.
+2026-04-17 06:54:23.303+03:00 INFO  [main] o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-04-17 06:54:23.342+03:00 INFO  [main] org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
+2026-04-17 06:54:23.369+03:00 INFO  [main] o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
+2026-04-17 06:54:23.587+03:00 INFO  [main] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-04-17 06:54:24.700+03:00 INFO  [main] o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-04-17 06:54:24.702+03:00 INFO  [main] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-04-17 06:54:24.784+03:00 INFO  [main] c.e.p.service.DatabaseHealthService - Spring panel is using SQLite database at: C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\bot_database.db (tickets) and C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\users.db (users)
+2026-04-17 06:54:24.873+03:00 INFO  [main] c.e.p.service.SharedConfigService - Using shared config directory at C:\Users\SinicinVV\git_h\tg_ref_b24_sup\config\shared
+2026-04-17 06:54:25.722+03:00 INFO  [main] o.s.d.j.r.query.QueryEnhancerFactory - Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-04-17 06:54:26.599+03:00 INFO  [main] c.e.p.s.OperatorNotificationWatcher - Operator notification watcher initialized (chatHistoryId=138, feedbackId=9)
+2026-04-17 06:54:26.607+03:00 INFO  [main] c.e.p.c.BotSqliteDataSourceConfiguration - Using BOT SQLite database at C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\bot_database.db
+2026-04-17 06:54:26.810+03:00 INFO  [main] c.e.p.c.UsersSqliteDataSourceConfiguration - Using USERS SQLite database at C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\users.db
+2026-04-17 06:54:26.837+03:00 WARN  [main] o.s.b.a.o.j.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-04-17 06:54:27.157+03:00 INFO  [main] o.s.s.web.DefaultSecurityFilterChain - Will secure any request with [org.springframework.security.web.session.DisableEncodeUrlFilter@62c6c467, org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@5fab1ec6, org.springframework.security.web.context.SecurityContextHolderFilter@7b28ce3c, org.springframework.security.web.header.HeaderWriterFilter@56e46791, org.springframework.web.filter.CorsFilter@1d73ddb0, org.springframework.security.web.csrf.CsrfFilter@329e9ff4, com.example.panel.security.SecurityHeadersFilter@19827608, org.springframework.security.web.authentication.logout.LogoutFilter@682ec8d, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter@244cdad1, org.springframework.security.web.session.ConcurrentSessionFilter@18b25ef3, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@47cd2c21, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@7030e3f3, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@2e652f4e, com.example.panel.security.UserLastActivityFilter@41fc0084, org.springframework.security.web.session.SessionManagementFilter@726e3907, org.springframework.security.web.access.ExceptionTranslationFilter@56f2cdb5, org.springframework.security.web.access.intercept.AuthorizationFilter@6a76eef]
+2026-04-17 06:54:27.523+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Starting ProtocolHandler ["http-nio-8082"]
+2026-04-17 06:54:27.539+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 8082 (http) with context path ''
+2026-04-17 06:54:27.550+03:00 INFO  [main] com.example.panel.PanelApplication - Started PanelApplication in 7.303 seconds (process running for 7.636)
+2026-04-17 06:54:27.579+03:00 INFO  [main] c.e.p.s.AdditionalServicesHealthService - Bot database directory is available: C:\Users\SinicinVV\git_h\tg_ref_b24_sup\bot_databases
+2026-04-17 06:54:27.580+03:00 INFO  [main] c.e.p.s.AdditionalServicesHealthService - Bot runtime is available at C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot
+2026-04-17 06:54:27.596+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load responsible profiles for dialog list: [SQLITE_ERROR] SQL error or missing database (no such column: full_name)
+2026-04-17 06:54:27.685+03:00 INFO  [main] c.e.p.s.AdditionalServicesHealthService - Telegram bot process status: stopped
+2026-04-17 06:54:27.685+03:00 INFO  [main] c.e.p.s.AdditionalServicesHealthService - VK bot process status: stopped
+2026-04-17 06:54:27.690+03:00 INFO  [main] c.e.p.s.DatabaseBootstrapService - Clients database ensured at C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\clients.db
+2026-04-17 06:54:27.692+03:00 INFO  [main] c.e.p.s.DatabaseBootstrapService - Knowledge base database ensured at C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\knowledge_base.db
+2026-04-17 06:54:27.695+03:00 INFO  [main] c.e.p.s.DatabaseBootstrapService - Objects database ensured at C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\objects.db
+2026-04-17 06:54:27.841+03:00 INFO  [main] c.e.p.service.BotDatabaseRegistry - Bot database ready for channel 1 at C:\Users\SinicinVV\git_h\tg_ref_b24_sup\bot_databases\bot-1.db
+2026-04-17 06:54:27.857+03:00 INFO  [main] c.e.p.service.BotDatabaseRegistry - Bot database ready for channel 2 at C:\Users\SinicinVV\git_h\tg_ref_b24_sup\bot_databases\bot-2.db
+2026-04-17 06:54:27.868+03:00 WARN  [main] c.e.panel.service.BotProcessService - PID file not found for channel 1
+2026-04-17 06:54:27.868+03:00 INFO  [main] c.e.panel.service.BotProcessService - Stopped bot process for channel 1
+2026-04-17 06:54:33.764+03:00 INFO  [http-nio-8082-exec-2] o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-04-17 06:54:33.766+03:00 INFO  [http-nio-8082-exec-2] o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
+2026-04-17 06:54:33.770+03:00 INFO  [http-nio-8082-exec-2] o.s.web.servlet.DispatcherServlet - Completed initialization in 3 ms
+2026-04-17 06:54:34.175+03:00 WARN  [http-nio-8082-exec-2] c.e.panel.service.DialogService - Unable to load responsible profiles for dialog list: [SQLITE_ERROR] SQL error or missing database (no such column: full_name)
+2026-04-17 06:54:34.179+03:00 INFO  [http-nio-8082-exec-2] c.e.p.controller.DialogsController - Loaded dialogs page for user admin
+2026-04-17 06:54:35.475+03:00 INFO  [http-nio-8082-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 06:54:35.494+03:00 INFO  [http-nio-8082-exec-3] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 06:54:43.712+03:00 WARN  [http-nio-8082-exec-10] c.e.panel.service.DialogService - Unable to load responsible profiles for dialog list: [SQLITE_ERROR] SQL error or missing database (no such column: full_name)
+2026-04-17 06:54:43.719+03:00 INFO  [http-nio-8082-exec-10] c.e.p.service.DialogListReadService - Loaded dialogs list payload: 11 dialogs, summary stats loaded
+2026-04-17 06:54:50.398+03:00 INFO  [http-nio-8082-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 06:54:51.825+03:00 WARN  [http-nio-8082-exec-7] c.e.panel.service.DialogService - Unable to load responsible profiles for dialog list: [SQLITE_ERROR] SQL error or missing database (no such column: full_name)
+2026-04-17 06:54:51.833+03:00 INFO  [http-nio-8082-exec-7] c.e.p.service.DialogListReadService - Loaded dialogs list payload: 11 dialogs, summary stats loaded
+2026-04-17 06:54:55.640+03:00 WARN  [http-nio-8082-exec-6] c.e.panel.service.DialogService - Unable to load responsible profiles for dialog list: [SQLITE_ERROR] SQL error or missing database (no such column: full_name)
+2026-04-17 06:54:55.642+03:00 INFO  [http-nio-8082-exec-6] c.e.p.controller.DialogsController - Loaded dialogs page for user admin
+2026-04-17 06:54:56.212+03:00 INFO  [http-nio-8082-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 06:54:56.242+03:00 INFO  [http-nio-8082-exec-6] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 06:54:57.957+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--80aaa6cmfh0a9d.xn--80adjkr6adm9b.xn--p1ai:443 (Connect timed out)
+2026-04-17 06:55:04.192+03:00 WARN  [http-nio-8082-exec-7] c.e.panel.service.DialogService - Unable to load responsible profiles for dialog list: [SQLITE_ERROR] SQL error or missing database (no such column: full_name)
+2026-04-17 06:55:04.195+03:00 INFO  [http-nio-8082-exec-7] c.e.p.service.DialogListReadService - Loaded dialogs list payload: 11 dialogs, summary stats loaded
+2026-04-17 06:55:04.365+03:00 WARN  [http-nio-8082-exec-4] c.e.panel.service.DialogService - Unable to load responsible profiles for dialog list: [SQLITE_ERROR] SQL error or missing database (no such column: full_name)
+2026-04-17 06:55:04.372+03:00 WARN  [http-nio-8082-exec-8] c.e.panel.service.DialogService - Unable to load responsible profiles for dialog list: [SQLITE_ERROR] SQL error or missing database (no such column: full_name)
+2026-04-17 06:55:04.405+03:00 INFO  [http-nio-8082-exec-8] c.e.panel.service.DialogReadService - Dialog details requested for ticket 2bef6b3f-8cc8-4aca-b61a-9a67ebd7a375 (channelId=2): found
+2026-04-17 06:55:06.112+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--80aafwghfew0e.xn--80adjkr6adm9b.xn--p1ai:443 (Connect timed out)
+2026-04-17 06:55:06.269+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--80aag1ciek.xn--80adjkr6adm9b.xn--p1aia1a:443 (xn--80aag1ciek.xn--80adjkr6adm9b.xn--p1aia1a)
+2026-04-17 06:55:11.136+03:00 INFO  [http-nio-8082-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 06:55:12.498+03:00 INFO  [http-nio-8082-exec-2] c.e.panel.service.DialogReadService - History requested for ticket 2bef6b3f-8cc8-4aca-b61a-9a67ebd7a375 (channelId=2): 8 messages
+2026-04-17 06:55:12.502+03:00 WARN  [http-nio-8082-exec-10] c.e.panel.service.DialogService - Unable to load responsible profiles for dialog list: [SQLITE_ERROR] SQL error or missing database (no such column: full_name)
+2026-04-17 06:55:12.507+03:00 INFO  [http-nio-8082-exec-10] c.e.p.service.DialogListReadService - Loaded dialogs list payload: 11 dialogs, summary stats loaded
+2026-04-17 06:55:13.082+03:00 WARN  [main] c.e.panel.service.BotProcessService - Bot process for channel 1 did not confirm readiness in time: Не удалось подтвердить готовность бота после старта. Последняя строка лога: 2026-04-17 06:54:38.542+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Telegram client will use proxy vless://185.237.223.25:7878
+2026-04-17 06:55:13.087+03:00 INFO  [main] c.e.panel.service.BotProcessService - Stopping bot process for channel 1 via startup-readiness-failure
+2026-04-17 06:55:13.165+03:00 WARN  [main] c.e.p.service.BotAutoStartService - Failed to auto-start bot for channel 1: Не удалось подтвердить готовность бота после старта. Последняя строка лога: 2026-04-17 06:54:38.542+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Telegram client will use proxy vless://185.237.223.25:7878
+2026-04-17 06:55:13.167+03:00 WARN  [main] c.e.panel.service.BotProcessService - PID file not found for channel 2
+2026-04-17 06:55:13.167+03:00 INFO  [main] c.e.panel.service.BotProcessService - Stopped bot process for channel 2
+2026-04-17 06:55:14.279+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--80aaib3cgnl.xn--80adjkr6adm9b.xn--p1ai:443 (Connect timed out)
+2026-04-17 06:55:18.330+03:00 WARN  [scheduling-1] o.h.e.jdbc.spi.SqlExceptionHelper - SQL Error: 5, SQLState: null
+2026-04-17 06:55:18.332+03:00 ERROR [scheduling-1] o.h.e.jdbc.spi.SqlExceptionHelper - [SQLITE_BUSY_SNAPSHOT] Another database connection has already written to the database (database is locked)
+2026-04-17 06:55:18.357+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringScheduler - SSL monitoring refresh failed
+org.springframework.dao.CannotAcquireLockException: could not execute statement [[SQLITE_BUSY_SNAPSHOT] Another database connection has already written to the database (database is locked)] [update ssl_certificate_monitors set created_at=?,days_left=?,enabled=?,endpoint_url=?,error_message=?,expires_at=?,host=?,last_checked_at=?,last_notified_at=?,monitor_status=?,port=?,site_name=?,updated_at=? where id=?]; SQL [update ssl_certificate_monitors set created_at=?,days_left=?,enabled=?,endpoint_url=?,error_message=?,expires_at=?,host=?,last_checked_at=?,last_notified_at=?,monitor_status=?,port=?,site_name=?,updated_at=? where id=?]
+	at org.springframework.orm.jpa.vendor.HibernateJpaDialect.convertHibernateAccessException(HibernateJpaDialect.java:283)
+	at org.springframework.orm.jpa.vendor.HibernateJpaDialect.translateExceptionIfPossible(HibernateJpaDialect.java:244)
+	at org.springframework.orm.jpa.JpaTransactionManager.doCommit(JpaTransactionManager.java:566)
+	at org.springframework.transaction.support.AbstractPlatformTransactionManager.processCommit(AbstractPlatformTransactionManager.java:794)
+	at org.springframework.transaction.support.AbstractPlatformTransactionManager.commit(AbstractPlatformTransactionManager.java:757)
+	at org.springframework.transaction.interceptor.TransactionAspectSupport.commitTransactionAfterReturning(TransactionAspectSupport.java:676)
+	at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:426)
+	at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:119)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:768)
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:720)
+	at com.example.panel.service.SslCertificateMonitoringService$$SpringCGLIB$$0.refreshAll(<generated>)
+	at com.example.panel.service.SslCertificateMonitoringScheduler.refreshCertificates(SslCertificateMonitoringScheduler.java:25)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.runInternal(ScheduledMethodRunnable.java:130)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.lambda$run$2(ScheduledMethodRunnable.java:124)
+	at io.micrometer.observation.Observation.observe(Observation.java:499)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.run(ScheduledMethodRunnable.java:124)
+	at org.springframework.scheduling.support.DelegatingErrorHandlingRunnable.run(DelegatingErrorHandlingRunnable.java:54)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+	at java.base/java.util.concurrent.FutureTask.runAndReset(FutureTask.java:369)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:310)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+Caused by: org.hibernate.exception.LockAcquisitionException: could not execute statement [[SQLITE_BUSY_SNAPSHOT] Another database connection has already written to the database (database is locked)] [update ssl_certificate_monitors set created_at=?,days_left=?,enabled=?,endpoint_url=?,error_message=?,expires_at=?,host=?,last_checked_at=?,last_notified_at=?,monitor_status=?,port=?,site_name=?,updated_at=? where id=?]
+	at org.hibernate.community.dialect.SQLiteDialect.lambda$buildSQLExceptionConversionDelegate$1(SQLiteDialect.java:477)
+	at org.hibernate.exception.internal.StandardSQLExceptionConverter.convert(StandardSQLExceptionConverter.java:58)
+	at org.hibernate.engine.jdbc.spi.SqlExceptionHelper.convert(SqlExceptionHelper.java:108)
+	at org.hibernate.engine.jdbc.internal.ResultSetReturnImpl.executeUpdate(ResultSetReturnImpl.java:197)
+	at org.hibernate.engine.jdbc.mutation.internal.AbstractMutationExecutor.performNonBatchedMutation(AbstractMutationExecutor.java:108)
+	at org.hibernate.engine.jdbc.mutation.internal.MutationExecutorSingleNonBatched.performNonBatchedOperations(MutationExecutorSingleNonBatched.java:40)
+	at org.hibernate.engine.jdbc.mutation.internal.AbstractMutationExecutor.execute(AbstractMutationExecutor.java:52)
+	at org.hibernate.persister.entity.mutation.UpdateCoordinatorStandard.doStaticUpdate(UpdateCoordinatorStandard.java:778)
+	at org.hibernate.persister.entity.mutation.UpdateCoordinatorStandard.performUpdate(UpdateCoordinatorStandard.java:324)
+	at org.hibernate.persister.entity.mutation.UpdateCoordinatorStandard.coordinateUpdate(UpdateCoordinatorStandard.java:242)
+	at org.hibernate.persister.entity.AbstractEntityPersister.update(AbstractEntityPersister.java:2810)
+	at org.hibernate.action.internal.EntityUpdateAction.execute(EntityUpdateAction.java:168)
+	at org.hibernate.engine.spi.ActionQueue.executeActions(ActionQueue.java:632)
+	at org.hibernate.engine.spi.ActionQueue.executeActions(ActionQueue.java:499)
+	at org.hibernate.event.internal.AbstractFlushingEventListener.performExecutions(AbstractFlushingEventListener.java:363)
+	at org.hibernate.event.internal.DefaultFlushEventListener.onFlush(DefaultFlushEventListener.java:41)
+	at org.hibernate.event.service.internal.EventListenerGroupImpl.fireEventOnEachListener(EventListenerGroupImpl.java:127)
+	at org.hibernate.internal.SessionImpl.doFlush(SessionImpl.java:1403)
+	at org.hibernate.internal.SessionImpl.managedFlush(SessionImpl.java:484)
+	at org.hibernate.internal.SessionImpl.flushBeforeTransactionCompletion(SessionImpl.java:2319)
+	at org.hibernate.internal.SessionImpl.beforeTransactionCompletion(SessionImpl.java:1976)
+	at org.hibernate.engine.jdbc.internal.JdbcCoordinatorImpl.beforeTransactionCompletion(JdbcCoordinatorImpl.java:439)
+	at org.hibernate.resource.transaction.backend.jdbc.internal.JdbcResourceLocalTransactionCoordinatorImpl.beforeCompletionCallback(JdbcResourceLocalTransactionCoordinatorImpl.java:169)
+	at org.hibernate.resource.transaction.backend.jdbc.internal.JdbcResourceLocalTransactionCoordinatorImpl$TransactionDriverControlImpl.commit(JdbcResourceLocalTransactionCoordinatorImpl.java:267)
+	at org.hibernate.engine.transaction.internal.TransactionImpl.commit(TransactionImpl.java:101)
+	at org.springframework.orm.jpa.JpaTransactionManager.doCommit(JpaTransactionManager.java:562)
+	... 23 common frames omitted
+Caused by: org.sqlite.SQLiteException: [SQLITE_BUSY_SNAPSHOT] Another database connection has already written to the database (database is locked)
+	at org.sqlite.core.DB.newSQLException(DB.java:1179)
+	at org.sqlite.core.DB.newSQLException(DB.java:1190)
+	at org.sqlite.core.DB.execute(DB.java:985)
+	at org.sqlite.core.DB.executeUpdate(DB.java:1054)
+	at org.sqlite.jdbc3.JDBC3PreparedStatement.lambda$executeLargeUpdate$2(JDBC3PreparedStatement.java:122)
+	at org.sqlite.jdbc3.JDBC3Statement.withConnectionTimeout(JDBC3Statement.java:459)
+	at org.sqlite.jdbc3.JDBC3PreparedStatement.executeLargeUpdate(JDBC3PreparedStatement.java:121)
+	at org.sqlite.jdbc3.JDBC3PreparedStatement.executeUpdate(JDBC3PreparedStatement.java:102)
+	at org.hibernate.engine.jdbc.internal.ResultSetReturnImpl.executeUpdate(ResultSetReturnImpl.java:194)
+	... 45 common frames omitted
+2026-04-17 06:55:20.372+03:00 INFO  [http-nio-8082-exec-7] c.e.panel.service.DialogReadService - History requested for ticket 2bef6b3f-8cc8-4aca-b61a-9a67ebd7a375 (channelId=2): 8 messages
+2026-04-17 06:55:20.487+03:00 WARN  [http-nio-8082-exec-6] c.e.panel.service.DialogService - Unable to load responsible profiles for dialog list: [SQLITE_ERROR] SQL error or missing database (no such column: full_name)
+2026-04-17 06:55:20.492+03:00 INFO  [http-nio-8082-exec-6] c.e.p.service.DialogListReadService - Loaded dialogs list payload: 11 dialogs, summary stats loaded
+2026-04-17 06:55:26.215+03:00 INFO  [http-nio-8082-exec-4] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 06:55:26.215+03:00 INFO  [http-nio-8082-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 06:55:28.112+03:00 INFO  [main] c.e.panel.service.BotProcessService - Started bot process for channel 2 at 2026-04-17T06:55:13.202746700+03:00 via maven:spring-boot-run:bot-max
+2026-04-17 06:55:28.112+03:00 INFO  [main] c.e.p.service.BotAutoStartService - Auto-started bot for channel 2 (мах_тест)
+2026-04-17 06:55:28.112+03:00 INFO  [main] c.e.p.service.BotAutoStartService - Bot auto-start completed. Started 1 active bot(s).
+2026-04-17 06:55:28.463+03:00 WARN  [http-nio-8082-exec-2] c.e.panel.service.DialogService - Unable to load responsible profiles for dialog list: [SQLITE_ERROR] SQL error or missing database (no such column: full_name)
+2026-04-17 06:55:28.468+03:00 INFO  [http-nio-8082-exec-2] c.e.p.service.DialogListReadService - Loaded dialogs list payload: 11 dialogs, summary stats loaded
+2026-04-17 06:55:28.492+03:00 INFO  [http-nio-8082-exec-10] c.e.panel.service.DialogReadService - History requested for ticket 2bef6b3f-8cc8-4aca-b61a-9a67ebd7a375 (channelId=2): 8 messages
+2026-04-17 06:59:35.807+03:00 INFO  [http-nio-8082-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 06:59:35.831+03:00 INFO  [http-nio-8082-exec-9] c.e.panel.service.DialogReadService - History requested for ticket 2bef6b3f-8cc8-4aca-b61a-9a67ebd7a375 (channelId=2): 8 messages
+2026-04-17 06:59:35.833+03:00 INFO  [http-nio-8082-exec-10] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 06:59:35.881+03:00 WARN  [http-nio-8082-exec-4] c.e.panel.service.DialogService - Unable to load responsible profiles for dialog list: [SQLITE_ERROR] SQL error or missing database (no such column: full_name)
+2026-04-17 06:59:35.884+03:00 INFO  [http-nio-8082-exec-4] c.e.p.service.DialogListReadService - Loaded dialogs list payload: 11 dialogs, summary stats loaded
+2026-04-17 08:16:34.951+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load responsible profiles for dialog list: [SQLITE_ERROR] SQL error or missing database (no such column: full_name)
+2026-04-17 08:16:34.998+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn----7sbb7afirdq1f.xn--80adjkr6adm9b.xn--p1ai:443 (xn----7sbb7afirdq1f.xn--80adjkr6adm9b.xn--p1ai)
+2026-04-17 08:16:34.999+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--80aa4alnee.xn--80adjkr6adm9b.xn--p1ai:443 (xn--80aa4alnee.xn--80adjkr6adm9b.xn--p1ai)
+2026-04-17 08:16:35.003+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--80aaa0cvac.xn--80adjkr6adm9b.xn--p1ai:443 (xn--80aaa0cvac.xn--80adjkr6adm9b.xn--p1ai)
+2026-04-17 08:16:35.007+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--80aaa4cl.xn--80adjkr6adm9b.xn--p1ai:443 (xn--80aaa4cl.xn--80adjkr6adm9b.xn--p1ai)
+2026-04-17 08:16:35.007+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--80aaa6cmfh0a9d.xn--80adjkr6adm9b.xn--p1ai:443 (xn--80aaa6cmfh0a9d.xn--80adjkr6adm9b.xn--p1ai)
+2026-04-17 08:16:35.007+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--80aabg3bexb.xn--80adjkr6adm9b.xn--p1ai:443 (xn--80aabg3bexb.xn--80adjkr6adm9b.xn--p1ai)
+2026-04-17 08:16:35.013+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--80aafwghfew0e.xn--80adjkr6adm9b.xn--p1ai:443 (xn--80aafwghfew0e.xn--80adjkr6adm9b.xn--p1ai)
+2026-04-17 08:16:35.015+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--80aag1ciek.xn--80adjkr6adm9b.xn--p1ai:443 (xn--80aag1ciek.xn--80adjkr6adm9b.xn--p1ai)
+2026-04-17 08:16:35.017+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--80aag1ciek.xn--80adjkr6adm9b.xn--p1aia1a:443 (xn--80aag1ciek.xn--80adjkr6adm9b.xn--p1aia1a)
+2026-04-17 08:16:35.017+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--80aaib3cgnl.xn--80adjkr6adm9b.xn--p1ai:443 (xn--80aaib3cgnl.xn--80adjkr6adm9b.xn--p1ai)
+2026-04-17 08:16:35.021+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--80aalwqglfe.xn--80adjkr6adm9b.xn--p1ai:443 (xn--80aalwqglfe.xn--80adjkr6adm9b.xn--p1ai)
+2026-04-17 08:16:35.022+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--80acjvddnibbpncf.xn--80adjkr6adm9b.xn--p1ai:443 (xn--80acjvddnibbpncf.xn--80adjkr6adm9b.xn--p1ai)
+2026-04-17 08:16:35.026+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--80addag2buct.xn--80adjkr6adm9b.xn--p1ai:443 (xn--80addag2buct.xn--80adjkr6adm9b.xn--p1ai)
+2026-04-17 08:16:35.029+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--80addcdua5attdt.xn--80adjkr6adm9b.xn--p1ai:443 (xn--80addcdua5attdt.xn--80adjkr6adm9b.xn--p1ai)
+2026-04-17 08:16:35.029+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--80adjkr6adm9b.xn--p1ai:443 (xn--80adjkr6adm9b.xn--p1ai)
+2026-04-17 08:16:35.029+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--80adxhks.xn--80adjkr6adm9b.xn--p1ai:443 (xn--80adxhks.xn--80adjkr6adm9b.xn--p1ai)
+2026-04-17 08:16:35.033+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--80aidx0a.xn--80adjkr6adm9b.xn--p1ai:443 (xn--80aidx0a.xn--80adjkr6adm9b.xn--p1ai)
+2026-04-17 08:16:35.036+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--80ajgxi.xn--80adjkr6adm9b.xn--p1ai:443 (xn--80ajgxi.xn--80adjkr6adm9b.xn--p1ai)
+2026-04-17 08:16:35.039+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--80akegfemgd4b.xn--80adjkr6adm9b.xn--p1ai:443 (xn--80akegfemgd4b.xn--80adjkr6adm9b.xn--p1ai)
+2026-04-17 08:16:35.039+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--80aqejg8dua.xn--80adjkr6adm9b.xn--p1ai:443 (xn--80aqejg8dua.xn--80adjkr6adm9b.xn--p1ai)
+2026-04-17 08:16:35.041+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--90asilg6f.xn--80adjkr6adm9b.xn--p1ai:443 (xn--90asilg6f.xn--80adjkr6adm9b.xn--p1ai)
+2026-04-17 08:16:35.044+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--b1acdycodcb5a.xn--80adjkr6adm9b.xn--p1ai:443 (xn--b1acdycodcb5a.xn--80adjkr6adm9b.xn--p1ai)
+2026-04-17 08:16:35.045+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--b1aigedeu0a.xn--80adjkr6adm9b.xn--p1ai:443 (xn--b1aigedeu0a.xn--80adjkr6adm9b.xn--p1ai)
+2026-04-17 08:16:35.048+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--b1aqbiftj7e1a.xn--80adjkr6adm9b.xn--p1ai:443 (xn--b1aqbiftj7e1a.xn--80adjkr6adm9b.xn--p1ai)
+2026-04-17 08:16:35.050+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--b1aqclq9d.xn--80adjkr6adm9b.xn--p1ai:443 (xn--b1aqclq9d.xn--80adjkr6adm9b.xn--p1ai)
+2026-04-17 08:16:35.050+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--b1axaggg.xn--80adjkr6adm9b.xn--p1ai:443 (xn--b1axaggg.xn--80adjkr6adm9b.xn--p1ai)
+2026-04-17 08:16:35.056+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--c1aesfx9dc.xn--80adjkr6adm9b.xn--p1ai:443 (xn--c1aesfx9dc.xn--80adjkr6adm9b.xn--p1ai)
+2026-04-17 08:16:35.059+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--e1afhbv7b.xn--80adjkr6adm9b.xn--p1ai:443 (xn--e1afhbv7b.xn--80adjkr6adm9b.xn--p1ai)
+2026-04-17 08:16:35.062+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--90aamkcop0a.xn--p1ai:443 (xn--90aamkcop0a.xn--p1ai)
+2026-04-17 08:18:34.990+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load responsible profiles for dialog list: [SQLITE_ERROR] SQL error or missing database (no such column: full_name)
+2026-04-17 08:19:58.036+03:00 WARN  [http-nio-8082-exec-4] c.e.panel.service.DialogService - Unable to load responsible profiles for dialog list: [SQLITE_ERROR] SQL error or missing database (no such column: full_name)
+2026-04-17 08:19:58.037+03:00 INFO  [http-nio-8082-exec-4] c.e.p.controller.DialogsController - Loaded dialogs page for user admin
+2026-04-17 08:19:58.373+03:00 INFO  [http-nio-8082-exec-10] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:19:58.435+03:00 INFO  [http-nio-8082-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:20:04.532+03:00 INFO  [http-nio-8082-exec-7] c.e.p.c.KnowledgeBaseController - Knowledge base list requested by admin: 0 articles, canCreate=true
+2026-04-17 08:20:04.838+03:00 INFO  [http-nio-8082-exec-7] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:20:04.909+03:00 INFO  [http-nio-8082-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:20:20.423+03:00 INFO  [http-nio-8082-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:20:34.823+03:00 INFO  [http-nio-8082-exec-6] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:20:35.020+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load responsible profiles for dialog list: [SQLITE_ERROR] SQL error or missing database (no such column: full_name)
+2026-04-17 08:20:35.488+03:00 INFO  [http-nio-8082-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:20:39.440+03:00 INFO  [http-nio-8082-exec-5] c.e.p.c.KnowledgeBaseController - Knowledge base list requested by admin: 0 articles, canCreate=true
+2026-04-17 08:20:39.766+03:00 INFO  [http-nio-8082-exec-5] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:20:39.778+03:00 INFO  [http-nio-8082-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:20:43.833+03:00 INFO  [http-nio-8082-exec-9] c.e.p.c.KnowledgeBaseController - Knowledge base list requested by admin: 0 articles, canCreate=true
+2026-04-17 08:20:44.098+03:00 INFO  [http-nio-8082-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:20:44.099+03:00 INFO  [http-nio-8082-exec-4] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:20:59.697+03:00 INFO  [http-nio-8082-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:21:15.918+03:00 INFO  [http-nio-8082-exec-7] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:21:15.921+03:00 INFO  [http-nio-8082-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:21:32.752+03:00 INFO  [http-nio-8082-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:21:46.854+03:00 INFO  [http-nio-8082-exec-6] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:21:47.980+03:00 INFO  [http-nio-8082-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:22:03.234+03:00 INFO  [http-nio-8082-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:22:17.142+03:00 INFO  [http-nio-8082-exec-10] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:22:18.329+03:00 INFO  [http-nio-8082-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:22:33.363+03:00 INFO  [http-nio-8082-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:22:35.051+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load responsible profiles for dialog list: [SQLITE_ERROR] SQL error or missing database (no such column: full_name)
+2026-04-17 08:22:48.176+03:00 INFO  [http-nio-8082-exec-5] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:22:48.565+03:00 INFO  [http-nio-8082-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:22:59.187+03:00 INFO  [http-nio-8082-exec-8] c.e.p.c.KnowledgeBaseController - Knowledge base list requested by admin: 0 articles, canCreate=true
+2026-04-17 08:22:59.552+03:00 INFO  [http-nio-8082-exec-8] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:22:59.563+03:00 INFO  [http-nio-8082-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:23:00.719+03:00 INFO  [http-nio-8082-exec-3] c.e.p.c.KnowledgeBaseController - Knowledge base list requested by admin: 0 articles, canCreate=true
+2026-04-17 08:23:01.028+03:00 INFO  [http-nio-8082-exec-3] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:23:01.031+03:00 INFO  [http-nio-8082-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:23:05.486+03:00 INFO  [http-nio-8082-exec-10] c.e.p.c.KnowledgeBaseController - Knowledge base list requested by admin: 0 articles, canCreate=true
+2026-04-17 08:23:07.233+03:00 INFO  [http-nio-8082-exec-10] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:23:07.240+03:00 INFO  [http-nio-8082-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:23:18.119+03:00 INFO  [http-nio-8082-exec-5] c.e.p.c.KnowledgeBaseController - Knowledge base list requested by admin: 0 articles, canCreate=true
+2026-04-17 08:23:18.453+03:00 INFO  [http-nio-8082-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:23:18.516+03:00 INFO  [http-nio-8082-exec-8] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:23:20.276+03:00 INFO  [http-nio-8082-exec-1] c.e.p.c.KnowledgeBaseController - Knowledge base list requested by admin: 0 articles, canCreate=true
+2026-04-17 08:23:20.684+03:00 INFO  [http-nio-8082-exec-1] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:23:20.704+03:00 INFO  [http-nio-8082-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:23:36.136+03:00 INFO  [http-nio-8082-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:23:50.665+03:00 INFO  [http-nio-8082-exec-7] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:23:51.757+03:00 INFO  [http-nio-8082-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:24:07.735+03:00 INFO  [http-nio-8082-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:24:20.835+03:00 INFO  [http-nio-8082-exec-3] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:24:22.986+03:00 INFO  [http-nio-8082-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:24:35.085+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load responsible profiles for dialog list: [SQLITE_ERROR] SQL error or missing database (no such column: full_name)
+2026-04-17 08:24:38.814+03:00 INFO  [http-nio-8082-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:24:50.923+03:00 INFO  [http-nio-8082-exec-4] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:24:54.165+03:00 INFO  [http-nio-8082-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:25:11.066+03:00 INFO  [http-nio-8082-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:25:21.503+03:00 INFO  [http-nio-8082-exec-1] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:25:26.197+03:00 INFO  [http-nio-8082-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:25:41.202+03:00 INFO  [http-nio-8082-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:25:51.700+03:00 INFO  [http-nio-8082-exec-3] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:25:56.263+03:00 INFO  [http-nio-8082-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:26:11.294+03:00 INFO  [http-nio-8082-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:26:21.862+03:00 INFO  [http-nio-8082-exec-10] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:26:26.428+03:00 INFO  [http-nio-8082-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:26:35.120+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load responsible profiles for dialog list: [SQLITE_ERROR] SQL error or missing database (no such column: full_name)
+2026-04-17 08:26:41.510+03:00 INFO  [http-nio-8082-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:26:51.905+03:00 INFO  [http-nio-8082-exec-6] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:26:56.487+03:00 INFO  [http-nio-8082-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:27:11.549+03:00 INFO  [http-nio-8082-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:27:22.726+03:00 INFO  [http-nio-8082-exec-9] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:27:26.631+03:00 INFO  [http-nio-8082-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:27:42.561+03:00 INFO  [http-nio-8082-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:27:52.699+03:00 INFO  [http-nio-8082-exec-7] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:27:57.951+03:00 INFO  [http-nio-8082-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:27:59.214+03:00 INFO  [http-nio-8082-exec-8] c.e.p.c.KnowledgeBaseController - Knowledge base list requested by admin: 0 articles, canCreate=true
+2026-04-17 08:27:59.423+03:00 INFO  [http-nio-8082-exec-8] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:27:59.438+03:00 INFO  [http-nio-8082-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:28:02.077+03:00 INFO  [http-nio-8082-exec-2] c.e.p.c.KnowledgeBaseController - Knowledge base list requested by admin: 0 articles, canCreate=true
+2026-04-17 08:28:02.417+03:00 INFO  [http-nio-8082-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:28:02.441+03:00 INFO  [http-nio-8082-exec-2] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:28:17.798+03:00 INFO  [http-nio-8082-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:28:25.267+03:00 INFO  [http-nio-8082-exec-8] c.e.p.c.KnowledgeBaseController - Knowledge base list requested by admin: 0 articles, canCreate=true
+2026-04-17 08:28:25.577+03:00 INFO  [http-nio-8082-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:28:25.636+03:00 INFO  [http-nio-8082-exec-8] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:28:27.718+03:00 INFO  [http-nio-8082-exec-4] c.e.p.c.KnowledgeBaseController - Knowledge base list requested by admin: 0 articles, canCreate=true
+2026-04-17 08:28:28.001+03:00 INFO  [http-nio-8082-exec-4] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:28:28.029+03:00 INFO  [http-nio-8082-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:28:30.881+03:00 INFO  [http-nio-8082-exec-5] c.e.p.c.KnowledgeBaseController - Knowledge base list requested by admin: 0 articles, canCreate=true
+2026-04-17 08:28:31.152+03:00 INFO  [http-nio-8082-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:28:31.177+03:00 INFO  [http-nio-8082-exec-5] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:28:35.166+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load responsible profiles for dialog list: [SQLITE_ERROR] SQL error or missing database (no such column: full_name)
+2026-04-17 08:28:46.352+03:00 INFO  [http-nio-8082-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:29:01.678+03:00 INFO  [http-nio-8082-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:29:01.697+03:00 INFO  [http-nio-8082-exec-7] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:29:16.655+03:00 INFO  [http-nio-8082-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:29:32.041+03:00 INFO  [http-nio-8082-exec-2] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:29:32.073+03:00 INFO  [http-nio-8082-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:29:47.296+03:00 INFO  [http-nio-8082-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:30:00.262+03:00 INFO  [http-nio-8082-exec-6] c.e.p.c.KnowledgeBaseController - Knowledge base list requested by admin: 0 articles, canCreate=true
+2026-04-17 08:30:00.510+03:00 INFO  [http-nio-8082-exec-6] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:30:00.561+03:00 INFO  [http-nio-8082-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:30:16.265+03:00 INFO  [http-nio-8082-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:30:22.896+03:00 INFO  [http-nio-8082-exec-8] c.e.p.c.KnowledgeBaseController - Knowledge base list requested by admin: 0 articles, canCreate=true
+2026-04-17 08:30:23.285+03:00 INFO  [http-nio-8082-exec-8] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:30:23.296+03:00 INFO  [http-nio-8082-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:30:27.539+03:00 INFO  [http-nio-8082-exec-4] c.e.p.c.KnowledgeBaseController - Knowledge base list requested by admin: 0 articles, canCreate=true
+2026-04-17 08:30:27.967+03:00 INFO  [http-nio-8082-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:30:27.969+03:00 INFO  [http-nio-8082-exec-4] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:30:35.191+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load responsible profiles for dialog list: [SQLITE_ERROR] SQL error or missing database (no such column: full_name)
+2026-04-17 08:30:42.829+03:00 INFO  [http-nio-8082-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:30:58.134+03:00 INFO  [http-nio-8082-exec-6] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:30:58.149+03:00 INFO  [http-nio-8082-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:31:14.954+03:00 INFO  [http-nio-8082-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:31:29.710+03:00 INFO  [http-nio-8082-exec-3] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:31:30.839+03:00 INFO  [http-nio-8082-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:31:47.728+03:00 INFO  [http-nio-8082-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:32:00.791+03:00 INFO  [http-nio-8082-exec-7] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:32:02.981+03:00 INFO  [http-nio-8082-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:32:19.903+03:00 INFO  [http-nio-8082-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:32:31.214+03:00 INFO  [http-nio-8082-exec-9] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:32:35.241+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load responsible profiles for dialog list: [SQLITE_ERROR] SQL error or missing database (no such column: full_name)
+2026-04-17 08:32:35.371+03:00 INFO  [http-nio-8082-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:32:50.409+03:00 INFO  [http-nio-8082-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:33:01.197+03:00 INFO  [http-nio-8082-exec-8] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:33:05.827+03:00 INFO  [http-nio-8082-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:33:21.335+03:00 INFO  [http-nio-8082-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:33:26.845+03:00 INFO  [http-nio-8082-exec-6] c.e.p.c.KnowledgeBaseController - Knowledge base list requested by admin: 0 articles, canCreate=true
+2026-04-17 08:33:27.274+03:00 INFO  [http-nio-8082-exec-6] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:33:27.352+03:00 INFO  [http-nio-8082-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:33:28.963+03:00 INFO  [http-nio-8082-exec-4] c.e.p.c.KnowledgeBaseController - Knowledge base list requested by admin: 0 articles, canCreate=true
+2026-04-17 08:33:29.353+03:00 INFO  [http-nio-8082-exec-5] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:33:29.362+03:00 INFO  [http-nio-8082-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:33:44.536+03:00 INFO  [http-nio-8082-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:33:59.533+03:00 INFO  [http-nio-8082-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:33:59.596+03:00 INFO  [http-nio-8082-exec-1] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:34:14.757+03:00 INFO  [http-nio-8082-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:34:17.658+03:00 INFO  [http-nio-8082-exec-3] c.e.p.c.KnowledgeBaseController - Knowledge base list requested by admin: 0 articles, canCreate=true
+2026-04-17 08:34:17.867+03:00 INFO  [http-nio-8082-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:34:17.874+03:00 INFO  [http-nio-8082-exec-3] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:34:20.640+03:00 INFO  [http-nio-8082-exec-8] c.e.p.c.KnowledgeBaseController - Knowledge base list requested by admin: 0 articles, canCreate=true
+2026-04-17 08:34:20.846+03:00 INFO  [http-nio-8082-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:34:20.946+03:00 INFO  [http-nio-8082-exec-8] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:34:35.293+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load responsible profiles for dialog list: [SQLITE_ERROR] SQL error or missing database (no such column: full_name)
+2026-04-17 08:34:36.525+03:00 INFO  [http-nio-8082-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:34:52.657+03:00 INFO  [http-nio-8082-exec-3] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:34:52.673+03:00 INFO  [http-nio-8082-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:35:09.627+03:00 INFO  [http-nio-8082-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:35:23.484+03:00 INFO  [http-nio-8082-exec-7] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:35:24.640+03:00 INFO  [http-nio-8082-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:35:41.534+03:00 INFO  [http-nio-8082-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:35:53.633+03:00 INFO  [http-nio-8082-exec-9] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:35:56.907+03:00 INFO  [http-nio-8082-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:36:13.787+03:00 INFO  [http-nio-8082-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:36:23.846+03:00 INFO  [http-nio-8082-exec-4] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:36:29.485+03:00 INFO  [http-nio-8082-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:36:35.323+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load responsible profiles for dialog list: [SQLITE_ERROR] SQL error or missing database (no such column: full_name)
+2026-04-17 08:36:44.546+03:00 INFO  [http-nio-8082-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:36:53.863+03:00 INFO  [http-nio-8082-exec-6] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:36:59.635+03:00 INFO  [http-nio-8082-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:37:16.520+03:00 INFO  [http-nio-8082-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:37:24.704+03:00 INFO  [http-nio-8082-exec-3] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:37:31.651+03:00 INFO  [http-nio-8082-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:37:46.682+03:00 INFO  [http-nio-8082-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:37:54.808+03:00 INFO  [http-nio-8082-exec-7] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:38:01.746+03:00 INFO  [http-nio-8082-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:38:18.665+03:00 INFO  [http-nio-8082-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:38:25.619+03:00 INFO  [http-nio-8082-exec-10] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:38:33.707+03:00 INFO  [http-nio-8082-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:38:35.348+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load responsible profiles for dialog list: [SQLITE_ERROR] SQL error or missing database (no such column: full_name)
+2026-04-17 08:38:48.816+03:00 INFO  [http-nio-8082-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:38:55.834+03:00 INFO  [http-nio-8082-exec-5] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:39:03.886+03:00 INFO  [http-nio-8082-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:39:19.092+03:00 INFO  [http-nio-8082-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:39:26.023+03:00 INFO  [http-nio-8082-exec-6] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:39:34.382+03:00 INFO  [http-nio-8082-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:39:49.962+03:00 INFO  [http-nio-8082-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:39:56.820+03:00 INFO  [http-nio-8082-exec-2] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:40:06.011+03:00 INFO  [http-nio-8082-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:40:21.434+03:00 INFO  [http-nio-8082-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:40:27.597+03:00 INFO  [http-nio-8082-exec-7] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:40:35.375+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load responsible profiles for dialog list: [SQLITE_ERROR] SQL error or missing database (no such column: full_name)
+2026-04-17 08:40:36.772+03:00 INFO  [http-nio-8082-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:40:51.880+03:00 INFO  [http-nio-8082-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:40:58.157+03:00 INFO  [http-nio-8082-exec-10] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:41:07.293+03:00 INFO  [http-nio-8082-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:41:22.328+03:00 INFO  [http-nio-8082-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:41:28.167+03:00 INFO  [http-nio-8082-exec-4] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:41:35.829+03:00 INFO  [http-nio-8082-exec-10] c.e.p.c.KnowledgeBaseController - Knowledge base list requested by admin: 0 articles, canCreate=true
+2026-04-17 08:41:36.096+03:00 INFO  [http-nio-8082-exec-10] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:41:36.114+03:00 INFO  [http-nio-8082-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:41:51.348+03:00 INFO  [http-nio-8082-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:42:06.217+03:00 INFO  [http-nio-8082-exec-10] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:42:07.327+03:00 INFO  [http-nio-8082-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:42:22.530+03:00 INFO  [http-nio-8082-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:42:35.050+03:00 INFO  [http-nio-8082-exec-8] c.e.p.c.KnowledgeBaseController - Knowledge base list requested by admin: 0 articles, canCreate=true
+2026-04-17 08:42:35.337+03:00 INFO  [http-nio-8082-exec-8] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:42:35.358+03:00 INFO  [http-nio-8082-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:42:35.412+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load responsible profiles for dialog list: [SQLITE_ERROR] SQL error or missing database (no such column: full_name)
+2026-04-17 08:42:37.495+03:00 INFO  [http-nio-8082-exec-4] c.e.p.c.KnowledgeBaseController - Knowledge base list requested by admin: 0 articles, canCreate=true
+2026-04-17 08:42:37.842+03:00 INFO  [http-nio-8082-exec-4] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:42:37.856+03:00 INFO  [http-nio-8082-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:42:53.191+03:00 INFO  [http-nio-8082-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:43:08.103+03:00 INFO  [http-nio-8082-exec-2] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:43:09.197+03:00 INFO  [http-nio-8082-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:43:24.303+03:00 INFO  [http-nio-8082-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:43:38.287+03:00 INFO  [http-nio-8082-exec-1] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:43:39.432+03:00 INFO  [http-nio-8082-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:43:56.319+03:00 INFO  [http-nio-8082-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:44:09.034+03:00 INFO  [http-nio-8082-exec-5] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:44:11.421+03:00 INFO  [http-nio-8082-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:44:28.298+03:00 INFO  [http-nio-8082-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:44:35.449+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load responsible profiles for dialog list: [SQLITE_ERROR] SQL error or missing database (no such column: full_name)
+2026-04-17 08:44:39.960+03:00 INFO  [http-nio-8082-exec-10] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:44:43.446+03:00 INFO  [http-nio-8082-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:45:00.347+03:00 INFO  [http-nio-8082-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:45:10.771+03:00 INFO  [http-nio-8082-exec-8] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:45:15.336+03:00 INFO  [http-nio-8082-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:45:30.408+03:00 INFO  [http-nio-8082-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:45:40.892+03:00 INFO  [http-nio-8082-exec-2] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:45:45.541+03:00 INFO  [http-nio-8082-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:46:00.558+03:00 INFO  [http-nio-8082-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:46:10.941+03:00 INFO  [http-nio-8082-exec-9] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:46:15.707+03:00 INFO  [http-nio-8082-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:46:30.745+03:00 INFO  [http-nio-8082-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:46:35.486+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load responsible profiles for dialog list: [SQLITE_ERROR] SQL error or missing database (no such column: full_name)
+2026-04-17 08:46:41.229+03:00 INFO  [http-nio-8082-exec-6] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:46:45.788+03:00 INFO  [http-nio-8082-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:47:00.856+03:00 INFO  [http-nio-8082-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:47:11.285+03:00 INFO  [http-nio-8082-exec-10] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:47:15.971+03:00 INFO  [http-nio-8082-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:47:31.051+03:00 INFO  [http-nio-8082-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:47:41.465+03:00 INFO  [http-nio-8082-exec-8] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:47:46.091+03:00 INFO  [http-nio-8082-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:48:01.326+03:00 INFO  [http-nio-8082-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:48:11.774+03:00 INFO  [http-nio-8082-exec-2] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:48:16.367+03:00 INFO  [http-nio-8082-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:48:31.472+03:00 INFO  [http-nio-8082-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:48:35.520+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load responsible profiles for dialog list: [SQLITE_ERROR] SQL error or missing database (no such column: full_name)
+2026-04-17 08:48:41.972+03:00 INFO  [http-nio-8082-exec-9] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:48:46.562+03:00 INFO  [http-nio-8082-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:49:01.691+03:00 INFO  [http-nio-8082-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:49:13.220+03:00 INFO  [http-nio-8082-exec-6] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:49:16.749+03:00 INFO  [http-nio-8082-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:49:31.800+03:00 INFO  [http-nio-8082-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:49:43.406+03:00 INFO  [http-nio-8082-exec-10] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:49:47.081+03:00 INFO  [http-nio-8082-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:50:02.137+03:00 INFO  [http-nio-8082-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:50:13.574+03:00 INFO  [http-nio-8082-exec-8] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:50:17.167+03:00 INFO  [http-nio-8082-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:50:32.753+03:00 INFO  [http-nio-8082-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:50:35.553+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load responsible profiles for dialog list: [SQLITE_ERROR] SQL error or missing database (no such column: full_name)
+2026-04-17 08:50:44.332+03:00 INFO  [http-nio-8082-exec-2] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:50:47.800+03:00 INFO  [http-nio-8082-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:51:02.868+03:00 INFO  [http-nio-8082-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:51:14.448+03:00 INFO  [http-nio-8082-exec-9] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:51:18.103+03:00 INFO  [http-nio-8082-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:51:33.154+03:00 INFO  [http-nio-8082-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:51:44.785+03:00 INFO  [http-nio-8082-exec-6] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:51:48.350+03:00 INFO  [http-nio-8082-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:52:03.422+03:00 INFO  [http-nio-8082-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:52:14.910+03:00 INFO  [http-nio-8082-exec-7] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:52:18.840+03:00 INFO  [http-nio-8082-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:52:34.220+03:00 INFO  [http-nio-8082-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:52:35.580+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load responsible profiles for dialog list: [SQLITE_ERROR] SQL error or missing database (no such column: full_name)
+2026-04-17 08:52:45.790+03:00 INFO  [http-nio-8082-exec-8] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:52:49.276+03:00 INFO  [http-nio-8082-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:53:06.149+03:00 INFO  [http-nio-8082-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:53:16.036+03:00 INFO  [http-nio-8082-exec-2] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:53:21.731+03:00 INFO  [http-nio-8082-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:53:36.916+03:00 INFO  [http-nio-8082-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:53:46.278+03:00 INFO  [http-nio-8082-exec-9] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:53:51.993+03:00 INFO  [http-nio-8082-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:54:07.071+03:00 INFO  [http-nio-8082-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:54:18.561+03:00 INFO  [http-nio-8082-exec-5] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:54:22.181+03:00 INFO  [http-nio-8082-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:54:35.618+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load responsible profiles for dialog list: [SQLITE_ERROR] SQL error or missing database (no such column: full_name)
+2026-04-17 08:54:37.243+03:00 INFO  [http-nio-8082-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:54:48.808+03:00 INFO  [http-nio-8082-exec-10] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:54:52.390+03:00 INFO  [http-nio-8082-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:55:09.305+03:00 INFO  [http-nio-8082-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:55:19.662+03:00 INFO  [http-nio-8082-exec-4] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:55:24.317+03:00 INFO  [http-nio-8082-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:55:39.361+03:00 INFO  [http-nio-8082-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:55:49.844+03:00 INFO  [http-nio-8082-exec-3] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:55:54.545+03:00 INFO  [http-nio-8082-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:56:09.615+03:00 INFO  [http-nio-8082-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:56:20.278+03:00 INFO  [http-nio-8082-exec-1] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:56:25.038+03:00 INFO  [http-nio-8082-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:56:35.656+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load responsible profiles for dialog list: [SQLITE_ERROR] SQL error or missing database (no such column: full_name)
+2026-04-17 08:56:40.925+03:00 INFO  [http-nio-8082-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:56:50.768+03:00 INFO  [http-nio-8082-exec-6] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:56:56.495+03:00 INFO  [http-nio-8082-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:57:11.579+03:00 INFO  [http-nio-8082-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:57:20.917+03:00 INFO  [http-nio-8082-exec-7] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:57:26.618+03:00 INFO  [http-nio-8082-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:57:42.443+03:00 INFO  [http-nio-8082-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:57:51.709+03:00 INFO  [http-nio-8082-exec-8] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:57:58.195+03:00 INFO  [http-nio-8082-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:58:15.091+03:00 INFO  [http-nio-8082-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:58:22.224+03:00 INFO  [http-nio-8082-exec-3] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:58:30.369+03:00 INFO  [http-nio-8082-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:58:35.689+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load responsible profiles for dialog list: [SQLITE_ERROR] SQL error or missing database (no such column: full_name)
+2026-04-17 08:58:46.178+03:00 INFO  [http-nio-8082-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:58:52.856+03:00 INFO  [http-nio-8082-exec-9] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:59:02.227+03:00 INFO  [http-nio-8082-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:59:17.266+03:00 INFO  [http-nio-8082-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:59:23.190+03:00 INFO  [http-nio-8082-exec-6] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 08:59:32.527+03:00 INFO  [http-nio-8082-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:59:47.654+03:00 INFO  [http-nio-8082-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 08:59:53.554+03:00 INFO  [http-nio-8082-exec-10] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 09:00:03.814+03:00 INFO  [http-nio-8082-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 09:00:20.709+03:00 INFO  [http-nio-8082-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 09:00:23.665+03:00 INFO  [http-nio-8082-exec-4] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 09:00:35.717+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load responsible profiles for dialog list: [SQLITE_ERROR] SQL error or missing database (no such column: full_name)
+2026-04-17 09:00:36.395+03:00 INFO  [http-nio-8082-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 09:00:52.067+03:00 INFO  [http-nio-8082-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 09:00:54.296+03:00 INFO  [http-nio-8082-exec-3] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 09:01:07.858+03:00 INFO  [http-nio-8082-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 09:01:23.393+03:00 INFO  [http-nio-8082-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 09:01:24.438+03:00 INFO  [http-nio-8082-exec-1] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 09:01:25.205+03:00 INFO  [http-nio-8082-exec-3] c.e.p.c.KnowledgeBaseController - Knowledge base list requested by admin: 0 articles, canCreate=true
+2026-04-17 09:01:25.602+03:00 INFO  [http-nio-8082-exec-3] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 09:01:25.615+03:00 INFO  [http-nio-8082-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 09:01:41.177+03:00 INFO  [http-nio-8082-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 09:01:43.311+03:00 INFO  [http-nio-8082-exec-7] c.e.p.c.KnowledgeBaseController - Knowledge base list requested by admin: 0 articles, canCreate=true
+2026-04-17 09:01:43.564+03:00 INFO  [http-nio-8082-exec-7] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 09:01:43.574+03:00 INFO  [http-nio-8082-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 09:01:59.130+03:00 INFO  [http-nio-8082-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 09:02:05.705+03:00 INFO  [http-nio-8082-exec-7] c.e.p.c.KnowledgeBaseController - Knowledge base list requested by admin: 0 articles, canCreate=true
+2026-04-17 09:02:05.956+03:00 INFO  [http-nio-8082-exec-7] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 09:02:05.972+03:00 INFO  [http-nio-8082-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 09:02:21.368+03:00 INFO  [http-nio-8082-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 09:02:35.754+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load responsible profiles for dialog list: [SQLITE_ERROR] SQL error or missing database (no such column: full_name)
+2026-04-17 09:02:36.070+03:00 INFO  [http-nio-8082-exec-9] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 09:02:37.250+03:00 INFO  [http-nio-8082-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 09:02:52.302+03:00 INFO  [http-nio-8082-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 09:03:07.118+03:00 INFO  [http-nio-8082-exec-6] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 09:03:08.173+03:00 INFO  [http-nio-8082-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 09:03:23.220+03:00 INFO  [http-nio-8082-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 09:03:37.132+03:00 INFO  [http-nio-8082-exec-8] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 09:03:38.358+03:00 INFO  [http-nio-8082-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 09:03:55.264+03:00 INFO  [http-nio-8082-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 09:04:07.557+03:00 INFO  [http-nio-8082-exec-4] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 09:04:10.593+03:00 INFO  [http-nio-8082-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 09:04:25.880+03:00 INFO  [http-nio-8082-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 09:04:35.778+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load responsible profiles for dialog list: [SQLITE_ERROR] SQL error or missing database (no such column: full_name)
+2026-04-17 09:04:37.728+03:00 INFO  [http-nio-8082-exec-5] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 09:04:41.260+03:00 INFO  [http-nio-8082-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 09:04:56.783+03:00 INFO  [http-nio-8082-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 09:05:08.410+03:00 INFO  [http-nio-8082-exec-2] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 09:05:11.861+03:00 INFO  [http-nio-8082-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 09:05:28.748+03:00 INFO  [http-nio-8082-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 09:05:39.220+03:00 INFO  [http-nio-8082-exec-6] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 09:05:43.799+03:00 INFO  [http-nio-8082-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 09:06:00.691+03:00 INFO  [http-nio-8082-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 09:06:10.310+03:00 INFO  [http-nio-8082-exec-7] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 09:06:16.395+03:00 INFO  [http-nio-8082-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 09:06:31.702+03:00 INFO  [http-nio-8082-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 09:06:35.796+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load responsible profiles for dialog list: [SQLITE_ERROR] SQL error or missing database (no such column: full_name)
+2026-04-17 09:06:41.036+03:00 INFO  [http-nio-8082-exec-3] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 09:06:46.732+03:00 INFO  [http-nio-8082-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 09:07:01.594+03:00 INFO  [SpringApplicationShutdownHook] c.e.panel.service.BotProcessService - Stopping all bot processes due to panel shutdown
+2026-04-17 09:07:01.595+03:00 INFO  [SpringApplicationShutdownHook] c.e.panel.service.BotProcessService - Stopping bot process for channel 2 via shutdown
+2026-04-17 09:07:01.622+03:00 INFO  [SpringApplicationShutdownHook] o.s.o.j.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'

@@ -260,8 +260,8 @@
   "unblock_request_cooldown_minutes" : 1,
   "knowledge_base_config" : {
     "enabled" : true,
-    "source_url" : "https://www.notion.so/blinberry-group",
-    "token" : "",
+    "source_url" : "https://www.notion.so/blinberry-group/4c3bfdf07d8147d5b9ce695e154a33f6?v=3b869b623c04471e92fd8aa39bdf8aa9&source=copy_link",
+    "token" : "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",
     "authors" : [ "Синицын Владимир", "Лемешкин Андрей", "Egor", "Канделаки Данил", "Шумкова Дарья" ],
     "title_property" : "Name",
     "author_property" : "Автор",
