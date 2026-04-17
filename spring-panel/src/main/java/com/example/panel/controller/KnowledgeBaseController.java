@@ -3,8 +3,8 @@ package com.example.panel.controller;
 import com.example.panel.model.knowledge.KnowledgeArticleCommand;
 import com.example.panel.model.knowledge.KnowledgeArticleDetails;
 import com.example.panel.model.knowledge.KnowledgeBaseNotionConfigForm;
-import com.example.panel.service.KnowledgeBaseService;
 import com.example.panel.service.KnowledgeBaseNotionService;
+import com.example.panel.service.KnowledgeBaseService;
 import com.example.panel.service.NavigationService;
 import com.example.panel.service.NotificationService;
 import com.example.panel.service.PermissionService;
@@ -59,17 +59,11 @@ public class KnowledgeBaseController {
     @GetMapping
     @PreAuthorize("hasAuthority('PAGE_KNOWLEDGE_BASE')")
     public String list(Authentication authentication, Model model) {
-        navigationService.enrich(model, authentication);
-        var articles = knowledgeBaseService.listArticles();
-        var canCreate = permissionService.hasAuthority(authentication, "PAGE_KNOWLEDGE_BASE");
-        model.addAttribute("articles", articles);
-        model.addAttribute("canCreate", canCreate);
-        if (!model.containsAttribute("notionConfig")) {
-            model.addAttribute("notionConfig", knowledgeBaseNotionService.buildForm());
-        }
-        model.addAttribute("notionHasToken", knowledgeBaseNotionService.hasSavedToken());
-        log.info("Knowledge base list requested by {}: {} articles, canCreate={}"
-                , authentication != null ? authentication.getName() : "anonymous", articles.size(), canCreate);
+        populateListModel(authentication, model);
+        log.info("Knowledge base list requested by {}: {} articles, canCreate={}",
+            authentication != null ? authentication.getName() : "anonymous",
+            ((List<?>) model.getAttribute("articles")).size(),
+            model.getAttribute("canCreate"));
         return "knowledge/list";
     }
 
@@ -89,10 +83,10 @@ public class KnowledgeBaseController {
         model.addAttribute("article", article.orElseGet(this::emptyArticle));
         if (article.isPresent()) {
             log.info("Editing knowledge article {} requested by {}", id,
-                    authentication != null ? authentication.getName() : "anonymous");
+                authentication != null ? authentication.getName() : "anonymous");
         } else {
             log.warn("Knowledge article {} not found for user {}", id,
-                    authentication != null ? authentication.getName() : "anonymous");
+                authentication != null ? authentication.getName() : "anonymous");
         }
         return "knowledge/editor";
     }
@@ -105,15 +99,17 @@ public class KnowledgeBaseController {
         String actor = authentication != null ? authentication.getName() : null;
         String title = saved.title() != null && !saved.title().isBlank() ? saved.title().trim() : "без названия";
         String text = isNew
-                ? "Новая статья в базе знаний: " + title
-                : "Обновлена статья в базе знаний: " + title;
+            ? "Новая статья в базе знаний: " + title
+            : "Обновлена статья в базе знаний: " + title;
         notificationService.notifyAllOperators(text, "/knowledge-base/" + saved.id(), actor);
         return "redirect:/knowledge-base/" + saved.id();
     }
 
     @PostMapping("/attachments")
     @PreAuthorize("hasAuthority('PAGE_KNOWLEDGE_BASE')")
-    public String upload(Authentication authentication, @RequestParam("file") MultipartFile file, Model model) throws IOException {
+    public String upload(Authentication authentication,
+                         @RequestParam("file") MultipartFile file,
+                         Model model) throws IOException {
         if (file != null && !file.isEmpty()) {
             attachmentService.storeKnowledgeBaseFile(authentication, file);
         }
@@ -154,17 +150,41 @@ public class KnowledgeBaseController {
         return "redirect:/knowledge-base#notion-import";
     }
 
+    @PostMapping("/notion/import/preview")
+    @PreAuthorize("hasAuthority('PAGE_KNOWLEDGE_BASE')")
+    public String previewImportFromNotion(Authentication authentication, Model model) {
+        populateListModel(authentication, model);
+        try {
+            var preview = knowledgeBaseNotionService.previewImportArticles();
+            model.addAttribute("notionImportPreview", preview);
+            model.addAttribute("notionMessageType", "success");
+            model.addAttribute(
+                "notionMessage",
+                "Подготовлен список статей для импорта: " + preview.matchedPages() + " из " + preview.totalPages() + "."
+            );
+        } catch (Exception ex) {
+            model.addAttribute("notionMessageType", "danger");
+            model.addAttribute("notionMessage", ex.getMessage());
+        }
+        return "knowledge/list";
+    }
+
     @PostMapping("/notion/import")
     @PreAuthorize("hasAuthority('PAGE_KNOWLEDGE_BASE')")
-    public String importFromNotion(Authentication authentication, RedirectAttributes redirectAttributes) {
+    public String importFromNotion(Authentication authentication,
+                                  @RequestParam(name = "selectedExternalIds", required = false) List<String> selectedExternalIds,
+                                  RedirectAttributes redirectAttributes) {
         try {
-            var result = knowledgeBaseNotionService.importArticles();
+            var result = selectedExternalIds == null
+                ? knowledgeBaseNotionService.importArticles()
+                : knowledgeBaseNotionService.importArticles(selectedExternalIds);
             String actor = authentication != null ? authentication.getName() : null;
-            String message = "Импорт Notion завершён: создано " + result.created()
+            String message = "Импорт Notion завершён: выбрано " + result.selectedPages()
+                + " из " + result.matchedPages()
+                + ", создано " + result.created()
                 + ", обновлено " + result.updated()
                 + ", пропущено " + result.skipped()
-                + ", совпадений " + result.matchedPages()
-                + " из " + result.totalPages() + ".";
+                + ", всего в источнике " + result.totalPages() + ".";
             notificationService.notifyAllOperators(message, "/knowledge-base", actor);
             redirectAttributes.addFlashAttribute("notionMessageType", "success");
             redirectAttributes.addFlashAttribute("notionMessage", message);
@@ -173,6 +193,18 @@ public class KnowledgeBaseController {
             redirectAttributes.addFlashAttribute("notionMessage", ex.getMessage());
         }
         return "redirect:/knowledge-base#notion-import";
+    }
+
+    private void populateListModel(Authentication authentication, Model model) {
+        navigationService.enrich(model, authentication);
+        var articles = knowledgeBaseService.listArticles();
+        var canCreate = permissionService.hasAuthority(authentication, "PAGE_KNOWLEDGE_BASE");
+        model.addAttribute("articles", articles);
+        model.addAttribute("canCreate", canCreate);
+        if (!model.containsAttribute("notionConfig")) {
+            model.addAttribute("notionConfig", knowledgeBaseNotionService.buildForm());
+        }
+        model.addAttribute("notionHasToken", knowledgeBaseNotionService.hasSavedToken());
     }
 
     private KnowledgeArticleDetails emptyArticle() {

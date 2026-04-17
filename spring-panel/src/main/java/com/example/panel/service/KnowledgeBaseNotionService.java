@@ -2,6 +2,8 @@ package com.example.panel.service;
 
 import com.example.panel.entity.KnowledgeArticle;
 import com.example.panel.model.knowledge.KnowledgeBaseNotionConfigForm;
+import com.example.panel.model.knowledge.KnowledgeNotionImportPreview;
+import com.example.panel.model.knowledge.KnowledgeNotionImportPreviewItem;
 import com.example.panel.repository.KnowledgeArticleRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -22,6 +24,7 @@ import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -107,15 +110,37 @@ public class KnowledgeBaseNotionService {
         return new ConnectionCheckResult(result.mode(), result.matchedPages().size(), result.totalPages(), config.sourceUrl());
     }
 
-    public ImportResult importArticles() {
+    @Transactional(readOnly = true)
+    public KnowledgeNotionImportPreview previewImportArticles() {
         NotionConfig config = loadConfig(true);
         QueryResult queryResult = queryPages(config);
+        Map<String, String> relationDisplayCache = new HashMap<>();
+        return new KnowledgeNotionImportPreview(
+            queryResult.mode(),
+            queryResult.totalPages(),
+            queryResult.matchedPages().size(),
+            buildPreviewItems(config, queryResult.matchedPages(), relationDisplayCache)
+        );
+    }
+
+    public ImportResult importArticles() {
+        return importArticlesInternal(null, true);
+    }
+
+    public ImportResult importArticles(List<String> selectedExternalIds) {
+        return importArticlesInternal(selectedExternalIds, false);
+    }
+
+    private ImportResult importArticlesInternal(List<String> selectedExternalIds, boolean importAllWhenSelectionEmpty) {
+        NotionConfig config = loadConfig(true);
+        QueryResult queryResult = queryPages(config);
+        List<JsonNode> selectedPages = filterSelectedPages(queryResult.matchedPages(), selectedExternalIds, importAllWhenSelectionEmpty);
         Map<String, String> relationDisplayCache = new HashMap<>();
         int created = 0;
         int updated = 0;
         int skipped = 0;
 
-        for (JsonNode page : queryResult.matchedPages()) {
+        for (JsonNode page : selectedPages) {
             ImportedArticle article = toImportedArticle(config, page, relationDisplayCache);
             if (!StringUtils.hasText(article.title()) || !StringUtils.hasText(article.content())) {
                 skipped++;
@@ -151,7 +176,15 @@ public class KnowledgeBaseNotionService {
             }
         }
 
-        return new ImportResult(queryResult.mode(), queryResult.matchedPages().size(), queryResult.totalPages(), created, updated, skipped);
+        return new ImportResult(
+            queryResult.mode(),
+            queryResult.matchedPages().size(),
+            selectedPages.size(),
+            queryResult.totalPages(),
+            created,
+            updated,
+            skipped
+        );
     }
 
     private NotionConfig loadConfig(boolean requireReady) {
@@ -375,6 +408,91 @@ public class KnowledgeBaseNotionService {
         );
     }
 
+    private List<KnowledgeNotionImportPreviewItem> buildPreviewItems(NotionConfig config,
+                                                                     List<JsonNode> pages,
+                                                                     Map<String, String> relationDisplayCache) {
+        Map<String, KnowledgeArticle> existingByExternalId = loadExistingArticlesByExternalId(pages);
+        List<KnowledgeNotionImportPreviewItem> items = new ArrayList<>();
+        for (JsonNode page : pages) {
+            PreviewArticle article = toPreviewArticle(config, page, relationDisplayCache);
+            items.add(new KnowledgeNotionImportPreviewItem(
+                article.externalId(),
+                article.title(),
+                article.author(),
+                article.summary(),
+                article.department(),
+                article.articleType(),
+                article.notionStatus(),
+                article.localStatus(),
+                article.externalUrl(),
+                article.externalUpdatedAt(),
+                existingByExternalId.containsKey(article.externalId())
+            ));
+        }
+        return items;
+    }
+
+    private PreviewArticle toPreviewArticle(NotionConfig config, JsonNode page, Map<String, String> relationDisplayCache) {
+        JsonNode properties = page.path("properties");
+        String notionStatus = extractPropertyText(properties, config.statusProperty(), null, config.token(), relationDisplayCache);
+        return new PreviewArticle(
+            firstNonBlank(
+                extractPropertyText(properties, config.titleProperty(), "title", config.token(), relationDisplayCache),
+                extractPropertyText(properties, null, "title", config.token(), relationDisplayCache),
+                "Статья без названия"
+            ),
+            extractPropertyText(properties, config.authorProperty(), null, config.token(), relationDisplayCache),
+            extractPropertyText(properties, config.summaryProperty(), null, config.token(), relationDisplayCache),
+            extractPropertyText(properties, config.departmentProperty(), null, config.token(), relationDisplayCache),
+            extractPropertyText(properties, config.articleTypeProperty(), null, config.token(), relationDisplayCache),
+            notionStatus,
+            resolveLocalStatus(notionStatus),
+            page.path("id").asText(),
+            page.path("url").asText(null),
+            parseOffsetDateTime(page.path("last_edited_time").asText(null))
+        );
+    }
+
+    private Map<String, KnowledgeArticle> loadExistingArticlesByExternalId(List<JsonNode> pages) {
+        Set<String> externalIds = new LinkedHashSet<>();
+        for (JsonNode page : pages) {
+            String externalId = page.path("id").asText(null);
+            if (StringUtils.hasText(externalId)) {
+                externalIds.add(externalId);
+            }
+        }
+        if (externalIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, KnowledgeArticle> existing = new LinkedHashMap<>();
+        for (KnowledgeArticle article : knowledgeArticleRepository.findAllByExternalSourceAndExternalIdIn(NOTION_SOURCE, externalIds)) {
+            if (StringUtils.hasText(article.getExternalId())) {
+                existing.put(article.getExternalId(), article);
+            }
+        }
+        return existing;
+    }
+
+    List<JsonNode> filterSelectedPages(List<JsonNode> matchedPages,
+                                       List<String> selectedExternalIds,
+                                       boolean importAllWhenSelectionEmpty) {
+        if (matchedPages == null || matchedPages.isEmpty()) {
+            return List.of();
+        }
+        Set<String> selectedIds = normalizeSelectedIds(selectedExternalIds);
+        if (selectedIds.isEmpty()) {
+            return importAllWhenSelectionEmpty ? List.copyOf(matchedPages) : List.of();
+        }
+        List<JsonNode> selectedPages = new ArrayList<>();
+        for (JsonNode page : matchedPages) {
+            String externalId = page.path("id").asText(null);
+            if (StringUtils.hasText(externalId) && selectedIds.contains(externalId)) {
+                selectedPages.add(page);
+            }
+        }
+        return selectedPages;
+    }
+
     private String fetchPageMarkdown(String token, String pageId) {
         String url = "https://api.notion.com/v1/pages/" + pageId + "/markdown";
         ApiResult result = executeGet(token, NOTION_VERSION, url, "page_markdown");
@@ -579,6 +697,20 @@ public class KnowledgeBaseNotionService {
             String normalized = normalizeValue(author);
             if (StringUtils.hasText(normalized)) {
                 values.add(normalized);
+            }
+        }
+        return values;
+    }
+
+    private Set<String> normalizeSelectedIds(List<String> selectedExternalIds) {
+        Set<String> values = new HashSet<>();
+        if (selectedExternalIds == null) {
+            return values;
+        }
+        for (String selectedExternalId : selectedExternalIds) {
+            String trimmed = trim(selectedExternalId);
+            if (StringUtils.hasText(trimmed)) {
+                values.add(trimmed);
             }
         }
         return values;
@@ -840,6 +972,18 @@ public class KnowledgeBaseNotionService {
                                    OffsetDateTime externalUpdatedAt) {
     }
 
+    private record PreviewArticle(String title,
+                                  String author,
+                                  String summary,
+                                  String department,
+                                  String articleType,
+                                  String notionStatus,
+                                  String localStatus,
+                                  String externalId,
+                                  String externalUrl,
+                                  OffsetDateTime externalUpdatedAt) {
+    }
+
     private record ApiResult(boolean success, String mode, JsonNode body, String message) {
     }
 
@@ -848,6 +992,7 @@ public class KnowledgeBaseNotionService {
 
     public record ImportResult(String mode,
                                int matchedPages,
+                               int selectedPages,
                                int totalPages,
                                int created,
                                int updated,

@@ -1,9 +1,13 @@
 package com.example.panel.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -40,5 +44,29 @@ class KnowledgeBaseNotionServiceTest {
         assertTrue(message.contains("data source"));
         assertTrue(message.contains("data_source_id"));
         assertTrue(message.contains("4c3bfdf0-7d81-47d5-b9ce-695e154a33f6"));
+    }
+
+    @Test
+    void keepsAllMatchedPagesWhenImportRunsWithoutManualSelection() {
+        List<ObjectNode> pages = List.of(page("page-1"), page("page-2"));
+
+        List<?> selected = service.filterSelectedPages(List.copyOf(pages), null, true);
+
+        assertEquals(2, selected.size());
+    }
+
+    @Test
+    void importsOnlyExplicitlySelectedPages() {
+        List<ObjectNode> pages = List.of(page("page-1"), page("page-2"), page("page-3"));
+
+        List<?> selected = service.filterSelectedPages(List.copyOf(pages), List.of("page-2", "page-3"), false);
+
+        assertEquals(2, selected.size());
+        assertEquals("page-2", ((ObjectNode) selected.get(0)).path("id").asText());
+        assertEquals("page-3", ((ObjectNode) selected.get(1)).path("id").asText());
+    }
+
+    private ObjectNode page(String id) {
+        return new ObjectMapper().createObjectNode().put("id", id);
     }
 }
