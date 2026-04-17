@@ -462,21 +462,31 @@
                             <span class="badge rounded-pill dialog-sla-badge">—</span>
                         </td>
                         <td class="dialog-actions">
-                            <a th:href="@{/dialogs/{ticketId}(ticketId=${dialog.ticketId})}"
-                               class="btn btn-sm btn-outline-primary dialog-open-btn"
-                               th:data-ticket-id="${dialog.ticketId}">Открыть</a>
-                            <button type="button" class="btn btn-sm btn-outline-success dialog-take-btn"
-                                    th:data-ticket-id="${dialog.ticketId}"
-                                    th:classappend="${dialog.responsible() != null and !#strings.isEmpty(dialog.responsible())} ? ' d-none' : ''">Назначить мне</button>
-                            <button type="button" class="btn btn-sm btn-outline-warning dialog-snooze-btn"
-                                    th:data-ticket-id="${dialog.ticketId}"
-                                    th:classappend="${dialog.statusKey() == 'closed' or dialog.statusKey() == 'auto_closed'} ? ' d-none' : ''">Отложить 1ч</button>
-                            <button type="button" class="btn btn-sm btn-outline-danger dialog-close-btn"
-                                    th:data-ticket-id="${dialog.ticketId}"
-                                    th:classappend="${dialog.statusKey() == 'closed' or dialog.statusKey() == 'auto_closed'} ? ' d-none' : ''">Закрыть</button>
-                            <a th:href="@{/tasks(create=1,ticketId=${dialog.ticketId},client=${dialog.displayClientName()})}" class="btn btn-sm btn-outline-secondary dialog-task-btn"
-                               th:data-ticket-id="${dialog.ticketId}"
-                               th:data-client="${dialog.displayClientName()}">Задача</a>
+                            <div class="dialog-actions-dropdown" data-dialog-actions>
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-secondary dialog-actions-toggle"
+                                        data-dialog-actions-toggle
+                                        aria-expanded="false">
+                                    Действия
+                                </button>
+                                <div class="dialog-actions-menu" data-dialog-actions-menu>
+                                    <a th:href="@{/dialogs/{ticketId}(ticketId=${dialog.ticketId})}"
+                                       class="btn btn-sm btn-outline-primary dialog-open-btn"
+                                       th:data-ticket-id="${dialog.ticketId}">Открыть</a>
+                                    <button type="button" class="btn btn-sm btn-outline-success dialog-take-btn"
+                                            th:data-ticket-id="${dialog.ticketId}"
+                                            th:classappend="${dialog.responsible() != null and !#strings.isEmpty(dialog.responsible())} ? ' d-none' : ''">Назначить мне</button>
+                                    <button type="button" class="btn btn-sm btn-outline-warning dialog-snooze-btn"
+                                            th:data-ticket-id="${dialog.ticketId}"
+                                            th:classappend="${dialog.statusKey() == 'closed' or dialog.statusKey() == 'auto_closed'} ? ' d-none' : ''">Отложить 1ч</button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger dialog-close-btn"
+                                            th:data-ticket-id="${dialog.ticketId}"
+                                            th:classappend="${dialog.statusKey() == 'closed' or dialog.statusKey() == 'auto_closed'} ? ' d-none' : ''">Закрыть</button>
+                                    <a th:href="@{/tasks(create=1,ticketId=${dialog.ticketId},client=${dialog.displayClientName()})}" class="btn btn-sm btn-outline-secondary dialog-task-btn"
+                                       th:data-ticket-id="${dialog.ticketId}"
+                                       th:data-client="${dialog.displayClientName()}">Задача</a>
+                                </div>
+                            </div>
                         </td>
                     </tr>
                     </tbody>

@@ -2049,13 +2049,18 @@
           <span class="badge rounded-pill dialog-sla-badge">—</span>
         </td>
         <td class="dialog-actions">
-          <a href="#" class="btn btn-sm btn-outline-primary dialog-open-btn" data-ticket-id="${escapeHtml(ticketId)}">Открыть</a>
-          <button type="button" class="btn btn-sm btn-outline-success dialog-take-btn ${!canTakeOwnership || !canRunAction('can_assign') ? 'd-none' : ''}" data-ticket-id="${escapeHtml(ticketId)}">Взять себе</button>
-          <button type="button" class="btn btn-sm btn-outline-warning dialog-snooze-btn ${isResolvedStatusKey(statusKey) || !canRunAction('can_snooze') ? 'd-none' : ''}" data-ticket-id="${escapeHtml(ticketId)}">${formatSnoozeActionLabel(QUICK_SNOOZE_MINUTES)}</button>
-          <button type="button" class="btn btn-sm btn-outline-danger dialog-close-btn ${isResolvedStatusKey(statusKey) || !canRunAction('can_close') ? 'd-none' : ''}" data-ticket-id="${escapeHtml(ticketId)}">Закрыть</button>
-          <a href="/tasks" class="btn btn-sm btn-outline-secondary dialog-task-btn"
-             data-ticket-id="${escapeHtml(ticketId)}"
-             data-client="${escapeHtml(clientName)}">Задача</a>
+          <div class="dialog-actions-dropdown" data-dialog-actions>
+            <button type="button" class="btn btn-sm btn-outline-secondary dialog-actions-toggle" data-dialog-actions-toggle aria-expanded="false">Действия</button>
+            <div class="dialog-actions-menu" data-dialog-actions-menu>
+              <a href="#" class="btn btn-sm btn-outline-primary dialog-open-btn" data-ticket-id="${escapeHtml(ticketId)}">Открыть</a>
+              <button type="button" class="btn btn-sm btn-outline-success dialog-take-btn ${!canTakeOwnership || !canRunAction('can_assign') ? 'd-none' : ''}" data-ticket-id="${escapeHtml(ticketId)}">Взять себе</button>
+              <button type="button" class="btn btn-sm btn-outline-warning dialog-snooze-btn ${isResolvedStatusKey(statusKey) || !canRunAction('can_snooze') ? 'd-none' : ''}" data-ticket-id="${escapeHtml(ticketId)}">${formatSnoozeActionLabel(QUICK_SNOOZE_MINUTES)}</button>
+              <button type="button" class="btn btn-sm btn-outline-danger dialog-close-btn ${isResolvedStatusKey(statusKey) || !canRunAction('can_close') ? 'd-none' : ''}" data-ticket-id="${escapeHtml(ticketId)}">Закрыть</button>
+              <a href="/tasks" class="btn btn-sm btn-outline-secondary dialog-task-btn"
+                 data-ticket-id="${escapeHtml(ticketId)}"
+                 data-client="${escapeHtml(clientName)}">Задача</a>
+            </div>
+          </div>
         </td>
       </tr>
     `;
@@ -2198,6 +2203,23 @@
         ? `Отложен до ${formatUtcDate(new Date(until), { includeTime: true })}`
         : formatSnoozeActionLabel(QUICK_SNOOZE_MINUTES);
     }
+  }
+
+  function setDialogActionsMenuOpen(menu, isOpen) {
+    if (!menu) return;
+    menu.classList.toggle('is-open', Boolean(isOpen));
+    const toggle = menu.querySelector('[data-dialog-actions-toggle]');
+    if (toggle) {
+      toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    }
+  }
+
+  function closeDialogActionsMenus(exceptMenu = null) {
+    table.querySelectorAll('.dialog-actions-dropdown.is-open').forEach((menu) => {
+      if (menu !== exceptMenu) {
+        setDialogActionsMenuOpen(menu, false);
+      }
+    });
   }
 
   async function closeDialogQuick(ticketId, row, triggerButton) {
@@ -7543,10 +7565,24 @@
       return;
     }
 
+    const actionToggle = target.closest('[data-dialog-actions-toggle]');
+    if (actionToggle) {
+      event.preventDefault();
+      event.stopPropagation();
+      const menu = actionToggle.closest('.dialog-actions-dropdown');
+      if (!menu) return;
+      const nextState = !menu.classList.contains('is-open');
+      closeDialogActionsMenus(menu);
+      setDialogActionsMenuOpen(menu, nextState);
+      return;
+    }
+
     const openBtn = target.closest('.dialog-open-btn');
     if (openBtn) {
       event.preventDefault();
       event.stopPropagation();
+      const actionMenu = openBtn.closest('.dialog-actions-dropdown');
+      if (actionMenu) setDialogActionsMenuOpen(actionMenu, false);
       const ticketId = openBtn.dataset.ticketId;
       const row = openBtn.closest('tr');
       debugLog('table.click.openBtn', {
@@ -7560,6 +7596,8 @@
     const taskBtn = target.closest('.dialog-task-btn');
     if (taskBtn) {
       event.preventDefault();
+      const actionMenu = taskBtn.closest('.dialog-actions-dropdown');
+      if (actionMenu) setDialogActionsMenuOpen(actionMenu, false);
       const ticketId = taskBtn.dataset.ticketId;
       const clientName = taskBtn.dataset.client;
       setTaskDraft({
@@ -7572,6 +7610,8 @@
     const takeBtn = target.closest('.dialog-take-btn');
     if (takeBtn) {
       event.preventDefault();
+      const actionMenu = takeBtn.closest('.dialog-actions-dropdown');
+      if (actionMenu) setDialogActionsMenuOpen(actionMenu, false);
       if (!canRunAction('can_assign')) {
         notifyPermissionDenied('Назначить мне');
         return;
@@ -7585,6 +7625,8 @@
     const snoozeBtn = target.closest('.dialog-snooze-btn');
     if (snoozeBtn) {
       event.preventDefault();
+      const actionMenu = snoozeBtn.closest('.dialog-actions-dropdown');
+      if (actionMenu) setDialogActionsMenuOpen(actionMenu, false);
       if (!canRunAction('can_snooze')) {
         notifyPermissionDenied(formatSnoozeActionLabel(QUICK_SNOOZE_MINUTES));
         return;
@@ -7611,6 +7653,8 @@
     const closeBtn = target.closest('.dialog-close-btn');
     if (closeBtn) {
       event.preventDefault();
+      const actionMenu = closeBtn.closest('.dialog-actions-dropdown');
+      if (actionMenu) setDialogActionsMenuOpen(actionMenu, false);
       if (!canRunAction('can_close')) {
         notifyPermissionDenied('Закрыть');
         return;
@@ -7633,6 +7677,12 @@
           closeBtn.disabled = false;
         });
     }
+  });
+
+  document.addEventListener('click', (event) => {
+    const target = event.target instanceof Element ? event.target : null;
+    if (target?.closest('.dialog-actions-dropdown')) return;
+    closeDialogActionsMenus();
   });
 
   if (selectAllCheckbox) {
