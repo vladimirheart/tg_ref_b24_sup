@@ -176,6 +176,6 @@ public class KnowledgeBaseController {
     }
 
     private KnowledgeArticleDetails emptyArticle() {
-        return new KnowledgeArticleDetails(null, "", "", "", "draft", "", "", "", "", "", null, null, List.of());
+        return new KnowledgeArticleDetails(null, "", "", "", "draft", "", "", "", "", "", "", null, null, List.of());
     }
 }
