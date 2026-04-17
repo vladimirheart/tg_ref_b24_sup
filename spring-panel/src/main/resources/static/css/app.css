@@ -306,7 +306,8 @@ body[data-ui-page='dialogs'][data-ui-density='comfortable'] .workspace-shell-car
     border-radius: 12px;
     padding: 0.75rem 1rem;
     margin-bottom: 0.75rem;
-    max-width: 80%;
+    min-width: min(22rem, calc(100% - 3rem));
+    max-width: min(88%, 60rem);
     word-break: break-word;
     align-self: flex-start;
     position: relative;
@@ -817,6 +818,58 @@ body[data-ui-page='dialogs'][data-ui-density='comfortable'] .workspace-shell-car
   white-space: nowrap;
 }
 
+.dialog-actions {
+  width: 1%;
+}
+
+.dialog-actions-dropdown {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.45rem;
+  min-width: 10.5rem;
+}
+
+.dialog-actions-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.dialog-actions-toggle::after {
+  content: '▾';
+  font-size: 0.72rem;
+  line-height: 1;
+  color: var(--muted-foreground);
+  transition: transform 0.15s ease;
+}
+
+.dialog-actions-dropdown.is-open .dialog-actions-toggle::after {
+  transform: rotate(180deg);
+}
+
+.dialog-actions-menu {
+  display: none;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.45rem;
+  border-radius: 0.85rem;
+  border: 1px solid color-mix(in srgb, var(--color-border) 88%, transparent);
+  background: color-mix(in srgb, var(--card) 96%, white);
+  box-shadow: 0 10px 24px -20px rgba(15, 23, 42, 0.55);
+}
+
+.dialog-actions-dropdown.is-open .dialog-actions-menu {
+  display: flex;
+}
+
+.dialog-actions-menu .btn {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+}
+
 .dialog-status-badge {
   border: 1px solid transparent;
   font-weight: 700;
@@ -1215,6 +1268,15 @@ body[data-ui-page='dialogs'][data-ui-density='comfortable'] .workspace-shell-car
 
   .dialog-details-resize-handle {
     display: none;
+  }
+
+  .chat-message {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .dialog-actions-dropdown {
+    min-width: 9.5rem;
   }
 }
 
