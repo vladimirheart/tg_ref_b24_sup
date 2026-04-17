@@ -2,13 +2,15 @@ package com.example.panel.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.mock;
 
+import com.example.panel.config.BotProcessProperties;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.OffsetDateTime;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -95,6 +97,41 @@ class BotProcessServiceTest {
     }
 
     @Test
+    void resolveExecutableJarPrefersConfiguredArtifactBeforeTargetScan() throws Exception {
+        Path botWorkingDir = tempDir.resolve("java-bot");
+        Path configuredJar = botWorkingDir.resolve("dist").resolve("bot-telegram-runtime.jar");
+        Path scannedJar = botWorkingDir.resolve("bot-telegram").resolve("target").resolve("bot-telegram-0.0.1-SNAPSHOT.jar");
+        Files.createDirectories(configuredJar.getParent());
+        Files.createDirectories(scannedJar.getParent());
+        Files.writeString(configuredJar, "configured");
+        Files.writeString(scannedJar, "scanned");
+
+        BotProcessService service = createRuntimeService("auto", Map.of(
+            "bot-telegram", "dist/bot-telegram-runtime.jar"
+        ));
+
+        Path resolved = service.resolveExecutableJar(botWorkingDir, "bot-telegram");
+
+        assertThat(resolved).isEqualTo(configuredJar.toAbsolutePath().normalize());
+    }
+
+    @Test
+    void resolveExecutableJarFallsBackToTargetScanWhenConfiguredArtifactIsMissing() throws Exception {
+        Path botWorkingDir = tempDir.resolve("java-bot");
+        Path scannedJar = botWorkingDir.resolve("bot-telegram").resolve("target").resolve("bot-telegram-0.0.1-SNAPSHOT.jar");
+        Files.createDirectories(scannedJar.getParent());
+        Files.writeString(scannedJar, "scanned");
+
+        BotProcessService service = createRuntimeService("auto", Map.of(
+            "bot-telegram", "dist/missing-runtime.jar"
+        ));
+
+        Path resolved = service.resolveExecutableJar(botWorkingDir, "bot-telegram");
+
+        assertThat(resolved).isEqualTo(scannedJar.toAbsolutePath().normalize());
+    }
+
+    @Test
     void resolveLaunchPlanHonorsExplicitMavenMode() throws Exception {
         Path botWorkingDir = tempDir.resolve("java-bot");
         Path jar = botWorkingDir.resolve("bot-telegram").resolve("target").resolve("bot-telegram-0.0.1-SNAPSHOT.jar");
@@ -140,14 +177,19 @@ class BotProcessServiceTest {
     }
 
     private BotProcessService createRuntimeService(String launchMode) {
-        com.example.panel.config.BotProcessProperties properties = new com.example.panel.config.BotProcessProperties();
+        return createRuntimeService(launchMode, Map.of());
+    }
+
+    private BotProcessService createRuntimeService(String launchMode, Map<String, String> executableJars) {
+        BotProcessProperties properties = new BotProcessProperties();
         properties.setLaunchMode(launchMode);
+        properties.setExecutableJars(executableJars);
         return new BotProcessService(
-                mock(SharedConfigService.class),
-                mock(com.example.panel.config.SqliteDataSourceProperties.class),
+                null,
+                null,
                 properties,
-                mock(IntegrationNetworkService.class),
-                mock(com.fasterxml.jackson.databind.ObjectMapper.class)
+                null,
+                new ObjectMapper()
         );
     }
 
@@ -157,9 +199,7 @@ class BotProcessServiceTest {
         private final Duration pollInterval;
 
         private TestableBotProcessService(Duration readinessTimeout, Duration pollInterval) {
-            super(mock(SharedConfigService.class), mock(com.example.panel.config.SqliteDataSourceProperties.class),
-                mock(com.example.panel.config.BotProcessProperties.class),
-                mock(IntegrationNetworkService.class), mock(com.fasterxml.jackson.databind.ObjectMapper.class));
+            super(null, null, new BotProcessProperties(), null, new ObjectMapper());
             this.readinessTimeout = readinessTimeout;
             this.pollInterval = pollInterval;
         }

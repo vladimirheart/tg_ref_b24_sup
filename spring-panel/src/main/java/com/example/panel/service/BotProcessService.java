@@ -588,6 +588,32 @@ public class BotProcessService {
         if (botWorkingDir == null || !StringUtils.hasText(botModule)) {
             return null;
         }
+        Path configuredExecutableJar = resolveConfiguredExecutableJar(botWorkingDir, botModule);
+        if (configuredExecutableJar != null) {
+            return configuredExecutableJar;
+        }
+        return resolveExecutableJarByScan(botWorkingDir, botModule);
+    }
+
+    private Path resolveConfiguredExecutableJar(Path botWorkingDir, String botModule) {
+        String configuredPath = botProcessProperties.resolveExecutableJar(botModule);
+        if (!StringUtils.hasText(configuredPath)) {
+            return null;
+        }
+        Path candidate = Paths.get(configuredPath.trim());
+        if (!candidate.isAbsolute()) {
+            candidate = botWorkingDir.resolve(candidate).normalize();
+        } else {
+            candidate = candidate.toAbsolutePath().normalize();
+        }
+        if (Files.isRegularFile(candidate)) {
+            return candidate;
+        }
+        log.warn("Configured executable jar for module {} not found at {}", botModule, candidate);
+        return null;
+    }
+
+    private Path resolveExecutableJarByScan(Path botWorkingDir, String botModule) {
         Path targetDir = botWorkingDir.resolve(botModule).resolve("target").normalize();
         if (!Files.isDirectory(targetDir)) {
             return null;
