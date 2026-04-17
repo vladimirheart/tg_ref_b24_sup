@@ -103,10 +103,93 @@
                     <input type="hidden" name="_csrf" th:value="${_csrf.token}">
                     <button class="btn btn-outline-primary" type="submit">Проверить подключение</button>
                 </form>
-                <form th:action="@{/knowledge-base/notion/import}" method="post" class="d-inline">
+                <form th:action="@{/knowledge-base/notion/import/preview}" method="post" class="d-inline">
                     <input type="hidden" name="_csrf" th:value="${_csrf.token}">
                     <button class="btn btn-success" type="submit">Импортировать статьи</button>
                 </form>
+            </div>
+
+            <div class="card border-0 bg-body-tertiary mt-4" th:if="${notionImportPreview != null}">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+                        <div>
+                            <h3 class="h6 mb-1">Превью импорта из Notion</h3>
+                            <p class="text-muted mb-0">
+                                Найдено <span class="fw-semibold" th:text="${notionImportPreview.matchedPages}"></span>
+                                статей по текущему фильтру авторов из
+                                <span class="fw-semibold" th:text="${notionImportPreview.totalPages}"></span>
+                                записей источника.
+                            </p>
+                        </div>
+                        <span class="badge text-bg-light border" th:text="'Режим: ' + ${notionImportPreview.mode}"></span>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                        <div class="input-group" style="max-width: 28rem;">
+                            <span class="input-group-text" aria-hidden="true">🔎</span>
+                            <input type="search" class="form-control" placeholder="Поиск по названию, автору или summary" data-action="filter-import-preview">
+                        </div>
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <button class="btn btn-sm btn-outline-secondary" type="button" data-action="select-all-import">Выбрать все</button>
+                            <button class="btn btn-sm btn-outline-secondary" type="button" data-action="clear-all-import">Снять все</button>
+                            <span class="text-muted small">Отмечено: <span data-selected-count th:text="${#lists.size(notionImportPreview.items)}"></span></span>
+                        </div>
+                    </div>
+
+                    <p class="text-muted small mb-3">Здесь показывается, как статья замапится перед загрузкой. Markdown-контент страницы подтянется на следующем шаге, когда вы подтвердите импорт.</p>
+
+                    <form th:action="@{/knowledge-base/notion/import}" method="post">
+                        <input type="hidden" name="_csrf" th:value="${_csrf.token}">
+                        <div class="table-responsive border rounded">
+                            <table class="table table-sm align-middle mb-0" id="notionImportPreviewTable">
+                                <thead class="table-light">
+                                <tr>
+                                    <th class="text-center" style="width: 3rem;">Имп.</th>
+                                    <th>Статья</th>
+                                    <th class="text-nowrap">Автор</th>
+                                    <th class="text-nowrap">Статус Notion</th>
+                                    <th class="text-nowrap">Локальный статус</th>
+                                    <th class="text-nowrap">Действие</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr th:if="${#lists.isEmpty(notionImportPreview.items)}">
+                                    <td colspan="6" class="text-center text-muted py-4">По текущему фильтру подходящих статей не найдено.</td>
+                                </tr>
+                                <tr th:each="item : ${notionImportPreview.items}"
+                                    th:data-preview-text="${(item.title ?: '') + ' ' + (item.author ?: '') + ' ' + (item.summary ?: '')}">
+                                    <td class="text-center">
+                                        <input class="form-check-input" type="checkbox" name="selectedExternalIds" th:value="${item.externalId}" checked data-import-checkbox>
+                                    </td>
+                                    <td>
+                                        <div class="fw-semibold" th:text="${item.title}"></div>
+                                        <div class="text-muted small" th:text="${item.summary ?: 'Без краткого описания'}"></div>
+                                        <div class="small mt-1 d-flex flex-wrap gap-2">
+                                            <span class="badge text-bg-light" th:if="${item.department}" th:text="${item.department}"></span>
+                                            <span class="badge text-bg-light" th:if="${item.articleType}" th:text="${item.articleType}"></span>
+                                            <a class="small text-decoration-none" th:if="${item.externalUrl}" th:href="${item.externalUrl}" target="_blank" rel="noopener noreferrer">Открыть в Notion</a>
+                                        </div>
+                                    </td>
+                                    <td class="text-muted text-nowrap" th:text="${item.author ?: '—'}"></td>
+                                    <td class="text-muted text-nowrap" th:text="${item.notionStatus ?: '—'}"></td>
+                                    <td>
+                                        <span class="badge"
+                                              th:classappend="${item.localStatus} == 'published' ? 'text-bg-success' : (${item.localStatus} == 'draft' ? 'text-bg-warning' : 'text-bg-secondary')"
+                                              th:text="${item.localStatus}"></span>
+                                    </td>
+                                    <td>
+                                        <span class="badge" th:classappend="${item.alreadyImported} ? ' text-bg-primary' : ' text-bg-success'" th:text="${item.actionLabel()}"></span>
+                                    </td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mt-3">
+                            <span class="text-muted small">По умолчанию все найденные статьи отмечены для загрузки.</span>
+                            <button class="btn btn-success" type="submit" th:disabled="${#lists.isEmpty(notionImportPreview.items)}">Импортировать выбранные статьи</button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
@@ -165,6 +248,56 @@
                 row.style.display = match ? '' : 'none';
             });
         });
+    })();
+
+    (function () {
+        const table = document.getElementById('notionImportPreviewTable');
+        if (!table) return;
+
+        const filterInput = document.querySelector('[data-action="filter-import-preview"]');
+        const selectAllButton = document.querySelector('[data-action="select-all-import"]');
+        const clearAllButton = document.querySelector('[data-action="clear-all-import"]');
+        const countTarget = document.querySelector('[data-selected-count]');
+        const checkboxes = Array.from(table.querySelectorAll('[data-import-checkbox]'));
+
+        function updateSelectedCount() {
+            if (!countTarget) return;
+            countTarget.textContent = String(checkboxes.filter((checkbox) => checkbox.checked).length);
+        }
+
+        if (filterInput) {
+            filterInput.addEventListener('input', () => {
+                const value = filterInput.value.trim().toLowerCase();
+                table.querySelectorAll('tbody tr[data-preview-text]').forEach((row) => {
+                    const source = (row.dataset.previewText || '').toLowerCase();
+                    row.style.display = !value || source.includes(value) ? '' : 'none';
+                });
+            });
+        }
+
+        if (selectAllButton) {
+            selectAllButton.addEventListener('click', () => {
+                checkboxes.forEach((checkbox) => {
+                    checkbox.checked = true;
+                });
+                updateSelectedCount();
+            });
+        }
+
+        if (clearAllButton) {
+            clearAllButton.addEventListener('click', () => {
+                checkboxes.forEach((checkbox) => {
+                    checkbox.checked = false;
+                });
+                updateSelectedCount();
+            });
+        }
+
+        checkboxes.forEach((checkbox) => {
+            checkbox.addEventListener('change', updateSelectedCount);
+        });
+
+        updateSelectedCount();
     })();
 </script>
 </body>
