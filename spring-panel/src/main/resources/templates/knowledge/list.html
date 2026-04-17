@@ -47,8 +47,7 @@
                 </div>
                 <div class="col-12 col-xl-7">
                     <label class="form-label">Ссылка или ID базы / data source</label>
-                    <input class="form-control" type="text" name="sourceUrl" th:value="${notionConfig.sourceUrl}"
-                           placeholder="https://www.notion.so/... или UUID">
+                    <input class="form-control" type="text" name="sourceUrl" th:value="${notionConfig.sourceUrl}" placeholder="https://www.notion.so/... или UUID">
                     <div class="form-text">Поддерживается ссылка на базу Notion или прямой UUID. Если передана ссылка базы, сервис сам попытается найти data source.</div>
                 </div>
                 <div class="col-12 col-xl-5">
@@ -156,8 +155,7 @@
                                 <tr th:if="${#lists.isEmpty(notionImportPreview.items)}">
                                     <td colspan="6" class="text-center text-muted py-4">По текущему фильтру подходящих статей не найдено.</td>
                                 </tr>
-                                <tr th:each="item : ${notionImportPreview.items}"
-                                    th:data-preview-text="${(item.title ?: '') + ' ' + (item.author ?: '') + ' ' + (item.summary ?: '')}">
+                                <tr th:each="item : ${notionImportPreview.items}" th:data-preview-text="${(item.title ?: '') + ' ' + (item.author ?: '') + ' ' + (item.summary ?: '')}">
                                     <td class="text-center">
                                         <input class="form-check-input" type="checkbox" name="selectedExternalIds" th:value="${item.externalId}" checked data-import-checkbox>
                                     </td>
@@ -173,9 +171,7 @@
                                     <td class="text-muted text-nowrap" th:text="${item.author ?: '—'}"></td>
                                     <td class="text-muted text-nowrap" th:text="${item.notionStatus ?: '—'}"></td>
                                     <td>
-                                        <span class="badge"
-                                              th:classappend="${item.localStatus} == 'published' ? 'text-bg-success' : (${item.localStatus} == 'draft' ? 'text-bg-warning' : 'text-bg-secondary')"
-                                              th:text="${item.localStatus}"></span>
+                                        <span class="badge" th:classappend="${item.localStatus} == 'published' ? 'text-bg-success' : (${item.localStatus} == 'draft' ? 'text-bg-warning' : 'text-bg-secondary')" th:text="${item.localStatus}"></span>
                                     </td>
                                     <td>
                                         <span class="badge" th:classappend="${item.alreadyImported} ? ' text-bg-primary' : ' text-bg-success'" th:text="${item.actionLabel()}"></span>
@@ -197,7 +193,7 @@
     <div class="card shadow-sm">
         <div class="card-body">
             <div class="input-group mb-3">
-                <span class="input-group-text" aria-hidden="true">🔍</span>
+                <span class="input-group-text" aria-hidden="true">🔎</span>
                 <input type="search" class="form-control" placeholder="Поиск по названию" data-action="filter-articles">
             </div>
             <div class="table-responsive">
