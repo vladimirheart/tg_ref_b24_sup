@@ -23,11 +23,14 @@ public class KnowledgeBaseService {
 
     private final KnowledgeArticleRepository articleRepository;
     private final KnowledgeArticleFileRepository fileRepository;
+    private final KnowledgeMarkdownRenderer markdownRenderer;
 
     public KnowledgeBaseService(KnowledgeArticleRepository articleRepository,
-                                KnowledgeArticleFileRepository fileRepository) {
+                                KnowledgeArticleFileRepository fileRepository,
+                                KnowledgeMarkdownRenderer markdownRenderer) {
         this.articleRepository = articleRepository;
         this.fileRepository = fileRepository;
+        this.markdownRenderer = markdownRenderer;
     }
 
     @Transactional(readOnly = true)
@@ -98,6 +101,7 @@ public class KnowledgeBaseService {
                 article.getDirectionSubtype(),
                 article.getSummary(),
                 article.getContent(),
+                markdownRenderer.render(article.getContent()),
                 article.getCreatedAt(),
                 article.getUpdatedAt(),
                 attachments

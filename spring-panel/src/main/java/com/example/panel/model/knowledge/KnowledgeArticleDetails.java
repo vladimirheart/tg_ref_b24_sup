@@ -13,6 +13,7 @@ public record KnowledgeArticleDetails(Long id,
                                       String directionSubtype,
                                       String summary,
                                       String content,
+                                      String contentHtml,
                                       OffsetDateTime createdAt,
                                       OffsetDateTime updatedAt,
                                       List<KnowledgeAttachmentDto> attachments) {
