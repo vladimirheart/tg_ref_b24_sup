@@ -101,7 +101,13 @@
                                 <div class="fw-semibold" th:text="${file.originalName}"></div>
                                 <small class="text-muted" th:text="${file.mimeType} ?: 'файл'"></small>
                             </div>
-                            <span class="badge text-bg-light" th:text="${file.size} != null ? ${#numbers.formatDecimal(file.size / 1024.0, 0, 'NONE', 1, 'HALF_UP')} + ' КБ' : ''"></span>
+                            <div class="d-flex flex-column align-items-end gap-2">
+                                <span class="badge text-bg-light" th:text="${file.size} != null ? ${#numbers.formatDecimal(file.size / 1024.0, 0, 'NONE', 1, 'HALF_UP')} + ' КБ' : ''"></span>
+                                <a class="btn btn-sm btn-outline-primary"
+                                   th:href="@{/api/attachments/knowledge-base/{fileId}(fileId=${file.storedPath})}">
+                                    Скачать
+                                </a>
+                            </div>
                         </li>
                     </ul>
                     <form th:action="@{/knowledge-base/attachments}" method="post" enctype="multipart/form-data" class="mt-3">

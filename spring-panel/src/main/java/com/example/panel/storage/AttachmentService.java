@@ -68,16 +68,24 @@ public class AttachmentService {
 
     public AttachmentUploadMetadata storeKnowledgeBaseFile(Authentication authentication, MultipartFile file) throws IOException {
         requireAuthority(authentication, "PAGE_KNOWLEDGE_BASE");
-        if (file.isEmpty()) {
-            throw new IllegalArgumentException("File is empty");
-        }
-        String safeName = StringUtils.cleanPath(file.getOriginalFilename() != null ? file.getOriginalFilename() : "file.bin");
-        String storedName = UUID.randomUUID() + "_" + safeName;
-        Path target = knowledgeBaseRoot.resolve(storedName);
-        try (InputStream in = file.getInputStream()) {
-            Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
-        }
-        return new AttachmentUploadMetadata(safeName, storedName, file.getSize(), OffsetDateTime.now());
+        return storeKnowledgeBaseFileInternal(
+            null,
+            file.getOriginalFilename(),
+            file.getContentType(),
+            file.getInputStream(),
+            file.isEmpty()
+        );
+    }
+
+    public AttachmentUploadMetadata storeImportedKnowledgeBaseFile(String preferredStoredName,
+                                                                   String originalName,
+                                                                   String mimeType,
+                                                                   InputStream inputStream) throws IOException {
+        return storeKnowledgeBaseFileInternal(preferredStoredName, originalName, mimeType, inputStream, false);
+    }
+
+    public void deleteKnowledgeBaseFile(String storedName) throws IOException {
+        deleteKnowledgeBaseFileInternal(storedName);
     }
 
     public AttachmentUploadMetadata storeTicketAttachment(Authentication authentication, String ticketId, MultipartFile file) throws IOException {
@@ -92,16 +100,65 @@ public class AttachmentService {
         try (InputStream in = file.getInputStream()) {
             Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
         }
-        return new AttachmentUploadMetadata(safeName, storedName, file.getSize(), OffsetDateTime.now());
+        return new AttachmentUploadMetadata(
+            safeName,
+            storedName,
+            probeContentType(target, file.getContentType()),
+            Files.size(target),
+            OffsetDateTime.now()
+        );
     }
 
     public void deleteKnowledgeBaseFile(Authentication authentication, String storedName) throws IOException {
         requireAuthority(authentication, "PAGE_KNOWLEDGE_BASE");
+        deleteKnowledgeBaseFileInternal(storedName);
+    }
+
+    private AttachmentUploadMetadata storeKnowledgeBaseFileInternal(String preferredStoredName,
+                                                                    String originalName,
+                                                                    String mimeType,
+                                                                    InputStream inputStream,
+                                                                    boolean empty) throws IOException {
+        if (empty || inputStream == null) {
+            throw new IllegalArgumentException("File is empty");
+        }
+        String safeName = StringUtils.cleanPath(StringUtils.hasText(originalName) ? originalName : "file.bin");
+        String storedName = StringUtils.hasText(preferredStoredName)
+            ? StringUtils.cleanPath(preferredStoredName)
+            : UUID.randomUUID() + "_" + safeName;
+        Path target = knowledgeBaseRoot.resolve(storedName).normalize();
+        if (!target.startsWith(knowledgeBaseRoot)) {
+            throw new IllegalArgumentException("Invalid path");
+        }
+        try (InputStream in = inputStream) {
+            Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
+        }
+        return new AttachmentUploadMetadata(
+            safeName,
+            storedName,
+            probeContentType(target, mimeType),
+            Files.size(target),
+            OffsetDateTime.now()
+        );
+    }
+
+    private void deleteKnowledgeBaseFileInternal(String storedName) throws IOException {
+        if (!StringUtils.hasText(storedName)) {
+            return;
+        }
         Path target = knowledgeBaseRoot.resolve(storedName).normalize();
         if (!target.startsWith(knowledgeBaseRoot)) {
             throw new IllegalArgumentException("Invalid path");
         }
         Files.deleteIfExists(target);
+    }
+
+    private String probeContentType(Path target, String fallbackMimeType) throws IOException {
+        String detected = Files.probeContentType(target);
+        if (StringUtils.hasText(detected)) {
+            return detected;
+        }
+        return StringUtils.hasText(fallbackMimeType) ? fallbackMimeType : MediaType.APPLICATION_OCTET_STREAM_VALUE;
     }
 
     public void purgeDraftAttachments(String prefix) throws IOException {
@@ -208,5 +265,9 @@ public class AttachmentService {
         }
     }
 
-    public record AttachmentUploadMetadata(String originalName, String storedName, long size, OffsetDateTime uploadedAt) {}
+    public record AttachmentUploadMetadata(String originalName,
+                                           String storedName,
+                                           String mimeType,
+                                           long size,
+                                           OffsetDateTime uploadedAt) {}
 }

@@ -1947,6 +1947,7 @@ class DialogApiControllerWebMvcTest {
                 .thenReturn(new com.example.panel.storage.AttachmentService.AttachmentUploadMetadata(
                         "fun.gif",
                         "stored-fun.gif",
+                        "image/gif",
                         128L,
                         OffsetDateTime.parse("2026-01-01T10:00:00Z")
                 ));

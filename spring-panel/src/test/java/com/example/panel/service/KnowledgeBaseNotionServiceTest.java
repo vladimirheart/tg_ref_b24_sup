@@ -16,6 +16,8 @@ class KnowledgeBaseNotionServiceTest {
     private final KnowledgeBaseNotionService service = new KnowledgeBaseNotionService(
         null,
         null,
+        null,
+        null,
         new ObjectMapper()
     );
 
@@ -64,6 +66,25 @@ class KnowledgeBaseNotionServiceTest {
         assertEquals(2, selected.size());
         assertEquals("page-2", ((ObjectNode) selected.get(0)).path("id").asText());
         assertEquals("page-3", ((ObjectNode) selected.get(1)).path("id").asText());
+    }
+
+    @Test
+    void extractsOnlyDownloadableUrlsFromMarkdown() {
+        String markdown = """
+            [Инструкция](https://example.com/files/manual.pdf)
+            Обычная ссылка: https://example.com/page
+            Архив: https://example.com/archive/support-kit.zip
+            """;
+
+        List<String> urls = service.extractMarkdownAttachmentUrls(markdown);
+
+        assertEquals(
+            List.of(
+                "https://example.com/files/manual.pdf",
+                "https://example.com/archive/support-kit.zip"
+            ),
+            urls
+        );
     }
 
     private ObjectNode page(String id) {

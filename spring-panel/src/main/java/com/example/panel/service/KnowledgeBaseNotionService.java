@@ -1,10 +1,13 @@
 package com.example.panel.service;
 
 import com.example.panel.entity.KnowledgeArticle;
+import com.example.panel.entity.KnowledgeArticleFile;
 import com.example.panel.model.knowledge.KnowledgeBaseNotionConfigForm;
 import com.example.panel.model.knowledge.KnowledgeNotionImportPreview;
 import com.example.panel.model.knowledge.KnowledgeNotionImportPreviewItem;
+import com.example.panel.repository.KnowledgeArticleFileRepository;
 import com.example.panel.repository.KnowledgeArticleRepository;
+import com.example.panel.storage.AttachmentService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -15,11 +18,14 @@ import org.springframework.util.StringUtils;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -44,8 +50,14 @@ public class KnowledgeBaseNotionService {
     private static final String NOTION_VERSION = "2026-03-11";
     private static final String LEGACY_NOTION_VERSION = "2022-06-28";
     private static final String NOTION_SOURCE = "notion";
+    private static final Pattern DOWNLOAD_URL_PATTERN = Pattern.compile("https?://[^\\s)\\]>\"']+");
     private static final Pattern UUID_PATTERN = Pattern.compile(
         "([0-9a-fA-F]{32}|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})");
+    private static final Set<String> DOWNLOADABLE_EXTENSIONS = Set.of(
+        "7z", "bz2", "csv", "doc", "docm", "docx", "epub", "gz", "json", "log", "md", "odp", "ods", "odt",
+        "pdf", "ppt", "pptm", "pptx", "rar", "rtf", "tar", "tgz", "txt", "xls", "xlsb", "xlsm", "xlsx",
+        "xml", "yaml", "yml", "zip"
+    );
     private static final List<String> DEFAULT_AUTHORS = List.of(
         "Синицын Владимир",
         "Лемешкин Андрей",
@@ -56,14 +68,20 @@ public class KnowledgeBaseNotionService {
 
     private final SharedConfigService sharedConfigService;
     private final KnowledgeArticleRepository knowledgeArticleRepository;
+    private final KnowledgeArticleFileRepository knowledgeArticleFileRepository;
+    private final AttachmentService attachmentService;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
 
     public KnowledgeBaseNotionService(SharedConfigService sharedConfigService,
                                       KnowledgeArticleRepository knowledgeArticleRepository,
+                                      KnowledgeArticleFileRepository knowledgeArticleFileRepository,
+                                      AttachmentService attachmentService,
                                       ObjectMapper objectMapper) {
         this.sharedConfigService = sharedConfigService;
         this.knowledgeArticleRepository = knowledgeArticleRepository;
+        this.knowledgeArticleFileRepository = knowledgeArticleFileRepository;
+        this.attachmentService = attachmentService;
         this.objectMapper = objectMapper;
         this.httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(15))
@@ -168,7 +186,8 @@ public class KnowledgeBaseNotionService {
             entity.setExternalId(article.externalId());
             entity.setExternalUrl(trim(article.externalUrl()));
             entity.setExternalUpdatedAt(article.externalUpdatedAt());
-            knowledgeArticleRepository.save(entity);
+            entity = knowledgeArticleRepository.save(entity);
+            syncImportedAttachments(config.token(), entity, page, article.content());
             if (isNew) {
                 created++;
             } else {
@@ -504,6 +523,341 @@ public class KnowledgeBaseNotionService {
             log.warn("Notion page {} returned empty markdown payload", pageId);
         }
         return markdown;
+    }
+
+    private void syncImportedAttachments(String token, KnowledgeArticle article, JsonNode page, String markdown) {
+        if (article == null || article.getId() == null || !StringUtils.hasText(article.getExternalId())
+            || knowledgeArticleFileRepository == null || attachmentService == null) {
+            return;
+        }
+        List<NotionAttachmentRef> remoteAttachments = collectPageAttachments(token, page, markdown);
+        String prefix = buildNotionAttachmentPrefix(article.getExternalId());
+        Map<String, KnowledgeArticleFile> existingImportedFiles = new LinkedHashMap<>();
+        for (KnowledgeArticleFile file : knowledgeArticleFileRepository.findByArticleId(article.getId())) {
+            if (StringUtils.hasText(file.getStoredPath()) && file.getStoredPath().startsWith(prefix)) {
+                existingImportedFiles.put(file.getStoredPath(), file);
+            }
+        }
+        for (NotionAttachmentRef attachment : remoteAttachments) {
+            try {
+                StoredAttachment storedAttachment = downloadAndStoreAttachment(article, attachment);
+                if (storedAttachment == null) {
+                    continue;
+                }
+                KnowledgeArticleFile file = existingImportedFiles.remove(storedAttachment.storedName());
+                if (file == null) {
+                    file = new KnowledgeArticleFile();
+                }
+                file.setArticle(article);
+                file.setDraftToken(null);
+                file.setStoredPath(storedAttachment.storedName());
+                file.setOriginalName(storedAttachment.originalName());
+                file.setMimeType(storedAttachment.mimeType());
+                file.setFileSize(storedAttachment.size());
+                file.setUploadedAt(storedAttachment.uploadedAt());
+                knowledgeArticleFileRepository.save(file);
+            } catch (Exception ex) {
+                log.warn("Failed to import Notion attachment {} for article {}: {}", attachment.url(), article.getExternalId(), ex.getMessage());
+            }
+        }
+        for (KnowledgeArticleFile staleFile : existingImportedFiles.values()) {
+            try {
+                attachmentService.deleteKnowledgeBaseFile(staleFile.getStoredPath());
+            } catch (IOException ex) {
+                log.warn("Failed to delete stale Notion attachment {}: {}", staleFile.getStoredPath(), ex.getMessage());
+            }
+            knowledgeArticleFileRepository.delete(staleFile);
+        }
+    }
+
+    private List<NotionAttachmentRef> collectPageAttachments(String token, JsonNode page, String markdown) {
+        Map<String, NotionAttachmentRef> attachments = new LinkedHashMap<>();
+        collectPropertyAttachments(page.path("properties"), attachments);
+        String pageId = page.path("id").asText(null);
+        if (StringUtils.hasText(pageId)) {
+            collectBlockAttachments(token, pageId, new LinkedHashSet<>(), attachments);
+        }
+        for (String url : extractMarkdownAttachmentUrls(markdown)) {
+            attachments.putIfAbsent(url, new NotionAttachmentRef(url, extractFileNameFromUrl(url), null));
+        }
+        return new ArrayList<>(attachments.values());
+    }
+
+    List<String> extractMarkdownAttachmentUrls(String markdown) {
+        if (!StringUtils.hasText(markdown)) {
+            return List.of();
+        }
+        List<String> urls = new ArrayList<>();
+        Matcher matcher = DOWNLOAD_URL_PATTERN.matcher(markdown);
+        while (matcher.find()) {
+            String url = trimTrailingPunctuation(matcher.group());
+            if (isLikelyDownloadableUrl(url)) {
+                urls.add(url);
+            }
+        }
+        return urls.stream().distinct().toList();
+    }
+
+    private void collectPropertyAttachments(JsonNode properties, Map<String, NotionAttachmentRef> attachments) {
+        if (properties == null || properties.isMissingNode()) {
+            return;
+        }
+        properties.forEach(property -> {
+            if ("files".equals(property.path("type").asText())) {
+                property.path("files").forEach(file -> collectAttachmentFromFileObject(file, attachments, file.path("name").asText(null), null));
+            }
+        });
+    }
+
+    private void collectBlockAttachments(String token,
+                                         String blockId,
+                                         Set<String> visitedBlockIds,
+                                         Map<String, NotionAttachmentRef> attachments) {
+        if (!StringUtils.hasText(blockId) || !visitedBlockIds.add(blockId)) {
+            return;
+        }
+        ApiResult result = listBlockChildren(token, blockId);
+        if (!result.success()) {
+            log.warn("Notion block children request failed for {}: {}", blockId, result.message());
+            return;
+        }
+        for (JsonNode block : collectResults(result.body())) {
+            collectAttachmentFromBlock(block, attachments);
+            if (block.path("has_children").asBoolean(false)) {
+                collectBlockAttachments(token, block.path("id").asText(null), visitedBlockIds, attachments);
+            }
+        }
+    }
+
+    private ApiResult listBlockChildren(String token, String blockId) {
+        return executePagedGet(
+            token,
+            NOTION_VERSION,
+            "https://api.notion.com/v1/blocks/" + blockId + "/children?page_size=100",
+            "block_children"
+        );
+    }
+
+    private ApiResult executePagedGet(String token, String notionVersion, String baseUrl, String mode) {
+        JsonNode root = null;
+        String nextCursor = null;
+        try {
+            do {
+                String url = baseUrl;
+                if (StringUtils.hasText(nextCursor)) {
+                    url += (baseUrl.contains("?") ? "&" : "?") + "start_cursor=" + URLEncoder.encode(nextCursor, StandardCharsets.UTF_8);
+                }
+                HttpRequest request = HttpRequest.newBuilder(URI.create(url))
+                    .header("Authorization", "Bearer " + token)
+                    .header("Notion-Version", notionVersion)
+                    .timeout(Duration.ofSeconds(30))
+                    .GET()
+                    .build();
+                HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+                JsonNode body = readJson(response.body());
+                if (response.statusCode() >= 400) {
+                    return new ApiResult(false, mode, body, extractApiError(body, "Не удалось получить данные из Notion."));
+                }
+                if (root == null) {
+                    root = body.deepCopy();
+                } else {
+                    appendResults(root, body.path("results"));
+                }
+                nextCursor = body.path("has_more").asBoolean(false) ? body.path("next_cursor").asText(null) : null;
+            } while (StringUtils.hasText(nextCursor));
+        } catch (IOException ex) {
+            throw new IllegalStateException("Не удалось прочитать ответ Notion: " + ex.getMessage(), ex);
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Запрос к Notion был прерван.", ex);
+        }
+        return new ApiResult(true, mode, root != null ? root : objectMapper.createObjectNode(), null);
+    }
+
+    private void collectAttachmentFromBlock(JsonNode block, Map<String, NotionAttachmentRef> attachments) {
+        if (block == null || block.isMissingNode()) {
+            return;
+        }
+        String type = block.path("type").asText("");
+        JsonNode payload = block.path(type);
+        switch (type) {
+            case "file", "pdf", "audio", "video" -> collectAttachmentFromFileObject(payload, attachments, readRichText(payload.path("caption")), null);
+            default -> {
+            }
+        }
+        collectRichTextAttachmentUrls(payload.path("rich_text"), attachments);
+        collectRichTextAttachmentUrls(payload.path("caption"), attachments);
+        if ("table_row".equals(type)) {
+            payload.path("cells").forEach(cell -> collectRichTextAttachmentUrls(cell, attachments));
+        }
+    }
+
+    private void collectRichTextAttachmentUrls(JsonNode richText, Map<String, NotionAttachmentRef> attachments) {
+        if (richText == null || !richText.isArray()) {
+            return;
+        }
+        for (JsonNode item : richText) {
+            String url = firstNonBlank(item.path("href").asText(null), item.path("text").path("link").path("url").asText(null));
+            if (isLikelyDownloadableUrl(url)) {
+                attachments.putIfAbsent(url, new NotionAttachmentRef(url, extractFileNameFromUrl(url), null));
+            }
+        }
+    }
+
+    private void collectAttachmentFromFileObject(JsonNode fileObject,
+                                                 Map<String, NotionAttachmentRef> attachments,
+                                                 String fallbackName,
+                                                 String fallbackMimeType) {
+        if (fileObject == null || fileObject.isMissingNode()) {
+            return;
+        }
+        String type = fileObject.path("type").asText("");
+        String url = switch (type) {
+            case "file" -> fileObject.path("file").path("url").asText(null);
+            case "external" -> fileObject.path("external").path("url").asText(null);
+            default -> firstNonBlank(fileObject.path("url").asText(null), fileObject.path("href").asText(null));
+        };
+        if (!StringUtils.hasText(url)) {
+            return;
+        }
+        String originalName = firstNonBlank(fileObject.path("name").asText(null), fallbackName, extractFileNameFromUrl(url));
+        String mimeType = firstNonBlank(fileObject.path("mime_type").asText(null), fallbackMimeType);
+        attachments.putIfAbsent(url, new NotionAttachmentRef(url, originalName, mimeType));
+    }
+
+    private StoredAttachment downloadAndStoreAttachment(KnowledgeArticle article, NotionAttachmentRef attachment)
+        throws IOException, InterruptedException {
+        if (!StringUtils.hasText(attachment.url())) {
+            return null;
+        }
+        HttpRequest request = HttpRequest.newBuilder(URI.create(attachment.url()))
+            .timeout(Duration.ofSeconds(60))
+            .GET()
+            .build();
+        HttpResponse<java.io.InputStream> response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
+        if (response.statusCode() >= 400) {
+            log.warn("Notion attachment download failed for {} with status {}", attachment.url(), response.statusCode());
+            return null;
+        }
+        String originalName = resolveAttachmentFileName(attachment, response);
+        String storedName = buildStoredAttachmentName(article.getExternalId(), attachment.url(), originalName);
+        String mimeType = firstNonBlank(
+            response.headers().firstValue("Content-Type").orElse(null),
+            attachment.mimeType(),
+            "application/octet-stream"
+        );
+        try (var body = response.body()) {
+            var metadata = attachmentService.storeImportedKnowledgeBaseFile(storedName, originalName, mimeType, body);
+            return new StoredAttachment(
+                metadata.originalName(),
+                metadata.storedName(),
+                metadata.mimeType(),
+                metadata.size(),
+                metadata.uploadedAt()
+            );
+        }
+    }
+
+    private String resolveAttachmentFileName(NotionAttachmentRef attachment, HttpResponse<?> response) {
+        return firstNonBlank(
+            trim(attachment.originalName()),
+            extractFileNameFromContentDisposition(response.headers().firstValue("Content-Disposition").orElse(null)),
+            extractFileNameFromUrl(attachment.url()),
+            "attachment.bin"
+        );
+    }
+
+    private String buildStoredAttachmentName(String externalId, String url, String originalName) {
+        return buildNotionAttachmentPrefix(externalId) + shortHash(url) + "_" + sanitizeStoredFileName(originalName);
+    }
+
+    private String buildNotionAttachmentPrefix(String externalId) {
+        return "notion_" + (externalId != null ? externalId.replaceAll("[^A-Za-z0-9]", "") : "page") + "_";
+    }
+
+    private String sanitizeStoredFileName(String originalName) {
+        String cleaned = StringUtils.cleanPath(StringUtils.hasText(originalName) ? originalName : "attachment.bin");
+        cleaned = cleaned.replace('\\', '_').replace('/', '_').replaceAll("[^A-Za-z0-9._-]", "_");
+        return StringUtils.hasText(cleaned) ? cleaned : "attachment.bin";
+    }
+
+    private String shortHash(String raw) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] bytes = digest.digest((raw != null ? raw : "").getBytes(StandardCharsets.UTF_8));
+            StringBuilder builder = new StringBuilder();
+            for (int i = 0; i < Math.min(bytes.length, 6); i++) {
+                builder.append(String.format("%02x", bytes[i]));
+            }
+            return builder.toString();
+        } catch (NoSuchAlgorithmException ex) {
+            return Integer.toHexString((raw != null ? raw : "").hashCode());
+        }
+    }
+
+    private String extractFileNameFromUrl(String url) {
+        if (!StringUtils.hasText(url)) {
+            return null;
+        }
+        try {
+            URI uri = URI.create(url);
+            String path = uri.getPath();
+            if (!StringUtils.hasText(path)) {
+                return null;
+            }
+            String candidate = path.substring(path.lastIndexOf('/') + 1);
+            if (!StringUtils.hasText(candidate)) {
+                return null;
+            }
+            return URLDecoder.decode(candidate, StandardCharsets.UTF_8);
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
+    }
+
+    private String extractFileNameFromContentDisposition(String header) {
+        if (!StringUtils.hasText(header)) {
+            return null;
+        }
+        for (String part : header.split(";")) {
+            String trimmed = trim(part);
+            if (!StringUtils.hasText(trimmed)) {
+                continue;
+            }
+            if (trimmed.startsWith("filename*=")) {
+                String encoded = trimmed.substring("filename*=".length()).replaceFirst("^[^']*''", "");
+                return URLDecoder.decode(encoded.replace("\"", ""), StandardCharsets.UTF_8);
+            }
+            if (trimmed.startsWith("filename=")) {
+                return trimmed.substring("filename=".length()).replace("\"", "");
+            }
+        }
+        return null;
+    }
+
+    private String trimTrailingPunctuation(String url) {
+        String trimmed = trim(url);
+        while (StringUtils.hasText(trimmed) && ".,;)]".contains(trimmed.substring(trimmed.length() - 1))) {
+            trimmed = trimmed.substring(0, trimmed.length() - 1);
+        }
+        return trimmed;
+    }
+
+    private boolean isLikelyDownloadableUrl(String url) {
+        if (!StringUtils.hasText(url)) {
+            return false;
+        }
+        try {
+            URI uri = URI.create(url);
+            String path = uri.getPath();
+            if (!StringUtils.hasText(path) || !path.contains(".")) {
+                return false;
+            }
+            String extension = path.substring(path.lastIndexOf('.') + 1).toLowerCase(Locale.ROOT);
+            return DOWNLOADABLE_EXTENSIONS.contains(extension);
+        } catch (IllegalArgumentException ex) {
+            return false;
+        }
     }
 
     private JsonNode findProperty(JsonNode properties, String propertyName, String fallbackType) {
@@ -982,6 +1336,16 @@ public class KnowledgeBaseNotionService {
                                   String externalId,
                                   String externalUrl,
                                   OffsetDateTime externalUpdatedAt) {
+    }
+
+    private record NotionAttachmentRef(String url, String originalName, String mimeType) {
+    }
+
+    private record StoredAttachment(String originalName,
+                                    String storedName,
+                                    String mimeType,
+                                    long size,
+                                    OffsetDateTime uploadedAt) {
     }
 
     private record ApiResult(boolean success, String mode, JsonNode body, String message) {
