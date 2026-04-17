@@ -5731,3 +5731,163 @@ org.springframework.web.servlet.resource.NoResourceFoundException: No static res
 2026-04-17 17:17:07.149+03:00 INFO  [SpringApplicationShutdownHook] c.e.panel.service.BotProcessService - Stopping all bot processes due to panel shutdown
 2026-04-17 17:17:07.150+03:00 INFO  [SpringApplicationShutdownHook] c.e.panel.service.BotProcessService - Stopping bot process for channel 2 via shutdown
 2026-04-17 17:17:07.186+03:00 INFO  [SpringApplicationShutdownHook] o.s.o.j.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-04-17 17:17:32.946+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
+2026-04-17 17:17:32.987+03:00 INFO  [main] c.e.p.config.EnvDefaultsInitializer - Applied default SQLite paths for missing APP_DB_* variables: {APP_DB_USERS=C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\users.db, APP_DB_KNOWLEDGE=C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\knowledge_base.db, APP_DB_CLIENTS=C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\clients.db, APP_DB_OBJECT_PASSPORTS=C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\object_passports.db, APP_DB_OBJECTS=C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\objects.db, APP_DB_SETTINGS=C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\settings.db, APP_DB_BOT=C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\bot_database.db, APP_DB_TICKETS=C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\tickets.db}
+2026-04-17 17:17:32.990+03:00 WARN  [main] c.e.p.config.EnvDefaultsInitializer - Environment variable APP_DB_OBJECT_PASSPORTS points to missing file C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\object_passports.db, falling back to defaults.
+2026-04-17 17:17:32.991+03:00 INFO  [main] c.e.p.config.EnvDefaultsInitializer - Applied default SQLite paths for missing APP_DB_* variables: {APP_DB_OBJECT_PASSPORTS=C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\object_passports.db}
+2026-04-17 17:17:32.993+03:00 INFO  [main] com.example.panel.PanelApplication - Starting PanelApplication using Java 25.0.2 with PID 6736 (C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\target\classes started by SinicinVV in C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel)
+2026-04-17 17:17:32.994+03:00 INFO  [main] com.example.panel.PanelApplication - No active profile set, falling back to 1 default profile: "default"
+2026-04-17 17:17:33.813+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-04-17 17:17:33.945+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 124 ms. Found 34 JPA repository interfaces.
+2026-04-17 17:17:34.486+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 8081 (http)
+2026-04-17 17:17:34.496+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Initializing ProtocolHandler ["http-nio-8081"]
+2026-04-17 17:17:34.498+03:00 INFO  [main] o.a.catalina.core.StandardService - Starting service [Tomcat]
+2026-04-17 17:17:34.499+03:00 INFO  [main] o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.20]
+2026-04-17 17:17:34.551+03:00 INFO  [main] o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+2026-04-17 17:17:34.552+03:00 INFO  [main] o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 1520 ms
+2026-04-17 17:17:34.604+03:00 INFO  [main] c.e.p.c.SqliteDataSourceConfiguration - Using SQLite database at C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\bot_database.db
+2026-04-17 17:17:34.836+03:00 INFO  [main] org.flywaydb.core.FlywayExecutor - Database: jdbc:sqlite:C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\bot_database.db (SQLite 3.43)
+2026-04-17 17:17:34.882+03:00 INFO  [main] o.f.core.internal.command.DbValidate - Successfully validated 36 migrations (execution time 00:00.035s)
+2026-04-17 17:17:34.888+03:00 INFO  [main] o.f.core.internal.command.DbMigrate - Current version of schema "main": 33
+2026-04-17 17:17:34.888+03:00 WARN  [main] o.f.core.internal.command.DbMigrate - outOfOrder mode is active. Migration of schema "main" may not be reproducible.
+2026-04-17 17:17:34.893+03:00 INFO  [main] o.f.core.internal.command.DbMigrate - Schema "main" is up to date. No migration necessary.
+2026-04-17 17:17:35.014+03:00 INFO  [main] o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-04-17 17:17:35.071+03:00 INFO  [main] org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
+2026-04-17 17:17:35.106+03:00 INFO  [main] o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
+2026-04-17 17:17:35.308+03:00 INFO  [main] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-04-17 17:17:36.392+03:00 INFO  [main] o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-04-17 17:17:36.395+03:00 INFO  [main] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-04-17 17:17:36.476+03:00 INFO  [main] c.e.p.service.DatabaseHealthService - Spring panel is using SQLite database at: C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\bot_database.db (tickets) and C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\users.db (users)
+2026-04-17 17:17:36.551+03:00 INFO  [main] c.e.p.service.SharedConfigService - Using shared config directory at C:\Users\SinicinVV\git_h\tg_ref_b24_sup\config\shared
+2026-04-17 17:17:37.295+03:00 INFO  [main] o.s.d.j.r.query.QueryEnhancerFactory - Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-04-17 17:17:38.034+03:00 INFO  [main] c.e.p.s.OperatorNotificationWatcher - Operator notification watcher initialized (chatHistoryId=139, feedbackId=9)
+2026-04-17 17:17:38.041+03:00 INFO  [main] c.e.p.c.BotSqliteDataSourceConfiguration - Using BOT SQLite database at C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\bot_database.db
+2026-04-17 17:17:38.215+03:00 INFO  [main] c.e.p.c.UsersSqliteDataSourceConfiguration - Using USERS SQLite database at C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\users.db
+2026-04-17 17:17:38.241+03:00 WARN  [main] o.s.b.a.o.j.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-04-17 17:17:38.539+03:00 INFO  [main] o.s.s.web.DefaultSecurityFilterChain - Will secure any request with [org.springframework.security.web.session.DisableEncodeUrlFilter@15dcfe4e, org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@681c7f46, org.springframework.security.web.context.SecurityContextHolderFilter@60d5f350, org.springframework.security.web.header.HeaderWriterFilter@bdc5584, org.springframework.web.filter.CorsFilter@4c7e7855, org.springframework.security.web.csrf.CsrfFilter@3b866e7d, com.example.panel.security.SecurityHeadersFilter@73bb1337, org.springframework.security.web.authentication.logout.LogoutFilter@12899f13, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter@2120bccc, org.springframework.security.web.session.ConcurrentSessionFilter@19cf111c, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@358ebd61, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@75e355e, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@259c3ddf, com.example.panel.security.UserLastActivityFilter@2bdab835, org.springframework.security.web.session.SessionManagementFilter@4e6b3894, org.springframework.security.web.access.ExceptionTranslationFilter@18092b96, org.springframework.security.web.access.intercept.AuthorizationFilter@3389c69d]
+2026-04-17 17:17:38.901+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Starting ProtocolHandler ["http-nio-8081"]
+2026-04-17 17:17:38.913+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 8081 (http) with context path ''
+2026-04-17 17:17:38.922+03:00 INFO  [main] com.example.panel.PanelApplication - Started PanelApplication in 6.394 seconds (process running for 6.685)
+2026-04-17 17:17:38.944+03:00 INFO  [main] c.e.p.s.AdditionalServicesHealthService - Bot database directory is available: C:\Users\SinicinVV\git_h\tg_ref_b24_sup\bot_databases
+2026-04-17 17:17:38.945+03:00 INFO  [main] c.e.p.s.AdditionalServicesHealthService - Bot runtime is available at C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot
+2026-04-17 17:17:38.958+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load responsible profiles for dialog list: [SQLITE_ERROR] SQL error or missing database (no such column: full_name)
+2026-04-17 17:17:39.057+03:00 INFO  [main] c.e.p.s.AdditionalServicesHealthService - Telegram bot process status: stopped
+2026-04-17 17:17:39.059+03:00 INFO  [main] c.e.p.s.AdditionalServicesHealthService - VK bot process status: stopped
+2026-04-17 17:17:39.063+03:00 INFO  [main] c.e.p.s.DatabaseBootstrapService - Clients database ensured at C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\clients.db
+2026-04-17 17:17:39.066+03:00 INFO  [main] c.e.p.s.DatabaseBootstrapService - Knowledge base database ensured at C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\knowledge_base.db
+2026-04-17 17:17:39.069+03:00 INFO  [main] c.e.p.s.DatabaseBootstrapService - Objects database ensured at C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\objects.db
+2026-04-17 17:17:39.222+03:00 INFO  [main] c.e.p.service.BotDatabaseRegistry - Bot database ready for channel 1 at C:\Users\SinicinVV\git_h\tg_ref_b24_sup\bot_databases\bot-1.db
+2026-04-17 17:17:39.234+03:00 INFO  [main] c.e.p.service.BotDatabaseRegistry - Bot database ready for channel 2 at C:\Users\SinicinVV\git_h\tg_ref_b24_sup\bot_databases\bot-2.db
+2026-04-17 17:17:39.243+03:00 WARN  [main] c.e.panel.service.BotProcessService - PID file not found for channel 1
+2026-04-17 17:17:39.244+03:00 INFO  [main] c.e.panel.service.BotProcessService - Stopped bot process for channel 1
+2026-04-17 17:18:00.760+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--80aag1ciek.xn--80adjkr6adm9b.xn--p1aia1a:443 (xn--80aag1ciek.xn--80adjkr6adm9b.xn--p1aia1a)
+2026-04-17 17:18:24.471+03:00 WARN  [main] c.e.panel.service.BotProcessService - Bot process for channel 1 did not confirm readiness in time: Не удалось подтвердить готовность бота после старта. Последняя строка лога: 2026-04-17 17:17:48.168+03:00 INFO  [main] o.a.http.impl.execchain.RetryExec - Retrying request to {s}->https://api.telegram.org:443
+2026-04-17 17:18:24.472+03:00 INFO  [main] c.e.panel.service.BotProcessService - Stopping bot process for channel 1 via startup-readiness-failure
+2026-04-17 17:18:24.532+03:00 WARN  [main] c.e.p.service.BotAutoStartService - Failed to auto-start bot for channel 1: Не удалось подтвердить готовность бота после старта. Последняя строка лога: 2026-04-17 17:17:48.168+03:00 INFO  [main] o.a.http.impl.execchain.RetryExec - Retrying request to {s}->https://api.telegram.org:443
+2026-04-17 17:18:24.533+03:00 WARN  [main] c.e.panel.service.BotProcessService - PID file not found for channel 2
+2026-04-17 17:18:24.533+03:00 INFO  [main] c.e.panel.service.BotProcessService - Stopped bot process for channel 2
+2026-04-17 17:18:32.107+03:00 INFO  [main] c.e.panel.service.BotProcessService - Started bot process for channel 2 at 2026-04-17T17:18:24.554478800+03:00 via maven:spring-boot-run:bot-max
+2026-04-17 17:18:32.108+03:00 INFO  [main] c.e.p.service.BotAutoStartService - Auto-started bot for channel 2 (мах_тест)
+2026-04-17 17:18:32.108+03:00 INFO  [main] c.e.p.service.BotAutoStartService - Bot auto-start completed. Started 1 active bot(s).
+2026-04-17 17:19:05.808+03:00 INFO  [http-nio-8081-exec-3] o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-04-17 17:19:05.808+03:00 INFO  [http-nio-8081-exec-3] o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
+2026-04-17 17:19:05.810+03:00 INFO  [http-nio-8081-exec-3] o.s.web.servlet.DispatcherServlet - Completed initialization in 2 ms
+2026-04-17 17:19:06.074+03:00 WARN  [http-nio-8081-exec-3] c.e.panel.service.DialogService - Unable to load responsible profiles for dialog list: [SQLITE_ERROR] SQL error or missing database (no such column: full_name)
+2026-04-17 17:19:06.076+03:00 INFO  [http-nio-8081-exec-3] c.e.p.controller.DialogsController - Loaded dialogs page for user admin
+2026-04-17 17:19:07.059+03:00 INFO  [http-nio-8081-exec-10] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 17:19:07.077+03:00 INFO  [http-nio-8081-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:19:09.518+03:00 INFO  [http-nio-8081-exec-5] c.e.p.c.KnowledgeBaseController - Knowledge base list requested by admin: 0 articles, canCreate=true
+2026-04-17 17:19:10.198+03:00 INFO  [http-nio-8081-exec-5] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 17:19:10.201+03:00 INFO  [http-nio-8081-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:19:25.549+03:00 INFO  [http-nio-8081-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:19:38.992+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load responsible profiles for dialog list: [SQLITE_ERROR] SQL error or missing database (no such column: full_name)
+2026-04-17 17:19:40.595+03:00 INFO  [http-nio-8081-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:19:40.611+03:00 INFO  [http-nio-8081-exec-7] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 17:19:41.686+03:00 INFO  [http-nio-8081-exec-3] c.e.p.c.KnowledgeBaseController - Knowledge base list requested by admin: 0 articles, canCreate=true
+2026-04-17 17:19:41.966+03:00 INFO  [http-nio-8081-exec-3] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 17:19:42.018+03:00 INFO  [http-nio-8081-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:19:57.457+03:00 INFO  [http-nio-8081-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:20:13.825+03:00 INFO  [http-nio-8081-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:20:13.833+03:00 INFO  [http-nio-8081-exec-2] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 17:20:29.320+03:00 INFO  [http-nio-8081-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:20:38.829+03:00 INFO  [http-nio-8081-exec-4] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 17:20:38.836+03:00 INFO  [http-nio-8081-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:20:55.314+03:00 INFO  [http-nio-8081-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:21:10.273+03:00 INFO  [http-nio-8081-exec-7] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 17:21:10.326+03:00 INFO  [http-nio-8081-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:21:25.286+03:00 INFO  [http-nio-8081-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:21:39.024+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load responsible profiles for dialog list: [SQLITE_ERROR] SQL error or missing database (no such column: full_name)
+2026-04-17 17:21:41.165+03:00 INFO  [http-nio-8081-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:21:41.166+03:00 INFO  [http-nio-8081-exec-7] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 17:21:57.995+03:00 INFO  [http-nio-8081-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:22:11.593+03:00 INFO  [http-nio-8081-exec-3] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 17:22:13.198+03:00 INFO  [http-nio-8081-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:22:28.612+03:00 INFO  [http-nio-8081-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:22:35.217+03:00 INFO  [http-nio-8081-exec-4] c.e.p.c.KnowledgeBaseController - Knowledge base list requested by admin: 1 articles, canCreate=true
+2026-04-17 17:22:35.495+03:00 INFO  [http-nio-8081-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:22:35.498+03:00 INFO  [http-nio-8081-exec-1] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 17:22:46.514+03:00 INFO  [http-nio-8081-exec-10] c.e.p.c.KnowledgeBaseController - Editing knowledge article 1 requested by admin
+2026-04-17 17:22:46.855+03:00 INFO  [http-nio-8081-exec-10] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 17:22:46.882+03:00 INFO  [http-nio-8081-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:23:02.065+03:00 INFO  [http-nio-8081-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:23:10.001+03:00 INFO  [http-nio-8081-exec-6] c.e.p.c.KnowledgeBaseController - Editing knowledge article 1 requested by admin
+2026-04-17 17:23:10.351+03:00 INFO  [http-nio-8081-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:23:10.359+03:00 INFO  [http-nio-8081-exec-6] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 17:23:25.397+03:00 INFO  [http-nio-8081-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:23:39.085+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load responsible profiles for dialog list: [SQLITE_ERROR] SQL error or missing database (no such column: full_name)
+2026-04-17 17:23:40.483+03:00 INFO  [http-nio-8081-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:23:40.537+03:00 INFO  [http-nio-8081-exec-3] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 17:23:57.353+03:00 INFO  [http-nio-8081-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:24:11.155+03:00 INFO  [http-nio-8081-exec-4] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 17:24:12.347+03:00 INFO  [http-nio-8081-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:24:29.471+03:00 INFO  [http-nio-8081-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:24:41.279+03:00 INFO  [http-nio-8081-exec-5] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 17:24:44.632+03:00 INFO  [http-nio-8081-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:25:01.495+03:00 INFO  [http-nio-8081-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:25:12.474+03:00 INFO  [http-nio-8081-exec-3] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 17:25:17.006+03:00 INFO  [http-nio-8081-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:25:32.421+03:00 INFO  [http-nio-8081-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:25:39.114+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load responsible profiles for dialog list: [SQLITE_ERROR] SQL error or missing database (no such column: full_name)
+2026-04-17 17:25:43.744+03:00 INFO  [http-nio-8081-exec-2] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 17:25:47.934+03:00 INFO  [http-nio-8081-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:26:04.802+03:00 INFO  [http-nio-8081-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:26:14.895+03:00 INFO  [http-nio-8081-exec-8] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 17:26:20.398+03:00 INFO  [http-nio-8081-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:26:37.282+03:00 INFO  [http-nio-8081-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:26:45.869+03:00 INFO  [http-nio-8081-exec-6] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 17:26:53.094+03:00 INFO  [http-nio-8081-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:27:09.982+03:00 INFO  [http-nio-8081-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:27:16.584+03:00 INFO  [http-nio-8081-exec-5] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 17:27:26.043+03:00 INFO  [http-nio-8081-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:27:39.150+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load responsible profiles for dialog list: [SQLITE_ERROR] SQL error or missing database (no such column: full_name)
+2026-04-17 17:27:42.939+03:00 INFO  [http-nio-8081-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:27:47.025+03:00 INFO  [http-nio-8081-exec-3] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 17:27:59.330+03:00 INFO  [http-nio-8081-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:28:16.177+03:00 INFO  [http-nio-8081-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:28:17.382+03:00 INFO  [http-nio-8081-exec-10] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 17:28:32.945+03:00 INFO  [http-nio-8081-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:28:49.129+03:00 INFO  [http-nio-8081-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:28:49.152+03:00 INFO  [http-nio-8081-exec-8] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 17:29:05.991+03:00 INFO  [http-nio-8081-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:29:20.809+03:00 INFO  [http-nio-8081-exec-4] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 17:29:21.903+03:00 INFO  [http-nio-8081-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:29:38.768+03:00 INFO  [http-nio-8081-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:29:39.182+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load responsible profiles for dialog list: [SQLITE_ERROR] SQL error or missing database (no such column: full_name)
+2026-04-17 17:29:52.307+03:00 INFO  [http-nio-8081-exec-9] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 17:29:53.986+03:00 INFO  [http-nio-8081-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:30:10.858+03:00 INFO  [http-nio-8081-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:30:23.714+03:00 INFO  [http-nio-8081-exec-5] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 17:30:26.119+03:00 INFO  [http-nio-8081-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:30:43.028+03:00 INFO  [http-nio-8081-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:30:55.196+03:00 INFO  [http-nio-8081-exec-6] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 17:30:58.391+03:00 INFO  [http-nio-8081-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:31:15.259+03:00 INFO  [http-nio-8081-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:31:26.301+03:00 INFO  [http-nio-8081-exec-7] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 17:31:30.766+03:00 INFO  [http-nio-8081-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:31:39.211+03:00 WARN  [scheduling-1] c.e.panel.service.DialogService - Unable to load responsible profiles for dialog list: [SQLITE_ERROR] SQL error or missing database (no such column: full_name)
+2026-04-17 17:31:47.664+03:00 INFO  [http-nio-8081-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:31:57.436+03:00 INFO  [http-nio-8081-exec-5] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-17 17:32:03.325+03:00 INFO  [http-nio-8081-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-17 17:32:05.542+03:00 INFO  [SpringApplicationShutdownHook] c.e.panel.service.BotProcessService - Stopping all bot processes due to panel shutdown
+2026-04-17 17:32:05.543+03:00 INFO  [SpringApplicationShutdownHook] c.e.panel.service.BotProcessService - Stopping bot process for channel 2 via shutdown
+2026-04-17 17:32:05.576+03:00 INFO  [SpringApplicationShutdownHook] o.s.o.j.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
