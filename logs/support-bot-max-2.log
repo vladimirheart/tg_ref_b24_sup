@@ -83,3 +83,1127 @@
 2026-04-17 06:46:30.032+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
 2026-04-17 06:46:30.032+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
 2026-04-17 06:46:30.032+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 06:55:19.250+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
+2026-04-17 06:55:19.308+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - Starting MaxBotApplication using Java 25.0.2 with PID 22456 (C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-max\target\classes started by SinicinVV in C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-max)
+2026-04-17 06:55:19.309+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - The following 1 profile is active: "default"
+2026-04-17 06:55:19.739+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-04-17 06:55:19.858+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 110 ms. Found 30 JPA repository interfaces.
+2026-04-17 06:55:20.373+03:00 INFO  [main] o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-04-17 06:55:20.428+03:00 INFO  [main] org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
+2026-04-17 06:55:20.466+03:00 INFO  [main] o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
+2026-04-17 06:55:20.718+03:00 INFO  [main] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-04-17 06:55:24.473+03:00 INFO  [main] o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-04-17 06:55:24.482+03:00 INFO  [main] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-04-17 06:55:27.963+03:00 INFO  [main] c.e.s.max.MaxLongPollingLifecycle - MAX long polling started
+2026-04-17 06:55:28.013+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - Started MaxBotApplication in 9.249 seconds (process running for 9.672)
+2026-04-17 06:59:34.604+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: Connection reset
+2026-04-17 06:59:35.058+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 06:59:35.370+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 06:59:35.688+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 06:59:36.003+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 06:59:36.316+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 06:59:36.623+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 06:59:36.944+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 06:59:37.249+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 06:59:37.563+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 06:59:37.877+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 06:59:38.181+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 06:59:38.488+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 06:59:38.799+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 06:59:39.109+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 06:59:39.421+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 06:59:39.739+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:31.625+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:31.944+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:32.279+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:32.585+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:32.901+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:33.218+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:33.525+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:33.828+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:34.138+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:34.444+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:34.748+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:35.060+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:35.375+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:35.678+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:35.990+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:36.296+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:36.602+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:36.911+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:37.220+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:37.529+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:37.849+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:38.163+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:38.470+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:38.781+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:39.090+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:39.401+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:39.708+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:40.019+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:40.324+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:40.633+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:40.941+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:41.250+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:41.559+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:41.872+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:42.192+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:42.495+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:42.799+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:43.105+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:43.413+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:43.719+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:44.028+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:44.335+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:44.652+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:44.968+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:45.275+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:45.596+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:45.920+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:46.227+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:46.535+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:46.840+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:47.149+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:47.455+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:47.763+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:48.070+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:48.377+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:48.685+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:48.991+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:49.301+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:49.613+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:49.918+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:50.231+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:50.547+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:50.865+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:51.175+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:51.485+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:51.798+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:16:52.850+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:16:52.850+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:16:52.850+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:16:52.851+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:16:52.851+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:16:52.851+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:16:52.851+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:16:52.851+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:16:52.851+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:16:52.851+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:16:52.851+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:16:52.851+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:16:52.851+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:16:52.851+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:16:52.851+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:16:52.851+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:16:52.851+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:16:52.851+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:16:52.852+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:16:52.852+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:16:52.852+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:16:52.852+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:16:52.852+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:16:52.852+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:16:53.106+03:00 INFO  [scheduling-1] c.e.s.service.MaintenanceTasks - Auto-closed 1 inactive tickets after PT1H
+2026-04-17 08:17:22.121+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: request timed out
+2026-04-17 08:17:41.357+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: Connection reset
+2026-04-17 08:17:41.671+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:41.982+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:42.297+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:42.608+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:42.914+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:43.231+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:43.539+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:43.848+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:44.160+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:44.473+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:44.782+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:45.094+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:45.407+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:45.717+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:46.028+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:46.338+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:46.647+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:46.957+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:47.267+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:47.577+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:47.888+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:48.199+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:48.508+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:48.818+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:49.134+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:49.443+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:49.755+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:50.072+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:50.377+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:50.689+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:51.002+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:51.309+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:51.620+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:51.929+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:52.241+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:52.551+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:52.859+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:53.172+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:53.484+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:53.797+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:54.104+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:54.415+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:54.730+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:55.039+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:55.350+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:55.661+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:55.971+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:56.284+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:56.592+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:56.903+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:57.214+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:57.524+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:57.836+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:58.145+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:58.454+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:58.765+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:59.079+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:59.392+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:17:59.701+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:00.016+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:00.190+03:00 ERROR [scheduling-1] c.e.supportbot.max.MaxApiClient - Failed to send MAX message
+java.net.ConnectException: null
+	at java.net.http/jdk.internal.net.http.HttpClientImpl.send(HttpClientImpl.java:923)
+	at java.net.http/jdk.internal.net.http.HttpClientFacade.send(HttpClientFacade.java:133)
+	at com.example.supportbot.max.MaxApiClient.send(MaxApiClient.java:106)
+	at com.example.supportbot.max.MaxApiClient.sendMessageToUser(MaxApiClient.java:40)
+	at com.example.supportbot.max.MaxOutboundMessenger.sendToUser(MaxOutboundMessenger.java:26)
+	at com.example.supportbot.service.MessagingService.sendToUser(MessagingService.java:37)
+	at com.example.supportbot.service.EngagementTasks.dispatchPendingFeedbackRequests(EngagementTasks.java:60)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:354)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:196)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:163)
+	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:768)
+	at org.springframework.transaction.interceptor.TransactionInterceptor$1.proceedWithInvocation(TransactionInterceptor.java:123)
+	at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:392)
+	at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:119)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:768)
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:720)
+	at com.example.supportbot.service.EngagementTasks$$SpringCGLIB$$0.dispatchPendingFeedbackRequests(<generated>)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.runInternal(ScheduledMethodRunnable.java:130)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.lambda$run$2(ScheduledMethodRunnable.java:124)
+	at io.micrometer.observation.Observation.observe(Observation.java:499)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.run(ScheduledMethodRunnable.java:124)
+	at org.springframework.scheduling.support.DelegatingErrorHandlingRunnable.run(DelegatingErrorHandlingRunnable.java:54)
+	at org.springframework.scheduling.concurrent.ReschedulingRunnable.run(ReschedulingRunnable.java:96)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:309)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+Caused by: java.net.ConnectException: null
+	at java.net.http/jdk.internal.net.http.common.Utils.toConnectException(Utils.java:1070)
+	at java.net.http/jdk.internal.net.http.PlainHttpConnection.connectAsync(PlainHttpConnection.java:223)
+	at java.net.http/jdk.internal.net.http.AsyncSSLConnection.connectAsync(AsyncSSLConnection.java:57)
+	at java.net.http/jdk.internal.net.http.Http2Connection.createAsync(Http2Connection.java:537)
+	at java.net.http/jdk.internal.net.http.Http2ClientImpl.getConnectionFor(Http2ClientImpl.java:140)
+	at java.net.http/jdk.internal.net.http.ExchangeImpl.get(ExchangeImpl.java:108)
+	at java.net.http/jdk.internal.net.http.Exchange.establishExchange(Exchange.java:367)
+	at java.net.http/jdk.internal.net.http.Exchange.responseAsyncImpl(Exchange.java:573)
+	at java.net.http/jdk.internal.net.http.Exchange.responseAsync(Exchange.java:396)
+	at java.net.http/jdk.internal.net.http.MultiExchange.responseAsyncImpl(MultiExchange.java:438)
+	at java.net.http/jdk.internal.net.http.MultiExchange.lambda$responseAsyncImpl$2(MultiExchange.java:482)
+	at java.base/java.util.concurrent.CompletableFuture.uniHandle(CompletableFuture.java:955)
+	at java.base/java.util.concurrent.CompletableFuture.uniHandleStage(CompletableFuture.java:971)
+	at java.base/java.util.concurrent.CompletableFuture.handle(CompletableFuture.java:2399)
+	at java.net.http/jdk.internal.net.http.MultiExchange.responseAsyncImpl(MultiExchange.java:472)
+	at java.net.http/jdk.internal.net.http.MultiExchange.lambda$responseAsync0$0(MultiExchange.java:358)
+	at java.base/java.util.concurrent.CompletableFuture$UniCompose.tryFire(CompletableFuture.java:1171)
+	at java.base/java.util.concurrent.CompletableFuture.postComplete(CompletableFuture.java:531)
+	at java.base/java.util.concurrent.CompletableFuture$AsyncSupply.run(CompletableFuture.java:1794)
+	at java.net.http/jdk.internal.net.http.HttpClientImpl$DelegatingExecutor.execute(HttpClientImpl.java:168)
+	at java.base/java.util.concurrent.CompletableFuture.completeAsync(CompletableFuture.java:2761)
+	at java.net.http/jdk.internal.net.http.MultiExchange.responseAsync(MultiExchange.java:311)
+	at java.net.http/jdk.internal.net.http.HttpClientImpl.sendAsync(HttpClientImpl.java:1015)
+	at java.net.http/jdk.internal.net.http.HttpClientImpl.send(HttpClientImpl.java:901)
+	... 33 common frames omitted
+Caused by: java.nio.channels.UnresolvedAddressException: null
+	at java.base/sun.nio.ch.Net.checkAddress(Net.java:144)
+	at java.base/sun.nio.ch.Net.checkAddress(Net.java:152)
+	at java.base/sun.nio.ch.SocketChannelImpl.checkRemote(SocketChannelImpl.java:918)
+	at java.base/sun.nio.ch.SocketChannelImpl.connect(SocketChannelImpl.java:936)
+	at java.net.http/jdk.internal.net.http.PlainHttpConnection.connectAsync(PlainHttpConnection.java:211)
+	... 55 common frames omitted
+2026-04-17 08:18:00.328+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:00.641+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:00.954+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:01.262+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:01.578+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:01.885+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:02.207+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:02.521+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:02.836+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:03.149+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:03.456+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:03.765+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:04.082+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:04.389+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:04.701+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:05.015+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:05.322+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:05.635+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:05.948+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:06.258+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:06.570+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:06.879+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:07.193+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:07.503+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:07.816+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:08.129+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:08.442+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:08.755+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:09.068+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:09.380+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:09.691+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:10.000+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:10.312+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:10.626+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:10.934+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:11.242+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:11.552+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:11.864+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:12.177+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:12.491+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:12.800+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:13.113+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:13.423+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:13.739+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:14.052+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:14.362+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:14.680+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:14.986+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:15.300+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:15.609+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:15.923+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:16.234+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:16.544+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:16.852+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:17.166+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:17.479+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:17.793+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:18.100+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:18.413+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:18.724+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:19.032+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:19.343+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:19.654+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:19.962+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:20.275+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:20.586+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:20.898+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:21.209+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:21.520+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:21.830+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:22.147+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:22.457+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:22.769+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:23.080+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:23.389+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:23.699+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:24.013+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:24.324+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:24.636+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:24.946+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:25.260+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:25.572+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:25.886+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:26.196+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:26.503+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:26.818+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:27.126+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:27.445+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:27.750+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:28.066+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:28.379+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:28.692+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:29.001+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:29.313+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:29.625+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:29.939+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:30.048+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:18:30.048+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:18:30.048+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:18:30.048+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:18:30.048+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:18:30.048+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:18:30.048+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:18:30.048+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:18:30.048+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:18:30.048+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:18:30.048+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:18:30.049+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:18:30.049+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:18:30.049+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:18:30.049+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:18:30.049+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:18:30.049+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:18:30.049+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:18:30.049+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:18:30.049+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:18:30.049+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:18:30.049+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:18:30.049+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:18:30.049+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:18:30.250+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:30.563+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:30.876+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:31.188+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:31.498+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:31.810+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:32.120+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:32.433+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:32.744+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:33.053+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:33.364+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:33.675+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:33.989+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:34.301+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:34.614+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:34.946+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:35.248+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:35.562+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:35.873+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:36.183+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:36.496+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:36.805+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:37.114+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:37.428+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:37.742+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:38.056+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:38.367+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:38.681+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:38.992+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:39.304+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:39.618+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:39.928+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:40.238+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:40.553+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:40.865+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:41.180+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:41.497+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:41.800+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:42.113+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:42.423+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:42.734+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:43.049+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:43.360+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:43.674+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:43.984+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:44.297+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:44.610+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:44.921+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:45.233+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:45.544+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:45.850+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:46.159+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:46.470+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:46.782+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:47.093+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:47.409+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:47.719+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:48.031+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:48.342+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:48.653+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:48.962+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:49.280+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:49.588+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:49.901+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:50.214+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:50.523+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:50.834+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:51.147+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:51.456+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:51.770+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:52.086+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:52.398+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:52.709+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:53.020+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:53.331+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:53.645+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:53.958+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:54.268+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:54.584+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:54.891+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:55.202+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:55.516+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:55.825+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:56.136+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:56.444+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:56.756+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:57.066+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:57.376+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:57.684+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:57.998+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:58.314+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:58.619+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:58.929+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:59.241+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:59.553+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:18:59.864+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:00.175+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:00.485+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:00.797+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:01.107+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:01.418+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:01.728+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:02.040+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:02.350+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:02.664+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:02.974+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:03.282+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:03.599+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:03.908+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:04.220+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:04.534+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:04.849+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:05.157+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:05.469+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:05.783+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:06.089+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:06.402+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:06.716+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:07.025+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:07.337+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:07.651+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:07.962+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:08.271+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:08.586+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:08.898+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:09.211+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:09.517+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:09.830+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:10.144+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:10.458+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:10.772+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:11.083+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:11.399+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:11.713+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:12.024+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:12.334+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:12.644+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:12.956+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:13.269+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:13.578+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:13.889+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:14.206+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:14.514+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:14.826+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:15.134+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:15.446+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:15.758+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:16.069+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:16.380+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:16.690+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:17.002+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:17.310+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:17.621+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:17.929+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:18.242+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:18.548+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:18.856+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:19.163+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:19.472+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:19.781+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:20.084+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:20.393+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:20.702+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:21.012+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:21.323+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:21.636+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:21.951+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:22.258+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:22.567+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:22.876+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:23.186+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:23.495+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:23.804+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:19:24.116+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-04-17 08:20:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:20:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:20:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:20:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:20:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:20:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:20:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:20:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:20:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:20:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:20:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:20:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:20:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:20:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:20:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:20:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:20:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:20:30.023+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:20:30.023+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:20:30.023+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:20:30.023+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:20:30.023+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:20:30.023+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:20:30.023+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:22:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:22:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:22:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:22:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:22:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:22:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:22:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:22:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:22:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:22:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:22:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:22:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:22:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:22:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:22:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:22:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:22:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:22:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:22:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:22:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:22:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:22:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:22:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:22:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:24:30.029+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:24:30.029+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:24:30.029+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:24:30.029+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:24:30.029+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:24:30.029+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:24:30.030+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:24:30.030+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:24:30.030+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:24:30.030+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:24:30.030+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:24:30.030+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:24:30.030+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:24:30.030+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:24:30.030+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:24:30.030+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:24:30.030+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:24:30.030+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:24:30.030+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:24:30.030+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:24:30.030+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:24:30.030+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:24:30.030+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:24:30.030+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:26:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:26:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:26:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:26:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:26:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:26:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:26:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:26:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:26:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:26:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:26:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:26:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:26:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:26:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:26:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:26:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:26:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:26:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:26:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:26:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:26:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:26:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:26:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:26:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:28:30.014+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:28:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:28:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:28:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:28:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:28:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:28:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:28:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:28:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:28:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:28:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:28:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:28:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:28:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:28:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:28:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:28:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:28:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:28:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:28:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:28:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:28:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:28:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:28:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:30:30.030+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:30:30.030+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:30:30.030+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:30:30.030+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:30:30.030+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:30:30.030+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:30:30.030+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:30:30.030+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:30:30.030+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:30:30.030+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:30:30.030+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:30:30.030+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:30:30.030+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:30:30.030+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:30:30.030+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:30:30.030+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:30:30.030+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:30:30.030+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:30:30.030+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:30:30.030+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:30:30.030+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:30:30.030+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:30:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:30:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:32:30.014+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:32:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:32:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:32:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:32:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:32:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:32:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:32:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:32:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:32:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:32:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:32:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:32:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:32:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:32:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:32:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:32:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:32:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:32:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:32:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:32:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:32:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:32:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:32:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:34:30.044+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:34:30.044+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:34:30.044+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:34:30.044+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:34:30.044+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:34:30.045+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:34:30.045+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:34:30.045+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:34:30.045+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:34:30.045+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:34:30.045+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:34:30.045+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:34:30.045+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:34:30.045+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:34:30.045+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:34:30.045+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:34:30.045+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:34:30.045+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:34:30.045+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:34:30.045+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:34:30.045+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:34:30.045+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:34:30.045+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:34:30.045+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:36:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:36:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:36:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:36:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:36:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:36:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:36:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:36:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:36:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:36:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:36:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:36:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:36:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:36:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:36:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:36:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:36:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:36:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:36:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:36:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:36:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:36:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:36:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:36:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:38:30.026+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:38:30.026+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:38:30.026+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:38:30.026+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:38:30.026+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:38:30.026+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:38:30.026+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:38:30.026+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:38:30.026+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:38:30.026+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:38:30.026+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:38:30.026+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:38:30.026+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:38:30.026+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:38:30.026+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:38:30.026+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:38:30.026+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:38:30.026+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:38:30.026+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:38:30.027+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:38:30.027+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:38:30.027+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:38:30.027+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:38:30.027+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:40:30.012+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:40:30.012+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:40:30.012+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:40:30.012+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:40:30.012+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:40:30.012+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:40:30.012+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:40:30.012+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:40:30.012+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:40:30.012+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:40:30.013+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:40:30.013+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:40:30.013+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:40:30.013+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:40:30.013+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:40:30.013+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:40:30.013+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:40:30.013+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:40:30.013+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:40:30.013+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:40:30.013+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:40:30.013+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:40:30.013+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:40:30.013+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:42:30.016+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:42:30.016+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:42:30.016+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:42:30.016+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:42:30.016+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:42:30.016+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:42:30.016+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:42:30.016+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:42:30.016+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:42:30.016+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:42:30.016+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:42:30.016+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:42:30.016+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:42:30.016+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:42:30.016+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:42:30.016+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:42:30.016+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:42:30.016+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:42:30.016+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:42:30.016+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:42:30.016+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:42:30.016+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:42:30.017+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:42:30.017+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:44:30.013+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:44:30.013+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:44:30.013+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:44:30.013+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:44:30.013+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:44:30.013+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:44:30.014+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:44:30.014+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:44:30.014+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:44:30.014+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:44:30.014+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:44:30.014+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:44:30.014+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:44:30.014+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:44:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:44:30.016+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:44:30.017+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:44:30.018+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:44:30.018+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:44:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:44:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:44:30.020+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:44:30.020+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:44:30.020+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:46:30.029+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:46:30.029+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:46:30.029+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:46:30.029+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:46:30.029+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:46:30.029+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:46:30.029+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:46:30.029+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:46:30.029+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:46:30.029+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:46:30.029+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:46:30.029+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:46:30.029+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:46:30.029+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:46:30.029+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:46:30.029+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:46:30.029+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:46:30.029+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:46:30.029+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:46:30.029+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:46:30.029+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:46:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:46:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:46:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:48:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:48:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:48:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:48:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:48:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:48:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:48:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:48:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:48:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:48:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:48:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:48:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:48:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:48:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:48:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:48:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:48:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:48:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:48:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:48:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:48:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:48:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:48:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:48:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:50:30.011+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:50:30.011+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:50:30.011+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:50:30.011+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:50:30.011+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:50:30.011+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:50:30.011+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:50:30.011+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:50:30.011+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:50:30.011+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:50:30.011+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:50:30.011+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:50:30.011+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:50:30.011+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:50:30.011+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:50:30.011+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:50:30.011+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:50:30.011+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:50:30.011+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:50:30.011+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:50:30.011+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:50:30.011+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:50:30.011+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:50:30.011+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:52:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:52:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:52:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:52:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:52:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:52:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:52:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:52:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:52:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:52:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:52:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:52:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:52:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:52:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:52:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:52:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:52:30.021+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:52:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:52:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:52:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:52:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:52:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:52:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:52:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:54:30.029+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:54:30.029+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:54:30.029+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:54:30.029+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:54:30.029+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:54:30.029+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:54:30.029+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:54:30.029+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:54:30.029+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:54:30.029+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:54:30.029+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:54:30.029+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:54:30.029+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:54:30.029+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:54:30.029+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:54:30.029+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:54:30.029+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:54:30.029+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:54:30.029+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:54:30.030+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:54:30.030+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:54:30.030+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:54:30.030+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:54:30.030+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:56:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:56:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:56:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:56:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:56:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:56:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:56:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:56:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:56:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:56:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:56:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:56:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:56:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:56:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:56:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:56:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:56:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:56:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:56:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:56:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:56:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:56:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:56:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:56:30.031+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:58:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:58:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:58:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:58:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:58:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:58:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:58:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:58:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:58:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:58:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:58:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:58:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:58:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:58:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:58:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:58:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:58:30.020+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:58:30.020+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:58:30.020+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:58:30.020+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:58:30.020+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:58:30.020+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:58:30.020+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 08:58:30.020+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:00:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:00:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:00:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:00:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:00:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:00:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:00:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:00:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:00:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:00:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:00:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:00:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:00:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:00:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:00:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:00:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:00:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:00:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:00:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:00:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:00:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:00:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:00:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:00:30.019+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:01:52.354+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: request timed out
+2026-04-17 09:02:13.970+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: Connection reset
+2026-04-17 09:02:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:02:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:02:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:02:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:02:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:02:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:02:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:02:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:02:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:02:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:02:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:02:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:02:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:02:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:02:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:02:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:02:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:02:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:02:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:02:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:02:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:02:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:02:30.022+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:02:30.023+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:04:30.012+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:04:30.013+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:04:30.013+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:04:30.013+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:04:30.013+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:04:30.013+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:04:30.013+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:04:30.013+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:04:30.013+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:04:30.013+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:04:30.013+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:04:30.013+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:04:30.013+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:04:30.013+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:04:30.013+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:04:30.014+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:04:30.014+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:04:30.014+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:04:30.014+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:04:30.014+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:04:30.014+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:04:30.014+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:04:30.014+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:04:30.014+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:06:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:06:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:06:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:06:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:06:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:06:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:06:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:06:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:06:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:06:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:06:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:06:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:06:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:06:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:06:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:06:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:06:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:06:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:06:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:06:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:06:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:06:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:06:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
+2026-04-17 09:06:30.015+03:00 WARN  [scheduling-1] c.e.s.service.MessagingService - No outbound messenger registered for platform telegram
