@@ -1,7 +1,7 @@
 # Architecture And UI Refactoring Roadmap
 
 Дата старта: `2026-04-15`
-Обновлено: `2026-04-16`
+Обновлено: `2026-04-17`
 
 ## Цель
 
@@ -241,6 +241,9 @@
 - начато: `BotProcessService` переведён на launcher strategy с
   `app.bots.launch-mode` и `jar-first` запуском готовых артефактов;
 - `spring-boot:run` оставлен как controlled fallback для dev-сценария;
+- продолжено: добавлен explicit artifact discovery contract через
+  `app.bots.executable-jars`, чтобы panel могла запускать заранее известные
+  bot jars без угадывания по `target/*.jar`;
 - добавлены тесты на выбор launcher plan и сохранён readiness probe контракт.
 
 Что остаётся:
@@ -249,8 +252,8 @@
   env contract и status/readiness expectations;
 - определить preferred production path: prebuilt jars, launcher scripts или
   отдельный supervisor/service;
-- при необходимости добавить explicit build/discovery contract для bot jars,
-  чтобы panel не гадала по `target/*.jar`;
+- распространить explicit jar contract на целевые окружения и зафиксировать
+  рекомендуемые пути/имена артефактов для production/deploy сценариев;
 - расширить runtime tests от launcher plan до end-to-end process contract.
 
 ### Phase 6. Test Safety Net

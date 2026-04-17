@@ -1,6 +1,7 @@
 package com.example.panel.service;
 
 import com.example.panel.controller.SettingsBridgeController;
+import com.example.panel.controller.SettingsItEquipmentController;
 import com.example.panel.model.dialog.DialogDetails;
 import com.example.panel.model.dialog.DialogSummary;
 import com.example.panel.model.knowledge.KnowledgeArticleCommand;
@@ -68,6 +69,9 @@ class SupportPanelIntegrationTests {
 
     @Autowired
     private SettingsBridgeController settingsBridgeController;
+
+    @Autowired
+    private SettingsItEquipmentController settingsItEquipmentController;
 
     @Autowired
     private SharedConfigService sharedConfigService;
@@ -2352,10 +2356,10 @@ class SupportPanelIntegrationTests {
 
         Long itemId = jdbcTemplate.queryForObject("SELECT id FROM it_equipment_catalog LIMIT 1", Long.class);
 
-        Map<String, Object> response = settingsBridgeController.updateItEquipment(itemId, Map.of(
+        Map<String, Object> response = settingsItEquipmentController.updateItEquipment(itemId, Map.of(
                 "serial_number", "SN-2026-0001",
                 "additional_equipment", "rack ears, power adapter"
-        ));
+        ), SecurityContextHolder.getContext().getAuthentication());
 
         assertThat(response).containsEntry("success", true);
         List<Map<String, Object>> items = (List<Map<String, Object>>) response.get("items");

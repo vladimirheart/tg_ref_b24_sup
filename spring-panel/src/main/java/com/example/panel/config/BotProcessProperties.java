@@ -4,6 +4,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 @ConfigurationProperties(prefix = "app.bots")
 public class BotProcessProperties {
@@ -12,6 +14,7 @@ public class BotProcessProperties {
     private String host = "127.0.0.1";
     private int maxBasePort = 18000;
     private String launchMode = "auto";
+    private Map<String, String> executableJars = new LinkedHashMap<>();
 
     public String getDatabaseDir() {
         return databaseDir;
@@ -45,6 +48,14 @@ public class BotProcessProperties {
         this.launchMode = launchMode;
     }
 
+    public Map<String, String> getExecutableJars() {
+        return executableJars;
+    }
+
+    public void setExecutableJars(Map<String, String> executableJars) {
+        this.executableJars = executableJars != null ? new LinkedHashMap<>(executableJars) : new LinkedHashMap<>();
+    }
+
     public Path resolveDatabaseDir() {
         return Paths.get(databaseDir).toAbsolutePath().normalize();
     }
@@ -67,6 +78,17 @@ public class BotProcessProperties {
             case "maven", "spring-boot-run", "spring_boot_run" -> LaunchMode.MAVEN;
             default -> LaunchMode.AUTO;
         };
+    }
+
+    public String resolveExecutableJar(String botModule) {
+        if (botModule == null || botModule.isBlank() || executableJars == null) {
+            return null;
+        }
+        String configured = executableJars.get(botModule);
+        if (configured == null || configured.isBlank()) {
+            return null;
+        }
+        return configured.trim();
     }
 
     public enum LaunchMode {
