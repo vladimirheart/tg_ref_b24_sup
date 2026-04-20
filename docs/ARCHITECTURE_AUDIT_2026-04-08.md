@@ -31,6 +31,9 @@
   `DialogQuickActionsController`, `DialogMacroController`,
   `DialogAiOpsController`, `DialogWorkspaceTelemetryController`,
   `DialogTriagePreferencesController`;
+- внутри giant `DialogWorkspaceService` уже начат service-level split:
+  внешний профиль клиента и parity/composer-сборка вынесены в отдельные
+  workspace sub-services;
 - `settings` выведен из режима giant controller/update-method через
   `SettingsParametersController`, `SettingsItEquipmentController`,
   `SettingsUpdateService`, `SettingsDialogConfig*Service` и связанные subdomain
@@ -44,6 +47,8 @@
 
 - `DialogService` всё ещё слишком крупный и остаётся главным кандидатом на
   service-level split;
+- `DialogWorkspaceService` всё ещё крупный, хотя уже начал разгружаться через
+  выделенные workspace sub-services;
 - `settings` всё ещё содержит remaining subdomains, которые могут снова
   разрастаться в общих слоях;
 - `SharedConfigService` дублируется между `spring-panel` и `java-bot`;
