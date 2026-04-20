@@ -216,6 +216,27 @@ public class KnowledgeBaseController {
         return "redirect:/knowledge-base#notion-import";
     }
 
+    @PostMapping("/notion/sync-changed")
+    @PreAuthorize("hasAuthority('PAGE_KNOWLEDGE_BASE')")
+    public String syncChangedFromNotion(Authentication authentication, RedirectAttributes redirectAttributes) {
+        try {
+            var result = knowledgeBaseNotionService.importChangedArticles();
+            String actor = authentication != null ? authentication.getName() : null;
+            String message = "Синхронизация изменённых статей Notion завершена: найдено изменений " + result.selectedPages()
+                + ", создано " + result.created()
+                + ", обновлено " + result.updated()
+                + ", пропущено " + result.skipped()
+                + ", всего в источнике " + result.totalPages() + ".";
+            notificationService.notifyAllOperators(message, "/knowledge-base", actor);
+            redirectAttributes.addFlashAttribute("notionMessageType", "success");
+            redirectAttributes.addFlashAttribute("notionMessage", message);
+        } catch (Exception ex) {
+            redirectAttributes.addFlashAttribute("notionMessageType", "danger");
+            redirectAttributes.addFlashAttribute("notionMessage", ex.getMessage());
+        }
+        return "redirect:/knowledge-base#notion-import";
+    }
+
     private void populateListModel(Authentication authentication, Model model) {
         navigationService.enrich(model, authentication);
         var articles = knowledgeBaseService.listArticles();
@@ -226,6 +247,7 @@ public class KnowledgeBaseController {
             model.addAttribute("notionConfig", knowledgeBaseNotionService.buildForm());
         }
         model.addAttribute("notionHasToken", knowledgeBaseNotionService.hasSavedToken());
+        model.addAttribute("notionSyncStatus", knowledgeBaseNotionService.getSyncStatus());
     }
 
     private KnowledgeArticleDetails emptyArticle() {

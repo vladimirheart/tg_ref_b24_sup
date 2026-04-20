@@ -12,7 +12,9 @@ public record KnowledgeNotionImportPreviewItem(String externalId,
                                                String localStatus,
                                                String externalUrl,
                                                OffsetDateTime externalUpdatedAt,
-                                               boolean alreadyImported) {
+                                               boolean alreadyImported,
+                                               boolean changedInNotion,
+                                               String syncStateLabel) {
 
     public String actionLabel() {
         return alreadyImported ? "Обновить" : "Создать";

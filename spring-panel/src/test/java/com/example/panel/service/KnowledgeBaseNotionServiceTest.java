@@ -1,10 +1,13 @@
 package com.example.panel.service;
 
+import com.example.panel.entity.KnowledgeArticle;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.Test;
 
+import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -85,6 +88,34 @@ class KnowledgeBaseNotionServiceTest {
             ),
             urls
         );
+    }
+
+    @Test
+    void selectsOnlyNewOrChangedPagesForChangedSync() {
+        ObjectNode unchanged = page("page-1");
+        unchanged.put("last_edited_time", "2026-04-20T10:00:00Z");
+        ObjectNode changed = page("page-2");
+        changed.put("last_edited_time", "2026-04-20T12:00:00Z");
+        ObjectNode fresh = page("page-3");
+        fresh.put("last_edited_time", "2026-04-20T09:00:00Z");
+
+        KnowledgeArticle current = new KnowledgeArticle();
+        current.setExternalId("page-1");
+        current.setExternalUpdatedAt(OffsetDateTime.parse("2026-04-20T10:00:00Z"));
+
+        KnowledgeArticle stale = new KnowledgeArticle();
+        stale.setExternalId("page-2");
+        stale.setExternalUpdatedAt(OffsetDateTime.parse("2026-04-20T11:00:00Z"));
+
+        List<?> changedPages = service.filterChangedPages(
+            List.of(unchanged, changed, fresh),
+            Map.of("page-1", current, "page-2", stale),
+            true
+        );
+
+        assertEquals(2, changedPages.size());
+        assertEquals("page-2", ((ObjectNode) changedPages.get(0)).path("id").asText());
+        assertEquals("page-3", ((ObjectNode) changedPages.get(1)).path("id").asText());
     }
 
     private ObjectNode page(String id) {
