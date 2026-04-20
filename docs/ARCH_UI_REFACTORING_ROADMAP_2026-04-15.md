@@ -83,12 +83,12 @@
 - на него переведены `theme` и `sidebar`;
 - добавлен server-backed bootstrap/sync слой для operator UI preferences;
 - triage preferences диалогов переведены на server-backed storage с
-  backward-compatible fallback к legacy shared JSON.
+  backward-compatible fallback к legacy shared JSON;
+- ownership источников UI preferences зафиксирован в
+  `docs/UI_PREFERENCES_OWNERSHIP.md`.
 
 Что остаётся:
 
-- формально зафиксировать ownership для `settings.json`, `localStorage`,
-  `settings_parameters` и server-backed UI prefs;
 - дочистить места, где runtime всё ещё может зависеть от raw visual values,
   а не от tokens/theme semantics;
 - при необходимости выделить отдельный documented contract для operator UI
@@ -291,13 +291,17 @@
 - WebMvc test на `/api/bots/{channelId}/runtime-contract`;
 - lifecycle contract test с runnable test jar для `BotProcessService`;
 - smoke-проверка раннего `ui-head` bootstrap на странице диалогов;
+- WebMvc tests для sliced controllers `DialogReadController`,
+  `DialogTriagePreferencesController`, `SettingsParametersController`,
+  `SettingsItEquipmentController`, `DialogMacroController`,
+  `DialogWorkspaceController`, `DialogQuickActionsController`;
 - legacy WebMvc test-слой частично синхронизирован с новой controller
   структурой.
 
 Что остаётся:
 
-- smoke tests для `theme/ui bootstrap`;
-- отдельные WebMvc tests под новые dialog/settings controllers;
+- расширить smoke tests для `theme/ui bootstrap` за пределы страницы диалогов;
+- добрать WebMvc tests под оставшиеся новые dialog/settings controllers;
 - integration tests для shared config path/env resolution;
 - более широкий runtime contract test для launcher strategy и bot lifecycle.
 
@@ -313,8 +317,9 @@
 4. `Phase 4` выполнен по самым рискованным giant flows и требует добивки
    remaining subdomains.
 5. `Phase 5` уже начат в коде.
-6. `Phase 6` усилен адресными runtime/UI тестами, но пока не превращён в
-   полноценную safety net.
+6. `Phase 6` усилен адресными runtime/UI тестами и уже покрывает несколько
+   sliced dialog/settings controllers, но пока не превращён в полноценную
+   safety net.
 
 ## Следующий Фокус
 
