@@ -160,6 +160,10 @@
   client segments/profile health вынесены в
   `DialogWorkspaceClientProfileService`, а context blocks/blocks health — в
   `DialogWorkspaceContextBlockService`, тоже с targeted unit tests.
+- ещё один пакет service-level split внутри `workspace` закрыт:
+  client payload support вынесен в `DialogWorkspaceClientPayloadService`, а
+  context sources/attribute policies — в `DialogWorkspaceContextSourceService`,
+  тоже с targeted unit tests.
 
 Что остаётся:
 

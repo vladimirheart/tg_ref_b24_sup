@@ -34,7 +34,8 @@
 - внутри giant `DialogWorkspaceService` уже начат service-level split:
   внешний профиль клиента, parity/composer-сборка, navigation/queue meta и
   rollout/meta-config, client segments/profile health и context blocks/health
-  вынесены в отдельные workspace sub-services;
+  плюс client payload support и context sources/attribute policies вынесены в
+  отдельные workspace sub-services;
 - `settings` выведен из режима giant controller/update-method через
   `SettingsParametersController`, `SettingsItEquipmentController`,
   `SettingsUpdateService`, `SettingsDialogConfig*Service` и связанные subdomain
@@ -50,7 +51,8 @@
   service-level split;
 - `DialogWorkspaceService` всё ещё крупный, хотя уже начал разгружаться через
   выделенные workspace sub-services и уже прикрыт targeted service tests по
-  parity, navigation, rollout, client profile и context blocks;
+  parity, navigation, rollout, client profile, context blocks, client payload
+  и context source policy;
 - `settings` всё ещё содержит remaining subdomains, которые могут снова
   разрастаться в общих слоях;
 - `SharedConfigService` дублируется между `spring-panel` и `java-bot`;
