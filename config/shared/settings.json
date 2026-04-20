@@ -1,0 +1,549 @@
+{
+  "auto_close_hours" : 1,
+  "categories" : [ "Консультация", "Основной шаблон", "Не работает акция", "Ошибка отдела обращения", "Техническая проблема", "Другое" ],
+  "client_statuses" : [ "Сотрудник локации", "Менеджер", "ТУ", "Сотрудник офиса", "VIP", "Постоянный клиент", "Новый клиент", "Проблемный клиент" ],
+  "client_status_colors" : {
+    "Сотрудник локации" : "#0d6efd",
+    "Менеджер" : "#6610f2",
+    "ТУ" : "#6f42c1",
+    "Сотрудник офиса" : "#198754",
+    "VIP" : "#fd7e14",
+    "Постоянный клиент" : "#20c997",
+    "Новый клиент" : "#0dcaf0",
+    "Проблемный клиент" : "#dc3545"
+  },
+  "dialog_config" : {
+    "category_templates" : [ {
+      "id" : "cat-default",
+      "name" : "Основной шаблон",
+      "categories" : [ "Консультация", "Основной шаблон", "Не работает акция", "Ошибка отдела обращения", "Техническая проблема", "Другое" ]
+    }, {
+      "id" : "cat-it",
+      "name" : "Обучение",
+      "categories" : [ "цукeee", "Техническая поддержка", "Сбой оборудования" ]
+    } ],
+    "question_templates" : [ {
+      "id" : "q-start",
+      "name" : "Проблема с интернетом",
+      "questions" : [ "Инцидент безопасности", "Базовые вопросы", "Подскажите, в какой локации возникла проблема?" ]
+    }, {
+      "id" : "q-ybsmly-mhczzwx2",
+      "name" : "ITS",
+      "questions" : [ "Наташа, ты всё проспала", "Как так-то?", "Валера, настало твоё время", "Жорик не виновен" ]
+    } ],
+    "completion_templates" : [ {
+      "id" : "act-pobzf1-ml84vl2q",
+      "name" : "Шаблон действий 1",
+      "items" : [ ]
+    } ],
+    "time_metrics" : {
+      "good_limit" : 30,
+      "warning_limit" : 60,
+      "colors" : {
+        "good" : "#d1f7d1",
+        "warning" : "#fff4d6",
+        "danger" : "#f8d7da"
+      }
+    },
+    "summary_badges" : {
+      "default" : {
+        "background" : "#f1f3f5",
+        "text" : "#1f2937"
+      },
+      "status" : {
+        "новый" : {
+          "background" : "#e7f1ff",
+          "text" : "#0d6efd"
+        },
+        "ожидает ответа оператора" : {
+          "background" : "#fff4d6",
+          "text" : "#b35c00"
+        },
+        "ожидает ответа клиента" : {
+          "background" : "#e0f4ff",
+          "text" : "#0b6fa3"
+        },
+        "закрыт" : {
+          "background" : "#e3f7e9",
+          "text" : "#13795b"
+        },
+        "закрыт автоматически" : {
+          "background" : "#f1f3f5",
+          "text" : "#6c757d"
+        }
+      },
+      "channel" : {
+        "telegram" : {
+          "background" : "#e0f4ff",
+          "text" : "#0b6fa3"
+        },
+        "vk" : {
+          "background" : "#e7f1ff",
+          "text" : "#0d6efd"
+        }
+      }
+    },
+    "workspace_guardrail_webhook_enabled" : false,
+    "workspace_guardrail_webhook_url" : "",
+    "workspace_guardrail_webhook_window_days" : 7,
+    "workspace_guardrail_webhook_min_alerts" : 2,
+    "workspace_guardrail_webhook_cooldown_minutes" : 30,
+    "workspace_guardrail_webhook_timeout_ms" : 4000,
+    "workspace_triage_preferences_by_operator" : {
+      "admin" : {
+        "view" : "all",
+        "sort_mode" : "default",
+        "page_size" : "all",
+        "updated_at_utc" : "2026-04-15T09:16:06.199599600Z"
+      }
+    }
+  },
+  "network_profiles" : [ {
+    "provider" : "Ростелеком",
+    "contract_number" : "33333",
+    "support_phone" : "+7-999-999-99-99",
+    "legal_entity" : "Крепвиль",
+    "restaurant_id" : "",
+    "restaurant_ids" : [ ]
+  }, {
+    "provider" : "ДомРу",
+    "contract_number" : "ДР555",
+    "support_phone" : "+7-955-555-55-55",
+    "legal_entity" : "Сашим",
+    "restaurant_id" : "",
+    "restaurant_ids" : [ ]
+  }, {
+    "provider" : "ДомРу",
+    "contract_number" : "ДР5555",
+    "support_phone" : "+7-955-555-55-59",
+    "legal_entity" : "Сашим",
+    "restaurant_id" : "",
+    "restaurant_ids" : [ ]
+  } ],
+  "it_connection_categories" : { },
+  "bot_settings" : {
+    "question_templates" : [ {
+      "id" : "tpl_ml6opbj83rg3",
+      "name" : "Базовый шаблон вопросов",
+      "description" : "",
+      "question_flow" : [ {
+        "id" : "business",
+        "type" : "preset",
+        "text" : "Бизнес",
+        "order" : 1,
+        "preset" : {
+          "group" : "locations",
+          "field" : "business"
+        }
+      }, {
+        "id" : "location_type",
+        "type" : "preset",
+        "text" : "Тип бизнесаx",
+        "order" : 2,
+        "preset" : {
+          "group" : "locations",
+          "field" : "location_type"
+        }
+      }, {
+        "id" : "city",
+        "type" : "preset",
+        "text" : "Город",
+        "order" : 3,
+        "preset" : {
+          "group" : "locations",
+          "field" : "city"
+        }
+      }, {
+        "id" : "location_name",
+        "type" : "preset",
+        "text" : "Локация",
+        "order" : 4,
+        "preset" : {
+          "group" : "locations",
+          "field" : "location_name"
+        }
+      }, {
+        "id" : "q_ml6opixmrq7o5q",
+        "type" : "custom",
+        "text" : "укывеапрр",
+        "order" : 5
+      } ]
+    } ],
+    "active_template_id" : "tpl_ml6opbj83rg3",
+    "question_flow" : [ {
+      "id" : "business",
+      "type" : "preset",
+      "text" : "Бизнес",
+      "order" : 1,
+      "preset" : {
+        "group" : "locations",
+        "field" : "business"
+      }
+    }, {
+      "id" : "location_type",
+      "type" : "preset",
+      "text" : "Тип бизнесаx",
+      "order" : 2,
+      "preset" : {
+        "group" : "locations",
+        "field" : "location_type"
+      }
+    }, {
+      "id" : "city",
+      "type" : "preset",
+      "text" : "Город",
+      "order" : 3,
+      "preset" : {
+        "group" : "locations",
+        "field" : "city"
+      }
+    }, {
+      "id" : "location_name",
+      "type" : "preset",
+      "text" : "Локация",
+      "order" : 4,
+      "preset" : {
+        "group" : "locations",
+        "field" : "location_name"
+      }
+    }, {
+      "id" : "q_ml6opixmrq7o5q",
+      "type" : "custom",
+      "text" : "укывеапрр",
+      "order" : 5
+      } ],
+    "rating_templates" : [ {
+      "id" : "rating-template-default",
+      "name" : "Базовый сценарий оценок",
+      "description" : "",
+      "prompt_text" : "Пожалуйста, оцените качество ответа от 1 до 5.",
+      "scale_size" : 5,
+      "responses" : [ {
+        "value" : 1,
+        "text" : "Спасибо за вашу оценку 1! Нам важно ваше мнение."
+      }, {
+        "value" : 2,
+        "text" : "Спасибо за вашу оценку 2! Нам важно ваше мнение."
+      }, {
+        "value" : 3,
+        "text" : "Спасибо за вашу оценку 3! Нам важно ваше мнение."
+      }, {
+        "value" : 4,
+        "text" : "Спасибо за вашу оценку 4! Нам важно ваше мнение."
+      }, {
+        "value" : 5,
+        "text" : "Спасибо за вашу оценку 5! Нам важно ваше мнение."
+      } ]
+    } ],
+    "active_rating_template_id" : "rating-template-default",
+    "rating_system" : {
+      "prompt_text" : "Пожалуйста, оцените качество ответа от 1 до 5.",
+      "scale_size" : 5,
+      "responses" : [ {
+        "value" : 1,
+        "text" : "Спасибо за вашу оценку 1! Нам важно ваше мнение."
+      }, {
+        "value" : 2,
+        "text" : "Спасибо за вашу оценку 2! Нам важно ваше мнение."
+      }, {
+        "value" : 3,
+        "text" : "Спасибо за вашу оценку 3! Нам важно ваше мнение."
+      }, {
+        "value" : 4,
+        "text" : "Спасибо за вашу оценку 4! Нам важно ваше мнение."
+      }, {
+        "value" : 5,
+        "text" : "Спасибо за вашу оценку 5! Нам важно ваше мнение."
+      } ]
+    }
+  },
+  "unblock_request_cooldown_minutes" : 1,
+  "knowledge_base_config" : {
+    "enabled" : true,
+    "source_url" : "https://www.notion.so/blinberry-group",
+    "token" : "",
+    "authors" : [ "Синицын Владимир", "Лемешкин Андрей", "Egor", "Канделаки Данил", "Шумкова Дарья" ],
+    "title_property" : "Name",
+    "author_property" : "Автор",
+    "summary_property" : "Краткое описание",
+    "department_property" : "Подразделение",
+    "article_type_property" : "Тип статьи",
+    "direction_property" : "Направление",
+    "direction_subtype_property" : "Поднаправление",
+    "status_property" : "Статус"
+  }
+}{
+  "auto_close_hours" : 1,
+  "categories" : [ "Консультация", "Основной шаблон", "Не работает акция", "Ошибка отдела обращения", "Техническая проблема", "Другое" ],
+  "client_statuses" : [ "Сотрудник локации", "Менеджер", "ТУ", "Сотрудник офиса", "VIP", "Постоянный клиент", "Новый клиент", "Проблемный клиент" ],
+  "client_status_colors" : {
+    "Сотрудник локации" : "#0d6efd",
+    "Менеджер" : "#6610f2",
+    "ТУ" : "#6f42c1",
+    "Сотрудник офиса" : "#198754",
+    "VIP" : "#fd7e14",
+    "Постоянный клиент" : "#20c997",
+    "Новый клиент" : "#0dcaf0",
+    "Проблемный клиент" : "#dc3545"
+  },
+  "dialog_config" : {
+    "category_templates" : [ {
+      "id" : "cat-default",
+      "name" : "Основной шаблон",
+      "categories" : [ "Консультация", "Основной шаблон", "Не работает акция", "Ошибка отдела обращения", "Техническая проблема", "Другое" ]
+    }, {
+      "id" : "cat-it",
+      "name" : "Обучение",
+      "categories" : [ "цукeee", "Техническая поддержка", "Сбой оборудования" ]
+    } ],
+    "question_templates" : [ {
+      "id" : "q-start",
+      "name" : "Проблема с интернетом",
+      "questions" : [ "Инцидент безопасности", "Базовые вопросы", "Подскажите, в какой локации возникла проблема?" ]
+    }, {
+      "id" : "q-ybsmly-mhczzwx2",
+      "name" : "ITS",
+      "questions" : [ "Наташа, ты всё проспала", "Как так-то?", "Валера, настало твоё время", "Жорик не виновен" ]
+    } ],
+    "completion_templates" : [ {
+      "id" : "act-pobzf1-ml84vl2q",
+      "name" : "Шаблон действий 1",
+      "items" : [ ]
+    } ],
+    "time_metrics" : {
+      "good_limit" : 30,
+      "warning_limit" : 60,
+      "colors" : {
+        "good" : "#d1f7d1",
+        "warning" : "#fff4d6",
+        "danger" : "#f8d7da"
+      }
+    },
+    "summary_badges" : {
+      "default" : {
+        "background" : "#f1f3f5",
+        "text" : "#1f2937"
+      },
+      "status" : {
+        "новый" : {
+          "background" : "#e7f1ff",
+          "text" : "#0d6efd"
+        },
+        "ожидает ответа оператора" : {
+          "background" : "#fff4d6",
+          "text" : "#b35c00"
+        },
+        "ожидает ответа клиента" : {
+          "background" : "#e0f4ff",
+          "text" : "#0b6fa3"
+        },
+        "закрыт" : {
+          "background" : "#e3f7e9",
+          "text" : "#13795b"
+        },
+        "закрыт автоматически" : {
+          "background" : "#f1f3f5",
+          "text" : "#6c757d"
+        }
+      },
+      "channel" : {
+        "telegram" : {
+          "background" : "#e0f4ff",
+          "text" : "#0b6fa3"
+        },
+        "vk" : {
+          "background" : "#e7f1ff",
+          "text" : "#0d6efd"
+        }
+      }
+    },
+    "workspace_guardrail_webhook_enabled" : false,
+    "workspace_guardrail_webhook_url" : "",
+    "workspace_guardrail_webhook_window_days" : 7,
+    "workspace_guardrail_webhook_min_alerts" : 2,
+    "workspace_guardrail_webhook_cooldown_minutes" : 30,
+    "workspace_guardrail_webhook_timeout_ms" : 4000,
+    "workspace_triage_preferences_by_operator" : {
+      "admin" : {
+        "view" : "all",
+        "sort_mode" : "default",
+        "page_size" : "all",
+        "updated_at_utc" : "2026-04-15T09:16:06.199599600Z"
+      }
+    }
+  },
+  "network_profiles" : [ {
+    "provider" : "Ростелеком",
+    "contract_number" : "33333",
+    "support_phone" : "+7-999-999-99-99",
+    "legal_entity" : "Крепвиль",
+    "restaurant_id" : "",
+    "restaurant_ids" : [ ]
+  }, {
+    "provider" : "ДомРу",
+    "contract_number" : "ДР555",
+    "support_phone" : "+7-955-555-55-55",
+    "legal_entity" : "Сашим",
+    "restaurant_id" : "",
+    "restaurant_ids" : [ ]
+  }, {
+    "provider" : "ДомРу",
+    "contract_number" : "ДР5555",
+    "support_phone" : "+7-955-555-55-59",
+    "legal_entity" : "Сашим",
+    "restaurant_id" : "",
+    "restaurant_ids" : [ ]
+  } ],
+  "it_connection_categories" : { },
+  "bot_settings" : {
+    "question_templates" : [ {
+      "id" : "tpl_ml6opbj83rg3",
+      "name" : "Базовый шаблон вопросов",
+      "description" : "",
+      "question_flow" : [ {
+        "id" : "business",
+        "type" : "preset",
+        "text" : "Бизнес",
+        "order" : 1,
+        "preset" : {
+          "group" : "locations",
+          "field" : "business"
+        }
+      }, {
+        "id" : "location_type",
+        "type" : "preset",
+        "text" : "Тип бизнесаx",
+        "order" : 2,
+        "preset" : {
+          "group" : "locations",
+          "field" : "location_type"
+        }
+      }, {
+        "id" : "city",
+        "type" : "preset",
+        "text" : "Город",
+        "order" : 3,
+        "preset" : {
+          "group" : "locations",
+          "field" : "city"
+        }
+      }, {
+        "id" : "location_name",
+        "type" : "preset",
+        "text" : "Локация",
+        "order" : 4,
+        "preset" : {
+          "group" : "locations",
+          "field" : "location_name"
+        }
+      }, {
+        "id" : "q_ml6opixmrq7o5q",
+        "type" : "custom",
+        "text" : "укывеапрр",
+        "order" : 5
+      } ]
+    } ],
+    "active_template_id" : "tpl_ml6opbj83rg3",
+    "question_flow" : [ {
+      "id" : "business",
+      "type" : "preset",
+      "text" : "Бизнес",
+      "order" : 1,
+      "preset" : {
+        "group" : "locations",
+        "field" : "business"
+      }
+    }, {
+      "id" : "location_type",
+      "type" : "preset",
+      "text" : "Тип бизнесаx",
+      "order" : 2,
+      "preset" : {
+        "group" : "locations",
+        "field" : "location_type"
+      }
+    }, {
+      "id" : "city",
+      "type" : "preset",
+      "text" : "Город",
+      "order" : 3,
+      "preset" : {
+        "group" : "locations",
+        "field" : "city"
+      }
+    }, {
+      "id" : "location_name",
+      "type" : "preset",
+      "text" : "Локация",
+      "order" : 4,
+      "preset" : {
+        "group" : "locations",
+        "field" : "location_name"
+      }
+    }, {
+      "id" : "q_ml6opixmrq7o5q",
+      "type" : "custom",
+      "text" : "укывеапрр",
+      "order" : 5
+    } ],
+    "rating_templates" : [ {
+      "id" : "rating-template-default",
+      "name" : "Базовый сценарий оценок",
+      "description" : "",
+      "prompt_text" : "Пожалуйста, оцените качество ответа от 1 до 5.",
+      "scale_size" : 5,
+      "responses" : [ {
+        "value" : 1,
+        "text" : "Спасибо за вашу оценку 1! Нам важно ваше мнение."
+      }, {
+        "value" : 2,
+        "text" : "Спасибо за вашу оценку 2! Нам важно ваше мнение."
+      }, {
+        "value" : 3,
+        "text" : "Спасибо за вашу оценку 3! Нам важно ваше мнение."
+      }, {
+        "value" : 4,
+        "text" : "Спасибо за вашу оценку 4! Нам важно ваше мнение."
+      }, {
+        "value" : 5,
+        "text" : "Спасибо за вашу оценку 5! Нам важно ваше мнение."
+      } ]
+    } ],
+    "active_rating_template_id" : "rating-template-default",
+    "rating_system" : {
+      "prompt_text" : "Пожалуйста, оцените качество ответа от 1 до 5.",
+      "scale_size" : 5,
+      "responses" : [ {
+        "value" : 1,
+        "text" : "Спасибо за вашу оценку 1! Нам важно ваше мнение."
+      }, {
+        "value" : 2,
+        "text" : "Спасибо за вашу оценку 2! Нам важно ваше мнение."
+      }, {
+        "value" : 3,
+        "text" : "Спасибо за вашу оценку 3! Нам важно ваше мнение."
+      }, {
+        "value" : 4,
+        "text" : "Спасибо за вашу оценку 4! Нам важно ваше мнение."
+      }, {
+        "value" : 5,
+        "text" : "Спасибо за вашу оценку 5! Нам важно ваше мнение."
+      } ]
+    }
+  },
+  "unblock_request_cooldown_minutes" : 1,
+  "knowledge_base_config" : {
+    "enabled" : true,
+    "source_url" : "https://www.notion.so/blinberry-group",
+    "token" : "",
+    "authors" : [ "Синицын Владимир", "Лемешкин Андрей", "Egor", "Канделаки Данил", "Шумкова Дарья" ],
+    "title_property" : "Name",
+    "author_property" : "Автор",
+    "summary_property" : "Краткое описание",
+    "department_property" : "Подразделение",
+    "article_type_property" : "Тип статьи",
+    "direction_property" : "Направление",
+    "direction_subtype_property" : "Поднаправление",
+    "status_property" : "Статус"
+  }
+}
