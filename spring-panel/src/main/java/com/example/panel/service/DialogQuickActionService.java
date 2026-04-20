@@ -2,6 +2,8 @@ package com.example.panel.service;
 
 import com.example.panel.model.dialog.DialogListItem;
 import com.example.panel.storage.AttachmentService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -14,6 +16,8 @@ import java.util.Optional;
 
 @Service
 public class DialogQuickActionService {
+
+    private static final Logger log = LoggerFactory.getLogger(DialogQuickActionService.class);
 
     private final DialogService dialogService;
     private final DialogReplyService dialogReplyService;
@@ -44,7 +48,7 @@ public class DialogQuickActionService {
         DialogReplyService.DialogReplyResult result = dialogReplyService.sendReply(ticketId, message, replyToTelegramId, operator);
         if (result.success()) {
             dialogAiAssistantService.registerOperatorReply(ticketId, message, operator);
-            notificationService.notifyDialogParticipants(
+            notifyDialogParticipantsSafely(
                     ticketId,
                     "Новое сообщение в обращении " + ticketId,
                     "/dialogs?ticketId=" + ticketId,
@@ -65,7 +69,7 @@ public class DialogQuickActionService {
                 operator
         );
         if (result.success()) {
-            notificationService.notifyDialogParticipants(
+            notifyDialogParticipantsSafely(
                     ticketId,
                     "Сообщение в обращении " + ticketId + " было отредактировано",
                     "/dialogs?ticketId=" + ticketId,
@@ -84,7 +88,7 @@ public class DialogQuickActionService {
                 operator
         );
         if (result.success()) {
-            notificationService.notifyDialogParticipants(
+            notifyDialogParticipantsSafely(
                     ticketId,
                     "Сообщение в обращении " + ticketId + " было удалено",
                     "/dialogs?ticketId=" + ticketId,
@@ -118,7 +122,7 @@ public class DialogQuickActionService {
         response.put("attachment", attachmentUrl);
         response.put("messageType", result.messageType());
         response.put("message", result.message());
-        notificationService.notifyDialogParticipants(
+        notifyDialogParticipantsSafely(
                 ticketId,
                 "Новое медиа-сообщение в обращении " + ticketId,
                 "/dialogs?ticketId=" + ticketId,
@@ -134,7 +138,7 @@ public class DialogQuickActionService {
         if (result.updated()) {
             dialogAiAssistantService.clearProcessing(ticketId, "resolved", null);
             dialogNotificationService.notifyResolved(ticketId);
-            notificationService.notifyDialogParticipants(
+            notifyDialogParticipantsSafely(
                     ticketId,
                     "Обращение " + ticketId + " закрыто",
                     "/dialogs?ticketId=" + ticketId,
@@ -149,7 +153,7 @@ public class DialogQuickActionService {
         if (result.updated()) {
             dialogAiAssistantService.clearProcessing(ticketId, "reopened", null);
             dialogNotificationService.notifyReopened(ticketId);
-            notificationService.notifyDialogParticipants(
+            notifyDialogParticipantsSafely(
                     ticketId,
                     "Обращение " + ticketId + " снова открыто",
                     "/dialogs?ticketId=" + ticketId,
@@ -164,7 +168,7 @@ public class DialogQuickActionService {
                                  List<String> categories) {
         dialogService.assignResponsibleIfMissing(ticketId, operator);
         dialogService.setTicketCategories(ticketId, categories);
-        notificationService.notifyDialogParticipants(
+        notifyDialogParticipantsSafely(
                 ticketId,
                 "В обращении " + ticketId + " обновлены категории",
                 "/dialogs?ticketId=" + ticketId,
@@ -181,12 +185,23 @@ public class DialogQuickActionService {
         dialogAiAssistantService.clearProcessing(ticketId, "operator_take", null);
         Optional<DialogListItem> updated = dialogService.findDialog(ticketId, operator);
         String responsible = updated.map(DialogListItem::responsible).orElse(dialog.get().responsible());
-        notificationService.notifyDialogParticipants(
+        notifyDialogParticipantsSafely(
                 ticketId,
                 "Обращение " + ticketId + " взято в работу оператором " + operator,
                 "/dialogs?ticketId=" + ticketId,
                 operator
         );
         return Optional.ofNullable(responsible != null && !responsible.isBlank() ? responsible : operator);
+    }
+
+    private void notifyDialogParticipantsSafely(String ticketId,
+                                                String text,
+                                                String url,
+                                                String excludedIdentity) {
+        try {
+            notificationService.notifyDialogParticipants(ticketId, text, url, excludedIdentity);
+        } catch (RuntimeException ex) {
+            log.warn("Unable to create dialog notifications for ticket {}: {}", ticketId, ex.getMessage());
+        }
     }
 }

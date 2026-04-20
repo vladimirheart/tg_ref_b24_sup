@@ -102,11 +102,11 @@
             </a>
             <a class="nav-link" data-page-key="public"
                th:classappend="${active}=='public' ? ' active'"
-               th:href="@{/public/forms/demo}">
+               th:href="@{/channels#public-forms}">
                 <span class="icon" aria-hidden="true">🌐</span>
                 <span class="label">
                     <span class="nav-label-main">Внешние формы</span>
-                    <span class="nav-label-sub">Публичные точки входа</span>
+                    <span class="nav-label-sub">Ссылки и конфигурация в каналах</span>
                 </span>
             </a>
             <a class="nav-link" data-page-key="knowledge" th:if="${canEditKnowledgeBase}"
