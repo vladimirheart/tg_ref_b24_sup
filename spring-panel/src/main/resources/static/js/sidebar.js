@@ -23,8 +23,10 @@
   const PREF_KEY_PIN = 'sidebarPinned';
   const PREF_KEY_DENSITY_MODE = 'uiDensityMode';
   const PREF_KEY_NAV_ORDER = 'sidebarNavOrder';
+  const PREF_KEY_NAV_SCROLL = 'sidebarNavScrollTop';
   const DENSITY_COMFORTABLE = 'comfortable';
   const DENSITY_COMPACT = 'compact';
+  const NOTIFICATIONS_POLL_INTERVAL_MS = 5000;
   let pinned = (prefApi ? prefApi.get(PREF_KEY_PIN) : localStorage.getItem(PREF_KEY_PIN)) === '1';
   const HOVER_LEAVE_DELAY_MS = 1000;
   let hoverLeaveTimer = null;
@@ -265,6 +267,7 @@
 
   function applyOrder(order) {
     if (!nav) return;
+    const previousScrollTop = nav.scrollTop;
     const byKey = new Map();
     getNavLinks().forEach((link) => {
       byKey.set(link.dataset.pageKey, link);
@@ -279,6 +282,7 @@
     });
     byKey.forEach((el) => fragment.appendChild(el));
     nav.appendChild(fragment);
+    nav.scrollTop = previousScrollTop;
   }
 
   function normalizedDefaultOrder() {
@@ -306,6 +310,20 @@
     } catch (error) {
       return null;
     }
+  }
+
+  function restoreNavScrollPosition() {
+    if (!nav) return;
+    const rawValue = getPreference(PREF_KEY_NAV_SCROLL, '0');
+    const scrollTop = Number.parseInt(String(rawValue ?? '0'), 10);
+    if (Number.isFinite(scrollTop) && scrollTop > 0) {
+      nav.scrollTop = scrollTop;
+    }
+  }
+
+  function persistNavScrollPosition() {
+    if (!nav) return;
+    setPreference(PREF_KEY_NAV_SCROLL, String(nav.scrollTop || 0), 'sidebar-nav-scroll');
   }
 
   function getDragAfterElement(container, y) {
@@ -437,13 +455,16 @@
     } else {
       applyOrder(DEFAULT_ORDER);
     }
+    restoreNavScrollPosition();
     setupDragAndDrop();
     applyDraggableState(false);
     updateEditOrderButton();
+    nav.addEventListener('scroll', persistNavScrollPosition, { passive: true });
     if (resetOrderBtn) {
       resetOrderBtn.addEventListener('click', () => {
         applyOrder(DEFAULT_ORDER);
         removePreference(PREF_KEY_NAV_ORDER, 'sidebar-order-reset');
+        persistNavScrollPosition();
         setEditingOrder(false);
       });
     }
@@ -451,6 +472,7 @@
     nav.addEventListener('click', (event) => {
       const link = event.target.closest('.nav-link');
       if (!link) return;
+      persistNavScrollPosition();
       if (isMobileViewport()) {
         setMobileOpen(false);
       }
@@ -878,6 +900,10 @@
     }
   }
 
+  function requestNotificationRefresh() {
+    return updateNotificationCount();
+  }
+
   if (bellBtn) {
     bellBtn.addEventListener('click', async (event) => {
       event.preventDefault();
@@ -906,7 +932,15 @@
   });
 
   updateNotificationCount();
-  setInterval(updateNotificationCount, 15000);
+  setInterval(updateNotificationCount, NOTIFICATIONS_POLL_INTERVAL_MS);
+  window.refreshSidebarNotifications = requestNotificationRefresh;
+  window.addEventListener('iguana:notifications-refresh', requestNotificationRefresh);
+  window.addEventListener('focus', requestNotificationRefresh);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      requestNotificationRefresh();
+    }
+  });
 
   const unblockBadge = document.querySelector('[data-unblock-count]');
 
@@ -1045,12 +1079,25 @@
 // Авто-активация пункта меню по текущему пути
 (function markActiveNav(){
   const path = location.pathname.replace(/\/+$/, '');     // без хвостового слеша
+  const nav = document.querySelector('.sidebar .sidebar-nav');
+  let activeLink = null;
   document.querySelectorAll('.sidebar .nav-link[href]').forEach(a=>{
     const href = (a.getAttribute('href') || '').replace(/\/+$/, '');
     if (!href) return;
     // точное совпадение или «раздел» (например, /tickets и /tickets/123)
     if (path === href || (href && path.startsWith(href + '/'))) {
       a.classList.add('active');
+      if (!activeLink) {
+        activeLink = a;
+      }
+    }
+  });
+  if (!nav || !activeLink) return;
+  requestAnimationFrame(() => {
+    const navRect = nav.getBoundingClientRect();
+    const linkRect = activeLink.getBoundingClientRect();
+    if (linkRect.top < navRect.top + 12 || linkRect.bottom > navRect.bottom - 12) {
+      activeLink.scrollIntoView({ block: 'nearest' });
     }
   });
 })();

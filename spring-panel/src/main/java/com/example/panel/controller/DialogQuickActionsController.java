@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -60,12 +61,12 @@ public class DialogQuickActionsController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Map.of("success", false, "error", result.error()));
         }
-        return ResponseEntity.ok(Map.of(
-                "success", true,
-                "timestamp", result.timestamp(),
-                "telegramMessageId", result.telegramMessageId(),
-                "responsible", operator
-        ));
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("success", true);
+        payload.put("timestamp", result.timestamp());
+        payload.put("telegramMessageId", result.telegramMessageId());
+        payload.put("responsible", operator);
+        return ResponseEntity.ok(payload);
     }
 
     @PostMapping("/{ticketId}/edit")

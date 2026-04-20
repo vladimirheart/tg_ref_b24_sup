@@ -839,14 +839,30 @@
       color: #0f5132;
     }
 
+    #authUserDetailsModal {
+      --auth-user-modal-left-offset: calc(var(--settings-sheet-sidebar-offset, var(--sidebar-w, 308px)) + 0.75rem);
+      z-index: 20010;
+      padding-left: var(--auth-user-modal-left-offset);
+    }
+
+    body.sidebar-collapsed #authUserDetailsModal {
+      --auth-user-modal-left-offset: calc(var(--sidebar-w-collapsed, 84px) + 0.75rem);
+    }
+
     .auth-user-modal-dialog {
       width: auto;
-      max-width: min(100vw - 2rem, 1280px);
+      margin: 1rem 1rem 1rem auto;
+      max-width: min(1280px, calc(100vw - var(--auth-user-modal-left-offset) - 1rem));
     }
 
     @media (max-width: 575.98px) {
+      #authUserDetailsModal {
+        padding-left: 0;
+      }
+
       .auth-user-modal-dialog {
         margin: 0.5rem auto;
+        max-width: calc(100vw - 1rem);
       }
     }
 
