@@ -3,12 +3,8 @@ package com.example.panel.service;
 import com.example.panel.model.dialog.ChatMessageDto;
 import com.example.panel.model.dialog.DialogDetails;
 import com.example.panel.model.dialog.DialogListItem;
-import com.example.panel.model.dialog.DialogPreviousHistoryPage;
-import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -16,10 +12,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.time.Instant;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -39,8 +31,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.ArrayList;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -48,44 +38,17 @@ import java.util.stream.Stream;
 @Service
 public class DialogWorkspaceService {
 
-    private static final Logger log = LoggerFactory.getLogger(DialogWorkspaceService.class);
-
     private final DialogService dialogService;
     private final SharedConfigService sharedConfigService;
     private final DialogAuthorizationService dialogAuthorizationService;
-    private final NotificationService notificationService;
     private final SlaEscalationWebhookNotifier slaEscalationWebhookNotifier;
-    private final DialogAiAssistantService dialogAiAssistantService;
+    private final DialogWorkspaceExternalProfileService dialogWorkspaceExternalProfileService;
+    private final DialogWorkspaceParityService dialogWorkspaceParityService;
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final int DEFAULT_SLA_TARGET_MINUTES = 24 * 60;
     private static final int DEFAULT_SLA_WARNING_MINUTES = 4 * 60;
     private static final int DEFAULT_WORKSPACE_LIMIT = 50;
     private static final int MAX_WORKSPACE_LIMIT = 200;
-    private static final Pattern MACRO_VARIABLE_PATTERN = Pattern.compile("\\{\\{\\s*([a-z0-9_]+)(?:\\s*\\|\\s*([^}]+))?\\s*}}", Pattern.CASE_INSENSITIVE);
-    private static final DateTimeFormatter MACRO_DATE_FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yyyy").withZone(ZoneId.of("Europe/Moscow"));
-    private static final DateTimeFormatter MACRO_TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm").withZone(ZoneId.of("Europe/Moscow"));
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-    private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build();
-    private static final int DEFAULT_MACRO_CATALOG_EXTERNAL_TIMEOUT_MS = 2000;
-    private static final int MIN_MACRO_CATALOG_EXTERNAL_TIMEOUT_MS = 200;
-    private static final int MAX_MACRO_CATALOG_EXTERNAL_TIMEOUT_MS = 10000;
-    private static final int DEFAULT_MACRO_CATALOG_EXTERNAL_CACHE_TTL_SECONDS = 120;
-    private static final int MIN_MACRO_CATALOG_EXTERNAL_CACHE_TTL_SECONDS = 0;
-    private static final int MAX_MACRO_CATALOG_EXTERNAL_CACHE_TTL_SECONDS = 3600;
-    private static final int DEFAULT_WORKSPACE_EXTERNAL_PROFILE_TIMEOUT_MS = 2500;
-    private static final int MIN_WORKSPACE_EXTERNAL_PROFILE_TIMEOUT_MS = 300;
-    private static final int MAX_WORKSPACE_EXTERNAL_PROFILE_TIMEOUT_MS = 10000;
-    private static final int DEFAULT_WORKSPACE_EXTERNAL_PROFILE_CACHE_TTL_SECONDS = 120;
-    private static final int MIN_WORKSPACE_EXTERNAL_PROFILE_CACHE_TTL_SECONDS = 0;
-    private static final int MAX_WORKSPACE_EXTERNAL_PROFILE_CACHE_TTL_SECONDS = 3600;
-    private static final Pattern SAFE_HTTP_HEADER_NAME_PATTERN = Pattern.compile("^[A-Za-z0-9-]{1,64}$");
-    private static final Object MACRO_CATALOG_EXTERNAL_CACHE_LOCK = new Object();
-    private static final Object WORKSPACE_EXTERNAL_PROFILE_CACHE_LOCK = new Object();
-    private static volatile String macroCatalogExternalCacheUrl = null;
-    private static volatile List<Map<String, String>> macroCatalogExternalCacheVariables = List.of();
-    private static volatile Instant macroCatalogExternalCacheExpiresAt = Instant.EPOCH;
-    private static volatile String workspaceExternalProfileCacheUrl = null;
-    private static volatile Map<String, Object> workspaceExternalProfileCache = Map.of();
-    private static volatile Instant workspaceExternalProfileCacheExpiresAt = Instant.EPOCH;
     private static final Set<String> WORKSPACE_INCLUDE_ALLOWED = Set.of("messages", "context", "sla", "permissions");
     private static final Map<String, String> WORKSPACE_TELEMETRY_EVENT_GROUPS = Map.ofEntries(
             Map.entry("workspace_open_ms", "performance"),
@@ -127,224 +90,18 @@ public class DialogWorkspaceService {
             Map.entry("triage_quick_close", "triage"),
             Map.entry("triage_bulk_action", "triage")
     );
-    private static final List<Map<String, String>> BUILTIN_MACRO_VARIABLES = List.of(
-            macroVariable("client_name", "Имя клиента"),
-            macroVariable("ticket_id", "ID обращения"),
-            macroVariable("operator_name", "Имя оператора"),
-            macroVariable("channel_name", "Канал обращения"),
-            macroVariable("business", "Бизнес-направление"),
-            macroVariable("location", "Локация клиента"),
-            macroVariable("dialog_status", "Текущий статус диалога"),
-            macroVariable("created_at", "Дата создания обращения"),
-            macroVariable("client_total_dialogs", "Всего обращений клиента"),
-            macroVariable("client_open_dialogs", "Открытые обращения клиента"),
-            macroVariable("client_resolved_30d", "Решено за 30 дней"),
-            macroVariable("client_avg_rating", "Средний рейтинг клиента"),
-            macroVariable("client_segment_list", "Сегменты клиента (через запятую)"),
-            macroVariable("current_date", "Текущая дата"),
-            macroVariable("current_time", "Текущее время")
-    );
-
     public DialogWorkspaceService(DialogService dialogService,
                                   SharedConfigService sharedConfigService,
                                   DialogAuthorizationService dialogAuthorizationService,
-                                  NotificationService notificationService,
                                   SlaEscalationWebhookNotifier slaEscalationWebhookNotifier,
-                                  DialogAiAssistantService dialogAiAssistantService) {
+                                  DialogWorkspaceExternalProfileService dialogWorkspaceExternalProfileService,
+                                  DialogWorkspaceParityService dialogWorkspaceParityService) {
         this.dialogService = dialogService;
         this.sharedConfigService = sharedConfigService;
         this.dialogAuthorizationService = dialogAuthorizationService;
-        this.notificationService = notificationService;
         this.slaEscalationWebhookNotifier = slaEscalationWebhookNotifier;
-        this.dialogAiAssistantService = dialogAiAssistantService;
-    }
-
-    private void appendMacroCatalogVariables(List<Map<String, String>> variables, Object source, String sourceName) {
-        if (!(source instanceof List<?> entries)) {
-            return;
-        }
-        for (Object entry : entries) {
-            if (!(entry instanceof Map<?, ?> map)) {
-                continue;
-            }
-            String key = map.get("key") != null ? String.valueOf(map.get("key")).trim().toLowerCase() : "";
-            String label = map.get("label") != null ? String.valueOf(map.get("label")).trim() : "";
-            String defaultValue = map.get("default_value") != null ? String.valueOf(map.get("default_value")).trim() : "";
-            if (!StringUtils.hasText(key) || !StringUtils.hasText(label)) {
-                continue;
-            }
-            if (variables.stream().noneMatch(item -> key.equals(item.get("key")))) {
-                variables.add(macroVariable(key, label, defaultValue, sourceName));
-            }
-        }
-    }
-
-    private Object resolveExternalMacroVariableCatalog(Map<String, Object> settings) {
-        Object rawDialogConfig = settings != null ? settings.get("dialog_config") : null;
-        if (!(rawDialogConfig instanceof Map<?, ?> dialogConfig)) {
-            return List.of();
-        }
-        String externalUrl = dialogConfig.get("macro_variable_catalog_external_url") != null
-                ? String.valueOf(dialogConfig.get("macro_variable_catalog_external_url")).trim()
-                : "";
-        if (!StringUtils.hasText(externalUrl)) {
-            return List.of();
-        }
-        int cacheTtlSeconds = clampMacroCatalogCacheTtlSeconds(dialogConfig.get("macro_variable_catalog_external_cache_ttl_seconds"));
-        List<Map<String, String>> cached = resolveCachedExternalMacroCatalog(externalUrl, cacheTtlSeconds);
-        if (!cached.isEmpty()) {
-            return cached;
-        }
-        int timeoutMs = clampMacroCatalogTimeout(dialogConfig.get("macro_variable_catalog_external_timeout_ms"));
-        try {
-            HttpRequest.Builder requestBuilder = HttpRequest.newBuilder(URI.create(externalUrl))
-                    .GET()
-                    .timeout(Duration.ofMillis(timeoutMs));
-            applyMacroCatalogExternalAuthHeader(requestBuilder, dialogConfig);
-            HttpRequest request = requestBuilder.build();
-            HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                log.warn("macro catalog external fetch failed: status={} url={}", response.statusCode(), externalUrl);
-                return resolveCachedExternalMacroCatalogOnFailure(externalUrl);
-            }
-            Object parsed = OBJECT_MAPPER.readValue(response.body(), new TypeReference<Object>() {});
-            List<Map<String, String>> normalized = normalizeMacroCatalogVariables(parsed);
-            if (!normalized.isEmpty()) {
-                storeExternalMacroCatalogCache(externalUrl, normalized, cacheTtlSeconds);
-                return normalized;
-            }
-            if (parsed instanceof Map<?, ?> parsedMap && parsedMap.get("variables") instanceof List<?>) {
-                return resolveCachedExternalMacroCatalogOnFailure(externalUrl);
-            }
-            if (parsed instanceof List<?>) {
-                return resolveCachedExternalMacroCatalogOnFailure(externalUrl);
-            }
-            log.warn("macro catalog external fetch returned unexpected payload type: url={} type={}",
-                    externalUrl,
-                    parsed != null ? parsed.getClass().getSimpleName() : "null");
-        } catch (Exception exception) {
-            log.warn("macro catalog external fetch failed: url={} detail={}", externalUrl, exception.toString());
-            return resolveCachedExternalMacroCatalogOnFailure(externalUrl);
-        }
-        return List.of();
-    }
-
-    private void applyMacroCatalogExternalAuthHeader(HttpRequest.Builder requestBuilder,
-                                                    Map<?, ?> dialogConfig) {
-        if (requestBuilder == null || dialogConfig == null) {
-            return;
-        }
-        String token = trimToNull(String.valueOf(dialogConfig.get("macro_variable_catalog_external_auth_token")));
-        if (!StringUtils.hasText(token)) {
-            return;
-        }
-        String configuredHeader = trimToNull(String.valueOf(dialogConfig.get("macro_variable_catalog_external_auth_header")));
-        String headerName = StringUtils.hasText(configuredHeader) ? configuredHeader : "Authorization";
-        if (!SAFE_HTTP_HEADER_NAME_PATTERN.matcher(headerName).matches()) {
-            log.warn("macro catalog external auth header ignored due to unsafe header name: {}", headerName);
-            return;
-        }
-        requestBuilder.header(headerName, token);
-    }
-
-    private List<Map<String, String>> normalizeMacroCatalogVariables(Object rawPayload) {
-        Object payload = rawPayload;
-        if (payload instanceof Map<?, ?> map && map.get("variables") instanceof List<?>) {
-            payload = map.get("variables");
-        }
-        if (!(payload instanceof List<?> entries)) {
-            return List.of();
-        }
-        List<Map<String, String>> normalized = new ArrayList<>();
-        Set<String> keys = new HashSet<>();
-        for (Object entry : entries) {
-            if (!(entry instanceof Map<?, ?> map)) {
-                continue;
-            }
-            String key = trimToNull(String.valueOf(map.get("key")));
-            String label = trimToNull(String.valueOf(map.get("label")));
-            if (!StringUtils.hasText(key) || !StringUtils.hasText(label)) {
-                continue;
-            }
-            String normalizedKey = key.trim().toLowerCase();
-            if (keys.contains(normalizedKey)) {
-                continue;
-            }
-            keys.add(normalizedKey);
-            String defaultValue = trimToNull(String.valueOf(map.get("default_value")));
-            Map<String, String> item = new LinkedHashMap<>();
-            item.put("key", normalizedKey);
-            item.put("label", label);
-            if (StringUtils.hasText(defaultValue)) {
-                item.put("default_value", defaultValue);
-            }
-            normalized.add(item);
-        }
-        return normalized;
-    }
-
-    private List<Map<String, String>> resolveCachedExternalMacroCatalog(String externalUrl, int cacheTtlSeconds) {
-        if (cacheTtlSeconds <= 0) {
-            return List.of();
-        }
-        if (!externalUrl.equals(macroCatalogExternalCacheUrl)) {
-            return List.of();
-        }
-        if (macroCatalogExternalCacheExpiresAt != null && Instant.now().isBefore(macroCatalogExternalCacheExpiresAt)) {
-            return macroCatalogExternalCacheVariables;
-        }
-        return List.of();
-    }
-
-    private List<Map<String, String>> resolveCachedExternalMacroCatalogOnFailure(String externalUrl) {
-        if (externalUrl.equals(macroCatalogExternalCacheUrl) && !macroCatalogExternalCacheVariables.isEmpty()) {
-            log.info("macro catalog external fetch fallback to stale cache: url={} entries={}",
-                    externalUrl,
-                    macroCatalogExternalCacheVariables.size());
-            return macroCatalogExternalCacheVariables;
-        }
-        return List.of();
-    }
-
-    private void storeExternalMacroCatalogCache(String externalUrl, List<Map<String, String>> variables, int cacheTtlSeconds) {
-        if (!StringUtils.hasText(externalUrl) || variables == null || variables.isEmpty() || cacheTtlSeconds <= 0) {
-            return;
-        }
-        synchronized (MACRO_CATALOG_EXTERNAL_CACHE_LOCK) {
-            macroCatalogExternalCacheUrl = externalUrl;
-            macroCatalogExternalCacheVariables = List.copyOf(variables);
-            macroCatalogExternalCacheExpiresAt = Instant.now().plusSeconds(cacheTtlSeconds);
-        }
-    }
-
-    private int clampMacroCatalogCacheTtlSeconds(Object value) {
-        if (value == null) {
-            return DEFAULT_MACRO_CATALOG_EXTERNAL_CACHE_TTL_SECONDS;
-        }
-        try {
-            int parsed = Integer.parseInt(String.valueOf(value).trim());
-            if (parsed < MIN_MACRO_CATALOG_EXTERNAL_CACHE_TTL_SECONDS) {
-                return MIN_MACRO_CATALOG_EXTERNAL_CACHE_TTL_SECONDS;
-            }
-            return Math.min(parsed, MAX_MACRO_CATALOG_EXTERNAL_CACHE_TTL_SECONDS);
-        } catch (NumberFormatException ignored) {
-            return DEFAULT_MACRO_CATALOG_EXTERNAL_CACHE_TTL_SECONDS;
-        }
-    }
-
-    private int clampMacroCatalogTimeout(Object value) {
-        if (value == null) {
-            return DEFAULT_MACRO_CATALOG_EXTERNAL_TIMEOUT_MS;
-        }
-        try {
-            int timeout = Integer.parseInt(String.valueOf(value).trim());
-            if (timeout < MIN_MACRO_CATALOG_EXTERNAL_TIMEOUT_MS) {
-                return MIN_MACRO_CATALOG_EXTERNAL_TIMEOUT_MS;
-            }
-            return Math.min(timeout, MAX_MACRO_CATALOG_EXTERNAL_TIMEOUT_MS);
-        } catch (NumberFormatException ignored) {
-            return DEFAULT_MACRO_CATALOG_EXTERNAL_TIMEOUT_MS;
-        }
+        this.dialogWorkspaceExternalProfileService = dialogWorkspaceExternalProfileService;
+        this.dialogWorkspaceParityService = dialogWorkspaceParityService;
     }
 
     private Map<String, Object> resolveWorkspaceExternalProfileEnrichment(Map<String, Object> settings,
@@ -368,138 +125,7 @@ public class DialogWorkspaceService {
         if (!StringUtils.hasText(resolvedUrl)) {
             return Map.of();
         }
-        int cacheTtlSeconds = clampWorkspaceExternalProfileCacheTtl(dialogConfig.get("workspace_client_external_profile_cache_ttl_seconds"));
-        Map<String, Object> cached = resolveCachedWorkspaceExternalProfile(resolvedUrl, cacheTtlSeconds);
-        if (!cached.isEmpty()) {
-            return cached;
-        }
-        int timeoutMs = clampWorkspaceExternalProfileTimeout(dialogConfig.get("workspace_client_external_profile_timeout_ms"));
-        try {
-            HttpRequest.Builder requestBuilder = HttpRequest.newBuilder(URI.create(resolvedUrl))
-                    .GET()
-                    .timeout(Duration.ofMillis(timeoutMs));
-            applyWorkspaceExternalProfileAuthHeader(requestBuilder, dialogConfig);
-            HttpRequest request = requestBuilder.build();
-            HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                log.warn("workspace external profile fetch failed: status={} url={}", response.statusCode(), resolvedUrl);
-                return resolveCachedWorkspaceExternalProfileOnFailure(resolvedUrl);
-            }
-            Object parsed = OBJECT_MAPPER.readValue(response.body(), new TypeReference<Object>() {});
-            Map<String, Object> normalized = normalizeWorkspaceExternalProfilePayload(parsed);
-            if (!normalized.isEmpty()) {
-                storeWorkspaceExternalProfileCache(resolvedUrl, normalized, cacheTtlSeconds);
-                return normalized;
-            }
-            if (parsed instanceof Map<?, ?> || parsed instanceof List<?>) {
-                return resolveCachedWorkspaceExternalProfileOnFailure(resolvedUrl);
-            }
-            log.warn("workspace external profile fetch returned unsupported payload type: url={} type={}",
-                    resolvedUrl,
-                    parsed != null ? parsed.getClass().getSimpleName() : "null");
-        } catch (Exception exception) {
-            log.warn("workspace external profile fetch failed: url={} detail={}", resolvedUrl, exception.toString());
-            return resolveCachedWorkspaceExternalProfileOnFailure(resolvedUrl);
-        }
-        return Map.of();
-    }
-
-    private void applyWorkspaceExternalProfileAuthHeader(HttpRequest.Builder requestBuilder,
-                                                         Map<?, ?> dialogConfig) {
-        if (requestBuilder == null || dialogConfig == null) {
-            return;
-        }
-        String token = trimToNull(String.valueOf(dialogConfig.get("workspace_client_external_profile_auth_token")));
-        if (!StringUtils.hasText(token)) {
-            return;
-        }
-        String configuredHeader = trimToNull(String.valueOf(dialogConfig.get("workspace_client_external_profile_auth_header")));
-        String headerName = StringUtils.hasText(configuredHeader) ? configuredHeader : "Authorization";
-        if (!SAFE_HTTP_HEADER_NAME_PATTERN.matcher(headerName).matches()) {
-            log.warn("workspace external profile auth header ignored due to unsafe header name: {}", headerName);
-            return;
-        }
-        requestBuilder.header(headerName, token);
-    }
-
-    private Map<String, Object> normalizeWorkspaceExternalProfilePayload(Object payload) {
-        Object candidate = payload;
-        if (candidate instanceof Map<?, ?> map && map.get("profile") != null) {
-            candidate = map.get("profile");
-        }
-        if (!(candidate instanceof Map<?, ?> profileMap)) {
-            return Map.of();
-        }
-        Map<String, Object> normalized = new LinkedHashMap<>();
-        profileMap.forEach((keyRaw, valueRaw) -> {
-            String key = normalizeMacroVariableKey(String.valueOf(keyRaw));
-            if (!StringUtils.hasText(key) || valueRaw == null) {
-                return;
-            }
-            normalized.put(key, valueRaw);
-        });
-        return normalized;
-    }
-
-    private Map<String, Object> resolveCachedWorkspaceExternalProfile(String resolvedUrl, int cacheTtlSeconds) {
-        if (cacheTtlSeconds <= 0 || !resolvedUrl.equals(workspaceExternalProfileCacheUrl)) {
-            return Map.of();
-        }
-        if (workspaceExternalProfileCacheExpiresAt != null && Instant.now().isBefore(workspaceExternalProfileCacheExpiresAt)) {
-            return workspaceExternalProfileCache;
-        }
-        return Map.of();
-    }
-
-    private Map<String, Object> resolveCachedWorkspaceExternalProfileOnFailure(String resolvedUrl) {
-        if (resolvedUrl.equals(workspaceExternalProfileCacheUrl) && !workspaceExternalProfileCache.isEmpty()) {
-            log.info("workspace external profile fetch fallback to stale cache: url={} keys={}",
-                    resolvedUrl,
-                    workspaceExternalProfileCache.size());
-            return workspaceExternalProfileCache;
-        }
-        return Map.of();
-    }
-
-    private void storeWorkspaceExternalProfileCache(String resolvedUrl, Map<String, Object> profile, int cacheTtlSeconds) {
-        if (!StringUtils.hasText(resolvedUrl) || profile == null || profile.isEmpty() || cacheTtlSeconds <= 0) {
-            return;
-        }
-        synchronized (WORKSPACE_EXTERNAL_PROFILE_CACHE_LOCK) {
-            workspaceExternalProfileCacheUrl = resolvedUrl;
-            workspaceExternalProfileCache = Map.copyOf(profile);
-            workspaceExternalProfileCacheExpiresAt = Instant.now().plusSeconds(cacheTtlSeconds);
-        }
-    }
-
-    private int clampWorkspaceExternalProfileTimeout(Object value) {
-        if (value == null) {
-            return DEFAULT_WORKSPACE_EXTERNAL_PROFILE_TIMEOUT_MS;
-        }
-        try {
-            int parsed = Integer.parseInt(String.valueOf(value).trim());
-            if (parsed < MIN_WORKSPACE_EXTERNAL_PROFILE_TIMEOUT_MS) {
-                return MIN_WORKSPACE_EXTERNAL_PROFILE_TIMEOUT_MS;
-            }
-            return Math.min(parsed, MAX_WORKSPACE_EXTERNAL_PROFILE_TIMEOUT_MS);
-        } catch (NumberFormatException ignored) {
-            return DEFAULT_WORKSPACE_EXTERNAL_PROFILE_TIMEOUT_MS;
-        }
-    }
-
-    private int clampWorkspaceExternalProfileCacheTtl(Object value) {
-        if (value == null) {
-            return DEFAULT_WORKSPACE_EXTERNAL_PROFILE_CACHE_TTL_SECONDS;
-        }
-        try {
-            int parsed = Integer.parseInt(String.valueOf(value).trim());
-            if (parsed < MIN_WORKSPACE_EXTERNAL_PROFILE_CACHE_TTL_SECONDS) {
-                return MIN_WORKSPACE_EXTERNAL_PROFILE_CACHE_TTL_SECONDS;
-            }
-            return Math.min(parsed, MAX_WORKSPACE_EXTERNAL_PROFILE_CACHE_TTL_SECONDS);
-        } catch (NumberFormatException ignored) {
-            return DEFAULT_WORKSPACE_EXTERNAL_PROFILE_CACHE_TTL_SECONDS;
-        }
+        return dialogWorkspaceExternalProfileService.resolveProfile(dialogConfig, resolvedUrl);
     }
 
     private String humanizeMacroVariableLabel(String key) {
@@ -510,25 +136,6 @@ public class DialogWorkspaceService {
                 .filter(StringUtils::hasText)
                 .map(token -> Character.toUpperCase(token.charAt(0)) + token.substring(1))
                 .collect(Collectors.joining(" "));
-    }
-
-    private static Map<String, String> macroVariable(String key, String label) {
-        return macroVariable(key, label, null, "builtin");
-    }
-
-    private static Map<String, String> macroVariable(String key, String label, String defaultValue) {
-        return macroVariable(key, label, defaultValue, "custom");
-    }
-
-    private static Map<String, String> macroVariable(String key, String label, String defaultValue, String source) {
-        Map<String, String> variable = new LinkedHashMap<>();
-        variable.put("key", key);
-        variable.put("label", label);
-        variable.put("source", StringUtils.hasText(source) ? source : "custom");
-        if (StringUtils.hasText(defaultValue)) {
-            variable.put("default_value", defaultValue);
-        }
-        return variable;
     }
 
     public ResponseEntity<?> workspace(String ticketId,
@@ -675,8 +282,8 @@ public class DialogWorkspaceService {
                 "can_bulk", false,
                 "unavailable", true
         );
-        Map<String, Object> workspaceComposer = buildWorkspaceComposerMeta(summary, history, workspacePermissions);
-        Map<String, Object> workspaceParity = buildWorkspaceParityMeta(
+        Map<String, Object> workspaceComposer = dialogWorkspaceParityService.buildComposerMeta(summary, history, workspacePermissions);
+        Map<String, Object> workspaceParity = dialogWorkspaceParityService.buildParityMeta(
                 includeSections,
                 workspaceClient,
                 clientHistory,
@@ -864,212 +471,6 @@ public class DialogWorkspaceService {
                 previous != null ? "Есть предыдущий диалог. " : "",
                 next != null ? "Есть следующий диалог." : ""
         ).trim();
-    }
-
-    private Map<String, Object> buildWorkspaceParityMeta(Set<String> includeSections,
-                                                         Map<String, Object> workspaceClient,
-                                                         List<Map<String, Object>> clientHistory,
-                                                         List<Map<String, Object>> relatedEvents,
-                                                         Map<String, Object> profileHealth,
-                                                         Map<String, Object> contextBlocksHealth,
-                                                         Map<String, Object> permissions,
-                                                         Map<String, Object> composer,
-                                                         String slaState,
-                                                         DialogListItem summary,
-                                                         Map<String, Object> workspaceRollout) {
-        List<Map<String, Object>> checks = new ArrayList<>();
-        Instant checkedAt = Instant.now();
-
-        boolean messagesReady = includeSections.contains("messages");
-        checks.add(buildWorkspaceParityCheck(
-                "messages_timeline",
-                "Лента сообщений загружена в workspace",
-                messagesReady ? "ok" : "attention",
-                messagesReady ? "Основная лента доступна без перехода в legacy modal." : "Контракт workspace запрошен без секции messages.",
-                checkedAt
-        ));
-
-        boolean customerContextReady = workspaceClient != null && !workspaceClient.isEmpty();
-        checks.add(buildWorkspaceParityCheck(
-                "customer_context",
-                "Контекст клиента доступен в workspace",
-                customerContextReady ? "ok" : "attention",
-                customerContextReady ? "Карточка клиента доступна в основном workspace-потоке." : "Контекст клиента не загрузился.",
-                checkedAt
-        ));
-
-        boolean profileReady = !toBoolean(profileHealth != null ? profileHealth.get("enabled") : null)
-                || toBoolean(profileHealth.get("ready"));
-        checks.add(buildWorkspaceParityCheck(
-                "customer_profile_minimum",
-                "Минимальный customer profile готов",
-                profileReady ? "ok" : "attention",
-                profileReady ? "Контекст достаточен для решения без переключения в сторонние экраны." : "Есть обязательные profile gaps — нужен дозаполняющий контекст.",
-                checkedAt
-        ));
-
-        boolean contextBlocksReady = !toBoolean(contextBlocksHealth != null ? contextBlocksHealth.get("enabled") : null)
-                || toBoolean(contextBlocksHealth.get("ready"));
-        checks.add(buildWorkspaceParityCheck(
-                "customer_context_blocks",
-                "Контекстные блоки стандартизированы по приоритету",
-                contextBlocksReady ? "ok" : "attention",
-                contextBlocksReady
-                        ? "Приоритетные блоки customer context готовы и не требуют переключения между экранами."
-                        : "Есть обязательные context-block gaps — приоритетные блоки ещё не готовы.",
-                checkedAt
-        ));
-
-        boolean historyReady = includeSections.contains("context") && clientHistory != null;
-        checks.add(buildWorkspaceParityCheck(
-                "history_context",
-                "История клиента доступна",
-                historyReady ? "ok" : "attention",
-                historyReady ? "Оператор видит историю клиента в workspace." : "Не удалось загрузить клиентскую историю.",
-                checkedAt
-        ));
-
-        boolean relatedEventsReady = includeSections.contains("context") && relatedEvents != null;
-        checks.add(buildWorkspaceParityCheck(
-                "related_events",
-                "Связанные события доступны",
-                relatedEventsReady ? "ok" : "attention",
-                relatedEventsReady ? "Связанные события доступны в правой колонке workspace." : "Связанные события недоступны.",
-                checkedAt
-        ));
-
-        boolean slaReady = includeSections.contains("sla") && StringUtils.hasText(slaState) && !"unknown".equalsIgnoreCase(slaState);
-        checks.add(buildWorkspaceParityCheck(
-                "sla_visibility",
-                "SLA-контекст доступен",
-                slaReady ? "ok" : "attention",
-                slaReady ? "SLA состояние и дедлайн доступны в workspace." : "SLA-контекст неполный или недоступен.",
-                checkedAt
-        ));
-
-        boolean actionControlsReady = permissions != null
-                && permissions.get("can_reply") instanceof Boolean
-                && permissions.get("can_assign") instanceof Boolean
-                && permissions.get("can_close") instanceof Boolean
-                && permissions.get("can_snooze") instanceof Boolean;
-        checks.add(buildWorkspaceParityCheck(
-                "operator_actions",
-                "Операторские действия доступны по контракту",
-                actionControlsReady ? "ok" : "blocked",
-                actionControlsReady ? "Workspace знает, какие действия можно выполнять." : "Права оператора невалидны — parity с legacy неполный.",
-                checkedAt
-        ));
-
-        boolean replyThreadingReady = composer != null
-                && Boolean.TRUE.equals(composer.get("reply_target_supported"))
-                && Boolean.TRUE.equals(composer.get("reply_supported"));
-        checks.add(buildWorkspaceParityCheck(
-                "reply_threading",
-                "Ответ на конкретное сообщение доступен в workspace",
-                replyThreadingReady ? "ok" : "attention",
-                replyThreadingReady ? "Оператор может отвечать на конкретное сообщение без перехода в legacy modal." : "Reply-threading в workspace недоступен или контракт композера неполный.",
-                checkedAt
-        ));
-
-        boolean mediaReplyReady = composer != null
-                && Boolean.TRUE.equals(composer.get("media_supported"))
-                && Boolean.TRUE.equals(composer.get("reply_supported"));
-        checks.add(buildWorkspaceParityCheck(
-                "media_reply",
-                "Отправка медиа доступна в workspace",
-                mediaReplyReady ? "ok" : "attention",
-                mediaReplyReady ? "Медиа-ответы доступны напрямую из workspace composer." : "Медиа-ответы в workspace недоступны по текущему контракту.",
-                checkedAt
-        ));
-
-        String rolloutMode = workspaceRollout != null ? String.valueOf(workspaceRollout.getOrDefault("mode", "")) : "";
-        boolean workspacePrimary = StringUtils.hasText(rolloutMode) && !"legacy_primary".equalsIgnoreCase(rolloutMode);
-        checks.add(buildWorkspaceParityCheck(
-                "workspace_primary_flow",
-                "Workspace остаётся основным рабочим потоком",
-                workspacePrimary ? "ok" : "attention",
-                workspacePrimary ? "Legacy modal рассматривается как rollback-механизм." : "Legacy modal всё ещё основной режим.",
-                checkedAt
-        ));
-
-        long okChecks = checks.stream().filter(item -> "ok".equals(item.get("status"))).count();
-        long blockedChecks = checks.stream().filter(item -> "blocked".equals(item.get("status"))).count();
-        int scorePct = checks.isEmpty() ? 100 : (int) Math.round((okChecks * 100d) / checks.size());
-        List<String> missingKeys = checks.stream()
-                .filter(item -> !"ok".equals(item.get("status")))
-                .map(item -> String.valueOf(item.get("key")))
-                .toList();
-        List<String> missingLabels = checks.stream()
-                .filter(item -> !"ok".equals(item.get("status")))
-                .map(item -> String.valueOf(item.get("label")))
-                .toList();
-
-        String status;
-        if (blockedChecks > 0 || scorePct < 60) {
-            status = "blocked";
-        } else if (!missingKeys.isEmpty()) {
-            status = "attention";
-        } else {
-            status = "ok";
-        }
-
-        String summaryText;
-        if ("ok".equals(status)) {
-            summaryText = "Workspace покрывает ключевые ежедневные операторские сценарии без видимого parity-gap.";
-        } else if ("blocked".equals(status)) {
-            summaryText = "Есть критичный parity-gap: часть operator-flow ещё не может считаться production-grade без legacy fallback.";
-        } else {
-            summaryText = "Есть неполный parity с legacy: workspace покрывает основной поток, но требует дозакрытия нескольких сценариев.";
-        }
-
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("status", status);
-        payload.put("score_pct", Math.max(0, Math.min(100, scorePct)));
-        payload.put("checked_at", checkedAt.toString());
-        payload.put("summary", summaryText);
-        payload.put("ticket_id", summary != null ? summary.ticketId() : null);
-        payload.put("missing_capabilities", missingKeys);
-        payload.put("missing_labels", missingLabels);
-        payload.put("checks", checks);
-        return payload;
-    }
-
-    private Map<String, Object> buildWorkspaceComposerMeta(DialogListItem summary,
-                                                           List<ChatMessageDto> history,
-                                                           Map<String, Object> permissions) {
-        boolean canReply = permissions != null && Boolean.TRUE.equals(permissions.get("can_reply"));
-        boolean hasReplyTargets = history != null && history.stream().anyMatch(message -> message != null && message.telegramMessageId() != null);
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("reply_supported", canReply);
-        payload.put("media_supported", canReply);
-        payload.put("reply_target_supported", canReply && hasReplyTargets);
-        payload.put("draft_supported", true);
-        payload.put("channel_id", summary != null ? summary.channelId() : null);
-        payload.put("channel_label", summary != null ? summary.channelLabel() : null);
-        payload.put("timezone", "UTC");
-        return payload;
-    }
-
-    private Map<String, Object> buildWorkspaceParityCheck(String key,
-                                                          String label,
-                                                          String status,
-                                                          String detail,
-                                                          Instant checkedAt) {
-        Map<String, Object> item = new LinkedHashMap<>();
-        item.put("key", key);
-        item.put("label", label);
-        item.put("status", normalizeWorkspaceParityStatus(status));
-        item.put("detail", StringUtils.hasText(detail) ? detail.trim() : null);
-        item.put("checked_at", checkedAt != null ? checkedAt.toString() : Instant.now().toString());
-        return item;
-    }
-
-    private String normalizeWorkspaceParityStatus(String status) {
-        String normalized = status != null ? status.trim().toLowerCase() : "";
-        return switch (normalized) {
-            case "ok", "attention", "blocked" -> normalized;
-            default -> "attention";
-        };
     }
 
     private boolean toBoolean(Object value) {
@@ -1475,78 +876,6 @@ public class DialogWorkspaceService {
         }
     }
 
-    private Map<String, String> buildMacroVariables(String ticketId,
-                                                    String operator,
-                                                    Map<String, String> requestVariables) {
-        Map<String, String> variables = new LinkedHashMap<>();
-        if (requestVariables != null) {
-            requestVariables.forEach((key, value) -> {
-                if (!StringUtils.hasText(key) || value == null) {
-                    return;
-                }
-                variables.put(key.trim().toLowerCase(), value);
-            });
-        }
-
-        String safeTicketId = StringUtils.hasText(ticketId) ? ticketId.trim() : null;
-        if (safeTicketId != null) {
-            dialogService.loadDialogDetails(safeTicketId, null, operator).ifPresent(details -> {
-                DialogListItem summary = details.summary();
-                putMacroVariableIfAbsent(variables, "client_name", summary.displayClientName());
-                putMacroVariableIfAbsent(variables, "ticket_id", summary.ticketId());
-                putMacroVariableIfAbsent(variables, "operator_name", operator);
-                putMacroVariableIfAbsent(variables, "channel_name", summary.channelLabel());
-                putMacroVariableIfAbsent(variables, "business", summary.businessLabel());
-                putMacroVariableIfAbsent(variables, "location", summary.location());
-                putMacroVariableIfAbsent(variables, "dialog_status", summary.statusLabel());
-                putMacroVariableIfAbsent(variables, "created_at", summary.createdAt());
-                Map<String, Object> profileEnrichment = dialogService.loadClientProfileEnrichment(summary.userId());
-                putMacroVariablesFromClientProfile(variables, profileEnrichment);
-            });
-        }
-        putMacroVariableIfAbsent(variables, "ticket_id", safeTicketId != null ? safeTicketId : "—");
-        putMacroVariableIfAbsent(variables, "operator_name", StringUtils.hasText(operator) ? operator.trim() : "оператор");
-        Map<String, String> configuredDefaults = resolveConfiguredMacroVariableDefaults();
-        configuredDefaults.forEach((key, value) -> putMacroVariableIfAbsent(variables, key, value));
-        putMacroVariableIfAbsent(variables, "current_date", MACRO_DATE_FORMATTER.format(Instant.now()));
-        putMacroVariableIfAbsent(variables, "current_time", MACRO_TIME_FORMATTER.format(Instant.now()));
-        return variables;
-    }
-
-    private void putMacroVariablesFromClientProfile(Map<String, String> variables,
-                                                    Map<String, Object> profileEnrichment) {
-        if (profileEnrichment == null || profileEnrichment.isEmpty()) {
-            return;
-        }
-        putMacroVariableIfAbsent(variables, "client_total_dialogs", stringifyMacroVariableValue(profileEnrichment.get("total_dialogs")));
-        putMacroVariableIfAbsent(variables, "client_open_dialogs", stringifyMacroVariableValue(profileEnrichment.get("open_dialogs")));
-        putMacroVariableIfAbsent(variables, "client_resolved_30d", stringifyMacroVariableValue(profileEnrichment.get("resolved_30d")));
-        putMacroVariableIfAbsent(variables, "client_avg_rating", stringifyMacroVariableValue(profileEnrichment.get("avg_rating")));
-        putMacroVariableIfAbsent(variables, "client_segment_list", stringifyMacroVariableValue(profileEnrichment.get("segments")));
-
-        profileEnrichment.forEach((key, value) -> {
-            String normalizedKey = normalizeClientProfileMacroKey(key);
-            if (!StringUtils.hasText(normalizedKey)) {
-                return;
-            }
-            putMacroVariableIfAbsent(variables, "client_" + normalizedKey, stringifyMacroVariableValue(value));
-        });
-    }
-
-    private String normalizeClientProfileMacroKey(String key) {
-        if (!StringUtils.hasText(key)) {
-            return null;
-        }
-        String normalized = key.trim().toLowerCase().replaceAll("[^a-z0-9_]+", "_").replaceAll("_+", "_");
-        if (normalized.startsWith("_")) {
-            normalized = normalized.substring(1);
-        }
-        if (normalized.endsWith("_")) {
-            normalized = normalized.substring(0, normalized.length() - 1);
-        }
-        return StringUtils.hasText(normalized) ? normalized : null;
-    }
-
     private String stringifyMacroVariableValue(Object value) {
         if (value == null) {
             return null;
@@ -1581,107 +910,6 @@ public class DialogWorkspaceService {
         }
         String fallback = String.valueOf(value).trim();
         return StringUtils.hasText(fallback) ? fallback : null;
-    }
-
-    private Map<String, String> resolveConfiguredMacroVariableDefaults() {
-        Map<String, String> defaults = new LinkedHashMap<>();
-        Map<String, Object> settings = sharedConfigService.loadSettings();
-        Object configured = resolveMacroVariableCatalog(settings);
-        if (!(configured instanceof List<?> entries)) {
-            defaults.putAll(resolveDialogConfigMacroVariableDefaults(settings));
-            return defaults;
-        }
-        for (Object entry : entries) {
-            if (!(entry instanceof Map<?, ?> map)) {
-                continue;
-            }
-            String key = map.get("key") != null ? String.valueOf(map.get("key")).trim().toLowerCase() : "";
-            String defaultValue = map.get("default_value") != null ? String.valueOf(map.get("default_value")).trim() : "";
-            if (StringUtils.hasText(key) && StringUtils.hasText(defaultValue)) {
-                defaults.putIfAbsent(key, defaultValue);
-            }
-        }
-        resolveDialogConfigMacroVariableDefaults(settings)
-                .forEach(defaults::putIfAbsent);
-        return defaults;
-    }
-
-    private Object resolveMacroVariableCatalog(Map<String, Object> settings) {
-        if (settings == null || settings.isEmpty()) {
-            return null;
-        }
-        Object configured = settings.get("macro_variable_catalog");
-        Object dialogConfigRaw = settings.get("dialog_config");
-        if (dialogConfigRaw instanceof Map<?, ?> dialogConfig && dialogConfig.get("macro_variable_catalog") instanceof List<?>) {
-            configured = dialogConfig.get("macro_variable_catalog");
-        }
-        return configured;
-    }
-
-    private Map<String, String> resolveDialogConfigMacroVariableDefaults(Map<String, Object> settings) {
-        Map<String, String> defaults = new LinkedHashMap<>();
-        if (settings == null || settings.isEmpty()) {
-            return defaults;
-        }
-        Object dialogConfigRaw = settings.get("dialog_config");
-        if (!(dialogConfigRaw instanceof Map<?, ?> dialogConfig)) {
-            return defaults;
-        }
-        Object defaultsRaw = dialogConfig.get("macro_variable_defaults");
-        if (!(defaultsRaw instanceof Map<?, ?> configuredDefaults)) {
-            return defaults;
-        }
-        configuredDefaults.forEach((keyRaw, valueRaw) -> {
-            String key = keyRaw != null ? String.valueOf(keyRaw).trim().toLowerCase() : "";
-            String value = valueRaw != null ? String.valueOf(valueRaw).trim() : "";
-            if (StringUtils.hasText(key) && StringUtils.hasText(value)) {
-                defaults.putIfAbsent(key, value);
-            }
-        });
-        return defaults;
-    }
-
-    private void putMacroVariableIfAbsent(Map<String, String> variables, String key, String value) {
-        if (!StringUtils.hasText(key) || !StringUtils.hasText(value) || variables.containsKey(key)) {
-            return;
-        }
-        variables.put(key, value);
-    }
-
-    private MacroDryRunResult renderMacroTemplate(String templateText, Map<String, String> variables) {
-        Matcher matcher = MACRO_VARIABLE_PATTERN.matcher(templateText);
-        StringBuilder rendered = new StringBuilder();
-        List<String> usedVariables = new ArrayList<>();
-        List<String> missingVariables = new ArrayList<>();
-        int previousEnd = 0;
-        while (matcher.find()) {
-            rendered.append(templateText, previousEnd, matcher.start());
-            String key = String.valueOf(matcher.group(1)).trim().toLowerCase();
-            String fallback = matcher.group(2);
-            String value = variables.get(key);
-            if (value != null) {
-                rendered.append(value);
-                if (!usedVariables.contains(key)) {
-                    usedVariables.add(key);
-                }
-            } else if (StringUtils.hasText(fallback)) {
-                rendered.append(fallback.trim());
-                if (!missingVariables.contains(key)) {
-                    missingVariables.add(key);
-                }
-            } else {
-                rendered.append(matcher.group());
-                if (!missingVariables.contains(key)) {
-                    missingVariables.add(key);
-                }
-            }
-            previousEnd = matcher.end();
-        }
-        rendered.append(templateText.substring(previousEnd));
-        return new MacroDryRunResult(rendered.toString().trim(), usedVariables, missingVariables);
-    }
-
-    private record MacroDryRunResult(String renderedText, List<String> usedVariables, List<String> missingVariables) {
     }
 
 
@@ -3972,44 +3200,5 @@ public class DialogWorkspaceService {
             return null;
         }
     }
-
-    public record WorkspaceTelemetryRequest(@JsonAlias("event_type") String eventType,
-                                          String timestamp,
-                                          @JsonAlias("event_group") String eventGroup,
-                                          @JsonAlias("ticket_id") String ticketId,
-                                          String reason,
-                                          @JsonAlias("error_code") String errorCode,
-                                          @JsonAlias("contract_version") String contractVersion,
-                                          @JsonAlias("duration_ms") Long durationMs,
-                                          @JsonAlias("experiment_name") String experimentName,
-                                          @JsonAlias("experiment_cohort") String experimentCohort,
-                                          @JsonAlias("operator_segment") String operatorSegment,
-                                          @JsonAlias("primary_kpis") List<String> primaryKpis,
-                                          @JsonAlias("secondary_kpis") List<String> secondaryKpis,
-                                          @JsonAlias("template_id") String templateId,
-                                          @JsonAlias("template_name") String templateName) {}
-
-    public record MacroDryRunRequest(@JsonAlias({"ticket_id", "ticketId"}) String ticketId,
-                                     @JsonAlias({"template_text", "templateText", "text"}) String templateText,
-                                     Map<String, String> variables) {}
-
-    public record AiSuggestionFeedbackRequest(String decision,
-                                              String source,
-                                              String title,
-                                              String snippet,
-                                              @JsonAlias({"suggested_reply", "suggestedReply"}) String suggestedReply) {}
-
-    public record AiControlRequest(@JsonAlias({"ai_disabled", "aiDisabled"}) Boolean aiDisabled,
-                                   @JsonAlias({"auto_reply_blocked", "autoReplyBlocked"}) Boolean autoReplyBlocked,
-                                   String reason) {}
-
-    public record AiReviewApproveRequest(@JsonAlias({"client_message_id", "clientMessageId"}) Long clientMessageId,
-                                         @JsonAlias({"operator_message_id", "operatorMessageId"}) Long operatorMessageId) {}
-
-    public record AiSolutionMemoryUpdateRequest(@JsonAlias({"query_text", "queryText"}) String queryText,
-                                                @JsonAlias({"solution_text", "solutionText"}) String solutionText,
-                                                @JsonAlias({"review_required", "reviewRequired"}) Boolean reviewRequired) {}
-
-    public record AiSolutionMemoryRollbackRequest(@JsonAlias({"history_id", "historyId"}) Long historyId) {}
 
 }

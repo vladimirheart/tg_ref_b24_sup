@@ -149,6 +149,9 @@
 - transport-layer split домена `dialogs` в основном завершён;
 - следующий значимый этап для `dialogs` уже не про controllers, а про
   разрезание самого `DialogService` на service-level bounded contexts.
+- начато service-level сужение giant `DialogWorkspaceService`: из него вынесены
+  `DialogWorkspaceExternalProfileService` и `DialogWorkspaceParityService`,
+  а legacy macro/request хвост после controller split удалён.
 
 Что остаётся:
 
