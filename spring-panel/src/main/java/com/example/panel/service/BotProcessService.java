@@ -1,11 +1,8 @@
 package com.example.panel.service;
 
-import com.example.panel.config.SqliteDataSourceProperties;
 import com.example.panel.config.BotProcessProperties;
 import com.example.panel.entity.Channel;
 import com.example.panel.model.channel.BotCredential;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -15,8 +12,6 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.time.OffsetDateTime;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -29,7 +24,6 @@ import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 
 @Service
 public class BotProcessService {
@@ -42,24 +36,18 @@ public class BotProcessService {
         Pattern.compile("(?m)^\\*{10,}\\s*$\\R^APPLICATION FAILED TO START\\s*$", Pattern.MULTILINE);
 
     private final SharedConfigService sharedConfigService;
-    private final SqliteDataSourceProperties ticketsDbProperties;
     private final BotProcessProperties botProcessProperties;
-    private final IntegrationNetworkService integrationNetworkService;
-    private final ObjectMapper objectMapper;
+    private final BotRuntimeContractService botRuntimeContractService;
     private final Map<Long, Process> processes = new ConcurrentHashMap<>();
     private final Map<Long, OffsetDateTime> startedAt = new ConcurrentHashMap<>();
     private static final Pattern PID_FILE_PATTERN = Pattern.compile("bot-(\\d+)\\.pid");
 
     public BotProcessService(SharedConfigService sharedConfigService,
-                             SqliteDataSourceProperties ticketsDbProperties,
                              BotProcessProperties botProcessProperties,
-                             IntegrationNetworkService integrationNetworkService,
-                             ObjectMapper objectMapper) {
+                             BotRuntimeContractService botRuntimeContractService) {
         this.sharedConfigService = sharedConfigService;
-        this.ticketsDbProperties = ticketsDbProperties;
         this.botProcessProperties = botProcessProperties;
-        this.integrationNetworkService = integrationNetworkService;
-        this.objectMapper = objectMapper;
+        this.botRuntimeContractService = botRuntimeContractService;
     }
 
     public BotProcessStatus start(Channel channel) {
@@ -75,10 +63,10 @@ public class BotProcessService {
         }
 
         try {
-            String botModule = resolveBotModule(channel);
+            String botModule = botRuntimeContractService.resolveBotModule(channel);
             Path botWorkingDir = resolveBotWorkingDir();
             Files.createDirectories(resolveMavenRepoDir(botWorkingDir));
-            BotLaunchPlan launchPlan = resolveLaunchPlan(botWorkingDir, botModule);
+            BotRuntimeContractService.BotLaunchPlan launchPlan = resolveLaunchPlan(botWorkingDir, botModule);
             ProcessBuilder builder = new ProcessBuilder(launchPlan.command());
             builder.directory(botWorkingDir.toFile());
             Path logFile = resolveLogFile(botWorkingDir, channel);
@@ -88,51 +76,7 @@ public class BotProcessService {
             long processOutputStartOffset = Files.exists(processOutputLogFile) ? Files.size(processOutputLogFile) : 0L;
             builder.redirectErrorStream(true);
             builder.redirectOutput(ProcessBuilder.Redirect.appendTo(processOutputLogFile.toFile()));
-            Map<String, String> env = builder.environment();
-            env.put("APP_DB_TICKETS", ticketsDbProperties.getNormalizedPath().toString());
-            env.put("TELEGRAM_BOT_TOKEN", credential.token());
-            env.put("TELEGRAM_BOT_USERNAME", Objects.toString(channel.getBotUsername(), ""));
-            env.put("GROUP_CHAT_ID", Objects.toString(channel.getSupportChatId(), "0"));
-            String platform = Objects.toString(channel.getPlatform(), "telegram").toLowerCase();
-            Map<String, Object> platformConfig = parsePlatformConfig(channel);
-            env.put("VK_BOT_ENABLED", "vk".equals(platform) ? "true" : "false");
-            if ("vk".equals(platform)) {
-                env.put("VK_BOT_TOKEN", credential.token());
-                env.put("VK_OPERATOR_CHAT_ID", Objects.toString(channel.getSupportChatId(), "0"));
-                Integer groupId = readInteger(platformConfig, "group_id", "groupId");
-                String confirmationToken = readString(platformConfig, "confirmation_token", "confirmationToken");
-                String secret = readString(platformConfig, "secret", "callback_secret", "callbackSecret");
-                if (groupId != null && groupId > 0) {
-                    env.put("VK_GROUP_ID", String.valueOf(groupId));
-                }
-                env.put("VK_WEBHOOK_ENABLED", Boolean.toString(groupId != null && groupId > 0));
-                if (!confirmationToken.isBlank()) {
-                    env.put("VK_CONFIRMATION_TOKEN", confirmationToken);
-                }
-                if (!secret.isBlank()) {
-                    env.put("VK_WEBHOOK_SECRET", secret);
-                }
-            }
-            env.put("MAX_BOT_ENABLED", "max".equals(platform) ? "true" : "false");
-            if ("max".equals(platform)) {
-                env.put("MAX_BOT_TOKEN", credential.token());
-                env.put("MAX_CHANNEL_ID", Objects.toString(channel.getId(), "0"));
-                env.put("MAX_SUPPORT_CHAT_ID", Objects.toString(channel.getSupportChatId(), ""));
-                env.put("SERVER_PORT", String.valueOf(botProcessProperties.resolveMaxPort(channelId)));
-                env.put("SERVER_ADDRESS", botProcessProperties.getHost());
-                env.put("SPRING_MAIN_WEB_APPLICATION_TYPE", "servlet");
-                String secret = readString(platformConfig, "secret", "webhook_secret", "webhookSecret");
-                if (!secret.isBlank()) {
-                    env.put("MAX_WEBHOOK_SECRET", secret);
-                }
-            }
-            env.putIfAbsent("SPRING_PROFILES_ACTIVE", "default");
-            env.put("APP_BOT_LOG_PATH", logFile.toString());
-            appendEnvOption(env, "JAVA_TOOL_OPTIONS", "-Dfile.encoding=UTF-8");
-            appendEnvOption(env, "JAVA_TOOL_OPTIONS", "-Dsun.jnu.encoding=UTF-8");
-            appendEnvOption(env, "JAVA_TOOL_OPTIONS", "-Dsun.stdout.encoding=UTF-8");
-            appendEnvOption(env, "JAVA_TOOL_OPTIONS", "-Dsun.stderr.encoding=UTF-8");
-            env.putAll(integrationNetworkService.buildProcessEnvironment(integrationNetworkService.resolveBotRoute(channel)));
+            builder.environment().putAll(botRuntimeContractService.buildEnvironment(channel, credential, logFile));
             Process process = builder.start();
             OffsetDateTime now = OffsetDateTime.now();
             BotProcessStatus startupStatus =
@@ -173,6 +117,10 @@ public class BotProcessService {
             return BotProcessStatus.running(startedAt.get(channelId));
         }
         return BotProcessStatus.stopped();
+    }
+
+    public BotRuntimeContractService.BotRuntimeContract describeRuntimeContract(Channel channel) {
+        return botRuntimeContractService.describe(channel, resolveBotWorkingDir());
     }
 
     @PreDestroy
@@ -243,75 +191,6 @@ public class BotProcessService {
             current = current.getParent();
         }
         throw new IllegalStateException("java-bot directory not found near " + Paths.get("").toAbsolutePath().normalize());
-    }
-
-    private String resolveBotModule(Channel channel) {
-        if (channel == null || channel.getPlatform() == null) {
-            return "bot-telegram";
-        }
-        if ("vk".equalsIgnoreCase(channel.getPlatform())) {
-            return "bot-vk";
-        }
-        if ("max".equalsIgnoreCase(channel.getPlatform())) {
-            return "bot-max";
-        }
-        return "bot-telegram";
-    }
-
-    private Map<String, Object> parsePlatformConfig(Channel channel) {
-        if (channel == null) {
-            return Map.of();
-        }
-        String raw = channel.getPlatformConfig();
-        if (raw == null || raw.isBlank()) {
-            return Map.of();
-        }
-        try {
-            return objectMapper.readValue(raw, new TypeReference<LinkedHashMap<String, Object>>() {});
-        } catch (Exception ex) {
-            log.warn("Failed to parse platform_config for channel {}: {}", channel.getId(), ex.getMessage());
-            return Map.of();
-        }
-    }
-
-    private String readString(Map<String, Object> values, String... keys) {
-        if (values == null || keys == null) {
-            return "";
-        }
-        for (String key : keys) {
-            Object value = values.get(key);
-            if (value != null) {
-                String text = String.valueOf(value).trim();
-                if (!text.isEmpty()) {
-                    return text;
-                }
-            }
-        }
-        return "";
-    }
-
-    private Integer readInteger(Map<String, Object> values, String... keys) {
-        String raw = readString(values, keys);
-        if (raw.isBlank()) {
-            return null;
-        }
-        try {
-            return Integer.parseInt(raw);
-        } catch (NumberFormatException ex) {
-            return null;
-        }
-    }
-
-    private void appendEnvOption(Map<String, String> env, String key, String option) {
-        if (env == null || !StringUtils.hasText(key) || !StringUtils.hasText(option)) {
-            return;
-        }
-        String existing = Objects.toString(env.get(key), "").trim();
-        if (existing.contains(option)) {
-            return;
-        }
-        String updated = existing.isBlank() ? option.trim() : existing + " " + option.trim();
-        env.put(key, updated);
     }
 
     BotProcessStatus awaitProcessReadiness(Process process,
@@ -387,11 +266,11 @@ public class BotProcessService {
     }
 
     Duration startupReadinessTimeout() {
-        return Duration.ofSeconds(45);
+        return botProcessProperties.resolveStartupReadinessTimeout();
     }
 
     Duration startupPollInterval() {
-        return Duration.ofMillis(250);
+        return botProcessProperties.resolveStartupPollInterval();
     }
 
     private Path resolveMavenRepoDir(Path botWorkingDir) {
@@ -557,108 +436,12 @@ public class BotProcessService {
         }
     }
 
-    private String mvnwCommand() {
-        String os = System.getProperty("os.name").toLowerCase();
-        return os.contains("win") ? "mvnw.cmd" : "./mvnw";
-    }
-
-    String javaCommand() {
-        Path javaHome = Path.of(System.getProperty("java.home"));
-        String executable = System.getProperty("os.name", "").toLowerCase().contains("win") ? "java.exe" : "java";
-        return javaHome.resolve("bin").resolve(executable).toString();
-    }
-
-    BotLaunchPlan resolveLaunchPlan(Path botWorkingDir, String botModule) {
-        BotProcessProperties.LaunchMode launchMode = botProcessProperties.resolveLaunchMode();
-        Path executableJar = resolveExecutableJar(botWorkingDir, botModule);
-        if (launchMode == BotProcessProperties.LaunchMode.JAR) {
-            if (executableJar == null) {
-                throw new IllegalStateException("Не найден собранный jar для модуля " + botModule
-                        + ". Соберите java-bot или переключите app.bots.launch-mode в auto/maven.");
-            }
-            return jarLaunchPlan(executableJar);
-        }
-        if (launchMode == BotProcessProperties.LaunchMode.AUTO && executableJar != null) {
-            return jarLaunchPlan(executableJar);
-        }
-        return mavenLaunchPlan(botWorkingDir, botModule);
+    BotRuntimeContractService.BotLaunchPlan resolveLaunchPlan(Path botWorkingDir, String botModule) {
+        return botRuntimeContractService.resolveLaunchPlan(botWorkingDir, botModule);
     }
 
     Path resolveExecutableJar(Path botWorkingDir, String botModule) {
-        if (botWorkingDir == null || !StringUtils.hasText(botModule)) {
-            return null;
-        }
-        Path configuredExecutableJar = resolveConfiguredExecutableJar(botWorkingDir, botModule);
-        if (configuredExecutableJar != null) {
-            return configuredExecutableJar;
-        }
-        return resolveExecutableJarByScan(botWorkingDir, botModule);
-    }
-
-    private Path resolveConfiguredExecutableJar(Path botWorkingDir, String botModule) {
-        String configuredPath = botProcessProperties.resolveExecutableJar(botModule);
-        if (!StringUtils.hasText(configuredPath)) {
-            return null;
-        }
-        Path candidate = Paths.get(configuredPath.trim());
-        if (!candidate.isAbsolute()) {
-            candidate = botWorkingDir.resolve(candidate).normalize();
-        } else {
-            candidate = candidate.toAbsolutePath().normalize();
-        }
-        if (Files.isRegularFile(candidate)) {
-            return candidate;
-        }
-        log.warn("Configured executable jar for module {} not found at {}", botModule, candidate);
-        return null;
-    }
-
-    private Path resolveExecutableJarByScan(Path botWorkingDir, String botModule) {
-        Path targetDir = botWorkingDir.resolve(botModule).resolve("target").normalize();
-        if (!Files.isDirectory(targetDir)) {
-            return null;
-        }
-        try (Stream<Path> files = Files.list(targetDir)) {
-            return files
-                .filter(path -> Files.isRegularFile(path) && path.getFileName().toString().endsWith(".jar"))
-                .filter(path -> {
-                    String name = path.getFileName().toString().toLowerCase();
-                    return !name.startsWith("original-") && !name.contains("-plain");
-                })
-                .sorted((left, right) -> {
-                    try {
-                        return Files.getLastModifiedTime(right).compareTo(Files.getLastModifiedTime(left));
-                    } catch (IOException ex) {
-                        return right.getFileName().toString().compareTo(left.getFileName().toString());
-                    }
-                })
-                .findFirst()
-                .orElse(null);
-        } catch (IOException ex) {
-            log.warn("Failed to resolve executable jar for module {}", botModule, ex);
-            return null;
-        }
-    }
-
-    private BotLaunchPlan jarLaunchPlan(Path executableJar) {
-        return new BotLaunchPlan(
-                List.of(javaCommand(), "-jar", executableJar.toAbsolutePath().normalize().toString()),
-                "jar:" + executableJar.getFileName()
-        );
-    }
-
-    private BotLaunchPlan mavenLaunchPlan(Path botWorkingDir, String botModule) {
-        List<String> command = new ArrayList<>();
-        command.add(mvnwCommand());
-        command.add("-Dmaven.repo.local=" + resolveMavenRepoDir(botWorkingDir));
-        command.add("-q");
-        command.add("-Dorg.slf4j.simpleLogger.showDateTime=true");
-        command.add("-Dorg.slf4j.simpleLogger.dateTimeFormat=yyyy-MM-dd HH:mm:ss.SSSXXX");
-        command.add("-pl");
-        command.add(botModule);
-        command.add("-am");
-        command.add("spring-boot:run");
-        return new BotLaunchPlan(command, "maven:spring-boot-run:" + botModule);
+        return botRuntimeContractService.resolveExecutableJar(botWorkingDir, botModule);
     }
 
     private void waitForExit(ProcessHandle handle, long timeoutSeconds) {
@@ -668,8 +451,6 @@ public class BotProcessService {
             log.warn("Failed to wait for bot process termination for channel", ex);
         }
     }
-
-    record BotLaunchPlan(List<String> command, String description) {}
 
     private Long parseChannelIdFromPidFile(String fileName) {
         Matcher matcher = PID_FILE_PATTERN.matcher(fileName);

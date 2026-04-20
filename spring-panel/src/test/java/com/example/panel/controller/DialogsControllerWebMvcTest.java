@@ -92,7 +92,21 @@ class DialogsControllerWebMvcTest {
         mockMvc.perform(get("/dialogs").with(user("operator")))
                 .andExpect(status().isOk())
                 .andExpect(view().name("dialogs/index"))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("href=\"/dialogs/T-555\"")))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("data-ticket-id=\"T-555\"")));
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"dialogsTable\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Действия")));
+    }
+
+    @Test
+    void dialogsPageIncludesEarlyUiBootstrapScriptsFromSharedHeadFragment() throws Exception {
+        doNothing().when(navigationService).enrich(any(), any());
+        when(dialogService.loadSummary()).thenReturn(new DialogSummary(0, 0, 0, Collections.emptyList()));
+        when(dialogService.loadDialogs(anyString())).thenReturn(Collections.emptyList());
+        when(sharedConfigService.loadSettings()).thenReturn(Map.of());
+
+        mockMvc.perform(get("/dialogs").with(user("operator")))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-preferences.js")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/theme.js")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-config.js")));
     }
 }

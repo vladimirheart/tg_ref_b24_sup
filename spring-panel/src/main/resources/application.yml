@@ -50,8 +50,10 @@ app:
       path: ${APP_DB_SETTINGS:settings.db}
   bots:
     database-dir: ${APP_BOT_DATABASE_DIR:../bot_databases}
-    launch-mode: ${APP_BOT_LAUNCH_MODE:auto} # auto -> prefer built jar, fallback to spring-boot:run
+    launch-mode: ${APP_BOT_LAUNCH_MODE:auto} # auto -> prefer explicit/prebuilt jar, fallback to spring-boot:run in dev
     executable-jars: {} # optional explicit module -> jar path map, relative to java-bot or absolute
+    startup-readiness-timeout: ${APP_BOT_STARTUP_READINESS_TIMEOUT:45s}
+    startup-poll-interval: ${APP_BOT_STARTUP_POLL_INTERVAL:250ms}
   storage:
     attachments: ${APP_STORAGE_ATTACHMENTS:../attachments}
     knowledge-base: ${APP_STORAGE_KNOWLEDGE_BASE:${APP_STORAGE_ATTACHMENTS:../attachments}/knowledge_base}
