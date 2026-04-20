@@ -1,89 +1,136 @@
 # Архитектурный аудит проекта Iguana CRM
 **Дата:** 8 апреля 2026  
-**Статус:** Критические проблемы выявлены  
-**Актуализация:** 9 апреля 2026 (см. `docs/ARCHITECTURE_AUDIT_VALIDATION_2026-04-09.md`)
+**Статус:** Актуально, но в активной фазе исправления  
+**Актуализация:** 9 апреля 2026 (см. `docs/ARCHITECTURE_AUDIT_VALIDATION_2026-04-09.md`)  
+**Последняя актуализация:** 20 апреля 2026
 
 ---
 
-## 📋 Выполнено
+## 📋 Что уже сделано
 
-✅ Проверена структура spring-panel (28 контроллеров, 29 сервисов)  
-✅ Проверена структура java-bot multi-module (4 модуля)  
-✅ Проанализированы зависимости и слои  
-✅ Выявлены нарушения SOLID принципов  
+✅ Проведён исходный аудит `spring-panel` и `java-bot`  
+✅ Проверена и скорректирована часть исходных выводов аудита  
+✅ Зафиксирован roadmap рефакторинга в `docs/ARCH_UI_REFACTORING_ROADMAP_2026-04-15.md`  
+✅ Начат и существенно продвинут рефакторинг transport-layer для `dialogs` и `settings`  
+✅ Добавлен foundation-слой для UI runtime, preferences и page presets  
+✅ Усилен `Phase 6` safety net через targeted unit/WebMvc/lifecycle/smoke tests  
 
 ---
 
-## 🔴 КРИТИЧЕСКИЕ ПРОБЛЕМЫ (P0)
+## 🧭 Текущее состояние
+
+Этот документ больше нельзя читать как “чистый список проблем на старте”. К
+20 апреля 2026 часть наиболее болезненных рисков уже снижена в коде.
+
+Что уже существенно улучшено:
+
+- ранний UI bootstrap централизован через `fragments/ui-head.html`;
+- `theme`, `ui-config` и operator UI preferences получили единый runtime-слой;
+- controller-level split домена `dialogs` в основном выполнен:
+  `DialogReadController`, `DialogListController`, `DialogWorkspaceController`,
+  `DialogQuickActionsController`, `DialogMacroController`,
+  `DialogAiOpsController`, `DialogWorkspaceTelemetryController`,
+  `DialogTriagePreferencesController`;
+- `settings` выведен из режима giant controller/update-method через
+  `SettingsParametersController`, `SettingsItEquipmentController`,
+  `SettingsUpdateService`, `SettingsDialogConfig*Service` и связанные subdomain
+  services;
+- bot runtime boundary начал уходить от жёсткого `spring-boot:run` в сторону
+  launcher-strategy и explicit runtime contract;
+- есть отдельные targeted тесты для sliced controllers, runtime contract,
+  shared config/env foundation и page bootstrap.
+
+Что остаётся главным архитектурным риском:
+
+- `DialogService` всё ещё слишком крупный и остаётся главным кандидатом на
+  service-level split;
+- `settings` всё ещё содержит remaining subdomains, которые могут снова
+  разрастаться в общих слоях;
+- `SharedConfigService` дублируется между `spring-panel` и `java-bot`;
+- DTO/API contract и error contract всё ещё не унифицированы по проекту;
+- persistence-слой по-прежнему смешивает raw JDBC и JPA/Repository подходы.
+
+---
+
+## 🔴 Критические проблемы (P0)
 
 ### 1. Нарушение принципа разделения ответственности между ботами
 
-**Локация:** 
+**Локация:**
 - `java-bot/bot-telegram/src/main/java/com/example/supportbot/telegram/SupportBot.java`
 - `java-bot/bot-vk/src/main/java/com/example/supportbot/vk/VkSupportBot.java`
 
-**Суть:** Каждый bot-модуль использует core сервисы напрямую, создавая плотную связанность. Нет абстракции для работы с платформ-специфичными деталями.
+**Суть:** Bot-модули всё ещё используют core-сервисы напрямую и остаются тесно
+связаны с платформ-специфичной реализацией. Полного adapter boundary пока нет.
 
 **Последствия:**
-- Невозможно менять реализацию сервисов для разных платформ
-- Сложно тестировать платформы изолированно
-- Изменения в core влияют на все боты сразу
+- сложно менять runtime/transport contract для отдельных платформ;
+- трудно тестировать платформы изолированно;
+- изменения в core продолжают иметь широкий blast radius.
 
-**Решение:** Создать абстракцию `BotAdapter` с интерфейсом `IBotPlatformAdapter` для изоляции платформ.
-
----
+**Решение:** Ввести явный platform-adapter boundary или эквивалентный runtime
+contract между platform bot и core orchestration.
 
 ### 2. Отсутствие явного слоя DTO между Entity и API
 
 **Локация:**
 - `spring-panel/src/main/java/com/example/panel/entity/Ticket.java`
-- `spring-panel/src/main/java/com/example/panel/controller/TaskApiController.java` (68-90)
+- `spring-panel/src/main/java/com/example/panel/controller/TaskApiController.java`
 - `java-bot/bot-core/src/main/java/com/example/supportbot/entity/Ticket.java`
 
-**Суть:** Entity классы используются напрямую в контроллерах. API контракт не имеет защиты.
+**Суть:** DTO/model-слой в проекте уже есть, но используется непоследовательно.
+Часть API по-прежнему слишком близка к внутренней модели данных.
 
 **Последствия:**
-- Нет типизированной валидации API контракта
-- Трудно отслеживать изменения API
-- Нет поддержки версионирования API
+- нет стабильной типизированной защиты API контракта;
+- усложняется версионирование и эволюция API;
+- сложнее отделять persistence-изменения от transport-контрактов.
 
-**Решение:** Ввести слой DTO с маппингом через MapStruct или ручной маппер.
-
----
+**Решение:** Ввести и закрепить единый DTO/API contract слой с маппингом.
 
 ### 3. Частичная централизованная обработка ошибок
 
 **Локация:**
-- `spring-panel/src/main/java/com/example/panel/service/DialogService.java`
-- `java-bot/bot-telegram/src/main/java/com/example/supportbot/telegram/TelegramBotApplication.java`
+- `spring-panel/src/main/java/com/example/panel/config/RestExceptionHandler.java`
+- runtime-границы между `spring-panel` и `java-bot`
 
-**Суть:** Базовый обработчик исключений уже есть (`RestExceptionHandler`), но покрытие ограничено и нет единого формата для всех REST-ошибок.
+**Суть:** Базовый обработчик уже есть, но единый error contract пока не
+распространён на весь REST-слой и runtime boundary.
 
-**Решение:** Создать `@RestControllerAdvice` для централизованной обработки ошибок.
+**Последствия:**
+- разные сценарии всё ещё могут возвращать неодинаковые ошибки;
+- сложнее строить стабильный API и мониторинг ошибок;
+- интеграционные runtime-ошибки не всегда имеют единый формат.
+
+**Решение:** Довести `@RestControllerAdvice`/error contract до уровня
+кросс-доменного стандарта.
 
 ---
 
-## 🟠 ВЫСОКИЙ ПРИОРИТЕТ (P1)
+## 🟠 Высокий приоритет (P1)
 
 ### 4. Монолитные сервисы со слишком большой ответственностью
 
-**Примеры:**
-- `DialogService` (~6600+ строк) — нарушение SRP
-- `DialogApiController` (~5000+ строк) — смешивание бизнес-логики и маршрутизации
-- до 11 инъекций зависимостей в одном контроллере
+**Актуальный фокус:**
+- `DialogService` остаётся главным giant service и основным SRP-риском;
+- часть orchestration в `settings` уже разрезана, но remaining subdomains
+  всё ещё требуют контроля.
 
-**Метрики проблемы:**
-- Средний размер сервиса: 500 строк (цель: 200)
-- DialogService содержит 100+ констант и 30+ методов
+**Важно:** `DialogApiController` больше не является главным transport-level
+hotspot. Крупные controller-сценарии уже вынесены в отдельные controllers и
+services, поэтому главный риск сместился в service layer.
 
-**Решение:** Разбить с применением CQRS:
+**Решение:** Разрезать `DialogService` по bounded contexts:
+
+```text
+DialogService
+  ├─ DialogListService
+  ├─ DialogWorkspaceService
+  ├─ DialogHistoryService
+  ├─ DialogSlaService
+  ├─ DialogAiService
+  └─ DialogMapper / assembly layer
 ```
-DialogService ──→ DialogQueryService (чтение)
-             ──→ DialogCommandService (запись)
-             ──→ DialogMapper (преобразование)
-```
-
----
 
 ### 5. Дублирование кода между модулями
 
@@ -92,131 +139,79 @@ DialogService ──→ DialogQueryService (чтение)
   - `java-bot/bot-core/src/.../service/SharedConfigService.java`
   - `spring-panel/src/.../service/SharedConfigService.java`
 
-**Решение:** Создать общий модуль `config-shared` с единственной реализацией.
+**Суть:** После transport/runtime рефакторинга этот риск стал ещё заметнее:
+конфигурационный contract должен быть единым, а не “похожим в двух местах”.
 
----
+**Решение:** Вынести общий config contract/module или хотя бы общий documented
+shared config boundary.
 
-### 6. Отсутствие интерфейсов для сервисов
+### 6. Отсутствие интерфейсов для сервисов как системного правила
 
-**Проблема:** Все сервисы — конкретные классы, нет интерфейсов.
+**Проблема:** Проект по-прежнему в основном опирается на concrete classes.
+Это не самый срочный риск, но он усиливает связанность крупных доменов.
 
-```java
-@Service
-public class DialogService {  // ❌ Конкретный класс
-    // Нарушение Dependency Inversion Principle
-}
-```
+**Решение:** Вводить интерфейсы не механически для всего подряд, а на границах
+bounded contexts, orchestration и integration layers.
 
-**Решение:**
-```java
-public interface IDialogService { ... }
+### 7. Нарушение layered architecture в bot-модулях
 
-@Service
-public class DialogService implements IDialogService { ... }
-```
+**Проблема:** Bot-классы продолжают смешивать роли platform adapter,
+transport handler и orchestration entrypoint.
 
----
-
-### 7. Нарушение Layered Architecture в bot-модулях
-
-**Проблема:** Bot классы смешивают роли:
-- Компонент (Component)
-- Контроллер (обработка webhook'ов)
-- Сервис (бизнес-логика)
-
-```java
-@Component
-public class SupportBot extends TelegramLongPollingBot {
-    // Наследование от SDK создает tight coupling
-    private final TicketService ticketService;
-    // Инъекции сервисов
-    
-    public void onUpdateReceived(Update update) {
-        // Обработка логики здесь
-    }
-}
-```
-
-**Решение:** Разделить роли через Bot Adapter Pattern.
-
----
+**Решение:** Продолжать `Phase 5` через более явный runtime/platform boundary.
 
 ### 8. Неполное использование Spring Data JPA
 
-**Проблема:** Используется raw JDBC вместо Repository.
+**Проблема:** Внутри проекта сосуществуют raw `JdbcTemplate` и JPA/Repository.
 
-```java
-// ❌ DialogService.java
-private final JdbcTemplate jdbcTemplate;
+**Суть риска:** Это уже не просто stylistic issue, а разные persistence-модели
+внутри одного приложения, которые усложняют транзакции, тестирование и
+эволюцию схемы.
 
-public DialogSummary loadSummary() {
-    long total = Objects.requireNonNullElse(
-        jdbcTemplate.queryForObject("SELECT COUNT(*) FROM tickets", Long.class), 
-        0L
-    );
-}
-```
-
-**Решение:** Переписать на JPA Repository для типизации и testability.
+**Решение:** Не делать большой bang refactor, а постепенно выравнивать
+persistence boundaries по доменам.
 
 ---
 
-## 🟡 СРЕДНИЙ ПРИОРИТЕТ (P2)
+## 🟡 Средний приоритет (P2)
 
 ### 9. Непоследовательное именование DTO/Model
 
-Разные модули используют разные соглашения:
-- `panel` использует `model/`
-- `bot-core` использует `settings/dto/`
-
-Различия между Entity и DTO реализованы непоследовательно (DTO-слой в проекте есть, но часть API использует entity напрямую).
-
----
+DTO/model-слой существует, но naming и ответственность отличаются между
+модулями и доменами.
 
 ### 10. Частично неформализованные Spring-конфигурации
 
-`@EnableScheduling` и `@EnableCaching` уже включены в `PanelApplication`, но часть инфраструктурных практик (единый error contract, единые API-конвенции) пока не стандартизирована.
+Конфигурация приложения стала лучше формализована, но часть runtime/env
+ожиданий всё ещё держится на implicit conventions и defaults.
 
----
+### 11. Отсутствие сквозного API versioning
 
-### 11. Отсутствие API versioning
-
-Нет версионирования API при `/api/tasks` маршруте.
-
----
+Часть маршрутов уже может быть стабилизирована, но единая стратегия
+версионирования API по проекту так и не закреплена.
 
 ### 12. Ограниченное использование кэширования
 
-Caffeine и `@Cacheable` уже используются (например в `AnalyticsService`), но кэширование применяется точечно и требует расширения на горячие запросы.
+Кэширование в проекте используется точечно и полезно, но не оформлено как
+явная стратегия для горячих чтений.
 
----
+### 13. Ограниченная доменная валидация
 
-### 13. Отсутствие валидации в Entity
-
-Entity содержат только getters/setters без логики и аннотаций валидации.
-
-```java
-@Entity
-public class Channel {
-    @Column(nullable = false, unique = true)
-    private String token;  // ❌ Нет @NotBlank
-    
-    private Integer maxQuestions;  // ❌ Нет @Positive
-}
-```
+В части entity/model слоёв валидация всё ещё выражена слабо и часто живёт
+не рядом с контрактом данных.
 
 ---
 
 ## 📊 Таблица соответствия правилам
 
 | Правило | Статус | Комментарий |
-|---------|--------|-----------|
-| Layered Architecture | ⚠️ Частично | Слои есть, но нарушения в bot-модулях |
-| Dependency Inversion | ❌ НЕТ | Нет интерфейсов для сервисов |
-| Single Responsibility | ❌ НЕТ | DialogService слишком большой |
-| Don't Repeat Yourself | ❌ НЕТ | SharedConfigService дублируется |
-| SOLID Principles | ⚠️ Частично | Только Open/Closed соблюдается |
-| Spring Best Practices | ⚠️ Частично | Нужен полноценный `@RestControllerAdvice` и единый формат ошибок |
+|---------|--------|-------------|
+| Layered Architecture | ⚠️ Частично | Controller-level split заметно улучшен, service-level split ещё не завершён |
+| Dependency Inversion | ⚠️ Частично | На границах доменов стало лучше, но проект в целом всё ещё concrete-class heavy |
+| Single Responsibility | ❌ НЕТ | Главный hotspot теперь `DialogService` и remaining giant services в `settings` |
+| Don't Repeat Yourself | ❌ НЕТ | `SharedConfigService` и часть runtime contract still duplicated |
+| SOLID Principles | ⚠️ Частично | Часть transport-layer нарушений снижена, но service boundaries ещё не доведены |
+| Spring Best Practices | ⚠️ Частично | Улучшены bootstrap/runtime/test слои, но нужен единый error/API contract |
 
 ---
 
@@ -224,40 +219,40 @@ public class Channel {
 
 | Метрика | Текущее | Цель |
 |---------|---------|------|
-| Средний размер сервиса | 500 строк | 200 строк |
-| Дублирующийся код | ~15% | < 5% |
-| Unit-tests | есть (18 test classes в `spring-panel`) | 70%+ |
-| Code Coverage | нет | 60%+ |
-| Инъекции на сервис | до 11 в контроллерах | 3-5 |
-| Использование интерфейсов | 0% | 100% |
+| Крупные controller hot spots | Сильно снижены | 0 giant controllers |
+| Крупные service hot spots | Всё ещё есть | bounded services по доменам |
+| Regression safety net | Targeted unit/WebMvc/lifecycle/smoke есть | широкий regression net |
+| Code Coverage | Не формализована | 60%+ |
+| Persistence consistency | Смешанный JDBC/JPA | явные domain boundaries |
+| Shared runtime/config contract | Частично формализован | единый documented contract |
 
 ---
 
-## 🎯 Рекомендуемый план действий
+## 🎯 Актуальный план действий
 
-### Фаза 1: Фундамент (Sprint 1-2)
-- [ ] Создать интерфейсы для всех сервисов
-- [ ] Добавить GlobalExceptionHandler
-- [ ] Разработать Bot Adapter Pattern
+### Фаза 1: Уже частично закрыта
+- [x] Зафиксировать roadmap и начать поэтапный рефакторинг
+- [x] Централизовать UI bootstrap и ownership UI preferences
+- [x] Выполнить основной controller split для `dialogs/settings`
 
-### Фаза 2: Рефакторинг (Sprint 3-5)
-- [ ] Разбить DialogService на Query и Command сервисы
-- [ ] Ввести DTO слой с маппингом
-- [ ] Объединить SharedConfigService в общий модуль
+### Фаза 2: Текущий главный фокус
+- [ ] Разрезать `DialogService` по bounded contexts
+- [ ] Добить remaining `settings` subdomains
+- [ ] Расширить safety net для следующих крупных рефакторингов
 
-### Фаза 3: Интеграция (Sprint 6+)
-- [ ] Внедрить CQRS для DialogService
-- [ ] Добавить Event Bus (Kafka/RabbitMQ)
-- [ ] Объединить API-версионирование
+### Фаза 3: Следующий архитектурный уровень
+- [ ] Унифицировать shared config/runtime contract между `spring-panel` и `java-bot`
+- [ ] Довести DTO/API contract до системного правила
+- [ ] Закрепить единый error contract и API governance
 
 ---
 
 ## 📁 Следующие шаги
 
-1. Обсудить приоритеты с командой разработки
-2. Создать architecture rules в `ai-context/rules/backend/`
-3. Запланировать рефакторинг по спринтам
-4. Добавить checkstyle правила в `pom.xml`
+1. Дожать service-level split `DialogService`
+2. Добить remaining `settings` subdomains и persistence boundaries
+3. Продолжить расширять `Phase 6` regression net
+4. После этого возвращаться к shared-config unification и DTO/error contract
 
-**Автор аудита:** GitHub Copilot  
-**Статус:** Требуется деятельность  
+**Автор исходного аудита:** GitHub Copilot  
+**Статус:** Документ актуализирован под состояние кода на 20 апреля 2026

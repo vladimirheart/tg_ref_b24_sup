@@ -291,6 +291,9 @@
 - WebMvc test на `/api/bots/{channelId}/runtime-contract`;
 - lifecycle contract test с runnable test jar для `BotProcessService`;
 - smoke-проверка раннего `ui-head` bootstrap на странице диалогов;
+- page/runtime smoke tests для `dashboard`, `analytics`, `clients`,
+  `knowledge` и `settings`, которые проверяют ранний bootstrap
+  `ui-preferences/theme/ui-config` и наличие explicit `data-ui-page`;
 - WebMvc tests для sliced controllers `DialogReadController`,
   `DialogTriagePreferencesController`, `SettingsParametersController`,
   `SettingsItEquipmentController`, `DialogMacroController`,
@@ -304,7 +307,8 @@
 
 Что остаётся:
 
-- расширить smoke tests для `theme/ui bootstrap` за пределы страницы диалогов;
+- продолжить расширять smoke tests для `theme/ui bootstrap` на оставшиеся
+  разделы beyond `dashboard/analytics/clients/knowledge/settings/dialogs`;
 - добрать WebMvc tests под оставшиеся новые dialog/settings controllers;
 - расширить shared config/env resolution tests от targeted-слоя к более полным
   integration сценариям;
