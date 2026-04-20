@@ -54,9 +54,9 @@ public class KnowledgeBaseNotionService {
     private static final Pattern UUID_PATTERN = Pattern.compile(
         "([0-9a-fA-F]{32}|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})");
     private static final Set<String> DOWNLOADABLE_EXTENSIONS = Set.of(
-        "7z", "bz2", "csv", "doc", "docm", "docx", "epub", "gz", "json", "log", "md", "odp", "ods", "odt",
-        "pdf", "ppt", "pptm", "pptx", "rar", "rtf", "tar", "tgz", "txt", "xls", "xlsb", "xlsm", "xlsx",
-        "xml", "yaml", "yml", "zip"
+        "7z", "avif", "bmp", "bz2", "csv", "doc", "docm", "docx", "epub", "gif", "gz", "jpeg", "jpg",
+        "json", "log", "md", "odp", "ods", "odt", "pdf", "png", "ppt", "pptm", "pptx", "rar", "rtf",
+        "svg", "tar", "tgz", "txt", "webp", "xls", "xlsb", "xlsm", "xlsx", "xml", "yaml", "yml", "zip"
     );
     private static final List<String> DEFAULT_AUTHORS = List.of(
         "Синицын Владимир",
@@ -681,7 +681,7 @@ public class KnowledgeBaseNotionService {
         String type = block.path("type").asText("");
         JsonNode payload = block.path(type);
         switch (type) {
-            case "file", "pdf", "audio", "video" -> collectAttachmentFromFileObject(payload, attachments, readRichText(payload.path("caption")), null);
+            case "file", "pdf", "audio", "video", "image" -> collectAttachmentFromFileObject(payload, attachments, readRichText(payload.path("caption")), null);
             default -> {
             }
         }
