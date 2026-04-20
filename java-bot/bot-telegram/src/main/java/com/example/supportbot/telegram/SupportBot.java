@@ -1233,7 +1233,7 @@ public class SupportBot extends TelegramLongPollingBot {
                 settings,
                 "������������! �������, ����������, ��� ������, ����� �� ����� ������� ������."
         );
-        if (startAutoReply != null && !startAutoReply.isBlank()) {
+        if (!session.awaitingReuseDecision() && startAutoReply != null && !startAutoReply.isBlank()) {
             SendMessage greeting = SendMessage.builder()
                     .chatId(session.chatId())
                     .text(startAutoReply)

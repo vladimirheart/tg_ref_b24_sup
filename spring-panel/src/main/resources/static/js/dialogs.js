@@ -2049,16 +2049,18 @@
           <span class="badge rounded-pill dialog-sla-badge">—</span>
         </td>
         <td class="dialog-actions">
-          <div class="dialog-actions-dropdown" data-dialog-actions>
-            <button type="button" class="btn btn-sm btn-outline-secondary dialog-actions-toggle" data-dialog-actions-toggle aria-expanded="false">Действия</button>
-            <div class="dialog-actions-menu" data-dialog-actions-menu>
-              <a href="#" class="btn btn-sm btn-outline-primary dialog-open-btn" data-ticket-id="${escapeHtml(ticketId)}">Открыть</a>
+          <div class="dialog-actions-inline">
+            <a href="#" class="btn btn-sm btn-outline-primary dialog-open-btn" data-ticket-id="${escapeHtml(ticketId)}">Открыть</a>
+            <div class="dialog-actions-dropdown" data-dialog-actions>
+              <button type="button" class="btn btn-sm btn-outline-secondary dialog-actions-toggle" data-dialog-actions-toggle aria-expanded="false">Действия</button>
+              <div class="dialog-actions-menu" data-dialog-actions-menu>
               <button type="button" class="btn btn-sm btn-outline-success dialog-take-btn ${!canTakeOwnership || !canRunAction('can_assign') ? 'd-none' : ''}" data-ticket-id="${escapeHtml(ticketId)}">Взять себе</button>
               <button type="button" class="btn btn-sm btn-outline-warning dialog-snooze-btn ${isResolvedStatusKey(statusKey) || !canRunAction('can_snooze') ? 'd-none' : ''}" data-ticket-id="${escapeHtml(ticketId)}">${formatSnoozeActionLabel(QUICK_SNOOZE_MINUTES)}</button>
               <button type="button" class="btn btn-sm btn-outline-danger dialog-close-btn ${isResolvedStatusKey(statusKey) || !canRunAction('can_close') ? 'd-none' : ''}" data-ticket-id="${escapeHtml(ticketId)}">Закрыть</button>
               <a href="/tasks" class="btn btn-sm btn-outline-secondary dialog-task-btn"
                  data-ticket-id="${escapeHtml(ticketId)}"
                  data-client="${escapeHtml(clientName)}">Задача</a>
+              </div>
             </div>
           </div>
         </td>

@@ -143,11 +143,13 @@ public class MaxWebhookController {
             return ResponseEntity.ok(Map.of("ok", true, "ticket_id", ticketId));
         }
 
-        ConversationSession session = sessions.computeIfAbsent(userId, ignored -> {
-            ConversationSession created = startSession(userId, chatId, clientProfile.username(), clientProfile.clientName(), channel);
-            promptCurrentQuestion(channel, created);
-            return created;
-        });
+        ConversationSession session = sessions.get(userId);
+        if (session == null) {
+            session = startSession(userId, chatId, clientProfile.username(), clientProfile.clientName(), channel);
+            sessions.put(userId, session);
+            promptCurrentQuestion(channel, session);
+            return ResponseEntity.ok(Map.of("ok", true, "session_started", true));
+        }
 
         if (session.awaitingReuseDecision()) {
             if (!session.consumeReuseDecision(text)) {
