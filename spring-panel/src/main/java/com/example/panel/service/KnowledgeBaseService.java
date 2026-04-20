@@ -33,6 +33,8 @@ public class KnowledgeBaseService {
     private static final Pattern NOTION_TABLE_OF_CONTENTS_PATTERN = Pattern.compile("(?i)<table_of_contents(?:\\s+[^>]*)?\\s*/>");
     private static final Pattern NOTION_EMPTY_BLOCK_PATTERN = Pattern.compile("(?i)<empty-block(?:\\s+[^>]*)?\\s*/>");
     private static final Pattern NOTION_BREAK_PATTERN = Pattern.compile("(?i)<br\\s*/?>");
+    private static final Pattern NOTION_CALLOUT_PATTERN = Pattern.compile("(?is)<callout([^>]*)>(.*?)</callout>");
+    private static final Pattern XML_ATTRIBUTE_PATTERN = Pattern.compile("(\\w+)\\s*=\\s*\"([^\"]*)\"");
     private static final Pattern URL_PATTERN = Pattern.compile("https?://[^\\s)\\]>\"']+");
     private static final List<String> LOCAL_MEDIA_EXTENSIONS = List.of(
         "png", "jpg", "jpeg", "gif", "webp", "bmp", "svg", "pdf", "zip", "7z", "rar", "doc", "docx", "xls", "xlsx", "ppt", "pptx"
@@ -138,9 +140,54 @@ public class KnowledgeBaseService {
             .replaceAll("\n\n" + KnowledgeMarkdownRenderer.TABLE_OF_CONTENTS_TOKEN + "\n\n");
         content = NOTION_EMPTY_BLOCK_PATTERN.matcher(content)
             .replaceAll("\n\n" + KnowledgeMarkdownRenderer.EMPTY_BLOCK_TOKEN + "\n\n");
+        content = transformNotionCallouts(content);
         content = NOTION_BREAK_PATTERN.matcher(content).replaceAll("  \n");
         content = rewriteEmbeddedMediaUrls(content, article.getExternalId(), files);
         return content.trim();
+    }
+
+    private String transformNotionCallouts(String content) {
+        Matcher matcher = NOTION_CALLOUT_PATTERN.matcher(content);
+        StringBuffer buffer = new StringBuffer();
+        while (matcher.find()) {
+            String attributes = matcher.group(1);
+            String body = matcher.group(2);
+            String icon = readXmlAttribute(attributes, "icon");
+            String color = readXmlAttribute(attributes, "color");
+            String replacement = buildCalloutMarkdown(color, icon, body);
+            matcher.appendReplacement(buffer, Matcher.quoteReplacement(replacement));
+        }
+        matcher.appendTail(buffer);
+        return buffer.toString();
+    }
+
+    private String buildCalloutMarkdown(String color, String icon, String body) {
+        String normalizedBody = StringUtils.hasText(body) ? body.trim() : "";
+        String marker = KnowledgeMarkdownRenderer.calloutToken(trim(color), trim(icon));
+        StringBuilder builder = new StringBuilder();
+        builder.append("\n\n> ").append(marker);
+        if (!normalizedBody.isEmpty()) {
+            builder.append("\n>");
+            for (String line : normalizedBody.replace("\r\n", "\n").replace('\r', '\n').split("\n", -1)) {
+                builder.append("\n> ");
+                builder.append(line);
+            }
+        }
+        builder.append("\n\n");
+        return builder.toString();
+    }
+
+    private String readXmlAttribute(String attributes, String name) {
+        if (!StringUtils.hasText(attributes) || !StringUtils.hasText(name)) {
+            return null;
+        }
+        Matcher matcher = XML_ATTRIBUTE_PATTERN.matcher(attributes);
+        while (matcher.find()) {
+            if (name.equalsIgnoreCase(matcher.group(1))) {
+                return matcher.group(2);
+            }
+        }
+        return null;
     }
 
     private String rewriteEmbeddedMediaUrls(String markdown, String externalId, List<KnowledgeArticleFile> files) {
@@ -173,10 +220,18 @@ public class KnowledgeBaseService {
             return null;
         }
         String expectedStoredPath = buildStoredAttachmentName(externalId, rawUrl, originalName);
+        String legacyStoredPath = buildLegacyStoredAttachmentName(externalId, rawUrl, originalName);
         for (KnowledgeArticleFile file : files) {
-            if (expectedStoredPath.equals(file.getStoredPath())) {
+            if (expectedStoredPath.equals(file.getStoredPath()) || legacyStoredPath.equals(file.getStoredPath())) {
                 return "/api/attachments/knowledge-base/" + URLEncoder.encode(file.getStoredPath(), StandardCharsets.UTF_8);
             }
+        }
+        List<KnowledgeArticleFile> byOriginalName = files.stream()
+            .filter(file -> originalName.equalsIgnoreCase(trim(file.getOriginalName())))
+            .filter(file -> StringUtils.hasText(file.getStoredPath()) && file.getStoredPath().startsWith(buildNotionAttachmentPrefix(externalId)))
+            .toList();
+        if (byOriginalName.size() == 1) {
+            return "/api/attachments/knowledge-base/" + URLEncoder.encode(byOriginalName.get(0).getStoredPath(), StandardCharsets.UTF_8);
         }
         return null;
     }
@@ -210,6 +265,10 @@ public class KnowledgeBaseService {
     }
 
     private String buildStoredAttachmentName(String externalId, String url, String originalName) {
+        return buildNotionAttachmentPrefix(externalId) + shortHash(normalizeAttachmentKey(url)) + "_" + sanitizeStoredFileName(originalName);
+    }
+
+    private String buildLegacyStoredAttachmentName(String externalId, String url, String originalName) {
         return buildNotionAttachmentPrefix(externalId) + shortHash(url) + "_" + sanitizeStoredFileName(originalName);
     }
 
@@ -243,6 +302,21 @@ public class KnowledgeBaseService {
             trimmed = trimmed.substring(0, trimmed.length() - 1);
         }
         return trimmed;
+    }
+
+    private String normalizeAttachmentKey(String rawUrl) {
+        if (!StringUtils.hasText(rawUrl)) {
+            return "";
+        }
+        try {
+            URI uri = URI.create(rawUrl);
+            String scheme = uri.getScheme() != null ? uri.getScheme().toLowerCase(Locale.ROOT) : "https";
+            String host = uri.getHost() != null ? uri.getHost().toLowerCase(Locale.ROOT) : "";
+            String path = uri.getPath() != null ? uri.getPath() : rawUrl;
+            return scheme + "://" + host + path;
+        } catch (IllegalArgumentException ex) {
+            return rawUrl;
+        }
     }
 
     private static String trim(String value) {

@@ -25,10 +25,15 @@ public class KnowledgeMarkdownRenderer {
 
     static final String TABLE_OF_CONTENTS_TOKEN = "[[[KNOWLEDGE_TOC]]]";
     static final String EMPTY_BLOCK_TOKEN = "[[[KNOWLEDGE_EMPTY_BLOCK]]]";
+    private static final String CALLOUT_TOKEN_PREFIX = "[[[KNOWLEDGE_CALLOUT::";
 
     private static final Pattern HEADING_PATTERN = Pattern.compile("<h([1-6])>(.*?)</h\\1>", Pattern.DOTALL);
     private static final Pattern TOC_PARAGRAPH_PATTERN = Pattern.compile("<p>\\Q" + TABLE_OF_CONTENTS_TOKEN + "\\E</p>");
     private static final Pattern EMPTY_BLOCK_PARAGRAPH_PATTERN = Pattern.compile("<p>\\Q" + EMPTY_BLOCK_TOKEN + "\\E</p>");
+    private static final Pattern CALLOUT_BLOCKQUOTE_PATTERN = Pattern.compile(
+        "<blockquote>\\s*<p>\\Q" + CALLOUT_TOKEN_PREFIX + "\\E(.*?)::([^\\]]*)\\Q]]]\\E</p>(.*?)</blockquote>",
+        Pattern.DOTALL
+    );
     private static final Pattern HTML_TAG_PATTERN = Pattern.compile("<[^>]+>");
     private static final Pattern NON_SLUG_PATTERN = Pattern.compile("[^\\p{IsAlphabetic}\\p{IsDigit}]+");
     private static final Pattern EDGE_HYPHEN_PATTERN = Pattern.compile("(^-+|-+$)");
@@ -65,8 +70,17 @@ public class KnowledgeMarkdownRenderer {
     private String postProcessHtml(String html) {
         List<HeadingEntry> headings = new ArrayList<>();
         String htmlWithHeadingIds = injectHeadingIds(html, headings);
-        String htmlWithToc = replaceTokenParagraphs(htmlWithHeadingIds, TOC_PARAGRAPH_PATTERN, buildTableOfContents(headings));
+        String htmlWithCallouts = replaceCalloutBlockquotes(htmlWithHeadingIds);
+        String htmlWithToc = replaceTokenParagraphs(htmlWithCallouts, TOC_PARAGRAPH_PATTERN, buildTableOfContents(headings));
         return replaceTokenParagraphs(htmlWithToc, EMPTY_BLOCK_PARAGRAPH_PATTERN, "<div class=\"knowledge-empty-block\" aria-hidden=\"true\"></div>");
+    }
+
+    static String calloutToken(String color, String icon) {
+        return CALLOUT_TOKEN_PREFIX
+            + sanitizeCalloutTokenPart(color, "default")
+            + "::"
+            + sanitizeCalloutTokenPart(icon, "ℹ")
+            + "]]]";
     }
 
     private String injectHeadingIds(String html, List<HeadingEntry> headings) {
@@ -115,6 +129,25 @@ public class KnowledgeMarkdownRenderer {
         return tokenPattern.matcher(html).replaceAll(Matcher.quoteReplacement(normalizedReplacement));
     }
 
+    private String replaceCalloutBlockquotes(String html) {
+        Matcher matcher = CALLOUT_BLOCKQUOTE_PATTERN.matcher(html);
+        StringBuffer buffer = new StringBuffer();
+        while (matcher.find()) {
+            String color = sanitizeCalloutCssToken(matcher.group(1));
+            String icon = HtmlUtils.htmlEscape(HtmlUtils.htmlUnescape(matcher.group(2)));
+            String body = matcher.group(3) != null ? matcher.group(3).trim() : "";
+            String replacement = """
+                <div class="knowledge-callout knowledge-callout--%s">
+                    <div class="knowledge-callout__icon" aria-hidden="true">%s</div>
+                    <div class="knowledge-callout__body">%s</div>
+                </div>
+                """.formatted(color, icon, body);
+            matcher.appendReplacement(buffer, Matcher.quoteReplacement(replacement.trim()));
+        }
+        matcher.appendTail(buffer);
+        return buffer.toString();
+    }
+
     private String extractHeadingText(String innerHtml) {
         String text = HTML_TAG_PATTERN.matcher(innerHtml).replaceAll(" ");
         text = HtmlUtils.htmlUnescape(text);
@@ -131,6 +164,19 @@ public class KnowledgeMarkdownRenderer {
         int counter = usedIds.getOrDefault(slug, 0);
         usedIds.put(slug, counter + 1);
         return counter == 0 ? slug : slug + "-" + (counter + 1);
+    }
+
+    private static String sanitizeCalloutTokenPart(String value, String fallback) {
+        String normalized = StringUtils.hasText(value) ? value.trim() : fallback;
+        return normalized.replace("]", "").replace("::", ":").trim();
+    }
+
+    private String sanitizeCalloutCssToken(String value) {
+        String normalized = StringUtils.hasText(value) ? value.trim().toLowerCase(Locale.ROOT) : "default";
+        normalized = normalized.replace('_', '-');
+        normalized = normalized.replaceAll("[^a-z0-9_-]", "-");
+        normalized = normalized.replaceAll("-{2,}", "-").replaceAll("(^-+|-+$)", "");
+        return StringUtils.hasText(normalized) ? normalized : "default";
     }
 
     private record HeadingEntry(int level, String text, String id) {

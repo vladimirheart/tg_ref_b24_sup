@@ -39,6 +39,22 @@ class KnowledgeBaseServiceTest {
     }
 
     @Test
+    void rendersNotionCalloutAsFormattedBlock() {
+        KnowledgeArticle article = new KnowledgeArticle();
+        article.setContent("""
+            <callout icon="❗" color="gray_bg">Перед закрытием смены проверьте открытые заказы.</callout>
+            """);
+
+        String html = service.renderContent(article, List.of());
+
+        assertTrue(html.contains("knowledge-callout"));
+        assertTrue(html.contains("knowledge-callout--gray-bg"));
+        assertTrue(html.contains("❗"));
+        assertTrue(html.contains("Перед закрытием смены проверьте открытые заказы."));
+        assertFalse(html.contains("&lt;callout"));
+    }
+
+    @Test
     void rewritesImportedNotionMediaUrlsToLocalAttachmentEndpoint() {
         KnowledgeArticle article = new KnowledgeArticle();
         article.setExternalId("ab2c3c4e-0584-46fd-a00b-ff55b90fcd84");
@@ -53,5 +69,22 @@ class KnowledgeBaseServiceTest {
 
         assertTrue(html.contains("/api/attachments/knowledge-base/notion_ab2c3c4e058446fda00bff55b90fcd84_5d6eee8368e8_manual.png"));
         assertFalse(html.contains("https://example.com/media/manual.png"));
+    }
+
+    @Test
+    void rewritesImportedNotionMediaUrlsUsingOriginalFileNameFallback() {
+        KnowledgeArticle article = new KnowledgeArticle();
+        article.setExternalId("ab2c3c4e-0584-46fd-a00b-ff55b90fcd84");
+        article.setContent("![](https://prod-files-secure.s3.us-west-2.amazonaws.com/ws/file-id/image.png?X-Amz-Expires=3600)");
+
+        KnowledgeArticleFile file = new KnowledgeArticleFile();
+        file.setStoredPath("notion_ab2c3c4e058446fda00bff55b90fcd84_legacyhash_image.png");
+        file.setOriginalName("image.png");
+        file.setMimeType("image/png");
+
+        String html = service.renderContent(article, List.of(file));
+
+        assertTrue(html.contains("/api/attachments/knowledge-base/notion_ab2c3c4e058446fda00bff55b90fcd84_legacyhash_image.png"));
+        assertFalse(html.contains("prod-files-secure.s3.us-west-2.amazonaws.com"));
     }
 }
