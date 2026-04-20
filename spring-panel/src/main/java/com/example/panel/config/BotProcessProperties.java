@@ -16,6 +16,8 @@ public class BotProcessProperties {
     private int maxBasePort = 18000;
     private String launchMode = "auto";
     private Map<String, String> executableJars = new LinkedHashMap<>();
+    private String preferredProductionLauncher = "jar";
+    private String recommendedArtifactDirectory = "dist";
     private Duration startupReadinessTimeout = Duration.ofSeconds(45);
     private Duration startupPollInterval = Duration.ofMillis(250);
 
@@ -75,6 +77,22 @@ public class BotProcessProperties {
         this.startupPollInterval = startupPollInterval;
     }
 
+    public String getPreferredProductionLauncher() {
+        return preferredProductionLauncher;
+    }
+
+    public void setPreferredProductionLauncher(String preferredProductionLauncher) {
+        this.preferredProductionLauncher = preferredProductionLauncher;
+    }
+
+    public String getRecommendedArtifactDirectory() {
+        return recommendedArtifactDirectory;
+    }
+
+    public void setRecommendedArtifactDirectory(String recommendedArtifactDirectory) {
+        this.recommendedArtifactDirectory = recommendedArtifactDirectory;
+    }
+
     public Path resolveDatabaseDir() {
         return Paths.get(databaseDir).toAbsolutePath().normalize();
     }
@@ -120,6 +138,25 @@ public class BotProcessProperties {
         return startupPollInterval != null && !startupPollInterval.isNegative() && !startupPollInterval.isZero()
             ? startupPollInterval
             : Duration.ofMillis(250);
+    }
+
+    public LaunchMode resolvePreferredProductionLauncher() {
+        String normalized = preferredProductionLauncher == null ? "" : preferredProductionLauncher.trim().toLowerCase();
+        return switch (normalized) {
+            case "maven", "spring-boot-run", "spring_boot_run" -> LaunchMode.MAVEN;
+            case "jar", "" -> LaunchMode.JAR;
+            default -> LaunchMode.JAR;
+        };
+    }
+
+    public String resolveRecommendedExecutableJar(String botModule) {
+        if (botModule == null || botModule.isBlank()) {
+            return null;
+        }
+        String baseDir = (recommendedArtifactDirectory == null || recommendedArtifactDirectory.isBlank())
+            ? "dist"
+            : recommendedArtifactDirectory.trim();
+        return baseDir + "/" + botModule + "-runtime.jar";
     }
 
     public enum LaunchMode {
