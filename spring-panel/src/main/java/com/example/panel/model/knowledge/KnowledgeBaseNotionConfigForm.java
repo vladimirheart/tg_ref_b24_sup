@@ -1,6 +1,10 @@
 package com.example.panel.model.knowledge;
 
-public class KnowledgeBaseNotionConfigForm {
+import java.io.Serializable;
+
+public class KnowledgeBaseNotionConfigForm implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     private boolean enabled;
     private String sourceUrl;
