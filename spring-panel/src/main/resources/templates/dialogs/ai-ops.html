@@ -22,6 +22,18 @@
         <p class="page-subtitle">Панель мониторинга качества AI-агента, алертов и событий.</p>
     </div>
 
+    <ul class="nav nav-tabs mb-4" id="aiOpsTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="aiOpsOverviewTab" data-bs-toggle="tab" data-bs-target="#aiOpsOverviewPane" type="button" role="tab" aria-controls="aiOpsOverviewPane" aria-selected="true">AI Ops</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="aiOpsAutomationTab" data-bs-toggle="tab" data-bs-target="#aiOpsAutomationPane" type="button" role="tab" aria-controls="aiOpsAutomationPane" aria-selected="false">Bitrix24 + iiko automation</button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="aiOpsTabsContent">
+        <div class="tab-pane fade show active" id="aiOpsOverviewPane" role="tabpanel" aria-labelledby="aiOpsOverviewTab" tabindex="0">
+
     <section class="card shadow-sm mb-4">
         <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-2">
             <strong>AI Monitoring</strong>
@@ -64,6 +76,9 @@
             <div id="aiOpsMemoryList" class="small text-muted">-</div>
         </div>
     </section>
+
+        </div>
+        <div class="tab-pane fade" id="aiOpsAutomationPane" role="tabpanel" aria-labelledby="aiOpsAutomationTab" tabindex="0">
 
     <section class="card shadow-sm mb-4">
         <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-2">
@@ -205,6 +220,8 @@
             </div>
         </div>
     </section>
+        </div>
+    </div>
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>

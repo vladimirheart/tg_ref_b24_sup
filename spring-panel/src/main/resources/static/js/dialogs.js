@@ -2371,12 +2371,16 @@
       applySlaOrchestrationToRows();
       const marker = buildDialogsMarker(dialogs);
       const isInitialSync = lastListMarker === null;
+      const hasListChanges = !isInitialSync && marker !== lastListMarker;
       if (isInitialSync || marker !== lastListMarker) {
         lastListMarker = marker;
       }
       syncDialogsTable(dialogs);
       applySlaOrchestrationToRows();
       refreshSummaryCounters(data.summary || {});
+      if (hasListChanges) {
+        requestSidebarNotificationRefresh('dialogs-list-change');
+      }
     } catch (error) {
       // ignore polling errors
     } finally {
@@ -7196,10 +7200,14 @@
       }
       const messages = data.messages || [];
       const marker = historyMarker(messages);
-      if (marker !== lastHistoryMarker) {
+      const hasHistoryChanges = marker !== lastHistoryMarker;
+      if (hasHistoryChanges) {
         renderHistory(messages);
       }
       updateDialogUnreadCount(0);
+      if (hasHistoryChanges) {
+        requestSidebarNotificationRefresh('dialogs-history-change');
+      }
     } catch (error) {
       // ignore polling errors
     } finally {
@@ -7250,6 +7258,18 @@
     setRowUnreadCount(activeDialogRow, count);
   }
 
+  function requestSidebarNotificationRefresh(source = 'dialogs') {
+    if (typeof window.refreshSidebarNotifications === 'function') {
+      window.refreshSidebarNotifications();
+      return;
+    }
+    try {
+      window.dispatchEvent(new CustomEvent('iguana:notifications-refresh', { detail: { source } }));
+    } catch (_error) {
+      // ignore custom event errors
+    }
+  }
+
   function updateRowStatus(row, statusRaw, statusLabel, statusKey, unreadCount = 0) {
     if (!row) return;
     row.dataset.status = statusLabel;
@@ -7264,6 +7284,23 @@
     }
     setRowUnreadCount(row, unreadCount);
     updateRowQuickActions(row);
+  }
+
+  function updateDetailsStatusSummary(statusLabel, statusKey = 'waiting_client') {
+    const safeStatus = statusLabel || '—';
+    activeDialogContext.status = safeStatus;
+    const statusRow = detailsSummary
+      ? Array.from(detailsSummary.querySelectorAll('.d-flex.justify-content-between.gap-2'))
+        .find((row) => row.firstElementChild?.textContent?.trim() === 'Статус')
+      : null;
+    const statusValue = statusRow?.lastElementChild || null;
+    if (statusValue) {
+      statusValue.innerHTML = renderSummaryBadge(
+        safeStatus,
+        resolveSummaryBadgeStyle('status', safeStatus)
+      );
+    }
+    updateResolveButton(statusKey === 'closed' || statusKey === 'auto_closed' ? 'resolved' : 'pending');
   }
 
   function formatStatusLabel(raw, fallback, statusKey) {
@@ -7998,10 +8035,11 @@
           messageType: 'operator_message',
         });
         if (activeDialogRow) {
-          updateRowStatus(activeDialogRow, activeDialogRow.dataset.statusRaw || '', 'ожидает ответа клиента', 'waiting_client', 0);
+          updateRowStatus(activeDialogRow, 'pending', 'ожидает ответа клиента', 'waiting_client', 0);
           updateRowResponsible(activeDialogRow, data.responsible || activeDialogRow.dataset.responsible || '');
           applyFilters();
         }
+        updateDetailsStatusSummary('ожидает ответа клиента', 'waiting_client');
         if (typeof showNotification === 'function') {
           showNotification('Сообщение отправлено', 'success');
         }
@@ -8090,8 +8128,9 @@
           });
         }
         if (activeDialogRow) {
-          updateRowStatus(activeDialogRow, activeDialogRow.dataset.statusRaw || '', 'ожидает ответа клиента', 'waiting_client', 0);
+          updateRowStatus(activeDialogRow, 'pending', 'ожидает ответа клиента', 'waiting_client', 0);
         }
+        updateDetailsStatusSummary('ожидает ответа клиента', 'waiting_client');
         if (ticketId === activeWorkspaceTicketId) {
           emitWorkspaceTelemetry('workspace_media_sent', {
             ticketId,
