@@ -156,6 +156,10 @@
   navigation/queue meta и rollout/meta-config вынесены в
   `DialogWorkspaceNavigationService` и `DialogWorkspaceRolloutService`, плюс
   добавлены targeted tests для этих sub-services.
+- ещё один пакет service-level split внутри `workspace` закрыт:
+  client segments/profile health вынесены в
+  `DialogWorkspaceClientProfileService`, а context blocks/blocks health — в
+  `DialogWorkspaceContextBlockService`, тоже с targeted unit tests.
 
 Что остаётся:
 
