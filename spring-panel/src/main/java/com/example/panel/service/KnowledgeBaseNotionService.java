@@ -5,6 +5,7 @@ import com.example.panel.entity.KnowledgeArticleFile;
 import com.example.panel.model.knowledge.KnowledgeBaseNotionConfigForm;
 import com.example.panel.model.knowledge.KnowledgeNotionImportPreview;
 import com.example.panel.model.knowledge.KnowledgeNotionImportPreviewItem;
+import com.example.panel.model.knowledge.KnowledgeNotionSyncStatus;
 import com.example.panel.repository.KnowledgeArticleFileRepository;
 import com.example.panel.repository.KnowledgeArticleRepository;
 import com.example.panel.storage.AttachmentService;
@@ -37,6 +38,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -72,6 +74,7 @@ public class KnowledgeBaseNotionService {
     private final AttachmentService attachmentService;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
+    private final AtomicReference<KnowledgeNotionSyncStatus> syncStatus = new AtomicReference<>(KnowledgeNotionSyncStatus.idle());
 
     public KnowledgeBaseNotionService(SharedConfigService sharedConfigService,
                                       KnowledgeArticleRepository knowledgeArticleRepository,
@@ -141,6 +144,11 @@ public class KnowledgeBaseNotionService {
         );
     }
 
+    @Transactional(readOnly = true)
+    public KnowledgeNotionSyncStatus getSyncStatus() {
+        return syncStatus.get();
+    }
+
     public ImportResult importArticles() {
         return importArticlesInternal(null, true);
     }
@@ -149,7 +157,19 @@ public class KnowledgeBaseNotionService {
         return importArticlesInternal(selectedExternalIds, false);
     }
 
+    public ImportResult importChangedArticles() {
+        return runTrackedSync("manual", this::importChangedArticlesInternal);
+    }
+
+    public ImportResult syncLinkedArticlesFromNotion() {
+        return runTrackedSync("scheduler", this::syncLinkedArticlesInternal);
+    }
+
     public ImportResult syncArticleById(Long articleId) {
+        return runTrackedSync("article", () -> syncArticleByIdInternal(articleId));
+    }
+
+    private ImportResult syncArticleByIdInternal(Long articleId) {
         if (articleId == null) {
             throw new IllegalStateException("Не передан ID статьи для синхронизации с Notion.");
         }
@@ -172,10 +192,58 @@ public class KnowledgeBaseNotionService {
         return new ImportResult("page", 1, 1, 1, 0, 1, 0);
     }
 
+    private ImportResult importChangedArticlesInternal() {
+        NotionConfig config = loadConfig(true);
+        QueryResult queryResult = queryPages(config);
+        Map<String, KnowledgeArticle> existingByExternalId = loadExistingArticlesByExternalId(queryResult.matchedPages());
+        List<JsonNode> changedPages = filterChangedPages(queryResult.matchedPages(), existingByExternalId, true);
+        return importPreparedPages(config, queryResult.mode(), queryResult.totalPages(), queryResult.matchedPages().size(), changedPages);
+    }
+
+    private ImportResult syncLinkedArticlesInternal() {
+        NotionConfig config = loadConfig(true);
+        List<KnowledgeArticle> linkedArticles = knowledgeArticleRepository.findAllByExternalSource(NOTION_SOURCE);
+        Map<String, String> relationDisplayCache = new HashMap<>();
+        int updated = 0;
+        int skipped = 0;
+        int changed = 0;
+
+        for (KnowledgeArticle linkedArticle : linkedArticles) {
+            if (!StringUtils.hasText(linkedArticle.getExternalId())) {
+                skipped++;
+                continue;
+            }
+            JsonNode page = retrievePage(config.token(), linkedArticle.getExternalId());
+            OffsetDateTime remoteUpdatedAt = parseOffsetDateTime(page.path("last_edited_time").asText(null));
+            if (!isRemoteNewer(linkedArticle, remoteUpdatedAt)) {
+                skipped++;
+                continue;
+            }
+            changed++;
+            ImportedArticle imported = toImportedArticle(config, page, relationDisplayCache);
+            if (!StringUtils.hasText(imported.title()) || !StringUtils.hasText(imported.content())) {
+                skipped++;
+                continue;
+            }
+            applyImportedArticle(linkedArticle, imported, config.token(), page);
+            updated++;
+        }
+
+        return new ImportResult("linked_articles", linkedArticles.size(), changed, linkedArticles.size(), 0, updated, skipped);
+    }
+
     private ImportResult importArticlesInternal(List<String> selectedExternalIds, boolean importAllWhenSelectionEmpty) {
         NotionConfig config = loadConfig(true);
         QueryResult queryResult = queryPages(config);
         List<JsonNode> selectedPages = filterSelectedPages(queryResult.matchedPages(), selectedExternalIds, importAllWhenSelectionEmpty);
+        return importPreparedPages(config, queryResult.mode(), queryResult.totalPages(), queryResult.matchedPages().size(), selectedPages);
+    }
+
+    private ImportResult importPreparedPages(NotionConfig config,
+                                             String mode,
+                                             int totalPages,
+                                             int matchedPages,
+                                             List<JsonNode> selectedPages) {
         Map<String, String> relationDisplayCache = new HashMap<>();
         int created = 0;
         int updated = 0;
@@ -200,10 +268,10 @@ public class KnowledgeBaseNotionService {
         }
 
         return new ImportResult(
-            queryResult.mode(),
-            queryResult.matchedPages().size(),
+            mode,
+            matchedPages,
             selectedPages.size(),
-            queryResult.totalPages(),
+            totalPages,
             created,
             updated,
             skipped
@@ -473,6 +541,9 @@ public class KnowledgeBaseNotionService {
         List<KnowledgeNotionImportPreviewItem> items = new ArrayList<>();
         for (JsonNode page : pages) {
             PreviewArticle article = toPreviewArticle(config, page, relationDisplayCache);
+            KnowledgeArticle existing = existingByExternalId.get(article.externalId());
+            boolean alreadyImported = existing != null;
+            boolean changedInNotion = alreadyImported && isRemoteNewer(existing, article.externalUpdatedAt());
             items.add(new KnowledgeNotionImportPreviewItem(
                 article.externalId(),
                 article.title(),
@@ -484,7 +555,9 @@ public class KnowledgeBaseNotionService {
                 article.localStatus(),
                 article.externalUrl(),
                 article.externalUpdatedAt(),
-                existingByExternalId.containsKey(article.externalId())
+                alreadyImported,
+                changedInNotion,
+                resolveSyncStateLabel(alreadyImported, changedInNotion)
             ));
         }
         return items;
@@ -529,6 +602,51 @@ public class KnowledgeBaseNotionService {
             }
         }
         return existing;
+    }
+
+    List<JsonNode> filterChangedPages(List<JsonNode> matchedPages,
+                                      Map<String, KnowledgeArticle> existingByExternalId,
+                                      boolean includeNotImported) {
+        if (matchedPages == null || matchedPages.isEmpty()) {
+            return List.of();
+        }
+        List<JsonNode> changedPages = new ArrayList<>();
+        for (JsonNode page : matchedPages) {
+            String externalId = page.path("id").asText(null);
+            if (!StringUtils.hasText(externalId)) {
+                continue;
+            }
+            KnowledgeArticle existing = existingByExternalId != null ? existingByExternalId.get(externalId) : null;
+            OffsetDateTime remoteUpdatedAt = parseOffsetDateTime(page.path("last_edited_time").asText(null));
+            if (existing == null) {
+                if (includeNotImported) {
+                    changedPages.add(page);
+                }
+                continue;
+            }
+            if (isRemoteNewer(existing, remoteUpdatedAt)) {
+                changedPages.add(page);
+            }
+        }
+        return changedPages;
+    }
+
+    private boolean isRemoteNewer(KnowledgeArticle existing, OffsetDateTime remoteUpdatedAt) {
+        if (existing == null) {
+            return true;
+        }
+        OffsetDateTime localUpdatedAt = existing.getExternalUpdatedAt();
+        if (remoteUpdatedAt == null) {
+            return localUpdatedAt == null;
+        }
+        return localUpdatedAt == null || remoteUpdatedAt.isAfter(localUpdatedAt);
+    }
+
+    private String resolveSyncStateLabel(boolean alreadyImported, boolean changedInNotion) {
+        if (!alreadyImported) {
+            return "Новая";
+        }
+        return changedInNotion ? "Изменена в Notion" : "Актуальна";
     }
 
     List<JsonNode> filterSelectedPages(List<JsonNode> matchedPages,
@@ -1305,6 +1423,47 @@ public class KnowledgeBaseNotionService {
         return OffsetDateTime.parse(raw);
     }
 
+    private ImportResult runTrackedSync(String trigger, SyncOperation operation) {
+        OffsetDateTime startedAt = OffsetDateTime.now();
+        syncStatus.set(new KnowledgeNotionSyncStatus(true, trigger, startedAt, null, 0, 0, 0, 0, 0, null, null));
+        try {
+            ImportResult result = operation.run();
+            OffsetDateTime finishedAt = OffsetDateTime.now();
+            String message = "Синхронизация завершена: создано " + result.created()
+                + ", обновлено " + result.updated()
+                + ", пропущено " + result.skipped() + ".";
+            syncStatus.set(new KnowledgeNotionSyncStatus(
+                false,
+                trigger,
+                startedAt,
+                finishedAt,
+                result.totalPages(),
+                result.selectedPages(),
+                result.created(),
+                result.updated(),
+                result.skipped(),
+                message,
+                null
+            ));
+            return result;
+        } catch (Exception ex) {
+            syncStatus.set(new KnowledgeNotionSyncStatus(
+                false,
+                trigger,
+                startedAt,
+                OffsetDateTime.now(),
+                0,
+                0,
+                0,
+                0,
+                0,
+                null,
+                ex.getMessage()
+            ));
+            throw ex;
+        }
+    }
+
     private String normalizeValue(String raw) {
         if (!StringUtils.hasText(raw)) {
             return null;
@@ -1415,5 +1574,10 @@ public class KnowledgeBaseNotionService {
                                int created,
                                int updated,
                                int skipped) {
+    }
+
+    @FunctionalInterface
+    private interface SyncOperation {
+        ImportResult run();
     }
 }
