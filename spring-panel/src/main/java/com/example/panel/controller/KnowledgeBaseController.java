@@ -91,6 +91,27 @@ public class KnowledgeBaseController {
         return "knowledge/editor";
     }
 
+    @PostMapping("/{id}/sync-notion")
+    @PreAuthorize("hasAuthority('PAGE_KNOWLEDGE_BASE')")
+    public String syncArticleFromNotion(@PathVariable Long id,
+                                        Authentication authentication,
+                                        RedirectAttributes redirectAttributes) {
+        try {
+            var result = knowledgeBaseNotionService.syncArticleById(id);
+            String actor = authentication != null ? authentication.getName() : null;
+            String message = "Статья обновлена из Notion: создано " + result.created()
+                + ", обновлено " + result.updated()
+                + ", пропущено " + result.skipped() + ".";
+            notificationService.notifyAllOperators(message, "/knowledge-base/" + id, actor);
+            redirectAttributes.addFlashAttribute("messageType", "success");
+            redirectAttributes.addFlashAttribute("message", message);
+        } catch (Exception ex) {
+            redirectAttributes.addFlashAttribute("messageType", "danger");
+            redirectAttributes.addFlashAttribute("message", ex.getMessage());
+        }
+        return "redirect:/knowledge-base/" + id;
+    }
+
     @PostMapping("/articles")
     @PreAuthorize("hasAuthority('PAGE_KNOWLEDGE_BASE')")
     public String saveArticle(KnowledgeArticleCommand command, Authentication authentication) {
@@ -208,6 +229,7 @@ public class KnowledgeBaseController {
     }
 
     private KnowledgeArticleDetails emptyArticle() {
-        return new KnowledgeArticleDetails(null, "", "", "", "draft", "", "", "", "", "", "", null, null, List.of());
+        return new KnowledgeArticleDetails(null, "", "", "", "draft", "", "", "", "", "", "",
+            null, null, null, null, null, null, List.of());
     }
 }

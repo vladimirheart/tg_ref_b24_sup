@@ -149,6 +149,29 @@ public class KnowledgeBaseNotionService {
         return importArticlesInternal(selectedExternalIds, false);
     }
 
+    public ImportResult syncArticleById(Long articleId) {
+        if (articleId == null) {
+            throw new IllegalStateException("Не передан ID статьи для синхронизации с Notion.");
+        }
+        KnowledgeArticle article = knowledgeArticleRepository.findById(articleId)
+            .orElseThrow(() -> new IllegalStateException("Статья базы знаний не найдена."));
+        if (!NOTION_SOURCE.equalsIgnoreCase(trim(article.getExternalSource()))) {
+            throw new IllegalStateException("Эта статья не связана с Notion.");
+        }
+        if (!StringUtils.hasText(article.getExternalId())) {
+            throw new IllegalStateException("У статьи нет externalId для повторной загрузки из Notion.");
+        }
+        NotionConfig config = loadConfig(true);
+        Map<String, String> relationDisplayCache = new HashMap<>();
+        JsonNode page = retrievePage(config.token(), article.getExternalId());
+        ImportedArticle imported = toImportedArticle(config, page, relationDisplayCache);
+        if (!StringUtils.hasText(imported.title()) || !StringUtils.hasText(imported.content())) {
+            return new ImportResult("page", 1, 1, 1, 0, 0, 1);
+        }
+        applyImportedArticle(article, imported, config.token(), page);
+        return new ImportResult("page", 1, 1, 1, 0, 1, 0);
+    }
+
     private ImportResult importArticlesInternal(List<String> selectedExternalIds, boolean importAllWhenSelectionEmpty) {
         NotionConfig config = loadConfig(true);
         QueryResult queryResult = queryPages(config);
@@ -168,26 +191,7 @@ public class KnowledgeBaseNotionService {
                 .findFirstByExternalSourceAndExternalId(NOTION_SOURCE, article.externalId())
                 .orElseGet(KnowledgeArticle::new);
             boolean isNew = entity.getId() == null;
-            OffsetDateTime now = OffsetDateTime.now();
-            if (entity.getCreatedAt() == null) {
-                entity.setCreatedAt(now);
-            }
-            entity.setUpdatedAt(now);
-            entity.setTitle(trim(article.title()));
-            entity.setDepartment(trim(article.department()));
-            entity.setArticleType(trim(article.articleType()));
-            entity.setStatus(resolveLocalStatus(article.status()));
-            entity.setAuthor(trim(article.author()));
-            entity.setDirection(trim(article.direction()));
-            entity.setDirectionSubtype(trim(article.directionSubtype()));
-            entity.setSummary(trim(article.summary()));
-            entity.setContent(article.content());
-            entity.setExternalSource(NOTION_SOURCE);
-            entity.setExternalId(article.externalId());
-            entity.setExternalUrl(trim(article.externalUrl()));
-            entity.setExternalUpdatedAt(article.externalUpdatedAt());
-            entity = knowledgeArticleRepository.save(entity);
-            syncImportedAttachments(config.token(), entity, page, article.content());
+            entity = applyImportedArticle(entity, article, config.token(), page);
             if (isNew) {
                 created++;
             } else {
@@ -204,6 +208,33 @@ public class KnowledgeBaseNotionService {
             updated,
             skipped
         );
+    }
+
+    private KnowledgeArticle applyImportedArticle(KnowledgeArticle entity,
+                                                  ImportedArticle article,
+                                                  String token,
+                                                  JsonNode page) {
+        OffsetDateTime now = OffsetDateTime.now();
+        if (entity.getCreatedAt() == null) {
+            entity.setCreatedAt(now);
+        }
+        entity.setUpdatedAt(now);
+        entity.setTitle(trim(article.title()));
+        entity.setDepartment(trim(article.department()));
+        entity.setArticleType(trim(article.articleType()));
+        entity.setStatus(resolveLocalStatus(article.status()));
+        entity.setAuthor(trim(article.author()));
+        entity.setDirection(trim(article.direction()));
+        entity.setDirectionSubtype(trim(article.directionSubtype()));
+        entity.setSummary(trim(article.summary()));
+        entity.setContent(article.content());
+        entity.setExternalSource(NOTION_SOURCE);
+        entity.setExternalId(article.externalId());
+        entity.setExternalUrl(trim(article.externalUrl()));
+        entity.setExternalUpdatedAt(article.externalUpdatedAt());
+        entity = knowledgeArticleRepository.save(entity);
+        syncImportedAttachments(token, entity, page, article.content());
+        return entity;
     }
 
     private NotionConfig loadConfig(boolean requireReady) {
@@ -337,6 +368,14 @@ public class KnowledgeBaseNotionService {
     private ApiResult retrieveDatabase(String token, String databaseId) {
         String url = "https://api.notion.com/v1/databases/" + databaseId;
         return executeGet(token, NOTION_VERSION, url, "database");
+    }
+
+    private JsonNode retrievePage(String token, String pageId) {
+        ApiResult result = executeGet(token, NOTION_VERSION, "https://api.notion.com/v1/pages/" + pageId, "page");
+        if (!result.success()) {
+            throw new IllegalStateException(decorateNotionApiMessage(pageId, result.message()));
+        }
+        return result.body();
     }
 
     private ApiResult executePagedPost(String token, String notionVersion, String url, String mode) {

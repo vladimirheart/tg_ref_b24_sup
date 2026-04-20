@@ -121,6 +121,10 @@ public class KnowledgeBaseService {
                 article.getSummary(),
                 article.getContent(),
                 renderContent(article, files),
+                article.getExternalSource(),
+                article.getExternalId(),
+                article.getExternalUrl(),
+                article.getExternalUpdatedAt(),
                 article.getCreatedAt(),
                 article.getUpdatedAt(),
                 attachments
