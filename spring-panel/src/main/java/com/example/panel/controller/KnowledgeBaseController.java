@@ -91,6 +91,27 @@ public class KnowledgeBaseController {
         return "knowledge/editor";
     }
 
+    @PostMapping("/{id}/sync-notion")
+    @PreAuthorize("hasAuthority('PAGE_KNOWLEDGE_BASE')")
+    public String syncArticleFromNotion(@PathVariable Long id,
+                                        Authentication authentication,
+                                        RedirectAttributes redirectAttributes) {
+        try {
+            var result = knowledgeBaseNotionService.syncArticleById(id);
+            String actor = authentication != null ? authentication.getName() : null;
+            String message = "Статья обновлена из Notion: создано " + result.created()
+                + ", обновлено " + result.updated()
+                + ", пропущено " + result.skipped() + ".";
+            notificationService.notifyAllOperators(message, "/knowledge-base/" + id, actor);
+            redirectAttributes.addFlashAttribute("messageType", "success");
+            redirectAttributes.addFlashAttribute("message", message);
+        } catch (Exception ex) {
+            redirectAttributes.addFlashAttribute("messageType", "danger");
+            redirectAttributes.addFlashAttribute("message", ex.getMessage());
+        }
+        return "redirect:/knowledge-base/" + id;
+    }
+
     @PostMapping("/articles")
     @PreAuthorize("hasAuthority('PAGE_KNOWLEDGE_BASE')")
     public String saveArticle(KnowledgeArticleCommand command, Authentication authentication) {
@@ -195,6 +216,27 @@ public class KnowledgeBaseController {
         return "redirect:/knowledge-base#notion-import";
     }
 
+    @PostMapping("/notion/sync-changed")
+    @PreAuthorize("hasAuthority('PAGE_KNOWLEDGE_BASE')")
+    public String syncChangedFromNotion(Authentication authentication, RedirectAttributes redirectAttributes) {
+        try {
+            var result = knowledgeBaseNotionService.importChangedArticles();
+            String actor = authentication != null ? authentication.getName() : null;
+            String message = "Синхронизация изменённых статей Notion завершена: найдено изменений " + result.selectedPages()
+                + ", создано " + result.created()
+                + ", обновлено " + result.updated()
+                + ", пропущено " + result.skipped()
+                + ", всего в источнике " + result.totalPages() + ".";
+            notificationService.notifyAllOperators(message, "/knowledge-base", actor);
+            redirectAttributes.addFlashAttribute("notionMessageType", "success");
+            redirectAttributes.addFlashAttribute("notionMessage", message);
+        } catch (Exception ex) {
+            redirectAttributes.addFlashAttribute("notionMessageType", "danger");
+            redirectAttributes.addFlashAttribute("notionMessage", ex.getMessage());
+        }
+        return "redirect:/knowledge-base#notion-import";
+    }
+
     private void populateListModel(Authentication authentication, Model model) {
         navigationService.enrich(model, authentication);
         var articles = knowledgeBaseService.listArticles();
@@ -205,9 +247,11 @@ public class KnowledgeBaseController {
             model.addAttribute("notionConfig", knowledgeBaseNotionService.buildForm());
         }
         model.addAttribute("notionHasToken", knowledgeBaseNotionService.hasSavedToken());
+        model.addAttribute("notionSyncStatus", knowledgeBaseNotionService.getSyncStatus());
     }
 
     private KnowledgeArticleDetails emptyArticle() {
-        return new KnowledgeArticleDetails(null, "", "", "", "draft", "", "", "", "", "", "", null, null, List.of());
+        return new KnowledgeArticleDetails(null, "", "", "", "draft", "", "", "", "", "", "",
+            null, null, null, null, null, null, List.of());
     }
 }

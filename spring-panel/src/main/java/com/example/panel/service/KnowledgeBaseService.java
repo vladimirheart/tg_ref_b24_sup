@@ -13,13 +13,32 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.net.URI;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 @Transactional
 public class KnowledgeBaseService {
+
+    private static final Pattern NOTION_TABLE_OF_CONTENTS_PATTERN = Pattern.compile("(?i)<table_of_contents(?:\\s+[^>]*)?\\s*/>");
+    private static final Pattern NOTION_EMPTY_BLOCK_PATTERN = Pattern.compile("(?i)<empty-block(?:\\s+[^>]*)?\\s*/>");
+    private static final Pattern NOTION_BREAK_PATTERN = Pattern.compile("(?i)<br\\s*/?>");
+    private static final Pattern NOTION_CALLOUT_PATTERN = Pattern.compile("(?is)<callout([^>]*)>(.*?)</callout>");
+    private static final Pattern XML_ATTRIBUTE_PATTERN = Pattern.compile("(\\w+)\\s*=\\s*\"([^\"]*)\"");
+    private static final Pattern URL_PATTERN = Pattern.compile("https?://[^\\s)\\]>\"']+");
+    private static final List<String> LOCAL_MEDIA_EXTENSIONS = List.of(
+        "png", "jpg", "jpeg", "gif", "webp", "bmp", "svg", "pdf", "zip", "7z", "rar", "doc", "docx", "xls", "xlsx", "ppt", "pptx"
+    );
 
     private final KnowledgeArticleRepository articleRepository;
     private final KnowledgeArticleFileRepository fileRepository;
@@ -101,11 +120,207 @@ public class KnowledgeBaseService {
                 article.getDirectionSubtype(),
                 article.getSummary(),
                 article.getContent(),
-                markdownRenderer.render(article.getContent()),
+                renderContent(article, files),
+                article.getExternalSource(),
+                article.getExternalId(),
+                article.getExternalUrl(),
+                article.getExternalUpdatedAt(),
                 article.getCreatedAt(),
                 article.getUpdatedAt(),
                 attachments
         );
+    }
+
+    String renderContent(KnowledgeArticle article, List<KnowledgeArticleFile> files) {
+        return markdownRenderer.render(prepareContentForRender(article, files));
+    }
+
+    String prepareContentForRender(KnowledgeArticle article, List<KnowledgeArticleFile> files) {
+        if (article == null || !StringUtils.hasText(article.getContent())) {
+            return "";
+        }
+        String content = article.getContent();
+        content = NOTION_TABLE_OF_CONTENTS_PATTERN.matcher(content)
+            .replaceAll("\n\n" + KnowledgeMarkdownRenderer.TABLE_OF_CONTENTS_TOKEN + "\n\n");
+        content = NOTION_EMPTY_BLOCK_PATTERN.matcher(content)
+            .replaceAll("\n\n" + KnowledgeMarkdownRenderer.EMPTY_BLOCK_TOKEN + "\n\n");
+        content = transformNotionCallouts(content);
+        content = NOTION_BREAK_PATTERN.matcher(content).replaceAll("  \n");
+        content = rewriteEmbeddedMediaUrls(content, article.getExternalId(), files);
+        return content.trim();
+    }
+
+    private String transformNotionCallouts(String content) {
+        Matcher matcher = NOTION_CALLOUT_PATTERN.matcher(content);
+        StringBuffer buffer = new StringBuffer();
+        while (matcher.find()) {
+            String attributes = matcher.group(1);
+            String body = matcher.group(2);
+            String icon = readXmlAttribute(attributes, "icon");
+            String color = readXmlAttribute(attributes, "color");
+            String replacement = buildCalloutMarkdown(color, icon, body);
+            matcher.appendReplacement(buffer, Matcher.quoteReplacement(replacement));
+        }
+        matcher.appendTail(buffer);
+        return buffer.toString();
+    }
+
+    private String buildCalloutMarkdown(String color, String icon, String body) {
+        String normalizedBody = StringUtils.hasText(body) ? body.trim() : "";
+        String marker = KnowledgeMarkdownRenderer.calloutToken(trim(color), trim(icon));
+        StringBuilder builder = new StringBuilder();
+        builder.append("\n\n> ").append(marker);
+        if (!normalizedBody.isEmpty()) {
+            builder.append("\n>");
+            for (String line : normalizedBody.replace("\r\n", "\n").replace('\r', '\n').split("\n", -1)) {
+                builder.append("\n> ");
+                builder.append(line);
+            }
+        }
+        builder.append("\n\n");
+        return builder.toString();
+    }
+
+    private String readXmlAttribute(String attributes, String name) {
+        if (!StringUtils.hasText(attributes) || !StringUtils.hasText(name)) {
+            return null;
+        }
+        Matcher matcher = XML_ATTRIBUTE_PATTERN.matcher(attributes);
+        while (matcher.find()) {
+            if (name.equalsIgnoreCase(matcher.group(1))) {
+                return matcher.group(2);
+            }
+        }
+        return null;
+    }
+
+    private String rewriteEmbeddedMediaUrls(String markdown, String externalId, List<KnowledgeArticleFile> files) {
+        if (!StringUtils.hasText(markdown) || !StringUtils.hasText(externalId) || files == null || files.isEmpty()) {
+            return markdown;
+        }
+        List<String> rewritten = new ArrayList<>();
+        Matcher matcher = URL_PATTERN.matcher(markdown);
+        while (matcher.find()) {
+            String rawUrl = trimTrailingPunctuation(matcher.group());
+            String replacement = resolveLocalMediaUrl(rawUrl, externalId, files);
+            if (replacement != null && !replacement.equals(rawUrl)) {
+                rewritten.add(rawUrl);
+                rewritten.add(replacement);
+            }
+        }
+        String result = markdown;
+        for (int i = 0; i < rewritten.size(); i += 2) {
+            result = result.replace(rewritten.get(i), rewritten.get(i + 1));
+        }
+        return result;
+    }
+
+    private String resolveLocalMediaUrl(String rawUrl, String externalId, List<KnowledgeArticleFile> files) {
+        if (!StringUtils.hasText(rawUrl) || !isLikelyLocalizableMedia(rawUrl)) {
+            return null;
+        }
+        String originalName = extractFileNameFromUrl(rawUrl);
+        if (!StringUtils.hasText(originalName)) {
+            return null;
+        }
+        String expectedStoredPath = buildStoredAttachmentName(externalId, rawUrl, originalName);
+        String legacyStoredPath = buildLegacyStoredAttachmentName(externalId, rawUrl, originalName);
+        for (KnowledgeArticleFile file : files) {
+            if (expectedStoredPath.equals(file.getStoredPath()) || legacyStoredPath.equals(file.getStoredPath())) {
+                return "/api/attachments/knowledge-base/" + URLEncoder.encode(file.getStoredPath(), StandardCharsets.UTF_8);
+            }
+        }
+        List<KnowledgeArticleFile> byOriginalName = files.stream()
+            .filter(file -> originalName.equalsIgnoreCase(trim(file.getOriginalName())))
+            .filter(file -> StringUtils.hasText(file.getStoredPath()) && file.getStoredPath().startsWith(buildNotionAttachmentPrefix(externalId)))
+            .toList();
+        if (byOriginalName.size() == 1) {
+            return "/api/attachments/knowledge-base/" + URLEncoder.encode(byOriginalName.get(0).getStoredPath(), StandardCharsets.UTF_8);
+        }
+        return null;
+    }
+
+    private boolean isLikelyLocalizableMedia(String rawUrl) {
+        try {
+            URI uri = URI.create(rawUrl);
+            String path = uri.getPath();
+            if (!StringUtils.hasText(path) || !path.contains(".")) {
+                return false;
+            }
+            String extension = path.substring(path.lastIndexOf('.') + 1).toLowerCase(Locale.ROOT);
+            return LOCAL_MEDIA_EXTENSIONS.contains(extension);
+        } catch (IllegalArgumentException ex) {
+            return false;
+        }
+    }
+
+    private String extractFileNameFromUrl(String rawUrl) {
+        try {
+            URI uri = URI.create(rawUrl);
+            String path = uri.getPath();
+            if (!StringUtils.hasText(path)) {
+                return null;
+            }
+            String filename = path.substring(path.lastIndexOf('/') + 1);
+            return StringUtils.hasText(filename) ? filename : null;
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
+    }
+
+    private String buildStoredAttachmentName(String externalId, String url, String originalName) {
+        return buildNotionAttachmentPrefix(externalId) + shortHash(normalizeAttachmentKey(url)) + "_" + sanitizeStoredFileName(originalName);
+    }
+
+    private String buildLegacyStoredAttachmentName(String externalId, String url, String originalName) {
+        return buildNotionAttachmentPrefix(externalId) + shortHash(url) + "_" + sanitizeStoredFileName(originalName);
+    }
+
+    private String buildNotionAttachmentPrefix(String externalId) {
+        return "notion_" + externalId.replaceAll("[^A-Za-z0-9]", "") + "_";
+    }
+
+    private String sanitizeStoredFileName(String originalName) {
+        String cleaned = StringUtils.cleanPath(StringUtils.hasText(originalName) ? originalName : "attachment.bin");
+        cleaned = cleaned.replace('\\', '_').replace('/', '_').replaceAll("[^A-Za-z0-9._-]", "_");
+        return StringUtils.hasText(cleaned) ? cleaned : "attachment.bin";
+    }
+
+    private String shortHash(String raw) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] bytes = digest.digest((raw != null ? raw : "").getBytes(StandardCharsets.UTF_8));
+            StringBuilder builder = new StringBuilder();
+            for (int i = 0; i < Math.min(bytes.length, 6); i++) {
+                builder.append(String.format("%02x", bytes[i]));
+            }
+            return builder.toString();
+        } catch (NoSuchAlgorithmException ex) {
+            return Integer.toHexString((raw != null ? raw : "").hashCode());
+        }
+    }
+
+    private String trimTrailingPunctuation(String url) {
+        String trimmed = trim(url);
+        while (StringUtils.hasText(trimmed) && ".,;)]".contains(trimmed.substring(trimmed.length() - 1))) {
+            trimmed = trimmed.substring(0, trimmed.length() - 1);
+        }
+        return trimmed;
+    }
+
+    private String normalizeAttachmentKey(String rawUrl) {
+        if (!StringUtils.hasText(rawUrl)) {
+            return "";
+        }
+        try {
+            URI uri = URI.create(rawUrl);
+            String scheme = uri.getScheme() != null ? uri.getScheme().toLowerCase(Locale.ROOT) : "https";
+            String host = uri.getHost() != null ? uri.getHost().toLowerCase(Locale.ROOT) : "";
+            String path = uri.getPath() != null ? uri.getPath() : rawUrl;
+            return scheme + "://" + host + path;
+        } catch (IllegalArgumentException ex) {
+            return rawUrl;
+        }
     }
 
     private static String trim(String value) {
