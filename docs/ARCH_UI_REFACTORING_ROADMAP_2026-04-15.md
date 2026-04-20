@@ -294,7 +294,11 @@
 - WebMvc tests для sliced controllers `DialogReadController`,
   `DialogTriagePreferencesController`, `SettingsParametersController`,
   `SettingsItEquipmentController`, `DialogMacroController`,
-  `DialogWorkspaceController`, `DialogQuickActionsController`;
+  `DialogWorkspaceController`, `DialogQuickActionsController`,
+  `DialogAiOpsController`, `DialogWorkspaceTelemetryController`,
+  `DialogListController`;
+- targeted tests для shared config/runtime foundation:
+  `SharedConfigServiceTest`, `EnvDefaultsInitializerTest`;
 - legacy WebMvc test-слой частично синхронизирован с новой controller
   структурой.
 
@@ -302,7 +306,8 @@
 
 - расширить smoke tests для `theme/ui bootstrap` за пределы страницы диалогов;
 - добрать WebMvc tests под оставшиеся новые dialog/settings controllers;
-- integration tests для shared config path/env resolution;
+- расширить shared config/env resolution tests от targeted-слоя к более полным
+  integration сценариям;
 - более широкий runtime contract test для launcher strategy и bot lifecycle.
 
 ## Где мы сейчас
@@ -317,9 +322,9 @@
 4. `Phase 4` выполнен по самым рискованным giant flows и требует добивки
    remaining subdomains.
 5. `Phase 5` уже начат в коде.
-6. `Phase 6` усилен адресными runtime/UI тестами и уже покрывает несколько
-   sliced dialog/settings controllers, но пока не превращён в полноценную
-   safety net.
+6. `Phase 6` усилен адресными runtime/UI тестами и уже покрывает основной
+   sliced dialog/settings controller layer плюс shared config/env foundation,
+   но пока не превращён в полноценную safety net.
 
 ## Следующий Фокус
 
