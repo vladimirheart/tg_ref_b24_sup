@@ -30,7 +30,8 @@ import java.util.regex.Pattern;
 @Transactional
 public class KnowledgeBaseService {
 
-    private static final Pattern NOTION_TAG_PATTERN = Pattern.compile("(?i)<(?:table_of_contents|empty-block)(?:\\s+[^>]*)?\\s*/>");
+    private static final Pattern NOTION_TABLE_OF_CONTENTS_PATTERN = Pattern.compile("(?i)<table_of_contents(?:\\s+[^>]*)?\\s*/>");
+    private static final Pattern NOTION_EMPTY_BLOCK_PATTERN = Pattern.compile("(?i)<empty-block(?:\\s+[^>]*)?\\s*/>");
     private static final Pattern NOTION_BREAK_PATTERN = Pattern.compile("(?i)<br\\s*/?>");
     private static final Pattern URL_PATTERN = Pattern.compile("https?://[^\\s)\\]>\"']+");
     private static final List<String> LOCAL_MEDIA_EXTENSIONS = List.of(
@@ -133,7 +134,10 @@ public class KnowledgeBaseService {
             return "";
         }
         String content = article.getContent();
-        content = NOTION_TAG_PATTERN.matcher(content).replaceAll("");
+        content = NOTION_TABLE_OF_CONTENTS_PATTERN.matcher(content)
+            .replaceAll("\n\n" + KnowledgeMarkdownRenderer.TABLE_OF_CONTENTS_TOKEN + "\n\n");
+        content = NOTION_EMPTY_BLOCK_PATTERN.matcher(content)
+            .replaceAll("\n\n" + KnowledgeMarkdownRenderer.EMPTY_BLOCK_TOKEN + "\n\n");
         content = NOTION_BREAK_PATTERN.matcher(content).replaceAll("  \n");
         content = rewriteEmbeddedMediaUrls(content, article.getExternalId(), files);
         return content.trim();

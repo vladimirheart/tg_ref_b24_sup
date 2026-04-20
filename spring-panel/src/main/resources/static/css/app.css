@@ -2364,3 +2364,58 @@ body,
 .knowledge-markdown input[type="checkbox"] {
   margin-right: 0.5rem;
 }
+
+.knowledge-markdown [id] {
+  scroll-margin-top: 5rem;
+}
+
+.knowledge-toc {
+  margin: 0 0 1.25rem;
+  padding: 1rem 1.125rem;
+  border: 1px solid color-mix(in srgb, var(--bs-border-color) 80%, white);
+  border-radius: 0.9rem;
+  background: color-mix(in srgb, var(--bs-light) 78%, white);
+}
+
+.knowledge-toc__title {
+  margin-bottom: 0.75rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.knowledge-toc__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.knowledge-toc__item + .knowledge-toc__item {
+  margin-top: 0.35rem;
+}
+
+.knowledge-toc__item--level-2 {
+  padding-left: 0.85rem;
+}
+
+.knowledge-toc__item--level-3 {
+  padding-left: 1.35rem;
+}
+
+.knowledge-toc__item--level-4,
+.knowledge-toc__item--level-5,
+.knowledge-toc__item--level-6 {
+  padding-left: 1.85rem;
+}
+
+.knowledge-toc__link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.knowledge-toc__link:hover {
+  text-decoration: underline;
+}
+
+.knowledge-empty-block {
+  height: 1.4rem;
+}

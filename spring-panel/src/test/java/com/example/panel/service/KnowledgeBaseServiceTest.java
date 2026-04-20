@@ -18,19 +18,22 @@ class KnowledgeBaseServiceTest {
     );
 
     @Test
-    void stripsNotionPseudoTagsAndBreakMarkupFromRenderedContent() {
+    void preservesNotionStructureTokensAsRenderedBlocks() {
         KnowledgeArticle article = new KnowledgeArticle();
         article.setContent("""
             <table_of_contents color="gray"/>
             <empty-block/>
+            # Раздел
             Текст<br>ещё строка
             """);
 
         String html = service.renderContent(article, List.of());
 
-        assertFalse(html.contains("table_of_contents"));
-        assertFalse(html.contains("empty-block"));
+        assertFalse(html.contains("&lt;table_of_contents"));
+        assertFalse(html.contains("&lt;empty-block"));
         assertFalse(html.contains("&lt;br&gt;"));
+        assertTrue(html.contains("knowledge-toc"));
+        assertTrue(html.contains("knowledge-empty-block"));
         assertTrue(html.contains("Текст"));
         assertTrue(html.contains("ещё строка"));
     }
