@@ -17,14 +17,20 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
 @WebMvcTest(AnalyticsController.class)
 @AutoConfigureMockMvc(addFilters = false)
@@ -44,6 +50,28 @@ class AnalyticsControllerWebMvcTest {
 
     @MockBean
     private SharedConfigService sharedConfigService;
+
+    @Test
+    void analyticsPageIncludesUiHeadBootstrapAndExplicitPagePreset() throws Exception {
+        doNothing().when(navigationService).enrich(any(), any());
+        when(analyticsService.loadTicketSummary()).thenReturn(java.util.List.of());
+        when(analyticsService.loadClientSummary()).thenReturn(java.util.List.of());
+        when(sharedConfigService.loadSettings()).thenReturn(Map.of());
+
+        org.springframework.security.authentication.UsernamePasswordAuthenticationToken authentication =
+                new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                        "ops.lead",
+                        "n/a",
+                        java.util.List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("PAGE_ANALYTICS")));
+
+        mockMvc.perform(get("/analytics").principal(authentication).with(csrf()))
+                .andExpect(status().isOk())
+                .andExpect(view().name("analytics/index"))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-preferences.js")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/theme.js")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-config.js")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("data-ui-page=\"analytics\"")));
+    }
 
     @Test
     void confirmWorkspaceRolloutReviewPersistsUtcReviewCheckpoint() throws Exception {
