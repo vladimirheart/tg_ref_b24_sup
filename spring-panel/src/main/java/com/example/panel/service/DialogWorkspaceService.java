@@ -46,6 +46,8 @@ public class DialogWorkspaceService {
     private final DialogWorkspaceParityService dialogWorkspaceParityService;
     private final DialogWorkspaceNavigationService dialogWorkspaceNavigationService;
     private final DialogWorkspaceRolloutService dialogWorkspaceRolloutService;
+    private final DialogWorkspaceClientProfileService dialogWorkspaceClientProfileService;
+    private final DialogWorkspaceContextBlockService dialogWorkspaceContextBlockService;
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final int DEFAULT_SLA_TARGET_MINUTES = 24 * 60;
     private static final int DEFAULT_SLA_WARNING_MINUTES = 4 * 60;
@@ -99,7 +101,9 @@ public class DialogWorkspaceService {
                                   DialogWorkspaceExternalProfileService dialogWorkspaceExternalProfileService,
                                   DialogWorkspaceParityService dialogWorkspaceParityService,
                                   DialogWorkspaceNavigationService dialogWorkspaceNavigationService,
-                                  DialogWorkspaceRolloutService dialogWorkspaceRolloutService) {
+                                  DialogWorkspaceRolloutService dialogWorkspaceRolloutService,
+                                  DialogWorkspaceClientProfileService dialogWorkspaceClientProfileService,
+                                  DialogWorkspaceContextBlockService dialogWorkspaceContextBlockService) {
         this.dialogService = dialogService;
         this.sharedConfigService = sharedConfigService;
         this.dialogAuthorizationService = dialogAuthorizationService;
@@ -108,6 +112,8 @@ public class DialogWorkspaceService {
         this.dialogWorkspaceParityService = dialogWorkspaceParityService;
         this.dialogWorkspaceNavigationService = dialogWorkspaceNavigationService;
         this.dialogWorkspaceRolloutService = dialogWorkspaceRolloutService;
+        this.dialogWorkspaceClientProfileService = dialogWorkspaceClientProfileService;
+        this.dialogWorkspaceContextBlockService = dialogWorkspaceContextBlockService;
     }
 
     private Map<String, Object> resolveWorkspaceExternalProfileEnrichment(Map<String, Object> settings,
@@ -206,7 +212,7 @@ public class DialogWorkspaceService {
         workspaceClient.put("unread_count", summary.unreadCount());
         workspaceClient.put("rating", summary.rating());
         workspaceClient.put("last_message_at", summary.lastMessageTimestamp());
-        workspaceClient.put("segments", buildWorkspaceClientSegments(summary, filteredProfileEnrichment, settings));
+        workspaceClient.put("segments", dialogWorkspaceClientProfileService.buildClientSegments(summary, filteredProfileEnrichment, settings));
         Map<String, Object> externalLinks = resolveWorkspaceExternalProfileLinks(settings, summary, ticketId, filteredProfileEnrichment);
         if (!externalLinks.isEmpty()) {
             workspaceClient.put("external_links", externalLinks);
@@ -231,7 +237,7 @@ public class DialogWorkspaceService {
         if (!profileMatchCandidates.isEmpty()) {
             workspaceClient.put("profile_match_candidates", profileMatchCandidates);
         }
-        Map<String, Object> profileHealth = buildWorkspaceProfileHealth(settings, workspaceClient, attributeLabels);
+        Map<String, Object> profileHealth = dialogWorkspaceClientProfileService.buildProfileHealth(settings, workspaceClient, attributeLabels);
         if (!profileHealth.isEmpty()) {
             workspaceClient.put("profile_health", profileHealth);
         }
@@ -253,7 +259,7 @@ public class DialogWorkspaceService {
         if (!attributePolicies.isEmpty()) {
             workspaceClient.put("attribute_policies", attributePolicies);
         }
-        List<Map<String, Object>> contextBlocks = buildWorkspaceContextBlocks(
+        List<Map<String, Object>> contextBlocks = dialogWorkspaceContextBlockService.buildContextBlocks(
                 settings,
                 profileHealth,
                 contextSources,
@@ -262,7 +268,7 @@ public class DialogWorkspaceService {
                 slaState,
                 externalLinks
         );
-        Map<String, Object> contextBlocksHealth = buildWorkspaceContextBlocksHealth(contextBlocks);
+        Map<String, Object> contextBlocksHealth = dialogWorkspaceContextBlockService.buildBlocksHealth(contextBlocks);
         Map<String, Object> contextContract = buildWorkspaceContextContract(
                 settings,
                 summary,
@@ -523,91 +529,6 @@ public class DialogWorkspaceService {
         return parsed != null ? parsed.toString() : null;
     }
 
-    private List<String> buildWorkspaceClientSegments(DialogListItem summary,
-                                                      Map<String, Object> profileEnrichment,
-                                                      Map<String, Object> settings) {
-        if (summary == null) {
-            return List.of();
-        }
-        List<String> segments = new java.util.ArrayList<>();
-        if (summary.unreadCount() != null && summary.unreadCount() > 0) {
-            segments.add("needs_reply");
-        }
-        if (summary.responsible() == null || summary.responsible().isBlank()) {
-            segments.add("unassigned");
-        }
-        if (summary.rating() != null && summary.rating() > 0 && summary.rating() <= 2) {
-            segments.add("low_csat_risk");
-        }
-        if ("new".equals(summary.statusKey())) {
-            segments.add("new_dialog");
-        }
-
-        int totalDialogs = parseInteger(profileEnrichment != null ? profileEnrichment.get("total_dialogs") : null);
-        int openDialogs = parseInteger(profileEnrichment != null ? profileEnrichment.get("open_dialogs") : null);
-        int resolved30d = parseInteger(profileEnrichment != null ? profileEnrichment.get("resolved_30d") : null);
-
-        int highLifetimeDialogsThreshold = resolveDialogConfigRangeMinutes(
-                settings,
-                "workspace_segment_high_lifetime_volume_min_dialogs",
-                5,
-                1,
-                500
-        );
-        int multiOpenDialogsThreshold = resolveDialogConfigRangeMinutes(
-                settings,
-                "workspace_segment_multi_open_dialogs_min_open",
-                2,
-                1,
-                50
-        );
-        int reactivationDialogsThreshold = resolveDialogConfigRangeMinutes(
-                settings,
-                "workspace_segment_reactivation_risk_min_dialogs",
-                3,
-                1,
-                500
-        );
-        int reactivationResolvedThreshold = resolveDialogConfigRangeMinutes(
-                settings,
-                "workspace_segment_reactivation_risk_max_resolved_30d",
-                0,
-                0,
-                100
-        );
-        int openBacklogMinOpenThreshold = resolveDialogConfigRangeMinutes(
-                settings,
-                "workspace_segment_open_backlog_min_open",
-                3,
-                1,
-                100
-        );
-        int openBacklogMinSharePercent = resolveDialogConfigRangeMinutes(
-                settings,
-                "workspace_segment_open_backlog_min_share_percent",
-                50,
-                1,
-                100
-        );
-
-        if (totalDialogs >= highLifetimeDialogsThreshold) {
-            segments.add("high_lifetime_volume");
-        }
-        if (openDialogs >= multiOpenDialogsThreshold) {
-            segments.add("multi_open_dialogs");
-        }
-        if (totalDialogs >= reactivationDialogsThreshold && resolved30d <= reactivationResolvedThreshold) {
-            segments.add("reactivation_risk");
-        }
-        if (openDialogs >= openBacklogMinOpenThreshold && totalDialogs > 0) {
-            int openSharePercent = Math.round((openDialogs * 100f) / totalDialogs);
-            if (openSharePercent >= openBacklogMinSharePercent) {
-                segments.add("open_backlog_pressure");
-            }
-        }
-        return segments;
-    }
-
     private int resolveDialogConfigRangeMinutes(Map<String, Object> settings,
                                                 String key,
                                                 int fallbackValue,
@@ -632,20 +553,6 @@ public class DialogWorkspaceService {
             return parsed;
         } catch (NumberFormatException ex) {
             return fallbackValue;
-        }
-    }
-
-    private int parseInteger(Object value) {
-        if (value == null) {
-            return 0;
-        }
-        if (value instanceof Number number) {
-            return number.intValue();
-        }
-        try {
-            return Integer.parseInt(String.valueOf(value).trim());
-        } catch (NumberFormatException ignored) {
-            return 0;
         }
     }
 
@@ -1482,196 +1389,6 @@ public class DialogWorkspaceService {
         return normalized;
     }
 
-    private Map<String, Object> buildWorkspaceProfileHealth(Map<String, Object> settings,
-                                                            Map<String, Object> workspaceClient,
-                                                            Map<String, String> configuredLabels) {
-        List<String> globalRequiredFields = resolveWorkspaceRequiredClientAttributes(settings);
-        Map<String, List<String>> segmentRequiredFields = resolveWorkspaceRequiredClientAttributesBySegment(settings);
-        List<String> activeSegments = resolveWorkspaceClientSegments(workspaceClient);
-        List<String> requiredFields = mergeWorkspaceRequiredClientAttributes(globalRequiredFields, segmentRequiredFields, activeSegments);
-        Instant checkedAt = Instant.now();
-        if (requiredFields.isEmpty()) {
-            Map<String, Object> payload = new LinkedHashMap<>();
-            payload.put("enabled", false);
-            payload.put("ready", true);
-            payload.put("coverage_pct", 100);
-            payload.put("checked_at", checkedAt.toString());
-            payload.put("checked_at_utc", checkedAt.toString());
-            payload.put("required_fields", List.of());
-            payload.put("global_required_fields", List.of());
-            payload.put("segment_required_fields", Map.of());
-            payload.put("active_segments", activeSegments);
-            payload.put("missing_fields", List.of());
-            payload.put("missing_field_labels", List.of());
-            return payload;
-        }
-        Map<String, String> labelMap = new LinkedHashMap<>();
-        if (configuredLabels != null) {
-            configuredLabels.forEach((key, value) -> {
-                String normalizedKey = normalizeMacroVariableKey(key);
-                if (StringUtils.hasText(normalizedKey) && StringUtils.hasText(value)) {
-                    labelMap.put(normalizedKey, value);
-                }
-            });
-        }
-        labelMap.putIfAbsent("id", "ID");
-        labelMap.putIfAbsent("name", "Имя");
-        labelMap.putIfAbsent("username", "Username");
-        labelMap.putIfAbsent("status", "Статус");
-        labelMap.putIfAbsent("channel", "Канал");
-        labelMap.putIfAbsent("business", "Бизнес");
-        labelMap.putIfAbsent("location", "Локация");
-        labelMap.putIfAbsent("responsible", "Ответственный");
-        labelMap.putIfAbsent("last_message_at", "Последнее сообщение");
-        labelMap.putIfAbsent("first_seen_at", "Первое обращение");
-        labelMap.putIfAbsent("last_ticket_activity_at", "Последняя активность тикета");
-
-        List<String> missingFields = new ArrayList<>();
-        List<String> missingFieldLabels = new ArrayList<>();
-        for (String field : requiredFields) {
-            Object value = workspaceClient != null ? workspaceClient.get(field) : null;
-            if (hasWorkspaceProfileValue(value)) {
-                continue;
-            }
-            missingFields.add(field);
-            missingFieldLabels.add(labelMap.getOrDefault(field, humanizeMacroVariableLabel(field)));
-        }
-
-        int totalRequired = requiredFields.size();
-        int readyCount = totalRequired - missingFields.size();
-        int coveragePct = totalRequired > 0
-                ? (int) Math.round((readyCount * 100d) / totalRequired)
-                : 100;
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("enabled", true);
-        payload.put("ready", missingFields.isEmpty());
-        payload.put("coverage_pct", Math.max(0, Math.min(100, coveragePct)));
-        payload.put("checked_at", checkedAt.toString());
-        payload.put("checked_at_utc", checkedAt.toString());
-        payload.put("required_fields", requiredFields);
-        payload.put("global_required_fields", globalRequiredFields);
-        payload.put("segment_required_fields", segmentRequiredFields);
-        payload.put("active_segments", activeSegments);
-        payload.put("missing_fields", missingFields);
-        payload.put("missing_field_labels", missingFieldLabels);
-        return payload;
-    }
-
-    private List<String> resolveWorkspaceClientSegments(Map<String, Object> workspaceClient) {
-        if (workspaceClient == null || workspaceClient.isEmpty()) {
-            return List.of();
-        }
-        Object segmentsRaw = workspaceClient.get("segments");
-        if (!(segmentsRaw instanceof List<?> segments)) {
-            return List.of();
-        }
-        List<String> normalized = new ArrayList<>();
-        segments.forEach(item -> appendNormalizedContextSource(normalized, item));
-        return normalized;
-    }
-
-    private Map<String, List<String>> resolveWorkspaceRequiredClientAttributesBySegment(Map<String, Object> settings) {
-        if (settings == null || settings.isEmpty()) {
-            return Map.of();
-        }
-        Object dialogConfigRaw = settings.get("dialog_config");
-        if (!(dialogConfigRaw instanceof Map<?, ?> dialogConfig)) {
-            return Map.of();
-        }
-        Object rawValue = dialogConfig.get("workspace_required_client_attributes_by_segment");
-        if (!(rawValue instanceof Map<?, ?> rawMap)) {
-            return Map.of();
-        }
-        Map<String, List<String>> normalized = new LinkedHashMap<>();
-        rawMap.forEach((segmentRaw, attributesRaw) -> {
-            String segmentKey = normalizeMacroVariableKey(String.valueOf(segmentRaw));
-            if (!StringUtils.hasText(segmentKey)) {
-                return;
-            }
-            List<String> attributes = normalizeWorkspaceClientAttributeList(attributesRaw);
-            if (!attributes.isEmpty()) {
-                normalized.put(segmentKey, attributes);
-            }
-        });
-        return normalized;
-    }
-
-    private List<String> mergeWorkspaceRequiredClientAttributes(List<String> globalRequiredFields,
-                                                                Map<String, List<String>> segmentRequiredFields,
-                                                                List<String> activeSegments) {
-        LinkedHashSet<String> merged = new LinkedHashSet<>();
-        if (globalRequiredFields != null) {
-            merged.addAll(globalRequiredFields);
-        }
-        if (segmentRequiredFields != null && !segmentRequiredFields.isEmpty() && activeSegments != null) {
-            activeSegments.forEach(segment -> merged.addAll(segmentRequiredFields.getOrDefault(segment, List.of())));
-        }
-        return new ArrayList<>(merged);
-    }
-
-    private List<String> normalizeWorkspaceClientAttributeList(Object rawValue) {
-        List<String> normalized = new ArrayList<>();
-        if (rawValue instanceof List<?> values) {
-            values.forEach(item -> appendNormalizedContextSource(normalized, item));
-            return normalized;
-        }
-        if (rawValue != null) {
-            for (String part : String.valueOf(rawValue).split(",")) {
-                appendNormalizedContextSource(normalized, part);
-            }
-        }
-        return normalized;
-    }
-
-    private boolean hasWorkspaceProfileValue(Object value) {
-        if (value == null) {
-            return false;
-        }
-        if (value instanceof Number) {
-            return true;
-        }
-        if (value instanceof Boolean boolValue) {
-            return boolValue;
-        }
-        if (value instanceof Map<?, ?> mapValue) {
-            return !mapValue.isEmpty();
-        }
-        if (value instanceof List<?> listValue) {
-            return !listValue.isEmpty();
-        }
-        return StringUtils.hasText(String.valueOf(value));
-    }
-
-    private List<String> resolveWorkspaceRequiredClientAttributes(Map<String, Object> settings) {
-        if (settings == null || settings.isEmpty()) {
-            return List.of();
-        }
-        Object dialogConfigRaw = settings.get("dialog_config");
-        if (!(dialogConfigRaw instanceof Map<?, ?> dialogConfig)) {
-            return List.of();
-        }
-        Object requiredRaw = dialogConfig.get("workspace_required_client_attributes");
-        List<String> normalized = new ArrayList<>();
-        if (requiredRaw instanceof List<?> values) {
-            values.forEach(item -> {
-                String key = normalizeMacroVariableKey(String.valueOf(item));
-                if (StringUtils.hasText(key) && !normalized.contains(key)) {
-                    normalized.add(key);
-                }
-            });
-            return normalized;
-        }
-        if (requiredRaw != null) {
-            for (String part : String.valueOf(requiredRaw).split(",")) {
-                String key = normalizeMacroVariableKey(part);
-                if (StringUtils.hasText(key) && !normalized.contains(key)) {
-                    normalized.add(key);
-                }
-            }
-        }
-        return normalized;
-    }
-
     private List<Map<String, Object>> buildWorkspaceContextSources(Map<String, Object> settings,
                                                                    Map<String, Object> workspaceClient,
                                                                    Map<String, Object> localProfileEnrichment,
@@ -1829,7 +1546,7 @@ public class DialogWorkspaceService {
                 continue;
             }
             Object value = workspaceClient.get(normalizedField);
-            boolean valueReady = hasWorkspaceProfileValue(value);
+            boolean valueReady = dialogWorkspaceClientProfileService.hasProfileValue(value);
             Map<String, Object> preferredSource = safeSources.stream()
                     .filter(source -> safeStringList(source.get("matched_attributes")).contains(normalizedField))
                     .findFirst()
@@ -1916,155 +1633,6 @@ public class DialogWorkspaceService {
         };
     }
 
-    private List<Map<String, Object>> buildWorkspaceContextBlocks(Map<String, Object> settings,
-                                                                  Map<String, Object> profileHealth,
-                                                                  List<Map<String, Object>> contextSources,
-                                                                  List<Map<String, Object>> clientHistory,
-                                                                  List<Map<String, Object>> relatedEvents,
-                                                                  String slaState,
-                                                                  Map<String, Object> externalLinks) {
-        if (!isWorkspaceContextBlocksEnabled(settings)) {
-            return List.of();
-        }
-        List<String> priority = resolveWorkspaceContextBlockPriority(settings);
-        List<String> requiredBlocks = resolveWorkspaceRequiredContextBlocks(settings);
-        Instant checkedAt = Instant.now();
-
-        Map<String, Map<String, Object>> blockIndex = new LinkedHashMap<>();
-        blockIndex.put("customer_profile", buildWorkspaceContextBlock(
-                "customer_profile",
-                "Минимальный профиль клиента",
-                requiredBlocks.contains("customer_profile"),
-                !toBoolean(profileHealth != null ? profileHealth.get("enabled") : null) || toBoolean(profileHealth.get("ready")),
-                resolveWorkspaceContextProfileBlockStatus(profileHealth),
-                resolveWorkspaceContextProfileBlockSummary(profileHealth),
-                normalizeUtcTimestamp(profileHealth != null ? profileHealth.get("checked_at") : null),
-                checkedAt
-        ));
-        blockIndex.put("context_sources", buildWorkspaceContextBlock(
-                "context_sources",
-                "Источники customer context",
-                requiredBlocks.contains("context_sources"),
-                resolveWorkspaceContextSourcesReady(contextSources),
-                resolveWorkspaceContextSourcesBlockStatus(contextSources),
-                resolveWorkspaceContextSourcesBlockSummary(contextSources),
-                resolveWorkspaceContextSourcesUpdatedAtUtc(contextSources),
-                checkedAt
-        ));
-        blockIndex.put("history", buildWorkspaceContextBlock(
-                "history",
-                "История обращений клиента",
-                requiredBlocks.contains("history"),
-                clientHistory != null,
-                clientHistory != null ? "ready" : "missing",
-                clientHistory == null
-                        ? "История обращений недоступна."
-                        : "Записей: %d.".formatted(clientHistory.size()),
-                null,
-                checkedAt
-        ));
-        blockIndex.put("related_events", buildWorkspaceContextBlock(
-                "related_events",
-                "Связанные события",
-                requiredBlocks.contains("related_events"),
-                relatedEvents != null,
-                relatedEvents != null ? "ready" : "missing",
-                relatedEvents == null
-                        ? "Связанные события недоступны."
-                        : "Событий: %d.".formatted(relatedEvents.size()),
-                null,
-                checkedAt
-        ));
-        blockIndex.put("sla", buildWorkspaceContextBlock(
-                "sla",
-                "SLA-контекст",
-                requiredBlocks.contains("sla"),
-                StringUtils.hasText(slaState) && !"unknown".equalsIgnoreCase(slaState),
-                StringUtils.hasText(slaState) && !"unknown".equalsIgnoreCase(slaState) ? "ready" : "missing",
-                StringUtils.hasText(slaState) && !"unknown".equalsIgnoreCase(slaState)
-                        ? "SLA state: %s.".formatted(slaState)
-                        : "SLA-контекст недоступен.",
-                null,
-                checkedAt
-        ));
-        blockIndex.put("external_links", buildWorkspaceContextBlock(
-                "external_links",
-                "Внешние customer links",
-                requiredBlocks.contains("external_links"),
-                externalLinks != null && !externalLinks.isEmpty(),
-                externalLinks != null && !externalLinks.isEmpty() ? "ready" : "unavailable",
-                externalLinks != null && !externalLinks.isEmpty()
-                        ? "Ссылок: %d.".formatted(externalLinks.size())
-                        : "Внешние ссылки не настроены.",
-                null,
-                checkedAt
-        ));
-
-        List<Map<String, Object>> ordered = new ArrayList<>();
-        for (String blockKey : priority) {
-            Map<String, Object> block = blockIndex.remove(blockKey);
-            if (block != null) {
-                ordered.add(block);
-            }
-        }
-        ordered.addAll(blockIndex.values());
-        for (int i = 0; i < ordered.size(); i++) {
-            ordered.get(i).put("priority", i + 1);
-        }
-        return ordered;
-    }
-
-    private Map<String, Object> buildWorkspaceContextBlock(String key,
-                                                           String label,
-                                                           boolean required,
-                                                           boolean ready,
-                                                           String status,
-                                                           String summary,
-                                                           String updatedAtUtc,
-                                                           Instant checkedAt) {
-        Map<String, Object> block = new LinkedHashMap<>();
-        block.put("key", key);
-        block.put("label", label);
-        block.put("required", required);
-        block.put("ready", ready);
-        block.put("status", normalizeWorkspaceContextBlockStatus(status));
-        block.put("summary", trimToNull(summary));
-        block.put("checked_at_utc", checkedAt != null ? checkedAt.toString() : Instant.now().toString());
-        if (StringUtils.hasText(updatedAtUtc)) {
-            block.put("updated_at_utc", updatedAtUtc);
-        }
-        return block;
-    }
-
-    private Map<String, Object> buildWorkspaceContextBlocksHealth(List<Map<String, Object>> contextBlocks) {
-        if (contextBlocks == null || contextBlocks.isEmpty()) {
-            return Map.of();
-        }
-        List<Map<String, Object>> requiredBlocks = contextBlocks.stream()
-                .filter(item -> toBoolean(item.get("required")))
-                .toList();
-        List<String> missingKeys = requiredBlocks.stream()
-                .filter(item -> !toBoolean(item.get("ready")))
-                .map(item -> String.valueOf(item.get("key")))
-                .toList();
-        List<String> missingLabels = requiredBlocks.stream()
-                .filter(item -> !toBoolean(item.get("ready")))
-                .map(item -> String.valueOf(item.get("label")))
-                .toList();
-        int coveragePct = requiredBlocks.isEmpty()
-                ? 100
-                : (int) Math.round(((requiredBlocks.size() - missingKeys.size()) * 100d) / requiredBlocks.size());
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("enabled", true);
-        payload.put("ready", missingKeys.isEmpty());
-        payload.put("coverage_pct", Math.max(0, Math.min(100, coveragePct)));
-        payload.put("required_count", requiredBlocks.size());
-        payload.put("missing_required_keys", missingKeys);
-        payload.put("missing_required_labels", missingLabels);
-        payload.put("checked_at_utc", Instant.now().toString());
-        return payload;
-    }
-
     private Map<String, Object> buildWorkspaceContextContract(Map<String, Object> settings,
                                                               DialogListItem summary,
                                                               Map<String, Object> workspaceClient,
@@ -2117,7 +1685,7 @@ public class DialogWorkspaceService {
         List<String> missingMandatoryFields = effectiveMandatoryFields.stream()
                 .map(this::normalizeMacroVariableKey)
                 .filter(StringUtils::hasText)
-                .filter(field -> !hasWorkspaceProfileValue(workspaceClient.get(field)))
+                .filter(field -> !dialogWorkspaceClientProfileService.hasProfileValue(workspaceClient.get(field)))
                 .distinct()
                 .toList();
 
@@ -2524,146 +2092,6 @@ public class DialogWorkspaceService {
         return payload;
     }
 
-    private boolean isWorkspaceContextBlocksEnabled(Map<String, Object> settings) {
-        if (settings == null || settings.isEmpty()) {
-            return false;
-        }
-        Object dialogConfigRaw = settings.get("dialog_config");
-        if (!(dialogConfigRaw instanceof Map<?, ?> dialogConfig)) {
-            return false;
-        }
-        return dialogConfig.containsKey("workspace_context_block_priority")
-                || dialogConfig.containsKey("workspace_context_block_required");
-    }
-
-    private List<String> resolveWorkspaceContextBlockPriority(Map<String, Object> settings) {
-        List<String> defaults = new ArrayList<>(List.of(
-                "customer_profile",
-                "context_sources",
-                "history",
-                "related_events",
-                "sla",
-                "external_links"
-        ));
-        if (settings == null || settings.isEmpty()) {
-            return defaults;
-        }
-        Object dialogConfigRaw = settings.get("dialog_config");
-        if (!(dialogConfigRaw instanceof Map<?, ?> dialogConfig)) {
-            return defaults;
-        }
-        Object priorityRaw = dialogConfig.get("workspace_context_block_priority");
-        if (!(priorityRaw instanceof List<?> priorityList)) {
-            return defaults;
-        }
-        List<String> ordered = new ArrayList<>();
-        priorityList.forEach(item -> appendNormalizedContextSource(ordered, item));
-        defaults.forEach(item -> {
-            if (!ordered.contains(item)) {
-                ordered.add(item);
-            }
-        });
-        return ordered;
-    }
-
-    private List<String> resolveWorkspaceRequiredContextBlocks(Map<String, Object> settings) {
-        if (settings == null || settings.isEmpty()) {
-            return List.of();
-        }
-        Object dialogConfigRaw = settings.get("dialog_config");
-        if (!(dialogConfigRaw instanceof Map<?, ?> dialogConfig)) {
-            return List.of();
-        }
-        Object requiredRaw = dialogConfig.get("workspace_context_block_required");
-        List<String> required = new ArrayList<>();
-        if (requiredRaw instanceof List<?> requiredList) {
-            requiredList.forEach(item -> appendNormalizedContextSource(required, item));
-            return required;
-        }
-        if (requiredRaw != null) {
-            for (String part : String.valueOf(requiredRaw).split(",")) {
-                appendNormalizedContextSource(required, part);
-            }
-        }
-        return required;
-    }
-
-    private String normalizeWorkspaceContextBlockStatus(String status) {
-        String normalized = trimToNull(status);
-        if (!StringUtils.hasText(normalized)) {
-            return "unavailable";
-        }
-        return switch (normalized.toLowerCase()) {
-            case "ready", "missing", "attention", "invalid_utc", "stale", "unavailable" -> normalized.toLowerCase();
-            default -> "attention";
-        };
-    }
-
-    private String resolveWorkspaceContextProfileBlockStatus(Map<String, Object> profileHealth) {
-        if (profileHealth == null || profileHealth.isEmpty() || !toBoolean(profileHealth.get("enabled"))) {
-            return "ready";
-        }
-        return toBoolean(profileHealth.get("ready")) ? "ready" : "attention";
-    }
-
-    private String resolveWorkspaceContextProfileBlockSummary(Map<String, Object> profileHealth) {
-        if (profileHealth == null || profileHealth.isEmpty() || !toBoolean(profileHealth.get("enabled"))) {
-            return "Минимальный customer profile не требует дополнительных полей.";
-        }
-        List<String> missingLabels = safeStringList(profileHealth.get("missing_field_labels"));
-        if (toBoolean(profileHealth.get("ready"))) {
-            return "Обязательные поля customer profile заполнены.";
-        }
-        return "Не хватает полей: %s.".formatted(String.join(", ", missingLabels.isEmpty() ? List.of("нет данных") : missingLabels));
-    }
-
-    private boolean resolveWorkspaceContextSourcesReady(List<Map<String, Object>> contextSources) {
-        if (contextSources == null || contextSources.isEmpty()) {
-            return true;
-        }
-        return contextSources.stream()
-                .filter(item -> toBoolean(item.get("required")))
-                .allMatch(item -> toBoolean(item.get("ready")));
-    }
-
-    private String resolveWorkspaceContextSourcesBlockStatus(List<Map<String, Object>> contextSources) {
-        if (contextSources == null || contextSources.isEmpty()) {
-            return "unavailable";
-        }
-        return contextSources.stream()
-                .filter(item -> toBoolean(item.get("required")))
-                .filter(item -> !toBoolean(item.get("ready")))
-                .map(item -> normalizeWorkspaceContextBlockStatus(String.valueOf(item.get("status"))))
-                .findFirst()
-                .orElse("ready");
-    }
-
-    private String resolveWorkspaceContextSourcesBlockSummary(List<Map<String, Object>> contextSources) {
-        if (contextSources == null || contextSources.isEmpty()) {
-            return "Источники customer context не настроены.";
-        }
-        List<String> blocking = contextSources.stream()
-                .filter(item -> toBoolean(item.get("required")))
-                .filter(item -> !toBoolean(item.get("ready")))
-                .map(item -> "%s (%s)".formatted(item.get("label"), item.get("status")))
-                .toList();
-        if (blocking.isEmpty()) {
-            return "Все обязательные источники customer context готовы.";
-        }
-        return "Проблемные источники: %s.".formatted(String.join(", ", blocking));
-    }
-
-    private String resolveWorkspaceContextSourcesUpdatedAtUtc(List<Map<String, Object>> contextSources) {
-        if (contextSources == null || contextSources.isEmpty()) {
-            return null;
-        }
-        return contextSources.stream()
-                .map(item -> normalizeUtcTimestamp(item.get("updated_at_utc")))
-                .filter(StringUtils::hasText)
-                .max(String::compareTo)
-                .orElse(null);
-    }
-
     private boolean hasWorkspaceSourceCoverage(String sourceKey,
                                                Map<String, Object> workspaceClient,
                                                Map<String, Object> localProfileEnrichment,
@@ -2686,7 +2114,7 @@ public class DialogWorkspaceService {
         if ("local".equals(sourceKey)) {
             if (workspaceClient != null) {
                 List.of("name", "status", "last_message_at", "responsible").forEach(field -> {
-                    if (hasWorkspaceProfileValue(workspaceClient.get(field))) {
+                    if (dialogWorkspaceClientProfileService.hasProfileValue(workspaceClient.get(field))) {
                         matches.add(field);
                     }
                 });
@@ -2717,7 +2145,7 @@ public class DialogWorkspaceService {
         }
         values.forEach((rawKey, value) -> {
             String normalized = normalizeMacroVariableKey(String.valueOf(rawKey));
-            if (StringUtils.hasText(normalized) && normalized.startsWith(prefix) && hasWorkspaceProfileValue(value)) {
+            if (StringUtils.hasText(normalized) && normalized.startsWith(prefix) && dialogWorkspaceClientProfileService.hasProfileValue(value)) {
                 matches.add(normalized);
             }
         });
