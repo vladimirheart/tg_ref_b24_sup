@@ -24,8 +24,7 @@
                         </div>
                         <button class="btn btn-outline-primary"
                                 type="button"
-                                data-bs-toggle="collapse"
-                                data-bs-target="#knowledgeArticleEditPanel"
+                                id="knowledgeArticleEditToggle"
                                 aria-expanded="false"
                                 aria-controls="knowledgeArticleEditPanel">
                             Редактировать markdown
@@ -169,5 +168,33 @@
     </div>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const toggle = document.getElementById('knowledgeArticleEditToggle');
+    const panel = document.getElementById('knowledgeArticleEditPanel');
+    if (!toggle || !panel) {
+        return;
+    }
+
+    const syncState = (expanded) => {
+        toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    };
+
+    toggle.addEventListener('click', (event) => {
+        event.preventDefault();
+        if (window.bootstrap && window.bootstrap.Collapse) {
+            window.bootstrap.Collapse.getOrCreateInstance(panel, { toggle: false }).toggle();
+            syncState(!panel.classList.contains('show'));
+            return;
+        }
+        const expanded = !panel.classList.contains('show');
+        panel.classList.toggle('show', expanded);
+        syncState(expanded);
+    });
+
+    panel.addEventListener('shown.bs.collapse', () => syncState(true));
+    panel.addEventListener('hidden.bs.collapse', () => syncState(false));
+});
+</script>
 </body>
 </html>

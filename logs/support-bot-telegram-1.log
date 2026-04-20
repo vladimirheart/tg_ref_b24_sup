@@ -226,3 +226,17 @@ Caused by: java.net.SocketException: Connection reset
 2026-04-17 18:08:46.887+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Initializing Telegram bot configuration check
 2026-04-17 18:08:46.888+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Telegram bot configuration: username='tst_int_SV_bot' token=8391…kzYU (46) channelId=-4961108450
 2026-04-17 18:08:46.888+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Telegram client will use proxy vless://185.237.223.25:7878
+2026-04-20 12:25:35.405+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
+2026-04-20 12:25:35.483+03:00 INFO  [main] c.e.s.t.TelegramBotApplication - Starting TelegramBotApplication using Java 25.0.2 with PID 32876 (C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-telegram\target\classes started by SinicinVV in C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-telegram)
+2026-04-20 12:25:35.484+03:00 INFO  [main] c.e.s.t.TelegramBotApplication - The following 1 profile is active: "default"
+2026-04-20 12:25:36.292+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-04-20 12:25:36.472+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 173 ms. Found 30 JPA repository interfaces.
+2026-04-20 12:25:37.084+03:00 INFO  [main] o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-04-20 12:25:37.148+03:00 INFO  [main] org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
+2026-04-20 12:25:37.189+03:00 INFO  [main] o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
+2026-04-20 12:25:38.487+03:00 INFO  [main] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-04-20 12:25:43.842+03:00 INFO  [main] o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-04-20 12:25:43.859+03:00 INFO  [main] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-04-20 12:25:47.872+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Initializing Telegram bot configuration check
+2026-04-20 12:25:47.875+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Telegram bot configuration: username='tst_int_SV_bot' token=8391…kzYU (46) channelId=-4961108450
+2026-04-20 12:25:47.875+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Telegram client will use proxy vless://185.237.223.25:7878
