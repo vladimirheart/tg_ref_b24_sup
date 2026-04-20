@@ -106,6 +106,56 @@
                     <input type="hidden" name="_csrf" th:value="${_csrf.token}">
                     <button class="btn btn-success" type="submit">Импортировать статьи</button>
                 </form>
+                <form th:action="@{/knowledge-base/notion/sync-changed}" method="post" class="d-inline">
+                    <input type="hidden" name="_csrf" th:value="${_csrf.token}">
+                    <button class="btn btn-outline-success" type="submit">Обновить изменённые</button>
+                </form>
+            </div>
+
+            <div class="card border mt-3"
+                 th:if="${notionSyncStatus != null and (notionSyncStatus.startedAt != null or notionSyncStatus.error != null or notionSyncStatus.message != null)}">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+                        <div>
+                            <h3 class="h6 mb-1">Мониторинг синхронизации Notion</h3>
+                            <p class="text-muted mb-0" th:if="${notionSyncStatus.running}">Синхронизация сейчас выполняется.</p>
+                            <p class="text-muted mb-0" th:if="${!notionSyncStatus.running and notionSyncStatus.finishedAt != null}"
+                               th:text="'Последний запуск: ' + ${notionSyncStatus.finishedAt} + (${notionSyncStatus.trigger} != null ? ' (' + ${notionSyncStatus.trigger} + ')' : '')"></p>
+                        </div>
+                        <span class="badge"
+                              th:classappend="${notionSyncStatus.error} != null ? ' text-bg-danger' : (${notionSyncStatus.running} ? ' text-bg-warning' : ' text-bg-success')"
+                              th:text="${notionSyncStatus.error} != null ? 'Ошибка' : (${notionSyncStatus.running} ? 'В работе' : 'Готово')"></span>
+                    </div>
+                    <div class="row g-3 mt-1">
+                        <div class="col-sm-6 col-lg-3">
+                            <div class="border rounded-3 p-3 h-100">
+                                <div class="text-muted small mb-1">Проверено</div>
+                                <div class="fw-semibold" th:text="${notionSyncStatus.scanned}"></div>
+                            </div>
+                        </div>
+                        <div class="col-sm-6 col-lg-3">
+                            <div class="border rounded-3 p-3 h-100">
+                                <div class="text-muted small mb-1">Изменений</div>
+                                <div class="fw-semibold" th:text="${notionSyncStatus.changed}"></div>
+                            </div>
+                        </div>
+                        <div class="col-sm-6 col-lg-3">
+                            <div class="border rounded-3 p-3 h-100">
+                                <div class="text-muted small mb-1">Создано / обновлено</div>
+                                <div class="fw-semibold" th:text="${notionSyncStatus.created} + ' / ' + ${notionSyncStatus.updated}"></div>
+                            </div>
+                        </div>
+                        <div class="col-sm-6 col-lg-3">
+                            <div class="border rounded-3 p-3 h-100">
+                                <div class="text-muted small mb-1">Пропущено</div>
+                                <div class="fw-semibold" th:text="${notionSyncStatus.skipped}"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="small text-success mb-0 mt-3" th:if="${notionSyncStatus.message != null}" th:text="${notionSyncStatus.message}"></p>
+                    <p class="small text-danger mb-0 mt-3" th:if="${notionSyncStatus.error != null}" th:text="${notionSyncStatus.error}"></p>
+                    <p class="small text-muted mb-0 mt-2">Фоновая синхронизация уже импортированных статей из Notion запускается автоматически по расписанию сервера.</p>
+                </div>
             </div>
 
             <div class="card border-0 bg-body-tertiary mt-4" th:if="${notionImportPreview != null}">
@@ -130,6 +180,7 @@
                         </div>
                         <div class="d-flex align-items-center gap-2 flex-wrap">
                             <button class="btn btn-sm btn-outline-secondary" type="button" data-action="select-all-import">Выбрать все</button>
+                            <button class="btn btn-sm btn-outline-secondary" type="button" data-action="select-changed-import">Выбрать изменённые</button>
                             <button class="btn btn-sm btn-outline-secondary" type="button" data-action="clear-all-import">Снять все</button>
                             <span class="text-muted small">Отмечено: <span data-selected-count th:text="${#lists.size(notionImportPreview.items)}"></span></span>
                         </div>
@@ -148,14 +199,17 @@
                                     <th class="text-nowrap">Автор</th>
                                     <th class="text-nowrap">Статус Notion</th>
                                     <th class="text-nowrap">Локальный статус</th>
+                                    <th class="text-nowrap">Синхронизация</th>
                                     <th class="text-nowrap">Действие</th>
                                 </tr>
                                 </thead>
                                 <tbody>
                                 <tr th:if="${#lists.isEmpty(notionImportPreview.items)}">
-                                    <td colspan="6" class="text-center text-muted py-4">По текущему фильтру подходящих статей не найдено.</td>
+                                    <td colspan="7" class="text-center text-muted py-4">По текущему фильтру подходящих статей не найдено.</td>
                                 </tr>
-                                <tr th:each="item : ${notionImportPreview.items}" th:data-preview-text="${(item.title ?: '') + ' ' + (item.author ?: '') + ' ' + (item.summary ?: '')}">
+                                <tr th:each="item : ${notionImportPreview.items}"
+                                    th:data-preview-text="${(item.title ?: '') + ' ' + (item.author ?: '') + ' ' + (item.summary ?: '')}"
+                                    th:data-sync-state="${!item.alreadyImported ? 'new' : (item.changedInNotion ? 'changed' : 'current')}">
                                     <td class="text-center">
                                         <input class="form-check-input" type="checkbox" name="selectedExternalIds" th:value="${item.externalId}" checked data-import-checkbox>
                                     </td>
@@ -165,6 +219,7 @@
                                         <div class="small mt-1 d-flex flex-wrap gap-2">
                                             <span class="badge text-bg-light" th:if="${item.department}" th:text="${item.department}"></span>
                                             <span class="badge text-bg-light" th:if="${item.articleType}" th:text="${item.articleType}"></span>
+                                            <span class="badge text-bg-light border" th:if="${item.externalUpdatedAt}" th:text="${item.externalUpdatedAt}"></span>
                                             <a class="small text-decoration-none" th:if="${item.externalUrl}" th:href="${item.externalUrl}" target="_blank" rel="noopener noreferrer">Открыть в Notion</a>
                                         </div>
                                     </td>
@@ -174,6 +229,11 @@
                                         <span class="badge" th:classappend="${item.localStatus} == 'published' ? 'text-bg-success' : (${item.localStatus} == 'draft' ? 'text-bg-warning' : 'text-bg-secondary')" th:text="${item.localStatus}"></span>
                                     </td>
                                     <td>
+                                        <span class="badge"
+                                              th:classappend="${!item.alreadyImported} ? ' text-bg-success' : (${item.changedInNotion} ? ' text-bg-warning' : ' text-bg-secondary')"
+                                              th:text="${item.syncStateLabel}"></span>
+                                    </td>
+                                    <td>
                                         <span class="badge" th:classappend="${item.alreadyImported} ? ' text-bg-primary' : ' text-bg-success'" th:text="${item.actionLabel()}"></span>
                                     </td>
                                 </tr>
@@ -181,7 +241,7 @@
                             </table>
                         </div>
                         <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mt-3">
-                            <span class="text-muted small">По умолчанию все найденные статьи отмечены для загрузки.</span>
+                            <span class="text-muted small">По умолчанию все найденные статьи отмечены для загрузки. Кнопка “Выбрать изменённые” оставляет только новые и обновлённые в Notion записи.</span>
                             <button class="btn btn-success" type="submit" th:disabled="${#lists.isEmpty(notionImportPreview.items)}">Импортировать выбранные статьи</button>
                         </div>
                     </form>
@@ -252,6 +312,7 @@
 
         const filterInput = document.querySelector('[data-action="filter-import-preview"]');
         const selectAllButton = document.querySelector('[data-action="select-all-import"]');
+        const selectChangedButton = document.querySelector('[data-action="select-changed-import"]');
         const clearAllButton = document.querySelector('[data-action="clear-all-import"]');
         const countTarget = document.querySelector('[data-selected-count]');
         const checkboxes = Array.from(table.querySelectorAll('[data-import-checkbox]'));
@@ -275,6 +336,17 @@
             selectAllButton.addEventListener('click', () => {
                 checkboxes.forEach((checkbox) => {
                     checkbox.checked = true;
+                });
+                updateSelectedCount();
+            });
+        }
+
+        if (selectChangedButton) {
+            selectChangedButton.addEventListener('click', () => {
+                table.querySelectorAll('tbody tr[data-preview-text]').forEach((row) => {
+                    const checkbox = row.querySelector('[data-import-checkbox]');
+                    if (!checkbox) return;
+                    checkbox.checked = row.dataset.syncState === 'changed' || row.dataset.syncState === 'new';
                 });
                 updateSelectedCount();
             });
