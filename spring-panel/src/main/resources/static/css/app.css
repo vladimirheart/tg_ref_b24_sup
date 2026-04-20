@@ -2419,3 +2419,67 @@ body,
 .knowledge-empty-block {
   height: 1.4rem;
 }
+
+.knowledge-callout {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.875rem;
+  align-items: start;
+  margin: 0 0 1rem;
+  padding: 1rem 1.125rem;
+  border-radius: 1rem;
+  border: 1px solid color-mix(in srgb, var(--bs-border-color) 78%, white);
+  background: color-mix(in srgb, var(--bs-light) 68%, white);
+}
+
+.knowledge-callout__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.75rem;
+  font-size: 1.1rem;
+  line-height: 1;
+  background: rgba(255, 255, 255, 0.65);
+}
+
+.knowledge-callout__body > :last-child {
+  margin-bottom: 0;
+}
+
+.knowledge-callout--gray-bg,
+.knowledge-callout--default {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+.knowledge-callout--blue-bg {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+
+.knowledge-callout--green-bg {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+}
+
+.knowledge-callout--yellow-bg {
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+
+.knowledge-callout--orange-bg {
+  background: #fff7ed;
+  border-color: #fdba74;
+}
+
+.knowledge-callout--red-bg {
+  background: #fef2f2;
+  border-color: #fca5a5;
+}
+
+.knowledge-callout--purple-bg {
+  background: #faf5ff;
+  border-color: #d8b4fe;
+}

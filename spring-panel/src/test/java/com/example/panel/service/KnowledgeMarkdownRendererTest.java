@@ -52,4 +52,18 @@ class KnowledgeMarkdownRendererTest {
         assertTrue(html.contains("href=\"#подраздел\""));
         assertTrue(html.contains("<h1 id=\"первый-раздел\">Первый раздел</h1>"));
     }
+
+    @Test
+    void rendersCalloutTokenAsStyledBlock() {
+        String html = renderer.render("""
+            > %s
+            >
+            > Проверьте открытые заказы.
+            """.formatted(KnowledgeMarkdownRenderer.calloutToken("gray_bg", "❗")));
+
+        assertTrue(html.contains("knowledge-callout"));
+        assertTrue(html.contains("knowledge-callout--gray-bg"));
+        assertTrue(html.contains("❗"));
+        assertTrue(html.contains("Проверьте открытые заказы."));
+    }
 }

@@ -768,7 +768,7 @@ public class KnowledgeBaseNotionService {
     }
 
     private String buildStoredAttachmentName(String externalId, String url, String originalName) {
-        return buildNotionAttachmentPrefix(externalId) + shortHash(url) + "_" + sanitizeStoredFileName(originalName);
+        return buildNotionAttachmentPrefix(externalId) + shortHash(normalizeAttachmentKey(url)) + "_" + sanitizeStoredFileName(originalName);
     }
 
     private String buildNotionAttachmentPrefix(String externalId) {
@@ -792,6 +792,21 @@ public class KnowledgeBaseNotionService {
             return builder.toString();
         } catch (NoSuchAlgorithmException ex) {
             return Integer.toHexString((raw != null ? raw : "").hashCode());
+        }
+    }
+
+    private String normalizeAttachmentKey(String rawUrl) {
+        if (!StringUtils.hasText(rawUrl)) {
+            return "";
+        }
+        try {
+            URI uri = URI.create(rawUrl);
+            String scheme = uri.getScheme() != null ? uri.getScheme().toLowerCase(Locale.ROOT) : "https";
+            String host = uri.getHost() != null ? uri.getHost().toLowerCase(Locale.ROOT) : "";
+            String path = uri.getPath() != null ? uri.getPath() : rawUrl;
+            return scheme + "://" + host + path;
+        } catch (IllegalArgumentException ex) {
+            return rawUrl;
         }
     }
 
