@@ -17,18 +17,32 @@
         <div class="col-12 col-xl-8">
             <div class="card shadow-sm">
                 <div class="card-body p-4">
+                    <div class="alert mb-4"
+                         th:if="${message != null and !message.isBlank()}"
+                         th:classappend="${messageType} == 'danger' ? ' alert-danger' : ' alert-success'"
+                         th:text="${message}"></div>
+
                     <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start gap-3 mb-4">
                         <div>
                             <h1 class="h4 mb-2" th:text="${article.title != null and !article.title.isBlank()} ? ${article.title} : 'Новая статья'"></h1>
                             <p class="text-muted mb-0" th:if="${article.updatedAt != null}" th:text="'Обновлено: ' + ${article.updatedAt}"></p>
                         </div>
-                        <button class="btn btn-outline-primary"
-                                type="button"
-                                id="knowledgeArticleEditToggle"
-                                aria-expanded="false"
-                                aria-controls="knowledgeArticleEditPanel">
-                            Редактировать markdown
-                        </button>
+                        <div class="d-flex flex-wrap gap-2">
+                            <form th:if="${article.id != null and article.externalSource == 'notion' and article.externalId != null and !article.externalId.isBlank()}"
+                                  th:action="@{'/knowledge-base/' + ${article.id} + '/sync-notion'}"
+                                  method="post"
+                                  class="d-inline">
+                                <input type="hidden" name="_csrf" th:value="${_csrf.token}">
+                                <button class="btn btn-outline-success" type="submit">Обновить из Notion</button>
+                            </form>
+                            <button class="btn btn-outline-primary"
+                                    type="button"
+                                    id="knowledgeArticleEditToggle"
+                                    aria-expanded="false"
+                                    aria-controls="knowledgeArticleEditPanel">
+                                Редактировать markdown
+                            </button>
+                        </div>
                     </div>
 
                     <div class="row g-3 mb-4" th:if="${article.id != null}">
@@ -50,6 +64,29 @@
                                 <div class="fw-semibold" th:text="${article.department}"></div>
                             </div>
                         </div>
+                        <div class="col-sm-6 col-lg-4" th:if="${article.externalSource != null and !article.externalSource.isBlank()}">
+                            <div class="border rounded-3 p-3 h-100">
+                                <div class="text-muted small mb-1">Источник</div>
+                                <div class="fw-semibold text-capitalize" th:text="${article.externalSource}"></div>
+                            </div>
+                        </div>
+                        <div class="col-sm-6 col-lg-4" th:if="${article.externalUpdatedAt != null}">
+                            <div class="border rounded-3 p-3 h-100">
+                                <div class="text-muted small mb-1">Обновлено в источнике</div>
+                                <div class="fw-semibold" th:text="${article.externalUpdatedAt}"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-light border mb-4"
+                         th:if="${article.externalSource == 'notion' and article.externalId != null and !article.externalId.isBlank()}">
+                        <div class="fw-semibold mb-1">Связь с Notion</div>
+                        <div class="small text-muted mb-2" th:text="'External ID: ' + ${article.externalId}"></div>
+                        <a class="small text-decoration-none"
+                           th:if="${article.externalUrl != null and !article.externalUrl.isBlank()}"
+                           th:href="${article.externalUrl}"
+                           target="_blank"
+                           rel="noopener noreferrer">Открыть исходную страницу в Notion</a>
                     </div>
 
                     <div class="card border-0 bg-body-tertiary">
