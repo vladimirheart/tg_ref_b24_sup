@@ -152,6 +152,10 @@
 - начато service-level сужение giant `DialogWorkspaceService`: из него вынесены
   `DialogWorkspaceExternalProfileService` и `DialogWorkspaceParityService`,
   а legacy macro/request хвост после controller split удалён.
+- следующий пакет service-level split внутри `workspace` тоже уже сделан:
+  navigation/queue meta и rollout/meta-config вынесены в
+  `DialogWorkspaceNavigationService` и `DialogWorkspaceRolloutService`, плюс
+  добавлены targeted tests для этих sub-services.
 
 Что остаётся:
 
@@ -324,8 +328,8 @@
 1. `Phase 1` завершён.
 2. `Phase 2` стабилизирован и требует скорее нормализации ownership, чем
    срочной архитектурной ломки.
-3. `Phase 3` завершён на controller boundary и ждёт service-level split
-   `DialogService`.
+3. `Phase 3` завершён на controller boundary и уже движется в service-level
+   split `DialogWorkspaceService`, но всё ещё упирается в giant `DialogService`.
 4. `Phase 4` выполнен по самым рискованным giant flows и требует добивки
    remaining subdomains.
 5. `Phase 5` уже начат в коде.
@@ -341,8 +345,9 @@
    окружения и финальное решение по supervisor/service boundary.
 2. Параллельно расширять `Phase 6`, чтобы следующие рефакторинги шли под
    лучшей страховкой.
-3. После этого вернуться к service-level split `DialogService`, который
-   остаётся самым большим архитектурным риском.
+3. После этого продолжать service-level split `dialogs`: сначала дожать
+   `DialogWorkspaceService`, затем резать сам `DialogService`, который остаётся
+   самым большим архитектурным риском.
 
 ## Порядок выполнения
 
