@@ -170,16 +170,6 @@
         </nav>
 
         <div class="sidebar-footer">
-            <div class="sidebar-order-controls">
-                <button
-                        id="editSidebarOrderBtn"
-                        class="sidebar-order-btn"
-                        type="button"
-                        aria-label="Редактировать порядок"
-                        title="Редактировать порядок">
-                    <span class="icon" aria-hidden="true">⇅</span>
-                </button>
-            </div>
             <div class="sidebar-user-card" th:if="${#authentication?.name}">
                 <div class="sidebar-user-avatar">
                     <img th:src="${sidebarUserAvatarUrl}" alt="Аватар" loading="lazy" decoding="async"/>
@@ -189,10 +179,22 @@
                     <span class="sidebar-user-username" th:text="${sidebarUserUsername}"></span>
                 </div>
             </div>
-            <button type="button" class="sidebar-account-btn" data-sidebar-change-password>
-                <span class="icon" aria-hidden="true">🔐</span>
-                <span class="label">Сменить пароль</span>
-            </button>
+            <div class="sidebar-footer-actions">
+                <button type="button" class="sidebar-account-btn" data-sidebar-change-password>
+                    <span class="icon" aria-hidden="true">🔐</span>
+                    <span class="label">Сменить пароль</span>
+                </button>
+                <div class="sidebar-order-controls">
+                    <button
+                            id="editSidebarOrderBtn"
+                            class="sidebar-order-btn"
+                            type="button"
+                            aria-label="Редактировать порядок"
+                            title="Редактировать порядок">
+                        <span class="icon" aria-hidden="true">⇅</span>
+                    </button>
+                </div>
+            </div>
             <a class="sidebar-logout-btn" th:href="@{/logout}">
                 <span class="icon" aria-hidden="true">🚪</span>
                 <span class="label">Выйти</span>

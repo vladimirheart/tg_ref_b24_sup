@@ -280,6 +280,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
             }
             session = startSession(actor, message, channel, clientProfile);
             sessions.put(fromId, session);
+            return;
         }
 
         if (session.awaitingReuseDecision()) {
@@ -435,7 +436,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                 settings,
                 "Здравствуйте! Опишите, пожалуйста, ваш вопрос, чтобы мы могли быстрее помочь."
         );
-        if (startAutoReply != null && !startAutoReply.isBlank()) {
+        if (!session.awaitingReuseDecision() && startAutoReply != null && !startAutoReply.isBlank()) {
             sendText(actor, message.getPeerId(), startAutoReply);
         }
         promptCurrentQuestion(actor, session);

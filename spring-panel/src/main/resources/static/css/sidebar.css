@@ -480,6 +480,10 @@ body.with-sidebar.sidebar-hovering {
   padding: 10px 0;
 }
 
+.sidebar.collapsed:not(.hovering) .sidebar-footer-actions {
+  justify-content: center;
+}
+
 .sidebar.collapsed:not(.hovering) .sidebar-order-controls {
   justify-content: center;
 }
@@ -499,9 +503,16 @@ body.with-sidebar.sidebar-hovering {
   gap: 12px;
 }
 
+.sidebar-footer-actions {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+}
+
 .sidebar-order-controls {
   display: flex;
   justify-content: flex-end;
+  flex: 0 0 auto;
 }
 
 .sidebar-order-btn {
@@ -595,6 +606,7 @@ body.with-sidebar.sidebar-hovering {
   background: color-mix(in srgb, white 72%, var(--color-surface));
   color: inherit;
   cursor: pointer;
+  flex: 1 1 auto;
 }
 
 .sidebar-account-btn:hover,
@@ -607,6 +619,16 @@ body.with-sidebar.sidebar-hovering {
   border: 1px solid rgba(220, 38, 38, 0.14);
   background: rgba(254, 242, 242, 0.88);
   color: #b91c1c;
+}
+
+@media (max-width: 640px) {
+  .sidebar-footer-actions {
+    flex-direction: column;
+  }
+
+  .sidebar-order-controls {
+    justify-content: flex-start;
+  }
 }
 
 .sidebar-logout-btn:hover,
