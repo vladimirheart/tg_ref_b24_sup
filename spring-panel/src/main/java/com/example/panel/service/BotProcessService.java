@@ -181,7 +181,7 @@ public class BotProcessService {
         );
     }
 
-    private Path resolveBotWorkingDir() {
+    Path resolveBotWorkingDir() {
         Path current = Paths.get("").toAbsolutePath().normalize();
         for (int depth = 0; depth < 5 && current != null; depth++) {
             Path candidate = current.resolve("java-bot").normalize();

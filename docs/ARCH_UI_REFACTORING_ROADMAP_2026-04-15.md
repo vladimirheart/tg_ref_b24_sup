@@ -249,6 +249,11 @@
 - продолжено: добавлен диагностический endpoint
   `/api/bots/{channelId}/runtime-contract`, чтобы contract можно было проверить
   без реального старта процесса;
+- продолжено: зафиксирован production deployment recipe через
+  `preferred-production-launcher`, `recommended-artifact-directory` и
+  explicit `jar` contract;
+- продолжено: добавлен lifecycle contract test с реальным runnable test jar,
+  который проверяет `start -> readiness -> status -> stop`;
 - добавлены тесты на выбор launcher plan, runtime contract payload и сохранён
   readiness probe контракт.
 
@@ -256,11 +261,10 @@
 
 - формализовать contract между panel и `java-bot` на уровне launcher inputs,
   env contract и status/readiness expectations;
-- определить preferred production path: prebuilt jars, launcher scripts или
-  отдельный supervisor/service;
 - распространить explicit jar contract на целевые окружения и зафиксировать
   рекомендуемые пути/имена артефактов для production/deploy сценариев;
-- расширить runtime tests от launcher plan до end-to-end process contract.
+- при необходимости определить следующий production boundary после prebuilt jars:
+  launcher scripts или отдельный supervisor/service.
 
 ### Phase 6. Test Safety Net
 
@@ -285,6 +289,7 @@
 - test coverage на readiness/startup contract в `BotProcessService`;
 - unit-тесты на `BotRuntimeContractService`;
 - WebMvc test на `/api/bots/{channelId}/runtime-contract`;
+- lifecycle contract test с runnable test jar для `BotProcessService`;
 - smoke-проверка раннего `ui-head` bootstrap на странице диалогов;
 - legacy WebMvc test-слой частично синхронизирован с новой controller
   структурой.
@@ -315,8 +320,8 @@
 
 Наиболее логичный следующий шаг после текущего состояния:
 
-1. Дожать `Phase 5` до production-ready deployment recipe и более полного
-   lifecycle contract для bot runtime.
+1. Дожать `Phase 5` через распространение explicit `jar` contract на реальные
+   окружения и финальное решение по supervisor/service boundary.
 2. Параллельно расширять `Phase 6`, чтобы следующие рефакторинги шли под
    лучшей страховкой.
 3. После этого вернуться к service-level split `DialogService`, который

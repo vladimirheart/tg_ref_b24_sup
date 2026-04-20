@@ -70,19 +70,23 @@ public class BotRuntimeContractService {
         if (executableJar != null && !"explicit-config".equals(executableJar.source())) {
             warnings.add("Для production лучше явно задать app.bots.executable-jars вместо target scan.");
         }
+        BotProductionContract production = productionContract(botWorkingDir, botModule, launchMode, executableJar, launchPlan);
+        BotLifecycleContract lifecycle = lifecycleContract();
         return new BotRuntimeContract(
             channel != null ? channel.getId() : null,
             normalizePlatform(channel),
             botModule,
             launchMode.name().toLowerCase(),
             launchPlan.launcherKind(),
-            "jar",
+            production.preferredLauncher(),
             executableJar != null ? executableJar.source() : "none",
             executableJar != null ? executableJar.path().toString() : null,
             requiredEnvironmentKeys(channel),
             optionalEnvironmentKeys(channel),
             warnings,
-            readinessContract()
+            readinessContract(),
+            production,
+            lifecycle
         );
     }
 
@@ -165,6 +169,16 @@ public class BotRuntimeContractService {
         );
     }
 
+    public BotLifecycleContract lifecycleContract() {
+        return new BotLifecycleContract(
+            "running",
+            "stopped",
+            "error",
+            "panel waits for readiness signal after process start",
+            "panel terminates process when readiness is not confirmed in time"
+        );
+    }
+
     private String normalizePlatform(Channel channel) {
         return Objects.toString(channel != null ? channel.getPlatform() : null, "telegram").toLowerCase();
     }
@@ -208,6 +222,48 @@ public class BotRuntimeContractService {
         }
         keys.addAll(integrationNetworkService.buildProcessEnvironment(integrationNetworkService.resolveBotRoute(channel)).keySet());
         return keys;
+    }
+
+    private BotProductionContract productionContract(Path botWorkingDir,
+                                                     String botModule,
+                                                     BotProcessProperties.LaunchMode configuredLaunchMode,
+                                                     ResolvedExecutableJar executableJar,
+                                                     BotLaunchPlan launchPlan) {
+        String preferredLauncher = botProcessProperties.resolvePreferredProductionLauncher().name().toLowerCase();
+        String recommendedArtifactPath = resolveRecommendedArtifactPath(botWorkingDir, botModule);
+        List<String> blockers = new ArrayList<>();
+        if (!"jar".equals(preferredLauncher)) {
+            blockers.add("Для production пока рекомендуется launcher jar, а не " + preferredLauncher + ".");
+        }
+        if ("maven".equals(launchPlan.launcherKind())) {
+            blockers.add("Текущий runtime contract использует Maven launcher; для production нужен prebuilt jar.");
+        }
+        if (executableJar == null) {
+            blockers.add("Не найден executable jar для production запуска.");
+        } else if (!"explicit-config".equals(executableJar.source())) {
+            blockers.add("Executable jar найден через target scan; для production нужен explicit app.bots.executable-jars contract.");
+        }
+        if (configuredLaunchMode == BotProcessProperties.LaunchMode.MAVEN) {
+            blockers.add("app.bots.launch-mode=maven подходит только как controlled dev fallback.");
+        }
+        boolean readyForProduction = blockers.isEmpty();
+        return new BotProductionContract(
+            preferredLauncher,
+            recommendedArtifactPath,
+            readyForProduction,
+            blockers
+        );
+    }
+
+    private String resolveRecommendedArtifactPath(Path botWorkingDir, String botModule) {
+        if (botWorkingDir == null || !StringUtils.hasText(botModule)) {
+            return botProcessProperties.resolveRecommendedExecutableJar(botModule);
+        }
+        String relative = botProcessProperties.resolveRecommendedExecutableJar(botModule);
+        if (!StringUtils.hasText(relative)) {
+            return null;
+        }
+        return botWorkingDir.resolve(relative).normalize().toString();
     }
 
     private ResolvedExecutableJar resolveExecutableJarDetailed(Path botWorkingDir, String botModule) {
@@ -375,6 +431,17 @@ public class BotRuntimeContractService {
                                        String successSignal,
                                        String failureSignal) {}
 
+    public record BotProductionContract(String preferredLauncher,
+                                        String recommendedArtifactPath,
+                                        boolean readyForProduction,
+                                        List<String> blockingReasons) {}
+
+    public record BotLifecycleContract(String runningStatus,
+                                       String stoppedStatus,
+                                       String errorStatus,
+                                       String startupExpectation,
+                                       String timeoutBehavior) {}
+
     public record BotRuntimeContract(Long channelId,
                                      String platform,
                                      String botModule,
@@ -386,5 +453,7 @@ public class BotRuntimeContractService {
                                      List<String> requiredEnvironmentKeys,
                                      List<String> optionalEnvironmentKeys,
                                      List<String> warnings,
-                                     BotReadinessContract readiness) {}
+                                     BotReadinessContract readiness,
+                                     BotProductionContract production,
+                                     BotLifecycleContract lifecycle) {}
 }

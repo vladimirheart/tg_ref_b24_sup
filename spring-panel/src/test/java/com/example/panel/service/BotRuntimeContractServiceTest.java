@@ -54,6 +54,9 @@ class BotRuntimeContractServiceTest {
         assertThat(contract.artifactSource()).isEqualTo("explicit-config");
         assertThat(contract.executableJarPath()).isEqualTo(jar.toAbsolutePath().normalize().toString());
         assertThat(contract.warnings()).isEmpty();
+        assertThat(contract.production().readyForProduction()).isTrue();
+        assertThat(contract.production().recommendedArtifactPath()).isEqualTo(jar.toAbsolutePath().normalize().toString());
+        assertThat(contract.lifecycle().runningStatus()).isEqualTo("running");
     }
 
     @Test
@@ -78,6 +81,21 @@ class BotRuntimeContractServiceTest {
             .containsEntry("MAX_SUPPORT_CHAT_ID", "support-room")
             .containsEntry("MAX_WEBHOOK_SECRET", "max-secret")
             .containsEntry("SPRING_MAIN_WEB_APPLICATION_TYPE", "servlet");
+    }
+
+    @Test
+    void describeMarksMavenFallbackAsNotProductionReady() {
+        BotRuntimeContractService service = createService("maven", Map.of());
+        Channel channel = new Channel();
+        channel.setId(18L);
+        channel.setPlatform("telegram");
+
+        BotRuntimeContractService.BotRuntimeContract contract = service.describe(channel, tempDir.resolve("java-bot"));
+
+        assertThat(contract.production().readyForProduction()).isFalse();
+        assertThat(contract.production().blockingReasons())
+            .anyMatch(item -> item.contains("Maven launcher"))
+            .anyMatch(item -> item.contains("launch-mode=maven"));
     }
 
     private BotRuntimeContractService createService(String launchMode, Map<String, String> executableJars) {

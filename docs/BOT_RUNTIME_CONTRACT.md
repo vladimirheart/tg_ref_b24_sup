@@ -10,6 +10,8 @@
 - `auto` сначала пытается запустить явный или найденный executable `jar`, затем
   откатывается на `spring-boot:run` как dev fallback;
 - `app.bots.executable-jars` задаёт явный contract `module -> jar path`;
+- `app.bots.preferred-production-launcher` фиксирует рекомендуемый production launcher;
+- `app.bots.recommended-artifact-directory` задаёт рекомендуемую директорию для runtime jar;
 - для production предпочтителен explicit `jar` contract, а не `target` scan.
 
 ## Runtime Inputs
@@ -63,7 +65,34 @@ Platform-specific:
 - путь к executable jar, если найден;
 - required/optional environment keys;
 - warnings по текущему launcher contract;
-- readiness expectations.
+- readiness expectations;
+- production readiness и blocking reasons;
+- lifecycle expectations (`running/stopped/error`, startup/timeout behavior).
+
+## Production Recipe
+
+Рекомендуемый production path сейчас такой:
+
+1. Собрать prebuilt runtime jar для каждого bot module.
+2. Положить артефакты в `dist/` внутри `java-bot` или в другой заранее известный каталог.
+3. Заполнить `app.bots.executable-jars` явными путями к jar.
+4. Оставить `app.bots.launch-mode=auto` или `jar`.
+
+Production-ready contract считается выполненным, когда:
+
+- launcher резолвится в `jar`;
+- executable jar найден;
+- jar взят из `explicit-config`, а не через `target` scan;
+- panel не зависит от `spring-boot:run` для боевого запуска.
+
+## Lifecycle Contract Test
+
+В test-layer есть адресный lifecycle contract test, который:
+
+- собирает runnable test jar;
+- запускает его через `BotProcessService`;
+- подтверждает `running` после readiness marker;
+- проверяет `stop/status` и cleanup pid-файла.
 
 ## Remaining Gaps
 

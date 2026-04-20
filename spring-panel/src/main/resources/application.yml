@@ -52,6 +52,8 @@ app:
     database-dir: ${APP_BOT_DATABASE_DIR:../bot_databases}
     launch-mode: ${APP_BOT_LAUNCH_MODE:auto} # auto -> prefer explicit/prebuilt jar, fallback to spring-boot:run in dev
     executable-jars: {} # optional explicit module -> jar path map, relative to java-bot or absolute
+    preferred-production-launcher: ${APP_BOT_PREFERRED_PRODUCTION_LAUNCHER:jar}
+    recommended-artifact-directory: ${APP_BOT_RECOMMENDED_ARTIFACT_DIRECTORY:dist}
     startup-readiness-timeout: ${APP_BOT_STARTUP_READINESS_TIMEOUT:45s}
     startup-poll-interval: ${APP_BOT_STARTUP_POLL_INTERVAL:250ms}
   storage:

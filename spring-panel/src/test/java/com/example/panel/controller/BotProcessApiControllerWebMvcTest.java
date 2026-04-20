@@ -51,7 +51,9 @@ class BotProcessApiControllerWebMvcTest {
                 List.of("APP_DB_TICKETS", "TELEGRAM_BOT_TOKEN"),
                 List.of("HTTP_PROXY"),
                 List.of(),
-                new BotRuntimeContractService.BotReadinessContract(45000L, 250L, "Spring Boot started marker", "APPLICATION FAILED TO START banner")
+                new BotRuntimeContractService.BotReadinessContract(45000L, 250L, "Spring Boot started marker", "APPLICATION FAILED TO START banner"),
+                new BotRuntimeContractService.BotProductionContract("jar", "C:/bots/dist/bot-telegram-runtime.jar", true, List.of()),
+                new BotRuntimeContractService.BotLifecycleContract("running", "stopped", "error", "panel waits for readiness signal after process start", "panel terminates process when readiness is not confirmed in time")
             )
         );
 
@@ -62,7 +64,9 @@ class BotProcessApiControllerWebMvcTest {
             .andExpect(jsonPath("$.contract.resolvedLauncherKind").value("jar"))
             .andExpect(jsonPath("$.contract.artifactSource").value("explicit-config"))
             .andExpect(jsonPath("$.contract.requiredEnvironmentKeys[0]").value("APP_DB_TICKETS"))
-            .andExpect(jsonPath("$.contract.readiness.timeoutMillis").value(45000));
+            .andExpect(jsonPath("$.contract.readiness.timeoutMillis").value(45000))
+            .andExpect(jsonPath("$.contract.production.readyForProduction").value(true))
+            .andExpect(jsonPath("$.contract.lifecycle.runningStatus").value("running"));
     }
 
     @Test
