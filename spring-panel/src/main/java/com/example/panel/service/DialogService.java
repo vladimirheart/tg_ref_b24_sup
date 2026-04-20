@@ -536,12 +536,19 @@ public class DialogService {
             return Map.of();
         }
         try {
+            Set<String> userColumns = loadUsersTableColumns();
+            String fullNameSelect = userColumns.contains("full_name")
+                    ? "full_name"
+                    : "NULL AS full_name";
+            String photoSelect = userColumns.contains("photo")
+                    ? "photo"
+                    : "NULL AS photo";
             String placeholders = identities.stream().map(identity -> "?").collect(Collectors.joining(", "));
             String sql = """
-                    SELECT username, full_name, photo
+                    SELECT username, %s, %s
                       FROM users
                      WHERE lower(username) IN (%s)
-                    """.formatted(placeholders);
+                    """.formatted(fullNameSelect, photoSelect, placeholders);
             Map<String, ResponsibleProfile> profiles = new LinkedHashMap<>();
             usersJdbcTemplate.query(sql, rs -> {
                 while (rs.next()) {
@@ -560,6 +567,32 @@ public class DialogService {
         } catch (DataAccessException ex) {
             log.warn("Unable to load responsible profiles for dialog list: {}", summarizeDataAccessException(ex));
             return Map.of();
+        }
+    }
+
+    private Set<String> loadUsersTableColumns() {
+        try {
+            return usersJdbcTemplate.execute((ConnectionCallback<Set<String>>) connection -> {
+                Set<String> columns = new java.util.HashSet<>();
+                var metaData = connection.getMetaData();
+                try (var resultSet = metaData.getColumns(null, null, "users", null)) {
+                    while (resultSet.next()) {
+                        columns.add(resultSet.getString("COLUMN_NAME").toLowerCase(Locale.ROOT));
+                    }
+                }
+                if (!columns.isEmpty()) {
+                    return columns;
+                }
+                try (var resultSet = metaData.getColumns(null, null, "USERS", null)) {
+                    while (resultSet.next()) {
+                        columns.add(resultSet.getString("COLUMN_NAME").toLowerCase(Locale.ROOT));
+                    }
+                }
+                return columns;
+            });
+        } catch (DataAccessException ex) {
+            log.warn("Unable to inspect users table columns: {}", summarizeDataAccessException(ex));
+            return Set.of();
         }
     }
 

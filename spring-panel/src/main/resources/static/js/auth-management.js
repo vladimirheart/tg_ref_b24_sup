@@ -148,6 +148,7 @@
       this.customDepartmentOptions = new Set();
       this.departmentSearchTerm = '';
       this.inputSettings = typeof window !== 'undefined' ? window.__inputSettings || {} : {};
+      this.parentSheetModal = root.closest('.modal[data-settings-sheet]');
       this.handleUsersClick = this.handleUsersClick.bind(this);
       this.handleRolesClick = this.handleRolesClick.bind(this);
       this.handlePermissionToggle = this.handlePermissionToggle.bind(this);
@@ -312,6 +313,21 @@
 
     setLoading(isLoading) {
       this.root.classList.toggle('auth-management--loading', Boolean(isLoading));
+    }
+
+    setParentSheetSuspended(suspended) {
+      if (!(this.parentSheetModal instanceof HTMLElement)) {
+        return;
+      }
+      const nextState = Boolean(suspended);
+      this.parentSheetModal.classList.toggle('auth-management-child-open', nextState);
+      if (nextState) {
+        this.parentSheetModal.setAttribute('aria-hidden', 'true');
+        this.parentSheetModal.inert = true;
+      } else {
+        this.parentSheetModal.removeAttribute('aria-hidden');
+        this.parentSheetModal.inert = false;
+      }
     }
 
     setMessage(text, variant = 'danger') {
@@ -1078,6 +1094,7 @@
 
       const phones = mode === 'edit' ? user?.phones || [] : [];
       this.renderPhoneList(phones, permissions.canEditDetails);
+      this.setParentSheetSuspended(true);
 
       if (this.modalInstance) {
         this.modalInstance.show();
@@ -2064,6 +2081,7 @@
     }
 
     handleUserModalHidden() {
+      this.setParentSheetSuspended(false);
       this.modalState = null;
       this.modalPasswordState = { visible: false, loaded: false, value: '' };
       if (this.elements.userForm) {

@@ -849,6 +849,13 @@
       --auth-user-modal-left-offset: calc(var(--sidebar-w-collapsed, 84px) + 0.75rem);
     }
 
+    #usersModal.auth-management-child-open .modal-dialog {
+      pointer-events: none;
+      opacity: 0.58;
+      filter: saturate(0.82);
+      transition: opacity 0.18s ease, filter 0.18s ease;
+    }
+
     .auth-user-modal-dialog {
       width: auto;
       margin: 1rem 1rem 1rem auto;
