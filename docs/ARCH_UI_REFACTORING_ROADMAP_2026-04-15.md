@@ -1,7 +1,7 @@
 # Architecture And UI Refactoring Roadmap
 
 Дата старта: `2026-04-15`
-Обновлено: `2026-04-17`
+Обновлено: `2026-04-20`
 
 ## Цель
 
@@ -15,7 +15,7 @@
 
 ## Текущее состояние
 
-На `2026-04-16` базовый план уже частично реализован в коде, поэтому roadmap
+На `2026-04-20` базовый план уже частично реализован в коде, поэтому roadmap
 нужно читать не как wishlist, а как карту оставшихся работ.
 
 Что уже достигнуто:
@@ -244,7 +244,13 @@
 - продолжено: добавлен explicit artifact discovery contract через
   `app.bots.executable-jars`, чтобы panel могла запускать заранее известные
   bot jars без угадывания по `target/*.jar`;
-- добавлены тесты на выбор launcher plan и сохранён readiness probe контракт.
+- продолжено: launcher/env/readiness expectations вынесены в
+  `BotRuntimeContractService` и задокументированы в `docs/BOT_RUNTIME_CONTRACT.md`;
+- продолжено: добавлен диагностический endpoint
+  `/api/bots/{channelId}/runtime-contract`, чтобы contract можно было проверить
+  без реального старта процесса;
+- добавлены тесты на выбор launcher plan, runtime contract payload и сохранён
+  readiness probe контракт.
 
 Что остаётся:
 
@@ -277,6 +283,9 @@
 
 - unit-тесты на `dialog_config` routing/validation;
 - test coverage на readiness/startup contract в `BotProcessService`;
+- unit-тесты на `BotRuntimeContractService`;
+- WebMvc test на `/api/bots/{channelId}/runtime-contract`;
+- smoke-проверка раннего `ui-head` bootstrap на странице диалогов;
 - legacy WebMvc test-слой частично синхронизирован с новой controller
   структурой.
 
@@ -299,13 +308,15 @@
 4. `Phase 4` выполнен по самым рискованным giant flows и требует добивки
    remaining subdomains.
 5. `Phase 5` уже начат в коде.
-6. `Phase 6` начат точечно, но пока не превращён в полноценную safety net.
+6. `Phase 6` усилен адресными runtime/UI тестами, но пока не превращён в
+   полноценную safety net.
 
 ## Следующий Фокус
 
 Наиболее логичный следующий шаг после текущего состояния:
 
-1. Продолжить `Phase 5` и закрепить runtime contract между panel и bot runtime.
+1. Дожать `Phase 5` до production-ready deployment recipe и более полного
+   lifecycle contract для bot runtime.
 2. Параллельно расширять `Phase 6`, чтобы следующие рефакторинги шли под
    лучшей страховкой.
 3. После этого вернуться к service-level split `DialogService`, который

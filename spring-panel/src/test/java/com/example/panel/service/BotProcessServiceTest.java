@@ -2,8 +2,11 @@ package com.example.panel.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.example.panel.config.BotProcessProperties;
+import com.example.panel.config.SqliteDataSourceProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -29,7 +32,8 @@ class BotProcessServiceTest {
             if (process.isAlive()) {
                 process.destroyForcibly();
             }
-            process.waitFor(5, TimeUnit.SECONDS);
+            process.waitFor(10, TimeUnit.SECONDS);
+            Thread.sleep(100);
             process = null;
         }
     }
@@ -89,7 +93,7 @@ class BotProcessServiceTest {
 
         BotProcessService service = createRuntimeService("auto");
 
-        BotProcessService.BotLaunchPlan plan = service.resolveLaunchPlan(botWorkingDir, "bot-telegram");
+        BotRuntimeContractService.BotLaunchPlan plan = service.resolveLaunchPlan(botWorkingDir, "bot-telegram");
 
         assertThat(plan.description()).startsWith("jar:");
         assertThat(plan.command()).contains("-jar");
@@ -140,7 +144,7 @@ class BotProcessServiceTest {
 
         BotProcessService service = createRuntimeService("maven");
 
-        BotProcessService.BotLaunchPlan plan = service.resolveLaunchPlan(botWorkingDir, "bot-telegram");
+        BotRuntimeContractService.BotLaunchPlan plan = service.resolveLaunchPlan(botWorkingDir, "bot-telegram");
 
         assertThat(plan.description()).isEqualTo("maven:spring-boot-run:bot-telegram");
         assertThat(plan.command().get(0)).endsWith("mvnw.cmd");
@@ -184,12 +188,21 @@ class BotProcessServiceTest {
         BotProcessProperties properties = new BotProcessProperties();
         properties.setLaunchMode(launchMode);
         properties.setExecutableJars(executableJars);
+        SqliteDataSourceProperties sqliteProperties = new SqliteDataSourceProperties();
+        sqliteProperties.setPath(tempDir.resolve("tickets.db").toString());
+        SharedConfigService sharedConfigService = mock(SharedConfigService.class);
+        when(sharedConfigService.loadSettings()).thenReturn(Map.of());
+        IntegrationNetworkService integrationNetworkService = new IntegrationNetworkService(sharedConfigService, new ObjectMapper());
+        BotRuntimeContractService botRuntimeContractService = new BotRuntimeContractService(
+            sqliteProperties,
+            properties,
+            integrationNetworkService,
+            new ObjectMapper()
+        );
         return new BotProcessService(
                 null,
-                null,
                 properties,
-                null,
-                new ObjectMapper()
+                botRuntimeContractService
         );
     }
 
@@ -199,7 +212,7 @@ class BotProcessServiceTest {
         private final Duration pollInterval;
 
         private TestableBotProcessService(Duration readinessTimeout, Duration pollInterval) {
-            super(null, null, new BotProcessProperties(), null, new ObjectMapper());
+            super(null, configureProperties(readinessTimeout, pollInterval), createRuntimeContractService(readinessTimeout, pollInterval));
             this.readinessTimeout = readinessTimeout;
             this.pollInterval = pollInterval;
         }
@@ -213,6 +226,23 @@ class BotProcessServiceTest {
         Duration startupPollInterval() {
             return pollInterval;
         }
+    }
+
+    private static BotProcessProperties configureProperties(Duration readinessTimeout, Duration pollInterval) {
+        BotProcessProperties properties = new BotProcessProperties();
+        properties.setStartupReadinessTimeout(readinessTimeout);
+        properties.setStartupPollInterval(pollInterval);
+        return properties;
+    }
+
+    private static BotRuntimeContractService createRuntimeContractService(Duration readinessTimeout, Duration pollInterval) {
+        BotProcessProperties properties = configureProperties(readinessTimeout, pollInterval);
+        SqliteDataSourceProperties sqliteProperties = new SqliteDataSourceProperties();
+        sqliteProperties.setPath(Path.of(System.getProperty("java.io.tmpdir")).resolve("bot-process-test.db").toString());
+        SharedConfigService sharedConfigService = mock(SharedConfigService.class);
+        when(sharedConfigService.loadSettings()).thenReturn(Map.of());
+        IntegrationNetworkService integrationNetworkService = new IntegrationNetworkService(sharedConfigService, new ObjectMapper());
+        return new BotRuntimeContractService(sqliteProperties, properties, integrationNetworkService, new ObjectMapper());
     }
 
     public static final class ProcessProbe {

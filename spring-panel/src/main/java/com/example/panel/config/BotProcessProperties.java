@@ -4,6 +4,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -15,6 +16,8 @@ public class BotProcessProperties {
     private int maxBasePort = 18000;
     private String launchMode = "auto";
     private Map<String, String> executableJars = new LinkedHashMap<>();
+    private Duration startupReadinessTimeout = Duration.ofSeconds(45);
+    private Duration startupPollInterval = Duration.ofMillis(250);
 
     public String getDatabaseDir() {
         return databaseDir;
@@ -56,6 +59,22 @@ public class BotProcessProperties {
         this.executableJars = executableJars != null ? new LinkedHashMap<>(executableJars) : new LinkedHashMap<>();
     }
 
+    public Duration getStartupReadinessTimeout() {
+        return startupReadinessTimeout;
+    }
+
+    public void setStartupReadinessTimeout(Duration startupReadinessTimeout) {
+        this.startupReadinessTimeout = startupReadinessTimeout;
+    }
+
+    public Duration getStartupPollInterval() {
+        return startupPollInterval;
+    }
+
+    public void setStartupPollInterval(Duration startupPollInterval) {
+        this.startupPollInterval = startupPollInterval;
+    }
+
     public Path resolveDatabaseDir() {
         return Paths.get(databaseDir).toAbsolutePath().normalize();
     }
@@ -89,6 +108,18 @@ public class BotProcessProperties {
             return null;
         }
         return configured.trim();
+    }
+
+    public Duration resolveStartupReadinessTimeout() {
+        return startupReadinessTimeout != null && !startupReadinessTimeout.isNegative() && !startupReadinessTimeout.isZero()
+            ? startupReadinessTimeout
+            : Duration.ofSeconds(45);
+    }
+
+    public Duration resolveStartupPollInterval() {
+        return startupPollInterval != null && !startupPollInterval.isNegative() && !startupPollInterval.isZero()
+            ? startupPollInterval
+            : Duration.ofMillis(250);
     }
 
     public enum LaunchMode {
