@@ -896,6 +896,140 @@
       overscroll-behavior: contain;
     }
 
+    .channel-editor-tabs {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      margin-bottom: 1rem;
+    }
+
+    .channel-editor-tabs .nav-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      font-weight: 600;
+    }
+
+    .channel-editor-pane {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .channel-editor-section {
+      border: 1px solid color-mix(in srgb, var(--color-border) 78%, transparent);
+      border-radius: 1.1rem;
+      background:
+        linear-gradient(180deg, color-mix(in srgb, var(--card) 97%, white), color-mix(in srgb, var(--secondary) 12%, white));
+      padding: 1rem 1.05rem;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72), 0 0.45rem 1rem rgba(15, 23, 42, 0.05);
+    }
+
+    .channel-editor-section--accent {
+      border-color: color-mix(in srgb, var(--primary) 22%, var(--color-border));
+      background:
+        linear-gradient(140deg, color-mix(in srgb, var(--secondary) 28%, white), color-mix(in srgb, var(--card) 96%, white));
+    }
+
+    .channel-editor-section__head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.85rem;
+      margin-bottom: 0.85rem;
+    }
+
+    .channel-editor-section__title {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--color-text);
+    }
+
+    .channel-editor-section__title i {
+      color: var(--primary);
+    }
+
+    .channel-editor-section__hint {
+      margin: 0.2rem 0 0;
+      font-size: 0.84rem;
+      color: var(--color-text-muted);
+    }
+
+    .channel-editor-summary {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.85rem;
+    }
+
+    .channel-editor-summary__item {
+      border: 1px solid color-mix(in srgb, var(--color-border) 76%, transparent);
+      border-radius: 0.95rem;
+      background: color-mix(in srgb, var(--card) 96%, white);
+      padding: 0.8rem 0.9rem;
+      min-width: 0;
+    }
+
+    .channel-editor-summary__label {
+      font-size: 0.74rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      color: var(--color-text-muted);
+      margin-bottom: 0.3rem;
+    }
+
+    .channel-editor-summary__value {
+      font-size: 0.96rem;
+      font-weight: 600;
+      color: var(--color-text);
+      word-break: break-word;
+    }
+
+    .channel-editor-switches {
+      display: flex;
+      flex-direction: column;
+      gap: 0.9rem;
+    }
+
+    .channel-editor-switch {
+      border: 1px solid color-mix(in srgb, var(--color-border) 76%, transparent);
+      border-radius: 0.95rem;
+      background: color-mix(in srgb, var(--card) 96%, white);
+      padding: 0.85rem 0.95rem;
+    }
+
+    .channel-editor-switch .form-check {
+      margin-bottom: 0;
+    }
+
+    .channel-editor-inline-note {
+      border: 1px dashed color-mix(in srgb, var(--primary) 26%, var(--color-border));
+      border-radius: 0.9rem;
+      background: color-mix(in srgb, var(--secondary) 18%, white);
+      padding: 0.85rem 0.95rem;
+    }
+
+    .channel-editor-status-strip {
+      display: inline-flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.55rem 0.75rem;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--card) 92%, white);
+      border: 1px solid color-mix(in srgb, var(--color-border) 74%, transparent);
+    }
+
+    @media (max-width: 991.98px) {
+      .channel-editor-summary {
+        grid-template-columns: 1fr;
+      }
+    }
+
     #botTemplateEditorModal,
     #botRatingTemplateModal {
       overscroll-behavior: contain;
@@ -5980,195 +6114,402 @@
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
         </div>
         <div class="modal-body">
-          <div class="alert alert-light border small mb-4" role="alert">
-            <div class="d-flex flex-column flex-lg-row gap-3 align-items-lg-center">
-              <div>
-                <div class="text-muted small">Платформа</div>
-                <div class="fw-semibold" data-channel-editor-platform>—</div>
+          <div class="channel-editor-shell">
+            <div class="channel-editor-section channel-editor-section--accent">
+              <div class="channel-editor-section__head">
+                <div>
+                  <h6 class="channel-editor-section__title">
+                    <i class="bi bi-grid-1x2-fill" aria-hidden="true"></i>
+                    Краткая сводка
+                  </h6>
+                  <p class="channel-editor-section__hint">Сначала видно платформу, бота и публичную ссылку, а детали уже разложены по вкладкам ниже.</p>
+                </div>
               </div>
-              <div class="vr d-none d-lg-flex"></div>
-              <div class="flex-grow-1">
-                <div class="text-muted small">Бот</div>
-                <div data-channel-editor-bot>—</div>
+              <div class="channel-editor-summary">
+                <div class="channel-editor-summary__item">
+                  <div class="channel-editor-summary__label">Платформа</div>
+                  <div class="channel-editor-summary__value" data-channel-editor-platform>—</div>
+                </div>
+                <div class="channel-editor-summary__item">
+                  <div class="channel-editor-summary__label">Бот</div>
+                  <div class="channel-editor-summary__value" data-channel-editor-bot>—</div>
+                </div>
+                <div class="channel-editor-summary__item">
+                  <div class="channel-editor-summary__label">ID для форм</div>
+                  <div class="channel-editor-summary__value font-monospace" data-channel-editor-public-id>—</div>
+                </div>
               </div>
-            </div>
-            <div class="mt-2 text-muted small">
-              ID для форм: <span class="font-monospace" data-channel-editor-public-id>—</span>
-              <button type="button" class="btn btn-link btn-sm p-0 ms-2 align-baseline" id="channelEditorRegeneratePublicIdBtn">Регенерировать</button>
-              <button type="button" class="btn btn-link btn-sm p-0 ms-2 align-baseline" id="channelEditorCopyPublicLinkBtn">Скопировать ссылку</button>
-            </div>
-            <div class="text-muted small" data-channel-editor-public-link>—</div>
-            <div class="text-muted small" data-channel-editor-meta></div>
-          </div>
-          <div class="mb-3">
-            <label class="form-label" for="channelEditorName">Название для панели</label>
-            <input class="form-control" id="channelEditorName" placeholder="Например: Поддержка" />
-          </div>
-          <div class="form-check form-switch mb-4">
-            <input class="form-check-input" type="checkbox" id="channelEditorIsActive" />
-            <label class="form-check-label" for="channelEditorIsActive">Канал активен</label>
-            <div class="form-text" data-channel-editor-status-label>Канал выключен</div>
-          </div>
-          <div class="form-check form-switch mb-3">
-            <input class="form-check-input" type="checkbox" id="channelEditorPublicFormEnabled" />
-            <label class="form-check-label" for="channelEditorPublicFormEnabled">Включить внешнюю форму для канала</label>
-          </div>
-          <div class="form-check form-switch mb-3">
-            <input class="form-check-input" type="checkbox" id="channelEditorPublicFormCaptchaEnabled" />
-            <label class="form-check-label" for="channelEditorPublicFormCaptchaEnabled">Требовать CAPTCHA на публичной форме</label>
-            <div class="form-text">В режиме shared secret токен сверяется с dialog_config.public_form_captcha_shared_secret; в режиме Turnstile выполняется server-side проверка по verify URL.</div>
-          </div>
-          <div class="form-check form-switch mb-3">
-            <input class="form-check-input" type="checkbox" id="channelEditorPublicFormRateLimitEnabled" />
-            <label class="form-check-label" for="channelEditorPublicFormRateLimitEnabled">Включить rate-limit для канала (override глобальной политики)</label>
-          </div>
-          <div class="row g-3 mb-4">
-            <div class="col-12 col-md-6">
-              <label class="form-label" for="channelEditorPublicFormRateLimitWindowSeconds">Окно rate-limit (сек)</label>
-              <input class="form-control" type="number" id="channelEditorPublicFormRateLimitWindowSeconds" min="10" max="3600" step="10" />
-            </div>
-            <div class="col-12 col-md-6">
-              <label class="form-label" for="channelEditorPublicFormRateLimitMaxRequests">Лимит запросов в окне</label>
-              <input class="form-control" type="number" id="channelEditorPublicFormRateLimitMaxRequests" min="1" max="500" step="1" />
-            </div>
-          </div>
-          <div class="mb-4">
-            <label class="form-label" for="channelEditorPublicFormDisabledStatus">HTTP-статус при отключённой форме</label>
-            <select class="form-select" id="channelEditorPublicFormDisabledStatus">
-              <option value="404">404 Not Found (скрыть существование формы)</option>
-              <option value="410">410 Gone (форма отозвана)</option>
-            </select>
-          </div>
-          <div class="row g-3 mb-4">
-            <div class="col-12 col-md-7">
-              <label class="form-label" for="channelEditorPublicFormSuccessInstruction">Инструкция после отправки</label>
-              <textarea class="form-control" id="channelEditorPublicFormSuccessInstruction" rows="2" maxlength="300" placeholder="Например: Ответим в рабочее время с 09:00 до 18:00"></textarea>
-              <div class="form-text">Показывается пользователю после успешной отправки формы.</div>
-            </div>
-            <div class="col-12 col-md-5">
-              <label class="form-label" for="channelEditorPublicFormResponseEtaMinutes">Ожидаемое время ответа (мин)</label>
-              <input class="form-control" type="number" id="channelEditorPublicFormResponseEtaMinutes" min="0" max="10080" step="5" placeholder="0 — скрыть" />
-              <div class="form-text">Если указано, клиент увидит ориентир по времени ответа.</div>
-            </div>
-          </div>
-          <div class="border rounded-3 p-3 mb-4">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-              <div>
-                <div class="fw-semibold">Конструктор полей внешней формы</div>
-                <div class="form-text">Порядок полей управляется кнопками ↑/↓. Поддерживаются text/textarea/select/checkbox/phone/email.</div>
-              </div>
-              <button type="button" class="btn btn-sm btn-outline-primary" id="channelEditorPublicFormAddFieldBtn">Добавить поле</button>
-            </div>
-            <div class="d-flex flex-column gap-2" data-public-form-fields-list></div>
-            <div class="mt-3">
-              <div class="small text-muted mb-1">Предпросмотр</div>
-              <div class="border rounded-2 p-2 bg-light" data-public-form-preview>Поля не настроены.</div>
-            </div>
-          </div>
-          <div class="row g-3">
-            <div class="col-12 col-md-4">
-              <label class="form-label" for="channelEditorQuestionTemplate">Шаблон вопросов</label>
-              <select class="form-select" id="channelEditorQuestionTemplate"></select>
-              <div class="form-text small" data-channel-editor-summary="question_template_id">—</div>
-            </div>
-            <div class="col-12 col-md-4">
-              <label class="form-label" for="channelEditorRatingTemplate">Система оценок</label>
-              <select class="form-select" id="channelEditorRatingTemplate"></select>
-              <div class="form-text small" data-channel-editor-summary="rating_template_id">—</div>
-            </div>
-            <div class="col-12 col-md-4">
-              <label class="form-label" for="channelEditorAutoTemplate">Автоматические действия</label>
-              <select class="form-select" id="channelEditorAutoTemplate"></select>
-              <div class="form-text small" data-channel-editor-summary="auto_action_template_id">—</div>
-            </div>
-          </div>
-          <div class="mt-4">
-            <label class="form-label" for="channelEditorSupportChatId">ID группы для уведомлений</label>
-            <input class="form-control" id="channelEditorSupportChatId" placeholder="Например: -1001234567890" />
-            <div class="form-text small" data-channel-editor-support-hint>
-              Можно оставить пустым — добавьте бота в нужную группу, и мы определим ID автоматически.
-            </div>
-          </div>
-          <div class="mt-3">
-            <label class="form-label" for="channelEditorBroadcastChannelId">ID канала для рассылок</label>
-            <input class="form-control" id="channelEditorBroadcastChannelId" placeholder="Например: -1009876543210" />
-            <div class="form-text small">Используется для отправки запланированных сообщений в канал.</div>
-          </div>
-          <div class="mt-3">
-            <div class="form-label">Куда отправлять запланированные сообщения</div>
-            <div class="d-flex flex-column gap-2">
-              <div class="form-check form-switch">
-                <input class="form-check-input" type="checkbox" id="channelEditorScheduleToGroup" checked>
-                <label class="form-check-label" for="channelEditorScheduleToGroup">В группу</label>
-              </div>
-              <div class="form-check form-switch">
-                <input class="form-check-input" type="checkbox" id="channelEditorScheduleToChannel">
-                <label class="form-check-label" for="channelEditorScheduleToChannel">В канал</label>
-              </div>
-              <div class="form-check form-switch">
-                <input class="form-check-input" type="checkbox" id="channelEditorScheduleSimultaneous">
-                <label class="form-check-label" for="channelEditorScheduleSimultaneous">Одновременная отправка в группу и канал</label>
+              <div class="channel-editor-inline-note mt-3">
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                  <button type="button" class="btn btn-link btn-sm p-0 align-baseline" id="channelEditorRegeneratePublicIdBtn">Регенерировать ID</button>
+                  <button type="button" class="btn btn-link btn-sm p-0 align-baseline" id="channelEditorCopyPublicLinkBtn">Скопировать ссылку формы</button>
+                </div>
+                <div class="small text-muted mt-2" data-channel-editor-public-link>—</div>
+                <div class="small text-muted mt-1" data-channel-editor-meta></div>
               </div>
             </div>
-          </div>
-          <div class="mt-4 border rounded p-3 bg-light-subtle">
-            <div class="form-label fw-semibold">Тест отправки</div>
-            <div class="row g-2 align-items-end">
-              <div class="col-12 col-lg-4">
-                <label class="form-label small" for="channelEditorTestTarget">Получатель</label>
-                <select class="form-select" id="channelEditorTestTarget">
-                  <option value="group">Группа</option>
-                  <option value="channel">Канал</option>
-                  <option value="both">Группа + канал одновременно</option>
-                  <option value="custom">Свой chat_id</option>
-                </select>
+
+            <ul class="nav nav-tabs settings-menu-tabs channel-editor-tabs" id="channelEditorTabs" role="tablist">
+              <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="channel-editor-general-tab" data-bs-toggle="tab" data-bs-target="#channel-editor-general" type="button" role="tab" aria-controls="channel-editor-general" aria-selected="true">
+                  <i class="bi bi-sliders2" aria-hidden="true"></i>
+                  Общее
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="channel-editor-form-tab" data-bs-toggle="tab" data-bs-target="#channel-editor-form" type="button" role="tab" aria-controls="channel-editor-form" aria-selected="false">
+                  <i class="bi bi-ui-checks-grid" aria-hidden="true"></i>
+                  Внешняя форма
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="channel-editor-delivery-tab" data-bs-toggle="tab" data-bs-target="#channel-editor-delivery" type="button" role="tab" aria-controls="channel-editor-delivery" aria-selected="false">
+                  <i class="bi bi-send-check" aria-hidden="true"></i>
+                  Доставка
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="channel-editor-runtime-tab" data-bs-toggle="tab" data-bs-target="#channel-editor-runtime" type="button" role="tab" aria-controls="channel-editor-runtime" aria-selected="false">
+                  <i class="bi bi-cpu" aria-hidden="true"></i>
+                  Бот и сеть
+                </button>
+              </li>
+            </ul>
+
+            <div class="tab-content settings-tab-content channel-editor-tab-content" id="channelEditorTabsContent">
+              <div class="tab-pane fade show active" id="channel-editor-general" role="tabpanel" aria-labelledby="channel-editor-general-tab">
+                <div class="channel-editor-pane">
+                  <section class="channel-editor-section channel-editor-section--accent">
+                    <div class="channel-editor-section__head">
+                      <div>
+                        <h6 class="channel-editor-section__title">
+                          <i class="bi bi-gear-wide-connected" aria-hidden="true"></i>
+                          Основные параметры
+                        </h6>
+                        <p class="channel-editor-section__hint">Частые изменения: имя канала и его рабочий статус.</p>
+                      </div>
+                    </div>
+                    <div class="mb-3">
+                      <label class="form-label" for="channelEditorName">Название для панели</label>
+                      <input class="form-control" id="channelEditorName" placeholder="Например: Поддержка" />
+                    </div>
+                    <div class="channel-editor-switch">
+                      <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="channelEditorIsActive" />
+                        <label class="form-check-label" for="channelEditorIsActive">Канал активен</label>
+                      </div>
+                      <div class="form-text mt-2" data-channel-editor-status-label>Канал выключен</div>
+                    </div>
+                  </section>
+
+                  <section class="channel-editor-section">
+                    <div class="channel-editor-section__head">
+                      <div>
+                        <h6 class="channel-editor-section__title">
+                          <i class="bi bi-chat-square-text" aria-hidden="true"></i>
+                          Сценарии общения
+                        </h6>
+                        <p class="channel-editor-section__hint">Выбор шаблонов, которые канал использует по умолчанию.</p>
+                      </div>
+                    </div>
+                    <div class="row g-3">
+                      <div class="col-12 col-md-4">
+                        <label class="form-label" for="channelEditorQuestionTemplate">Шаблон вопросов</label>
+                        <select class="form-select" id="channelEditorQuestionTemplate"></select>
+                        <div class="form-text small" data-channel-editor-summary="question_template_id">—</div>
+                      </div>
+                      <div class="col-12 col-md-4">
+                        <label class="form-label" for="channelEditorRatingTemplate">Система оценок</label>
+                        <select class="form-select" id="channelEditorRatingTemplate"></select>
+                        <div class="form-text small" data-channel-editor-summary="rating_template_id">—</div>
+                      </div>
+                      <div class="col-12 col-md-4">
+                        <label class="form-label" for="channelEditorAutoTemplate">Автоматические действия</label>
+                        <select class="form-select" id="channelEditorAutoTemplate"></select>
+                        <div class="form-text small" data-channel-editor-summary="auto_action_template_id">—</div>
+                      </div>
+                    </div>
+                  </section>
+                </div>
               </div>
-              <div class="col-12 col-lg-8">
-                <label class="form-label small" for="channelEditorTestRecipient">chat_id (для «Свой chat_id»)</label>
-                <input class="form-control" id="channelEditorTestRecipient" placeholder="Например: -1001234567890" disabled>
+
+              <div class="tab-pane fade" id="channel-editor-form" role="tabpanel" aria-labelledby="channel-editor-form-tab">
+                <div class="channel-editor-pane">
+                  <section class="channel-editor-section channel-editor-section--accent">
+                    <div class="channel-editor-section__head">
+                      <div>
+                        <h6 class="channel-editor-section__title">
+                          <i class="bi bi-window-stack" aria-hidden="true"></i>
+                          Публикация формы
+                        </h6>
+                        <p class="channel-editor-section__hint">Параметры, которые видит внешний пользователь при отправке обращения через форму.</p>
+                      </div>
+                    </div>
+                    <div class="channel-editor-switches mb-3">
+                      <div class="channel-editor-switch">
+                        <div class="form-check form-switch">
+                          <input class="form-check-input" type="checkbox" id="channelEditorPublicFormEnabled" />
+                          <label class="form-check-label" for="channelEditorPublicFormEnabled">Включить внешнюю форму для канала</label>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="row g-3">
+                      <div class="col-12 col-md-7">
+                        <label class="form-label" for="channelEditorPublicFormSuccessInstruction">Инструкция после отправки</label>
+                        <textarea class="form-control" id="channelEditorPublicFormSuccessInstruction" rows="2" maxlength="300" placeholder="Например: Ответим в рабочее время с 09:00 до 18:00"></textarea>
+                        <div class="form-text">Показывается пользователю после успешной отправки формы.</div>
+                      </div>
+                      <div class="col-12 col-md-5">
+                        <label class="form-label" for="channelEditorPublicFormResponseEtaMinutes">Ожидаемое время ответа (мин)</label>
+                        <input class="form-control" type="number" id="channelEditorPublicFormResponseEtaMinutes" min="0" max="10080" step="5" placeholder="0 — скрыть" />
+                        <div class="form-text">Если указано, клиент увидит ориентир по времени ответа.</div>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section class="channel-editor-section">
+                    <div class="channel-editor-section__head">
+                      <div>
+                        <h6 class="channel-editor-section__title">
+                          <i class="bi bi-shield-check" aria-hidden="true"></i>
+                          Защита и лимиты
+                        </h6>
+                        <p class="channel-editor-section__hint">Дополнительные ограничения и защитные механизмы для публичной формы.</p>
+                      </div>
+                    </div>
+                    <div class="channel-editor-switches mb-3">
+                      <div class="channel-editor-switch">
+                        <div class="form-check form-switch">
+                          <input class="form-check-input" type="checkbox" id="channelEditorPublicFormCaptchaEnabled" />
+                          <label class="form-check-label" for="channelEditorPublicFormCaptchaEnabled">Требовать CAPTCHA на публичной форме</label>
+                        </div>
+                        <div class="form-text mt-2">В режиме shared secret токен сверяется с `dialog_config.public_form_captcha_shared_secret`; в режиме Turnstile выполняется server-side проверка по verify URL.</div>
+                      </div>
+                      <div class="channel-editor-switch">
+                        <div class="form-check form-switch">
+                          <input class="form-check-input" type="checkbox" id="channelEditorPublicFormRateLimitEnabled" />
+                          <label class="form-check-label" for="channelEditorPublicFormRateLimitEnabled">Включить rate-limit для канала</label>
+                        </div>
+                        <div class="form-text mt-2">Локально переопределяет глобальную политику ограничений для этого канала.</div>
+                      </div>
+                    </div>
+                    <div class="row g-3">
+                      <div class="col-12 col-md-6">
+                        <label class="form-label" for="channelEditorPublicFormRateLimitWindowSeconds">Окно rate-limit (сек)</label>
+                        <input class="form-control" type="number" id="channelEditorPublicFormRateLimitWindowSeconds" min="10" max="3600" step="10" />
+                      </div>
+                      <div class="col-12 col-md-6">
+                        <label class="form-label" for="channelEditorPublicFormRateLimitMaxRequests">Лимит запросов в окне</label>
+                        <input class="form-control" type="number" id="channelEditorPublicFormRateLimitMaxRequests" min="1" max="500" step="1" />
+                      </div>
+                      <div class="col-12">
+                        <label class="form-label" for="channelEditorPublicFormDisabledStatus">HTTP-статус при отключённой форме</label>
+                        <select class="form-select" id="channelEditorPublicFormDisabledStatus">
+                          <option value="404">404 Not Found (скрыть существование формы)</option>
+                          <option value="410">410 Gone (форма отозвана)</option>
+                        </select>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section class="channel-editor-section">
+                    <div class="channel-editor-section__head">
+                      <div>
+                        <h6 class="channel-editor-section__title">
+                          <i class="bi bi-layout-text-window" aria-hidden="true"></i>
+                          Поля формы
+                        </h6>
+                        <p class="channel-editor-section__hint">Конструктор структуры формы и быстрый предпросмотр результата.</p>
+                      </div>
+                      <button type="button" class="btn btn-sm btn-outline-primary" id="channelEditorPublicFormAddFieldBtn">Добавить поле</button>
+                    </div>
+                    <div class="d-flex flex-column gap-2" data-public-form-fields-list></div>
+                    <div class="channel-editor-inline-note mt-3">
+                      <div class="small text-muted mb-1">Предпросмотр</div>
+                      <div class="border rounded-2 p-2 bg-light" data-public-form-preview>Поля не настроены.</div>
+                    </div>
+                  </section>
+                </div>
               </div>
-              <div class="col-12">
-                <label class="form-label small" for="channelEditorTestMessage">Текст тестового сообщения</label>
-                <textarea class="form-control" id="channelEditorTestMessage" rows="2" placeholder="Проверка отправки из панели"></textarea>
+
+              <div class="tab-pane fade" id="channel-editor-delivery" role="tabpanel" aria-labelledby="channel-editor-delivery-tab">
+                <div class="channel-editor-pane">
+                  <section class="channel-editor-section">
+                    <div class="channel-editor-section__head">
+                      <div>
+                        <h6 class="channel-editor-section__title">
+                          <i class="bi bi-broadcast" aria-hidden="true"></i>
+                          Каналы уведомлений
+                        </h6>
+                        <p class="channel-editor-section__hint">Куда бот пишет служебные уведомления и откуда брать адресатов для отправок.</p>
+                      </div>
+                    </div>
+                    <div class="row g-3">
+                      <div class="col-12 col-md-6">
+                        <label class="form-label" for="channelEditorSupportChatId">ID группы для уведомлений</label>
+                        <input class="form-control" id="channelEditorSupportChatId" placeholder="Например: -1001234567890" />
+                        <div class="form-text small" data-channel-editor-support-hint>
+                          Можно оставить пустым — добавьте бота в нужную группу, и мы определим ID автоматически.
+                        </div>
+                      </div>
+                      <div class="col-12 col-md-6">
+                        <label class="form-label" for="channelEditorBroadcastChannelId">ID канала для рассылок</label>
+                        <input class="form-control" id="channelEditorBroadcastChannelId" placeholder="Например: -1009876543210" />
+                        <div class="form-text small">Используется для отправки запланированных сообщений в канал.</div>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section class="channel-editor-section">
+                    <div class="channel-editor-section__head">
+                      <div>
+                        <h6 class="channel-editor-section__title">
+                          <i class="bi bi-diagram-3" aria-hidden="true"></i>
+                          Маршрут плановых сообщений
+                        </h6>
+                        <p class="channel-editor-section__hint">Отдельно управляется доставка в группу, в канал или одновременно в оба направления.</p>
+                      </div>
+                    </div>
+                    <div class="channel-editor-switches">
+                      <div class="channel-editor-switch">
+                        <div class="form-check form-switch">
+                          <input class="form-check-input" type="checkbox" id="channelEditorScheduleToGroup" checked>
+                          <label class="form-check-label" for="channelEditorScheduleToGroup">Отправлять в группу</label>
+                        </div>
+                      </div>
+                      <div class="channel-editor-switch">
+                        <div class="form-check form-switch">
+                          <input class="form-check-input" type="checkbox" id="channelEditorScheduleToChannel">
+                          <label class="form-check-label" for="channelEditorScheduleToChannel">Отправлять в канал</label>
+                        </div>
+                      </div>
+                      <div class="channel-editor-switch">
+                        <div class="form-check form-switch">
+                          <input class="form-check-input" type="checkbox" id="channelEditorScheduleSimultaneous">
+                          <label class="form-check-label" for="channelEditorScheduleSimultaneous">Отправлять одновременно в группу и канал</label>
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section class="channel-editor-section channel-editor-section--accent">
+                    <div class="channel-editor-section__head">
+                      <div>
+                        <h6 class="channel-editor-section__title">
+                          <i class="bi bi-send" aria-hidden="true"></i>
+                          Тест отправки
+                        </h6>
+                        <p class="channel-editor-section__hint">Проверка канала доставки до сохранения или после изменения маршрута.</p>
+                      </div>
+                    </div>
+                    <div class="row g-2 align-items-end">
+                      <div class="col-12 col-lg-4">
+                        <label class="form-label small" for="channelEditorTestTarget">Получатель</label>
+                        <select class="form-select" id="channelEditorTestTarget">
+                          <option value="group">Группа</option>
+                          <option value="channel">Канал</option>
+                          <option value="both">Группа + канал одновременно</option>
+                          <option value="custom">Свой chat_id</option>
+                        </select>
+                      </div>
+                      <div class="col-12 col-lg-8">
+                        <label class="form-label small" for="channelEditorTestRecipient">chat_id (для «Свой chat_id»)</label>
+                        <input class="form-control" id="channelEditorTestRecipient" placeholder="Например: -1001234567890" disabled>
+                      </div>
+                      <div class="col-12">
+                        <label class="form-label small" for="channelEditorTestMessage">Текст тестового сообщения</label>
+                        <textarea class="form-control" id="channelEditorTestMessage" rows="2" placeholder="Проверка отправки из панели"></textarea>
+                      </div>
+                      <div class="col-12 d-flex justify-content-between align-items-center gap-2 flex-wrap">
+                        <button type="button" class="btn btn-outline-primary" id="channelEditorSendTestBtn">Отправить тест</button>
+                        <div class="small text-muted" id="channelEditorTestStatus">Статус теста: —</div>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section class="channel-editor-section">
+                    <div class="channel-editor-section__head">
+                      <div>
+                        <h6 class="channel-editor-section__title">
+                          <i class="bi bi-box-arrow-in-right" aria-hidden="true"></i>
+                          Платформенные настройки
+                        </h6>
+                        <p class="channel-editor-section__hint">Отдельные настройки только для VK/MAX, чтобы не шумели в общих сценариях.</p>
+                      </div>
+                    </div>
+                    <div class="d-flex flex-column flex-lg-row gap-3 align-items-lg-center">
+                      <button type="button" class="btn btn-outline-primary d-none" id="channelEditorVkButton">Настроить VK вебхук…</button>
+                      <div class="text-muted small ms-lg-auto" data-channel-editor-hint></div>
+                    </div>
+                    <div class="mt-3 d-none" id="channelEditorMaxWebhookBlock">
+                      <label class="form-label" for="channelEditorMaxWebhookSecret">MAX secret для fallback webhook <span class="text-muted">(опционально)</span></label>
+                      <input class="form-control" id="channelEditorMaxWebhookSecret" placeholder="Сверяется с заголовком X-Max-Bot-Api-Secret" />
+                      <div class="form-text">Сейчас MAX работает через long polling, поле оставлено только для быстрого возврата к webhook-режиму.</div>
+                    </div>
+                  </section>
+                </div>
               </div>
-              <div class="col-12 d-flex justify-content-between align-items-center gap-2 flex-wrap">
-                <button type="button" class="btn btn-outline-primary" id="channelEditorSendTestBtn">Отправить тест</button>
-                <div class="small text-muted" id="channelEditorTestStatus">Статус теста: —</div>
-              </div>
-            </div>
-          </div>
-          <div class="mt-4">
-            <div class="form-label">Управление ботом</div>
-            <div class="d-flex flex-column flex-lg-row gap-2 align-items-lg-center">
-              <button type="button" class="btn btn-success" id="channelEditorBotStartBtn">Запустить бота</button>
-              <button type="button" class="btn btn-outline-danger" id="channelEditorBotStopBtn">Остановить</button>
-              <div class="small text-muted d-flex flex-wrap align-items-center gap-2" data-channel-editor-bot-status>
-                <span>Статус процесса:</span>
-                <span class="badge bg-secondary-subtle text-secondary" data-channel-editor-bot-status-badge>—</span>
-                <span data-channel-editor-bot-status-details></span>
-              </div>
-            </div>
-            <div class="mt-3">
-              <div class="form-label small mb-1">Токен бота</div>
-              <div class="text-muted small d-flex flex-wrap align-items-center gap-2">
-                <span class="font-monospace" data-channel-editor-token>—</span>
-                <button type="button" class="btn btn-link btn-sm p-0 align-baseline" id="channelEditorToggleTokenBtn">Показать</button>
-                <button type="button" class="btn btn-link btn-sm p-0 align-baseline" id="channelEditorCopyTokenBtn">Скопировать</button>
-              </div>
-            </div>
-            <div class="mt-3">
-              <label class="form-label small" for="channelEditorNewToken">Новый токен</label>
-              <input class="form-control" id="channelEditorNewToken" placeholder="Оставьте пустым, если менять токен не нужно" />
-              <div class="form-text">Текущий токен указан выше. Введите новый, чтобы заменить учётные данные этого канала.</div>
-            </div>
-            <div class="mt-3">
-              <button type="button" class="btn btn-sm btn-outline-primary" id="channelEditorBotRefreshBtn">Обновить информацию о боте</button>
-              <div class="form-text small mt-1">Принудительно обновляет имя и username через Telegram API. После смены токена можно сразу синхронизировать карточку бота.</div>
-            </div>
-            <div class="form-text small">Бот запускается в отдельном Java-процессе и использует собственную SQLite-базу.</div>
-          </div>
-          <div class="mt-4 border rounded-3 p-3">
-            <div class="fw-semibold mb-2">Сетевой маршрут для этого бота</div>
+
+              <div class="tab-pane fade" id="channel-editor-runtime" role="tabpanel" aria-labelledby="channel-editor-runtime-tab">
+                <div class="channel-editor-pane">
+                  <section class="channel-editor-section channel-editor-section--accent">
+                    <div class="channel-editor-section__head">
+                      <div>
+                        <h6 class="channel-editor-section__title">
+                          <i class="bi bi-play-circle" aria-hidden="true"></i>
+                          Управление ботом
+                        </h6>
+                        <p class="channel-editor-section__hint">Операционные действия и текущий статус процесса без смешивания с остальными настройками.</p>
+                      </div>
+                    </div>
+                    <div class="d-flex flex-column flex-lg-row gap-2 align-items-lg-center">
+                      <button type="button" class="btn btn-success" id="channelEditorBotStartBtn">Запустить бота</button>
+                      <button type="button" class="btn btn-outline-danger" id="channelEditorBotStopBtn">Остановить</button>
+                      <div class="channel-editor-status-strip" data-channel-editor-bot-status>
+                        <span class="small text-muted">Процесс:</span>
+                        <span class="badge bg-secondary-subtle text-secondary" data-channel-editor-bot-status-badge>—</span>
+                        <span class="small text-muted" data-channel-editor-bot-status-details></span>
+                      </div>
+                    </div>
+                    <div class="form-text small mt-3">Бот запускается в отдельном Java-процессе и использует собственную SQLite-базу.</div>
+                  </section>
+
+                  <section class="channel-editor-section">
+                    <div class="channel-editor-section__head">
+                      <div>
+                        <h6 class="channel-editor-section__title">
+                          <i class="bi bi-key" aria-hidden="true"></i>
+                          Учётные данные и синхронизация
+                        </h6>
+                        <p class="channel-editor-section__hint">Просмотр текущего токена, его безопасная замена и обновление карточки бота.</p>
+                      </div>
+                    </div>
+                    <div class="channel-editor-inline-note mb-3">
+                      <div class="form-label small mb-1">Текущий токен бота</div>
+                      <div class="text-muted small d-flex flex-wrap align-items-center gap-2">
+                        <span class="font-monospace" data-channel-editor-token>—</span>
+                        <button type="button" class="btn btn-link btn-sm p-0 align-baseline" id="channelEditorToggleTokenBtn">Показать</button>
+                        <button type="button" class="btn btn-link btn-sm p-0 align-baseline" id="channelEditorCopyTokenBtn">Скопировать</button>
+                      </div>
+                    </div>
+                    <div class="mb-3">
+                      <label class="form-label small" for="channelEditorNewToken">Новый токен</label>
+                      <input class="form-control" id="channelEditorNewToken" placeholder="Оставьте пустым, если менять токен не нужно" />
+                      <div class="form-text">Введите новый токен только если действительно хотите заменить текущие учётные данные канала.</div>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="channelEditorBotRefreshBtn">Обновить информацию о боте</button>
+                    <div class="form-text small mt-2">Принудительно обновляет имя и username через Telegram API. После смены токена можно сразу синхронизировать карточку бота.</div>
+                  </section>
+                  <section class="channel-editor-section">
+                    <div class="channel-editor-section__head">
+                      <div>
+                        <h6 class="channel-editor-section__title">
+                          <i class="bi bi-hdd-network" aria-hidden="true"></i>
+                          Сетевой маршрут
+                        </h6>
+                        <p class="channel-editor-section__hint">Индивидуальная прокси/VPN-конфигурация этого бота поверх общей подсистемы.</p>
+                      </div>
+                    </div>
             <div class="row g-3">
               <div class="col-12 col-md-4">
                 <label class="form-label" for="channelEditorNetworkMode">Режим</label>
@@ -6247,15 +6588,10 @@
             </div>
             <div class="form-text mt-2" data-network-route-summary="channel">Если оставить «Наследовать настройки ботов», конкретный бот возьмёт маршрут из блока «Подсистема ботов».</div>
             <div class="form-text mt-1">Настройки применяются только к выбранному боту и имеют приоритет над общими параметрами подсистемы.</div>
-          </div>
-          <div class="mt-4 d-flex flex-column flex-lg-row gap-3 align-items-lg-center">
-            <button type="button" class="btn btn-outline-primary d-none" id="channelEditorVkButton">Настроить VK вебхук…</button>
-            <div class="text-muted small ms-lg-auto" data-channel-editor-hint></div>
-          </div>
-          <div class="mt-3 d-none" id="channelEditorMaxWebhookBlock">
-            <label class="form-label" for="channelEditorMaxWebhookSecret">MAX secret для fallback webhook <span class="text-muted">(опционально)</span></label>
-            <input class="form-control" id="channelEditorMaxWebhookSecret" placeholder="Сверяется с заголовком X-Max-Bot-Api-Secret" />
-            <div class="form-text">Сейчас MAX работает через long polling, поле оставлено только для быстрого возврата к webhook-режиму.</div>
+                  </section>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         <div class="modal-footer">
@@ -19564,6 +19900,7 @@
   const channelsBotStatusesInfo = document.getElementById('channelsBotStatusesInfo');
   const channelsModalEl = document.getElementById('channelsModal');
   const channelEditorModalEl = document.getElementById('channelEditorModal');
+  const channelEditorGeneralTabBtn = document.getElementById('channel-editor-general-tab');
   const channelEditorNameInput = document.getElementById('channelEditorName');
   const channelEditorActiveInput = document.getElementById('channelEditorIsActive');
   const channelEditorStatusLabel = document.querySelector('[data-channel-editor-status-label]');
@@ -22599,6 +22936,9 @@
     });
     channelEditorModalEl?.addEventListener('show.bs.modal', () => {
       setChannelsModalSuspended(true);
+      if (channelEditorGeneralTabBtn && typeof bootstrap !== 'undefined' && bootstrap.Tab) {
+        bootstrap.Tab.getOrCreateInstance(channelEditorGeneralTabBtn).show();
+      }
     });
     channelEditorModalEl?.addEventListener('hidden.bs.modal', () => {
       setChannelsModalSuspended(false);
