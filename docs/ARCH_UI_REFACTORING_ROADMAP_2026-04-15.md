@@ -179,6 +179,12 @@
   `DialogMacroService` уже переведены на новый слой напрямую, а в
   `DialogService` оставлены thin compatibility delegates для legacy
   controller/integration tests.
+- следующим связанным пакетом вынесен conversation read-layer:
+  `loadHistory`, `loadPreviousDialogHistory` и `loadTicketCategories` теперь
+  живут в `DialogConversationReadService`; `DialogReadService`,
+  `DialogWorkspaceService` и `PublicFormApiController` переведены на новый
+  слой, а `DialogService` использует его для `loadDialogDetails` и legacy
+  delegates.
 
 Что остаётся:
 
@@ -186,6 +192,9 @@
   mapping layers;
 - продолжить вытаскивать из `DialogService` remaining read/write bounded
   contexts уже поверх вынесенного `DialogClientContextReadService`;
+- продолжить service-level split уже поверх вынесенных `DialogClientContextReadService`
+  и `DialogConversationReadService`, чтобы следующий пакет брал либо
+  lookup/list-assembly, либо write-side bounded contexts;
 - при необходимости вынести DTO mapping и summary assembly из giant service;
 - расширить targeted WebMvc/service tests под новую controller/service
   раскладку.

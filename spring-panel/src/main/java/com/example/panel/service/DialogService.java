@@ -112,15 +112,18 @@ public class DialogService {
     private final JdbcTemplate usersJdbcTemplate;
     private final SharedConfigService sharedConfigService;
     private final DialogClientContextReadService dialogClientContextReadService;
+    private final DialogConversationReadService dialogConversationReadService;
 
     public DialogService(JdbcTemplate jdbcTemplate,
                          @Qualifier("usersJdbcTemplate") JdbcTemplate usersJdbcTemplate,
                          SharedConfigService sharedConfigService,
-                         DialogClientContextReadService dialogClientContextReadService) {
+                         DialogClientContextReadService dialogClientContextReadService,
+                         DialogConversationReadService dialogConversationReadService) {
         this.jdbcTemplate = jdbcTemplate;
         this.usersJdbcTemplate = usersJdbcTemplate;
         this.sharedConfigService = sharedConfigService;
         this.dialogClientContextReadService = dialogClientContextReadService;
+        this.dialogConversationReadService = dialogConversationReadService;
     }
 
     public DialogSummary loadSummary() {
@@ -709,158 +712,19 @@ public class DialogService {
     }
 
     public List<ChatMessageDto> loadHistory(String ticketId, Long channelId) {
-        if (!StringUtils.hasText(ticketId)) {
-            return Collections.emptyList();
-        }
-        try {
-            Set<String> columns = loadTableColumns("chat_history");
-            String originalMessageColumn = columns.contains("original_message")
-                    ? "original_message"
-                    : "NULL AS original_message";
-            String forwardedFromColumn = columns.contains("forwarded_from")
-                    ? "forwarded_from"
-                    : "NULL AS forwarded_from";
-            String editedAtColumn = columns.contains("edited_at")
-                    ? "edited_at"
-                    : "NULL AS edited_at";
-            String deletedAtColumn = columns.contains("deleted_at")
-                    ? "deleted_at"
-                    : "NULL AS deleted_at";
-            String baseSql = """
-                    SELECT sender, message, timestamp, message_type, attachment,
-                           tg_message_id, reply_to_tg_id, channel_id,
-                           %s, %s, %s, %s
-                      FROM chat_history
-                     WHERE ticket_id = ?
-                    """.formatted(originalMessageColumn, editedAtColumn, deletedAtColumn, forwardedFromColumn);
-            List<Object> args = new ArrayList<>();
-            args.add(ticketId);
-            if (channelId != null) {
-                baseSql += " AND channel_id = ?";
-                args.add(channelId);
-            }
-            baseSql += " ORDER BY substr(timestamp,1,19) ASC, COALESCE(tg_message_id, 0) ASC, rowid ASC";
-
-            List<Map<String, Object>> rows = jdbcTemplate.queryForList(baseSql, args.toArray());
-            Map<String, String> previewByMessage = new HashMap<>();
-            for (Map<String, Object> row : rows) {
-                Long tgMessageId = parseLong(row.get("tg_message_id"));
-                if (tgMessageId == null) {
-                    continue;
-                }
-                String key = previewKey(parseLong(row.get("channel_id")), tgMessageId);
-                String preview = buildPreview(row.get("message"), row.get("message_type"));
-                if (StringUtils.hasText(preview)) {
-                    previewByMessage.put(key, preview);
-                }
-            }
-
-            List<ChatMessageDto> history = new ArrayList<>();
-            for (Map<String, Object> row : rows) {
-                Long replyTo = parseLong(row.get("reply_to_tg_id"));
-                String replyPreview = null;
-                if (replyTo != null) {
-                    String key = previewKey(parseLong(row.get("channel_id")), replyTo);
-                    replyPreview = previewByMessage.get(key);
-                }
-                String attachment = toAttachmentUrl(ticketId, value(row.get("attachment")));
-                String message = value(row.get("message"));
-                String originalMessage = value(row.get("original_message"));
-                String deletedAt = value(row.get("deleted_at"));
-                history.add(new ChatMessageDto(
-                        value(row.get("sender")),
-                        deletedAt != null ? "" : message,
-                        originalMessage != null ? originalMessage : message,
-                        value(row.get("timestamp")),
-                        value(row.get("message_type")),
-                        attachment,
-                        parseLong(row.get("tg_message_id")),
-                        replyTo,
-                        replyPreview,
-                        value(row.get("edited_at")),
-                        deletedAt,
-                        value(row.get("forwarded_from"))
-                ));
-            }
-            return history;
-        } catch (DataAccessException ex) {
-            log.warn("Unable to load chat history for ticket {}: {}", ticketId, summarizeDataAccessException(ex));
-            return List.of();
-        }
+        return dialogConversationReadService.loadHistory(ticketId, channelId);
     }
 
     public Optional<DialogDetails> loadDialogDetails(String ticketId, Long channelId, String operator) {
-        return findDialog(ticketId, operator).map(item -> new DialogDetails(item, loadHistory(ticketId, channelId), loadTicketCategories(ticketId)));
+        return findDialog(ticketId, operator).map(item -> new DialogDetails(
+                item,
+                dialogConversationReadService.loadHistory(ticketId, channelId),
+                dialogConversationReadService.loadTicketCategories(ticketId)
+        ));
     }
 
     public Optional<DialogPreviousHistoryPage> loadPreviousDialogHistory(String ticketId, int offset) {
-        if (!StringUtils.hasText(ticketId) || offset < 0) {
-            return Optional.empty();
-        }
-        try {
-            String sql = """
-                    SELECT
-                        m.ticket_id,
-                        COALESCE(t.status, 'pending') AS status,
-                        MAX(COALESCE(m.created_at, t.created_at)) AS created_at,
-                        MAX(COALESCE(NULLIF(m.problem, ''), '')) AS problem,
-                        MAX(COALESCE(c.channel_name, 'Без канала')) AS channel_name,
-                        CASE
-                            WHEN EXISTS (
-                                SELECT 1
-                                  FROM web_form_sessions w
-                                 WHERE w.ticket_id = m.ticket_id
-                            ) THEN 'web_form'
-                            WHEN lower(COALESCE(MAX(c.platform), '')) = 'vk' THEN 'vk'
-                            WHEN lower(COALESCE(MAX(c.platform), '')) = 'max' THEN 'max'
-                            WHEN lower(COALESCE(MAX(c.platform), '')) = 'telegram'
-                                 OR trim(COALESCE(MAX(c.platform), '')) = '' THEN 'telegram'
-                            ELSE lower(MAX(c.platform))
-                        END AS source_key
-                      FROM messages m
-                      LEFT JOIN tickets t ON t.ticket_id = m.ticket_id
-                      LEFT JOIN channels c ON c.id = m.channel_id
-                     WHERE m.user_id = (
-                            SELECT m2.user_id
-                              FROM messages m2
-                             WHERE m2.ticket_id = ?
-                               AND m2.user_id IS NOT NULL
-                             ORDER BY substr(m2.created_at, 1, 19) DESC,
-                                      m2.group_msg_id DESC
-                             LIMIT 1
-                        )
-                       AND m.ticket_id <> ?
-                     GROUP BY m.ticket_id, COALESCE(t.status, 'pending')
-                     ORDER BY MAX(substr(COALESCE(m.created_at, t.created_at), 1, 19)) DESC,
-                              m.ticket_id DESC
-                     LIMIT 2 OFFSET ?
-                    """;
-            List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql, ticketId.trim(), ticketId.trim(), offset);
-            List<DialogPreviousHistoryBatch> batches = new ArrayList<>();
-            for (Map<String, Object> row : rows) {
-                String previousTicketId = value(row.get("ticket_id"));
-                String sourceKey = normalizeDialogSourceKey(value(row.get("source_key")));
-                batches.add(new DialogPreviousHistoryBatch(
-                        previousTicketId,
-                        value(row.get("status")),
-                        value(row.get("created_at")),
-                        value(row.get("problem")),
-                        value(row.get("channel_name")),
-                        sourceKey,
-                        resolveDialogSourceLabel(sourceKey),
-                        loadHistory(previousTicketId, null)
-                ));
-            }
-            if (batches.isEmpty()) {
-                return Optional.empty();
-            }
-            boolean hasMore = batches.size() > 1;
-            Integer nextOffset = hasMore ? offset + 1 : null;
-            return Optional.of(new DialogPreviousHistoryPage(batches.get(0), nextOffset, hasMore));
-        } catch (DataAccessException ex) {
-            log.warn("Unable to load previous chat history for ticket {}: {}", ticketId, summarizeDataAccessException(ex));
-            return Optional.empty();
-        }
+        return dialogConversationReadService.loadPreviousDialogHistory(ticketId, offset);
     }
 
     public List<Map<String, Object>> loadClientDialogHistory(Long userId, String currentTicketId, int limit) {
@@ -873,21 +737,6 @@ public class DialogService {
 
     public Map<String, Object> loadDialogProfileMatchCandidates(Map<String, String> incomingValues, int perFieldLimit) {
         return dialogClientContextReadService.loadDialogProfileMatchCandidates(incomingValues, perFieldLimit);
-    }
-
-    private String normalizeDialogSourceKey(String value) {
-        String normalized = trimOrNull(value);
-        return normalized == null ? "telegram" : normalized.toLowerCase(Locale.ROOT);
-    }
-
-    private String resolveDialogSourceLabel(String value) {
-        return switch (normalizeDialogSourceKey(value)) {
-            case "vk" -> "VK";
-            case "max" -> "MAX";
-            case "web_form" -> "Внешняя форма";
-            case "telegram" -> "Telegram";
-            default -> "Источник не определён";
-        };
     }
 
     public List<Map<String, Object>> loadRelatedEvents(String ticketId, int limit) {
@@ -6413,19 +6262,7 @@ public class DialogService {
     }
 
     public List<String> loadTicketCategories(String ticketId) {
-        if (!StringUtils.hasText(ticketId)) {
-            return List.of();
-        }
-        try {
-            return jdbcTemplate.query(
-                    "SELECT category FROM ticket_categories WHERE ticket_id = ? ORDER BY category ASC",
-                    (rs, rowNum) -> rs.getString("category"),
-                    ticketId
-            );
-        } catch (DataAccessException ex) {
-            log.warn("Unable to load categories for ticket {}: {}", ticketId, summarizeDataAccessException(ex));
-            return List.of();
-        }
+        return dialogConversationReadService.loadTicketCategories(ticketId);
     }
 
     public void setTicketCategories(String ticketId, List<String> categories) {
@@ -6565,80 +6402,6 @@ public class DialogService {
             log.warn("Unable to reopen ticket {}: {}", ticketId, summarizeDataAccessException(ex));
             return new ResolveResult(false, false, null);
         }
-    }
-
-    private static String buildPreview(Object message, Object messageType) {
-        String base = value(message);
-        if (StringUtils.hasText(base)) {
-            return truncate(base.trim(), 140);
-        }
-        String type = value(messageType);
-        if (StringUtils.hasText(type) && !"text".equalsIgnoreCase(type)) {
-            return "[" + type.toLowerCase() + "]";
-        }
-        return null;
-    }
-
-    private static String truncate(String value, int max) {
-        if (!StringUtils.hasText(value) || value.length() <= max) {
-            return value;
-        }
-        return value.substring(0, max) + "…";
-    }
-
-    private static String previewKey(Long channelId, Long telegramMessageId) {
-        return channelId + ":" + telegramMessageId;
-    }
-
-    private static String toAttachmentUrl(String ticketId, String attachment) {
-        if (!StringUtils.hasText(attachment)) {
-            return null;
-        }
-        if (attachment.startsWith("/api/attachments/")) {
-            return attachment;
-        }
-        if (attachment.startsWith("http://") || attachment.startsWith("https://")) {
-            try {
-                URI uri = URI.create(attachment);
-                if (uri.getPath() != null && uri.getPath().startsWith("/api/attachments/")) {
-                    String query = StringUtils.hasText(uri.getQuery()) ? "?" + uri.getQuery() : "";
-                    String fragment = StringUtils.hasText(uri.getFragment()) ? "#" + uri.getFragment() : "";
-                    return uri.getPath() + query + fragment;
-                }
-            } catch (IllegalArgumentException ignored) {
-                return attachment;
-            }
-            return attachment;
-        }
-        try {
-            java.nio.file.Path parsed = java.nio.file.Paths.get(attachment);
-            String normalized = parsed.toString().replace('\\', '/');
-            if (normalized.contains("/")) {
-                return "/api/attachments/tickets/by-path?path=" + java.net.URLEncoder.encode(normalized, java.nio.charset.StandardCharsets.UTF_8);
-            }
-            String filename = parsed.getFileName().toString();
-            return "/api/attachments/tickets/" + ticketId + "/" + filename;
-        } catch (Exception ex) {
-            return attachment;
-        }
-    }
-
-    private static Long parseLong(Object value) {
-        if (value == null) {
-            return null;
-        }
-        if (value instanceof Number number) {
-            return number.longValue();
-        }
-        try {
-            return Long.parseLong(value.toString());
-        } catch (NumberFormatException ignored) {
-            return null;
-        }
-    }
-
-    private static String value(Object value) {
-        return value != null ? value.toString() : null;
     }
 
     private List<String> normalizeCategories(List<String> categories) {
