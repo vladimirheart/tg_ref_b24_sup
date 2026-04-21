@@ -5,7 +5,7 @@ import com.example.panel.model.publicform.PublicFormConfig;
 import com.example.panel.model.publicform.PublicFormQuestion;
 import com.example.panel.model.publicform.PublicFormSessionDto;
 import com.example.panel.model.publicform.PublicFormSubmission;
-import com.example.panel.service.DialogService;
+import com.example.panel.service.DialogConversationReadService;
 import com.example.panel.service.PublicFormService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -41,11 +41,12 @@ public class PublicFormApiController {
     private static final Logger log = LoggerFactory.getLogger(PublicFormApiController.class);
 
     private final PublicFormService publicFormService;
-    private final DialogService dialogService;
+    private final DialogConversationReadService dialogConversationReadService;
 
-    public PublicFormApiController(PublicFormService publicFormService, DialogService dialogService) {
+    public PublicFormApiController(PublicFormService publicFormService,
+                                   DialogConversationReadService dialogConversationReadService) {
         this.publicFormService = publicFormService;
-        this.dialogService = dialogService;
+        this.dialogConversationReadService = dialogConversationReadService;
     }
 
     @GetMapping("/{channelId}/config")
@@ -138,7 +139,7 @@ public class PublicFormApiController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(Map.of("success", false, "error", "Диалог не найден", "errorCode", "SESSION_NOT_FOUND"));
         }
-        List<ChatMessageDto> history = dialogService.loadHistory(session.get().ticketId(), channelFilter);
+        List<ChatMessageDto> history = dialogConversationReadService.loadHistory(session.get().ticketId(), channelFilter);
         log.info("Public form session {} for channel {} loaded with {} history messages",
                 maskToken(token), channelId, history.size());
         Map<String, Object> response = new LinkedHashMap<>();

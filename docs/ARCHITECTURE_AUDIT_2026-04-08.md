@@ -42,6 +42,10 @@
   read-layer: история обращений клиента, profile enrichment, profile match
   candidates и related events теперь живут в `DialogClientContextReadService`,
   а `workspace/macro` сценарии используют его напрямую;
+- туда же добавлен отдельный conversation read-layer:
+  история сообщений, previous history и ticket categories теперь живут в
+  `DialogConversationReadService`, а `DialogReadService`, `workspace` и
+  `public form` перестали тянуть этот срез через giant service;
 - SLA/runtime дублирование между `DialogWorkspaceService` и
   `DialogListReadService` уменьшено через общий `DialogSlaRuntimeService`,
   который теперь держит lifecycle-state, deadline, minutes-left и config
@@ -59,7 +63,9 @@
 
 - `DialogService` всё ещё слишком крупный и остаётся главным кандидатом на
   service-level split, хотя первый client-context read slice из него уже
-  выделен и часть потребителей переведена на новый слой;
+  выделен и часть потребителей переведена на новый слой; теперь к нему
+  добавлен и второй conversation read slice, что заметно уменьшает pressure
+  на giant service, но не закрывает lookup/list/write части домена;
 - `DialogWorkspaceService` всё ещё крупный, хотя уже начал разгружаться через
   выделенные workspace sub-services и уже прикрыт targeted service tests по
   parity, navigation, rollout, client profile, context blocks, client payload,

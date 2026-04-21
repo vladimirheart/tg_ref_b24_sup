@@ -51,6 +51,7 @@ public class DialogWorkspaceService {
     private final DialogWorkspaceContextContractService dialogWorkspaceContextContractService;
     private final DialogSlaRuntimeService dialogSlaRuntimeService;
     private final DialogClientContextReadService dialogClientContextReadService;
+    private final DialogConversationReadService dialogConversationReadService;
     private static final int DEFAULT_SLA_TARGET_MINUTES = 24 * 60;
     private static final int DEFAULT_SLA_WARNING_MINUTES = 4 * 60;
     private static final int DEFAULT_WORKSPACE_LIMIT = 50;
@@ -70,7 +71,8 @@ public class DialogWorkspaceService {
                                   DialogWorkspaceContextSourceService dialogWorkspaceContextSourceService,
                                   DialogWorkspaceContextContractService dialogWorkspaceContextContractService,
                                   DialogSlaRuntimeService dialogSlaRuntimeService,
-                                  DialogClientContextReadService dialogClientContextReadService) {
+                                  DialogClientContextReadService dialogClientContextReadService,
+                                  DialogConversationReadService dialogConversationReadService) {
         this.dialogService = dialogService;
         this.sharedConfigService = sharedConfigService;
         this.dialogAuthorizationService = dialogAuthorizationService;
@@ -86,6 +88,7 @@ public class DialogWorkspaceService {
         this.dialogWorkspaceContextContractService = dialogWorkspaceContextContractService;
         this.dialogSlaRuntimeService = dialogSlaRuntimeService;
         this.dialogClientContextReadService = dialogClientContextReadService;
+        this.dialogConversationReadService = dialogConversationReadService;
     }
 
     private Map<String, Object> resolveWorkspaceExternalProfileEnrichment(Map<String, Object> settings,
@@ -141,7 +144,7 @@ public class DialogWorkspaceService {
         Set<String> includeSections = resolveWorkspaceInclude(include);
         int resolvedLimit = resolveWorkspaceLimit(limit);
         int resolvedCursor = resolveWorkspaceCursor(cursor);
-        List<ChatMessageDto> history = dialogService.loadHistory(ticketId, channelId);
+        List<ChatMessageDto> history = dialogConversationReadService.loadHistory(ticketId, channelId);
 
         int safeCursor = Math.min(Math.max(resolvedCursor, 0), history.size());
         int endExclusive = Math.min(safeCursor + resolvedLimit, history.size());

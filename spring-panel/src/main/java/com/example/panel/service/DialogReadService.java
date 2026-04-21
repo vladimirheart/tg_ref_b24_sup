@@ -20,11 +20,14 @@ public class DialogReadService {
     private static final Logger log = LoggerFactory.getLogger(DialogReadService.class);
 
     private final DialogService dialogService;
+    private final DialogConversationReadService dialogConversationReadService;
     private final PublicFormService publicFormService;
 
     public DialogReadService(DialogService dialogService,
+                             DialogConversationReadService dialogConversationReadService,
                              PublicFormService publicFormService) {
         this.dialogService = dialogService;
+        this.dialogConversationReadService = dialogConversationReadService;
         this.publicFormService = publicFormService;
     }
 
@@ -47,7 +50,7 @@ public class DialogReadService {
 
     public Map<String, Object> loadHistory(String ticketId, Long channelId, String operator) {
         dialogService.markDialogAsRead(ticketId, operator);
-        List<ChatMessageDto> history = dialogService.loadHistory(ticketId, channelId);
+        List<ChatMessageDto> history = dialogConversationReadService.loadHistory(ticketId, channelId);
         log.info("History requested for ticket {} (channelId={}): {} messages", ticketId, channelId, history.size());
         return Map.of(
                 "success", true,
@@ -57,7 +60,7 @@ public class DialogReadService {
 
     public ResponseEntity<?> loadPreviousHistory(String ticketId, Integer offset) {
         int resolvedOffset = offset != null ? Math.max(0, offset) : 0;
-        Optional<DialogPreviousHistoryPage> page = dialogService.loadPreviousDialogHistory(ticketId, resolvedOffset);
+        Optional<DialogPreviousHistoryPage> page = dialogConversationReadService.loadPreviousDialogHistory(ticketId, resolvedOffset);
         if (page.isEmpty()) {
             return ResponseEntity.ok(Map.of(
                     "success", true,

@@ -4,7 +4,7 @@ import com.example.panel.model.publicform.PublicFormConfig;
 import com.example.panel.model.publicform.PublicFormQuestion;
 import com.example.panel.model.publicform.PublicFormSessionDto;
 import com.example.panel.model.publicform.PublicFormSubmission;
-import com.example.panel.service.DialogService;
+import com.example.panel.service.DialogConversationReadService;
 import com.example.panel.service.PublicFormService;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -42,7 +42,7 @@ class PublicFormApiControllerWebMvcTest {
     private PublicFormService publicFormService;
 
     @MockBean
-    private DialogService dialogService;
+    private DialogConversationReadService dialogConversationReadService;
 
     @Test
     void configReturnsGoneWhenChannelFormDisabledWith410Policy() throws Exception {
@@ -266,7 +266,7 @@ class PublicFormApiControllerWebMvcTest {
                 "openUrl", "",
                 "hint", "Send command"
         ));
-        when(dialogService.loadHistory("T-202", null)).thenReturn(List.of());
+        when(dialogConversationReadService.loadHistory("T-202", null)).thenReturn(List.of());
 
         mockMvc.perform(get("/api/public/forms/web-session/sessions/token-2"))
                 .andExpect(status().isOk())
