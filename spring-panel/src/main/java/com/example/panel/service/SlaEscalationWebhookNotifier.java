@@ -3,6 +3,7 @@ package com.example.panel.service;
 import com.example.panel.model.dialog.DialogListItem;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -42,6 +43,7 @@ public class SlaEscalationWebhookNotifier {
 
     private final SharedConfigService sharedConfigService;
     private final DialogService dialogService;
+    private final DialogAuditService dialogAuditService;
     private final ObjectMapper objectMapper;
     private final Map<String, Instant> ticketCooldownCache = new ConcurrentHashMap<>();
     private final Map<String, Integer> roundRobinCursorByRoute = new ConcurrentHashMap<>();
@@ -54,12 +56,21 @@ public class SlaEscalationWebhookNotifier {
 
     record WebhookEndpoint(String url, Map<String, String> headers) {}
 
+    @Autowired
     public SlaEscalationWebhookNotifier(SharedConfigService sharedConfigService,
                                         DialogService dialogService,
+                                        DialogAuditService dialogAuditService,
                                         ObjectMapper objectMapper) {
         this.sharedConfigService = sharedConfigService;
         this.dialogService = dialogService;
+        this.dialogAuditService = dialogAuditService;
         this.objectMapper = objectMapper;
+    }
+
+    SlaEscalationWebhookNotifier(SharedConfigService sharedConfigService,
+                                 DialogService dialogService,
+                                 ObjectMapper objectMapper) {
+        this(sharedConfigService, dialogService, null, objectMapper);
     }
 
     @Scheduled(fixedDelayString = "${panel.sla-escalation.webhook-check-interval-ms:120000}")
@@ -263,7 +274,11 @@ public class SlaEscalationWebhookNotifier {
                     + ";source=" + decision.source()
                     + ";route=" + decision.route()
                     + (decision.previousResponsible() != null ? ";previous_responsible=" + decision.previousResponsible() : "");
-            dialogService.logDialogActionAudit(decision.ticketId(), actor, action, "success", detail);
+            if (dialogAuditService != null) {
+                dialogAuditService.logDialogActionAudit(decision.ticketId(), actor, action, "success", detail);
+            } else {
+                dialogService.logDialogActionAudit(decision.ticketId(), actor, action, "success", detail);
+            }
             assignedCount++;
         }
         if (assignedCount > 0) {

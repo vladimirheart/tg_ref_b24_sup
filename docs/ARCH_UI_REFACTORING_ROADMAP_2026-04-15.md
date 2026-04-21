@@ -195,6 +195,14 @@
   `DialogQuickActionService`, `DialogReadService`, `DialogWorkspaceService`,
   `DialogReplyService`, `DashboardController`, `DashboardApiController` и
   `DialogsController` уже переведены на новые зависимости напрямую.
+- следующим write-side пакетом из giant `DialogService` вынесены
+  `ticket lifecycle` и `audit logging`: `resolveTicket`, `reopenTicket` и
+  `setTicketCategories` теперь обслуживаются через
+  `DialogTicketLifecycleService`, а `logDialogActionAudit` и
+  `logWorkspaceTelemetry` — через `DialogAuditService`; прямые потребители
+  вроде `DialogQuickActionService`, `DialogAuthorizationService`,
+  `DialogWorkspaceTelemetryService`, `AnalyticsController` и
+  `DialogTriagePreferencesController` уже переведены на новые зависимости.
 
 Что остаётся:
 
@@ -204,9 +212,10 @@
   contexts уже поверх вынесенного `DialogClientContextReadService`;
 - продолжить service-level split уже поверх вынесенных
   `DialogClientContextReadService`, `DialogConversationReadService`,
-  `DialogLookupReadService` и `DialogResponsibilityService`, чтобы следующий
-  пакет брал уже remaining write-side bounded contexts и/или cleanup legacy
-  helper layers;
+  `DialogLookupReadService`, `DialogResponsibilityService`,
+  `DialogTicketLifecycleService` и `DialogAuditService`, чтобы следующий пакет
+  брал уже remaining bounded contexts вроде telemetry summary / macro
+  governance и/или cleanup legacy helper layers;
 - при необходимости вынести DTO mapping и summary assembly из giant service;
 - расширить targeted WebMvc/service tests под новую controller/service
   раскладку.

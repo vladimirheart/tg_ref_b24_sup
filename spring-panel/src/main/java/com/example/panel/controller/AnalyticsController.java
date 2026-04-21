@@ -3,7 +3,7 @@ package com.example.panel.controller;
 import com.example.panel.model.AnalyticsClientSummary;
 import com.example.panel.model.AnalyticsTicketSummary;
 import com.example.panel.service.AnalyticsService;
-import com.example.panel.service.DialogService;
+import com.example.panel.service.DialogAuditService;
 import com.example.panel.service.NavigationService;
 import com.example.panel.service.SharedConfigService;
 import org.slf4j.Logger;
@@ -39,16 +39,16 @@ public class AnalyticsController {
     private static final Logger log = LoggerFactory.getLogger(AnalyticsController.class);
 
     private final AnalyticsService analyticsService;
-    private final DialogService dialogService;
+    private final DialogAuditService dialogAuditService;
     private final NavigationService navigationService;
     private final SharedConfigService sharedConfigService;
 
     public AnalyticsController(AnalyticsService analyticsService,
-                               DialogService dialogService,
+                               DialogAuditService dialogAuditService,
                                NavigationService navigationService,
                                SharedConfigService sharedConfigService) {
         this.analyticsService = analyticsService;
-        this.dialogService = dialogService;
+        this.dialogAuditService = dialogAuditService;
         this.navigationService = navigationService;
         this.sharedConfigService = sharedConfigService;
     }
@@ -222,7 +222,7 @@ public class AnalyticsController {
         long cadenceDays = parsePositiveLong(cadenceRaw);
         String dueAtUtc = cadenceDays > 0 ? reviewedAtUtc.plusDays(cadenceDays).toInstant().toString() : "";
 
-        dialogService.logWorkspaceTelemetry(
+        dialogAuditService.logWorkspaceTelemetry(
                 actor,
                 "workspace_rollout_review_confirmed",
                 "experiment",
@@ -240,7 +240,7 @@ public class AnalyticsController {
                 null
         );
         if (decisionAction != null) {
-            dialogService.logWorkspaceTelemetry(
+            dialogAuditService.logWorkspaceTelemetry(
                     actor,
                     "workspace_rollout_review_decision_" + decisionAction,
                     "experiment",
@@ -259,7 +259,7 @@ public class AnalyticsController {
             );
         }
         if (incidentFollowup != null) {
-            dialogService.logWorkspaceTelemetry(
+            dialogAuditService.logWorkspaceTelemetry(
                     actor,
                     "workspace_rollout_review_incident_followup_linked",
                     "experiment",
@@ -398,7 +398,7 @@ public class AnalyticsController {
         settings.put("dialog_config", dialogConfig);
         sharedConfigService.saveSettings(settings);
 
-        dialogService.logWorkspaceTelemetry(
+        dialogAuditService.logWorkspaceTelemetry(
                 actor,
                 "workspace_context_contract_updated",
                 "experiment",
@@ -507,7 +507,7 @@ public class AnalyticsController {
         settings.put("dialog_config", dialogConfig);
         sharedConfigService.saveSettings(settings);
 
-        dialogService.logWorkspaceTelemetry(
+        dialogAuditService.logWorkspaceTelemetry(
                 actor,
                 "workspace_legacy_inventory_updated",
                 "experiment",
@@ -663,7 +663,7 @@ public class AnalyticsController {
     settings.put("dialog_config", dialogConfig);
     sharedConfigService.saveSettings(settings);
 
-    dialogService.logWorkspaceTelemetry(
+    dialogAuditService.logWorkspaceTelemetry(
             actor,
             "workspace_legacy_usage_policy_updated",
             "experiment",
@@ -775,7 +775,7 @@ public class AnalyticsController {
         settings.put("dialog_config", dialogConfig);
         sharedConfigService.saveSettings(settings);
 
-        dialogService.logWorkspaceTelemetry(
+        dialogAuditService.logWorkspaceTelemetry(
                 actor,
                 "workspace_sla_policy_review_updated",
                 "experiment",
@@ -869,7 +869,7 @@ public class AnalyticsController {
         settings.put("dialog_config", dialogConfig);
         sharedConfigService.saveSettings(settings);
 
-        dialogService.logWorkspaceTelemetry(
+        dialogAuditService.logWorkspaceTelemetry(
                 actor,
                 "workspace_macro_governance_review_updated",
                 "experiment",
@@ -977,7 +977,7 @@ public class AnalyticsController {
         settings.put("dialog_config", dialogConfig);
         sharedConfigService.saveSettings(settings);
 
-        dialogService.logWorkspaceTelemetry(
+        dialogAuditService.logWorkspaceTelemetry(
                 actor,
                 "workspace_macro_external_catalog_policy_updated",
                 "experiment",
@@ -1078,7 +1078,7 @@ public class AnalyticsController {
         settings.put("dialog_config", dialogConfig);
         sharedConfigService.saveSettings(settings);
 
-        dialogService.logWorkspaceTelemetry(
+        dialogAuditService.logWorkspaceTelemetry(
                 actor,
                 "workspace_macro_deprecation_policy_updated",
                 "experiment",

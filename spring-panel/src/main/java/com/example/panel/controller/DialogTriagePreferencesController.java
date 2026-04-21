@@ -1,6 +1,6 @@
 package com.example.panel.controller;
 
-import com.example.panel.service.DialogService;
+import com.example.panel.service.DialogAuditService;
 import com.example.panel.service.DialogTriagePreferenceService;
 import com.fasterxml.jackson.annotation.JsonAlias;
 import org.springframework.http.HttpStatus;
@@ -23,12 +23,12 @@ import java.util.Map;
 public class DialogTriagePreferencesController {
 
     private final DialogTriagePreferenceService dialogTriagePreferenceService;
-    private final DialogService dialogService;
+    private final DialogAuditService dialogAuditService;
 
     public DialogTriagePreferencesController(DialogTriagePreferenceService dialogTriagePreferenceService,
-                                             DialogService dialogService) {
+                                             DialogAuditService dialogAuditService) {
         this.dialogTriagePreferenceService = dialogTriagePreferenceService;
-        this.dialogService = dialogService;
+        this.dialogAuditService = dialogAuditService;
     }
 
     @GetMapping("/triage-preferences")
@@ -70,7 +70,7 @@ public class DialogTriagePreferencesController {
                 ? value
                 : Instant.now().toString();
 
-        dialogService.logWorkspaceTelemetry(
+        dialogAuditService.logWorkspaceTelemetry(
                 operator,
                 "triage_preferences_saved",
                 "triage",

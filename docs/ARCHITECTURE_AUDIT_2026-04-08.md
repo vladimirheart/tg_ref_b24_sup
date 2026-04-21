@@ -54,6 +54,13 @@
   `DialogQuickActionService`, `DialogReadService`, `DialogWorkspaceService`,
   `DialogReplyService`, `DashboardController`, `DashboardApiController` и
   `DialogsController`;
+- следующим пакетом туда же вынесены write-side lifecycle/audit срезы:
+  `DialogTicketLifecycleService` теперь обслуживает
+  `resolve/reopen/categories`, а `DialogAuditService` — dialog action audit и
+  workspace telemetry logging; на новые зависимости уже переведены
+  `DialogQuickActionService`, `DialogAuthorizationService`,
+  `DialogWorkspaceTelemetryService`, `AnalyticsController` и
+  `DialogTriagePreferencesController`;
 - SLA/runtime дублирование между `DialogWorkspaceService` и
   `DialogListReadService` уменьшено через общий `DialogSlaRuntimeService`,
   который теперь держит lifecycle-state, deadline, minutes-left и config
@@ -74,8 +81,8 @@
   выделен и часть потребителей переведена на новый слой; теперь к нему
   добавлен и второй conversation read slice, что заметно уменьшает pressure
   на giant service; теперь к этому добавлены ещё lookup/responsibility slices,
-  но remaining write-side bounded contexts и legacy helper blocks всё ещё не
-  закрыты полностью;
+  а теперь и lifecycle/audit slices, но remaining bounded contexts и legacy
+  helper blocks всё ещё не закрыты полностью;
 - `DialogWorkspaceService` всё ещё крупный, хотя уже начал разгружаться через
   выделенные workspace sub-services и уже прикрыт targeted service tests по
   parity, navigation, rollout, client profile, context blocks, client payload,
@@ -166,6 +173,8 @@ DialogService
   ├─ DialogClientContextReadService
   ├─ DialogConversationReadService
   ├─ DialogResponsibilityService
+  ├─ DialogTicketLifecycleService
+  ├─ DialogAuditService
   ├─ DialogWorkspaceService
   ├─ DialogSlaService
   ├─ DialogAiService

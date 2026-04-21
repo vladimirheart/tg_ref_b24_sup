@@ -62,15 +62,18 @@ public class DialogWorkspaceTelemetryService {
     );
 
     private final DialogService dialogService;
+    private final DialogAuditService dialogAuditService;
     private final DialogLookupReadService dialogLookupReadService;
     private final SharedConfigService sharedConfigService;
     private final SlaEscalationWebhookNotifier slaEscalationWebhookNotifier;
 
     public DialogWorkspaceTelemetryService(DialogService dialogService,
+                                           DialogAuditService dialogAuditService,
                                            DialogLookupReadService dialogLookupReadService,
                                            SharedConfigService sharedConfigService,
                                            SlaEscalationWebhookNotifier slaEscalationWebhookNotifier) {
         this.dialogService = dialogService;
+        this.dialogAuditService = dialogAuditService;
         this.dialogLookupReadService = dialogLookupReadService;
         this.sharedConfigService = sharedConfigService;
         this.slaEscalationWebhookNotifier = slaEscalationWebhookNotifier;
@@ -88,7 +91,7 @@ public class DialogWorkspaceTelemetryService {
                     "error", "unsupported event_type",
                     "allowed_event_types", WORKSPACE_TELEMETRY_EVENT_GROUPS.keySet()));
         }
-        dialogService.logWorkspaceTelemetry(
+        dialogAuditService.logWorkspaceTelemetry(
                 operator,
                 normalizedEventType,
                 eventGroup,
@@ -173,7 +176,7 @@ public class DialogWorkspaceTelemetryService {
         if (StringUtils.hasText(request.templateId())) {
             detail.append(" [").append(request.templateId().trim()).append("]");
         }
-        dialogService.logDialogActionAudit(request.ticketId(), operator, "macro_apply", "success", detail.toString());
+        dialogAuditService.logDialogActionAudit(request.ticketId(), operator, "macro_apply", "success", detail.toString());
     }
 
     private Map<String, Object> buildP1OperationalControl(Map<String, Object> payload) {

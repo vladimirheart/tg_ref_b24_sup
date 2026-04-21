@@ -11,7 +11,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.example.panel.service.DialogService;
+import com.example.panel.service.DialogAuditService;
 import com.example.panel.service.DialogTriagePreferenceService;
 import java.util.List;
 import java.util.Map;
@@ -34,7 +34,7 @@ class DialogTriagePreferencesControllerWebMvcTest {
     private DialogTriagePreferenceService dialogTriagePreferenceService;
 
     @MockBean
-    private DialogService dialogService;
+    private DialogAuditService dialogAuditService;
 
     @Test
     void getTriagePreferencesRequiresAuthentication() throws Exception {
@@ -86,7 +86,7 @@ class DialogTriagePreferencesControllerWebMvcTest {
             .andExpect(jsonPath("$.preferences.page_size").value("50"))
             .andExpect(jsonPath("$.updated_at_utc").value("2026-04-20T07:00:00Z"));
 
-        verify(dialogService).logWorkspaceTelemetry(
+        verify(dialogAuditService).logWorkspaceTelemetry(
             eq("operator"),
             eq("triage_preferences_saved"),
             eq("triage"),
