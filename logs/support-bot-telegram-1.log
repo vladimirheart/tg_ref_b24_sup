@@ -62,3 +62,648 @@
 2026-04-21 10:22:38.966+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Telegram client will use proxy vless://185.237.223.25:7878
 2026-04-21 10:23:00.354+03:00 INFO  [main] o.a.http.impl.execchain.RetryExec - I/O exception (java.net.SocketException) caught when processing request to {s}->https://api.telegram.org:443: Connection timed out: getsockopt
 2026-04-21 10:23:00.354+03:00 INFO  [main] o.a.http.impl.execchain.RetryExec - Retrying request to {s}->https://api.telegram.org:443
+2026-04-21 16:37:20.599+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
+2026-04-21 16:37:20.643+03:00 INFO  [main] c.e.s.t.TelegramBotApplication - Starting TelegramBotApplication using Java 25.0.2 with PID 34148 (C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-telegram\target\classes started by SinicinVV in C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-telegram)
+2026-04-21 16:37:20.644+03:00 INFO  [main] c.e.s.t.TelegramBotApplication - The following 1 profile is active: "default"
+2026-04-21 16:37:21.308+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-04-21 16:37:21.463+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 146 ms. Found 30 JPA repository interfaces.
+2026-04-21 16:37:21.993+03:00 INFO  [main] o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-04-21 16:37:22.060+03:00 INFO  [main] org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
+2026-04-21 16:37:22.093+03:00 INFO  [main] o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
+2026-04-21 16:37:22.319+03:00 INFO  [main] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-04-21 16:37:25.292+03:00 INFO  [main] o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-04-21 16:37:25.297+03:00 INFO  [main] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-04-21 16:37:28.008+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Initializing Telegram bot configuration check
+2026-04-21 16:37:28.011+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Telegram bot configuration: username='tst_int_SV_bot' token=8391…kzYU (46) channelId=-4961108450
+2026-04-21 16:37:28.012+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Telegram client will use proxy vless://185.237.223.25:7878
+2026-04-21 16:37:28.178+03:00 ERROR [main] c.e.supportbot.telegram.SupportBot - Telegram API connectivity check failed while calling getMe. The configured token may still be valid, but the application could not establish a stable HTTPS connection to api.telegram.org:443. Verify outbound network access, firewall/proxy rules, TLS interception, and antivirus filtering.
+org.telegram.telegrambots.meta.exceptions.TelegramApiException: Unable to execute getme method
+	at org.telegram.telegrambots.bots.DefaultAbsSender.sendApiMethod(DefaultAbsSender.java:1184)
+	at org.telegram.telegrambots.meta.bots.AbsSender.execute(AbsSender.java:61)
+	at com.example.supportbot.telegram.SupportBot.verifyBotCredentials(SupportBot.java:163)
+	at com.example.supportbot.telegram.SupportBot.logBotConfiguration(SupportBot.java:148)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.beans.factory.annotation.InitDestroyAnnotationBeanPostProcessor$LifecycleMethod.invoke(InitDestroyAnnotationBeanPostProcessor.java:457)
+	at org.springframework.beans.factory.annotation.InitDestroyAnnotationBeanPostProcessor$LifecycleMetadata.invokeInitMethods(InitDestroyAnnotationBeanPostProcessor.java:401)
+	at org.springframework.beans.factory.annotation.InitDestroyAnnotationBeanPostProcessor.postProcessBeforeInitialization(InitDestroyAnnotationBeanPostProcessor.java:219)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.applyBeanPostProcessorsBeforeInitialization(AbstractAutowireCapableBeanFactory.java:422)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.initializeBean(AbstractAutowireCapableBeanFactory.java:1778)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:600)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:522)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:326)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:234)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:324)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:200)
+	at org.springframework.beans.factory.support.DefaultListableBeanFactory.preInstantiateSingletons(DefaultListableBeanFactory.java:975)
+	at org.springframework.context.support.AbstractApplicationContext.finishBeanFactoryInitialization(AbstractApplicationContext.java:962)
+	at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:624)
+	at org.springframework.boot.SpringApplication.refresh(SpringApplication.java:754)
+	at org.springframework.boot.SpringApplication.refreshContext(SpringApplication.java:456)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:334)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1354)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1343)
+	at com.example.supportbot.telegram.TelegramBotApplication.main(TelegramBotApplication.java:16)
+Caused by: java.net.UnknownHostException: Этот хост неизвестен (api.telegram.org)
+	at java.base/java.net.Inet6AddressImpl.lookupAllHostAddr(Native Method)
+	at java.base/java.net.Inet6AddressImpl.lookupAllHostAddr(Inet6AddressImpl.java:52)
+	at java.base/java.net.InetAddress$PlatformResolver.lookupByName(InetAddress.java:1134)
+	at java.base/java.net.InetAddress.getAddressesFromNameService(InetAddress.java:1712)
+	at java.base/java.net.InetAddress$NameServiceAddresses.get(InetAddress.java:1060)
+	at java.base/java.net.InetAddress.getAllByName0(InetAddress.java:1702)
+	at java.base/java.net.InetAddress.getAllByName(InetAddress.java:1582)
+	at org.apache.http.impl.conn.SystemDefaultDnsResolver.resolve(SystemDefaultDnsResolver.java:45)
+	at org.apache.http.impl.conn.DefaultHttpClientConnectionOperator.connect(DefaultHttpClientConnectionOperator.java:112)
+	at org.apache.http.impl.conn.PoolingHttpClientConnectionManager.connect(PoolingHttpClientConnectionManager.java:376)
+	at org.apache.http.impl.execchain.MainClientExec.establishRoute(MainClientExec.java:393)
+	at org.apache.http.impl.execchain.MainClientExec.execute(MainClientExec.java:236)
+	at org.apache.http.impl.execchain.ProtocolExec.execute(ProtocolExec.java:186)
+	at org.apache.http.impl.execchain.RetryExec.execute(RetryExec.java:89)
+	at org.apache.http.impl.execchain.RedirectExec.execute(RedirectExec.java:110)
+	at org.apache.http.impl.client.InternalHttpClient.doExecute(InternalHttpClient.java:185)
+	at org.apache.http.impl.client.CloseableHttpClient.execute(CloseableHttpClient.java:83)
+	at org.telegram.telegrambots.bots.DefaultAbsSender.sendHttpPostRequest(DefaultAbsSender.java:1216)
+	at org.telegram.telegrambots.bots.DefaultAbsSender.sendMethodRequest(DefaultAbsSender.java:1212)
+	at org.telegram.telegrambots.bots.DefaultAbsSender.sendApiMethod(DefaultAbsSender.java:1181)
+	... 25 common frames omitted
+2026-04-21 16:37:28.188+03:00 WARN  [main] o.s.aop.framework.CglibAopProxy - Unable to proxy interface-implementing method [public final org.telegram.telegrambots.bots.DefaultBotOptions org.telegram.telegrambots.bots.DefaultAbsSender.getOptions()] because it is marked as final, consider using interface-based JDK proxies instead.
+2026-04-21 16:37:29.175+03:00 ERROR [main] c.e.s.t.TelegramLongPollingLifecycle - Failed to start Telegram long polling because the application could not reach api.telegram.org over HTTPS. The bot token may still be valid, but the bot will not receive updates until network connectivity is restored.
+org.telegram.telegrambots.meta.exceptions.TelegramApiRequestException: Error removing old webhook
+	at org.telegram.telegrambots.util.WebhookUtils.clearWebhook(WebhookUtils.java:113)
+	at org.telegram.telegrambots.bots.TelegramLongPollingBot.clearWebhook(TelegramLongPollingBot.java:41)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:354)
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:716)
+	at com.example.supportbot.telegram.SupportBot$$SpringCGLIB$$0.clearWebhook(<generated>)
+	at org.telegram.telegrambots.meta.TelegramBotsApi.registerBot(TelegramBotsApi.java:65)
+	at com.example.supportbot.telegram.TelegramLongPollingLifecycle.start(TelegramLongPollingLifecycle.java:33)
+	at org.springframework.context.support.DefaultLifecycleProcessor.doStart(DefaultLifecycleProcessor.java:288)
+	at org.springframework.context.support.DefaultLifecycleProcessor$LifecycleGroup.start(DefaultLifecycleProcessor.java:471)
+	at java.base/java.lang.Iterable.forEach(Iterable.java:75)
+	at org.springframework.context.support.DefaultLifecycleProcessor.startBeans(DefaultLifecycleProcessor.java:260)
+	at org.springframework.context.support.DefaultLifecycleProcessor.onRefresh(DefaultLifecycleProcessor.java:205)
+	at org.springframework.context.support.AbstractApplicationContext.finishRefresh(AbstractApplicationContext.java:981)
+	at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:627)
+	at org.springframework.boot.SpringApplication.refresh(SpringApplication.java:754)
+	at org.springframework.boot.SpringApplication.refreshContext(SpringApplication.java:456)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:334)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1354)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1343)
+	at com.example.supportbot.telegram.TelegramBotApplication.main(TelegramBotApplication.java:16)
+Caused by: org.telegram.telegrambots.meta.exceptions.TelegramApiException: Unable to execute deleteWebhook method
+	at org.telegram.telegrambots.bots.DefaultAbsSender.sendApiMethod(DefaultAbsSender.java:1184)
+	at org.telegram.telegrambots.meta.bots.AbsSender.execute(AbsSender.java:61)
+	at org.telegram.telegrambots.util.WebhookUtils.clearWebhook(WebhookUtils.java:108)
+	... 21 common frames omitted
+Caused by: java.net.UnknownHostException: api.telegram.org
+	at java.base/java.net.InetAddress$CachedLookup.get(InetAddress.java:909)
+	at java.base/java.net.InetAddress.getAllByName0(InetAddress.java:1702)
+	at java.base/java.net.InetAddress.getAllByName(InetAddress.java:1582)
+	at org.apache.http.impl.conn.SystemDefaultDnsResolver.resolve(SystemDefaultDnsResolver.java:45)
+	at org.apache.http.impl.conn.DefaultHttpClientConnectionOperator.connect(DefaultHttpClientConnectionOperator.java:112)
+	at org.apache.http.impl.conn.PoolingHttpClientConnectionManager.connect(PoolingHttpClientConnectionManager.java:376)
+	at org.apache.http.impl.execchain.MainClientExec.establishRoute(MainClientExec.java:393)
+	at org.apache.http.impl.execchain.MainClientExec.execute(MainClientExec.java:236)
+	at org.apache.http.impl.execchain.ProtocolExec.execute(ProtocolExec.java:186)
+	at org.apache.http.impl.execchain.RetryExec.execute(RetryExec.java:89)
+	at org.apache.http.impl.execchain.RedirectExec.execute(RedirectExec.java:110)
+	at org.apache.http.impl.client.InternalHttpClient.doExecute(InternalHttpClient.java:185)
+	at org.apache.http.impl.client.CloseableHttpClient.execute(CloseableHttpClient.java:83)
+	at org.telegram.telegrambots.bots.DefaultAbsSender.sendHttpPostRequest(DefaultAbsSender.java:1216)
+	at org.telegram.telegrambots.bots.DefaultAbsSender.sendMethodRequest(DefaultAbsSender.java:1212)
+	at org.telegram.telegrambots.bots.DefaultAbsSender.sendApiMethod(DefaultAbsSender.java:1181)
+	... 23 common frames omitted
+2026-04-21 16:37:29.216+03:00 INFO  [main] c.e.s.t.TelegramBotApplication - Started TelegramBotApplication in 9.119 seconds (process running for 9.553)
+2026-04-21 16:38:30.090+03:00 INFO  [scheduling-1] c.e.supportbot.telegram.SupportBot - Sending direct Telegram message to chat -4961108450: krukov: Новое сообщение в обращении 2bef6b3f-8cc8-4aca-b61a-9a67ebd7a375: выаыва /dialogs?ticketId=2bef6b3f-8cc8-4aca-b61a-9a67ebd7a375
+2026-04-21 16:38:52.225+03:00 INFO  [scheduling-1] o.a.http.impl.execchain.RetryExec - I/O exception (java.net.SocketException) caught when processing request to {s}->https://api.telegram.org:443: Connection timed out: getsockopt
+2026-04-21 16:38:52.225+03:00 INFO  [scheduling-1] o.a.http.impl.execchain.RetryExec - Retrying request to {s}->https://api.telegram.org:443
+2026-04-21 16:39:13.283+03:00 INFO  [scheduling-1] o.a.http.impl.execchain.RetryExec - I/O exception (java.net.SocketException) caught when processing request to {s}->https://api.telegram.org:443: Connection timed out: getsockopt
+2026-04-21 16:39:13.284+03:00 INFO  [scheduling-1] o.a.http.impl.execchain.RetryExec - Retrying request to {s}->https://api.telegram.org:443
+2026-04-21 16:39:34.318+03:00 INFO  [scheduling-1] o.a.http.impl.execchain.RetryExec - I/O exception (java.net.SocketException) caught when processing request to {s}->https://api.telegram.org:443: Connection timed out: getsockopt
+2026-04-21 16:39:34.319+03:00 INFO  [scheduling-1] o.a.http.impl.execchain.RetryExec - Retrying request to {s}->https://api.telegram.org:443
+2026-04-21 16:39:55.351+03:00 ERROR [scheduling-1] c.e.supportbot.telegram.SupportBot - Failed to send direct Telegram message to chat -4961108450
+org.telegram.telegrambots.meta.exceptions.TelegramApiException: Unable to execute sendmessage method
+	at org.telegram.telegrambots.bots.DefaultAbsSender.sendApiMethod(DefaultAbsSender.java:1184)
+	at org.telegram.telegrambots.meta.bots.AbsSender.execute(AbsSender.java:61)
+	at com.example.supportbot.telegram.SupportBot.sendDirectMessage(SupportBot.java:1162)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:354)
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:716)
+	at com.example.supportbot.telegram.SupportBot$$SpringCGLIB$$0.sendDirectMessage(<generated>)
+	at com.example.supportbot.telegram.TelegramOutboundMessenger.sendToSupportChat(TelegramOutboundMessenger.java:38)
+	at com.example.supportbot.service.MessagingService.sendToSupportChat(MessagingService.java:53)
+	at com.example.supportbot.service.EngagementTasks.dispatchOperatorNotifications(EngagementTasks.java:94)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:354)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:196)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:163)
+	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:768)
+	at org.springframework.transaction.interceptor.TransactionInterceptor$1.proceedWithInvocation(TransactionInterceptor.java:123)
+	at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:392)
+	at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:119)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:768)
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:720)
+	at com.example.supportbot.service.EngagementTasks$$SpringCGLIB$$0.dispatchOperatorNotifications(<generated>)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.runInternal(ScheduledMethodRunnable.java:130)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.lambda$run$2(ScheduledMethodRunnable.java:124)
+	at io.micrometer.observation.Observation.observe(Observation.java:499)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.run(ScheduledMethodRunnable.java:124)
+	at org.springframework.scheduling.support.DelegatingErrorHandlingRunnable.run(DelegatingErrorHandlingRunnable.java:54)
+	at org.springframework.scheduling.concurrent.ReschedulingRunnable.run(ReschedulingRunnable.java:96)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:309)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+Caused by: java.net.SocketException: Connection timed out: getsockopt
+	at java.base/java.net.SocksSocketImpl.connect(SocksSocketImpl.java:323)
+	at java.base/java.net.Socket.connect(Socket.java:659)
+	at org.apache.http.conn.ssl.SSLConnectionSocketFactory.connectSocket(SSLConnectionSocketFactory.java:368)
+	at org.telegram.telegrambots.facilities.proxysocketfactorys.SocksSSLConnectionSocketFactory.connectSocket(SocksSSLConnectionSocketFactory.java:40)
+	at org.apache.http.impl.conn.DefaultHttpClientConnectionOperator.connect(DefaultHttpClientConnectionOperator.java:142)
+	at org.apache.http.impl.conn.PoolingHttpClientConnectionManager.connect(PoolingHttpClientConnectionManager.java:376)
+	at org.apache.http.impl.execchain.MainClientExec.establishRoute(MainClientExec.java:393)
+	at org.apache.http.impl.execchain.MainClientExec.execute(MainClientExec.java:236)
+	at org.apache.http.impl.execchain.ProtocolExec.execute(ProtocolExec.java:186)
+	at org.apache.http.impl.execchain.RetryExec.execute(RetryExec.java:89)
+	at org.apache.http.impl.execchain.RedirectExec.execute(RedirectExec.java:110)
+	at org.apache.http.impl.client.InternalHttpClient.doExecute(InternalHttpClient.java:185)
+	at org.apache.http.impl.client.CloseableHttpClient.execute(CloseableHttpClient.java:83)
+	at org.telegram.telegrambots.bots.DefaultAbsSender.sendHttpPostRequest(DefaultAbsSender.java:1216)
+	at org.telegram.telegrambots.bots.DefaultAbsSender.sendMethodRequest(DefaultAbsSender.java:1212)
+	at org.telegram.telegrambots.bots.DefaultAbsSender.sendApiMethod(DefaultAbsSender.java:1181)
+	... 37 common frames omitted
+Caused by: java.net.ConnectException: Connection timed out: getsockopt
+	at java.base/sun.nio.ch.Net.pollConnect(Native Method)
+	at java.base/sun.nio.ch.Net.pollConnectNow(Net.java:639)
+	at java.base/sun.nio.ch.NioSocketImpl.timedFinishConnect(NioSocketImpl.java:550)
+	at java.base/sun.nio.ch.NioSocketImpl.connect(NioSocketImpl.java:594)
+	at java.base/java.net.SocksSocketImpl.doConnect(SocksSocketImpl.java:80)
+	at java.base/java.net.SocksSocketImpl.connect(SocksSocketImpl.java:321)
+	... 52 common frames omitted
+2026-04-21 16:39:55.353+03:00 INFO  [scheduling-1] c.e.supportbot.telegram.SupportBot - Sending direct Telegram message to chat -4961108450: тест 1: Новое сообщение в обращении 2bef6b3f-8cc8-4aca-b61a-9a67ebd7a375: выаыва /dialogs?ticketId=2bef6b3f-8cc8-4aca-b61a-9a67ebd7a375
+2026-04-21 16:40:16.396+03:00 INFO  [scheduling-1] o.a.http.impl.execchain.RetryExec - I/O exception (java.net.SocketException) caught when processing request to {s}->https://api.telegram.org:443: Connection timed out: getsockopt
+2026-04-21 16:40:16.396+03:00 INFO  [scheduling-1] o.a.http.impl.execchain.RetryExec - Retrying request to {s}->https://api.telegram.org:443
+2026-04-21 16:40:37.437+03:00 INFO  [scheduling-1] o.a.http.impl.execchain.RetryExec - I/O exception (java.net.SocketException) caught when processing request to {s}->https://api.telegram.org:443: Connection timed out: getsockopt
+2026-04-21 16:40:37.437+03:00 INFO  [scheduling-1] o.a.http.impl.execchain.RetryExec - Retrying request to {s}->https://api.telegram.org:443
+2026-04-21 16:40:58.465+03:00 INFO  [scheduling-1] o.a.http.impl.execchain.RetryExec - I/O exception (java.net.SocketException) caught when processing request to {s}->https://api.telegram.org:443: Connection timed out: getsockopt
+2026-04-21 16:40:58.466+03:00 INFO  [scheduling-1] o.a.http.impl.execchain.RetryExec - Retrying request to {s}->https://api.telegram.org:443
+2026-04-21 16:41:19.483+03:00 ERROR [scheduling-1] c.e.supportbot.telegram.SupportBot - Failed to send direct Telegram message to chat -4961108450
+org.telegram.telegrambots.meta.exceptions.TelegramApiException: Unable to execute sendmessage method
+	at org.telegram.telegrambots.bots.DefaultAbsSender.sendApiMethod(DefaultAbsSender.java:1184)
+	at org.telegram.telegrambots.meta.bots.AbsSender.execute(AbsSender.java:61)
+	at com.example.supportbot.telegram.SupportBot.sendDirectMessage(SupportBot.java:1162)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:354)
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:716)
+	at com.example.supportbot.telegram.SupportBot$$SpringCGLIB$$0.sendDirectMessage(<generated>)
+	at com.example.supportbot.telegram.TelegramOutboundMessenger.sendToSupportChat(TelegramOutboundMessenger.java:38)
+	at com.example.supportbot.service.MessagingService.sendToSupportChat(MessagingService.java:53)
+	at com.example.supportbot.service.EngagementTasks.dispatchOperatorNotifications(EngagementTasks.java:94)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:354)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:196)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:163)
+	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:768)
+	at org.springframework.transaction.interceptor.TransactionInterceptor$1.proceedWithInvocation(TransactionInterceptor.java:123)
+	at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:392)
+	at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:119)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:768)
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:720)
+	at com.example.supportbot.service.EngagementTasks$$SpringCGLIB$$0.dispatchOperatorNotifications(<generated>)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.runInternal(ScheduledMethodRunnable.java:130)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.lambda$run$2(ScheduledMethodRunnable.java:124)
+	at io.micrometer.observation.Observation.observe(Observation.java:499)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.run(ScheduledMethodRunnable.java:124)
+	at org.springframework.scheduling.support.DelegatingErrorHandlingRunnable.run(DelegatingErrorHandlingRunnable.java:54)
+	at org.springframework.scheduling.concurrent.ReschedulingRunnable.run(ReschedulingRunnable.java:96)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:309)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+Caused by: java.net.SocketException: Connection timed out: getsockopt
+	at java.base/java.net.SocksSocketImpl.connect(SocksSocketImpl.java:323)
+	at java.base/java.net.Socket.connect(Socket.java:659)
+	at org.apache.http.conn.ssl.SSLConnectionSocketFactory.connectSocket(SSLConnectionSocketFactory.java:368)
+	at org.telegram.telegrambots.facilities.proxysocketfactorys.SocksSSLConnectionSocketFactory.connectSocket(SocksSSLConnectionSocketFactory.java:40)
+	at org.apache.http.impl.conn.DefaultHttpClientConnectionOperator.connect(DefaultHttpClientConnectionOperator.java:142)
+	at org.apache.http.impl.conn.PoolingHttpClientConnectionManager.connect(PoolingHttpClientConnectionManager.java:376)
+	at org.apache.http.impl.execchain.MainClientExec.establishRoute(MainClientExec.java:393)
+	at org.apache.http.impl.execchain.MainClientExec.execute(MainClientExec.java:236)
+	at org.apache.http.impl.execchain.ProtocolExec.execute(ProtocolExec.java:186)
+	at org.apache.http.impl.execchain.RetryExec.execute(RetryExec.java:89)
+	at org.apache.http.impl.execchain.RedirectExec.execute(RedirectExec.java:110)
+	at org.apache.http.impl.client.InternalHttpClient.doExecute(InternalHttpClient.java:185)
+	at org.apache.http.impl.client.CloseableHttpClient.execute(CloseableHttpClient.java:83)
+	at org.telegram.telegrambots.bots.DefaultAbsSender.sendHttpPostRequest(DefaultAbsSender.java:1216)
+	at org.telegram.telegrambots.bots.DefaultAbsSender.sendMethodRequest(DefaultAbsSender.java:1212)
+	at org.telegram.telegrambots.bots.DefaultAbsSender.sendApiMethod(DefaultAbsSender.java:1181)
+	... 37 common frames omitted
+Caused by: java.net.ConnectException: Connection timed out: getsockopt
+	at java.base/sun.nio.ch.Net.pollConnect(Native Method)
+	at java.base/sun.nio.ch.Net.pollConnectNow(Net.java:639)
+	at java.base/sun.nio.ch.NioSocketImpl.timedFinishConnect(NioSocketImpl.java:550)
+	at java.base/sun.nio.ch.NioSocketImpl.connect(NioSocketImpl.java:594)
+	at java.base/java.net.SocksSocketImpl.doConnect(SocksSocketImpl.java:80)
+	at java.base/java.net.SocksSocketImpl.connect(SocksSocketImpl.java:321)
+	... 52 common frames omitted
+2026-04-21 16:41:19.485+03:00 INFO  [scheduling-1] c.e.supportbot.telegram.SupportBot - Sending direct Telegram message to chat -4961108450: krukov: AI-агент эскалировал обращение 2bef6b3f-8cc8-4aca-b61a-9a67ebd7a375. AI agent did not find a relevant answer. Вопрос клиента: выаыва /dialogs?ticketId=2…
+2026-04-21 16:41:40.587+03:00 INFO  [scheduling-1] o.a.http.impl.execchain.RetryExec - I/O exception (java.net.SocketException) caught when processing request to {s}->https://api.telegram.org:443: Connection timed out: getsockopt
+2026-04-21 16:41:40.587+03:00 INFO  [scheduling-1] o.a.http.impl.execchain.RetryExec - Retrying request to {s}->https://api.telegram.org:443
+2026-04-21 16:42:01.636+03:00 INFO  [scheduling-1] o.a.http.impl.execchain.RetryExec - I/O exception (java.net.SocketException) caught when processing request to {s}->https://api.telegram.org:443: Connection timed out: getsockopt
+2026-04-21 16:42:01.637+03:00 INFO  [scheduling-1] o.a.http.impl.execchain.RetryExec - Retrying request to {s}->https://api.telegram.org:443
+2026-04-21 16:42:22.676+03:00 INFO  [scheduling-1] o.a.http.impl.execchain.RetryExec - I/O exception (java.net.SocketException) caught when processing request to {s}->https://api.telegram.org:443: Connection timed out: getsockopt
+2026-04-21 16:42:22.677+03:00 INFO  [scheduling-1] o.a.http.impl.execchain.RetryExec - Retrying request to {s}->https://api.telegram.org:443
+2026-04-21 16:42:43.741+03:00 ERROR [scheduling-1] c.e.supportbot.telegram.SupportBot - Failed to send direct Telegram message to chat -4961108450
+org.telegram.telegrambots.meta.exceptions.TelegramApiException: Unable to execute sendmessage method
+	at org.telegram.telegrambots.bots.DefaultAbsSender.sendApiMethod(DefaultAbsSender.java:1184)
+	at org.telegram.telegrambots.meta.bots.AbsSender.execute(AbsSender.java:61)
+	at com.example.supportbot.telegram.SupportBot.sendDirectMessage(SupportBot.java:1162)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:354)
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:716)
+	at com.example.supportbot.telegram.SupportBot$$SpringCGLIB$$0.sendDirectMessage(<generated>)
+	at com.example.supportbot.telegram.TelegramOutboundMessenger.sendToSupportChat(TelegramOutboundMessenger.java:38)
+	at com.example.supportbot.service.MessagingService.sendToSupportChat(MessagingService.java:53)
+	at com.example.supportbot.service.EngagementTasks.dispatchOperatorNotifications(EngagementTasks.java:94)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:354)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:196)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:163)
+	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:768)
+	at org.springframework.transaction.interceptor.TransactionInterceptor$1.proceedWithInvocation(TransactionInterceptor.java:123)
+	at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:392)
+	at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:119)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:768)
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:720)
+	at com.example.supportbot.service.EngagementTasks$$SpringCGLIB$$0.dispatchOperatorNotifications(<generated>)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.runInternal(ScheduledMethodRunnable.java:130)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.lambda$run$2(ScheduledMethodRunnable.java:124)
+	at io.micrometer.observation.Observation.observe(Observation.java:499)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.run(ScheduledMethodRunnable.java:124)
+	at org.springframework.scheduling.support.DelegatingErrorHandlingRunnable.run(DelegatingErrorHandlingRunnable.java:54)
+	at org.springframework.scheduling.concurrent.ReschedulingRunnable.run(ReschedulingRunnable.java:96)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:309)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+Caused by: java.net.SocketException: Connection timed out: getsockopt
+	at java.base/java.net.SocksSocketImpl.connect(SocksSocketImpl.java:323)
+	at java.base/java.net.Socket.connect(Socket.java:659)
+	at org.apache.http.conn.ssl.SSLConnectionSocketFactory.connectSocket(SSLConnectionSocketFactory.java:368)
+	at org.telegram.telegrambots.facilities.proxysocketfactorys.SocksSSLConnectionSocketFactory.connectSocket(SocksSSLConnectionSocketFactory.java:40)
+	at org.apache.http.impl.conn.DefaultHttpClientConnectionOperator.connect(DefaultHttpClientConnectionOperator.java:142)
+	at org.apache.http.impl.conn.PoolingHttpClientConnectionManager.connect(PoolingHttpClientConnectionManager.java:376)
+	at org.apache.http.impl.execchain.MainClientExec.establishRoute(MainClientExec.java:393)
+	at org.apache.http.impl.execchain.MainClientExec.execute(MainClientExec.java:236)
+	at org.apache.http.impl.execchain.ProtocolExec.execute(ProtocolExec.java:186)
+	at org.apache.http.impl.execchain.RetryExec.execute(RetryExec.java:89)
+	at org.apache.http.impl.execchain.RedirectExec.execute(RedirectExec.java:110)
+	at org.apache.http.impl.client.InternalHttpClient.doExecute(InternalHttpClient.java:185)
+	at org.apache.http.impl.client.CloseableHttpClient.execute(CloseableHttpClient.java:83)
+	at org.telegram.telegrambots.bots.DefaultAbsSender.sendHttpPostRequest(DefaultAbsSender.java:1216)
+	at org.telegram.telegrambots.bots.DefaultAbsSender.sendMethodRequest(DefaultAbsSender.java:1212)
+	at org.telegram.telegrambots.bots.DefaultAbsSender.sendApiMethod(DefaultAbsSender.java:1181)
+	... 37 common frames omitted
+Caused by: java.net.ConnectException: Connection timed out: getsockopt
+	at java.base/sun.nio.ch.Net.pollConnect(Native Method)
+	at java.base/sun.nio.ch.Net.pollConnectNow(Net.java:639)
+	at java.base/sun.nio.ch.NioSocketImpl.timedFinishConnect(NioSocketImpl.java:550)
+	at java.base/sun.nio.ch.NioSocketImpl.connect(NioSocketImpl.java:594)
+	at java.base/java.net.SocksSocketImpl.doConnect(SocksSocketImpl.java:80)
+	at java.base/java.net.SocksSocketImpl.connect(SocksSocketImpl.java:321)
+	... 52 common frames omitted
+2026-04-21 16:42:43.742+03:00 INFO  [scheduling-1] c.e.supportbot.telegram.SupportBot - Sending direct Telegram message to chat -4961108450: тест 1: AI-агент эскалировал обращение 2bef6b3f-8cc8-4aca-b61a-9a67ebd7a375. AI agent did not find a relevant answer. Вопрос клиента: выаыва /dialogs?ticketId=2…
+2026-04-21 16:43:04.801+03:00 INFO  [scheduling-1] o.a.http.impl.execchain.RetryExec - I/O exception (java.net.SocketException) caught when processing request to {s}->https://api.telegram.org:443: Connection timed out: getsockopt
+2026-04-21 16:43:04.802+03:00 INFO  [scheduling-1] o.a.http.impl.execchain.RetryExec - Retrying request to {s}->https://api.telegram.org:443
+2026-04-21 16:43:25.845+03:00 INFO  [scheduling-1] o.a.http.impl.execchain.RetryExec - I/O exception (java.net.SocketException) caught when processing request to {s}->https://api.telegram.org:443: Connection timed out: getsockopt
+2026-04-21 16:43:25.846+03:00 INFO  [scheduling-1] o.a.http.impl.execchain.RetryExec - Retrying request to {s}->https://api.telegram.org:443
+2026-04-21 16:43:46.902+03:00 INFO  [scheduling-1] o.a.http.impl.execchain.RetryExec - I/O exception (java.net.SocketException) caught when processing request to {s}->https://api.telegram.org:443: Connection timed out: getsockopt
+2026-04-21 16:43:46.902+03:00 INFO  [scheduling-1] o.a.http.impl.execchain.RetryExec - Retrying request to {s}->https://api.telegram.org:443
+2026-04-21 16:44:07.953+03:00 ERROR [scheduling-1] c.e.supportbot.telegram.SupportBot - Failed to send direct Telegram message to chat -4961108450
+org.telegram.telegrambots.meta.exceptions.TelegramApiException: Unable to execute sendmessage method
+	at org.telegram.telegrambots.bots.DefaultAbsSender.sendApiMethod(DefaultAbsSender.java:1184)
+	at org.telegram.telegrambots.meta.bots.AbsSender.execute(AbsSender.java:61)
+	at com.example.supportbot.telegram.SupportBot.sendDirectMessage(SupportBot.java:1162)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:354)
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:716)
+	at com.example.supportbot.telegram.SupportBot$$SpringCGLIB$$0.sendDirectMessage(<generated>)
+	at com.example.supportbot.telegram.TelegramOutboundMessenger.sendToSupportChat(TelegramOutboundMessenger.java:38)
+	at com.example.supportbot.service.MessagingService.sendToSupportChat(MessagingService.java:53)
+	at com.example.supportbot.service.EngagementTasks.dispatchOperatorNotifications(EngagementTasks.java:94)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:354)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:196)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:163)
+	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:768)
+	at org.springframework.transaction.interceptor.TransactionInterceptor$1.proceedWithInvocation(TransactionInterceptor.java:123)
+	at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:392)
+	at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:119)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:768)
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:720)
+	at com.example.supportbot.service.EngagementTasks$$SpringCGLIB$$0.dispatchOperatorNotifications(<generated>)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.runInternal(ScheduledMethodRunnable.java:130)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.lambda$run$2(ScheduledMethodRunnable.java:124)
+	at io.micrometer.observation.Observation.observe(Observation.java:499)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.run(ScheduledMethodRunnable.java:124)
+	at org.springframework.scheduling.support.DelegatingErrorHandlingRunnable.run(DelegatingErrorHandlingRunnable.java:54)
+	at org.springframework.scheduling.concurrent.ReschedulingRunnable.run(ReschedulingRunnable.java:96)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:309)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+Caused by: java.net.SocketException: Connection timed out: getsockopt
+	at java.base/java.net.SocksSocketImpl.connect(SocksSocketImpl.java:323)
+	at java.base/java.net.Socket.connect(Socket.java:659)
+	at org.apache.http.conn.ssl.SSLConnectionSocketFactory.connectSocket(SSLConnectionSocketFactory.java:368)
+	at org.telegram.telegrambots.facilities.proxysocketfactorys.SocksSSLConnectionSocketFactory.connectSocket(SocksSSLConnectionSocketFactory.java:40)
+	at org.apache.http.impl.conn.DefaultHttpClientConnectionOperator.connect(DefaultHttpClientConnectionOperator.java:142)
+	at org.apache.http.impl.conn.PoolingHttpClientConnectionManager.connect(PoolingHttpClientConnectionManager.java:376)
+	at org.apache.http.impl.execchain.MainClientExec.establishRoute(MainClientExec.java:393)
+	at org.apache.http.impl.execchain.MainClientExec.execute(MainClientExec.java:236)
+	at org.apache.http.impl.execchain.ProtocolExec.execute(ProtocolExec.java:186)
+	at org.apache.http.impl.execchain.RetryExec.execute(RetryExec.java:89)
+	at org.apache.http.impl.execchain.RedirectExec.execute(RedirectExec.java:110)
+	at org.apache.http.impl.client.InternalHttpClient.doExecute(InternalHttpClient.java:185)
+	at org.apache.http.impl.client.CloseableHttpClient.execute(CloseableHttpClient.java:83)
+	at org.telegram.telegrambots.bots.DefaultAbsSender.sendHttpPostRequest(DefaultAbsSender.java:1216)
+	at org.telegram.telegrambots.bots.DefaultAbsSender.sendMethodRequest(DefaultAbsSender.java:1212)
+	at org.telegram.telegrambots.bots.DefaultAbsSender.sendApiMethod(DefaultAbsSender.java:1181)
+	... 37 common frames omitted
+Caused by: java.net.ConnectException: Connection timed out: getsockopt
+	at java.base/sun.nio.ch.Net.pollConnect(Native Method)
+	at java.base/sun.nio.ch.Net.pollConnectNow(Net.java:639)
+	at java.base/sun.nio.ch.NioSocketImpl.timedFinishConnect(NioSocketImpl.java:550)
+	at java.base/sun.nio.ch.NioSocketImpl.connect(NioSocketImpl.java:594)
+	at java.base/java.net.SocksSocketImpl.doConnect(SocksSocketImpl.java:80)
+	at java.base/java.net.SocksSocketImpl.connect(SocksSocketImpl.java:321)
+	... 52 common frames omitted
+2026-04-21 16:44:07.955+03:00 INFO  [scheduling-1] c.e.supportbot.telegram.SupportBot - Sending direct Telegram message to chat -4961108450: krukov: Новое сообщение в обращении 2bef6b3f-8cc8-4aca-b61a-9a67ebd7a375: [вложение от клиента] /dialogs?ticketId=2bef6b3f-8cc8-4aca-b61a-9a67ebd7a375
+2026-04-21 16:44:29.004+03:00 INFO  [scheduling-1] o.a.http.impl.execchain.RetryExec - I/O exception (java.net.SocketException) caught when processing request to {s}->https://api.telegram.org:443: Connection timed out: getsockopt
+2026-04-21 16:44:29.004+03:00 INFO  [scheduling-1] o.a.http.impl.execchain.RetryExec - Retrying request to {s}->https://api.telegram.org:443
+2026-04-21 16:44:50.034+03:00 INFO  [scheduling-1] o.a.http.impl.execchain.RetryExec - I/O exception (java.net.SocketException) caught when processing request to {s}->https://api.telegram.org:443: Connection timed out: getsockopt
+2026-04-21 16:44:50.034+03:00 INFO  [scheduling-1] o.a.http.impl.execchain.RetryExec - Retrying request to {s}->https://api.telegram.org:443
+2026-04-21 16:45:11.064+03:00 INFO  [scheduling-1] o.a.http.impl.execchain.RetryExec - I/O exception (java.net.SocketException) caught when processing request to {s}->https://api.telegram.org:443: Connection timed out: getsockopt
+2026-04-21 16:45:11.065+03:00 INFO  [scheduling-1] o.a.http.impl.execchain.RetryExec - Retrying request to {s}->https://api.telegram.org:443
+2026-04-21 16:45:32.111+03:00 ERROR [scheduling-1] c.e.supportbot.telegram.SupportBot - Failed to send direct Telegram message to chat -4961108450
+org.telegram.telegrambots.meta.exceptions.TelegramApiException: Unable to execute sendmessage method
+	at org.telegram.telegrambots.bots.DefaultAbsSender.sendApiMethod(DefaultAbsSender.java:1184)
+	at org.telegram.telegrambots.meta.bots.AbsSender.execute(AbsSender.java:61)
+	at com.example.supportbot.telegram.SupportBot.sendDirectMessage(SupportBot.java:1162)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:354)
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:716)
+	at com.example.supportbot.telegram.SupportBot$$SpringCGLIB$$0.sendDirectMessage(<generated>)
+	at com.example.supportbot.telegram.TelegramOutboundMessenger.sendToSupportChat(TelegramOutboundMessenger.java:38)
+	at com.example.supportbot.service.MessagingService.sendToSupportChat(MessagingService.java:53)
+	at com.example.supportbot.service.EngagementTasks.dispatchOperatorNotifications(EngagementTasks.java:94)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:354)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:196)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:163)
+	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:768)
+	at org.springframework.transaction.interceptor.TransactionInterceptor$1.proceedWithInvocation(TransactionInterceptor.java:123)
+	at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:392)
+	at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:119)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:768)
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:720)
+	at com.example.supportbot.service.EngagementTasks$$SpringCGLIB$$0.dispatchOperatorNotifications(<generated>)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.runInternal(ScheduledMethodRunnable.java:130)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.lambda$run$2(ScheduledMethodRunnable.java:124)
+	at io.micrometer.observation.Observation.observe(Observation.java:499)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.run(ScheduledMethodRunnable.java:124)
+	at org.springframework.scheduling.support.DelegatingErrorHandlingRunnable.run(DelegatingErrorHandlingRunnable.java:54)
+	at org.springframework.scheduling.concurrent.ReschedulingRunnable.run(ReschedulingRunnable.java:96)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:309)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+Caused by: java.net.SocketException: Connection timed out: getsockopt
+	at java.base/java.net.SocksSocketImpl.connect(SocksSocketImpl.java:323)
+	at java.base/java.net.Socket.connect(Socket.java:659)
+	at org.apache.http.conn.ssl.SSLConnectionSocketFactory.connectSocket(SSLConnectionSocketFactory.java:368)
+	at org.telegram.telegrambots.facilities.proxysocketfactorys.SocksSSLConnectionSocketFactory.connectSocket(SocksSSLConnectionSocketFactory.java:40)
+	at org.apache.http.impl.conn.DefaultHttpClientConnectionOperator.connect(DefaultHttpClientConnectionOperator.java:142)
+	at org.apache.http.impl.conn.PoolingHttpClientConnectionManager.connect(PoolingHttpClientConnectionManager.java:376)
+	at org.apache.http.impl.execchain.MainClientExec.establishRoute(MainClientExec.java:393)
+	at org.apache.http.impl.execchain.MainClientExec.execute(MainClientExec.java:236)
+	at org.apache.http.impl.execchain.ProtocolExec.execute(ProtocolExec.java:186)
+	at org.apache.http.impl.execchain.RetryExec.execute(RetryExec.java:89)
+	at org.apache.http.impl.execchain.RedirectExec.execute(RedirectExec.java:110)
+	at org.apache.http.impl.client.InternalHttpClient.doExecute(InternalHttpClient.java:185)
+	at org.apache.http.impl.client.CloseableHttpClient.execute(CloseableHttpClient.java:83)
+	at org.telegram.telegrambots.bots.DefaultAbsSender.sendHttpPostRequest(DefaultAbsSender.java:1216)
+	at org.telegram.telegrambots.bots.DefaultAbsSender.sendMethodRequest(DefaultAbsSender.java:1212)
+	at org.telegram.telegrambots.bots.DefaultAbsSender.sendApiMethod(DefaultAbsSender.java:1181)
+	... 37 common frames omitted
+Caused by: java.net.ConnectException: Connection timed out: getsockopt
+	at java.base/sun.nio.ch.Net.pollConnect(Native Method)
+	at java.base/sun.nio.ch.Net.pollConnectNow(Net.java:639)
+	at java.base/sun.nio.ch.NioSocketImpl.timedFinishConnect(NioSocketImpl.java:550)
+	at java.base/sun.nio.ch.NioSocketImpl.connect(NioSocketImpl.java:594)
+	at java.base/java.net.SocksSocketImpl.doConnect(SocksSocketImpl.java:80)
+	at java.base/java.net.SocksSocketImpl.connect(SocksSocketImpl.java:321)
+	... 52 common frames omitted
+2026-04-21 16:45:32.112+03:00 INFO  [scheduling-1] c.e.supportbot.telegram.SupportBot - Sending direct Telegram message to chat -4961108450: тест 1: Новое сообщение в обращении 2bef6b3f-8cc8-4aca-b61a-9a67ebd7a375: [вложение от клиента] /dialogs?ticketId=2bef6b3f-8cc8-4aca-b61a-9a67ebd7a375
+2026-04-21 16:45:53.152+03:00 INFO  [scheduling-1] o.a.http.impl.execchain.RetryExec - I/O exception (java.net.SocketException) caught when processing request to {s}->https://api.telegram.org:443: Connection timed out: getsockopt
+2026-04-21 16:45:53.152+03:00 INFO  [scheduling-1] o.a.http.impl.execchain.RetryExec - Retrying request to {s}->https://api.telegram.org:443
+2026-04-21 16:46:14.203+03:00 INFO  [scheduling-1] o.a.http.impl.execchain.RetryExec - I/O exception (java.net.SocketException) caught when processing request to {s}->https://api.telegram.org:443: Connection timed out: getsockopt
+2026-04-21 16:46:14.203+03:00 INFO  [scheduling-1] o.a.http.impl.execchain.RetryExec - Retrying request to {s}->https://api.telegram.org:443
+2026-04-21 16:46:35.254+03:00 INFO  [scheduling-1] o.a.http.impl.execchain.RetryExec - I/O exception (java.net.SocketException) caught when processing request to {s}->https://api.telegram.org:443: Connection timed out: getsockopt
+2026-04-21 16:46:35.254+03:00 INFO  [scheduling-1] o.a.http.impl.execchain.RetryExec - Retrying request to {s}->https://api.telegram.org:443
+2026-04-21 16:46:56.306+03:00 ERROR [scheduling-1] c.e.supportbot.telegram.SupportBot - Failed to send direct Telegram message to chat -4961108450
+org.telegram.telegrambots.meta.exceptions.TelegramApiException: Unable to execute sendmessage method
+	at org.telegram.telegrambots.bots.DefaultAbsSender.sendApiMethod(DefaultAbsSender.java:1184)
+	at org.telegram.telegrambots.meta.bots.AbsSender.execute(AbsSender.java:61)
+	at com.example.supportbot.telegram.SupportBot.sendDirectMessage(SupportBot.java:1162)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:354)
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:716)
+	at com.example.supportbot.telegram.SupportBot$$SpringCGLIB$$0.sendDirectMessage(<generated>)
+	at com.example.supportbot.telegram.TelegramOutboundMessenger.sendToSupportChat(TelegramOutboundMessenger.java:38)
+	at com.example.supportbot.service.MessagingService.sendToSupportChat(MessagingService.java:53)
+	at com.example.supportbot.service.EngagementTasks.dispatchOperatorNotifications(EngagementTasks.java:94)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:354)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:196)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:163)
+	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:768)
+	at org.springframework.transaction.interceptor.TransactionInterceptor$1.proceedWithInvocation(TransactionInterceptor.java:123)
+	at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:392)
+	at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:119)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:768)
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:720)
+	at com.example.supportbot.service.EngagementTasks$$SpringCGLIB$$0.dispatchOperatorNotifications(<generated>)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.runInternal(ScheduledMethodRunnable.java:130)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.lambda$run$2(ScheduledMethodRunnable.java:124)
+	at io.micrometer.observation.Observation.observe(Observation.java:499)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.run(ScheduledMethodRunnable.java:124)
+	at org.springframework.scheduling.support.DelegatingErrorHandlingRunnable.run(DelegatingErrorHandlingRunnable.java:54)
+	at org.springframework.scheduling.concurrent.ReschedulingRunnable.run(ReschedulingRunnable.java:96)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:309)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+Caused by: java.net.SocketException: Connection timed out: getsockopt
+	at java.base/java.net.SocksSocketImpl.connect(SocksSocketImpl.java:323)
+	at java.base/java.net.Socket.connect(Socket.java:659)
+	at org.apache.http.conn.ssl.SSLConnectionSocketFactory.connectSocket(SSLConnectionSocketFactory.java:368)
+	at org.telegram.telegrambots.facilities.proxysocketfactorys.SocksSSLConnectionSocketFactory.connectSocket(SocksSSLConnectionSocketFactory.java:40)
+	at org.apache.http.impl.conn.DefaultHttpClientConnectionOperator.connect(DefaultHttpClientConnectionOperator.java:142)
+	at org.apache.http.impl.conn.PoolingHttpClientConnectionManager.connect(PoolingHttpClientConnectionManager.java:376)
+	at org.apache.http.impl.execchain.MainClientExec.establishRoute(MainClientExec.java:393)
+	at org.apache.http.impl.execchain.MainClientExec.execute(MainClientExec.java:236)
+	at org.apache.http.impl.execchain.ProtocolExec.execute(ProtocolExec.java:186)
+	at org.apache.http.impl.execchain.RetryExec.execute(RetryExec.java:89)
+	at org.apache.http.impl.execchain.RedirectExec.execute(RedirectExec.java:110)
+	at org.apache.http.impl.client.InternalHttpClient.doExecute(InternalHttpClient.java:185)
+	at org.apache.http.impl.client.CloseableHttpClient.execute(CloseableHttpClient.java:83)
+	at org.telegram.telegrambots.bots.DefaultAbsSender.sendHttpPostRequest(DefaultAbsSender.java:1216)
+	at org.telegram.telegrambots.bots.DefaultAbsSender.sendMethodRequest(DefaultAbsSender.java:1212)
+	at org.telegram.telegrambots.bots.DefaultAbsSender.sendApiMethod(DefaultAbsSender.java:1181)
+	... 37 common frames omitted
+Caused by: java.net.ConnectException: Connection timed out: getsockopt
+	at java.base/sun.nio.ch.Net.pollConnect(Native Method)
+	at java.base/sun.nio.ch.Net.pollConnectNow(Net.java:639)
+	at java.base/sun.nio.ch.NioSocketImpl.timedFinishConnect(NioSocketImpl.java:550)
+	at java.base/sun.nio.ch.NioSocketImpl.connect(NioSocketImpl.java:594)
+	at java.base/java.net.SocksSocketImpl.doConnect(SocksSocketImpl.java:80)
+	at java.base/java.net.SocksSocketImpl.connect(SocksSocketImpl.java:321)
+	... 52 common frames omitted
+2026-04-21 16:46:56.308+03:00 INFO  [scheduling-1] c.e.supportbot.telegram.SupportBot - Sending direct Telegram message to chat -4961108450: krukov: AI-агент эскалировал обращение 2bef6b3f-8cc8-4aca-b61a-9a67ebd7a375. AI agent did not find a relevant answer. Вопрос клиента: client sent photo i?r=BTGB…
+2026-04-21 16:47:17.356+03:00 INFO  [scheduling-1] o.a.http.impl.execchain.RetryExec - I/O exception (java.net.SocketException) caught when processing request to {s}->https://api.telegram.org:443: Connection timed out: getsockopt
+2026-04-21 16:47:17.356+03:00 INFO  [scheduling-1] o.a.http.impl.execchain.RetryExec - Retrying request to {s}->https://api.telegram.org:443
+2026-04-21 16:47:38.390+03:00 INFO  [scheduling-1] o.a.http.impl.execchain.RetryExec - I/O exception (java.net.SocketException) caught when processing request to {s}->https://api.telegram.org:443: Connection timed out: getsockopt
+2026-04-21 16:47:38.390+03:00 INFO  [scheduling-1] o.a.http.impl.execchain.RetryExec - Retrying request to {s}->https://api.telegram.org:443
+2026-04-21 16:47:59.443+03:00 INFO  [scheduling-1] o.a.http.impl.execchain.RetryExec - I/O exception (java.net.SocketException) caught when processing request to {s}->https://api.telegram.org:443: Connection timed out: getsockopt
+2026-04-21 16:47:59.444+03:00 INFO  [scheduling-1] o.a.http.impl.execchain.RetryExec - Retrying request to {s}->https://api.telegram.org:443
+2026-04-21 16:48:20.481+03:00 ERROR [scheduling-1] c.e.supportbot.telegram.SupportBot - Failed to send direct Telegram message to chat -4961108450
+org.telegram.telegrambots.meta.exceptions.TelegramApiException: Unable to execute sendmessage method
+	at org.telegram.telegrambots.bots.DefaultAbsSender.sendApiMethod(DefaultAbsSender.java:1184)
+	at org.telegram.telegrambots.meta.bots.AbsSender.execute(AbsSender.java:61)
+	at com.example.supportbot.telegram.SupportBot.sendDirectMessage(SupportBot.java:1162)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:354)
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:716)
+	at com.example.supportbot.telegram.SupportBot$$SpringCGLIB$$0.sendDirectMessage(<generated>)
+	at com.example.supportbot.telegram.TelegramOutboundMessenger.sendToSupportChat(TelegramOutboundMessenger.java:38)
+	at com.example.supportbot.service.MessagingService.sendToSupportChat(MessagingService.java:53)
+	at com.example.supportbot.service.EngagementTasks.dispatchOperatorNotifications(EngagementTasks.java:94)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.aop.support.AopUtils.invokeJoinpointUsingReflection(AopUtils.java:354)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.invokeJoinpoint(ReflectiveMethodInvocation.java:196)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:163)
+	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:768)
+	at org.springframework.transaction.interceptor.TransactionInterceptor$1.proceedWithInvocation(TransactionInterceptor.java:123)
+	at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:392)
+	at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:119)
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184)
+	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:768)
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:720)
+	at com.example.supportbot.service.EngagementTasks$$SpringCGLIB$$0.dispatchOperatorNotifications(<generated>)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.runInternal(ScheduledMethodRunnable.java:130)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.lambda$run$2(ScheduledMethodRunnable.java:124)
+	at io.micrometer.observation.Observation.observe(Observation.java:499)
+	at org.springframework.scheduling.support.ScheduledMethodRunnable.run(ScheduledMethodRunnable.java:124)
+	at org.springframework.scheduling.support.DelegatingErrorHandlingRunnable.run(DelegatingErrorHandlingRunnable.java:54)
+	at org.springframework.scheduling.concurrent.ReschedulingRunnable.run(ReschedulingRunnable.java:96)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+	at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:328)
+	at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:309)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+Caused by: java.net.SocketException: Connection timed out: getsockopt
+	at java.base/java.net.SocksSocketImpl.connect(SocksSocketImpl.java:323)
+	at java.base/java.net.Socket.connect(Socket.java:659)
+	at org.apache.http.conn.ssl.SSLConnectionSocketFactory.connectSocket(SSLConnectionSocketFactory.java:368)
+	at org.telegram.telegrambots.facilities.proxysocketfactorys.SocksSSLConnectionSocketFactory.connectSocket(SocksSSLConnectionSocketFactory.java:40)
+	at org.apache.http.impl.conn.DefaultHttpClientConnectionOperator.connect(DefaultHttpClientConnectionOperator.java:142)
+	at org.apache.http.impl.conn.PoolingHttpClientConnectionManager.connect(PoolingHttpClientConnectionManager.java:376)
+	at org.apache.http.impl.execchain.MainClientExec.establishRoute(MainClientExec.java:393)
+	at org.apache.http.impl.execchain.MainClientExec.execute(MainClientExec.java:236)
+	at org.apache.http.impl.execchain.ProtocolExec.execute(ProtocolExec.java:186)
+	at org.apache.http.impl.execchain.RetryExec.execute(RetryExec.java:89)
+	at org.apache.http.impl.execchain.RedirectExec.execute(RedirectExec.java:110)
+	at org.apache.http.impl.client.InternalHttpClient.doExecute(InternalHttpClient.java:185)
+	at org.apache.http.impl.client.CloseableHttpClient.execute(CloseableHttpClient.java:83)
+	at org.telegram.telegrambots.bots.DefaultAbsSender.sendHttpPostRequest(DefaultAbsSender.java:1216)
+	at org.telegram.telegrambots.bots.DefaultAbsSender.sendMethodRequest(DefaultAbsSender.java:1212)
+	at org.telegram.telegrambots.bots.DefaultAbsSender.sendApiMethod(DefaultAbsSender.java:1181)
+	... 37 common frames omitted
+Caused by: java.net.ConnectException: Connection timed out: getsockopt
+	at java.base/sun.nio.ch.Net.pollConnect(Native Method)
+	at java.base/sun.nio.ch.Net.pollConnectNow(Net.java:639)
+	at java.base/sun.nio.ch.NioSocketImpl.timedFinishConnect(NioSocketImpl.java:550)
+	at java.base/sun.nio.ch.NioSocketImpl.connect(NioSocketImpl.java:594)
+	at java.base/java.net.SocksSocketImpl.doConnect(SocksSocketImpl.java:80)
+	at java.base/java.net.SocksSocketImpl.connect(SocksSocketImpl.java:321)
+	... 52 common frames omitted
+2026-04-21 16:48:20.483+03:00 INFO  [scheduling-1] c.e.supportbot.telegram.SupportBot - Sending direct Telegram message to chat -4961108450: тест 1: AI-агент эскалировал обращение 2bef6b3f-8cc8-4aca-b61a-9a67ebd7a375. AI agent did not find a relevant answer. Вопрос клиента: client sent photo i?r=BTGB…
+2026-04-21 16:48:41.508+03:00 INFO  [scheduling-1] o.a.http.impl.execchain.RetryExec - I/O exception (java.net.SocketException) caught when processing request to {s}->https://api.telegram.org:443: Connection timed out: getsockopt
+2026-04-21 16:48:41.509+03:00 INFO  [scheduling-1] o.a.http.impl.execchain.RetryExec - Retrying request to {s}->https://api.telegram.org:443
+2026-04-21 16:49:02.536+03:00 INFO  [scheduling-1] o.a.http.impl.execchain.RetryExec - I/O exception (java.net.SocketException) caught when processing request to {s}->https://api.telegram.org:443: Connection timed out: getsockopt
+2026-04-21 16:49:02.537+03:00 INFO  [scheduling-1] o.a.http.impl.execchain.RetryExec - Retrying request to {s}->https://api.telegram.org:443
+2026-04-21 16:50:12.975+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
+2026-04-21 16:50:13.028+03:00 INFO  [main] c.e.s.t.TelegramBotApplication - Starting TelegramBotApplication using Java 25.0.2 with PID 33476 (C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-telegram\target\classes started by SinicinVV in C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-telegram)
+2026-04-21 16:50:13.029+03:00 INFO  [main] c.e.s.t.TelegramBotApplication - The following 1 profile is active: "default"
+2026-04-21 16:50:13.616+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-04-21 16:50:13.768+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 143 ms. Found 30 JPA repository interfaces.
+2026-04-21 16:50:14.351+03:00 INFO  [main] o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-04-21 16:50:14.444+03:00 INFO  [main] org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
+2026-04-21 16:50:14.482+03:00 INFO  [main] o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
+2026-04-21 16:50:14.767+03:00 INFO  [main] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-04-21 16:50:19.220+03:00 INFO  [main] o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-04-21 16:50:19.230+03:00 INFO  [main] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-04-21 16:50:21.637+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Initializing Telegram bot configuration check
+2026-04-21 16:50:21.640+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Telegram bot configuration: username='tst_int_SV_bot' token=8391…kzYU (46) channelId=-4961108450
+2026-04-21 16:50:21.640+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Telegram client will use proxy vless://185.237.223.25:7878
+2026-04-21 16:50:43.008+03:00 INFO  [main] o.a.http.impl.execchain.RetryExec - I/O exception (java.net.SocketException) caught when processing request to {s}->https://api.telegram.org:443: Connection timed out: getsockopt
+2026-04-21 16:50:43.008+03:00 INFO  [main] o.a.http.impl.execchain.RetryExec - Retrying request to {s}->https://api.telegram.org:443
