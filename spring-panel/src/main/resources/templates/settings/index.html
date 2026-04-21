@@ -865,10 +865,46 @@
       transition: opacity 0.18s ease, filter 0.18s ease;
     }
 
+    #botTemplateEditorModal,
+    #botRatingTemplateModal {
+      overscroll-behavior: contain;
+    }
+
+    #botTemplateEditorModal .modal-dialog,
+    #botRatingTemplateModal .modal-dialog {
+      margin: 0.85rem auto;
+      min-height: calc(100vh - 1.7rem);
+      height: calc(100vh - 1.7rem);
+      display: flex;
+      align-items: flex-start;
+    }
+
+    #botTemplateEditorModal .modal-content,
+    #botRatingTemplateModal .modal-content {
+      width: 100%;
+      max-height: calc(100vh - 1.7rem);
+      height: 100%;
+    }
+
     #botTemplateEditorModal .modal-body,
     #botRatingTemplateModal .modal-body {
+      min-height: 0;
       overflow-y: auto;
       overscroll-behavior: contain;
+    }
+
+    @media (max-width: 575.98px) {
+      #botTemplateEditorModal .modal-dialog,
+      #botRatingTemplateModal .modal-dialog {
+        margin: 0.5rem auto;
+        min-height: calc(100vh - 1rem);
+        height: calc(100vh - 1rem);
+      }
+
+      #botTemplateEditorModal .modal-content,
+      #botRatingTemplateModal .modal-content {
+        max-height: calc(100vh - 1rem);
+      }
     }
 
     .auth-user-modal-dialog {
