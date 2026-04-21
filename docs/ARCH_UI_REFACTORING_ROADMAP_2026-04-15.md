@@ -172,11 +172,20 @@
   `DialogSlaRuntimeService` теперь обслуживает и `DialogWorkspaceService`, и
   `DialogListReadService`, а из workspace-сервиса удалены оставшиеся мёртвые
   helper-блоки по SLA/source-coverage/export formatting.
+- следующим service-level пакетом из giant `DialogService` вынесен client
+  context read-layer: `loadClientDialogHistory`, `loadClientProfileEnrichment`,
+  `loadDialogProfileMatchCandidates` и `loadRelatedEvents` теперь живут в
+  `DialogClientContextReadService`; `DialogWorkspaceService` и
+  `DialogMacroService` уже переведены на новый слой напрямую, а в
+  `DialogService` оставлены thin compatibility delegates для legacy
+  controller/integration tests.
 
 Что остаётся:
 
 - service-level split `DialogService` на list/workspace/history/SLA/AI и related
   mapping layers;
+- продолжить вытаскивать из `DialogService` remaining read/write bounded
+  contexts уже поверх вынесенного `DialogClientContextReadService`;
 - при необходимости вынести DTO mapping и summary assembly из giant service;
 - расширить targeted WebMvc/service tests под новую controller/service
   раскладку.

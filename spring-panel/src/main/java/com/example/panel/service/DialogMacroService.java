@@ -66,11 +66,14 @@ public class DialogMacroService {
     );
 
     private final DialogService dialogService;
+    private final DialogClientContextReadService dialogClientContextReadService;
     private final SharedConfigService sharedConfigService;
 
     public DialogMacroService(DialogService dialogService,
+                              DialogClientContextReadService dialogClientContextReadService,
                               SharedConfigService sharedConfigService) {
         this.dialogService = dialogService;
+        this.dialogClientContextReadService = dialogClientContextReadService;
         this.sharedConfigService = sharedConfigService;
     }
 
@@ -129,7 +132,7 @@ public class DialogMacroService {
                 putMacroVariableIfAbsent(variables, "location", summary.location());
                 putMacroVariableIfAbsent(variables, "dialog_status", summary.statusLabel());
                 putMacroVariableIfAbsent(variables, "created_at", summary.createdAt());
-                Map<String, Object> profileEnrichment = dialogService.loadClientProfileEnrichment(summary.userId());
+                Map<String, Object> profileEnrichment = dialogClientContextReadService.loadClientProfileEnrichment(summary.userId());
                 putMacroVariablesFromClientProfile(variables, profileEnrichment);
             });
         }

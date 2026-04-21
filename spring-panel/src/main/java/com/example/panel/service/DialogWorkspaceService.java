@@ -50,6 +50,7 @@ public class DialogWorkspaceService {
     private final DialogWorkspaceContextSourceService dialogWorkspaceContextSourceService;
     private final DialogWorkspaceContextContractService dialogWorkspaceContextContractService;
     private final DialogSlaRuntimeService dialogSlaRuntimeService;
+    private final DialogClientContextReadService dialogClientContextReadService;
     private static final int DEFAULT_SLA_TARGET_MINUTES = 24 * 60;
     private static final int DEFAULT_SLA_WARNING_MINUTES = 4 * 60;
     private static final int DEFAULT_WORKSPACE_LIMIT = 50;
@@ -68,7 +69,8 @@ public class DialogWorkspaceService {
                                   DialogWorkspaceClientPayloadService dialogWorkspaceClientPayloadService,
                                   DialogWorkspaceContextSourceService dialogWorkspaceContextSourceService,
                                   DialogWorkspaceContextContractService dialogWorkspaceContextContractService,
-                                  DialogSlaRuntimeService dialogSlaRuntimeService) {
+                                  DialogSlaRuntimeService dialogSlaRuntimeService,
+                                  DialogClientContextReadService dialogClientContextReadService) {
         this.dialogService = dialogService;
         this.sharedConfigService = sharedConfigService;
         this.dialogAuthorizationService = dialogAuthorizationService;
@@ -83,6 +85,7 @@ public class DialogWorkspaceService {
         this.dialogWorkspaceContextSourceService = dialogWorkspaceContextSourceService;
         this.dialogWorkspaceContextContractService = dialogWorkspaceContextContractService;
         this.dialogSlaRuntimeService = dialogSlaRuntimeService;
+        this.dialogClientContextReadService = dialogClientContextReadService;
     }
 
     private Map<String, Object> resolveWorkspaceExternalProfileEnrichment(Map<String, Object> settings,
@@ -157,9 +160,9 @@ public class DialogWorkspaceService {
         Map<String, Object> settings = sharedConfigService.loadSettings();
         int workspaceHistoryLimit = resolveDialogConfigRangeMinutes(settings, "workspace_context_history_limit", 5, 1, 20);
         int workspaceRelatedEventsLimit = resolveDialogConfigRangeMinutes(settings, "workspace_context_related_events_limit", 5, 1, 20);
-        List<Map<String, Object>> clientHistory = dialogService.loadClientDialogHistory(summary.userId(), ticketId, workspaceHistoryLimit);
-        List<Map<String, Object>> relatedEvents = dialogService.loadRelatedEvents(ticketId, workspaceRelatedEventsLimit);
-        Map<String, Object> profileEnrichment = dialogService.loadClientProfileEnrichment(summary.userId());
+        List<Map<String, Object>> clientHistory = dialogClientContextReadService.loadClientDialogHistory(summary.userId(), ticketId, workspaceHistoryLimit);
+        List<Map<String, Object>> relatedEvents = dialogClientContextReadService.loadRelatedEvents(ticketId, workspaceRelatedEventsLimit);
+        Map<String, Object> profileEnrichment = dialogClientContextReadService.loadClientProfileEnrichment(summary.userId());
         Map<String, Object> externalProfileEnrichment = resolveWorkspaceExternalProfileEnrichment(settings, summary, ticketId, profileEnrichment);
         if (!externalProfileEnrichment.isEmpty()) {
             Map<String, Object> mergedEnrichment = new LinkedHashMap<>(profileEnrichment);
@@ -202,7 +205,7 @@ public class DialogWorkspaceService {
         putProfileMatchField(profileMatchIncomingValues, "location", summary.location());
         putProfileMatchField(profileMatchIncomingValues, "city", workspaceClient.get("city"));
         putProfileMatchField(profileMatchIncomingValues, "country", workspaceClient.get("country"));
-        Map<String, Object> profileMatchCandidates = dialogService.loadDialogProfileMatchCandidates(profileMatchIncomingValues, 5);
+        Map<String, Object> profileMatchCandidates = dialogClientContextReadService.loadDialogProfileMatchCandidates(profileMatchIncomingValues, 5);
         if (!profileMatchCandidates.isEmpty()) {
             workspaceClient.put("profile_match_candidates", profileMatchCandidates);
         }
