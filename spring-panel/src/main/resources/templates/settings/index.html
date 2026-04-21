@@ -865,6 +865,37 @@
       transition: opacity 0.18s ease, filter 0.18s ease;
     }
 
+    #channelsModal.channel-editor-child-open .modal-dialog {
+      pointer-events: none;
+      opacity: 0.52;
+      filter: saturate(0.8);
+      transition: opacity 0.18s ease, filter 0.18s ease;
+    }
+
+    #channelEditorModal {
+      overscroll-behavior: contain;
+    }
+
+    #channelEditorModal .modal-dialog {
+      margin: 0.85rem auto;
+      min-height: calc(100vh - 1.7rem);
+      height: calc(100vh - 1.7rem);
+      display: flex;
+      align-items: flex-start;
+    }
+
+    #channelEditorModal .modal-content {
+      width: 100%;
+      max-height: calc(100vh - 1.7rem);
+      height: 100%;
+    }
+
+    #channelEditorModal .modal-body {
+      min-height: 0;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+
     #botTemplateEditorModal,
     #botRatingTemplateModal {
       overscroll-behavior: contain;
@@ -894,6 +925,7 @@
     }
 
     @media (max-width: 575.98px) {
+      #channelEditorModal .modal-dialog,
       #botTemplateEditorModal .modal-dialog,
       #botRatingTemplateModal .modal-dialog {
         margin: 0.5rem auto;
@@ -901,6 +933,7 @@
         height: calc(100vh - 1rem);
       }
 
+      #channelEditorModal .modal-content,
       #botTemplateEditorModal .modal-content,
       #botRatingTemplateModal .modal-content {
         max-height: calc(100vh - 1rem);
@@ -5940,7 +5973,7 @@
   </div>
 
   <div class="modal fade" id="channelEditorModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title">Настройки канала</h5>
@@ -19529,6 +19562,7 @@
   const channelsBody = document.getElementById('channelsBody');
   const channelsRefreshBotStatusesBtn = document.getElementById('channelsRefreshBotStatusesBtn');
   const channelsBotStatusesInfo = document.getElementById('channelsBotStatusesInfo');
+  const channelsModalEl = document.getElementById('channelsModal');
   const channelEditorModalEl = document.getElementById('channelEditorModal');
   const channelEditorNameInput = document.getElementById('channelEditorName');
   const channelEditorActiveInput = document.getElementById('channelEditorIsActive');
@@ -19654,6 +19688,21 @@
     confirmationToken: '',
     secret: '',
   };
+
+  function setChannelsModalSuspended(suspended) {
+    if (!(channelsModalEl instanceof HTMLElement)) {
+      return;
+    }
+    const nextState = Boolean(suspended);
+    channelsModalEl.classList.toggle('channel-editor-child-open', nextState);
+    if (nextState) {
+      channelsModalEl.setAttribute('aria-hidden', 'true');
+      channelsModalEl.inert = true;
+    } else {
+      channelsModalEl.removeAttribute('aria-hidden');
+      channelsModalEl.inert = false;
+    }
+  }
 
   const channelEditorSummaries = {
     question_template_id: document.querySelector('[data-channel-editor-summary="question_template_id"]'),
@@ -22548,7 +22597,11 @@
         removeChannel(channelEditorState.channelId);
       }
     });
+    channelEditorModalEl?.addEventListener('show.bs.modal', () => {
+      setChannelsModalSuspended(true);
+    });
     channelEditorModalEl?.addEventListener('hidden.bs.modal', () => {
+      setChannelsModalSuspended(false);
       channelEditorState.channelId = null;
       channelEditorState.tokenVisible = false;
     });
