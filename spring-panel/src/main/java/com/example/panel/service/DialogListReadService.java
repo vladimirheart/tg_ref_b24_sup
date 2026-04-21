@@ -19,21 +19,21 @@ public class DialogListReadService {
     private static final int DEFAULT_SLA_TARGET_MINUTES = 24 * 60;
     private static final int DEFAULT_SLA_WARNING_MINUTES = 4 * 60;
 
-    private final DialogService dialogService;
+    private final DialogLookupReadService dialogLookupReadService;
     private final SharedConfigService sharedConfigService;
     private final DialogSlaRuntimeService dialogSlaRuntimeService;
 
-    public DialogListReadService(DialogService dialogService,
+    public DialogListReadService(DialogLookupReadService dialogLookupReadService,
                                  SharedConfigService sharedConfigService,
                                  DialogSlaRuntimeService dialogSlaRuntimeService) {
-        this.dialogService = dialogService;
+        this.dialogLookupReadService = dialogLookupReadService;
         this.sharedConfigService = sharedConfigService;
         this.dialogSlaRuntimeService = dialogSlaRuntimeService;
     }
 
     public Map<String, Object> loadListPayload(String operator) {
-        DialogSummary summary = dialogService.loadSummary();
-        List<DialogListItem> dialogs = dialogService.loadDialogs(operator);
+        DialogSummary summary = dialogLookupReadService.loadSummary();
+        List<DialogListItem> dialogs = dialogLookupReadService.loadDialogs(operator);
 
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("summary", summary);

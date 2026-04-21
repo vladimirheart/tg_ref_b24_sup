@@ -62,13 +62,16 @@ public class DialogWorkspaceTelemetryService {
     );
 
     private final DialogService dialogService;
+    private final DialogLookupReadService dialogLookupReadService;
     private final SharedConfigService sharedConfigService;
     private final SlaEscalationWebhookNotifier slaEscalationWebhookNotifier;
 
     public DialogWorkspaceTelemetryService(DialogService dialogService,
+                                           DialogLookupReadService dialogLookupReadService,
                                            SharedConfigService sharedConfigService,
                                            SlaEscalationWebhookNotifier slaEscalationWebhookNotifier) {
         this.dialogService = dialogService;
+        this.dialogLookupReadService = dialogLookupReadService;
         this.sharedConfigService = sharedConfigService;
         this.slaEscalationWebhookNotifier = slaEscalationWebhookNotifier;
     }
@@ -146,7 +149,7 @@ public class DialogWorkspaceTelemetryService {
                 : new LinkedHashMap<>(dialogService.loadWorkspaceTelemetrySummary(safeDays, experimentName));
         Map<String, Object> settings = sharedConfigService.loadSettings();
         Map<String, Object> slaPolicyAudit = slaEscalationWebhookNotifier.buildRoutingGovernanceAudit(
-                dialogService.loadDialogs(null),
+                dialogLookupReadService.loadDialogs(null),
                 settings);
         Map<String, Object> macroGovernanceAudit = dialogService.buildMacroGovernanceAudit(settings);
         payload.put("sla_policy_audit", slaPolicyAudit != null ? slaPolicyAudit : Map.of());

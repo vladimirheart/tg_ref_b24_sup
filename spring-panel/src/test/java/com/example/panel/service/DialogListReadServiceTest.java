@@ -13,16 +13,16 @@ import static org.mockito.Mockito.when;
 
 class DialogListReadServiceTest {
 
-    private final DialogService dialogService = mock(DialogService.class);
+    private final DialogLookupReadService dialogLookupReadService = mock(DialogLookupReadService.class);
     private final SharedConfigService sharedConfigService = mock(SharedConfigService.class);
     private final DialogSlaRuntimeService dialogSlaRuntimeService = new DialogSlaRuntimeService();
     private final DialogListReadService service =
-            new DialogListReadService(dialogService, sharedConfigService, dialogSlaRuntimeService);
+            new DialogListReadService(dialogLookupReadService, sharedConfigService, dialogSlaRuntimeService);
 
     @Test
     void loadListPayloadBuildsSlaOrchestrationWithCriticalUnassignedTicket() {
-        when(dialogService.loadSummary()).thenReturn(mock(DialogSummary.class));
-        when(dialogService.loadDialogs("operator")).thenReturn(List.of(
+        when(dialogLookupReadService.loadSummary()).thenReturn(mock(DialogSummary.class));
+        when(dialogLookupReadService.loadDialogs("operator")).thenReturn(List.of(
                 sampleDialog("T-100", null, "2026-04-21T00:00:00Z", "open"),
                 sampleDialog("T-200", "operator", "2026-04-21T09:50:00Z", "open")
         ));

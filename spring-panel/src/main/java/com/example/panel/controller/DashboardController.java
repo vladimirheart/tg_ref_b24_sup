@@ -2,7 +2,7 @@ package com.example.panel.controller;
 
 import com.example.panel.model.dialog.DialogListItem;
 import com.example.panel.model.dialog.DialogSummary;
-import com.example.panel.service.DialogService;
+import com.example.panel.service.DialogLookupReadService;
 import com.example.panel.service.NavigationService;
 import com.example.panel.service.PermissionService;
 import org.slf4j.Logger;
@@ -21,14 +21,14 @@ public class DashboardController {
     private static final Logger log = LoggerFactory.getLogger(DashboardController.class);
 
     private final PermissionService permissionService;
-    private final DialogService dialogService;
+    private final DialogLookupReadService dialogLookupReadService;
     private final NavigationService navigationService;
 
     public DashboardController(PermissionService permissionService,
-                              DialogService dialogService,
+                              DialogLookupReadService dialogLookupReadService,
                               NavigationService navigationService) {
         this.permissionService = permissionService;
-        this.dialogService = dialogService;
+        this.dialogLookupReadService = dialogLookupReadService;
         this.navigationService = navigationService;
     }
 
@@ -42,8 +42,8 @@ public class DashboardController {
 
     private String renderDashboard(Authentication authentication, Model model) {
         try {
-            DialogSummary summary = dialogService.loadSummary();
-            var dialogs = dialogService.loadDialogs(authentication != null ? authentication.getName() : null);
+            DialogSummary summary = dialogLookupReadService.loadSummary();
+            var dialogs = dialogLookupReadService.loadDialogs(authentication != null ? authentication.getName() : null);
             model.addAttribute("summary", summary);
             model.addAttribute("dialogs", dialogs);
             List<String> restaurants = dialogs.stream()

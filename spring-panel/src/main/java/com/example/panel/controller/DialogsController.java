@@ -1,7 +1,7 @@
 package com.example.panel.controller;
 
 import com.example.panel.model.dialog.DialogSummary;
-import com.example.panel.service.DialogService;
+import com.example.panel.service.DialogLookupReadService;
 import com.example.panel.service.NavigationService;
 import com.example.panel.service.SharedConfigService;
 import org.slf4j.Logger;
@@ -19,14 +19,14 @@ public class DialogsController {
     private static final Logger log = LoggerFactory.getLogger(DialogsController.class);
 
     private final NavigationService navigationService;
-    private final DialogService dialogService;
+    private final DialogLookupReadService dialogLookupReadService;
     private final SharedConfigService sharedConfigService;
 
     public DialogsController(NavigationService navigationService,
-                             DialogService dialogService,
+                             DialogLookupReadService dialogLookupReadService,
                              SharedConfigService sharedConfigService) {
         this.navigationService = navigationService;
-        this.dialogService = dialogService;
+        this.dialogLookupReadService = dialogLookupReadService;
         this.sharedConfigService = sharedConfigService;
     }
 
@@ -67,9 +67,9 @@ public class DialogsController {
         model.addAttribute("initialDialogTicketId", initialDialogTicketId);
         model.addAttribute("operatorIdentity", operatorIdentity);
         try {
-            DialogSummary summary = dialogService.loadSummary();
+            DialogSummary summary = dialogLookupReadService.loadSummary();
             model.addAttribute("summary", summary);
-            model.addAttribute("dialogs", dialogService.loadDialogs(authentication != null ? authentication.getName() : null));
+            model.addAttribute("dialogs", dialogLookupReadService.loadDialogs(authentication != null ? authentication.getName() : null));
             model.addAttribute("settingsPayload", sharedConfigService.loadSettings());
             log.info("Loaded dialogs page for user {}", operatorIdentity);
         } catch (Exception ex) {

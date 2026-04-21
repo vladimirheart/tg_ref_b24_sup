@@ -12,12 +12,12 @@ import static org.mockito.Mockito.when;
 
 class DialogWorkspaceNavigationServiceTest {
 
-    private final DialogService dialogService = mock(DialogService.class);
-    private final DialogWorkspaceNavigationService service = new DialogWorkspaceNavigationService(dialogService);
+    private final DialogLookupReadService dialogLookupReadService = mock(DialogLookupReadService.class);
+    private final DialogWorkspaceNavigationService service = new DialogWorkspaceNavigationService(dialogLookupReadService);
 
     @Test
     void buildNavigationMetaIncludesPreviousAndNextQueueContext() {
-        when(dialogService.loadDialogs("operator")).thenReturn(List.of(
+        when(dialogLookupReadService.loadDialogs("operator")).thenReturn(List.of(
                 sampleDialog("T-100", "Клиент 1", "2026-04-20T10:00:00Z"),
                 sampleDialog("T-200", "Клиент 2", "2026-04-20T10:05:00Z"),
                 sampleDialog("T-300", "Клиент 3", "2026-04-20T10:10:00Z")
@@ -37,7 +37,7 @@ class DialogWorkspaceNavigationServiceTest {
 
     @Test
     void buildNavigationMetaRespectsDisabledInlineNavigationSetting() {
-        when(dialogService.loadDialogs("operator")).thenReturn(List.of(sampleDialog("T-200", "Клиент 2", "2026-04-20T10:05:00Z")));
+        when(dialogLookupReadService.loadDialogs("operator")).thenReturn(List.of(sampleDialog("T-200", "Клиент 2", "2026-04-20T10:05:00Z")));
 
         Map<String, Object> payload = service.buildNavigationMeta(
                 Map.of("dialog_config", Map.of("workspace_inline_navigation", false)),

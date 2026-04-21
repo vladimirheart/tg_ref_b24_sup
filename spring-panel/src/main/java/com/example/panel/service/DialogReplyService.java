@@ -32,16 +32,16 @@ public class DialogReplyService {
     private final JdbcTemplate jdbcTemplate;
     private final ChannelRepository channelRepository;
     private final ObjectMapper objectMapper;
-    private final DialogService dialogService;
+    private final DialogResponsibilityService dialogResponsibilityService;
 
     public DialogReplyService(JdbcTemplate jdbcTemplate,
                               ChannelRepository channelRepository,
                               ObjectMapper objectMapper,
-                              DialogService dialogService) {
+                              DialogResponsibilityService dialogResponsibilityService) {
         this.jdbcTemplate = jdbcTemplate;
         this.channelRepository = channelRepository;
         this.objectMapper = objectMapper;
-        this.dialogService = dialogService;
+        this.dialogResponsibilityService = dialogResponsibilityService;
     }
 
     public DialogReplyResult sendReply(String ticketId, String message, Long replyToTelegramId, String operator) {
@@ -69,7 +69,7 @@ public class DialogReplyService {
         if (hasWebFormSession(ticketId)) {
             String timestamp = logOutgoingMessage(target, ticketId, message, "operator_message", null, replyToTelegramId, safeSender);
             touchTicketActivity(ticketId, target.userId());
-            dialogService.assignResponsibleIfMissing(ticketId, operator);
+            dialogResponsibilityService.assignResponsibleIfMissing(ticketId, operator);
             return DialogReplyResult.success(timestamp, null);
         }
         if (!StringUtils.hasText(channel.getToken())) {
@@ -114,7 +114,7 @@ public class DialogReplyService {
 
         String timestamp = logOutgoingMessage(target, ticketId, message, "operator_message", telegramMessageId, replyToTelegramId, safeSender);
         touchTicketActivity(ticketId, target.userId());
-        dialogService.assignResponsibleIfMissing(ticketId, operator);
+        dialogResponsibilityService.assignResponsibleIfMissing(ticketId, operator);
         return DialogReplyResult.success(timestamp, telegramMessageId);
     }
 
@@ -165,7 +165,7 @@ public class DialogReplyService {
         if (updated == 0) {
             return DialogReplyResult.error("Сообщение оператора не найдено.");
         }
-        dialogService.assignResponsibleIfMissing(ticketId, operator);
+        dialogResponsibilityService.assignResponsibleIfMissing(ticketId, operator);
         return DialogReplyResult.success(OffsetDateTime.now().toString(), telegramMessageId);
     }
 
@@ -212,7 +212,7 @@ public class DialogReplyService {
         if (updated == 0) {
             return DialogReplyResult.error("Сообщение оператора не найдено.");
         }
-        dialogService.assignResponsibleIfMissing(ticketId, operator);
+        dialogResponsibilityService.assignResponsibleIfMissing(ticketId, operator);
         return DialogReplyResult.success(OffsetDateTime.now().toString(), telegramMessageId);
     }
 
@@ -281,7 +281,7 @@ public class DialogReplyService {
                 telegramMessageId
         );
         touchTicketActivity(ticketId, target.userId());
-        dialogService.assignResponsibleIfMissing(ticketId, operator);
+        dialogResponsibilityService.assignResponsibleIfMissing(ticketId, operator);
         return DialogMediaReplyResult.success(timestamp, telegramMessageId, storedName, messageType, caption);
     }
 

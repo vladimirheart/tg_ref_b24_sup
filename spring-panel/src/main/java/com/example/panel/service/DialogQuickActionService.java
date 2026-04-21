@@ -20,6 +20,8 @@ public class DialogQuickActionService {
     private static final Logger log = LoggerFactory.getLogger(DialogQuickActionService.class);
 
     private final DialogService dialogService;
+    private final DialogLookupReadService dialogLookupReadService;
+    private final DialogResponsibilityService dialogResponsibilityService;
     private final DialogReplyService dialogReplyService;
     private final DialogNotificationService dialogNotificationService;
     private final DialogAiAssistantService dialogAiAssistantService;
@@ -27,12 +29,16 @@ public class DialogQuickActionService {
     private final AttachmentService attachmentService;
 
     public DialogQuickActionService(DialogService dialogService,
+                                    DialogLookupReadService dialogLookupReadService,
+                                    DialogResponsibilityService dialogResponsibilityService,
                                     DialogReplyService dialogReplyService,
                                     DialogNotificationService dialogNotificationService,
                                     DialogAiAssistantService dialogAiAssistantService,
                                     NotificationService notificationService,
                                     AttachmentService attachmentService) {
         this.dialogService = dialogService;
+        this.dialogLookupReadService = dialogLookupReadService;
+        this.dialogResponsibilityService = dialogResponsibilityService;
         this.dialogReplyService = dialogReplyService;
         this.dialogNotificationService = dialogNotificationService;
         this.dialogAiAssistantService = dialogAiAssistantService;
@@ -166,7 +172,7 @@ public class DialogQuickActionService {
     public void updateCategories(String ticketId,
                                  String operator,
                                  List<String> categories) {
-        dialogService.assignResponsibleIfMissing(ticketId, operator);
+        dialogResponsibilityService.assignResponsibleIfMissing(ticketId, operator);
         dialogService.setTicketCategories(ticketId, categories);
         notifyDialogParticipantsSafely(
                 ticketId,
@@ -177,13 +183,13 @@ public class DialogQuickActionService {
     }
 
     public Optional<String> takeTicket(String ticketId, String operator) {
-        Optional<DialogListItem> dialog = dialogService.findDialog(ticketId, operator);
+        Optional<DialogListItem> dialog = dialogLookupReadService.findDialog(ticketId, operator);
         if (dialog.isEmpty()) {
             return Optional.empty();
         }
-        dialogService.assignResponsibleIfMissingOrRedirected(ticketId, operator, operator);
+        dialogResponsibilityService.assignResponsibleIfMissingOrRedirected(ticketId, operator, operator);
         dialogAiAssistantService.clearProcessing(ticketId, "operator_take", null);
-        Optional<DialogListItem> updated = dialogService.findDialog(ticketId, operator);
+        Optional<DialogListItem> updated = dialogLookupReadService.findDialog(ticketId, operator);
         String responsible = updated.map(DialogListItem::responsible).orElse(dialog.get().responsible());
         notifyDialogParticipantsSafely(
                 ticketId,

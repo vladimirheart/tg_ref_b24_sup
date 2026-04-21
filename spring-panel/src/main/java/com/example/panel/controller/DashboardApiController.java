@@ -2,7 +2,7 @@ package com.example.panel.controller;
 
 import com.example.panel.model.dialog.DialogListItem;
 import com.example.panel.service.DashboardAnalyticsService;
-import com.example.panel.service.DialogService;
+import com.example.panel.service.DialogLookupReadService;
 import com.example.panel.service.ManagerReportService;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
@@ -25,14 +25,14 @@ public class DashboardApiController {
 
     private static final Logger log = LoggerFactory.getLogger(DashboardApiController.class);
 
-    private final DialogService dialogService;
+    private final DialogLookupReadService dialogLookupReadService;
     private final DashboardAnalyticsService analyticsService;
     private final ManagerReportService managerReportService;
 
-    public DashboardApiController(DialogService dialogService,
+    public DashboardApiController(DialogLookupReadService dialogLookupReadService,
                                   DashboardAnalyticsService analyticsService,
                                   ManagerReportService managerReportService) {
-        this.dialogService = dialogService;
+        this.dialogLookupReadService = dialogLookupReadService;
         this.analyticsService = analyticsService;
         this.managerReportService = managerReportService;
     }
@@ -42,7 +42,7 @@ public class DashboardApiController {
     public Map<String, Object> data(@RequestBody(required = false) DashboardFilterRequest request,
                                     Authentication authentication) {
         String operator = authentication != null ? authentication.getName() : null;
-        List<DialogListItem> dialogs = dialogService.loadDialogs(operator);
+        List<DialogListItem> dialogs = dialogLookupReadService.loadDialogs(operator);
         DashboardAnalyticsService.DashboardFilters filters = normalize(request);
         Map<String, Object> payload = new LinkedHashMap<>(analyticsService.buildDashboardPayload(dialogs, filters));
         payload.put("success", true);
@@ -56,7 +56,7 @@ public class DashboardApiController {
     public Map<String, Object> managerReport(@RequestBody(required = false) DashboardFilterRequest request,
                                              Authentication authentication) {
         String operator = authentication != null ? authentication.getName() : null;
-        List<DialogListItem> dialogs = dialogService.loadDialogs(operator);
+        List<DialogListItem> dialogs = dialogLookupReadService.loadDialogs(operator);
         DashboardAnalyticsService.DashboardFilters filters = normalize(request, true);
         Map<String, Object> payload = new LinkedHashMap<>(managerReportService.buildManagerReport(dialogs, filters));
         payload.put("success", true);
@@ -67,7 +67,7 @@ public class DashboardApiController {
     @PreAuthorize("hasAuthority('PAGE_DIALOGS')")
     public Map<String, Object> olapPreview(@RequestBody(required = false) OlapFilterRequest request, Authentication authentication) {
         String operator = authentication != null ? authentication.getName() : null;
-        List<DialogListItem> dialogs = dialogService.loadDialogs(operator);
+        List<DialogListItem> dialogs = dialogLookupReadService.loadDialogs(operator);
         DashboardAnalyticsService.DashboardFilters filters = normalize(request != null ? request.filters() : null);
         ManagerReportService.OlapPreviewRequest olapRequest = (request != null && request.olap() != null)
             ? request.olap()

@@ -52,6 +52,7 @@ public class DialogWorkspaceService {
     private final DialogSlaRuntimeService dialogSlaRuntimeService;
     private final DialogClientContextReadService dialogClientContextReadService;
     private final DialogConversationReadService dialogConversationReadService;
+    private final DialogResponsibilityService dialogResponsibilityService;
     private static final int DEFAULT_SLA_TARGET_MINUTES = 24 * 60;
     private static final int DEFAULT_SLA_WARNING_MINUTES = 4 * 60;
     private static final int DEFAULT_WORKSPACE_LIMIT = 50;
@@ -72,7 +73,8 @@ public class DialogWorkspaceService {
                                   DialogWorkspaceContextContractService dialogWorkspaceContextContractService,
                                   DialogSlaRuntimeService dialogSlaRuntimeService,
                                   DialogClientContextReadService dialogClientContextReadService,
-                                  DialogConversationReadService dialogConversationReadService) {
+                                  DialogConversationReadService dialogConversationReadService,
+                                  DialogResponsibilityService dialogResponsibilityService) {
         this.dialogService = dialogService;
         this.sharedConfigService = sharedConfigService;
         this.dialogAuthorizationService = dialogAuthorizationService;
@@ -89,6 +91,7 @@ public class DialogWorkspaceService {
         this.dialogSlaRuntimeService = dialogSlaRuntimeService;
         this.dialogClientContextReadService = dialogClientContextReadService;
         this.dialogConversationReadService = dialogConversationReadService;
+        this.dialogResponsibilityService = dialogResponsibilityService;
     }
 
     private Map<String, Object> resolveWorkspaceExternalProfileEnrichment(Map<String, Object> settings,
@@ -132,7 +135,7 @@ public class DialogWorkspaceService {
                                        String cursor,
                                        Authentication authentication) {
         String operator = authentication != null ? authentication.getName() : null;
-        dialogService.markDialogAsRead(ticketId, operator);
+        dialogResponsibilityService.markDialogAsRead(ticketId, operator);
         Optional<DialogDetails> details = dialogService.loadDialogDetails(ticketId, channelId, operator);
         if (details.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)

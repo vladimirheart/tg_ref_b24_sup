@@ -11,7 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
 import com.example.panel.model.dialog.DialogSummary;
-import com.example.panel.service.DialogService;
+import com.example.panel.service.DialogLookupReadService;
 import com.example.panel.service.NavigationService;
 import com.example.panel.service.PermissionService;
 import java.util.Collections;
@@ -33,7 +33,7 @@ class DashboardControllerWebMvcTest {
     private PermissionService permissionService;
 
     @MockBean
-    private DialogService dialogService;
+    private DialogLookupReadService dialogLookupReadService;
 
     @MockBean
     private NavigationService navigationService;
@@ -41,8 +41,8 @@ class DashboardControllerWebMvcTest {
     @Test
     void dashboardIncludesUiHeadBootstrapAndExplicitPagePreset() throws Exception {
         doNothing().when(navigationService).enrich(any(), any());
-        when(dialogService.loadSummary()).thenReturn(new DialogSummary(0, 0, 0, Collections.emptyList()));
-        when(dialogService.loadDialogs(anyString())).thenReturn(Collections.emptyList());
+        when(dialogLookupReadService.loadSummary()).thenReturn(new DialogSummary(0, 0, 0, Collections.emptyList()));
+        when(dialogLookupReadService.loadDialogs(anyString())).thenReturn(Collections.emptyList());
 
         mockMvc.perform(get("/dashboard").with(user("operator").authorities(() -> "PAGE_DIALOGS")))
             .andExpect(status().isOk())
