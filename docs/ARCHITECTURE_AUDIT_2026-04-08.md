@@ -14,13 +14,15 @@
 ✅ Начат и существенно продвинут рефакторинг transport-layer для `dialogs` и `settings`  
 ✅ Добавлен foundation-слой для UI runtime, preferences и page presets  
 ✅ Усилен `Phase 6` safety net через targeted unit/WebMvc/lifecycle/smoke tests  
+✅ Формализован bot runtime contract через launcher-strategy, explicit artifact contract и runtime diagnostics  
+✅ `DialogService` уже заметно разгружен через несколько read/write service slices, хотя полный split ещё не завершён  
 
 ---
 
 ## 🧭 Текущее состояние
 
 Этот документ больше нельзя читать как “чистый список проблем на старте”. К
-20 апреля 2026 часть наиболее болезненных рисков уже снижена в коде.
+21 апреля 2026 часть наиболее болезненных рисков уже снижена в коде.
 
 Что уже существенно улучшено:
 
@@ -77,10 +79,18 @@
   `SettingsParametersController`, `SettingsItEquipmentController`,
   `SettingsUpdateService`, `SettingsDialogConfig*Service` и связанные subdomain
   services;
-- bot runtime boundary начал уходить от жёсткого `spring-boot:run` в сторону
-  launcher-strategy и explicit runtime contract;
-- есть отдельные targeted тесты для sliced controllers, runtime contract,
-  shared config/env foundation и page bootstrap.
+- `settings` продвинулся ещё дальше: `dialog_config` уже не просто вынесен из
+  giant update-method, а дополнительно разрезан через
+  `SettingsDialogTemplateConfigService` и
+  `SettingsDialogRuntimeConfigService`, так что template/macro governance и
+  runtime-настройки больше не живут в одном coordinator-слое;
+- bot runtime boundary уже не только “начал уходить” от жёсткого
+  `spring-boot:run`, а получил `BotRuntimeContractService`,
+  `app.bots.executable-jars`, endpoint `/api/bots/{channelId}/runtime-contract`
+  и lifecycle contract test с runnable test jar;
+- `Phase 6` уже даёт не только точечные unit-тесты, но и пакет page bootstrap
+  smoke tests плюс WebMvc coverage для sliced dialog/settings controllers,
+  shared config/env foundation и runtime contract.
 
 Что остаётся главным архитектурным риском:
 
@@ -90,7 +100,10 @@
   добавлен и второй conversation read slice, что заметно уменьшает pressure
   на giant service; теперь к этому добавлены ещё lookup/responsibility slices,
   а теперь и lifecycle/audit/details slices, но remaining bounded contexts и
-  legacy helper blocks всё ещё не закрыты полностью;
+  legacy helper blocks всё ещё не закрыты полностью; при этом сам класс уже
+  заметно уменьшился и сейчас находится примерно на уровне `6034` строк, то
+  есть речь уже не о “старом монолите без движения”, а о незавершённом, но
+  активно режущемся giant service;
 - `DialogWorkspaceService` всё ещё крупный, хотя уже начал разгружаться через
   выделенные workspace sub-services и уже прикрыт targeted service tests по
   parity, navigation, rollout, client profile, context blocks, client payload,
@@ -98,10 +111,15 @@
 - но сам `workspace` уже заметно сузился: из него дополнительно убраны
   мёртвые helper-блоки по SLA/source-coverage/export formatting;
 - `settings` всё ещё содержит remaining subdomains, которые могут снова
-  разрастаться в общих слоях;
+  разрастаться в общих слоях; в первую очередь это `catalog/reference`,
+  `partner/network` и часть `bot/integration` сценариев;
 - `SharedConfigService` дублируется между `spring-panel` и `java-bot`;
 - DTO/API contract и error contract всё ещё не унифицированы по проекту;
-- persistence-слой по-прежнему смешивает raw JDBC и JPA/Repository подходы.
+- persistence-слой по-прежнему смешивает raw JDBC и JPA/Repository подходы;
+- часть legacy safety net всё ещё нестабильна: например, есть старые хвосты
+  вокруг `SlaEscalationWebhookNotifierTest`, которые уже не блокируют
+  текущие рефакторинги, но показывают, что regression net пока не является
+  полностью спокойным и широким.
 
 ---
 
@@ -173,21 +191,26 @@ contract между platform bot и core orchestration.
 hotspot. Крупные controller-сценарии уже вынесены в отдельные controllers и
 services, поэтому главный риск сместился в service layer.
 
-**Решение:** Продолжать разрезать `DialogService` по bounded contexts:
+**Решение:** Продолжать разрезать `DialogService` по bounded contexts. Важно,
+что значимая часть работы уже сделана, поэтому ниже не просто wishlist, а
+фактический каркас текущего split:
 
 ```text
 DialogService
-  ├─ DialogLookupReadService
-  ├─ DialogClientContextReadService
-  ├─ DialogConversationReadService
-  ├─ DialogDetailsReadService
-  ├─ DialogResponsibilityService
-  ├─ DialogTicketLifecycleService
-  ├─ DialogAuditService
-  ├─ DialogWorkspaceService
-  ├─ DialogSlaService
-  ├─ DialogAiService
-  └─ DialogMapper / assembly layer
+  ├─ already extracted:
+  │   ├─ DialogLookupReadService
+  │   ├─ DialogClientContextReadService
+  │   ├─ DialogConversationReadService
+  │   ├─ DialogDetailsReadService
+  │   ├─ DialogResponsibilityService
+  │   ├─ DialogTicketLifecycleService
+  │   └─ DialogAuditService
+  ├─ still to narrow:
+  │   ├─ DialogWorkspaceService
+  │   ├─ reply/message write-side flows
+  │   ├─ AI/notification/escalation flows
+  │   └─ mapper / assembly layer
+  └─ then shrink compatibility delegates in DialogService itself
 ```
 
 ### 5. Дублирование кода между модулями
@@ -240,8 +263,10 @@ DTO/model-слой существует, но naming и ответственно
 
 ### 10. Частично неформализованные Spring-конфигурации
 
-Конфигурация приложения стала лучше формализована, но часть runtime/env
-ожиданий всё ещё держится на implicit conventions и defaults.
+Конфигурация приложения стала лучше формализована: у bot runtime уже есть
+launcher/env/readiness contract и documented production recipe. Но часть
+runtime/env ожиданий по проекту всё ещё держится на implicit conventions и
+defaults.
 
 ### 11. Отсутствие сквозного API versioning
 
@@ -278,11 +303,11 @@ DTO/model-слой существует, но naming и ответственно
 | Метрика | Текущее | Цель |
 |---------|---------|------|
 | Крупные controller hot spots | Сильно снижены | 0 giant controllers |
-| Крупные service hot spots | Всё ещё есть | bounded services по доменам |
-| Regression safety net | Targeted unit/WebMvc/lifecycle/smoke есть | широкий regression net |
+| Крупные service hot spots | Всё ещё есть, но главный риск сужен до `DialogService` и remaining settings/workspace slices | bounded services по доменам |
+| Regression safety net | Есть targeted unit/WebMvc/lifecycle/page-smoke net, но ещё не полный | широкий regression net |
 | Code Coverage | Не формализована | 60%+ |
 | Persistence consistency | Смешанный JDBC/JPA | явные domain boundaries |
-| Shared runtime/config contract | Частично формализован | единый documented contract |
+| Shared runtime/config contract | Формализован лучше, но ещё не унифицирован между panel и bot | единый documented contract |
 
 ---
 
@@ -296,7 +321,8 @@ DTO/model-слой существует, но naming и ответственно
 ### Фаза 2: Текущий главный фокус
 - [ ] Разрезать `DialogService` по bounded contexts
 - [ ] Добить remaining `settings` subdomains
-- [ ] Расширить safety net для следующих крупных рефакторингов
+- [ ] Расширить и стабилизировать safety net для следующих крупных рефакторингов
+- [ ] Закрыть runtime/notifier хвосты, которые ещё держатся на legacy-compatible фасадах
 
 ### Фаза 3: Следующий архитектурный уровень
 - [ ] Унифицировать shared config/runtime contract между `spring-panel` и `java-bot`
