@@ -80,7 +80,7 @@ public class PublicFormService {
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
     private final SharedConfigService sharedConfigService;
-    private final DialogService dialogService;
+    private final DialogAuditService dialogAuditService;
     private final AlertQueueService alertQueueService;
     private final Map<String, Deque<Long>> rateLimitBuckets = new ConcurrentHashMap<>();
     private final Map<String, IdempotencyEntry> idempotencyCache = new ConcurrentHashMap<>();
@@ -96,7 +96,7 @@ public class PublicFormService {
                              JdbcTemplate jdbcTemplate,
                              ObjectMapper objectMapper,
                              SharedConfigService sharedConfigService,
-                             DialogService dialogService,
+                             DialogAuditService dialogAuditService,
                              AlertQueueService alertQueueService) {
         this.channelRepository = channelRepository;
         this.sessionRepository = sessionRepository;
@@ -106,7 +106,7 @@ public class PublicFormService {
         this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper;
         this.sharedConfigService = sharedConfigService;
-        this.dialogService = dialogService;
+        this.dialogAuditService = dialogAuditService;
         this.alertQueueService = alertQueueService;
     }
 
@@ -185,7 +185,7 @@ public class PublicFormService {
                 saved.getUsername(),
                 saved.getCreatedAt()
         );
-        dialogService.logDialogActionAudit(
+        dialogAuditService.logDialogActionAudit(
                 saved.getTicketId(),
                 saved.getUsername(),
                 "public_form_submit",

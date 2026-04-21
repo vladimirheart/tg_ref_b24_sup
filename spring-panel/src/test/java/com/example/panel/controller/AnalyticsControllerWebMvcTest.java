@@ -1,7 +1,7 @@
 package com.example.panel.controller;
 
 import com.example.panel.service.AnalyticsService;
-import com.example.panel.service.DialogService;
+import com.example.panel.service.DialogAuditService;
 import com.example.panel.service.NavigationService;
 import com.example.panel.service.SharedConfigService;
 import org.junit.jupiter.api.Test;
@@ -43,7 +43,7 @@ class AnalyticsControllerWebMvcTest {
     private AnalyticsService analyticsService;
 
     @MockBean
-    private DialogService dialogService;
+    private DialogAuditService dialogAuditService;
 
     @MockBean
     private NavigationService navigationService;
@@ -113,7 +113,7 @@ class AnalyticsControllerWebMvcTest {
         assertThat(dialogConfig.get("workspace_rollout_governance_review_decision_action")).isEqualTo("hold");
         assertThat(dialogConfig.get("workspace_rollout_governance_review_incident_followup")).isEqualTo("INC-42");
 
-        verify(dialogService).logWorkspaceTelemetry(
+        verify(dialogAuditService).logWorkspaceTelemetry(
                 eq("ops.lead"),
                 eq("workspace_rollout_review_confirmed"),
                 eq("experiment"),
@@ -129,7 +129,7 @@ class AnalyticsControllerWebMvcTest {
                 eq(null),
                 eq(null),
                 eq(null));
-        verify(dialogService).logWorkspaceTelemetry(
+        verify(dialogAuditService).logWorkspaceTelemetry(
                 eq("ops.lead"),
                 eq("workspace_rollout_review_decision_hold"),
                 eq("experiment"),
@@ -145,7 +145,7 @@ class AnalyticsControllerWebMvcTest {
                 eq(null),
                 eq(null),
                 eq(null));
-        verify(dialogService).logWorkspaceTelemetry(
+        verify(dialogAuditService).logWorkspaceTelemetry(
                 eq("ops.lead"),
                 eq("workspace_rollout_review_incident_followup_linked"),
                 eq("experiment"),
@@ -246,7 +246,7 @@ class AnalyticsControllerWebMvcTest {
         Map<String, Object> savedSettings = settingsCaptor.getValue();
         Map<String, Object> dialogConfig = (Map<String, Object>) savedSettings.get("dialog_config");
         assertThat(dialogConfig.containsKey("workspace_rollout_governance_review_note")).isFalse();
-        verify(dialogService, never()).logWorkspaceTelemetry(
+        verify(dialogAuditService, never()).logWorkspaceTelemetry(
                 eq("ops.lead"),
                 eq("workspace_rollout_review_decision_go"),
                 eq("experiment"),
@@ -262,7 +262,7 @@ class AnalyticsControllerWebMvcTest {
                 eq(null),
                 eq(null),
                 eq(null));
-        verify(dialogService, never()).logWorkspaceTelemetry(
+        verify(dialogAuditService, never()).logWorkspaceTelemetry(
                 eq("ops.lead"),
                 eq("workspace_rollout_review_incident_followup_linked"),
                 eq("experiment"),
@@ -408,7 +408,7 @@ class AnalyticsControllerWebMvcTest {
         assertThat(dialogConfig.get("workspace_rollout_governance_legacy_inventory_review_note"))
                 .isEqualTo("Сценарий attachments_edit ещё не закрыт в workspace.");
 
-        verify(dialogService).logWorkspaceTelemetry(
+        verify(dialogAuditService).logWorkspaceTelemetry(
                 eq("ops.lead"),
                 eq("workspace_legacy_inventory_updated"),
                 eq("experiment"),
@@ -492,7 +492,7 @@ void updateWorkspaceLegacyUsagePolicyPersistsUtcReview() throws Exception {
     assertThat(dialogConfig.get("workspace_rollout_governance_legacy_blocked_reasons_followup"))
             .isEqualTo("OPS-42 legacy-open policy cleanup");
 
-    verify(dialogService).logWorkspaceTelemetry(
+    verify(dialogAuditService).logWorkspaceTelemetry(
             eq("ops.lead"),
             eq("workspace_legacy_usage_policy_updated"),
             eq("experiment"),
@@ -600,7 +600,7 @@ void updateWorkspaceLegacyUsagePolicyRejectsInvalidBlockedShareDelta() throws Ex
         assertThat(dialogConfig.get("sla_critical_auto_assign_governance_dry_run_ticket_id")).isEqualTo("INC-99");
         assertThat(dialogConfig.get("sla_critical_auto_assign_governance_decision")).isEqualTo("hold");
 
-        verify(dialogService).logWorkspaceTelemetry(
+        verify(dialogAuditService).logWorkspaceTelemetry(
                 eq("ops.lead"),
                 eq("workspace_sla_policy_review_updated"),
                 eq("experiment"),
@@ -690,7 +690,7 @@ void updateWorkspaceLegacyUsagePolicyRejectsInvalidBlockedShareDelta() throws Ex
         assertThat(dialogConfig.get("macro_governance_cleanup_ticket_id")).isEqualTo("MACRO-101");
         assertThat(dialogConfig.get("macro_governance_review_decision")).isEqualTo("hold");
 
-        verify(dialogService).logWorkspaceTelemetry(
+        verify(dialogAuditService).logWorkspaceTelemetry(
                 eq("ops.lead"),
                 eq("workspace_macro_governance_review_updated"),
                 eq("experiment"),
@@ -781,7 +781,7 @@ void updateWorkspaceLegacyUsagePolicyRejectsInvalidBlockedShareDelta() throws Ex
         assertThat(dialogConfig.get("macro_external_catalog_decision")).isEqualTo("go");
         assertThat(dialogConfig.get("macro_external_catalog_contract_ttl_hours")).isEqualTo(72L);
 
-        verify(dialogService).logWorkspaceTelemetry(
+        verify(dialogAuditService).logWorkspaceTelemetry(
                 eq("ops.lead"),
                 eq("workspace_macro_external_catalog_policy_updated"),
                 eq("experiment"),
@@ -851,7 +851,7 @@ void updateWorkspaceLegacyUsagePolicyRejectsInvalidBlockedShareDelta() throws Ex
         assertThat(dialogConfig.get("macro_deprecation_policy_decision")).isEqualTo("hold");
         assertThat(dialogConfig.get("macro_deprecation_policy_ttl_hours")).isEqualTo(96L);
 
-        verify(dialogService).logWorkspaceTelemetry(
+        verify(dialogAuditService).logWorkspaceTelemetry(
                 eq("ops.lead"),
                 eq("workspace_macro_deprecation_policy_updated"),
                 eq("experiment"),

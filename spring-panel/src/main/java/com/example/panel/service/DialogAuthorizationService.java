@@ -15,12 +15,12 @@ public class DialogAuthorizationService {
     private static final Logger log = LoggerFactory.getLogger(DialogAuthorizationService.class);
 
     private final PermissionService permissionService;
-    private final DialogService dialogService;
+    private final DialogAuditService dialogAuditService;
 
     public DialogAuthorizationService(PermissionService permissionService,
-                                      DialogService dialogService) {
+                                      DialogAuditService dialogAuditService) {
         this.permissionService = permissionService;
-        this.dialogService = dialogService;
+        this.dialogAuditService = dialogAuditService;
     }
 
     public Map<String, Object> resolveWorkspacePermissions(Authentication authentication) {
@@ -61,7 +61,7 @@ public class DialogAuthorizationService {
                 result,
                 safeDetail);
         if (ticketId != null) {
-            dialogService.logDialogActionAudit(ticketId, safeActor, action, result, safeDetail);
+            dialogAuditService.logDialogActionAudit(ticketId, safeActor, action, result, safeDetail);
         }
     }
 }

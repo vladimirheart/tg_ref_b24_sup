@@ -19,7 +19,7 @@ public class DialogQuickActionService {
 
     private static final Logger log = LoggerFactory.getLogger(DialogQuickActionService.class);
 
-    private final DialogService dialogService;
+    private final DialogTicketLifecycleService dialogTicketLifecycleService;
     private final DialogLookupReadService dialogLookupReadService;
     private final DialogResponsibilityService dialogResponsibilityService;
     private final DialogReplyService dialogReplyService;
@@ -28,7 +28,7 @@ public class DialogQuickActionService {
     private final NotificationService notificationService;
     private final AttachmentService attachmentService;
 
-    public DialogQuickActionService(DialogService dialogService,
+    public DialogQuickActionService(DialogTicketLifecycleService dialogTicketLifecycleService,
                                     DialogLookupReadService dialogLookupReadService,
                                     DialogResponsibilityService dialogResponsibilityService,
                                     DialogReplyService dialogReplyService,
@@ -36,7 +36,7 @@ public class DialogQuickActionService {
                                     DialogAiAssistantService dialogAiAssistantService,
                                     NotificationService notificationService,
                                     AttachmentService attachmentService) {
-        this.dialogService = dialogService;
+        this.dialogTicketLifecycleService = dialogTicketLifecycleService;
         this.dialogLookupReadService = dialogLookupReadService;
         this.dialogResponsibilityService = dialogResponsibilityService;
         this.dialogReplyService = dialogReplyService;
@@ -140,7 +140,7 @@ public class DialogQuickActionService {
     public DialogService.ResolveResult resolveTicket(String ticketId,
                                                      String operator,
                                                      List<String> categories) {
-        DialogService.ResolveResult result = dialogService.resolveTicket(ticketId, operator, categories);
+        DialogService.ResolveResult result = dialogTicketLifecycleService.resolveTicket(ticketId, operator, categories);
         if (result.updated()) {
             dialogAiAssistantService.clearProcessing(ticketId, "resolved", null);
             dialogNotificationService.notifyResolved(ticketId);
@@ -155,7 +155,7 @@ public class DialogQuickActionService {
     }
 
     public DialogService.ResolveResult reopenTicket(String ticketId, String operator) {
-        DialogService.ResolveResult result = dialogService.reopenTicket(ticketId, operator);
+        DialogService.ResolveResult result = dialogTicketLifecycleService.reopenTicket(ticketId, operator);
         if (result.updated()) {
             dialogAiAssistantService.clearProcessing(ticketId, "reopened", null);
             dialogNotificationService.notifyReopened(ticketId);
@@ -173,7 +173,7 @@ public class DialogQuickActionService {
                                  String operator,
                                  List<String> categories) {
         dialogResponsibilityService.assignResponsibleIfMissing(ticketId, operator);
-        dialogService.setTicketCategories(ticketId, categories);
+        dialogTicketLifecycleService.setTicketCategories(ticketId, categories);
         notifyDialogParticipantsSafely(
                 ticketId,
                 "В обращении " + ticketId + " обновлены категории",
