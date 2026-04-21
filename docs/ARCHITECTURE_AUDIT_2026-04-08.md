@@ -38,6 +38,10 @@
   отдельные workspace sub-services; теперь туда же вынесен и
   `context contract`, а старый мёртвый review-control дубль удалён из
   самого workspace service;
+- из giant `DialogService` уже вынесен первый самостоятельный client context
+  read-layer: история обращений клиента, profile enrichment, profile match
+  candidates и related events теперь живут в `DialogClientContextReadService`,
+  а `workspace/macro` сценарии используют его напрямую;
 - SLA/runtime дублирование между `DialogWorkspaceService` и
   `DialogListReadService` уменьшено через общий `DialogSlaRuntimeService`,
   который теперь держит lifecycle-state, deadline, minutes-left и config
@@ -54,7 +58,8 @@
 Что остаётся главным архитектурным риском:
 
 - `DialogService` всё ещё слишком крупный и остаётся главным кандидатом на
-  service-level split;
+  service-level split, хотя первый client-context read slice из него уже
+  выделен и часть потребителей переведена на новый слой;
 - `DialogWorkspaceService` всё ещё крупный, хотя уже начал разгружаться через
   выделенные workspace sub-services и уже прикрыт targeted service tests по
   parity, navigation, rollout, client profile, context blocks, client payload,
