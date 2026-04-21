@@ -858,6 +858,19 @@
       transition: opacity 0.18s ease, filter 0.18s ease;
     }
 
+    #channelsModal.bot-settings-child-open .modal-dialog {
+      pointer-events: none;
+      opacity: 0.52;
+      filter: saturate(0.8);
+      transition: opacity 0.18s ease, filter 0.18s ease;
+    }
+
+    #botTemplateEditorModal .modal-body,
+    #botRatingTemplateModal .modal-body {
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+
     .auth-user-modal-dialog {
       width: auto;
       margin: 1rem 1rem 1rem auto;
