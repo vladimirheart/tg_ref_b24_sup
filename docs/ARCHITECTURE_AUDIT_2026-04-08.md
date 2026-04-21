@@ -61,6 +61,14 @@
   `DialogQuickActionService`, `DialogAuthorizationService`,
   `DialogWorkspaceTelemetryService`, `AnalyticsController` и
   `DialogTriagePreferencesController`;
+- следующим consumer-split пакетом добавлен `DialogDetailsReadService`:
+  сценарий `loadDialogDetails` теперь выделен отдельно, а его прямые
+  потребители `DialogReadService`, `DialogWorkspaceService` и
+  `DialogMacroService` уже переведены на новый слой; вдогонку
+  `DialogAiAssistantService` переведён на `DialogResponsibilityService`, а
+  `SlaEscalationWebhookNotifier` использует `DialogLookupReadService` и
+  `DialogResponsibilityService` там, где giant `DialogService` раньше
+  оставался только техническим фасадом;
 - SLA/runtime дублирование между `DialogWorkspaceService` и
   `DialogListReadService` уменьшено через общий `DialogSlaRuntimeService`,
   который теперь держит lifecycle-state, deadline, minutes-left и config
@@ -81,8 +89,8 @@
   выделен и часть потребителей переведена на новый слой; теперь к нему
   добавлен и второй conversation read slice, что заметно уменьшает pressure
   на giant service; теперь к этому добавлены ещё lookup/responsibility slices,
-  а теперь и lifecycle/audit slices, но remaining bounded contexts и legacy
-  helper blocks всё ещё не закрыты полностью;
+  а теперь и lifecycle/audit/details slices, но remaining bounded contexts и
+  legacy helper blocks всё ещё не закрыты полностью;
 - `DialogWorkspaceService` всё ещё крупный, хотя уже начал разгружаться через
   выделенные workspace sub-services и уже прикрыт targeted service tests по
   parity, navigation, rollout, client profile, context blocks, client payload,
@@ -172,6 +180,7 @@ DialogService
   ├─ DialogLookupReadService
   ├─ DialogClientContextReadService
   ├─ DialogConversationReadService
+  ├─ DialogDetailsReadService
   ├─ DialogResponsibilityService
   ├─ DialogTicketLifecycleService
   ├─ DialogAuditService

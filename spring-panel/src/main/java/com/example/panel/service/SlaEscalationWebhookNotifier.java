@@ -43,6 +43,8 @@ public class SlaEscalationWebhookNotifier {
 
     private final SharedConfigService sharedConfigService;
     private final DialogService dialogService;
+    private final DialogLookupReadService dialogLookupReadService;
+    private final DialogResponsibilityService dialogResponsibilityService;
     private final DialogAuditService dialogAuditService;
     private final ObjectMapper objectMapper;
     private final Map<String, Instant> ticketCooldownCache = new ConcurrentHashMap<>();
@@ -59,10 +61,14 @@ public class SlaEscalationWebhookNotifier {
     @Autowired
     public SlaEscalationWebhookNotifier(SharedConfigService sharedConfigService,
                                         DialogService dialogService,
+                                        DialogLookupReadService dialogLookupReadService,
+                                        DialogResponsibilityService dialogResponsibilityService,
                                         DialogAuditService dialogAuditService,
                                         ObjectMapper objectMapper) {
         this.sharedConfigService = sharedConfigService;
         this.dialogService = dialogService;
+        this.dialogLookupReadService = dialogLookupReadService;
+        this.dialogResponsibilityService = dialogResponsibilityService;
         this.dialogAuditService = dialogAuditService;
         this.objectMapper = objectMapper;
     }
@@ -70,7 +76,7 @@ public class SlaEscalationWebhookNotifier {
     SlaEscalationWebhookNotifier(SharedConfigService sharedConfigService,
                                  DialogService dialogService,
                                  ObjectMapper objectMapper) {
-        this(sharedConfigService, dialogService, null, objectMapper);
+        this(sharedConfigService, dialogService, null, null, null, objectMapper);
     }
 
     @Scheduled(fixedDelayString = "${panel.sla-escalation.webhook-check-interval-ms:120000}")
@@ -92,7 +98,7 @@ public class SlaEscalationWebhookNotifier {
         if (orchestrationMode == SlaOrchestrationMode.AUTOPILOT) {
             includeAssigned = true;
         }
-        List<Map<String, Object>> candidates = findEscalationCandidates(dialogService.loadDialogs(null), targetMinutes, criticalMinutes, includeAssigned);
+        List<Map<String, Object>> candidates = findEscalationCandidates(loadDialogsForRouting(null), targetMinutes, criticalMinutes, includeAssigned);
         if (candidates.isEmpty()) {
             return;
         }
@@ -268,7 +274,7 @@ public class SlaEscalationWebhookNotifier {
         }
         int assignedCount = 0;
         for (AutoAssignDecision decision : decisions) {
-            dialogService.assignResponsibleIfMissingOrRedirected(decision.ticketId(), decision.assignee(), actor);
+            assignResponsibleIfMissingOrRedirected(decision.ticketId(), decision.assignee(), actor);
             String action = decision.previousResponsible() == null ? "sla_auto_assign" : "sla_auto_reassign";
             String detail = "assigned_to=" + decision.assignee()
                     + ";source=" + decision.source()
@@ -1760,12 +1766,32 @@ public class SlaEscalationWebhookNotifier {
         if (operator == null) {
             return Long.MAX_VALUE;
         }
-        if (dialogService == null) {
+        if (dialogLookupReadService == null && dialogService == null) {
             return 0L;
         }
-        return openLoadCache.computeIfAbsent(operator, key -> dialogService.loadDialogs(key).stream()
+        return openLoadCache.computeIfAbsent(operator, key -> loadDialogsForRouting(key).stream()
                 .filter(dialog -> "open".equals(normalizeLifecycleState(dialog.statusKey())))
                 .count());
+    }
+
+    private List<DialogListItem> loadDialogsForRouting(String operator) {
+        if (dialogLookupReadService != null) {
+            return dialogLookupReadService.loadDialogs(operator);
+        }
+        if (dialogService != null) {
+            return dialogService.loadDialogs(operator);
+        }
+        return List.of();
+    }
+
+    private void assignResponsibleIfMissingOrRedirected(String ticketId, String newResponsible, String assignedBy) {
+        if (dialogResponsibilityService != null) {
+            dialogResponsibilityService.assignResponsibleIfMissingOrRedirected(ticketId, newResponsible, assignedBy);
+            return;
+        }
+        if (dialogService != null) {
+            dialogService.assignResponsibleIfMissingOrRedirected(ticketId, newResponsible, assignedBy);
+        }
     }
 
 

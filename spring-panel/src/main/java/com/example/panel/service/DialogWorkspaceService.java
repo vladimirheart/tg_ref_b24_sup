@@ -36,7 +36,7 @@ import java.util.stream.Stream;
 @Service
 public class DialogWorkspaceService {
 
-    private final DialogService dialogService;
+    private final DialogDetailsReadService dialogDetailsReadService;
     private final SharedConfigService sharedConfigService;
     private final DialogAuthorizationService dialogAuthorizationService;
     private final SlaEscalationWebhookNotifier slaEscalationWebhookNotifier;
@@ -58,7 +58,7 @@ public class DialogWorkspaceService {
     private static final int DEFAULT_WORKSPACE_LIMIT = 50;
     private static final int MAX_WORKSPACE_LIMIT = 200;
     private static final Set<String> WORKSPACE_INCLUDE_ALLOWED = Set.of("messages", "context", "sla", "permissions");
-    public DialogWorkspaceService(DialogService dialogService,
+    public DialogWorkspaceService(DialogDetailsReadService dialogDetailsReadService,
                                   SharedConfigService sharedConfigService,
                                   DialogAuthorizationService dialogAuthorizationService,
                                   SlaEscalationWebhookNotifier slaEscalationWebhookNotifier,
@@ -75,7 +75,7 @@ public class DialogWorkspaceService {
                                   DialogClientContextReadService dialogClientContextReadService,
                                   DialogConversationReadService dialogConversationReadService,
                                   DialogResponsibilityService dialogResponsibilityService) {
-        this.dialogService = dialogService;
+        this.dialogDetailsReadService = dialogDetailsReadService;
         this.sharedConfigService = sharedConfigService;
         this.dialogAuthorizationService = dialogAuthorizationService;
         this.slaEscalationWebhookNotifier = slaEscalationWebhookNotifier;
@@ -136,7 +136,7 @@ public class DialogWorkspaceService {
                                        Authentication authentication) {
         String operator = authentication != null ? authentication.getName() : null;
         dialogResponsibilityService.markDialogAsRead(ticketId, operator);
-        Optional<DialogDetails> details = dialogService.loadDialogDetails(ticketId, channelId, operator);
+        Optional<DialogDetails> details = dialogDetailsReadService.loadDialogDetails(ticketId, channelId, operator);
         if (details.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(Map.of("success", false, "error", "Диалог не найден"));

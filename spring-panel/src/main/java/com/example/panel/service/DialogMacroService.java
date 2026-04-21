@@ -65,14 +65,14 @@ public class DialogMacroService {
             macroVariable("current_time", "Текущее время")
     );
 
-    private final DialogService dialogService;
+    private final DialogDetailsReadService dialogDetailsReadService;
     private final DialogClientContextReadService dialogClientContextReadService;
     private final SharedConfigService sharedConfigService;
 
-    public DialogMacroService(DialogService dialogService,
+    public DialogMacroService(DialogDetailsReadService dialogDetailsReadService,
                               DialogClientContextReadService dialogClientContextReadService,
                               SharedConfigService sharedConfigService) {
-        this.dialogService = dialogService;
+        this.dialogDetailsReadService = dialogDetailsReadService;
         this.dialogClientContextReadService = dialogClientContextReadService;
         this.sharedConfigService = sharedConfigService;
     }
@@ -121,7 +121,7 @@ public class DialogMacroService {
 
         String safeTicketId = StringUtils.hasText(ticketId) ? ticketId.trim() : null;
         if (safeTicketId != null) {
-            Optional<DialogDetails> detailsOptional = dialogService.loadDialogDetails(safeTicketId, null, operator);
+            Optional<DialogDetails> detailsOptional = dialogDetailsReadService.loadDialogDetails(safeTicketId, null, operator);
             detailsOptional.ifPresent(details -> {
                 DialogListItem summary = details.summary();
                 putMacroVariableIfAbsent(variables, "client_name", summary.displayClientName());
