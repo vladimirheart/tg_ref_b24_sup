@@ -16,10 +16,10 @@ import java.util.Map;
 @Service
 public class DialogWorkspaceNavigationService {
 
-    private final DialogService dialogService;
+    private final DialogLookupReadService dialogLookupReadService;
 
-    public DialogWorkspaceNavigationService(DialogService dialogService) {
-        this.dialogService = dialogService;
+    public DialogWorkspaceNavigationService(DialogLookupReadService dialogLookupReadService) {
+        this.dialogLookupReadService = dialogLookupReadService;
     }
 
     public Map<String, Object> buildNavigationMeta(Map<String, Object> settings,
@@ -29,7 +29,7 @@ public class DialogWorkspaceNavigationService {
         if (settings != null && settings.get("dialog_config") instanceof Map<?, ?> dialogConfig) {
             enabled = resolveBooleanDialogConfig(dialogConfig, "workspace_inline_navigation", true);
         }
-        List<DialogListItem> dialogs = dialogService.loadDialogs(operator);
+        List<DialogListItem> dialogs = dialogLookupReadService.loadDialogs(operator);
         List<DialogListItem> navigationItems = dialogs == null
                 ? List.of()
                 : dialogs.stream()

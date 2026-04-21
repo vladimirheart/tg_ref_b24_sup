@@ -20,13 +20,16 @@ public class DialogReadService {
     private static final Logger log = LoggerFactory.getLogger(DialogReadService.class);
 
     private final DialogService dialogService;
+    private final DialogResponsibilityService dialogResponsibilityService;
     private final DialogConversationReadService dialogConversationReadService;
     private final PublicFormService publicFormService;
 
     public DialogReadService(DialogService dialogService,
+                             DialogResponsibilityService dialogResponsibilityService,
                              DialogConversationReadService dialogConversationReadService,
                              PublicFormService publicFormService) {
         this.dialogService = dialogService;
+        this.dialogResponsibilityService = dialogResponsibilityService;
         this.dialogConversationReadService = dialogConversationReadService;
         this.publicFormService = publicFormService;
     }
@@ -39,7 +42,7 @@ public class DialogReadService {
     }
 
     public ResponseEntity<?> loadDetails(String ticketId, Long channelId, String operator) {
-        dialogService.markDialogAsRead(ticketId, operator);
+        dialogResponsibilityService.markDialogAsRead(ticketId, operator);
         Optional<DialogDetails> details = dialogService.loadDialogDetails(ticketId, channelId, operator);
         log.info("Dialog details requested for ticket {} (channelId={}): {}", ticketId, channelId,
                 details.map(d -> "found").orElse("not found"));
@@ -49,7 +52,7 @@ public class DialogReadService {
     }
 
     public Map<String, Object> loadHistory(String ticketId, Long channelId, String operator) {
-        dialogService.markDialogAsRead(ticketId, operator);
+        dialogResponsibilityService.markDialogAsRead(ticketId, operator);
         List<ChatMessageDto> history = dialogConversationReadService.loadHistory(ticketId, channelId);
         log.info("History requested for ticket {} (channelId={}): {} messages", ticketId, channelId, history.size());
         return Map.of(

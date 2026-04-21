@@ -2,7 +2,7 @@ package com.example.panel.controller;
 
 import com.example.panel.model.dialog.DialogListItem;
 import com.example.panel.model.dialog.DialogSummary;
-import com.example.panel.service.DialogService;
+import com.example.panel.service.DialogLookupReadService;
 import com.example.panel.service.NavigationService;
 import com.example.panel.service.SharedConfigService;
 import org.junit.jupiter.api.Test;
@@ -37,7 +37,7 @@ class DialogsControllerWebMvcTest {
     private NavigationService navigationService;
 
     @MockBean
-    private DialogService dialogService;
+    private DialogLookupReadService dialogLookupReadService;
 
     @MockBean
     private SharedConfigService sharedConfigService;
@@ -45,8 +45,8 @@ class DialogsControllerWebMvcTest {
     @Test
     void dialogsTicketRouteProvidesInitialDialogTicketId() throws Exception {
         doNothing().when(navigationService).enrich(any(), any());
-        when(dialogService.loadSummary()).thenReturn(new DialogSummary(0, 0, 0, Collections.emptyList()));
-        when(dialogService.loadDialogs(anyString())).thenReturn(Collections.emptyList());
+        when(dialogLookupReadService.loadSummary()).thenReturn(new DialogSummary(0, 0, 0, Collections.emptyList()));
+        when(dialogLookupReadService.loadDialogs(anyString())).thenReturn(Collections.emptyList());
         when(sharedConfigService.loadSettings()).thenReturn(Map.of());
 
         mockMvc.perform(get("/dialogs/T-123").with(user("operator")))
@@ -58,8 +58,8 @@ class DialogsControllerWebMvcTest {
     @Test
     void dialogsListRendersOpenActionsAsRealDialogLinks() throws Exception {
         doNothing().when(navigationService).enrich(any(), any());
-        when(dialogService.loadSummary()).thenReturn(new DialogSummary(1, 1, 0, Collections.emptyList()));
-        when(dialogService.loadDialogs(anyString())).thenReturn(Collections.singletonList(
+        when(dialogLookupReadService.loadSummary()).thenReturn(new DialogSummary(1, 1, 0, Collections.emptyList()));
+        when(dialogLookupReadService.loadDialogs(anyString())).thenReturn(Collections.singletonList(
                 new DialogListItem(
                         "T-555",
                         1001L,
@@ -99,8 +99,8 @@ class DialogsControllerWebMvcTest {
     @Test
     void dialogsPageIncludesEarlyUiBootstrapScriptsFromSharedHeadFragment() throws Exception {
         doNothing().when(navigationService).enrich(any(), any());
-        when(dialogService.loadSummary()).thenReturn(new DialogSummary(0, 0, 0, Collections.emptyList()));
-        when(dialogService.loadDialogs(anyString())).thenReturn(Collections.emptyList());
+        when(dialogLookupReadService.loadSummary()).thenReturn(new DialogSummary(0, 0, 0, Collections.emptyList()));
+        when(dialogLookupReadService.loadDialogs(anyString())).thenReturn(Collections.emptyList());
         when(sharedConfigService.loadSettings()).thenReturn(Map.of());
 
         mockMvc.perform(get("/dialogs").with(user("operator")))

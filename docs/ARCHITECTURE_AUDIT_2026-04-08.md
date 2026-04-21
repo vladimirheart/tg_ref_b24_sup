@@ -2,7 +2,7 @@
 **Дата:** 8 апреля 2026  
 **Статус:** Актуально, но в активной фазе исправления  
 **Актуализация:** 9 апреля 2026 (см. `docs/ARCHITECTURE_AUDIT_VALIDATION_2026-04-09.md`)  
-**Последняя актуализация:** 20 апреля 2026
+**Последняя актуализация:** 21 апреля 2026
 
 ---
 
@@ -46,6 +46,14 @@
   история сообщений, previous history и ticket categories теперь живут в
   `DialogConversationReadService`, а `DialogReadService`, `workspace` и
   `public form` перестали тянуть этот срез через giant service;
+- следующим service-level пакетом из giant `DialogService` вынесены ещё два
+  слоя: `DialogLookupReadService` теперь обслуживает summary/list/find
+  сценарии, а `DialogResponsibilityService` — assignment/read-marker flows;
+  на новые зависимости уже переведены `DialogListReadService`,
+  `DialogWorkspaceNavigationService`, `DialogWorkspaceTelemetryService`,
+  `DialogQuickActionService`, `DialogReadService`, `DialogWorkspaceService`,
+  `DialogReplyService`, `DashboardController`, `DashboardApiController` и
+  `DialogsController`;
 - SLA/runtime дублирование между `DialogWorkspaceService` и
   `DialogListReadService` уменьшено через общий `DialogSlaRuntimeService`,
   который теперь держит lifecycle-state, deadline, minutes-left и config
@@ -65,7 +73,9 @@
   service-level split, хотя первый client-context read slice из него уже
   выделен и часть потребителей переведена на новый слой; теперь к нему
   добавлен и второй conversation read slice, что заметно уменьшает pressure
-  на giant service, но не закрывает lookup/list/write части домена;
+  на giant service; теперь к этому добавлены ещё lookup/responsibility slices,
+  но remaining write-side bounded contexts и legacy helper blocks всё ещё не
+  закрыты полностью;
 - `DialogWorkspaceService` всё ещё крупный, хотя уже начал разгружаться через
   выделенные workspace sub-services и уже прикрыт targeted service tests по
   parity, navigation, rollout, client profile, context blocks, client payload,
@@ -148,13 +158,15 @@ contract между platform bot и core orchestration.
 hotspot. Крупные controller-сценарии уже вынесены в отдельные controllers и
 services, поэтому главный риск сместился в service layer.
 
-**Решение:** Разрезать `DialogService` по bounded contexts:
+**Решение:** Продолжать разрезать `DialogService` по bounded contexts:
 
 ```text
 DialogService
-  ├─ DialogListService
+  ├─ DialogLookupReadService
+  ├─ DialogClientContextReadService
+  ├─ DialogConversationReadService
+  ├─ DialogResponsibilityService
   ├─ DialogWorkspaceService
-  ├─ DialogHistoryService
   ├─ DialogSlaService
   ├─ DialogAiService
   └─ DialogMapper / assembly layer
@@ -283,4 +295,4 @@ DTO/model-слой существует, но naming и ответственно
 4. После этого возвращаться к shared-config unification и DTO/error contract
 
 **Автор исходного аудита:** GitHub Copilot  
-**Статус:** Документ актуализирован под состояние кода на 20 апреля 2026
+**Статус:** Документ актуализирован под состояние кода на 21 апреля 2026

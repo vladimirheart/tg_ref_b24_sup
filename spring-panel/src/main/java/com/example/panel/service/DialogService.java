@@ -111,41 +111,36 @@ public class DialogService {
     private final JdbcTemplate jdbcTemplate;
     private final JdbcTemplate usersJdbcTemplate;
     private final SharedConfigService sharedConfigService;
+    private final DialogLookupReadService dialogLookupReadService;
+    private final DialogResponsibilityService dialogResponsibilityService;
     private final DialogClientContextReadService dialogClientContextReadService;
     private final DialogConversationReadService dialogConversationReadService;
 
     public DialogService(JdbcTemplate jdbcTemplate,
                          @Qualifier("usersJdbcTemplate") JdbcTemplate usersJdbcTemplate,
                          SharedConfigService sharedConfigService,
+                         DialogLookupReadService dialogLookupReadService,
+                         DialogResponsibilityService dialogResponsibilityService,
                          DialogClientContextReadService dialogClientContextReadService,
                          DialogConversationReadService dialogConversationReadService) {
         this.jdbcTemplate = jdbcTemplate;
         this.usersJdbcTemplate = usersJdbcTemplate;
         this.sharedConfigService = sharedConfigService;
+        this.dialogLookupReadService = dialogLookupReadService;
+        this.dialogResponsibilityService = dialogResponsibilityService;
         this.dialogClientContextReadService = dialogClientContextReadService;
         this.dialogConversationReadService = dialogConversationReadService;
     }
 
     public DialogSummary loadSummary() {
-        try {
-            long total = Objects.requireNonNullElse(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM tickets", Long.class), 0L);
-            long resolved = Objects.requireNonNullElse(jdbcTemplate.queryForObject(
-                    "SELECT COUNT(*) FROM tickets WHERE status = 'resolved'", Long.class), 0L);
-            long pending = Math.max(0, total - resolved);
-            List<DialogChannelStat> channelStats = jdbcTemplate.query(
-                    "SELECT COALESCE(c.channel_name, 'Без канала') AS name, COUNT(*) AS total " +
-                            "FROM tickets t LEFT JOIN channels c ON c.id = t.channel_id " +
-                            "GROUP BY COALESCE(c.channel_name, 'Без канала') ORDER BY total DESC",
-                    (rs, rowNum) -> new DialogChannelStat(rs.getString("name"), rs.getLong("total"))
-            );
-            return new DialogSummary(total, resolved, pending, channelStats);
-        } catch (DataAccessException ex) {
-            log.warn("Unable to load dialog summary, returning empty view: {}", summarizeDataAccessException(ex));
-            return new DialogSummary(0, 0, 0, List.of());
-        }
+        return dialogLookupReadService.loadSummary();
     }
 
     public List<DialogListItem> loadDialogs(String currentOperator) {
+        return dialogLookupReadService.loadDialogs(currentOperator);
+    }
+
+    private List<DialogListItem> loadDialogsLegacy(String currentOperator) {
         try {
             Set<String> feedbackColumns = loadTableColumns("feedbacks");
             boolean feedbackHasTicketId = feedbackColumns.contains("ticket_id");
@@ -313,6 +308,10 @@ public class DialogService {
     }
 
     public Optional<DialogListItem> findDialog(String ticketId, String operator) {
+        return dialogLookupReadService.findDialog(ticketId, operator);
+    }
+
+    private Optional<DialogListItem> findDialogLegacy(String ticketId, String operator) {
         try {
             Set<String> feedbackColumns = loadTableColumns("feedbacks");
             boolean feedbackHasTicketId = feedbackColumns.contains("ticket_id");
@@ -651,6 +650,10 @@ public class DialogService {
     }
 
     public void assignResponsibleIfMissing(String ticketId, String username) {
+        dialogResponsibilityService.assignResponsibleIfMissing(ticketId, username);
+    }
+
+    private void assignResponsibleIfMissingLegacy(String ticketId, String username) {
         if (!StringUtils.hasText(ticketId) || !StringUtils.hasText(username)) {
             return;
         }
@@ -667,6 +670,10 @@ public class DialogService {
     }
 
     public void markDialogAsRead(String ticketId, String operator) {
+        dialogResponsibilityService.markDialogAsRead(ticketId, operator);
+    }
+
+    private void markDialogAsReadLegacy(String ticketId, String operator) {
         if (!StringUtils.hasText(ticketId) || !StringUtils.hasText(operator)) {
             return;
         }
@@ -689,6 +696,10 @@ public class DialogService {
     }
 
     public void assignResponsibleIfMissingOrRedirected(String ticketId, String newResponsible, String assignedBy) {
+        dialogResponsibilityService.assignResponsibleIfMissingOrRedirected(ticketId, newResponsible, assignedBy);
+    }
+
+    private void assignResponsibleIfMissingOrRedirectedLegacy(String ticketId, String newResponsible, String assignedBy) {
         if (!StringUtils.hasText(ticketId) || !StringUtils.hasText(newResponsible)) {
             return;
         }
