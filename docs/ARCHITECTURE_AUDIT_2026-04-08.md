@@ -35,7 +35,9 @@
   внешний профиль клиента, parity/composer-сборка, navigation/queue meta и
   rollout/meta-config, client segments/profile health и context blocks/health
   плюс client payload support и context sources/attribute policies вынесены в
-  отдельные workspace sub-services;
+  отдельные workspace sub-services; теперь туда же вынесен и
+  `context contract`, а старый мёртвый review-control дубль удалён из
+  самого workspace service;
 - `settings` выведен из режима giant controller/update-method через
   `SettingsParametersController`, `SettingsItEquipmentController`,
   `SettingsUpdateService`, `SettingsDialogConfig*Service` и связанные subdomain
@@ -51,8 +53,8 @@
   service-level split;
 - `DialogWorkspaceService` всё ещё крупный, хотя уже начал разгружаться через
   выделенные workspace sub-services и уже прикрыт targeted service tests по
-  parity, navigation, rollout, client profile, context blocks, client payload
-  и context source policy;
+  parity, navigation, rollout, client profile, context blocks, client payload,
+  context source policy и context contract;
 - `settings` всё ещё содержит remaining subdomains, которые могут снова
   разрастаться в общих слоях;
 - `SharedConfigService` дублируется между `spring-panel` и `java-bot`;
