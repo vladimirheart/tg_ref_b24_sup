@@ -185,24 +185,6 @@
   `DialogWorkspaceService` и `PublicFormApiController` переведены на новый
   слой, а `DialogService` использует его для `loadDialogDetails` и legacy
   delegates.
-- следующим service-level пакетом из giant `DialogService` вынесены
-  lookup/read и responsibility slices: `loadSummary`, `loadDialogs` и
-  `findDialog` теперь обслуживаются через `DialogLookupReadService`, а
-  `assignResponsibleIfMissing`, `markDialogAsRead` и
-  `assignResponsibleIfMissingOrRedirected` — через
-  `DialogResponsibilityService`; `DialogListReadService`,
-  `DialogWorkspaceNavigationService`, `DialogWorkspaceTelemetryService`,
-  `DialogQuickActionService`, `DialogReadService`, `DialogWorkspaceService`,
-  `DialogReplyService`, `DashboardController`, `DashboardApiController` и
-  `DialogsController` уже переведены на новые зависимости напрямую.
-- следующим write-side пакетом из giant `DialogService` вынесены
-  `ticket lifecycle` и `audit logging`: `resolveTicket`, `reopenTicket` и
-  `setTicketCategories` теперь обслуживаются через
-  `DialogTicketLifecycleService`, а `logDialogActionAudit` и
-  `logWorkspaceTelemetry` — через `DialogAuditService`; прямые потребители
-  вроде `DialogQuickActionService`, `DialogAuthorizationService`,
-  `DialogWorkspaceTelemetryService`, `AnalyticsController` и
-  `DialogTriagePreferencesController` уже переведены на новые зависимости.
 
 Что остаётся:
 
@@ -210,12 +192,9 @@
   mapping layers;
 - продолжить вытаскивать из `DialogService` remaining read/write bounded
   contexts уже поверх вынесенного `DialogClientContextReadService`;
-- продолжить service-level split уже поверх вынесенных
-  `DialogClientContextReadService`, `DialogConversationReadService`,
-  `DialogLookupReadService`, `DialogResponsibilityService`,
-  `DialogTicketLifecycleService` и `DialogAuditService`, чтобы следующий пакет
-  брал уже remaining bounded contexts вроде telemetry summary / macro
-  governance и/или cleanup legacy helper layers;
+- продолжить service-level split уже поверх вынесенных `DialogClientContextReadService`
+  и `DialogConversationReadService`, чтобы следующий пакет брал либо
+  lookup/list-assembly, либо write-side bounded contexts;
 - при необходимости вынести DTO mapping и summary assembly из giant service;
 - расширить targeted WebMvc/service tests под новую controller/service
   раскладку.
@@ -366,11 +345,6 @@
   `SharedConfigServiceTest`, `EnvDefaultsInitializerTest`;
 - legacy WebMvc test-слой частично синхронизирован с новой controller
   структурой.
-- targeted safety net расширен ещё и на новый service-level split
-  `DialogService`: добавлены `DialogLookupReadServiceTest` и
-  `DialogResponsibilityServiceTest`, а также синхронизированы unit/WebMvc tests
-  для `DialogListReadService`, `DialogWorkspaceNavigationService`,
-  `DashboardController` и `DialogsController`.
 
 Что остаётся:
 
@@ -388,9 +362,8 @@
 1. `Phase 1` завершён.
 2. `Phase 2` стабилизирован и требует скорее нормализации ownership, чем
    срочной архитектурной ломки.
-3. `Phase 3` завершён на controller boundary, уже разрезал несколько
-   sub-services внутри `workspace` и начал реальный service-level split самого
-   `DialogService`, но giant write-side bounded contexts там всё ещё остаются.
+3. `Phase 3` завершён на controller boundary и уже движется в service-level
+   split `DialogWorkspaceService`, но всё ещё упирается в giant `DialogService`.
 4. `Phase 4` выполнен по самым рискованным giant flows и требует добивки
    remaining subdomains.
 5. `Phase 5` уже начат в коде.
