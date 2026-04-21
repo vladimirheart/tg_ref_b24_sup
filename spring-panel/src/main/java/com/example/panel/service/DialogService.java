@@ -115,6 +115,7 @@ public class DialogService {
     private final DialogResponsibilityService dialogResponsibilityService;
     private final DialogClientContextReadService dialogClientContextReadService;
     private final DialogConversationReadService dialogConversationReadService;
+    private final DialogDetailsReadService dialogDetailsReadService;
     private final DialogAuditService dialogAuditService;
     private final DialogTicketLifecycleService dialogTicketLifecycleService;
 
@@ -125,6 +126,7 @@ public class DialogService {
                          DialogResponsibilityService dialogResponsibilityService,
                          DialogClientContextReadService dialogClientContextReadService,
                          DialogConversationReadService dialogConversationReadService,
+                         DialogDetailsReadService dialogDetailsReadService,
                          DialogAuditService dialogAuditService,
                          DialogTicketLifecycleService dialogTicketLifecycleService) {
         this.jdbcTemplate = jdbcTemplate;
@@ -134,6 +136,7 @@ public class DialogService {
         this.dialogResponsibilityService = dialogResponsibilityService;
         this.dialogClientContextReadService = dialogClientContextReadService;
         this.dialogConversationReadService = dialogConversationReadService;
+        this.dialogDetailsReadService = dialogDetailsReadService;
         this.dialogAuditService = dialogAuditService;
         this.dialogTicketLifecycleService = dialogTicketLifecycleService;
     }
@@ -733,11 +736,7 @@ public class DialogService {
     }
 
     public Optional<DialogDetails> loadDialogDetails(String ticketId, Long channelId, String operator) {
-        return findDialog(ticketId, operator).map(item -> new DialogDetails(
-                item,
-                dialogConversationReadService.loadHistory(ticketId, channelId),
-                dialogConversationReadService.loadTicketCategories(ticketId)
-        ));
+        return dialogDetailsReadService.loadDialogDetails(ticketId, channelId, operator);
     }
 
     public Optional<DialogPreviousHistoryPage> loadPreviousDialogHistory(String ticketId, int offset) {

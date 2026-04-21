@@ -43,7 +43,7 @@ public class DialogAiAssistantService {
     private static final String MODE_ESCALATE_ONLY = "escalate_only";
 
     private final JdbcTemplate jdbcTemplate;
-    private final DialogService dialogService;
+    private final DialogResponsibilityService dialogResponsibilityService;
     private final DialogReplyService dialogReplyService;
     private final NotificationService notificationService;
     private final SharedConfigService sharedConfigService;
@@ -59,7 +59,7 @@ public class DialogAiAssistantService {
     private final ObjectMapper objectMapper;
 
     public DialogAiAssistantService(JdbcTemplate jdbcTemplate,
-                                    DialogService dialogService,
+                                    DialogResponsibilityService dialogResponsibilityService,
                                     DialogReplyService dialogReplyService,
                                     NotificationService notificationService,
                                     SharedConfigService sharedConfigService,
@@ -74,7 +74,7 @@ public class DialogAiAssistantService {
                                     AiControlledLlmService aiControlledLlmService,
                                     ObjectMapper objectMapper) {
         this.jdbcTemplate = jdbcTemplate;
-        this.dialogService = dialogService;
+        this.dialogResponsibilityService = dialogResponsibilityService;
         this.dialogReplyService = dialogReplyService;
         this.notificationService = notificationService;
         this.sharedConfigService = sharedConfigService;
@@ -142,7 +142,7 @@ public class DialogAiAssistantService {
         }
 
         mode = preRouting.effectiveMode();
-        dialogService.assignResponsibleIfMissing(t, "ai_agent");
+        dialogResponsibilityService.assignResponsibleIfMissing(t, "ai_agent");
         markProcessing(t, "processing", null, null, "processing", "incoming_message", null, mode);
         AiControlledLlmService.RewriteResult rewriteResult = aiControlledLlmService.rewriteQuery(t, m);
         String retrievalQuery = firstNonBlank(trim(rewriteResult.effectiveQuery()), m);

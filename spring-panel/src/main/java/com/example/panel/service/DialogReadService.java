@@ -19,16 +19,16 @@ public class DialogReadService {
 
     private static final Logger log = LoggerFactory.getLogger(DialogReadService.class);
 
-    private final DialogService dialogService;
+    private final DialogDetailsReadService dialogDetailsReadService;
     private final DialogResponsibilityService dialogResponsibilityService;
     private final DialogConversationReadService dialogConversationReadService;
     private final PublicFormService publicFormService;
 
-    public DialogReadService(DialogService dialogService,
+    public DialogReadService(DialogDetailsReadService dialogDetailsReadService,
                              DialogResponsibilityService dialogResponsibilityService,
                              DialogConversationReadService dialogConversationReadService,
                              PublicFormService publicFormService) {
-        this.dialogService = dialogService;
+        this.dialogDetailsReadService = dialogDetailsReadService;
         this.dialogResponsibilityService = dialogResponsibilityService;
         this.dialogConversationReadService = dialogConversationReadService;
         this.publicFormService = publicFormService;
@@ -43,7 +43,7 @@ public class DialogReadService {
 
     public ResponseEntity<?> loadDetails(String ticketId, Long channelId, String operator) {
         dialogResponsibilityService.markDialogAsRead(ticketId, operator);
-        Optional<DialogDetails> details = dialogService.loadDialogDetails(ticketId, channelId, operator);
+        Optional<DialogDetails> details = dialogDetailsReadService.loadDialogDetails(ticketId, channelId, operator);
         log.info("Dialog details requested for ticket {} (channelId={}): {}", ticketId, channelId,
                 details.map(d -> "found").orElse("not found"));
         return details.<ResponseEntity<?>>map(ResponseEntity::ok)

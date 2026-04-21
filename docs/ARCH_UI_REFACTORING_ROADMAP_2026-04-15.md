@@ -194,7 +194,7 @@
   contexts уже поверх вынесенного `DialogClientContextReadService`;
 - продолжить service-level split уже поверх вынесенных `DialogClientContextReadService`
   и `DialogConversationReadService`, чтобы следующий пакет брал либо
-  lookup/list-assembly, либо write-side bounded contexts;
+  lookup/list-assembly, details-read слой, либо write-side bounded contexts;
 - при необходимости вынести DTO mapping и summary assembly из giant service;
 - расширить targeted WebMvc/service tests под новую controller/service
   раскладку.
