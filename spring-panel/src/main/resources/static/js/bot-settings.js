@@ -9,6 +9,7 @@
   if (!mainModal) {
     return;
   }
+  const parentModalEl = mainModal.closest('.modal');
 
   const templateModalEl = document.getElementById('botTemplateEditorModal');
   const templateModal = templateModalEl && typeof bootstrap !== 'undefined'
@@ -45,6 +46,21 @@
   const ratingStatusEl = ratingModalEl ? ratingModalEl.querySelector('[data-bot-rating-template-status]') : null;
   const ratingSaveButton = ratingModalEl ? ratingModalEl.querySelector('[data-bot-rating-template-save]') : null;
   const ratingCancelButton = ratingModalEl ? ratingModalEl.querySelector('[data-bot-rating-template-cancel]') : null;
+
+  function setParentModalSuspended(suspended) {
+    if (!(parentModalEl instanceof HTMLElement)) {
+      return;
+    }
+    const nextState = Boolean(suspended);
+    parentModalEl.classList.toggle('bot-settings-child-open', nextState);
+    if (nextState) {
+      parentModalEl.setAttribute('aria-hidden', 'true');
+      parentModalEl.inert = true;
+    } else {
+      parentModalEl.removeAttribute('aria-hidden');
+      parentModalEl.inert = false;
+    }
+  }
 
   const PRESET_GROUPS = {};
   Object.entries(BOT_PRESET_DEFINITIONS || {}).forEach(([groupKey, groupValue]) => {
@@ -2266,7 +2282,11 @@ const id = ensureQuestionId(source.id);
   }
 
   if (templateModalEl) {
+    templateModalEl.addEventListener('show.bs.modal', () => {
+      setParentModalSuspended(true);
+    });
     templateModalEl.addEventListener('hidden.bs.modal', () => {
+      setParentModalSuspended(false);
       setTemplateStatus('', false);
     });
   }
@@ -2339,7 +2359,11 @@ const id = ensureQuestionId(source.id);
   }
 
   if (ratingModalEl) {
+    ratingModalEl.addEventListener('show.bs.modal', () => {
+      setParentModalSuspended(true);
+    });
     ratingModalEl.addEventListener('hidden.bs.modal', () => {
+      setParentModalSuspended(false);
       setRatingTemplateStatus('', false);
     });
   }
