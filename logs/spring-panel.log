@@ -26353,3 +26353,234 @@ Unconditional classes:
 2026-04-21 16:12:38.844+03:00 DEBUG [SpringApplicationShutdownHook] o.s.w.c.s.GenericWebApplicationContext - Closing org.springframework.web.context.support.GenericWebApplicationContext@66f659e6, started on Tue Apr 21 16:12:22 MSK 2026
 2026-04-21 16:12:38.856+03:00 DEBUG [SpringApplicationShutdownHook] o.s.w.c.s.GenericWebApplicationContext - Closing org.springframework.web.context.support.GenericWebApplicationContext@30adae45, started on Tue Apr 21 16:12:33 MSK 2026
 2026-04-21 16:12:38.860+03:00 DEBUG [SpringApplicationShutdownHook] o.s.w.c.s.GenericWebApplicationContext - Closing org.springframework.web.context.support.GenericWebApplicationContext@6d96a895, started on Tue Apr 21 16:12:35 MSK 2026
+2026-04-21 16:36:59.933+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
+2026-04-21 16:37:00.023+03:00 INFO  [main] c.e.p.config.EnvDefaultsInitializer - Applied default SQLite paths for missing APP_DB_* variables: {APP_DB_USERS=C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\users.db, APP_DB_KNOWLEDGE=C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\knowledge_base.db, APP_DB_CLIENTS=C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\clients.db, APP_DB_OBJECT_PASSPORTS=C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\object_passports.db, APP_DB_OBJECTS=C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\objects.db, APP_DB_SETTINGS=C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\settings.db, APP_DB_BOT=C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\bot_database.db, APP_DB_TICKETS=C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\tickets.db}
+2026-04-21 16:37:00.030+03:00 WARN  [main] c.e.p.config.EnvDefaultsInitializer - Environment variable APP_DB_OBJECT_PASSPORTS points to missing file C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\object_passports.db, falling back to defaults.
+2026-04-21 16:37:00.033+03:00 INFO  [main] c.e.p.config.EnvDefaultsInitializer - Applied default SQLite paths for missing APP_DB_* variables: {APP_DB_OBJECT_PASSPORTS=C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\object_passports.db}
+2026-04-21 16:37:00.037+03:00 INFO  [main] com.example.panel.PanelApplication - Starting PanelApplication using Java 25.0.2 with PID 32548 (C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\target\classes started by SinicinVV in C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel)
+2026-04-21 16:37:00.038+03:00 INFO  [main] com.example.panel.PanelApplication - No active profile set, falling back to 1 default profile: "default"
+2026-04-21 16:37:01.555+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-04-21 16:37:01.754+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 188 ms. Found 34 JPA repository interfaces.
+2026-04-21 16:37:03.149+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 8080 (http)
+2026-04-21 16:37:03.173+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Initializing ProtocolHandler ["http-nio-8080"]
+2026-04-21 16:37:03.180+03:00 INFO  [main] o.a.catalina.core.StandardService - Starting service [Tomcat]
+2026-04-21 16:37:03.180+03:00 INFO  [main] o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.20]
+2026-04-21 16:37:03.324+03:00 INFO  [main] o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+2026-04-21 16:37:03.325+03:00 INFO  [main] o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 3207 ms
+2026-04-21 16:37:03.455+03:00 INFO  [main] c.e.p.c.SqliteDataSourceConfiguration - Using SQLite database at C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\bot_database.db
+2026-04-21 16:37:04.082+03:00 INFO  [main] org.flywaydb.core.FlywayExecutor - Database: jdbc:sqlite:C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\bot_database.db (SQLite 3.43)
+2026-04-21 16:37:04.187+03:00 INFO  [main] o.f.core.internal.command.DbValidate - Successfully validated 36 migrations (execution time 00:00.075s)
+2026-04-21 16:37:04.200+03:00 INFO  [main] o.f.core.internal.command.DbMigrate - Current version of schema "main": 33
+2026-04-21 16:37:04.200+03:00 WARN  [main] o.f.core.internal.command.DbMigrate - outOfOrder mode is active. Migration of schema "main" may not be reproducible.
+2026-04-21 16:37:04.207+03:00 INFO  [main] o.f.core.internal.command.DbMigrate - Schema "main" is up to date. No migration necessary.
+2026-04-21 16:37:04.476+03:00 INFO  [main] o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-04-21 16:37:04.590+03:00 INFO  [main] org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
+2026-04-21 16:37:04.659+03:00 INFO  [main] o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
+2026-04-21 16:37:05.071+03:00 INFO  [main] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-04-21 16:37:08.038+03:00 INFO  [main] o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-04-21 16:37:08.042+03:00 INFO  [main] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-04-21 16:37:08.220+03:00 INFO  [main] c.e.p.service.SharedConfigService - Using shared config directory at C:\Users\SinicinVV\git_h\tg_ref_b24_sup\config\shared
+2026-04-21 16:37:08.773+03:00 INFO  [main] c.e.p.service.DatabaseHealthService - Spring panel is using SQLite database at: C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\bot_database.db (tickets) and C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\users.db (users)
+2026-04-21 16:37:09.252+03:00 INFO  [main] o.s.d.j.r.query.QueryEnhancerFactory - Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-04-21 16:37:10.110+03:00 INFO  [main] c.e.p.s.OperatorNotificationWatcher - Operator notification watcher initialized (chatHistoryId=143, feedbackId=9)
+2026-04-21 16:37:10.120+03:00 INFO  [main] c.e.p.c.BotSqliteDataSourceConfiguration - Using BOT SQLite database at C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\bot_database.db
+2026-04-21 16:37:10.335+03:00 INFO  [main] c.e.p.c.UsersSqliteDataSourceConfiguration - Using USERS SQLite database at C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\users.db
+2026-04-21 16:37:10.363+03:00 WARN  [main] o.s.b.a.o.j.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-04-21 16:37:10.752+03:00 INFO  [main] o.s.s.web.DefaultSecurityFilterChain - Will secure any request with [org.springframework.security.web.session.DisableEncodeUrlFilter@5970734c, org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@b8c4bcb, org.springframework.security.web.context.SecurityContextHolderFilter@23885f6a, org.springframework.security.web.header.HeaderWriterFilter@29307ea4, org.springframework.web.filter.CorsFilter@1bd95764, org.springframework.security.web.csrf.CsrfFilter@7f7b865f, com.example.panel.security.SecurityHeadersFilter@679d0be8, org.springframework.security.web.authentication.logout.LogoutFilter@68d9d5b3, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter@3b057816, org.springframework.security.web.session.ConcurrentSessionFilter@6642ea55, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@450897d, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@425b142e, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@36bef8fb, com.example.panel.security.UserLastActivityFilter@59d5a6fd, org.springframework.security.web.session.SessionManagementFilter@75d64dc4, org.springframework.security.web.access.ExceptionTranslationFilter@4cf7f5d8, org.springframework.security.web.access.intercept.AuthorizationFilter@4fc3bdb4]
+2026-04-21 16:37:11.227+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Starting ProtocolHandler ["http-nio-8080"]
+2026-04-21 16:37:11.239+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 8080 (http) with context path ''
+2026-04-21 16:37:11.251+03:00 INFO  [main] com.example.panel.PanelApplication - Started PanelApplication in 12.021 seconds (process running for 12.537)
+2026-04-21 16:37:11.279+03:00 INFO  [main] c.e.p.s.DatabaseBootstrapService - Clients database ensured at C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\clients.db
+2026-04-21 16:37:11.283+03:00 INFO  [main] c.e.p.s.DatabaseBootstrapService - Knowledge base database ensured at C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\knowledge_base.db
+2026-04-21 16:37:11.288+03:00 INFO  [main] c.e.p.s.DatabaseBootstrapService - Objects database ensured at C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\objects.db
+2026-04-21 16:37:11.494+03:00 INFO  [main] c.e.p.service.BotDatabaseRegistry - Bot database ready for channel 1 at C:\Users\SinicinVV\git_h\tg_ref_b24_sup\bot_databases\bot-1.db
+2026-04-21 16:37:11.516+03:00 INFO  [main] c.e.p.service.BotDatabaseRegistry - Bot database ready for channel 2 at C:\Users\SinicinVV\git_h\tg_ref_b24_sup\bot_databases\bot-2.db
+2026-04-21 16:37:11.523+03:00 INFO  [main] c.e.p.s.AdditionalServicesHealthService - Bot database directory is available: C:\Users\SinicinVV\git_h\tg_ref_b24_sup\bot_databases
+2026-04-21 16:37:11.524+03:00 INFO  [main] c.e.p.s.AdditionalServicesHealthService - Bot runtime is available at C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot
+2026-04-21 16:37:11.680+03:00 INFO  [main] c.e.p.s.AdditionalServicesHealthService - Telegram bot process status: stopped
+2026-04-21 16:37:11.680+03:00 INFO  [main] c.e.p.s.AdditionalServicesHealthService - VK bot process status: stopped
+2026-04-21 16:37:11.699+03:00 WARN  [main] c.e.panel.service.BotProcessService - PID file not found for channel 1
+2026-04-21 16:37:11.699+03:00 INFO  [main] c.e.panel.service.BotProcessService - Stopped bot process for channel 1
+2026-04-21 16:37:26.964+03:00 INFO  [http-nio-8080-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-04-21 16:37:26.965+03:00 INFO  [http-nio-8080-exec-1] o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
+2026-04-21 16:37:26.976+03:00 INFO  [http-nio-8080-exec-1] o.s.web.servlet.DispatcherServlet - Completed initialization in 9 ms
+2026-04-21 16:37:29.255+03:00 INFO  [main] c.e.panel.service.BotProcessService - Started bot process for channel 1 at 2026-04-21T16:37:11.781773900+03:00 via maven:spring-boot-run:bot-telegram
+2026-04-21 16:37:29.255+03:00 INFO  [main] c.e.p.service.BotAutoStartService - Auto-started bot for channel 1 (tst)
+2026-04-21 16:37:29.257+03:00 WARN  [main] c.e.panel.service.BotProcessService - PID file not found for channel 2
+2026-04-21 16:37:29.258+03:00 INFO  [main] c.e.panel.service.BotProcessService - Stopped bot process for channel 2
+2026-04-21 16:37:31.339+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn----7sbb7afirdq1f.xn--80adjkr6adm9b.xn--p1ai:443 (xn----7sbb7afirdq1f.xn--80adjkr6adm9b.xn--p1ai)
+2026-04-21 16:37:31.341+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--80aa4alnee.xn--80adjkr6adm9b.xn--p1ai:443 (xn--80aa4alnee.xn--80adjkr6adm9b.xn--p1ai)
+2026-04-21 16:37:31.343+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--80aaa0cvac.xn--80adjkr6adm9b.xn--p1ai:443 (xn--80aaa0cvac.xn--80adjkr6adm9b.xn--p1ai)
+2026-04-21 16:37:31.345+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--80aaa4cl.xn--80adjkr6adm9b.xn--p1ai:443 (xn--80aaa4cl.xn--80adjkr6adm9b.xn--p1ai)
+2026-04-21 16:37:31.348+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--80aaa6cmfh0a9d.xn--80adjkr6adm9b.xn--p1ai:443 (xn--80aaa6cmfh0a9d.xn--80adjkr6adm9b.xn--p1ai)
+2026-04-21 16:37:31.349+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--80aabg3bexb.xn--80adjkr6adm9b.xn--p1ai:443 (xn--80aabg3bexb.xn--80adjkr6adm9b.xn--p1ai)
+2026-04-21 16:37:31.351+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--80aafwghfew0e.xn--80adjkr6adm9b.xn--p1ai:443 (xn--80aafwghfew0e.xn--80adjkr6adm9b.xn--p1ai)
+2026-04-21 16:37:31.353+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--80aag1ciek.xn--80adjkr6adm9b.xn--p1ai:443 (xn--80aag1ciek.xn--80adjkr6adm9b.xn--p1ai)
+2026-04-21 16:37:31.355+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--80aag1ciek.xn--80adjkr6adm9b.xn--p1aia1a:443 (xn--80aag1ciek.xn--80adjkr6adm9b.xn--p1aia1a)
+2026-04-21 16:37:31.359+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--80aaib3cgnl.xn--80adjkr6adm9b.xn--p1ai:443 (xn--80aaib3cgnl.xn--80adjkr6adm9b.xn--p1ai)
+2026-04-21 16:37:31.361+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--80aalwqglfe.xn--80adjkr6adm9b.xn--p1ai:443 (xn--80aalwqglfe.xn--80adjkr6adm9b.xn--p1ai)
+2026-04-21 16:37:31.363+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--80acjvddnibbpncf.xn--80adjkr6adm9b.xn--p1ai:443 (xn--80acjvddnibbpncf.xn--80adjkr6adm9b.xn--p1ai)
+2026-04-21 16:37:31.366+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--80addag2buct.xn--80adjkr6adm9b.xn--p1ai:443 (xn--80addag2buct.xn--80adjkr6adm9b.xn--p1ai)
+2026-04-21 16:37:31.367+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--80addcdua5attdt.xn--80adjkr6adm9b.xn--p1ai:443 (xn--80addcdua5attdt.xn--80adjkr6adm9b.xn--p1ai)
+2026-04-21 16:37:31.370+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--80adjkr6adm9b.xn--p1ai:443 (xn--80adjkr6adm9b.xn--p1ai)
+2026-04-21 16:37:31.373+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--80adxhks.xn--80adjkr6adm9b.xn--p1ai:443 (xn--80adxhks.xn--80adjkr6adm9b.xn--p1ai)
+2026-04-21 16:37:31.375+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--80aidx0a.xn--80adjkr6adm9b.xn--p1ai:443 (xn--80aidx0a.xn--80adjkr6adm9b.xn--p1ai)
+2026-04-21 16:37:31.377+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--80ajgxi.xn--80adjkr6adm9b.xn--p1ai:443 (xn--80ajgxi.xn--80adjkr6adm9b.xn--p1ai)
+2026-04-21 16:37:31.379+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--80akegfemgd4b.xn--80adjkr6adm9b.xn--p1ai:443 (xn--80akegfemgd4b.xn--80adjkr6adm9b.xn--p1ai)
+2026-04-21 16:37:31.382+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--80aqejg8dua.xn--80adjkr6adm9b.xn--p1ai:443 (xn--80aqejg8dua.xn--80adjkr6adm9b.xn--p1ai)
+2026-04-21 16:37:31.384+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--90asilg6f.xn--80adjkr6adm9b.xn--p1ai:443 (xn--90asilg6f.xn--80adjkr6adm9b.xn--p1ai)
+2026-04-21 16:37:31.386+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--b1acdycodcb5a.xn--80adjkr6adm9b.xn--p1ai:443 (xn--b1acdycodcb5a.xn--80adjkr6adm9b.xn--p1ai)
+2026-04-21 16:37:31.387+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--b1aigedeu0a.xn--80adjkr6adm9b.xn--p1ai:443 (xn--b1aigedeu0a.xn--80adjkr6adm9b.xn--p1ai)
+2026-04-21 16:37:31.389+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--b1aqbiftj7e1a.xn--80adjkr6adm9b.xn--p1ai:443 (xn--b1aqbiftj7e1a.xn--80adjkr6adm9b.xn--p1ai)
+2026-04-21 16:37:31.391+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--b1aqclq9d.xn--80adjkr6adm9b.xn--p1ai:443 (xn--b1aqclq9d.xn--80adjkr6adm9b.xn--p1ai)
+2026-04-21 16:37:31.393+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--b1axaggg.xn--80adjkr6adm9b.xn--p1ai:443 (xn--b1axaggg.xn--80adjkr6adm9b.xn--p1ai)
+2026-04-21 16:37:31.395+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--c1aesfx9dc.xn--80adjkr6adm9b.xn--p1ai:443 (xn--c1aesfx9dc.xn--80adjkr6adm9b.xn--p1ai)
+2026-04-21 16:37:31.397+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--e1afhbv7b.xn--80adjkr6adm9b.xn--p1ai:443 (xn--e1afhbv7b.xn--80adjkr6adm9b.xn--p1ai)
+2026-04-21 16:37:31.398+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--90aamkcop0a.xn--p1ai:443 (xn--90aamkcop0a.xn--p1ai)
+2026-04-21 16:37:35.758+03:00 INFO  [http-nio-8080-exec-5] c.e.p.controller.DialogsController - Loaded dialogs page for user admin
+2026-04-21 16:37:36.493+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-21 16:37:36.514+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:37:36.632+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:37:41.854+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:37:45.002+03:00 INFO  [http-nio-8080-exec-1] c.e.p.service.DialogListReadService - Loaded dialogs list payload: 12 dialogs, summary stats loaded
+2026-04-21 16:37:45.176+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:37:46.401+03:00 INFO  [main] c.e.panel.service.BotProcessService - Started bot process for channel 2 at 2026-04-21T16:37:29.293479400+03:00 via maven:spring-boot-run:bot-max
+2026-04-21 16:37:46.401+03:00 INFO  [main] c.e.p.service.BotAutoStartService - Auto-started bot for channel 2 (мах_тест)
+2026-04-21 16:37:46.404+03:00 INFO  [main] c.e.p.service.BotAutoStartService - Bot auto-start completed. Started 2 active bot(s).
+2026-04-21 16:37:47.040+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:37:52.131+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:37:53.169+03:00 INFO  [http-nio-8080-exec-6] c.e.p.service.DialogListReadService - Loaded dialogs list payload: 12 dialogs, summary stats loaded
+2026-04-21 16:37:57.317+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:38:01.597+03:00 INFO  [http-nio-8080-exec-10] c.e.p.service.DialogListReadService - Loaded dialogs list payload: 12 dialogs, summary stats loaded
+2026-04-21 16:38:02.404+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:38:02.957+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:38:03.157+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.ManagementController - Loaded settings for user admin: 0 app settings, 5 system parameters
+2026-04-21 16:38:03.626+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:38:03.655+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-21 16:38:03.931+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-21 16:38:03.940+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:38:04.220+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-21 16:38:08.633+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:38:08.897+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:38:13.821+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:38:13.929+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:38:18.884+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:38:19.044+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:38:23.989+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:38:24.080+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:38:29.088+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:38:29.100+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:38:34.693+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:38:34.713+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-21 16:38:34.722+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:38:34.791+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-21 16:38:40.150+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:38:40.162+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:38:45.770+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:38:45.787+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:38:51.404+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:38:51.414+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:38:57.071+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:38:57.072+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:39:02.680+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:39:02.698+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:39:04.277+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-21 16:39:04.291+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-21 16:39:07.734+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:39:07.755+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:39:13.380+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:39:13.399+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:39:19.004+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:39:19.007+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:39:24.712+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:39:24.732+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:39:30.277+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:39:30.285+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:39:34.790+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-21 16:39:34.800+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-21 16:39:35.886+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:39:35.896+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:39:41.540+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:39:41.551+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:39:47.148+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:39:47.156+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:39:52.818+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:39:52.835+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:39:58.405+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:39:58.405+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:40:04.113+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:40:04.168+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:40:05.168+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-21 16:40:05.247+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-21 16:40:09.528+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:40:09.558+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:40:15.176+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:40:15.176+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:40:20.788+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:40:20.809+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:40:26.429+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:40:26.439+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:40:32.055+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:40:32.111+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:40:35.645+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-21 16:40:35.673+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-21 16:40:37.244+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:40:37.256+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:40:42.909+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:40:42.923+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:40:48.526+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:40:48.540+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:40:54.162+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:40:54.177+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:40:59.782+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:40:59.800+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:41:05.421+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:41:05.424+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:41:06.559+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-21 16:41:06.559+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-21 16:41:10.904+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:41:10.930+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:41:16.551+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:41:16.555+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:41:22.161+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:41:22.190+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:41:27.786+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:41:27.810+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:41:34.503+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:41:34.527+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:41:36.931+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-21 16:41:36.937+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-21 16:41:38.618+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:41:38.641+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:41:44.260+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:41:44.271+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:41:49.894+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:41:49.903+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:41:55.639+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:41:55.643+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:42:01.138+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:42:01.160+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:42:06.894+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:42:06.916+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:42:07.934+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-21 16:42:07.994+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-21 16:42:12.287+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:42:12.288+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:42:17.907+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:42:17.928+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:42:23.704+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:42:23.713+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:42:29.171+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:42:29.198+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:42:34.908+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:42:34.915+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:42:38.328+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-21 16:42:38.365+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-21 16:42:40.007+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:42:40.027+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:42:45.652+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:42:45.652+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:42:51.255+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:42:51.266+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:42:56.908+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-21 16:42:56.935+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
