@@ -168,6 +168,10 @@
   context contract вынесен в `DialogWorkspaceContextContractService`, а
   мёртвый дублирующий review-control block удалён из `DialogWorkspaceService`,
   чтобы giant service держал только реальные workspace use-cases.
+- дополнительно убрано runtime-дублирование по SLA: общий
+  `DialogSlaRuntimeService` теперь обслуживает и `DialogWorkspaceService`, и
+  `DialogListReadService`, а из workspace-сервиса удалены оставшиеся мёртвые
+  helper-блоки по SLA/source-coverage/export formatting.
 
 Что остаётся:
 

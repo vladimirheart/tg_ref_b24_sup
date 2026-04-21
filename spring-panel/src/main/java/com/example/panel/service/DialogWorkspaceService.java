@@ -49,6 +49,7 @@ public class DialogWorkspaceService {
     private final DialogWorkspaceClientPayloadService dialogWorkspaceClientPayloadService;
     private final DialogWorkspaceContextSourceService dialogWorkspaceContextSourceService;
     private final DialogWorkspaceContextContractService dialogWorkspaceContextContractService;
+    private final DialogSlaRuntimeService dialogSlaRuntimeService;
     private static final int DEFAULT_SLA_TARGET_MINUTES = 24 * 60;
     private static final int DEFAULT_SLA_WARNING_MINUTES = 4 * 60;
     private static final int DEFAULT_WORKSPACE_LIMIT = 50;
@@ -66,7 +67,8 @@ public class DialogWorkspaceService {
                                   DialogWorkspaceContextBlockService dialogWorkspaceContextBlockService,
                                   DialogWorkspaceClientPayloadService dialogWorkspaceClientPayloadService,
                                   DialogWorkspaceContextSourceService dialogWorkspaceContextSourceService,
-                                  DialogWorkspaceContextContractService dialogWorkspaceContextContractService) {
+                                  DialogWorkspaceContextContractService dialogWorkspaceContextContractService,
+                                  DialogSlaRuntimeService dialogSlaRuntimeService) {
         this.dialogService = dialogService;
         this.sharedConfigService = sharedConfigService;
         this.dialogAuthorizationService = dialogAuthorizationService;
@@ -80,6 +82,7 @@ public class DialogWorkspaceService {
         this.dialogWorkspaceClientPayloadService = dialogWorkspaceClientPayloadService;
         this.dialogWorkspaceContextSourceService = dialogWorkspaceContextSourceService;
         this.dialogWorkspaceContextContractService = dialogWorkspaceContextContractService;
+        this.dialogSlaRuntimeService = dialogSlaRuntimeService;
     }
 
     private Map<String, Object> resolveWorkspaceExternalProfileEnrichment(Map<String, Object> settings,
@@ -149,8 +152,8 @@ public class DialogWorkspaceService {
                 slaTargetMinutes
         );
         int slaCriticalMinutes = Math.min(resolveDialogConfigMinutes("sla_critical_minutes", 30), slaTargetMinutes);
-        String slaState = resolveSlaState(summary.createdAt(), slaTargetMinutes, slaWarningMinutes, summary.statusKey());
-        Long slaMinutesLeft = resolveSlaMinutesLeft(summary.createdAt(), slaTargetMinutes, summary.statusKey(), System.currentTimeMillis());
+        String slaState = dialogSlaRuntimeService.resolveSlaState(summary.createdAt(), slaTargetMinutes, slaWarningMinutes, summary.statusKey());
+        Long slaMinutesLeft = dialogSlaRuntimeService.resolveSlaMinutesLeft(summary.createdAt(), slaTargetMinutes, summary.statusKey(), System.currentTimeMillis());
         Map<String, Object> settings = sharedConfigService.loadSettings();
         int workspaceHistoryLimit = resolveDialogConfigRangeMinutes(settings, "workspace_context_history_limit", 5, 1, 20);
         int workspaceRelatedEventsLimit = resolveDialogConfigRangeMinutes(settings, "workspace_context_related_events_limit", 5, 1, 20);
@@ -322,7 +325,7 @@ public class DialogWorkspaceService {
                 "target_minutes", slaTargetMinutes,
                 "warning_minutes", slaWarningMinutes,
                 "critical_minutes", slaCriticalMinutes,
-                "deadline_at", computeDeadlineAt(summary.createdAt(), slaTargetMinutes),
+                "deadline_at", dialogSlaRuntimeService.computeDeadlineAt(summary.createdAt(), slaTargetMinutes),
                 "state", slaState,
                 "minutes_left", slaMinutesLeft,
                 "escalation_required", slaMinutesLeft != null && slaMinutesLeft <= slaCriticalMinutes,
@@ -332,7 +335,7 @@ public class DialogWorkspaceService {
                 "target_minutes", slaTargetMinutes,
                 "warning_minutes", slaWarningMinutes,
                 "critical_minutes", slaCriticalMinutes,
-                "deadline_at", computeDeadlineAt(summary.createdAt(), slaTargetMinutes),
+                "deadline_at", dialogSlaRuntimeService.computeDeadlineAt(summary.createdAt(), slaTargetMinutes),
                 "state", "unknown",
                 "minutes_left", null,
                 "escalation_required", false,
@@ -553,106 +556,12 @@ public class DialogWorkspaceService {
         }
     }
 
-    private String stringifyMacroVariableValue(Object value) {
-        if (value == null) {
-            return null;
-        }
-        if (value instanceof CharSequence sequence) {
-            String text = sequence.toString().trim();
-            return StringUtils.hasText(text) ? text : null;
-        }
-        if (value instanceof Number || value instanceof Boolean) {
-            return String.valueOf(value);
-        }
-        if (value instanceof List<?> list) {
-            return list.stream()
-                    .map(this::stringifyMacroVariableValue)
-                    .filter(StringUtils::hasText)
-                    .reduce((left, right) -> left + ", " + right)
-                    .orElse(null);
-        }
-        if (value instanceof Map<?, ?> map) {
-            return map.entrySet().stream()
-                    .map(entry -> {
-                        String mapKey = entry.getKey() != null ? String.valueOf(entry.getKey()).trim() : "";
-                        String mapValue = stringifyMacroVariableValue(entry.getValue());
-                        if (!StringUtils.hasText(mapKey) || !StringUtils.hasText(mapValue)) {
-                            return null;
-                        }
-                        return mapKey + ": " + mapValue;
-                    })
-                    .filter(StringUtils::hasText)
-                    .reduce((left, right) -> left + "; " + right)
-                    .orElse(null);
-        }
-        String fallback = String.valueOf(value).trim();
-        return StringUtils.hasText(fallback) ? fallback : null;
-    }
-
-
-    private String buildAiMonitoringEventsCsv(List<Map<String, Object>> items) {
-        StringBuilder out = new StringBuilder();
-        out.append("id,ticket_id,event_type,actor,decision_type,decision_reason,source,score,detail,created_at\n");
-        for (Map<String, Object> row : items) {
-            out.append(csvCell(row.get("id"))).append(',')
-                    .append(csvCell(row.get("ticket_id"))).append(',')
-                    .append(csvCell(row.get("event_type"))).append(',')
-                    .append(csvCell(row.get("actor"))).append(',')
-                    .append(csvCell(row.get("decision_type"))).append(',')
-                    .append(csvCell(row.get("decision_reason"))).append(',')
-                    .append(csvCell(row.get("source"))).append(',')
-                    .append(csvCell(row.get("score"))).append(',')
-                    .append(csvCell(row.get("detail"))).append(',')
-                    .append(csvCell(row.get("created_at"))).append('\n');
-        }
-        return out.toString();
-    }
-
-    private String csvCell(Object value) {
-        String text = value != null ? String.valueOf(value) : "";
-        String escaped = text.replace("\"", "\"\"");
-        return "\"" + escaped + "\"";
-    }
-
     private int resolveDialogConfigMinutes(String key, int fallbackValue) {
-        Map<String, Object> settings = sharedConfigService.loadSettings();
-        Object dialogConfigRaw = settings.get("dialog_config");
-        if (!(dialogConfigRaw instanceof Map<?, ?> dialogConfig)) {
-            return fallbackValue;
-        }
-        Object value = dialogConfig.get(key);
-        if (value == null) {
-            return fallbackValue;
-        }
-        try {
-            int parsed = Integer.parseInt(String.valueOf(value));
-            return parsed > 0 ? parsed : fallbackValue;
-        } catch (NumberFormatException ex) {
-            return fallbackValue;
-        }
+        return dialogSlaRuntimeService.resolveDialogConfigMinutes(sharedConfigService.loadSettings(), key, fallbackValue);
     }
 
     private boolean resolveDialogConfigBoolean(String key, boolean fallbackValue) {
-        Map<String, Object> settings = sharedConfigService.loadSettings();
-        Object dialogConfigRaw = settings.get("dialog_config");
-        if (!(dialogConfigRaw instanceof Map<?, ?> dialogConfig)) {
-            return fallbackValue;
-        }
-        Object value = dialogConfig.get(key);
-        if (value == null) {
-            return fallbackValue;
-        }
-        if (value instanceof Boolean boolValue) {
-            return boolValue;
-        }
-        String normalized = String.valueOf(value).trim().toLowerCase();
-        if ("true".equals(normalized) || "1".equals(normalized) || "yes".equals(normalized)) {
-            return true;
-        }
-        if ("false".equals(normalized) || "0".equals(normalized) || "no".equals(normalized)) {
-            return false;
-        }
-        return fallbackValue;
+        return dialogSlaRuntimeService.resolveDialogConfigBoolean(sharedConfigService.loadSettings(), key, fallbackValue);
     }
 
     private String trimToNull(String value) {
@@ -700,144 +609,6 @@ public class DialogWorkspaceService {
             return Long.parseLong(String.valueOf(raw).trim());
         } catch (NumberFormatException ex) {
             return 0L;
-        }
-    }
-
-    private boolean hasWorkspaceSourceCoverage(String sourceKey,
-                                               Map<String, Object> workspaceClient,
-                                               Map<String, Object> localProfileEnrichment,
-                                               Map<String, Object> externalProfileEnrichment,
-                                               Map<String, Object> externalLinks) {
-        if ("local".equals(sourceKey)) {
-            return true;
-        }
-        if (externalLinks != null && externalLinks.containsKey(sourceKey)) {
-            return true;
-        }
-        return !resolveWorkspaceContextSourceMatchedAttributes(sourceKey, workspaceClient, localProfileEnrichment, externalProfileEnrichment).isEmpty();
-    }
-
-    private List<String> resolveWorkspaceContextSourceMatchedAttributes(String sourceKey,
-                                                                       Map<String, Object> workspaceClient,
-                                                                       Map<String, Object> localProfileEnrichment,
-                                                                       Map<String, Object> externalProfileEnrichment) {
-        LinkedHashSet<String> matches = new LinkedHashSet<>();
-        if ("local".equals(sourceKey)) {
-            if (workspaceClient != null) {
-                List.of("name", "status", "last_message_at", "responsible").forEach(field -> {
-                    if (dialogWorkspaceClientProfileService.hasProfileValue(workspaceClient.get(field))) {
-                        matches.add(field);
-                    }
-                });
-            }
-            if (localProfileEnrichment != null) {
-                localProfileEnrichment.keySet().forEach(key -> {
-                    String normalized = normalizeMacroVariableKey(key);
-                    if (StringUtils.hasText(normalized)) {
-                        matches.add(normalized);
-                    }
-                });
-            }
-            return new ArrayList<>(matches);
-        }
-
-        String prefix = sourceKey + "_";
-        appendMatchingWorkspaceSourceKeys(matches, workspaceClient, prefix);
-        appendMatchingWorkspaceSourceKeys(matches, localProfileEnrichment, prefix);
-        appendMatchingWorkspaceSourceKeys(matches, externalProfileEnrichment, prefix);
-        return new ArrayList<>(matches);
-    }
-
-    private void appendMatchingWorkspaceSourceKeys(Set<String> matches,
-                                                   Map<String, Object> values,
-                                                   String prefix) {
-        if (values == null || values.isEmpty()) {
-            return;
-        }
-        values.forEach((rawKey, value) -> {
-            String normalized = normalizeMacroVariableKey(String.valueOf(rawKey));
-            if (StringUtils.hasText(normalized) && normalized.startsWith(prefix) && dialogWorkspaceClientProfileService.hasProfileValue(value)) {
-                matches.add(normalized);
-            }
-        });
-    }
-
-    private String resolveSlaState(String createdAt, int targetMinutes, int warningMinutes, String statusKey) {
-        if ("closed".equals(normalizeSlaLifecycleState(statusKey))) {
-            return "closed";
-        }
-        Long createdAtMs = parseTimestampToMillis(createdAt);
-        if (createdAtMs == null) {
-            return "normal";
-        }
-        long deadlineMs = createdAtMs + targetMinutes * 60_000L;
-        long warningMs = deadlineMs - warningMinutes * 60_000L;
-        long nowMs = System.currentTimeMillis();
-        if (nowMs >= deadlineMs) {
-            return "breached";
-        }
-        if (nowMs >= warningMs) {
-            return "at_risk";
-        }
-        return "normal";
-    }
-
-    private Long resolveSlaMinutesLeft(String createdAt, int targetMinutes, String statusKey, long nowMs) {
-        if (!"open".equals(normalizeSlaLifecycleState(statusKey))) {
-            return null;
-        }
-        Long createdAtMs = parseTimestampToMillis(createdAt);
-        if (createdAtMs == null) {
-            return null;
-        }
-        long deadlineMs = createdAtMs + targetMinutes * 60_000L;
-        return Math.round((deadlineMs - nowMs) / 60_000d);
-    }
-
-    private String normalizeSlaLifecycleState(String statusKey) {
-        String normalized = statusKey != null ? statusKey.trim().toLowerCase() : "";
-        if ("closed".equals(normalized) || "auto_closed".equals(normalized)) {
-            return "closed";
-        }
-        return "open";
-    }
-
-    private String computeDeadlineAt(String createdAt, int targetMinutes) {
-        Long createdAtMs = parseTimestampToMillis(createdAt);
-        if (createdAtMs == null) {
-            return null;
-        }
-        return Instant.ofEpochMilli(createdAtMs + targetMinutes * 60_000L).toString();
-    }
-
-    private Long parseTimestampToMillis(String rawValue) {
-        if (rawValue == null || rawValue.isBlank()) {
-            return null;
-        }
-        String value = rawValue.trim();
-        if (value.matches("\\d{10,13}")) {
-            try {
-                long epoch = Long.parseLong(value);
-                return value.length() == 10 ? epoch * 1000 : epoch;
-            } catch (NumberFormatException ex) {
-                return null;
-            }
-        }
-        try {
-            return Instant.parse(value).toEpochMilli();
-        } catch (DateTimeParseException ex) {
-            // try the same timestamp as explicit UTC when timezone is omitted
-        }
-        try {
-            return OffsetDateTime.parse(value).toInstant().toEpochMilli();
-        } catch (DateTimeParseException ex) {
-            // continue
-        }
-        try {
-            String normalized = value.contains(" ") ? value.replace(" ", "T") : value;
-            return LocalDateTime.parse(normalized).toInstant(ZoneOffset.UTC).toEpochMilli();
-        } catch (DateTimeParseException ex) {
-            return null;
         }
     }
 

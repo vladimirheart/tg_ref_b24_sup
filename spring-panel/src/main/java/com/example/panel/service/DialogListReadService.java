@@ -7,10 +7,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeParseException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,11 +21,14 @@ public class DialogListReadService {
 
     private final DialogService dialogService;
     private final SharedConfigService sharedConfigService;
+    private final DialogSlaRuntimeService dialogSlaRuntimeService;
 
     public DialogListReadService(DialogService dialogService,
-                                 SharedConfigService sharedConfigService) {
+                                 SharedConfigService sharedConfigService,
+                                 DialogSlaRuntimeService dialogSlaRuntimeService) {
         this.dialogService = dialogService;
         this.sharedConfigService = sharedConfigService;
+        this.dialogSlaRuntimeService = dialogSlaRuntimeService;
     }
 
     public Map<String, Object> loadListPayload(String operator) {
@@ -47,10 +46,11 @@ public class DialogListReadService {
     }
 
     private Map<String, Object> buildSlaOrchestration(List<DialogListItem> dialogs) {
-        int targetMinutes = resolveDialogConfigMinutes("sla_target_minutes", DEFAULT_SLA_TARGET_MINUTES);
-        int warningMinutes = Math.min(resolveDialogConfigMinutes("sla_warning_minutes", DEFAULT_SLA_WARNING_MINUTES), targetMinutes);
-        int criticalMinutes = resolveDialogConfigMinutes("sla_critical_minutes", 30);
-        boolean escalationEnabled = resolveDialogConfigBoolean("sla_critical_escalation_enabled", true);
+        Map<String, Object> settings = sharedConfigService.loadSettings();
+        int targetMinutes = dialogSlaRuntimeService.resolveDialogConfigMinutes(settings, "sla_target_minutes", DEFAULT_SLA_TARGET_MINUTES);
+        int warningMinutes = Math.min(dialogSlaRuntimeService.resolveDialogConfigMinutes(settings, "sla_warning_minutes", DEFAULT_SLA_WARNING_MINUTES), targetMinutes);
+        int criticalMinutes = dialogSlaRuntimeService.resolveDialogConfigMinutes(settings, "sla_critical_minutes", 30);
+        boolean escalationEnabled = dialogSlaRuntimeService.resolveDialogConfigBoolean(settings, "sla_critical_escalation_enabled", true);
 
         Map<String, Object> ticketSignals = new LinkedHashMap<>();
         long nowMs = System.currentTimeMillis();
@@ -60,9 +60,9 @@ public class DialogListReadService {
                 continue;
             }
             String statusKey = dialog.statusKey();
-            String state = resolveSlaState(dialog.createdAt(), targetMinutes, warningMinutes, statusKey);
-            Long minutesLeft = resolveSlaMinutesLeft(dialog.createdAt(), targetMinutes, statusKey, nowMs);
-            boolean critical = escalationEnabled && "open".equals(normalizeSlaLifecycleState(statusKey))
+            String state = dialogSlaRuntimeService.resolveSlaState(dialog.createdAt(), targetMinutes, warningMinutes, statusKey, nowMs);
+            Long minutesLeft = dialogSlaRuntimeService.resolveSlaMinutesLeft(dialog.createdAt(), targetMinutes, statusKey, nowMs);
+            boolean critical = escalationEnabled && "open".equals(dialogSlaRuntimeService.normalizeSlaLifecycleState(statusKey))
                     && minutesLeft != null && minutesLeft <= criticalMinutes;
             boolean assigned = dialog.responsible() != null && !dialog.responsible().isBlank();
 
@@ -86,115 +86,4 @@ public class DialogListReadService {
         );
     }
 
-    private int resolveDialogConfigMinutes(String key, int fallbackValue) {
-        Map<String, Object> settings = sharedConfigService.loadSettings();
-        Object dialogConfigRaw = settings.get("dialog_config");
-        if (!(dialogConfigRaw instanceof Map<?, ?> dialogConfig)) {
-            return fallbackValue;
-        }
-        Object value = dialogConfig.get(key);
-        if (value == null) {
-            return fallbackValue;
-        }
-        try {
-            int parsed = Integer.parseInt(String.valueOf(value));
-            return parsed > 0 ? parsed : fallbackValue;
-        } catch (NumberFormatException ex) {
-            return fallbackValue;
-        }
-    }
-
-    private boolean resolveDialogConfigBoolean(String key, boolean fallbackValue) {
-        Map<String, Object> settings = sharedConfigService.loadSettings();
-        Object dialogConfigRaw = settings.get("dialog_config");
-        if (!(dialogConfigRaw instanceof Map<?, ?> dialogConfig)) {
-            return fallbackValue;
-        }
-        Object value = dialogConfig.get(key);
-        if (value == null) {
-            return fallbackValue;
-        }
-        if (value instanceof Boolean boolValue) {
-            return boolValue;
-        }
-        String normalized = String.valueOf(value).trim().toLowerCase();
-        if ("true".equals(normalized) || "1".equals(normalized) || "yes".equals(normalized)) {
-            return true;
-        }
-        if ("false".equals(normalized) || "0".equals(normalized) || "no".equals(normalized)) {
-            return false;
-        }
-        return fallbackValue;
-    }
-
-    private String resolveSlaState(String createdAt, int targetMinutes, int warningMinutes, String statusKey) {
-        if ("closed".equals(normalizeSlaLifecycleState(statusKey))) {
-            return "closed";
-        }
-        Long createdAtMs = parseTimestampToMillis(createdAt);
-        if (createdAtMs == null) {
-            return "normal";
-        }
-        long deadlineMs = createdAtMs + targetMinutes * 60_000L;
-        long warningMs = deadlineMs - warningMinutes * 60_000L;
-        long nowMs = System.currentTimeMillis();
-        if (nowMs >= deadlineMs) {
-            return "breached";
-        }
-        if (nowMs >= warningMs) {
-            return "at_risk";
-        }
-        return "normal";
-    }
-
-    private Long resolveSlaMinutesLeft(String createdAt, int targetMinutes, String statusKey, long nowMs) {
-        if (!"open".equals(normalizeSlaLifecycleState(statusKey))) {
-            return null;
-        }
-        Long createdAtMs = parseTimestampToMillis(createdAt);
-        if (createdAtMs == null) {
-            return null;
-        }
-        long deadlineMs = createdAtMs + targetMinutes * 60_000L;
-        return Math.round((deadlineMs - nowMs) / 60_000d);
-    }
-
-    private String normalizeSlaLifecycleState(String statusKey) {
-        String normalized = statusKey != null ? statusKey.trim().toLowerCase() : "";
-        if ("closed".equals(normalized) || "auto_closed".equals(normalized)) {
-            return "closed";
-        }
-        return "open";
-    }
-
-    private Long parseTimestampToMillis(String rawValue) {
-        if (rawValue == null || rawValue.isBlank()) {
-            return null;
-        }
-        String value = rawValue.trim();
-        if (value.matches("\\d{10,13}")) {
-            try {
-                long epoch = Long.parseLong(value);
-                return value.length() == 10 ? epoch * 1000 : epoch;
-            } catch (NumberFormatException ex) {
-                return null;
-            }
-        }
-        try {
-            return Instant.parse(value).toEpochMilli();
-        } catch (DateTimeParseException ex) {
-            // try the same timestamp as explicit UTC when timezone is omitted
-        }
-        try {
-            return OffsetDateTime.parse(value).toInstant().toEpochMilli();
-        } catch (DateTimeParseException ex) {
-            // continue
-        }
-        try {
-            String normalized = value.contains(" ") ? value.replace(" ", "T") : value;
-            return LocalDateTime.parse(normalized).toInstant(ZoneOffset.UTC).toEpochMilli();
-        } catch (DateTimeParseException ex) {
-            return null;
-        }
-    }
 }

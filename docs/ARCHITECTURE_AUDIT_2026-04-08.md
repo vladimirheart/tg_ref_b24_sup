@@ -38,6 +38,10 @@
   отдельные workspace sub-services; теперь туда же вынесен и
   `context contract`, а старый мёртвый review-control дубль удалён из
   самого workspace service;
+- SLA/runtime дублирование между `DialogWorkspaceService` и
+  `DialogListReadService` уменьшено через общий `DialogSlaRuntimeService`,
+  который теперь держит lifecycle-state, deadline, minutes-left и config
+  parsing для SLA-слоя;
 - `settings` выведен из режима giant controller/update-method через
   `SettingsParametersController`, `SettingsItEquipmentController`,
   `SettingsUpdateService`, `SettingsDialogConfig*Service` и связанные subdomain
@@ -55,6 +59,8 @@
   выделенные workspace sub-services и уже прикрыт targeted service tests по
   parity, navigation, rollout, client profile, context blocks, client payload,
   context source policy и context contract;
+- но сам `workspace` уже заметно сузился: из него дополнительно убраны
+  мёртвые helper-блоки по SLA/source-coverage/export formatting;
 - `settings` всё ещё содержит remaining subdomains, которые могут снова
   разрастаться в общих слоях;
 - `SharedConfigService` дублируется между `spring-panel` и `java-bot`;
