@@ -334,6 +334,7 @@
     .modal .modal-body {
       background: color-mix(in srgb, var(--card) 97%, white);
       padding: 1.1rem 1.15rem 1.25rem;
+      overscroll-behavior: contain;
     }
 
     .modal .modal-footer {
@@ -434,6 +435,7 @@
       flex: 1 1 auto;
       min-height: 0;
       overflow: auto;
+      overscroll-behavior: contain;
       padding-right: 1.2rem;
     }
 
@@ -22737,9 +22739,15 @@
   }
 
   function updateSettingsModalBodyLock() {
-    const openBlockingModals = Array.from(document.querySelectorAll('.modal.show'))
-      .filter((modal) => modal instanceof HTMLElement && !modal.hasAttribute('data-settings-sheet'));
-    if (openBlockingModals.length) {
+    const openModals = Array.from(document.querySelectorAll('.modal.show'))
+      .filter((modal) => modal instanceof HTMLElement);
+    if (openModals.length) {
+      const scrollbarWidth = Math.max(0, window.innerWidth - document.documentElement.clientWidth);
+      document.body.classList.add('modal-open');
+      document.body.style.overflow = 'hidden';
+      if (scrollbarWidth > 0) {
+        document.body.style.paddingRight = `${scrollbarWidth}px`;
+      }
       return;
     }
     document.body.classList.remove('modal-open');
