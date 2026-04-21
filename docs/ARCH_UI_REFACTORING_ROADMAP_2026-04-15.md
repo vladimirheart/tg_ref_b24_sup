@@ -164,6 +164,10 @@
   client payload support вынесен в `DialogWorkspaceClientPayloadService`, а
   context sources/attribute policies — в `DialogWorkspaceContextSourceService`,
   тоже с targeted unit tests.
+- ещё один пакет service-level split внутри `workspace` закрыт:
+  context contract вынесен в `DialogWorkspaceContextContractService`, а
+  мёртвый дублирующий review-control block удалён из `DialogWorkspaceService`,
+  чтобы giant service держал только реальные workspace use-cases.
 
 Что остаётся:
 
