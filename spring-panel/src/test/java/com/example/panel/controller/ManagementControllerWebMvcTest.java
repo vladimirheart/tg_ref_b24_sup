@@ -21,12 +21,14 @@ import com.example.panel.service.SettingsCatalogService;
 import com.example.panel.service.SharedConfigService;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.web.servlet.MockMvc;
+import com.example.panel.entity.PanelUser;
 
 @WebMvcTest(ManagementController.class)
 @AutoConfigureMockMvc
@@ -133,6 +135,23 @@ class ManagementControllerWebMvcTest {
     }
 
     @Test
+    void userDetailPageIncludesUiHeadBootstrapAndExplicitPagePreset() throws Exception {
+        doNothing().when(navigationService).enrich(any(), any());
+        PanelUser panelUser = new PanelUser();
+        panelUser.setUsername("operator");
+        panelUser.setFullName("Оператор");
+        when(panelUserRepository.findByUsernameIgnoreCase("operator")).thenReturn(Optional.of(panelUser));
+
+        mockMvc.perform(get("/users/operator").with(user("operator").authorities(() -> "PAGE_USERS")))
+            .andExpect(status().isOk())
+            .andExpect(view().name("users/detail"))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-preferences.js")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/theme.js")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-config.js")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("data-ui-page=\"users\"")));
+    }
+
+    @Test
     void objectPassportsPageIncludesUiHeadBootstrapAndExplicitPagePreset() throws Exception {
         doNothing().when(navigationService).enrich(any(), any());
         when(equipmentRepository.findAll()).thenReturn(List.of());
@@ -144,5 +163,40 @@ class ManagementControllerWebMvcTest {
             .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/theme.js")))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-config.js")))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("data-ui-page=\"passports\"")));
+    }
+
+    @Test
+    void newObjectPassportEditorIncludesUiHeadBootstrapAndExplicitPagePreset() throws Exception {
+        doNothing().when(navigationService).enrich(any(), any());
+        stubPassportEditorDependencies();
+
+        mockMvc.perform(get("/object-passports/new").with(user("operator").authorities(() -> "PAGE_OBJECT_PASSPORTS")))
+            .andExpect(status().isOk())
+            .andExpect(view().name("passports/new"))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-preferences.js")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/theme.js")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-config.js")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("data-ui-page=\"passports\"")));
+    }
+
+    @Test
+    void existingObjectPassportEditorIncludesUiHeadBootstrapAndExplicitPagePreset() throws Exception {
+        doNothing().when(navigationService).enrich(any(), any());
+        stubPassportEditorDependencies();
+
+        mockMvc.perform(get("/object-passports/42").with(user("operator").authorities(() -> "PAGE_OBJECT_PASSPORTS")))
+            .andExpect(status().isOk())
+            .andExpect(view().name("passports/new"))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-preferences.js")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/theme.js")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-config.js")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("data-ui-page=\"passports\"")));
+    }
+
+    private void stubPassportEditorDependencies() {
+        when(settingsCatalogService.getParameterTypes()).thenReturn(Map.of());
+        when(settingsCatalogService.getParameterDependencies()).thenReturn(Map.of());
+        when(sharedConfigService.loadSettings()).thenReturn(Map.of());
+        when(equipmentRepository.findAll()).thenReturn(List.of());
     }
 }

@@ -183,6 +183,11 @@
   `channels`, `tasks`, `users`, `passports`, `public form`,
   `analytics/certificates` и `analytics/rms-control` теперь имеют explicit
   `data-ui-page` и прикрыты page bootstrap smoke tests.
+- следующий пакет `Phase 6` закрыл ещё и detail/subpage contract:
+  `dialogs/ai-ops`, `clients/unblock_requests`, `users/detail` и оба
+  passport editor route (`/object-passports/new`, `/object-passports/{id}`)
+  теперь тоже имеют explicit `data-ui-page` и прикрыты отдельными WebMvc
+  smoke tests на ранний `ui-preferences/theme/ui-config` bootstrap.
 
 ---
 
