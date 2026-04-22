@@ -351,6 +351,12 @@
   `DialogListController`;
 - targeted tests для shared config/runtime foundation:
   `SharedConfigServiceTest`, `EnvDefaultsInitializerTest`;
+- targeted unit tests для вынесенных `settings` subdomain services:
+  `SettingsDialogRuntimeConfigServiceTest`,
+  `SettingsDialogPublicFormConfigServiceTest`,
+  `SettingsDialogSlaAiConfigServiceTest`,
+  `SettingsDialogTemplateConfigServiceTest`,
+  `SettingsDialogWorkspaceConfigServiceTest`;
 - `SlaEscalationWebhookNotifier` больше не зависит от `DialogService`
   в production wiring: notifier переведён на `DialogLookupReadService`,
   `DialogResponsibilityService` и `DialogAuditService`, а `DialogService`
@@ -367,8 +373,8 @@
 - продолжить расширять smoke tests для `theme/ui bootstrap` на оставшиеся
   разделы beyond `dashboard/analytics/clients/knowledge/settings/dialogs`;
 - добрать WebMvc tests под оставшиеся новые dialog/settings controllers;
-- расширить shared config/env resolution tests от targeted-слоя к более полным
-  integration сценариям;
+- расширить shared config/env resolution tests и settings regression net от
+  targeted-слоя к более полным integration сценариям;
 - более широкий runtime contract test для launcher strategy и bot lifecycle.
 - продолжить держать notifier/runtime regression net синхронизированным с
   evolving routing governance contract, чтобы новые refactor-проходы не
