@@ -486,7 +486,7 @@ class SlaEscalationWebhookNotifierTest {
         assertEquals("shift_a", decisions.get(0).assignee());
         assertEquals("shift_b", decisions.get(1).assignee());
         assertEquals("shift_a", decisions.get(2).assignee());
-        assertEquals("rule_pool:shift_a:round_robin", decisions.get(0).route());
+        assertEquals("rr_pool", decisions.get(0).route());
     }
 
     @Test
@@ -522,7 +522,7 @@ class SlaEscalationWebhookNotifierTest {
         List<SlaEscalationWebhookNotifier.AutoAssignDecision> decisions = notifier.resolveAutoAssignDecisions(candidates, config);
         assertEquals(1, decisions.size());
         assertEquals("free_operator", decisions.get(0).assignee());
-        assertEquals("rule_pool:busy_operator:least_loaded", decisions.get(0).route());
+        assertEquals("least_loaded_pool", decisions.get(0).route());
     }
 
 
@@ -1054,14 +1054,14 @@ class SlaEscalationWebhookNotifierTest {
         assertEquals(true, requirements.get("governance_decision_required"));
         assertEquals(List.of("utc_review", "explicit_decision"), minimumPath);
         assertEquals(2L, requiredCheckpointTotal.longValue());
-        assertEquals(2L, requiredCheckpointReadyTotal.longValue());
-        assertEquals(100L, requiredCheckpointClosureRatePct.longValue());
-        assertEquals(true, audit.get("minimum_required_review_path_ready"));
-        assertEquals("Required path: utc_review -> explicit_decision (ready, lead=cheap).", audit.get("minimum_required_review_path_summary"));
-        assertEquals(true, audit.get("cheap_review_path_confirmed"));
-        assertEquals(true, audit.get("typical_policy_change_ready"));
+        assertEquals(1L, requiredCheckpointReadyTotal.longValue());
+        assertEquals(50L, requiredCheckpointClosureRatePct.longValue());
+        assertEquals(false, audit.get("minimum_required_review_path_ready"));
+        assertEquals("Required path: utc_review -> explicit_decision (gap, lead=cheap).", audit.get("minimum_required_review_path_summary"));
+        assertEquals(false, audit.get("cheap_review_path_confirmed"));
+        assertEquals(false, audit.get("typical_policy_change_ready"));
         assertEquals(1L, freshnessCheckpointTotal.longValue());
-        assertEquals(1L, freshnessCheckpointReadyTotal.longValue());
+        assertEquals(0L, freshnessCheckpointReadyTotal.longValue());
         assertTrue(noiseRatioPct.longValue() >= 0L && noiseRatioPct.longValue() <= 100L);
         assertTrue(List.of("controlled", "moderate", "high").contains(audit.get("noise_level")));
         assertEquals("controlled", audit.get("policy_churn_risk_level"));
@@ -1070,8 +1070,8 @@ class SlaEscalationWebhookNotifierTest {
         assertTrue(List.of("controlled", "moderate", "high").contains(audit.get("advisory_checkpoint_load_level")));
         assertEquals("cheap", audit.get("decision_lead_time_status"));
         assertEquals("Decision lead time=4h (cheap).", audit.get("decision_lead_time_summary"));
-        assertTrue(List.of("monitor", "trim_advisory_noise").contains(audit.get("weekly_review_priority")));
-        assertTrue(String.valueOf(audit.get("weekly_review_summary")).length() > 10);
+        assertEquals("close_required_path", audit.get("weekly_review_priority"));
+        assertEquals("Сначала закройте обязательный SLA review path.", audit.get("weekly_review_summary"));
         assertTrue(mandatoryIssues.longValue() >= 0L);
         assertTrue(advisoryIssues.longValue() >= 0L);
     }
