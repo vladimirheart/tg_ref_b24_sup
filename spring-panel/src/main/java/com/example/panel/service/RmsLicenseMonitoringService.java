@@ -24,7 +24,6 @@ import java.net.URLDecoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
@@ -74,7 +73,6 @@ public class RmsLicenseMonitoringService {
     private static final long HTTP_TIMEOUT_MS = 15_000L;
     private static final long COMMAND_TIMEOUT_MS = 90_000L;
     private static final String MONITORING_PAGE_URL = "/analytics/rms-control";
-    private static final Charset PROCESS_CHARSET = Charset.defaultCharset();
 
     private static final DateTimeFormatter[] DATE_TIME_FORMATTERS = new DateTimeFormatter[]{
         DateTimeFormatter.ISO_OFFSET_DATE_TIME,
@@ -637,7 +635,7 @@ public class RmsLicenseMonitoringService {
             process.destroyForcibly();
             throw new IllegalStateException("Команда превысила лимит ожидания");
         }
-        String output = new String(process.getInputStream().readAllBytes(), PROCESS_CHARSET);
+        String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
         return new CommandResult(process.exitValue() == 0, output);
     }
 
