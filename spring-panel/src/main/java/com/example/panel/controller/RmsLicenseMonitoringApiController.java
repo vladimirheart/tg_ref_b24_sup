@@ -157,20 +157,19 @@ public class RmsLicenseMonitoringApiController {
     }
 
     private Map<String, Object> toRefreshState(RmsLicenseMonitoringService.RefreshState state) {
-        return Map.of(
-            "licenses", Map.of(
-                "running", state.licenses().running(),
-                "queued", state.licenses().queued(),
-                "last_requested_at", state.licenses().lastRequestedAt(),
-                "last_completed_at", state.licenses().lastCompletedAt()
-            ),
-            "network", Map.of(
-                "running", state.network().running(),
-                "queued", state.network().queued(),
-                "last_requested_at", state.network().lastRequestedAt(),
-                "last_completed_at", state.network().lastCompletedAt()
-            )
-        );
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("licenses", toQueueState(state.licenses()));
+        payload.put("network", toQueueState(state.network()));
+        return payload;
+    }
+
+    private Map<String, Object> toQueueState(RmsLicenseMonitoringService.QueueState state) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("running", state.running());
+        payload.put("queued", state.queued());
+        payload.put("last_requested_at", state.lastRequestedAt());
+        payload.put("last_completed_at", state.lastCompletedAt());
+        return payload;
     }
 
     private String toUnicodeHost(String host) {
