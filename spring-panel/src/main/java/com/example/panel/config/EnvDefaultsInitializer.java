@@ -28,6 +28,7 @@ public class EnvDefaultsInitializer implements ApplicationContextInitializer<Con
 
     private static final String[] DB_KEYS = {
         "APP_DB_TICKETS",
+        "APP_DB_MONITORING",
         "APP_DB_USERS",
         "APP_DB_BOT",
         "APP_DB_OBJECT_PASSPORTS",
@@ -104,6 +105,7 @@ public class EnvDefaultsInitializer implements ApplicationContextInitializer<Con
     private String mapKeyToFileName(String key) {
         return switch (key) {
             case "APP_DB_TICKETS" -> "tickets.db";
+            case "APP_DB_MONITORING" -> "monitoring.db";
             case "APP_DB_USERS" -> "users.db";
             case "APP_DB_BOT" -> "bot_database.db";
             case "APP_DB_OBJECT_PASSPORTS" -> "object_passports.db";
@@ -145,6 +147,12 @@ public class EnvDefaultsInitializer implements ApplicationContextInitializer<Con
         }
         if ("APP_DB_USERS".equals(key)) {
             String sibling = resolveSiblingPath(ticketsPath, "users.db");
+            if (StringUtils.hasText(sibling)) {
+                return sibling;
+            }
+        }
+        if ("APP_DB_MONITORING".equals(key)) {
+            String sibling = resolveSiblingPath(ticketsPath, "monitoring.db");
             if (StringUtils.hasText(sibling)) {
                 return sibling;
             }

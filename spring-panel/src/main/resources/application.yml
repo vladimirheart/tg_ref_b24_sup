@@ -36,6 +36,8 @@ app:
   datasource:
     sqlite:
       path: ${APP_DB_TICKETS:${APP_DB_BOT:bot_database.db}}
+    monitoring-sqlite:
+      path: ${APP_DB_MONITORING:monitoring.db}
     users-sqlite:
       path: ${APP_DB_USERS:users.db}
     bot-sqlite:
