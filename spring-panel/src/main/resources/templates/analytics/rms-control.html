@@ -63,6 +63,12 @@
             <div class="small text-muted mb-2">
                 Автообновление лицензий запускается раз в сутки, статусов RMS — раз в 5 минут. Между проверками действует очередь с паузой 20 секунд.
             </div>
+            <div class="d-flex flex-wrap gap-2 mb-2">
+                <button class="btn btn-outline-success btn-sm" id="bulkEnableLicenseMonitoringBtn" type="button">Включить лицензии у всех</button>
+                <button class="btn btn-outline-secondary btn-sm" id="bulkDisableLicenseMonitoringBtn" type="button">Отключить лицензии у всех</button>
+                <button class="btn btn-outline-success btn-sm" id="bulkEnableNetworkMonitoringBtn" type="button">Включить доступность у всех</button>
+                <button class="btn btn-outline-secondary btn-sm" id="bulkDisableNetworkMonitoringBtn" type="button">Отключить доступность у всех</button>
+            </div>
             <div class="small text-muted" id="rmsQueueState">Загрузка состояния очередей...</div>
         </div>
     </div>
@@ -86,10 +92,22 @@
                 <div class="col-12 col-lg-1 d-flex align-items-end">
                     <div class="form-check form-switch mb-2">
                         <input class="form-check-input" type="checkbox" id="rmsEnabledInput" checked>
-                        <label class="form-check-label" for="rmsEnabledInput">Вкл</label>
+                        <label class="form-check-label" for="rmsEnabledInput">Запись</label>
                     </div>
                 </div>
                 <div class="col-12 col-lg-1 d-flex align-items-end">
+                    <div class="form-check form-switch mb-2">
+                        <input class="form-check-input" type="checkbox" id="rmsLicenseMonitoringInput" checked>
+                        <label class="form-check-label" for="rmsLicenseMonitoringInput">Лиц.</label>
+                    </div>
+                </div>
+                <div class="col-12 col-lg-1 d-flex align-items-end">
+                    <div class="form-check form-switch mb-2">
+                        <input class="form-check-input" type="checkbox" id="rmsNetworkMonitoringInput" checked>
+                        <label class="form-check-label" for="rmsNetworkMonitoringInput">RMS</label>
+                    </div>
+                </div>
+                <div class="col-12 col-lg-1 d-flex align-items-end ms-lg-auto">
                     <button class="btn btn-success w-100" type="submit">Добавить</button>
                 </div>
             </form>
@@ -146,7 +164,15 @@
                 </div>
                 <div class="form-check form-switch">
                     <input class="form-check-input" type="checkbox" id="editRmsEnabledInput">
-                    <label class="form-check-label" for="editRmsEnabledInput">Мониторинг включён</label>
+                    <label class="form-check-label" for="editRmsEnabledInput">Запись мониторинга включена</label>
+                </div>
+                <div class="form-check form-switch mt-2">
+                    <input class="form-check-input" type="checkbox" id="editRmsLicenseMonitoringInput">
+                    <label class="form-check-label" for="editRmsLicenseMonitoringInput">Мониторинг лицензии включён</label>
+                </div>
+                <div class="form-check form-switch mt-2">
+                    <input class="form-check-input" type="checkbox" id="editRmsNetworkMonitoringInput">
+                    <label class="form-check-label" for="editRmsNetworkMonitoringInput">Мониторинг доступности включён</label>
                 </div>
             </div>
             <div class="modal-footer">

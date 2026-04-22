@@ -16,6 +16,7 @@ import org.springframework.core.annotation.Order;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
+import java.sql.ResultSet;
 import java.time.OffsetDateTime;
 import java.util.List;
 
@@ -91,6 +92,8 @@ public class MonitoringDatabaseBootstrapService implements ApplicationRunner {
                 auth_login TEXT NOT NULL,
                 auth_password TEXT NOT NULL,
                 enabled INTEGER NOT NULL DEFAULT 1,
+                license_monitoring_enabled INTEGER NOT NULL DEFAULT 1,
+                network_monitoring_enabled INTEGER NOT NULL DEFAULT 1,
                 server_name TEXT,
                 server_type TEXT,
                 server_version TEXT,
@@ -119,6 +122,16 @@ public class MonitoringDatabaseBootstrapService implements ApplicationRunner {
             CREATE INDEX IF NOT EXISTS idx_rms_license_monitors_enabled
             ON rms_license_monitors(enabled)
             """);
+        ensureColumn(
+            "rms_license_monitors",
+            "license_monitoring_enabled",
+            "ALTER TABLE rms_license_monitors ADD COLUMN license_monitoring_enabled INTEGER NOT NULL DEFAULT 1"
+        );
+        ensureColumn(
+            "rms_license_monitors",
+            "network_monitoring_enabled",
+            "ALTER TABLE rms_license_monitors ADD COLUMN network_monitoring_enabled INTEGER NOT NULL DEFAULT 1"
+        );
     }
 
     private void migrateFromPrimaryDatabase() {
@@ -187,6 +200,8 @@ public class MonitoringDatabaseBootstrapService implements ApplicationRunner {
                 item.setAuthLogin(rs.getString("auth_login"));
                 item.setAuthPassword(rs.getString("auth_password"));
                 item.setEnabled(rs.getInt("enabled") != 0);
+                item.setLicenseMonitoringEnabled(readBooleanColumn(rs, "license_monitoring_enabled", true));
+                item.setNetworkMonitoringEnabled(readBooleanColumn(rs, "network_monitoring_enabled", true));
                 item.setServerName(rs.getString("server_name"));
                 item.setServerType(rs.getString("server_type"));
                 item.setServerVersion(rs.getString("server_version"));
@@ -243,5 +258,34 @@ public class MonitoringDatabaseBootstrapService implements ApplicationRunner {
 
     private OffsetDateTime parseOffsetDateTime(String value) {
         return DATE_TIME_CONVERTER.convertToEntityAttribute(value);
+    }
+
+    private void ensureColumn(String tableName, String columnName, String sql) {
+        try {
+            boolean exists = monitoringJdbcTemplate.query(
+                "PRAGMA table_info(" + tableName + ")",
+                (ResultSet rs) -> {
+                    while (rs.next()) {
+                        if (columnName.equalsIgnoreCase(rs.getString("name"))) {
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+            );
+            if (!exists) {
+                monitoringJdbcTemplate.execute(sql);
+            }
+        } catch (Exception ex) {
+            log.warn("Failed to ensure column {}.{} in monitoring DB", tableName, columnName, ex);
+        }
+    }
+
+    private boolean readBooleanColumn(ResultSet rs, String columnName, boolean defaultValue) {
+        try {
+            return rs.getInt(columnName) != 0;
+        } catch (Exception ignored) {
+            return defaultValue;
+        }
     }
 }

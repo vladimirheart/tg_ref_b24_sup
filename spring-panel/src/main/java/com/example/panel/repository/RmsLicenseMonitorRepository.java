@@ -32,6 +32,8 @@ public class RmsLicenseMonitorRepository {
         item.setAuthLogin(rs.getString("auth_login"));
         item.setAuthPassword(rs.getString("auth_password"));
         item.setEnabled(rs.getInt("enabled") != 0);
+        item.setLicenseMonitoringEnabled(rs.getInt("license_monitoring_enabled") != 0);
+        item.setNetworkMonitoringEnabled(rs.getInt("network_monitoring_enabled") != 0);
         item.setServerName(rs.getString("server_name"));
         item.setServerType(rs.getString("server_type"));
         item.setServerVersion(rs.getString("server_version"));
@@ -130,13 +132,14 @@ public class RmsLicenseMonitorRepository {
                 """
                 INSERT INTO rms_license_monitors (
                     rms_address, scheme, host, port, auth_login, auth_password, enabled,
+                    license_monitoring_enabled, network_monitoring_enabled,
                     server_name, server_type, server_version,
                     license_status, license_error_message, license_expires_at, license_days_left,
                     license_last_checked_at, license_last_notified_at,
                     rms_status, rms_status_message, ping_output,
                     traceroute_summary, traceroute_report, traceroute_checked_at,
                     rms_last_checked_at, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 Statement.RETURN_GENERATED_KEYS
             );
@@ -161,6 +164,8 @@ public class RmsLicenseMonitorRepository {
                    auth_login = ?,
                    auth_password = ?,
                    enabled = ?,
+                   license_monitoring_enabled = ?,
+                   network_monitoring_enabled = ?,
                    server_name = ?,
                    server_type = ?,
                    server_version = ?,
@@ -188,6 +193,8 @@ public class RmsLicenseMonitorRepository {
             item.getAuthLogin(),
             item.getAuthPassword(),
             toInt(item.getEnabled()),
+            toInt(item.getLicenseMonitoringEnabled()),
+            toInt(item.getNetworkMonitoringEnabled()),
             item.getServerName(),
             item.getServerType(),
             item.getServerVersion(),
@@ -218,28 +225,30 @@ public class RmsLicenseMonitorRepository {
         ps.setString(5, item.getAuthLogin());
         ps.setString(6, item.getAuthPassword());
         ps.setInt(7, toInt(item.getEnabled()));
-        ps.setString(8, item.getServerName());
-        ps.setString(9, item.getServerType());
-        ps.setString(10, item.getServerVersion());
-        ps.setString(11, item.getLicenseStatus());
-        ps.setString(12, item.getLicenseErrorMessage());
-        ps.setString(13, formatOffsetDateTime(item.getLicenseExpiresAt()));
+        ps.setInt(8, toInt(item.getLicenseMonitoringEnabled()));
+        ps.setInt(9, toInt(item.getNetworkMonitoringEnabled()));
+        ps.setString(10, item.getServerName());
+        ps.setString(11, item.getServerType());
+        ps.setString(12, item.getServerVersion());
+        ps.setString(13, item.getLicenseStatus());
+        ps.setString(14, item.getLicenseErrorMessage());
+        ps.setString(15, formatOffsetDateTime(item.getLicenseExpiresAt()));
         if (item.getLicenseDaysLeft() != null) {
-            ps.setInt(14, item.getLicenseDaysLeft());
+            ps.setInt(16, item.getLicenseDaysLeft());
         } else {
-            ps.setObject(14, null);
+            ps.setObject(16, null);
         }
-        ps.setString(15, formatOffsetDateTime(item.getLicenseLastCheckedAt()));
-        ps.setString(16, formatOffsetDateTime(item.getLicenseLastNotifiedAt()));
-        ps.setString(17, item.getRmsStatus());
-        ps.setString(18, item.getRmsStatusMessage());
-        ps.setString(19, item.getPingOutput());
-        ps.setString(20, item.getTracerouteSummary());
-        ps.setString(21, item.getTracerouteReport());
-        ps.setString(22, formatOffsetDateTime(item.getTracerouteCheckedAt()));
-        ps.setString(23, formatOffsetDateTime(item.getRmsLastCheckedAt()));
-        ps.setString(24, formatOffsetDateTime(item.getCreatedAt()));
-        ps.setString(25, formatOffsetDateTime(item.getUpdatedAt()));
+        ps.setString(17, formatOffsetDateTime(item.getLicenseLastCheckedAt()));
+        ps.setString(18, formatOffsetDateTime(item.getLicenseLastNotifiedAt()));
+        ps.setString(19, item.getRmsStatus());
+        ps.setString(20, item.getRmsStatusMessage());
+        ps.setString(21, item.getPingOutput());
+        ps.setString(22, item.getTracerouteSummary());
+        ps.setString(23, item.getTracerouteReport());
+        ps.setString(24, formatOffsetDateTime(item.getTracerouteCheckedAt()));
+        ps.setString(25, formatOffsetDateTime(item.getRmsLastCheckedAt()));
+        ps.setString(26, formatOffsetDateTime(item.getCreatedAt()));
+        ps.setString(27, formatOffsetDateTime(item.getUpdatedAt()));
     }
 
     private static int toInt(Boolean value) {

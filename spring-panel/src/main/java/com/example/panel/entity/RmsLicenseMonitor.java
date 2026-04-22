@@ -40,6 +40,12 @@ public class RmsLicenseMonitor {
     @Column(name = "enabled", nullable = false)
     private Boolean enabled;
 
+    @Column(name = "license_monitoring_enabled", nullable = false)
+    private Boolean licenseMonitoringEnabled;
+
+    @Column(name = "network_monitoring_enabled", nullable = false)
+    private Boolean networkMonitoringEnabled;
+
     @Column(name = "server_name")
     private String serverName;
 
@@ -163,6 +169,22 @@ public class RmsLicenseMonitor {
 
     public void setEnabled(Boolean enabled) {
         this.enabled = enabled;
+    }
+
+    public Boolean getLicenseMonitoringEnabled() {
+        return licenseMonitoringEnabled;
+    }
+
+    public void setLicenseMonitoringEnabled(Boolean licenseMonitoringEnabled) {
+        this.licenseMonitoringEnabled = licenseMonitoringEnabled;
+    }
+
+    public Boolean getNetworkMonitoringEnabled() {
+        return networkMonitoringEnabled;
+    }
+
+    public void setNetworkMonitoringEnabled(Boolean networkMonitoringEnabled) {
+        this.networkMonitoringEnabled = networkMonitoringEnabled;
     }
 
     public String getServerName() {

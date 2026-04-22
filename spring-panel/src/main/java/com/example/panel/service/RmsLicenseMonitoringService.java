@@ -93,6 +93,8 @@ public class RmsLicenseMonitoringService {
     private final AtomicBoolean licenseRefreshPending = new AtomicBoolean(false);
     private final AtomicBoolean networkRefreshRunning = new AtomicBoolean(false);
     private final AtomicBoolean networkRefreshPending = new AtomicBoolean(false);
+    private final AtomicReference<LicenseRefreshTask> pendingLicenseTask = new AtomicReference<>();
+    private final AtomicReference<NetworkRefreshTask> pendingNetworkTask = new AtomicReference<>();
     private final AtomicReference<OffsetDateTime> lastLicenseRefreshRequestedAt = new AtomicReference<>();
     private final AtomicReference<OffsetDateTime> lastLicenseRefreshCompletedAt = new AtomicReference<>();
     private final AtomicReference<OffsetDateTime> lastNetworkRefreshRequestedAt = new AtomicReference<>();
@@ -122,7 +124,9 @@ public class RmsLicenseMonitoringService {
     public RmsLicenseMonitor createMonitor(String rmsAddress,
                                            String authLogin,
                                            String authPassword,
-                                           Boolean enabled) {
+                                           Boolean enabled,
+                                           Boolean licenseMonitoringEnabled,
+                                           Boolean networkMonitoringEnabled) {
         EndpointTarget target = parseEndpointSafe(rmsAddress);
         if (repository.findByRmsAddress(target.normalizedAddress()).isPresent()) {
             throw new IllegalArgumentException("Этот RMS уже добавлен в мониторинг");
@@ -137,16 +141,15 @@ public class RmsLicenseMonitoringService {
         monitor.setAuthLogin(requireLogin(authLogin));
         monitor.setAuthPassword(requirePassword(authPassword, true));
         monitor.setEnabled(enabled == null || enabled);
-        monitor.setLicenseStatus(Boolean.TRUE.equals(monitor.getEnabled()) ? LICENSE_STATUS_ERROR : LICENSE_STATUS_DISABLED);
-        monitor.setRmsStatus(Boolean.TRUE.equals(monitor.getEnabled()) ? RMS_STATUS_UNKNOWN : RMS_STATUS_DISABLED);
+        monitor.setLicenseMonitoringEnabled(licenseMonitoringEnabled == null || licenseMonitoringEnabled);
+        monitor.setNetworkMonitoringEnabled(networkMonitoringEnabled == null || networkMonitoringEnabled);
+        monitor.setLicenseStatus(LICENSE_STATUS_DISABLED);
+        monitor.setRmsStatus(RMS_STATUS_DISABLED);
         monitor.setCreatedAt(now);
         monitor.setUpdatedAt(now);
         monitor = repository.save(monitor);
 
-        if (Boolean.TRUE.equals(monitor.getEnabled())) {
-            refreshLicenseState(monitor, false);
-            refreshNetworkState(monitor);
-        }
+        synchronizeFeatureStates(monitor, false);
         return repository.findById(monitor.getId()).orElse(monitor);
     }
 
@@ -155,7 +158,9 @@ public class RmsLicenseMonitoringService {
                                            String rmsAddress,
                                            String authLogin,
                                            String authPassword,
-                                           Boolean enabled) {
+                                           Boolean enabled,
+                                           Boolean licenseMonitoringEnabled,
+                                           Boolean networkMonitoringEnabled) {
         RmsLicenseMonitor monitor = repository.findById(id)
             .orElseThrow(() -> new IllegalArgumentException("RMS-запись не найдена"));
 
@@ -173,15 +178,12 @@ public class RmsLicenseMonitoringService {
         monitor.setAuthLogin(requireLogin(authLogin));
         monitor.setAuthPassword(requirePassword(authPassword, false, monitor.getAuthPassword()));
         monitor.setEnabled(enabled == null || enabled);
+        monitor.setLicenseMonitoringEnabled(licenseMonitoringEnabled == null || licenseMonitoringEnabled);
+        monitor.setNetworkMonitoringEnabled(networkMonitoringEnabled == null || networkMonitoringEnabled);
         monitor.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
         repository.save(monitor);
 
-        if (Boolean.TRUE.equals(monitor.getEnabled())) {
-            refreshLicenseState(monitor, false);
-            refreshNetworkState(monitor);
-        } else {
-            applyDisabledState(monitor);
-        }
+        synchronizeFeatureStates(monitor, false);
         return repository.findById(monitor.getId()).orElse(monitor);
     }
 
@@ -194,19 +196,77 @@ public class RmsLicenseMonitoringService {
     }
 
     public RefreshRequestResult requestLicenseRefresh(boolean withNotifications) {
+        return queueLicenseRefresh(null, withNotifications);
+    }
+
+    public RefreshRequestResult requestLicenseRefreshForMonitor(long id, boolean withNotifications) {
+        requireMonitor(id);
+        return queueLicenseRefresh(id, withNotifications);
+    }
+
+    public RefreshRequestResult requestNetworkRefresh() {
+        return queueNetworkRefresh(null);
+    }
+
+    public RefreshRequestResult requestNetworkRefreshForMonitor(long id) {
+        requireMonitor(id);
+        return queueNetworkRefresh(id);
+    }
+
+    @Transactional(transactionManager = "monitoringTransactionManager")
+    public void setLicenseMonitoringEnabledForAll(boolean enabled) {
+        List<RmsLicenseMonitor> monitors = repository.findAllByOrderByRmsAddressAscIdAsc();
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        for (RmsLicenseMonitor monitor : monitors) {
+            monitor.setLicenseMonitoringEnabled(enabled);
+            monitor.setUpdatedAt(now);
+            if (!enabled || !Boolean.TRUE.equals(monitor.getEnabled())) {
+                applyLicenseDisabledState(monitor);
+            } else if (LICENSE_STATUS_DISABLED.equals(normalizeStatus(monitor.getLicenseStatus()))) {
+                monitor.setLicenseStatus(LICENSE_STATUS_ERROR);
+                monitor.setLicenseErrorMessage("Ожидает обновления лицензии");
+                repository.save(monitor);
+            } else {
+                repository.save(monitor);
+            }
+        }
+    }
+
+    @Transactional(transactionManager = "monitoringTransactionManager")
+    public void setNetworkMonitoringEnabledForAll(boolean enabled) {
+        List<RmsLicenseMonitor> monitors = repository.findAllByOrderByRmsAddressAscIdAsc();
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        for (RmsLicenseMonitor monitor : monitors) {
+            monitor.setNetworkMonitoringEnabled(enabled);
+            monitor.setUpdatedAt(now);
+            if (!enabled || !Boolean.TRUE.equals(monitor.getEnabled())) {
+                applyNetworkDisabledState(monitor);
+            } else if (RMS_STATUS_DISABLED.equals(normalizeStatus(monitor.getRmsStatus()))) {
+                monitor.setRmsStatus(RMS_STATUS_UNKNOWN);
+                monitor.setRmsStatusMessage("Ожидает проверки доступности");
+                repository.save(monitor);
+            } else {
+                repository.save(monitor);
+            }
+        }
+    }
+
+    private RefreshRequestResult queueLicenseRefresh(Long monitorId, boolean withNotifications) {
         lastLicenseRefreshRequestedAt.set(OffsetDateTime.now(ZoneOffset.UTC));
         if (!licenseRefreshPending.compareAndSet(false, true)) {
             return new RefreshRequestResult("already_queued", currentRefreshState());
         }
-        licenseRefreshExecutor.submit(() -> runQueuedLicenseRefresh(withNotifications));
+        pendingLicenseTask.set(new LicenseRefreshTask(monitorId, withNotifications));
+        licenseRefreshExecutor.submit(this::runQueuedLicenseRefresh);
         return new RefreshRequestResult("queued", currentRefreshState());
     }
 
-    public RefreshRequestResult requestNetworkRefresh() {
+    private RefreshRequestResult queueNetworkRefresh(Long monitorId) {
         lastNetworkRefreshRequestedAt.set(OffsetDateTime.now(ZoneOffset.UTC));
         if (!networkRefreshPending.compareAndSet(false, true)) {
             return new RefreshRequestResult("already_queued", currentRefreshState());
         }
+        pendingNetworkTask.set(new NetworkRefreshTask(monitorId));
         networkRefreshExecutor.submit(this::runQueuedNetworkRefresh);
         return new RefreshRequestResult("queued", currentRefreshState());
     }
@@ -242,7 +302,7 @@ public class RmsLicenseMonitoringService {
         if (monitor == null) {
             return LICENSE_STATUS_ERROR;
         }
-        if (!Boolean.TRUE.equals(monitor.getEnabled())) {
+        if (!Boolean.TRUE.equals(monitor.getEnabled()) || !Boolean.TRUE.equals(monitor.getLicenseMonitoringEnabled())) {
             return LICENSE_STATUS_DISABLED;
         }
         String status = normalizeStatus(monitor.getLicenseStatus());
@@ -260,18 +320,23 @@ public class RmsLicenseMonitoringService {
         if (monitor == null) {
             return RMS_STATUS_UNKNOWN;
         }
-        if (!Boolean.TRUE.equals(monitor.getEnabled())) {
+        if (!Boolean.TRUE.equals(monitor.getEnabled()) || !Boolean.TRUE.equals(monitor.getNetworkMonitoringEnabled())) {
             return RMS_STATUS_DISABLED;
         }
         String status = normalizeStatus(monitor.getRmsStatus());
         return StringUtils.hasText(status) ? status : RMS_STATUS_UNKNOWN;
     }
 
-    private void runQueuedLicenseRefresh(boolean withNotifications) {
+    private void runQueuedLicenseRefresh() {
+        LicenseRefreshTask task = pendingLicenseTask.getAndSet(null);
         licenseRefreshPending.set(false);
         licenseRefreshRunning.set(true);
         try {
-            refreshAllLicensesInternal(withNotifications);
+            if (task == null || task.monitorId() == null) {
+                refreshAllLicensesInternal(task == null || task.withNotifications());
+            } else {
+                refreshLicenseState(requireMonitor(task.monitorId()), task.withNotifications());
+            }
             lastLicenseRefreshCompletedAt.set(OffsetDateTime.now(ZoneOffset.UTC));
         } catch (Exception ex) {
             log.warn("RMS license refresh queue failed", ex);
@@ -281,10 +346,15 @@ public class RmsLicenseMonitoringService {
     }
 
     private void runQueuedNetworkRefresh() {
+        NetworkRefreshTask task = pendingNetworkTask.getAndSet(null);
         networkRefreshPending.set(false);
         networkRefreshRunning.set(true);
         try {
-            refreshAllNetworkStatesInternal();
+            if (task == null || task.monitorId() == null) {
+                refreshAllNetworkStatesInternal();
+            } else {
+                refreshNetworkState(requireMonitor(task.monitorId()));
+            }
             lastNetworkRefreshCompletedAt.set(OffsetDateTime.now(ZoneOffset.UTC));
         } catch (Exception ex) {
             log.warn("RMS network refresh queue failed", ex);
@@ -318,7 +388,11 @@ public class RmsLicenseMonitoringService {
         monitor.setUpdatedAt(now);
 
         if (!Boolean.TRUE.equals(monitor.getEnabled())) {
-            applyDisabledState(monitor);
+            applyMasterDisabledState(monitor);
+            return;
+        }
+        if (!Boolean.TRUE.equals(monitor.getLicenseMonitoringEnabled())) {
+            applyLicenseDisabledState(monitor);
             return;
         }
 
@@ -356,7 +430,11 @@ public class RmsLicenseMonitoringService {
         monitor.setUpdatedAt(now);
 
         if (!Boolean.TRUE.equals(monitor.getEnabled())) {
-            applyDisabledState(monitor);
+            applyMasterDisabledState(monitor);
+            return;
+        }
+        if (!Boolean.TRUE.equals(monitor.getNetworkMonitoringEnabled())) {
+            applyNetworkDisabledState(monitor);
             return;
         }
 
@@ -392,12 +470,41 @@ public class RmsLicenseMonitoringService {
         }
     }
 
-    private void applyDisabledState(RmsLicenseMonitor monitor) {
+    private void applyMasterDisabledState(RmsLicenseMonitor monitor) {
         monitor.setLicenseStatus(LICENSE_STATUS_DISABLED);
+        monitor.setLicenseErrorMessage("Запись мониторинга отключена");
         monitor.setRmsStatus(RMS_STATUS_DISABLED);
-        monitor.setLicenseErrorMessage(null);
-        monitor.setRmsStatusMessage("Мониторинг отключён");
+        monitor.setRmsStatusMessage("Запись мониторинга отключена");
         repository.save(monitor);
+    }
+
+    private void applyLicenseDisabledState(RmsLicenseMonitor monitor) {
+        monitor.setLicenseStatus(LICENSE_STATUS_DISABLED);
+        monitor.setLicenseErrorMessage("Мониторинг лицензии отключён");
+        repository.save(monitor);
+    }
+
+    private void applyNetworkDisabledState(RmsLicenseMonitor monitor) {
+        monitor.setRmsStatus(RMS_STATUS_DISABLED);
+        monitor.setRmsStatusMessage("Мониторинг доступности отключён");
+        repository.save(monitor);
+    }
+
+    private void synchronizeFeatureStates(RmsLicenseMonitor monitor, boolean withNotifications) {
+        if (!Boolean.TRUE.equals(monitor.getEnabled())) {
+            applyMasterDisabledState(monitor);
+            return;
+        }
+        if (Boolean.TRUE.equals(monitor.getLicenseMonitoringEnabled())) {
+            refreshLicenseState(monitor, withNotifications);
+        } else {
+            applyLicenseDisabledState(monitor);
+        }
+        if (Boolean.TRUE.equals(monitor.getNetworkMonitoringEnabled())) {
+            refreshNetworkState(monitor);
+        } else {
+            applyNetworkDisabledState(monitor);
+        }
     }
 
     private boolean shouldNotifyLicense(RmsLicenseMonitor monitor, OffsetDateTime now) {
@@ -848,6 +955,11 @@ public class RmsLicenseMonitoringService {
         return value.trim().toLowerCase(Locale.ROOT);
     }
 
+    private RmsLicenseMonitor requireMonitor(long id) {
+        return repository.findById(id)
+            .orElseThrow(() -> new IllegalArgumentException("RMS-запись не найдена"));
+    }
+
     private String trimText(String value, int limit, String fallback) {
         String safe = StringUtils.hasText(value) ? value.trim() : fallback;
         if (!StringUtils.hasText(safe)) {
@@ -878,6 +990,12 @@ public class RmsLicenseMonitoringService {
     }
 
     public record RefreshRequestResult(String state, RefreshState refreshState) {
+    }
+
+    private record LicenseRefreshTask(Long monitorId, boolean withNotifications) {
+    }
+
+    private record NetworkRefreshTask(Long monitorId) {
     }
 
     private record EndpointTarget(String normalizedAddress, String scheme, String host, int port) {

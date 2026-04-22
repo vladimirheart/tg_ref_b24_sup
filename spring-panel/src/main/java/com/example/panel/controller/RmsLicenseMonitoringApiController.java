@@ -45,12 +45,14 @@ public class RmsLicenseMonitoringApiController {
     @PostMapping("/sites")
     public ResponseEntity<Map<String, Object>> createSite(@RequestBody(required = false) MonitorPayload payload) {
         try {
-            MonitorPayload source = payload != null ? payload : new MonitorPayload(null, null, null, true);
+            MonitorPayload source = payload != null ? payload : new MonitorPayload(null, null, null, true, true, true);
             RmsLicenseMonitor created = monitoringService.createMonitor(
                 source.rmsAddress(),
                 source.authLogin(),
                 source.authPassword(),
-                source.enabled()
+                source.enabled(),
+                source.licenseMonitoringEnabled(),
+                source.networkMonitoringEnabled()
             );
             return ResponseEntity.ok(Map.of("success", true, "item", toDto(created)));
         } catch (IllegalArgumentException ex) {
@@ -62,13 +64,15 @@ public class RmsLicenseMonitoringApiController {
     public ResponseEntity<Map<String, Object>> updateSite(@PathVariable long siteId,
                                                           @RequestBody(required = false) MonitorPayload payload) {
         try {
-            MonitorPayload source = payload != null ? payload : new MonitorPayload(null, null, null, true);
+            MonitorPayload source = payload != null ? payload : new MonitorPayload(null, null, null, true, true, true);
             RmsLicenseMonitor updated = monitoringService.updateMonitor(
                 siteId,
                 source.rmsAddress(),
                 source.authLogin(),
                 source.authPassword(),
-                source.enabled()
+                source.enabled(),
+                source.licenseMonitoringEnabled(),
+                source.networkMonitoringEnabled()
             );
             return ResponseEntity.ok(Map.of("success", true, "item", toDto(updated)));
         } catch (IllegalArgumentException ex) {
@@ -106,6 +110,50 @@ public class RmsLicenseMonitoringApiController {
         );
     }
 
+    @PostMapping("/sites/{siteId}/refresh/licenses")
+    public ResponseEntity<Map<String, Object>> refreshSiteLicense(@PathVariable long siteId) {
+        try {
+            RmsLicenseMonitoringService.RefreshRequestResult result =
+                monitoringService.requestLicenseRefreshForMonitor(siteId, true);
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "state", result.state(),
+                "refresh_state", toRefreshState(result.refreshState())
+            ));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "error", ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/sites/{siteId}/refresh/network")
+    public ResponseEntity<Map<String, Object>> refreshSiteNetwork(@PathVariable long siteId) {
+        try {
+            RmsLicenseMonitoringService.RefreshRequestResult result =
+                monitoringService.requestNetworkRefreshForMonitor(siteId);
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "state", result.state(),
+                "refresh_state", toRefreshState(result.refreshState())
+            ));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "error", ex.getMessage()));
+        }
+    }
+
+    @PostMapping("/bulk/license-monitoring")
+    public Map<String, Object> bulkToggleLicenseMonitoring(@RequestBody(required = false) FeatureTogglePayload payload) {
+        boolean enabled = payload == null || payload.enabled() == null || payload.enabled();
+        monitoringService.setLicenseMonitoringEnabledForAll(enabled);
+        return Map.of("success", true, "enabled", enabled);
+    }
+
+    @PostMapping("/bulk/network-monitoring")
+    public Map<String, Object> bulkToggleNetworkMonitoring(@RequestBody(required = false) FeatureTogglePayload payload) {
+        boolean enabled = payload == null || payload.enabled() == null || payload.enabled();
+        monitoringService.setNetworkMonitoringEnabledForAll(enabled);
+        return Map.of("success", true, "enabled", enabled);
+    }
+
     @GetMapping(value = "/sites/{siteId}/traceroute", produces = MediaType.TEXT_PLAIN_VALUE)
     public ResponseEntity<byte[]> downloadTraceroute(@PathVariable long siteId) {
         try {
@@ -135,6 +183,8 @@ public class RmsLicenseMonitoringApiController {
         dto.put("auth_login", item.getAuthLogin());
         dto.put("password_saved", item.getAuthPassword() != null && !item.getAuthPassword().isBlank());
         dto.put("enabled", item.getEnabled());
+        dto.put("license_monitoring_enabled", item.getLicenseMonitoringEnabled());
+        dto.put("network_monitoring_enabled", item.getNetworkMonitoringEnabled());
         dto.put("server_name", item.getServerName());
         dto.put("server_type", item.getServerType());
         dto.put("server_version", item.getServerVersion());
@@ -196,6 +246,14 @@ public class RmsLicenseMonitoringApiController {
         return safeScheme + "://" + displayHost + (defaultPort ? "" : ":" + safePort);
     }
 
-    private record MonitorPayload(String rmsAddress, String authLogin, String authPassword, Boolean enabled) {
+    private record MonitorPayload(String rmsAddress,
+                                  String authLogin,
+                                  String authPassword,
+                                  Boolean enabled,
+                                  Boolean licenseMonitoringEnabled,
+                                  Boolean networkMonitoringEnabled) {
+    }
+
+    private record FeatureTogglePayload(Boolean enabled) {
     }
 }
