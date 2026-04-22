@@ -58,7 +58,7 @@ public class SslCertificateMonitoringService {
         this.notificationService = notificationService;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional(transactionManager = "monitoringTransactionManager", readOnly = true)
     public List<SslCertificateMonitor> findAll() {
         return repository.findAllByOrderBySiteNameAscIdAsc();
     }
