@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="_csrf" th:content="${_csrf.token}">
+    <meta name="_csrf_header" th:content="${_csrf.headerName}">
+    <title>Контроль RMS — Support Panel</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" crossorigin="anonymous">
+    <th:block th:replace="~{fragments/ui-head :: uiHead}"></th:block>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link rel="stylesheet" th:href="@{/css/sidebar.css}">
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+    <style>
+        td.license-cell.status-ok,
+        td.rms-cell.status-up {
+            background-color: rgba(25, 135, 84, .12);
+        }
+        td.license-cell.status-warning {
+            background-color: rgba(255, 193, 7, .20);
+        }
+        td.license-cell.status-critical,
+        td.license-cell.status-expired,
+        td.rms-cell.status-down {
+            background-color: rgba(220, 53, 69, .12);
+        }
+        td.license-cell.status-error,
+        td.license-cell.status-disabled,
+        td.rms-cell.status-disabled,
+        td.rms-cell.status-unknown {
+            background-color: rgba(108, 117, 125, .10);
+        }
+        .font-mono {
+            font-family: var(--bs-font-monospace);
+        }
+    </style>
+</head>
+<body class="with-sidebar sidebar-pinned">
+<div th:replace="~{fragments/navbar :: navbar('analytics')}"></div>
+
+<main class="main-content container-fluid py-4">
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
+        <div>
+            <h1 class="h3 mb-1">Контроль RMS</h1>
+            <p class="text-muted mb-0">Мониторинг лицензий, доступности, типа сервера и трассировки до RMS с очередями обновления.</p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <a class="btn btn-outline-secondary" th:href="@{/analytics}">Назад в аналитику</a>
+            <button class="btn btn-primary" id="refreshRmsLicensesBtn" type="button">Обновить лицензии</button>
+            <button class="btn btn-outline-primary" id="refreshRmsNetworkBtn" type="button">Обновить статусы RMS</button>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+                <span class="badge text-bg-success">Лицензия OK: больше 7 дней</span>
+                <span class="badge text-bg-warning">Внимание: 7 дней и меньше</span>
+                <span class="badge text-bg-danger">Критично: 3 дня и меньше</span>
+                <span class="badge text-bg-danger">RMS DOWN</span>
+                <span class="badge text-bg-secondary">Disabled / Unknown</span>
+            </div>
+            <div class="small text-muted mb-2">
+                Автообновление лицензий запускается раз в сутки, статусов RMS — раз в 5 минут. Между проверками действует очередь с паузой 20 секунд.
+            </div>
+            <div class="small text-muted" id="rmsQueueState">Загрузка состояния очередей...</div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h2 class="h5 mb-3">Добавить RMS</h2>
+            <form class="row g-3" id="rmsCreateForm">
+                <div class="col-12 col-lg-4">
+                    <label class="form-label" for="rmsAddressInput">Адрес RMS</label>
+                    <input class="form-control" id="rmsAddressInput" placeholder="https://host:443 или host" required>
+                </div>
+                <div class="col-12 col-lg-3">
+                    <label class="form-label" for="rmsLoginInput">Логин</label>
+                    <input class="form-control" id="rmsLoginInput" required>
+                </div>
+                <div class="col-12 col-lg-3">
+                    <label class="form-label" for="rmsPasswordInput">Пароль</label>
+                    <input class="form-control" id="rmsPasswordInput" type="password" required>
+                </div>
+                <div class="col-12 col-lg-1 d-flex align-items-end">
+                    <div class="form-check form-switch mb-2">
+                        <input class="form-check-input" type="checkbox" id="rmsEnabledInput" checked>
+                        <label class="form-check-label" for="rmsEnabledInput">Вкл</label>
+                    </div>
+                </div>
+                <div class="col-12 col-lg-1 d-flex align-items-end">
+                    <button class="btn btn-success w-100" type="submit">Добавить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table align-middle mb-0">
+                    <thead class="table-light">
+                    <tr>
+                        <th>Адрес RMS</th>
+                        <th>Имя</th>
+                        <th>Дата окончания лицензии</th>
+                        <th>Статус лицензии</th>
+                        <th>Статус RMS</th>
+                        <th>Тип сервера</th>
+                        <th class="text-end">Действия</th>
+                    </tr>
+                    </thead>
+                    <tbody id="rmsMonitoringTableBody">
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-4">Загрузка...</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</main>
+
+<div class="modal fade" id="rmsEditModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form class="modal-content" id="rmsEditForm">
+            <div class="modal-header">
+                <h5 class="modal-title">Редактирование RMS</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editRmsId">
+                <div class="mb-3">
+                    <label class="form-label" for="editRmsAddressInput">Адрес RMS</label>
+                    <input class="form-control" id="editRmsAddressInput" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="editRmsLoginInput">Логин</label>
+                    <input class="form-control" id="editRmsLoginInput" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="editRmsPasswordInput">Пароль</label>
+                    <input class="form-control" id="editRmsPasswordInput" type="password" placeholder="Оставьте пустым, чтобы не менять">
+                    <div class="form-text" id="editRmsPasswordHint">Сохранённый пароль можно оставить без изменений.</div>
+                </div>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="editRmsEnabledInput">
+                    <label class="form-check-label" for="editRmsEnabledInput">Мониторинг включён</label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Отмена</button>
+                <button class="btn btn-primary" type="submit">Сохранить</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
+<script th:src="@{/js/common.js}"></script>
+<script th:src="@{/js/rms-monitoring.js}"></script>
+</body>
+</html>
