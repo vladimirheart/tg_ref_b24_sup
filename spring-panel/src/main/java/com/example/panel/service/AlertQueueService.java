@@ -1,8 +1,6 @@
 package com.example.panel.service;
 
 import com.example.panel.entity.Channel;
-import com.example.panel.entity.Notification;
-import com.example.panel.repository.NotificationRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -20,7 +18,6 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Set;
 
 @Service
@@ -29,44 +26,54 @@ public class AlertQueueService {
     private static final Logger log = LoggerFactory.getLogger(AlertQueueService.class);
 
     private final JdbcTemplate usersJdbcTemplate;
-    private final NotificationRepository notificationRepository;
+    private final NotificationService notificationService;
     private final ObjectMapper objectMapper;
 
     public AlertQueueService(@Qualifier("usersJdbcTemplate") JdbcTemplate usersJdbcTemplate,
-                             NotificationRepository notificationRepository,
+                             NotificationService notificationService,
                              ObjectMapper objectMapper) {
         this.usersJdbcTemplate = usersJdbcTemplate;
-        this.notificationRepository = notificationRepository;
+        this.notificationService = notificationService;
         this.objectMapper = objectMapper;
     }
 
     public void notifyQueueForNewPublicAppeal(Channel channel, String ticketId, String previewText) {
-        AlertQueueConfig config = parseConfig(channel);
-        if (!config.enabled()) {
-            return;
-        }
-        List<UserSnapshot> departmentUsers = loadDepartmentUsers(config.department());
-        if (departmentUsers.isEmpty()) {
-            return;
-        }
-        List<String> recipients = selectRecipients(config, departmentUsers);
-        if (recipients.isEmpty()) {
+        if (channel == null) {
             return;
         }
         String channelLabel = StringUtils.hasText(channel.getChannelName()) ? channel.getChannelName() : "Канал";
         String text = "Новое обращение (" + channelLabel + "): " + trimPreview(previewText);
         String url = StringUtils.hasText(ticketId) ? "/dialogs?ticketId=" + ticketId : "/dialogs";
-        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-        for (String identity : recipients) {
-            Notification notification = new Notification();
-            notification.setUserIdentity(identity);
-            notification.setText(text);
-            notification.setUrl(url);
-            notification.setIsRead(Boolean.FALSE);
-            notification.setCreatedAt(now);
-            notificationRepository.save(notification);
+        notifyChannelEvent(channel, AlertEvent.NEW_PUBLIC_APPEAL, text, url);
+    }
+
+    public boolean notifyFirstResponseOverdue(Channel channel, String ticketId, long overdueMinutes) {
+        if (channel == null || !StringUtils.hasText(ticketId)) {
+            return false;
         }
-        log.info("Queued {} public-form notifications for channel {} (ticket={})", recipients.size(), channel.getId(), ticketId);
+        String channelLabel = StringUtils.hasText(channel.getChannelName()) ? channel.getChannelName() : "Канал";
+        String overdueLabel = overdueMinutes > 0
+                ? " Просрочка: " + overdueMinutes + " мин."
+                : "";
+        String text = "Первая реакция просрочена (" + channelLabel + ") в обращении " + ticketId + "." + overdueLabel;
+        return notifyChannelEvent(channel, AlertEvent.FIRST_RESPONSE_OVERDUE, text, "/dialogs?ticketId=" + ticketId);
+    }
+
+    private boolean notifyChannelEvent(Channel channel, AlertEvent event, String text, String url) {
+        ResolvedAlertConfig config = parseConfig(channel, event);
+        if (!config.enabled()) {
+            return false;
+        }
+        List<String> recipients = selectRecipients(config.routing());
+        if (recipients.isEmpty()) {
+            return false;
+        }
+        notificationService.notifyUsers(new LinkedHashSet<>(recipients), text, url);
+        log.info("Queued {} '{}' notifications for channel {}",
+                recipients.size(),
+                event.key(),
+                channel.getId());
+        return true;
     }
 
     private String trimPreview(String previewText) {
@@ -74,10 +81,30 @@ public class AlertQueueService {
         if (safe.length() <= 140) {
             return safe;
         }
-        return safe.substring(0, 140) + "…";
+        return safe.substring(0, 140) + "...";
     }
 
-    private List<String> selectRecipients(AlertQueueConfig config, List<UserSnapshot> departmentUsers) {
+    private List<String> selectRecipients(AlertRouteConfig config) {
+        if (config == null) {
+            return List.of();
+        }
+        Set<String> selected = new LinkedHashSet<>();
+        List<UserSnapshot> usersForOnlineFilter;
+        if ("all_operators".equals(config.targetMode())) {
+            selected.addAll(notificationService.findAllOperatorRecipients());
+            usersForOnlineFilter = loadOperatorUsers();
+        } else {
+            List<UserSnapshot> departmentUsers = loadDepartmentUsers(config.department());
+            usersForOnlineFilter = departmentUsers;
+            selected.addAll(buildDepartmentRecipients(config, departmentUsers));
+        }
+        return applyDeliveryMode(selected, usersForOnlineFilter, config.deliveryMode());
+    }
+
+    private Set<String> buildDepartmentRecipients(AlertRouteConfig config, List<UserSnapshot> departmentUsers) {
+        if (departmentUsers == null || departmentUsers.isEmpty()) {
+            return Set.of();
+        }
         Set<String> departmentUsernames = new LinkedHashSet<>();
         for (UserSnapshot user : departmentUsers) {
             departmentUsernames.add(user.username().toLowerCase(Locale.ROOT));
@@ -90,21 +117,28 @@ public class AlertQueueService {
                     selected.add(normalized);
                 }
             }
-        } else if ("department_except".equals(config.targetMode())) {
-            selected.addAll(departmentUsernames);
-            selected.removeAll(config.excludeUsernames());
-        } else {
-            selected.addAll(departmentUsernames);
+            return selected;
         }
-        if (selected.isEmpty()) {
+        selected.addAll(departmentUsernames);
+        if ("department_except".equals(config.targetMode())) {
+            selected.removeAll(config.excludeUsernames());
+        }
+        return selected;
+    }
+
+    private List<String> applyDeliveryMode(Set<String> selected, List<UserSnapshot> usersForOnlineFilter, String deliveryMode) {
+        if (selected == null || selected.isEmpty()) {
             return List.of();
         }
-        if (!"online_only_fallback_all".equals(config.deliveryMode())) {
+        if (!"online_only_fallback_all".equals(deliveryMode)) {
             return new ArrayList<>(selected);
         }
         Set<String> online = new LinkedHashSet<>();
         OffsetDateTime threshold = OffsetDateTime.now(ZoneOffset.UTC).minusMinutes(15);
-        for (UserSnapshot user : departmentUsers) {
+        for (UserSnapshot user : usersForOnlineFilter) {
+            if (user == null) {
+                continue;
+            }
             String normalizedUsername = user.username().toLowerCase(Locale.ROOT);
             if (!selected.contains(normalizedUsername)) {
                 continue;
@@ -115,6 +149,26 @@ public class AlertQueueService {
             }
         }
         return online.isEmpty() ? new ArrayList<>(selected) : new ArrayList<>(online);
+    }
+
+    private List<UserSnapshot> loadOperatorUsers() {
+        Set<String> userColumns = loadUsersTableColumns();
+        if (userColumns.isEmpty() || !userColumns.contains("username")) {
+            return List.of();
+        }
+        String enabledColumn = userColumns.contains("enabled") ? "enabled" : "1 AS enabled";
+        String blockedColumn = userColumns.contains("is_blocked") ? "is_blocked" : "0 AS is_blocked";
+        String lastPortalActivityColumn = userColumns.contains("last_portal_activity_at")
+                ? "last_portal_activity_at"
+                : "NULL AS last_portal_activity_at";
+        String sql = """
+                SELECT username, %s,
+                       %s,
+                       %s
+                  FROM users
+                 WHERE 1 = 1
+                """.formatted(enabledColumn, blockedColumn, lastPortalActivityColumn);
+        return loadUsers(sql);
     }
 
     private List<UserSnapshot> loadDepartmentUsers(String department) {
@@ -128,12 +182,16 @@ public class AlertQueueService {
                 ? "last_portal_activity_at"
                 : "NULL AS last_portal_activity_at";
         String sql = """
-                SELECT username, department, %s,
+                SELECT username, %s,
                        %s,
                        %s
                   FROM users
                  WHERE lower(trim(COALESCE(department, ''))) = lower(trim(?))
                 """.formatted(enabledColumn, blockedColumn, lastPortalActivityColumn);
+        return loadUsers(sql, department);
+    }
+
+    private List<UserSnapshot> loadUsers(String sql, Object... args) {
         try {
             return usersJdbcTemplate.query(sql, (rs, rowNum) -> {
                 String username = rs.getString("username");
@@ -147,10 +205,10 @@ public class AlertQueueService {
                 }
                 String rawActivity = rs.getString("last_portal_activity_at");
                 OffsetDateTime activity = parseDate(rawActivity);
-                return new UserSnapshot(username.trim(), activity);
-            }, department).stream().filter(java.util.Objects::nonNull).toList();
+                return new UserSnapshot(username.trim().toLowerCase(Locale.ROOT), activity);
+            }, args).stream().filter(java.util.Objects::nonNull).toList();
         } catch (DataAccessException ex) {
-            log.warn("Unable to resolve alert queue recipients: {}", ex.getMessage());
+            log.warn("Unable to resolve alert recipients: {}", ex.getMessage());
             return List.of();
         }
     }
@@ -162,7 +220,7 @@ public class AlertQueueService {
                     (rs, rowNum) -> rs.getString("name")
             ));
         } catch (DataAccessException ex) {
-            log.warn("Unable to inspect users schema for alert queue: {}", ex.getMessage());
+            log.warn("Unable to inspect users schema for alert routing: {}", ex.getMessage());
             return Set.of();
         }
     }
@@ -178,33 +236,67 @@ public class AlertQueueService {
         }
     }
 
-    private AlertQueueConfig parseConfig(Channel channel) {
+    private ResolvedAlertConfig parseConfig(Channel channel, AlertEvent event) {
         if (channel == null || !StringUtils.hasText(channel.getQuestionsCfg())) {
-            return AlertQueueConfig.disabled();
+            return defaultConfig(event);
         }
         try {
             JsonNode root = objectMapper.readTree(channel.getQuestionsCfg());
-            JsonNode queue = root.path("alertQueue");
-            if (!queue.isObject()) {
-                return AlertQueueConfig.disabled();
+            JsonNode panelNotifications = root.path("panelNotifications");
+            if (panelNotifications.isObject()) {
+                JsonNode routeSource = panelNotifications.path("routing").isObject()
+                        ? panelNotifications.path("routing")
+                        : panelNotifications;
+                AlertRouteConfig route = parseRouteConfig(routeSource, true);
+                JsonNode events = panelNotifications.path("events");
+                boolean enabled = resolveEventEnabled(events, event, defaultConfig(event).enabled());
+                return new ResolvedAlertConfig(enabled, route);
             }
-            boolean enabled = queue.path("enabled").asBoolean(false);
-            String department = value(queue.path("department").asText(""));
-            String targetMode = normalizeTargetMode(value(queue.path("targetMode").asText("department_all")));
-            String deliveryMode = normalizeDeliveryMode(value(queue.path("deliveryMode").asText("all")));
-            List<String> employees = readStringList(queue.path("employeeUsernames"));
-            List<String> excludes = readStringList(queue.path("excludeUsernames"));
-            return new AlertQueueConfig(enabled, department, targetMode, deliveryMode, employees, excludes);
+            if (event == AlertEvent.NEW_PUBLIC_APPEAL) {
+                JsonNode queue = root.path("alertQueue");
+                if (queue.isObject()) {
+                    boolean enabled = queue.path("enabled").asBoolean(false);
+                    return new ResolvedAlertConfig(enabled, parseRouteConfig(queue, false));
+                }
+            }
         } catch (Exception ex) {
-            log.warn("Unable to parse alert queue config for channel {}: {}", channel.getId(), ex.getMessage());
-            return AlertQueueConfig.disabled();
+            log.warn("Unable to parse alert config for channel {}: {}", channel.getId(), ex.getMessage());
         }
+        return defaultConfig(event);
     }
 
-    private String normalizeTargetMode(String value) {
+    private boolean resolveEventEnabled(JsonNode events, AlertEvent event, boolean defaultValue) {
+        if (events == null || events.isMissingNode() || events.isNull() || !events.isObject()) {
+            return defaultValue;
+        }
+        return events.path(event.key()).asBoolean(defaultValue);
+    }
+
+    private ResolvedAlertConfig defaultConfig(AlertEvent event) {
+        return new ResolvedAlertConfig(
+                event == AlertEvent.NEW_PUBLIC_APPEAL,
+                new AlertRouteConfig("", "all_operators", "all", List.of(), List.of())
+        );
+    }
+
+    private AlertRouteConfig parseRouteConfig(JsonNode node, boolean allowAllOperators) {
+        if (node == null || node.isNull() || !node.isObject()) {
+            return new AlertRouteConfig("", allowAllOperators ? "all_operators" : "department_all", "all", List.of(), List.of());
+        }
+        String defaultMode = allowAllOperators ? "all_operators" : "department_all";
+        String department = value(node.path("department").asText(""));
+        String targetMode = normalizeTargetMode(value(node.path("targetMode").asText(defaultMode)), allowAllOperators);
+        String deliveryMode = normalizeDeliveryMode(value(node.path("deliveryMode").asText("all")));
+        List<String> employees = readStringList(node.path("employeeUsernames"));
+        List<String> excludes = readStringList(node.path("excludeUsernames"));
+        return new AlertRouteConfig(department, targetMode, deliveryMode, employees, excludes);
+    }
+
+    private String normalizeTargetMode(String value, boolean allowAllOperators) {
         return switch (value) {
-            case "employees_only", "department_except" -> value;
-            default -> "department_all";
+            case "employees_only", "department_except", "department_all" -> value;
+            case "all_operators" -> allowAllOperators ? value : "department_all";
+            default -> allowAllOperators ? "all_operators" : "department_all";
         };
     }
 
@@ -230,15 +322,29 @@ public class AlertQueueService {
         return StringUtils.hasText(text) ? text.trim() : "";
     }
 
-    private record AlertQueueConfig(boolean enabled,
-                                    String department,
+    private enum AlertEvent {
+        NEW_PUBLIC_APPEAL("newPublicAppeal"),
+        FIRST_RESPONSE_OVERDUE("firstResponseOverdue");
+
+        private final String key;
+
+        AlertEvent(String key) {
+            this.key = key;
+        }
+
+        public String key() {
+            return key;
+        }
+    }
+
+    private record ResolvedAlertConfig(boolean enabled, AlertRouteConfig routing) {
+    }
+
+    private record AlertRouteConfig(String department,
                                     String targetMode,
                                     String deliveryMode,
                                     List<String> employeeUsernames,
                                     List<String> excludeUsernames) {
-        private static AlertQueueConfig disabled() {
-            return new AlertQueueConfig(false, "", "department_all", "all", List.of(), List.of());
-        }
     }
 
     private record UserSnapshot(String username, OffsetDateTime lastPortalActivityAt) {

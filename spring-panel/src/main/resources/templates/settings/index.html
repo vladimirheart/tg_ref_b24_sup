@@ -6360,6 +6360,64 @@
                     </div>
                   </section>
 
+                  <section class="channel-editor-section channel-editor-section--accent">
+                    <div class="channel-editor-section__head">
+                      <div>
+                        <h6 class="channel-editor-section__title">
+                          <i class="bi bi-bell" aria-hidden="true"></i>
+                          Оповещения в панели
+                        </h6>
+                        <p class="channel-editor-section__hint">Кому в bell приходят новые обращения из внешней формы и просрочка первой реакции.</p>
+                      </div>
+                    </div>
+                    <div class="channel-editor-switches">
+                      <div class="channel-editor-switch">
+                        <div class="form-check form-switch">
+                          <input class="form-check-input" type="checkbox" id="channelEditorPanelNotifNewPublicAppeal" />
+                          <label class="form-check-label" for="channelEditorPanelNotifNewPublicAppeal">Новые обращения из внешней формы</label>
+                        </div>
+                      </div>
+                      <div class="channel-editor-switch">
+                        <div class="form-check form-switch">
+                          <input class="form-check-input" type="checkbox" id="channelEditorPanelNotifFirstResponseOverdue" />
+                          <label class="form-check-label" for="channelEditorPanelNotifFirstResponseOverdue">Просрочка первой реакции</label>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="row g-3 mt-1">
+                      <div class="col-12 col-md-6">
+                        <label class="form-label" for="channelEditorPanelNotifTargetMode">Кому отправлять</label>
+                        <select class="form-select" id="channelEditorPanelNotifTargetMode">
+                          <option value="all_operators">Всем операторам</option>
+                          <option value="department_all">Всему отделу</option>
+                          <option value="employees_only">Только выбранным сотрудникам</option>
+                          <option value="department_except">Отделу, кроме списка</option>
+                        </select>
+                      </div>
+                      <div class="col-12 col-md-6">
+                        <label class="form-label" for="channelEditorPanelNotifDeliveryMode">Режим доставки</label>
+                        <select class="form-select" id="channelEditorPanelNotifDeliveryMode">
+                          <option value="all">Всем выбранным</option>
+                          <option value="online_only_fallback_all">Сначала онлайн, иначе всем</option>
+                        </select>
+                      </div>
+                      <div class="col-12 col-md-6">
+                        <label class="form-label" for="channelEditorPanelNotifDepartment">Отдел / очередь</label>
+                        <input class="form-control" id="channelEditorPanelNotifDepartment" placeholder="Например: support" />
+                        <div class="form-text small">Нужно только для режимов с отделом. Если оставить пустым, будет использоваться режим «Всем операторам».</div>
+                      </div>
+                      <div class="col-12 col-md-6">
+                        <label class="form-label" for="channelEditorPanelNotifEmployees">Сотрудники</label>
+                        <textarea class="form-control" id="channelEditorPanelNotifEmployees" rows="3" placeholder="ivanov, petrov"></textarea>
+                        <div class="form-text small">Список логинов через запятую, пробел или новую строку.</div>
+                      </div>
+                      <div class="col-12">
+                        <label class="form-label" for="channelEditorPanelNotifExclude">Исключить сотрудников</label>
+                        <textarea class="form-control" id="channelEditorPanelNotifExclude" rows="2" placeholder="stazherov, temp_user"></textarea>
+                      </div>
+                    </div>
+                  </section>
+
                   <section class="channel-editor-section">
                     <div class="channel-editor-section__head">
                       <div>
@@ -19909,6 +19967,13 @@
   const channelEditorAutoSelect = document.getElementById('channelEditorAutoTemplate');
   const channelEditorSupportChatInput = document.getElementById('channelEditorSupportChatId');
   const channelEditorBroadcastChannelInput = document.getElementById('channelEditorBroadcastChannelId');
+  const channelEditorPanelNotifNewPublicAppealInput = document.getElementById('channelEditorPanelNotifNewPublicAppeal');
+  const channelEditorPanelNotifFirstResponseOverdueInput = document.getElementById('channelEditorPanelNotifFirstResponseOverdue');
+  const channelEditorPanelNotifTargetModeInput = document.getElementById('channelEditorPanelNotifTargetMode');
+  const channelEditorPanelNotifDeliveryModeInput = document.getElementById('channelEditorPanelNotifDeliveryMode');
+  const channelEditorPanelNotifDepartmentInput = document.getElementById('channelEditorPanelNotifDepartment');
+  const channelEditorPanelNotifEmployeesInput = document.getElementById('channelEditorPanelNotifEmployees');
+  const channelEditorPanelNotifExcludeInput = document.getElementById('channelEditorPanelNotifExclude');
   const channelEditorScheduleToGroupInput = document.getElementById('channelEditorScheduleToGroup');
   const channelEditorScheduleToChannelInput = document.getElementById('channelEditorScheduleToChannel');
   const channelEditorScheduleSimultaneousInput = document.getElementById('channelEditorScheduleSimultaneous');
@@ -20117,6 +20182,22 @@
       channelEditorSupportHint.textContent = `Текущее значение: ${value}`;
     } else {
       channelEditorSupportHint.textContent = 'ID группы не задан. Добавьте бота в чат или укажите значение вручную.';
+    }
+  }
+
+  function updateChannelPanelNotificationRoutingState() {
+    const targetMode = String(channelEditorPanelNotifTargetModeInput?.value || 'all_operators').trim().toLowerCase();
+    const usesDepartment = targetMode !== 'all_operators';
+    const usesEmployees = targetMode === 'employees_only';
+    const usesExclude = targetMode === 'department_except';
+    if (channelEditorPanelNotifDepartmentInput) {
+      channelEditorPanelNotifDepartmentInput.disabled = !usesDepartment;
+    }
+    if (channelEditorPanelNotifEmployeesInput) {
+      channelEditorPanelNotifEmployeesInput.disabled = !usesEmployees;
+    }
+    if (channelEditorPanelNotifExcludeInput) {
+      channelEditorPanelNotifExcludeInput.disabled = !usesExclude;
     }
   }
 
@@ -21645,12 +21726,41 @@
     const platformConfig = parsePlatformConfig(channel.platform_config);
     const supportChatValue = channel.support_chat_id ?? '';
     const deliverySettings = parseDeliverySettings(channel.delivery_settings);
+    const panelNotifications = channel.questions_cfg?.panelNotifications || defaultChannelPanelNotifications();
+    const panelRouting = panelNotifications.routing || defaultChannelPanelNotifications().routing;
+    const panelEvents = panelNotifications.events || defaultChannelPanelNotifications().events;
     if (channelEditorSupportChatInput) {
       channelEditorSupportChatInput.value = supportChatValue;
     }
     if (channelEditorBroadcastChannelInput) {
       channelEditorBroadcastChannelInput.value = deliverySettings.broadcast_channel_id || '';
     }
+    if (channelEditorPanelNotifNewPublicAppealInput) {
+      channelEditorPanelNotifNewPublicAppealInput.checked = panelEvents.newPublicAppeal !== false;
+    }
+    if (channelEditorPanelNotifFirstResponseOverdueInput) {
+      channelEditorPanelNotifFirstResponseOverdueInput.checked = Boolean(panelEvents.firstResponseOverdue);
+    }
+    if (channelEditorPanelNotifTargetModeInput) {
+      channelEditorPanelNotifTargetModeInput.value = panelRouting.targetMode || 'all_operators';
+    }
+    if (channelEditorPanelNotifDeliveryModeInput) {
+      channelEditorPanelNotifDeliveryModeInput.value = panelRouting.deliveryMode || 'all';
+    }
+    if (channelEditorPanelNotifDepartmentInput) {
+      channelEditorPanelNotifDepartmentInput.value = panelRouting.department || '';
+    }
+    if (channelEditorPanelNotifEmployeesInput) {
+      channelEditorPanelNotifEmployeesInput.value = Array.isArray(panelRouting.employeeUsernames)
+        ? panelRouting.employeeUsernames.join(', ')
+        : '';
+    }
+    if (channelEditorPanelNotifExcludeInput) {
+      channelEditorPanelNotifExcludeInput.value = Array.isArray(panelRouting.excludeUsernames)
+        ? panelRouting.excludeUsernames.join(', ')
+        : '';
+    }
+    updateChannelPanelNotificationRoutingState();
     if (channelEditorScheduleToGroupInput) {
       channelEditorScheduleToGroupInput.checked = Boolean(deliverySettings.schedule_to_group ?? true);
     }
@@ -22017,20 +22127,77 @@
     auto_action_template_id: getAutoActionTemplateSummary,
   };
 
-  function parseQuestionsCfg(raw) {
-    if (!raw) return { schemaVersion: 1, enabled: true, captchaEnabled: false, rateLimitEnabled: null, rateLimitWindowSeconds: null, rateLimitMaxRequests: null, disabledStatus: 404, successInstruction: '', responseEtaMinutes: null, fields: [] };
+  function defaultChannelPanelNotifications() {
+    return {
+      routing: {
+        department: '',
+        targetMode: 'all_operators',
+        deliveryMode: 'all',
+        employeeUsernames: [],
+        excludeUsernames: [],
+      },
+      events: {
+        newPublicAppeal: true,
+        firstResponseOverdue: false,
+      },
+    };
+  }
+
+  function parseChannelNotificationList(raw) {
     if (Array.isArray(raw)) {
-      return { schemaVersion: 1, enabled: true, captchaEnabled: false, rateLimitEnabled: null, rateLimitWindowSeconds: null, rateLimitMaxRequests: null, disabledStatus: 404, fields: raw };
+      return raw
+        .map((value) => String(value || '').trim().toLowerCase())
+        .filter(Boolean);
+    }
+    if (typeof raw === 'string') {
+      return raw
+        .split(/[\s,;]+/)
+        .map((value) => String(value || '').trim().toLowerCase())
+        .filter(Boolean);
+    }
+    return [];
+  }
+
+  function serializeChannelNotificationList(raw) {
+    return Array.from(new Set(parseChannelNotificationList(raw)));
+  }
+
+  function parseQuestionsCfg(raw) {
+    if (!raw) return { schemaVersion: 1, enabled: true, captchaEnabled: false, rateLimitEnabled: null, rateLimitWindowSeconds: null, rateLimitMaxRequests: null, disabledStatus: 404, successInstruction: '', responseEtaMinutes: null, fields: [], panelNotifications: defaultChannelPanelNotifications() };
+    if (Array.isArray(raw)) {
+      return { schemaVersion: 1, enabled: true, captchaEnabled: false, rateLimitEnabled: null, rateLimitWindowSeconds: null, rateLimitMaxRequests: null, disabledStatus: 404, fields: raw, panelNotifications: defaultChannelPanelNotifications() };
     }
     if (typeof raw === "string") {
       try {
         return parseQuestionsCfg(JSON.parse(raw));
       } catch (e) {
-        return { schemaVersion: 1, enabled: true, captchaEnabled: false, rateLimitEnabled: null, rateLimitWindowSeconds: null, rateLimitMaxRequests: null, disabledStatus: 404, successInstruction: '', responseEtaMinutes: null, fields: [] };
+        return { schemaVersion: 1, enabled: true, captchaEnabled: false, rateLimitEnabled: null, rateLimitWindowSeconds: null, rateLimitMaxRequests: null, disabledStatus: 404, successInstruction: '', responseEtaMinutes: null, fields: [], panelNotifications: defaultChannelPanelNotifications() };
       }
     }
     if (typeof raw === "object") {
       const disabledStatusRaw = Number.parseInt(raw.disabledStatus || 404, 10);
+      const defaults = defaultChannelPanelNotifications();
+      const legacyAlertQueue = raw.alertQueue && typeof raw.alertQueue === 'object'
+        ? raw.alertQueue
+        : {};
+      const panelNotificationsRaw = raw.panelNotifications && typeof raw.panelNotifications === 'object'
+        ? raw.panelNotifications
+        : null;
+      const routingSource = panelNotificationsRaw?.routing && typeof panelNotificationsRaw.routing === 'object'
+        ? panelNotificationsRaw.routing
+        : (panelNotificationsRaw || {});
+      const legacyMode = String(legacyAlertQueue.targetMode || '').trim().toLowerCase();
+      const targetModeRaw = String(routingSource.targetMode || '').trim().toLowerCase();
+      const resolvedTargetMode = ['all_operators', 'department_all', 'employees_only', 'department_except'].includes(targetModeRaw)
+        ? targetModeRaw
+        : (['department_all', 'employees_only', 'department_except'].includes(legacyMode) ? legacyMode : defaults.routing.targetMode);
+      const deliveryModeRaw = String(routingSource.deliveryMode || '').trim().toLowerCase();
+      const resolvedDeliveryMode = ['all', 'online_only_fallback_all'].includes(deliveryModeRaw)
+        ? deliveryModeRaw
+        : defaults.routing.deliveryMode;
+      const eventSource = panelNotificationsRaw?.events && typeof panelNotificationsRaw.events === 'object'
+        ? panelNotificationsRaw.events
+        : {};
       return {
         schemaVersion: Number.parseInt(raw.schemaVersion || 1, 10) || 1,
         enabled: raw.enabled !== false,
@@ -22044,9 +22211,26 @@
           ? Math.max(0, Math.min(10080, Number.parseInt(raw.responseEtaMinutes, 10)))
           : null,
         fields: Array.isArray(raw.fields) ? raw.fields : [],
+        panelNotifications: {
+          routing: {
+            department: String(routingSource.department || legacyAlertQueue.department || '').trim(),
+            targetMode: resolvedTargetMode,
+            deliveryMode: resolvedDeliveryMode,
+            employeeUsernames: parseChannelNotificationList(routingSource.employeeUsernames ?? legacyAlertQueue.employeeUsernames),
+            excludeUsernames: parseChannelNotificationList(routingSource.excludeUsernames ?? legacyAlertQueue.excludeUsernames),
+          },
+          events: {
+            newPublicAppeal: typeof eventSource.newPublicAppeal === 'boolean'
+              ? eventSource.newPublicAppeal
+              : (typeof legacyAlertQueue.enabled === 'boolean' ? legacyAlertQueue.enabled : defaults.events.newPublicAppeal),
+            firstResponseOverdue: typeof eventSource.firstResponseOverdue === 'boolean'
+              ? eventSource.firstResponseOverdue
+              : defaults.events.firstResponseOverdue,
+          },
+        },
       };
     }
-    return { schemaVersion: 1, enabled: true, captchaEnabled: false, rateLimitEnabled: null, rateLimitWindowSeconds: null, rateLimitMaxRequests: null, disabledStatus: 404, successInstruction: '', responseEtaMinutes: null, fields: [] };
+    return { schemaVersion: 1, enabled: true, captchaEnabled: false, rateLimitEnabled: null, rateLimitWindowSeconds: null, rateLimitMaxRequests: null, disabledStatus: 404, successInstruction: '', responseEtaMinutes: null, fields: [], panelNotifications: defaultChannelPanelNotifications() };
   }
 
   function parsePlatformConfig(raw) {
@@ -22465,6 +22649,18 @@
     const rateLimitMaxRaw = Number.parseInt(channelEditorPublicFormRateLimitMaxRequestsInput?.value || existingQuestionsCfg.rateLimitMaxRequests || 5, 10);
     const rateLimitWindowSeconds = Number.isFinite(rateLimitWindowRaw) ? Math.max(10, Math.min(3600, rateLimitWindowRaw)) : 60;
     const rateLimitMaxRequests = Number.isFinite(rateLimitMaxRaw) ? Math.max(1, Math.min(500, rateLimitMaxRaw)) : 5;
+    const notificationTargetModeRaw = String(channelEditorPanelNotifTargetModeInput?.value || existingQuestionsCfg.panelNotifications?.routing?.targetMode || 'all_operators').trim().toLowerCase();
+    const notificationTargetMode = ['all_operators', 'department_all', 'employees_only', 'department_except'].includes(notificationTargetModeRaw)
+      ? notificationTargetModeRaw
+      : 'all_operators';
+    const notificationDepartmentValue = String(channelEditorPanelNotifDepartmentInput?.value || existingQuestionsCfg.panelNotifications?.routing?.department || '').trim();
+    const normalizedNotificationTargetMode = notificationDepartmentValue
+      ? notificationTargetMode
+      : 'all_operators';
+    const notificationDeliveryModeRaw = String(channelEditorPanelNotifDeliveryModeInput?.value || existingQuestionsCfg.panelNotifications?.routing?.deliveryMode || 'all').trim().toLowerCase();
+    const notificationDeliveryMode = notificationDeliveryModeRaw === 'online_only_fallback_all'
+      ? 'online_only_fallback_all'
+      : 'all';
     channelEditorState.publicFormFields = collectPublicFormFieldsFromEditor();
     body.questions_cfg = {
       ...existingQuestionsCfg,
@@ -22481,6 +22677,19 @@
         if (!Number.isFinite(etaRaw) || etaRaw <= 0) return null;
         return Math.max(0, Math.min(10080, etaRaw));
       })(),
+      panelNotifications: {
+        routing: {
+          department: notificationDepartmentValue,
+          targetMode: normalizedNotificationTargetMode,
+          deliveryMode: notificationDeliveryMode,
+          employeeUsernames: serializeChannelNotificationList(channelEditorPanelNotifEmployeesInput?.value || existingQuestionsCfg.panelNotifications?.routing?.employeeUsernames),
+          excludeUsernames: serializeChannelNotificationList(channelEditorPanelNotifExcludeInput?.value || existingQuestionsCfg.panelNotifications?.routing?.excludeUsernames),
+        },
+        events: {
+          newPublicAppeal: channelEditorPanelNotifNewPublicAppealInput?.checked !== false,
+          firstResponseOverdue: Boolean(channelEditorPanelNotifFirstResponseOverdueInput?.checked),
+        },
+      },
       fields: channelEditorState.publicFormFields.map((field, index) => ({
         ...field,
         order: index + 1,
@@ -22895,6 +23104,7 @@
         updateSupportChatHint(value || '');
       }
     });
+    channelEditorPanelNotifTargetModeInput?.addEventListener('change', updateChannelPanelNotificationRoutingState);
     channelEditorTestTargetSelect?.addEventListener('change', updateTestRecipientState);
     channelEditorSendTestBtn?.addEventListener('click', sendChannelTestMessage);
     channelEditorVkBtn?.addEventListener('click', () => {
