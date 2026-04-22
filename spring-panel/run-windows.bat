@@ -1,5 +1,6 @@
 @echo off
 setlocal enabledelayedexpansion
+chcp 65001 >nul
 
 set "SCRIPT_DIR=%~dp0"
 if "%SCRIPT_DIR:~-1%"=="\" set "SCRIPT_DIR=%SCRIPT_DIR:~0,-1%"
@@ -81,10 +82,11 @@ set "MVN_REPO_DIR=%SCRIPT_DIR%\.m2\repository"
 if not exist "%SCRIPT_DIR%\.m2" mkdir "%SCRIPT_DIR%\.m2" >nul 2>&1
 set "MVN_REPO_ARG=-Dmaven.repo.local=%MVN_REPO_DIR%"
 
-set "EXTRA_JVM_ARG="
+set "SPRING_BOOT_JVM_ARGS=-Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8 -Dsun.stdout.encoding=UTF-8 -Dsun.stderr.encoding=UTF-8"
 if defined JAVA_OPTS (
-    set "EXTRA_JVM_ARG=-Dspring-boot.run.jvmArguments=\"%JAVA_OPTS%\""
+    set "SPRING_BOOT_JVM_ARGS=%SPRING_BOOT_JVM_ARGS% %JAVA_OPTS%"
 )
+set "EXTRA_JVM_ARG=-Dspring-boot.run.jvmArguments=\"%SPRING_BOOT_JVM_ARGS%\""
 
 set "EXTRA_APP_ARG="
 if defined SPRING_OPTS (
