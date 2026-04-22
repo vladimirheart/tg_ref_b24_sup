@@ -137,10 +137,10 @@ public class DialogQuickActionService {
         return response;
     }
 
-    public DialogService.ResolveResult resolveTicket(String ticketId,
-                                                     String operator,
-                                                     List<String> categories) {
-        DialogService.ResolveResult result = dialogTicketLifecycleService.resolveTicket(ticketId, operator, categories);
+    public DialogResolveResult resolveTicket(String ticketId,
+                                             String operator,
+                                             List<String> categories) {
+        DialogResolveResult result = dialogTicketLifecycleService.resolveTicket(ticketId, operator, categories);
         if (result.updated()) {
             dialogAiAssistantService.clearProcessing(ticketId, "resolved", null);
             dialogNotificationService.notifyResolved(ticketId);
@@ -154,8 +154,8 @@ public class DialogQuickActionService {
         return result;
     }
 
-    public DialogService.ResolveResult reopenTicket(String ticketId, String operator) {
-        DialogService.ResolveResult result = dialogTicketLifecycleService.reopenTicket(ticketId, operator);
+    public DialogResolveResult reopenTicket(String ticketId, String operator) {
+        DialogResolveResult result = dialogTicketLifecycleService.reopenTicket(ticketId, operator);
         if (result.updated()) {
             dialogAiAssistantService.clearProcessing(ticketId, "reopened", null);
             dialogNotificationService.notifyReopened(ticketId);

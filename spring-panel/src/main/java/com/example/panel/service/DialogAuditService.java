@@ -36,7 +36,7 @@ public class DialogAuditService {
                     StringUtils.hasText(result) ? result.trim() : "unknown",
                     StringUtils.hasText(detail) ? detail.trim() : null);
         } catch (DataAccessException ex) {
-            log.warn("Unable to persist dialog action audit for ticket {}: {}", ticketId, DialogService.summarizeDataAccessException(ex));
+            log.warn("Unable to persist dialog action audit for ticket {}: {}", ticketId, DialogDataAccessSupport.summarizeDataAccessException(ex));
         }
     }
 
@@ -57,7 +57,7 @@ public class DialogAuditService {
                     action.trim());
             return count != null && count > 0L;
         } catch (DataAccessException ex) {
-            log.warn("Unable to read dialog action audit for ticket {}: {}", ticketId, DialogService.summarizeDataAccessException(ex));
+            log.warn("Unable to read dialog action audit for ticket {}: {}", ticketId, DialogDataAccessSupport.summarizeDataAccessException(ex));
             return false;
         }
     }
@@ -104,7 +104,7 @@ public class DialogAuditService {
                     trimOrNull(templateId),
                     trimOrNull(templateName));
         } catch (DataAccessException ex) {
-            log.warn("Unable to persist workspace telemetry event '{}': {}", eventType, DialogService.summarizeDataAccessException(ex));
+            log.warn("Unable to persist workspace telemetry event '{}': {}", eventType, DialogDataAccessSupport.summarizeDataAccessException(ex));
         }
     }
 

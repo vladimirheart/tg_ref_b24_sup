@@ -51,7 +51,7 @@ public class DialogLookupReadService {
             );
             return new DialogSummary(total, resolved, pending, channelStats);
         } catch (DataAccessException ex) {
-            log.warn("Unable to load dialog summary, returning empty view: {}", DialogService.summarizeDataAccessException(ex));
+            log.warn("Unable to load dialog summary, returning empty view: {}", DialogDataAccessSupport.summarizeDataAccessException(ex));
             return new DialogSummary(0, 0, 0, List.of());
         }
     }
@@ -229,7 +229,7 @@ public class DialogLookupReadService {
             ), currentOperator);
             return enrichResponsibleProfiles(items);
         } catch (DataAccessException ex) {
-            log.warn("Unable to load dialogs, returning empty list: {}", DialogService.summarizeDataAccessException(ex));
+            log.warn("Unable to load dialogs, returning empty list: {}", DialogDataAccessSupport.summarizeDataAccessException(ex));
             return List.of();
         }
     }
@@ -396,7 +396,7 @@ public class DialogLookupReadService {
             List<DialogListItem> enriched = enrichResponsibleProfiles(items);
             return enriched.isEmpty() ? Optional.empty() : Optional.of(enriched.get(0));
         } catch (DataAccessException ex) {
-            log.warn("Unable to load dialog {} details: {}", ticketId, DialogService.summarizeDataAccessException(ex));
+            log.warn("Unable to load dialog {} details: {}", ticketId, DialogDataAccessSupport.summarizeDataAccessException(ex));
             return Optional.empty();
         }
     }
@@ -491,7 +491,7 @@ public class DialogLookupReadService {
             }, identities.toArray());
             return profiles;
         } catch (DataAccessException ex) {
-            log.warn("Unable to load responsible profiles for dialog list: {}", DialogService.summarizeDataAccessException(ex));
+            log.warn("Unable to load responsible profiles for dialog list: {}", DialogDataAccessSupport.summarizeDataAccessException(ex));
             return Map.of();
         }
     }
@@ -517,7 +517,7 @@ public class DialogLookupReadService {
                 return columns;
             });
         } catch (DataAccessException ex) {
-            log.warn("Unable to inspect users table columns: {}", DialogService.summarizeDataAccessException(ex));
+            log.warn("Unable to inspect users table columns: {}", DialogDataAccessSupport.summarizeDataAccessException(ex));
             return Set.of();
         }
     }
@@ -543,7 +543,7 @@ public class DialogLookupReadService {
                 return columns;
             });
         } catch (DataAccessException ex) {
-            log.warn("Unable to inspect {} columns: {}", tableName, DialogService.summarizeDataAccessException(ex));
+            log.warn("Unable to inspect {} columns: {}", tableName, DialogDataAccessSupport.summarizeDataAccessException(ex));
             return Set.of();
         }
     }

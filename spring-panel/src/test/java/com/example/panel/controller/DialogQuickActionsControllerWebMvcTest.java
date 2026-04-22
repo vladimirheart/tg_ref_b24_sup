@@ -11,8 +11,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.example.panel.service.DialogAuthorizationService;
 import com.example.panel.service.DialogQuickActionService;
+import com.example.panel.service.DialogResolveResult;
 import com.example.panel.service.DialogReplyService;
-import com.example.panel.service.DialogService;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -67,7 +67,7 @@ class DialogQuickActionsControllerWebMvcTest {
         when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_close"), eq("quick_close"), eq("T-601")))
             .thenReturn(null);
         when(dialogQuickActionService.resolveTicket("T-601", "operator", List.of("billing")))
-            .thenReturn(new DialogService.ResolveResult(false, false, null));
+            .thenReturn(new DialogResolveResult(false, false, null));
 
         mockMvc.perform(post("/api/dialogs/T-601/resolve")
                 .with(user("operator"))

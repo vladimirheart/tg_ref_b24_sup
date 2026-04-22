@@ -39,13 +39,13 @@ public class DialogTicketLifecycleService {
                 );
             }
         } catch (DataAccessException ex) {
-            log.warn("Unable to set categories for ticket {}: {}", ticketId, DialogService.summarizeDataAccessException(ex));
+            log.warn("Unable to set categories for ticket {}: {}", ticketId, DialogDataAccessSupport.summarizeDataAccessException(ex));
         }
     }
 
-    public DialogService.ResolveResult resolveTicket(String ticketId, String operator, List<String> categories) {
+    public DialogResolveResult resolveTicket(String ticketId, String operator, List<String> categories) {
         if (!StringUtils.hasText(ticketId)) {
-            return new DialogService.ResolveResult(false, false, null);
+            return new DialogResolveResult(false, false, null);
         }
         try {
             List<String> normalizedCategories = normalizeCategories(categories);
@@ -55,10 +55,10 @@ public class DialogTicketLifecycleService {
                     ticketId
             );
             if (count == null || count == 0) {
-                return new DialogService.ResolveResult(false, false, null);
+                return new DialogResolveResult(false, false, null);
             }
             if (normalizedCategories.isEmpty()) {
-                return new DialogService.ResolveResult(false, true, "Укажите хотя бы одну категорию обращения перед закрытием.");
+                return new DialogResolveResult(false, true, "Укажите хотя бы одну категорию обращения перед закрытием.");
             }
             String resolvedBy = StringUtils.hasText(operator) ? operator : "Оператор";
             int updated = jdbcTemplate.update(
@@ -72,16 +72,16 @@ public class DialogTicketLifecycleService {
                 setTicketCategories(ticketId, normalizedCategories);
                 ensurePendingFeedbackRequest(ticketId, resolvedBy);
             }
-            return new DialogService.ResolveResult(updated > 0, true, null);
+            return new DialogResolveResult(updated > 0, true, null);
         } catch (DataAccessException ex) {
-            log.warn("Unable to resolve ticket {}: {}", ticketId, DialogService.summarizeDataAccessException(ex));
-            return new DialogService.ResolveResult(false, false, null);
+            log.warn("Unable to resolve ticket {}: {}", ticketId, DialogDataAccessSupport.summarizeDataAccessException(ex));
+            return new DialogResolveResult(false, false, null);
         }
     }
 
-    public DialogService.ResolveResult reopenTicket(String ticketId, String operator) {
+    public DialogResolveResult reopenTicket(String ticketId, String operator) {
         if (!StringUtils.hasText(ticketId)) {
-            return new DialogService.ResolveResult(false, false, null);
+            return new DialogResolveResult(false, false, null);
         }
         try {
             Integer count = jdbcTemplate.queryForObject(
@@ -90,7 +90,7 @@ public class DialogTicketLifecycleService {
                     ticketId
             );
             if (count == null || count == 0) {
-                return new DialogService.ResolveResult(false, false, null);
+                return new DialogResolveResult(false, false, null);
             }
             int updated = jdbcTemplate.update(
                     "UPDATE tickets SET status = 'pending', resolved_at = NULL, resolved_by = NULL, "
@@ -102,10 +102,10 @@ public class DialogTicketLifecycleService {
             if (updated > 0 && StringUtils.hasText(operator)) {
                 dialogResponsibilityService.assignResponsibleIfMissing(ticketId, operator);
             }
-            return new DialogService.ResolveResult(updated > 0, true, null);
+            return new DialogResolveResult(updated > 0, true, null);
         } catch (DataAccessException ex) {
-            log.warn("Unable to reopen ticket {}: {}", ticketId, DialogService.summarizeDataAccessException(ex));
-            return new DialogService.ResolveResult(false, false, null);
+            log.warn("Unable to reopen ticket {}: {}", ticketId, DialogDataAccessSupport.summarizeDataAccessException(ex));
+            return new DialogResolveResult(false, false, null);
         }
     }
 
@@ -145,7 +145,7 @@ public class DialogTicketLifecycleService {
                     source
             );
         } catch (DataAccessException ex) {
-            log.warn("Unable to ensure pending feedback request for ticket {}: {}", ticketId, DialogService.summarizeDataAccessException(ex));
+            log.warn("Unable to ensure pending feedback request for ticket {}: {}", ticketId, DialogDataAccessSupport.summarizeDataAccessException(ex));
         }
     }
 

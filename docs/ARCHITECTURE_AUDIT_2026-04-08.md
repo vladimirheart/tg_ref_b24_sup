@@ -71,6 +71,15 @@
   `SlaEscalationWebhookNotifier` использует `DialogLookupReadService` и
   `DialogResponsibilityService` там, где giant `DialogService` раньше
   оставался только техническим фасадом;
+- ещё одним пакетом снят уже не продуктовый, а технический coupling вокруг
+  giant service: `DialogDataAccessSupport` вынесен из nested static helper-слоя
+  `DialogService`, а `DialogResolveResult` больше не живёт как nested record
+  giant service; на новые опоры переведены `DialogTicketLifecycleService`,
+  `DialogQuickActionService`, `DialogQuickActionsController`,
+  `DialogAuditService`, `DialogLookupReadService`,
+  `DialogConversationReadService`, `DialogClientContextReadService` и
+  `DialogResponsibilityService`, что уменьшает blast radius даже там, где
+  remaining business logic ещё не вынесена полностью;
 - вокруг telemetry/notifier слоя добавлены boundary-сервисы
   `DialogWorkspaceTelemetrySummaryService` и
   `DialogMacroGovernanceAuditService`, поэтому
@@ -120,7 +129,7 @@
   на giant service; теперь к этому добавлены ещё lookup/responsibility slices,
   а теперь и lifecycle/audit/details slices, но remaining bounded contexts и
   legacy helper blocks всё ещё не закрыты полностью; при этом сам класс уже
-  заметно уменьшился и сейчас находится примерно на уровне `6034` строк, то
+  заметно уменьшился и сейчас находится примерно на уровне `6014` строк, то
   есть речь уже не о “старом монолите без движения”, а о незавершённом, но
   активно режущемся giant service;
 - `DialogWorkspaceService` всё ещё крупный, хотя уже начал разгружаться через

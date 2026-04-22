@@ -311,7 +311,7 @@ public class DialogService {
             ), currentOperator);
             return enrichResponsibleProfiles(items);
         } catch (DataAccessException ex) {
-            log.warn("Unable to load dialogs, returning empty list: {}", summarizeDataAccessException(ex));
+            log.warn("Unable to load dialogs, returning empty list: {}", DialogDataAccessSupport.summarizeDataAccessException(ex));
             return List.of();
         }
     }
@@ -484,7 +484,7 @@ public class DialogService {
             List<DialogListItem> enriched = enrichResponsibleProfiles(items);
             return enriched.isEmpty() ? Optional.empty() : Optional.of(enriched.get(0));
         } catch (DataAccessException ex) {
-            log.warn("Unable to load dialog {} details: {}", ticketId, summarizeDataAccessException(ex));
+            log.warn("Unable to load dialog {} details: {}", ticketId, DialogDataAccessSupport.summarizeDataAccessException(ex));
             return Optional.empty();
         }
     }
@@ -579,7 +579,7 @@ public class DialogService {
             }, identities.toArray());
             return profiles;
         } catch (DataAccessException ex) {
-            log.warn("Unable to load responsible profiles for dialog list: {}", summarizeDataAccessException(ex));
+            log.warn("Unable to load responsible profiles for dialog list: {}", DialogDataAccessSupport.summarizeDataAccessException(ex));
             return Map.of();
         }
     }
@@ -605,7 +605,7 @@ public class DialogService {
                 return columns;
             });
         } catch (DataAccessException ex) {
-            log.warn("Unable to inspect users table columns: {}", summarizeDataAccessException(ex));
+            log.warn("Unable to inspect users table columns: {}", DialogDataAccessSupport.summarizeDataAccessException(ex));
             return Set.of();
         }
     }
@@ -674,7 +674,7 @@ public class DialogService {
                     ticketId, username, username, ticketId
             );
         } catch (DataAccessException ex) {
-            log.warn("Unable to assign responsible for ticket {}: {}", ticketId, summarizeDataAccessException(ex));
+            log.warn("Unable to assign responsible for ticket {}: {}", ticketId, DialogDataAccessSupport.summarizeDataAccessException(ex));
         }
     }
 
@@ -700,7 +700,7 @@ public class DialogService {
                     operator
             );
         } catch (DataAccessException ex) {
-            log.warn("Unable to mark dialog {} as read for {}: {}", ticketId, operator, summarizeDataAccessException(ex));
+            log.warn("Unable to mark dialog {} as read for {}: {}", ticketId, operator, DialogDataAccessSupport.summarizeDataAccessException(ex));
         }
     }
 
@@ -727,7 +727,7 @@ public class DialogService {
                 );
             }
         } catch (DataAccessException ex) {
-            log.warn("Unable to update responsible for ticket {}: {}", ticketId, summarizeDataAccessException(ex));
+            log.warn("Unable to update responsible for ticket {}: {}", ticketId, DialogDataAccessSupport.summarizeDataAccessException(ex));
         }
     }
 
@@ -3150,7 +3150,7 @@ public class DialogService {
                     .collect(Collectors.joining(", ")));
             return snapshot;
         } catch (DataAccessException ex) {
-            log.warn("Unable to load parity exit criteria snapshot: {}", summarizeDataAccessException(ex));
+            log.warn("Unable to load parity exit criteria snapshot: {}", DialogDataAccessSupport.summarizeDataAccessException(ex));
             snapshot.put("ready", false);
             snapshot.put("critical_gap_events", 0L);
             snapshot.put("last_seen_at", "");
@@ -4493,7 +4493,7 @@ public class DialogService {
                 return row;
             }, args.toArray());
         } catch (DataAccessException ex) {
-            log.warn("Unable to load macro usage audit for template {}: {}", templateId, summarizeDataAccessException(ex));
+            log.warn("Unable to load macro usage audit for template {}: {}", templateId, DialogDataAccessSupport.summarizeDataAccessException(ex));
             return Map.of("usage_count", 0L, "preview_count", 0L, "error_count", 0L, "last_used_at", "");
         }
     }
@@ -6014,7 +6014,7 @@ public class DialogService {
                 return item;
             }, cutoffStart, cutoffEnd, filterExperiment, filterExperiment);
         } catch (DataAccessException ex) {
-            log.warn("Unable to load workspace telemetry summary: {}", summarizeDataAccessException(ex));
+            log.warn("Unable to load workspace telemetry summary: {}", DialogDataAccessSupport.summarizeDataAccessException(ex));
             return List.of();
         }
     }
@@ -6052,7 +6052,7 @@ public class DialogService {
                 return row;
             }, cutoffStart, cutoffEnd, eventType.trim(), filterExperiment, filterExperiment, safeLimit);
         } catch (DataAccessException ex) {
-            log.warn("Unable to load workspace reason breakdown for {}: {}", eventType, summarizeDataAccessException(ex));
+            log.warn("Unable to load workspace reason breakdown for {}: {}", eventType, DialogDataAccessSupport.summarizeDataAccessException(ex));
             return List.of();
         }
     }
@@ -6113,7 +6113,7 @@ public class DialogService {
             }, Timestamp.from(windowStart), Timestamp.from(windowEnd), eventType, filterExperiment, filterExperiment);
             return aggregateWorkspaceGapReasons(rawRows);
         } catch (DataAccessException ex) {
-            log.warn("Unable to load workspace gap breakdown for {}: {}", eventType, summarizeDataAccessException(ex));
+            log.warn("Unable to load workspace gap breakdown for {}: {}", eventType, DialogDataAccessSupport.summarizeDataAccessException(ex));
             return List.of();
         }
     }
@@ -6203,26 +6203,6 @@ public class DialogService {
         return 0L;
     }
 
-    static String summarizeDataAccessException(DataAccessException ex) {
-        Throwable mostSpecificCause = ex.getMostSpecificCause();
-        if (mostSpecificCause != null && StringUtils.hasText(mostSpecificCause.getMessage())) {
-            return singleLine(mostSpecificCause.getMessage());
-        }
-        String message = ex.getMessage();
-        if (!StringUtils.hasText(message)) {
-            return ex.getClass().getSimpleName();
-        }
-        int sqlIndex = message.indexOf(" for SQL [");
-        if (sqlIndex >= 0) {
-            message = message.substring(0, sqlIndex);
-        }
-        return singleLine(message);
-    }
-
-    private static String singleLine(String value) {
-        return value.replaceAll("\\s+", " ").trim();
-    }
-
     private Set<String> loadTableColumns(String tableName) {
         try {
             return jdbcTemplate.execute((ConnectionCallback<Set<String>>) connection -> {
@@ -6244,7 +6224,7 @@ public class DialogService {
                 return columns;
             });
         } catch (DataAccessException ex) {
-            log.warn("Unable to inspect {} columns: {}", tableName, summarizeDataAccessException(ex));
+            log.warn("Unable to inspect {} columns: {}", tableName, DialogDataAccessSupport.summarizeDataAccessException(ex));
             return Set.of();
         }
     }
@@ -6257,14 +6237,11 @@ public class DialogService {
         dialogTicketLifecycleService.setTicketCategories(ticketId, categories);
     }
 
-    public ResolveResult resolveTicket(String ticketId, String operator, List<String> categories) {
+    public DialogResolveResult resolveTicket(String ticketId, String operator, List<String> categories) {
         return dialogTicketLifecycleService.resolveTicket(ticketId, operator, categories);
     }
 
-    public ResolveResult reopenTicket(String ticketId, String operator) {
+    public DialogResolveResult reopenTicket(String ticketId, String operator) {
         return dialogTicketLifecycleService.reopenTicket(ticketId, operator);
-    }
-
-    public record ResolveResult(boolean updated, boolean exists, String error) {
     }
 }
