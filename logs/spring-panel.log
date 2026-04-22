@@ -18770,3 +18770,2555 @@ WHERE EXPIRY_TIME < ?
    )
  ORDER BY t.ticket_id DESC
 ]
+2026-04-22 14:47:27.949+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:47:27.949+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT t.ticket_id, m.group_msg_id AS request_number,
+       COALESCE(
+           m.user_id,
+           t.user_id,
+           (
+               SELECT m3.user_id
+                 FROM messages m3
+                WHERE m3.ticket_id = t.ticket_id
+                  AND m3.user_id IS NOT NULL
+                ORDER BY substr(m3.created_at, 1, 19) DESC,
+                         m3.group_msg_id DESC
+                LIMIT 1
+           )
+       ) AS user_id,
+       m.username, m.client_name, m.business,
+       COALESCE(m.channel_id, t.channel_id) AS channel_id,
+       c.channel_name AS channel_name,
+       m.city, m.location_name,
+       m.problem,
+       COALESCE(m.created_at, t.created_at) AS created_at,
+       t.status, t.resolved_by, t.resolved_at,
+       COALESCE(tas.is_processing, 0) AS ai_processing,
+       tr.responsible AS responsible,
+       COALESCE(m.created_date, substr(COALESCE(m.created_at, t.created_at), 1, 10)) AS created_date,
+       COALESCE(m.created_time, substr(COALESCE(m.created_at, t.created_at), 12, 8)) AS created_time,
+       cs.status AS client_status,
+       (
+    SELECT rating
+      FROM feedbacks f
+     WHERE f.ticket_id = m.ticket_id
+     ORDER BY f.timestamp DESC, f.id DESC
+     LIMIT 1
+) AS rating,
+
+       (
+           SELECT sender
+             FROM chat_history ch
+            WHERE ch.ticket_id = t.ticket_id
+            ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                     COALESCE(ch.tg_message_id, 0) DESC,
+                     ch.id DESC
+            LIMIT 1
+       ) AS last_sender,
+       (
+           SELECT timestamp
+             FROM chat_history ch
+            WHERE ch.ticket_id = t.ticket_id
+            ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                     COALESCE(ch.tg_message_id, 0) DESC,
+                     ch.id DESC
+            LIMIT 1
+       ) AS last_sender_time,
+       (
+           SELECT GROUP_CONCAT(tc.category, ', ')
+             FROM ticket_categories tc
+            WHERE tc.ticket_id = t.ticket_id
+       ) AS categories,
+       CASE
+           WHEN tr.responsible IS NULL OR trim(tr.responsible) = '' OR lower(COALESCE(tr.responsible, '')) = lower(?) THEN (
+               SELECT COUNT(*)
+                 FROM chat_history ch
+                WHERE ch.ticket_id = t.ticket_id
+                  AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+                  AND ch.timestamp > COALESCE(
+                      tr.last_read_at,
+                      (
+                          SELECT MAX(op.timestamp)
+                            FROM chat_history op
+                           WHERE op.ticket_id = t.ticket_id
+                             AND lower(op.sender) IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+                      ),
+                      ''
+                  )
+           )
+           ELSE 0
+       END AS unread_count
+  FROM tickets t
+  LEFT JOIN messages m ON m.group_msg_id = (
+      SELECT m2.group_msg_id
+        FROM messages m2
+       WHERE m2.ticket_id = t.ticket_id
+       ORDER BY substr(m2.created_at, 1, 19) DESC,
+                m2.group_msg_id DESC
+       LIMIT 1
+  )
+  LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
+  LEFT JOIN ticket_responsibles tr ON tr.ticket_id = t.ticket_id
+  LEFT JOIN ticket_ai_agent_state tas ON tas.ticket_id = t.ticket_id
+  LEFT JOIN client_statuses cs ON cs.user_id = COALESCE(
+           m.user_id,
+           t.user_id,
+           (
+               SELECT m3.user_id
+                 FROM messages m3
+                WHERE m3.ticket_id = t.ticket_id
+                  AND m3.user_id IS NOT NULL
+                ORDER BY substr(m3.created_at, 1, 19) DESC,
+                         m3.group_msg_id DESC
+                LIMIT 1
+           )
+       )
+       AND cs.updated_at = (
+           SELECT MAX(updated_at) FROM client_statuses WHERE user_id = COALESCE(
+               m.user_id,
+               t.user_id,
+               (
+                   SELECT m3.user_id
+                     FROM messages m3
+                    WHERE m3.ticket_id = t.ticket_id
+                      AND m3.user_id IS NOT NULL
+                    ORDER BY substr(m3.created_at, 1, 19) DESC,
+                             m3.group_msg_id DESC
+                    LIMIT 1
+               )
+           )
+       )
+  ORDER BY substr(COALESCE(
+               (
+                   SELECT timestamp
+                     FROM chat_history ch
+                    WHERE ch.ticket_id = t.ticket_id
+                    ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                             COALESCE(ch.tg_message_id, 0) DESC,
+                             ch.id DESC
+                    LIMIT 1
+               ),
+               COALESCE(m.created_at, t.created_at)
+           ), 1, 19) DESC,
+           t.ticket_id DESC
+]
+2026-04-22 14:47:27.952+03:00 DEBUG [scheduling-1] o.s.jdbc.core.StatementCreatorUtils - JDBC getParameterType call failed - using fallback method instead: java.sql.SQLException: No parameter has been set yet
+2026-04-22 14:47:27.958+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:47:27.958+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT username, NULL AS full_name, NULL AS photo
+  FROM users
+ WHERE lower(username) IN (?, ?, ?)
+]
+2026-04-22 14:47:30.806+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:47:30.806+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, ticket_id, sender, message, message_type, attachment
+  FROM chat_history
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:47:30.812+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:47:30.812+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, user_id, rating, ticket_id
+  FROM feedbacks
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:47:30.816+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing SQL query [SELECT t.ticket_id,
+       t.channel_id,
+       COALESCE(
+           (
+               SELECT MIN(ch.timestamp)
+                 FROM chat_history ch
+                WHERE ch.ticket_id = t.ticket_id
+                  AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+           ),
+           t.created_at
+       ) AS first_client_at
+  FROM tickets t
+ WHERE COALESCE(lower(t.status), 'open') NOT IN ('resolved', 'closed')
+   AND EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+   AND NOT EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+ ORDER BY t.ticket_id DESC
+]
+2026-04-22 14:47:33.524+03:00 DEBUG [rms-network-refresh-79dcb7b8-e03f-40fb-a16a-9e4622827a67] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL update
+2026-04-22 14:47:33.524+03:00 DEBUG [rms-network-refresh-79dcb7b8-e03f-40fb-a16a-9e4622827a67] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [UPDATE rms_license_monitors
+   SET rms_address = ?,
+       scheme = ?,
+       host = ?,
+       port = ?,
+       auth_login = ?,
+       auth_password = ?,
+       enabled = ?,
+       server_name = ?,
+       server_type = ?,
+       server_version = ?,
+       license_status = ?,
+       license_error_message = ?,
+       license_expires_at = ?,
+       license_days_left = ?,
+       license_last_checked_at = ?,
+       license_last_notified_at = ?,
+       rms_status = ?,
+       rms_status_message = ?,
+       ping_output = ?,
+       traceroute_summary = ?,
+       traceroute_report = ?,
+       traceroute_checked_at = ?,
+       rms_last_checked_at = ?,
+       created_at = ?,
+       updated_at = ?
+ WHERE id = ?
+]
+2026-04-22 14:47:38.481+03:00 DEBUG [rms-license-refresh-36d58597-c152-4530-b5b0-379951e0a4ad] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL update
+2026-04-22 14:47:38.481+03:00 DEBUG [rms-license-refresh-36d58597-c152-4530-b5b0-379951e0a4ad] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [UPDATE rms_license_monitors
+   SET rms_address = ?,
+       scheme = ?,
+       host = ?,
+       port = ?,
+       auth_login = ?,
+       auth_password = ?,
+       enabled = ?,
+       server_name = ?,
+       server_type = ?,
+       server_version = ?,
+       license_status = ?,
+       license_error_message = ?,
+       license_expires_at = ?,
+       license_days_left = ?,
+       license_last_checked_at = ?,
+       license_last_notified_at = ?,
+       rms_status = ?,
+       rms_status_message = ?,
+       ping_output = ?,
+       traceroute_summary = ?,
+       traceroute_report = ?,
+       traceroute_checked_at = ?,
+       rms_last_checked_at = ?,
+       created_at = ?,
+       updated_at = ?
+ WHERE id = ?
+]
+2026-04-22 14:47:42.822+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:47:42.822+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, ticket_id, sender, message, message_type, attachment
+  FROM chat_history
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:47:42.849+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:47:42.850+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, user_id, rating, ticket_id
+  FROM feedbacks
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:47:42.861+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing SQL query [SELECT t.ticket_id,
+       t.channel_id,
+       COALESCE(
+           (
+               SELECT MIN(ch.timestamp)
+                 FROM chat_history ch
+                WHERE ch.ticket_id = t.ticket_id
+                  AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+           ),
+           t.created_at
+       ) AS first_client_at
+  FROM tickets t
+ WHERE COALESCE(lower(t.status), 'open') NOT IN ('resolved', 'closed')
+   AND EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+   AND NOT EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+ ORDER BY t.ticket_id DESC
+]
+2026-04-22 14:47:53.538+03:00 DEBUG [rms-network-refresh-79dcb7b8-e03f-40fb-a16a-9e4622827a67] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL update
+2026-04-22 14:47:53.538+03:00 DEBUG [rms-network-refresh-79dcb7b8-e03f-40fb-a16a-9e4622827a67] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [UPDATE rms_license_monitors
+   SET rms_address = ?,
+       scheme = ?,
+       host = ?,
+       port = ?,
+       auth_login = ?,
+       auth_password = ?,
+       enabled = ?,
+       server_name = ?,
+       server_type = ?,
+       server_version = ?,
+       license_status = ?,
+       license_error_message = ?,
+       license_expires_at = ?,
+       license_days_left = ?,
+       license_last_checked_at = ?,
+       license_last_notified_at = ?,
+       rms_status = ?,
+       rms_status_message = ?,
+       ping_output = ?,
+       traceroute_summary = ?,
+       traceroute_report = ?,
+       traceroute_checked_at = ?,
+       rms_last_checked_at = ?,
+       created_at = ?,
+       updated_at = ?
+ WHERE id = ?
+]
+2026-04-22 14:47:54.870+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:47:54.870+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, ticket_id, sender, message, message_type, attachment
+  FROM chat_history
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:47:54.889+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:47:54.889+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, user_id, rating, ticket_id
+  FROM feedbacks
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:47:54.900+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing SQL query [SELECT t.ticket_id,
+       t.channel_id,
+       COALESCE(
+           (
+               SELECT MIN(ch.timestamp)
+                 FROM chat_history ch
+                WHERE ch.ticket_id = t.ticket_id
+                  AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+           ),
+           t.created_at
+       ) AS first_client_at
+  FROM tickets t
+ WHERE COALESCE(lower(t.status), 'open') NOT IN ('resolved', 'closed')
+   AND EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+   AND NOT EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+ ORDER BY t.ticket_id DESC
+]
+2026-04-22 14:47:58.492+03:00 DEBUG [rms-license-refresh-36d58597-c152-4530-b5b0-379951e0a4ad] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL update
+2026-04-22 14:47:58.492+03:00 DEBUG [rms-license-refresh-36d58597-c152-4530-b5b0-379951e0a4ad] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [UPDATE rms_license_monitors
+   SET rms_address = ?,
+       scheme = ?,
+       host = ?,
+       port = ?,
+       auth_login = ?,
+       auth_password = ?,
+       enabled = ?,
+       server_name = ?,
+       server_type = ?,
+       server_version = ?,
+       license_status = ?,
+       license_error_message = ?,
+       license_expires_at = ?,
+       license_days_left = ?,
+       license_last_checked_at = ?,
+       license_last_notified_at = ?,
+       rms_status = ?,
+       rms_status_message = ?,
+       ping_output = ?,
+       traceroute_summary = ?,
+       traceroute_report = ?,
+       traceroute_checked_at = ?,
+       rms_last_checked_at = ?,
+       created_at = ?,
+       updated_at = ?
+ WHERE id = ?
+]
+2026-04-22 14:48:00.009+03:00 DEBUG [spring-session-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL update
+2026-04-22 14:48:00.010+03:00 DEBUG [spring-session-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [DELETE FROM SPRING_SESSION
+WHERE EXPIRY_TIME < ?
+]
+2026-04-22 14:48:06.917+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:48:06.917+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, ticket_id, sender, message, message_type, attachment
+  FROM chat_history
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:48:06.940+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:48:06.940+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, user_id, rating, ticket_id
+  FROM feedbacks
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:48:06.947+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing SQL query [SELECT t.ticket_id,
+       t.channel_id,
+       COALESCE(
+           (
+               SELECT MIN(ch.timestamp)
+                 FROM chat_history ch
+                WHERE ch.ticket_id = t.ticket_id
+                  AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+           ),
+           t.created_at
+       ) AS first_client_at
+  FROM tickets t
+ WHERE COALESCE(lower(t.status), 'open') NOT IN ('resolved', 'closed')
+   AND EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+   AND NOT EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+ ORDER BY t.ticket_id DESC
+]
+2026-04-22 14:48:13.555+03:00 DEBUG [rms-network-refresh-79dcb7b8-e03f-40fb-a16a-9e4622827a67] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL update
+2026-04-22 14:48:13.555+03:00 DEBUG [rms-network-refresh-79dcb7b8-e03f-40fb-a16a-9e4622827a67] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [UPDATE rms_license_monitors
+   SET rms_address = ?,
+       scheme = ?,
+       host = ?,
+       port = ?,
+       auth_login = ?,
+       auth_password = ?,
+       enabled = ?,
+       server_name = ?,
+       server_type = ?,
+       server_version = ?,
+       license_status = ?,
+       license_error_message = ?,
+       license_expires_at = ?,
+       license_days_left = ?,
+       license_last_checked_at = ?,
+       license_last_notified_at = ?,
+       rms_status = ?,
+       rms_status_message = ?,
+       ping_output = ?,
+       traceroute_summary = ?,
+       traceroute_report = ?,
+       traceroute_checked_at = ?,
+       rms_last_checked_at = ?,
+       created_at = ?,
+       updated_at = ?
+ WHERE id = ?
+]
+2026-04-22 14:48:18.510+03:00 DEBUG [rms-license-refresh-36d58597-c152-4530-b5b0-379951e0a4ad] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL update
+2026-04-22 14:48:18.510+03:00 DEBUG [rms-license-refresh-36d58597-c152-4530-b5b0-379951e0a4ad] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [UPDATE rms_license_monitors
+   SET rms_address = ?,
+       scheme = ?,
+       host = ?,
+       port = ?,
+       auth_login = ?,
+       auth_password = ?,
+       enabled = ?,
+       server_name = ?,
+       server_type = ?,
+       server_version = ?,
+       license_status = ?,
+       license_error_message = ?,
+       license_expires_at = ?,
+       license_days_left = ?,
+       license_last_checked_at = ?,
+       license_last_notified_at = ?,
+       rms_status = ?,
+       rms_status_message = ?,
+       ping_output = ?,
+       traceroute_summary = ?,
+       traceroute_report = ?,
+       traceroute_checked_at = ?,
+       rms_last_checked_at = ?,
+       created_at = ?,
+       updated_at = ?
+ WHERE id = ?
+]
+2026-04-22 14:48:18.964+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:48:18.964+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, ticket_id, sender, message, message_type, attachment
+  FROM chat_history
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:48:18.979+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:48:18.980+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, user_id, rating, ticket_id
+  FROM feedbacks
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:48:18.987+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing SQL query [SELECT t.ticket_id,
+       t.channel_id,
+       COALESCE(
+           (
+               SELECT MIN(ch.timestamp)
+                 FROM chat_history ch
+                WHERE ch.ticket_id = t.ticket_id
+                  AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+           ),
+           t.created_at
+       ) AS first_client_at
+  FROM tickets t
+ WHERE COALESCE(lower(t.status), 'open') NOT IN ('resolved', 'closed')
+   AND EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+   AND NOT EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+ ORDER BY t.ticket_id DESC
+]
+2026-04-22 14:48:31.009+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:48:31.009+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, ticket_id, sender, message, message_type, attachment
+  FROM chat_history
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:48:31.030+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:48:31.031+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, user_id, rating, ticket_id
+  FROM feedbacks
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:48:31.043+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing SQL query [SELECT t.ticket_id,
+       t.channel_id,
+       COALESCE(
+           (
+               SELECT MIN(ch.timestamp)
+                 FROM chat_history ch
+                WHERE ch.ticket_id = t.ticket_id
+                  AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+           ),
+           t.created_at
+       ) AS first_client_at
+  FROM tickets t
+ WHERE COALESCE(lower(t.status), 'open') NOT IN ('resolved', 'closed')
+   AND EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+   AND NOT EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+ ORDER BY t.ticket_id DESC
+]
+2026-04-22 14:48:33.568+03:00 DEBUG [rms-network-refresh-79dcb7b8-e03f-40fb-a16a-9e4622827a67] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL update
+2026-04-22 14:48:33.568+03:00 DEBUG [rms-network-refresh-79dcb7b8-e03f-40fb-a16a-9e4622827a67] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [UPDATE rms_license_monitors
+   SET rms_address = ?,
+       scheme = ?,
+       host = ?,
+       port = ?,
+       auth_login = ?,
+       auth_password = ?,
+       enabled = ?,
+       server_name = ?,
+       server_type = ?,
+       server_version = ?,
+       license_status = ?,
+       license_error_message = ?,
+       license_expires_at = ?,
+       license_days_left = ?,
+       license_last_checked_at = ?,
+       license_last_notified_at = ?,
+       rms_status = ?,
+       rms_status_message = ?,
+       ping_output = ?,
+       traceroute_summary = ?,
+       traceroute_report = ?,
+       traceroute_checked_at = ?,
+       rms_last_checked_at = ?,
+       created_at = ?,
+       updated_at = ?
+ WHERE id = ?
+]
+2026-04-22 14:48:38.534+03:00 DEBUG [rms-license-refresh-36d58597-c152-4530-b5b0-379951e0a4ad] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL update
+2026-04-22 14:48:38.534+03:00 DEBUG [rms-license-refresh-36d58597-c152-4530-b5b0-379951e0a4ad] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [UPDATE rms_license_monitors
+   SET rms_address = ?,
+       scheme = ?,
+       host = ?,
+       port = ?,
+       auth_login = ?,
+       auth_password = ?,
+       enabled = ?,
+       server_name = ?,
+       server_type = ?,
+       server_version = ?,
+       license_status = ?,
+       license_error_message = ?,
+       license_expires_at = ?,
+       license_days_left = ?,
+       license_last_checked_at = ?,
+       license_last_notified_at = ?,
+       rms_status = ?,
+       rms_status_message = ?,
+       ping_output = ?,
+       traceroute_summary = ?,
+       traceroute_report = ?,
+       traceroute_checked_at = ?,
+       rms_last_checked_at = ?,
+       created_at = ?,
+       updated_at = ?
+ WHERE id = ?
+]
+2026-04-22 14:48:43.059+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:48:43.059+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, ticket_id, sender, message, message_type, attachment
+  FROM chat_history
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:48:43.090+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:48:43.090+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, user_id, rating, ticket_id
+  FROM feedbacks
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:48:43.099+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing SQL query [SELECT t.ticket_id,
+       t.channel_id,
+       COALESCE(
+           (
+               SELECT MIN(ch.timestamp)
+                 FROM chat_history ch
+                WHERE ch.ticket_id = t.ticket_id
+                  AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+           ),
+           t.created_at
+       ) AS first_client_at
+  FROM tickets t
+ WHERE COALESCE(lower(t.status), 'open') NOT IN ('resolved', 'closed')
+   AND EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+   AND NOT EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+ ORDER BY t.ticket_id DESC
+]
+2026-04-22 14:48:53.587+03:00 DEBUG [rms-network-refresh-79dcb7b8-e03f-40fb-a16a-9e4622827a67] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL update
+2026-04-22 14:48:53.587+03:00 DEBUG [rms-network-refresh-79dcb7b8-e03f-40fb-a16a-9e4622827a67] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [UPDATE rms_license_monitors
+   SET rms_address = ?,
+       scheme = ?,
+       host = ?,
+       port = ?,
+       auth_login = ?,
+       auth_password = ?,
+       enabled = ?,
+       server_name = ?,
+       server_type = ?,
+       server_version = ?,
+       license_status = ?,
+       license_error_message = ?,
+       license_expires_at = ?,
+       license_days_left = ?,
+       license_last_checked_at = ?,
+       license_last_notified_at = ?,
+       rms_status = ?,
+       rms_status_message = ?,
+       ping_output = ?,
+       traceroute_summary = ?,
+       traceroute_report = ?,
+       traceroute_checked_at = ?,
+       rms_last_checked_at = ?,
+       created_at = ?,
+       updated_at = ?
+ WHERE id = ?
+]
+2026-04-22 14:48:55.117+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:48:55.117+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, ticket_id, sender, message, message_type, attachment
+  FROM chat_history
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:48:55.131+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:48:55.132+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, user_id, rating, ticket_id
+  FROM feedbacks
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:48:55.139+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing SQL query [SELECT t.ticket_id,
+       t.channel_id,
+       COALESCE(
+           (
+               SELECT MIN(ch.timestamp)
+                 FROM chat_history ch
+                WHERE ch.ticket_id = t.ticket_id
+                  AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+           ),
+           t.created_at
+       ) AS first_client_at
+  FROM tickets t
+ WHERE COALESCE(lower(t.status), 'open') NOT IN ('resolved', 'closed')
+   AND EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+   AND NOT EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+ ORDER BY t.ticket_id DESC
+]
+2026-04-22 14:48:58.558+03:00 DEBUG [rms-license-refresh-36d58597-c152-4530-b5b0-379951e0a4ad] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL update
+2026-04-22 14:48:58.558+03:00 DEBUG [rms-license-refresh-36d58597-c152-4530-b5b0-379951e0a4ad] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [UPDATE rms_license_monitors
+   SET rms_address = ?,
+       scheme = ?,
+       host = ?,
+       port = ?,
+       auth_login = ?,
+       auth_password = ?,
+       enabled = ?,
+       server_name = ?,
+       server_type = ?,
+       server_version = ?,
+       license_status = ?,
+       license_error_message = ?,
+       license_expires_at = ?,
+       license_days_left = ?,
+       license_last_checked_at = ?,
+       license_last_notified_at = ?,
+       rms_status = ?,
+       rms_status_message = ?,
+       ping_output = ?,
+       traceroute_summary = ?,
+       traceroute_report = ?,
+       traceroute_checked_at = ?,
+       rms_last_checked_at = ?,
+       created_at = ?,
+       updated_at = ?
+ WHERE id = ?
+]
+2026-04-22 14:49:00.015+03:00 DEBUG [spring-session-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL update
+2026-04-22 14:49:00.016+03:00 DEBUG [spring-session-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [DELETE FROM SPRING_SESSION
+WHERE EXPIRY_TIME < ?
+]
+2026-04-22 14:49:07.161+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:49:07.161+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, ticket_id, sender, message, message_type, attachment
+  FROM chat_history
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:49:07.182+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:49:07.182+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, user_id, rating, ticket_id
+  FROM feedbacks
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:49:07.189+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing SQL query [SELECT t.ticket_id,
+       t.channel_id,
+       COALESCE(
+           (
+               SELECT MIN(ch.timestamp)
+                 FROM chat_history ch
+                WHERE ch.ticket_id = t.ticket_id
+                  AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+           ),
+           t.created_at
+       ) AS first_client_at
+  FROM tickets t
+ WHERE COALESCE(lower(t.status), 'open') NOT IN ('resolved', 'closed')
+   AND EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+   AND NOT EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+ ORDER BY t.ticket_id DESC
+]
+2026-04-22 14:49:13.617+03:00 DEBUG [rms-network-refresh-79dcb7b8-e03f-40fb-a16a-9e4622827a67] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL update
+2026-04-22 14:49:13.618+03:00 DEBUG [rms-network-refresh-79dcb7b8-e03f-40fb-a16a-9e4622827a67] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [UPDATE rms_license_monitors
+   SET rms_address = ?,
+       scheme = ?,
+       host = ?,
+       port = ?,
+       auth_login = ?,
+       auth_password = ?,
+       enabled = ?,
+       server_name = ?,
+       server_type = ?,
+       server_version = ?,
+       license_status = ?,
+       license_error_message = ?,
+       license_expires_at = ?,
+       license_days_left = ?,
+       license_last_checked_at = ?,
+       license_last_notified_at = ?,
+       rms_status = ?,
+       rms_status_message = ?,
+       ping_output = ?,
+       traceroute_summary = ?,
+       traceroute_report = ?,
+       traceroute_checked_at = ?,
+       rms_last_checked_at = ?,
+       created_at = ?,
+       updated_at = ?
+ WHERE id = ?
+]
+2026-04-22 14:49:18.581+03:00 DEBUG [rms-license-refresh-36d58597-c152-4530-b5b0-379951e0a4ad] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL update
+2026-04-22 14:49:18.581+03:00 DEBUG [rms-license-refresh-36d58597-c152-4530-b5b0-379951e0a4ad] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [UPDATE rms_license_monitors
+   SET rms_address = ?,
+       scheme = ?,
+       host = ?,
+       port = ?,
+       auth_login = ?,
+       auth_password = ?,
+       enabled = ?,
+       server_name = ?,
+       server_type = ?,
+       server_version = ?,
+       license_status = ?,
+       license_error_message = ?,
+       license_expires_at = ?,
+       license_days_left = ?,
+       license_last_checked_at = ?,
+       license_last_notified_at = ?,
+       rms_status = ?,
+       rms_status_message = ?,
+       ping_output = ?,
+       traceroute_summary = ?,
+       traceroute_report = ?,
+       traceroute_checked_at = ?,
+       rms_last_checked_at = ?,
+       created_at = ?,
+       updated_at = ?
+ WHERE id = ?
+]
+2026-04-22 14:49:19.205+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:49:19.206+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, ticket_id, sender, message, message_type, attachment
+  FROM chat_history
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:49:19.225+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:49:19.226+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, user_id, rating, ticket_id
+  FROM feedbacks
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:49:19.235+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing SQL query [SELECT t.ticket_id,
+       t.channel_id,
+       COALESCE(
+           (
+               SELECT MIN(ch.timestamp)
+                 FROM chat_history ch
+                WHERE ch.ticket_id = t.ticket_id
+                  AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+           ),
+           t.created_at
+       ) AS first_client_at
+  FROM tickets t
+ WHERE COALESCE(lower(t.status), 'open') NOT IN ('resolved', 'closed')
+   AND EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+   AND NOT EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+ ORDER BY t.ticket_id DESC
+]
+2026-04-22 14:49:27.984+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:49:27.984+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT t.ticket_id, m.group_msg_id AS request_number,
+       COALESCE(
+           m.user_id,
+           t.user_id,
+           (
+               SELECT m3.user_id
+                 FROM messages m3
+                WHERE m3.ticket_id = t.ticket_id
+                  AND m3.user_id IS NOT NULL
+                ORDER BY substr(m3.created_at, 1, 19) DESC,
+                         m3.group_msg_id DESC
+                LIMIT 1
+           )
+       ) AS user_id,
+       m.username, m.client_name, m.business,
+       COALESCE(m.channel_id, t.channel_id) AS channel_id,
+       c.channel_name AS channel_name,
+       m.city, m.location_name,
+       m.problem,
+       COALESCE(m.created_at, t.created_at) AS created_at,
+       t.status, t.resolved_by, t.resolved_at,
+       COALESCE(tas.is_processing, 0) AS ai_processing,
+       tr.responsible AS responsible,
+       COALESCE(m.created_date, substr(COALESCE(m.created_at, t.created_at), 1, 10)) AS created_date,
+       COALESCE(m.created_time, substr(COALESCE(m.created_at, t.created_at), 12, 8)) AS created_time,
+       cs.status AS client_status,
+       (
+    SELECT rating
+      FROM feedbacks f
+     WHERE f.ticket_id = m.ticket_id
+     ORDER BY f.timestamp DESC, f.id DESC
+     LIMIT 1
+) AS rating,
+
+       (
+           SELECT sender
+             FROM chat_history ch
+            WHERE ch.ticket_id = t.ticket_id
+            ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                     COALESCE(ch.tg_message_id, 0) DESC,
+                     ch.id DESC
+            LIMIT 1
+       ) AS last_sender,
+       (
+           SELECT timestamp
+             FROM chat_history ch
+            WHERE ch.ticket_id = t.ticket_id
+            ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                     COALESCE(ch.tg_message_id, 0) DESC,
+                     ch.id DESC
+            LIMIT 1
+       ) AS last_sender_time,
+       (
+           SELECT GROUP_CONCAT(tc.category, ', ')
+             FROM ticket_categories tc
+            WHERE tc.ticket_id = t.ticket_id
+       ) AS categories,
+       CASE
+           WHEN tr.responsible IS NULL OR trim(tr.responsible) = '' OR lower(COALESCE(tr.responsible, '')) = lower(?) THEN (
+               SELECT COUNT(*)
+                 FROM chat_history ch
+                WHERE ch.ticket_id = t.ticket_id
+                  AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+                  AND ch.timestamp > COALESCE(
+                      tr.last_read_at,
+                      (
+                          SELECT MAX(op.timestamp)
+                            FROM chat_history op
+                           WHERE op.ticket_id = t.ticket_id
+                             AND lower(op.sender) IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+                      ),
+                      ''
+                  )
+           )
+           ELSE 0
+       END AS unread_count
+  FROM tickets t
+  LEFT JOIN messages m ON m.group_msg_id = (
+      SELECT m2.group_msg_id
+        FROM messages m2
+       WHERE m2.ticket_id = t.ticket_id
+       ORDER BY substr(m2.created_at, 1, 19) DESC,
+                m2.group_msg_id DESC
+       LIMIT 1
+  )
+  LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
+  LEFT JOIN ticket_responsibles tr ON tr.ticket_id = t.ticket_id
+  LEFT JOIN ticket_ai_agent_state tas ON tas.ticket_id = t.ticket_id
+  LEFT JOIN client_statuses cs ON cs.user_id = COALESCE(
+           m.user_id,
+           t.user_id,
+           (
+               SELECT m3.user_id
+                 FROM messages m3
+                WHERE m3.ticket_id = t.ticket_id
+                  AND m3.user_id IS NOT NULL
+                ORDER BY substr(m3.created_at, 1, 19) DESC,
+                         m3.group_msg_id DESC
+                LIMIT 1
+           )
+       )
+       AND cs.updated_at = (
+           SELECT MAX(updated_at) FROM client_statuses WHERE user_id = COALESCE(
+               m.user_id,
+               t.user_id,
+               (
+                   SELECT m3.user_id
+                     FROM messages m3
+                    WHERE m3.ticket_id = t.ticket_id
+                      AND m3.user_id IS NOT NULL
+                    ORDER BY substr(m3.created_at, 1, 19) DESC,
+                             m3.group_msg_id DESC
+                    LIMIT 1
+               )
+           )
+       )
+  ORDER BY substr(COALESCE(
+               (
+                   SELECT timestamp
+                     FROM chat_history ch
+                    WHERE ch.ticket_id = t.ticket_id
+                    ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                             COALESCE(ch.tg_message_id, 0) DESC,
+                             ch.id DESC
+                    LIMIT 1
+               ),
+               COALESCE(m.created_at, t.created_at)
+           ), 1, 19) DESC,
+           t.ticket_id DESC
+]
+2026-04-22 14:49:27.992+03:00 DEBUG [scheduling-1] o.s.jdbc.core.StatementCreatorUtils - JDBC getParameterType call failed - using fallback method instead: java.sql.SQLException: No parameter has been set yet
+2026-04-22 14:49:28.014+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:49:28.016+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT username, NULL AS full_name, NULL AS photo
+  FROM users
+ WHERE lower(username) IN (?, ?, ?)
+]
+2026-04-22 14:49:31.253+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:49:31.253+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, ticket_id, sender, message, message_type, attachment
+  FROM chat_history
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:49:31.270+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:49:31.270+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, user_id, rating, ticket_id
+  FROM feedbacks
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:49:31.276+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing SQL query [SELECT t.ticket_id,
+       t.channel_id,
+       COALESCE(
+           (
+               SELECT MIN(ch.timestamp)
+                 FROM chat_history ch
+                WHERE ch.ticket_id = t.ticket_id
+                  AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+           ),
+           t.created_at
+       ) AS first_client_at
+  FROM tickets t
+ WHERE COALESCE(lower(t.status), 'open') NOT IN ('resolved', 'closed')
+   AND EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+   AND NOT EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+ ORDER BY t.ticket_id DESC
+]
+2026-04-22 14:49:33.642+03:00 DEBUG [rms-network-refresh-79dcb7b8-e03f-40fb-a16a-9e4622827a67] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL update
+2026-04-22 14:49:33.642+03:00 DEBUG [rms-network-refresh-79dcb7b8-e03f-40fb-a16a-9e4622827a67] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [UPDATE rms_license_monitors
+   SET rms_address = ?,
+       scheme = ?,
+       host = ?,
+       port = ?,
+       auth_login = ?,
+       auth_password = ?,
+       enabled = ?,
+       server_name = ?,
+       server_type = ?,
+       server_version = ?,
+       license_status = ?,
+       license_error_message = ?,
+       license_expires_at = ?,
+       license_days_left = ?,
+       license_last_checked_at = ?,
+       license_last_notified_at = ?,
+       rms_status = ?,
+       rms_status_message = ?,
+       ping_output = ?,
+       traceroute_summary = ?,
+       traceroute_report = ?,
+       traceroute_checked_at = ?,
+       rms_last_checked_at = ?,
+       created_at = ?,
+       updated_at = ?
+ WHERE id = ?
+]
+2026-04-22 14:49:38.603+03:00 DEBUG [rms-license-refresh-36d58597-c152-4530-b5b0-379951e0a4ad] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL update
+2026-04-22 14:49:38.603+03:00 DEBUG [rms-license-refresh-36d58597-c152-4530-b5b0-379951e0a4ad] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [UPDATE rms_license_monitors
+   SET rms_address = ?,
+       scheme = ?,
+       host = ?,
+       port = ?,
+       auth_login = ?,
+       auth_password = ?,
+       enabled = ?,
+       server_name = ?,
+       server_type = ?,
+       server_version = ?,
+       license_status = ?,
+       license_error_message = ?,
+       license_expires_at = ?,
+       license_days_left = ?,
+       license_last_checked_at = ?,
+       license_last_notified_at = ?,
+       rms_status = ?,
+       rms_status_message = ?,
+       ping_output = ?,
+       traceroute_summary = ?,
+       traceroute_report = ?,
+       traceroute_checked_at = ?,
+       rms_last_checked_at = ?,
+       created_at = ?,
+       updated_at = ?
+ WHERE id = ?
+]
+2026-04-22 14:49:43.295+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:49:43.296+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, ticket_id, sender, message, message_type, attachment
+  FROM chat_history
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:49:43.327+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:49:43.327+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, user_id, rating, ticket_id
+  FROM feedbacks
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:49:43.336+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing SQL query [SELECT t.ticket_id,
+       t.channel_id,
+       COALESCE(
+           (
+               SELECT MIN(ch.timestamp)
+                 FROM chat_history ch
+                WHERE ch.ticket_id = t.ticket_id
+                  AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+           ),
+           t.created_at
+       ) AS first_client_at
+  FROM tickets t
+ WHERE COALESCE(lower(t.status), 'open') NOT IN ('resolved', 'closed')
+   AND EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+   AND NOT EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+ ORDER BY t.ticket_id DESC
+]
+2026-04-22 14:49:53.656+03:00 DEBUG [rms-network-refresh-79dcb7b8-e03f-40fb-a16a-9e4622827a67] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL update
+2026-04-22 14:49:53.656+03:00 DEBUG [rms-network-refresh-79dcb7b8-e03f-40fb-a16a-9e4622827a67] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [UPDATE rms_license_monitors
+   SET rms_address = ?,
+       scheme = ?,
+       host = ?,
+       port = ?,
+       auth_login = ?,
+       auth_password = ?,
+       enabled = ?,
+       server_name = ?,
+       server_type = ?,
+       server_version = ?,
+       license_status = ?,
+       license_error_message = ?,
+       license_expires_at = ?,
+       license_days_left = ?,
+       license_last_checked_at = ?,
+       license_last_notified_at = ?,
+       rms_status = ?,
+       rms_status_message = ?,
+       ping_output = ?,
+       traceroute_summary = ?,
+       traceroute_report = ?,
+       traceroute_checked_at = ?,
+       rms_last_checked_at = ?,
+       created_at = ?,
+       updated_at = ?
+ WHERE id = ?
+]
+2026-04-22 14:49:55.359+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:49:55.359+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, ticket_id, sender, message, message_type, attachment
+  FROM chat_history
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:49:55.387+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:49:55.388+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, user_id, rating, ticket_id
+  FROM feedbacks
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:49:55.397+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing SQL query [SELECT t.ticket_id,
+       t.channel_id,
+       COALESCE(
+           (
+               SELECT MIN(ch.timestamp)
+                 FROM chat_history ch
+                WHERE ch.ticket_id = t.ticket_id
+                  AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+           ),
+           t.created_at
+       ) AS first_client_at
+  FROM tickets t
+ WHERE COALESCE(lower(t.status), 'open') NOT IN ('resolved', 'closed')
+   AND EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+   AND NOT EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+ ORDER BY t.ticket_id DESC
+]
+2026-04-22 14:49:58.623+03:00 DEBUG [rms-license-refresh-36d58597-c152-4530-b5b0-379951e0a4ad] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL update
+2026-04-22 14:49:58.623+03:00 DEBUG [rms-license-refresh-36d58597-c152-4530-b5b0-379951e0a4ad] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [UPDATE rms_license_monitors
+   SET rms_address = ?,
+       scheme = ?,
+       host = ?,
+       port = ?,
+       auth_login = ?,
+       auth_password = ?,
+       enabled = ?,
+       server_name = ?,
+       server_type = ?,
+       server_version = ?,
+       license_status = ?,
+       license_error_message = ?,
+       license_expires_at = ?,
+       license_days_left = ?,
+       license_last_checked_at = ?,
+       license_last_notified_at = ?,
+       rms_status = ?,
+       rms_status_message = ?,
+       ping_output = ?,
+       traceroute_summary = ?,
+       traceroute_report = ?,
+       traceroute_checked_at = ?,
+       rms_last_checked_at = ?,
+       created_at = ?,
+       updated_at = ?
+ WHERE id = ?
+]
+2026-04-22 14:50:00.017+03:00 DEBUG [spring-session-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL update
+2026-04-22 14:50:00.018+03:00 DEBUG [spring-session-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [DELETE FROM SPRING_SESSION
+WHERE EXPIRY_TIME < ?
+]
+2026-04-22 14:50:07.422+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:50:07.422+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, ticket_id, sender, message, message_type, attachment
+  FROM chat_history
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:50:07.436+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:50:07.436+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, user_id, rating, ticket_id
+  FROM feedbacks
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:50:07.445+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing SQL query [SELECT t.ticket_id,
+       t.channel_id,
+       COALESCE(
+           (
+               SELECT MIN(ch.timestamp)
+                 FROM chat_history ch
+                WHERE ch.ticket_id = t.ticket_id
+                  AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+           ),
+           t.created_at
+       ) AS first_client_at
+  FROM tickets t
+ WHERE COALESCE(lower(t.status), 'open') NOT IN ('resolved', 'closed')
+   AND EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+   AND NOT EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+ ORDER BY t.ticket_id DESC
+]
+2026-04-22 14:50:13.668+03:00 DEBUG [rms-network-refresh-79dcb7b8-e03f-40fb-a16a-9e4622827a67] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL update
+2026-04-22 14:50:13.668+03:00 DEBUG [rms-network-refresh-79dcb7b8-e03f-40fb-a16a-9e4622827a67] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [UPDATE rms_license_monitors
+   SET rms_address = ?,
+       scheme = ?,
+       host = ?,
+       port = ?,
+       auth_login = ?,
+       auth_password = ?,
+       enabled = ?,
+       server_name = ?,
+       server_type = ?,
+       server_version = ?,
+       license_status = ?,
+       license_error_message = ?,
+       license_expires_at = ?,
+       license_days_left = ?,
+       license_last_checked_at = ?,
+       license_last_notified_at = ?,
+       rms_status = ?,
+       rms_status_message = ?,
+       ping_output = ?,
+       traceroute_summary = ?,
+       traceroute_report = ?,
+       traceroute_checked_at = ?,
+       rms_last_checked_at = ?,
+       created_at = ?,
+       updated_at = ?
+ WHERE id = ?
+]
+2026-04-22 14:50:18.652+03:00 DEBUG [rms-license-refresh-36d58597-c152-4530-b5b0-379951e0a4ad] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL update
+2026-04-22 14:50:18.652+03:00 DEBUG [rms-license-refresh-36d58597-c152-4530-b5b0-379951e0a4ad] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [UPDATE rms_license_monitors
+   SET rms_address = ?,
+       scheme = ?,
+       host = ?,
+       port = ?,
+       auth_login = ?,
+       auth_password = ?,
+       enabled = ?,
+       server_name = ?,
+       server_type = ?,
+       server_version = ?,
+       license_status = ?,
+       license_error_message = ?,
+       license_expires_at = ?,
+       license_days_left = ?,
+       license_last_checked_at = ?,
+       license_last_notified_at = ?,
+       rms_status = ?,
+       rms_status_message = ?,
+       ping_output = ?,
+       traceroute_summary = ?,
+       traceroute_report = ?,
+       traceroute_checked_at = ?,
+       rms_last_checked_at = ?,
+       created_at = ?,
+       updated_at = ?
+ WHERE id = ?
+]
+2026-04-22 14:50:19.462+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:50:19.462+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, ticket_id, sender, message, message_type, attachment
+  FROM chat_history
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:50:19.474+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:50:19.474+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, user_id, rating, ticket_id
+  FROM feedbacks
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:50:19.482+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing SQL query [SELECT t.ticket_id,
+       t.channel_id,
+       COALESCE(
+           (
+               SELECT MIN(ch.timestamp)
+                 FROM chat_history ch
+                WHERE ch.ticket_id = t.ticket_id
+                  AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+           ),
+           t.created_at
+       ) AS first_client_at
+  FROM tickets t
+ WHERE COALESCE(lower(t.status), 'open') NOT IN ('resolved', 'closed')
+   AND EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+   AND NOT EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+ ORDER BY t.ticket_id DESC
+]
+2026-04-22 14:50:31.492+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:50:31.492+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, ticket_id, sender, message, message_type, attachment
+  FROM chat_history
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:50:31.511+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:50:31.513+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, user_id, rating, ticket_id
+  FROM feedbacks
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:50:31.525+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing SQL query [SELECT t.ticket_id,
+       t.channel_id,
+       COALESCE(
+           (
+               SELECT MIN(ch.timestamp)
+                 FROM chat_history ch
+                WHERE ch.ticket_id = t.ticket_id
+                  AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+           ),
+           t.created_at
+       ) AS first_client_at
+  FROM tickets t
+ WHERE COALESCE(lower(t.status), 'open') NOT IN ('resolved', 'closed')
+   AND EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+   AND NOT EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+ ORDER BY t.ticket_id DESC
+]
+2026-04-22 14:50:33.690+03:00 DEBUG [rms-network-refresh-79dcb7b8-e03f-40fb-a16a-9e4622827a67] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL update
+2026-04-22 14:50:33.691+03:00 DEBUG [rms-network-refresh-79dcb7b8-e03f-40fb-a16a-9e4622827a67] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [UPDATE rms_license_monitors
+   SET rms_address = ?,
+       scheme = ?,
+       host = ?,
+       port = ?,
+       auth_login = ?,
+       auth_password = ?,
+       enabled = ?,
+       server_name = ?,
+       server_type = ?,
+       server_version = ?,
+       license_status = ?,
+       license_error_message = ?,
+       license_expires_at = ?,
+       license_days_left = ?,
+       license_last_checked_at = ?,
+       license_last_notified_at = ?,
+       rms_status = ?,
+       rms_status_message = ?,
+       ping_output = ?,
+       traceroute_summary = ?,
+       traceroute_report = ?,
+       traceroute_checked_at = ?,
+       rms_last_checked_at = ?,
+       created_at = ?,
+       updated_at = ?
+ WHERE id = ?
+]
+2026-04-22 14:50:38.669+03:00 DEBUG [rms-license-refresh-36d58597-c152-4530-b5b0-379951e0a4ad] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL update
+2026-04-22 14:50:38.670+03:00 DEBUG [rms-license-refresh-36d58597-c152-4530-b5b0-379951e0a4ad] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [UPDATE rms_license_monitors
+   SET rms_address = ?,
+       scheme = ?,
+       host = ?,
+       port = ?,
+       auth_login = ?,
+       auth_password = ?,
+       enabled = ?,
+       server_name = ?,
+       server_type = ?,
+       server_version = ?,
+       license_status = ?,
+       license_error_message = ?,
+       license_expires_at = ?,
+       license_days_left = ?,
+       license_last_checked_at = ?,
+       license_last_notified_at = ?,
+       rms_status = ?,
+       rms_status_message = ?,
+       ping_output = ?,
+       traceroute_summary = ?,
+       traceroute_report = ?,
+       traceroute_checked_at = ?,
+       rms_last_checked_at = ?,
+       created_at = ?,
+       updated_at = ?
+ WHERE id = ?
+]
+2026-04-22 14:50:43.544+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:50:43.544+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, ticket_id, sender, message, message_type, attachment
+  FROM chat_history
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:50:43.563+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:50:43.563+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, user_id, rating, ticket_id
+  FROM feedbacks
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:50:43.568+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing SQL query [SELECT t.ticket_id,
+       t.channel_id,
+       COALESCE(
+           (
+               SELECT MIN(ch.timestamp)
+                 FROM chat_history ch
+                WHERE ch.ticket_id = t.ticket_id
+                  AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+           ),
+           t.created_at
+       ) AS first_client_at
+  FROM tickets t
+ WHERE COALESCE(lower(t.status), 'open') NOT IN ('resolved', 'closed')
+   AND EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+   AND NOT EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+ ORDER BY t.ticket_id DESC
+]
+2026-04-22 14:50:53.718+03:00 DEBUG [rms-network-refresh-79dcb7b8-e03f-40fb-a16a-9e4622827a67] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL update
+2026-04-22 14:50:53.718+03:00 DEBUG [rms-network-refresh-79dcb7b8-e03f-40fb-a16a-9e4622827a67] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [UPDATE rms_license_monitors
+   SET rms_address = ?,
+       scheme = ?,
+       host = ?,
+       port = ?,
+       auth_login = ?,
+       auth_password = ?,
+       enabled = ?,
+       server_name = ?,
+       server_type = ?,
+       server_version = ?,
+       license_status = ?,
+       license_error_message = ?,
+       license_expires_at = ?,
+       license_days_left = ?,
+       license_last_checked_at = ?,
+       license_last_notified_at = ?,
+       rms_status = ?,
+       rms_status_message = ?,
+       ping_output = ?,
+       traceroute_summary = ?,
+       traceroute_report = ?,
+       traceroute_checked_at = ?,
+       rms_last_checked_at = ?,
+       created_at = ?,
+       updated_at = ?
+ WHERE id = ?
+]
+2026-04-22 14:50:55.575+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:50:55.575+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, ticket_id, sender, message, message_type, attachment
+  FROM chat_history
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:50:55.592+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:50:55.592+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, user_id, rating, ticket_id
+  FROM feedbacks
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:50:55.599+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing SQL query [SELECT t.ticket_id,
+       t.channel_id,
+       COALESCE(
+           (
+               SELECT MIN(ch.timestamp)
+                 FROM chat_history ch
+                WHERE ch.ticket_id = t.ticket_id
+                  AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+           ),
+           t.created_at
+       ) AS first_client_at
+  FROM tickets t
+ WHERE COALESCE(lower(t.status), 'open') NOT IN ('resolved', 'closed')
+   AND EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+   AND NOT EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+ ORDER BY t.ticket_id DESC
+]
+2026-04-22 14:50:58.695+03:00 DEBUG [rms-license-refresh-36d58597-c152-4530-b5b0-379951e0a4ad] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL update
+2026-04-22 14:50:58.695+03:00 DEBUG [rms-license-refresh-36d58597-c152-4530-b5b0-379951e0a4ad] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [UPDATE rms_license_monitors
+   SET rms_address = ?,
+       scheme = ?,
+       host = ?,
+       port = ?,
+       auth_login = ?,
+       auth_password = ?,
+       enabled = ?,
+       server_name = ?,
+       server_type = ?,
+       server_version = ?,
+       license_status = ?,
+       license_error_message = ?,
+       license_expires_at = ?,
+       license_days_left = ?,
+       license_last_checked_at = ?,
+       license_last_notified_at = ?,
+       rms_status = ?,
+       rms_status_message = ?,
+       ping_output = ?,
+       traceroute_summary = ?,
+       traceroute_report = ?,
+       traceroute_checked_at = ?,
+       rms_last_checked_at = ?,
+       created_at = ?,
+       updated_at = ?
+ WHERE id = ?
+]
+2026-04-22 14:51:00.021+03:00 DEBUG [spring-session-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL update
+2026-04-22 14:51:00.021+03:00 DEBUG [spring-session-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [DELETE FROM SPRING_SESSION
+WHERE EXPIRY_TIME < ?
+]
+2026-04-22 14:51:07.623+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:51:07.623+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, ticket_id, sender, message, message_type, attachment
+  FROM chat_history
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:51:07.634+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:51:07.634+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, user_id, rating, ticket_id
+  FROM feedbacks
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:51:07.640+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing SQL query [SELECT t.ticket_id,
+       t.channel_id,
+       COALESCE(
+           (
+               SELECT MIN(ch.timestamp)
+                 FROM chat_history ch
+                WHERE ch.ticket_id = t.ticket_id
+                  AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+           ),
+           t.created_at
+       ) AS first_client_at
+  FROM tickets t
+ WHERE COALESCE(lower(t.status), 'open') NOT IN ('resolved', 'closed')
+   AND EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+   AND NOT EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+ ORDER BY t.ticket_id DESC
+]
+2026-04-22 14:51:13.742+03:00 DEBUG [rms-network-refresh-79dcb7b8-e03f-40fb-a16a-9e4622827a67] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL update
+2026-04-22 14:51:13.742+03:00 DEBUG [rms-network-refresh-79dcb7b8-e03f-40fb-a16a-9e4622827a67] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [UPDATE rms_license_monitors
+   SET rms_address = ?,
+       scheme = ?,
+       host = ?,
+       port = ?,
+       auth_login = ?,
+       auth_password = ?,
+       enabled = ?,
+       server_name = ?,
+       server_type = ?,
+       server_version = ?,
+       license_status = ?,
+       license_error_message = ?,
+       license_expires_at = ?,
+       license_days_left = ?,
+       license_last_checked_at = ?,
+       license_last_notified_at = ?,
+       rms_status = ?,
+       rms_status_message = ?,
+       ping_output = ?,
+       traceroute_summary = ?,
+       traceroute_report = ?,
+       traceroute_checked_at = ?,
+       rms_last_checked_at = ?,
+       created_at = ?,
+       updated_at = ?
+ WHERE id = ?
+]
+2026-04-22 14:51:18.717+03:00 DEBUG [rms-license-refresh-36d58597-c152-4530-b5b0-379951e0a4ad] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL update
+2026-04-22 14:51:18.717+03:00 DEBUG [rms-license-refresh-36d58597-c152-4530-b5b0-379951e0a4ad] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [UPDATE rms_license_monitors
+   SET rms_address = ?,
+       scheme = ?,
+       host = ?,
+       port = ?,
+       auth_login = ?,
+       auth_password = ?,
+       enabled = ?,
+       server_name = ?,
+       server_type = ?,
+       server_version = ?,
+       license_status = ?,
+       license_error_message = ?,
+       license_expires_at = ?,
+       license_days_left = ?,
+       license_last_checked_at = ?,
+       license_last_notified_at = ?,
+       rms_status = ?,
+       rms_status_message = ?,
+       ping_output = ?,
+       traceroute_summary = ?,
+       traceroute_report = ?,
+       traceroute_checked_at = ?,
+       rms_last_checked_at = ?,
+       created_at = ?,
+       updated_at = ?
+ WHERE id = ?
+]
+2026-04-22 14:51:19.658+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:51:19.658+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, ticket_id, sender, message, message_type, attachment
+  FROM chat_history
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:51:19.671+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:51:19.671+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, user_id, rating, ticket_id
+  FROM feedbacks
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:51:19.677+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing SQL query [SELECT t.ticket_id,
+       t.channel_id,
+       COALESCE(
+           (
+               SELECT MIN(ch.timestamp)
+                 FROM chat_history ch
+                WHERE ch.ticket_id = t.ticket_id
+                  AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+           ),
+           t.created_at
+       ) AS first_client_at
+  FROM tickets t
+ WHERE COALESCE(lower(t.status), 'open') NOT IN ('resolved', 'closed')
+   AND EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+   AND NOT EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+ ORDER BY t.ticket_id DESC
+]
+2026-04-22 14:51:28.034+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:51:28.034+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT t.ticket_id, m.group_msg_id AS request_number,
+       COALESCE(
+           m.user_id,
+           t.user_id,
+           (
+               SELECT m3.user_id
+                 FROM messages m3
+                WHERE m3.ticket_id = t.ticket_id
+                  AND m3.user_id IS NOT NULL
+                ORDER BY substr(m3.created_at, 1, 19) DESC,
+                         m3.group_msg_id DESC
+                LIMIT 1
+           )
+       ) AS user_id,
+       m.username, m.client_name, m.business,
+       COALESCE(m.channel_id, t.channel_id) AS channel_id,
+       c.channel_name AS channel_name,
+       m.city, m.location_name,
+       m.problem,
+       COALESCE(m.created_at, t.created_at) AS created_at,
+       t.status, t.resolved_by, t.resolved_at,
+       COALESCE(tas.is_processing, 0) AS ai_processing,
+       tr.responsible AS responsible,
+       COALESCE(m.created_date, substr(COALESCE(m.created_at, t.created_at), 1, 10)) AS created_date,
+       COALESCE(m.created_time, substr(COALESCE(m.created_at, t.created_at), 12, 8)) AS created_time,
+       cs.status AS client_status,
+       (
+    SELECT rating
+      FROM feedbacks f
+     WHERE f.ticket_id = m.ticket_id
+     ORDER BY f.timestamp DESC, f.id DESC
+     LIMIT 1
+) AS rating,
+
+       (
+           SELECT sender
+             FROM chat_history ch
+            WHERE ch.ticket_id = t.ticket_id
+            ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                     COALESCE(ch.tg_message_id, 0) DESC,
+                     ch.id DESC
+            LIMIT 1
+       ) AS last_sender,
+       (
+           SELECT timestamp
+             FROM chat_history ch
+            WHERE ch.ticket_id = t.ticket_id
+            ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                     COALESCE(ch.tg_message_id, 0) DESC,
+                     ch.id DESC
+            LIMIT 1
+       ) AS last_sender_time,
+       (
+           SELECT GROUP_CONCAT(tc.category, ', ')
+             FROM ticket_categories tc
+            WHERE tc.ticket_id = t.ticket_id
+       ) AS categories,
+       CASE
+           WHEN tr.responsible IS NULL OR trim(tr.responsible) = '' OR lower(COALESCE(tr.responsible, '')) = lower(?) THEN (
+               SELECT COUNT(*)
+                 FROM chat_history ch
+                WHERE ch.ticket_id = t.ticket_id
+                  AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+                  AND ch.timestamp > COALESCE(
+                      tr.last_read_at,
+                      (
+                          SELECT MAX(op.timestamp)
+                            FROM chat_history op
+                           WHERE op.ticket_id = t.ticket_id
+                             AND lower(op.sender) IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+                      ),
+                      ''
+                  )
+           )
+           ELSE 0
+       END AS unread_count
+  FROM tickets t
+  LEFT JOIN messages m ON m.group_msg_id = (
+      SELECT m2.group_msg_id
+        FROM messages m2
+       WHERE m2.ticket_id = t.ticket_id
+       ORDER BY substr(m2.created_at, 1, 19) DESC,
+                m2.group_msg_id DESC
+       LIMIT 1
+  )
+  LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
+  LEFT JOIN ticket_responsibles tr ON tr.ticket_id = t.ticket_id
+  LEFT JOIN ticket_ai_agent_state tas ON tas.ticket_id = t.ticket_id
+  LEFT JOIN client_statuses cs ON cs.user_id = COALESCE(
+           m.user_id,
+           t.user_id,
+           (
+               SELECT m3.user_id
+                 FROM messages m3
+                WHERE m3.ticket_id = t.ticket_id
+                  AND m3.user_id IS NOT NULL
+                ORDER BY substr(m3.created_at, 1, 19) DESC,
+                         m3.group_msg_id DESC
+                LIMIT 1
+           )
+       )
+       AND cs.updated_at = (
+           SELECT MAX(updated_at) FROM client_statuses WHERE user_id = COALESCE(
+               m.user_id,
+               t.user_id,
+               (
+                   SELECT m3.user_id
+                     FROM messages m3
+                    WHERE m3.ticket_id = t.ticket_id
+                      AND m3.user_id IS NOT NULL
+                    ORDER BY substr(m3.created_at, 1, 19) DESC,
+                             m3.group_msg_id DESC
+                    LIMIT 1
+               )
+           )
+       )
+  ORDER BY substr(COALESCE(
+               (
+                   SELECT timestamp
+                     FROM chat_history ch
+                    WHERE ch.ticket_id = t.ticket_id
+                    ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                             COALESCE(ch.tg_message_id, 0) DESC,
+                             ch.id DESC
+                    LIMIT 1
+               ),
+               COALESCE(m.created_at, t.created_at)
+           ), 1, 19) DESC,
+           t.ticket_id DESC
+]
+2026-04-22 14:51:28.043+03:00 DEBUG [scheduling-1] o.s.jdbc.core.StatementCreatorUtils - JDBC getParameterType call failed - using fallback method instead: java.sql.SQLException: No parameter has been set yet
+2026-04-22 14:51:28.061+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:51:28.061+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT username, NULL AS full_name, NULL AS photo
+  FROM users
+ WHERE lower(username) IN (?, ?, ?)
+]
+2026-04-22 14:51:31.702+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:51:31.702+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, ticket_id, sender, message, message_type, attachment
+  FROM chat_history
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:51:31.725+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:51:31.725+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, user_id, rating, ticket_id
+  FROM feedbacks
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:51:31.735+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing SQL query [SELECT t.ticket_id,
+       t.channel_id,
+       COALESCE(
+           (
+               SELECT MIN(ch.timestamp)
+                 FROM chat_history ch
+                WHERE ch.ticket_id = t.ticket_id
+                  AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+           ),
+           t.created_at
+       ) AS first_client_at
+  FROM tickets t
+ WHERE COALESCE(lower(t.status), 'open') NOT IN ('resolved', 'closed')
+   AND EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+   AND NOT EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+ ORDER BY t.ticket_id DESC
+]
+2026-04-22 14:51:33.764+03:00 DEBUG [rms-network-refresh-79dcb7b8-e03f-40fb-a16a-9e4622827a67] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL update
+2026-04-22 14:51:33.764+03:00 DEBUG [rms-network-refresh-79dcb7b8-e03f-40fb-a16a-9e4622827a67] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [UPDATE rms_license_monitors
+   SET rms_address = ?,
+       scheme = ?,
+       host = ?,
+       port = ?,
+       auth_login = ?,
+       auth_password = ?,
+       enabled = ?,
+       server_name = ?,
+       server_type = ?,
+       server_version = ?,
+       license_status = ?,
+       license_error_message = ?,
+       license_expires_at = ?,
+       license_days_left = ?,
+       license_last_checked_at = ?,
+       license_last_notified_at = ?,
+       rms_status = ?,
+       rms_status_message = ?,
+       ping_output = ?,
+       traceroute_summary = ?,
+       traceroute_report = ?,
+       traceroute_checked_at = ?,
+       rms_last_checked_at = ?,
+       created_at = ?,
+       updated_at = ?
+ WHERE id = ?
+]
+2026-04-22 14:51:38.731+03:00 DEBUG [rms-license-refresh-36d58597-c152-4530-b5b0-379951e0a4ad] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL update
+2026-04-22 14:51:38.732+03:00 DEBUG [rms-license-refresh-36d58597-c152-4530-b5b0-379951e0a4ad] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [UPDATE rms_license_monitors
+   SET rms_address = ?,
+       scheme = ?,
+       host = ?,
+       port = ?,
+       auth_login = ?,
+       auth_password = ?,
+       enabled = ?,
+       server_name = ?,
+       server_type = ?,
+       server_version = ?,
+       license_status = ?,
+       license_error_message = ?,
+       license_expires_at = ?,
+       license_days_left = ?,
+       license_last_checked_at = ?,
+       license_last_notified_at = ?,
+       rms_status = ?,
+       rms_status_message = ?,
+       ping_output = ?,
+       traceroute_summary = ?,
+       traceroute_report = ?,
+       traceroute_checked_at = ?,
+       rms_last_checked_at = ?,
+       created_at = ?,
+       updated_at = ?
+ WHERE id = ?
+]
+2026-04-22 14:51:43.753+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:51:43.753+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, ticket_id, sender, message, message_type, attachment
+  FROM chat_history
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:51:43.773+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:51:43.774+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, user_id, rating, ticket_id
+  FROM feedbacks
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:51:43.779+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing SQL query [SELECT t.ticket_id,
+       t.channel_id,
+       COALESCE(
+           (
+               SELECT MIN(ch.timestamp)
+                 FROM chat_history ch
+                WHERE ch.ticket_id = t.ticket_id
+                  AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+           ),
+           t.created_at
+       ) AS first_client_at
+  FROM tickets t
+ WHERE COALESCE(lower(t.status), 'open') NOT IN ('resolved', 'closed')
+   AND EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+   AND NOT EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+ ORDER BY t.ticket_id DESC
+]
+2026-04-22 14:51:53.775+03:00 DEBUG [rms-network-refresh-79dcb7b8-e03f-40fb-a16a-9e4622827a67] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL update
+2026-04-22 14:51:53.775+03:00 DEBUG [rms-network-refresh-79dcb7b8-e03f-40fb-a16a-9e4622827a67] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [UPDATE rms_license_monitors
+   SET rms_address = ?,
+       scheme = ?,
+       host = ?,
+       port = ?,
+       auth_login = ?,
+       auth_password = ?,
+       enabled = ?,
+       server_name = ?,
+       server_type = ?,
+       server_version = ?,
+       license_status = ?,
+       license_error_message = ?,
+       license_expires_at = ?,
+       license_days_left = ?,
+       license_last_checked_at = ?,
+       license_last_notified_at = ?,
+       rms_status = ?,
+       rms_status_message = ?,
+       ping_output = ?,
+       traceroute_summary = ?,
+       traceroute_report = ?,
+       traceroute_checked_at = ?,
+       rms_last_checked_at = ?,
+       created_at = ?,
+       updated_at = ?
+ WHERE id = ?
+]
+2026-04-22 14:51:55.788+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:51:55.788+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, ticket_id, sender, message, message_type, attachment
+  FROM chat_history
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:51:55.795+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:51:55.795+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, user_id, rating, ticket_id
+  FROM feedbacks
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:51:55.798+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing SQL query [SELECT t.ticket_id,
+       t.channel_id,
+       COALESCE(
+           (
+               SELECT MIN(ch.timestamp)
+                 FROM chat_history ch
+                WHERE ch.ticket_id = t.ticket_id
+                  AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+           ),
+           t.created_at
+       ) AS first_client_at
+  FROM tickets t
+ WHERE COALESCE(lower(t.status), 'open') NOT IN ('resolved', 'closed')
+   AND EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+   AND NOT EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+ ORDER BY t.ticket_id DESC
+]
+2026-04-22 14:51:58.748+03:00 DEBUG [rms-license-refresh-36d58597-c152-4530-b5b0-379951e0a4ad] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL update
+2026-04-22 14:51:58.748+03:00 DEBUG [rms-license-refresh-36d58597-c152-4530-b5b0-379951e0a4ad] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [UPDATE rms_license_monitors
+   SET rms_address = ?,
+       scheme = ?,
+       host = ?,
+       port = ?,
+       auth_login = ?,
+       auth_password = ?,
+       enabled = ?,
+       server_name = ?,
+       server_type = ?,
+       server_version = ?,
+       license_status = ?,
+       license_error_message = ?,
+       license_expires_at = ?,
+       license_days_left = ?,
+       license_last_checked_at = ?,
+       license_last_notified_at = ?,
+       rms_status = ?,
+       rms_status_message = ?,
+       ping_output = ?,
+       traceroute_summary = ?,
+       traceroute_report = ?,
+       traceroute_checked_at = ?,
+       rms_last_checked_at = ?,
+       created_at = ?,
+       updated_at = ?
+ WHERE id = ?
+]
+2026-04-22 14:52:00.010+03:00 DEBUG [spring-session-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL update
+2026-04-22 14:52:00.010+03:00 DEBUG [spring-session-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [DELETE FROM SPRING_SESSION
+WHERE EXPIRY_TIME < ?
+]
+2026-04-22 14:52:07.805+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:52:07.805+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, ticket_id, sender, message, message_type, attachment
+  FROM chat_history
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:52:07.810+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:52:07.810+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, user_id, rating, ticket_id
+  FROM feedbacks
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:52:07.813+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing SQL query [SELECT t.ticket_id,
+       t.channel_id,
+       COALESCE(
+           (
+               SELECT MIN(ch.timestamp)
+                 FROM chat_history ch
+                WHERE ch.ticket_id = t.ticket_id
+                  AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+           ),
+           t.created_at
+       ) AS first_client_at
+  FROM tickets t
+ WHERE COALESCE(lower(t.status), 'open') NOT IN ('resolved', 'closed')
+   AND EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+   AND NOT EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+ ORDER BY t.ticket_id DESC
+]
+2026-04-22 14:52:13.783+03:00 DEBUG [rms-network-refresh-79dcb7b8-e03f-40fb-a16a-9e4622827a67] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL update
+2026-04-22 14:52:13.783+03:00 DEBUG [rms-network-refresh-79dcb7b8-e03f-40fb-a16a-9e4622827a67] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [UPDATE rms_license_monitors
+   SET rms_address = ?,
+       scheme = ?,
+       host = ?,
+       port = ?,
+       auth_login = ?,
+       auth_password = ?,
+       enabled = ?,
+       server_name = ?,
+       server_type = ?,
+       server_version = ?,
+       license_status = ?,
+       license_error_message = ?,
+       license_expires_at = ?,
+       license_days_left = ?,
+       license_last_checked_at = ?,
+       license_last_notified_at = ?,
+       rms_status = ?,
+       rms_status_message = ?,
+       ping_output = ?,
+       traceroute_summary = ?,
+       traceroute_report = ?,
+       traceroute_checked_at = ?,
+       rms_last_checked_at = ?,
+       created_at = ?,
+       updated_at = ?
+ WHERE id = ?
+]
+2026-04-22 14:52:18.758+03:00 DEBUG [rms-license-refresh-36d58597-c152-4530-b5b0-379951e0a4ad] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL update
+2026-04-22 14:52:18.758+03:00 DEBUG [rms-license-refresh-36d58597-c152-4530-b5b0-379951e0a4ad] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [UPDATE rms_license_monitors
+   SET rms_address = ?,
+       scheme = ?,
+       host = ?,
+       port = ?,
+       auth_login = ?,
+       auth_password = ?,
+       enabled = ?,
+       server_name = ?,
+       server_type = ?,
+       server_version = ?,
+       license_status = ?,
+       license_error_message = ?,
+       license_expires_at = ?,
+       license_days_left = ?,
+       license_last_checked_at = ?,
+       license_last_notified_at = ?,
+       rms_status = ?,
+       rms_status_message = ?,
+       ping_output = ?,
+       traceroute_summary = ?,
+       traceroute_report = ?,
+       traceroute_checked_at = ?,
+       rms_last_checked_at = ?,
+       created_at = ?,
+       updated_at = ?
+ WHERE id = ?
+]
+2026-04-22 14:52:19.817+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:52:19.817+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, ticket_id, sender, message, message_type, attachment
+  FROM chat_history
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:52:19.821+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:52:19.821+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, user_id, rating, ticket_id
+  FROM feedbacks
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:52:19.825+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing SQL query [SELECT t.ticket_id,
+       t.channel_id,
+       COALESCE(
+           (
+               SELECT MIN(ch.timestamp)
+                 FROM chat_history ch
+                WHERE ch.ticket_id = t.ticket_id
+                  AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+           ),
+           t.created_at
+       ) AS first_client_at
+  FROM tickets t
+ WHERE COALESCE(lower(t.status), 'open') NOT IN ('resolved', 'closed')
+   AND EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+   AND NOT EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+ ORDER BY t.ticket_id DESC
+]
+2026-04-22 14:52:31.828+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:52:31.828+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, ticket_id, sender, message, message_type, attachment
+  FROM chat_history
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:52:31.835+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:52:31.835+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, user_id, rating, ticket_id
+  FROM feedbacks
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:52:31.838+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing SQL query [SELECT t.ticket_id,
+       t.channel_id,
+       COALESCE(
+           (
+               SELECT MIN(ch.timestamp)
+                 FROM chat_history ch
+                WHERE ch.ticket_id = t.ticket_id
+                  AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+           ),
+           t.created_at
+       ) AS first_client_at
+  FROM tickets t
+ WHERE COALESCE(lower(t.status), 'open') NOT IN ('resolved', 'closed')
+   AND EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+   AND NOT EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+ ORDER BY t.ticket_id DESC
+]
+2026-04-22 14:52:33.793+03:00 DEBUG [rms-network-refresh-79dcb7b8-e03f-40fb-a16a-9e4622827a67] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL update
+2026-04-22 14:52:33.793+03:00 DEBUG [rms-network-refresh-79dcb7b8-e03f-40fb-a16a-9e4622827a67] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [UPDATE rms_license_monitors
+   SET rms_address = ?,
+       scheme = ?,
+       host = ?,
+       port = ?,
+       auth_login = ?,
+       auth_password = ?,
+       enabled = ?,
+       server_name = ?,
+       server_type = ?,
+       server_version = ?,
+       license_status = ?,
+       license_error_message = ?,
+       license_expires_at = ?,
+       license_days_left = ?,
+       license_last_checked_at = ?,
+       license_last_notified_at = ?,
+       rms_status = ?,
+       rms_status_message = ?,
+       ping_output = ?,
+       traceroute_summary = ?,
+       traceroute_report = ?,
+       traceroute_checked_at = ?,
+       rms_last_checked_at = ?,
+       created_at = ?,
+       updated_at = ?
+ WHERE id = ?
+]
+2026-04-22 14:52:38.767+03:00 DEBUG [rms-license-refresh-36d58597-c152-4530-b5b0-379951e0a4ad] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL update
+2026-04-22 14:52:38.767+03:00 DEBUG [rms-license-refresh-36d58597-c152-4530-b5b0-379951e0a4ad] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [UPDATE rms_license_monitors
+   SET rms_address = ?,
+       scheme = ?,
+       host = ?,
+       port = ?,
+       auth_login = ?,
+       auth_password = ?,
+       enabled = ?,
+       server_name = ?,
+       server_type = ?,
+       server_version = ?,
+       license_status = ?,
+       license_error_message = ?,
+       license_expires_at = ?,
+       license_days_left = ?,
+       license_last_checked_at = ?,
+       license_last_notified_at = ?,
+       rms_status = ?,
+       rms_status_message = ?,
+       ping_output = ?,
+       traceroute_summary = ?,
+       traceroute_report = ?,
+       traceroute_checked_at = ?,
+       rms_last_checked_at = ?,
+       created_at = ?,
+       updated_at = ?
+ WHERE id = ?
+]
+2026-04-22 14:52:43.842+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:52:43.842+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, ticket_id, sender, message, message_type, attachment
+  FROM chat_history
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:52:43.859+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:52:43.860+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, user_id, rating, ticket_id
+  FROM feedbacks
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:52:43.865+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing SQL query [SELECT t.ticket_id,
+       t.channel_id,
+       COALESCE(
+           (
+               SELECT MIN(ch.timestamp)
+                 FROM chat_history ch
+                WHERE ch.ticket_id = t.ticket_id
+                  AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+           ),
+           t.created_at
+       ) AS first_client_at
+  FROM tickets t
+ WHERE COALESCE(lower(t.status), 'open') NOT IN ('resolved', 'closed')
+   AND EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+   AND NOT EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+ ORDER BY t.ticket_id DESC
+]
+2026-04-22 14:52:53.800+03:00 DEBUG [rms-network-refresh-79dcb7b8-e03f-40fb-a16a-9e4622827a67] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL update
+2026-04-22 14:52:53.800+03:00 DEBUG [rms-network-refresh-79dcb7b8-e03f-40fb-a16a-9e4622827a67] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [UPDATE rms_license_monitors
+   SET rms_address = ?,
+       scheme = ?,
+       host = ?,
+       port = ?,
+       auth_login = ?,
+       auth_password = ?,
+       enabled = ?,
+       server_name = ?,
+       server_type = ?,
+       server_version = ?,
+       license_status = ?,
+       license_error_message = ?,
+       license_expires_at = ?,
+       license_days_left = ?,
+       license_last_checked_at = ?,
+       license_last_notified_at = ?,
+       rms_status = ?,
+       rms_status_message = ?,
+       ping_output = ?,
+       traceroute_summary = ?,
+       traceroute_report = ?,
+       traceroute_checked_at = ?,
+       rms_last_checked_at = ?,
+       created_at = ?,
+       updated_at = ?
+ WHERE id = ?
+]
+2026-04-22 14:52:55.873+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:52:55.873+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, ticket_id, sender, message, message_type, attachment
+  FROM chat_history
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:52:55.880+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:52:55.880+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, user_id, rating, ticket_id
+  FROM feedbacks
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:52:55.882+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing SQL query [SELECT t.ticket_id,
+       t.channel_id,
+       COALESCE(
+           (
+               SELECT MIN(ch.timestamp)
+                 FROM chat_history ch
+                WHERE ch.ticket_id = t.ticket_id
+                  AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+           ),
+           t.created_at
+       ) AS first_client_at
+  FROM tickets t
+ WHERE COALESCE(lower(t.status), 'open') NOT IN ('resolved', 'closed')
+   AND EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+   AND NOT EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+ ORDER BY t.ticket_id DESC
+]
+2026-04-22 14:52:58.776+03:00 DEBUG [rms-license-refresh-36d58597-c152-4530-b5b0-379951e0a4ad] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL update
+2026-04-22 14:52:58.776+03:00 DEBUG [rms-license-refresh-36d58597-c152-4530-b5b0-379951e0a4ad] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [UPDATE rms_license_monitors
+   SET rms_address = ?,
+       scheme = ?,
+       host = ?,
+       port = ?,
+       auth_login = ?,
+       auth_password = ?,
+       enabled = ?,
+       server_name = ?,
+       server_type = ?,
+       server_version = ?,
+       license_status = ?,
+       license_error_message = ?,
+       license_expires_at = ?,
+       license_days_left = ?,
+       license_last_checked_at = ?,
+       license_last_notified_at = ?,
+       rms_status = ?,
+       rms_status_message = ?,
+       ping_output = ?,
+       traceroute_summary = ?,
+       traceroute_report = ?,
+       traceroute_checked_at = ?,
+       rms_last_checked_at = ?,
+       created_at = ?,
+       updated_at = ?
+ WHERE id = ?
+]
+2026-04-22 14:53:00.002+03:00 DEBUG [spring-session-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL update
+2026-04-22 14:53:00.002+03:00 DEBUG [spring-session-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [DELETE FROM SPRING_SESSION
+WHERE EXPIRY_TIME < ?
+]
+2026-04-22 14:53:07.887+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:53:07.887+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, ticket_id, sender, message, message_type, attachment
+  FROM chat_history
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:53:07.897+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-04-22 14:53:07.897+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT id, user_id, rating, ticket_id
+  FROM feedbacks
+ WHERE id > ?
+ ORDER BY id ASC
+]
+2026-04-22 14:53:07.902+03:00 DEBUG [scheduling-1] o.s.jdbc.core.JdbcTemplate - Executing SQL query [SELECT t.ticket_id,
+       t.channel_id,
+       COALESCE(
+           (
+               SELECT MIN(ch.timestamp)
+                 FROM chat_history ch
+                WHERE ch.ticket_id = t.ticket_id
+                  AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+           ),
+           t.created_at
+       ) AS first_client_at
+  FROM tickets t
+ WHERE COALESCE(lower(t.status), 'open') NOT IN ('resolved', 'closed')
+   AND EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+   AND NOT EXISTS (
+       SELECT 1
+         FROM chat_history ch
+        WHERE ch.ticket_id = t.ticket_id
+          AND lower(COALESCE(ch.sender, '')) IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+   )
+ ORDER BY t.ticket_id DESC
+]
