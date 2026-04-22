@@ -99,6 +99,7 @@ public class MonitoringDatabaseBootstrapService implements ApplicationRunner {
                 server_version TEXT,
                 license_status TEXT,
                 license_error_message TEXT,
+                license_details_json TEXT,
                 license_expires_at TEXT,
                 license_days_left INTEGER,
                 license_last_checked_at TEXT,
@@ -126,6 +127,11 @@ public class MonitoringDatabaseBootstrapService implements ApplicationRunner {
             "rms_license_monitors",
             "license_monitoring_enabled",
             "ALTER TABLE rms_license_monitors ADD COLUMN license_monitoring_enabled INTEGER NOT NULL DEFAULT 1"
+        );
+        ensureColumn(
+            "rms_license_monitors",
+            "license_details_json",
+            "ALTER TABLE rms_license_monitors ADD COLUMN license_details_json TEXT"
         );
         ensureColumn(
             "rms_license_monitors",
@@ -207,6 +213,7 @@ public class MonitoringDatabaseBootstrapService implements ApplicationRunner {
                 item.setServerVersion(rs.getString("server_version"));
                 item.setLicenseStatus(rs.getString("license_status"));
                 item.setLicenseErrorMessage(rs.getString("license_error_message"));
+                item.setLicenseDetailsJson(readStringColumn(rs, "license_details_json"));
                 item.setLicenseExpiresAt(parseOffsetDateTime(rs.getString("license_expires_at")));
                 Object licenseDaysLeft = rs.getObject("license_days_left");
                 item.setLicenseDaysLeft(licenseDaysLeft == null ? null : rs.getInt("license_days_left"));
@@ -286,6 +293,14 @@ public class MonitoringDatabaseBootstrapService implements ApplicationRunner {
             return rs.getInt(columnName) != 0;
         } catch (Exception ignored) {
             return defaultValue;
+        }
+    }
+
+    private String readStringColumn(ResultSet rs, String columnName) {
+        try {
+            return rs.getString(columnName);
+        } catch (Exception ignored) {
+            return null;
         }
     }
 }

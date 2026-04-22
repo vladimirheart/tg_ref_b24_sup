@@ -1,5 +1,7 @@
 package com.example.panel.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.example.panel.entity.RmsLicenseMonitor;
 import com.example.panel.repository.RmsLicenseMonitorRepository;
 import jakarta.annotation.PreDestroy;
@@ -86,6 +88,7 @@ public class RmsLicenseMonitoringService {
 
     private final RmsLicenseMonitorRepository repository;
     private final NotificationService notificationService;
+    private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
     private final ExecutorService licenseRefreshExecutor;
     private final ExecutorService networkRefreshExecutor;
@@ -101,9 +104,11 @@ public class RmsLicenseMonitoringService {
     private final AtomicReference<OffsetDateTime> lastNetworkRefreshCompletedAt = new AtomicReference<>();
 
     public RmsLicenseMonitoringService(RmsLicenseMonitorRepository repository,
-                                       NotificationService notificationService) {
+                                       NotificationService notificationService,
+                                       ObjectMapper objectMapper) {
         this.repository = repository;
         this.notificationService = notificationService;
+        this.objectMapper = objectMapper;
         this.httpClient = buildUnsafeHttpClient();
         this.licenseRefreshExecutor = Executors.newSingleThreadExecutor(namedThreadFactory("rms-license-refresh"));
         this.networkRefreshExecutor = Executors.newSingleThreadExecutor(namedThreadFactory("rms-network-refresh"));
@@ -281,6 +286,32 @@ public class RmsLicenseMonitoringService {
         return monitor.getTracerouteReport();
     }
 
+    @Transactional(transactionManager = "monitoringTransactionManager", readOnly = true)
+    public LicenseDetailsView loadLicenseDetails(long id) {
+        RmsLicenseMonitor monitor = repository.findById(id)
+            .orElseThrow(() -> new IllegalArgumentException("RMS-запись не найдена"));
+        if (!StringUtils.hasText(monitor.getLicenseDetailsJson())) {
+            throw new IllegalArgumentException("Для этой записи ещё нет сохранённого состава лицензий");
+        }
+        try {
+            List<LinkedHashMap<String, String>> storedItems = objectMapper.readValue(
+                monitor.getLicenseDetailsJson(),
+                new TypeReference<List<LinkedHashMap<String, String>>>() {
+                }
+            );
+            List<Map<String, String>> items = new java.util.ArrayList<>(storedItems);
+            return new LicenseDetailsView(
+                monitor.getId(),
+                monitor.getRmsAddress(),
+                monitor.getServerName(),
+                monitor.getLicenseLastCheckedAt(),
+                items
+            );
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("Не удалось прочитать сохранённый состав лицензий");
+        }
+    }
+
     public RefreshState currentRefreshState() {
         return new RefreshState(
             new QueueState(
@@ -405,6 +436,7 @@ public class RmsLicenseMonitoringService {
             LicenseSnapshot license = fetchLicenseSnapshot(monitor, metadata.serverEdition(), metadata.serverVersion());
             monitor.setLicenseExpiresAt(license.expiresAt());
             monitor.setLicenseDaysLeft(license.daysLeft());
+            monitor.setLicenseDetailsJson(license.detailsJson());
             monitor.setLicenseStatus(deriveLicenseStatus(license.daysLeft()));
             monitor.setLicenseErrorMessage(null);
 
@@ -583,6 +615,7 @@ public class RmsLicenseMonitoringService {
         );
         Document xml = parseXml(response);
         OffsetDateTime earliestExpiration = null;
+        List<Map<String, String>> details = parseLicenseDetails(xml);
 
         NodeList licenses = xml.getElementsByTagName("license");
         for (int index = 0; index < licenses.getLength(); index++) {
@@ -605,7 +638,7 @@ public class RmsLicenseMonitoringService {
         }
 
         int daysLeft = (int) ChronoUnit.DAYS.between(LocalDate.now(ZoneOffset.UTC), earliestExpiration.toLocalDate());
-        return new LicenseSnapshot(earliestExpiration, daysLeft);
+        return new LicenseSnapshot(earliestExpiration, daysLeft, writeLicenseDetails(details));
     }
 
     private String buildBaseUrl(RmsLicenseMonitor monitor) {
@@ -971,6 +1004,116 @@ public class RmsLicenseMonitoringService {
         return safe.substring(0, limit);
     }
 
+    private List<Map<String, String>> parseLicenseDetails(Document xml) {
+        List<Map<String, String>> items = new java.util.ArrayList<>();
+        NodeList licenses = xml.getElementsByTagName("license");
+        for (int index = 0; index < licenses.getLength(); index++) {
+            Node node = licenses.item(index);
+            if (node == null || !node.hasChildNodes()) {
+                continue;
+            }
+            LinkedHashMap<String, String> item = new LinkedHashMap<>();
+            NodeList children = node.getChildNodes();
+            for (int childIndex = 0; childIndex < children.getLength(); childIndex++) {
+                Node child = children.item(childIndex);
+                if (child == null || child.getNodeType() != Node.ELEMENT_NODE) {
+                    continue;
+                }
+                String key = normalizeLicenseKey(child.getNodeName());
+                String value = trimText(child.getTextContent(), 500, "");
+                if (StringUtils.hasText(key) && StringUtils.hasText(value)) {
+                    item.put(key, value);
+                }
+            }
+            enrichLicenseDetails(item, index);
+            if (!item.isEmpty()) {
+                items.add(item);
+            }
+        }
+        return items;
+    }
+
+    private void enrichLicenseDetails(LinkedHashMap<String, String> item, int index) {
+        String title = firstNonBlank(
+            item.get("name"),
+            item.get("license_name"),
+            item.get("license"),
+            item.get("type"),
+            item.get("license_type"),
+            item.get("module"),
+            item.get("product"),
+            "Лицензия #" + (index + 1)
+        );
+        item.putIfAbsent("title", title);
+        String expiration = firstNonBlank(
+            item.get("expiration"),
+            item.get("expires_at"),
+            item.get("valid_to"),
+            item.get("expire_date"),
+            item.get("expiration_date")
+        );
+        if (StringUtils.hasText(expiration)) {
+            item.put("expiration", expiration);
+        }
+        String quantity = firstNonBlank(
+            item.get("amount"),
+            item.get("count"),
+            item.get("quantity"),
+            item.get("limit"),
+            item.get("connections")
+        );
+        if (StringUtils.hasText(quantity)) {
+            item.put("quantity", quantity);
+        }
+        String state = firstNonBlank(
+            item.get("status"),
+            item.get("state"),
+            item.get("active"),
+            item.get("enabled")
+        );
+        if (StringUtils.hasText(state)) {
+            item.put("state", state);
+        }
+    }
+
+    private String normalizeLicenseKey(String rawKey) {
+        if (!StringUtils.hasText(rawKey)) {
+            return "";
+        }
+        StringBuilder normalized = new StringBuilder();
+        boolean previousUnderscore = false;
+        for (char ch : rawKey.trim().toCharArray()) {
+            if (Character.isLetterOrDigit(ch)) {
+                if (Character.isUpperCase(ch) && normalized.length() > 0 && !previousUnderscore) {
+                    normalized.append('_');
+                }
+                normalized.append(Character.toLowerCase(ch));
+                previousUnderscore = false;
+            } else if (!previousUnderscore) {
+                normalized.append('_');
+                previousUnderscore = true;
+            }
+        }
+        String value = normalized.toString().replaceAll("^_+|_+$", "");
+        return value.replaceAll("_+", "_");
+    }
+
+    private String writeLicenseDetails(List<Map<String, String>> items) throws Exception {
+        return objectMapper.writeValueAsString(items == null ? List.of() : items);
+    }
+
+    private String firstNonBlank(String... values) {
+        if (values == null) {
+            return "";
+        }
+        for (String value : values) {
+            if (StringUtils.hasText(value)) {
+                return value.trim();
+            }
+        }
+        return "";
+    }
+
     private ThreadFactory namedThreadFactory(String prefix) {
         return runnable -> {
             Thread thread = new Thread(runnable);
@@ -992,6 +1135,13 @@ public class RmsLicenseMonitoringService {
     public record RefreshRequestResult(String state, RefreshState refreshState) {
     }
 
+    public record LicenseDetailsView(Long id,
+                                     String rmsAddress,
+                                     String serverName,
+                                     OffsetDateTime lastCheckedAt,
+                                     List<Map<String, String>> items) {
+    }
+
     private record LicenseRefreshTask(Long monitorId, boolean withNotifications) {
     }
 
@@ -1007,7 +1157,7 @@ public class RmsLicenseMonitoringService {
     private record ServerMetadata(String serverName, String serverType, String serverVersion, String serverEdition) {
     }
 
-    private record LicenseSnapshot(OffsetDateTime expiresAt, int daysLeft) {
+    private record LicenseSnapshot(OffsetDateTime expiresAt, int daysLeft, String detailsJson) {
     }
 
     private record CommandResult(boolean success, String output) {
