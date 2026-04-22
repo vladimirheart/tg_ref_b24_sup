@@ -61,6 +61,9 @@ public class RmsLicenseMonitor {
     @Column(name = "license_error_message")
     private String licenseErrorMessage;
 
+    @Column(name = "license_details_json")
+    private String licenseDetailsJson;
+
     @Column(name = "license_expires_at")
     @Convert(converter = LenientOffsetDateTimeConverter.class)
     private OffsetDateTime licenseExpiresAt;
@@ -225,6 +228,14 @@ public class RmsLicenseMonitor {
 
     public void setLicenseErrorMessage(String licenseErrorMessage) {
         this.licenseErrorMessage = licenseErrorMessage;
+    }
+
+    public String getLicenseDetailsJson() {
+        return licenseDetailsJson;
+    }
+
+    public void setLicenseDetailsJson(String licenseDetailsJson) {
+        this.licenseDetailsJson = licenseDetailsJson;
     }
 
     public OffsetDateTime getLicenseExpiresAt() {

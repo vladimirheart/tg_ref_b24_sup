@@ -170,6 +170,23 @@ public class RmsLicenseMonitoringApiController {
         }
     }
 
+    @GetMapping("/sites/{siteId}/licenses")
+    public ResponseEntity<Map<String, Object>> loadSiteLicenses(@PathVariable long siteId) {
+        try {
+            RmsLicenseMonitoringService.LicenseDetailsView view = monitoringService.loadLicenseDetails(siteId);
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "id", view.id(),
+                "rms_address", view.rmsAddress(),
+                "server_name", view.serverName(),
+                "last_checked_at", view.lastCheckedAt(),
+                "items", view.items()
+            ));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "error", ex.getMessage()));
+        }
+    }
+
     private Map<String, Object> toDto(RmsLicenseMonitor item) {
         String displayHost = toUnicodeHost(item.getHost());
         Map<String, Object> dto = new LinkedHashMap<>();
@@ -194,6 +211,7 @@ public class RmsLicenseMonitoringApiController {
         dto.put("license_expires_at", item.getLicenseExpiresAt());
         dto.put("license_days_left", item.getLicenseDaysLeft());
         dto.put("license_last_checked_at", item.getLicenseLastCheckedAt());
+        dto.put("has_license_details", item.getLicenseDetailsJson() != null && !item.getLicenseDetailsJson().isBlank());
         dto.put("rms_status", item.getRmsStatus());
         dto.put("rms_status_level", monitoringService.resolveRmsAvailability(item));
         dto.put("rms_status_message", item.getRmsStatusMessage());

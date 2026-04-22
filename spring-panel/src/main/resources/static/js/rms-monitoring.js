@@ -28,6 +28,10 @@
   const editRmsLicenseMonitoringInput = document.getElementById('editRmsLicenseMonitoringInput');
   const editRmsNetworkMonitoringInput = document.getElementById('editRmsNetworkMonitoringInput');
   const editRmsPasswordHint = document.getElementById('editRmsPasswordHint');
+  const licenseDetailsModalEl = document.getElementById('rmsLicenseDetailsModal');
+  const licenseDetailsModal = licenseDetailsModalEl && window.bootstrap ? new bootstrap.Modal(licenseDetailsModalEl) : null;
+  const licenseDetailsMeta = document.getElementById('rmsLicenseDetailsMeta');
+  const licenseDetailsBody = document.getElementById('rmsLicenseDetailsBody');
 
   let sites = [];
   let refreshState = null;
@@ -206,6 +210,7 @@
               </button>
               <ul class="dropdown-menu dropdown-menu-end">
                 <li><button class="dropdown-item" type="button" data-action="refresh-license" ${recordEnabled && licenseFeatureEnabled ? '' : 'disabled'}>Обновить лицензию</button></li>
+                <li><button class="dropdown-item" type="button" data-action="view-licenses" ${site.has_license_details ? '' : 'disabled'}>Посмотреть лицензии</button></li>
                 <li><button class="dropdown-item" type="button" data-action="refresh-network" ${recordEnabled && networkFeatureEnabled ? '' : 'disabled'}>Проверить доступность</button></li>
                 <li><hr class="dropdown-divider"></li>
                 <li><button class="dropdown-item" type="button" data-action="edit">Изменить</button></li>
@@ -418,6 +423,58 @@
     }
   }
 
+  function renderLicenseDetailsModal(data) {
+    if (!licenseDetailsBody || !licenseDetailsMeta) return;
+    const title = data.server_name || data.rms_address || 'RMS';
+    licenseDetailsMeta.textContent = `${title} • последняя проверка: ${formatDateTime(data.last_checked_at)}`;
+    const items = Array.isArray(data.items) ? data.items : [];
+    if (!items.length) {
+      licenseDetailsBody.innerHTML = '<div class="text-muted">По этой RMS пока нет сохранённого состава лицензий.</div>';
+      return;
+    }
+    const cards = items.map((item, index) => {
+      const titleText = item.title || item.name || item.license_name || item.type || `Лицензия #${index + 1}`;
+      const important = [];
+      if (item.expiration) important.push(`<span class="badge text-bg-light border">Истекает: ${escapeHtml(item.expiration)}</span>`);
+      if (item.quantity) important.push(`<span class="badge text-bg-light border">Кол-во: ${escapeHtml(item.quantity)}</span>`);
+      if (item.state) important.push(`<span class="badge text-bg-light border">Статус: ${escapeHtml(item.state)}</span>`);
+      const details = Object.entries(item)
+        .filter(([key]) => !['title'].includes(key))
+        .map(([key, value]) => `<tr><th class="text-muted small" style="width: 35%;">${escapeHtml(key)}</th><td class="small">${escapeHtml(value)}</td></tr>`)
+        .join('');
+      return `
+        <div class="card shadow-sm mb-3">
+          <div class="card-body">
+            <div class="d-flex flex-column gap-2">
+              <div class="fw-semibold">${escapeHtml(titleText)}</div>
+              <div class="d-flex flex-wrap gap-2">${important.join('')}</div>
+              <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                  <tbody>${details}</tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    });
+    licenseDetailsBody.innerHTML = cards.join('');
+  }
+
+  async function openLicenseDetails(siteId) {
+    if (!licenseDetailsModal || !licenseDetailsBody || !licenseDetailsMeta) return;
+    const site = findSite(siteId);
+    licenseDetailsMeta.textContent = site?.server_name || site?.rms_address_display || 'Загрузка...';
+    licenseDetailsBody.innerHTML = '<div class="text-muted">Загрузка состава лицензий...</div>';
+    licenseDetailsModal.show();
+    try {
+      const data = await requestJson(`/api/monitoring/rms/sites/${siteId}/licenses`);
+      renderLicenseDetailsModal(data);
+    } catch (error) {
+      licenseDetailsBody.innerHTML = `<div class="text-danger">${escapeHtml(error.message || 'Не удалось загрузить состав лицензий.')}</div>`;
+    }
+  }
+
   async function toggleBulkFeature(scope, enabled) {
     const endpoint = scope === 'license'
       ? '/api/monitoring/rms/bulk/license-monitoring'
@@ -462,6 +519,10 @@
     }
     if (button.dataset.action === 'refresh-license') {
       triggerSiteRefresh(siteId, 'license');
+      return;
+    }
+    if (button.dataset.action === 'view-licenses') {
+      openLicenseDetails(siteId);
       return;
     }
     if (button.dataset.action === 'refresh-network') {
