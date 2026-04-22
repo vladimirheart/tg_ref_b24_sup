@@ -365,6 +365,11 @@
 - server-backed UI preferences больше не только “есть”, но и прикрыты
   regression net: alias-нормализация `sortMode/pageSize/updatedAtUtc`
   в `UiPreferenceService` исправлена и зафиксирована тестами;
+- orchestration/API слой `settings` тоже получил прямую страховку:
+  `SettingsUpdateServiceTest`,
+  `SettingsDialogConfigUpdateServiceTest`,
+  `SettingsBridgeControllerWebMvcTest`,
+  `ProfileApiControllerWebMvcTest`;
 - `SlaEscalationWebhookNotifier` больше не зависит от `DialogService`
   в production wiring: notifier переведён на `DialogLookupReadService`,
   `DialogResponsibilityService` и `DialogAuditService`, а `DialogService`
@@ -385,6 +390,8 @@
   targeted-слоя к более полным integration сценариям;
 - расширить `settings` regression net уже от service-layer к нескольким
   интеграционным update/sync сценариям поверх shared config boundary;
+- при необходимости дотянуть orchestration-tests дальше до shared-config
+  integration сценариев c реальным persistence/config boundary;
 - более широкий runtime contract test для launcher strategy и bot lifecycle.
 - продолжить держать notifier/runtime regression net синхронизированным с
   evolving routing governance contract, чтобы новые refactor-проходы не
