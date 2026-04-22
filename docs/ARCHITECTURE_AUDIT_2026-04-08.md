@@ -354,7 +354,7 @@ defaults и частично legacy-compatible фасадах.
 - [ ] Досузить `DialogWorkspaceService` и consumer-фасады вокруг него
 - [ ] Добить remaining `settings` subdomains
 - [ ] Расширить и стабилизировать safety net для следующих крупных рефакторингов
-- [ ] Закрыть remaining runtime/notifier хвосты, которые ещё держатся на legacy-compatible фасадах и старых notifier tests
+- [ ] Закрыть remaining runtime/notifier хвосты, которые ещё держатся на legacy-compatible фасадах
 
 ### Фаза 3: Следующий архитектурный уровень
 - [ ] Унифицировать shared config/runtime contract между `spring-panel` и `java-bot`

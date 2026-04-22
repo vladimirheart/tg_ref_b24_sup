@@ -355,6 +355,10 @@
   в production wiring: notifier переведён на `DialogLookupReadService`,
   `DialogResponsibilityService` и `DialogAuditService`, а `DialogService`
   оставлен только как compatibility fallback для legacy unit tests;
+- legacy notifier safety net больше не красный: route naming и strict
+  review-path expectations в `SlaEscalationWebhookNotifierTest`
+  синхронизированы с текущим notifier contract и полный notifier test suite
+  снова проходит;
 - legacy WebMvc test-слой частично синхронизирован с новой controller
   структурой.
 
@@ -366,9 +370,9 @@
 - расширить shared config/env resolution tests от targeted-слоя к более полным
   integration сценариям;
 - более широкий runtime contract test для launcher strategy и bot lifecycle.
-- стабилизировать remaining legacy notifier tests
-  (`SlaEscalationWebhookNotifierTest`), где ещё всплывают старые
-  route naming/review-path ожидания.
+- продолжить держать notifier/runtime regression net синхронизированным с
+  evolving routing governance contract, чтобы новые refactor-проходы не
+  возвращали красный legacy test suite.
 
 ## Где мы сейчас
 
