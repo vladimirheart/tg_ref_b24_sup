@@ -69,8 +69,9 @@
   `DialogMacroService` уже переведены на новый слой; вдогонку
   `DialogAiAssistantService` переведён на `DialogResponsibilityService`, а
   `SlaEscalationWebhookNotifier` использует `DialogLookupReadService` и
-  `DialogResponsibilityService` там, где giant `DialogService` раньше
-  оставался только техническим фасадом;
+  `DialogResponsibilityService`, так что notifier перестал использовать giant
+  `DialogService` как технический фасад уже на основном routing/assignment
+  пути;
 - ещё одним пакетом снят уже не продуктовый, а технический coupling вокруг
   giant service: `DialogDataAccessSupport` вынесен из nested static helper-слоя
   `DialogService`, а `DialogResolveResult` больше не живёт как nested record
@@ -111,7 +112,9 @@
   и lifecycle contract test с runnable test jar;
 - `Phase 6` уже даёт не только точечные unit-тесты, но и пакет page bootstrap
   smoke tests плюс WebMvc coverage для sliced dialog/settings controllers,
-  shared config/env foundation и runtime contract.
+  shared config/env foundation и runtime contract; теперь этот smoke-пакет
+  покрывает ещё и `channels`, `tasks`, `users`, `object-passports`,
+  `public forms` и аналитические subpages.
 
 Что уже больше не выглядит как главный hotspot:
 
@@ -172,6 +175,14 @@
   `sortMode/pageSize/updatedAtUtc` в `dialogsTriage` могли теряться из-за
   premature default-normalization, теперь этот контракт исправлен и покрыт
   targeted unit tests.
+- `SlaEscalationWebhookNotifier` больше не держит даже legacy field/branch на
+  `DialogService`: notifier окончательно работает через
+  `DialogLookupReadService`, `DialogResponsibilityService` и
+  `DialogAuditService`, а legacy tests переведены на прямые зависимости;
+- `Phase 6` расширен ещё и на UI preset contract в шаблонах:
+  `channels`, `tasks`, `users`, `passports`, `public form`,
+  `analytics/certificates` и `analytics/rms-control` теперь имеют explicit
+  `data-ui-page` и прикрыты page bootstrap smoke tests.
 
 ---
 
@@ -397,7 +408,7 @@ defaults и частично legacy-compatible фасадах.
 
 ## 📁 Следующие шаги
 
-1. Дожать service-level split `DialogService` и сузить remaining workspace/notifier consumer-facades
+1. Дожать service-level split `DialogService` и сузить remaining workspace/orchestration consumers
 2. Добить remaining `settings` subdomains и persistence boundaries
 3. Продолжить расширять `Phase 6` от targeted service/WebMvc tests к integration-сценариям
 4. После этого возвращаться к shared-config unification и DTO/error contract

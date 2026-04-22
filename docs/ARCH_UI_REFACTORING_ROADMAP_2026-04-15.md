@@ -389,20 +389,25 @@
   `SettingsBridgeControllerWebMvcTest`,
   `ProfileApiControllerWebMvcTest`;
 - `SlaEscalationWebhookNotifier` больше не зависит от `DialogService`
-  в production wiring: notifier переведён на `DialogLookupReadService`,
-  `DialogResponsibilityService` и `DialogAuditService`, а `DialogService`
-  оставлен только как compatibility fallback для legacy unit tests;
+  вообще: notifier переведён на `DialogLookupReadService`,
+  `DialogResponsibilityService` и `DialogAuditService`, а legacy unit tests
+  синхронизированы под прямые зависимости без fallback-поля на giant service;
 - legacy notifier safety net больше не красный: route naming и strict
   review-path expectations в `SlaEscalationWebhookNotifierTest`
   синхронизированы с текущим notifier contract и полный notifier test suite
   снова проходит;
+- page/runtime smoke tests расширены beyond базового пакета:
+  теперь explicit `data-ui-page` и ранний `ui-head` bootstrap проверяются ещё
+  для `channels`, `tasks`, `users`, `object-passports`, `public forms` и
+  аналитических subpages `certificates/rms-control`.
 - legacy WebMvc test-слой частично синхронизирован с новой controller
   структурой.
 
 Что остаётся:
 
-- продолжить расширять smoke tests для `theme/ui bootstrap` на оставшиеся
-  разделы beyond `dashboard/analytics/clients/knowledge/settings/dialogs`;
+- продолжить расширять smoke tests для `theme/ui bootstrap` на remaining
+  страницы beyond `dashboard/analytics/clients/knowledge/settings/dialogs`
+  и уже покрытых `channels/tasks/users/passports/public`;
 - добрать WebMvc tests под оставшиеся новые dialog/settings controllers;
 - расширить shared config/env resolution tests и settings regression net от
   targeted-слоя к более полным integration сценариям;
@@ -428,8 +433,9 @@
    remaining subdomains.
 5. `Phase 5` уже начат в коде.
 6. `Phase 6` усилен адресными runtime/UI тестами и уже покрывает основной
-   sliced dialog/settings controller layer плюс shared config/env foundation,
-   но пока не превращён в полноценную safety net.
+   sliced dialog/settings controller layer, shared config/env foundation и
+   заметную часть page bootstrap contract, но пока не превращён в полноценную
+   safety net.
 
 ## Следующий Фокус
 

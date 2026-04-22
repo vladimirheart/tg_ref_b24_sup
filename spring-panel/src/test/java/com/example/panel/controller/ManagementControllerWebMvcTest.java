@@ -88,4 +88,61 @@ class ManagementControllerWebMvcTest {
             .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-config.js")))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("data-ui-page=\"settings\"")));
     }
+
+    @Test
+    void tasksPageIncludesUiHeadBootstrapAndExplicitPagePreset() throws Exception {
+        doNothing().when(navigationService).enrich(any(), any());
+        when(taskRepository.findTop50ByOrderByCreatedAtDesc()).thenReturn(List.of());
+        when(panelUserRepository.findAll()).thenReturn(List.of());
+
+        mockMvc.perform(get("/tasks").with(user("operator").authorities(() -> "PAGE_TASKS")))
+            .andExpect(status().isOk())
+            .andExpect(view().name("tasks/index"))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-preferences.js")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/theme.js")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-config.js")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("data-ui-page=\"tasks\"")));
+    }
+
+    @Test
+    void channelsPageIncludesUiHeadBootstrapAndExplicitPagePreset() throws Exception {
+        doNothing().when(navigationService).enrich(any(), any());
+        when(channelRepository.findAll()).thenReturn(List.of());
+
+        mockMvc.perform(get("/channels").with(user("operator").authorities(() -> "PAGE_CHANNELS")))
+            .andExpect(status().isOk())
+            .andExpect(view().name("channels/index"))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-preferences.js")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/theme.js")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-config.js")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("data-ui-page=\"channels\"")));
+    }
+
+    @Test
+    void usersPageIncludesUiHeadBootstrapAndExplicitPagePreset() throws Exception {
+        doNothing().when(navigationService).enrich(any(), any());
+        when(panelUserRepository.findAll()).thenReturn(List.of());
+
+        mockMvc.perform(get("/users").with(user("operator").authorities(() -> "PAGE_USERS")))
+            .andExpect(status().isOk())
+            .andExpect(view().name("users/index"))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-preferences.js")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/theme.js")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-config.js")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("data-ui-page=\"users\"")));
+    }
+
+    @Test
+    void objectPassportsPageIncludesUiHeadBootstrapAndExplicitPagePreset() throws Exception {
+        doNothing().when(navigationService).enrich(any(), any());
+        when(equipmentRepository.findAll()).thenReturn(List.of());
+
+        mockMvc.perform(get("/object-passports").with(user("operator").authorities(() -> "PAGE_OBJECT_PASSPORTS")))
+            .andExpect(status().isOk())
+            .andExpect(view().name("passports/list"))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-preferences.js")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/theme.js")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-config.js")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("data-ui-page=\"passports\"")));
+    }
 }
