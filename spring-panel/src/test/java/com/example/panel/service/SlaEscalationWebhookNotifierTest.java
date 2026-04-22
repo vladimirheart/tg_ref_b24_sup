@@ -491,15 +491,15 @@ class SlaEscalationWebhookNotifierTest {
 
     @Test
     void resolveAutoAssignDecisionsSupportsLeastLoadedPoolStrategy() {
-        DialogService dialogService = org.mockito.Mockito.mock(DialogService.class);
-        SlaEscalationWebhookNotifier notifier = new SlaEscalationWebhookNotifier(null, dialogService, new ObjectMapper());
+        DialogLookupReadService dialogLookupReadService = org.mockito.Mockito.mock(DialogLookupReadService.class);
+        SlaEscalationWebhookNotifier notifier = new SlaEscalationWebhookNotifier(null, dialogLookupReadService, new ObjectMapper());
 
-        org.mockito.Mockito.when(dialogService.loadDialogs("busy_operator"))
+        org.mockito.Mockito.when(dialogLookupReadService.loadDialogs("busy_operator"))
                 .thenReturn(List.of(
                         dialog("B-1", Instant.now().toString(), "open", "busy_operator"),
                         dialog("B-2", Instant.now().toString(), "open", "busy_operator")
                 ));
-        org.mockito.Mockito.when(dialogService.loadDialogs("free_operator"))
+        org.mockito.Mockito.when(dialogLookupReadService.loadDialogs("free_operator"))
                 .thenReturn(List.of(
                         dialog("F-1", Instant.now().toString(), "resolved", "free_operator")
                 ));
@@ -813,12 +813,12 @@ class SlaEscalationWebhookNotifierTest {
 
     @Test
     void resolveAutoAssignDecisionsSkipsWhenFallbackAssigneeOverloadLimitReached() {
-        DialogService dialogService = org.mockito.Mockito.mock(DialogService.class);
-        org.mockito.Mockito.when(dialogService.loadDialogs("fallback_duty"))
+        DialogLookupReadService dialogLookupReadService = org.mockito.Mockito.mock(DialogLookupReadService.class);
+        org.mockito.Mockito.when(dialogLookupReadService.loadDialogs("fallback_duty"))
                 .thenReturn(List.of(
                         dialog("B-1", Instant.now().toString(), "open", "fallback_duty")
                 ));
-        SlaEscalationWebhookNotifier notifier = new SlaEscalationWebhookNotifier(null, dialogService, new ObjectMapper());
+        SlaEscalationWebhookNotifier notifier = new SlaEscalationWebhookNotifier(null, dialogLookupReadService, new ObjectMapper());
 
         List<Map<String, Object>> candidates = List.of(
                 Map.of("ticket_id", "T-1", "channel", "Telegram", "request_number", "REG-001")

@@ -93,7 +93,7 @@
     }
   </style>
 </head>
-<body class="with-sidebar sidebar-pinned">
+<body class="with-sidebar sidebar-pinned" data-ui-page="tasks">
   <div th:replace="~{fragments/navbar :: navbar('tasks')}"></div>
   <datalist id="usersList">
   <option th:each="u : ${users}" th:value="${u.username}"></option>

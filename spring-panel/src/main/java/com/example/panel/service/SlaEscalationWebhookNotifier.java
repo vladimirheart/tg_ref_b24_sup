@@ -42,7 +42,6 @@ public class SlaEscalationWebhookNotifier {
     private static final int DEFAULT_SLA_TARGET_MINUTES = 24 * 60;
 
     private final SharedConfigService sharedConfigService;
-    private final DialogService dialogService;
     private final DialogLookupReadService dialogLookupReadService;
     private final DialogResponsibilityService dialogResponsibilityService;
     private final DialogAuditService dialogAuditService;
@@ -65,7 +64,6 @@ public class SlaEscalationWebhookNotifier {
                                         DialogAuditService dialogAuditService,
                                         ObjectMapper objectMapper) {
         this.sharedConfigService = sharedConfigService;
-        this.dialogService = null;
         this.dialogLookupReadService = dialogLookupReadService;
         this.dialogResponsibilityService = dialogResponsibilityService;
         this.dialogAuditService = dialogAuditService;
@@ -73,11 +71,10 @@ public class SlaEscalationWebhookNotifier {
     }
 
     SlaEscalationWebhookNotifier(SharedConfigService sharedConfigService,
-                                 DialogService dialogService,
+                                 DialogLookupReadService dialogLookupReadService,
                                  ObjectMapper objectMapper) {
         this.sharedConfigService = sharedConfigService;
-        this.dialogService = dialogService;
-        this.dialogLookupReadService = null;
+        this.dialogLookupReadService = dialogLookupReadService;
         this.dialogResponsibilityService = null;
         this.dialogAuditService = null;
         this.objectMapper = objectMapper;
@@ -286,8 +283,6 @@ public class SlaEscalationWebhookNotifier {
                     + (decision.previousResponsible() != null ? ";previous_responsible=" + decision.previousResponsible() : "");
             if (dialogAuditService != null) {
                 dialogAuditService.logDialogActionAudit(decision.ticketId(), actor, action, "success", detail);
-            } else {
-                dialogService.logDialogActionAudit(decision.ticketId(), actor, action, "success", detail);
             }
             assignedCount++;
         }
@@ -1770,7 +1765,7 @@ public class SlaEscalationWebhookNotifier {
         if (operator == null) {
             return Long.MAX_VALUE;
         }
-        if (dialogLookupReadService == null && dialogService == null) {
+        if (dialogLookupReadService == null) {
             return 0L;
         }
         return openLoadCache.computeIfAbsent(operator, key -> loadDialogsForRouting(key).stream()
@@ -1782,19 +1777,12 @@ public class SlaEscalationWebhookNotifier {
         if (dialogLookupReadService != null) {
             return dialogLookupReadService.loadDialogs(operator);
         }
-        if (dialogService != null) {
-            return dialogService.loadDialogs(operator);
-        }
         return List.of();
     }
 
     private void assignResponsibleIfMissingOrRedirected(String ticketId, String newResponsible, String assignedBy) {
         if (dialogResponsibilityService != null) {
             dialogResponsibilityService.assignResponsibleIfMissingOrRedirected(ticketId, newResponsible, assignedBy);
-            return;
-        }
-        if (dialogService != null) {
-            dialogService.assignResponsibleIfMissingOrRedirected(ticketId, newResponsible, assignedBy);
         }
     }
 
