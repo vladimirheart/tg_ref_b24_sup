@@ -1,5 +1,7 @@
 package com.example.panel.service;
 
+import com.example.panel.entity.Channel;
+import com.example.panel.repository.ChannelRepository;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -9,7 +11,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.sql.Connection;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -17,20 +25,34 @@ import java.util.concurrent.atomic.AtomicLong;
 public class OperatorNotificationWatcher {
 
     private static final Logger log = LoggerFactory.getLogger(OperatorNotificationWatcher.class);
+    private static final int DEFAULT_FIRST_RESPONSE_TARGET_MINUTES = 24 * 60;
+    private static final DateTimeFormatter LOCAL_TIMESTAMP_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     private final JdbcTemplate jdbcTemplate;
     private final NotificationService notificationService;
     private final DialogAiAssistantService dialogAiAssistantService;
+    private final AlertQueueService alertQueueService;
+    private final ChannelRepository channelRepository;
+    private final DialogAuditService dialogAuditService;
+    private final SharedConfigService sharedConfigService;
 
     private final AtomicLong lastChatHistoryId = new AtomicLong(0);
     private final AtomicLong lastFeedbackId = new AtomicLong(0);
 
     public OperatorNotificationWatcher(JdbcTemplate jdbcTemplate,
                                        NotificationService notificationService,
-                                       DialogAiAssistantService dialogAiAssistantService) {
+                                       DialogAiAssistantService dialogAiAssistantService,
+                                       AlertQueueService alertQueueService,
+                                       ChannelRepository channelRepository,
+                                       DialogAuditService dialogAuditService,
+                                       SharedConfigService sharedConfigService) {
         this.jdbcTemplate = jdbcTemplate;
         this.notificationService = notificationService;
         this.dialogAiAssistantService = dialogAiAssistantService;
+        this.alertQueueService = alertQueueService;
+        this.channelRepository = channelRepository;
+        this.dialogAuditService = dialogAuditService;
+        this.sharedConfigService = sharedConfigService;
     }
 
     @PostConstruct
@@ -45,6 +67,7 @@ public class OperatorNotificationWatcher {
     void watch() {
         watchChatHistoryMessages();
         watchFeedbacks();
+        watchFirstResponseOverdue();
     }
 
     private void watchChatHistoryMessages() {
@@ -83,6 +106,12 @@ public class OperatorNotificationWatcher {
                             continue;
                         }
                         if (!isExternalDialogEvent(sender, messageType)) {
+                            continue;
+                        }
+                        boolean initialPublicFormMessage = dialogAuditService.hasSuccessfulDialogAction(ticketId, "public_form_submit")
+                                && isFirstExternalMessage(ticketId, id);
+                        if (initialPublicFormMessage) {
+                            dialogAiAssistantService.processIncomingClientMessage(ticketId, message, messageType, attachment);
                             continue;
                         }
 
@@ -153,6 +182,138 @@ public class OperatorNotificationWatcher {
                 },
                 afterId
         );
+    }
+
+    private void watchFirstResponseOverdue() {
+        int targetMinutes = resolveFirstResponseTargetMinutes();
+        jdbcTemplate.query(
+                """
+                SELECT t.ticket_id,
+                       t.channel_id,
+                       COALESCE(
+                           (
+                               SELECT MIN(ch.timestamp)
+                                 FROM chat_history ch
+                                WHERE ch.ticket_id = t.ticket_id
+                                  AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+                           ),
+                           t.created_at
+                       ) AS first_client_at
+                  FROM tickets t
+                 WHERE COALESCE(lower(t.status), 'open') NOT IN ('resolved', 'closed')
+                   AND EXISTS (
+                       SELECT 1
+                         FROM chat_history ch
+                        WHERE ch.ticket_id = t.ticket_id
+                          AND lower(COALESCE(ch.sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+                   )
+                   AND NOT EXISTS (
+                       SELECT 1
+                         FROM chat_history ch
+                        WHERE ch.ticket_id = t.ticket_id
+                          AND lower(COALESCE(ch.sender, '')) IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+                   )
+                 ORDER BY t.ticket_id DESC
+                """,
+                rs -> {
+                    while (rs.next()) {
+                        String ticketId = trimToNull(rs.getString("ticket_id"));
+                        Long channelId = rs.getObject("channel_id") != null ? rs.getLong("channel_id") : null;
+                        String firstClientAtRaw = trimToNull(rs.getString("first_client_at"));
+                        if (!StringUtils.hasText(ticketId) || channelId == null || !StringUtils.hasText(firstClientAtRaw)) {
+                            continue;
+                        }
+                        if (dialogAuditService.hasSuccessfulDialogAction(ticketId, "first_response_overdue_notification")) {
+                            continue;
+                        }
+                        OffsetDateTime firstClientAt = parseTimestamp(firstClientAtRaw);
+                        if (firstClientAt == null) {
+                            continue;
+                        }
+                        long overdueMinutes = java.time.Duration.between(firstClientAt, OffsetDateTime.now(ZoneOffset.UTC)).toMinutes();
+                        if (overdueMinutes < targetMinutes) {
+                            continue;
+                        }
+                        Channel channel = channelRepository.findById(channelId).orElse(null);
+                        if (channel == null) {
+                            continue;
+                        }
+                        boolean notified = alertQueueService.notifyFirstResponseOverdue(channel, ticketId, overdueMinutes);
+                        if (notified) {
+                            dialogAuditService.logDialogActionAudit(
+                                    ticketId,
+                                    "notification_watcher",
+                                    "first_response_overdue_notification",
+                                    "success",
+                                    "channel=" + channelId + ", overdue_minutes=" + overdueMinutes + ", threshold_minutes=" + targetMinutes
+                            );
+                        }
+                    }
+                }
+        );
+    }
+
+    private int resolveFirstResponseTargetMinutes() {
+        try {
+            Map<String, Object> settings = sharedConfigService.loadSettings();
+            Object dialogConfigRaw = settings.get("dialog_config");
+            if (dialogConfigRaw instanceof Map<?, ?> dialogConfig) {
+                Object raw = dialogConfig.get("sla_target_minutes");
+                if (raw instanceof Number number && number.intValue() > 0) {
+                    return number.intValue();
+                }
+                if (raw != null) {
+                    int parsed = Integer.parseInt(String.valueOf(raw).trim());
+                    if (parsed > 0) {
+                        return parsed;
+                    }
+                }
+            }
+        } catch (Exception ex) {
+            log.debug("Unable to resolve sla_target_minutes for notification watcher: {}", ex.getMessage());
+        }
+        return DEFAULT_FIRST_RESPONSE_TARGET_MINUTES;
+    }
+
+    private boolean isFirstExternalMessage(String ticketId, long messageId) {
+        if (!StringUtils.hasText(ticketId) || messageId <= 0) {
+            return false;
+        }
+        try {
+            Long count = jdbcTemplate.queryForObject("""
+                    SELECT COUNT(*)
+                      FROM chat_history
+                     WHERE ticket_id = ?
+                       AND id < ?
+                       AND lower(COALESCE(sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+                    """,
+                    Long.class,
+                    ticketId.trim(),
+                    messageId);
+            return count != null && count == 0L;
+        } catch (Exception ex) {
+            return false;
+        }
+    }
+
+    private OffsetDateTime parseTimestamp(String raw) {
+        if (!StringUtils.hasText(raw)) {
+            return null;
+        }
+        String value = raw.trim();
+        try {
+            return OffsetDateTime.parse(value);
+        } catch (DateTimeParseException ignored) {
+        }
+        try {
+            return OffsetDateTime.parse(value.replace(' ', 'T') + "Z");
+        } catch (DateTimeParseException ignored) {
+        }
+        try {
+            return LocalDateTime.parse(value.replace('T', ' '), LOCAL_TIMESTAMP_FORMATTER).atOffset(ZoneOffset.UTC);
+        } catch (DateTimeParseException ignored) {
+            return null;
+        }
     }
 
     private long readMaxId(String table) {
@@ -238,7 +399,7 @@ public class OperatorNotificationWatcher {
         String normalized = message.trim().toLowerCase(Locale.ROOT);
         return normalized.contains("автоматически закрыт")
                 && normalized.contains("отсутств")
-                && normalized.contains("активност");
+                && normalized.contains("активнос");
     }
 
     private String normalizeSender(String value) {

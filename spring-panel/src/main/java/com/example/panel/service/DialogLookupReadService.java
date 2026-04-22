@@ -184,7 +184,18 @@ public class DialogLookupReadService {
                                    )
                                )
                            )
-                      ORDER BY substr(COALESCE(m.created_at, t.created_at), 1, 19) DESC,
+                      ORDER BY substr(COALESCE(
+                                   (
+                                       SELECT timestamp
+                                         FROM chat_history ch
+                                        WHERE ch.ticket_id = t.ticket_id
+                                        ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                                                 COALESCE(ch.tg_message_id, 0) DESC,
+                                                 ch.id DESC
+                                        LIMIT 1
+                                   ),
+                                   COALESCE(m.created_at, t.created_at)
+                               ), 1, 19) DESC,
                                t.ticket_id DESC
                     """.formatted(ratingSelect);
             List<DialogListItem> items = jdbcTemplate.query(sql, (rs, rowNum) -> new DialogListItem(

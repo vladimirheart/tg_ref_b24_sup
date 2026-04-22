@@ -759,6 +759,9 @@ public class ChannelApiController {
         Map<String, Object> alertQueue = root.has("alertQueue")
                 ? normalizeAlertQueue(root.path("alertQueue"))
                 : null;
+        Map<String, Object> panelNotifications = root.has("panelNotifications")
+                ? normalizePanelNotifications(root.path("panelNotifications"))
+                : null;
         int disabledStatus = root.path("disabledStatus").asInt(404) == 410 ? 410 : 404;
         List<Map<String, Object>> fields = normalizeQuestionFields(root.path("fields"));
         Map<String, Object> normalized = new LinkedHashMap<>();
@@ -776,6 +779,9 @@ public class ChannelApiController {
         }
         if (alertQueue != null) {
             normalized.put("alertQueue", alertQueue);
+        }
+        if (panelNotifications != null) {
+            normalized.put("panelNotifications", panelNotifications);
         }
         normalized.put("disabledStatus", disabledStatus);
         normalized.put("fields", fields);
@@ -799,6 +805,58 @@ public class ChannelApiController {
         }
         Map<String, Object> normalized = new LinkedHashMap<>();
         normalized.put("enabled", node.path("enabled").asBoolean(false));
+        normalized.put("department", stringValue(node.path("department").asText("")));
+        normalized.put("targetMode", mode);
+        normalized.put("deliveryMode", deliveryMode);
+        normalized.put("employeeUsernames", normalizeStringList(node.path("employeeUsernames")));
+        normalized.put("excludeUsernames", normalizeStringList(node.path("excludeUsernames")));
+        return normalized;
+    }
+
+    private Map<String, Object> normalizePanelNotifications(JsonNode node) {
+        if (node == null || node.isNull()) {
+            return Map.of();
+        }
+        if (!node.isObject()) {
+            throw new IllegalArgumentException("questions_cfg.panelNotifications должен быть объектом");
+        }
+        JsonNode routingNode = node.path("routing").isObject() ? node.path("routing") : node;
+        JsonNode eventsNode = node.path("events");
+        Map<String, Object> normalized = new LinkedHashMap<>();
+        normalized.put("routing", normalizeAlertRouting(routingNode, true));
+        Map<String, Object> events = new LinkedHashMap<>();
+        events.put("newPublicAppeal", eventsNode.path("newPublicAppeal").asBoolean(true));
+        events.put("firstResponseOverdue", eventsNode.path("firstResponseOverdue").asBoolean(false));
+        normalized.put("events", events);
+        return normalized;
+    }
+
+    private Map<String, Object> normalizeAlertRouting(JsonNode node, boolean allowAllOperators) {
+        if (node == null || node.isNull()) {
+            return Map.of(
+                    "department", "",
+                    "targetMode", allowAllOperators ? "all_operators" : "department_all",
+                    "deliveryMode", "all",
+                    "employeeUsernames", List.of(),
+                    "excludeUsernames", List.of()
+            );
+        }
+        if (!node.isObject()) {
+            throw new IllegalArgumentException("questions_cfg.panelNotifications.routing должен быть объектом");
+        }
+        String defaultMode = allowAllOperators ? "all_operators" : "department_all";
+        String mode = stringValue(node.path("targetMode").asText(defaultMode)).toLowerCase();
+        Set<String> allowedModes = allowAllOperators
+                ? Set.of("all_operators", "department_all", "employees_only", "department_except")
+                : Set.of("department_all", "employees_only", "department_except");
+        if (!allowedModes.contains(mode)) {
+            mode = defaultMode;
+        }
+        String deliveryMode = stringValue(node.path("deliveryMode").asText("all")).toLowerCase();
+        if (!Set.of("all", "online_only_fallback_all").contains(deliveryMode)) {
+            deliveryMode = "all";
+        }
+        Map<String, Object> normalized = new LinkedHashMap<>();
         normalized.put("department", stringValue(node.path("department").asText("")));
         normalized.put("targetMode", mode);
         normalized.put("deliveryMode", deliveryMode);

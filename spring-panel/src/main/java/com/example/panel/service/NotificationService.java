@@ -125,10 +125,15 @@ public class NotificationService {
         if (!StringUtils.hasText(text)) {
             return;
         }
+        notifyUsersExcluding(findAllOperatorRecipients(), excludedIdentity, text, url);
+    }
+
+    @Transactional(readOnly = true)
+    public Set<String> findAllOperatorRecipients() {
         Set<String> recipients = new LinkedHashSet<>();
         recipients.addAll(loadOperatorRecipients(usersJdbcTemplate));
         recipients.addAll(loadOperatorRecipients(jdbcTemplate));
-        notifyUsersExcluding(recipients, excludedIdentity, text, url);
+        return recipients;
     }
 
     private Set<String> loadOperatorRecipients(JdbcTemplate source) {
