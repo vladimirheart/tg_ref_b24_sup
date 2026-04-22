@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -25,6 +26,7 @@ import java.util.Map;
 import java.util.Set;
 
 @Service
+@Order(140)
 public class RmsMonitoringSeedImportService implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(RmsMonitoringSeedImportService.class);

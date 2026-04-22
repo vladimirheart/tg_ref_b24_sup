@@ -115,12 +115,12 @@ public class RmsLicenseMonitoringService {
         networkRefreshExecutor.shutdownNow();
     }
 
-    @Transactional(readOnly = true)
+    @Transactional(transactionManager = "monitoringTransactionManager", readOnly = true)
     public List<RmsLicenseMonitor> findAll() {
         return repository.findAllByOrderByRmsAddressAscIdAsc();
     }
 
-    @Transactional
+    @Transactional(transactionManager = "monitoringTransactionManager")
     public RmsLicenseMonitor createMonitor(String rmsAddress,
                                            String authLogin,
                                            String authPassword,
@@ -152,7 +152,7 @@ public class RmsLicenseMonitoringService {
         return repository.findById(monitor.getId()).orElse(monitor);
     }
 
-    @Transactional
+    @Transactional(transactionManager = "monitoringTransactionManager")
     public RmsLicenseMonitor updateMonitor(long id,
                                            String rmsAddress,
                                            String authLogin,
@@ -187,7 +187,7 @@ public class RmsLicenseMonitoringService {
         return repository.findById(monitor.getId()).orElse(monitor);
     }
 
-    @Transactional
+    @Transactional(transactionManager = "monitoringTransactionManager")
     public void deleteMonitor(long id) {
         if (!repository.existsById(id)) {
             throw new IllegalArgumentException("RMS-запись не найдена");
@@ -213,7 +213,7 @@ public class RmsLicenseMonitoringService {
         return new RefreshRequestResult("queued", currentRefreshState());
     }
 
-    @Transactional(readOnly = true)
+    @Transactional(transactionManager = "monitoringTransactionManager", readOnly = true)
     public String loadTracerouteReport(long id) {
         RmsLicenseMonitor monitor = repository.findById(id)
             .orElseThrow(() -> new IllegalArgumentException("RMS-запись не найдена"));
