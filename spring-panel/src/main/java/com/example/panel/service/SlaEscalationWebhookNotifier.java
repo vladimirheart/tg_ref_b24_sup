@@ -60,13 +60,12 @@ public class SlaEscalationWebhookNotifier {
 
     @Autowired
     public SlaEscalationWebhookNotifier(SharedConfigService sharedConfigService,
-                                        DialogService dialogService,
                                         DialogLookupReadService dialogLookupReadService,
                                         DialogResponsibilityService dialogResponsibilityService,
                                         DialogAuditService dialogAuditService,
                                         ObjectMapper objectMapper) {
         this.sharedConfigService = sharedConfigService;
-        this.dialogService = dialogService;
+        this.dialogService = null;
         this.dialogLookupReadService = dialogLookupReadService;
         this.dialogResponsibilityService = dialogResponsibilityService;
         this.dialogAuditService = dialogAuditService;
@@ -76,7 +75,12 @@ public class SlaEscalationWebhookNotifier {
     SlaEscalationWebhookNotifier(SharedConfigService sharedConfigService,
                                  DialogService dialogService,
                                  ObjectMapper objectMapper) {
-        this(sharedConfigService, dialogService, null, null, null, objectMapper);
+        this.sharedConfigService = sharedConfigService;
+        this.dialogService = dialogService;
+        this.dialogLookupReadService = null;
+        this.dialogResponsibilityService = null;
+        this.dialogAuditService = null;
+        this.objectMapper = objectMapper;
     }
 
     @Scheduled(fixedDelayString = "${panel.sla-escalation.webhook-check-interval-ms:120000}")
