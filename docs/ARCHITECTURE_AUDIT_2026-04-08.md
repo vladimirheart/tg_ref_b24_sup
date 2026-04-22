@@ -2,7 +2,7 @@
 **Дата:** 8 апреля 2026  
 **Статус:** Актуально, но в активной фазе исправления  
 **Актуализация:** 9 апреля 2026 (см. `docs/ARCHITECTURE_AUDIT_VALIDATION_2026-04-09.md`)  
-**Последняя актуализация:** 21 апреля 2026
+**Последняя актуализация:** 22 апреля 2026
 
 ---
 
@@ -22,7 +22,7 @@
 ## 🧭 Текущее состояние
 
 Этот документ больше нельзя читать как “чистый список проблем на старте”. К
-21 апреля 2026 часть наиболее болезненных рисков уже снижена в коде.
+22 апреля 2026 часть наиболее болезненных рисков уже снижена в коде.
 
 Что уже существенно улучшено:
 
@@ -92,6 +92,19 @@
   smoke tests плюс WebMvc coverage для sliced dialog/settings controllers,
   shared config/env foundation и runtime contract.
 
+Что уже больше не выглядит как главный hotspot:
+
+- giant controller-проблема в `dialogs/settings` уже не является центральным
+  архитектурным риском: основной transport-layer split фактически завершён;
+- тема/UI bootstrap больше не являются хаотичным page-by-page набором
+  скриптов: foundation и ownership уже зафиксированы;
+- bot runtime больше не выглядит как “один `spring-boot:run` без контракта”:
+  теперь главный риск сместился с самого факта запуска на качество и
+  полноту межмодульного runtime/platform boundary;
+- часть старых helper-дублей в `workspace` и SLA runtime уже снята, поэтому
+  текущий риск теперь скорее в remaining bounded contexts, чем в
+  очевидном copy-paste и transport-level монолитах.
+
 Что остаётся главным архитектурным риском:
 
 - `DialogService` всё ещё слишком крупный и остаётся главным кандидатом на
@@ -131,16 +144,17 @@
 - `java-bot/bot-telegram/src/main/java/com/example/supportbot/telegram/SupportBot.java`
 - `java-bot/bot-vk/src/main/java/com/example/supportbot/vk/VkSupportBot.java`
 
-**Суть:** Bot-модули всё ещё используют core-сервисы напрямую и остаются тесно
-связаны с платформ-специфичной реализацией. Полного adapter boundary пока нет.
+**Суть:** Bot runtime contract уже стал заметно лучше, но bot-модули всё ещё
+используют core-сервисы напрямую и остаются тесно связаны с
+платформ-специфичной реализацией. Полного adapter boundary пока нет.
 
 **Последствия:**
 - сложно менять runtime/transport contract для отдельных платформ;
 - трудно тестировать платформы изолированно;
 - изменения в core продолжают иметь широкий blast radius.
 
-**Решение:** Ввести явный platform-adapter boundary или эквивалентный runtime
-contract между platform bot и core orchestration.
+**Решение:** Дожать platform-adapter boundary поверх уже появившегося runtime
+contract и перестать держать часть orchestration прямо в platform bot-классах.
 
 ### 2. Отсутствие явного слоя DTO между Entity и API
 
@@ -166,7 +180,8 @@ contract между platform bot и core orchestration.
 - runtime-границы между `spring-panel` и `java-bot`
 
 **Суть:** Базовый обработчик уже есть, но единый error contract пока не
-распространён на весь REST-слой и runtime boundary.
+распространён на весь REST-слой, новый sliced controller layer и runtime
+boundary между `spring-panel` и `java-bot`.
 
 **Последствия:**
 - разные сценарии всё ещё могут возвращать неодинаковые ошибки;
@@ -184,6 +199,8 @@ contract между platform bot и core orchestration.
 
 **Актуальный фокус:**
 - `DialogService` остаётся главным giant service и основным SRP-риском;
+- `DialogWorkspaceService` уже заметно сужен, но всё ещё остаётся крупным
+  сервисом-оркестратором;
 - часть orchestration в `settings` уже разрезана, но remaining subdomains
   всё ещё требуют контроля.
 
@@ -222,6 +239,8 @@ DialogService
 
 **Суть:** После transport/runtime рефакторинга этот риск стал ещё заметнее:
 конфигурационный contract должен быть единым, а не “похожим в двух местах”.
+Сейчас это уже не просто внутренняя красота кода, а риск divergence между
+panel runtime expectations и bot runtime behavior.
 
 **Решение:** Вынести общий config contract/module или хотя бы общий documented
 shared config boundary.
@@ -239,7 +258,8 @@ bounded contexts, orchestration и integration layers.
 **Проблема:** Bot-классы продолжают смешивать роли platform adapter,
 transport handler и orchestration entrypoint.
 
-**Решение:** Продолжать `Phase 5` через более явный runtime/platform boundary.
+**Решение:** Продолжать `Phase 5` через более явный runtime/platform boundary и
+не останавливаться на одном только launcher/env contract.
 
 ### 8. Неполное использование Spring Data JPA
 
@@ -265,8 +285,8 @@ DTO/model-слой существует, но naming и ответственно
 
 Конфигурация приложения стала лучше формализована: у bot runtime уже есть
 launcher/env/readiness contract и documented production recipe. Но часть
-runtime/env ожиданий по проекту всё ещё держится на implicit conventions и
-defaults.
+runtime/env ожиданий по проекту всё ещё держится на implicit conventions,
+defaults и частично legacy-compatible фасадах.
 
 ### 11. Отсутствие сквозного API versioning
 
@@ -308,6 +328,7 @@ defaults.
 | Code Coverage | Не формализована | 60%+ |
 | Persistence consistency | Смешанный JDBC/JPA | явные domain boundaries |
 | Shared runtime/config contract | Формализован лучше, но ещё не унифицирован между panel и bot | единый documented contract |
+| Bot runtime boundary | launcher/env/readiness уже описаны и тестируются точечно | явный adapter/runtime boundary без legacy orchestration в bot-классах |
 
 ---
 
@@ -320,6 +341,7 @@ defaults.
 
 ### Фаза 2: Текущий главный фокус
 - [ ] Разрезать `DialogService` по bounded contexts
+- [ ] Досузить `DialogWorkspaceService` и consumer-фасады вокруг него
 - [ ] Добить remaining `settings` subdomains
 - [ ] Расширить и стабилизировать safety net для следующих крупных рефакторингов
 - [ ] Закрыть runtime/notifier хвосты, которые ещё держатся на legacy-compatible фасадах
@@ -333,10 +355,10 @@ defaults.
 
 ## 📁 Следующие шаги
 
-1. Дожать service-level split `DialogService`
+1. Дожать service-level split `DialogService` и сузить remaining workspace/notifier consumer-facades
 2. Добить remaining `settings` subdomains и persistence boundaries
-3. Продолжить расширять `Phase 6` regression net
+3. Продолжить расширять и стабилизировать `Phase 6` regression net
 4. После этого возвращаться к shared-config unification и DTO/error contract
 
 **Автор исходного аудита:** GitHub Copilot  
-**Статус:** Документ актуализирован под состояние кода на 21 апреля 2026
+**Статус:** Документ актуализирован под состояние кода на 22 апреля 2026
