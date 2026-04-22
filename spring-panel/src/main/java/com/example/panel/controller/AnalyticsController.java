@@ -106,6 +106,13 @@ public class AnalyticsController {
         return "analytics/certificates";
     }
 
+    @GetMapping("/rms-control")
+    @PreAuthorize("hasAuthority('PAGE_ANALYTICS')")
+    public String rmsMonitoring(Model model, Authentication authentication) {
+        navigationService.enrich(model, authentication);
+        return "analytics/rms-control";
+    }
+
     @PostMapping(value = "/export", produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
     @PreAuthorize("hasAuthority('PAGE_ANALYTICS')")
     public ResponseEntity<StreamingResponseBody> export(@RequestBody(required = false) Map<String, Object> request) {
