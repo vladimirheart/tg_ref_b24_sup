@@ -10,6 +10,12 @@
   const rmsLoginInput = document.getElementById('rmsLoginInput');
   const rmsPasswordInput = document.getElementById('rmsPasswordInput');
   const rmsEnabledInput = document.getElementById('rmsEnabledInput');
+  const rmsLicenseMonitoringInput = document.getElementById('rmsLicenseMonitoringInput');
+  const rmsNetworkMonitoringInput = document.getElementById('rmsNetworkMonitoringInput');
+  const bulkEnableLicenseMonitoringBtn = document.getElementById('bulkEnableLicenseMonitoringBtn');
+  const bulkDisableLicenseMonitoringBtn = document.getElementById('bulkDisableLicenseMonitoringBtn');
+  const bulkEnableNetworkMonitoringBtn = document.getElementById('bulkEnableNetworkMonitoringBtn');
+  const bulkDisableNetworkMonitoringBtn = document.getElementById('bulkDisableNetworkMonitoringBtn');
 
   const editModalEl = document.getElementById('rmsEditModal');
   const editModal = editModalEl && window.bootstrap ? new bootstrap.Modal(editModalEl) : null;
@@ -19,6 +25,8 @@
   const editRmsLoginInput = document.getElementById('editRmsLoginInput');
   const editRmsPasswordInput = document.getElementById('editRmsPasswordInput');
   const editRmsEnabledInput = document.getElementById('editRmsEnabledInput');
+  const editRmsLicenseMonitoringInput = document.getElementById('editRmsLicenseMonitoringInput');
+  const editRmsNetworkMonitoringInput = document.getElementById('editRmsNetworkMonitoringInput');
   const editRmsPasswordHint = document.getElementById('editRmsPasswordHint');
 
   let sites = [];
@@ -84,6 +92,12 @@
     return '<span class="badge text-bg-secondary">Свободно</span>';
   }
 
+  function featureBadge(enabled, title) {
+    return enabled
+      ? `<span class="badge rounded-pill text-bg-success-subtle border border-success-subtle text-success">${escapeHtml(title)}: вкл</span>`
+      : `<span class="badge rounded-pill text-bg-secondary">${escapeHtml(title)}: выкл</span>`;
+  }
+
   function renderQueueState() {
     if (!queueStateEl) return;
     if (!refreshState) {
@@ -145,12 +159,19 @@
       const tracerouteButton = site.has_traceroute_report
         ? `<a class="btn btn-outline-secondary btn-sm" href="/api/monitoring/rms/sites/${encodeURIComponent(site.id)}/traceroute">Трассировка</a>`
         : '';
+      const recordEnabled = Boolean(site.enabled);
+      const licenseFeatureEnabled = Boolean(site.license_monitoring_enabled);
+      const networkFeatureEnabled = Boolean(site.network_monitoring_enabled);
       const row = document.createElement('tr');
       row.dataset.siteId = String(site.id);
       row.innerHTML = `
         <td>
           <div class="fw-semibold font-mono">${escapeHtml(site.rms_address_display || site.rms_address || '—')}</div>
-          <div class="small text-muted">${site.enabled ? 'Мониторинг включён' : 'Мониторинг отключён'}</div>
+          <div class="d-flex flex-wrap gap-1 mt-1">
+            ${featureBadge(recordEnabled, 'Запись')}
+            ${featureBadge(licenseFeatureEnabled, 'Лицензии')}
+            ${featureBadge(networkFeatureEnabled, 'Доступность')}
+          </div>
           <div class="small text-muted">Логин: ${escapeHtml(site.auth_login || '—')}</div>
           ${site.password_saved ? '' : '<div class="small text-warning">Пароль не сохранён</div>'}
         </td>
@@ -179,8 +200,18 @@
         <td class="text-end">
           <div class="d-flex flex-wrap justify-content-end gap-2">
             ${tracerouteButton}
-            <button class="btn btn-outline-primary btn-sm" type="button" data-action="edit">Изменить</button>
-            <button class="btn btn-outline-danger btn-sm" type="button" data-action="delete">Удалить</button>
+            <div class="btn-group">
+              <button class="btn btn-outline-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                Действия
+              </button>
+              <ul class="dropdown-menu dropdown-menu-end">
+                <li><button class="dropdown-item" type="button" data-action="refresh-license" ${recordEnabled && licenseFeatureEnabled ? '' : 'disabled'}>Обновить лицензию</button></li>
+                <li><button class="dropdown-item" type="button" data-action="refresh-network" ${recordEnabled && networkFeatureEnabled ? '' : 'disabled'}>Проверить доступность</button></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><button class="dropdown-item" type="button" data-action="edit">Изменить</button></li>
+                <li><button class="dropdown-item text-danger" type="button" data-action="delete">Удалить</button></li>
+              </ul>
+            </div>
           </div>
         </td>
       `;
@@ -270,6 +301,8 @@
       authLogin: rmsLoginInput?.value || '',
       authPassword: rmsPasswordInput?.value || '',
       enabled: rmsEnabledInput?.checked ?? true,
+      licenseMonitoringEnabled: rmsLicenseMonitoringInput?.checked ?? true,
+      networkMonitoringEnabled: rmsNetworkMonitoringInput?.checked ?? true,
     };
     try {
       await requestJson('/api/monitoring/rms/sites', {
@@ -279,6 +312,8 @@
       });
       createForm?.reset();
       if (rmsEnabledInput) rmsEnabledInput.checked = true;
+      if (rmsLicenseMonitoringInput) rmsLicenseMonitoringInput.checked = true;
+      if (rmsNetworkMonitoringInput) rmsNetworkMonitoringInput.checked = true;
       await loadSites(false);
       showMessage('RMS добавлен.', 'success');
     } catch (error) {
@@ -295,6 +330,8 @@
     if (editRmsLoginInput) editRmsLoginInput.value = site.auth_login || '';
     if (editRmsPasswordInput) editRmsPasswordInput.value = '';
     if (editRmsEnabledInput) editRmsEnabledInput.checked = Boolean(site.enabled);
+    if (editRmsLicenseMonitoringInput) editRmsLicenseMonitoringInput.checked = Boolean(site.license_monitoring_enabled);
+    if (editRmsNetworkMonitoringInput) editRmsNetworkMonitoringInput.checked = Boolean(site.network_monitoring_enabled);
     if (editRmsPasswordHint) {
       editRmsPasswordHint.textContent = site.password_saved
         ? 'Пароль уже сохранён. Оставьте поле пустым, чтобы его не менять.'
@@ -315,6 +352,8 @@
       authLogin: editRmsLoginInput?.value || '',
       authPassword: editRmsPasswordInput?.value || '',
       enabled: editRmsEnabledInput?.checked ?? true,
+      licenseMonitoringEnabled: editRmsLicenseMonitoringInput?.checked ?? true,
+      networkMonitoringEnabled: editRmsNetworkMonitoringInput?.checked ?? true,
     };
     try {
       await requestJson(`/api/monitoring/rms/sites/${siteId}`, {
@@ -359,6 +398,47 @@
     }
   }
 
+  async function triggerSiteRefresh(siteId, scope) {
+    const endpoint = scope === 'license'
+      ? `/api/monitoring/rms/sites/${siteId}/refresh/licenses`
+      : `/api/monitoring/rms/sites/${siteId}/refresh/network`;
+    const successMessage = scope === 'license'
+      ? 'Проверка лицензии поставлена в очередь.'
+      : 'Проверка доступности поставлена в очередь.';
+    try {
+      const data = await requestJson(endpoint, {
+        method: 'POST',
+      });
+      refreshState = data.refresh_state || refreshState;
+      renderQueueState();
+      await loadSites(false);
+      showMessage(data.state === 'already_queued' ? 'Проверка уже стоит в очереди.' : successMessage, 'success');
+    } catch (error) {
+      showMessage(`Не удалось поставить проверку в очередь: ${error.message}`, 'error');
+    }
+  }
+
+  async function toggleBulkFeature(scope, enabled) {
+    const endpoint = scope === 'license'
+      ? '/api/monitoring/rms/bulk/license-monitoring'
+      : '/api/monitoring/rms/bulk/network-monitoring';
+    const scopeTitle = scope === 'license' ? 'лицензий' : 'доступности';
+    try {
+      await requestJson(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled }),
+      });
+      await loadSites(false);
+      showMessage(
+        enabled ? `Мониторинг ${scopeTitle} массово включён.` : `Мониторинг ${scopeTitle} массово отключён.`,
+        'success'
+      );
+    } catch (error) {
+      showMessage(`Не удалось изменить массовый режим: ${error.message}`, 'error');
+    }
+  }
+
   function startPolling() {
     if (pollTimer) {
       window.clearInterval(pollTimer);
@@ -380,6 +460,14 @@
       openEditModal(siteId);
       return;
     }
+    if (button.dataset.action === 'refresh-license') {
+      triggerSiteRefresh(siteId, 'license');
+      return;
+    }
+    if (button.dataset.action === 'refresh-network') {
+      triggerSiteRefresh(siteId, 'network');
+      return;
+    }
     if (button.dataset.action === 'delete') {
       deleteSite(siteId);
     }
@@ -392,6 +480,18 @@
   });
   refreshNetworkBtn?.addEventListener('click', () => {
     triggerRefresh('/api/monitoring/rms/refresh/network', 'Обновление статусов RMS поставлено в очередь.');
+  });
+  bulkEnableLicenseMonitoringBtn?.addEventListener('click', () => {
+    toggleBulkFeature('license', true);
+  });
+  bulkDisableLicenseMonitoringBtn?.addEventListener('click', () => {
+    toggleBulkFeature('license', false);
+  });
+  bulkEnableNetworkMonitoringBtn?.addEventListener('click', () => {
+    toggleBulkFeature('network', true);
+  });
+  bulkDisableNetworkMonitoringBtn?.addEventListener('click', () => {
+    toggleBulkFeature('network', false);
   });
 
   loadSites(true);

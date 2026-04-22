@@ -94,6 +94,8 @@ public class RmsMonitoringSeedImportService implements ApplicationRunner {
                 monitor.setAuthLogin(row.login());
                 monitor.setAuthPassword("");
                 monitor.setEnabled(Boolean.FALSE);
+                monitor.setLicenseMonitoringEnabled(Boolean.TRUE);
+                monitor.setNetworkMonitoringEnabled(Boolean.TRUE);
                 monitor.setServerName(row.name());
                 monitor.setServerType(row.type());
                 monitor.setServerVersion(null);
