@@ -196,6 +196,12 @@
   `DialogResolveResult` больше не живёт как nested record giant service;
   это позволило перевести lifecycle/read-side use-sites на отдельные доменные
   опоры без прямой привязки к nested API `DialogService`.
+- следующим пакетом boundary-слой вокруг telemetry/macro governance получил
+  уже реальные data/support зависимости: raw workspace telemetry
+  read-model/JDBC/aggregation вынесены в `DialogWorkspaceTelemetryDataService`,
+  а helper-слой macro governance/usage/variables — в
+  `DialogMacroGovernanceSupportService`; сам `DialogService` переключён на
+  эти сервисы и потерял ещё один крупный блок telemetry/macro helper-логики.
 
 Что остаётся:
 
@@ -203,8 +209,10 @@
   mapping layers;
 - продолжить вытаскивать из `DialogService` remaining read/write bounded
   contexts уже поверх вынесенного `DialogClientContextReadService`;
-- продолжить снимать direct dependency use-sites, где giant service ещё
-  используется как boundary для telemetry summary и macro governance audit;
+- довести до конца orchestration split вокруг `DialogWorkspaceTelemetrySummaryService`
+  и `DialogMacroGovernanceAuditService`, чтобы после выноса raw
+  telemetry/macro helper/data layer снять remaining compatibility delegates и
+  прямые orchestration-хвосты giant service;
 - продолжить снимать remaining consumer-facades вокруг notifier / telemetry /
   escalation слоёв там, где giant service ещё остаётся техническим посредником;
 - продолжить service-level split уже поверх вынесенных `DialogClientContextReadService`
@@ -369,6 +377,9 @@
   `SettingsLocationsUpdateServiceTest`,
   `SettingsParameterServiceTest`,
   `UiPreferenceServiceTest`;
+- targeted unit tests для новых dialog support/data слоёв:
+  `DialogWorkspaceTelemetryDataServiceTest` и
+  `DialogMacroGovernanceSupportServiceTest`;
 - server-backed UI preferences больше не только “есть”, но и прикрыты
   regression net: alias-нормализация `sortMode/pageSize/updatedAtUtc`
   в `UiPreferenceService` исправлена и зафиксирована тестами;

@@ -86,6 +86,12 @@
   `DialogWorkspaceTelemetryService` и `WorkspaceGuardrailWebhookNotifier`
   больше не тянут `DialogService` напрямую и готовы к следующему real split
   summary/governance логики;
+- следующим пакетом эти boundary-слои получили уже не только обёртки, а
+  реальные data/support dependencies: raw workspace telemetry JDBC/read-model
+  и агрегация вынесены в `DialogWorkspaceTelemetryDataService`, а helper-логика
+  macro governance/usage/variables — в `DialogMacroGovernanceSupportService`;
+  сам `DialogService` переключён на новые слои и потерял значимый кусок raw
+  telemetry/macro helper-блоков;
 - SLA/runtime дублирование между `DialogWorkspaceService` и
   `DialogListReadService` уменьшено через общий `DialogSlaRuntimeService`,
   который теперь держит lifecycle-state, deadline, minutes-left и config
@@ -129,7 +135,7 @@
   на giant service; теперь к этому добавлены ещё lookup/responsibility slices,
   а теперь и lifecycle/audit/details slices, но remaining bounded contexts и
   legacy helper blocks всё ещё не закрыты полностью; при этом сам класс уже
-  заметно уменьшился и сейчас находится примерно на уровне `6014` строк, то
+  заметно уменьшился и сейчас находится примерно на уровне `5517` строк, то
   есть речь уже не о “старом монолите без движения”, а о незавершённом, но
   активно режущемся giant service;
 - `DialogWorkspaceService` всё ещё крупный, хотя уже начал разгружаться через
@@ -144,10 +150,11 @@
 - `SharedConfigService` дублируется между `spring-panel` и `java-bot`;
 - DTO/API contract и error contract всё ещё не унифицированы по проекту;
 - persistence-слой по-прежнему смешивает raw JDBC и JPA/Repository подходы;
-- часть consumer-фасадов вокруг telemetry/notifier слоя уже снята, но
-  следующий шаг там всё ещё остаётся за полным выносом `workspace telemetry`
-  summary и `macro governance` логики из giant `DialogService`, а не только
-  за boundary-wrapper слоем;
+- boundary-wrapper слой вокруг telemetry/notifier уже подкреплён реальными
+  `DialogWorkspaceTelemetryDataService` и
+  `DialogMacroGovernanceSupportService`, поэтому следующий шаг там теперь уже
+  не в raw JDBC/helper выносе, а в полном дожиме orchestration summary/governance
+  логики и сужении remaining compatibility delegates вокруг `DialogService`;
 - `settings` subdomain layer получил адресную test-страховку на уже
   вынесенных сервисах (`runtime/public-form/sla-ai/template/workspace`), но
   больше не ограничивается только ими: теперь targeted tests есть и на
@@ -253,9 +260,12 @@ DialogService
   │   ├─ DialogDetailsReadService
   │   ├─ DialogResponsibilityService
   │   ├─ DialogTicketLifecycleService
-  │   └─ DialogAuditService
+  │   ├─ DialogAuditService
+  │   ├─ DialogWorkspaceTelemetryDataService
+  │   └─ DialogMacroGovernanceSupportService
   ├─ still to narrow:
   │   ├─ DialogWorkspaceService
+  │   ├─ telemetry summary / macro governance orchestration
   │   ├─ reply/message write-side flows
   │   ├─ AI/notification/escalation flows
   │   └─ mapper / assembly layer
