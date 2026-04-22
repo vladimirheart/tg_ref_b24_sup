@@ -40,6 +40,28 @@ public class DialogAuditService {
         }
     }
 
+    public boolean hasSuccessfulDialogAction(String ticketId, String action) {
+        if (!StringUtils.hasText(ticketId) || !StringUtils.hasText(action)) {
+            return false;
+        }
+        try {
+            Long count = jdbcTemplate.queryForObject("""
+                    SELECT COUNT(*)
+                      FROM dialog_action_audit
+                     WHERE ticket_id = ?
+                       AND action = ?
+                       AND result = 'success'
+                    """,
+                    Long.class,
+                    ticketId.trim(),
+                    action.trim());
+            return count != null && count > 0L;
+        } catch (DataAccessException ex) {
+            log.warn("Unable to read dialog action audit for ticket {}: {}", ticketId, DialogService.summarizeDataAccessException(ex));
+            return false;
+        }
+    }
+
     public void logWorkspaceTelemetry(String actor,
                                       String eventType,
                                       String eventGroup,
