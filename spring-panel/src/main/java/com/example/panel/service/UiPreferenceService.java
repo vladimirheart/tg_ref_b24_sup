@@ -210,35 +210,36 @@ public class UiPreferenceService {
         if (view != null) {
             normalized.put("view", view);
         }
-        String sortMode = normalizeDialogsSortMode(payload.get("sort_mode"));
-        if (sortMode == null) {
-            sortMode = normalizeDialogsSortMode(payload.get("sortMode"));
-        }
+        String sortMode = normalizeDialogsSortMode(firstPresent(payload, "sort_mode", "sortMode"));
         if (sortMode != null) {
             normalized.put("sort_mode", sortMode);
         }
-        Integer slaWindowMinutes = normalizeDialogsSlaWindowMinutes(payload.get("sla_window_minutes"));
-        if (slaWindowMinutes == null) {
-            slaWindowMinutes = normalizeDialogsSlaWindowMinutes(payload.get("slaWindowMinutes"));
-        }
+        Integer slaWindowMinutes = normalizeDialogsSlaWindowMinutes(firstPresent(payload, "sla_window_minutes", "slaWindowMinutes"));
         if (slaWindowMinutes != null) {
             normalized.put("sla_window_minutes", slaWindowMinutes);
         }
-        String pageSize = normalizeDialogsPageSize(payload.get("page_size"));
-        if (pageSize == null) {
-            pageSize = normalizeDialogsPageSize(payload.get("pageSize"));
-        }
+        String pageSize = normalizeDialogsPageSize(firstPresent(payload, "page_size", "pageSize"));
         if (pageSize != null) {
             normalized.put("page_size", pageSize);
         }
-        String updatedAtUtc = normalizeUtcTimestamp(payload.get("updated_at_utc"));
-        if (updatedAtUtc == null) {
-            updatedAtUtc = normalizeUtcTimestamp(payload.get("updatedAtUtc"));
-        }
+        String updatedAtUtc = normalizeUtcTimestamp(firstPresent(payload, "updated_at_utc", "updatedAtUtc"));
         if (updatedAtUtc != null) {
             normalized.put("updated_at_utc", updatedAtUtc);
         }
         return normalized;
+    }
+
+    private Object firstPresent(Map<String, Object> payload, String primaryKey, String aliasKey) {
+        if (payload == null || payload.isEmpty()) {
+            return null;
+        }
+        if (payload.containsKey(primaryKey)) {
+            return payload.get(primaryKey);
+        }
+        if (payload.containsKey(aliasKey)) {
+            return payload.get(aliasKey);
+        }
+        return null;
     }
 
     private String normalizeTheme(Object value) {
