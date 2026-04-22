@@ -139,10 +139,10 @@
   следующий шаг там всё ещё остаётся за полным выносом `workspace telemetry`
   summary и `macro governance` логики из giant `DialogService`, а не только
   за boundary-wrapper слоем;
-- часть legacy safety net всё ещё нестабильна: например, есть старые хвосты
-  вокруг `SlaEscalationWebhookNotifierTest`, которые уже не блокируют
-  текущие рефакторинги, но показывают, что regression net пока не является
-  полностью спокойным и широким.
+- `settings` subdomain layer получил адресную test-страховку на уже
+  вынесенных сервисах (`runtime/public-form/sla-ai/template/workspace`), но
+  более широкий integration net для `settings` и shared config boundary всё
+  ещё не завершён.
 
 ---
 
