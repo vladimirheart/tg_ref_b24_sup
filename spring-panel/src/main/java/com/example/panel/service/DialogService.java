@@ -37,8 +37,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -89,28 +87,11 @@ public class DialogService {
     private static final int DEFAULT_MACRO_GOVERNANCE_UNUSED_DAYS = 30;
     private static final long DEFAULT_MACRO_GOVERNANCE_REVIEW_TTL_HOURS = 24L * 90L;
     private static final long DEFAULT_MACRO_GOVERNANCE_CHECKPOINT_TTL_HOURS = 24L * 7L;
-    private static final Pattern MACRO_VARIABLE_PATTERN = Pattern.compile("\\{\\{\\s*([a-z0-9_]+)(?:\\s*\\|\\s*([^}]+))?\\s*}}", Pattern.CASE_INSENSITIVE);
-    private static final Set<String> BUILTIN_MACRO_VARIABLE_KEYS = Set.of(
-            "client_name",
-            "ticket_id",
-            "operator_name",
-            "channel_name",
-            "business",
-            "location",
-            "dialog_status",
-            "created_at",
-            "client_total_dialogs",
-            "client_open_dialogs",
-            "client_resolved_30d",
-            "client_avg_rating",
-            "client_segment_list",
-            "current_date",
-            "current_time"
-    );
-
     private final JdbcTemplate jdbcTemplate;
     private final JdbcTemplate usersJdbcTemplate;
     private final SharedConfigService sharedConfigService;
+    private final DialogWorkspaceTelemetryDataService dialogWorkspaceTelemetryDataService;
+    private final DialogMacroGovernanceSupportService dialogMacroGovernanceSupportService;
     private final DialogLookupReadService dialogLookupReadService;
     private final DialogResponsibilityService dialogResponsibilityService;
     private final DialogClientContextReadService dialogClientContextReadService;
@@ -122,6 +103,8 @@ public class DialogService {
     public DialogService(JdbcTemplate jdbcTemplate,
                          @Qualifier("usersJdbcTemplate") JdbcTemplate usersJdbcTemplate,
                          SharedConfigService sharedConfigService,
+                         DialogWorkspaceTelemetryDataService dialogWorkspaceTelemetryDataService,
+                         DialogMacroGovernanceSupportService dialogMacroGovernanceSupportService,
                          DialogLookupReadService dialogLookupReadService,
                          DialogResponsibilityService dialogResponsibilityService,
                          DialogClientContextReadService dialogClientContextReadService,
@@ -132,6 +115,8 @@ public class DialogService {
         this.jdbcTemplate = jdbcTemplate;
         this.usersJdbcTemplate = usersJdbcTemplate;
         this.sharedConfigService = sharedConfigService;
+        this.dialogWorkspaceTelemetryDataService = dialogWorkspaceTelemetryDataService;
+        this.dialogMacroGovernanceSupportService = dialogMacroGovernanceSupportService;
         this.dialogLookupReadService = dialogLookupReadService;
         this.dialogResponsibilityService = dialogResponsibilityService;
         this.dialogClientContextReadService = dialogClientContextReadService;
@@ -803,10 +788,10 @@ public class DialogService {
         Instant windowStart = windowEnd.minusSeconds(windowDays * 24L * 60L * 60L);
         Instant previousWindowEnd = windowStart;
         Instant previousWindowStart = previousWindowEnd.minusSeconds(windowDays * 24L * 60L * 60L);
-        List<Map<String, Object>> rows = loadWorkspaceTelemetryRows(windowStart, windowEnd, experimentName);
-        List<Map<String, Object>> previousRows = loadWorkspaceTelemetryRows(previousWindowStart, previousWindowEnd, experimentName);
-        List<Map<String, Object>> shiftRows = aggregateWorkspaceTelemetryRows(rows, "shift");
-        List<Map<String, Object>> teamRows = aggregateWorkspaceTelemetryRows(rows, "team");
+        List<Map<String, Object>> rows = dialogWorkspaceTelemetryDataService.loadWorkspaceTelemetryRows(windowStart, windowEnd, experimentName);
+        List<Map<String, Object>> previousRows = dialogWorkspaceTelemetryDataService.loadWorkspaceTelemetryRows(previousWindowStart, previousWindowEnd, experimentName);
+        List<Map<String, Object>> shiftRows = dialogWorkspaceTelemetryDataService.aggregateWorkspaceTelemetryRows(rows, "shift");
+        List<Map<String, Object>> teamRows = dialogWorkspaceTelemetryDataService.aggregateWorkspaceTelemetryRows(rows, "team");
         Map<String, Object> totals = computeWorkspaceTelemetryTotals(rows);
         Map<String, Object> previousTotals = computeWorkspaceTelemetryTotals(previousRows);
 
@@ -823,7 +808,7 @@ public class DialogService {
         payload.put("rows", rows);
         payload.put("by_shift", shiftRows);
         payload.put("by_team", teamRows);
-        payload.put("gap_breakdown", buildWorkspaceGapBreakdown(windowStart, windowEnd, experimentName));
+        payload.put("gap_breakdown", dialogWorkspaceTelemetryDataService.loadWorkspaceGapBreakdown(windowStart, windowEnd, experimentName));
         Map<String, Object> guardrails = buildWorkspaceGuardrails(totals, previousTotals, rows, shiftRows, teamRows, workspaceTelemetryConfig);
         payload.put("guardrails", guardrails);
         Map<String, Object> rolloutDecision = buildWorkspaceRolloutDecision(cohortComparison, guardrails);
@@ -855,10 +840,10 @@ public class DialogService {
         Instant previousWindowStart = previousWindowEnd.minusSeconds(rangeSeconds);
 
         Map<String, Object> workspaceTelemetryConfig = resolveWorkspaceTelemetryConfig();
-        List<Map<String, Object>> rows = loadWorkspaceTelemetryRows(resolvedStart, resolvedEnd, experimentName);
-        List<Map<String, Object>> previousRows = loadWorkspaceTelemetryRows(previousWindowStart, previousWindowEnd, experimentName);
-        List<Map<String, Object>> shiftRows = aggregateWorkspaceTelemetryRows(rows, "shift");
-        List<Map<String, Object>> teamRows = aggregateWorkspaceTelemetryRows(rows, "team");
+        List<Map<String, Object>> rows = dialogWorkspaceTelemetryDataService.loadWorkspaceTelemetryRows(resolvedStart, resolvedEnd, experimentName);
+        List<Map<String, Object>> previousRows = dialogWorkspaceTelemetryDataService.loadWorkspaceTelemetryRows(previousWindowStart, previousWindowEnd, experimentName);
+        List<Map<String, Object>> shiftRows = dialogWorkspaceTelemetryDataService.aggregateWorkspaceTelemetryRows(rows, "shift");
+        List<Map<String, Object>> teamRows = dialogWorkspaceTelemetryDataService.aggregateWorkspaceTelemetryRows(rows, "team");
         Map<String, Object> totals = computeWorkspaceTelemetryTotals(rows);
         Map<String, Object> previousTotals = computeWorkspaceTelemetryTotals(previousRows);
 
@@ -875,7 +860,7 @@ public class DialogService {
         payload.put("rows", rows);
         payload.put("by_shift", shiftRows);
         payload.put("by_team", teamRows);
-        payload.put("gap_breakdown", buildWorkspaceGapBreakdown(resolvedStart, resolvedEnd, experimentName));
+        payload.put("gap_breakdown", dialogWorkspaceTelemetryDataService.loadWorkspaceGapBreakdown(resolvedStart, resolvedEnd, experimentName));
         Map<String, Object> guardrails = buildWorkspaceGuardrails(totals, previousTotals, rows, shiftRows, teamRows, workspaceTelemetryConfig);
         payload.put("guardrails", guardrails);
         Map<String, Object> rolloutDecision = buildWorkspaceRolloutDecision(cohortComparison, guardrails);
@@ -971,7 +956,7 @@ public class DialogService {
                 120,
                 1,
                 365);
-        Set<String> knownMacroVariables = resolveKnownMacroVariableKeys(dialogConfig);
+        Set<String> knownMacroVariables = dialogMacroGovernanceSupportService.resolveKnownMacroVariableKeys(dialogConfig);
 
         List<Map<String, Object>> auditedTemplates = new ArrayList<>();
         List<Map<String, Object>> issues = new ArrayList<>();
@@ -1012,7 +997,7 @@ public class DialogService {
                     : -1L;
             boolean reviewFresh = reviewedAt != null && reviewAgeHours <= reviewTtlHours;
             String deprecationReason = normalizeNullString(String.valueOf(template.get("deprecation_reason")));
-            Map<String, Object> usage = loadMacroTemplateUsage(templateId, templateName, usageWindowDays);
+            Map<String, Object> usage = dialogMacroGovernanceSupportService.loadMacroTemplateUsage(templateId, templateName, usageWindowDays);
             long usageCount = toLong(usage.get("usage_count"));
             long previewCount = toLong(usage.get("preview_count"));
             long errorCount = toLong(usage.get("error_count"));
@@ -1020,16 +1005,16 @@ public class DialogService {
             OffsetDateTime lastUsedAtUtc = parseReviewTimestamp(lastUsedAt);
             String deprecatedAtRaw = normalizeNullString(String.valueOf(template.get("deprecated_at")));
             OffsetDateTime deprecatedAtUtc = parseReviewTimestamp(deprecatedAtRaw);
-            List<String> tagAliases = resolveMacroTagAliases(template.get("tags"));
+            List<String> tagAliases = dialogMacroGovernanceSupportService.resolveMacroTagAliases(template.get("tags"));
             int duplicateAliasCount = Math.max(0, tagAliases.size() - new LinkedHashSet<>(tagAliases).size());
-            List<String> usedVariables = extractMacroTemplateVariables(templateText);
+            List<String> usedVariables = dialogMacroGovernanceSupportService.extractMacroTemplateVariables(templateText);
             List<String> unknownVariables = usedVariables.stream()
                     .filter(variable -> !knownMacroVariables.contains(variable))
                     .distinct()
                     .toList();
-            String usageTier = resolveMacroUsageTier(usageCount, usageTierLowMax, usageTierMediumMax);
-            int cleanupSlaDays = resolveMacroTierSlaDays(usageTier, cleanupSlaLowDays, cleanupSlaMediumDays, cleanupSlaHighDays);
-            int deprecationSlaDays = resolveMacroTierSlaDays(usageTier, deprecationSlaLowDays, deprecationSlaMediumDays, deprecationSlaHighDays);
+            String usageTier = dialogMacroGovernanceSupportService.resolveMacroUsageTier(usageCount, usageTierLowMax, usageTierMediumMax);
+            int cleanupSlaDays = dialogMacroGovernanceSupportService.resolveMacroTierSlaDays(usageTier, cleanupSlaLowDays, cleanupSlaMediumDays, cleanupSlaHighDays);
+            int deprecationSlaDays = dialogMacroGovernanceSupportService.resolveMacroTierSlaDays(usageTier, deprecationSlaLowDays, deprecationSlaMediumDays, deprecationSlaHighDays);
             OffsetDateTime cleanupReferenceAt = lastUsedAtUtc != null ? lastUsedAtUtc : (reviewedAt != null ? reviewedAt : generatedAt);
             long cleanupDueInDays = java.time.Duration.between(generatedAt, cleanupReferenceAt.plusDays(cleanupSlaDays)).toDays();
             String cleanupSlaStatus = !activePublished ? "off" : (cleanupDueInDays < 0 ? "hold" : "attention");
@@ -2444,13 +2429,13 @@ public class DialogService {
         long legacyUsagePolicyUpdatedEvents = toLong(safeTotals.get("workspace_legacy_usage_policy_updated_events"));
         long manualLegacyOpenEvents = toLong(safeTotals.get("manual_legacy_open_events"));
         long manualLegacyBlockedEvents = toLong(safeTotals.get("workspace_open_legacy_blocked_events"));
-        List<Map<String, Object>> manualLegacyReasonBreakdown = loadWorkspaceEventReasonBreakdown(
+        List<Map<String, Object>> manualLegacyReasonBreakdown = dialogWorkspaceTelemetryDataService.loadWorkspaceEventReasonBreakdown(
                 "workspace_open_legacy_manual",
                 windowStart,
                 windowEnd,
                 experimentName,
                 5);
-        List<Map<String, Object>> blockedLegacyReasonBreakdown = loadWorkspaceEventReasonBreakdown(
+        List<Map<String, Object>> blockedLegacyReasonBreakdown = dialogWorkspaceTelemetryDataService.loadWorkspaceEventReasonBreakdown(
                 "workspace_open_legacy_blocked",
                 windowStart,
                 windowEnd,
@@ -2464,7 +2449,7 @@ public class DialogService {
                 })
                 .mapToLong(row -> toLong(row.get("events")))
                 .sum();
-        List<Map<String, Object>> previousRows = loadWorkspaceTelemetryRows(previousWindowStart, previousWindowEnd, experimentName);
+        List<Map<String, Object>> previousRows = dialogWorkspaceTelemetryDataService.loadWorkspaceTelemetryRows(previousWindowStart, previousWindowEnd, experimentName);
         Map<String, Object> previousTotals = computeWorkspaceTelemetryTotals(previousRows);
         long previousWorkspaceOpenEvents = toLong(previousTotals.get("workspace_open_events"));
         long previousManualLegacyOpenEvents = toLong(previousTotals.get("manual_legacy_open_events"));
@@ -3125,13 +3110,13 @@ public class DialogService {
             } else {
                 Set<String> criticalReasonSet = new LinkedHashSet<>(normalizedCriticalReasons);
                 filteredRows = rawRows.stream()
-                        .filter(row -> normalizeWorkspaceGapReasons(row.get("reason")).stream()
+                        .filter(row -> dialogWorkspaceTelemetryDataService.normalizeWorkspaceGapReasons(row.get("reason")).stream()
                                 .map(value -> value.toLowerCase(Locale.ROOT))
                                 .anyMatch(criticalReasonSet::contains))
                         .toList();
             }
 
-            List<Map<String, Object>> topReasons = aggregateWorkspaceGapReasons(filteredRows);
+            List<Map<String, Object>> topReasons = dialogWorkspaceTelemetryDataService.aggregateWorkspaceGapReasons(filteredRows);
             Instant lastSeenAt = filteredRows.stream()
                     .map(row -> row.get("created_at") instanceof Instant instant ? instant : null)
                     .filter(Objects::nonNull)
@@ -4456,113 +4441,6 @@ public class DialogService {
         }
     }
 
-    private Map<String, Object> loadMacroTemplateUsage(String templateId, String templateName, int usageWindowDays) {
-        if (!StringUtils.hasText(templateId) && !StringUtils.hasText(templateName)) {
-            return Map.of("usage_count", 0L, "preview_count", 0L, "error_count", 0L, "last_used_at", "");
-        }
-        List<Object> args = new ArrayList<>();
-        StringBuilder sql = new StringBuilder("""
-                SELECT SUM(CASE WHEN event_type = 'macro_apply' THEN 1 ELSE 0 END) AS usage_count,
-                       SUM(CASE WHEN event_type = 'macro_preview' THEN 1 ELSE 0 END) AS preview_count,
-                       SUM(CASE WHEN error_code IS NOT NULL AND TRIM(CAST(error_code AS TEXT)) <> '' THEN 1 ELSE 0 END) AS error_count,
-                       MAX(CASE WHEN event_type = 'macro_apply' THEN created_at ELSE NULL END) AS last_used_at
-                  FROM workspace_telemetry_audit
-                 WHERE event_type IN ('macro_apply', 'macro_preview')
-                   AND created_at >= ?
-                """);
-        args.add(Timestamp.from(Instant.now().minusSeconds(Math.max(1, usageWindowDays) * 24L * 3600L)));
-        if (StringUtils.hasText(templateId) && StringUtils.hasText(templateName)) {
-            sql.append(" AND (template_id = ? OR template_name = ?)");
-            args.add(templateId);
-            args.add(templateName);
-        } else if (StringUtils.hasText(templateId)) {
-            sql.append(" AND template_id = ?");
-            args.add(templateId);
-        } else {
-            sql.append(" AND template_name = ?");
-            args.add(templateName);
-        }
-        try {
-            return jdbcTemplate.queryForObject(sql.toString(), (rs, rowNum) -> {
-                Map<String, Object> row = new LinkedHashMap<>();
-                row.put("usage_count", rs.getLong("usage_count"));
-                row.put("preview_count", rs.getLong("preview_count"));
-                row.put("error_count", rs.getLong("error_count"));
-                Object lastUsed = rs.getObject("last_used_at");
-                row.put("last_used_at", lastUsed != null ? String.valueOf(lastUsed) : "");
-                return row;
-            }, args.toArray());
-        } catch (DataAccessException ex) {
-            log.warn("Unable to load macro usage audit for template {}: {}", templateId, DialogDataAccessSupport.summarizeDataAccessException(ex));
-            return Map.of("usage_count", 0L, "preview_count", 0L, "error_count", 0L, "last_used_at", "");
-        }
-    }
-
-    private Set<String> resolveKnownMacroVariableKeys(Map<String, Object> dialogConfig) {
-        Set<String> variables = new LinkedHashSet<>(BUILTIN_MACRO_VARIABLE_KEYS);
-        safeListOfMaps(dialogConfig.get("macro_variable_catalog")).stream()
-                .map(item -> normalizeNullString(String.valueOf(item.get("key"))))
-                .filter(StringUtils::hasText)
-                .map(value -> value.toLowerCase(Locale.ROOT))
-                .forEach(variables::add);
-        Map<String, Object> defaults = dialogConfig.get("macro_variable_defaults") instanceof Map<?, ?> map
-                ? castObjectMap(map)
-                : Map.of();
-        defaults.keySet().stream()
-                .map(key -> normalizeNullString(String.valueOf(key)))
-                .filter(StringUtils::hasText)
-                .map(value -> value.toLowerCase(Locale.ROOT))
-                .forEach(variables::add);
-        return variables;
-    }
-
-    private List<String> extractMacroTemplateVariables(String templateText) {
-        if (!StringUtils.hasText(templateText)) {
-            return List.of();
-        }
-        List<String> variables = new ArrayList<>();
-        Matcher matcher = MACRO_VARIABLE_PATTERN.matcher(templateText);
-        while (matcher.find()) {
-            String key = normalizeNullString(matcher.group(1));
-            if (StringUtils.hasText(key)) {
-                String normalized = key.toLowerCase(Locale.ROOT);
-                if (!variables.contains(normalized)) {
-                    variables.add(normalized);
-                }
-            }
-        }
-        return variables;
-    }
-
-    private List<String> resolveMacroTagAliases(Object rawTags) {
-        if (!(rawTags instanceof Collection<?> tags)) {
-            return List.of();
-        }
-        return tags.stream()
-                .map(tag -> normalizeNullString(String.valueOf(tag)))
-                .filter(StringUtils::hasText)
-                .map(value -> value.toLowerCase(Locale.ROOT))
-                .toList();
-    }
-
-    private String resolveMacroUsageTier(long usageCount, int lowMax, int mediumMax) {
-        if (usageCount <= lowMax) {
-            return "low";
-        }
-        if (usageCount <= mediumMax) {
-            return "medium";
-        }
-        return "high";
-    }
-
-    private int resolveMacroTierSlaDays(String usageTier, int lowDays, int mediumDays, int highDays) {
-        return switch (String.valueOf(usageTier).toLowerCase(Locale.ROOT)) {
-            case "low" -> lowDays;
-            case "medium" -> mediumDays;
-            default -> highDays;
-        };
-    }
-
     private Map<String, Object> buildMacroGovernanceIssue(String type,
                                                           String templateId,
                                                           String templateName,
@@ -4570,15 +4448,14 @@ public class DialogService {
                                                           String classification,
                                                           String summary,
                                                           String detail) {
-        Map<String, Object> issue = new LinkedHashMap<>();
-        issue.put("type", type);
-        issue.put("template_id", templateId);
-        issue.put("template_name", templateName);
-        issue.put("status", normalizeScorecardStatus(status));
-        issue.put("classification", classification);
-        issue.put("summary", summary);
-        issue.put("detail", detail);
-        return issue;
+        return dialogMacroGovernanceSupportService.buildMacroGovernanceIssue(
+                type,
+                templateId,
+                templateName,
+                status,
+                classification,
+                summary,
+                detail);
     }
 
     private long resolveLongDialogConfigValue(String key, long fallback, long minInclusive, long maxInclusive) {
@@ -5781,419 +5658,11 @@ public class DialogService {
         alerts.add(alert);
     }
 
-    private List<Map<String, Object>> aggregateWorkspaceTelemetryRows(List<Map<String, Object>> rows, String dimension) {
-        if (rows == null || rows.isEmpty()) {
-            return List.of();
-        }
-
-        Map<String, Map<String, Object>> aggregated = new LinkedHashMap<>();
-        for (Map<String, Object> row : rows) {
-            String operatorSegment = row != null ? trimOrNull((String) row.get("operator_segment")) : null;
-            String key = resolveOperatorDimension(operatorSegment, dimension);
-            Map<String, Object> bucket = aggregated.computeIfAbsent(key, ignored -> createTelemetryBucket(dimension, key));
-            mergeTelemetryMetrics(bucket, row);
-        }
-
-        return aggregated.values().stream()
-                .peek(bucket -> {
-                    bucket.remove("_open_weight");
-                    bucket.remove("_open_sum");
-                })
-                .sorted((left, right) -> Long.compare(toLong(right.get("events")), toLong(left.get("events"))))
-                .toList();
-    }
-
-    private Map<String, Object> createTelemetryBucket(String dimension, String key) {
-        Map<String, Object> bucket = new LinkedHashMap<>();
-        bucket.put(dimension, key);
-        bucket.put("events", 0L);
-        bucket.put("render_errors", 0L);
-        bucket.put("fallbacks", 0L);
-        bucket.put("abandons", 0L);
-        bucket.put("slow_open_events", 0L);
-        bucket.put("avg_open_ms", null);
-        bucket.put("_open_weight", 0L);
-        bucket.put("_open_sum", 0L);
-        return bucket;
-    }
-
-    private void mergeTelemetryMetrics(Map<String, Object> bucket, Map<String, Object> row) {
-        if (bucket == null || row == null) {
-            return;
-        }
-
-        long events = toLong(row.get("events"));
-        long renderErrors = toLong(row.get("render_errors"));
-        long fallbacks = toLong(row.get("fallbacks"));
-        long abandons = toLong(row.get("abandons"));
-        long slowOpenEvents = toLong(row.get("slow_open_events"));
-
-        bucket.put("events", toLong(bucket.get("events")) + events);
-        bucket.put("render_errors", toLong(bucket.get("render_errors")) + renderErrors);
-        bucket.put("fallbacks", toLong(bucket.get("fallbacks")) + fallbacks);
-        bucket.put("abandons", toLong(bucket.get("abandons")) + abandons);
-        bucket.put("slow_open_events", toLong(bucket.get("slow_open_events")) + slowOpenEvents);
-
-        Long avgOpen = extractNullableLong(row.get("avg_open_ms"));
-        if (avgOpen == null) {
-            return;
-        }
-
-        long weight = Math.max(events - renderErrors - fallbacks - abandons, 1L);
-        long nextWeight = toLong(bucket.get("_open_weight")) + weight;
-        long nextSum = toLong(bucket.get("_open_sum")) + avgOpen * weight;
-        bucket.put("_open_weight", nextWeight);
-        bucket.put("_open_sum", nextSum);
-        bucket.put("avg_open_ms", Math.round((double) nextSum / nextWeight));
-    }
-
-    private String resolveOperatorDimension(String operatorSegment, String dimension) {
-        if (!StringUtils.hasText(operatorSegment)) {
-            return "unknown";
-        }
-        String normalized = operatorSegment.trim().toLowerCase();
-        if ("team".equals(dimension)) {
-            String explicitTeam = extractSegmentValue(normalized, "team");
-            if (StringUtils.hasText(explicitTeam)) {
-                return explicitTeam;
-            }
-            int separator = normalized.indexOf('/');
-            if (separator > 0) {
-                return normalized.substring(0, separator).trim();
-            }
-            return normalized.contains("_shift") ? "support" : normalized;
-        }
-
-        String explicitShift = extractSegmentValue(normalized, "shift");
-        if (StringUtils.hasText(explicitShift)) {
-            return explicitShift;
-        }
-        if (normalized.contains("night")) {
-            return "night";
-        }
-        if (normalized.contains("morning")) {
-            return "morning";
-        }
-        if (normalized.contains("evening")) {
-            return "evening";
-        }
-        if (normalized.contains("day")) {
-            return "day";
-        }
-        return "unknown";
-    }
-
-    private String extractSegmentValue(String segment, String key) {
-        if (!StringUtils.hasText(segment) || !StringUtils.hasText(key)) {
-            return null;
-        }
-        String needle = key + "=";
-        int start = segment.indexOf(needle);
-        if (start < 0) {
-            return null;
-        }
-        String tail = segment.substring(start + needle.length());
-        int delimiter = tail.indexOf(';');
-        String value = delimiter >= 0 ? tail.substring(0, delimiter) : tail;
-        String trimmed = value.trim();
-        return trimmed.isEmpty() ? null : trimmed;
-    }
-
     private Long extractNullableLong(Object value) {
         if (value instanceof Number number) {
             return number.longValue();
         }
         return null;
-    }
-
-    private List<Map<String, Object>> loadWorkspaceTelemetryRows(Instant windowStart, Instant windowEnd, String experimentName) {
-        String filterExperiment = trimOrNull(experimentName);
-        String sql = """
-                SELECT COALESCE(experiment_cohort, 'unknown') AS experiment_cohort,
-                       COALESCE(operator_segment, 'unknown') AS operator_segment,
-                       COUNT(*) AS events,
-                       SUM(CASE WHEN event_type = 'workspace_render_error' THEN 1 ELSE 0 END) AS render_errors,
-                       SUM(CASE WHEN event_type = 'workspace_fallback_to_legacy' THEN 1 ELSE 0 END) AS fallbacks,
-                       SUM(CASE WHEN event_type = 'workspace_abandon' THEN 1 ELSE 0 END) AS abandons,
-                       SUM(CASE WHEN event_type = 'workspace_open_ms' THEN 1 ELSE 0 END) AS workspace_open_events,
-                       SUM(CASE WHEN event_type = 'workspace_context_profile_gap' THEN 1 ELSE 0 END) AS context_profile_gap_events,
-                       SUM(CASE WHEN event_type = 'workspace_context_source_gap' THEN 1 ELSE 0 END) AS context_source_gap_events,
-                       SUM(CASE WHEN event_type = 'workspace_context_attribute_policy_gap' THEN 1 ELSE 0 END) AS context_attribute_policy_gap_events,
-                       SUM(CASE WHEN event_type = 'workspace_context_block_gap' THEN 1 ELSE 0 END) AS context_block_gap_events,
-                       SUM(CASE WHEN event_type = 'workspace_context_contract_gap' THEN 1 ELSE 0 END) AS context_contract_gap_events,
-                       SUM(CASE WHEN event_type = 'workspace_context_sources_expanded' THEN 1 ELSE 0 END) AS context_sources_expanded_events,
-                       SUM(CASE WHEN event_type = 'workspace_context_attribute_policy_expanded' THEN 1 ELSE 0 END) AS context_attribute_policy_expanded_events,
-                       SUM(CASE WHEN event_type = 'workspace_context_extra_attributes_expanded' THEN 1 ELSE 0 END) AS context_extra_attributes_expanded_events,
-                       SUM(CASE WHEN event_type = 'workspace_sla_policy_gap' THEN 1 ELSE 0 END) AS workspace_sla_policy_gap_events,
-                       SUM(CASE WHEN event_type = 'workspace_parity_gap' THEN 1 ELSE 0 END) AS workspace_parity_gap_events,
-                       SUM(CASE WHEN event_type = 'workspace_inline_navigation' THEN 1 ELSE 0 END) AS workspace_inline_navigation_events,
-                       SUM(CASE WHEN event_type = 'workspace_open_legacy_manual' THEN 1 ELSE 0 END) AS manual_legacy_open_events,
-                       SUM(CASE WHEN event_type = 'workspace_open_legacy_blocked' THEN 1 ELSE 0 END) AS workspace_open_legacy_blocked_events,
-                       SUM(CASE WHEN event_type = 'workspace_rollout_packet_viewed' THEN 1 ELSE 0 END) AS workspace_rollout_packet_viewed_events,
-                       SUM(CASE WHEN event_type = 'workspace_rollout_review_confirmed' THEN 1 ELSE 0 END) AS workspace_rollout_review_confirmed_events,
-                       SUM(CASE WHEN event_type = 'workspace_rollout_review_decision_go' THEN 1 ELSE 0 END) AS workspace_rollout_review_decision_go_events,
-                       SUM(CASE WHEN event_type = 'workspace_rollout_review_decision_hold' THEN 1 ELSE 0 END) AS workspace_rollout_review_decision_hold_events,
-                       SUM(CASE WHEN event_type = 'workspace_rollout_review_decision_rollback' THEN 1 ELSE 0 END) AS workspace_rollout_review_decision_rollback_events,
-                       SUM(CASE WHEN event_type = 'workspace_rollout_review_incident_followup_linked' THEN 1 ELSE 0 END) AS workspace_rollout_review_incident_followup_linked_events,
-                       SUM(CASE WHEN event_type = 'workspace_sla_policy_review_updated' THEN 1 ELSE 0 END) AS workspace_sla_policy_review_updated_events,
-                       SUM(CASE WHEN event_type = 'workspace_macro_governance_review_updated' THEN 1 ELSE 0 END) AS workspace_macro_governance_review_updated_events,
-                       SUM(CASE WHEN event_type = 'workspace_macro_external_catalog_policy_updated' THEN 1 ELSE 0 END) AS workspace_macro_external_catalog_policy_updated_events,
-                       SUM(CASE WHEN event_type = 'workspace_macro_deprecation_policy_updated' THEN 1 ELSE 0 END) AS workspace_macro_deprecation_policy_updated_events,
-                       SUM(CASE WHEN event_type = 'workspace_legacy_usage_policy_updated' THEN 1 ELSE 0 END) AS workspace_legacy_usage_policy_updated_events,
-                       SUM(CASE WHEN event_type = 'workspace_open_ms' AND COALESCE(duration_ms, 0) > 2000 THEN 1 ELSE 0 END) AS slow_open_events,
-                       SUM(CASE WHEN event_type = 'kpi_frt_recorded' OR LOWER(COALESCE(primary_kpis, '')) LIKE '%frt%' THEN 1 ELSE 0 END) AS kpi_frt_events,
-                       SUM(CASE WHEN event_type = 'kpi_ttr_recorded' OR LOWER(COALESCE(primary_kpis, '')) LIKE '%ttr%' THEN 1 ELSE 0 END) AS kpi_ttr_events,
-                       SUM(CASE WHEN event_type = 'kpi_sla_breach_recorded' OR LOWER(COALESCE(primary_kpis, '')) LIKE '%sla_breach%' THEN 1 ELSE 0 END) AS kpi_sla_breach_events,
-                       SUM(CASE WHEN event_type = 'kpi_dialogs_per_shift_recorded' OR LOWER(COALESCE(secondary_kpis, '')) LIKE '%dialogs_per_shift%' THEN 1 ELSE 0 END) AS kpi_dialogs_per_shift_events,
-                       SUM(CASE WHEN event_type = 'kpi_csat_recorded' OR LOWER(COALESCE(secondary_kpis, '')) LIKE '%csat%' THEN 1 ELSE 0 END) AS kpi_csat_events,
-                       SUM(CASE WHEN event_type = 'kpi_frt_recorded' THEN 1 ELSE 0 END) AS kpi_frt_recorded_events,
-                       SUM(CASE WHEN event_type = 'kpi_ttr_recorded' THEN 1 ELSE 0 END) AS kpi_ttr_recorded_events,
-                       SUM(CASE WHEN event_type = 'kpi_sla_breach_recorded' THEN 1 ELSE 0 END) AS kpi_sla_breach_recorded_events,
-                       SUM(CASE WHEN event_type = 'kpi_dialogs_per_shift_recorded' THEN 1 ELSE 0 END) AS kpi_dialogs_per_shift_recorded_events,
-                       SUM(CASE WHEN event_type = 'kpi_csat_recorded' THEN 1 ELSE 0 END) AS kpi_csat_recorded_events,
-                       AVG(CASE WHEN event_type = 'kpi_frt_recorded' THEN duration_ms END) AS avg_frt_ms,
-                       AVG(CASE WHEN event_type = 'kpi_ttr_recorded' THEN duration_ms END) AS avg_ttr_ms,
-                       AVG(CASE WHEN event_type = 'workspace_open_ms' THEN duration_ms END) AS avg_open_ms
-                  FROM workspace_telemetry_audit
-                 WHERE created_at >= ?
-                   AND created_at < ?
-                   AND (? IS NULL OR experiment_name = ?)
-                 GROUP BY COALESCE(experiment_cohort, 'unknown'), COALESCE(operator_segment, 'unknown')
-                 ORDER BY events DESC, experiment_cohort ASC, operator_segment ASC
-                """;
-        try {
-            Timestamp cutoffStart = Timestamp.from(windowStart);
-            Timestamp cutoffEnd = Timestamp.from(windowEnd);
-            return jdbcTemplate.query(sql, (rs, rowNum) -> {
-                Map<String, Object> item = new LinkedHashMap<>();
-                item.put("experiment_cohort", rs.getString("experiment_cohort"));
-                item.put("operator_segment", rs.getString("operator_segment"));
-                item.put("events", rs.getLong("events"));
-                item.put("render_errors", rs.getLong("render_errors"));
-                item.put("fallbacks", rs.getLong("fallbacks"));
-                item.put("abandons", rs.getLong("abandons"));
-                item.put("workspace_open_events", rs.getLong("workspace_open_events"));
-                item.put("context_profile_gap_events", rs.getLong("context_profile_gap_events"));
-                item.put("context_source_gap_events", rs.getLong("context_source_gap_events"));
-                item.put("context_attribute_policy_gap_events", rs.getLong("context_attribute_policy_gap_events"));
-                item.put("context_block_gap_events", rs.getLong("context_block_gap_events"));
-                item.put("context_contract_gap_events", rs.getLong("context_contract_gap_events"));
-                item.put("context_sources_expanded_events", rs.getLong("context_sources_expanded_events"));
-                item.put("context_attribute_policy_expanded_events", rs.getLong("context_attribute_policy_expanded_events"));
-                item.put("context_extra_attributes_expanded_events", rs.getLong("context_extra_attributes_expanded_events"));
-                item.put("workspace_sla_policy_gap_events", rs.getLong("workspace_sla_policy_gap_events"));
-                item.put("workspace_parity_gap_events", rs.getLong("workspace_parity_gap_events"));
-                item.put("workspace_inline_navigation_events", rs.getLong("workspace_inline_navigation_events"));
-                item.put("manual_legacy_open_events", rs.getLong("manual_legacy_open_events"));
-                item.put("workspace_open_legacy_blocked_events", rs.getLong("workspace_open_legacy_blocked_events"));
-                item.put("workspace_rollout_packet_viewed_events", rs.getLong("workspace_rollout_packet_viewed_events"));
-                item.put("workspace_rollout_review_confirmed_events", rs.getLong("workspace_rollout_review_confirmed_events"));
-                item.put("workspace_rollout_review_decision_go_events", rs.getLong("workspace_rollout_review_decision_go_events"));
-                item.put("workspace_rollout_review_decision_hold_events", rs.getLong("workspace_rollout_review_decision_hold_events"));
-                item.put("workspace_rollout_review_decision_rollback_events", rs.getLong("workspace_rollout_review_decision_rollback_events"));
-                item.put("workspace_rollout_review_incident_followup_linked_events", rs.getLong("workspace_rollout_review_incident_followup_linked_events"));
-                item.put("workspace_sla_policy_review_updated_events", rs.getLong("workspace_sla_policy_review_updated_events"));
-                item.put("workspace_macro_governance_review_updated_events", rs.getLong("workspace_macro_governance_review_updated_events"));
-                item.put("workspace_macro_external_catalog_policy_updated_events", rs.getLong("workspace_macro_external_catalog_policy_updated_events"));
-                item.put("workspace_macro_deprecation_policy_updated_events", rs.getLong("workspace_macro_deprecation_policy_updated_events"));
-                item.put("workspace_legacy_usage_policy_updated_events", rs.getLong("workspace_legacy_usage_policy_updated_events"));
-                item.put("slow_open_events", rs.getLong("slow_open_events"));
-                item.put("kpi_frt_events", rs.getLong("kpi_frt_events"));
-                item.put("kpi_ttr_events", rs.getLong("kpi_ttr_events"));
-                item.put("kpi_sla_breach_events", rs.getLong("kpi_sla_breach_events"));
-                item.put("kpi_dialogs_per_shift_events", rs.getLong("kpi_dialogs_per_shift_events"));
-                item.put("kpi_csat_events", rs.getLong("kpi_csat_events"));
-                item.put("kpi_frt_recorded_events", rs.getLong("kpi_frt_recorded_events"));
-                item.put("kpi_ttr_recorded_events", rs.getLong("kpi_ttr_recorded_events"));
-                item.put("kpi_sla_breach_recorded_events", rs.getLong("kpi_sla_breach_recorded_events"));
-                item.put("kpi_dialogs_per_shift_recorded_events", rs.getLong("kpi_dialogs_per_shift_recorded_events"));
-                item.put("kpi_csat_recorded_events", rs.getLong("kpi_csat_recorded_events"));
-                item.put("avg_frt_ms", rs.getObject("avg_frt_ms") != null ? Math.round(rs.getDouble("avg_frt_ms")) : null);
-                item.put("avg_ttr_ms", rs.getObject("avg_ttr_ms") != null ? Math.round(rs.getDouble("avg_ttr_ms")) : null);
-                item.put("avg_open_ms", rs.getObject("avg_open_ms") != null ? Math.round(rs.getDouble("avg_open_ms")) : null);
-                return item;
-            }, cutoffStart, cutoffEnd, filterExperiment, filterExperiment);
-        } catch (DataAccessException ex) {
-            log.warn("Unable to load workspace telemetry summary: {}", DialogDataAccessSupport.summarizeDataAccessException(ex));
-            return List.of();
-        }
-    }
-
-    private List<Map<String, Object>> loadWorkspaceEventReasonBreakdown(String eventType,
-                                                                        Instant windowStart,
-                                                                        Instant windowEnd,
-                                                                        String experimentName,
-                                                                        int limit) {
-        if (!StringUtils.hasText(eventType)) {
-            return List.of();
-        }
-        int safeLimit = Math.max(1, Math.min(limit, 20));
-        String filterExperiment = trimOrNull(experimentName);
-        String sql = """
-                SELECT LOWER(TRIM(COALESCE(reason, ''))) AS reason,
-                       COUNT(*) AS events
-                  FROM workspace_telemetry_audit
-                 WHERE created_at >= ?
-                   AND created_at < ?
-                   AND event_type = ?
-                   AND (? IS NULL OR experiment_name = ?)
-                 GROUP BY LOWER(TRIM(COALESCE(reason, '')))
-                 ORDER BY events DESC, reason ASC
-                 LIMIT ?
-                """;
-        try {
-            Timestamp cutoffStart = Timestamp.from(windowStart);
-            Timestamp cutoffEnd = Timestamp.from(windowEnd);
-            return jdbcTemplate.query(sql, (rs, rowNum) -> {
-                String reason = normalizeNullString(rs.getString("reason"));
-                Map<String, Object> row = new LinkedHashMap<>();
-                row.put("reason", StringUtils.hasText(reason) ? reason : "unspecified");
-                row.put("events", rs.getLong("events"));
-                return row;
-            }, cutoffStart, cutoffEnd, eventType.trim(), filterExperiment, filterExperiment, safeLimit);
-        } catch (DataAccessException ex) {
-            log.warn("Unable to load workspace reason breakdown for {}: {}", eventType, DialogDataAccessSupport.summarizeDataAccessException(ex));
-            return List.of();
-        }
-    }
-
-    private String joinCsv(List<String> values) {
-        if (values == null || values.isEmpty()) {
-            return null;
-        }
-        String joined = values.stream()
-                .map(value -> value == null ? "" : value.trim())
-                .filter(value -> !value.isBlank())
-                .distinct()
-                .collect(Collectors.joining(","));
-        return joined.isBlank() ? null : joined;
-    }
-
-    private String trimOrNull(String value) {
-        if (!StringUtils.hasText(value)) {
-            return null;
-        }
-        return value.trim();
-    }
-
-    private Map<String, Object> buildWorkspaceGapBreakdown(Instant windowStart, Instant windowEnd, String experimentName) {
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("profile", loadWorkspaceGapBreakdownRows(windowStart, windowEnd, experimentName, "workspace_context_profile_gap"));
-        payload.put("source", loadWorkspaceGapBreakdownRows(windowStart, windowEnd, experimentName, "workspace_context_source_gap"));
-        payload.put("attribute_policy", loadWorkspaceGapBreakdownRows(windowStart, windowEnd, experimentName, "workspace_context_attribute_policy_gap"));
-        payload.put("block", loadWorkspaceGapBreakdownRows(windowStart, windowEnd, experimentName, "workspace_context_block_gap"));
-        payload.put("contract", loadWorkspaceGapBreakdownRows(windowStart, windowEnd, experimentName, "workspace_context_contract_gap"));
-        payload.put("sla_policy", loadWorkspaceGapBreakdownRows(windowStart, windowEnd, experimentName, "workspace_sla_policy_gap"));
-        payload.put("parity", loadWorkspaceGapBreakdownRows(windowStart, windowEnd, experimentName, "workspace_parity_gap"));
-        return payload;
-    }
-
-    private List<Map<String, Object>> loadWorkspaceGapBreakdownRows(Instant windowStart,
-                                                                    Instant windowEnd,
-                                                                    String experimentName,
-                                                                    String eventType) {
-        String filterExperiment = StringUtils.hasText(experimentName) ? experimentName.trim() : null;
-        String sql = """
-                SELECT reason, ticket_id, created_at
-                  FROM workspace_telemetry_audit
-                 WHERE created_at >= ?
-                   AND created_at < ?
-                   AND event_type = ?
-                   AND (? IS NULL OR experiment_name = ?)
-                 ORDER BY created_at DESC
-                """;
-        try {
-            List<Map<String, Object>> rawRows = jdbcTemplate.query(sql, (rs, rowNum) -> {
-                Map<String, Object> item = new LinkedHashMap<>();
-                item.put("reason", rs.getString("reason"));
-                item.put("ticket_id", rs.getString("ticket_id"));
-                Timestamp createdAt = rs.getTimestamp("created_at");
-                item.put("created_at", createdAt != null ? createdAt.toInstant() : null);
-                return item;
-            }, Timestamp.from(windowStart), Timestamp.from(windowEnd), eventType, filterExperiment, filterExperiment);
-            return aggregateWorkspaceGapReasons(rawRows);
-        } catch (DataAccessException ex) {
-            log.warn("Unable to load workspace gap breakdown for {}: {}", eventType, DialogDataAccessSupport.summarizeDataAccessException(ex));
-            return List.of();
-        }
-    }
-
-    private List<Map<String, Object>> aggregateWorkspaceGapReasons(List<Map<String, Object>> rawRows) {
-        if (rawRows == null || rawRows.isEmpty()) {
-            return List.of();
-        }
-        Map<String, GapBreakdownAccumulator> aggregates = new LinkedHashMap<>();
-        for (Map<String, Object> row : rawRows) {
-            List<String> reasons = normalizeWorkspaceGapReasons(row.get("reason"));
-            String ticketId = normalizeNullString(String.valueOf(row.getOrDefault("ticket_id", "")));
-            Instant createdAt = row.get("created_at") instanceof Instant value ? value : null;
-            for (String reason : reasons) {
-                aggregates.computeIfAbsent(reason, GapBreakdownAccumulator::new)
-                        .record(ticketId, createdAt);
-            }
-        }
-        return aggregates.values().stream()
-                .sorted(Comparator.comparingLong(GapBreakdownAccumulator::events).reversed()
-                        .thenComparing(GapBreakdownAccumulator::reason))
-                .limit(10)
-                .map(GapBreakdownAccumulator::toMap)
-                .toList();
-    }
-
-    private List<String> normalizeWorkspaceGapReasons(Object rawReason) {
-        if (rawReason == null) {
-            return List.of("unspecified");
-        }
-        String normalized = String.valueOf(rawReason).trim();
-        if (normalized.isBlank()) {
-            return List.of("unspecified");
-        }
-        List<String> reasons = Arrays.stream(normalized.split(","))
-                .map(String::trim)
-                .filter(StringUtils::hasText)
-                .distinct()
-                .limit(10)
-                .toList();
-        return reasons.isEmpty() ? List.of("unspecified") : reasons;
-    }
-
-    private static final class GapBreakdownAccumulator {
-
-        private final String reason;
-        private long events = 0L;
-        private final Set<String> ticketIds = new LinkedHashSet<>();
-        private Instant lastSeenAt;
-
-        private GapBreakdownAccumulator(String reason) {
-            this.reason = reason;
-        }
-
-        private void record(String ticketId, Instant createdAt) {
-            events++;
-            if (StringUtils.hasText(ticketId)) {
-                ticketIds.add(ticketId.trim());
-            }
-            if (createdAt != null && (lastSeenAt == null || createdAt.isAfter(lastSeenAt))) {
-                lastSeenAt = createdAt;
-            }
-        }
-
-        private long events() {
-            return events;
-        }
-
-        private String reason() {
-            return reason;
-        }
-
-        private Map<String, Object> toMap() {
-            Map<String, Object> payload = new LinkedHashMap<>();
-            payload.put("reason", reason);
-            payload.put("events", events);
-            payload.put("tickets", ticketIds.size());
-            payload.put("last_seen_at", lastSeenAt != null ? lastSeenAt.toString() : "");
-            return payload;
-        }
     }
 
     private long toLong(Object value) {
