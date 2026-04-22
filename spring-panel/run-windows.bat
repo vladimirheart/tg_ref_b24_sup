@@ -99,9 +99,9 @@ if defined RUN_WITH_TESTS set "TEST_SKIP_ARGS="
 echo Starting Spring panel with %MVN_CMD%
 echo [INFO] Running Maven clean phase before startup to remove stale compiled classes.
 if "%MVN_CMD%"=="mvn" (
-    call mvn %MVN_REPO_ARG% %TEST_SKIP_ARGS% %EXTRA_JVM_ARG% %EXTRA_APP_ARG% clean spring-boot:run %*
+    call mvn !MVN_REPO_ARG! !TEST_SKIP_ARGS! !EXTRA_JVM_ARG! !EXTRA_APP_ARG! clean spring-boot:run %*
 ) else (
-    call "%MVN_CMD%" %MVN_REPO_ARG% %TEST_SKIP_ARGS% %EXTRA_JVM_ARG% %EXTRA_APP_ARG% clean spring-boot:run %*
+    call "%MVN_CMD%" !MVN_REPO_ARG! !TEST_SKIP_ARGS! !EXTRA_JVM_ARG! !EXTRA_APP_ARG! clean spring-boot:run %*
 )
 
 set "EXIT_CODE=%ERRORLEVEL%"
