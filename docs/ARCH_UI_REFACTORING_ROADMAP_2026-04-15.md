@@ -1,7 +1,7 @@
 # Architecture And UI Refactoring Roadmap
 
 Дата старта: `2026-04-15`
-Обновлено: `2026-04-21`
+Обновлено: `2026-04-22`
 
 ## Цель
 
@@ -357,6 +357,14 @@
   `SettingsDialogSlaAiConfigServiceTest`,
   `SettingsDialogTemplateConfigServiceTest`,
   `SettingsDialogWorkspaceConfigServiceTest`;
+- targeted unit tests для `settings` governance/sync слоя:
+  `SettingsTopLevelUpdateServiceTest`,
+  `SettingsLocationsUpdateServiceTest`,
+  `SettingsParameterServiceTest`,
+  `UiPreferenceServiceTest`;
+- server-backed UI preferences больше не только “есть”, но и прикрыты
+  regression net: alias-нормализация `sortMode/pageSize/updatedAtUtc`
+  в `UiPreferenceService` исправлена и зафиксирована тестами;
 - `SlaEscalationWebhookNotifier` больше не зависит от `DialogService`
   в production wiring: notifier переведён на `DialogLookupReadService`,
   `DialogResponsibilityService` и `DialogAuditService`, а `DialogService`
@@ -375,6 +383,8 @@
 - добрать WebMvc tests под оставшиеся новые dialog/settings controllers;
 - расширить shared config/env resolution tests и settings regression net от
   targeted-слоя к более полным integration сценариям;
+- расширить `settings` regression net уже от service-layer к нескольким
+  интеграционным update/sync сценариям поверх shared config boundary;
 - более широкий runtime contract test для launcher strategy и bot lifecycle.
 - продолжить держать notifier/runtime regression net синхронизированным с
   evolving routing governance contract, чтобы новые refactor-проходы не
