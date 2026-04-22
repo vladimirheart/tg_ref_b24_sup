@@ -82,15 +82,19 @@ set "MVN_REPO_DIR=%SCRIPT_DIR%\.m2\repository"
 if not exist "%SCRIPT_DIR%\.m2" mkdir "%SCRIPT_DIR%\.m2" >nul 2>&1
 set "MVN_REPO_ARG=-Dmaven.repo.local=%MVN_REPO_DIR%"
 
-set "SPRING_BOOT_JVM_ARGS=-Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8 -Dsun.stdout.encoding=UTF-8 -Dsun.stderr.encoding=UTF-8"
-if defined JAVA_OPTS (
-    set "SPRING_BOOT_JVM_ARGS=%SPRING_BOOT_JVM_ARGS% %JAVA_OPTS%"
+set "UTF8_JAVA_TOOL_OPTIONS=-Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8 -Dsun.stdout.encoding=UTF-8 -Dsun.stderr.encoding=UTF-8"
+if defined JAVA_TOOL_OPTIONS (
+    set "JAVA_TOOL_OPTIONS=!UTF8_JAVA_TOOL_OPTIONS! !JAVA_TOOL_OPTIONS!"
+) else (
+    set "JAVA_TOOL_OPTIONS=!UTF8_JAVA_TOOL_OPTIONS!"
 )
-set "EXTRA_JVM_ARG=-Dspring-boot.run.jvmArguments=\"%SPRING_BOOT_JVM_ARGS%\""
+if defined JAVA_OPTS (
+    set "JAVA_TOOL_OPTIONS=!JAVA_TOOL_OPTIONS! !JAVA_OPTS!"
+)
 
 set "EXTRA_APP_ARG="
 if defined SPRING_OPTS (
-    set "EXTRA_APP_ARG=-Dspring-boot.run.arguments=\"%SPRING_OPTS%\""
+    set "EXTRA_APP_ARG=-Dspring-boot.run.arguments=!SPRING_OPTS!"
 )
 
 set "TEST_SKIP_ARGS=-Dmaven.test.skip=true"
@@ -99,9 +103,9 @@ if defined RUN_WITH_TESTS set "TEST_SKIP_ARGS="
 echo Starting Spring panel with %MVN_CMD%
 echo [INFO] Running Maven clean phase before startup to remove stale compiled classes.
 if "%MVN_CMD%"=="mvn" (
-    call mvn !MVN_REPO_ARG! !TEST_SKIP_ARGS! !EXTRA_JVM_ARG! !EXTRA_APP_ARG! clean spring-boot:run %*
+    call mvn !MVN_REPO_ARG! !TEST_SKIP_ARGS! !EXTRA_APP_ARG! clean spring-boot:run %*
 ) else (
-    call "%MVN_CMD%" !MVN_REPO_ARG! !TEST_SKIP_ARGS! !EXTRA_JVM_ARG! !EXTRA_APP_ARG! clean spring-boot:run %*
+    call "%MVN_CMD%" !MVN_REPO_ARG! !TEST_SKIP_ARGS! !EXTRA_APP_ARG! clean spring-boot:run %*
 )
 
 set "EXIT_CODE=%ERRORLEVEL%"

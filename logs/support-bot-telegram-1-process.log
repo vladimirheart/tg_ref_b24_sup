@@ -131,3 +131,105 @@ WARNING: Restricted methods will be blocked in a future release unless native ac
 2026-04-22 14:36:59.387+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Telegram client will use proxy vless://185.237.223.25:7878
 2026-04-22 14:37:20.493+03:00 INFO  [main] o.a.http.impl.execchain.RetryExec - I/O exception (java.net.SocketException) caught when processing request to {s}->https://api.telegram.org:443: Connection timed out: getsockopt
 2026-04-22 14:37:20.493+03:00 INFO  [main] o.a.http.impl.execchain.RetryExec - Retrying request to {s}->https://api.telegram.org:443
+Picked up JAVA_TOOL_OPTIONS: -Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8 -Dsun.stdout.encoding=UTF-8 -Dsun.stderr.encoding=UTF-8 -DsocksProxyHost=185.237.223.25 -DsocksProxyPort=7878
+WARNING: A restricted method in java.lang.System has been called
+WARNING: java.lang.System::load has been called by org.fusesource.jansi.internal.JansiLoader in an unnamed module (file:/c:/Users/SinicinVV/git_h/tg_ref_b24_sup/java-bot/.mvn/apache-maven-3.9.6/lib/jansi-2.4.0.jar)
+WARNING: Use --enable-native-access=ALL-UNNAMED to avoid a warning for callers in this module
+WARNING: Restricted methods will be blocked in a future release unless native access is enabled
+
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by com.google.common.util.concurrent.AbstractFuture$UnsafeAtomicHelper (file:/c:/Users/SinicinVV/git_h/tg_ref_b24_sup/java-bot/.mvn/apache-maven-3.9.6/lib/guava-32.0.1-jre.jar)
+WARNING: Please consider reporting this to the maintainers of class com.google.common.util.concurrent.AbstractFuture$UnsafeAtomicHelper
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+Picked up JAVA_TOOL_OPTIONS: -Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8 -Dsun.stdout.encoding=UTF-8 -Dsun.stderr.encoding=UTF-8 -DsocksProxyHost=185.237.223.25 -DsocksProxyPort=7878
+2026-04-22 17:51:20.481+03:00 DEBUG [main] o.s.boot.ApplicationEnvironment - Activating profiles [default]
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+2026-04-22 17:51:20.486+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
+ :: Spring Boot ::                (v3.2.5)
+
+2026-04-22 17:51:20.531+03:00 INFO  [main] c.e.s.t.TelegramBotApplication - Starting TelegramBotApplication using Java 25.0.2 with PID 9176 (C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-telegram\target\classes started by SinicinVV in C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-telegram)
+2026-04-22 17:51:20.531+03:00 INFO  [main] c.e.s.t.TelegramBotApplication - The following 1 profile is active: "default"
+2026-04-22 17:51:20.532+03:00 DEBUG [main] o.s.boot.SpringApplication - Loading source class com.example.supportbot.telegram.TelegramBotApplication
+2026-04-22 17:51:20.891+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-04-22 17:51:20.983+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 86 ms. Found 30 JPA repository interfaces.
+2026-04-22 17:51:21.269+03:00 DEBUG [main] o.s.b.c.p.s.ConfigurationPropertySourcesPropertyResolver$DefaultResolver - Found key 'APP_DB_TICKETS' in PropertySource 'systemEnvironment' with value of type String
+2026-04-22 17:51:21.346+03:00 INFO  [main] o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-04-22 17:51:21.390+03:00 INFO  [main] org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
+2026-04-22 17:51:21.411+03:00 INFO  [main] o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
+2026-04-22 17:51:21.573+03:00 INFO  [main] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+WARNING: A restricted method in java.lang.System has been called
+WARNING: java.lang.System::load has been called by org.sqlite.SQLiteJDBCLoader in an unnamed module (file:/C:/Users/SinicinVV/git_h/tg_ref_b24_sup/spring-panel/.m2/repository/org/xerial/sqlite-jdbc/3.45.1.0/sqlite-jdbc-3.45.1.0.jar)
+WARNING: Use --enable-native-access=ALL-UNNAMED to avoid a warning for callers in this module
+WARNING: Restricted methods will be blocked in a future release unless native access is enabled
+
+2026-04-22 17:51:22.611+03:00 INFO  [main] o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-04-22 17:51:22.613+03:00 INFO  [main] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-04-22 17:51:22.618+03:00 DEBUG [main] o.s.b.c.p.s.ConfigurationPropertySourcesPropertyResolver$DefaultResolver - Found key 'GROUP_CHAT_ID' in PropertySource 'systemEnvironment' with value of type String
+2026-04-22 17:51:22.618+03:00 DEBUG [main] o.s.b.c.p.s.ConfigurationPropertySourcesPropertyResolver$DefaultResolver - Found key 'TELEGRAM_BOT_TOKEN' in PropertySource 'systemEnvironment' with value of type String
+2026-04-22 17:51:22.619+03:00 DEBUG [main] o.s.b.c.p.s.ConfigurationPropertySourcesPropertyResolver$DefaultResolver - Found key 'TELEGRAM_BOT_USERNAME' in PropertySource 'systemEnvironment' with value of type String
+2026-04-22 17:51:22.864+03:00 DEBUG [main] o.s.b.c.p.s.ConfigurationPropertySourcesPropertyResolver$DefaultResolver - Found key 'APP_BOT_LOG_PATH' in PropertySource 'systemEnvironment' with value of type String
+2026-04-22 17:51:22.904+03:00 DEBUG [main] o.s.b.a.AutoConfigurationPackages - @EnableAutoConfiguration was declared on a class in the package 'com.example.supportbot.telegram'. Automatic @Repository and @Entity scanning is enabled.
+2026-04-22 17:51:23.000+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing SQL statement [ALTER TABLE chat_history ADD COLUMN original_message TEXT]
+2026-04-22 17:51:23.010+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing SQL statement [ALTER TABLE chat_history ADD COLUMN forwarded_from TEXT]
+2026-04-22 17:51:23.170+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Initializing Telegram bot configuration check
+2026-04-22 17:51:23.171+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Telegram bot configuration: username='tst_int_SV_bot' token=8391…kzYU (46) channelId=-4961108450
+2026-04-22 17:51:23.172+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Telegram client will use proxy vless://185.237.223.25:7878
+2026-04-22 17:51:44.277+03:00 INFO  [main] o.a.http.impl.execchain.RetryExec - I/O exception (java.net.SocketException) caught when processing request to {s}->https://api.telegram.org:443: Connection timed out: getsockopt
+2026-04-22 17:51:44.277+03:00 INFO  [main] o.a.http.impl.execchain.RetryExec - Retrying request to {s}->https://api.telegram.org:443
+Picked up JAVA_TOOL_OPTIONS: -Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8 -Dsun.stdout.encoding=UTF-8 -Dsun.stderr.encoding=UTF-8 -DsocksProxyHost=185.237.223.25 -DsocksProxyPort=7878
+WARNING: A restricted method in java.lang.System has been called
+WARNING: java.lang.System::load has been called by org.fusesource.jansi.internal.JansiLoader in an unnamed module (file:/C:/Users/SinicinVV/git_h/tg_ref_b24_sup/java-bot/.mvn/apache-maven-3.9.6/lib/jansi-2.4.0.jar)
+WARNING: Use --enable-native-access=ALL-UNNAMED to avoid a warning for callers in this module
+WARNING: Restricted methods will be blocked in a future release unless native access is enabled
+
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by com.google.common.util.concurrent.AbstractFuture$UnsafeAtomicHelper (file:/C:/Users/SinicinVV/git_h/tg_ref_b24_sup/java-bot/.mvn/apache-maven-3.9.6/lib/guava-32.0.1-jre.jar)
+WARNING: Please consider reporting this to the maintainers of class com.google.common.util.concurrent.AbstractFuture$UnsafeAtomicHelper
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+Picked up JAVA_TOOL_OPTIONS: -Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8 -Dsun.stdout.encoding=UTF-8 -Dsun.stderr.encoding=UTF-8 -DsocksProxyHost=185.237.223.25 -DsocksProxyPort=7878
+2026-04-22 18:03:11.049+03:00 DEBUG [main] o.s.boot.ApplicationEnvironment - Activating profiles [default]
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v3.2.5)
+
+2026-04-22 18:03:11.053+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
+2026-04-22 18:03:11.090+03:00 INFO  [main] c.e.s.t.TelegramBotApplication - Starting TelegramBotApplication using Java 25.0.2 with PID 20408 (C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-telegram\target\classes started by SinicinVV in C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-telegram)
+2026-04-22 18:03:11.090+03:00 INFO  [main] c.e.s.t.TelegramBotApplication - The following 1 profile is active: "default"
+2026-04-22 18:03:11.091+03:00 DEBUG [main] o.s.boot.SpringApplication - Loading source class com.example.supportbot.telegram.TelegramBotApplication
+2026-04-22 18:03:11.425+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-04-22 18:03:11.519+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 87 ms. Found 30 JPA repository interfaces.
+2026-04-22 18:03:11.790+03:00 DEBUG [main] o.s.b.c.p.s.ConfigurationPropertySourcesPropertyResolver$DefaultResolver - Found key 'APP_DB_TICKETS' in PropertySource 'systemEnvironment' with value of type String
+2026-04-22 18:03:11.850+03:00 INFO  [main] o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-04-22 18:03:11.891+03:00 INFO  [main] org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
+2026-04-22 18:03:11.912+03:00 INFO  [main] o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
+2026-04-22 18:03:12.078+03:00 INFO  [main] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+WARNING: A restricted method in java.lang.System has been called
+WARNING: java.lang.System::load has been called by org.sqlite.SQLiteJDBCLoader in an unnamed module (file:/C:/Users/SinicinVV/git_h/tg_ref_b24_sup/spring-panel/.m2/repository/org/xerial/sqlite-jdbc/3.45.1.0/sqlite-jdbc-3.45.1.0.jar)
+WARNING: Use --enable-native-access=ALL-UNNAMED to avoid a warning for callers in this module
+WARNING: Restricted methods will be blocked in a future release unless native access is enabled
+
+2026-04-22 18:03:13.113+03:00 INFO  [main] o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-04-22 18:03:13.115+03:00 INFO  [main] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-04-22 18:03:13.120+03:00 DEBUG [main] o.s.b.c.p.s.ConfigurationPropertySourcesPropertyResolver$DefaultResolver - Found key 'GROUP_CHAT_ID' in PropertySource 'systemEnvironment' with value of type String
+2026-04-22 18:03:13.121+03:00 DEBUG [main] o.s.b.c.p.s.ConfigurationPropertySourcesPropertyResolver$DefaultResolver - Found key 'TELEGRAM_BOT_TOKEN' in PropertySource 'systemEnvironment' with value of type String
+2026-04-22 18:03:13.121+03:00 DEBUG [main] o.s.b.c.p.s.ConfigurationPropertySourcesPropertyResolver$DefaultResolver - Found key 'TELEGRAM_BOT_USERNAME' in PropertySource 'systemEnvironment' with value of type String
+2026-04-22 18:03:13.355+03:00 DEBUG [main] o.s.b.c.p.s.ConfigurationPropertySourcesPropertyResolver$DefaultResolver - Found key 'APP_BOT_LOG_PATH' in PropertySource 'systemEnvironment' with value of type String
+2026-04-22 18:03:13.389+03:00 DEBUG [main] o.s.b.a.AutoConfigurationPackages - @EnableAutoConfiguration was declared on a class in the package 'com.example.supportbot.telegram'. Automatic @Repository and @Entity scanning is enabled.
+2026-04-22 18:03:13.488+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing SQL statement [ALTER TABLE chat_history ADD COLUMN original_message TEXT]
+2026-04-22 18:03:13.497+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing SQL statement [ALTER TABLE chat_history ADD COLUMN forwarded_from TEXT]
+2026-04-22 18:03:13.644+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Initializing Telegram bot configuration check
+2026-04-22 18:03:13.645+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Telegram bot configuration: username='tst_int_SV_bot' token=8391…kzYU (46) channelId=-4961108450
+2026-04-22 18:03:13.645+03:00 INFO  [main] c.e.supportbot.telegram.SupportBot - Telegram client will use proxy vless://185.237.223.25:7878
+2026-04-22 18:03:34.758+03:00 INFO  [main] o.a.http.impl.execchain.RetryExec - I/O exception (java.net.SocketException) caught when processing request to {s}->https://api.telegram.org:443: Connection timed out: getsockopt
+2026-04-22 18:03:34.758+03:00 INFO  [main] o.a.http.impl.execchain.RetryExec - Retrying request to {s}->https://api.telegram.org:443
