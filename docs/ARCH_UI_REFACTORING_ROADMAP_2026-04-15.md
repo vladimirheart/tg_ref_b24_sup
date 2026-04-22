@@ -191,6 +191,11 @@
   `WorkspaceGuardrailWebhookNotifier` больше не завязаны напрямую на
   `DialogService`, а telemetry/macro governance получили отдельную
   dependency-boundary для следующего полноценного выноса логики.
+- следующим пакетом снята ещё и техническая nested/static coupling вокруг
+  giant service: `DialogDataAccessSupport` вынесен из `DialogService`, а
+  `DialogResolveResult` больше не живёт как nested record giant service;
+  это позволило перевести lifecycle/read-side use-sites на отдельные доменные
+  опоры без прямой привязки к nested API `DialogService`.
 
 Что остаётся:
 
@@ -198,6 +203,8 @@
   mapping layers;
 - продолжить вытаскивать из `DialogService` remaining read/write bounded
   contexts уже поверх вынесенного `DialogClientContextReadService`;
+- продолжить снимать direct dependency use-sites, где giant service ещё
+  используется как boundary для telemetry summary и macro governance audit;
 - продолжить снимать remaining consumer-facades вокруг notifier / telemetry /
   escalation слоёв там, где giant service ещё остаётся техническим посредником;
 - продолжить service-level split уже поверх вынесенных `DialogClientContextReadService`

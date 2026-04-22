@@ -30,7 +30,7 @@ public class DialogResponsibilityService {
                     ticketId, username, username, ticketId
             );
         } catch (DataAccessException ex) {
-            log.warn("Unable to assign responsible for ticket {}: {}", ticketId, DialogService.summarizeDataAccessException(ex));
+            log.warn("Unable to assign responsible for ticket {}: {}", ticketId, DialogDataAccessSupport.summarizeDataAccessException(ex));
         }
     }
 
@@ -52,7 +52,7 @@ public class DialogResponsibilityService {
                     operator
             );
         } catch (DataAccessException ex) {
-            log.warn("Unable to mark dialog {} as read for {}: {}", ticketId, operator, DialogService.summarizeDataAccessException(ex));
+            log.warn("Unable to mark dialog {} as read for {}: {}", ticketId, operator, DialogDataAccessSupport.summarizeDataAccessException(ex));
         }
     }
 
@@ -75,7 +75,7 @@ public class DialogResponsibilityService {
                 );
             }
         } catch (DataAccessException ex) {
-            log.warn("Unable to update responsible for ticket {}: {}", ticketId, DialogService.summarizeDataAccessException(ex));
+            log.warn("Unable to update responsible for ticket {}: {}", ticketId, DialogDataAccessSupport.summarizeDataAccessException(ex));
         }
     }
 }

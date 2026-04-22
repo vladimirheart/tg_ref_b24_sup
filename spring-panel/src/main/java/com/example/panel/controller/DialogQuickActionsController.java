@@ -1,9 +1,9 @@
 package com.example.panel.controller;
 
 import com.example.panel.service.DialogQuickActionService;
+import com.example.panel.service.DialogResolveResult;
 import com.example.panel.service.DialogReplyService;
 import com.example.panel.service.DialogAuthorizationService;
-import com.example.panel.service.DialogService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -141,7 +141,7 @@ public class DialogQuickActionsController {
             }
             String operator = authentication != null ? authentication.getName() : null;
             List<String> categories = request != null ? request.categories() : List.of();
-            DialogService.ResolveResult result = dialogQuickActionService.resolveTicket(ticketId, operator, categories);
+            DialogResolveResult result = dialogQuickActionService.resolveTicket(ticketId, operator, categories);
             if (!result.exists()) {
                 dialogAuthorizationService.logDialogAction(operator, ticketId, "quick_close", "not_found", "Диалог не найден");
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -165,7 +165,7 @@ public class DialogQuickActionsController {
             return permissionDenied;
         }
         String operator = authentication != null ? authentication.getName() : null;
-        DialogService.ResolveResult result = dialogQuickActionService.reopenTicket(ticketId, operator);
+        DialogResolveResult result = dialogQuickActionService.reopenTicket(ticketId, operator);
         if (!result.exists()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(Map.of("success", false, "error", "Диалог не найден"));

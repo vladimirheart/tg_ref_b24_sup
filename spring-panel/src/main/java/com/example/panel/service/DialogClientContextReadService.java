@@ -48,7 +48,7 @@ public class DialogClientContextReadService {
                 return historyItem;
             }, userId, currentTicketId, currentTicketId, limit);
         } catch (DataAccessException ex) {
-            log.warn("Unable to load client dialog history for user {}: {}", userId, DialogService.summarizeDataAccessException(ex));
+            log.warn("Unable to load client dialog history for user {}: {}", userId, DialogDataAccessSupport.summarizeDataAccessException(ex));
             return List.of();
         }
     }
@@ -87,7 +87,7 @@ public class DialogClientContextReadService {
                 return enrichment;
             }, userId);
         } catch (DataAccessException ex) {
-            log.warn("Unable to load client profile enrichment for user {}: {}", userId, DialogService.summarizeDataAccessException(ex));
+            log.warn("Unable to load client profile enrichment for user {}: {}", userId, DialogDataAccessSupport.summarizeDataAccessException(ex));
             return Map.of();
         }
     }
@@ -184,7 +184,7 @@ public class DialogClientContextReadService {
                     """;
             return mapRelatedEvents(sqlWithAudit, ticketId, ticketId, ticketId, limit);
         } catch (DataAccessException ex) {
-            log.warn("Unable to load related events with audit trail for ticket {}: {}. Fallback to legacy events.", ticketId, DialogService.summarizeDataAccessException(ex));
+            log.warn("Unable to load related events with audit trail for ticket {}: {}. Fallback to legacy events.", ticketId, DialogDataAccessSupport.summarizeDataAccessException(ex));
             try {
                 String sql = """
                         SELECT actor, event_at, event_type, action, result, detail
@@ -219,7 +219,7 @@ public class DialogClientContextReadService {
                         """;
                 return mapRelatedEvents(sql, ticketId, ticketId, limit);
             } catch (DataAccessException fallbackEx) {
-                log.warn("Unable to load related events for ticket {}: {}", ticketId, DialogService.summarizeDataAccessException(fallbackEx));
+                log.warn("Unable to load related events for ticket {}: {}", ticketId, DialogDataAccessSupport.summarizeDataAccessException(fallbackEx));
                 return List.of();
             }
         }
@@ -269,7 +269,7 @@ public class DialogClientContextReadService {
                     limit
             );
         } catch (DataAccessException ex) {
-            log.debug("Unable to resolve mapping candidates for paramType={} value={}: {}", paramType, incomingValue, DialogService.summarizeDataAccessException(ex));
+            log.debug("Unable to resolve mapping candidates for paramType={} value={}: {}", paramType, incomingValue, DialogDataAccessSupport.summarizeDataAccessException(ex));
             return List.of();
         }
     }

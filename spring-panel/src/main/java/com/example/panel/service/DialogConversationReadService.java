@@ -107,7 +107,7 @@ public class DialogConversationReadService {
             }
             return history;
         } catch (DataAccessException ex) {
-            log.warn("Unable to load chat history for ticket {}: {}", ticketId, DialogService.summarizeDataAccessException(ex));
+            log.warn("Unable to load chat history for ticket {}: {}", ticketId, DialogDataAccessSupport.summarizeDataAccessException(ex));
             return List.of();
         }
     }
@@ -177,7 +177,7 @@ public class DialogConversationReadService {
             Integer nextOffset = hasMore ? offset + 1 : null;
             return Optional.of(new DialogPreviousHistoryPage(batches.get(0), nextOffset, hasMore));
         } catch (DataAccessException ex) {
-            log.warn("Unable to load previous chat history for ticket {}: {}", ticketId, DialogService.summarizeDataAccessException(ex));
+            log.warn("Unable to load previous chat history for ticket {}: {}", ticketId, DialogDataAccessSupport.summarizeDataAccessException(ex));
             return Optional.empty();
         }
     }
@@ -193,7 +193,7 @@ public class DialogConversationReadService {
                     ticketId
             );
         } catch (DataAccessException ex) {
-            log.warn("Unable to load categories for ticket {}: {}", ticketId, DialogService.summarizeDataAccessException(ex));
+            log.warn("Unable to load categories for ticket {}: {}", ticketId, DialogDataAccessSupport.summarizeDataAccessException(ex));
             return List.of();
         }
     }
@@ -292,7 +292,7 @@ public class DialogConversationReadService {
                 return columns;
             });
         } catch (DataAccessException ex) {
-            log.warn("Unable to inspect {} columns: {}", tableName, DialogService.summarizeDataAccessException(ex));
+            log.warn("Unable to inspect {} columns: {}", tableName, DialogDataAccessSupport.summarizeDataAccessException(ex));
             return Set.of();
         }
     }

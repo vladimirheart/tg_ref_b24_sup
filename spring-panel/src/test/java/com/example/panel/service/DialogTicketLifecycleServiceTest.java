@@ -36,7 +36,7 @@ class DialogTicketLifecycleServiceTest {
                 "T-100", "pending", 77L, 5L, 0, 0
         );
 
-        DialogService.ResolveResult result = service.resolveTicket("T-100", "operator", List.of("billing", "billing", "payments"));
+        DialogResolveResult result = service.resolveTicket("T-100", "operator", List.of("billing", "billing", "payments"));
 
         assertThat(result.updated()).isTrue();
         assertThat(result.exists()).isTrue();
@@ -69,7 +69,7 @@ class DialogTicketLifecycleServiceTest {
                 "T-200", "resolved", "Авто-система", 88L, 6L, 1, 0
         );
 
-        DialogService.ResolveResult result = service.reopenTicket("T-200", "operator");
+        DialogResolveResult result = service.reopenTicket("T-200", "operator");
 
         assertThat(result.updated()).isTrue();
         Map<String, Object> ticket = jdbcTemplate.queryForMap(
