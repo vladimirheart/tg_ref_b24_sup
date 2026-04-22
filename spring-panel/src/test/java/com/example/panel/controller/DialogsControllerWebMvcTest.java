@@ -19,6 +19,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -108,5 +109,20 @@ class DialogsControllerWebMvcTest {
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-preferences.js")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/theme.js")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-config.js")));
+    }
+
+    @Test
+    void aiOpsPageIncludesUiHeadBootstrapAndExplicitPagePreset() throws Exception {
+        doNothing().when(navigationService).enrich(any(), any());
+
+        mockMvc.perform(get("/ai-ops")
+                        .with(user("operator").authorities(() -> "PAGE_DIALOGS"))
+                        .with(csrf()))
+                .andExpect(status().isOk())
+                .andExpect(view().name("dialogs/ai-ops"))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-preferences.js")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/theme.js")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-config.js")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("data-ui-page=\"ai-ops\"")));
     }
 }

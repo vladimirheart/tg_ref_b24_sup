@@ -400,6 +400,10 @@
   теперь explicit `data-ui-page` и ранний `ui-head` bootstrap проверяются ещё
   для `channels`, `tasks`, `users`, `object-passports`, `public forms` и
   аналитических subpages `certificates/rms-control`.
+- этот же smoke-слой расширен на detail/subpage contract:
+  `ai-ops`, `unblock requests`, `users/detail` и оба passport editor route
+  (`/object-passports/new`, `/object-passports/{id}`) теперь тоже прикрыты
+  WebMvc smoke tests на ранний bootstrap и explicit `data-ui-page`.
 - legacy WebMvc test-слой частично синхронизирован с новой controller
   структурой.
 
@@ -407,7 +411,8 @@
 
 - продолжить расширять smoke tests для `theme/ui bootstrap` на remaining
   страницы beyond `dashboard/analytics/clients/knowledge/settings/dialogs`
-  и уже покрытых `channels/tasks/users/passports/public`;
+  и уже покрытых `channels/tasks/users/passports/public`, `ai-ops`,
+  `unblock-requests`, `users/detail` и `passport editor`;
 - добрать WebMvc tests под оставшиеся новые dialog/settings controllers;
 - расширить shared config/env resolution tests и settings regression net от
   targeted-слоя к более полным integration сценариям;
