@@ -147,6 +147,11 @@
   updates, `locations` sync, server-backed UI preferences и parameter CRUD
   тоже имеют прямую safety net; более широкий integration net для `settings`
   и shared config boundary всё ещё не завершён;
+- orchestration/API слой `settings` тоже уже не “почти без прямых тестов”:
+  есть `SettingsUpdateServiceTest`, `SettingsDialogConfigUpdateServiceTest`,
+  `SettingsBridgeControllerWebMvcTest` и `ProfileApiControllerWebMvcTest`,
+  так что основной `/settings` coordinator flow и server-backed UI preferences
+  прикрыты не только subdomain services, но и coordinator/WebMvc-контрактом;
 - в server-backed UI preferences был найден и закрыт реальный alias-bug:
   `sortMode/pageSize/updatedAtUtc` в `dialogsTriage` могли теряться из-за
   premature default-normalization, теперь этот контракт исправлен и покрыт
@@ -342,7 +347,7 @@ defaults и частично legacy-compatible фасадах.
 |---------|---------|------|
 | Крупные controller hot spots | Сильно снижены | 0 giant controllers |
 | Крупные service hot spots | Всё ещё есть, но главный риск сужен до `DialogService` и remaining settings/workspace slices | bounded services по доменам |
-| Regression safety net | Есть расширенный targeted unit/WebMvc/lifecycle/page-smoke net, включая settings governance/ui-preferences, но он ещё не полный | широкий regression net |
+| Regression safety net | Есть расширенный targeted unit/WebMvc/lifecycle/page-smoke net, включая settings governance, orchestration и ui-preferences, но он ещё не полный | широкий regression net |
 | Code Coverage | Не формализована | 60%+ |
 | Persistence consistency | Смешанный JDBC/JPA | явные domain boundaries |
 | Shared runtime/config contract | Формализован лучше, но ещё не унифицирован между panel и bot | единый documented contract |
@@ -375,7 +380,7 @@ defaults и частично legacy-compatible фасадах.
 
 1. Дожать service-level split `DialogService` и сузить remaining workspace/notifier consumer-facades
 2. Добить remaining `settings` subdomains и persistence boundaries
-3. Продолжить расширять `Phase 6` от targeted service tests к integration-сценариям
+3. Продолжить расширять `Phase 6` от targeted service/WebMvc tests к integration-сценариям
 4. После этого возвращаться к shared-config unification и DTO/error contract
 
 **Автор исходного аудита:** GitHub Copilot  
