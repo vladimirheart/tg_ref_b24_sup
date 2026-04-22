@@ -351,6 +351,10 @@
   `DialogListController`;
 - targeted tests для shared config/runtime foundation:
   `SharedConfigServiceTest`, `EnvDefaultsInitializerTest`;
+- `SlaEscalationWebhookNotifier` больше не зависит от `DialogService`
+  в production wiring: notifier переведён на `DialogLookupReadService`,
+  `DialogResponsibilityService` и `DialogAuditService`, а `DialogService`
+  оставлен только как compatibility fallback для legacy unit tests;
 - legacy WebMvc test-слой частично синхронизирован с новой controller
   структурой.
 
@@ -362,6 +366,9 @@
 - расширить shared config/env resolution tests от targeted-слоя к более полным
   integration сценариям;
 - более широкий runtime contract test для launcher strategy и bot lifecycle.
+- стабилизировать remaining legacy notifier tests
+  (`SlaEscalationWebhookNotifierTest`), где ещё всплывают старые
+  route naming/review-path ожидания.
 
 ## Где мы сейчас
 
