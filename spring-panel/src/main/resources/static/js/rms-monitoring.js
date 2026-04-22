@@ -152,6 +152,7 @@
           <div class="fw-semibold font-mono">${escapeHtml(site.rms_address_display || site.rms_address || '—')}</div>
           <div class="small text-muted">${site.enabled ? 'Мониторинг включён' : 'Мониторинг отключён'}</div>
           <div class="small text-muted">Логин: ${escapeHtml(site.auth_login || '—')}</div>
+          ${site.password_saved ? '' : '<div class="small text-warning">Пароль не сохранён</div>'}
         </td>
         <td>
           <div class="fw-semibold">${escapeHtml(site.server_name || '—')}</div>
