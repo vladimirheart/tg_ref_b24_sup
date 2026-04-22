@@ -185,6 +185,12 @@
   `DialogWorkspaceService` и `PublicFormApiController` переведены на новый
   слой, а `DialogService` использует его для `loadDialogDetails` и legacy
   delegates.
+- следующим boundary-пакетом вокруг telemetry/notifier слоя добавлены
+  `DialogWorkspaceTelemetrySummaryService` и
+  `DialogMacroGovernanceAuditService`: `DialogWorkspaceTelemetryService` и
+  `WorkspaceGuardrailWebhookNotifier` больше не завязаны напрямую на
+  `DialogService`, а telemetry/macro governance получили отдельную
+  dependency-boundary для следующего полноценного выноса логики.
 
 Что остаётся:
 
@@ -192,6 +198,8 @@
   mapping layers;
 - продолжить вытаскивать из `DialogService` remaining read/write bounded
   contexts уже поверх вынесенного `DialogClientContextReadService`;
+- продолжить снимать remaining consumer-facades вокруг notifier / telemetry /
+  escalation слоёв там, где giant service ещё остаётся техническим посредником;
 - продолжить service-level split уже поверх вынесенных `DialogClientContextReadService`
   и `DialogConversationReadService`, чтобы следующий пакет брал либо
   lookup/list-assembly, details-read слой, либо write-side bounded contexts;

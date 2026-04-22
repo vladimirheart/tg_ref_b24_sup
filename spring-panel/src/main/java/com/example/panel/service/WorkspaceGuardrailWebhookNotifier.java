@@ -27,17 +27,17 @@ public class WorkspaceGuardrailWebhookNotifier {
     private static final Logger log = LoggerFactory.getLogger(WorkspaceGuardrailWebhookNotifier.class);
 
     private final SharedConfigService sharedConfigService;
-    private final DialogService dialogService;
+    private final DialogWorkspaceTelemetrySummaryService dialogWorkspaceTelemetrySummaryService;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
     private final AtomicReference<Instant> lastSentAt = new AtomicReference<>();
     private final AtomicReference<String> lastPayloadFingerprint = new AtomicReference<>("");
 
     public WorkspaceGuardrailWebhookNotifier(SharedConfigService sharedConfigService,
-                                             DialogService dialogService,
+                                             DialogWorkspaceTelemetrySummaryService dialogWorkspaceTelemetrySummaryService,
                                              ObjectMapper objectMapper) {
         this.sharedConfigService = sharedConfigService;
-        this.dialogService = dialogService;
+        this.dialogWorkspaceTelemetrySummaryService = dialogWorkspaceTelemetrySummaryService;
         this.objectMapper = objectMapper;
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(3))
@@ -61,7 +61,7 @@ public class WorkspaceGuardrailWebhookNotifier {
         int minAlerts = resolvePositiveInt(config, "workspace_guardrail_webhook_min_alerts", 1, 20);
         int cooldownMinutes = resolvePositiveInt(config, "workspace_guardrail_webhook_cooldown_minutes", 30, 24 * 60);
 
-        Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(days, experimentName);
+        Map<String, Object> summary = dialogWorkspaceTelemetrySummaryService.loadSummary(days, experimentName);
         Map<String, Object> guardrails = extractMap(summary.get("guardrails"));
         String status = String.valueOf(guardrails.getOrDefault("status", "ok"));
         if (!"attention".equalsIgnoreCase(status)) {

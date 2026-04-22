@@ -71,6 +71,12 @@
   `SlaEscalationWebhookNotifier` использует `DialogLookupReadService` и
   `DialogResponsibilityService` там, где giant `DialogService` раньше
   оставался только техническим фасадом;
+- вокруг telemetry/notifier слоя добавлены boundary-сервисы
+  `DialogWorkspaceTelemetrySummaryService` и
+  `DialogMacroGovernanceAuditService`, поэтому
+  `DialogWorkspaceTelemetryService` и `WorkspaceGuardrailWebhookNotifier`
+  больше не тянут `DialogService` напрямую и готовы к следующему real split
+  summary/governance логики;
 - SLA/runtime дублирование между `DialogWorkspaceService` и
   `DialogListReadService` уменьшено через общий `DialogSlaRuntimeService`,
   который теперь держит lifecycle-state, deadline, minutes-left и config
@@ -129,6 +135,10 @@
 - `SharedConfigService` дублируется между `spring-panel` и `java-bot`;
 - DTO/API contract и error contract всё ещё не унифицированы по проекту;
 - persistence-слой по-прежнему смешивает raw JDBC и JPA/Repository подходы;
+- часть consumer-фасадов вокруг telemetry/notifier слоя уже снята, но
+  следующий шаг там всё ещё остаётся за полным выносом `workspace telemetry`
+  summary и `macro governance` логики из giant `DialogService`, а не только
+  за boundary-wrapper слоем;
 - часть legacy safety net всё ещё нестабильна: например, есть старые хвосты
   вокруг `SlaEscalationWebhookNotifierTest`, которые уже не блокируют
   текущие рефакторинги, но показывают, что regression net пока не является

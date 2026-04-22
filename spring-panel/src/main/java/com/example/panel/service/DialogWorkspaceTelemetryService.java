@@ -61,20 +61,23 @@ public class DialogWorkspaceTelemetryService {
             Map.entry("triage_bulk_action", "triage")
     );
 
-    private final DialogService dialogService;
+    private final DialogWorkspaceTelemetrySummaryService dialogWorkspaceTelemetrySummaryService;
     private final DialogAuditService dialogAuditService;
     private final DialogLookupReadService dialogLookupReadService;
+    private final DialogMacroGovernanceAuditService dialogMacroGovernanceAuditService;
     private final SharedConfigService sharedConfigService;
     private final SlaEscalationWebhookNotifier slaEscalationWebhookNotifier;
 
-    public DialogWorkspaceTelemetryService(DialogService dialogService,
+    public DialogWorkspaceTelemetryService(DialogWorkspaceTelemetrySummaryService dialogWorkspaceTelemetrySummaryService,
                                            DialogAuditService dialogAuditService,
                                            DialogLookupReadService dialogLookupReadService,
+                                           DialogMacroGovernanceAuditService dialogMacroGovernanceAuditService,
                                            SharedConfigService sharedConfigService,
                                            SlaEscalationWebhookNotifier slaEscalationWebhookNotifier) {
-        this.dialogService = dialogService;
+        this.dialogWorkspaceTelemetrySummaryService = dialogWorkspaceTelemetrySummaryService;
         this.dialogAuditService = dialogAuditService;
         this.dialogLookupReadService = dialogLookupReadService;
+        this.dialogMacroGovernanceAuditService = dialogMacroGovernanceAuditService;
         this.sharedConfigService = sharedConfigService;
         this.slaEscalationWebhookNotifier = slaEscalationWebhookNotifier;
     }
@@ -144,17 +147,17 @@ public class DialogWorkspaceTelemetryService {
         }
 
         Map<String, Object> payload = explicitWindowRequested
-                ? new LinkedHashMap<>(dialogService.loadWorkspaceTelemetrySummary(
+                ? new LinkedHashMap<>(dialogWorkspaceTelemetrySummaryService.loadSummary(
                 safeDays,
                 experimentName,
                 fromUtc != null ? fromUtc.toInstant() : null,
                 toUtc != null ? toUtc.toInstant() : null))
-                : new LinkedHashMap<>(dialogService.loadWorkspaceTelemetrySummary(safeDays, experimentName));
+                : new LinkedHashMap<>(dialogWorkspaceTelemetrySummaryService.loadSummary(safeDays, experimentName));
         Map<String, Object> settings = sharedConfigService.loadSettings();
         Map<String, Object> slaPolicyAudit = slaEscalationWebhookNotifier.buildRoutingGovernanceAudit(
                 dialogLookupReadService.loadDialogs(null),
                 settings);
-        Map<String, Object> macroGovernanceAudit = dialogService.buildMacroGovernanceAudit(settings);
+        Map<String, Object> macroGovernanceAudit = dialogMacroGovernanceAuditService.buildAudit(settings);
         payload.put("sla_policy_audit", slaPolicyAudit != null ? slaPolicyAudit : Map.of());
         payload.put("macro_governance_audit", macroGovernanceAudit);
         payload.put("p1_operational_control", buildP1OperationalControl(payload));
