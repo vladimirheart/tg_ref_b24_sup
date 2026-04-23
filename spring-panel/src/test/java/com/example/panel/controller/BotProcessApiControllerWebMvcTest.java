@@ -52,6 +52,24 @@ class BotProcessApiControllerWebMvcTest {
     }
 
     @Test
+    void startReturnsErrorPayloadWhenServiceReportsStartupFailure() throws Exception {
+        Channel channel = new Channel();
+        channel.setId(15L);
+        channel.setPlatform("telegram");
+
+        when(channelRepository.findById(15L)).thenReturn(Optional.of(channel));
+        when(botProcessService.start(channel)).thenReturn(
+            new BotProcessService.BotProcessStatus(false, "Не удалось запустить бота: missing credential", null)
+        );
+
+        mockMvc.perform(post("/api/bots/15/start"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.status").value("Не удалось запустить бота: missing credential"))
+            .andExpect(jsonPath("$.startedAt").isEmpty());
+    }
+
+    @Test
     void startReturnsNotFoundForUnknownChannel() throws Exception {
         when(channelRepository.findById(99L)).thenReturn(Optional.empty());
 
@@ -71,6 +89,19 @@ class BotProcessApiControllerWebMvcTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.status").value("stopped"))
+            .andExpect(jsonPath("$.startedAt").doesNotExist());
+    }
+
+    @Test
+    void stopReturnsErrorPayloadWhenServiceReportsFailure() throws Exception {
+        when(botProcessService.stop(16L)).thenReturn(
+            new BotProcessService.BotProcessStatus(false, "pid file is corrupted", null)
+        );
+
+        mockMvc.perform(post("/api/bots/16/stop"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.status").value("pid file is corrupted"))
             .andExpect(jsonPath("$.startedAt").doesNotExist());
     }
 
@@ -97,6 +128,19 @@ class BotProcessApiControllerWebMvcTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.status").value("stopped"))
+            .andExpect(jsonPath("$.startedAt").isEmpty());
+    }
+
+    @Test
+    void statusReturnsErrorPayloadWhenServiceReportsFailure() throws Exception {
+        when(botProcessService.status(17L)).thenReturn(
+            new BotProcessService.BotProcessStatus(false, "startup log missing", null)
+        );
+
+        mockMvc.perform(get("/api/bots/17/status"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.status").value("startup log missing"))
             .andExpect(jsonPath("$.startedAt").isEmpty());
     }
 
@@ -136,6 +180,41 @@ class BotProcessApiControllerWebMvcTest {
             .andExpect(jsonPath("$.contract.readiness.timeoutMillis").value(45000))
             .andExpect(jsonPath("$.contract.production.readyForProduction").value(true))
             .andExpect(jsonPath("$.contract.lifecycle.runningStatus").value("running"));
+    }
+
+    @Test
+    void runtimeContractReturnsStructuredContractPayloadForMaxChannel() throws Exception {
+        Channel channel = new Channel();
+        channel.setId(52L);
+        channel.setPlatform("max");
+
+        when(channelRepository.findById(52L)).thenReturn(Optional.of(channel));
+        when(botProcessService.describeRuntimeContract(channel)).thenReturn(
+            new BotRuntimeContractService.BotRuntimeContract(
+                52L,
+                "max",
+                "bot-max",
+                "auto",
+                "jar",
+                "jar",
+                "explicit-config",
+                "C:/bots/bot-max.jar",
+                List.of("APP_DB_TICKETS", "MAX_BOT_TOKEN", "SERVER_PORT"),
+                List.of("MAX_WEBHOOK_SECRET"),
+                List.of(),
+                new BotRuntimeContractService.BotReadinessContract(45000L, 250L, "Spring Boot started marker", "APPLICATION FAILED TO START banner"),
+                new BotRuntimeContractService.BotProductionContract("jar", "C:/bots/dist/bot-max-runtime.jar", true, List.of()),
+                new BotRuntimeContractService.BotLifecycleContract("running", "stopped", "error", "panel waits for readiness signal after process start", "panel terminates process when readiness is not confirmed in time")
+            )
+        );
+
+        mockMvc.perform(get("/api/bots/52/runtime-contract"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.contract.botModule").value("bot-max"))
+            .andExpect(jsonPath("$.contract.platform").value("max"))
+            .andExpect(jsonPath("$.contract.requiredEnvironmentKeys[1]").value("MAX_BOT_TOKEN"))
+            .andExpect(jsonPath("$.contract.optionalEnvironmentKeys[0]").value("MAX_WEBHOOK_SECRET"));
     }
 
     @Test

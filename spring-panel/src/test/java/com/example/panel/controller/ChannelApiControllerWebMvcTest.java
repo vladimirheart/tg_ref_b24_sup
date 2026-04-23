@@ -412,6 +412,77 @@ class ChannelApiControllerWebMvcTest {
     }
 
     @Test
+    void testChannelReturnsBadRequestWhenAllDeliveriesFail() throws Exception {
+        Channel channel = new Channel();
+        channel.setId(64L);
+        channel.setPlatform("telegram");
+        channel.setToken("tg-token");
+        channel.setSupportChatId("group-2");
+        channel.setDeliverySettings("""
+                {
+                  "broadcast_channel_id": "channel-2"
+                }
+                """);
+
+        @SuppressWarnings("unchecked")
+        HttpResponse<String> response = (HttpResponse<String>) mock(HttpResponse.class);
+        HttpClient httpClient = mock(HttpClient.class);
+        when(response.statusCode()).thenReturn(500);
+        when(channelRepository.findById(64L)).thenReturn(Optional.of(channel));
+        when(integrationNetworkService.createChannelHttpClient(any(Channel.class), any())).thenReturn(httpClient);
+        when(httpClient.send(any(), any(HttpResponse.BodyHandler.class))).thenReturn(response);
+
+        mockMvc.perform(post("/api/channels/64/test-message")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "target_mode": "both",
+                                  "message": "hello"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error").value("Не удалось отправить сообщение ни одному получателю"))
+                .andExpect(jsonPath("$.failed.length()").value(2));
+    }
+
+    @Test
+    void testChannelUsesManualRecipientWithoutConfiguredTargets() throws Exception {
+        Channel channel = new Channel();
+        channel.setId(65L);
+        channel.setPlatform("telegram");
+        channel.setToken("tg-token");
+        channel.setDeliverySettings("{}");
+
+        @SuppressWarnings("unchecked")
+        HttpResponse<String> response = (HttpResponse<String>) mock(HttpResponse.class);
+        HttpClient httpClient = mock(HttpClient.class);
+        when(response.statusCode()).thenReturn(200);
+        when(response.body()).thenReturn("""
+                {
+                  "ok": true
+                }
+                """);
+        when(channelRepository.findById(65L)).thenReturn(Optional.of(channel));
+        when(integrationNetworkService.createChannelHttpClient(any(Channel.class), any())).thenReturn(httpClient);
+        when(httpClient.send(any(), any(HttpResponse.BodyHandler.class))).thenReturn(response);
+
+        mockMvc.perform(post("/api/channels/65/test-message")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "recipient": "manual-operator",
+                                  "message": "manual ping"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.sent.length()").value(1))
+                .andExpect(jsonPath("$.sent[0]").value("manual-operator"))
+                .andExpect(jsonPath("$.failed.length()").value(0));
+    }
+
+    @Test
     void refreshBotInfoReturnsNotFoundWhenChannelIsMissing() throws Exception {
         when(channelRepository.findById(71L)).thenReturn(Optional.empty());
 
