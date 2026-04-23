@@ -112,6 +112,30 @@ class ChannelApiControllerWebMvcTest {
     }
 
     @Test
+    void getChannelsEmbedsCredentialSummaryForBoundCredential() throws Exception {
+        Channel channel = new Channel();
+        channel.setId(12L);
+        channel.setChannelName("Telegram Support");
+        channel.setPlatform("telegram");
+        channel.setCredentialId(5L);
+        channel.setPublicId("pub-12");
+
+        when(channelRepository.findAll()).thenReturn(List.of(channel));
+        when(sharedConfigService.loadBotCredentials()).thenReturn(List.of(
+            new BotCredential(5L, "TG Main", "telegram", "123456:ABCDEF", true)
+        ));
+
+        mockMvc.perform(get("/api/channels"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.channels[0].id").value(12))
+            .andExpect(jsonPath("$.channels[0].credential_id").value(5))
+            .andExpect(jsonPath("$.channels[0].credential.id").value(5))
+            .andExpect(jsonPath("$.channels[0].credential.name").value("TG Main"))
+            .andExpect(jsonPath("$.channels[0].credential.masked_token").exists());
+    }
+
+    @Test
     void getBotCredentialsReturnsSharedConfigCredentials() throws Exception {
         when(sharedConfigService.loadBotCredentials()).thenReturn(List.of(
             new BotCredential(5L, "TG Main", "telegram", "123456:ABCDEF", true)
@@ -125,6 +149,21 @@ class ChannelApiControllerWebMvcTest {
             .andExpect(jsonPath("$.credentials[0].platform").value("telegram"))
             .andExpect(jsonPath("$.credentials[0].is_active").value(true))
             .andExpect(jsonPath("$.credentials[0].masked_token").exists());
+    }
+
+    @Test
+    void createBotCredentialRejectsMissingNameOrToken() throws Exception {
+        mockMvc.perform(post("/api/bot-credentials")
+                .contentType("application/json")
+                .content("""
+                    {
+                      "name": "VK Main",
+                      "token": ""
+                    }
+                    """))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("Название и токен обязательны"));
     }
 
     @Test
@@ -158,6 +197,30 @@ class ChannelApiControllerWebMvcTest {
     }
 
     @Test
+    void createBotCredentialNormalizesBlankPlatformToTelegram() throws Exception {
+        when(sharedConfigService.loadBotCredentials()).thenReturn(List.of());
+
+        mockMvc.perform(post("/api/bot-credentials")
+                .contentType("application/json")
+                .content("""
+                    {
+                      "name": "Default TG",
+                      "platform": "",
+                      "token": "tg-token",
+                      "is_active": true
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.credential.platform").value("telegram"));
+
+        verify(sharedConfigService).saveBotCredentials(argThat(credentials ->
+            credentials.size() == 1
+                && "telegram".equals(credentials.get(0).platform())
+        ));
+    }
+
+    @Test
     void deleteBotCredentialClearsLinkedChannelsAndPersistsTrimmedCredentialList() throws Exception {
         when(sharedConfigService.loadBotCredentials()).thenReturn(List.of(
             new BotCredential(7L, "TG Main", "telegram", "token-1", true),
@@ -178,5 +241,17 @@ class ChannelApiControllerWebMvcTest {
         verify(channelRepository).saveAll(argThat(channels ->
             channels.iterator().hasNext() && channels.iterator().next().getCredentialId() == null
         ));
+    }
+
+    @Test
+    void deleteBotCredentialReturnsNotFoundWhenCredentialIsMissing() throws Exception {
+        when(sharedConfigService.loadBotCredentials()).thenReturn(List.of(
+            new BotCredential(7L, "TG Main", "telegram", "token-1", true)
+        ));
+
+        mockMvc.perform(delete("/api/bot-credentials/404"))
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("Учётные данные не найдены"));
     }
 }

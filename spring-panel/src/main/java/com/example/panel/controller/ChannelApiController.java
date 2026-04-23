@@ -440,7 +440,7 @@ public class ChannelApiController {
         if (name.isEmpty() || token.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("success", false, "error", "Название и токен обязательны"));
         }
-        String platform = stringValue(data.getOrDefault("platform", "telegram"));
+        String platform = normalizePlatform(stringValue(data.getOrDefault("platform", "telegram")));
         boolean active = Boolean.TRUE.equals(parseBoolean(data.getOrDefault("is_active", true)));
 
         List<BotCredential> credentials = new ArrayList<>(loadBotCredentials());

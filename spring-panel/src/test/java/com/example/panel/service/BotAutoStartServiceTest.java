@@ -75,6 +75,27 @@ class BotAutoStartServiceTest {
     }
 
     @Test
+    void autoStartActiveBotsStartsChannelWithoutCredentialBinding() {
+        Channel channel = new Channel();
+        channel.setId(66L);
+        channel.setChannelName("No Credential Binding");
+        channel.setActive(true);
+        channel.setCredentialId(null);
+
+        when(channelRepository.findAll()).thenReturn(List.of(channel));
+        when(botProcessService.status(66L))
+            .thenReturn(new BotProcessService.BotProcessStatus(false, "stopped", null));
+        when(botProcessService.start(channel))
+            .thenReturn(new BotProcessService.BotProcessStatus(true, "running", null));
+
+        botAutoStartService.autoStartActiveBots();
+
+        verify(sharedConfigService, never()).loadBotCredentials();
+        verify(botProcessService).status(66L);
+        verify(botProcessService).start(channel);
+    }
+
+    @Test
     void autoStartActiveBotsSkipsInactiveChannel() {
         Channel channel = new Channel();
         channel.setId(55L);

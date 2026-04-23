@@ -88,6 +88,19 @@ class BotProcessApiControllerWebMvcTest {
     }
 
     @Test
+    void statusReturnsStoppedPayloadWhenServiceReportsStopped() throws Exception {
+        when(botProcessService.status(14L)).thenReturn(
+            new BotProcessService.BotProcessStatus(false, "stopped", null)
+        );
+
+        mockMvc.perform(get("/api/bots/14/status"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.status").value("stopped"))
+            .andExpect(jsonPath("$.startedAt").isEmpty());
+    }
+
+    @Test
     void runtimeContractReturnsStructuredContractPayload() throws Exception {
         Channel channel = new Channel();
         channel.setId(51L);

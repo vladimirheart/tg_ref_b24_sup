@@ -228,6 +228,15 @@
   вместе с `runtime-contract`, `BotRuntimeContractServiceTest` добран
   `vk`-contract сценариями, а `BotAutoStartServiceTest` — ветками
   `inactive/already-running/missing-credential`.
+- следующим пакетом shared-config/runtime boundary расширен ещё глубже:
+  `ChannelApiController#createBotCredential` теперь нормализует пустой
+  `platform` в `telegram`, `ChannelApiControllerWebMvcTest` прикрывает
+  embedded credential summary в `/api/channels`, validation/normalization
+  для `bot_credentials` и `404` при удалении отсутствующего credential;
+  `BotProcessApiControllerWebMvcTest` добран stopped-state веткой,
+  `BotRuntimeContractServiceTest` — `max`-contract сценарием и optional
+  `vk` env keys, а `BotAutoStartServiceTest` —
+  веткой `channel without credential binding`.
 
 ---
 
