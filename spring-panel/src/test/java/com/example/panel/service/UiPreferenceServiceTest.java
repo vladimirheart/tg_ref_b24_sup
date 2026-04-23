@@ -84,4 +84,28 @@ class UiPreferenceServiceTest {
         assertEquals(60, reloaded.get("sla_window_minutes"));
         assertEquals("all", reloaded.get("page_size"));
     }
+
+    @Test
+    void saveForUserPreservesDialogsTriagePayloadAcrossBasePreferenceUpdates() {
+        service.saveDialogsTriageForUser("carol", Map.of(
+                "view", "sla_critical",
+                "sortMode", "sla_priority",
+                "pageSize", "all"
+        ));
+
+        Map<String, Object> saved = service.saveForUser("carol", Map.of(
+                "theme", "dark",
+                "themePalette", "amber-minimal",
+                "sidebarPinned", false
+        ));
+
+        assertEquals("dark", saved.get("theme"));
+        assertEquals("amber-minimal", saved.get("themePalette"));
+        assertEquals("0", saved.get("sidebarPinned"));
+
+        Map<String, Object> triage = service.loadDialogsTriageForUser("carol");
+        assertEquals("sla_critical", triage.get("view"));
+        assertEquals("sla_priority", triage.get("sort_mode"));
+        assertEquals("all", triage.get("page_size"));
+    }
 }
