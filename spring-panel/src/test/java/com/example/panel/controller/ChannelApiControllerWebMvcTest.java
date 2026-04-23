@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -109,6 +110,198 @@ class ChannelApiControllerWebMvcTest {
                         && "auto-template".equals(channel.getAutoActionTemplateId())
                         && "{\"group_id\":123,\"confirmation_token\":\"vk-confirm\",\"secret\":\"vk-secret\"}".equals(channel.getPlatformConfig())
         ));
+    }
+
+    @Test
+    void createChannelNormalizesBlankPlatformToTelegramAndGeneratesDefaults() throws Exception {
+        when(channelRepository.save(any(Channel.class))).thenAnswer(invocation -> {
+            Channel channel = invocation.getArgument(0);
+            channel.setId(43L);
+            return channel;
+        });
+        when(sharedConfigService.loadBotCredentials()).thenReturn(List.of());
+
+        mockMvc.perform(post("/api/channels")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "channel_name": "Default TG",
+                                  "platform": "",
+                                  "token": "telegram-token"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.channel.id").value(43))
+                .andExpect(jsonPath("$.channel.platform").value("telegram"))
+                .andExpect(jsonPath("$.channel.public_id").isNotEmpty())
+                .andExpect(jsonPath("$.channel.questions_cfg").isMap())
+                .andExpect(jsonPath("$.channel.delivery_settings").isMap());
+
+        verify(channelRepository).save(argThat(channel ->
+                "Default TG".equals(channel.getChannelName())
+                        && "telegram".equals(channel.getPlatform())
+                        && "telegram-token".equals(channel.getToken())
+                        && "{}".equals(channel.getQuestionsCfg())
+                        && "{}".equals(channel.getDeliverySettings())
+                        && channel.getPublicId() != null
+                        && !channel.getPublicId().isBlank()
+        ));
+    }
+
+    @Test
+    void patchChannelUpdatesCredentialRouteAndPlatformConfig() throws Exception {
+        Channel channel = new Channel();
+        channel.setId(44L);
+        channel.setChannelName("TG Support");
+        channel.setPlatform("telegram");
+        channel.setToken("tg-token");
+        channel.setDeliverySettings("{}");
+        channel.setQuestionsCfg("{}");
+        channel.setPublicId("public-44");
+        channel.setActive(true);
+
+        when(channelRepository.findById(44L)).thenReturn(Optional.of(channel));
+        when(channelRepository.save(any(Channel.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(sharedConfigService.loadBotCredentials()).thenReturn(List.of(
+            new BotCredential(9L, "TG Main", "telegram", "token-9", true)
+        ));
+
+        mockMvc.perform(post("/api/channels/44")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "credential_id": 9,
+                                  "support_chat_id": "ops-room",
+                                  "network_route": {
+                                    "mode": "proxy",
+                                    "target": "corp-gateway"
+                                  },
+                                  "delivery_settings": {
+                                    "broadcast_channel_id": "987654"
+                                  },
+                                  "platform_config": {
+                                    "webhook_secret": "tg-secret"
+                                  }
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.channel.credential_id").value(9))
+                .andExpect(jsonPath("$.channel.credential.id").value(9))
+                .andExpect(jsonPath("$.channel.support_chat_id").value("ops-room"))
+                .andExpect(jsonPath("$.channel.delivery_settings.broadcast_channel_id").value("987654"))
+                .andExpect(jsonPath("$.channel.network_route.mode").value("proxy"))
+                .andExpect(jsonPath("$.channel.network_route.target").value("corp-gateway"))
+                .andExpect(jsonPath("$.channel.platform_config.webhook_secret").value("tg-secret"));
+
+        verify(channelRepository).save(argThat(saved ->
+                Long.valueOf(9L).equals(saved.getCredentialId())
+                        && "ops-room".equals(saved.getSupportChatId())
+                        && saved.getPlatformConfig() != null
+                        && saved.getPlatformConfig().contains("tg-secret")
+                        && saved.getDeliverySettings() != null
+                        && saved.getDeliverySettings().contains("broadcast_channel_id")
+                        && saved.getDeliverySettings().contains("network_route")
+        ));
+    }
+
+    @Test
+    void patchChannelRejectsInvalidQuestionsConfigContract() throws Exception {
+        Channel channel = new Channel();
+        channel.setId(45L);
+        channel.setChannelName("Invalid Config");
+        channel.setPlatform("telegram");
+        channel.setToken("tg-token");
+
+        when(channelRepository.findById(45L)).thenReturn(Optional.of(channel));
+
+        mockMvc.perform(post("/api/channels/45")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "questions_cfg": "broken"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error").value("questions_cfg должен быть объектом или массивом"));
+    }
+
+    @Test
+    void putChannelReturnsNotFoundWhenChannelIsMissing() throws Exception {
+        when(channelRepository.findById(404L)).thenReturn(Optional.empty());
+
+        mockMvc.perform(put("/api/channels/404")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "channel_name": "Missing"
+                                }
+                                """))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error").value("Канал не найден"));
+    }
+
+    @Test
+    void postChannelAliasUpdatesDescriptionAndActiveState() throws Exception {
+        Channel channel = new Channel();
+        channel.setId(47L);
+        channel.setChannelName("Alias Update");
+        channel.setPlatform("telegram");
+        channel.setToken("tg-token");
+        channel.setDeliverySettings("{}");
+        channel.setQuestionsCfg("{}");
+        channel.setPublicId("public-47");
+        channel.setActive(true);
+
+        when(channelRepository.findById(47L)).thenReturn(Optional.of(channel));
+        when(channelRepository.save(any(Channel.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(sharedConfigService.loadBotCredentials()).thenReturn(List.of());
+
+        mockMvc.perform(post("/api/channels/47")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "description": "Updated via alias",
+                                  "is_active": false
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.channel.description").value("Updated via alias"))
+                .andExpect(jsonPath("$.channel.is_active").value(false));
+
+        verify(channelRepository).save(argThat(saved ->
+                "Updated via alias".equals(saved.getDescription())
+                        && Boolean.FALSE.equals(saved.getActive())
+        ));
+    }
+
+    @Test
+    void deleteChannelRemovesExistingChannel() throws Exception {
+        Channel channel = new Channel();
+        channel.setId(46L);
+        channel.setChannelName("Delete Me");
+
+        when(channelRepository.findById(46L)).thenReturn(Optional.of(channel));
+
+        mockMvc.perform(delete("/api/channels/46"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        verify(channelRepository).delete(channel);
+    }
+
+    @Test
+    void deleteChannelReturnsNotFoundWhenChannelIsMissing() throws Exception {
+        when(channelRepository.findById(406L)).thenReturn(Optional.empty());
+
+        mockMvc.perform(delete("/api/channels/406"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error").value("Канал не найден"));
     }
 
     @Test
