@@ -84,6 +84,51 @@ class BotRuntimeContractServiceTest {
     }
 
     @Test
+    void buildEnvironmentIncludesPlatformSpecificContractForVk() {
+        BotRuntimeContractService service = createService("auto", Map.of());
+        Channel channel = new Channel();
+        channel.setId(19L);
+        channel.setPlatform("vk");
+        channel.setSupportChatId("ops-room");
+        channel.setPlatformConfig("""
+            {
+              "group_id": 12345,
+              "confirmation_token": "vk-confirm",
+              "secret": "vk-secret"
+            }
+            """);
+
+        Map<String, String> env = service.buildEnvironment(
+            channel,
+            new com.example.panel.model.channel.BotCredential(2L, "vk", "vk", "vk-token", true),
+            tempDir.resolve("vk.log")
+        );
+
+        assertThat(env)
+            .containsEntry("VK_BOT_ENABLED", "true")
+            .containsEntry("VK_BOT_TOKEN", "vk-token")
+            .containsEntry("VK_OPERATOR_CHAT_ID", "ops-room")
+            .containsEntry("VK_GROUP_ID", "12345")
+            .containsEntry("VK_WEBHOOK_ENABLED", "true")
+            .containsEntry("VK_CONFIRMATION_TOKEN", "vk-confirm")
+            .containsEntry("VK_WEBHOOK_SECRET", "vk-secret");
+    }
+
+    @Test
+    void describeResolvesVkBotModule() {
+        BotRuntimeContractService service = createService("auto", Map.of());
+        Channel channel = new Channel();
+        channel.setId(20L);
+        channel.setPlatform("vk");
+
+        BotRuntimeContractService.BotRuntimeContract contract = service.describe(channel, tempDir.resolve("java-bot"));
+
+        assertThat(contract.botModule()).isEqualTo("bot-vk");
+        assertThat(contract.platform()).isEqualTo("vk");
+        assertThat(contract.requiredEnvironmentKeys()).contains("VK_BOT_ENABLED", "VK_BOT_TOKEN", "VK_OPERATOR_CHAT_ID");
+    }
+
+    @Test
     void describeMarksMavenFallbackAsNotProductionReady() {
         BotRuntimeContractService service = createService("maven", Map.of());
         Channel channel = new Channel();

@@ -179,8 +179,9 @@
   net на реальный shared config boundary через
   `SharedConfigServiceTest`, `SettingsParameterSharedConfigIntegrationTest` и
   `SettingsUpdateSharedConfigIntegrationTest`, так что риск вокруг
-  `settings.json/locations.json` уже заметно снижен, хотя полностью
-  завершённым integration-слоем этот контур пока считать рано;
+  `settings.json/locations.json` уже заметно снижен; теперь тот же boundary
+  дополнительно расширен на `org_structure.json` и `bot_credentials.json`,
+  хотя полностью завершённым integration-слоем этот контур пока считать рано;
 - orchestration/API слой `settings` тоже уже не “почти без прямых тестов”:
   есть `SettingsUpdateServiceTest`, `SettingsDialogConfigUpdateServiceTest`,
   `SettingsBridgeControllerWebMvcTest` и `ProfileApiControllerWebMvcTest`,
@@ -212,6 +213,21 @@
   общему `fragments/ui-head` вместо выпадения в отдельный legacy shell,
   для них добавлен lightweight template-contract test, а
   `passports/detail` нормализован до explicit `data-ui-page="passports"`.
+- shared config boundary больше не ограничен только
+  `settings.json/locations.json`: `SharedConfigServiceTest` теперь добран
+  round-trip сценариями для `org_structure.json` и `bot_credentials.json`,
+  `AuthManagementApiControllerWebMvcTest` прикрывает API-контракт сохранения
+  `org_structure`, `ChannelApiControllerWebMvcTest` — list/create/delete
+  контракты `bot_credentials`, а `BotAutoStartServiceTest` фиксирует
+  runtime-поведение автозапуска при активных и неактивных credentials.
+- следующим пакетом этот слой расширен уже на orchestration/API/runtime
+  boundary: `AuthManagementApiControllerWebMvcTest` прикрывает base payload
+  `/api/auth/state`, а `AuthManagementApiController#getAuthState` сделан
+  null-safe для nullable `current_user_id/org_structure`;
+  `BotProcessApiControllerWebMvcTest` теперь покрывает `start/stop/status`
+  вместе с `runtime-contract`, `BotRuntimeContractServiceTest` добран
+  `vk`-contract сценариями, а `BotAutoStartServiceTest` — ветками
+  `inactive/already-running/missing-credential`.
 
 ---
 
@@ -440,8 +456,8 @@ defaults и частично legacy-compatible фасадах.
 
 1. Дожать service-level split `DialogService` и сузить remaining workspace/orchestration consumers
 2. Добить remaining `settings` subdomains и persistence boundaries
-3. Продолжить расширять `Phase 6` от targeted service/WebMvc tests к integration-сценариям
+3. Продолжить расширять `Phase 6` от targeted service/WebMvc tests к более широким integration-сценариям shared config/runtime и panel-bot orchestration boundary
 4. После этого возвращаться к shared-config unification и DTO/error contract
 
 **Автор исходного аудита:** GitHub Copilot  
-**Статус:** Документ актуализирован под состояние кода на 22 апреля 2026
+**Статус:** Документ актуализирован под состояние кода на 23 апреля 2026
