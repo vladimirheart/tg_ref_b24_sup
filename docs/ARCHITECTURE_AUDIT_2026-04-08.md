@@ -237,6 +237,13 @@
   `BotRuntimeContractServiceTest` — `max`-contract сценарием и optional
   `vk` env keys, а `BotAutoStartServiceTest` —
   веткой `channel without credential binding`.
+- следующим пакетом `Phase 6` расширен уже на полноценный
+  `ChannelApiController` orchestration contract:
+  `createChannel` прикрыт нормализацией пустого `platform` в `telegram`
+  и генерацией default `public_id/questions_cfg/delivery_settings`,
+  `post/put` update-ветки — sync `credential_id/support_chat_id`,
+  `network_route/platform_config`, alias-обновлением и invalid
+  `questions_cfg` contract, а `deleteChannel` — success/404 сценариями.
 
 ---
 
