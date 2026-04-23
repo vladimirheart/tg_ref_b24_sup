@@ -115,15 +115,14 @@ public class AuthManagementApiController {
         );
 
         Long currentUserId = resolveCurrentUserId(authentication);
-
-        return Map.of(
-            "users", users,
-            "roles", roles,
-            "catalog", catalog,
-            "capabilities", capabilities,
-            "current_user_id", currentUserId,
-            "org_structure", sharedConfigService.loadOrgStructure()
-        );
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("users", users);
+        response.put("roles", roles);
+        response.put("catalog", catalog);
+        response.put("capabilities", capabilities);
+        response.put("current_user_id", currentUserId);
+        response.put("org_structure", sharedConfigService.loadOrgStructure());
+        return response;
     }
 
     @PostMapping({"/auth/org-structure", "/auth/org-structure/"})

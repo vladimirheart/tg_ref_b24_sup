@@ -1,6 +1,7 @@
 package com.example.panel.controller;
 
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -9,6 +10,7 @@ import com.example.panel.entity.Channel;
 import com.example.panel.repository.ChannelRepository;
 import com.example.panel.service.BotProcessService;
 import com.example.panel.service.BotRuntimeContractService;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -30,6 +32,60 @@ class BotProcessApiControllerWebMvcTest {
 
     @MockBean
     private ChannelRepository channelRepository;
+
+    @Test
+    void startReturnsStructuredStatusForExistingChannel() throws Exception {
+        Channel channel = new Channel();
+        channel.setId(11L);
+        channel.setPlatform("telegram");
+
+        when(channelRepository.findById(11L)).thenReturn(Optional.of(channel));
+        when(botProcessService.start(channel)).thenReturn(
+            new BotProcessService.BotProcessStatus(true, "running", OffsetDateTime.parse("2026-04-23T12:00:00Z"))
+        );
+
+        mockMvc.perform(post("/api/bots/11/start"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.status").value("running"))
+            .andExpect(jsonPath("$.startedAt").value("2026-04-23T12:00:00Z"));
+    }
+
+    @Test
+    void startReturnsNotFoundForUnknownChannel() throws Exception {
+        when(channelRepository.findById(99L)).thenReturn(Optional.empty());
+
+        mockMvc.perform(post("/api/bots/99/start"))
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("Канал не найден"));
+    }
+
+    @Test
+    void stopReturnsServiceStatusPayload() throws Exception {
+        when(botProcessService.stop(12L)).thenReturn(
+            new BotProcessService.BotProcessStatus(false, "stopped", null)
+        );
+
+        mockMvc.perform(post("/api/bots/12/stop"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.status").value("stopped"))
+            .andExpect(jsonPath("$.startedAt").doesNotExist());
+    }
+
+    @Test
+    void statusReturnsCurrentProcessState() throws Exception {
+        when(botProcessService.status(13L)).thenReturn(
+            new BotProcessService.BotProcessStatus(true, "running", OffsetDateTime.parse("2026-04-23T12:30:00Z"))
+        );
+
+        mockMvc.perform(get("/api/bots/13/status"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.status").value("running"))
+            .andExpect(jsonPath("$.startedAt").value("2026-04-23T12:30:00Z"));
+    }
 
     @Test
     void runtimeContractReturnsStructuredContractPayload() throws Exception {

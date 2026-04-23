@@ -380,6 +380,21 @@
   `SettingsUpdateSharedConfigIntegrationTest`, которые проверяют реальный
   sync `settings_parameters <-> locations.json` и persistence-flow
   `SettingsUpdateService`;
+- этот же shared config/runtime слой расширен и на соседние контракты:
+  `SharedConfigServiceTest` теперь покрывает round-trip для
+  `org_structure.json` и `bot_credentials.json`,
+  `AuthManagementApiControllerWebMvcTest` прикрывает save-контракт
+  `org_structure`, `ChannelApiControllerWebMvcTest` — list/create/delete
+  контракты `bot_credentials`, а `BotAutoStartServiceTest` — runtime
+  поведение автозапуска при активных/неактивных credentials;
+- следующим пакетом этот boundary расширен уже на orchestration/API/runtime:
+  `AuthManagementApiControllerWebMvcTest` теперь покрывает base payload
+  `/api/auth/state`, `AuthManagementApiController#getAuthState` сделан
+  null-safe для nullable `current_user_id/org_structure`,
+  `BotProcessApiControllerWebMvcTest` теперь прикрывает `start/stop/status`
+  вместе с `runtime-contract`, `BotRuntimeContractServiceTest` добран
+  `vk`-contract сценариями, а `BotAutoStartServiceTest` — ветками
+  `inactive/already-running/missing-credential`;
 - targeted unit tests для вынесенных `settings` subdomain services:
   `SettingsDialogRuntimeConfigServiceTest`,
   `SettingsDialogPublicFormConfigServiceTest`,
@@ -442,6 +457,10 @@
 - расширить `settings` regression net дальше от уже появившихся
   integration-сценариев к нескольким более широким update/sync цепочкам
   поверх shared config boundary;
+- продолжить расширять shared config/runtime boundary уже после
+  `locations/org_structure/bot_credentials` и базового
+  `auth/bot-process` orchestration-контракта на более широкий panel-bot
+  contract и cross-module unification;
 - при необходимости дотянуть orchestration-tests дальше до shared-config
   integration сценариев c реальным persistence/config boundary;
 - более широкий runtime contract test для launcher strategy и bot lifecycle.
