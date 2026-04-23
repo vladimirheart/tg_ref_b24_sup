@@ -92,6 +92,7 @@ public class DialogService {
     private final SharedConfigService sharedConfigService;
     private final DialogWorkspaceTelemetryDataService dialogWorkspaceTelemetryDataService;
     private final DialogMacroGovernanceSupportService dialogMacroGovernanceSupportService;
+    private final DialogMacroGovernanceAuditService dialogMacroGovernanceAuditService;
     private final DialogLookupReadService dialogLookupReadService;
     private final DialogResponsibilityService dialogResponsibilityService;
     private final DialogClientContextReadService dialogClientContextReadService;
@@ -105,6 +106,7 @@ public class DialogService {
                          SharedConfigService sharedConfigService,
                          DialogWorkspaceTelemetryDataService dialogWorkspaceTelemetryDataService,
                          DialogMacroGovernanceSupportService dialogMacroGovernanceSupportService,
+                         DialogMacroGovernanceAuditService dialogMacroGovernanceAuditService,
                          DialogLookupReadService dialogLookupReadService,
                          DialogResponsibilityService dialogResponsibilityService,
                          DialogClientContextReadService dialogClientContextReadService,
@@ -117,6 +119,7 @@ public class DialogService {
         this.sharedConfigService = sharedConfigService;
         this.dialogWorkspaceTelemetryDataService = dialogWorkspaceTelemetryDataService;
         this.dialogMacroGovernanceSupportService = dialogMacroGovernanceSupportService;
+        this.dialogMacroGovernanceAuditService = dialogMacroGovernanceAuditService;
         this.dialogLookupReadService = dialogLookupReadService;
         this.dialogResponsibilityService = dialogResponsibilityService;
         this.dialogClientContextReadService = dialogClientContextReadService;
