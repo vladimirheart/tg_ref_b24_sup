@@ -250,6 +250,14 @@
   guard и successful send в `group/channel` с deduplication,
   а `refresh bot info` — `404`, non-telegram guard, failure-path через
   `Telegram getMe` и successful persistence `bot_name/bot_username`.
+- следующим пакетом `panel-bot orchestration boundary` расширен ещё глубже:
+  `BotProcessApiController` теперь имеет явный success/error contract для
+  `start/stop/status` и прикрыт failure-ветками;
+  `runtime-contract` добран `max` payload-сценарием;
+  `BotAutoStartServiceTest` добран ветками `null channel id` и
+  `continue after failed start`;
+  `ChannelApiControllerWebMvcTest` добран ветками
+  `test-message all failed` и `manual recipient only`.
 
 ---
 

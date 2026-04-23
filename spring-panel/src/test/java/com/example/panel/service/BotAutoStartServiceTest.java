@@ -33,6 +33,22 @@ class BotAutoStartServiceTest {
     private BotAutoStartService botAutoStartService;
 
     @Test
+    void autoStartActiveBotsSkipsChannelWithoutId() {
+        Channel channel = new Channel();
+        channel.setId(null);
+        channel.setChannelName("Unsaved");
+        channel.setActive(true);
+
+        when(channelRepository.findAll()).thenReturn(List.of(channel));
+
+        botAutoStartService.autoStartActiveBots();
+
+        verify(sharedConfigService, never()).loadBotCredentials();
+        verify(botProcessService, never()).status(anyLong());
+        verify(botProcessService, never()).start(any());
+    }
+
+    @Test
     void autoStartActiveBotsSkipsChannelWhenBoundCredentialIsDisabled() {
         Channel channel = new Channel();
         channel.setId(42L);
@@ -151,5 +167,39 @@ class BotAutoStartServiceTest {
 
         verify(botProcessService).status(91L);
         verify(botProcessService).start(channel);
+    }
+
+    @Test
+    void autoStartActiveBotsContinuesAfterFailedStartAndStartsNextChannel() {
+        Channel failed = new Channel();
+        failed.setId(101L);
+        failed.setChannelName("First Fails");
+        failed.setActive(true);
+        failed.setCredentialId(31L);
+
+        Channel succeeds = new Channel();
+        succeeds.setId(102L);
+        succeeds.setChannelName("Second Starts");
+        succeeds.setActive(true);
+        succeeds.setCredentialId(32L);
+
+        when(channelRepository.findAll()).thenReturn(List.of(failed, succeeds));
+        when(sharedConfigService.loadBotCredentials()).thenReturn(List.of(
+            new BotCredential(31L, "First", "telegram", "token-1", true),
+            new BotCredential(32L, "Second", "telegram", "token-2", true)
+        ));
+        when(botProcessService.status(101L))
+            .thenReturn(new BotProcessService.BotProcessStatus(false, "stopped", null));
+        when(botProcessService.status(102L))
+            .thenReturn(new BotProcessService.BotProcessStatus(false, "stopped", null));
+        when(botProcessService.start(failed))
+            .thenReturn(new BotProcessService.BotProcessStatus(false, "process exited early", null));
+        when(botProcessService.start(succeeds))
+            .thenReturn(new BotProcessService.BotProcessStatus(true, "running", null));
+
+        botAutoStartService.autoStartActiveBots();
+
+        verify(botProcessService).start(failed);
+        verify(botProcessService).start(succeeds);
     }
 }
