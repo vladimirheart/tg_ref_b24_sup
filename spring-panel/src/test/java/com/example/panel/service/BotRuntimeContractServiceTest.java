@@ -126,6 +126,22 @@ class BotRuntimeContractServiceTest {
         assertThat(contract.botModule()).isEqualTo("bot-vk");
         assertThat(contract.platform()).isEqualTo("vk");
         assertThat(contract.requiredEnvironmentKeys()).contains("VK_BOT_ENABLED", "VK_BOT_TOKEN", "VK_OPERATOR_CHAT_ID");
+        assertThat(contract.optionalEnvironmentKeys()).contains("VK_GROUP_ID", "VK_CONFIRMATION_TOKEN", "VK_WEBHOOK_SECRET");
+    }
+
+    @Test
+    void describeResolvesMaxBotModuleAndRequiredKeys() {
+        BotRuntimeContractService service = createService("auto", Map.of());
+        Channel channel = new Channel();
+        channel.setId(21L);
+        channel.setPlatform("max");
+
+        BotRuntimeContractService.BotRuntimeContract contract = service.describe(channel, tempDir.resolve("java-bot"));
+
+        assertThat(contract.botModule()).isEqualTo("bot-max");
+        assertThat(contract.platform()).isEqualTo("max");
+        assertThat(contract.requiredEnvironmentKeys()).contains("MAX_BOT_ENABLED", "MAX_BOT_TOKEN", "SERVER_PORT");
+        assertThat(contract.optionalEnvironmentKeys()).contains("MAX_WEBHOOK_SECRET");
     }
 
     @Test
