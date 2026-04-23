@@ -374,6 +374,12 @@
   `DialogListController`;
 - targeted tests для shared config/runtime foundation:
   `SharedConfigServiceTest`, `EnvDefaultsInitializerTest`;
+- shared config boundary больше не прикрыт только foundation-уровнем:
+  теперь есть round-trip test для `locations.json` и integration-сценарии
+  `SettingsParameterSharedConfigIntegrationTest` и
+  `SettingsUpdateSharedConfigIntegrationTest`, которые проверяют реальный
+  sync `settings_parameters <-> locations.json` и persistence-flow
+  `SettingsUpdateService`;
 - targeted unit tests для вынесенных `settings` subdomain services:
   `SettingsDialogRuntimeConfigServiceTest`,
   `SettingsDialogPublicFormConfigServiceTest`,
@@ -391,6 +397,9 @@
 - server-backed UI preferences больше не только “есть”, но и прикрыты
   regression net: alias-нормализация `sortMode/pageSize/updatedAtUtc`
   в `UiPreferenceService` исправлена и зафиксирована тестами;
+- merge-поведение server-backed UI preferences тоже прикрыто отдельно:
+  обновление базовых prefs подтверждено тестом не затирает nested
+  `dialogsTriage` payload;
 - orchestration/API слой `settings` тоже получил прямую страховку:
   `SettingsUpdateServiceTest`,
   `SettingsDialogConfigUpdateServiceTest`,
@@ -430,8 +439,9 @@
 - добрать WebMvc tests под оставшиеся новые dialog/settings controllers;
 - расширить shared config/env resolution tests и settings regression net от
   targeted-слоя к более полным integration сценариям;
-- расширить `settings` regression net уже от service-layer к нескольким
-  интеграционным update/sync сценариям поверх shared config boundary;
+- расширить `settings` regression net дальше от уже появившихся
+  integration-сценариев к нескольким более широким update/sync цепочкам
+  поверх shared config boundary;
 - при необходимости дотянуть orchestration-tests дальше до shared-config
   integration сценариев c реальным persistence/config boundary;
 - более широкий runtime contract test для launcher strategy и bot lifecycle.

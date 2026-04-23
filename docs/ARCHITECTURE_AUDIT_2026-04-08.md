@@ -175,8 +175,12 @@
   `SettingsTopLevelUpdateService`, `SettingsLocationsUpdateService`,
   `SettingsParameterService` и `UiPreferenceService`, так что top-level
   updates, `locations` sync, server-backed UI preferences и parameter CRUD
-  тоже имеют прямую safety net; более широкий integration net для `settings`
-  и shared config boundary всё ещё не завершён;
+  тоже имеют прямую safety net; теперь сверху добавлен и первый integration
+  net на реальный shared config boundary через
+  `SharedConfigServiceTest`, `SettingsParameterSharedConfigIntegrationTest` и
+  `SettingsUpdateSharedConfigIntegrationTest`, так что риск вокруг
+  `settings.json/locations.json` уже заметно снижен, хотя полностью
+  завершённым integration-слоем этот контур пока считать рано;
 - orchestration/API слой `settings` тоже уже не “почти без прямых тестов”:
   есть `SettingsUpdateServiceTest`, `SettingsDialogConfigUpdateServiceTest`,
   `SettingsBridgeControllerWebMvcTest` и `ProfileApiControllerWebMvcTest`,
@@ -186,6 +190,9 @@
   `sortMode/pageSize/updatedAtUtc` в `dialogsTriage` могли теряться из-за
   premature default-normalization, теперь этот контракт исправлен и покрыт
   targeted unit tests.
+- merge-поведение server-backed UI preferences теперь тоже прикрыто отдельно:
+  обновление базовых prefs подтверждено тестом не затирает уже сохранённый
+  nested `dialogsTriage` payload.
 - `SlaEscalationWebhookNotifier` больше не держит даже legacy field/branch на
   `DialogService`: notifier окончательно работает через
   `DialogLookupReadService`, `DialogResponsibilityService` и
