@@ -95,9 +95,13 @@
   telemetry/macro helper-блоков;
 - следующим пакетом `DialogMacroGovernanceAuditService` перестал быть тонкой
   обёрткой над giant service и стал самостоятельным owner’ом
-  macro-governance audit slice; после этого среди прямых consumer-зависимостей
-  от `DialogService` в основном service/controller-слое остался только
-  `DialogWorkspaceTelemetrySummaryService`;
+  macro-governance audit slice;
+- следующим пакетом и последний прямой consumer-хвост в основном
+  service/controller-слое снят с giant service: `DialogWorkspaceTelemetrySummaryService`
+  теперь работает через отдельный `DialogWorkspaceTelemetrySummaryBridgeService`,
+  а не тянет `DialogService` напрямую; это ещё не полный вынос summary-логики,
+  но уже переводит оставшуюся связность в явный compatibility bridge вместо
+  прямой доменной зависимости;
 - SLA/runtime дублирование между `DialogWorkspaceService` и
   `DialogListReadService` уменьшено через общий `DialogSlaRuntimeService`,
   который теперь держит lifecycle-state, deadline, minutes-left и config
@@ -160,9 +164,11 @@
 - persistence-слой по-прежнему смешивает raw JDBC и JPA/Repository подходы;
 - boundary-wrapper слой вокруг telemetry/notifier уже подкреплён реальными
   `DialogWorkspaceTelemetryDataService` и
-  `DialogMacroGovernanceSupportService`, поэтому следующий шаг там теперь уже
-  не в raw JDBC/helper выносе, а в дожиме remaining telemetry summary
-  orchestration и сужении compatibility delegates вокруг `DialogService`;
+  `DialogMacroGovernanceSupportService`, а прямой consumer-зависимости
+  `DialogWorkspaceTelemetrySummaryService -> DialogService` больше нет;
+  следующий шаг там теперь уже не в raw JDBC/helper выносе, а в дожиме самой
+  telemetry summary orchestration и постепенном схлопывании compatibility
+  bridge/delegate слоя вокруг `DialogService`;
 - `settings` subdomain layer получил адресную test-страховку на уже
   вынесенных сервисах (`runtime/public-form/sla-ai/template/workspace`), но
   больше не ограничивается только ими: теперь targeted tests есть и на
@@ -293,7 +299,7 @@ DialogService
   │   └─ DialogMacroGovernanceAuditService
   ├─ still to narrow:
   │   ├─ DialogWorkspaceService
-  │   ├─ telemetry summary orchestration
+  │   ├─ telemetry summary orchestration + compatibility bridge
   │   ├─ reply/message write-side flows
   │   ├─ AI/notification/escalation flows
   │   └─ mapper / assembly layer
