@@ -404,6 +404,11 @@
   `ai-ops`, `unblock requests`, `users/detail` и оба passport editor route
   (`/object-passports/new`, `/object-passports/{id}`) теперь тоже прикрыты
   WebMvc smoke tests на ранний bootstrap и explicit `data-ui-page`.
+- следующим пакетом добран public-shell bootstrap contract:
+  `login`, `403`, `404` и `500` получили explicit `data-ui-page="public"`,
+  `403/500` приведены к общему `fragments/ui-head`, а для public shell
+  добавлен lightweight template-contract test вместо тяжёлого runtime WebMvc
+  сценария.
 - legacy WebMvc test-слой частично синхронизирован с новой controller
   структурой.
 
@@ -412,7 +417,8 @@
 - продолжить расширять smoke tests для `theme/ui bootstrap` на remaining
   страницы beyond `dashboard/analytics/clients/knowledge/settings/dialogs`
   и уже покрытых `channels/tasks/users/passports/public`, `ai-ops`,
-  `unblock-requests`, `users/detail` и `passport editor`;
+  `unblock-requests`, `users/detail`, `passport editor` и public shell
+  `login/403/404/500`;
 - добрать WebMvc tests под оставшиеся новые dialog/settings controllers;
 - расширить shared config/env resolution tests и settings regression net от
   targeted-слоя к более полным integration сценариям;

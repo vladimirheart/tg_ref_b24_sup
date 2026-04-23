@@ -188,6 +188,12 @@
   passport editor route (`/object-passports/new`, `/object-passports/{id}`)
   теперь тоже имеют explicit `data-ui-page` и прикрыты отдельными WebMvc
   smoke tests на ранний `ui-preferences/theme/ui-config` bootstrap.
+- следующий пакет `Phase 6` добрал public-shell/runtime contract:
+  `auth/login`, `error/403`, `error/404` и `error/500` теперь тоже имеют
+  explicit `data-ui-page="public"`, `error/403` и `error/500` подтянуты к
+  общему `fragments/ui-head` вместо выпадения в отдельный legacy shell,
+  для них добавлен lightweight template-contract test, а
+  `passports/detail` нормализован до explicit `data-ui-page="passports"`.
 
 ---
 
