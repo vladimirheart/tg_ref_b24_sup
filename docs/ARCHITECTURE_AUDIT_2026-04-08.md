@@ -244,6 +244,12 @@
   `post/put` update-ветки — sync `credential_id/support_chat_id`,
   `network_route/platform_config`, alias-обновлением и invalid
   `questions_cfg` contract, а `deleteChannel` — success/404 сценариями.
+- следующим пакетом тот же orchestration boundary расширен уже на
+  runtime-операции каналов:
+  `test-message` прикрыт `404`, non-telegram guard, missing recipient
+  guard и successful send в `group/channel` с deduplication,
+  а `refresh bot info` — `404`, non-telegram guard, failure-path через
+  `Telegram getMe` и successful persistence `bot_name/bot_username`.
 
 ---
 

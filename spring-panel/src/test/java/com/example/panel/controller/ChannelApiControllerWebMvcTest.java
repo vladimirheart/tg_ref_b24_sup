@@ -2,6 +2,8 @@ package com.example.panel.controller;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -18,6 +20,8 @@ import com.example.panel.repository.ChannelRepository;
 import com.example.panel.service.IntegrationNetworkService;
 import com.example.panel.service.SharedConfigService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.net.http.HttpClient;
+import java.net.http.HttpResponse;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -302,6 +306,199 @@ class ChannelApiControllerWebMvcTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error").value("Канал не найден"));
+    }
+
+    @Test
+    void testChannelReturnsNotFoundWhenChannelIsMissing() throws Exception {
+        when(channelRepository.findById(501L)).thenReturn(Optional.empty());
+
+        mockMvc.perform(post("/api/channels/501/test-message")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "message": "ping"
+                                }
+                                """))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error").value("Канал не найден"));
+    }
+
+    @Test
+    void testChannelRejectsNonTelegramPlatform() throws Exception {
+        Channel channel = new Channel();
+        channel.setId(61L);
+        channel.setPlatform("vk");
+        channel.setToken("vk-token");
+
+        when(channelRepository.findById(61L)).thenReturn(Optional.of(channel));
+
+        mockMvc.perform(post("/api/channels/61/test-message")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "message": "ping"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error").value("Тестовая отправка доступна только для Telegram"));
+    }
+
+    @Test
+    void testChannelRejectsWhenRecipientsCannotBeResolved() throws Exception {
+        Channel channel = new Channel();
+        channel.setId(62L);
+        channel.setPlatform("telegram");
+        channel.setToken("tg-token");
+        channel.setDeliverySettings("{}");
+
+        when(channelRepository.findById(62L)).thenReturn(Optional.of(channel));
+
+        mockMvc.perform(post("/api/channels/62/test-message")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "target_mode": "both",
+                                  "message": "ping"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error").value("Не найден получатель. Укажите ID вручную или настройте группу/канал."));
+    }
+
+    @Test
+    void testChannelSendsToGroupAndBroadcastRecipientsWithDeduplication() throws Exception {
+        Channel channel = new Channel();
+        channel.setId(63L);
+        channel.setPlatform("telegram");
+        channel.setToken("tg-token");
+        channel.setSupportChatId("group-1");
+        channel.setDeliverySettings("""
+                {
+                  "broadcast_channel_id": "channel-1"
+                }
+                """);
+
+        @SuppressWarnings("unchecked")
+        HttpResponse<String> response = (HttpResponse<String>) mock(HttpResponse.class);
+        HttpClient httpClient = mock(HttpClient.class);
+        when(response.statusCode()).thenReturn(200);
+        when(response.body()).thenReturn("""
+                {
+                  "ok": true
+                }
+                """);
+        when(channelRepository.findById(63L)).thenReturn(Optional.of(channel));
+        when(integrationNetworkService.createChannelHttpClient(any(Channel.class), any())).thenReturn(httpClient);
+        when(httpClient.send(any(), any(HttpResponse.BodyHandler.class))).thenReturn(response);
+
+        mockMvc.perform(post("/api/channels/63/test-message")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "target_mode": "both",
+                                  "recipient": "group-1",
+                                  "message": "hello operators"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.sent.length()").value(2))
+                .andExpect(jsonPath("$.sent[0]").value("group-1"))
+                .andExpect(jsonPath("$.sent[1]").value("channel-1"))
+                .andExpect(jsonPath("$.failed.length()").value(0));
+    }
+
+    @Test
+    void refreshBotInfoReturnsNotFoundWhenChannelIsMissing() throws Exception {
+        when(channelRepository.findById(71L)).thenReturn(Optional.empty());
+
+        mockMvc.perform(post("/api/channels/71/bot-info"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error").value("Канал не найден"));
+    }
+
+    @Test
+    void refreshBotInfoRejectsNonTelegramPlatform() throws Exception {
+        Channel channel = new Channel();
+        channel.setId(72L);
+        channel.setPlatform("max");
+        channel.setToken("max-token");
+
+        when(channelRepository.findById(72L)).thenReturn(Optional.of(channel));
+
+        mockMvc.perform(post("/api/channels/72/bot-info"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error").value("Обновление доступно только для Telegram"));
+    }
+
+    @Test
+    void refreshBotInfoReturnsBadRequestWhenTelegramGetMeFails() throws Exception {
+        Channel channel = new Channel();
+        channel.setId(73L);
+        channel.setPlatform("telegram");
+        channel.setToken("tg-token");
+
+        @SuppressWarnings("unchecked")
+        HttpResponse<String> response = (HttpResponse<String>) mock(HttpResponse.class);
+        HttpClient httpClient = mock(HttpClient.class);
+        when(response.statusCode()).thenReturn(500);
+        when(channelRepository.findById(73L)).thenReturn(Optional.of(channel));
+        when(integrationNetworkService.createChannelHttpClient(any(Channel.class), any())).thenReturn(httpClient);
+        when(httpClient.send(any(), any(HttpResponse.BodyHandler.class))).thenReturn(response);
+
+        mockMvc.perform(post("/api/channels/73/bot-info"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error").value("Не удалось получить данные бота"));
+
+        verify(channelRepository, never()).save(any(Channel.class));
+    }
+
+    @Test
+    void refreshBotInfoPersistsFetchedTelegramBotMetadata() throws Exception {
+        Channel channel = new Channel();
+        channel.setId(74L);
+        channel.setPlatform("telegram");
+        channel.setToken("tg-token");
+        channel.setPublicId("public-74");
+        channel.setQuestionsCfg("{}");
+        channel.setDeliverySettings("{}");
+
+        @SuppressWarnings("unchecked")
+        HttpResponse<String> response = (HttpResponse<String>) mock(HttpResponse.class);
+        HttpClient httpClient = mock(HttpClient.class);
+        when(response.statusCode()).thenReturn(200);
+        when(response.body()).thenReturn("""
+                {
+                  "ok": true,
+                  "result": {
+                    "username": "support_bot",
+                    "first_name": "Support",
+                    "last_name": "Bot"
+                  }
+                }
+                """);
+        when(channelRepository.findById(74L)).thenReturn(Optional.of(channel));
+        when(channelRepository.save(any(Channel.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(sharedConfigService.loadBotCredentials()).thenReturn(List.of());
+        when(integrationNetworkService.createChannelHttpClient(any(Channel.class), any())).thenReturn(httpClient);
+        when(httpClient.send(any(), any(HttpResponse.BodyHandler.class))).thenReturn(response);
+
+        mockMvc.perform(post("/api/channels/74/bot-info"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.channel.bot_name").value("Support Bot"))
+                .andExpect(jsonPath("$.channel.bot_username").value("support_bot"));
+
+        verify(channelRepository).save(argThat(saved ->
+                "Support Bot".equals(saved.getBotName())
+                        && "support_bot".equals(saved.getBotUsername())
+        ));
     }
 
     @Test
