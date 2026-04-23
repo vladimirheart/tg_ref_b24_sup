@@ -1,7 +1,7 @@
 # Architecture And UI Refactoring Roadmap
 
 Дата старта: `2026-04-15`
-Обновлено: `2026-04-22`
+Обновлено: `2026-04-23`
 
 ## Цель
 
@@ -202,6 +202,10 @@
   а helper-слой macro governance/usage/variables — в
   `DialogMacroGovernanceSupportService`; сам `DialogService` переключён на
   эти сервисы и потерял ещё один крупный блок telemetry/macro helper-логики.
+- следующим пакетом `DialogMacroGovernanceAuditService` перестал зависеть от
+  `DialogService` и стал самостоятельным owner’ом macro governance audit
+  orchestration; после этого из прямых consumer-boundary хвостов giant service
+  в основном приложении остался только `DialogWorkspaceTelemetrySummaryService`.
 
 Что остаётся:
 
@@ -209,10 +213,10 @@
   mapping layers;
 - продолжить вытаскивать из `DialogService` remaining read/write bounded
   contexts уже поверх вынесенного `DialogClientContextReadService`;
-- довести до конца orchestration split вокруг `DialogWorkspaceTelemetrySummaryService`
-  и `DialogMacroGovernanceAuditService`, чтобы после выноса raw
-  telemetry/macro helper/data layer снять remaining compatibility delegates и
-  прямые orchestration-хвосты giant service;
+- довести до конца orchestration split вокруг
+  `DialogWorkspaceTelemetrySummaryService`, чтобы после уже завершённого
+  macro-governance audit split снять remaining compatibility delegates и
+  последний прямой orchestration-хвост giant service;
 - продолжить снимать remaining consumer-facades вокруг notifier / telemetry /
   escalation слоёв там, где giant service ещё остаётся техническим посредником;
 - продолжить service-level split уже поверх вынесенных `DialogClientContextReadService`
