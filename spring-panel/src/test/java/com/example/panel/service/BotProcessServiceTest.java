@@ -85,6 +85,17 @@ class BotProcessServiceTest {
     }
 
     @Test
+    void statusReturnsStoppedWhenNoProcessIsRegistered() {
+        BotProcessService service = createRuntimeService("auto");
+
+        BotProcessService.BotProcessStatus status = service.status(501L);
+
+        assertThat(status.running()).isFalse();
+        assertThat(status.message()).isEqualTo("stopped");
+        assertThat(status.startedAt()).isNull();
+    }
+
+    @Test
     void resolveLaunchPlanPrefersJarInAutoModeWhenArtifactExists() throws Exception {
         Path botWorkingDir = tempDir.resolve("java-bot");
         Path jar = botWorkingDir.resolve("bot-telegram").resolve("target").resolve("bot-telegram-0.0.1-SNAPSHOT.jar");
@@ -133,6 +144,34 @@ class BotProcessServiceTest {
         Path resolved = service.resolveExecutableJar(botWorkingDir, "bot-telegram");
 
         assertThat(resolved).isEqualTo(scannedJar.toAbsolutePath().normalize());
+    }
+
+    @Test
+    void resolveExecutableJarReturnsNullWhenNoArtifactsExist() {
+        Path botWorkingDir = tempDir.resolve("java-bot");
+        BotProcessService service = createRuntimeService("auto");
+
+        Path resolved = service.resolveExecutableJar(botWorkingDir, "bot-telegram");
+
+        assertThat(resolved).isNull();
+    }
+
+    @Test
+    void resolveLaunchPlanInJarModeUsesExplicitConfiguredArtifact() throws Exception {
+        Path botWorkingDir = tempDir.resolve("java-bot");
+        Path configuredJar = botWorkingDir.resolve("dist").resolve("bot-telegram-runtime.jar");
+        Files.createDirectories(configuredJar.getParent());
+        Files.writeString(configuredJar, "configured");
+
+        BotProcessService service = createRuntimeService("jar", Map.of(
+            "bot-telegram", "dist/bot-telegram-runtime.jar"
+        ));
+
+        BotRuntimeContractService.BotLaunchPlan plan = service.resolveLaunchPlan(botWorkingDir, "bot-telegram");
+
+        assertThat(plan.launcherKind()).isEqualTo("jar");
+        assertThat(plan.artifactSource()).isEqualTo("explicit-config");
+        assertThat(plan.command()).contains(configuredJar.toAbsolutePath().normalize().toString());
     }
 
     @Test

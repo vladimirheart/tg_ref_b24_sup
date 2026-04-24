@@ -974,3 +974,583 @@ Unconditional classes:
 2026-04-24 21:40:25.381+03:00 INFO  [main] c.e.p.c.SqliteDataSourceProperties - Created SQLite database file at C:\Users\sushi\AppData\Local\Temp\junit10032249240022150308\tickets.db
 2026-04-24 21:40:25.433+03:00 INFO  [main] c.e.p.c.SqliteDataSourceProperties - Created SQLite database file at C:\Users\sushi\AppData\Local\Temp\junit1899822086268326376\tickets.db
 2026-04-24 21:40:25.750+03:00 DEBUG [SpringApplicationShutdownHook] o.s.w.c.s.GenericWebApplicationContext - Closing org.springframework.web.context.support.GenericWebApplicationContext@61f39bb, started on Fri Apr 24 21:40:15 MSK 2026
+2026-04-24 21:49:16.099+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
+2026-04-24 21:49:16.220+03:00 INFO  [main] c.e.p.config.EnvDefaultsInitializer - Applied default SQLite paths for missing APP_DB_* variables: {APP_DB_USERS=C:\Users\sushi\Git_H\tg_ref_b24_sup\spring-panel\users.db, APP_DB_KNOWLEDGE=C:\Users\sushi\Git_H\tg_ref_b24_sup\spring-panel\knowledge_base.db, APP_DB_CLIENTS=C:\Users\sushi\Git_H\tg_ref_b24_sup\spring-panel\clients.db, APP_DB_MONITORING=C:\Users\sushi\Git_H\tg_ref_b24_sup\spring-panel\monitoring.db, APP_DB_OBJECT_PASSPORTS=C:\Users\sushi\Git_H\tg_ref_b24_sup\spring-panel\object_passports.db, APP_DB_OBJECTS=C:\Users\sushi\Git_H\tg_ref_b24_sup\spring-panel\objects.db, APP_DB_SETTINGS=C:\Users\sushi\Git_H\tg_ref_b24_sup\spring-panel\settings.db, APP_DB_BOT=C:\Users\sushi\Git_H\tg_ref_b24_sup\spring-panel\bot_database.db, APP_DB_TICKETS=C:\Users\sushi\Git_H\tg_ref_b24_sup\spring-panel\tickets.db}
+2026-04-24 21:49:16.241+03:00 INFO  [main] c.e.p.c.ChannelApiControllerWebMvcTest - Starting ChannelApiControllerWebMvcTest using Java 17.0.12 with PID 24584 (started by S_V in C:\Users\sushi\Git_H\tg_ref_b24_sup\spring-panel)
+2026-04-24 21:49:16.246+03:00 INFO  [main] c.e.p.c.ChannelApiControllerWebMvcTest - No active profile set, falling back to 1 default profile: "default"
+2026-04-24 21:49:16.248+03:00 DEBUG [main] o.s.boot.SpringApplication - Loading source class com.example.panel.PanelApplication
+2026-04-24 21:49:16.301+03:00 DEBUG [main] o.s.w.c.s.GenericWebApplicationContext - Refreshing org.springframework.web.context.support.GenericWebApplicationContext@49293b43
+2026-04-24 21:49:24.958+03:00 DEBUG [main] o.s.b.a.AutoConfigurationPackages - @EnableAutoConfiguration was declared on a class in the package 'com.example.panel'. Automatic @Repository and @Entity scanning is enabled.
+2026-04-24 21:49:26.371+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestMappingHandlerMapping - 15 mappings in 'requestMappingHandlerMapping'
+2026-04-24 21:49:26.409+03:00 DEBUG [main] o.s.w.s.h.SimpleUrlHandlerMapping - Patterns [/login, /error/403, /error/404, /error/500, /favicon.ico] in 'viewControllerHandlerMapping'
+2026-04-24 21:49:26.615+03:00 DEBUG [main] o.s.w.s.h.SimpleUrlHandlerMapping - Patterns [/webjars/**, /**] in 'resourceHandlerMapping'
+2026-04-24 21:49:26.742+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestMappingHandlerAdapter - ControllerAdvice beans: 1 @ModelAttribute, 0 @InitBinder, 1 RequestBodyAdvice, 1 ResponseBodyAdvice
+2026-04-24 21:49:26.853+03:00 DEBUG [main] o.s.w.s.m.m.a.ExceptionHandlerExceptionResolver - ControllerAdvice beans: 1 @ExceptionHandler, 1 ResponseBodyAdvice
+2026-04-24 21:49:27.254+03:00 WARN  [main] o.s.b.a.s.s.UserDetailsServiceAutoConfiguration - 
+
+Using generated security password: 2928598b-eb38-4016-95bd-1c44eef817da
+
+This generated password is for development use only. Your security configuration must be updated before running your application in production.
+
+2026-04-24 21:49:28.045+03:00 INFO  [main] o.s.s.web.DefaultSecurityFilterChain - Will secure any request with [org.springframework.security.web.session.DisableEncodeUrlFilter@476a970c, org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@1ce57bbb, org.springframework.security.web.context.SecurityContextHolderFilter@6e7fa4b0, org.springframework.security.web.header.HeaderWriterFilter@51da7b08, org.springframework.web.filter.CorsFilter@34626d4, org.springframework.security.web.csrf.CsrfFilter@3f33bb6f, org.springframework.security.web.authentication.logout.LogoutFilter@b5390, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter@2ae7c1d, org.springframework.security.web.authentication.ui.DefaultLoginPageGeneratingFilter@fabfc79, org.springframework.security.web.authentication.ui.DefaultLogoutPageGeneratingFilter@15ee8861, org.springframework.security.web.authentication.www.BasicAuthenticationFilter@5868ea91, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@3e89f5bc, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@259aec72, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@6afaf27, org.springframework.security.web.access.ExceptionTranslationFilter@3e73f5e7, org.springframework.security.web.access.intercept.AuthorizationFilter@76c587ce]
+2026-04-24 21:49:28.240+03:00 INFO  [main] o.s.b.t.m.w.SpringBootMockServletContext - Initializing Spring TestDispatcherServlet ''
+2026-04-24 21:49:28.241+03:00 INFO  [main] o.s.t.w.s.TestDispatcherServlet - Initializing Servlet ''
+2026-04-24 21:49:28.244+03:00 INFO  [main] o.s.t.w.s.TestDispatcherServlet - Completed initialization in 3 ms
+2026-04-24 21:49:28.317+03:00 DEBUG [main] o.s.b.a.l.ConditionEvaluationReportLogger - 
+
+
+============================
+CONDITIONS EVALUATION REPORT
+============================
+
+
+Positive matches:
+-----------------
+
+   CacheAutoConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.cache.CacheManager' (OnClassCondition)
+      - @ConditionalOnBean (types: org.springframework.cache.interceptor.CacheAspectSupport; SearchStrategy: all) found bean 'cacheInterceptor'; @ConditionalOnMissingBean (names: cacheResolver types: org.springframework.cache.CacheManager; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   CacheAutoConfiguration#cacheManagerCustomizers matched:
+      - @ConditionalOnMissingBean (types: org.springframework.boot.autoconfigure.cache.CacheManagerCustomizers; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   ErrorMvcAutoConfiguration matched:
+      - @ConditionalOnClass found required classes 'jakarta.servlet.Servlet', 'org.springframework.web.servlet.DispatcherServlet' (OnClassCondition)
+      - found 'session' scope (OnWebApplicationCondition)
+
+   ErrorMvcAutoConfiguration#basicErrorController matched:
+      - @ConditionalOnMissingBean (types: org.springframework.boot.web.servlet.error.ErrorController; SearchStrategy: current) did not find any beans (OnBeanCondition)
+
+   ErrorMvcAutoConfiguration#errorAttributes matched:
+      - @ConditionalOnMissingBean (types: org.springframework.boot.web.servlet.error.ErrorAttributes; SearchStrategy: current) did not find any beans (OnBeanCondition)
+
+   GsonAutoConfiguration matched:
+      - @ConditionalOnClass found required class 'com.google.gson.Gson' (OnClassCondition)
+
+   GsonAutoConfiguration#gson matched:
+      - @ConditionalOnMissingBean (types: com.google.gson.Gson; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   GsonAutoConfiguration#gsonBuilder matched:
+      - @ConditionalOnMissingBean (types: com.google.gson.GsonBuilder; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   GsonHttpMessageConvertersConfiguration matched:
+      - @ConditionalOnClass found required class 'com.google.gson.Gson' (OnClassCondition)
+
+   HttpEncodingAutoConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.web.filter.CharacterEncodingFilter' (OnClassCondition)
+      - found 'session' scope (OnWebApplicationCondition)
+      - @ConditionalOnProperty (server.servlet.encoding.enabled) matched (OnPropertyCondition)
+
+   HttpEncodingAutoConfiguration#characterEncodingFilter matched:
+      - @ConditionalOnMissingBean (types: org.springframework.web.filter.CharacterEncodingFilter; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   HttpMessageConvertersAutoConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.http.converter.HttpMessageConverter' (OnClassCondition)
+      - NoneNestedConditions 0 matched 1 did not; NestedCondition on HttpMessageConvertersAutoConfiguration.NotReactiveWebApplicationCondition.ReactiveWebApplication did not find reactive web application classes (HttpMessageConvertersAutoConfiguration.NotReactiveWebApplicationCondition)
+
+   HttpMessageConvertersAutoConfiguration#messageConverters matched:
+      - @ConditionalOnMissingBean (types: org.springframework.boot.autoconfigure.http.HttpMessageConverters; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   HttpMessageConvertersAutoConfiguration.StringHttpMessageConverterConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.http.converter.StringHttpMessageConverter' (OnClassCondition)
+
+   HttpMessageConvertersAutoConfiguration.StringHttpMessageConverterConfiguration#stringHttpMessageConverter matched:
+      - @ConditionalOnMissingBean (types: org.springframework.http.converter.StringHttpMessageConverter; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   JacksonAutoConfiguration matched:
+      - @ConditionalOnClass found required class 'com.fasterxml.jackson.databind.ObjectMapper' (OnClassCondition)
+
+   JacksonAutoConfiguration.Jackson2ObjectMapperBuilderCustomizerConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.http.converter.json.Jackson2ObjectMapperBuilder' (OnClassCondition)
+
+   JacksonAutoConfiguration.JacksonObjectMapperBuilderConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.http.converter.json.Jackson2ObjectMapperBuilder' (OnClassCondition)
+
+   JacksonAutoConfiguration.JacksonObjectMapperBuilderConfiguration#jacksonObjectMapperBuilder matched:
+      - @ConditionalOnMissingBean (types: org.springframework.http.converter.json.Jackson2ObjectMapperBuilder; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   JacksonAutoConfiguration.JacksonObjectMapperConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.http.converter.json.Jackson2ObjectMapperBuilder' (OnClassCondition)
+
+   JacksonAutoConfiguration.JacksonObjectMapperConfiguration#jacksonObjectMapper matched:
+      - @ConditionalOnMissingBean (types: com.fasterxml.jackson.databind.ObjectMapper; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   JacksonAutoConfiguration.ParameterNamesModuleConfiguration matched:
+      - @ConditionalOnClass found required class 'com.fasterxml.jackson.module.paramnames.ParameterNamesModule' (OnClassCondition)
+
+   JacksonAutoConfiguration.ParameterNamesModuleConfiguration#parameterNamesModule matched:
+      - @ConditionalOnMissingBean (types: com.fasterxml.jackson.module.paramnames.ParameterNamesModule; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   JacksonHttpMessageConvertersConfiguration.MappingJackson2HttpMessageConverterConfiguration matched:
+      - @ConditionalOnClass found required class 'com.fasterxml.jackson.databind.ObjectMapper' (OnClassCondition)
+      - @ConditionalOnProperty (spring.mvc.converters.preferred-json-mapper=jackson) matched (OnPropertyCondition)
+      - @ConditionalOnBean (types: com.fasterxml.jackson.databind.ObjectMapper; SearchStrategy: all) found bean 'jacksonObjectMapper' (OnBeanCondition)
+
+   JacksonHttpMessageConvertersConfiguration.MappingJackson2HttpMessageConverterConfiguration#mappingJackson2HttpMessageConverter matched:
+      - @ConditionalOnMissingBean (types: org.springframework.http.converter.json.MappingJackson2HttpMessageConverter ignored: org.springframework.hateoas.server.mvc.TypeConstrainedMappingJackson2HttpMessageConverter,org.springframework.data.rest.webmvc.alps.AlpsJsonHttpMessageConverter; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   MockMvcAutoConfiguration matched:
+      - found 'session' scope (OnWebApplicationCondition)
+
+   MockMvcAutoConfiguration#dispatcherServlet matched:
+      - @ConditionalOnMissingBean (types: org.springframework.web.servlet.DispatcherServlet; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   MockMvcAutoConfiguration#dispatcherServletPath matched:
+      - @ConditionalOnMissingBean (types: org.springframework.boot.autoconfigure.web.servlet.DispatcherServletPath; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   MockMvcAutoConfiguration#mockMvc matched:
+      - @ConditionalOnMissingBean (types: org.springframework.test.web.servlet.MockMvc; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   MockMvcAutoConfiguration#mockMvcBuilder matched:
+      - @ConditionalOnMissingBean (types: org.springframework.test.web.servlet.MockMvcBuilder; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   MockMvcSecurityConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors' (OnClassCondition)
+
+   MockMvcSecurityConfiguration#securityMockMvcBuilderCustomizer matched:
+      - @ConditionalOnBean (names: springSecurityFilterChain; SearchStrategy: all) found bean 'springSecurityFilterChain' (OnBeanCondition)
+
+   NoOpCacheConfiguration matched:
+      - Cache org.springframework.boot.autoconfigure.cache.NoOpCacheConfiguration NONE cache type (CacheCondition)
+      - @ConditionalOnMissingBean (types: org.springframework.cache.CacheManager; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   SecurityAutoConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.security.authentication.DefaultAuthenticationEventPublisher' (OnClassCondition)
+
+   SecurityAutoConfiguration#authenticationEventPublisher matched:
+      - @ConditionalOnMissingBean (types: org.springframework.security.authentication.AuthenticationEventPublisher; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   SecurityFilterAutoConfiguration matched:
+      - @ConditionalOnClass found required classes 'org.springframework.security.web.context.AbstractSecurityWebApplicationInitializer', 'org.springframework.security.config.http.SessionCreationPolicy' (OnClassCondition)
+      - found 'session' scope (OnWebApplicationCondition)
+
+   SecurityFilterAutoConfiguration#securityFilterChainRegistration matched:
+      - @ConditionalOnBean (names: springSecurityFilterChain; SearchStrategy: all) found bean 'springSecurityFilterChain' (OnBeanCondition)
+
+   SpringBootWebSecurityConfiguration matched:
+      - found 'session' scope (OnWebApplicationCondition)
+
+   SpringBootWebSecurityConfiguration.SecurityFilterChainConfiguration matched:
+      - AllNestedConditions 2 matched 0 did not; NestedCondition on DefaultWebSecurityCondition.Beans @ConditionalOnMissingBean (types: org.springframework.security.web.SecurityFilterChain; SearchStrategy: all) did not find any beans; NestedCondition on DefaultWebSecurityCondition.Classes @ConditionalOnClass found required classes 'org.springframework.security.web.SecurityFilterChain', 'org.springframework.security.config.annotation.web.builders.HttpSecurity' (DefaultWebSecurityCondition)
+
+   SpringBootWebSecurityConfiguration.WebSecurityEnablerConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.security.config.annotation.web.configuration.EnableWebSecurity' (OnClassCondition)
+      - @ConditionalOnMissingBean (names: springSecurityFilterChain; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   SpringDataWebAutoConfiguration matched:
+      - @ConditionalOnClass found required classes 'org.springframework.data.web.PageableHandlerMethodArgumentResolver', 'org.springframework.web.servlet.config.annotation.WebMvcConfigurer' (OnClassCondition)
+      - found 'session' scope (OnWebApplicationCondition)
+      - @ConditionalOnMissingBean (types: org.springframework.data.web.PageableHandlerMethodArgumentResolver; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   SpringDataWebAutoConfiguration#pageableCustomizer matched:
+      - @ConditionalOnMissingBean (types: org.springframework.data.web.config.PageableHandlerMethodArgumentResolverCustomizer; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   SpringDataWebAutoConfiguration#sortCustomizer matched:
+      - @ConditionalOnMissingBean (types: org.springframework.data.web.config.SortHandlerMethodArgumentResolverCustomizer; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   TaskExecutionAutoConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor' (OnClassCondition)
+
+   TaskExecutorConfigurations.SimpleAsyncTaskExecutorBuilderConfiguration#simpleAsyncTaskExecutorBuilder matched:
+      - @ConditionalOnMissingBean (types: org.springframework.boot.task.SimpleAsyncTaskExecutorBuilder; SearchStrategy: all) did not find any beans (OnBeanCondition)
+      - @ConditionalOnThreading found PLATFORM (OnThreadingCondition)
+
+   TaskExecutorConfigurations.TaskExecutorBuilderConfiguration#taskExecutorBuilder matched:
+      - @ConditionalOnMissingBean (types: org.springframework.boot.task.TaskExecutorBuilder; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   TaskExecutorConfigurations.TaskExecutorConfiguration matched:
+      - @ConditionalOnMissingBean (types: java.util.concurrent.Executor; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   TaskExecutorConfigurations.TaskExecutorConfiguration#applicationTaskExecutor matched:
+      - @ConditionalOnThreading found PLATFORM (OnThreadingCondition)
+
+   TaskExecutorConfigurations.ThreadPoolTaskExecutorBuilderConfiguration#threadPoolTaskExecutorBuilder matched:
+      - @ConditionalOnMissingBean (types: org.springframework.boot.task.TaskExecutorBuilder,org.springframework.boot.task.ThreadPoolTaskExecutorBuilder; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   TemplateEngineConfigurations.DefaultTemplateEngineConfiguration#templateEngine matched:
+      - @ConditionalOnMissingBean (types: org.thymeleaf.spring6.ISpringTemplateEngine; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   ThymeleafAutoConfiguration matched:
+      - @ConditionalOnClass found required classes 'org.thymeleaf.templatemode.TemplateMode', 'org.thymeleaf.spring6.SpringTemplateEngine' (OnClassCondition)
+
+   ThymeleafAutoConfiguration.DefaultTemplateResolverConfiguration matched:
+      - @ConditionalOnMissingBean (names: defaultTemplateResolver; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   ThymeleafAutoConfiguration.ThymeleafWebMvcConfiguration matched:
+      - found 'session' scope (OnWebApplicationCondition)
+      - @ConditionalOnProperty (spring.thymeleaf.enabled) matched (OnPropertyCondition)
+
+   ThymeleafAutoConfiguration.ThymeleafWebMvcConfiguration.ThymeleafViewResolverConfiguration#thymeleafViewResolver matched:
+      - @ConditionalOnMissingBean (names: thymeleafViewResolver; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   UserDetailsServiceAutoConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.security.authentication.AuthenticationManager' (OnClassCondition)
+      - AnyNestedCondition 1 matched 2 did not; NestedCondition on UserDetailsServiceAutoConfiguration.MissingAlternativeOrUserPropertiesConfigured.PasswordConfigured @ConditionalOnProperty (spring.security.user.password) did not find property 'password'; NestedCondition on UserDetailsServiceAutoConfiguration.MissingAlternativeOrUserPropertiesConfigured.NameConfigured @ConditionalOnProperty (spring.security.user.name) did not find property 'name'; NestedCondition on UserDetailsServiceAutoConfiguration.MissingAlternativeOrUserPropertiesConfigured.MissingAlternative @ConditionalOnMissingClass did not find unwanted classes 'org.springframework.security.oauth2.client.registration.ClientRegistrationRepository', 'org.springframework.security.oauth2.server.resource.introspection.OpaqueTokenIntrospector', 'org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistrationRepository' (UserDetailsServiceAutoConfiguration.MissingAlternativeOrUserPropertiesConfigured)
+      - @ConditionalOnBean (types: org.springframework.security.config.annotation.ObjectPostProcessor; SearchStrategy: all) found bean 'objectPostProcessor'; @ConditionalOnMissingBean (types: org.springframework.security.authentication.AuthenticationManager,org.springframework.security.authentication.AuthenticationProvider,org.springframework.security.core.userdetails.UserDetailsService,org.springframework.security.authentication.AuthenticationManagerResolver,org.springframework.security.oauth2.jwt.JwtDecoder; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   ValidationAutoConfiguration matched:
+      - @ConditionalOnClass found required class 'jakarta.validation.executable.ExecutableValidator' (OnClassCondition)
+      - @ConditionalOnResource found location classpath:META-INF/services/jakarta.validation.spi.ValidationProvider (OnResourceCondition)
+
+   ValidationAutoConfiguration#defaultValidator matched:
+      - @ConditionalOnMissingBean (types: jakarta.validation.Validator; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   ValidationAutoConfiguration#methodValidationPostProcessor matched:
+      - @ConditionalOnMissingBean (types: org.springframework.validation.beanvalidation.MethodValidationPostProcessor; SearchStrategy: current) did not find any beans (OnBeanCondition)
+
+   WebMvcAutoConfiguration matched:
+      - @ConditionalOnClass found required classes 'jakarta.servlet.Servlet', 'org.springframework.web.servlet.DispatcherServlet', 'org.springframework.web.servlet.config.annotation.WebMvcConfigurer' (OnClassCondition)
+      - found 'session' scope (OnWebApplicationCondition)
+      - @ConditionalOnMissingBean (types: org.springframework.web.servlet.config.annotation.WebMvcConfigurationSupport; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   WebMvcAutoConfiguration#formContentFilter matched:
+      - @ConditionalOnProperty (spring.mvc.formcontent.filter.enabled) matched (OnPropertyCondition)
+      - @ConditionalOnMissingBean (types: org.springframework.web.filter.FormContentFilter; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   WebMvcAutoConfiguration.EnableWebMvcConfiguration#flashMapManager matched:
+      - @ConditionalOnMissingBean (names: flashMapManager; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   WebMvcAutoConfiguration.EnableWebMvcConfiguration#localeResolver matched:
+      - @ConditionalOnMissingBean (names: localeResolver; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   WebMvcAutoConfiguration.EnableWebMvcConfiguration#themeResolver matched:
+      - @ConditionalOnMissingBean (names: themeResolver; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   WebMvcAutoConfiguration.WebMvcAutoConfigurationAdapter#defaultViewResolver matched:
+      - @ConditionalOnMissingBean (types: org.springframework.web.servlet.view.InternalResourceViewResolver; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   WebMvcAutoConfiguration.WebMvcAutoConfigurationAdapter#requestContextFilter matched:
+      - @ConditionalOnMissingBean (types: org.springframework.web.context.request.RequestContextListener,org.springframework.web.filter.RequestContextFilter; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   WebMvcAutoConfiguration.WebMvcAutoConfigurationAdapter#viewResolver matched:
+      - @ConditionalOnBean (types: org.springframework.web.servlet.ViewResolver; SearchStrategy: all) found beans 'defaultViewResolver', 'mvcViewResolver'; @ConditionalOnMissingBean (names: viewResolver types: org.springframework.web.servlet.view.ContentNegotiatingViewResolver; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+
+Negative matches:
+-----------------
+
+   Cache2kCacheConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.cache2k.Cache2kBuilder' (OnClassCondition)
+
+   CacheAutoConfiguration.CacheManagerEntityManagerFactoryDependsOnPostProcessor:
+      Did not match:
+         - @ConditionalOnBean (types: org.springframework.orm.jpa.AbstractEntityManagerFactoryBean; SearchStrategy: all) did not find any beans of type org.springframework.orm.jpa.AbstractEntityManagerFactoryBean (OnBeanCondition)
+      Matched:
+         - @ConditionalOnClass found required class 'org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean' (OnClassCondition)
+
+   CaffeineCacheConfiguration:
+      Did not match:
+         - Cache org.springframework.boot.autoconfigure.cache.CaffeineCacheConfiguration unknown cache type (CacheCondition)
+      Matched:
+         - @ConditionalOnClass found required classes 'com.github.benmanes.caffeine.cache.Caffeine', 'org.springframework.cache.caffeine.CaffeineCacheManager' (OnClassCondition)
+
+   CouchbaseCacheConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'com.couchbase.client.java.Cluster' (OnClassCondition)
+
+   ErrorMvcAutoConfiguration.DefaultErrorViewResolverConfiguration#conventionErrorViewResolver:
+      Did not match:
+         - @ConditionalOnBean (types: org.springframework.web.servlet.DispatcherServlet; SearchStrategy: all) did not find any beans of type org.springframework.web.servlet.DispatcherServlet (OnBeanCondition)
+
+   ErrorMvcAutoConfiguration.WhitelabelErrorViewConfiguration:
+      Did not match:
+         - @ConditionalOnProperty (server.error.whitelabel.enabled) found different value in property 'enabled' (OnPropertyCondition)
+
+   FreeMarkerAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'freemarker.template.Configuration' (OnClassCondition)
+
+   GenericCacheConfiguration:
+      Did not match:
+         - Cache org.springframework.boot.autoconfigure.cache.GenericCacheConfiguration unknown cache type (CacheCondition)
+
+   GroovyTemplateAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'groovy.text.markup.MarkupTemplateEngine' (OnClassCondition)
+
+   GsonHttpMessageConvertersConfiguration.GsonHttpMessageConverterConfiguration:
+      Did not match:
+         - AnyNestedCondition 0 matched 2 did not; NestedCondition on GsonHttpMessageConvertersConfiguration.PreferGsonOrJacksonAndJsonbUnavailableCondition.JacksonJsonbUnavailable NoneNestedConditions 1 matched 1 did not; NestedCondition on GsonHttpMessageConvertersConfiguration.JacksonAndJsonbUnavailableCondition.JsonbPreferred @ConditionalOnProperty (spring.mvc.converters.preferred-json-mapper=jsonb) did not find property 'spring.mvc.converters.preferred-json-mapper'; NestedCondition on GsonHttpMessageConvertersConfiguration.JacksonAndJsonbUnavailableCondition.JacksonAvailable @ConditionalOnBean (types: org.springframework.http.converter.json.MappingJackson2HttpMessageConverter; SearchStrategy: all) found bean 'mappingJackson2HttpMessageConverter'; NestedCondition on GsonHttpMessageConvertersConfiguration.PreferGsonOrJacksonAndJsonbUnavailableCondition.GsonPreferred @ConditionalOnProperty (spring.mvc.converters.preferred-json-mapper=gson) did not find property 'spring.mvc.converters.preferred-json-mapper' (GsonHttpMessageConvertersConfiguration.PreferGsonOrJacksonAndJsonbUnavailableCondition)
+
+   HazelcastCacheConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'com.hazelcast.core.HazelcastInstance' (OnClassCondition)
+
+   HypermediaAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.hateoas.EntityModel' (OnClassCondition)
+
+   InfinispanCacheConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.infinispan.spring.embedded.provider.SpringEmbeddedCacheManager' (OnClassCondition)
+
+   JCacheCacheConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'javax.cache.Caching' (OnClassCondition)
+
+   JacksonHttpMessageConvertersConfiguration.MappingJackson2XmlHttpMessageConverterConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'com.fasterxml.jackson.dataformat.xml.XmlMapper' (OnClassCondition)
+
+   JsonbAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'jakarta.json.bind.Jsonb' (OnClassCondition)
+
+   JsonbHttpMessageConvertersConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'jakarta.json.bind.Jsonb' (OnClassCondition)
+
+   MessageSourceAutoConfiguration:
+      Did not match:
+         - ResourceBundle did not find bundle with basename messages (MessageSourceAutoConfiguration.ResourceBundleCondition)
+
+   MockMvcAutoConfiguration.WebTestClientMockMvcConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.web.reactive.function.client.WebClient' (OnClassCondition)
+
+   MockMvcWebClientAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'com.gargoylesoftware.htmlunit.WebClient' (OnClassCondition)
+
+   MockMvcWebDriverAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.openqa.selenium.htmlunit.HtmlUnitDriver' (OnClassCondition)
+
+   MustacheAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'com.samskivert.mustache.Mustache' (OnClassCondition)
+
+   OAuth2ClientAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.security.oauth2.client.registration.ClientRegistration' (OnClassCondition)
+
+   OAuth2ResourceServerAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.security.oauth2.server.resource.authentication.BearerTokenAuthenticationToken' (OnClassCondition)
+
+   RedisCacheConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.data.redis.connection.RedisConnectionFactory' (OnClassCondition)
+
+   SecurityDataConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.security.data.repository.query.SecurityEvaluationContextExtension' (OnClassCondition)
+
+   SimpleCacheConfiguration:
+      Did not match:
+         - Cache org.springframework.boot.autoconfigure.cache.SimpleCacheConfiguration unknown cache type (CacheCondition)
+
+   TaskExecutorConfigurations.SimpleAsyncTaskExecutorBuilderConfiguration#simpleAsyncTaskExecutorBuilderVirtualThreads:
+      Did not match:
+         - @ConditionalOnMissingBean (types: org.springframework.boot.task.SimpleAsyncTaskExecutorBuilder; SearchStrategy: all) found beans of type 'org.springframework.boot.task.SimpleAsyncTaskExecutorBuilder' simpleAsyncTaskExecutorBuilder (OnBeanCondition)
+
+   TaskExecutorConfigurations.TaskExecutorConfiguration#applicationTaskExecutorVirtualThreads:
+      Did not match:
+         - @ConditionalOnThreading did not find VIRTUAL (OnThreadingCondition)
+
+   TemplateEngineConfigurations.ReactiveTemplateEngineConfiguration:
+      Did not match:
+         - did not find reactive web application classes (OnWebApplicationCondition)
+
+   ThymeleafAutoConfiguration.DataAttributeDialectConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'com.github.mxab.thymeleaf.extras.dataattribute.dialect.DataAttributeDialect' (OnClassCondition)
+
+   ThymeleafAutoConfiguration.ThymeleafSecurityDialectConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.thymeleaf.extras.springsecurity6.dialect.SpringSecurityDialect' (OnClassCondition)
+
+   ThymeleafAutoConfiguration.ThymeleafWebFluxConfiguration:
+      Did not match:
+         - did not find reactive web application classes (OnWebApplicationCondition)
+
+   ThymeleafAutoConfiguration.ThymeleafWebLayoutConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'nz.net.ultraq.thymeleaf.layoutdialect.LayoutDialect' (OnClassCondition)
+
+   ThymeleafAutoConfiguration.ThymeleafWebMvcConfiguration#resourceUrlEncodingFilter:
+      Did not match:
+         - @ConditionalOnEnabledResourceChain did not find class org.webjars.WebJarAssetLocator (OnEnabledResourceChainCondition)
+
+   WebMvcAutoConfiguration#hiddenHttpMethodFilter:
+      Did not match:
+         - @ConditionalOnProperty (spring.mvc.hiddenmethod.filter.enabled) did not find property 'enabled' (OnPropertyCondition)
+
+   WebMvcAutoConfiguration.ProblemDetailsErrorHandlingConfiguration:
+      Did not match:
+         - @ConditionalOnProperty (spring.mvc.problemdetails.enabled=true) did not find property 'enabled' (OnPropertyCondition)
+
+   WebMvcAutoConfiguration.ResourceChainCustomizerConfiguration:
+      Did not match:
+         - @ConditionalOnEnabledResourceChain did not find class org.webjars.WebJarAssetLocator (OnEnabledResourceChainCondition)
+
+   WebMvcAutoConfiguration.WebMvcAutoConfigurationAdapter#beanNameViewResolver:
+      Did not match:
+         - @ConditionalOnBean (types: org.springframework.web.servlet.View; SearchStrategy: all) did not find any beans of type org.springframework.web.servlet.View (OnBeanCondition)
+
+   WebTestClientAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.web.reactive.function.client.WebClient' (OnClassCondition)
+
+
+Exclusions:
+-----------
+
+    None
+
+
+Unconditional classes:
+----------------------
+
+    None
+
+
+
+2026-04-24 21:49:28.332+03:00 INFO  [main] c.e.p.c.ChannelApiControllerWebMvcTest - Started ChannelApiControllerWebMvcTest in 13.389 seconds (process running for 16.256)
+2026-04-24 21:49:28.562+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.example.panel.controller.ChannelApiController#postChannel(long, Map)
+2026-04-24 21:49:28.681+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestResponseBodyMethodProcessor - Read "application/json" to [{description=Updated via alias, is_active=false}]
+2026-04-24 21:49:28.755+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [*/*] and supported [application/json, application/*+json]
+2026-04-24 21:49:28.756+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [{success=true, channel={id=47, channel_name=Alias Update, platform=telegram, token=tg-token, is_acti (truncated)...]
+2026-04-24 21:49:29.029+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.example.panel.controller.ChannelApiController#createChannel(Map)
+2026-04-24 21:49:29.031+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestResponseBodyMethodProcessor - Read "application/json" to [{channel_name=Default TG, platform=, token=telegram-token}]
+2026-04-24 21:49:29.105+03:00 WARN  [main] c.e.p.c.ChannelApiController - Failed to load Telegram bot info: Cannot invoke "java.net.http.HttpClient.send(java.net.http.HttpRequest, java.net.http.HttpResponse$BodyHandler)" because "client" is null
+2026-04-24 21:49:29.107+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [*/*] and supported [application/json, application/*+json]
+2026-04-24 21:49:29.108+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [{success=true, channel={id=43, channel_name=Default TG, platform=telegram, token=telegram-token, is_ (truncated)...]
+2026-04-24 21:49:29.133+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.example.panel.controller.ChannelApiController#regeneratePublicId(long)
+2026-04-24 21:49:29.136+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [*/*] and supported [application/json, application/*+json]
+2026-04-24 21:49:29.137+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [{public_id=edee672951b7469e8e8f86bfacca3152, channel={id=55, channel_name=null, platform=null, token (truncated)...]
+2026-04-24 21:49:29.149+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.example.panel.controller.ChannelApiController#createChannel(Map)
+2026-04-24 21:49:29.153+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestResponseBodyMethodProcessor - Read "application/json" to [{channel_name=VK Support, platform=vk, token=vk-access-token, question_template_id=q-template, ratin (truncated)...]
+2026-04-24 21:49:29.160+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [*/*] and supported [application/json, application/*+json]
+2026-04-24 21:49:29.160+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [{success=true, channel={id=42, channel_name=VK Support, platform=vk, token=vk-access-token, is_activ (truncated)...]
+2026-04-24 21:49:29.183+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.example.panel.controller.ChannelApiController#refreshBotInfo(long)
+2026-04-24 21:49:29.186+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [*/*] and supported [application/json, application/*+json]
+2026-04-24 21:49:29.187+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [{success=false, error=Канал не найден}]
+2026-04-24 21:49:29.201+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.example.panel.controller.ChannelApiController#createChannel(Map)
+2026-04-24 21:49:29.203+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestResponseBodyMethodProcessor - Read "application/json" to [{channel_name=VK Missing Callback, platform=vk, token=vk-token, platform_config={group_id=0}}]
+2026-04-24 21:49:29.204+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [*/*] and supported [application/json, application/*+json]
+2026-04-24 21:49:29.204+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [{success=false, error=Для VK укажите корректный ID сообщества (group_id).}]
+2026-04-24 21:49:29.215+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.example.panel.controller.ChannelApiController#testChannel(long, Map)
+2026-04-24 21:49:29.218+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestResponseBodyMethodProcessor - Read "application/json" to [{target_mode=both, message=ping}]
+2026-04-24 21:49:29.220+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [*/*] and supported [application/json, application/*+json]
+2026-04-24 21:49:29.221+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [{success=false, error=Не найден получатель. Укажите ID вручную или настройте группу/канал.}]
+2026-04-24 21:49:29.235+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.example.panel.controller.ChannelApiController#testChannel(long, Map)
+2026-04-24 21:49:29.238+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestResponseBodyMethodProcessor - Read "application/json" to [{message=ping}]
+2026-04-24 21:49:29.240+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [*/*] and supported [application/json, application/*+json]
+2026-04-24 21:49:29.241+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [{success=false, error=Канал не найден}]
+2026-04-24 21:49:29.263+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.example.panel.controller.ChannelApiController#deleteBotCredential(long)
+2026-04-24 21:49:29.269+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [*/*] and supported [application/json, application/*+json]
+2026-04-24 21:49:29.270+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [{success=false, error=Учётные данные не найдены}]
+2026-04-24 21:49:29.282+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.example.panel.controller.ChannelApiController#deleteBotCredential(long)
+2026-04-24 21:49:29.286+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [*/*] and supported [application/json, application/*+json]
+2026-04-24 21:49:29.287+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [{success=true}]
+2026-04-24 21:49:29.483+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.example.panel.controller.ChannelApiController#refreshBotInfo(long)
+2026-04-24 21:49:29.505+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [*/*] and supported [application/json, application/*+json]
+2026-04-24 21:49:29.505+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [{success=true, channel={id=74, channel_name=null, platform=telegram, token=tg-token, is_active=null, (truncated)...]
+2026-04-24 21:49:29.520+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.example.panel.controller.ChannelApiController#testChannel(long, Map)
+2026-04-24 21:49:29.521+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestResponseBodyMethodProcessor - Read "application/json" to [{target_mode=both, message=hello}]
+2026-04-24 21:49:29.533+03:00 WARN  [main] c.e.p.c.ChannelApiController - Telegram sendMessage failed for group-2: HTTP 500
+2026-04-24 21:49:29.534+03:00 WARN  [main] c.e.p.c.ChannelApiController - Telegram sendMessage failed for channel-2: HTTP 500
+2026-04-24 21:49:29.534+03:00 INFO  [main] c.e.p.c.ChannelApiController - Test message requested for channel 64 to 2 targets (5 chars)
+2026-04-24 21:49:29.535+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [*/*] and supported [application/json, application/*+json]
+2026-04-24 21:49:29.536+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [{failed=[group-2, channel-2], error=Не удалось отправить сообщение ни одному получателю, success=fal (truncated)...]
+2026-04-24 21:49:29.563+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.example.panel.controller.ChannelApiController#putChannel(long, Map)
+2026-04-24 21:49:29.565+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestResponseBodyMethodProcessor - Read "application/json" to [{channel_name=Missing}]
+2026-04-24 21:49:29.567+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [*/*] and supported [application/json, application/*+json]
+2026-04-24 21:49:29.569+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [{success=false, error=Канал не найден}]
+2026-04-24 21:49:29.580+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.example.panel.controller.ChannelApiController#createBotCredential(Map)
+2026-04-24 21:49:29.581+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestResponseBodyMethodProcessor - Read "application/json" to [{name=VK Main, platform=vk, token=vk-token, is_active=false}]
+2026-04-24 21:49:29.585+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [*/*] and supported [application/json, application/*+json]
+2026-04-24 21:49:29.586+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [{success=true, credential={platform=vk, masked_token=****oken, name=VK Main, id=3, is_active=false}}]
+2026-04-24 21:49:29.599+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.example.panel.controller.ChannelApiController#testChannel(long, Map)
+2026-04-24 21:49:29.604+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestResponseBodyMethodProcessor - Read "application/json" to [{message=ping}]
+2026-04-24 21:49:29.606+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [*/*] and supported [application/json, application/*+json]
+2026-04-24 21:49:29.606+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [{success=false, error=У канала не задан токен}]
+2026-04-24 21:49:29.618+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.example.panel.controller.ChannelApiController#createBotCredential(Map)
+2026-04-24 21:49:29.622+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestResponseBodyMethodProcessor - Read "application/json" to [{name=Default TG, platform=, token=tg-token, is_active=true}]
+2026-04-24 21:49:29.623+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [*/*] and supported [application/json, application/*+json]
+2026-04-24 21:49:29.624+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [{success=true, credential={platform=telegram, masked_token=****oken, name=Default TG, id=1, is_activ (truncated)...]
+2026-04-24 21:49:29.636+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.example.panel.controller.ChannelApiController#createChannel(Map)
+2026-04-24 21:49:29.638+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestResponseBodyMethodProcessor - Read "application/json" to [{channel_name=TG Missing Token, platform=telegram, token=}]
+2026-04-24 21:49:29.640+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [*/*] and supported [application/json, application/*+json]
+2026-04-24 21:49:29.642+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [{success=false, error=Для Telegram необходимо указать токен бота.}]
+2026-04-24 21:49:29.655+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.example.panel.controller.ChannelApiController#testChannel(long, Map)
+2026-04-24 21:49:29.657+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestResponseBodyMethodProcessor - Read "application/json" to [{message=ping}]
+2026-04-24 21:49:29.658+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [*/*] and supported [application/json, application/*+json]
+2026-04-24 21:49:29.658+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [{success=false, error=Тестовая отправка доступна только для Telegram}]
+2026-04-24 21:49:29.675+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.example.panel.controller.ChannelApiController#deleteChannel(long)
+2026-04-24 21:49:29.677+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [*/*] and supported [application/json, application/*+json]
+2026-04-24 21:49:29.683+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [{success=true}]
+2026-04-24 21:49:29.718+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.example.panel.controller.ChannelApiController#testChannel(long, Map)
+2026-04-24 21:49:29.721+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestResponseBodyMethodProcessor - Read "application/json" to [{target_mode=both, recipient=group-1, message=hello operators}]
+2026-04-24 21:49:29.725+03:00 INFO  [main] c.e.p.c.ChannelApiController - Test message requested for channel 63 to 2 targets (15 chars)
+2026-04-24 21:49:29.725+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [*/*] and supported [application/json, application/*+json]
+2026-04-24 21:49:29.726+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [{sent=[group-1, channel-1], failed=[], success=true}]
+2026-04-24 21:49:29.741+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.example.panel.controller.ChannelApiController#testChannel(long, Map)
+2026-04-24 21:49:29.742+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestResponseBodyMethodProcessor - Read "application/json" to [{target_mode=group}]
+2026-04-24 21:49:29.744+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [*/*] and supported [application/json, application/*+json]
+2026-04-24 21:49:29.745+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [{success=false, error=Нужно указать текст сообщения}]
+2026-04-24 21:49:29.756+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.example.panel.controller.ChannelApiController#createBotCredential(Map)
+2026-04-24 21:49:29.757+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestResponseBodyMethodProcessor - Read "application/json" to [{name=VK Main, token=}]
+2026-04-24 21:49:29.758+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [*/*] and supported [application/json, application/*+json]
+2026-04-24 21:49:29.759+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [{success=false, error=Название и токен обязательны}]
+2026-04-24 21:49:29.768+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.example.panel.controller.ChannelApiController#createChannel(Map)
+2026-04-24 21:49:29.770+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestResponseBodyMethodProcessor - Read "application/json" to [{platform=telegram, token=telegram-token}]
+2026-04-24 21:49:29.772+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [*/*] and supported [application/json, application/*+json]
+2026-04-24 21:49:29.773+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [{success=false, error=Название канала обязательно}]
+2026-04-24 21:49:29.786+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.example.panel.controller.ChannelApiController#postChannel(long, Map)
+2026-04-24 21:49:29.787+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestResponseBodyMethodProcessor - Read "application/json" to [{questions_cfg=broken}]
+2026-04-24 21:49:29.789+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [*/*] and supported [application/json, application/*+json]
+2026-04-24 21:49:29.790+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [{success=false, error=questions_cfg должен быть объектом или массивом}]
+2026-04-24 21:49:29.811+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.example.panel.controller.ChannelApiController#refreshBotInfo(long)
+2026-04-24 21:49:29.812+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [*/*] and supported [application/json, application/*+json]
+2026-04-24 21:49:29.812+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [{success=false, error=Обновление доступно только для Telegram}]
+2026-04-24 21:49:29.828+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.example.panel.controller.ChannelApiController#deleteChannel(long)
+2026-04-24 21:49:29.830+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [*/*] and supported [application/json, application/*+json]
+2026-04-24 21:49:29.830+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [{success=false, error=Канал не найден}]
+2026-04-24 21:49:29.843+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.example.panel.controller.ChannelApiController#postChannel(long, Map)
+2026-04-24 21:49:29.845+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestResponseBodyMethodProcessor - Read "application/json" to [{credential_id=9, support_chat_id=ops-room, network_route={mode=proxy, target=corp-gateway}, deliver (truncated)...]
+2026-04-24 21:49:29.849+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [*/*] and supported [application/json, application/*+json]
+2026-04-24 21:49:29.850+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [{success=true, channel={id=44, channel_name=TG Support, platform=telegram, token=tg-token, is_active (truncated)...]
+2026-04-24 21:49:29.864+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.example.panel.controller.ChannelApiController#postChannel(long, Map)
+2026-04-24 21:49:29.866+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestResponseBodyMethodProcessor - Read "application/json" to [{}]
+2026-04-24 21:49:29.867+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [*/*] and supported [application/json, application/*+json]
+2026-04-24 21:49:29.867+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [{success=false, error=Нет полей для обновления}]
+2026-04-24 21:49:29.876+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.example.panel.controller.ChannelApiController#getChannels()
+2026-04-24 21:49:29.879+03:00 INFO  [main] c.e.p.c.ChannelApiController - Channels API returned 1 channels
+2026-04-24 21:49:29.881+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [*/*] and supported [application/json, application/*+json]
+2026-04-24 21:49:29.881+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [{channels=[{id=12, channel_name=Telegram Support, platform=telegram, token=null, is_active=null, des (truncated)...]
+2026-04-24 21:49:29.896+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.example.panel.controller.ChannelApiController#testChannel(long, Map)
+2026-04-24 21:49:29.898+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestResponseBodyMethodProcessor - Read "application/json" to [{recipient=manual-operator, message=manual ping}]
+2026-04-24 21:49:29.900+03:00 INFO  [main] c.e.p.c.ChannelApiController - Test message requested for channel 65 to 1 targets (11 chars)
+2026-04-24 21:49:29.901+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [*/*] and supported [application/json, application/*+json]
+2026-04-24 21:49:29.903+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [{sent=[manual-operator], failed=[], success=true}]
+2026-04-24 21:49:29.916+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.example.panel.controller.ChannelApiController#getBotCredentials()
+2026-04-24 21:49:29.919+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [*/*] and supported [application/json, application/*+json]
+2026-04-24 21:49:29.920+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [{credentials=[{platform=telegram, masked_token=*********CDEF, name=TG Main, id=5, is_active=true}],  (truncated)...]
+2026-04-24 21:49:29.933+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.example.panel.controller.ChannelApiController#refreshBotInfo(long)
+2026-04-24 21:49:29.935+03:00 WARN  [main] c.e.p.c.ChannelApiController - Telegram getMe failed with status 500
+2026-04-24 21:49:29.936+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Using 'application/json', given [*/*] and supported [application/json, application/*+json]
+2026-04-24 21:49:29.937+03:00 DEBUG [main] o.s.w.s.m.m.a.HttpEntityMethodProcessor - Writing [{success=false, error=Не удалось получить данные бота}]
+2026-04-24 21:49:30.857+03:00 WARN  [main] c.e.panel.service.BotProcessService - Bot process for channel 77 reported startup failure: Бот не прошёл инициализацию: Parameter 0 of constructor in demo.Service required a bean of type 'demo.Repository' that could not be found.
+2026-04-24 21:49:30.991+03:00 WARN  [main] c.e.p.s.BotRuntimeContractService - Configured executable jar for module bot-telegram not found at C:\Users\sushi\AppData\Local\Temp\junit4022753713716067729\java-bot\dist\missing-runtime.jar
+2026-04-24 21:49:32.113+03:00 WARN  [main] c.e.panel.service.BotProcessService - Bot process for channel 99 did not confirm readiness in time: Не удалось подтвердить готовность бота после старта. Последняя строка лога: Bootstrapping probe
+2026-04-24 21:49:32.238+03:00 INFO  [main] c.e.p.service.SharedConfigService - Using shared config directory at C:\Users\sushi\AppData\Local\Temp\junit2639092046413235013
+2026-04-24 21:49:32.415+03:00 INFO  [main] c.e.p.service.SharedConfigService - Using shared config directory at C:\Users\sushi\AppData\Local\Temp\junit18021420017306121143
+2026-04-24 21:49:32.431+03:00 WARN  [main] c.e.p.service.SharedConfigService - Failed to read shared config C:\Users\sushi\AppData\Local\Temp\junit18021420017306121143\settings.json: Unexpected character ('b' (code 98)): was expecting double-quote to start field name
+ at [Source: (File); line: 1, column: 3]
+2026-04-24 21:49:32.438+03:00 INFO  [main] c.e.p.service.SharedConfigService - Using shared config directory at C:\Users\sushi\AppData\Local\Temp\junit4657807351857114034
+2026-04-24 21:49:32.465+03:00 INFO  [main] c.e.p.service.SharedConfigService - Using shared config directory at C:\Users\sushi\AppData\Local\Temp\junit6626762366905941328
+2026-04-24 21:49:32.490+03:00 INFO  [main] c.e.p.service.SharedConfigService - Using shared config directory at C:\Users\sushi\AppData\Local\Temp\junit5752252933584426212
+2026-04-24 21:49:32.511+03:00 INFO  [main] c.e.p.service.SharedConfigService - Using shared config directory at C:\Users\sushi\AppData\Local\Temp\junit1034684325055695542
+2026-04-24 21:49:32.526+03:00 INFO  [main] c.e.p.service.SharedConfigService - Using shared config directory at C:\Users\sushi\AppData\Local\Temp\junit11324531972456812985
+2026-04-24 21:49:32.545+03:00 WARN  [main] c.e.p.service.SharedConfigService - Failed to read shared config C:\Users\sushi\AppData\Local\Temp\junit11324531972456812985\bot_credentials.json: Cannot deserialize value of type `java.util.ArrayList<com.example.panel.model.channel.BotCredential>` from Object value (token `JsonToken.START_OBJECT`)
+ at [Source: (File); line: 1, column: 1]
+2026-04-24 21:49:32.558+03:00 INFO  [main] c.e.p.service.SharedConfigService - Using shared config directory at C:\Users\sushi\AppData\Local\Temp\junit10285019499257999536
+2026-04-24 21:49:32.574+03:00 WARN  [main] c.e.p.service.SharedConfigService - Failed to read shared config C:\Users\sushi\AppData\Local\Temp\junit10285019499257999536\org_structure.json: Unrecognized token 'broken': was expecting (JSON String, Number, Array, Object or token 'null', 'true' or 'false')
+ at [Source: (File); line: 1, column: 8]
+2026-04-24 21:49:32.590+03:00 INFO  [main] c.e.p.service.SharedConfigService - Using shared config directory at C:\Users\sushi\AppData\Local\Temp\junit8680503640619002370
+2026-04-24 21:49:32.607+03:00 WARN  [main] c.e.p.service.SharedConfigService - Failed to read shared config C:\Users\sushi\AppData\Local\Temp\junit8680503640619002370\locations.json: Unexpected end-of-input within/between Object entries
+ at [Source: (File); line: 1, column: 9]
+2026-04-24 21:49:32.649+03:00 DEBUG [SpringApplicationShutdownHook] o.s.w.c.s.GenericWebApplicationContext - Closing org.springframework.web.context.support.GenericWebApplicationContext@49293b43, started on Fri Apr 24 21:49:16 MSK 2026
