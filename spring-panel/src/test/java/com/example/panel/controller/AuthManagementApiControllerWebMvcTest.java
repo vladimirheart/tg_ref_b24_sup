@@ -254,6 +254,115 @@ class AuthManagementApiControllerWebMvcTest {
     }
 
     @Test
+    void updateUserPersistsPasswordHashWhenColumnExists() throws Exception {
+        when(permissionService.isSuperUser(any())).thenReturn(true);
+        when(passwordEncoder.encode("next-secret")).thenReturn("hashed-next-secret");
+        ReflectionTestUtils.setField(controller, "userColumns", Set.of("password", "password_hash"));
+
+        mockMvc.perform(patch("/api/users/7")
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf())
+                .contentType("application/json")
+                .content("""
+                    {
+                      "password": "next-secret"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true));
+
+        verify(usersJdbcTemplate).update(
+            eq("UPDATE users SET password = ?, password_hash = ? WHERE id = ?"),
+            eq("hashed-next-secret"),
+            eq("hashed-next-secret"),
+            eq(7L)
+        );
+    }
+
+    @Test
+    void updateUserPersistsBlockedStateAndEnabledFlagWhenEnabledColumnExists() throws Exception {
+        when(permissionService.isSuperUser(any())).thenReturn(true);
+        ReflectionTestUtils.setField(controller, "userColumns", Set.of("is_blocked", "enabled"));
+
+        mockMvc.perform(patch("/api/users/7")
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf())
+                .contentType("application/json")
+                .content("""
+                    {
+                      "is_blocked": true
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true));
+
+        verify(usersJdbcTemplate).update(
+            eq("UPDATE users SET is_blocked = ?, enabled = ? WHERE id = ?"),
+            eq(1),
+            eq(false),
+            eq(7L)
+        );
+    }
+
+    @Test
+    void updateUserPersistsProfileFieldsWhenUsernameEditPermissionIsGranted() throws Exception {
+        when(permissionService.isSuperUser(any())).thenReturn(true);
+        ReflectionTestUtils.setField(controller, "userColumns", Set.of("full_name", "email", "department", "photo", "birth_date"));
+
+        mockMvc.perform(patch("/api/users/7")
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf())
+                .contentType("application/json")
+                .content("""
+                    {
+                      "full_name": "Self User",
+                      "email": "self@example.com",
+                      "department": "Support",
+                      "photo": "/api/attachments/avatars/self.png",
+                      "birth_date": "1990-01-01"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true));
+
+        verify(usersJdbcTemplate).update(
+            eq("UPDATE users SET full_name = ?, email = ?, department = ?, photo = ?, birth_date = ? WHERE id = ?"),
+            eq("Self User"),
+            eq("self@example.com"),
+            eq("Support"),
+            eq("/api/attachments/avatars/self.png"),
+            eq("1990-01-01"),
+            eq(7L)
+        );
+    }
+
+    @Test
+    void updateUserPersistsPhonesAsJsonWhenColumnExists() throws Exception {
+        when(permissionService.isSuperUser(any())).thenReturn(true);
+        ReflectionTestUtils.setField(controller, "userColumns", Set.of("phones"));
+
+        mockMvc.perform(patch("/api/users/7")
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf())
+                .contentType("application/json")
+                .content("""
+                    {
+                      "phones": [
+                        {"label": "work", "value": "+7-900-000-00-00"}
+                      ]
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true));
+
+        verify(usersJdbcTemplate).update(
+            eq("UPDATE users SET phones = ? WHERE id = ?"),
+            eq("[{\"label\":\"work\",\"value\":\"+7-900-000-00-00\"}]"),
+            eq(7L)
+        );
+    }
+
+    @Test
     void createUserPersistsPasswordHashColumnWhenAvailable() throws Exception {
         when(permissionService.isSuperUser(any())).thenReturn(true);
         ReflectionTestUtils.setField(controller, "userColumns", Set.of("username", "password", "password_hash"));
@@ -490,6 +599,35 @@ class AuthManagementApiControllerWebMvcTest {
 
         verify(usersJdbcTemplate).update(
             eq("UPDATE roles SET permissions = ? WHERE id = ?"),
+            anyString(),
+            eq(5L)
+        );
+    }
+
+    @Test
+    void updateRolePersistsNameDescriptionAndPermissionsTogether() throws Exception {
+        when(permissionService.isSuperUser(any())).thenReturn(true);
+
+        mockMvc.perform(patch("/api/roles/5")
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf())
+                .contentType("application/json")
+                .content("""
+                    {
+                      "name": "reviewer",
+                      "description": "Review role",
+                      "permissions": {
+                        "pages": ["dialogs", "settings"]
+                      }
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true));
+
+        verify(usersJdbcTemplate).update(
+            eq("UPDATE roles SET name = ?, description = ?, permissions = ? WHERE id = ?"),
+            eq("reviewer"),
+            eq("Review role"),
             anyString(),
             eq(5L)
         );

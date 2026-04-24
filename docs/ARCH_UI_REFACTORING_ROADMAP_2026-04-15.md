@@ -534,6 +534,9 @@
 - отдельно удерживать `autostart` и `integration network` runtime boundary
   под regression net, потому что теперь там уже есть явная null-safe
   обработка `status/start` и более широкий proxy/vpn/vless contract;
+- удерживать `bot process api` и `auth management` orchestration boundary
+  под тем же regression net, потому что там уже есть явный error contract,
+  launcher/runtime parsing и multi-column persistence scenarios;
 - при необходимости дотянуть orchestration-tests дальше до shared-config
   integration сценариев c реальным persistence/config boundary;
 - более широкий runtime contract test для launcher strategy и bot lifecycle.
@@ -556,8 +559,9 @@
 6. `Phase 6` усилен адресными runtime/UI тестами и уже покрывает основной
    sliced dialog/settings controller layer, shared config/env foundation и
    заметную часть page bootstrap contract; дополнительно туда уже вошли
-   `autostart`, `integration network` и panel-bot runtime edge-cases, но
-   это всё ещё не полноценная end-to-end safety net.
+   `autostart`, `integration network`, `bot process api`, `auth management`
+   и panel-bot runtime edge-cases, но это всё ещё не полноценная
+   end-to-end safety net.
 
 ## Следующий Фокус
 
