@@ -4,10 +4,14 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.startsWith;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -17,6 +21,7 @@ import com.example.panel.service.SharedConfigService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -26,6 +31,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @WebMvcTest(AuthManagementApiController.class)
 @AutoConfigureMockMvc(addFilters = false)
@@ -36,6 +42,9 @@ class AuthManagementApiControllerWebMvcTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private AuthManagementApiController controller;
 
     @MockBean(name = "usersJdbcTemplate")
     private JdbcTemplate usersJdbcTemplate;
@@ -96,6 +105,7 @@ class AuthManagementApiControllerWebMvcTest {
     void updateOrgStructurePersistsPayloadThroughSharedConfigBoundary() throws Exception {
         mockMvc.perform(post("/api/auth/org-structure")
                 .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf())
                 .contentType("application/json")
                 .content("""
                     {
@@ -113,5 +123,251 @@ class AuthManagementApiControllerWebMvcTest {
         verify(sharedConfigService).saveOrgStructure(eq(Map.of(
             "departments", List.of(Map.of("id", "support", "title", "Support"))
         )));
+    }
+
+    @Test
+    void createUserRejectsDuplicateUsername() throws Exception {
+        when(permissionService.isSuperUser(any())).thenReturn(true);
+        when(usersJdbcTemplate.queryForObject(startsWith("SELECT COUNT(*) FROM users"), eq(Integer.class), eq("existing")))
+            .thenReturn(1);
+
+        mockMvc.perform(post("/api/users")
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf())
+                .contentType("application/json")
+                .content("""
+                    {
+                      "username": "existing",
+                      "password": "secret"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("Пользователь уже существует"));
+    }
+
+    @Test
+    void createUserPersistsHashedPassword() throws Exception {
+        when(permissionService.isSuperUser(any())).thenReturn(true);
+        when(usersJdbcTemplate.queryForObject(startsWith("SELECT COUNT(*) FROM users"), eq(Integer.class), eq("fresh")))
+            .thenReturn(0);
+        when(passwordEncoder.encode("secret")).thenReturn("hashed-secret");
+
+        mockMvc.perform(post("/api/users")
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf())
+                .contentType("application/json")
+                .content("""
+                    {
+                      "username": "fresh",
+                      "password": "secret"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true));
+
+        verify(usersJdbcTemplate).update(startsWith("INSERT INTO users"), eq("fresh"), eq("hashed-secret"));
+    }
+
+    @Test
+    void updateUserReturnsNoDataWhenPayloadEmpty() throws Exception {
+        when(permissionService.isSuperUser(any())).thenReturn(true);
+
+        mockMvc.perform(patch("/api/users/7")
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf())
+                .contentType("application/json")
+                .content("{}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("Нет данных для обновления"));
+    }
+
+    @Test
+    void updateUserPersistsBlockAndPasswordChanges() throws Exception {
+        when(permissionService.isSuperUser(any())).thenReturn(true);
+        when(passwordEncoder.encode("next-secret")).thenReturn("hashed-next-secret");
+        ReflectionTestUtils.setField(controller, "userColumns", Set.of("password", "is_blocked"));
+
+        mockMvc.perform(patch("/api/users/7")
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf())
+                .contentType("application/json")
+                .content("""
+                    {
+                      "password": "next-secret",
+                      "is_blocked": true
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true));
+
+        verify(usersJdbcTemplate).update(
+            eq("UPDATE users SET is_blocked = ?, password = ? WHERE id = ?"),
+            eq(1),
+            eq("hashed-next-secret"),
+            eq(7L)
+        );
+    }
+
+    @Test
+    void deleteUserReturnsNotFoundWhenRecordIsMissing() throws Exception {
+        when(permissionService.isSuperUser(any())).thenReturn(true);
+        when(usersJdbcTemplate.update("DELETE FROM users WHERE id = ?", 41L)).thenReturn(0);
+
+        mockMvc.perform(delete("/api/users/41")
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("Пользователь не найден"));
+    }
+
+    @Test
+    void createRoleRejectsDuplicateName() throws Exception {
+        when(permissionService.isSuperUser(any())).thenReturn(true);
+        when(usersJdbcTemplate.queryForObject(startsWith("SELECT COUNT(*) FROM roles"), eq(Integer.class), eq("portal-admin")))
+            .thenReturn(1);
+
+        mockMvc.perform(post("/api/roles")
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf())
+                .contentType("application/json")
+                .content("""
+                    {
+                      "name": "portal-admin"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("Роль уже существует"));
+    }
+
+    @Test
+    void createRolePersistsPermissionsPayload() throws Exception {
+        when(permissionService.isSuperUser(any())).thenReturn(true);
+        when(usersJdbcTemplate.queryForObject(startsWith("SELECT COUNT(*) FROM roles"), eq(Integer.class), eq("reviewer")))
+            .thenReturn(0);
+
+        mockMvc.perform(post("/api/roles")
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf())
+                .contentType("application/json")
+                .content("""
+                    {
+                      "name": "reviewer",
+                      "description": "Review role",
+                      "permissions": {
+                        "pages": ["dialogs"],
+                        "fields": {
+                          "edit": ["user.create"],
+                          "view": ["user.password"]
+                        }
+                      }
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true));
+
+        verify(usersJdbcTemplate).update(
+            eq("INSERT INTO roles(name, description, permissions) VALUES (?, ?, ?)"),
+            eq("reviewer"),
+            eq("Review role"),
+            anyString()
+        );
+    }
+
+    @Test
+    void updateRoleReturnsNoDataWhenPayloadEmpty() throws Exception {
+        when(permissionService.isSuperUser(any())).thenReturn(true);
+
+        mockMvc.perform(patch("/api/roles/5")
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf())
+                .contentType("application/json")
+                .content("{}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("Нет данных для обновления"));
+    }
+
+    @Test
+    void updateRolePersistsPermissionsPayload() throws Exception {
+        when(permissionService.isSuperUser(any())).thenReturn(true);
+
+        mockMvc.perform(patch("/api/roles/5")
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf())
+                .contentType("application/json")
+                .content("""
+                    {
+                      "permissions": {
+                        "pages": ["dialogs", "settings"],
+                        "fields": {
+                          "edit": ["user.create", "role.pages"],
+                          "view": ["user.password"]
+                        }
+                      }
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true));
+
+        verify(usersJdbcTemplate).update(
+            eq("UPDATE roles SET permissions = ? WHERE id = ?"),
+            anyString(),
+            eq(5L)
+        );
+    }
+
+    @Test
+    void deleteRoleReturnsNotFoundWhenRecordIsMissing() throws Exception {
+        when(permissionService.isSuperUser(any())).thenReturn(true);
+        when(usersJdbcTemplate.update("DELETE FROM roles WHERE id = ?", 77L)).thenReturn(0);
+
+        mockMvc.perform(delete("/api/roles/77")
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("Роль не найдена"));
+    }
+
+    @Test
+    void deleteRoleRejectsWhenRoleIsStillAssignedToUsers() throws Exception {
+        when(permissionService.isSuperUser(any())).thenReturn(true);
+        ReflectionTestUtils.setField(controller, "userColumns", Set.of("role_id"));
+        when(usersJdbcTemplate.queryForObject(
+            eq("SELECT COUNT(*) FROM users WHERE role_id = ?"),
+            eq(Integer.class),
+            eq(8L)
+        )).thenReturn(2);
+
+        mockMvc.perform(delete("/api/roles/8")
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("Роль используется пользователями"));
+
+        verify(usersJdbcTemplate, never()).update("DELETE FROM roles WHERE id = ?", 8L);
+    }
+
+    @Test
+    void deleteRoleRemovesUnusedRole() throws Exception {
+        when(permissionService.isSuperUser(any())).thenReturn(true);
+        ReflectionTestUtils.setField(controller, "userColumns", Set.of("role_id"));
+        when(usersJdbcTemplate.queryForObject(
+            eq("SELECT COUNT(*) FROM users WHERE role_id = ?"),
+            eq(Integer.class),
+            eq(9L)
+        )).thenReturn(0);
+        when(usersJdbcTemplate.update("DELETE FROM roles WHERE id = ?", 9L)).thenReturn(1);
+
+        mockMvc.perform(delete("/api/roles/9")
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true));
     }
 }
