@@ -283,6 +283,18 @@
   `BotProcessServiceTest` — launcher/state ветки
   `status stopped`, `resolveExecutableJar -> null` и explicit `jar`
   launch plan по configured artifact.
+- следующим крупным пакетом `Phase 6` расширен на
+  `auth/profile/runtime controller` boundary:
+  `ProfileApiControllerWebMvcTest` теперь покрывает unauthorized contract
+  `ui-preferences` и основной password-flow
+  (`unauthorized`, validation errors, missing user, wrong current password,
+  successful password update);
+  `AuthManagementApiControllerWebMvcTest` добран static-denial веткой
+  `/api/users/{id}/password` и photo-upload контрактом
+  (`empty file`, `unsupported extension`, `successful upload metadata`);
+  `BotProcessApiController` сделан null-safe для `start/stop/status`, а
+  `BotProcessApiControllerWebMvcTest` фиксирует `unknown` fallback
+  при null-ответе runtime service.
 
 ---
 

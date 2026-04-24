@@ -70,6 +70,22 @@ class BotProcessApiControllerWebMvcTest {
     }
 
     @Test
+    void startReturnsUnknownStatusWhenServiceReturnsNull() throws Exception {
+        Channel channel = new Channel();
+        channel.setId(18L);
+        channel.setPlatform("telegram");
+
+        when(channelRepository.findById(18L)).thenReturn(Optional.of(channel));
+        when(botProcessService.start(channel)).thenReturn(null);
+
+        mockMvc.perform(post("/api/bots/18/start"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.status").value("unknown"))
+            .andExpect(jsonPath("$.startedAt").isEmpty());
+    }
+
+    @Test
     void startReturnsNotFoundForUnknownChannel() throws Exception {
         when(channelRepository.findById(99L)).thenReturn(Optional.empty());
 
@@ -102,6 +118,17 @@ class BotProcessApiControllerWebMvcTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.status").value("pid file is corrupted"))
+            .andExpect(jsonPath("$.startedAt").doesNotExist());
+    }
+
+    @Test
+    void stopReturnsUnknownStatusWhenServiceReturnsNull() throws Exception {
+        when(botProcessService.stop(19L)).thenReturn(null);
+
+        mockMvc.perform(post("/api/bots/19/stop"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.status").value("unknown"))
             .andExpect(jsonPath("$.startedAt").doesNotExist());
     }
 
@@ -141,6 +168,17 @@ class BotProcessApiControllerWebMvcTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.status").value("startup log missing"))
+            .andExpect(jsonPath("$.startedAt").isEmpty());
+    }
+
+    @Test
+    void statusReturnsUnknownPayloadWhenServiceReturnsNull() throws Exception {
+        when(botProcessService.status(20L)).thenReturn(null);
+
+        mockMvc.perform(get("/api/bots/20/status"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.status").value("unknown"))
             .andExpect(jsonPath("$.startedAt").isEmpty());
     }
 

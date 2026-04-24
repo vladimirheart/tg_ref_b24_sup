@@ -36,19 +36,27 @@ public class BotProcessApiController {
             return ResponseEntity.status(404).body(response);
         }
         BotProcessStatus status = botProcessService.start(channel);
-        return ResponseEntity.ok(buildStatusResponse(isSuccessfulStatus(status), status.message(), status.startedAt()));
+        return ResponseEntity.ok(buildStatusResponse(
+            isSuccessfulStatus(status),
+            statusMessage(status),
+            status == null ? null : status.startedAt()
+        ));
     }
 
     @PostMapping("/{channelId}/stop")
     public ResponseEntity<Map<String, Object>> stop(@PathVariable Long channelId) {
         BotProcessStatus status = botProcessService.stop(channelId);
-        return ResponseEntity.ok(buildStatusResponse(isSuccessfulStatus(status), status.message(), null));
+        return ResponseEntity.ok(buildStatusResponse(isSuccessfulStatus(status), statusMessage(status), null));
     }
 
     @GetMapping("/{channelId}/status")
     public ResponseEntity<Map<String, Object>> status(@PathVariable Long channelId) {
         BotProcessStatus status = botProcessService.status(channelId);
-        return ResponseEntity.ok(buildStatusResponse(isSuccessfulStatus(status), status.message(), status.startedAt()));
+        return ResponseEntity.ok(buildStatusResponse(
+            isSuccessfulStatus(status),
+            statusMessage(status),
+            status == null ? null : status.startedAt()
+        ));
     }
 
     @GetMapping("/{channelId}/runtime-contract")
@@ -79,5 +87,12 @@ public class BotProcessApiController {
             return false;
         }
         return status.running() || "stopped".equalsIgnoreCase(status.message());
+    }
+
+    private String statusMessage(BotProcessStatus status) {
+        if (status == null || status.message() == null || status.message().isBlank()) {
+            return "unknown";
+        }
+        return status.message();
     }
 }
