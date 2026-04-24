@@ -177,6 +177,31 @@ class IntegrationNetworkServiceTest {
     }
 
     @Test
+    void buildsVlessEnvironmentForBotProcessWithTokenAndAllProxy() {
+        IntegrationNetworkService.RouteSettings route = IntegrationNetworkService.RouteSettings.fromMap(new LinkedHashMap<>(Map.of(
+            "mode", "proxy",
+            "proxy", Map.of(
+                "scheme", "vless",
+                "host", "vless.internal",
+                "port", 7443,
+                "token", "vless-token"
+            )
+        )), true);
+
+        Map<String, String> env = service.buildProcessEnvironment(route);
+
+        assertThat(env)
+            .containsEntry("APP_NETWORK_MODE", "proxy")
+            .containsEntry("APP_NETWORK_PROXY_SCHEME", "vless")
+            .containsEntry("APP_NETWORK_PROXY_TOKEN", "vless-token")
+            .containsEntry("ALL_PROXY", "vless://vless-token@vless.internal:7443")
+            .containsEntry("all_proxy", "vless://vless-token@vless.internal:7443");
+        assertThat(env.get("JAVA_TOOL_OPTIONS"))
+            .contains("-DsocksProxyHost=vless.internal")
+            .contains("-DsocksProxyPort=7443");
+    }
+
+    @Test
     void buildsVpnEnvironmentForBotProcess() {
         IntegrationNetworkService.RouteSettings route = IntegrationNetworkService.RouteSettings.fromMap(new LinkedHashMap<>(Map.of(
             "mode", "vpn",
@@ -202,6 +227,50 @@ class IntegrationNetworkServiceTest {
             .containsEntry("APP_NETWORK_MODE", "direct")
             .containsEntry("APP_NETWORK_FAILOVER_DOWNTIME_SECONDS", "120")
             .doesNotContainKeys("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "JAVA_TOOL_OPTIONS");
+    }
+
+    @Test
+    void routeSettingsFromMapNormalizesInvalidModeToInheritWhenAllowed() {
+        IntegrationNetworkService.RouteSettings route = IntegrationNetworkService.RouteSettings.fromMap(Map.of(
+            "mode", "unexpected"
+        ), true);
+
+        assertThat(route.mode()).isEqualTo("inherit");
+    }
+
+    @Test
+    void routeSettingsFromMapNormalizesInvalidModeToDirectWhenInheritDisallowed() {
+        IntegrationNetworkService.RouteSettings route = IntegrationNetworkService.RouteSettings.fromMap(Map.of(
+            "mode", "unexpected"
+        ), false);
+
+        assertThat(route.mode()).isEqualTo("direct");
+    }
+
+    @Test
+    void routeSettingsFromMapDeduplicatesProfileIdsAndFallsBackToProfileId() {
+        IntegrationNetworkService.RouteSettings route = IntegrationNetworkService.RouteSettings.fromMap(new LinkedHashMap<>(Map.of(
+            "mode", "profile",
+            "profile_id", "primary",
+            "profile_ids", java.util.List.of("primary", "fallback", "primary", "  ")
+        )), true);
+
+        assertThat(route.profileId()).isEqualTo("primary");
+        assertThat(route.profileIds()).containsExactly("primary", "fallback");
+    }
+
+    @Test
+    void routeSettingsFromMapReadsCamelCaseFieldsAndClampsFailoverDowntime() {
+        IntegrationNetworkService.RouteSettings route = IntegrationNetworkService.RouteSettings.fromMap(new LinkedHashMap<>(Map.of(
+            "mode", "vpn",
+            "profileIds", java.util.List.of("vpn-primary", "vpn-fallback", "vpn-primary"),
+            "vpnName", "corp-vpn",
+            "failoverDowntimeSeconds", 3
+        )), true);
+
+        assertThat(route.vpnName()).isEqualTo("corp-vpn");
+        assertThat(route.profileIds()).containsExactly("vpn-primary", "vpn-fallback");
+        assertThat(route.failoverDowntimeSeconds()).isEqualTo(10);
     }
 
     @Test

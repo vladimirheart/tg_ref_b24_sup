@@ -463,6 +463,13 @@ launcher/env/readiness contract и documented production recipe. Но часть
 runtime/env ожиданий по проекту всё ещё держится на implicit conventions,
 defaults и частично legacy-compatible фасадах.
 
+Отдельный положительный сдвиг последних проходов: `BotAutoStartService`
+больше не валит весь autostart cycle из-за `null/exception` на одном канале,
+а `IntegrationNetworkService` и `BotRuntimeContractService` уже прикрыты
+более широким набором proxy/vpn/vless edge-cases. Это снизило риск для
+runtime boundary, но не снимает потребность в дальнейшем integration/e2e
+слое поверх panel-bot orchestration.
+
 ### 11. Отсутствие сквозного API versioning
 
 Часть маршрутов уже может быть стабилизирована, но единая стратегия
@@ -520,6 +527,7 @@ defaults и частично legacy-compatible фасадах.
 - [ ] Добить remaining `settings` subdomains
 - [ ] Расширить и стабилизировать safety net для следующих крупных рефакторингов
 - [ ] Закрыть remaining runtime/notifier хвосты, которые ещё держатся на legacy-compatible фасадах
+- [ ] Решить, где следующий уровень проверки должен стать integration/e2e, а не только targeted runtime/unit net
 
 ### Фаза 3: Следующий архитектурный уровень
 - [ ] Унифицировать shared config/runtime contract между `spring-panel` и `java-bot`
@@ -533,7 +541,8 @@ defaults и частично legacy-compatible фасадах.
 1. Дожать service-level split `DialogService` и сузить remaining workspace/orchestration consumers
 2. Добить remaining `settings` subdomains и persistence boundaries
 3. Продолжить расширять `Phase 6` от targeted service/WebMvc tests к более широким integration-сценариям shared config/runtime и panel-bot orchestration boundary
-4. После этого возвращаться к shared-config unification и DTO/error contract
+4. Отдельно удерживать autostart/network/runtime boundary под regression net, чтобы новые refactor-проходы не возвращали хрупкость `null/exception` на одном канале
+5. После этого возвращаться к shared-config unification и DTO/error contract
 
 **Автор исходного аудита:** GitHub Copilot  
 **Статус:** Документ актуализирован под состояние кода на 24 апреля 2026

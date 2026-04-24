@@ -531,6 +531,9 @@
   `locations/org_structure/bot_credentials` и базового
   `auth/bot-process` orchestration-контракта на более широкий panel-bot
   contract и cross-module unification;
+- отдельно удерживать `autostart` и `integration network` runtime boundary
+  под regression net, потому что теперь там уже есть явная null-safe
+  обработка `status/start` и более широкий proxy/vpn/vless contract;
 - при необходимости дотянуть orchestration-tests дальше до shared-config
   integration сценариев c реальным persistence/config boundary;
 - более широкий runtime contract test для launcher strategy и bot lifecycle.
@@ -552,8 +555,9 @@
 5. `Phase 5` уже начат в коде.
 6. `Phase 6` усилен адресными runtime/UI тестами и уже покрывает основной
    sliced dialog/settings controller layer, shared config/env foundation и
-   заметную часть page bootstrap contract, но пока не превращён в полноценную
-   safety net.
+   заметную часть page bootstrap contract; дополнительно туда уже вошли
+   `autostart`, `integration network` и panel-bot runtime edge-cases, но
+   это всё ещё не полноценная end-to-end safety net.
 
 ## Следующий Фокус
 
@@ -576,6 +580,8 @@
 3. Вернуться к `dialogs` и резать `DialogService` по service-level bounded
    contexts.
 4. Добить remaining `settings` subdomains, если они ещё остаются в общих слоях.
+5. После этого уже решать, где нужен следующий integration/e2e слой, а где
+   достаточно targeted runtime tests.
 
 ## Что не делать сейчас
 

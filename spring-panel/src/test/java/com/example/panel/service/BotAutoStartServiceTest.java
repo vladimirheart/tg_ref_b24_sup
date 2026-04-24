@@ -202,4 +202,124 @@ class BotAutoStartServiceTest {
         verify(botProcessService).start(failed);
         verify(botProcessService).start(succeeds);
     }
+
+    @Test
+    void autoStartActiveBotsSkipsChannelWhenStatusReturnsNull() {
+        Channel channel = new Channel();
+        channel.setId(111L);
+        channel.setChannelName("Null Status");
+        channel.setActive(true);
+        channel.setCredentialId(41L);
+
+        when(channelRepository.findAll()).thenReturn(List.of(channel));
+        when(sharedConfigService.loadBotCredentials()).thenReturn(List.of(
+            new BotCredential(41L, "Null Status", "telegram", "token", true)
+        ));
+        when(botProcessService.status(111L)).thenReturn(null);
+        when(botProcessService.start(channel))
+            .thenReturn(new BotProcessService.BotProcessStatus(true, "running", null));
+
+        botAutoStartService.autoStartActiveBots();
+
+        verify(botProcessService).status(111L);
+        verify(botProcessService).start(channel);
+    }
+
+    @Test
+    void autoStartActiveBotsContinuesWhenStartReturnsNullAndProcessesNextChannel() {
+        Channel first = new Channel();
+        first.setId(112L);
+        first.setChannelName("Null Start");
+        first.setActive(true);
+        first.setCredentialId(42L);
+
+        Channel second = new Channel();
+        second.setId(113L);
+        second.setChannelName("Starts After Null");
+        second.setActive(true);
+        second.setCredentialId(43L);
+
+        when(channelRepository.findAll()).thenReturn(List.of(first, second));
+        when(sharedConfigService.loadBotCredentials()).thenReturn(List.of(
+            new BotCredential(42L, "Null Start", "telegram", "token-1", true),
+            new BotCredential(43L, "Second", "telegram", "token-2", true)
+        ));
+        when(botProcessService.status(112L))
+            .thenReturn(new BotProcessService.BotProcessStatus(false, "stopped", null));
+        when(botProcessService.status(113L))
+            .thenReturn(new BotProcessService.BotProcessStatus(false, "stopped", null));
+        when(botProcessService.start(first)).thenReturn(null);
+        when(botProcessService.start(second))
+            .thenReturn(new BotProcessService.BotProcessStatus(true, "running", null));
+
+        botAutoStartService.autoStartActiveBots();
+
+        verify(botProcessService).start(first);
+        verify(botProcessService).start(second);
+    }
+
+    @Test
+    void autoStartActiveBotsContinuesWhenStatusThrowsAndStartsNextChannel() {
+        Channel failed = new Channel();
+        failed.setId(114L);
+        failed.setChannelName("Status Throws");
+        failed.setActive(true);
+        failed.setCredentialId(44L);
+
+        Channel succeeds = new Channel();
+        succeeds.setId(115L);
+        succeeds.setChannelName("Starts After Status Error");
+        succeeds.setActive(true);
+        succeeds.setCredentialId(45L);
+
+        when(channelRepository.findAll()).thenReturn(List.of(failed, succeeds));
+        when(sharedConfigService.loadBotCredentials()).thenReturn(List.of(
+            new BotCredential(44L, "Failed", "telegram", "token-1", true),
+            new BotCredential(45L, "Succeeded", "telegram", "token-2", true)
+        ));
+        when(botProcessService.status(114L)).thenThrow(new IllegalStateException("status unavailable"));
+        when(botProcessService.status(115L))
+            .thenReturn(new BotProcessService.BotProcessStatus(false, "stopped", null));
+        when(botProcessService.start(succeeds))
+            .thenReturn(new BotProcessService.BotProcessStatus(true, "running", null));
+
+        botAutoStartService.autoStartActiveBots();
+
+        verify(botProcessService).status(114L);
+        verify(botProcessService).status(115L);
+        verify(botProcessService).start(succeeds);
+    }
+
+    @Test
+    void autoStartActiveBotsContinuesWhenStartThrowsAndProcessesNextChannel() {
+        Channel failed = new Channel();
+        failed.setId(116L);
+        failed.setChannelName("Start Throws");
+        failed.setActive(true);
+        failed.setCredentialId(46L);
+
+        Channel succeeds = new Channel();
+        succeeds.setId(117L);
+        succeeds.setChannelName("Starts After Start Error");
+        succeeds.setActive(true);
+        succeeds.setCredentialId(47L);
+
+        when(channelRepository.findAll()).thenReturn(List.of(failed, succeeds));
+        when(sharedConfigService.loadBotCredentials()).thenReturn(List.of(
+            new BotCredential(46L, "Failed", "telegram", "token-1", true),
+            new BotCredential(47L, "Succeeded", "telegram", "token-2", true)
+        ));
+        when(botProcessService.status(116L))
+            .thenReturn(new BotProcessService.BotProcessStatus(false, "stopped", null));
+        when(botProcessService.status(117L))
+            .thenReturn(new BotProcessService.BotProcessStatus(false, "stopped", null));
+        when(botProcessService.start(failed)).thenThrow(new IllegalStateException("start failed"));
+        when(botProcessService.start(succeeds))
+            .thenReturn(new BotProcessService.BotProcessStatus(true, "running", null));
+
+        botAutoStartService.autoStartActiveBots();
+
+        verify(botProcessService).start(failed);
+        verify(botProcessService).start(succeeds);
+    }
 }

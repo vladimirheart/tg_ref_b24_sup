@@ -239,6 +239,43 @@ class BotRuntimeContractServiceTest {
     }
 
     @Test
+    void buildEnvironmentForTelegramIncludesVlessProxyContract() {
+        BotRuntimeContractService service = createService("auto", Map.of(), Map.of(
+            "integration_network", Map.of(
+                "bots", Map.of(
+                    "mode", "proxy",
+                    "proxy", Map.of(
+                        "scheme", "vless",
+                        "host", "vless.internal",
+                        "port", 7443,
+                        "token", "vless-token"
+                    )
+                )
+            )
+        ));
+        Channel channel = new Channel();
+        channel.setId(32L);
+        channel.setPlatform("telegram");
+
+        Map<String, String> env = service.buildEnvironment(
+            channel,
+            new com.example.panel.model.channel.BotCredential(7L, "tg", "telegram", "tg-token", true),
+            tempDir.resolve("telegram-vless.log")
+        );
+
+        assertThat(env)
+            .containsEntry("APP_NETWORK_MODE", "proxy")
+            .containsEntry("APP_NETWORK_PROXY_SCHEME", "vless")
+            .containsEntry("APP_NETWORK_PROXY_TOKEN", "vless-token")
+            .containsEntry("ALL_PROXY", "vless://vless-token@vless.internal:7443")
+            .containsEntry("all_proxy", "vless://vless-token@vless.internal:7443");
+        assertThat(env.get("JAVA_TOOL_OPTIONS"))
+            .contains("-Dfile.encoding=UTF-8")
+            .contains("-DsocksProxyHost=vless.internal")
+            .contains("-DsocksProxyPort=7443");
+    }
+
+    @Test
     void buildEnvironmentDefaultsTelegramSupportChatIdToZero() {
         BotRuntimeContractService service = createService("auto", Map.of());
         Channel channel = new Channel();
@@ -285,6 +322,54 @@ class BotRuntimeContractServiceTest {
         assertThat(contract.platform()).isEqualTo("max");
         assertThat(contract.requiredEnvironmentKeys()).contains("MAX_BOT_ENABLED", "MAX_BOT_TOKEN", "SERVER_PORT");
         assertThat(contract.optionalEnvironmentKeys()).contains("MAX_WEBHOOK_SECRET");
+    }
+
+    @Test
+    void describeForTelegramIncludesIntegrationNetworkOptionalKeysWhenProxyRouteConfigured() {
+        BotRuntimeContractService service = createService("auto", Map.of(), Map.of(
+            "integration_network", Map.of(
+                "bots", Map.of(
+                    "mode", "proxy",
+                    "proxy", Map.of(
+                        "scheme", "http",
+                        "host", "proxy.internal",
+                        "port", 3128,
+                        "username", "svc_bot",
+                        "password", "pwd"
+                    )
+                )
+            )
+        ));
+        Channel channel = new Channel();
+        channel.setId(33L);
+        channel.setPlatform("telegram");
+
+        BotRuntimeContractService.BotRuntimeContract contract = service.describe(channel, tempDir.resolve("java-bot"));
+
+        assertThat(contract.optionalEnvironmentKeys())
+            .contains("APP_NETWORK_MODE", "APP_NETWORK_PROXY_HOST", "HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy", "JAVA_TOOL_OPTIONS");
+    }
+
+    @Test
+    void describeForTelegramIncludesVpnOptionalKeysWhenVpnRouteConfigured() {
+        BotRuntimeContractService service = createService("auto", Map.of(), Map.of(
+            "integration_network", Map.of(
+                "bots", Map.of(
+                    "mode", "vpn",
+                    "vpn", Map.of(
+                        "name", "corp-vpn",
+                        "endpoint", "vpn.internal:7443"
+                    )
+                )
+            )
+        ));
+        Channel channel = new Channel();
+        channel.setId(34L);
+        channel.setPlatform("telegram");
+
+        BotRuntimeContractService.BotRuntimeContract contract = service.describe(channel, tempDir.resolve("java-bot"));
+
+        assertThat(contract.optionalEnvironmentKeys()).contains("APP_NETWORK_MODE", "APP_NETWORK_VPN_NAME");
     }
 
     @Test
