@@ -71,6 +71,20 @@ class BotProcessServiceTest {
     }
 
     @Test
+    void awaitProcessReadinessReturnsActionMessageWhenFailureBannerContainsOnlyActionSection() throws Exception {
+        TestableBotProcessService service = new TestableBotProcessService(Duration.ofSeconds(3), Duration.ofMillis(50));
+        Path processLog = tempDir.resolve("bot-process.log");
+
+        process = launchProbe("failure-action", processLog);
+
+        BotProcessService.BotProcessStatus status =
+            service.awaitProcessReadiness(process, processLog, 0L, 78L, OffsetDateTime.now());
+
+        assertThat(status.running()).isFalse();
+        assertThat(status.message()).contains("Consider defining a bean of type 'demo.Repository'");
+    }
+
+    @Test
     void awaitProcessReadinessFailsWhenStartedMarkerDoesNotAppearInTime() throws Exception {
         TestableBotProcessService service = new TestableBotProcessService(Duration.ofMillis(400), Duration.ofMillis(50));
         Path processLog = tempDir.resolve("bot-process.log");
@@ -175,6 +189,24 @@ class BotProcessServiceTest {
     }
 
     @Test
+    void resolveLaunchPlanInJarModeUsesAbsoluteConfiguredArtifact() throws Exception {
+        Path botWorkingDir = tempDir.resolve("java-bot");
+        Path configuredJar = tempDir.resolve("dist").resolve("bot-vk-runtime.jar");
+        Files.createDirectories(configuredJar.getParent());
+        Files.writeString(configuredJar, "configured");
+
+        BotProcessService service = createRuntimeService("jar", Map.of(
+            "bot-vk", configuredJar.toString()
+        ));
+
+        BotRuntimeContractService.BotLaunchPlan plan = service.resolveLaunchPlan(botWorkingDir, "bot-vk");
+
+        assertThat(plan.launcherKind()).isEqualTo("jar");
+        assertThat(plan.artifactSource()).isEqualTo("explicit-config");
+        assertThat(plan.command()).contains(configuredJar.toAbsolutePath().normalize().toString());
+    }
+
+    @Test
     void resolveLaunchPlanHonorsExplicitMavenMode() throws Exception {
         Path botWorkingDir = tempDir.resolve("java-bot");
         Path jar = botWorkingDir.resolve("bot-telegram").resolve("target").resolve("bot-telegram-0.0.1-SNAPSHOT.jar");
@@ -198,6 +230,20 @@ class BotProcessServiceTest {
         assertThatThrownBy(() -> service.resolveLaunchPlan(botWorkingDir, "bot-telegram"))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Не найден собранный jar");
+    }
+
+    @Test
+    void resolveLaunchPlanInAutoModeFallsBackToMavenWhenConfiguredArtifactMissingAndNoScanExists() throws Exception {
+        Path botWorkingDir = tempDir.resolve("java-bot");
+        BotProcessService service = createRuntimeService("auto", Map.of(
+            "bot-telegram", "dist/missing-runtime.jar"
+        ));
+
+        BotRuntimeContractService.BotLaunchPlan plan = service.resolveLaunchPlan(botWorkingDir, "bot-telegram");
+
+        assertThat(plan.launcherKind()).isEqualTo("maven");
+        assertThat(plan.artifactSource()).isEqualTo("maven-fallback");
+        assertThat(plan.description()).isEqualTo("maven:spring-boot-run:bot-telegram");
     }
 
     private Process launchProbe(String mode, Path processLog) throws IOException {
@@ -304,6 +350,17 @@ class BotProcessServiceTest {
                     System.out.println("Description:");
                     System.out.println();
                     System.out.println("Parameter 0 of constructor in demo.Service required a bean of type 'demo.Repository' that could not be found.");
+                    System.out.flush();
+                    System.exit(1);
+                }
+                case "failure-action" -> {
+                    System.out.println("***************************");
+                    System.out.println("APPLICATION FAILED TO START");
+                    System.out.println("***************************");
+                    System.out.println();
+                    System.out.println("Action:");
+                    System.out.println();
+                    System.out.println("Consider defining a bean of type 'demo.Repository' in your configuration.");
                     System.out.flush();
                     System.exit(1);
                 }

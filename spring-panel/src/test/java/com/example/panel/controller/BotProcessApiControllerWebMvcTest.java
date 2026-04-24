@@ -264,4 +264,61 @@ class BotProcessApiControllerWebMvcTest {
             .andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.error").value("Канал не найден"));
     }
+
+    @Test
+    void runtimeContractReturnsStructuredErrorWhenRuntimeServiceThrows() throws Exception {
+        Channel channel = new Channel();
+        channel.setId(53L);
+        channel.setPlatform("telegram");
+
+        when(channelRepository.findById(53L)).thenReturn(Optional.of(channel));
+        when(botProcessService.describeRuntimeContract(channel))
+            .thenThrow(new IllegalStateException("Не найден собранный jar для модуля bot-telegram"));
+
+        mockMvc.perform(get("/api/bots/53/runtime-contract"))
+            .andExpect(status().isInternalServerError())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("Не найден собранный jar для модуля bot-telegram"));
+    }
+
+    @Test
+    void startReturnsUnknownStatusWhenServiceMessageIsBlank() throws Exception {
+        Channel channel = new Channel();
+        channel.setId(54L);
+        channel.setPlatform("telegram");
+
+        when(channelRepository.findById(54L)).thenReturn(Optional.of(channel));
+        when(botProcessService.start(channel)).thenReturn(
+            new BotProcessService.BotProcessStatus(false, "   ", null)
+        );
+
+        mockMvc.perform(post("/api/bots/54/start"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.status").value("unknown"));
+    }
+
+    @Test
+    void stopReturnsUnknownStatusWhenServiceMessageIsBlank() throws Exception {
+        when(botProcessService.stop(55L)).thenReturn(
+            new BotProcessService.BotProcessStatus(false, "", null)
+        );
+
+        mockMvc.perform(post("/api/bots/55/stop"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.status").value("unknown"));
+    }
+
+    @Test
+    void statusReturnsUnknownStatusWhenServiceMessageIsBlank() throws Exception {
+        when(botProcessService.status(56L)).thenReturn(
+            new BotProcessService.BotProcessStatus(false, "   ", null)
+        );
+
+        mockMvc.perform(get("/api/bots/56/status"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.status").value("unknown"));
+    }
 }

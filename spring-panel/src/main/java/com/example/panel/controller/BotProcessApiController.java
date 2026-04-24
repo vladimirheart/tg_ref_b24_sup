@@ -68,10 +68,19 @@ public class BotProcessApiController {
             response.put("error", "Канал не найден");
             return ResponseEntity.status(404).body(response);
         }
-        Map<String, Object> response = new LinkedHashMap<>();
-        response.put("success", true);
-        response.put("contract", botProcessService.describeRuntimeContract(channel));
-        return ResponseEntity.ok(response);
+        try {
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("success", true);
+            response.put("contract", botProcessService.describeRuntimeContract(channel));
+            return ResponseEntity.ok(response);
+        } catch (Exception ex) {
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("success", false);
+            response.put("error", ex.getMessage() == null || ex.getMessage().isBlank()
+                ? "Не удалось построить runtime contract"
+                : ex.getMessage());
+            return ResponseEntity.internalServerError().body(response);
+        }
     }
 
     private Map<String, Object> buildStatusResponse(boolean success, String status, Object startedAt) {
