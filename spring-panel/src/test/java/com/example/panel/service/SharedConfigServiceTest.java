@@ -28,6 +28,14 @@ class SharedConfigServiceTest {
     }
 
     @Test
+    void loadSettingsReturnsEmptyMapWhenJsonIsInvalid() throws Exception {
+        Files.writeString(tempDir.resolve("settings.json"), "{broken json");
+        SharedConfigService sharedConfigService = new SharedConfigService(objectMapper, tempDir.toString());
+
+        assertTrue(sharedConfigService.loadSettings().isEmpty());
+    }
+
+    @Test
     void saveSettingsPersistsReadableJson() throws Exception {
         SharedConfigService sharedConfigService = new SharedConfigService(objectMapper, tempDir.toString());
 
@@ -63,6 +71,14 @@ class SharedConfigServiceTest {
     }
 
     @Test
+    void loadLocationsReturnsNullWhenJsonIsInvalid() throws Exception {
+        Files.writeString(tempDir.resolve("locations.json"), "{\"tree\":");
+        SharedConfigService sharedConfigService = new SharedConfigService(objectMapper, tempDir.toString());
+
+        assertEquals(null, sharedConfigService.loadLocations());
+    }
+
+    @Test
     void saveOrgStructurePersistsRoundTripJsonTree() {
         SharedConfigService sharedConfigService = new SharedConfigService(objectMapper, tempDir.toString());
 
@@ -86,6 +102,14 @@ class SharedConfigServiceTest {
     }
 
     @Test
+    void loadOrgStructureReturnsNullWhenJsonIsInvalid() throws Exception {
+        Files.writeString(tempDir.resolve("org_structure.json"), "[broken");
+        SharedConfigService sharedConfigService = new SharedConfigService(objectMapper, tempDir.toString());
+
+        assertEquals(null, sharedConfigService.loadOrgStructure());
+    }
+
+    @Test
     void saveBotCredentialsPersistsRoundTripCredentialList() {
         SharedConfigService sharedConfigService = new SharedConfigService(objectMapper, tempDir.toString());
 
@@ -103,5 +127,13 @@ class SharedConfigServiceTest {
         assertTrue(Boolean.TRUE.equals(credentials.get(0).active()));
         assertEquals("VK Backup", credentials.get(1).name());
         assertTrue(Boolean.FALSE.equals(credentials.get(1).active()));
+    }
+
+    @Test
+    void loadBotCredentialsReturnsEmptyListWhenJsonIsInvalid() throws Exception {
+        Files.writeString(tempDir.resolve("bot_credentials.json"), "{\"broken\":");
+        SharedConfigService sharedConfigService = new SharedConfigService(objectMapper, tempDir.toString());
+
+        assertTrue(sharedConfigService.loadBotCredentials().isEmpty());
     }
 }

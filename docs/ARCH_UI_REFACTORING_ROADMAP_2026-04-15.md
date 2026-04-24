@@ -439,6 +439,17 @@
   `BotRuntimeContractService.buildEnvironment()` больше не теряет базовые
   `JAVA_TOOL_OPTIONS` при network route, а merge-ит network-level options
   поверх base UTF-8/runtime flags.
+- следующим расширенным пакетом `Phase 6` добран ещё глубже по
+  `shared-config/channel-runtime/launcher-state` boundary:
+  `SharedConfigServiceTest` теперь покрывает invalid JSON fallback для
+  `settings/locations/org_structure/bot_credentials`;
+  `ChannelApiControllerWebMvcTest` — create/update/runtime validation
+  edge-cases (`missing name`, `telegram without token`,
+  `vk without callback config`, `empty update payload`,
+  `missing token`, `missing message`);
+  `BotProcessServiceTest` — launcher/state ветки
+  `status stopped`, `resolveExecutableJar -> null` и explicit `jar`
+  launch plan по configured artifact.
 - targeted unit tests для вынесенных `settings` subdomain services:
   `SettingsDialogRuntimeConfigServiceTest`,
   `SettingsDialogPublicFormConfigServiceTest`,
