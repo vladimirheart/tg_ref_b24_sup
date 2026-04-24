@@ -425,6 +425,20 @@
   `continue after failed start`;
   `ChannelApiControllerWebMvcTest` добран ветками
   `test-message all failed` и `manual recipient only`;
+- следующим крупным пакетом `Phase 6` расширен сразу по трём соседним
+  boundary-слоям `auth/runtime/network`:
+  `AuthManagementApiControllerWebMvcTest` теперь прикрывает users/roles CRUD
+  edge-cases и success-сценарии (`duplicate`, `empty update`, `not found`,
+  `role in use`, `successful delete/update`);
+  `IntegrationNetworkServiceTest` добран direct/profile failover context,
+  incomplete proxy profile и direct env contract;
+  `BotRuntimeContractServiceTest` добран ветками `vpn/default telegram`,
+  `minimal vk`, `unknown platform`, `target-scan warning` и
+  `jar-mode missing artifact`;
+- в этом же пакете исправлен реальный runtime defect:
+  `BotRuntimeContractService.buildEnvironment()` больше не теряет базовые
+  `JAVA_TOOL_OPTIONS` при network route, а merge-ит network-level options
+  поверх base UTF-8/runtime flags.
 - targeted unit tests для вынесенных `settings` subdomain services:
   `SettingsDialogRuntimeConfigServiceTest`,
   `SettingsDialogPublicFormConfigServiceTest`,

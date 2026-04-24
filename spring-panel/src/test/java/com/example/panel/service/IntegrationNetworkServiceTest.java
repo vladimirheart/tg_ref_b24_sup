@@ -77,6 +77,46 @@ class IntegrationNetworkServiceTest {
     }
 
     @Test
+    void resolvesProfileRouteWithFailoverContextForDirectProfiles() {
+        when(sharedConfigService.loadSettings()).thenReturn(Map.of(
+            "integration_network", Map.of(
+                "project", Map.of(
+                    "mode", "profile",
+                    "profile_ids", java.util.List.of("primary-direct", "fallback-direct"),
+                    "failover_downtime_seconds", 45
+                )
+            ),
+            "integration_network_profiles", java.util.List.of(
+                Map.of("id", "primary-direct", "mode", "direct"),
+                Map.of("id", "fallback-direct", "mode", "direct")
+            )
+        ));
+
+        IntegrationNetworkService.RouteSettings route = service.resolveProjectRoute();
+
+        assertThat(route.mode()).isEqualTo("direct");
+        assertThat(route.profileId()).isEqualTo("primary-direct");
+        assertThat(route.profileIds()).containsExactly("primary-direct", "fallback-direct");
+        assertThat(route.failoverDowntimeSeconds()).isEqualTo(45);
+    }
+
+    @Test
+    void resolvesBotRouteFromBotsSectionBeforeProjectDefault() {
+        when(sharedConfigService.loadSettings()).thenReturn(Map.of(
+            "integration_network", Map.of(
+                "project", Map.of("mode", "proxy", "proxy", Map.of("host", "project-proxy", "port", 8080)),
+                "bots", Map.of("mode", "vpn", "vpn", Map.of("name", "bots-vpn", "endpoint", "vpn.example:9443"))
+            )
+        ));
+
+        IntegrationNetworkService.RouteSettings route = service.resolveBotRoute(null);
+
+        assertThat(route.mode()).isEqualTo("vpn");
+        assertThat(route.vpnName()).isEqualTo("bots-vpn");
+        assertThat(route.vpnEndpoint()).isEqualTo("vpn.example:9443");
+    }
+
+    @Test
     void buildsProxyEnvironmentForBotProcess() {
         IntegrationNetworkService.RouteSettings route = IntegrationNetworkService.RouteSettings.fromMap(new LinkedHashMap<>(Map.of(
             "mode", "proxy",
@@ -106,5 +146,76 @@ class IntegrationNetworkServiceTest {
             .contains("-Dhttp.proxyUser=svc_bot")
             .contains("-Dhttps.proxyPassword=pwd")
             .contains("-Djdk.http.auth.tunneling.disabledSchemes=");
+    }
+
+    @Test
+    void buildsSocksEnvironmentForBotProcess() {
+        IntegrationNetworkService.RouteSettings route = IntegrationNetworkService.RouteSettings.fromMap(new LinkedHashMap<>(Map.of(
+            "mode", "proxy",
+            "profile_ids", java.util.List.of("bots-socks", "fallback-socks"),
+            "proxy", Map.of(
+                "scheme", "socks5",
+                "host", "socks.internal",
+                "port", 1080,
+                "username", "svc_bot",
+                "password", "pwd"
+            )
+        )), true);
+
+        Map<String, String> env = service.buildProcessEnvironment(route);
+
+        assertThat(env)
+            .containsEntry("APP_NETWORK_MODE", "proxy")
+            .containsEntry("APP_NETWORK_PROFILE_IDS", "bots-socks,fallback-socks")
+            .containsEntry("ALL_PROXY", "socks5://svc_bot:pwd@socks.internal:1080")
+            .containsEntry("all_proxy", "socks5://svc_bot:pwd@socks.internal:1080");
+        assertThat(env.get("JAVA_TOOL_OPTIONS"))
+            .contains("-DsocksProxyHost=socks.internal")
+            .contains("-DsocksProxyPort=1080")
+            .contains("-Djava.net.socks.username=svc_bot")
+            .contains("-Djava.net.socks.password=pwd");
+    }
+
+    @Test
+    void buildsVpnEnvironmentForBotProcess() {
+        IntegrationNetworkService.RouteSettings route = IntegrationNetworkService.RouteSettings.fromMap(new LinkedHashMap<>(Map.of(
+            "mode", "vpn",
+            "vpn", Map.of(
+                "name", "corp-vpn",
+                "endpoint", "vpn.internal:7443"
+            )
+        )), true);
+
+        Map<String, String> env = service.buildProcessEnvironment(route);
+
+        assertThat(env)
+            .containsEntry("APP_NETWORK_MODE", "vpn")
+            .containsEntry("APP_NETWORK_VPN_NAME", "corp-vpn")
+            .containsEntry("APP_NETWORK_FAILOVER_DOWNTIME_SECONDS", "120");
+    }
+
+    @Test
+    void buildsDirectEnvironmentWithoutProxyVariables() {
+        Map<String, String> env = service.buildProcessEnvironment(IntegrationNetworkService.RouteSettings.direct());
+
+        assertThat(env)
+            .containsEntry("APP_NETWORK_MODE", "direct")
+            .containsEntry("APP_NETWORK_FAILOVER_DOWNTIME_SECONDS", "120")
+            .doesNotContainKeys("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "JAVA_TOOL_OPTIONS");
+    }
+
+    @Test
+    void probeProfileRouteReportsIncompleteProxyProfile() {
+        IntegrationNetworkService.RouteProbeResult result = service.probeProfileRoute(Map.of(
+            "mode", "proxy",
+            "proxy", Map.of(
+                "host", "proxy.internal"
+            )
+        ));
+
+        assertThat(result.reachable()).isFalse();
+        assertThat(result.message()).isEqualTo("Прокси-профиль заполнен не полностью.");
+        assertThat(result.host()).isEqualTo("proxy.internal");
+        assertThat(result.port()).isZero();
     }
 }

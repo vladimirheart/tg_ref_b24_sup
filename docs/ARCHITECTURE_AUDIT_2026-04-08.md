@@ -2,7 +2,7 @@
 **Дата:** 8 апреля 2026  
 **Статус:** Актуально, но в активной фазе исправления  
 **Актуализация:** 9 апреля 2026 (см. `docs/ARCHITECTURE_AUDIT_VALIDATION_2026-04-09.md`)  
-**Последняя актуализация:** 23 апреля 2026
+**Последняя актуализация:** 24 апреля 2026
 
 ---
 
@@ -258,6 +258,20 @@
   `continue after failed start`;
   `ChannelApiControllerWebMvcTest` добран ветками
   `test-message all failed` и `manual recipient only`.
+- следующим большим пакетом `Phase 6` расширен сразу по трём соседним
+  `auth/runtime/network` boundary:
+  `AuthManagementApiControllerWebMvcTest` теперь прикрывает users/roles CRUD
+  edge-cases и success-ветки (`duplicate`, `empty update`, `not found`,
+  `role in use`, `successful delete/update`);
+  `IntegrationNetworkServiceTest` добран direct/profile failover context,
+  incomplete proxy profile и direct env contract;
+  `BotRuntimeContractServiceTest` добран ветками `vpn/default telegram`,
+  `minimal vk`, `unknown platform`, `target-scan warning` и
+  `jar-mode missing artifact`.
+- в этом же пакете закрыт и реальный runtime defect:
+  `BotRuntimeContractService.buildEnvironment()` больше не теряет базовые
+  `JAVA_TOOL_OPTIONS` при network route, а merge-ит network-level options
+  поверх base UTF-8/runtime flags.
 
 ---
 
@@ -490,4 +504,4 @@ defaults и частично legacy-compatible фасадах.
 4. После этого возвращаться к shared-config unification и DTO/error contract
 
 **Автор исходного аудита:** GitHub Copilot  
-**Статус:** Документ актуализирован под состояние кода на 23 апреля 2026
+**Статус:** Документ актуализирован под состояние кода на 24 апреля 2026
