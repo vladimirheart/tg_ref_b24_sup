@@ -254,6 +254,86 @@ class AuthManagementApiControllerWebMvcTest {
     }
 
     @Test
+    void createUserPersistsPasswordHashColumnWhenAvailable() throws Exception {
+        when(permissionService.isSuperUser(any())).thenReturn(true);
+        ReflectionTestUtils.setField(controller, "userColumns", Set.of("username", "password", "password_hash"));
+        when(usersJdbcTemplate.queryForObject(startsWith("SELECT COUNT(*) FROM users"), eq(Integer.class), eq("fresh")))
+            .thenReturn(0);
+        when(passwordEncoder.encode("secret")).thenReturn("hashed-secret");
+
+        mockMvc.perform(post("/api/users")
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf())
+                .contentType("application/json")
+                .content("""
+                    {
+                      "username": "fresh",
+                      "password": "secret"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true));
+
+        verify(usersJdbcTemplate).update(
+            eq("INSERT INTO users (username, password, password_hash) VALUES (?, ?, ?)"),
+            eq("fresh"),
+            eq("hashed-secret"),
+            eq("hashed-secret")
+        );
+    }
+
+    @Test
+    void createUserPersistsEnabledAndRegistrationDateWhenColumnsAreAvailable() throws Exception {
+        when(permissionService.isSuperUser(any())).thenReturn(true);
+        ReflectionTestUtils.setField(controller, "userColumns", Set.of("username", "password", "enabled", "registration_date"));
+        when(usersJdbcTemplate.queryForObject(startsWith("SELECT COUNT(*) FROM users"), eq(Integer.class), eq("fresh")))
+            .thenReturn(0);
+        when(passwordEncoder.encode("secret")).thenReturn("hashed-secret");
+
+        mockMvc.perform(post("/api/users")
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf())
+                .contentType("application/json")
+                .content("""
+                    {
+                      "username": "fresh",
+                      "password": "secret"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true));
+
+        verify(usersJdbcTemplate).update(
+            eq("INSERT INTO users (username, password, enabled, registration_date) VALUES (?, ?, ?, ?)"),
+            eq("fresh"),
+            eq("hashed-secret"),
+            eq(true),
+            anyString()
+        );
+    }
+
+    @Test
+    void updateUserRejectsRoleChangeWhenOnlyPrivilegedFieldsAreProvidedWithoutPermissions() throws Exception {
+        when(permissionService.isSuperUser(any())).thenReturn(false);
+        when(permissionService.hasAuthority(any(), anyString())).thenReturn(false);
+        ReflectionTestUtils.setField(controller, "userColumns", Set.of("role_id", "is_blocked"));
+
+        mockMvc.perform(patch("/api/users/7")
+                .with(user("operator"))
+                .with(csrf())
+                .contentType("application/json")
+                .content("""
+                    {
+                      "role_id": 5,
+                      "is_blocked": true
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("Нет данных для обновления"));
+    }
+
+    @Test
     void deleteUserReturnsNotFoundWhenRecordIsMissing() throws Exception {
         when(permissionService.isSuperUser(any())).thenReturn(true);
         when(usersJdbcTemplate.update("DELETE FROM users WHERE id = ?", 41L)).thenReturn(0);
@@ -435,6 +515,46 @@ class AuthManagementApiControllerWebMvcTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.error").value("Недостаточно прав для изменения разрешений роли"));
+    }
+
+    @Test
+    void updateRoleRejectsNameChangeWhenRightsAreMissing() throws Exception {
+        when(permissionService.isSuperUser(any())).thenReturn(false);
+        when(permissionService.hasAuthority(any(), eq("ROLE_PORTAL_ADMIN"))).thenReturn(false);
+        when(permissionService.hasAuthority(any(), eq("PAGE_SETTINGS"))).thenReturn(false);
+
+        mockMvc.perform(patch("/api/roles/5")
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf())
+                .contentType("application/json")
+                .content("""
+                    {
+                      "name": "new-role"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("Недостаточно прав для изменения названия роли"));
+    }
+
+    @Test
+    void updateRoleRejectsDescriptionChangeWhenRightsAreMissing() throws Exception {
+        when(permissionService.isSuperUser(any())).thenReturn(false);
+        when(permissionService.hasAuthority(any(), eq("ROLE_PORTAL_ADMIN"))).thenReturn(false);
+        when(permissionService.hasAuthority(any(), eq("PAGE_SETTINGS"))).thenReturn(false);
+
+        mockMvc.perform(patch("/api/roles/5")
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf())
+                .contentType("application/json")
+                .content("""
+                    {
+                      "description": "new description"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("Недостаточно прав для изменения описания роли"));
     }
 
     @Test

@@ -493,6 +493,15 @@
   прикрывает `/api/users/{id}/password` и `photo-upload`; `BotProcessApiController`
   сделан null-safe для `start/stop/status`, а WebMvc tests фиксируют `unknown`
   fallback при null-ответе runtime service.
+- следующим расширенным пакетом `Phase 6` добран глубже по
+  `auth/profile/channel-management` boundary:
+  `ProfileApiControllerWebMvcTest` теперь прикрывает `password_hash` branch;
+  `AuthManagementApiControllerWebMvcTest` — create-user persistence для
+  `password_hash/enabled/registration_date` и denied-ветки
+  `role.name/role.description`; `ChannelApiControllerWebMvcTest` —
+  empty list, failed Telegram bot-info refresh tolerance, blank credential
+  platform normalisation, default `is_active` и safe delete credential без
+  лишнего `saveAll()`.
 - этот же smoke-слой расширен на detail/subpage contract:
   `ai-ops`, `unblock requests`, `users/detail` и оба passport editor route
   (`/object-passports/new`, `/object-passports/{id}`) теперь тоже прикрыты
