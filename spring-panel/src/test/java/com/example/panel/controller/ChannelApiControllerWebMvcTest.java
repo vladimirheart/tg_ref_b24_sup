@@ -69,6 +69,16 @@ class ChannelApiControllerWebMvcTest {
     }
 
     @Test
+    void regeneratePublicIdReturnsNotFoundWhenChannelIsMissing() throws Exception {
+        when(channelRepository.findById(505L)).thenReturn(Optional.empty());
+
+        mockMvc.perform(post("/api/channels/505/public-id/regenerate"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error").value("Канал не найден"));
+    }
+
+    @Test
     void createChannelPersistsVkPlatformConfigAndTemplateSelections() throws Exception {
         when(channelRepository.save(any(Channel.class))).thenAnswer(invocation -> {
             Channel channel = invocation.getArgument(0);
@@ -164,6 +174,22 @@ class ChannelApiControllerWebMvcTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error").value("Для VK укажите корректный ID сообщества (group_id)."));
+    }
+
+    @Test
+    void createChannelRejectsMaxWithoutToken() throws Exception {
+        mockMvc.perform(post("/api/channels")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "channel_name": "MAX Missing Token",
+                                  "platform": "max",
+                                  "token": ""
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error").value("Для MAX необходимо указать bot token."));
     }
 
     @Test
@@ -619,6 +645,23 @@ class ChannelApiControllerWebMvcTest {
     }
 
     @Test
+    void refreshBotInfoReturnsBadRequestWhenTelegramTokenIsMissing() throws Exception {
+        Channel channel = new Channel();
+        channel.setId(721L);
+        channel.setPlatform("telegram");
+        channel.setToken("");
+
+        when(channelRepository.findById(721L)).thenReturn(Optional.of(channel));
+
+        mockMvc.perform(post("/api/channels/721/bot-info"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error").value("Не удалось получить данные бота"));
+
+        verify(channelRepository, never()).save(any(Channel.class));
+    }
+
+    @Test
     void refreshBotInfoReturnsBadRequestWhenTelegramGetMeFails() throws Exception {
         Channel channel = new Channel();
         channel.setId(73L);
@@ -825,5 +868,14 @@ class ChannelApiControllerWebMvcTest {
             .andExpect(status().isNotFound())
             .andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.error").value("Учётные данные не найдены"));
+    }
+
+    @Test
+    void getChannelNotificationsReturnsEmptySuccessPayload() throws Exception {
+        mockMvc.perform(get("/api/channel-notifications"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.notifications").isArray())
+            .andExpect(jsonPath("$.notifications.length()").value(0));
     }
 }

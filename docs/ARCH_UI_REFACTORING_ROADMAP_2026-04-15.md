@@ -487,6 +487,12 @@
   теперь explicit `data-ui-page` и ранний `ui-head` bootstrap проверяются ещё
   для `channels`, `tasks`, `users`, `object-passports`, `public forms` и
   аналитических subpages `certificates/rms-control`.
+- `Phase 6` дополнительно расширен на `auth/profile/runtime controller`
+  boundary: `ProfileApiControllerWebMvcTest` покрывает unauthorized contract
+  `ui-preferences` и основной password-flow; `AuthManagementApiControllerWebMvcTest`
+  прикрывает `/api/users/{id}/password` и `photo-upload`; `BotProcessApiController`
+  сделан null-safe для `start/stop/status`, а WebMvc tests фиксируют `unknown`
+  fallback при null-ответе runtime service.
 - этот же smoke-слой расширен на detail/subpage contract:
   `ai-ops`, `unblock requests`, `users/detail` и оба passport editor route
   (`/object-passports/new`, `/object-passports/{id}`) теперь тоже прикрыты

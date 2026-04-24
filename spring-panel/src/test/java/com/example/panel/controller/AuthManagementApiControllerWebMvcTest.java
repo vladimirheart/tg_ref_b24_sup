@@ -11,6 +11,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -19,6 +20,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.example.panel.service.PermissionService;
 import com.example.panel.service.SharedConfigService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -32,6 +34,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.mock.web.MockMultipartFile;
 
 @WebMvcTest(AuthManagementApiController.class)
 @AutoConfigureMockMvc(addFilters = false)
@@ -147,6 +150,46 @@ class AuthManagementApiControllerWebMvcTest {
     }
 
     @Test
+    void createUserRejectsMissingUsernameOrPassword() throws Exception {
+        when(permissionService.isSuperUser(any())).thenReturn(true);
+
+        mockMvc.perform(post("/api/users")
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf())
+                .contentType("application/json")
+                .content("""
+                    {
+                      "username": "fresh",
+                      "password": ""
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("Имя пользователя и пароль не могут быть пустыми"));
+    }
+
+    @Test
+    void createUserRejectsWhenEditPermissionIsMissing() throws Exception {
+        when(permissionService.isSuperUser(any())).thenReturn(false);
+        when(permissionService.hasAuthority(any(), eq("ROLE_PORTAL_ADMIN"))).thenReturn(false);
+        when(permissionService.hasAuthority(any(), eq("PAGE_SETTINGS"))).thenReturn(false);
+
+        mockMvc.perform(post("/api/users")
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf())
+                .contentType("application/json")
+                .content("""
+                    {
+                      "username": "fresh",
+                      "password": "secret"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("Недостаточно прав для создания пользователя"));
+    }
+
+    @Test
     void createUserPersistsHashedPassword() throws Exception {
         when(permissionService.isSuperUser(any())).thenReturn(true);
         when(usersJdbcTemplate.queryForObject(startsWith("SELECT COUNT(*) FROM users"), eq(Integer.class), eq("fresh")))
@@ -224,6 +267,20 @@ class AuthManagementApiControllerWebMvcTest {
     }
 
     @Test
+    void deleteUserRejectsWhenPermissionIsMissing() throws Exception {
+        when(permissionService.isSuperUser(any())).thenReturn(false);
+        when(permissionService.hasAuthority(any(), eq("ROLE_PORTAL_ADMIN"))).thenReturn(false);
+        when(permissionService.hasAuthority(any(), eq("PAGE_SETTINGS"))).thenReturn(false);
+
+        mockMvc.perform(delete("/api/users/41")
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("Недостаточно прав для удаления пользователя"));
+    }
+
+    @Test
     void createRoleRejectsDuplicateName() throws Exception {
         when(permissionService.isSuperUser(any())).thenReturn(true);
         when(usersJdbcTemplate.queryForObject(startsWith("SELECT COUNT(*) FROM roles"), eq(Integer.class), eq("portal-admin")))
@@ -241,6 +298,44 @@ class AuthManagementApiControllerWebMvcTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.error").value("Роль уже существует"));
+    }
+
+    @Test
+    void createRoleRejectsMissingName() throws Exception {
+        when(permissionService.isSuperUser(any())).thenReturn(true);
+
+        mockMvc.perform(post("/api/roles")
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf())
+                .contentType("application/json")
+                .content("""
+                    {
+                      "name": ""
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("Название роли не может быть пустым"));
+    }
+
+    @Test
+    void createRoleRejectsWhenPermissionIsMissing() throws Exception {
+        when(permissionService.isSuperUser(any())).thenReturn(false);
+        when(permissionService.hasAuthority(any(), eq("ROLE_PORTAL_ADMIN"))).thenReturn(false);
+        when(permissionService.hasAuthority(any(), eq("PAGE_SETTINGS"))).thenReturn(false);
+
+        mockMvc.perform(post("/api/roles")
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf())
+                .contentType("application/json")
+                .content("""
+                    {
+                      "name": "reviewer"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("Недостаточно прав для создания роли"));
     }
 
     @Test
@@ -321,6 +416,28 @@ class AuthManagementApiControllerWebMvcTest {
     }
 
     @Test
+    void updateRoleRejectsPermissionsChangeWhenRightsAreMissing() throws Exception {
+        when(permissionService.isSuperUser(any())).thenReturn(false);
+        when(permissionService.hasAuthority(any(), eq("ROLE_PORTAL_ADMIN"))).thenReturn(false);
+        when(permissionService.hasAuthority(any(), eq("PAGE_SETTINGS"))).thenReturn(false);
+
+        mockMvc.perform(patch("/api/roles/5")
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf())
+                .contentType("application/json")
+                .content("""
+                    {
+                      "permissions": {
+                        "pages": ["dialogs"]
+                      }
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("Недостаточно прав для изменения разрешений роли"));
+    }
+
+    @Test
     void deleteRoleReturnsNotFoundWhenRecordIsMissing() throws Exception {
         when(permissionService.isSuperUser(any())).thenReturn(true);
         when(usersJdbcTemplate.update("DELETE FROM roles WHERE id = ?", 77L)).thenReturn(0);
@@ -331,6 +448,20 @@ class AuthManagementApiControllerWebMvcTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.error").value("Роль не найдена"));
+    }
+
+    @Test
+    void deleteRoleRejectsWhenPermissionIsMissing() throws Exception {
+        when(permissionService.isSuperUser(any())).thenReturn(false);
+        when(permissionService.hasAuthority(any(), eq("ROLE_PORTAL_ADMIN"))).thenReturn(false);
+        when(permissionService.hasAuthority(any(), eq("PAGE_SETTINGS"))).thenReturn(false);
+
+        mockMvc.perform(delete("/api/roles/77")
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("Недостаточно прав для удаления роли"));
     }
 
     @Test
@@ -369,5 +500,69 @@ class AuthManagementApiControllerWebMvcTest {
                 .with(csrf()))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
+    void getUserPasswordAlwaysReturnsStaticDenial() throws Exception {
+        mockMvc.perform(get("/api/users/12/password")
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("Просмотр пароля недоступен"));
+    }
+
+    @Test
+    void uploadUserPhotoRejectsEmptyFile() throws Exception {
+        MockMultipartFile file = new MockMultipartFile(
+            "photo",
+            "avatar.png",
+            "image/png",
+            new byte[0]
+        );
+
+        mockMvc.perform(multipart("/api/users/photo-upload")
+                .file(file)
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("Файл не может быть пустым"));
+    }
+
+    @Test
+    void uploadUserPhotoRejectsUnsupportedExtension() throws Exception {
+        MockMultipartFile file = new MockMultipartFile(
+            "photo",
+            "avatar.txt",
+            "text/plain",
+            "plain".getBytes(StandardCharsets.UTF_8)
+        );
+
+        mockMvc.perform(multipart("/api/users/photo-upload")
+                .file(file)
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("Поддерживаются изображения PNG, JPG, GIF или WebP."));
+    }
+
+    @Test
+    void uploadUserPhotoStoresAllowedImageAndReturnsMetadata() throws Exception {
+        MockMultipartFile file = new MockMultipartFile(
+            "photo",
+            "avatar.png",
+            "image/png",
+            "png-binary".getBytes(StandardCharsets.UTF_8)
+        );
+
+        mockMvc.perform(multipart("/api/users/photo-upload")
+                .file(file)
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.url").value(org.hamcrest.Matchers.startsWith("/api/attachments/avatars/")))
+            .andExpect(jsonPath("$.filename").isNotEmpty());
     }
 }
