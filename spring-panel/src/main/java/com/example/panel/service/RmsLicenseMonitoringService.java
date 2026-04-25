@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.w3c.dom.Document;
+import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
@@ -24,8 +25,13 @@ import java.net.IDN;
 import java.net.URI;
 import java.net.URLDecoder;
 import java.net.http.HttpClient;
+import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.ByteBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.Charset;
+import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
@@ -69,6 +75,8 @@ public class RmsLicenseMonitoringService {
     public static final String RMS_STATUS_UNKNOWN = "unknown";
     private static final String TARGET_LICENSE_ID = "100";
     private static final String TARGET_LICENSE_TITLE = "RMS (Front Fast Food)";
+    private static final Charset WINDOWS_OEM_CHARSET = Charset.forName("IBM866");
+    private static final Charset WINDOWS_ANSI_CHARSET = Charset.forName("windows-1251");
 
     private static final int DEFAULT_RMS_PORT = 443;
     private static final int LICENSE_WARNING_DAYS = 7;
@@ -652,25 +660,19 @@ public class RmsLicenseMonitoringService {
             throw new LicenseSnapshotException(
                 "Не найдена лицензия RMS (Front Fast Food) с id=100",
                 writeLicenseDetails(details),
-                trimText(response, 12_000, "")
+                formatDiagnosticText(response, 12_000)
             );
         }
-        OffsetDateTime targetExpiration = parseFlexibleDate(firstNonBlank(
-            targetLicense.get("expiration"),
-            targetLicense.get("expires_at"),
-            targetLicense.get("valid_to"),
-            targetLicense.get("expire_date"),
-            targetLicense.get("expiration_date")
-        ));
+        OffsetDateTime targetExpiration = resolveLicenseExpiration(targetLicense);
         if (targetExpiration == null) {
             throw new LicenseSnapshotException(
                 "Не удалось определить дату окончания лицензии RMS (Front Fast Food) [id=100]",
                 writeLicenseDetails(details),
-                trimText(response, 12_000, "")
+                formatDiagnosticText(response, 12_000)
             );
         }
         int daysLeft = (int) ChronoUnit.DAYS.between(LocalDate.now(ZoneOffset.UTC), targetExpiration.toLocalDate());
-        return new LicenseSnapshot(targetExpiration, daysLeft, writeLicenseDetails(details), trimText(response, 12_000, ""));
+        return new LicenseSnapshot(targetExpiration, daysLeft, writeLicenseDetails(details), formatDiagnosticText(response, 12_000));
     }
 
     private String buildPingSuccessMessage(String host, String pingOutput) {
@@ -766,11 +768,11 @@ public class RmsLicenseMonitoringService {
             .GET()
             .timeout(Duration.ofMillis(HTTP_TIMEOUT_MS))
             .build();
-        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        HttpResponse<byte[]> response = httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
             throw new IllegalStateException("HTTP " + response.statusCode() + " для " + url);
         }
-        return response.body();
+        return decodeHttpResponse(response);
     }
 
     private String postXml(String url, String body, Map<String, String> headers) throws Exception {
@@ -778,11 +780,11 @@ public class RmsLicenseMonitoringService {
             .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8))
             .timeout(Duration.ofMillis(HTTP_TIMEOUT_MS));
         headers.forEach(builder::header);
-        HttpResponse<String> response = httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        HttpResponse<byte[]> response = httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofByteArray());
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
             throw new IllegalStateException("HTTP " + response.statusCode() + " для запроса лицензии");
         }
-        return response.body();
+        return decodeHttpResponse(response);
     }
 
     private Document parseXml(String xml) throws Exception {
@@ -852,7 +854,7 @@ public class RmsLicenseMonitoringService {
             process.destroyForcibly();
             throw new IllegalStateException("Команда превысила лимит ожидания");
         }
-        String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+        String output = decodeProcessOutput(process.getInputStream().readAllBytes());
         return new CommandResult(process.exitValue() == 0, output);
     }
 
@@ -1081,26 +1083,196 @@ public class RmsLicenseMonitoringService {
         return safe.substring(0, limit);
     }
 
+    private String decodeHttpResponse(HttpResponse<byte[]> response) {
+        byte[] body = response.body() != null ? response.body() : new byte[0];
+        Charset declaredCharset = detectHttpCharset(response.headers(), body);
+        return decodeBytes(body, declaredCharset);
+    }
+
+    private Charset detectHttpCharset(HttpHeaders headers, byte[] body) {
+        String contentType = headers != null ? headers.firstValue("Content-Type").orElse("") : "";
+        if (StringUtils.hasText(contentType)) {
+            String lower = contentType.toLowerCase(Locale.ROOT);
+            int charsetIndex = lower.indexOf("charset=");
+            if (charsetIndex >= 0) {
+                String value = contentType.substring(charsetIndex + "charset=".length()).trim();
+                int semicolonIndex = value.indexOf(';');
+                if (semicolonIndex >= 0) {
+                    value = value.substring(0, semicolonIndex).trim();
+                }
+                value = value.replace("\"", "");
+                try {
+                    return Charset.forName(value);
+                } catch (Exception ignored) {
+                }
+            }
+        }
+        String asciiPrefix = new String(body, 0, Math.min(body.length, 256), StandardCharsets.US_ASCII);
+        java.util.regex.Matcher matcher = java.util.regex.Pattern
+            .compile("encoding\\s*=\\s*['\"]([^'\"]+)['\"]", java.util.regex.Pattern.CASE_INSENSITIVE)
+            .matcher(asciiPrefix);
+        if (matcher.find()) {
+            try {
+                return Charset.forName(matcher.group(1).trim());
+            } catch (Exception ignored) {
+            }
+        }
+        return StandardCharsets.UTF_8;
+    }
+
+    private String decodeProcessOutput(byte[] bytes) {
+        if (bytes == null || bytes.length == 0) {
+            return "";
+        }
+        if (!isWindows()) {
+            return decodeBytes(bytes, StandardCharsets.UTF_8);
+        }
+        return decodeBytes(bytes, WINDOWS_OEM_CHARSET, WINDOWS_ANSI_CHARSET, StandardCharsets.UTF_8);
+    }
+
+    private String decodeBytes(byte[] bytes, Charset... preferredCharsets) {
+        if (bytes == null || bytes.length == 0) {
+            return "";
+        }
+        java.util.ArrayList<Charset> candidates = new java.util.ArrayList<>();
+        if (preferredCharsets != null) {
+            for (Charset charset : preferredCharsets) {
+                if (charset != null && !candidates.contains(charset)) {
+                    candidates.add(charset);
+                }
+            }
+        }
+        for (Charset charset : List.of(StandardCharsets.UTF_8, WINDOWS_OEM_CHARSET, WINDOWS_ANSI_CHARSET)) {
+            if (!candidates.contains(charset)) {
+                candidates.add(charset);
+            }
+        }
+        String best = new String(bytes, candidates.get(0));
+        int bestScore = scoreDecodedText(best);
+        for (int index = 1; index < candidates.size(); index++) {
+            String candidate = decodeStrict(bytes, candidates.get(index));
+            int score = scoreDecodedText(candidate);
+            if (score < bestScore) {
+                best = candidate;
+                bestScore = score;
+            }
+        }
+        return normalizeLineEndings(best);
+    }
+
+    private String decodeStrict(byte[] bytes, Charset charset) {
+        try {
+            return charset.newDecoder()
+                .onMalformedInput(CodingErrorAction.REPORT)
+                .onUnmappableCharacter(CodingErrorAction.REPORT)
+                .decode(ByteBuffer.wrap(bytes))
+                .toString();
+        } catch (CharacterCodingException ignored) {
+            return new String(bytes, charset);
+        }
+    }
+
+    private int scoreDecodedText(String value) {
+        if (value == null) {
+            return Integer.MAX_VALUE;
+        }
+        int score = 0;
+        for (int index = 0; index < value.length(); index++) {
+            char ch = value.charAt(index);
+            if (ch == '\uFFFD') {
+                score += 100;
+            } else if (Character.isISOControl(ch) && ch != '\r' && ch != '\n' && ch != '\t') {
+                score += 5;
+            }
+        }
+        score += countOccurrences(value, "Р") * 3;
+        score += countOccurrences(value, "Ð") * 3;
+        score += countOccurrences(value, "Ñ") * 3;
+        score += countOccurrences(value, "â") * 2;
+        if (value.matches(".*[А-Яа-яЁё].*")) {
+            score -= 8;
+        }
+        if (value.contains("<") && value.contains(">")) {
+            score -= 3;
+        }
+        return score;
+    }
+
+    private int countOccurrences(String value, String token) {
+        int count = 0;
+        int offset = 0;
+        while (true) {
+            int index = value.indexOf(token, offset);
+            if (index < 0) {
+                return count;
+            }
+            count++;
+            offset = index + token.length();
+        }
+    }
+
+    private String formatDiagnosticText(String value, int limit) {
+        String normalized = normalizeLineEndings(value);
+        if (!StringUtils.hasText(normalized)) {
+            return "";
+        }
+        String formatted = normalized.trim();
+        if (looksLikeXml(formatted)) {
+            formatted = prettyPrintXml(formatted);
+        }
+        return trimText(formatted, limit, "");
+    }
+
+    private boolean looksLikeXml(String value) {
+        return StringUtils.hasText(value) && value.trim().startsWith("<") && value.contains(">");
+    }
+
+    private String prettyPrintXml(String xml) {
+        try {
+            Document document = parseXml(xml);
+            javax.xml.transform.Transformer transformer = javax.xml.transform.TransformerFactory.newInstance().newTransformer();
+            transformer.setOutputProperty(javax.xml.transform.OutputKeys.INDENT, "yes");
+            transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");
+            java.io.StringWriter writer = new java.io.StringWriter();
+            transformer.transform(new javax.xml.transform.dom.DOMSource(document), new javax.xml.transform.stream.StreamResult(writer));
+            return normalizeLineEndings(writer.toString());
+        } catch (Exception ignored) {
+            return normalizeLineEndings(xml);
+        }
+    }
+
+    private String normalizeLineEndings(String value) {
+        if (!StringUtils.hasText(value)) {
+            return "";
+        }
+        return value.replace("\r\n", "\n").replace('\r', '\n').trim();
+    }
+
+    private String normalizeSearchToken(String value) {
+        if (!StringUtils.hasText(value)) {
+            return "";
+        }
+        String normalized = value.trim().toLowerCase(Locale.ROOT).replace('ё', 'е');
+        return normalized.replaceAll("[^a-z0-9а-я]+", " ").trim().replaceAll("\\s+", " ");
+    }
+
     private List<Map<String, String>> parseLicenseDetails(Document xml) {
         List<Map<String, String>> items = new java.util.ArrayList<>();
         NodeList licenses = xml.getElementsByTagName("license");
         for (int index = 0; index < licenses.getLength(); index++) {
             Node node = licenses.item(index);
-            if (node == null || !node.hasChildNodes()) {
+            if (node == null) {
                 continue;
             }
             LinkedHashMap<String, String> item = new LinkedHashMap<>();
+            appendNodeAttributes(item, node);
             NodeList children = node.getChildNodes();
             for (int childIndex = 0; childIndex < children.getLength(); childIndex++) {
                 Node child = children.item(childIndex);
                 if (child == null || child.getNodeType() != Node.ELEMENT_NODE) {
                     continue;
                 }
-                String key = normalizeLicenseKey(child.getNodeName());
-                String value = trimText(child.getTextContent(), 500, "");
-                if (StringUtils.hasText(key) && StringUtils.hasText(value)) {
-                    item.put(key, value);
-                }
+                collectLicenseNode(item, child, normalizeLicenseKey(child.getNodeName()));
             }
             enrichLicenseDetails(item, index);
             if (!item.isEmpty()) {
@@ -1119,7 +1291,10 @@ public class RmsLicenseMonitoringService {
                 item.get("id"),
                 item.get("license_id"),
                 item.get("licenseid"),
-                item.get("product_id")
+                item.get("product_id"),
+                item.get("module_id"),
+                item.get("type_id"),
+                item.get("module_license_id")
             );
             if (TARGET_LICENSE_ID.equals(StringUtils.trimWhitespace(licenseId))) {
                 return item;
@@ -1133,9 +1308,16 @@ public class RmsLicenseMonitoringService {
                 item.get("license"),
                 item.get("type"),
                 item.get("license_type"),
-                item.get("product")
+                item.get("product"),
+                item.get("module_name"),
+                item.get("display_name")
             );
             if (StringUtils.hasText(title) && TARGET_LICENSE_TITLE.equalsIgnoreCase(title.trim())) {
+                return item;
+            }
+        }
+        for (Map<String, String> item : details) {
+            if (containsTargetLicenseMarkers(item)) {
                 return item;
             }
         }
@@ -1151,6 +1333,8 @@ public class RmsLicenseMonitoringService {
             item.get("license_type"),
             item.get("module"),
             item.get("product"),
+            item.get("module_name"),
+            item.get("display_name"),
             "Лицензия #" + (index + 1)
         );
         item.putIfAbsent("title", title);
@@ -1159,7 +1343,12 @@ public class RmsLicenseMonitoringService {
             item.get("expires_at"),
             item.get("valid_to"),
             item.get("expire_date"),
-            item.get("expiration_date")
+            item.get("expiration_date"),
+            item.get("expires"),
+            item.get("expire"),
+            item.get("date_to"),
+            item.get("end_date"),
+            item.get("date_end")
         );
         if (StringUtils.hasText(expiration)) {
             item.put("expiration", expiration);
@@ -1183,6 +1372,136 @@ public class RmsLicenseMonitoringService {
         if (StringUtils.hasText(state)) {
             item.put("state", state);
         }
+    }
+
+    private void appendNodeAttributes(LinkedHashMap<String, String> item, Node node) {
+        if (item == null || node == null) {
+            return;
+        }
+        NamedNodeMap attributes = node.getAttributes();
+        if (attributes == null) {
+            return;
+        }
+        for (int index = 0; index < attributes.getLength(); index++) {
+            Node attribute = attributes.item(index);
+            if (attribute == null) {
+                continue;
+            }
+            String key = normalizeLicenseKey(attribute.getNodeName());
+            String value = trimText(attribute.getNodeValue(), 500, "");
+            if (StringUtils.hasText(key) && StringUtils.hasText(value)) {
+                item.putIfAbsent(key, value);
+            }
+        }
+    }
+
+    private void collectLicenseNode(LinkedHashMap<String, String> item, Node node, String keyPrefix) {
+        if (item == null || node == null || node.getNodeType() != Node.ELEMENT_NODE) {
+            return;
+        }
+        String currentKey = normalizeLicenseKey(keyPrefix);
+        appendNodeAttributes(item, node);
+        if (StringUtils.hasText(currentKey)) {
+            appendPrefixedAttributes(item, node, currentKey);
+        }
+        String value = trimText(node.getTextContent(), 500, "");
+        if (StringUtils.hasText(currentKey) && StringUtils.hasText(value)) {
+            item.putIfAbsent(currentKey, value);
+        }
+        NodeList children = node.getChildNodes();
+        for (int index = 0; index < children.getLength(); index++) {
+            Node child = children.item(index);
+            if (child == null || child.getNodeType() != Node.ELEMENT_NODE) {
+                continue;
+            }
+            String childKey = normalizeLicenseKey(child.getNodeName());
+            String nextPrefix = StringUtils.hasText(currentKey) ? currentKey + "_" + childKey : childKey;
+            collectLicenseNode(item, child, nextPrefix);
+        }
+    }
+
+    private void appendPrefixedAttributes(LinkedHashMap<String, String> item, Node node, String keyPrefix) {
+        NamedNodeMap attributes = node.getAttributes();
+        if (attributes == null) {
+            return;
+        }
+        for (int index = 0; index < attributes.getLength(); index++) {
+            Node attribute = attributes.item(index);
+            if (attribute == null) {
+                continue;
+            }
+            String key = normalizeLicenseKey(keyPrefix + "_" + attribute.getNodeName());
+            String value = trimText(attribute.getNodeValue(), 500, "");
+            if (StringUtils.hasText(key) && StringUtils.hasText(value)) {
+                item.putIfAbsent(key, value);
+            }
+        }
+    }
+
+    private boolean containsTargetLicenseMarkers(Map<String, String> item) {
+        if (item == null || item.isEmpty()) {
+            return false;
+        }
+        String normalizedTitle = normalizeSearchToken(TARGET_LICENSE_TITLE);
+        boolean hasTargetId = false;
+        boolean hasTargetName = false;
+        for (Map.Entry<String, String> entry : item.entrySet()) {
+            String key = normalizeSearchToken(entry.getKey());
+            String value = normalizeSearchToken(entry.getValue());
+            if (!StringUtils.hasText(value)) {
+                continue;
+            }
+            if (!hasTargetId && key.contains("id") && TARGET_LICENSE_ID.equals(value)) {
+                hasTargetId = true;
+            }
+            if (!hasTargetId && TARGET_LICENSE_ID.equals(value)) {
+                hasTargetId = true;
+            }
+            if (!hasTargetName && (value.equals(normalizedTitle)
+                || value.contains("rms") && value.contains("front fast food"))) {
+                hasTargetName = true;
+            }
+        }
+        return hasTargetName && (hasTargetId || !item.containsKey("id"));
+    }
+
+    private OffsetDateTime resolveLicenseExpiration(Map<String, String> targetLicense) {
+        if (targetLicense == null || targetLicense.isEmpty()) {
+            return null;
+        }
+        for (String key : List.of(
+            "expiration",
+            "expires_at",
+            "valid_to",
+            "expire_date",
+            "expiration_date",
+            "expires",
+            "expire",
+            "date_to",
+            "end_date",
+            "date_end",
+            "module_expiration",
+            "module_expires_at"
+        )) {
+            OffsetDateTime parsed = parseFlexibleDate(targetLicense.get(key));
+            if (parsed != null) {
+                return parsed;
+            }
+        }
+        for (Map.Entry<String, String> entry : targetLicense.entrySet()) {
+            String normalizedKey = normalizeSearchToken(entry.getKey());
+            if (!normalizedKey.contains("expir")
+                && !normalizedKey.contains("valid_to")
+                && !normalizedKey.contains("date_to")
+                && !normalizedKey.contains("end_date")) {
+                continue;
+            }
+            OffsetDateTime parsed = parseFlexibleDate(entry.getValue());
+            if (parsed != null) {
+                return parsed;
+            }
+        }
+        return null;
     }
 
     private String normalizeLicenseKey(String rawKey) {
