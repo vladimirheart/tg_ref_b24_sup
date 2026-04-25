@@ -6,12 +6,9 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
-import org.springframework.jdbc.support.GeneratedKeyHolder;
-import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 
 import java.sql.PreparedStatement;
-import java.sql.Statement;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -40,6 +37,7 @@ public class RmsLicenseMonitorRepository {
         item.setLicenseStatus(rs.getString("license_status"));
         item.setLicenseErrorMessage(rs.getString("license_error_message"));
         item.setLicenseDetailsJson(rs.getString("license_details_json"));
+        item.setLicenseDebugExcerpt(readStringColumn(rs, "license_debug_excerpt"));
         item.setLicenseExpiresAt(parseOffsetDateTime(rs.getString("license_expires_at")));
 
         Object licenseDaysLeft = rs.getObject("license_days_left");
@@ -127,7 +125,6 @@ public class RmsLicenseMonitorRepository {
     }
 
     private RmsLicenseMonitor insert(RmsLicenseMonitor item) {
-        KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
             PreparedStatement ps = connection.prepareStatement(
                 """
@@ -138,16 +135,15 @@ public class RmsLicenseMonitorRepository {
                     license_status, license_error_message, license_details_json, license_expires_at, license_days_left,
                     license_last_checked_at, license_last_notified_at,
                     rms_status, rms_status_message, ping_output,
-                    traceroute_summary, traceroute_report, traceroute_checked_at,
+                    traceroute_summary, traceroute_report, traceroute_checked_at, license_debug_excerpt,
                     rms_last_checked_at, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                Statement.RETURN_GENERATED_KEYS
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """
             );
             bindCommon(ps, item);
             return ps;
-        }, keyHolder);
-        Number key = keyHolder.getKey();
+        });
+        Number key = jdbcTemplate.queryForObject("SELECT last_insert_rowid()", Number.class);
         if (key != null) {
             item.setId(key.longValue());
         }
@@ -183,6 +179,7 @@ public class RmsLicenseMonitorRepository {
                    traceroute_summary = ?,
                    traceroute_report = ?,
                    traceroute_checked_at = ?,
+                   license_debug_excerpt = ?,
                    rms_last_checked_at = ?,
                    created_at = ?,
                    updated_at = ?
@@ -213,6 +210,7 @@ public class RmsLicenseMonitorRepository {
             item.getTracerouteSummary(),
             item.getTracerouteReport(),
             formatOffsetDateTime(item.getTracerouteCheckedAt()),
+            item.getLicenseDebugExcerpt(),
             formatOffsetDateTime(item.getRmsLastCheckedAt()),
             formatOffsetDateTime(item.getCreatedAt()),
             formatOffsetDateTime(item.getUpdatedAt()),
@@ -250,9 +248,10 @@ public class RmsLicenseMonitorRepository {
         ps.setString(23, item.getTracerouteSummary());
         ps.setString(24, item.getTracerouteReport());
         ps.setString(25, formatOffsetDateTime(item.getTracerouteCheckedAt()));
-        ps.setString(26, formatOffsetDateTime(item.getRmsLastCheckedAt()));
-        ps.setString(27, formatOffsetDateTime(item.getCreatedAt()));
-        ps.setString(28, formatOffsetDateTime(item.getUpdatedAt()));
+        ps.setString(26, item.getLicenseDebugExcerpt());
+        ps.setString(27, formatOffsetDateTime(item.getRmsLastCheckedAt()));
+        ps.setString(28, formatOffsetDateTime(item.getCreatedAt()));
+        ps.setString(29, formatOffsetDateTime(item.getUpdatedAt()));
     }
 
     private static int toInt(Boolean value) {
@@ -265,5 +264,13 @@ public class RmsLicenseMonitorRepository {
 
     private static OffsetDateTime parseOffsetDateTime(String value) {
         return DATE_TIME_CONVERTER.convertToEntityAttribute(value);
+    }
+
+    private static String readStringColumn(java.sql.ResultSet rs, String columnName) {
+        try {
+            return rs.getString(columnName);
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 }

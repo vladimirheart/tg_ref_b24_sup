@@ -67,6 +67,8 @@ public class RmsLicenseMonitoringService {
     public static final String RMS_STATUS_DOWN = "down";
     public static final String RMS_STATUS_DISABLED = "disabled";
     public static final String RMS_STATUS_UNKNOWN = "unknown";
+    private static final String TARGET_LICENSE_ID = "100";
+    private static final String TARGET_LICENSE_TITLE = "RMS (Front Fast Food)";
 
     private static final int DEFAULT_RMS_PORT = 443;
     private static final int LICENSE_WARNING_DAYS = 7;
@@ -312,6 +314,27 @@ public class RmsLicenseMonitoringService {
         }
     }
 
+    @Transactional(transactionManager = "monitoringTransactionManager", readOnly = true)
+    public DiagnosticsView loadDiagnostics(long id) {
+        RmsLicenseMonitor monitor = repository.findById(id)
+            .orElseThrow(() -> new IllegalArgumentException("RMS-запись не найдена"));
+        return new DiagnosticsView(
+            monitor.getId(),
+            monitor.getRmsAddress(),
+            monitor.getServerName(),
+            monitor.getLicenseLastCheckedAt(),
+            monitor.getRmsLastCheckedAt(),
+            monitor.getLicenseStatus(),
+            monitor.getLicenseErrorMessage(),
+            monitor.getLicenseDebugExcerpt(),
+            monitor.getRmsStatus(),
+            monitor.getRmsStatusMessage(),
+            monitor.getPingOutput(),
+            monitor.getTracerouteSummary(),
+            monitor.getTracerouteReport()
+        );
+    }
+
     public RefreshState currentRefreshState() {
         return new RefreshState(
             new QueueState(
@@ -437,6 +460,7 @@ public class RmsLicenseMonitoringService {
             monitor.setLicenseExpiresAt(license.expiresAt());
             monitor.setLicenseDaysLeft(license.daysLeft());
             monitor.setLicenseDetailsJson(license.detailsJson());
+            monitor.setLicenseDebugExcerpt(license.debugExcerpt());
             monitor.setLicenseStatus(deriveLicenseStatus(license.daysLeft()));
             monitor.setLicenseErrorMessage(null);
 
@@ -446,6 +470,14 @@ public class RmsLicenseMonitoringService {
             }
             repository.save(monitor);
         } catch (Exception ex) {
+            if (ex instanceof LicenseSnapshotException snapshotException) {
+                if (StringUtils.hasText(snapshotException.detailsJson())) {
+                    monitor.setLicenseDetailsJson(snapshotException.detailsJson());
+                }
+                if (StringUtils.hasText(snapshotException.debugExcerpt())) {
+                    monitor.setLicenseDebugExcerpt(snapshotException.debugExcerpt());
+                }
+            }
             monitor.setLicenseStatus(LICENSE_STATUS_ERROR);
             monitor.setLicenseErrorMessage(trimText(ex.getMessage(), 600, "Не удалось обновить лицензию RMS"));
             repository.save(monitor);
@@ -476,7 +508,7 @@ public class RmsLicenseMonitoringService {
 
             if (ping.success()) {
                 monitor.setRmsStatus(RMS_STATUS_UP);
-                monitor.setRmsStatusMessage("Ping успешен");
+                monitor.setRmsStatusMessage(buildPingSuccessMessage(monitor.getHost(), ping.output()));
                 monitor.setTracerouteSummary(null);
                 monitor.setTracerouteReport(null);
                 monitor.setTracerouteCheckedAt(null);
@@ -614,31 +646,76 @@ public class RmsLicenseMonitoringService {
             headers
         );
         Document xml = parseXml(response);
-        OffsetDateTime earliestExpiration = null;
         List<Map<String, String>> details = parseLicenseDetails(xml);
-
-        NodeList licenses = xml.getElementsByTagName("license");
-        for (int index = 0; index < licenses.getLength(); index++) {
-            OffsetDateTime expiration = parseFlexibleDate(extractChildText(licenses.item(index), "expiration"));
-            if (expiration != null && (earliestExpiration == null || expiration.isBefore(earliestExpiration))) {
-                earliestExpiration = expiration;
-            }
+        Map<String, String> targetLicense = findTargetLicense(details);
+        if (targetLicense == null) {
+            throw new LicenseSnapshotException(
+                "Не найдена лицензия RMS (Front Fast Food) с id=100",
+                writeLicenseDetails(details),
+                trimText(response, 12_000, "")
+            );
         }
-        if (earliestExpiration == null) {
-            NodeList expirationNodes = xml.getElementsByTagName("expiration");
-            for (int index = 0; index < expirationNodes.getLength(); index++) {
-                OffsetDateTime expiration = parseFlexibleDate(expirationNodes.item(index).getTextContent());
-                if (expiration != null && (earliestExpiration == null || expiration.isBefore(earliestExpiration))) {
-                    earliestExpiration = expiration;
+        OffsetDateTime targetExpiration = parseFlexibleDate(firstNonBlank(
+            targetLicense.get("expiration"),
+            targetLicense.get("expires_at"),
+            targetLicense.get("valid_to"),
+            targetLicense.get("expire_date"),
+            targetLicense.get("expiration_date")
+        ));
+        if (targetExpiration == null) {
+            throw new LicenseSnapshotException(
+                "Не удалось определить дату окончания лицензии RMS (Front Fast Food) [id=100]",
+                writeLicenseDetails(details),
+                trimText(response, 12_000, "")
+            );
+        }
+        int daysLeft = (int) ChronoUnit.DAYS.between(LocalDate.now(ZoneOffset.UTC), targetExpiration.toLocalDate());
+        return new LicenseSnapshot(targetExpiration, daysLeft, writeLicenseDetails(details), trimText(response, 12_000, ""));
+    }
+
+    private String buildPingSuccessMessage(String host, String pingOutput) {
+        String resolvedIp = extractPingResolvedAddress(pingOutput);
+        if (StringUtils.hasText(resolvedIp)) {
+            return "Ping успешен, IP: " + resolvedIp;
+        }
+        return "Ping успешен" + (StringUtils.hasText(host) ? ", host: " + host : "");
+    }
+
+    private String extractPingResolvedAddress(String pingOutput) {
+        if (!StringUtils.hasText(pingOutput)) {
+            return null;
+        }
+        for (String rawLine : pingOutput.split("\\R")) {
+            String line = rawLine == null ? "" : rawLine.trim();
+            if (!StringUtils.hasText(line)) {
+                continue;
+            }
+            int openBracket = line.indexOf('[');
+            int closeBracket = line.indexOf(']');
+            if (openBracket >= 0 && closeBracket > openBracket) {
+                String candidate = line.substring(openBracket + 1, closeBracket).trim();
+                if (looksLikeIpAddress(candidate)) {
+                    return candidate;
+                }
+            }
+            String[] tokens = line.split("\\s+");
+            for (String token : tokens) {
+                String candidate = token.replace("(", "").replace(")", "").replace(",", "").trim();
+                if (looksLikeIpAddress(candidate)) {
+                    return candidate;
                 }
             }
         }
-        if (earliestExpiration == null) {
-            throw new IllegalStateException("Не удалось определить дату окончания лицензии");
-        }
+        return null;
+    }
 
-        int daysLeft = (int) ChronoUnit.DAYS.between(LocalDate.now(ZoneOffset.UTC), earliestExpiration.toLocalDate());
-        return new LicenseSnapshot(earliestExpiration, daysLeft, writeLicenseDetails(details));
+    private boolean looksLikeIpAddress(String value) {
+        if (!StringUtils.hasText(value)) {
+            return false;
+        }
+        String candidate = value.trim();
+        return candidate.matches("^(\\d{1,3}\\.){3}\\d{1,3}$")
+            || candidate.matches("^[0-9a-fA-F:]+$");
     }
 
     private String buildBaseUrl(RmsLicenseMonitor monitor) {
@@ -1033,6 +1110,38 @@ public class RmsLicenseMonitoringService {
         return items;
     }
 
+    private Map<String, String> findTargetLicense(List<Map<String, String>> details) {
+        if (details == null || details.isEmpty()) {
+            return null;
+        }
+        for (Map<String, String> item : details) {
+            String licenseId = firstNonBlank(
+                item.get("id"),
+                item.get("license_id"),
+                item.get("licenseid"),
+                item.get("product_id")
+            );
+            if (TARGET_LICENSE_ID.equals(StringUtils.trimWhitespace(licenseId))) {
+                return item;
+            }
+        }
+        for (Map<String, String> item : details) {
+            String title = firstNonBlank(
+                item.get("title"),
+                item.get("name"),
+                item.get("license_name"),
+                item.get("license"),
+                item.get("type"),
+                item.get("license_type"),
+                item.get("product")
+            );
+            if (StringUtils.hasText(title) && TARGET_LICENSE_TITLE.equalsIgnoreCase(title.trim())) {
+                return item;
+            }
+        }
+        return null;
+    }
+
     private void enrichLicenseDetails(LinkedHashMap<String, String> item, int index) {
         String title = firstNonBlank(
             item.get("name"),
@@ -1142,6 +1251,21 @@ public class RmsLicenseMonitoringService {
                                      List<Map<String, String>> items) {
     }
 
+    public record DiagnosticsView(Long id,
+                                  String rmsAddress,
+                                  String serverName,
+                                  OffsetDateTime licenseLastCheckedAt,
+                                  OffsetDateTime rmsLastCheckedAt,
+                                  String licenseStatus,
+                                  String licenseErrorMessage,
+                                  String licenseDebugExcerpt,
+                                  String rmsStatus,
+                                  String rmsStatusMessage,
+                                  String pingOutput,
+                                  String tracerouteSummary,
+                                  String tracerouteReport) {
+    }
+
     private record LicenseRefreshTask(Long monitorId, boolean withNotifications) {
     }
 
@@ -1157,9 +1281,28 @@ public class RmsLicenseMonitoringService {
     private record ServerMetadata(String serverName, String serverType, String serverVersion, String serverEdition) {
     }
 
-    private record LicenseSnapshot(OffsetDateTime expiresAt, int daysLeft, String detailsJson) {
+    private record LicenseSnapshot(OffsetDateTime expiresAt, int daysLeft, String detailsJson, String debugExcerpt) {
     }
 
     private record CommandResult(boolean success, String output) {
+    }
+
+    private static final class LicenseSnapshotException extends Exception {
+        private final String detailsJson;
+        private final String debugExcerpt;
+
+        private LicenseSnapshotException(String message, String detailsJson, String debugExcerpt) {
+            super(message);
+            this.detailsJson = detailsJson;
+            this.debugExcerpt = debugExcerpt;
+        }
+
+        private String detailsJson() {
+            return detailsJson;
+        }
+
+        private String debugExcerpt() {
+            return debugExcerpt;
+        }
     }
 }

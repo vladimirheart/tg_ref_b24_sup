@@ -203,6 +203,41 @@
     </div>
 </div>
 
+<div class="modal fade" id="rmsDiagnosticsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title">Диагностика RMS</h5>
+                    <div class="small text-muted" id="rmsDiagnosticsMeta">Загрузка...</div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <div class="fw-semibold mb-2">Сводка</div>
+                    <div id="rmsDiagnosticsSummary" class="d-flex flex-wrap gap-2 text-muted">Нет данных.</div>
+                </div>
+                <div class="mb-3">
+                    <div class="fw-semibold mb-2">Ping</div>
+                    <pre id="rmsDiagnosticsPingOutput" class="border rounded p-3 bg-body-tertiary small mb-0 text-wrap">Нет данных.</pre>
+                </div>
+                <div class="mb-3">
+                    <div class="fw-semibold mb-2">Трассировка</div>
+                    <pre id="rmsDiagnosticsTracerouteOutput" class="border rounded p-3 bg-body-tertiary small mb-0 text-wrap">Нет данных.</pre>
+                </div>
+                <div>
+                    <div class="fw-semibold mb-2">Лицензионная диагностика</div>
+                    <pre id="rmsDiagnosticsLicenseOutput" class="border rounded p-3 bg-body-tertiary small mb-0 text-wrap">Нет данных.</pre>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
 <script th:src="@{/js/common.js}"></script>
 <script th:src="@{/js/rms-monitoring.js}"></script>

@@ -64,6 +64,9 @@ public class RmsLicenseMonitor {
     @Column(name = "license_details_json")
     private String licenseDetailsJson;
 
+    @Column(name = "license_debug_excerpt")
+    private String licenseDebugExcerpt;
+
     @Column(name = "license_expires_at")
     @Convert(converter = LenientOffsetDateTimeConverter.class)
     private OffsetDateTime licenseExpiresAt;
@@ -236,6 +239,14 @@ public class RmsLicenseMonitor {
 
     public void setLicenseDetailsJson(String licenseDetailsJson) {
         this.licenseDetailsJson = licenseDetailsJson;
+    }
+
+    public String getLicenseDebugExcerpt() {
+        return licenseDebugExcerpt;
+    }
+
+    public void setLicenseDebugExcerpt(String licenseDebugExcerpt) {
+        this.licenseDebugExcerpt = licenseDebugExcerpt;
     }
 
     public OffsetDateTime getLicenseExpiresAt() {
