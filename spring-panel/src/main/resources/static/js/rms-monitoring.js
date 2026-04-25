@@ -32,6 +32,13 @@
   const licenseDetailsModal = licenseDetailsModalEl && window.bootstrap ? new bootstrap.Modal(licenseDetailsModalEl) : null;
   const licenseDetailsMeta = document.getElementById('rmsLicenseDetailsMeta');
   const licenseDetailsBody = document.getElementById('rmsLicenseDetailsBody');
+  const diagnosticsModalEl = document.getElementById('rmsDiagnosticsModal');
+  const diagnosticsModal = diagnosticsModalEl && window.bootstrap ? new bootstrap.Modal(diagnosticsModalEl) : null;
+  const diagnosticsMeta = document.getElementById('rmsDiagnosticsMeta');
+  const diagnosticsSummary = document.getElementById('rmsDiagnosticsSummary');
+  const diagnosticsPingOutput = document.getElementById('rmsDiagnosticsPingOutput');
+  const diagnosticsTracerouteOutput = document.getElementById('rmsDiagnosticsTracerouteOutput');
+  const diagnosticsLicenseOutput = document.getElementById('rmsDiagnosticsLicenseOutput');
 
   let sites = [];
   let refreshState = null;
@@ -212,6 +219,7 @@
                 <li><button class="dropdown-item" type="button" data-action="refresh-license" ${recordEnabled && licenseFeatureEnabled ? '' : 'disabled'}>Обновить лицензию</button></li>
                 <li><button class="dropdown-item" type="button" data-action="view-licenses" ${site.has_license_details ? '' : 'disabled'}>Посмотреть лицензии</button></li>
                 <li><button class="dropdown-item" type="button" data-action="refresh-network" ${recordEnabled && networkFeatureEnabled ? '' : 'disabled'}>Проверить доступность</button></li>
+                <li><button class="dropdown-item" type="button" data-action="diagnostics">Диагностика</button></li>
                 <li><hr class="dropdown-divider"></li>
                 <li><button class="dropdown-item" type="button" data-action="edit">Изменить</button></li>
                 <li><button class="dropdown-item text-danger" type="button" data-action="delete">Удалить</button></li>
@@ -475,6 +483,42 @@
     }
   }
 
+  function renderDiagnosticsModal(data) {
+    if (!diagnosticsMeta || !diagnosticsSummary || !diagnosticsPingOutput || !diagnosticsTracerouteOutput || !diagnosticsLicenseOutput) return;
+    const title = data.server_name || data.rms_address || 'RMS';
+    diagnosticsMeta.textContent = `${title} • лицензии: ${formatDateTime(data.license_last_checked_at)} • сеть: ${formatDateTime(data.rms_last_checked_at)}`;
+    diagnosticsSummary.innerHTML = `
+      <span class="badge text-bg-light border">license_status: ${escapeHtml(data.license_status || '—')}</span>
+      <span class="badge text-bg-light border">rms_status: ${escapeHtml(data.rms_status || '—')}</span>
+      <span class="badge text-bg-light border">license_error: ${escapeHtml(data.license_error_message || '—')}</span>
+      <span class="badge text-bg-light border">network_msg: ${escapeHtml(data.rms_status_message || '—')}</span>
+      ${data.traceroute_summary ? `<span class="badge text-bg-light border">traceroute: ${escapeHtml(data.traceroute_summary)}</span>` : ''}
+    `;
+    diagnosticsPingOutput.textContent = String(data.ping_output || 'Нет сохранённого ping output.');
+    diagnosticsTracerouteOutput.textContent = String(data.traceroute_report || 'Нет сохранённой трассировки.');
+    diagnosticsLicenseOutput.textContent = String(data.license_debug_excerpt || data.license_error_message || 'Нет лицензионной диагностики.');
+  }
+
+  async function openDiagnostics(siteId) {
+    if (!diagnosticsModal || !diagnosticsMeta || !diagnosticsSummary || !diagnosticsPingOutput || !diagnosticsTracerouteOutput || !diagnosticsLicenseOutput) return;
+    const site = findSite(siteId);
+    diagnosticsMeta.textContent = site?.server_name || site?.rms_address_display || 'Загрузка...';
+    diagnosticsSummary.innerHTML = '<span class="text-muted">Загрузка...</span>';
+    diagnosticsPingOutput.textContent = 'Загрузка...';
+    diagnosticsTracerouteOutput.textContent = 'Загрузка...';
+    diagnosticsLicenseOutput.textContent = 'Загрузка...';
+    diagnosticsModal.show();
+    try {
+      const data = await requestJson(`/api/monitoring/rms/sites/${siteId}/diagnostics`);
+      renderDiagnosticsModal(data);
+    } catch (error) {
+      diagnosticsSummary.innerHTML = `<span class="text-danger">${escapeHtml(error.message || 'Не удалось загрузить диагностику.')}</span>`;
+      diagnosticsPingOutput.textContent = 'Нет данных.';
+      diagnosticsTracerouteOutput.textContent = 'Нет данных.';
+      diagnosticsLicenseOutput.textContent = 'Нет данных.';
+    }
+  }
+
   async function toggleBulkFeature(scope, enabled) {
     const endpoint = scope === 'license'
       ? '/api/monitoring/rms/bulk/license-monitoring'
@@ -527,6 +571,10 @@
     }
     if (button.dataset.action === 'refresh-network') {
       triggerSiteRefresh(siteId, 'network');
+      return;
+    }
+    if (button.dataset.action === 'diagnostics') {
+      openDiagnostics(siteId);
       return;
     }
     if (button.dataset.action === 'delete') {

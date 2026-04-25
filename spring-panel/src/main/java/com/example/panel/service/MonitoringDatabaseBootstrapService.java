@@ -139,6 +139,11 @@ public class MonitoringDatabaseBootstrapService implements ApplicationRunner {
         );
         ensureColumn(
             "rms_license_monitors",
+            "license_debug_excerpt",
+            "ALTER TABLE rms_license_monitors ADD COLUMN license_debug_excerpt TEXT"
+        );
+        ensureColumn(
+            "rms_license_monitors",
             "network_monitoring_enabled",
             "ALTER TABLE rms_license_monitors ADD COLUMN network_monitoring_enabled INTEGER NOT NULL DEFAULT 1"
         );
@@ -259,6 +264,7 @@ public class MonitoringDatabaseBootstrapService implements ApplicationRunner {
                 item.setLicenseStatus(rs.getString("license_status"));
                 item.setLicenseErrorMessage(rs.getString("license_error_message"));
                 item.setLicenseDetailsJson(readStringColumn(rs, "license_details_json"));
+                item.setLicenseDebugExcerpt(readStringColumn(rs, "license_debug_excerpt"));
                 item.setLicenseExpiresAt(parseOffsetDateTime(rs.getString("license_expires_at")));
                 Object licenseDaysLeft = rs.getObject("license_days_left");
                 item.setLicenseDaysLeft(licenseDaysLeft == null ? null : rs.getInt("license_days_left"));

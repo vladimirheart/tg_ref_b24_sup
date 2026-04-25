@@ -187,6 +187,31 @@ public class RmsLicenseMonitoringApiController {
         }
     }
 
+    @GetMapping("/sites/{siteId}/diagnostics")
+    public ResponseEntity<Map<String, Object>> loadSiteDiagnostics(@PathVariable long siteId) {
+        try {
+            RmsLicenseMonitoringService.DiagnosticsView view = monitoringService.loadDiagnostics(siteId);
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "id", view.id(),
+                "rms_address", view.rmsAddress(),
+                "server_name", view.serverName(),
+                "license_last_checked_at", view.licenseLastCheckedAt(),
+                "rms_last_checked_at", view.rmsLastCheckedAt(),
+                "license_status", view.licenseStatus(),
+                "license_error_message", view.licenseErrorMessage(),
+                "license_debug_excerpt", view.licenseDebugExcerpt(),
+                "rms_status", view.rmsStatus(),
+                "rms_status_message", view.rmsStatusMessage(),
+                "ping_output", view.pingOutput(),
+                "traceroute_summary", view.tracerouteSummary(),
+                "traceroute_report", view.tracerouteReport()
+            ));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "error", ex.getMessage()));
+        }
+    }
+
     private Map<String, Object> toDto(RmsLicenseMonitor item) {
         String displayHost = toUnicodeHost(item.getHost());
         Map<String, Object> dto = new LinkedHashMap<>();
@@ -212,6 +237,11 @@ public class RmsLicenseMonitoringApiController {
         dto.put("license_days_left", item.getLicenseDaysLeft());
         dto.put("license_last_checked_at", item.getLicenseLastCheckedAt());
         dto.put("has_license_details", item.getLicenseDetailsJson() != null && !item.getLicenseDetailsJson().isBlank());
+        dto.put("has_diagnostics",
+            (item.getPingOutput() != null && !item.getPingOutput().isBlank())
+                || (item.getTracerouteReport() != null && !item.getTracerouteReport().isBlank())
+                || (item.getLicenseDebugExcerpt() != null && !item.getLicenseDebugExcerpt().isBlank())
+                || (item.getLicenseErrorMessage() != null && !item.getLicenseErrorMessage().isBlank()));
         dto.put("rms_status", item.getRmsStatus());
         dto.put("rms_status_level", monitoringService.resolveRmsAvailability(item));
         dto.put("rms_status_message", item.getRmsStatusMessage());
