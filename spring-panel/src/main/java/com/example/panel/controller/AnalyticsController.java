@@ -113,6 +113,13 @@ public class AnalyticsController {
         return "analytics/rms-control";
     }
 
+    @GetMapping("/iiko-api-monitoring")
+    @PreAuthorize("hasAuthority('PAGE_ANALYTICS')")
+    public String iikoApiMonitoring(Model model, Authentication authentication) {
+        navigationService.enrich(model, authentication);
+        return "analytics/iiko-api-monitoring";
+    }
+
     @PostMapping(value = "/export", produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
     @PreAuthorize("hasAuthority('PAGE_ANALYTICS')")
     public ResponseEntity<StreamingResponseBody> export(@RequestBody(required = false) Map<String, Object> request) {

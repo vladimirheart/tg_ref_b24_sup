@@ -5,6 +5,7 @@ import com.example.panel.config.SqliteDataSourceProperties;
 import com.example.panel.converter.LenientOffsetDateTimeConverter;
 import com.example.panel.entity.RmsLicenseMonitor;
 import com.example.panel.entity.SslCertificateMonitor;
+import com.example.panel.repository.IikoApiMonitorRepository;
 import com.example.panel.repository.RmsLicenseMonitorRepository;
 import com.example.panel.repository.SslCertificateMonitorRepository;
 import org.slf4j.Logger;
@@ -29,6 +30,7 @@ public class MonitoringDatabaseBootstrapService implements ApplicationRunner {
 
     private final JdbcTemplate primaryJdbcTemplate;
     private final JdbcTemplate monitoringJdbcTemplate;
+    private final IikoApiMonitorRepository iikoApiMonitorRepository;
     private final SslCertificateMonitorRepository sslRepository;
     private final RmsLicenseMonitorRepository rmsRepository;
     private final SqliteDataSourceProperties primaryProperties;
@@ -36,12 +38,14 @@ public class MonitoringDatabaseBootstrapService implements ApplicationRunner {
 
     public MonitoringDatabaseBootstrapService(JdbcTemplate primaryJdbcTemplate,
                                               @Qualifier("monitoringJdbcTemplate") JdbcTemplate monitoringJdbcTemplate,
+                                              IikoApiMonitorRepository iikoApiMonitorRepository,
                                               SslCertificateMonitorRepository sslRepository,
                                               RmsLicenseMonitorRepository rmsRepository,
                                               SqliteDataSourceProperties primaryProperties,
                                               MonitoringSqliteDataSourceProperties monitoringProperties) {
         this.primaryJdbcTemplate = primaryJdbcTemplate;
         this.monitoringJdbcTemplate = monitoringJdbcTemplate;
+        this.iikoApiMonitorRepository = iikoApiMonitorRepository;
         this.sslRepository = sslRepository;
         this.rmsRepository = rmsRepository;
         this.primaryProperties = primaryProperties;
@@ -137,6 +141,47 @@ public class MonitoringDatabaseBootstrapService implements ApplicationRunner {
             "rms_license_monitors",
             "network_monitoring_enabled",
             "ALTER TABLE rms_license_monitors ADD COLUMN network_monitoring_enabled INTEGER NOT NULL DEFAULT 1"
+        );
+
+        monitoringJdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS iiko_api_monitors (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                monitor_name TEXT NOT NULL,
+                base_url TEXT NOT NULL,
+                api_login TEXT NOT NULL,
+                request_type TEXT NOT NULL,
+                request_config_json TEXT,
+                enabled INTEGER NOT NULL DEFAULT 1,
+                last_status TEXT,
+                last_http_status INTEGER,
+                last_error_message TEXT,
+                last_duration_ms INTEGER,
+                last_checked_at TEXT,
+                last_token_checked_at TEXT,
+                last_response_excerpt TEXT,
+                last_response_summary_json TEXT,
+                consecutive_failures INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """);
+        monitoringJdbcTemplate.execute("""
+            CREATE INDEX IF NOT EXISTS idx_iiko_api_monitors_enabled
+            ON iiko_api_monitors(enabled)
+            """);
+        monitoringJdbcTemplate.execute("""
+            CREATE INDEX IF NOT EXISTS idx_iiko_api_monitors_request_type
+            ON iiko_api_monitors(request_type)
+            """);
+        ensureColumn(
+            "iiko_api_monitors",
+            "request_config_json",
+            "ALTER TABLE iiko_api_monitors ADD COLUMN request_config_json TEXT"
+        );
+        ensureColumn(
+            "iiko_api_monitors",
+            "last_response_summary_json",
+            "ALTER TABLE iiko_api_monitors ADD COLUMN last_response_summary_json TEXT"
         );
     }
 

@@ -21,6 +21,7 @@
         <div class="d-flex flex-wrap gap-2">
             <a class="btn btn-outline-primary" th:href="@{/analytics/certificates}">Мониторинг SSL</a>
             <a class="btn btn-outline-primary" th:href="@{/analytics/rms-control}">Контроль RMS</a>
+            <a class="btn btn-outline-primary" th:href="@{/analytics/iiko-api-monitoring}">Мониторинг iiko API</a>
             <form method="post" th:action="@{/analytics/export}">
                 <input type="hidden" name="_csrf" th:value="${_csrf.token}">
                 <button class="btn btn-success" type="submit">Экспорт CSV</button>
