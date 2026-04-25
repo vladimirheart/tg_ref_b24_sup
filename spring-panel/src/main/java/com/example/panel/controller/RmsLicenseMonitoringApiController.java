@@ -191,22 +191,22 @@ public class RmsLicenseMonitoringApiController {
     public ResponseEntity<Map<String, Object>> loadSiteDiagnostics(@PathVariable long siteId) {
         try {
             RmsLicenseMonitoringService.DiagnosticsView view = monitoringService.loadDiagnostics(siteId);
-            return ResponseEntity.ok(Map.of(
-                "success", true,
-                "id", view.id(),
-                "rms_address", view.rmsAddress(),
-                "server_name", view.serverName(),
-                "license_last_checked_at", view.licenseLastCheckedAt(),
-                "rms_last_checked_at", view.rmsLastCheckedAt(),
-                "license_status", view.licenseStatus(),
-                "license_error_message", view.licenseErrorMessage(),
-                "license_debug_excerpt", view.licenseDebugExcerpt(),
-                "rms_status", view.rmsStatus(),
-                "rms_status_message", view.rmsStatusMessage(),
-                "ping_output", view.pingOutput(),
-                "traceroute_summary", view.tracerouteSummary(),
-                "traceroute_report", view.tracerouteReport()
-            ));
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("success", true);
+            payload.put("id", view.id());
+            payload.put("rms_address", view.rmsAddress());
+            payload.put("server_name", view.serverName());
+            payload.put("license_last_checked_at", view.licenseLastCheckedAt());
+            payload.put("rms_last_checked_at", view.rmsLastCheckedAt());
+            payload.put("license_status", view.licenseStatus());
+            payload.put("license_error_message", view.licenseErrorMessage());
+            payload.put("license_debug_excerpt", view.licenseDebugExcerpt());
+            payload.put("rms_status", view.rmsStatus());
+            payload.put("rms_status_message", view.rmsStatusMessage());
+            payload.put("ping_output", view.pingOutput());
+            payload.put("traceroute_summary", view.tracerouteSummary());
+            payload.put("traceroute_report", view.tracerouteReport());
+            return ResponseEntity.ok(payload);
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("success", false, "error", ex.getMessage()));
         }
