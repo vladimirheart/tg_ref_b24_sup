@@ -36,19 +36,27 @@ public class BotProcessApiController {
             return ResponseEntity.status(404).body(response);
         }
         BotProcessStatus status = botProcessService.start(channel);
-        return ResponseEntity.ok(buildStatusResponse(isSuccessfulStatus(status), status.message(), status.startedAt()));
+        return ResponseEntity.ok(buildStatusResponse(
+            isSuccessfulStatus(status),
+            statusMessage(status),
+            status == null ? null : status.startedAt()
+        ));
     }
 
     @PostMapping("/{channelId}/stop")
     public ResponseEntity<Map<String, Object>> stop(@PathVariable Long channelId) {
         BotProcessStatus status = botProcessService.stop(channelId);
-        return ResponseEntity.ok(buildStatusResponse(isSuccessfulStatus(status), status.message(), null));
+        return ResponseEntity.ok(buildStatusResponse(isSuccessfulStatus(status), statusMessage(status), null));
     }
 
     @GetMapping("/{channelId}/status")
     public ResponseEntity<Map<String, Object>> status(@PathVariable Long channelId) {
         BotProcessStatus status = botProcessService.status(channelId);
-        return ResponseEntity.ok(buildStatusResponse(isSuccessfulStatus(status), status.message(), status.startedAt()));
+        return ResponseEntity.ok(buildStatusResponse(
+            isSuccessfulStatus(status),
+            statusMessage(status),
+            status == null ? null : status.startedAt()
+        ));
     }
 
     @GetMapping("/{channelId}/runtime-contract")
@@ -60,10 +68,19 @@ public class BotProcessApiController {
             response.put("error", "Канал не найден");
             return ResponseEntity.status(404).body(response);
         }
-        Map<String, Object> response = new LinkedHashMap<>();
-        response.put("success", true);
-        response.put("contract", botProcessService.describeRuntimeContract(channel));
-        return ResponseEntity.ok(response);
+        try {
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("success", true);
+            response.put("contract", botProcessService.describeRuntimeContract(channel));
+            return ResponseEntity.ok(response);
+        } catch (Exception ex) {
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("success", false);
+            response.put("error", ex.getMessage() == null || ex.getMessage().isBlank()
+                ? "Не удалось построить runtime contract"
+                : ex.getMessage());
+            return ResponseEntity.internalServerError().body(response);
+        }
     }
 
     private Map<String, Object> buildStatusResponse(boolean success, String status, Object startedAt) {
@@ -79,5 +96,12 @@ public class BotProcessApiController {
             return false;
         }
         return status.running() || "stopped".equalsIgnoreCase(status.message());
+    }
+
+    private String statusMessage(BotProcessStatus status) {
+        if (status == null || status.message() == null || status.message().isBlank()) {
+            return "unknown";
+        }
+        return status.message();
     }
 }

@@ -2,7 +2,7 @@
 **Дата:** 8 апреля 2026  
 **Статус:** Актуально, но в активной фазе исправления  
 **Актуализация:** 9 апреля 2026 (см. `docs/ARCHITECTURE_AUDIT_VALIDATION_2026-04-09.md`)  
-**Последняя актуализация:** 23 апреля 2026
+**Последняя актуализация:** 24 апреля 2026
 
 ---
 
@@ -258,6 +258,52 @@
   `continue after failed start`;
   `ChannelApiControllerWebMvcTest` добран ветками
   `test-message all failed` и `manual recipient only`.
+- следующим большим пакетом `Phase 6` расширен сразу по трём соседним
+  `auth/runtime/network` boundary:
+  `AuthManagementApiControllerWebMvcTest` теперь прикрывает users/roles CRUD
+  edge-cases и success-ветки (`duplicate`, `empty update`, `not found`,
+  `role in use`, `successful delete/update`);
+  `IntegrationNetworkServiceTest` добран direct/profile failover context,
+  incomplete proxy profile и direct env contract;
+  `BotRuntimeContractServiceTest` добран ветками `vpn/default telegram`,
+  `minimal vk`, `unknown platform`, `target-scan warning` и
+  `jar-mode missing artifact`.
+- в этом же пакете закрыт и реальный runtime defect:
+  `BotRuntimeContractService.buildEnvironment()` больше не теряет базовые
+  `JAVA_TOOL_OPTIONS` при network route, а merge-ит network-level options
+  поверх base UTF-8/runtime flags.
+- следующим расширенным пакетом `Phase 6` добран ещё глубже по
+  `shared-config/channel-runtime/launcher-state` boundary:
+  `SharedConfigServiceTest` теперь покрывает invalid JSON fallback для
+  `settings/locations/org_structure/bot_credentials`;
+  `ChannelApiControllerWebMvcTest` — create/update/runtime validation
+  edge-cases (`missing name`, `telegram without token`,
+  `vk without callback config`, `empty update payload`,
+  `missing token`, `missing message`);
+  `BotProcessServiceTest` — launcher/state ветки
+  `status stopped`, `resolveExecutableJar -> null` и explicit `jar`
+  launch plan по configured artifact.
+- следующим крупным пакетом `Phase 6` расширен на
+  `auth/profile/runtime controller` boundary:
+  `ProfileApiControllerWebMvcTest` теперь покрывает unauthorized contract
+  `ui-preferences` и основной password-flow
+  (`unauthorized`, validation errors, missing user, wrong current password,
+  successful password update);
+  `AuthManagementApiControllerWebMvcTest` добран static-denial веткой
+  `/api/users/{id}/password` и photo-upload контрактом
+  (`empty file`, `unsupported extension`, `successful upload metadata`);
+  `BotProcessApiController` сделан null-safe для `start/stop/status`, а
+  `BotProcessApiControllerWebMvcTest` фиксирует `unknown` fallback
+  при null-ответе runtime service.
+- следующим расширенным пакетом `Phase 6` добран глубже по
+  `auth/profile/channel-management` boundary:
+  `ProfileApiControllerWebMvcTest` теперь прикрывает `password_hash` branch;
+  `AuthManagementApiControllerWebMvcTest` — create-user persistence для
+  `password_hash/enabled/registration_date` и denied-ветки
+  `role.name/role.description`; `ChannelApiControllerWebMvcTest` —
+  empty list, failed Telegram bot-info refresh tolerance, blank credential
+  platform normalisation, default `is_active` и safe delete credential без
+  лишнего `saveAll()`.
 
 ---
 
@@ -417,6 +463,21 @@ launcher/env/readiness contract и documented production recipe. Но часть
 runtime/env ожиданий по проекту всё ещё держится на implicit conventions,
 defaults и частично legacy-compatible фасадах.
 
+Отдельный положительный сдвиг последних проходов: `BotAutoStartService`
+больше не валит весь autostart cycle из-за `null/exception` на одном канале,
+а `IntegrationNetworkService` и `BotRuntimeContractService` уже прикрыты
+более широким набором proxy/vpn/vless edge-cases. Это снизило риск для
+runtime boundary, но не снимает потребность в дальнейшем integration/e2e
+слое поверх panel-bot orchestration.
+
+Дополнительно улучшен и `bot-process/auth-management` boundary:
+`BotProcessApiController` теперь не отдаёт сырые 500 без контракта на
+`runtime-contract`, а `AuthManagementApiController` уже прикрыт не только
+базовыми CRUD ветками, но и multi-column persistence сценариями
+(`password_hash`, `enabled`, `phones`, multi-field role update). Это
+снижает риск regressions в orchestration/API слое, хотя полноценного
+integration-сценария поверх users/settings runtime boundary всё ещё нет.
+
 ### 11. Отсутствие сквозного API versioning
 
 Часть маршрутов уже может быть стабилизирована, но единая стратегия
@@ -474,6 +535,7 @@ defaults и частично legacy-compatible фасадах.
 - [ ] Добить remaining `settings` subdomains
 - [ ] Расширить и стабилизировать safety net для следующих крупных рефакторингов
 - [ ] Закрыть remaining runtime/notifier хвосты, которые ещё держатся на legacy-compatible фасадах
+- [ ] Решить, где следующий уровень проверки должен стать integration/e2e, а не только targeted runtime/unit net
 
 ### Фаза 3: Следующий архитектурный уровень
 - [ ] Унифицировать shared config/runtime contract между `spring-panel` и `java-bot`
@@ -487,7 +549,9 @@ defaults и частично legacy-compatible фасадах.
 1. Дожать service-level split `DialogService` и сузить remaining workspace/orchestration consumers
 2. Добить remaining `settings` subdomains и persistence boundaries
 3. Продолжить расширять `Phase 6` от targeted service/WebMvc tests к более широким integration-сценариям shared config/runtime и panel-bot orchestration boundary
-4. После этого возвращаться к shared-config unification и DTO/error contract
+4. Отдельно удерживать autostart/network/runtime boundary под regression net, чтобы новые refactor-проходы не возвращали хрупкость `null/exception` на одном канале
+5. Отдельно удерживать bot-process/auth-management orchestration boundary под regression net, чтобы structured error/persistence contract не расползался
+6. После этого возвращаться к shared-config unification и DTO/error contract
 
 **Автор исходного аудита:** GitHub Copilot  
-**Статус:** Документ актуализирован под состояние кода на 23 апреля 2026
+**Статус:** Документ актуализирован под состояние кода на 24 апреля 2026

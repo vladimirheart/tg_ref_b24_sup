@@ -35,24 +35,30 @@ public class BotAutoStartService {
             List<Channel> channels = channelRepository.findAll();
             int started = 0;
             for (Channel channel : channels) {
-                if (channel == null || channel.getId() == null) {
-                    continue;
-                }
-                if (!Boolean.TRUE.equals(channel.getActive())) {
-                    continue;
-                }
-                if (!isCredentialActive(channel)) {
-                    continue;
-                }
-                if (botProcessService.status(channel.getId()).running()) {
-                    continue;
-                }
-                BotProcessService.BotProcessStatus status = botProcessService.start(channel);
-                if (status.running()) {
-                    started++;
-                    log.info("Auto-started bot for channel {} ({})", channel.getId(), channel.getChannelName());
-                } else {
-                    log.warn("Failed to auto-start bot for channel {}: {}", channel.getId(), status.message());
+                try {
+                    if (channel == null || channel.getId() == null) {
+                        continue;
+                    }
+                    if (!Boolean.TRUE.equals(channel.getActive())) {
+                        continue;
+                    }
+                    if (!isCredentialActive(channel)) {
+                        continue;
+                    }
+                    BotProcessService.BotProcessStatus currentStatus = botProcessService.status(channel.getId());
+                    if (currentStatus != null && currentStatus.running()) {
+                        continue;
+                    }
+                    BotProcessService.BotProcessStatus status = botProcessService.start(channel);
+                    if (status != null && status.running()) {
+                        started++;
+                        log.info("Auto-started bot for channel {} ({})", channel.getId(), channel.getChannelName());
+                    } else {
+                        String message = status != null ? status.message() : "runtime returned null status";
+                        log.warn("Failed to auto-start bot for channel {}: {}", channel.getId(), message);
+                    }
+                } catch (Exception channelEx) {
+                    log.warn("Auto-start failed for channel {} ({})", channel.getId(), channel.getChannelName(), channelEx);
                 }
             }
             log.info("Bot auto-start completed. Started {} active bot(s).", started);

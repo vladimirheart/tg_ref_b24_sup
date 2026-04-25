@@ -425,6 +425,31 @@
   `continue after failed start`;
   `ChannelApiControllerWebMvcTest` добран ветками
   `test-message all failed` и `manual recipient only`;
+- следующим крупным пакетом `Phase 6` расширен сразу по трём соседним
+  boundary-слоям `auth/runtime/network`:
+  `AuthManagementApiControllerWebMvcTest` теперь прикрывает users/roles CRUD
+  edge-cases и success-сценарии (`duplicate`, `empty update`, `not found`,
+  `role in use`, `successful delete/update`);
+  `IntegrationNetworkServiceTest` добран direct/profile failover context,
+  incomplete proxy profile и direct env contract;
+  `BotRuntimeContractServiceTest` добран ветками `vpn/default telegram`,
+  `minimal vk`, `unknown platform`, `target-scan warning` и
+  `jar-mode missing artifact`;
+- в этом же пакете исправлен реальный runtime defect:
+  `BotRuntimeContractService.buildEnvironment()` больше не теряет базовые
+  `JAVA_TOOL_OPTIONS` при network route, а merge-ит network-level options
+  поверх base UTF-8/runtime flags.
+- следующим расширенным пакетом `Phase 6` добран ещё глубже по
+  `shared-config/channel-runtime/launcher-state` boundary:
+  `SharedConfigServiceTest` теперь покрывает invalid JSON fallback для
+  `settings/locations/org_structure/bot_credentials`;
+  `ChannelApiControllerWebMvcTest` — create/update/runtime validation
+  edge-cases (`missing name`, `telegram without token`,
+  `vk without callback config`, `empty update payload`,
+  `missing token`, `missing message`);
+  `BotProcessServiceTest` — launcher/state ветки
+  `status stopped`, `resolveExecutableJar -> null` и explicit `jar`
+  launch plan по configured artifact.
 - targeted unit tests для вынесенных `settings` subdomain services:
   `SettingsDialogRuntimeConfigServiceTest`,
   `SettingsDialogPublicFormConfigServiceTest`,
@@ -462,6 +487,21 @@
   теперь explicit `data-ui-page` и ранний `ui-head` bootstrap проверяются ещё
   для `channels`, `tasks`, `users`, `object-passports`, `public forms` и
   аналитических subpages `certificates/rms-control`.
+- `Phase 6` дополнительно расширен на `auth/profile/runtime controller`
+  boundary: `ProfileApiControllerWebMvcTest` покрывает unauthorized contract
+  `ui-preferences` и основной password-flow; `AuthManagementApiControllerWebMvcTest`
+  прикрывает `/api/users/{id}/password` и `photo-upload`; `BotProcessApiController`
+  сделан null-safe для `start/stop/status`, а WebMvc tests фиксируют `unknown`
+  fallback при null-ответе runtime service.
+- следующим расширенным пакетом `Phase 6` добран глубже по
+  `auth/profile/channel-management` boundary:
+  `ProfileApiControllerWebMvcTest` теперь прикрывает `password_hash` branch;
+  `AuthManagementApiControllerWebMvcTest` — create-user persistence для
+  `password_hash/enabled/registration_date` и denied-ветки
+  `role.name/role.description`; `ChannelApiControllerWebMvcTest` —
+  empty list, failed Telegram bot-info refresh tolerance, blank credential
+  platform normalisation, default `is_active` и safe delete credential без
+  лишнего `saveAll()`.
 - этот же smoke-слой расширен на detail/subpage contract:
   `ai-ops`, `unblock requests`, `users/detail` и оба passport editor route
   (`/object-passports/new`, `/object-passports/{id}`) теперь тоже прикрыты
@@ -491,6 +531,12 @@
   `locations/org_structure/bot_credentials` и базового
   `auth/bot-process` orchestration-контракта на более широкий panel-bot
   contract и cross-module unification;
+- отдельно удерживать `autostart` и `integration network` runtime boundary
+  под regression net, потому что теперь там уже есть явная null-safe
+  обработка `status/start` и более широкий proxy/vpn/vless contract;
+- удерживать `bot process api` и `auth management` orchestration boundary
+  под тем же regression net, потому что там уже есть явный error contract,
+  launcher/runtime parsing и multi-column persistence scenarios;
 - при необходимости дотянуть orchestration-tests дальше до shared-config
   integration сценариев c реальным persistence/config boundary;
 - более широкий runtime contract test для launcher strategy и bot lifecycle.
@@ -512,8 +558,10 @@
 5. `Phase 5` уже начат в коде.
 6. `Phase 6` усилен адресными runtime/UI тестами и уже покрывает основной
    sliced dialog/settings controller layer, shared config/env foundation и
-   заметную часть page bootstrap contract, но пока не превращён в полноценную
-   safety net.
+   заметную часть page bootstrap contract; дополнительно туда уже вошли
+   `autostart`, `integration network`, `bot process api`, `auth management`
+   и panel-bot runtime edge-cases, но это всё ещё не полноценная
+   end-to-end safety net.
 
 ## Следующий Фокус
 
@@ -536,6 +584,8 @@
 3. Вернуться к `dialogs` и резать `DialogService` по service-level bounded
    contexts.
 4. Добить remaining `settings` subdomains, если они ещё остаются в общих слоях.
+5. После этого уже решать, где нужен следующий integration/e2e слой, а где
+   достаточно targeted runtime tests.
 
 ## Что не делать сейчас
 
