@@ -156,7 +156,16 @@ public class BotRuntimeContractService {
         appendEnvOption(env, "JAVA_TOOL_OPTIONS", "-Dsun.jnu.encoding=UTF-8");
         appendEnvOption(env, "JAVA_TOOL_OPTIONS", "-Dsun.stdout.encoding=UTF-8");
         appendEnvOption(env, "JAVA_TOOL_OPTIONS", "-Dsun.stderr.encoding=UTF-8");
-        env.putAll(integrationNetworkService.buildProcessEnvironment(integrationNetworkService.resolveBotRoute(channel)));
+        Map<String, String> networkEnv = integrationNetworkService.buildProcessEnvironment(
+            integrationNetworkService.resolveBotRoute(channel)
+        );
+        for (Map.Entry<String, String> entry : networkEnv.entrySet()) {
+            if ("JAVA_TOOL_OPTIONS".equals(entry.getKey())) {
+                appendEnvOption(env, "JAVA_TOOL_OPTIONS", entry.getValue());
+                continue;
+            }
+            env.put(entry.getKey(), entry.getValue());
+        }
         return env;
     }
 
