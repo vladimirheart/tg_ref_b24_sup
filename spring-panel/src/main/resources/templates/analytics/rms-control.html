@@ -33,6 +33,29 @@
         .font-mono {
             font-family: var(--bs-font-monospace);
         }
+        .diagnostics-pre {
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+            max-height: 24rem;
+            overflow-y: auto;
+        }
+        .diagnostics-summary-list {
+            display: grid;
+            gap: .5rem;
+        }
+        .diagnostics-summary-item {
+            border: 1px solid rgba(108, 117, 125, .18);
+            border-radius: .75rem;
+            padding: .625rem .75rem;
+            background: rgba(248, 249, 250, .75);
+        }
+        .diagnostics-summary-label {
+            display: block;
+            font-size: .75rem;
+            color: var(--bs-secondary-color);
+            margin-bottom: .125rem;
+        }
     </style>
 </head>
 <body class="with-sidebar sidebar-pinned" data-ui-page="analytics">
@@ -216,19 +239,19 @@
             <div class="modal-body">
                 <div class="mb-3">
                     <div class="fw-semibold mb-2">Сводка</div>
-                    <div id="rmsDiagnosticsSummary" class="d-flex flex-wrap gap-2 text-muted">Нет данных.</div>
+                    <div id="rmsDiagnosticsSummary" class="diagnostics-summary-list text-muted">Нет данных.</div>
                 </div>
                 <div class="mb-3">
                     <div class="fw-semibold mb-2">Ping</div>
-                    <pre id="rmsDiagnosticsPingOutput" class="border rounded p-3 bg-body-tertiary small mb-0 text-wrap">Нет данных.</pre>
+                    <pre id="rmsDiagnosticsPingOutput" class="diagnostics-pre border rounded p-3 bg-body-tertiary small mb-0">Нет данных.</pre>
                 </div>
                 <div class="mb-3">
                     <div class="fw-semibold mb-2">Трассировка</div>
-                    <pre id="rmsDiagnosticsTracerouteOutput" class="border rounded p-3 bg-body-tertiary small mb-0 text-wrap">Нет данных.</pre>
+                    <pre id="rmsDiagnosticsTracerouteOutput" class="diagnostics-pre border rounded p-3 bg-body-tertiary small mb-0">Нет данных.</pre>
                 </div>
                 <div>
                     <div class="fw-semibold mb-2">Лицензионная диагностика</div>
-                    <pre id="rmsDiagnosticsLicenseOutput" class="border rounded p-3 bg-body-tertiary small mb-0 text-wrap">Нет данных.</pre>
+                    <pre id="rmsDiagnosticsLicenseOutput" class="diagnostics-pre border rounded p-3 bg-body-tertiary small mb-0">Нет данных.</pre>
                 </div>
             </div>
             <div class="modal-footer">

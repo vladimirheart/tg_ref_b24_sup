@@ -54,6 +54,34 @@
       .replace(/'/g, '&#039;');
   }
 
+  function normalizeDiagnosticText(value, fallback) {
+    const source = value === null || value === undefined || value === '' ? fallback : String(value);
+    if (!source) return '';
+    const normalized = source.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
+    if (!normalized) return fallback || '';
+    if (!/[РÐÑâ]/.test(normalized)) {
+      return normalized;
+    }
+    try {
+      const repaired = new TextDecoder('utf-8').decode(Uint8Array.from(normalized, (char) => char.charCodeAt(0) & 0xff)).trim();
+      if (repaired && !/[РÐÑâ]/.test(repaired)) {
+        return repaired;
+      }
+    } catch (error) {
+      void error;
+    }
+    return normalized;
+  }
+
+  function diagnosticsSummaryItem(label, value) {
+    return `
+      <div class="diagnostics-summary-item">
+        <span class="diagnostics-summary-label">${escapeHtml(label)}</span>
+        <div>${escapeHtml(normalizeDiagnosticText(value, '—'))}</div>
+      </div>
+    `;
+  }
+
   function showMessage(message, type) {
     if (typeof window.showPopup === 'function') {
       window.showPopup(message, type);
@@ -488,22 +516,22 @@
     const title = data.server_name || data.rms_address || 'RMS';
     diagnosticsMeta.textContent = `${title} • лицензии: ${formatDateTime(data.license_last_checked_at)} • сеть: ${formatDateTime(data.rms_last_checked_at)}`;
     diagnosticsSummary.innerHTML = `
-      <span class="badge text-bg-light border">license_status: ${escapeHtml(data.license_status || '—')}</span>
-      <span class="badge text-bg-light border">rms_status: ${escapeHtml(data.rms_status || '—')}</span>
-      <span class="badge text-bg-light border">license_error: ${escapeHtml(data.license_error_message || '—')}</span>
-      <span class="badge text-bg-light border">network_msg: ${escapeHtml(data.rms_status_message || '—')}</span>
-      ${data.traceroute_summary ? `<span class="badge text-bg-light border">traceroute: ${escapeHtml(data.traceroute_summary)}</span>` : ''}
+      ${diagnosticsSummaryItem('Статус лицензии', data.license_status || '—')}
+      ${diagnosticsSummaryItem('Статус RMS', data.rms_status || '—')}
+      ${diagnosticsSummaryItem('Ошибка лицензии', data.license_error_message || '—')}
+      ${diagnosticsSummaryItem('Сетевое сообщение', data.rms_status_message || '—')}
+      ${data.traceroute_summary ? diagnosticsSummaryItem('Сводка трассировки', data.traceroute_summary) : ''}
     `;
-    diagnosticsPingOutput.textContent = String(data.ping_output || 'Нет сохранённого ping output.');
-    diagnosticsTracerouteOutput.textContent = String(data.traceroute_report || 'Нет сохранённой трассировки.');
-    diagnosticsLicenseOutput.textContent = String(data.license_debug_excerpt || data.license_error_message || 'Нет лицензионной диагностики.');
+    diagnosticsPingOutput.textContent = normalizeDiagnosticText(data.ping_output, 'Нет сохранённого ping output.');
+    diagnosticsTracerouteOutput.textContent = normalizeDiagnosticText(data.traceroute_report, 'Нет сохранённой трассировки.');
+    diagnosticsLicenseOutput.textContent = normalizeDiagnosticText(data.license_debug_excerpt || data.license_error_message, 'Нет лицензионной диагностики.');
   }
 
   async function openDiagnostics(siteId) {
     if (!diagnosticsModal || !diagnosticsMeta || !diagnosticsSummary || !diagnosticsPingOutput || !diagnosticsTracerouteOutput || !diagnosticsLicenseOutput) return;
     const site = findSite(siteId);
     diagnosticsMeta.textContent = site?.server_name || site?.rms_address_display || 'Загрузка...';
-    diagnosticsSummary.innerHTML = '<span class="text-muted">Загрузка...</span>';
+    diagnosticsSummary.innerHTML = '<div class="text-muted">Загрузка...</div>';
     diagnosticsPingOutput.textContent = 'Загрузка...';
     diagnosticsTracerouteOutput.textContent = 'Загрузка...';
     diagnosticsLicenseOutput.textContent = 'Загрузка...';
@@ -512,7 +540,7 @@
       const data = await requestJson(`/api/monitoring/rms/sites/${siteId}/diagnostics`);
       renderDiagnosticsModal(data);
     } catch (error) {
-      diagnosticsSummary.innerHTML = `<span class="text-danger">${escapeHtml(error.message || 'Не удалось загрузить диагностику.')}</span>`;
+      diagnosticsSummary.innerHTML = `<div class="text-danger">${escapeHtml(error.message || 'Не удалось загрузить диагностику.')}</div>`;
       diagnosticsPingOutput.textContent = 'Нет данных.';
       diagnosticsTracerouteOutput.textContent = 'Нет данных.';
       diagnosticsLicenseOutput.textContent = 'Нет данных.';
