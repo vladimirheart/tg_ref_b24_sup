@@ -480,6 +480,7 @@ public class RmsLicenseMonitoringService {
             }
             repository.save(monitor);
         } catch (Exception ex) {
+            String errorMessage = resolveExceptionMessage(ex, "Не удалось обновить лицензию RMS");
             if (ex instanceof LicenseSnapshotException snapshotException) {
                 if (StringUtils.hasText(snapshotException.detailsJson())) {
                     monitor.setLicenseDetailsJson(snapshotException.detailsJson());
@@ -489,9 +490,9 @@ public class RmsLicenseMonitoringService {
                 }
             }
             monitor.setLicenseStatus(LICENSE_STATUS_ERROR);
-            monitor.setLicenseErrorMessage(trimText(ex.getMessage(), 600, "Не удалось обновить лицензию RMS"));
+            monitor.setLicenseErrorMessage(trimText(errorMessage, 600, "Не удалось обновить лицензию RMS"));
             repository.save(monitor);
-            log.warn("RMS license refresh failed for {}: {}", monitor.getRmsAddress(), ex.getMessage());
+            log.warn("RMS license refresh failed for {}: {}", monitor.getRmsAddress(), errorMessage);
         }
     }
 
@@ -537,10 +538,11 @@ public class RmsLicenseMonitoringService {
             }
             repository.save(monitor);
         } catch (Exception ex) {
+            String errorMessage = resolveExceptionMessage(ex, "Не удалось проверить доступность RMS");
             monitor.setRmsStatus(RMS_STATUS_DOWN);
-            monitor.setRmsStatusMessage(trimText(ex.getMessage(), 600, "Не удалось проверить доступность RMS"));
+            monitor.setRmsStatusMessage(trimText(errorMessage, 600, "Не удалось проверить доступность RMS"));
             repository.save(monitor);
-            log.warn("RMS network refresh failed for {}: {}", monitor.getRmsAddress(), ex.getMessage());
+            log.warn("RMS network refresh failed for {}: {}", monitor.getRmsAddress(), errorMessage);
         }
     }
 
@@ -1168,9 +1170,6 @@ public class RmsLicenseMonitoringService {
             return "";
         }
         String normalized = normalizeLineEndings(value);
-        if (!java.util.regex.Pattern.compile("[РÐÑâ]").matcher(normalized).find()) {
-            return normalized;
-        }
         byte[] bytes = new byte[normalized.length()];
         for (int index = 0; index < normalized.length(); index++) {
             bytes[index] = (byte) normalized.charAt(index);
@@ -1200,15 +1199,21 @@ public class RmsLicenseMonitoringService {
             char ch = value.charAt(index);
             if (ch == '\uFFFD') {
                 score += 100;
-            } else if (Character.isISOControl(ch) && ch != '\r' && ch != '\n' && ch != '\t') {
+                continue;
+            }
+            if (Character.isISOControl(ch) && ch != '\r' && ch != '\n' && ch != '\t') {
                 score += 5;
+                continue;
+            }
+            if (isBoxDrawingChar(ch)) {
+                score += 3;
+                continue;
+            }
+            if (isSuspiciousMojibakeChar(ch)) {
+                score += 3;
             }
         }
-        score += countOccurrences(value, "Р") * 3;
-        score += countOccurrences(value, "Ð") * 3;
-        score += countOccurrences(value, "Ñ") * 3;
-        score += countOccurrences(value, "â") * 2;
-        if (value.matches(".*[А-Яа-яЁё].*")) {
+        if (containsCyrillic(value)) {
             score -= 8;
         }
         if (value.contains("<") && value.contains(">")) {
@@ -1217,6 +1222,44 @@ public class RmsLicenseMonitoringService {
         return score;
     }
 
+    private void addCandidate(List<String> candidates, String value) {
+        if (StringUtils.hasText(value) && !candidates.contains(value)) {
+            candidates.add(value);
+        }
+    }
+
+    private String recodeText(String value, Charset sourceCharset, Charset targetCharset) {
+        if (!StringUtils.hasText(value) || sourceCharset == null || targetCharset == null) {
+            return "";
+        }
+        byte[] bytes = value.getBytes(sourceCharset);
+        return normalizeLineEndings(new String(bytes, targetCharset));
+    }
+
+    private boolean containsCyrillic(String value) {
+        if (!StringUtils.hasText(value)) {
+            return false;
+        }
+        for (int index = 0; index < value.length(); index++) {
+            char ch = value.charAt(index);
+            if ((ch >= '\u0410' && ch <= '\u044F') || ch == '\u0401' || ch == '\u0451') {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isBoxDrawingChar(char ch) {
+        return ch >= '\u2500' && ch <= '\u257F';
+    }
+
+    private boolean isSuspiciousMojibakeChar(char ch) {
+        return ch == '\u00D0'
+            || ch == '\u00D1'
+            || ch == '\u00E2'
+            || ch == '\u00C2'
+            || ch == '\u00C3';
+    }
     private int countOccurrences(String value, String token) {
         int count = 0;
         int offset = 0;
@@ -1235,7 +1278,7 @@ public class RmsLicenseMonitoringService {
         if (StringUtils.hasText(decoded) && !looksLikeBrokenText(decoded)) {
             return decoded;
         }
-        String current = trimText(currentServerName, 255, "");
+        String current = trimText(repairDisplayedText(currentServerName), 255, "");
         if (StringUtils.hasText(current) && !looksLikeBrokenText(current)) {
             return current;
         }
@@ -1294,15 +1337,32 @@ public class RmsLicenseMonitoringService {
             return "";
         }
         String normalized = normalizeLineEndings(HtmlUtils.htmlUnescape(value));
-        byte[] bytes = new byte[normalized.length()];
-        for (int index = 0; index < normalized.length(); index++) {
-            bytes[index] = (byte) normalized.charAt(index);
+        List<String> candidates = new java.util.ArrayList<>();
+        candidates.add(normalized);
+        addCandidate(candidates, recodeText(normalized, WINDOWS_OEM_CHARSET, StandardCharsets.UTF_8));
+        addCandidate(candidates, recodeText(normalized, WINDOWS_ANSI_CHARSET, StandardCharsets.UTF_8));
+        addCandidate(candidates, recodeText(normalized, StandardCharsets.UTF_8, WINDOWS_ANSI_CHARSET));
+        addCandidate(candidates, recodeText(normalized, StandardCharsets.UTF_8, WINDOWS_OEM_CHARSET));
+        addCandidate(candidates, decodeMaybeMojibake(normalized));
+
+        String best = normalized;
+        int bestScore = scoreDecodedText(normalized);
+        for (String candidate : candidates) {
+            if (!StringUtils.hasText(candidate)) {
+                continue;
+            }
+            int score = scoreDecodedText(candidate);
+            if (looksLikeBrokenText(best) && !looksLikeBrokenText(candidate)) {
+                best = candidate;
+                bestScore = score;
+                continue;
+            }
+            if (score < bestScore) {
+                best = candidate;
+                bestScore = score;
+            }
         }
-        String repaired = decodeBytes(bytes, StandardCharsets.UTF_8, WINDOWS_ANSI_CHARSET, WINDOWS_OEM_CHARSET);
-        if (looksLikeBrokenText(normalized) && !looksLikeBrokenText(repaired)) {
-            return repaired;
-        }
-        return scoreDecodedText(repaired) < scoreDecodedText(normalized) ? repaired : normalized;
+        return best;
     }
 
     private boolean looksLikeBrokenText(String value) {
@@ -1310,17 +1370,27 @@ public class RmsLicenseMonitoringService {
             return false;
         }
         String trimmed = value.trim();
-        if (trimmed.matches(".*[А-Яа-яЁё].*")) {
+        if (containsCyrillic(trimmed)) {
             return false;
         }
-        return trimmed.contains("╨")
-            || trimmed.contains("╤")
-            || trimmed.contains("Р")
-            || trimmed.contains("Ð")
-            || trimmed.contains("Ñ")
+        return trimmed.contains("в•Ё")
+            || trimmed.contains("в•¤")
+            || isLikelyBoxDrawingMojibake(trimmed)
             || scoreDecodedText(trimmed) >= 12;
     }
 
+    private boolean isLikelyBoxDrawingMojibake(String value) {
+        if (!StringUtils.hasText(value)) {
+            return false;
+        }
+        for (int index = 0; index < value.length(); index++) {
+            char ch = value.charAt(index);
+            if (isBoxDrawingChar(ch) || isSuspiciousMojibakeChar(ch)) {
+                return true;
+            }
+        }
+        return false;
+    }
     private String formatDiagnosticText(String value, int limit) {
         String normalized = normalizeLineEndings(HtmlUtils.htmlUnescape(value));
         if (!StringUtils.hasText(normalized)) {
@@ -1366,6 +1436,20 @@ public class RmsLicenseMonitoringService {
         return normalized.replaceAll("[^a-z0-9а-я]+", " ").trim().replaceAll("\\s+", " ");
     }
 
+
+    private String resolveExceptionMessage(Throwable throwable, String fallbackMessage) {
+        if (throwable == null) {
+            return fallbackMessage;
+        }
+        if (StringUtils.hasText(throwable.getMessage())) {
+            return throwable.getMessage().trim();
+        }
+        String simpleName = throwable.getClass().getSimpleName();
+        if (StringUtils.hasText(simpleName)) {
+            return fallbackMessage + " (" + simpleName + ")";
+        }
+        return fallbackMessage;
+    }
     private List<Map<String, String>> parseLicenseDetails(Document xml) {
         List<Map<String, String>> items = new java.util.ArrayList<>();
         NodeList licenses = xml.getElementsByTagName("license");
