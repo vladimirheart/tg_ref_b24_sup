@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.springframework.web.util.HtmlUtils;
 import org.w3c.dom.Document;
 import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
@@ -50,6 +51,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -655,12 +657,13 @@ public class RmsLicenseMonitoringService {
         );
         Document xml = parseXml(response);
         List<Map<String, String>> details = parseLicenseDetails(xml);
+        String diagnosticExcerpt = buildLicenseDiagnosticExcerpt(response, xml);
         Map<String, String> targetLicense = findTargetLicense(details);
         if (targetLicense == null) {
             throw new LicenseSnapshotException(
                 "Не найдена лицензия RMS (Front Fast Food) с id=100",
                 writeLicenseDetails(details),
-                formatDiagnosticText(response, 12_000)
+                diagnosticExcerpt
             );
         }
         OffsetDateTime targetExpiration = resolveLicenseExpiration(targetLicense);
@@ -668,11 +671,11 @@ public class RmsLicenseMonitoringService {
             throw new LicenseSnapshotException(
                 "Не удалось определить дату окончания лицензии RMS (Front Fast Food) [id=100]",
                 writeLicenseDetails(details),
-                formatDiagnosticText(response, 12_000)
+                diagnosticExcerpt
             );
         }
         int daysLeft = (int) ChronoUnit.DAYS.between(LocalDate.now(ZoneOffset.UTC), targetExpiration.toLocalDate());
-        return new LicenseSnapshot(targetExpiration, daysLeft, writeLicenseDetails(details), formatDiagnosticText(response, 12_000));
+        return new LicenseSnapshot(targetExpiration, daysLeft, writeLicenseDetails(details), diagnosticExcerpt);
     }
 
     private String buildPingSuccessMessage(String host, String pingOutput) {
@@ -1160,6 +1163,22 @@ public class RmsLicenseMonitoringService {
         return normalizeLineEndings(best);
     }
 
+    private String decodeMaybeMojibake(String value) {
+        if (!StringUtils.hasText(value)) {
+            return "";
+        }
+        String normalized = normalizeLineEndings(value);
+        if (!java.util.regex.Pattern.compile("[РÐÑâ]").matcher(normalized).find()) {
+            return normalized;
+        }
+        byte[] bytes = new byte[normalized.length()];
+        for (int index = 0; index < normalized.length(); index++) {
+            bytes[index] = (byte) normalized.charAt(index);
+        }
+        String repaired = decodeBytes(bytes, StandardCharsets.UTF_8, WINDOWS_ANSI_CHARSET, WINDOWS_OEM_CHARSET);
+        return scoreDecodedText(repaired) < scoreDecodedText(normalized) ? repaired : normalized;
+    }
+
     private String decodeStrict(byte[] bytes, Charset charset) {
         try {
             return charset.newDecoder()
@@ -1212,11 +1231,11 @@ public class RmsLicenseMonitoringService {
     }
 
     private String formatDiagnosticText(String value, int limit) {
-        String normalized = normalizeLineEndings(value);
+        String normalized = normalizeLineEndings(HtmlUtils.htmlUnescape(value));
         if (!StringUtils.hasText(normalized)) {
             return "";
         }
-        String formatted = normalized.trim();
+        String formatted = decodeMaybeMojibake(normalized).trim();
         if (looksLikeXml(formatted)) {
             formatted = prettyPrintXml(formatted);
         }
@@ -1279,7 +1298,197 @@ public class RmsLicenseMonitoringService {
                 items.add(item);
             }
         }
+        if (!items.isEmpty()) {
+            return items;
+        }
+        return parseEncodedLicenseData(xml);
+    }
+
+    private List<Map<String, String>> parseEncodedLicenseData(Document xml) {
+        String encodedLicenseData = extractFirstText(xml, "licenseData");
+        if (!StringUtils.hasText(encodedLicenseData)) {
+            return List.of();
+        }
+        String rawLicenseData = HtmlUtils.htmlUnescape(encodedLicenseData).trim();
+        if (!looksLikeXml(rawLicenseData)) {
+            return List.of();
+        }
+        try {
+            Document innerXml = parseXml(rawLicenseData);
+            return parseRestrictionsByModule(innerXml);
+        } catch (Exception ex) {
+            log.debug("Failed to parse encoded RMS licenseData payload", ex);
+            return List.of();
+        }
+    }
+
+    private List<Map<String, String>> parseRestrictionsByModule(Document licenseDataXml) {
+        Node restrictionsNode = firstElement(licenseDataXml.getElementsByTagName("restrictionsByModule"));
+        if (restrictionsNode == null) {
+            return List.of();
+        }
+        String licenseSerial = extractFirstText(licenseDataXml, "serialNumber");
+        String companyName = decodeMaybeMojibake(extractFirstText(licenseDataXml, "companyName"));
+        String generatedAt = extractFirstText(licenseDataXml, "generated");
+        String overallExpiration = extractFirstText(licenseDataXml, "expiration");
+        Map<String, Node> moduleNodes = parseModuleValueNodes(restrictionsNode);
+        List<Map<String, String>> items = new java.util.ArrayList<>();
+        for (Map.Entry<String, Node> entry : moduleNodes.entrySet()) {
+            LinkedHashMap<String, String> item = buildLicenseItemFromModule(entry.getKey(), entry.getValue(), licenseSerial, companyName, generatedAt, overallExpiration);
+            if (!item.isEmpty()) {
+                items.add(item);
+            }
+        }
         return items;
+    }
+
+    private Map<String, Node> parseModuleValueNodes(Node restrictionsNode) {
+        Map<String, Node> modules = new TreeMap<>();
+        String pendingKey = null;
+        NodeList children = restrictionsNode.getChildNodes();
+        for (int index = 0; index < children.getLength(); index++) {
+            Node child = children.item(index);
+            if (child == null || child.getNodeType() != Node.ELEMENT_NODE) {
+                continue;
+            }
+            if ("k".equalsIgnoreCase(child.getNodeName())) {
+                pendingKey = trimText(child.getTextContent(), 100, "");
+                continue;
+            }
+            if ("v".equalsIgnoreCase(child.getNodeName()) && StringUtils.hasText(pendingKey)) {
+                modules.put(pendingKey, child);
+                pendingKey = null;
+            }
+        }
+        return modules;
+    }
+
+    private LinkedHashMap<String, String> buildLicenseItemFromModule(String moduleId,
+                                                                     Node moduleValueNode,
+                                                                     String licenseSerial,
+                                                                     String companyName,
+                                                                     String generatedAt,
+                                                                     String overallExpiration) {
+        LinkedHashMap<String, String> item = new LinkedHashMap<>();
+        if (!StringUtils.hasText(moduleId) || moduleValueNode == null) {
+            return item;
+        }
+        item.put("id", moduleId);
+        item.put("module_id", moduleId);
+        item.put("title", resolveModuleTitle(moduleId));
+        item.put("license_name", resolveModuleTitle(moduleId));
+        if (StringUtils.hasText(licenseSerial)) {
+            item.put("serial_number", licenseSerial);
+        }
+        if (StringUtils.hasText(companyName)) {
+            item.put("company_name", companyName);
+        }
+        if (StringUtils.hasText(generatedAt)) {
+            item.put("generated", generatedAt);
+        }
+        if (StringUtils.hasText(overallExpiration)) {
+            item.put("license_expiration", overallExpiration);
+        }
+        appendNodeAttributes(item, moduleValueNode);
+        String thresholdId = extractFirstText(moduleValueNode, "id");
+        if (StringUtils.hasText(thresholdId)) {
+            item.putIfAbsent("restriction_id", thresholdId);
+        }
+        String thresholdClass = extractThresholdClass(moduleValueNode);
+        if (StringUtils.hasText(thresholdClass)) {
+            item.put("threshold_class", thresholdClass);
+        }
+        String moduleExpiration = extractModuleExpiration(moduleValueNode);
+        if (StringUtils.hasText(moduleExpiration)) {
+            item.put("expiration", moduleExpiration);
+            item.put("module_expiration", moduleExpiration);
+        }
+        String moduleFrom = extractFirstDescendantText(moduleValueNode, "from");
+        if (StringUtils.hasText(moduleFrom)) {
+            item.put("from", moduleFrom);
+        }
+        String connectionsCount = extractFirstDescendantText(moduleValueNode, "connectionsCount");
+        if (StringUtils.hasText(connectionsCount)) {
+            item.put("quantity", connectionsCount);
+            item.put("connections_count", connectionsCount);
+        }
+        item.putIfAbsent("state", isModuleActive(moduleExpiration) ? "active" : "unknown");
+        return item;
+    }
+
+    private String resolveModuleTitle(String moduleId) {
+        if (TARGET_LICENSE_ID.equals(moduleId)) {
+            return TARGET_LICENSE_TITLE;
+        }
+        return "Модуль " + moduleId;
+    }
+
+    private String extractThresholdClass(Node moduleValueNode) {
+        NodeList thresholds = ((org.w3c.dom.Element) moduleValueNode).getElementsByTagName("threshold");
+        Node thresholdNode = firstElement(thresholds);
+        if (thresholdNode == null) {
+            return "";
+        }
+        Node classAttribute = thresholdNode.getAttributes() != null ? thresholdNode.getAttributes().getNamedItem("cls") : null;
+        return classAttribute != null ? trimText(classAttribute.getNodeValue(), 255, "") : "";
+    }
+
+    private String extractModuleExpiration(Node moduleValueNode) {
+        for (String tagName : List.of("to", "expiration", "validTo", "valid_to", "threshold")) {
+            String value = extractFirstDescendantText(moduleValueNode, tagName);
+            if (!StringUtils.hasText(value)) {
+                continue;
+            }
+            if (parseFlexibleDate(value) != null) {
+                return value.trim();
+            }
+        }
+        return "";
+    }
+
+    private String extractFirstDescendantText(Node parent, String tagName) {
+        if (parent == null || !StringUtils.hasText(tagName)) {
+            return "";
+        }
+        if (parent instanceof org.w3c.dom.Element element) {
+            NodeList nodes = element.getElementsByTagName(tagName);
+            Node first = firstElement(nodes);
+            if (first != null) {
+                return trimText(first.getTextContent(), 500, "");
+            }
+        }
+        return "";
+    }
+
+    private boolean isModuleActive(String moduleExpiration) {
+        OffsetDateTime expiresAt = parseFlexibleDate(moduleExpiration);
+        return expiresAt != null && !expiresAt.isBefore(OffsetDateTime.now(ZoneOffset.UTC));
+    }
+
+    private Node firstElement(NodeList nodes) {
+        if (nodes == null) {
+            return null;
+        }
+        for (int index = 0; index < nodes.getLength(); index++) {
+            Node node = nodes.item(index);
+            if (node != null && node.getNodeType() == Node.ELEMENT_NODE) {
+                return node;
+            }
+        }
+        return null;
+    }
+
+    private String buildLicenseDiagnosticExcerpt(String response, Document xml) {
+        String encodedLicenseData = extractFirstText(xml, "licenseData");
+        if (StringUtils.hasText(encodedLicenseData)) {
+            String rawLicenseData = HtmlUtils.htmlUnescape(encodedLicenseData);
+            String decodedLicenseData = decodeMaybeMojibake(rawLicenseData);
+            String formattedInner = formatDiagnosticText(decodedLicenseData, 12_000);
+            if (StringUtils.hasText(formattedInner)) {
+                return formattedInner;
+            }
+        }
+        return formatDiagnosticText(response, 12_000);
     }
 
     private Map<String, String> findTargetLicense(List<Map<String, String>> details) {
