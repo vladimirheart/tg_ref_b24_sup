@@ -1390,7 +1390,7 @@ public class RmsLicenseMonitoringService {
             item.put("license_expiration", overallExpiration);
         }
         appendNodeAttributes(item, moduleValueNode);
-        String thresholdId = extractFirstText(moduleValueNode, "id");
+        String thresholdId = extractFirstDescendantText(moduleValueNode, "id");
         if (StringUtils.hasText(thresholdId)) {
             item.putIfAbsent("restriction_id", thresholdId);
         }
