@@ -607,7 +607,7 @@ public class RmsLicenseMonitoringService {
         String baseUrl = buildBaseUrl(monitor);
         String serverInfoResponse = getText(baseUrl + "/resto/get_server_info.jsp?encoding=UTF-8");
         Document serverInfoXml = parseXml(serverInfoResponse);
-        String serverName = extractFirstText(serverInfoXml, "serverName");
+        String serverName = sanitizeServerName(extractFirstText(serverInfoXml, "serverName"), monitor.getServerName(), monitor.getHost());
         String serverVersion = extractFirstText(serverInfoXml, "version");
         String edition = normalizeEdition(extractFirstText(serverInfoXml, "edition"));
 
@@ -1230,12 +1230,59 @@ public class RmsLicenseMonitoringService {
         }
     }
 
+    private String sanitizeServerName(String rawServerName, String currentServerName, String fallbackHost) {
+        String decoded = trimText(repairDisplayedText(rawServerName), 255, "");
+        if (StringUtils.hasText(decoded) && !looksLikeBrokenText(decoded)) {
+            return decoded;
+        }
+        String current = trimText(currentServerName, 255, "");
+        if (StringUtils.hasText(current) && !looksLikeBrokenText(current)) {
+            return current;
+        }
+        if (StringUtils.hasText(decoded)) {
+            return decoded;
+        }
+        return trimText(fallbackHost, 255, fallbackHost);
+    }
+
+    private String repairDisplayedText(String value) {
+        if (!StringUtils.hasText(value)) {
+            return "";
+        }
+        String normalized = normalizeLineEndings(HtmlUtils.htmlUnescape(value));
+        byte[] bytes = new byte[normalized.length()];
+        for (int index = 0; index < normalized.length(); index++) {
+            bytes[index] = (byte) normalized.charAt(index);
+        }
+        String repaired = decodeBytes(bytes, StandardCharsets.UTF_8, WINDOWS_ANSI_CHARSET, WINDOWS_OEM_CHARSET);
+        if (looksLikeBrokenText(normalized) && !looksLikeBrokenText(repaired)) {
+            return repaired;
+        }
+        return scoreDecodedText(repaired) < scoreDecodedText(normalized) ? repaired : normalized;
+    }
+
+    private boolean looksLikeBrokenText(String value) {
+        if (!StringUtils.hasText(value)) {
+            return false;
+        }
+        String trimmed = value.trim();
+        if (trimmed.matches(".*[А-Яа-яЁё].*")) {
+            return false;
+        }
+        return trimmed.contains("╨")
+            || trimmed.contains("╤")
+            || trimmed.contains("Р")
+            || trimmed.contains("Ð")
+            || trimmed.contains("Ñ")
+            || scoreDecodedText(trimmed) >= 12;
+    }
+
     private String formatDiagnosticText(String value, int limit) {
         String normalized = normalizeLineEndings(HtmlUtils.htmlUnescape(value));
         if (!StringUtils.hasText(normalized)) {
             return "";
         }
-        String formatted = decodeMaybeMojibake(normalized).trim();
+        String formatted = repairDisplayedText(normalized).trim();
         if (looksLikeXml(formatted)) {
             formatted = prettyPrintXml(formatted);
         }
@@ -1328,7 +1375,7 @@ public class RmsLicenseMonitoringService {
             return List.of();
         }
         String licenseSerial = extractFirstText(licenseDataXml, "serialNumber");
-        String companyName = decodeMaybeMojibake(extractFirstText(licenseDataXml, "companyName"));
+        String companyName = repairDisplayedText(extractFirstText(licenseDataXml, "companyName"));
         String generatedAt = extractFirstText(licenseDataXml, "generated");
         String overallExpiration = extractFirstText(licenseDataXml, "expiration");
         Map<String, Node> moduleNodes = parseModuleValueNodes(restrictionsNode);
@@ -1482,7 +1529,7 @@ public class RmsLicenseMonitoringService {
         String encodedLicenseData = extractFirstText(xml, "licenseData");
         if (StringUtils.hasText(encodedLicenseData)) {
             String rawLicenseData = HtmlUtils.htmlUnescape(encodedLicenseData);
-            String decodedLicenseData = decodeMaybeMojibake(rawLicenseData);
+            String decodedLicenseData = repairDisplayedText(rawLicenseData);
             String formattedInner = formatDiagnosticText(decodedLicenseData, 12_000);
             if (StringUtils.hasText(formattedInner)) {
                 return formattedInner;
