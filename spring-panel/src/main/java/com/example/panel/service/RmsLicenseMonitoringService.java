@@ -462,11 +462,11 @@ public class RmsLicenseMonitoringService {
 
         try {
             ServerMetadata metadata = fetchServerMetadata(monitor);
-            monitor.setServerName(metadata.serverName());
             monitor.setServerType(metadata.serverType());
             monitor.setServerVersion(metadata.serverVersion());
 
             LicenseSnapshot license = fetchLicenseSnapshot(monitor, metadata.serverEdition(), metadata.serverVersion());
+            monitor.setServerName(resolveDisplayServerName(metadata.serverName(), monitor.getServerName(), monitor.getHost(), license.detailsJson()));
             monitor.setLicenseExpiresAt(license.expiresAt());
             monitor.setLicenseDaysLeft(license.daysLeft());
             monitor.setLicenseDetailsJson(license.detailsJson());
@@ -1239,10 +1239,54 @@ public class RmsLicenseMonitoringService {
         if (StringUtils.hasText(current) && !looksLikeBrokenText(current)) {
             return current;
         }
-        if (StringUtils.hasText(decoded)) {
+        if (StringUtils.hasText(decoded) && !looksLikeBrokenText(decoded)) {
             return decoded;
         }
         return trimText(fallbackHost, 255, fallbackHost);
+    }
+
+    private String resolveDisplayServerName(String metadataServerName,
+                                            String currentServerName,
+                                            String fallbackHost,
+                                            String detailsJson) {
+        String sanitizedMetadata = sanitizeServerName(metadataServerName, currentServerName, fallbackHost);
+        if (StringUtils.hasText(sanitizedMetadata) && !looksLikeBrokenText(sanitizedMetadata) && !sanitizedMetadata.equals(fallbackHost)) {
+            return sanitizedMetadata;
+        }
+        String companyName = extractCompanyNameFromLicenseDetails(detailsJson);
+        if (StringUtils.hasText(companyName) && !looksLikeBrokenText(companyName)) {
+            return trimText(companyName, 255, fallbackHost);
+        }
+        if (StringUtils.hasText(sanitizedMetadata) && !looksLikeBrokenText(sanitizedMetadata)) {
+            return sanitizedMetadata;
+        }
+        return trimText(fallbackHost, 255, fallbackHost);
+    }
+
+    private String extractCompanyNameFromLicenseDetails(String detailsJson) {
+        if (!StringUtils.hasText(detailsJson)) {
+            return "";
+        }
+        try {
+            List<LinkedHashMap<String, String>> items = objectMapper.readValue(
+                detailsJson,
+                new TypeReference<List<LinkedHashMap<String, String>>>() {
+                }
+            );
+            for (Map<String, String> item : items) {
+                String companyName = repairDisplayedText(firstNonBlank(
+                    item.get("company_name"),
+                    item.get("company"),
+                    item.get("organization_name")
+                ));
+                if (StringUtils.hasText(companyName) && !looksLikeBrokenText(companyName)) {
+                    return companyName;
+                }
+            }
+        } catch (Exception ex) {
+            log.debug("Failed to extract company_name from RMS license details", ex);
+        }
+        return "";
     }
 
     private String repairDisplayedText(String value) {
