@@ -3,6 +3,7 @@ package com.example.panel.repository;
 import com.example.panel.converter.LenientOffsetDateTimeConverter;
 import com.example.panel.entity.SslCertificateMonitor;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.dao.DataAccessException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -12,11 +13,13 @@ import java.sql.PreparedStatement;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 @Repository
 public class SslCertificateMonitorRepository {
 
     private static final LenientOffsetDateTimeConverter DATE_TIME_CONVERTER = new LenientOffsetDateTimeConverter();
+    private static final int[] BUSY_RETRY_DELAYS_MS = {150, 350, 750, 1_500};
 
     private static final RowMapper<SslCertificateMonitor> ROW_MAPPER = (rs, rowNum) -> {
         SslCertificateMonitor item = new SslCertificateMonitor();
@@ -94,7 +97,7 @@ public class SslCertificateMonitorRepository {
     }
 
     public void deleteById(Long id) {
-        jdbcTemplate.update("DELETE FROM ssl_certificate_monitors WHERE id = ?", id);
+        runWithBusyRetry(() -> jdbcTemplate.update("DELETE FROM ssl_certificate_monitors WHERE id = ?", id));
     }
 
     public SslCertificateMonitor save(SslCertificateMonitor item) {
@@ -106,7 +109,7 @@ public class SslCertificateMonitorRepository {
     }
 
     private SslCertificateMonitor insert(SslCertificateMonitor item) {
-        jdbcTemplate.update(connection -> {
+        runWithBusyRetry(() -> jdbcTemplate.update(connection -> {
             PreparedStatement ps = connection.prepareStatement(
                 """
                 INSERT INTO ssl_certificate_monitors (
@@ -118,7 +121,7 @@ public class SslCertificateMonitorRepository {
             );
             bindCommon(ps, item);
             return ps;
-        });
+        }));
         Number key = jdbcTemplate.queryForObject("SELECT last_insert_rowid()", Number.class);
         if (key != null) {
             item.setId(key.longValue());
@@ -127,7 +130,7 @@ public class SslCertificateMonitorRepository {
     }
 
     private void update(SslCertificateMonitor item) {
-        jdbcTemplate.update(
+        runWithBusyRetry(() -> jdbcTemplate.update(
             """
             UPDATE ssl_certificate_monitors
                SET site_name = ?,
@@ -159,7 +162,51 @@ public class SslCertificateMonitorRepository {
             formatOffsetDateTime(item.getCreatedAt()),
             formatOffsetDateTime(item.getUpdatedAt()),
             item.getId()
-        );
+        ));
+    }
+
+    private void runWithBusyRetry(Runnable action) {
+        runWithBusyRetry(() -> {
+            action.run();
+            return null;
+        });
+    }
+
+    private <T> T runWithBusyRetry(Supplier<T> action) {
+        DataAccessException lastException = null;
+        for (int attempt = 0; attempt <= BUSY_RETRY_DELAYS_MS.length; attempt++) {
+            try {
+                return action.get();
+            } catch (DataAccessException ex) {
+                if (!isBusyException(ex) || attempt == BUSY_RETRY_DELAYS_MS.length) {
+                    throw ex;
+                }
+                lastException = ex;
+                sleepBeforeRetry(BUSY_RETRY_DELAYS_MS[attempt]);
+            }
+        }
+        throw lastException;
+    }
+
+    private boolean isBusyException(Throwable ex) {
+        Throwable current = ex;
+        while (current != null) {
+            String message = current.getMessage();
+            if (message != null && (message.contains("SQLITE_BUSY") || message.contains("SQLITE_BUSY_SNAPSHOT"))) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
+    }
+
+    private void sleepBeforeRetry(long delayMs) {
+        try {
+            Thread.sleep(delayMs);
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Interrupted while waiting to retry SQLite write", interrupted);
+        }
     }
 
     private void bindCommon(PreparedStatement ps, SslCertificateMonitor item) throws java.sql.SQLException {

@@ -3,6 +3,7 @@ package com.example.panel.repository;
 import com.example.panel.converter.LenientOffsetDateTimeConverter;
 import com.example.panel.entity.RmsLicenseMonitor;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.dao.DataAccessException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -13,11 +14,13 @@ import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 @Repository
 public class RmsLicenseMonitorRepository {
 
     private static final LenientOffsetDateTimeConverter DATE_TIME_CONVERTER = new LenientOffsetDateTimeConverter();
+    private static final int[] BUSY_RETRY_DELAYS_MS = {150, 350, 750, 1_500};
 
     private static final RowMapper<RmsLicenseMonitor> ROW_MAPPER = (rs, rowNum) -> {
         RmsLicenseMonitor item = new RmsLicenseMonitor();
@@ -105,7 +108,7 @@ public class RmsLicenseMonitorRepository {
     }
 
     public void deleteById(Long id) {
-        jdbcTemplate.update("DELETE FROM rms_license_monitors WHERE id = ?", id);
+        runWithBusyRetry(() -> jdbcTemplate.update("DELETE FROM rms_license_monitors WHERE id = ?", id));
     }
 
     public RmsLicenseMonitor save(RmsLicenseMonitor item) {
@@ -125,7 +128,7 @@ public class RmsLicenseMonitorRepository {
     }
 
     private RmsLicenseMonitor insert(RmsLicenseMonitor item) {
-        jdbcTemplate.update(connection -> {
+        runWithBusyRetry(() -> jdbcTemplate.update(connection -> {
             PreparedStatement ps = connection.prepareStatement(
                 """
                 INSERT INTO rms_license_monitors (
@@ -142,7 +145,7 @@ public class RmsLicenseMonitorRepository {
             );
             bindCommon(ps, item);
             return ps;
-        });
+        }));
         Number key = jdbcTemplate.queryForObject("SELECT last_insert_rowid()", Number.class);
         if (key != null) {
             item.setId(key.longValue());
@@ -151,7 +154,7 @@ public class RmsLicenseMonitorRepository {
     }
 
     private void update(RmsLicenseMonitor item) {
-        jdbcTemplate.update(
+        runWithBusyRetry(() -> jdbcTemplate.update(
             """
             UPDATE rms_license_monitors
                SET rms_address = ?,
@@ -215,7 +218,51 @@ public class RmsLicenseMonitorRepository {
             formatOffsetDateTime(item.getCreatedAt()),
             formatOffsetDateTime(item.getUpdatedAt()),
             item.getId()
-        );
+        ));
+    }
+
+    private void runWithBusyRetry(Runnable action) {
+        runWithBusyRetry(() -> {
+            action.run();
+            return null;
+        });
+    }
+
+    private <T> T runWithBusyRetry(Supplier<T> action) {
+        DataAccessException lastException = null;
+        for (int attempt = 0; attempt <= BUSY_RETRY_DELAYS_MS.length; attempt++) {
+            try {
+                return action.get();
+            } catch (DataAccessException ex) {
+                if (!isBusyException(ex) || attempt == BUSY_RETRY_DELAYS_MS.length) {
+                    throw ex;
+                }
+                lastException = ex;
+                sleepBeforeRetry(BUSY_RETRY_DELAYS_MS[attempt]);
+            }
+        }
+        throw lastException;
+    }
+
+    private boolean isBusyException(Throwable ex) {
+        Throwable current = ex;
+        while (current != null) {
+            String message = current.getMessage();
+            if (message != null && (message.contains("SQLITE_BUSY") || message.contains("SQLITE_BUSY_SNAPSHOT"))) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
+    }
+
+    private void sleepBeforeRetry(long delayMs) {
+        try {
+            Thread.sleep(delayMs);
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Interrupted while waiting to retry SQLite write", interrupted);
+        }
     }
 
     private void bindCommon(PreparedStatement ps, RmsLicenseMonitor item) throws java.sql.SQLException {

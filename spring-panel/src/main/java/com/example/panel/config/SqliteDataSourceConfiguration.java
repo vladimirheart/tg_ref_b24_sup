@@ -15,7 +15,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.orm.jpa.JpaTransactionManager;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.util.StringUtils;
-import org.sqlite.SQLiteConfig;
 import org.sqlite.SQLiteDataSource;
 
 import jakarta.persistence.EntityManagerFactory;
@@ -60,10 +59,10 @@ import java.util.Map;
         String url = properties.buildJdbcUrl();
         log.info("Using SQLite database at {}", normalized);
 
-        SQLiteConfig config = new SQLiteConfig();
-        // Existing databases store timestamps without timezone info (e.g. "2025-12-03 15:04:53.370"),
-        // so align the driver format accordingly to avoid Flyway parsing errors during startup.
-        config.setDateStringFormat("yyyy-MM-dd HH:mm:ss.SSS");
+        var config = SqliteConnectionConfigSupport.buildConfig(
+            properties.getJournalMode(),
+            properties.getBusyTimeoutMs()
+        );
 
         SQLiteDataSource dataSource = new SQLiteDataSource(config);
         dataSource.setUrl(url);

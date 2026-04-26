@@ -27,7 +27,6 @@ import java.util.Locale;
 import java.util.Optional;
 
 @Service
-@Transactional(transactionManager = "monitoringTransactionManager")
 public class SslCertificateMonitoringService {
 
     private static final Logger log = LoggerFactory.getLogger(SslCertificateMonitoringService.class);

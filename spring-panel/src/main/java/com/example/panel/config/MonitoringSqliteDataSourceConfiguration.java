@@ -7,7 +7,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
-import org.sqlite.SQLiteConfig;
 import org.sqlite.SQLiteDataSource;
 
 import javax.sql.DataSource;
@@ -23,8 +22,10 @@ public class MonitoringSqliteDataSourceConfiguration {
         var url = props.buildJdbcUrl();
         log.info("Using MONITORING SQLite database at {}", props.getNormalizedPath());
 
-        SQLiteConfig config = new SQLiteConfig();
-        config.setDateStringFormat("yyyy-MM-dd HH:mm:ss.SSS");
+        var config = SqliteConnectionConfigSupport.buildConfig(
+            props.getJournalMode(),
+            props.getBusyTimeoutMs()
+        );
 
         SQLiteDataSource ds = new SQLiteDataSource(config);
         ds.setUrl(url);
