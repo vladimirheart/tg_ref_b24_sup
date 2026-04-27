@@ -2,6 +2,7 @@ package com.example.panel.controller;
 
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
@@ -91,5 +92,42 @@ class SettingsItEquipmentControllerWebMvcTest {
                 .with(csrf()))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
+    void createEquipmentSupportsTrailingSlashRoute() throws Exception {
+        when(settingsItEquipmentService.createItEquipment(anyMap(), eq("admin")))
+            .thenReturn(Map.of("success", true, "items", List.of(Map.of("equipment_model", "EliteBook"))));
+
+        mockMvc.perform(post("/api/settings/it-equipment/")
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf())
+                .contentType("application/json")
+                .content("""
+                    {
+                      "equipment_type": "Ноутбук",
+                      "equipment_model": "EliteBook"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.items[0].equipment_model").value("EliteBook"));
+    }
+
+    @Test
+    void updateEquipmentSupportsPatchRoute() throws Exception {
+        when(settingsItEquipmentService.updateItEquipment(eq(14L), anyMap(), eq("admin")))
+            .thenReturn(Map.of("success", true, "items", List.of(Map.of("id", 14, "equipment_vendor", "HP"))));
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch("/api/settings/it-equipment/14")
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf())
+                .contentType("application/json")
+                .content("""
+                    { "equipment_vendor": "HP" }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.items[0].equipment_vendor").value("HP"));
     }
 }

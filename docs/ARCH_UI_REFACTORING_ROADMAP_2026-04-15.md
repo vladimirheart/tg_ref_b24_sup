@@ -514,6 +514,22 @@
   `phones/role_id/role` и reject-ветку blank role name;
   `SharedConfigServiceTest` — nested settings round-trip и empty
   `bot_credentials` round-trip.
+- следующим расширенным пакетом `Phase 6` добран по
+  `dialogs/settings controller edge-case` boundary:
+  `DialogQuickActionsControllerWebMvcTest` теперь покрывает domain error
+  на `resolve`, null-body `categories`, invalid `snooze` и media failure;
+  `DialogReadControllerWebMvcTest` — `public-form-metrics`, details без
+  `channelId` и default `offset=0`;
+  `DialogMacroControllerWebMvcTest` — alias `text` и variables без
+  `ticketId`;
+  `DialogTriagePreferencesControllerWebMvcTest` — missing body и fallback
+  `updated_at_utc`;
+  `DialogWorkspaceTelemetryControllerWebMvcTest` — null body и default
+  summary window `days=7`;
+  `DialogListControllerWebMvcTest` — empty dialogs payload;
+  `SettingsParametersControllerWebMvcTest` и
+  `SettingsItEquipmentControllerWebMvcTest` — trailing slash и `PATCH`
+  contract.
 - этот же smoke-слой расширен на detail/subpage contract:
   `ai-ops`, `unblock requests`, `users/detail` и оба passport editor route
   (`/object-passports/new`, `/object-passports/{id}`) теперь тоже прикрыты
@@ -533,7 +549,9 @@
   и уже покрытых `channels/tasks/users/passports/public`, `ai-ops`,
   `unblock-requests`, `users/detail`, `passport editor` и public shell
   `login/403/404/500`;
-- добрать WebMvc tests под оставшиеся новые dialog/settings controllers;
+- добрать WebMvc tests под оставшиеся новые dialog/settings controllers,
+  уже после закрытия основного alias/default/error слоя для quick-actions,
+  read, macro, triage, telemetry, parameters и it-equipment;
 - расширить shared config/env resolution tests и settings regression net от
   targeted-слоя к более полным integration сценариям;
 - расширить `settings` regression net дальше от уже появившихся

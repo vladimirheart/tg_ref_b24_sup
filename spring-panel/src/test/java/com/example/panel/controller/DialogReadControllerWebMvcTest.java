@@ -1,6 +1,7 @@
 package com.example.panel.controller;
 
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -65,5 +66,46 @@ class DialogReadControllerWebMvcTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.next_offset").value(20));
+    }
+
+    @Test
+    void publicFormMetricsDelegatesOptionalChannelId() throws Exception {
+        when(dialogReadService.loadPublicFormMetrics(91L))
+            .thenReturn(Map.of("success", true, "channelId", 91, "submitted", 4));
+
+        mockMvc.perform(get("/api/dialogs/public-form-metrics")
+                .param("channelId", "91")
+                .with(user("operator")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.channelId").value(91))
+            .andExpect(jsonPath("$.submitted").value(4));
+    }
+
+    @Test
+    void detailsDelegatesWithoutChannelId() throws Exception {
+        doReturn(ResponseEntity.ok(Map.of("ticketId", "T-103", "success", true)))
+            .when(dialogReadService)
+            .loadDetails("T-103", null, "operator");
+
+        mockMvc.perform(get("/api/dialogs/T-103").with(user("operator")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.ticketId").value("T-103"))
+            .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
+    void previousHistoryDefaultsOffsetToZero() throws Exception {
+        doReturn(ResponseEntity.ok(Map.of("success", true, "next_offset", 0)))
+            .when(dialogReadService)
+            .loadPreviousHistory("T-104", 0);
+
+        mockMvc.perform(get("/api/dialogs/T-104/history/previous")
+                .with(user("operator")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.next_offset").value(0));
+
+        verify(dialogReadService).loadPreviousHistory("T-104", 0);
     }
 }

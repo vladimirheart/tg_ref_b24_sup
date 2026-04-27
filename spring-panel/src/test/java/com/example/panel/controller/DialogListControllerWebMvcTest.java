@@ -41,4 +41,19 @@ class DialogListControllerWebMvcTest {
             .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-900"))
             .andExpect(jsonPath("$.summary.open").value(1));
     }
+
+    @Test
+    void listSupportsEmptyDialogsPayload() throws Exception {
+        when(dialogListReadService.loadListPayload("operator"))
+            .thenReturn(Map.of(
+                    "success", true,
+                    "dialogs", List.of(),
+                    "summary", Map.of("open", 0)
+            ));
+
+        mockMvc.perform(get("/api/dialogs").with(user("operator")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.summary.open").value(0));
+    }
 }

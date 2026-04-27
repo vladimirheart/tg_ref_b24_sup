@@ -86,4 +86,45 @@ class DialogMacroControllerWebMvcTest {
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.variables[0].key").value("client_name"));
     }
+
+    @Test
+    void dryRunAcceptsTextAliasForTemplateText() throws Exception {
+        when(dialogMacroService.dryRun(
+                eq("T-502"),
+                eq("alias text"),
+                eq("operator"),
+                eq(Map.of())))
+            .thenReturn(new DialogMacroService.MacroDryRunResponse(
+                    "alias text",
+                    List.of(),
+                    List.of()
+            ));
+
+        mockMvc.perform(post("/api/dialogs/macro/dry-run")
+                .with(user("operator"))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "ticketId": "T-502",
+                      "text": "alias text",
+                      "variables": {}
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.rendered_text").value("alias text"));
+    }
+
+    @Test
+    void macroVariablesSupportsMissingTicketId() throws Exception {
+        when(dialogMacroService.loadVariables(null, "operator"))
+            .thenReturn(List.of());
+
+        mockMvc.perform(get("/api/dialogs/macro/variables")
+                .with(user("operator")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.variables").isArray());
+    }
 }
