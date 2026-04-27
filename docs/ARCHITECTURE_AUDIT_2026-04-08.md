@@ -304,6 +304,18 @@
   empty list, failed Telegram bot-info refresh tolerance, blank credential
   platform normalisation, default `is_active` и safe delete credential без
   лишнего `saveAll()`.
+- следующим пакетом `Phase 6` расширен на
+  `channel-management/auth-management/shared-config` boundary:
+  `ChannelApiControllerWebMvcTest` теперь покрывает failed `saveAll()` после
+  Telegram bot-info refresh, reject-сценарий VK platform switch без callback
+  configuration, пустой результат Telegram `getMe`, sparse/null allocation
+  нового credential id и cleanup нескольких связанных каналов при
+  delete credential;
+  `AuthManagementApiControllerWebMvcTest` — raw payload contract
+  `/api/auth/org-structure`, create/update/delete persistence для optional
+  `phones/role_id/role` и reject-ветку blank role name;
+  `SharedConfigServiceTest` — nested settings round-trip и empty
+  `bot_credentials` round-trip.
 
 ---
 
@@ -554,4 +566,4 @@ integration-сценария поверх users/settings runtime boundary всё
 6. После этого возвращаться к shared-config unification и DTO/error contract
 
 **Автор исходного аудита:** GitHub Copilot  
-**Статус:** Документ актуализирован под состояние кода на 24 апреля 2026
+**Статус:** Документ актуализирован под состояние кода на 27 апреля 2026
