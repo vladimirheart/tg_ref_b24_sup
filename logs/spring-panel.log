@@ -199,3 +199,116 @@
 2026-04-27 10:28:32.399+03:00 INFO  [SpringApplicationShutdownHook] c.e.panel.service.BotProcessService - Stopping all bot processes due to panel shutdown
 2026-04-27 10:28:32.400+03:00 INFO  [SpringApplicationShutdownHook] c.e.panel.service.BotProcessService - Stopping bot process for channel 2 via shutdown
 2026-04-27 10:28:32.427+03:00 INFO  [SpringApplicationShutdownHook] o.s.o.j.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-04-27 11:08:26.622+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
+2026-04-27 11:08:26.657+03:00 INFO  [main] c.e.p.config.EnvDefaultsInitializer - Applied default SQLite paths for missing APP_DB_* variables: {APP_DB_USERS=C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\users.db, APP_DB_KNOWLEDGE=C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\knowledge_base.db, APP_DB_CLIENTS=C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\clients.db, APP_DB_MONITORING=C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\monitoring.db, APP_DB_OBJECT_PASSPORTS=C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\object_passports.db, APP_DB_OBJECTS=C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\objects.db, APP_DB_SETTINGS=C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\settings.db, APP_DB_BOT=C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\bot_database.db, APP_DB_TICKETS=C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\tickets.db}
+2026-04-27 11:08:26.660+03:00 WARN  [main] c.e.p.config.EnvDefaultsInitializer - Environment variable APP_DB_OBJECT_PASSPORTS points to missing file C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\object_passports.db, falling back to defaults.
+2026-04-27 11:08:26.661+03:00 INFO  [main] c.e.p.config.EnvDefaultsInitializer - Applied default SQLite paths for missing APP_DB_* variables: {APP_DB_OBJECT_PASSPORTS=C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\object_passports.db}
+2026-04-27 11:08:26.663+03:00 INFO  [main] com.example.panel.PanelApplication - Starting PanelApplication using Java 25.0.2 with PID 2224 (C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\target\classes started by SinicinVV in C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel)
+2026-04-27 11:08:26.664+03:00 INFO  [main] com.example.panel.PanelApplication - No active profile set, falling back to 1 default profile: "default"
+2026-04-27 11:08:27.529+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-04-27 11:08:27.653+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 117 ms. Found 33 JPA repository interfaces.
+2026-04-27 11:08:28.172+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 8080 (http)
+2026-04-27 11:08:28.197+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Initializing ProtocolHandler ["http-nio-8080"]
+2026-04-27 11:08:28.199+03:00 INFO  [main] o.a.catalina.core.StandardService - Starting service [Tomcat]
+2026-04-27 11:08:28.200+03:00 INFO  [main] o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.20]
+2026-04-27 11:08:28.254+03:00 INFO  [main] o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+2026-04-27 11:08:28.255+03:00 INFO  [main] o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 1555 ms
+2026-04-27 11:08:28.308+03:00 INFO  [main] c.e.p.c.SqliteDataSourceConfiguration - Using SQLite database at C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\bot_database.db
+2026-04-27 11:08:28.548+03:00 INFO  [main] org.flywaydb.core.FlywayExecutor - Database: jdbc:sqlite:C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\bot_database.db (SQLite 3.43)
+2026-04-27 11:08:28.602+03:00 INFO  [main] o.f.core.internal.command.DbValidate - Successfully validated 37 migrations (execution time 00:00.041s)
+2026-04-27 11:08:28.608+03:00 INFO  [main] o.f.core.internal.command.DbMigrate - Current version of schema "main": 34
+2026-04-27 11:08:28.608+03:00 WARN  [main] o.f.core.internal.command.DbMigrate - outOfOrder mode is active. Migration of schema "main" may not be reproducible.
+2026-04-27 11:08:28.610+03:00 INFO  [main] o.f.core.internal.command.DbMigrate - Schema "main" is up to date. No migration necessary.
+2026-04-27 11:08:28.737+03:00 INFO  [main] o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-04-27 11:08:28.772+03:00 INFO  [main] org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
+2026-04-27 11:08:28.797+03:00 INFO  [main] o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
+2026-04-27 11:08:28.943+03:00 INFO  [main] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-04-27 11:08:29.919+03:00 INFO  [main] o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-04-27 11:08:29.921+03:00 INFO  [main] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-04-27 11:08:30.035+03:00 INFO  [main] c.e.p.service.SharedConfigService - Using shared config directory at C:\Users\SinicinVV\git_h\tg_ref_b24_sup\config\shared
+2026-04-27 11:08:30.352+03:00 INFO  [main] c.e.p.service.DatabaseHealthService - Spring panel is using SQLite database at: C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\bot_database.db (tickets) and C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\users.db (users)
+2026-04-27 11:08:30.716+03:00 INFO  [main] o.s.d.j.r.query.QueryEnhancerFactory - Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-04-27 11:08:31.365+03:00 INFO  [main] c.e.p.s.OperatorNotificationWatcher - Operator notification watcher initialized (chatHistoryId=146, feedbackId=9)
+2026-04-27 11:08:31.373+03:00 INFO  [main] c.e.p.c.BotSqliteDataSourceConfiguration - Using BOT SQLite database at C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\bot_database.db
+2026-04-27 11:08:31.375+03:00 INFO  [main] c.e.p.c.MonitoringSqliteDataSourceConfiguration - Using MONITORING SQLite database at C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\monitoring.db
+2026-04-27 11:08:31.498+03:00 INFO  [main] c.e.p.c.UsersSqliteDataSourceConfiguration - Using USERS SQLite database at C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\users.db
+2026-04-27 11:08:31.517+03:00 WARN  [main] o.s.b.a.o.j.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-04-27 11:08:31.796+03:00 INFO  [main] o.s.s.web.DefaultSecurityFilterChain - Will secure any request with [org.springframework.security.web.session.DisableEncodeUrlFilter@3cdb3788, org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@299a2968, org.springframework.security.web.context.SecurityContextHolderFilter@253a2bfa, org.springframework.security.web.header.HeaderWriterFilter@190c2bbf, org.springframework.web.filter.CorsFilter@5a6a0107, org.springframework.security.web.csrf.CsrfFilter@53b52f30, com.example.panel.security.SecurityHeadersFilter@1efac5b9, org.springframework.security.web.authentication.logout.LogoutFilter@47be3679, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter@52743ef2, org.springframework.security.web.session.ConcurrentSessionFilter@523a10a0, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@49648d97, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@1d691240, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@78e469ac, com.example.panel.security.UserLastActivityFilter@1cba0321, org.springframework.security.web.session.SessionManagementFilter@533c7a52, org.springframework.security.web.access.ExceptionTranslationFilter@68d07b48, org.springframework.security.web.access.intercept.AuthorizationFilter@7abdfd36]
+2026-04-27 11:08:32.117+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Starting ProtocolHandler ["http-nio-8080"]
+2026-04-27 11:08:32.125+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 8080 (http) with context path ''
+2026-04-27 11:08:32.133+03:00 INFO  [main] com.example.panel.PanelApplication - Started PanelApplication in 5.868 seconds (process running for 6.147)
+2026-04-27 11:08:32.411+03:00 INFO  [main] c.e.p.s.MonitoringDatabaseBootstrapService - Migrated 29 SSL monitor records into monitoring.db
+2026-04-27 11:08:33.867+03:00 INFO  [main] c.e.p.s.MonitoringDatabaseBootstrapService - Migrated 212 RMS monitor records into monitoring.db
+2026-04-27 11:08:33.878+03:00 INFO  [main] c.e.p.s.RmsMonitoringSeedImportService - No RMS seed records were imported from rms_addresses_seed.csv (skipped: 212)
+2026-04-27 11:08:33.881+03:00 INFO  [main] c.e.p.s.AdditionalServicesHealthService - Bot database directory is available: C:\Users\SinicinVV\git_h\tg_ref_b24_sup\bot_databases
+2026-04-27 11:08:33.881+03:00 INFO  [main] c.e.p.s.AdditionalServicesHealthService - Bot runtime is available at C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot
+2026-04-27 11:08:33.948+03:00 INFO  [main] c.e.p.s.AdditionalServicesHealthService - Telegram bot process status: stopped
+2026-04-27 11:08:33.948+03:00 INFO  [main] c.e.p.s.AdditionalServicesHealthService - VK bot process status: stopped
+2026-04-27 11:08:33.950+03:00 INFO  [main] c.e.p.s.DatabaseBootstrapService - Clients database ensured at C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\clients.db
+2026-04-27 11:08:33.953+03:00 INFO  [main] c.e.p.s.DatabaseBootstrapService - Knowledge base database ensured at C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\knowledge_base.db
+2026-04-27 11:08:33.955+03:00 INFO  [main] c.e.p.s.DatabaseBootstrapService - Objects database ensured at C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\objects.db
+2026-04-27 11:08:34.085+03:00 INFO  [main] c.e.p.service.BotDatabaseRegistry - Bot database ready for channel 1 at C:\Users\SinicinVV\git_h\tg_ref_b24_sup\bot_databases\bot-1.db
+2026-04-27 11:08:34.097+03:00 INFO  [main] c.e.p.service.BotDatabaseRegistry - Bot database ready for channel 2 at C:\Users\SinicinVV\git_h\tg_ref_b24_sup\bot_databases\bot-2.db
+2026-04-27 11:08:34.114+03:00 WARN  [main] c.e.panel.service.BotProcessService - PID file not found for channel 1
+2026-04-27 11:08:34.115+03:00 INFO  [main] c.e.panel.service.BotProcessService - Stopped bot process for channel 1
+2026-04-27 11:08:42.348+03:00 INFO  [http-nio-8080-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-04-27 11:08:42.348+03:00 INFO  [http-nio-8080-exec-1] o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
+2026-04-27 11:08:42.348+03:00 INFO  [http-nio-8080-exec-1] o.s.web.servlet.DispatcherServlet - Completed initialization in 0 ms
+2026-04-27 11:08:48.874+03:00 INFO  [http-nio-8080-exec-2] c.e.p.controller.DialogsController - Loaded dialogs page for user admin
+2026-04-27 11:08:49.300+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 11:08:49.364+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 11:08:49.515+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 11:08:54.322+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 11:08:54.946+03:00 INFO  [http-nio-8080-exec-2] c.e.p.controller.AnalyticsController - Analytics view requested by admin: 8 ticket rows, 4 client rows
+2026-04-27 11:08:55.057+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--80aag1ciek.xn--80adjkr6adm9b.xn--p1aia1a:443 (xn--80aag1ciek.xn--80adjkr6adm9b.xn--p1aia1a)
+2026-04-27 11:08:55.310+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 11:08:55.353+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 11:08:57.627+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 11:08:57.656+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 11:09:02.691+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 11:09:08.033+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 11:09:13.232+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 11:09:18.236+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 11:09:19.234+03:00 WARN  [main] c.e.panel.service.BotProcessService - Bot process for channel 1 did not confirm readiness in time: Не удалось подтвердить готовность бота после старта. Последняя строка лога: 2026-04-27 11:09:01.722+03:00 INFO  [main] o.a.http.impl.execchain.RetryExec - Retrying request to {s}->https://api.telegram.org:443
+2026-04-27 11:09:19.234+03:00 INFO  [main] c.e.panel.service.BotProcessService - Stopping bot process for channel 1 via startup-readiness-failure
+2026-04-27 11:09:19.292+03:00 WARN  [main] c.e.p.service.BotAutoStartService - Failed to auto-start bot for channel 1: Не удалось подтвердить готовность бота после старта. Последняя строка лога: 2026-04-27 11:09:01.722+03:00 INFO  [main] o.a.http.impl.execchain.RetryExec - Retrying request to {s}->https://api.telegram.org:443
+2026-04-27 11:09:19.292+03:00 WARN  [main] c.e.panel.service.BotProcessService - PID file not found for channel 2
+2026-04-27 11:09:19.292+03:00 INFO  [main] c.e.panel.service.BotProcessService - Stopped bot process for channel 2
+2026-04-27 11:09:23.858+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 11:09:25.625+03:00 INFO  [main] c.e.panel.service.BotProcessService - Started bot process for channel 2 at 2026-04-27T11:09:19.310761200+03:00 via maven:spring-boot-run:bot-max
+2026-04-27 11:09:25.625+03:00 INFO  [main] c.e.p.service.BotAutoStartService - Auto-started bot for channel 2 (мах_тест)
+2026-04-27 11:09:25.626+03:00 INFO  [main] c.e.p.service.BotAutoStartService - Bot auto-start completed. Started 1 active bot(s).
+2026-04-27 11:09:28.131+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 11:09:28.990+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 11:09:34.142+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 11:09:39.650+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 11:09:44.761+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 11:09:50.374+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 11:09:55.600+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 11:09:58.400+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 11:10:00.418+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 11:10:05.582+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 11:10:10.701+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 11:10:15.907+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 11:10:20.630+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 11:10:25.673+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 11:10:28.532+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 11:10:30.781+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 11:10:36.400+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 11:10:42.047+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 11:10:47.566+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 11:10:53.078+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 11:10:58.737+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 11:10:58.798+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 11:11:04.173+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 11:11:09.828+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 11:11:15.489+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 11:11:21.073+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 11:11:26.712+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 11:11:29.009+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 11:11:31.888+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 11:11:37.455+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 11:11:38.502+03:00 INFO  [SpringApplicationShutdownHook] c.e.panel.service.BotProcessService - Stopping all bot processes due to panel shutdown
+2026-04-27 11:11:38.503+03:00 INFO  [SpringApplicationShutdownHook] c.e.panel.service.BotProcessService - Stopping bot process for channel 2 via shutdown
+2026-04-27 11:11:38.520+03:00 WARN  [rms-network-refresh-d15f6ce1-1a85-471c-b127-493f5481f4f6] c.e.p.s.RmsLicenseMonitoringService - RMS network refresh failed for https://bb-bulvar-engelsa.iiko.it: Не удалось проверить доступность RMS (InterruptedException)
+2026-04-27 11:11:38.535+03:00 INFO  [SpringApplicationShutdownHook] o.s.o.j.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
