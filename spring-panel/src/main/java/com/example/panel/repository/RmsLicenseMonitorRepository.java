@@ -2,6 +2,7 @@ package com.example.panel.repository;
 
 import com.example.panel.converter.LenientOffsetDateTimeConverter;
 import com.example.panel.entity.RmsLicenseMonitor;
+import com.example.panel.service.MonitoringCredentialsCryptoService;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.EmptyResultDataAccessException;
@@ -22,63 +23,66 @@ public class RmsLicenseMonitorRepository {
     private static final LenientOffsetDateTimeConverter DATE_TIME_CONVERTER = new LenientOffsetDateTimeConverter();
     private static final int[] BUSY_RETRY_DELAYS_MS = {150, 350, 750, 1_500};
 
-    private static final RowMapper<RmsLicenseMonitor> ROW_MAPPER = (rs, rowNum) -> {
-        RmsLicenseMonitor item = new RmsLicenseMonitor();
-        item.setId(rs.getLong("id"));
-        item.setRmsAddress(rs.getString("rms_address"));
-        item.setScheme(rs.getString("scheme"));
-        item.setHost(rs.getString("host"));
-        item.setPort(rs.getInt("port"));
-        item.setAuthLogin(rs.getString("auth_login"));
-        item.setAuthPassword(rs.getString("auth_password"));
-        item.setEnabled(rs.getInt("enabled") != 0);
-        item.setLicenseMonitoringEnabled(rs.getInt("license_monitoring_enabled") != 0);
-        item.setNetworkMonitoringEnabled(rs.getInt("network_monitoring_enabled") != 0);
-        item.setServerName(rs.getString("server_name"));
-        item.setServerType(rs.getString("server_type"));
-        item.setServerVersion(rs.getString("server_version"));
-        item.setLicenseStatus(rs.getString("license_status"));
-        item.setLicenseErrorMessage(rs.getString("license_error_message"));
-        item.setLicenseDetailsJson(rs.getString("license_details_json"));
-        item.setLicenseDebugExcerpt(readStringColumn(rs, "license_debug_excerpt"));
-        item.setLicenseExpiresAt(parseOffsetDateTime(rs.getString("license_expires_at")));
-
-        Object licenseDaysLeft = rs.getObject("license_days_left");
-        item.setLicenseDaysLeft(licenseDaysLeft == null ? null : rs.getInt("license_days_left"));
-
-        item.setLicenseLastCheckedAt(parseOffsetDateTime(rs.getString("license_last_checked_at")));
-        item.setLicenseLastNotifiedAt(parseOffsetDateTime(rs.getString("license_last_notified_at")));
-        item.setRmsStatus(rs.getString("rms_status"));
-        item.setRmsStatusMessage(rs.getString("rms_status_message"));
-        item.setPingOutput(rs.getString("ping_output"));
-        item.setTracerouteSummary(rs.getString("traceroute_summary"));
-        item.setTracerouteReport(rs.getString("traceroute_report"));
-        item.setTracerouteCheckedAt(parseOffsetDateTime(rs.getString("traceroute_checked_at")));
-        item.setRmsLastCheckedAt(parseOffsetDateTime(rs.getString("rms_last_checked_at")));
-        item.setCreatedAt(parseOffsetDateTime(rs.getString("created_at")));
-        item.setUpdatedAt(parseOffsetDateTime(rs.getString("updated_at")));
-        return item;
-    };
-
     private final JdbcTemplate jdbcTemplate;
+    private final MonitoringCredentialsCryptoService credentialsCryptoService;
+    private final RowMapper<RmsLicenseMonitor> rowMapper;
 
-    public RmsLicenseMonitorRepository(@Qualifier("monitoringJdbcTemplate") JdbcTemplate jdbcTemplate) {
+    public RmsLicenseMonitorRepository(@Qualifier("monitoringJdbcTemplate") JdbcTemplate jdbcTemplate,
+                                       MonitoringCredentialsCryptoService credentialsCryptoService) {
         this.jdbcTemplate = jdbcTemplate;
+        this.credentialsCryptoService = credentialsCryptoService;
+        this.rowMapper = (rs, rowNum) -> {
+            RmsLicenseMonitor item = new RmsLicenseMonitor();
+            item.setId(rs.getLong("id"));
+            item.setRmsAddress(rs.getString("rms_address"));
+            item.setScheme(rs.getString("scheme"));
+            item.setHost(rs.getString("host"));
+            item.setPort(rs.getInt("port"));
+            item.setAuthLogin(rs.getString("auth_login"));
+            item.setAuthPassword(this.credentialsCryptoService.decryptIfNeeded(rs.getString("auth_password")));
+            item.setEnabled(rs.getInt("enabled") != 0);
+            item.setLicenseMonitoringEnabled(rs.getInt("license_monitoring_enabled") != 0);
+            item.setNetworkMonitoringEnabled(rs.getInt("network_monitoring_enabled") != 0);
+            item.setServerName(rs.getString("server_name"));
+            item.setServerType(rs.getString("server_type"));
+            item.setServerVersion(rs.getString("server_version"));
+            item.setLicenseStatus(rs.getString("license_status"));
+            item.setLicenseErrorMessage(rs.getString("license_error_message"));
+            item.setLicenseDetailsJson(rs.getString("license_details_json"));
+            item.setLicenseDebugExcerpt(readStringColumn(rs, "license_debug_excerpt"));
+            item.setLicenseExpiresAt(parseOffsetDateTime(rs.getString("license_expires_at")));
+
+            Object licenseDaysLeft = rs.getObject("license_days_left");
+            item.setLicenseDaysLeft(licenseDaysLeft == null ? null : rs.getInt("license_days_left"));
+
+            item.setLicenseLastCheckedAt(parseOffsetDateTime(rs.getString("license_last_checked_at")));
+            item.setLicenseLastNotifiedAt(parseOffsetDateTime(rs.getString("license_last_notified_at")));
+            item.setRmsStatus(rs.getString("rms_status"));
+            item.setRmsStatusMessage(rs.getString("rms_status_message"));
+            item.setPingOutput(rs.getString("ping_output"));
+            item.setTracerouteSummary(rs.getString("traceroute_summary"));
+            item.setTracerouteReport(rs.getString("traceroute_report"));
+            item.setTracerouteCheckedAt(parseOffsetDateTime(rs.getString("traceroute_checked_at")));
+            item.setRmsLastCheckedAt(parseOffsetDateTime(rs.getString("rms_last_checked_at")));
+            item.setCreatedAt(parseOffsetDateTime(rs.getString("created_at")));
+            item.setUpdatedAt(parseOffsetDateTime(rs.getString("updated_at")));
+            return item;
+        };
     }
 
     public List<RmsLicenseMonitor> findAll() {
-        return jdbcTemplate.query("SELECT * FROM rms_license_monitors ORDER BY id ASC", ROW_MAPPER);
+        return jdbcTemplate.query("SELECT * FROM rms_license_monitors ORDER BY id ASC", rowMapper);
     }
 
     public List<RmsLicenseMonitor> findAllByOrderByRmsAddressAscIdAsc() {
-        return jdbcTemplate.query("SELECT * FROM rms_license_monitors ORDER BY rms_address ASC, id ASC", ROW_MAPPER);
+        return jdbcTemplate.query("SELECT * FROM rms_license_monitors ORDER BY rms_address ASC, id ASC", rowMapper);
     }
 
     public Optional<RmsLicenseMonitor> findByRmsAddress(String rmsAddress) {
         try {
             return Optional.ofNullable(jdbcTemplate.queryForObject(
                 "SELECT * FROM rms_license_monitors WHERE rms_address = ? LIMIT 1",
-                ROW_MAPPER,
+                rowMapper,
                 rmsAddress
             ));
         } catch (EmptyResultDataAccessException ex) {
@@ -90,7 +94,7 @@ public class RmsLicenseMonitorRepository {
         try {
             return Optional.ofNullable(jdbcTemplate.queryForObject(
                 "SELECT * FROM rms_license_monitors WHERE id = ? LIMIT 1",
-                ROW_MAPPER,
+                rowMapper,
                 id
             ));
         } catch (EmptyResultDataAccessException ex) {
@@ -193,7 +197,7 @@ public class RmsLicenseMonitorRepository {
             item.getHost(),
             item.getPort(),
             item.getAuthLogin(),
-            item.getAuthPassword(),
+            credentialsCryptoService.encryptIfNeeded(item.getAuthPassword()),
             toInt(item.getEnabled()),
             toInt(item.getLicenseMonitoringEnabled()),
             toInt(item.getNetworkMonitoringEnabled()),
@@ -271,7 +275,7 @@ public class RmsLicenseMonitorRepository {
         ps.setString(3, item.getHost());
         ps.setInt(4, item.getPort() != null ? item.getPort() : 443);
         ps.setString(5, item.getAuthLogin());
-        ps.setString(6, item.getAuthPassword());
+        ps.setString(6, credentialsCryptoService.encryptIfNeeded(item.getAuthPassword()));
         ps.setInt(7, toInt(item.getEnabled()));
         ps.setInt(8, toInt(item.getLicenseMonitoringEnabled()));
         ps.setInt(9, toInt(item.getNetworkMonitoringEnabled()));

@@ -63,6 +63,10 @@ public class SharedConfigService {
         writeJson("bot_credentials.json", credentials);
     }
 
+    public Path resolvePath(String fileName) {
+        return sharedConfigDir.resolve(fileName);
+    }
+
     private Path resolveSharedDir(String configuredPath) {
         Path configured = Paths.get(configuredPath);
         Path absolute = configured.toAbsolutePath().normalize();

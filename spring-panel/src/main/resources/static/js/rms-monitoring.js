@@ -3,6 +3,14 @@
 
   const tableBody = document.getElementById('rmsMonitoringTableBody');
   const queueStateEl = document.getElementById('rmsQueueState');
+  const availabilityPercentEl = document.getElementById('rmsAvailabilityPercent');
+  const availabilityCaptionEl = document.getElementById('rmsAvailabilityCaption');
+  const availabilityBarEl = document.getElementById('rmsAvailabilityOverviewBar');
+  const availabilityMetaEl = document.getElementById('rmsAvailabilityOverviewMeta');
+
+  const createModalEl = document.getElementById('rmsCreateModal');
+  const createModal = createModalEl && window.bootstrap ? new bootstrap.Modal(createModalEl) : null;
+  const openCreateModalBtn = document.getElementById('openRmsCreateModalBtn');
   const createForm = document.getElementById('rmsCreateForm');
   const refreshLicensesBtn = document.getElementById('refreshRmsLicensesBtn');
   const refreshNetworkBtn = document.getElementById('refreshRmsNetworkBtn');
@@ -28,10 +36,12 @@
   const editRmsLicenseMonitoringInput = document.getElementById('editRmsLicenseMonitoringInput');
   const editRmsNetworkMonitoringInput = document.getElementById('editRmsNetworkMonitoringInput');
   const editRmsPasswordHint = document.getElementById('editRmsPasswordHint');
+
   const licenseDetailsModalEl = document.getElementById('rmsLicenseDetailsModal');
   const licenseDetailsModal = licenseDetailsModalEl && window.bootstrap ? new bootstrap.Modal(licenseDetailsModalEl) : null;
   const licenseDetailsMeta = document.getElementById('rmsLicenseDetailsMeta');
   const licenseDetailsBody = document.getElementById('rmsLicenseDetailsBody');
+
   const diagnosticsModalEl = document.getElementById('rmsDiagnosticsModal');
   const diagnosticsModal = diagnosticsModalEl && window.bootstrap ? new bootstrap.Modal(diagnosticsModalEl) : null;
   const diagnosticsMeta = document.getElementById('rmsDiagnosticsMeta');
@@ -43,6 +53,7 @@
 
   let sites = [];
   let refreshState = null;
+  let availabilityOverview = null;
   let pollTimer = null;
 
   function escapeHtml(value) {
@@ -60,12 +71,14 @@
     if (!source) return '';
     const normalized = source.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
     if (!normalized) return fallback || '';
-    if (!/[РÐÑâ]/.test(normalized)) {
+    if (!/[Рр][0-9A-Za-z]/.test(normalized)) {
       return normalized;
     }
     try {
-      const repaired = new TextDecoder('utf-8').decode(Uint8Array.from(normalized, (char) => char.charCodeAt(0) & 0xff)).trim();
-      if (repaired && !/[РÐÑâ]/.test(repaired)) {
+      const repaired = new TextDecoder('utf-8').decode(
+        Uint8Array.from(normalized, (char) => char.charCodeAt(0) & 0xff),
+      ).trim();
+      if (repaired && !/[Рр][0-9A-Za-z]/.test(repaired)) {
         return repaired;
       }
     } catch (error) {
@@ -100,9 +113,7 @@
       const durationMs = entry.duration_ms ?? entry.durationMs;
       const createdAt = entry.created_at || entry.createdAt;
       const status = normalizeStatus(entry.status || '');
-      const statusBadgeHtml = checkKind === 'network'
-        ? rmsBadge(status)
-        : licenseBadge(status);
+      const statusBadgeHtml = checkKind === 'network' ? rmsBadge(status) : licenseBadge(status);
       const details = [];
       if (entry.summary) {
         details.push(`<div class="small">${escapeHtml(normalizeDiagnosticText(entry.summary, ''))}</div>`);
@@ -171,16 +182,107 @@
     return '<span class="badge text-bg-secondary">Нет данных</span>';
   }
 
+  function featureBadge(enabled, title) {
+    return enabled
+      ? `<span class="badge rounded-pill text-bg-success-subtle border border-success-subtle text-success">${escapeHtml(title)}: вкл</span>`
+      : `<span class="badge rounded-pill text-bg-secondary">${escapeHtml(title)}: выкл</span>`;
+  }
+
+  function refreshStateLabel(value) {
+    if (value === 'running') return 'обновляется';
+    if (value === 'queued') return 'в очереди';
+    if (value === 'done') return 'обновлено';
+    return 'ожидает';
+  }
+
+  function refreshStateChip(value, prefix) {
+    const state = normalizeStatus(value);
+    if (!state || state === 'idle') {
+      return `<span class="refresh-state-chip">${escapeHtml(prefix)}: ожидание</span>`;
+    }
+    return `<span class="refresh-state-chip state-${escapeHtml(state)}">${escapeHtml(prefix)}: ${escapeHtml(refreshStateLabel(state))}</span>`;
+  }
+
   function queueBadge(running, queued) {
     if (running) return '<span class="badge text-bg-primary">В работе</span>';
     if (queued) return '<span class="badge text-bg-warning">В очереди</span>';
     return '<span class="badge text-bg-secondary">Свободно</span>';
   }
 
-  function featureBadge(enabled, title) {
-    return enabled
-      ? `<span class="badge rounded-pill text-bg-success-subtle border border-success-subtle text-success">${escapeHtml(title)}: вкл</span>`
-      : `<span class="badge rounded-pill text-bg-secondary">${escapeHtml(title)}: выкл</span>`;
+  function getCookieValue(name) {
+    const cookies = document.cookie ? document.cookie.split(';') : [];
+    const encodedName = `${encodeURIComponent(name)}=`;
+    for (const raw of cookies) {
+      const value = raw.trim();
+      if (value.startsWith(encodedName)) {
+        return decodeURIComponent(value.slice(encodedName.length));
+      }
+    }
+    return '';
+  }
+
+  function getCsrfToken() {
+    const tokenFromMeta = document.querySelector('meta[name="_csrf"]')?.getAttribute('content') || '';
+    if (tokenFromMeta) return tokenFromMeta;
+    const tokenFromInput = document.querySelector('input[name="_csrf"]')?.value || '';
+    if (tokenFromInput) return tokenFromInput;
+    return getCookieValue('XSRF-TOKEN');
+  }
+
+  function withCsrf(init = {}) {
+    const method = String(init.method || 'GET').toUpperCase();
+    if (['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes(method)) {
+      return init;
+    }
+    const token = getCsrfToken();
+    if (!token) return init;
+    const headers = new Headers(init.headers || {});
+    if (!headers.has('X-XSRF-TOKEN')) headers.set('X-XSRF-TOKEN', token);
+    if (!headers.has('X-CSRF-TOKEN')) headers.set('X-CSRF-TOKEN', token);
+    return { ...init, headers };
+  }
+
+  async function requestJson(url, init = {}) {
+    const response = await fetch(url, {
+      credentials: 'same-origin',
+      cache: 'no-store',
+      ...withCsrf(init),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.success === false) {
+      throw new Error(data.error || `HTTP ${response.status}`);
+    }
+    return data;
+  }
+
+  function findSite(siteId) {
+    const numericId = Number(siteId);
+    return sites.find((item) => Number(item.id) === numericId) || null;
+  }
+
+  function findSiteName(siteId) {
+    const site = findSite(siteId);
+    if (!site) return `#${siteId}`;
+    return site.server_name_display || site.server_name || site.rms_address_display || site.rms_address || `#${siteId}`;
+  }
+
+  function renderQueueLine(label, queue) {
+    const running = Boolean(queue?.running);
+    const queued = Boolean(queue?.queued);
+    const total = Number(queue?.total_count || 0);
+    const completed = Number(queue?.completed_count || 0);
+    const currentMonitorId = queue?.current_monitor_id;
+    const progressText = total > 0 ? `${completed}/${total}` : '—';
+    const currentText = currentMonitorId ? `сейчас: ${findSiteName(currentMonitorId)}` : 'сейчас: —';
+    return `
+      <div>
+        <strong>${escapeHtml(label)}:</strong> ${queueBadge(running, queued)}
+        <span class="ms-2">прогресс: ${escapeHtml(progressText)}</span>
+        <span class="ms-2">${escapeHtml(currentText)}</span>
+        <span class="ms-2">последний запуск: ${escapeHtml(formatDateTime(queue?.last_requested_at))}</span>
+        <span class="ms-2">последнее завершение: ${escapeHtml(formatDateTime(queue?.last_completed_at))}</span>
+      </div>
+    `;
   }
 
   function renderQueueState() {
@@ -194,16 +296,8 @@
     const network = refreshState.network || {};
     queueStateEl.innerHTML = `
       <div class="d-flex flex-column gap-1">
-        <div>
-          <strong>Лицензии:</strong> ${queueBadge(licenses.running, licenses.queued)}
-          <span class="ms-2">последний запуск: ${escapeHtml(formatDateTime(licenses.last_requested_at))}</span>
-          <span class="ms-2">последнее завершение: ${escapeHtml(formatDateTime(licenses.last_completed_at))}</span>
-        </div>
-        <div>
-          <strong>Статусы RMS:</strong> ${queueBadge(network.running, network.queued)}
-          <span class="ms-2">последний запуск: ${escapeHtml(formatDateTime(network.last_requested_at))}</span>
-          <span class="ms-2">последнее завершение: ${escapeHtml(formatDateTime(network.last_completed_at))}</span>
-        </div>
+        ${renderQueueLine('Лицензии', licenses)}
+        ${renderQueueLine('Статусы RMS', network)}
       </div>
     `;
 
@@ -223,6 +317,53 @@
           ? 'Статусы в очереди'
           : 'Обновить статусы RMS';
     }
+  }
+
+  function renderAvailabilityOverview() {
+    if (!availabilityPercentEl || !availabilityCaptionEl || !availabilityBarEl || !availabilityMetaEl) return;
+    if (!availabilityOverview) {
+      availabilityPercentEl.textContent = '—';
+      availabilityCaptionEl.textContent = 'нет данных';
+      availabilityBarEl.innerHTML = `
+        <div class="progress" role="progressbar" style="width: 100%;">
+          <div class="progress-bar bg-secondary-subtle text-secondary">Нет данных</div>
+        </div>
+      `;
+      availabilityMetaEl.innerHTML = '';
+      return;
+    }
+
+    const total = Number(availabilityOverview.total || 0);
+    const up = Number(availabilityOverview.up || 0);
+    const down = Number(availabilityOverview.down || 0);
+    const unknown = Number(availabilityOverview.unknown || 0);
+    const disabled = Number(availabilityOverview.disabled || 0);
+    const percent = Number(availabilityOverview.availability_percent || 0);
+    const safeTotal = total > 0 ? total : 1;
+    const segmentWidth = (count) => `${Math.max(0, (Number(count || 0) * 100) / safeTotal)}%`;
+
+    availabilityPercentEl.textContent = `${percent.toFixed(1)}%`;
+    availabilityCaptionEl.textContent = `активных узлов: ${Math.max(0, total - disabled)} из ${total}`;
+    availabilityBarEl.innerHTML = `
+      <div class="progress" role="progressbar" style="width: ${segmentWidth(up)};">
+        <div class="progress-bar bg-success" title="Доступны: ${up}"></div>
+      </div>
+      <div class="progress" role="progressbar" style="width: ${segmentWidth(down)};">
+        <div class="progress-bar bg-danger" title="Недоступны: ${down}"></div>
+      </div>
+      <div class="progress" role="progressbar" style="width: ${segmentWidth(unknown)};">
+        <div class="progress-bar bg-secondary" title="Неизвестно: ${unknown}"></div>
+      </div>
+      <div class="progress" role="progressbar" style="width: ${segmentWidth(disabled)};">
+        <div class="progress-bar bg-dark-subtle" title="Отключены: ${disabled}"></div>
+      </div>
+    `;
+    availabilityMetaEl.innerHTML = `
+      <span class="rms-overview-chip text-success">Доступны: ${escapeHtml(up)}</span>
+      <span class="rms-overview-chip text-danger">Недоступны: ${escapeHtml(down)}</span>
+      <span class="rms-overview-chip text-secondary">Неизвестно: ${escapeHtml(unknown)}</span>
+      <span class="rms-overview-chip text-body-secondary">Отключены: ${escapeHtml(disabled)}</span>
+    `;
   }
 
   function renderEmptyState(message, className) {
@@ -257,8 +398,8 @@
             ${featureBadge(licenseFeatureEnabled, 'Лицензии')}
             ${featureBadge(networkFeatureEnabled, 'Доступность')}
           </div>
-          <div class="small text-muted">Логин: ${escapeHtml(site.auth_login || '—')}</div>
-          ${site.password_saved ? '' : '<div class="small text-warning">Пароль не сохранён</div>'}
+          <div class="small text-muted mt-1">Логин: ${escapeHtml(site.auth_login || '—')}</div>
+          <div class="small ${site.password_saved ? 'text-success' : 'text-warning'}">${site.password_saved ? 'Пароль сохранён и зашифрован' : 'Пароль не сохранён'}</div>
         </td>
         <td>
           <div class="fw-semibold">${escapeHtml(site.server_name_display || site.server_name || '—')}</div>
@@ -271,12 +412,14 @@
         <td class="license-cell status-${escapeHtml(licenseLevel || 'error')}">
           <div>${licenseBadge(licenseLevel)}</div>
           <div class="small text-muted mt-1">${escapeHtml(site.license_error_message || '')}</div>
+          <div class="small mt-2">${refreshStateChip(site.license_refresh_state, 'Лицензия')}</div>
         </td>
         <td class="rms-cell status-${escapeHtml(rmsLevel || 'unknown')}">
           <div>${rmsBadge(rmsLevel)}</div>
           <div class="small text-muted mt-1">${escapeHtml(site.rms_status_message || '—')}</div>
           <div class="small text-muted">${escapeHtml(formatDateTime(site.rms_last_checked_at))}</div>
-          ${site.traceroute_summary ? `<div class="small mt-1">${escapeHtml(site.traceroute_summary)}</div>` : ''}
+          <div class="small mt-2">${refreshStateChip(site.network_refresh_state, 'RMS')}</div>
+          ${site.traceroute_summary ? `<div class="small mt-2">${escapeHtml(site.traceroute_summary)}</div>` : ''}
         </td>
         <td>
           <div>${escapeHtml(site.server_type || '—')}</div>
@@ -306,60 +449,6 @@
     });
   }
 
-  function getCookieValue(name) {
-    const cookies = document.cookie ? document.cookie.split(';') : [];
-    const encodedName = `${encodeURIComponent(name)}=`;
-    for (const raw of cookies) {
-      const value = raw.trim();
-      if (value.startsWith(encodedName)) {
-        return decodeURIComponent(value.slice(encodedName.length));
-      }
-    }
-    return '';
-  }
-
-  function getCsrfToken() {
-    const tokenFromMeta = document.querySelector('meta[name="_csrf"]')?.getAttribute('content') || '';
-    if (tokenFromMeta) return tokenFromMeta;
-    const tokenFromInput = document.querySelector('input[name="_csrf"]')?.value || '';
-    if (tokenFromInput) return tokenFromInput;
-    return getCookieValue('XSRF-TOKEN');
-  }
-
-  function withCsrf(init = {}) {
-    const method = String(init.method || 'GET').toUpperCase();
-    if (['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes(method)) {
-      return init;
-    }
-    const token = getCsrfToken();
-    if (!token) return init;
-
-    const headers = new Headers(init.headers || {});
-    if (!headers.has('X-XSRF-TOKEN')) {
-      headers.set('X-XSRF-TOKEN', token);
-    }
-    if (!headers.has('X-CSRF-TOKEN')) {
-      headers.set('X-CSRF-TOKEN', token);
-    }
-    return {
-      ...init,
-      headers,
-    };
-  }
-
-  async function requestJson(url, init = {}) {
-    const response = await fetch(url, {
-      credentials: 'same-origin',
-      cache: 'no-store',
-      ...withCsrf(init),
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok || data.success === false) {
-      throw new Error(data.error || `HTTP ${response.status}`);
-    }
-    return data;
-  }
-
   async function loadSites(showLoading) {
     if (showLoading) {
       renderEmptyState('Загрузка...', 'text-muted');
@@ -368,17 +457,22 @@
       const data = await requestJson('/api/monitoring/rms/sites');
       sites = Array.isArray(data.items) ? data.items : [];
       refreshState = data.refresh_state || null;
+      availabilityOverview = data.availability_overview || null;
+      renderAvailabilityOverview();
       renderQueueState();
       renderSites();
     } catch (error) {
+      renderAvailabilityOverview();
       renderQueueState();
       renderEmptyState(error.message || 'Не удалось загрузить RMS.', 'text-danger');
     }
   }
 
-  function findSite(siteId) {
-    const numericId = Number(siteId);
-    return sites.find((item) => Number(item.id) === numericId) || null;
+  function resetCreateForm() {
+    createForm?.reset();
+    if (rmsEnabledInput) rmsEnabledInput.checked = true;
+    if (rmsLicenseMonitoringInput) rmsLicenseMonitoringInput.checked = true;
+    if (rmsNetworkMonitoringInput) rmsNetworkMonitoringInput.checked = true;
   }
 
   async function createSite(event) {
@@ -397,10 +491,8 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      createForm?.reset();
-      if (rmsEnabledInput) rmsEnabledInput.checked = true;
-      if (rmsLicenseMonitoringInput) rmsLicenseMonitoringInput.checked = true;
-      if (rmsNetworkMonitoringInput) rmsNetworkMonitoringInput.checked = true;
+      resetCreateForm();
+      createModal?.hide();
       await loadSites(false);
       showMessage('RMS добавлен.', 'success');
     } catch (error) {
@@ -411,7 +503,6 @@
   function openEditModal(siteId) {
     const site = findSite(siteId);
     if (!site || !editModal) return;
-
     if (editRmsIdInput) editRmsIdInput.value = String(site.id);
     if (editRmsAddressInput) editRmsAddressInput.value = site.rms_address || '';
     if (editRmsLoginInput) editRmsLoginInput.value = site.auth_login || '';
@@ -421,8 +512,8 @@
     if (editRmsNetworkMonitoringInput) editRmsNetworkMonitoringInput.checked = Boolean(site.network_monitoring_enabled);
     if (editRmsPasswordHint) {
       editRmsPasswordHint.textContent = site.password_saved
-        ? 'Пароль уже сохранён. Оставьте поле пустым, чтобы его не менять.'
-        : 'Для этого RMS пароль ещё не сохранён.';
+        ? 'Пароль уже сохранён и хранится в зашифрованном виде. Оставьте поле пустым, чтобы его не менять.'
+        : 'Для этой RMS пароль ещё не сохранён.';
     }
     editModal.show();
   }
@@ -457,13 +548,9 @@
   }
 
   async function deleteSite(siteId) {
-    if (!window.confirm('Удалить RMS из мониторинга?')) {
-      return;
-    }
+    if (!window.confirm('Удалить RMS из мониторинга?')) return;
     try {
-      await requestJson(`/api/monitoring/rms/sites/${siteId}`, {
-        method: 'DELETE',
-      });
+      await requestJson(`/api/monitoring/rms/sites/${siteId}`, { method: 'DELETE' });
       await loadSites(false);
       showMessage('RMS удалён.', 'success');
     } catch (error) {
@@ -473,9 +560,7 @@
 
   async function triggerRefresh(url, successMessage) {
     try {
-      const data = await requestJson(url, {
-        method: 'POST',
-      });
+      const data = await requestJson(url, { method: 'POST' });
       refreshState = data.refresh_state || refreshState;
       renderQueueState();
       await loadSites(false);
@@ -493,9 +578,7 @@
       ? 'Проверка лицензии поставлена в очередь.'
       : 'Проверка доступности поставлена в очередь.';
     try {
-      const data = await requestJson(endpoint, {
-        method: 'POST',
-      });
+      const data = await requestJson(endpoint, { method: 'POST' });
       refreshState = data.refresh_state || refreshState;
       renderQueueState();
       await loadSites(false);
@@ -610,7 +693,7 @@
       await loadSites(false);
       showMessage(
         enabled ? `Мониторинг ${scopeTitle} массово включён.` : `Мониторинг ${scopeTitle} массово отключён.`,
-        'success'
+        'success',
       );
     } catch (error) {
       showMessage(`Не удалось изменить массовый режим: ${error.message}`, 'error');
@@ -625,6 +708,11 @@
       loadSites(false);
     }, POLL_INTERVAL_MS);
   }
+
+  openCreateModalBtn?.addEventListener('click', () => {
+    resetCreateForm();
+    createModal?.show();
+  });
 
   tableBody?.addEventListener('click', (event) => {
     const button = event.target.closest('[data-action]');
