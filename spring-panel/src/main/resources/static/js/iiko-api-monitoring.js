@@ -13,9 +13,13 @@
   const tableBody = document.getElementById('iikoMonitoringTableBody');
   const queueStateEl = document.getElementById('iikoQueueState');
   const createForm = document.getElementById('iikoCreateForm');
+  const openCreateModalBtn = document.getElementById('openIikoCreateModalBtn');
   const refreshBtn = document.getElementById('refreshIikoBtn');
   const bulkEnableBtn = document.getElementById('bulkEnableIikoBtn');
   const bulkDisableBtn = document.getElementById('bulkDisableIikoBtn');
+
+  const createModalEl = document.getElementById('iikoCreateModal');
+  const createModal = createModalEl && window.bootstrap ? new bootstrap.Modal(createModalEl) : null;
 
   const createMonitorNameInput = document.getElementById('iikoMonitorNameInput');
   const createBaseUrlInput = document.getElementById('iikoBaseUrlInput');
@@ -291,6 +295,16 @@
     return map;
   }
 
+  function resetCreateForm() {
+    createForm?.reset();
+    if (createBaseUrlInput) createBaseUrlInput.value = DEFAULT_BASE_URL;
+    if (createEnabledInput) createEnabledInput.checked = true;
+    if (createRequestTypeInput && requestTypes.length) {
+      createRequestTypeInput.value = requestTypes[0].code;
+    }
+    updateConfigSections('create', createRequestTypeInput?.value || '');
+  }
+
   function renderQueueState() {
     if (!queueStateEl) return;
     if (!refreshState) {
@@ -408,11 +422,8 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      createForm?.reset();
-      if (createBaseUrlInput) createBaseUrlInput.value = DEFAULT_BASE_URL;
-      if (createEnabledInput) createEnabledInput.checked = true;
-      if (createRequestTypeInput && requestTypes.length) createRequestTypeInput.value = requestTypes[0].code;
-      updateConfigSections('create', createRequestTypeInput?.value || '');
+      resetCreateForm();
+      createModal?.hide();
       await loadMonitors(false);
       showMessage('Монитор iiko API добавлен.', 'success');
     } catch (error) {
@@ -570,6 +581,11 @@
   editRequestTypeInput?.addEventListener('change', () => {
     updateConfigSections('edit', editRequestTypeInput.value);
   });
+  openCreateModalBtn?.addEventListener('click', () => {
+    resetCreateForm();
+    createModal?.show();
+  });
+
   createForm?.addEventListener('submit', createMonitor);
   editForm?.addEventListener('submit', saveMonitor);
   refreshBtn?.addEventListener('click', () => {

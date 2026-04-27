@@ -31,14 +31,16 @@ public class SslCertificateMonitoringApiController {
 
     @GetMapping("/sites")
     public Map<String, Object> listSites() {
-        List<Map<String, Object>> items = monitoringService.findAll()
+        List<SslCertificateMonitor> monitors = monitoringService.findAll();
+        List<Map<String, Object>> items = monitors
             .stream()
             .map(this::toDto)
             .toList();
-        return Map.of(
-            "success", true,
-            "items", items
-        );
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("success", true);
+        payload.put("items", items);
+        payload.put("availability_overview", toAvailabilityOverview(monitoringService.buildAvailabilityOverview(monitors)));
+        return payload;
     }
 
     @PostMapping("/sites")
@@ -181,5 +183,16 @@ public class SslCertificateMonitoringApiController {
     }
 
     private record SitePayload(String siteName, String endpointUrl, Boolean enabled) {
+    }
+
+    private Map<String, Object> toAvailabilityOverview(SslCertificateMonitoringService.AvailabilityOverview overview) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("total", overview.total());
+        payload.put("up", overview.up());
+        payload.put("down", overview.down());
+        payload.put("unknown", overview.unknown());
+        payload.put("disabled", overview.disabled());
+        payload.put("availability_percent", overview.availabilityPercent());
+        return payload;
     }
 }

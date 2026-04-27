@@ -31328,3 +31328,840 @@ java.lang.RuntimeException: db down
 2026-04-27 16:51:10.233+03:00 INFO  [SpringApplicationShutdownHook] c.e.panel.service.BotProcessService - Stopping all bot processes due to panel shutdown
 2026-04-27 16:51:10.234+03:00 INFO  [SpringApplicationShutdownHook] c.e.panel.service.BotProcessService - Stopping bot process for channel 2 via shutdown
 2026-04-27 16:51:10.257+03:00 INFO  [SpringApplicationShutdownHook] o.s.o.j.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-04-27 17:17:06.455+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
+2026-04-27 17:17:06.494+03:00 INFO  [main] c.e.p.config.EnvDefaultsInitializer - Applied default SQLite paths for missing APP_DB_* variables: {APP_DB_USERS=C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\users.db, APP_DB_KNOWLEDGE=C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\knowledge_base.db, APP_DB_CLIENTS=C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\clients.db, APP_DB_MONITORING=C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\monitoring.db, APP_DB_OBJECT_PASSPORTS=C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\object_passports.db, APP_DB_OBJECTS=C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\objects.db, APP_DB_SETTINGS=C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\settings.db, APP_DB_BOT=C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\bot_database.db, APP_DB_TICKETS=C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\tickets.db}
+2026-04-27 17:17:06.499+03:00 WARN  [main] c.e.p.config.EnvDefaultsInitializer - Environment variable APP_DB_OBJECT_PASSPORTS points to missing file C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\object_passports.db, falling back to defaults.
+2026-04-27 17:17:06.499+03:00 INFO  [main] c.e.p.config.EnvDefaultsInitializer - Applied default SQLite paths for missing APP_DB_* variables: {APP_DB_OBJECT_PASSPORTS=C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\object_passports.db}
+2026-04-27 17:17:06.504+03:00 INFO  [main] com.example.panel.PanelApplication - Starting PanelApplication using Java 25.0.2 with PID 15124 (C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\target\classes started by SinicinVV in C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel)
+2026-04-27 17:17:06.506+03:00 INFO  [main] com.example.panel.PanelApplication - No active profile set, falling back to 1 default profile: "default"
+2026-04-27 17:17:07.518+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-04-27 17:17:07.676+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 150 ms. Found 33 JPA repository interfaces.
+2026-04-27 17:17:08.280+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 8080 (http)
+2026-04-27 17:17:08.290+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Initializing ProtocolHandler ["http-nio-8080"]
+2026-04-27 17:17:08.292+03:00 INFO  [main] o.a.catalina.core.StandardService - Starting service [Tomcat]
+2026-04-27 17:17:08.292+03:00 INFO  [main] o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.20]
+2026-04-27 17:17:08.349+03:00 INFO  [main] o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+2026-04-27 17:17:08.350+03:00 INFO  [main] o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 1800 ms
+2026-04-27 17:17:08.418+03:00 INFO  [main] c.e.p.c.SqliteDataSourceConfiguration - Using SQLite database at C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\bot_database.db
+2026-04-27 17:17:08.688+03:00 INFO  [main] org.flywaydb.core.FlywayExecutor - Database: jdbc:sqlite:C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\bot_database.db (SQLite 3.43)
+2026-04-27 17:17:08.756+03:00 INFO  [main] o.f.core.internal.command.DbValidate - Successfully validated 37 migrations (execution time 00:00.049s)
+2026-04-27 17:17:08.765+03:00 INFO  [main] o.f.core.internal.command.DbMigrate - Current version of schema "main": 34
+2026-04-27 17:17:08.765+03:00 WARN  [main] o.f.core.internal.command.DbMigrate - outOfOrder mode is active. Migration of schema "main" may not be reproducible.
+2026-04-27 17:17:08.769+03:00 INFO  [main] o.f.core.internal.command.DbMigrate - Schema "main" is up to date. No migration necessary.
+2026-04-27 17:17:08.896+03:00 INFO  [main] o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-04-27 17:17:08.943+03:00 INFO  [main] org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
+2026-04-27 17:17:08.970+03:00 INFO  [main] o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
+2026-04-27 17:17:09.135+03:00 INFO  [main] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-04-27 17:17:10.254+03:00 INFO  [main] o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-04-27 17:17:10.257+03:00 INFO  [main] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-04-27 17:17:10.394+03:00 INFO  [main] c.e.p.service.SharedConfigService - Using shared config directory at C:\Users\SinicinVV\git_h\tg_ref_b24_sup\config\shared
+2026-04-27 17:17:10.787+03:00 INFO  [main] c.e.p.service.DatabaseHealthService - Spring panel is using SQLite database at: C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\bot_database.db (tickets) and C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\users.db (users)
+2026-04-27 17:17:11.214+03:00 INFO  [main] o.s.d.j.r.query.QueryEnhancerFactory - Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-04-27 17:17:12.019+03:00 INFO  [main] c.e.p.s.OperatorNotificationWatcher - Operator notification watcher initialized (chatHistoryId=146, feedbackId=9)
+2026-04-27 17:17:12.030+03:00 INFO  [main] c.e.p.c.BotSqliteDataSourceConfiguration - Using BOT SQLite database at C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\bot_database.db
+2026-04-27 17:17:12.031+03:00 INFO  [main] c.e.p.c.MonitoringSqliteDataSourceConfiguration - Using MONITORING SQLite database at C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\monitoring.db
+2026-04-27 17:17:12.186+03:00 INFO  [main] c.e.p.c.UsersSqliteDataSourceConfiguration - Using USERS SQLite database at C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\users.db
+2026-04-27 17:17:12.222+03:00 WARN  [main] o.s.b.a.o.j.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-04-27 17:17:12.517+03:00 INFO  [main] o.s.s.web.DefaultSecurityFilterChain - Will secure any request with [org.springframework.security.web.session.DisableEncodeUrlFilter@47be3679, org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@6272fe30, org.springframework.security.web.context.SecurityContextHolderFilter@3eb60858, org.springframework.security.web.header.HeaderWriterFilter@4e826e33, org.springframework.web.filter.CorsFilter@30ca87d9, org.springframework.security.web.csrf.CsrfFilter@2f38b35e, com.example.panel.security.SecurityHeadersFilter@dbed7fd, org.springframework.security.web.authentication.logout.LogoutFilter@4fa0e166, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter@4c93cf28, org.springframework.security.web.session.ConcurrentSessionFilter@4f6f69ef, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@14f13587, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@24af33a1, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@10d5e2dc, com.example.panel.security.UserLastActivityFilter@1af677f8, org.springframework.security.web.session.SessionManagementFilter@39008911, org.springframework.security.web.access.ExceptionTranslationFilter@76f65a8b, org.springframework.security.web.access.intercept.AuthorizationFilter@2de11117]
+2026-04-27 17:17:12.914+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Starting ProtocolHandler ["http-nio-8080"]
+2026-04-27 17:17:12.923+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 8080 (http) with context path ''
+2026-04-27 17:17:12.933+03:00 INFO  [main] com.example.panel.PanelApplication - Started PanelApplication in 6.887 seconds (process running for 7.209)
+2026-04-27 17:17:13.162+03:00 INFO  [http-nio-8080-exec-2] o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-04-27 17:17:13.162+03:00 INFO  [http-nio-8080-exec-2] o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
+2026-04-27 17:17:13.164+03:00 INFO  [http-nio-8080-exec-2] o.s.web.servlet.DispatcherServlet - Completed initialization in 2 ms
+2026-04-27 17:17:13.329+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:17:13.387+03:00 INFO  [main] c.e.p.s.MonitoringDatabaseBootstrapService - Migrated 29 SSL monitor records into monitoring.db
+2026-04-27 17:17:13.402+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:17:15.259+03:00 INFO  [main] c.e.p.s.MonitoringDatabaseBootstrapService - Migrated 212 RMS monitor records into monitoring.db
+2026-04-27 17:17:15.294+03:00 INFO  [main] c.e.p.s.RmsMonitoringSeedImportService - No RMS seed records were imported from rms_addresses_seed.csv (skipped: 212)
+2026-04-27 17:17:15.297+03:00 INFO  [main] c.e.p.s.DatabaseBootstrapService - Clients database ensured at C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\clients.db
+2026-04-27 17:17:15.300+03:00 INFO  [main] c.e.p.s.DatabaseBootstrapService - Knowledge base database ensured at C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\knowledge_base.db
+2026-04-27 17:17:15.303+03:00 INFO  [main] c.e.p.s.DatabaseBootstrapService - Objects database ensured at C:\Users\SinicinVV\git_h\tg_ref_b24_sup\spring-panel\objects.db
+2026-04-27 17:17:15.378+03:00 INFO  [main] c.e.p.service.BotDatabaseRegistry - Bot database ready for channel 1 at C:\Users\SinicinVV\git_h\tg_ref_b24_sup\bot_databases\bot-1.db
+2026-04-27 17:17:15.387+03:00 INFO  [main] c.e.p.service.BotDatabaseRegistry - Bot database ready for channel 2 at C:\Users\SinicinVV\git_h\tg_ref_b24_sup\bot_databases\bot-2.db
+2026-04-27 17:17:15.402+03:00 INFO  [main] c.e.p.s.AdditionalServicesHealthService - Bot database directory is available: C:\Users\SinicinVV\git_h\tg_ref_b24_sup\bot_databases
+2026-04-27 17:17:15.402+03:00 INFO  [main] c.e.p.s.AdditionalServicesHealthService - Bot runtime is available at C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot
+2026-04-27 17:17:15.497+03:00 INFO  [main] c.e.p.s.AdditionalServicesHealthService - Telegram bot process status: stopped
+2026-04-27 17:17:15.498+03:00 INFO  [main] c.e.p.s.AdditionalServicesHealthService - VK bot process status: stopped
+2026-04-27 17:17:15.505+03:00 WARN  [main] c.e.panel.service.BotProcessService - PID file not found for channel 1
+2026-04-27 17:17:15.506+03:00 INFO  [main] c.e.panel.service.BotProcessService - Stopped bot process for channel 1
+2026-04-27 17:17:18.505+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:17:23.681+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:17:23.693+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:17:29.318+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:17:34.132+03:00 WARN  [scheduling-1] c.e.p.s.SslCertificateMonitoringService - SSL monitor check failed for xn--80aag1ciek.xn--80adjkr6adm9b.xn--p1aia1a:443 (xn--80aag1ciek.xn--80adjkr6adm9b.xn--p1aia1a)
+2026-04-27 17:17:34.961+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:17:40.228+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:17:45.859+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:17:51.498+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:17:53.829+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:17:56.514+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:18:00.584+03:00 WARN  [main] c.e.panel.service.BotProcessService - Bot process for channel 1 did not confirm readiness in time: Не удалось подтвердить готовность бота после старта. Последняя строка лога: 2026-04-27 17:17:44.210+03:00 INFO  [main] o.a.http.impl.execchain.RetryExec - Retrying request to {s}->https://api.telegram.org:443
+2026-04-27 17:18:00.584+03:00 INFO  [main] c.e.panel.service.BotProcessService - Stopping bot process for channel 1 via startup-readiness-failure
+2026-04-27 17:18:00.604+03:00 WARN  [main] c.e.p.service.BotAutoStartService - Failed to auto-start bot for channel 1: Не удалось подтвердить готовность бота после старта. Последняя строка лога: 2026-04-27 17:17:44.210+03:00 INFO  [main] o.a.http.impl.execchain.RetryExec - Retrying request to {s}->https://api.telegram.org:443
+2026-04-27 17:18:00.605+03:00 WARN  [main] c.e.panel.service.BotProcessService - PID file not found for channel 2
+2026-04-27 17:18:00.605+03:00 INFO  [main] c.e.panel.service.BotProcessService - Stopped bot process for channel 2
+2026-04-27 17:18:01.940+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:18:07.555+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:18:08.418+03:00 INFO  [main] c.e.panel.service.BotProcessService - Started bot process for channel 2 at 2026-04-27T17:18:00.620019+03:00 via maven:spring-boot-run:bot-max
+2026-04-27 17:18:08.419+03:00 INFO  [main] c.e.p.service.BotAutoStartService - Auto-started bot for channel 2 (мах_тест)
+2026-04-27 17:18:08.419+03:00 INFO  [main] c.e.p.service.BotAutoStartService - Bot auto-start completed. Started 1 active bot(s).
+2026-04-27 17:18:13.037+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:18:18.702+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:18:24.260+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:18:24.261+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:18:29.314+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:18:34.692+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:18:40.456+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:18:46.098+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:18:51.763+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:18:54.216+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:18:54.278+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:18:54.321+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:18:57.107+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:18:57.753+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:18:57.803+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:19:02.829+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:19:08.034+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:19:13.079+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:19:18.342+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:19:23.342+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:19:28.058+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:19:28.375+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:19:33.463+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:19:36.497+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:19:38.456+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:19:43.989+03:00 WARN  [http-nio-8080-exec-1] c.e.p.s.RmsLicenseMonitoringService - RMS license refresh failed for https://bb-chain.iiko.it: Не найдена лицензия RMS (Front Fast Food) с id=100
+2026-04-27 17:19:47.371+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:19:48.590+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:19:53.972+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:19:57.869+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:20:02.679+03:00 WARN  [scheduling-1] c.e.p.b.KnowledgeBaseNotionSyncScheduler - Scheduled Notion knowledge sync failed: Не задан integration token Notion.
+2026-04-27 17:20:02.728+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:20:03.788+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:20:09.027+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:20:13.890+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:20:21.781+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:20:25.146+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:20:27.928+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:20:30.374+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:20:36.023+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:20:41.641+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:20:47.053+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:20:52.332+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:20:57.345+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:20:57.871+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:21:02.439+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:21:06.778+03:00 WARN  [http-nio-8080-exec-5] c.e.p.s.RmsLicenseMonitoringService - RMS license refresh failed for https://bb-bluewaters.syrve.online: Не удалось обновить лицензию RMS (ConnectException)
+2026-04-27 17:21:07.509+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:21:12.894+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:21:13.761+03:00 WARN  [http-nio-8080-exec-9] c.e.p.config.RestExceptionHandler - I/O exception: ServletOutputStream failed to write: java.io.IOException: Программа на вашем хост-компьютере разорвала установленное подключение
+2026-04-27 17:21:15.589+03:00 INFO  [http-nio-8080-exec-7] c.e.p.controller.AnalyticsController - Analytics view requested by admin: 8 ticket rows, 4 client rows
+2026-04-27 17:21:15.634+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:21:15.944+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:21:15.966+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:21:17.572+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:21:17.577+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:21:17.731+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:21:22.610+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:21:27.656+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:21:33.229+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:21:37.902+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:21:42.824+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:21:47.536+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:21:47.861+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:21:52.891+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:21:59.622+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:22:03.106+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:22:08.144+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:22:13.192+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:22:14.902+03:00 WARN  [http-nio-8080-exec-3] c.e.p.s.RmsLicenseMonitoringService - RMS license refresh failed for https://bb-chain.iiko.it: Не найдена лицензия RMS (Front Fast Food) с id=100
+2026-04-27 17:22:18.135+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:22:18.222+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:22:23.420+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:22:29.216+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:22:34.156+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:22:39.784+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:22:44.770+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:22:48.016+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:22:49.881+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:22:54.921+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:23:00.090+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:23:05.221+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:23:10.908+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:23:16.534+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:23:18.271+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:23:21.838+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:23:27.464+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:23:32.540+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:23:37.613+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:23:43.900+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:23:47.764+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:23:48.266+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:23:52.781+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:24:00.089+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:24:03.328+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:24:08.279+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:24:13.336+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:24:18.314+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:24:18.366+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:24:24.879+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:24:28.973+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:24:33.496+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:24:41.858+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:24:43.924+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:24:48.635+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:24:48.756+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:24:54.352+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:24:59.970+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:25:04.917+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:25:10.130+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:25:15.745+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:25:19.011+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:25:20.893+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:25:26.507+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:25:32.137+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:25:37.389+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:25:43.029+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:25:48.659+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:25:49.041+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:25:54.051+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:25:59.670+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:26:05.305+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:26:10.900+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:26:16.552+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:26:19.397+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:26:24.337+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:26:26.764+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:26:32.356+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:26:37.534+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:26:43.173+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:26:48.808+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:26:49.444+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:26:54.116+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:26:59.759+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:27:05.430+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:27:10.952+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:27:16.547+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:27:23.398+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:27:23.420+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:27:26.937+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:27:31.951+03:00 INFO  [http-nio-8080-exec-6] c.e.p.controller.AnalyticsController - Analytics view requested by admin: 8 ticket rows, 4 client rows
+2026-04-27 17:27:32.017+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:27:32.283+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:27:32.316+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:27:36.549+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:27:36.602+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:27:36.633+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:27:41.613+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:27:46.687+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:27:51.691+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:27:56.804+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:28:01.940+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:28:07.090+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:28:07.106+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:28:12.753+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:28:18.379+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:28:24.024+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:28:29.647+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:28:35.284+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:28:37.366+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:28:39.815+03:00 INFO  [http-nio-8080-exec-4] c.e.p.controller.AnalyticsController - Analytics view requested by admin: 8 ticket rows, 4 client rows
+2026-04-27 17:28:40.185+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:28:40.196+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:28:41.563+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:28:41.579+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:28:41.632+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:28:46.556+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:28:51.569+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:28:52.945+03:00 INFO  [http-nio-8080-exec-1] c.e.p.controller.AnalyticsController - Analytics view requested by admin: 8 ticket rows, 4 client rows
+2026-04-27 17:28:53.273+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:28:53.298+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:28:53.308+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:28:56.898+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:28:56.976+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:29:01.934+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:29:07.189+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:29:12.223+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:29:17.501+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:29:22.329+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:29:27.191+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:29:27.318+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:29:32.410+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:29:40.103+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:29:42.647+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:29:48.180+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:29:53.767+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:29:57.700+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:29:58.962+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:30:03.932+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:30:09.550+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:30:14.083+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:30:14.613+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:30:19.737+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:30:25.904+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:30:27.921+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:30:30.121+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:30:35.416+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:30:40.488+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:30:45.552+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:30:51.440+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:30:55.899+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:30:57.995+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:31:02.294+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:31:05.118+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:31:06.186+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:31:06.501+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:31:11.496+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:31:11.836+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:31:16.825+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:31:22.328+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:31:27.334+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:31:28.145+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:31:29.846+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:31:32.381+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:31:41.395+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:31:42.585+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:31:47.922+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:31:49.245+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:31:52.978+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:32:01.138+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:32:01.184+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:32:03.248+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:32:05.130+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:32:05.903+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:32:08.334+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:32:10.242+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:32:13.659+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:32:19.266+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:32:24.906+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:32:28.514+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:32:30.181+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:32:35.723+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:32:41.322+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:32:46.377+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:32:52.024+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:32:57.648+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:32:58.661+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:33:02.378+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:33:02.676+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:33:07.675+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:33:13.231+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:33:22.197+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:33:24.177+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:33:24.574+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:33:28.654+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:33:28.855+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:33:34.080+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:33:39.531+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:33:44.446+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:33:49.629+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:33:54.451+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:33:59.702+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:33:59.797+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:34:04.702+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:34:09.795+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:34:18.050+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:34:20.056+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:34:25.468+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:34:28.684+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:34:29.004+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:34:30.480+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:34:35.519+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:34:40.572+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:34:46.935+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:34:50.756+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:34:56.267+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:34:59.298+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:35:01.535+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:35:07.170+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:35:12.804+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:35:18.031+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:35:23.653+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:35:28.383+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:35:28.398+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:35:28.718+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:35:29.442+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:35:34.096+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:35:34.953+03:00 INFO  [http-nio-8080-exec-8] c.e.p.controller.AnalyticsController - Analytics view requested by admin: 8 ticket rows, 4 client rows
+2026-04-27 17:35:35.299+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:35:35.314+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:35:40.455+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:35:46.352+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:35:51.727+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:35:53.590+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:35:53.625+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:35:56.980+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:36:02.596+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:36:05.662+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:36:07.816+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:36:09.702+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:36:09.715+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:36:12.963+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:36:12.992+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:36:13.038+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:36:18.335+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:36:23.971+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:36:30.431+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:36:36.069+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:36:39.768+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:36:39.828+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:36:42.085+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:36:43.211+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:36:47.427+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:36:53.061+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:36:58.162+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:36:58.192+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:36:58.203+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:36:59.356+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:36:59.370+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:37:03.746+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:37:09.021+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:37:13.672+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:37:14.878+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:37:20.421+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:37:20.692+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:37:20.711+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:37:26.232+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:37:28.432+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:37:28.452+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:37:31.097+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:37:36.757+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:37:40.842+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:37:40.892+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:37:42.980+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:37:44.124+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:37:48.451+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:37:53.955+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:37:59.598+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:38:05.077+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:38:10.206+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:38:15.029+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:38:15.675+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:38:21.177+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:38:26.790+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:38:26.915+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:38:26.977+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:38:32.463+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:38:37.428+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:38:43.147+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:38:44.775+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:38:48.908+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:38:50.851+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:38:50.883+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:38:54.215+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:39:00.268+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:39:00.280+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:39:00.282+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:39:05.191+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:39:06.689+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:39:06.731+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:39:10.550+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:39:15.309+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:39:16.264+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:39:21.984+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:39:26.135+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:39:26.143+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:39:26.739+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:39:32.371+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:39:37.872+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:39:43.033+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:39:45.304+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:39:48.115+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:39:53.929+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:39:59.561+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:40:04.451+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:40:04.465+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:40:04.552+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:40:09.922+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:40:15.517+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:40:16.339+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:40:20.363+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:40:25.992+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:40:26.954+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:40:27.028+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:40:31.160+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:40:36.426+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:40:42.041+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:40:46.931+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:40:48.046+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:40:53.504+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:40:59.095+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:41:04.732+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:41:10.548+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:41:15.993+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:41:17.158+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:41:21.163+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:41:26.821+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:41:32.496+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:41:37.728+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:41:41.146+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:41:41.170+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:41:42.986+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:41:47.147+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:41:48.070+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:41:53.384+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:41:59.007+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:42:04.635+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:42:11.151+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:42:15.372+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:42:17.379+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:42:20.791+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:42:26.401+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:42:32.060+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:42:37.101+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:42:42.786+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:42:47.942+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:42:47.958+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:42:53.096+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:42:58.732+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:43:04.382+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:43:09.509+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:43:15.128+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:43:18.312+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:43:20.397+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:43:25.778+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:43:32.154+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:43:37.027+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:43:42.625+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:43:48.256+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:43:48.338+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:43:53.329+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:43:59.025+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:44:04.613+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:44:09.753+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:44:15.372+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:44:18.699+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:44:20.623+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:44:25.854+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:44:31.514+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:44:37.177+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:44:42.574+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:44:48.194+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:44:48.830+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:44:53.737+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:44:59.401+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:45:05.001+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:45:10.121+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:45:15.729+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:45:19.191+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:45:20.984+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:45:26.098+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:45:31.770+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:45:37.416+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:45:42.462+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:45:48.072+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:45:49.311+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:45:53.576+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:45:58.975+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:46:04.608+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:46:10.275+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:46:15.862+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:46:19.802+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:46:21.038+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:46:26.069+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:46:29.832+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:46:31.514+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:46:37.060+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:46:42.143+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:46:47.778+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:46:49.971+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:46:53.176+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:46:58.347+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:47:04.003+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:47:09.653+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:47:12.579+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:47:14.983+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:47:20.220+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:47:20.286+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:47:25.633+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:47:31.096+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:47:36.466+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:47:41.468+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:47:46.478+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:47:52.457+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:47:52.728+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:47:56.600+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:48:02.108+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:48:07.242+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:48:12.406+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:48:21.618+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:48:21.753+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:48:22.643+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:48:27.749+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:48:32.627+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:48:37.670+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:48:43.982+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:48:47.755+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:48:51.079+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:48:52.969+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:48:58.131+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:49:03.662+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:49:09.320+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:49:14.654+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:49:20.287+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:49:21.482+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:49:25.782+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:49:31.010+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:49:37.873+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:49:42.265+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:49:47.639+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:49:51.953+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:49:53.004+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:49:58.621+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:50:04.127+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:50:09.743+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:50:15.374+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:50:15.590+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:50:15.625+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:50:20.384+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:50:22.071+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:50:28.208+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:50:30.455+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:50:36.015+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:50:41.299+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:50:46.819+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:50:52.438+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:50:52.475+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:50:53.189+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:50:53.297+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:50:57.445+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:51:02.688+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:51:07.724+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:51:12.815+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:51:18.074+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:51:22.591+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:51:23.703+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:51:29.345+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:51:31.482+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:51:31.567+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:51:34.719+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:51:39.596+03:00 INFO  [http-nio-8080-exec-7] c.e.p.controller.DialogsController - Loaded dialogs page for user admin
+2026-04-27 17:51:39.715+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:51:39.970+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:51:40.059+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:51:45.097+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:51:48.419+03:00 INFO  [http-nio-8080-exec-2] c.e.p.service.DialogListReadService - Loaded dialogs list payload: 13 dialogs, summary stats loaded
+2026-04-27 17:51:48.562+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:51:49.931+03:00 INFO  [http-nio-8080-exec-5] c.e.panel.service.DialogReadService - Dialog details requested for ticket 9547fa8d-be49-41d2-bf74-d1b04f7bf7d2 (channelId=1): found
+2026-04-27 17:51:50.135+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:51:53.403+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:51:53.406+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:51:55.169+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:51:58.030+03:00 INFO  [http-nio-8080-exec-8] c.e.panel.service.DialogReadService - History requested for ticket 9547fa8d-be49-41d2-bf74-d1b04f7bf7d2 (channelId=1): 3 messages
+2026-04-27 17:51:58.438+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:51:59.786+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:51:59.807+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:52:00.248+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:52:01.593+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:52:01.631+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:52:01.649+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:52:01.823+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:52:01.838+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:52:03.164+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:52:03.275+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:52:05.458+03:00 INFO  [http-nio-8080-exec-2] c.e.p.controller.DialogsController - Loaded dialogs page for user admin
+2026-04-27 17:52:05.786+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:52:05.830+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:52:05.933+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:52:06.003+03:00 INFO  [http-nio-8080-exec-8] c.e.panel.service.DialogReadService - Dialog details requested for ticket 9547fa8d-be49-41d2-bf74-d1b04f7bf7d2 (channelId=1): found
+2026-04-27 17:52:06.124+03:00 INFO  [http-nio-8080-exec-2] c.e.panel.service.DialogReadService - Dialog details requested for ticket 9547fa8d-be49-41d2-bf74-d1b04f7bf7d2 (channelId=1): found
+2026-04-27 17:52:11.171+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:52:14.133+03:00 INFO  [http-nio-8080-exec-1] c.e.panel.service.DialogReadService - History requested for ticket 9547fa8d-be49-41d2-bf74-d1b04f7bf7d2 (channelId=1): 3 messages
+2026-04-27 17:52:14.177+03:00 INFO  [http-nio-8080-exec-5] c.e.p.service.DialogListReadService - Loaded dialogs list payload: 13 dialogs, summary stats loaded
+2026-04-27 17:52:14.469+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:52:16.214+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:52:21.199+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:52:22.339+03:00 INFO  [http-nio-8080-exec-3] c.e.panel.service.DialogReadService - History requested for ticket 9547fa8d-be49-41d2-bf74-d1b04f7bf7d2 (channelId=1): 3 messages
+2026-04-27 17:52:22.392+03:00 INFO  [http-nio-8080-exec-6] c.e.p.service.DialogListReadService - Loaded dialogs list payload: 13 dialogs, summary stats loaded
+2026-04-27 17:52:26.323+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:52:30.418+03:00 INFO  [http-nio-8080-exec-8] c.e.p.service.DialogListReadService - Loaded dialogs list payload: 13 dialogs, summary stats loaded
+2026-04-27 17:52:31.423+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:52:35.844+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:52:36.508+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:52:38.342+03:00 INFO  [http-nio-8080-exec-6] c.e.p.service.DialogListReadService - Loaded dialogs list payload: 13 dialogs, summary stats loaded
+2026-04-27 17:52:41.849+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:52:46.315+03:00 INFO  [http-nio-8080-exec-4] c.e.p.service.DialogListReadService - Loaded dialogs list payload: 13 dialogs, summary stats loaded
+2026-04-27 17:52:46.979+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:52:51.881+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:52:54.519+03:00 INFO  [http-nio-8080-exec-3] c.e.p.service.DialogListReadService - Loaded dialogs list payload: 13 dialogs, summary stats loaded
+2026-04-27 17:52:57.017+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:53:00.747+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:53:00.812+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:53:05.913+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:53:10.920+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:53:15.907+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:53:21.052+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:53:26.375+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:53:31.282+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:53:31.282+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:53:36.346+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:53:41.362+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:53:43.494+03:00 INFO  [http-nio-8080-exec-3] c.e.p.controller.DialogsController - Loaded dialogs page for user admin
+2026-04-27 17:53:43.731+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:53:43.773+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:53:48.826+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:53:51.875+03:00 INFO  [http-nio-8080-exec-5] c.e.p.service.DialogListReadService - Loaded dialogs list payload: 13 dialogs, summary stats loaded
+2026-04-27 17:53:52.669+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:53:54.100+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:53:59.736+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:53:59.863+03:00 INFO  [http-nio-8080-exec-3] c.e.p.service.DialogListReadService - Loaded dialogs list payload: 13 dialogs, summary stats loaded
+2026-04-27 17:54:05.341+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:54:08.198+03:00 INFO  [http-nio-8080-exec-7] c.e.p.service.DialogListReadService - Loaded dialogs list payload: 13 dialogs, summary stats loaded
+2026-04-27 17:54:10.635+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:54:13.990+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:54:15.794+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:54:16.269+03:00 INFO  [http-nio-8080-exec-2] c.e.p.service.DialogListReadService - Loaded dialogs list payload: 13 dialogs, summary stats loaded
+2026-04-27 17:54:21.381+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:54:27.649+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:54:27.760+03:00 INFO  [http-nio-8080-exec-7] c.e.p.service.DialogListReadService - Loaded dialogs list payload: 13 dialogs, summary stats loaded
+2026-04-27 17:54:32.251+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:54:32.667+03:00 INFO  [http-nio-8080-exec-5] c.e.p.service.DialogListReadService - Loaded dialogs list payload: 13 dialogs, summary stats loaded
+2026-04-27 17:54:37.860+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:54:41.030+03:00 INFO  [http-nio-8080-exec-6] c.e.p.service.DialogListReadService - Loaded dialogs list payload: 13 dialogs, summary stats loaded
+2026-04-27 17:54:43.116+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:54:44.008+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:54:48.645+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:54:49.091+03:00 INFO  [http-nio-8080-exec-6] c.e.p.service.DialogListReadService - Loaded dialogs list payload: 13 dialogs, summary stats loaded
+2026-04-27 17:54:54.429+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:54:57.155+03:00 INFO  [http-nio-8080-exec-4] c.e.p.service.DialogListReadService - Loaded dialogs list payload: 13 dialogs, summary stats loaded
+2026-04-27 17:54:59.498+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:55:05.108+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:55:05.159+03:00 INFO  [http-nio-8080-exec-7] c.e.p.service.DialogListReadService - Loaded dialogs list payload: 13 dialogs, summary stats loaded
+2026-04-27 17:55:10.726+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:55:13.439+03:00 INFO  [http-nio-8080-exec-3] c.e.p.service.DialogListReadService - Loaded dialogs list payload: 13 dialogs, summary stats loaded
+2026-04-27 17:55:14.204+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:55:15.797+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:55:21.489+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:55:21.518+03:00 INFO  [http-nio-8080-exec-5] c.e.p.service.DialogListReadService - Loaded dialogs list payload: 13 dialogs, summary stats loaded
+2026-04-27 17:55:27.111+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:55:29.814+03:00 INFO  [http-nio-8080-exec-3] c.e.p.service.DialogListReadService - Loaded dialogs list payload: 13 dialogs, summary stats loaded
+2026-04-27 17:55:32.181+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:55:37.858+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:55:37.887+03:00 INFO  [http-nio-8080-exec-6] c.e.p.service.DialogListReadService - Loaded dialogs list payload: 13 dialogs, summary stats loaded
+2026-04-27 17:55:43.435+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:55:44.216+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:55:46.070+03:00 INFO  [http-nio-8080-exec-10] c.e.p.service.DialogListReadService - Loaded dialogs list payload: 13 dialogs, summary stats loaded
+2026-04-27 17:55:48.422+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:55:54.094+03:00 INFO  [http-nio-8080-exec-8] c.e.p.service.DialogListReadService - Loaded dialogs list payload: 13 dialogs, summary stats loaded
+2026-04-27 17:55:54.132+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:55:59.751+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:56:02.405+03:00 INFO  [http-nio-8080-exec-1] c.e.p.service.DialogListReadService - Loaded dialogs list payload: 13 dialogs, summary stats loaded
+2026-04-27 17:56:04.807+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:56:10.389+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:56:10.495+03:00 INFO  [http-nio-8080-exec-5] c.e.p.service.DialogListReadService - Loaded dialogs list payload: 13 dialogs, summary stats loaded
+2026-04-27 17:56:14.710+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:56:15.506+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:56:18.886+03:00 INFO  [http-nio-8080-exec-6] c.e.p.service.DialogListReadService - Loaded dialogs list payload: 13 dialogs, summary stats loaded
+2026-04-27 17:56:20.753+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:56:26.399+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:56:26.862+03:00 INFO  [http-nio-8080-exec-4] c.e.p.service.DialogListReadService - Loaded dialogs list payload: 13 dialogs, summary stats loaded
+2026-04-27 17:56:31.962+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:56:35.245+03:00 INFO  [http-nio-8080-exec-10] c.e.p.service.DialogListReadService - Loaded dialogs list payload: 13 dialogs, summary stats loaded
+2026-04-27 17:56:37.188+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:56:42.795+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:56:43.316+03:00 INFO  [http-nio-8080-exec-3] c.e.p.service.DialogListReadService - Loaded dialogs list payload: 13 dialogs, summary stats loaded
+2026-04-27 17:56:44.772+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:56:47.961+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:56:51.725+03:00 INFO  [http-nio-8080-exec-5] c.e.p.service.DialogListReadService - Loaded dialogs list payload: 13 dialogs, summary stats loaded
+2026-04-27 17:56:53.156+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:56:58.778+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:56:59.771+03:00 INFO  [http-nio-8080-exec-8] c.e.p.service.DialogListReadService - Loaded dialogs list payload: 13 dialogs, summary stats loaded
+2026-04-27 17:57:04.243+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:57:08.200+03:00 INFO  [http-nio-8080-exec-9] c.e.p.service.DialogListReadService - Loaded dialogs list payload: 13 dialogs, summary stats loaded
+2026-04-27 17:57:09.544+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:57:09.932+03:00 INFO  [http-nio-8080-exec-1] c.e.p.controller.AnalyticsController - Analytics view requested by admin: 8 ticket rows, 4 client rows
+2026-04-27 17:57:10.216+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:57:10.286+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:57:10.331+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:57:12.421+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:57:12.463+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:57:17.215+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:57:22.298+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:57:24.816+03:00 INFO  [http-nio-8080-exec-2] c.e.p.controller.AnalyticsController - Analytics view requested by admin: 8 ticket rows, 4 client rows
+2026-04-27 17:57:25.162+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:57:25.262+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:57:27.033+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:57:27.038+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:57:32.175+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:57:32.314+03:00 INFO  [http-nio-8080-exec-1] c.e.p.controller.AnalyticsController - Analytics view requested by admin: 8 ticket rows, 4 client rows
+2026-04-27 17:57:32.632+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:57:32.669+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:57:34.256+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:57:34.272+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:57:39.348+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:57:44.991+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:57:50.673+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:57:56.129+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:58:01.763+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:58:04.535+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:58:06.987+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:58:12.364+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:58:17.998+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:58:23.647+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:58:29.254+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:58:34.905+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:58:34.919+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:58:40.559+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:58:46.166+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:58:51.796+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:58:57.502+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:59:03.083+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:59:05.177+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:59:08.488+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:59:14.070+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:59:19.708+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:59:25.327+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:59:30.973+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:59:35.720+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 17:59:36.021+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:59:41.577+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:59:47.224+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:59:52.881+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 17:59:58.516+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 18:00:03.479+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 18:00:05.946+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 18:00:08.814+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 18:00:14.453+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 18:00:20.097+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 18:00:25.726+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 18:00:31.356+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 18:00:36.495+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 18:00:36.561+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 18:00:42.151+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 18:00:47.779+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 18:00:53.409+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 18:00:59.054+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 18:01:04.153+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 18:01:06.706+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 18:01:09.418+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 18:01:15.040+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 18:01:20.695+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 18:01:26.307+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 18:01:31.390+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 18:01:35.812+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 18:01:36.747+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 18:01:36.783+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 18:01:40.507+03:00 INFO  [http-nio-8080-exec-8] c.e.p.controller.AnalyticsController - Analytics view requested by admin: 8 ticket rows, 4 client rows
+2026-04-27 18:01:40.760+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 18:01:40.785+03:00 INFO  [http-nio-8080-exec-8] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 18:01:43.180+03:00 INFO  [http-nio-8080-exec-2] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 18:01:43.195+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 18:01:48.593+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 18:01:54.247+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 18:01:59.293+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 18:02:04.446+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 18:02:08.395+03:00 INFO  [http-nio-8080-exec-3] c.e.p.controller.DialogsController - Loaded dialogs page for user admin
+2026-04-27 18:02:08.770+03:00 INFO  [http-nio-8080-exec-3] c.e.p.c.ChannelApiController - Channels API returned 2 channels
+2026-04-27 18:02:08.781+03:00 INFO  [http-nio-8080-exec-6] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 18:02:08.854+03:00 INFO  [http-nio-8080-exec-5] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 18:02:14.205+03:00 INFO  [http-nio-8080-exec-7] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 18:02:17.161+03:00 INFO  [http-nio-8080-exec-2] c.e.p.service.DialogListReadService - Loaded dialogs list payload: 13 dialogs, summary stats loaded
+2026-04-27 18:02:17.448+03:00 INFO  [http-nio-8080-exec-10] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 18:02:19.384+03:00 INFO  [http-nio-8080-exec-4] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 18:02:24.590+03:00 INFO  [http-nio-8080-exec-9] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 18:02:25.219+03:00 INFO  [http-nio-8080-exec-6] c.e.p.service.DialogListReadService - Loaded dialogs list payload: 13 dialogs, summary stats loaded
+2026-04-27 18:02:30.187+03:00 INFO  [http-nio-8080-exec-1] c.e.p.c.NotificationApiController - Unread notifications requested by admin: 0 unread
+2026-04-27 18:02:30.506+03:00 INFO  [SpringApplicationShutdownHook] c.e.panel.service.BotProcessService - Stopping all bot processes due to panel shutdown
+2026-04-27 18:02:30.507+03:00 INFO  [SpringApplicationShutdownHook] c.e.panel.service.BotProcessService - Stopping bot process for channel 2 via shutdown
+2026-04-27 18:02:30.535+03:00 INFO  [SpringApplicationShutdownHook] o.s.o.j.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'

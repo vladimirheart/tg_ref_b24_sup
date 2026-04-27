@@ -164,6 +164,32 @@ public class SslCertificateMonitoringService {
         return AVAILABILITY_UP;
     }
 
+    public AvailabilityOverview buildAvailabilityOverview(List<SslCertificateMonitor> monitors) {
+        int total = 0;
+        int up = 0;
+        int down = 0;
+        int unknown = 0;
+        int disabled = 0;
+        if (monitors != null) {
+            for (SslCertificateMonitor monitor : monitors) {
+                total++;
+                String availability = resolveAvailability(monitor);
+                if (AVAILABILITY_UP.equals(availability)) {
+                    up++;
+                } else if (AVAILABILITY_DOWN.equals(availability)) {
+                    down++;
+                } else if (AVAILABILITY_DISABLED.equals(availability)) {
+                    disabled++;
+                } else {
+                    unknown++;
+                }
+            }
+        }
+        int active = Math.max(0, total - disabled);
+        double availabilityPercent = active == 0 ? 0d : (up * 100.0d / active);
+        return new AvailabilityOverview(total, up, down, unknown, disabled, Math.round(availabilityPercent * 10.0d) / 10.0d);
+    }
+
     private SslCertificateMonitor refreshMonitor(SslCertificateMonitor monitor, boolean withNotifications) {
         refreshMonitorAndReturnNotifyFlag(monitor, withNotifications);
         return monitor;
@@ -445,5 +471,13 @@ public class SslCertificateMonitoringService {
     }
 
     public record RefreshSummary(int total, int checked, int notified) {
+    }
+
+    public record AvailabilityOverview(int total,
+                                       int up,
+                                       int down,
+                                       int unknown,
+                                       int disabled,
+                                       double availabilityPercent) {
     }
 }

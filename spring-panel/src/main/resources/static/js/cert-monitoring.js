@@ -3,9 +3,13 @@
   const tableHead = document.querySelector('#certificateMonitoringTable thead');
   const createForm = document.getElementById('certificateSiteCreateForm');
   const refreshAllBtn = document.getElementById('refreshAllCertificatesBtn');
+  const openCreateModalBtn = document.getElementById('openCertificateCreateModalBtn');
   const siteNameInput = document.getElementById('siteNameInput');
   const siteEndpointInput = document.getElementById('siteEndpointInput');
   const siteEnabledInput = document.getElementById('siteEnabledInput');
+
+  const createModalEl = document.getElementById('certificateCreateModal');
+  const createModal = createModalEl && window.bootstrap ? new bootstrap.Modal(createModalEl) : null;
 
   const editModalEl = document.getElementById('certificateEditModal');
   const editForm = document.getElementById('certificateEditForm');
@@ -15,7 +19,15 @@
   const editSiteEnabledInput = document.getElementById('editSiteEnabledInput');
   const editModal = editModalEl && window.bootstrap ? new bootstrap.Modal(editModalEl) : null;
 
+  const availabilityPercentEl = document.getElementById('certificateAvailabilityPercent');
+  const availabilityCaptionEl = document.getElementById('certificateAvailabilityCaption');
+  const availabilityBarEl = document.getElementById('certificateAvailabilityOverviewBar');
+  const availabilityMetaEl = document.getElementById('certificateAvailabilityOverviewMeta');
+  const availabilityFiltersEl = document.getElementById('certificateAvailabilityFilters');
+
   let sites = [];
+  let availabilityOverview = null;
+  let availabilityFilter = 'all';
   const sortState = {
     key: 'site',
     direction: 'asc',
@@ -45,6 +57,14 @@
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#039;');
+  }
+
+  function showMessage(message, type) {
+    if (typeof window.showPopup === 'function') {
+      window.showPopup(message, type);
+      return;
+    }
+    window.alert(message);
   }
 
   function formatDateTime(value) {
@@ -115,13 +135,9 @@
     } else if (key === 'endpoint') {
       result = compareNullable(resolveEndpointDisplay(left), resolveEndpointDisplay(right), compareStrings);
     } else if (key === 'status') {
-      const leftRank = statusRank[normalizeStatus(left)] ?? 99;
-      const rightRank = statusRank[normalizeStatus(right)] ?? 99;
-      result = leftRank - rightRank;
+      result = (statusRank[normalizeStatus(left)] ?? 99) - (statusRank[normalizeStatus(right)] ?? 99);
     } else if (key === 'availability') {
-      const leftRank = availabilityRank[normalizeAvailability(left)] ?? 99;
-      const rightRank = availabilityRank[normalizeAvailability(right)] ?? 99;
-      result = leftRank - rightRank;
+      result = (availabilityRank[normalizeAvailability(left)] ?? 99) - (availabilityRank[normalizeAvailability(right)] ?? 99);
     } else if (key === 'expires_at') {
       result = compareNullable(parseTimestamp(left?.expires_at), parseTimestamp(right?.expires_at), (a, b) => a - b);
     } else if (key === 'days_left') {
@@ -138,8 +154,10 @@
     return result * direction;
   }
 
-  function getSortedSites() {
-    return [...sites].sort(compareSites);
+  function getVisibleSites() {
+    return [...sites]
+      .filter((site) => availabilityFilter === 'all' || normalizeAvailability(site) === availabilityFilter)
+      .sort(compareSites);
   }
 
   function updateSortIndicators() {
@@ -149,17 +167,20 @@
       const isActive = button.dataset.sortKey === sortState.key;
       button.classList.toggle('active', isActive);
       if (!indicator) return;
-      if (!isActive) {
-        indicator.textContent = '↕';
-      } else {
-        indicator.textContent = sortState.direction === 'asc' ? '↑' : '↓';
-      }
+      indicator.textContent = isActive ? (sortState.direction === 'asc' ? '↑' : '↓') : '↕';
+    });
+  }
+
+  function updateAvailabilityFilterButtons() {
+    if (!availabilityFiltersEl) return;
+    availabilityFiltersEl.querySelectorAll('[data-filter-value]').forEach((button) => {
+      button.classList.toggle('active', button.getAttribute('data-filter-value') === availabilityFilter);
     });
   }
 
   function resolveStatusCellClass(item) {
     const level = normalizeStatus(item);
-    if (['ok', 'warning', 'critical', 'expired', 'error', 'disabled'].includes(level)) {
+    if (['ok', 'warning', 'critical', 'expired', 'disabled'].includes(level)) {
       return `status-cell status-${level}`;
     }
     return 'status-cell status-error';
@@ -191,15 +212,69 @@
     return '<span class="badge text-bg-secondary">Unknown</span>';
   }
 
+  function renderAvailabilityOverview() {
+    if (!availabilityPercentEl || !availabilityCaptionEl || !availabilityBarEl || !availabilityMetaEl) return;
+    if (!availabilityOverview) {
+      availabilityPercentEl.textContent = '—';
+      availabilityCaptionEl.textContent = 'нет данных';
+      availabilityBarEl.innerHTML = `
+        <div class="progress" role="progressbar" style="width: 100%;">
+          <div class="progress-bar bg-secondary-subtle text-secondary">Нет данных</div>
+        </div>
+      `;
+      availabilityMetaEl.innerHTML = '';
+      updateAvailabilityFilterButtons();
+      return;
+    }
+
+    const total = Number(availabilityOverview.total || 0);
+    const up = Number(availabilityOverview.up || 0);
+    const down = Number(availabilityOverview.down || 0);
+    const unknown = Number(availabilityOverview.unknown || 0);
+    const disabled = Number(availabilityOverview.disabled || 0);
+    const percent = Number(availabilityOverview.availability_percent || 0);
+    const safeTotal = total > 0 ? total : 1;
+    const segmentWidth = (count) => `${Math.max(0, (Number(count || 0) * 100) / safeTotal)}%`;
+
+    availabilityPercentEl.textContent = `${percent.toFixed(1)}%`;
+    availabilityCaptionEl.textContent = `активных узлов: ${Math.max(0, total - disabled)} из ${total}`;
+    availabilityBarEl.innerHTML = `
+      <div class="progress" role="progressbar" style="width: ${segmentWidth(up)};">
+        <div class="progress-bar bg-success" title="Доступны: ${up}"></div>
+      </div>
+      <div class="progress" role="progressbar" style="width: ${segmentWidth(down)};">
+        <div class="progress-bar bg-danger" title="Недоступны: ${down}"></div>
+      </div>
+      <div class="progress" role="progressbar" style="width: ${segmentWidth(unknown)};">
+        <div class="progress-bar bg-secondary" title="Неизвестно: ${unknown}"></div>
+      </div>
+      <div class="progress" role="progressbar" style="width: ${segmentWidth(disabled)};">
+        <div class="progress-bar bg-dark-subtle" title="Отключены: ${disabled}"></div>
+      </div>
+    `;
+    availabilityMetaEl.innerHTML = `
+      <span class="monitor-overview-chip text-success">Доступны: ${escapeHtml(up)}</span>
+      <span class="monitor-overview-chip text-danger">Недоступны: ${escapeHtml(down)}</span>
+      <span class="monitor-overview-chip text-secondary">Неизвестно: ${escapeHtml(unknown)}</span>
+      <span class="monitor-overview-chip text-body-secondary">Отключены: ${escapeHtml(disabled)}</span>
+    `;
+    updateAvailabilityFilterButtons();
+  }
+
   function renderSitesTable() {
     if (!tableBody) return;
     updateSortIndicators();
-    if (!sites.length) {
-      tableBody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">Пока нет сайтов для мониторинга.</td></tr>';
+    const visibleSites = getVisibleSites();
+    if (!visibleSites.length) {
+      const message = sites.length && availabilityFilter !== 'all'
+        ? 'Нет сайтов, подходящих под выбранный статус доступности.'
+        : 'Пока нет сайтов для мониторинга.';
+      tableBody.innerHTML = `<tr><td colspan="9" class="text-center text-muted py-4">${escapeHtml(message)}</td></tr>`;
       return;
     }
+
     tableBody.innerHTML = '';
-    getSortedSites().forEach((site) => {
+    visibleSites.forEach((site) => {
       const siteDisplayName = resolveSiteDisplayName(site);
       const hostDisplay = resolveHostDisplay(site);
       const endpointDisplay = resolveEndpointDisplay(site);
@@ -266,16 +341,9 @@
       return init;
     }
     const headers = new Headers(init.headers || {});
-    if (!headers.has('X-XSRF-TOKEN')) {
-      headers.set('X-XSRF-TOKEN', token);
-    }
-    if (!headers.has('X-CSRF-TOKEN')) {
-      headers.set('X-CSRF-TOKEN', token);
-    }
-    return {
-      ...init,
-      headers,
-    };
+    if (!headers.has('X-XSRF-TOKEN')) headers.set('X-XSRF-TOKEN', token);
+    if (!headers.has('X-CSRF-TOKEN')) headers.set('X-CSRF-TOKEN', token);
+    return { ...init, headers };
   }
 
   async function requestJson(url, init = {}) {
@@ -298,10 +366,18 @@
     try {
       const data = await requestJson('/api/monitoring/certificates/sites');
       sites = Array.isArray(data.items) ? data.items : [];
+      availabilityOverview = data.availability_overview || null;
+      renderAvailabilityOverview();
       renderSitesTable();
     } catch (error) {
+      renderAvailabilityOverview();
       tableBody.innerHTML = `<tr><td colspan="9" class="text-center text-danger py-4">${escapeHtml(error.message)}</td></tr>`;
     }
+  }
+
+  function resetCreateForm() {
+    createForm?.reset();
+    if (siteEnabledInput) siteEnabledInput.checked = true;
   }
 
   async function createSite(event) {
@@ -317,12 +393,12 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      if (createForm) createForm.reset();
-      if (siteEnabledInput) siteEnabledInput.checked = true;
+      resetCreateForm();
+      createModal?.hide();
       await loadSites();
-      showPopup('Сайт добавлен и сертификат проверен.', 'success');
+      showMessage('Сайт добавлен и сертификат проверен.', 'success');
     } catch (error) {
-      showPopup(`Не удалось добавить сайт: ${error.message}`, 'error');
+      showMessage(`Не удалось добавить сайт: ${error.message}`, 'error');
     }
   }
 
@@ -345,7 +421,7 @@
     event.preventDefault();
     const siteId = Number(editSiteIdInput?.value || 0);
     if (!Number.isFinite(siteId) || siteId <= 0) {
-      showPopup('Не удалось определить сайт для обновления.', 'error');
+      showMessage('Не удалось определить сайт для обновления.', 'error');
       return;
     }
     const payload = {
@@ -361,9 +437,9 @@
       });
       editModal?.hide();
       await loadSites();
-      showPopup('Изменения сохранены.', 'success');
+      showMessage('Изменения сохранены.', 'success');
     } catch (error) {
-      showPopup(`Не удалось сохранить изменения: ${error.message}`, 'error');
+      showMessage(`Не удалось сохранить изменения: ${error.message}`, 'error');
     }
   }
 
@@ -373,9 +449,9 @@
         method: 'POST',
       });
       await loadSites();
-      showPopup('Сертификат сайта обновлён.', 'success');
+      showMessage('Сертификат сайта обновлён.', 'success');
     } catch (error) {
-      showPopup(`Не удалось обновить сертификат: ${error.message}`, 'error');
+      showMessage(`Не удалось обновить сертификат: ${error.message}`, 'error');
     }
   }
 
@@ -388,9 +464,9 @@
         method: 'DELETE',
       });
       await loadSites();
-      showPopup('Сайт удалён.', 'success');
+      showMessage('Сайт удалён.', 'success');
     } catch (error) {
-      showPopup(`Не удалось удалить сайт: ${error.message}`, 'error');
+      showMessage(`Не удалось удалить сайт: ${error.message}`, 'error');
     }
   }
 
@@ -400,14 +476,13 @@
       refreshAllBtn.textContent = 'Обновляем...';
     }
     try {
-      const data = await requestJson('/api/monitoring/certificates/refresh', {
+      await requestJson('/api/monitoring/certificates/refresh', {
         method: 'POST',
       });
-      sites = Array.isArray(data.items) ? data.items : [];
-      renderSitesTable();
-      showPopup('Все сертификаты обновлены.', 'success');
+      await loadSites();
+      showMessage('Все сертификаты обновлены.', 'success');
     } catch (error) {
-      showPopup(`Не удалось обновить сертификаты: ${error.message}`, 'error');
+      showMessage(`Не удалось обновить сертификаты: ${error.message}`, 'error');
     } finally {
       if (refreshAllBtn) {
         refreshAllBtn.disabled = false;
@@ -448,6 +523,19 @@
       sortState.direction = 'asc';
     }
     renderSitesTable();
+  });
+
+  availabilityFiltersEl?.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-filter-value]');
+    if (!button) return;
+    availabilityFilter = String(button.getAttribute('data-filter-value') || 'all');
+    updateAvailabilityFilterButtons();
+    renderSitesTable();
+  });
+
+  openCreateModalBtn?.addEventListener('click', () => {
+    resetCreateForm();
+    createModal?.show();
   });
 
   createForm?.addEventListener('submit', createSite);
