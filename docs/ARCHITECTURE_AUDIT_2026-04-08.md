@@ -605,5 +605,20 @@ integration-сценария поверх users/settings runtime boundary всё
 5. Отдельно удерживать bot-process/auth-management orchestration boundary под regression net, чтобы structured error/persistence contract не расползался
 6. После этого возвращаться к shared-config unification и DTO/error contract
 
+### Что ещё заметно улучшилось в текущем проходе
+
+- `DialogAiOpsController` теперь прикрыт уже не только happy-path и парой
+  alias-сценариев, а почти полным controller-contract слоем: success/error/
+  validation/list/update для `ai-suggestions`, `ai-review`,
+  `ai-decision-trace`, `ai-intents`, `ai-knowledge-units`,
+  `ai-solution-memory` и `ai-monitoring/offline-eval`.
+- `PublicFormApiController` ушёл от чисто smoke/error-покрытия к более
+  надёжному boundary: теперь под тестами находятся success payload `config`
+  с вопросами и metadata, `recordConfigView`, mapping `required/max/min`
+  validation-кодов, а также session fallback при unresolved channel id.
+- `PublicFormController` тоже больше не ограничен одной bootstrap-проверкой:
+  под safety net уже лежат `dialog` fallback в `initialToken`, `404` для
+  unknown channel и configured disabled-status response.
+
 **Автор исходного аудита:** GitHub Copilot  
 **Статус:** Документ актуализирован под состояние кода на 27 апреля 2026

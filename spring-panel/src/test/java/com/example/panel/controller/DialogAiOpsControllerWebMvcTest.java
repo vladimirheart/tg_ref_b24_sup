@@ -54,6 +54,21 @@ class DialogAiOpsControllerWebMvcTest {
     }
 
     @Test
+    void aiSuggestionsDelegatesOptionalLimitAndReturnsPayload() throws Exception {
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_suggestions"), eq("T-700A")))
+            .thenReturn(null);
+        when(dialogAiOpsService.loadSuggestions("T-700A", 5))
+            .thenReturn(Map.of("success", true, "items", List.of(Map.of("score", 0.82))));
+
+        mockMvc.perform(get("/api/dialogs/T-700A/ai-suggestions")
+                .param("limit", "5")
+                .with(user("operator")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.items[0].score").value(0.82));
+    }
+
+    @Test
     void aiSuggestionFeedbackRequiresDecision() throws Exception {
         when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_suggestion_feedback"), eq("T-701")))
             .thenReturn(null);
@@ -290,6 +305,20 @@ class DialogAiOpsControllerWebMvcTest {
     }
 
     @Test
+    void aiReviewReturnsServicePayload() throws Exception {
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_review"), eq("T-709A")))
+            .thenReturn(null);
+        when(dialogAiOpsService.loadReview("T-709A"))
+            .thenReturn(Map.of("success", true, "review", Map.of("status", "pending")));
+
+        mockMvc.perform(get("/api/dialogs/T-709A/ai-review")
+                .with(user("operator")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.review.status").value("pending"));
+    }
+
+    @Test
     void aiReclassifyAcceptsMessageTypeAlias() throws Exception {
         when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_reclassify"), eq("T-710")))
             .thenReturn(null);
@@ -333,6 +362,21 @@ class DialogAiOpsControllerWebMvcTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.items[0].score").value(0.91));
+    }
+
+    @Test
+    void aiDecisionTraceDelegatesOptionalLimit() throws Exception {
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_decision_trace"), eq("T-711A")))
+            .thenReturn(null);
+        when(dialogAiOpsService.loadDecisionTrace("T-711A", 12))
+            .thenReturn(Map.of("success", true, "items", List.of(Map.of("step", "retrieve"))));
+
+        mockMvc.perform(get("/api/dialogs/T-711A/ai-decision-trace")
+                .param("limit", "12")
+                .with(user("operator")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.items[0].step").value("retrieve"));
     }
 
     @Test
@@ -389,6 +433,22 @@ class DialogAiOpsControllerWebMvcTest {
     }
 
     @Test
+    void aiSolutionMemoryListDelegatesQueryAndLimit() throws Exception {
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_solution_memory"), eq((String) null)))
+            .thenReturn(null);
+        when(dialogAiOpsService.loadSolutionMemory(20, "vpn"))
+            .thenReturn(Map.of("success", true, "items", List.of(Map.of("query_key", "vpn-reset"))));
+
+        mockMvc.perform(get("/api/dialogs/ai-solution-memory")
+                .param("limit", "20")
+                .param("query", "vpn")
+                .with(user("operator")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.items[0].query_key").value("vpn-reset"));
+    }
+
+    @Test
     void aiMonitoringSummaryDelegatesOptionalDays() throws Exception {
         when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_monitoring_summary"), eq((String) null)))
             .thenReturn(null);
@@ -401,6 +461,202 @@ class DialogAiOpsControllerWebMvcTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.totals.decisions").value(10));
+    }
+
+    @Test
+    void approveAiReviewByKeyDelegatesOperator() throws Exception {
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_review_approve_key"), eq((String) null)))
+            .thenReturn(null);
+        when(dialogAiOpsService.approveReviewByKey("review-1", "operator"))
+            .thenReturn(Map.of("success", true, "approved", true));
+
+        mockMvc.perform(post("/api/dialogs/ai-reviews/review-1/approve")
+                .with(user("operator"))
+                .with(csrf()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.approved").value(true));
+    }
+
+    @Test
+    void rejectAiReviewByKeyDelegatesOperator() throws Exception {
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_review_reject_key"), eq((String) null)))
+            .thenReturn(null);
+        when(dialogAiOpsService.rejectReviewByKey("review-2", "operator"))
+            .thenReturn(Map.of("success", true, "rejected", true));
+
+        mockMvc.perform(post("/api/dialogs/ai-reviews/review-2/reject")
+                .with(user("operator"))
+                .with(csrf()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.rejected").value(true));
+    }
+
+    @Test
+    void aiIntentsDelegatesFilters() throws Exception {
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_intents"), eq((String) null)))
+            .thenReturn(null);
+        when(dialogAiOpsService.loadIntents(10, "vpn", true))
+            .thenReturn(Map.of("success", true, "items", List.of(Map.of("intent_key", "vpn.reset"))));
+
+        mockMvc.perform(get("/api/dialogs/ai-intents")
+                .param("limit", "10")
+                .param("query", "vpn")
+                .param("enabled", "true")
+                .with(user("operator")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.items[0].intent_key").value("vpn.reset"));
+    }
+
+    @Test
+    void upsertAiIntentAcceptsAliases() throws Exception {
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_intents_update"), eq((String) null)))
+            .thenReturn(null);
+        when(dialogAiOpsService.upsertIntent(
+            "vpn.reset",
+            "VPN reset",
+            "desc",
+            "vpn, reset",
+            "{\"slots\":[]}",
+            true,
+            7,
+            true,
+            false,
+            false,
+            "safe",
+            "note"
+        )).thenReturn(Map.of("success", true, "updated", true));
+
+        mockMvc.perform(post("/api/dialogs/ai-intents")
+                .with(user("operator"))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "intentKey": "vpn.reset",
+                      "title": "VPN reset",
+                      "description": "desc",
+                      "patternHints": "vpn, reset",
+                      "slotSchemaJson": "{\\"slots\\":[]}",
+                      "enabled": true,
+                      "priority": 7,
+                      "autoReplyAllowed": true,
+                      "assistOnly": false,
+                      "requiresOperator": false,
+                      "safetyLevel": "safe",
+                      "notes": "note"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.updated").value(true));
+    }
+
+    @Test
+    void upsertAiIntentRejectsMissingIntentKey() throws Exception {
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_intents_update"), eq((String) null)))
+            .thenReturn(null);
+
+        mockMvc.perform(post("/api/dialogs/ai-intents")
+                .with(user("operator"))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("intent_key is required"));
+    }
+
+    @Test
+    void aiKnowledgeUnitsDelegatesFilters() throws Exception {
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_knowledge_units"), eq((String) null)))
+            .thenReturn(null);
+        when(dialogAiOpsService.loadKnowledgeUnits(30, "vpn", "approved"))
+            .thenReturn(Map.of("success", true, "items", List.of(Map.of("unit_key", "kb-1"))));
+
+        mockMvc.perform(get("/api/dialogs/ai-knowledge-units")
+                .param("limit", "30")
+                .param("query", "vpn")
+                .param("status", "approved")
+                .with(user("operator")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.items[0].unit_key").value("kb-1"));
+    }
+
+    @Test
+    void upsertAiKnowledgeUnitAcceptsAliases() throws Exception {
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_knowledge_units_update"), eq((String) null)))
+            .thenReturn(null);
+        when(dialogAiOpsService.upsertKnowledgeUnit(
+            "unit-1",
+            "VPN",
+            "body",
+            "vpn.reset",
+            "os=win",
+            "retail",
+            "msk",
+            "telegram",
+            "approved",
+            "kb://1"
+        )).thenReturn(Map.of("success", true, "saved", true));
+
+        mockMvc.perform(post("/api/dialogs/ai-knowledge-units")
+                .with(user("operator"))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "unitKey": "unit-1",
+                      "title": "VPN",
+                      "bodyText": "body",
+                      "intentKey": "vpn.reset",
+                      "slotSignature": "os=win",
+                      "business": "retail",
+                      "location": "msk",
+                      "channel": "telegram",
+                      "status": "approved",
+                      "sourceRef": "kb://1"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.saved").value(true));
+    }
+
+    @Test
+    void upsertAiKnowledgeUnitRejectsMissingBodyText() throws Exception {
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_knowledge_units_update"), eq((String) null)))
+            .thenReturn(null);
+
+        mockMvc.perform(post("/api/dialogs/ai-knowledge-units")
+                .with(user("operator"))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "title": "VPN"
+                    }
+                    """))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("body_text is required"));
+    }
+
+    @Test
+    void aiOfflineEvalReturnsSummaryPayload() throws Exception {
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_offline_eval"), eq((String) null)))
+            .thenReturn(null);
+        when(dialogAiOpsService.loadOfflineEvalSummary())
+            .thenReturn(Map.of("success", true, "summary", Map.of("precision", 0.93)));
+
+        mockMvc.perform(get("/api/dialogs/ai-monitoring/offline-eval")
+                .with(user("operator")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.summary.precision").value(0.93));
     }
 
     @Test
