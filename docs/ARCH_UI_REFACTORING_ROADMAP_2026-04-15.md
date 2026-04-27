@@ -620,8 +620,8 @@
    `autostart`, `integration network`, `bot process api`, `auth management`
    и panel-bot runtime edge-cases; поверх этого почти до полного
    controller-contract добран `DialogAiOps`, а `public-form` покрыт уже не
-   только bootstrap/smoke, но и success/error/validation boundary, хотя это
-   всё ещё не полноценная
+   только bootstrap/smoke, но и success/error/validation/page/template
+   boundary, хотя это всё ещё не полноценная
    end-to-end safety net.
 
 ## Следующий Фокус

@@ -1,5 +1,6 @@
 package com.example.panel.controller;
 
+import com.example.panel.model.dialog.ChatMessageDto;
 import com.example.panel.model.publicform.PublicFormConfig;
 import com.example.panel.model.publicform.PublicFormQuestion;
 import com.example.panel.model.publicform.PublicFormSessionDto;
@@ -165,6 +166,49 @@ class PublicFormApiControllerWebMvcTest {
         ArgumentCaptor<PublicFormSubmission> submissionCaptor = ArgumentCaptor.forClass(PublicFormSubmission.class);
         verify(publicFormService).createSession(eq("web-enabled"), submissionCaptor.capture(), eq("ip+fp-key"));
         assertThat(submissionCaptor.getValue().requestId()).isEqualTo("req-42");
+    }
+
+    @Test
+    void createSessionUsesRemoteAddrWhenProxyHeadersAreAbsent() throws Exception {
+        PublicFormConfig enabledConfig = new PublicFormConfig(
+                27L,
+                "web-remote",
+                "Web Form",
+                1,
+                true,
+                false,
+                404,
+                null,
+                null,
+                List.of()
+        );
+        PublicFormSessionDto createdSession = new PublicFormSessionDto(
+                "token-remote",
+                "T-505",
+                27L,
+                "web-remote",
+                null,
+                null,
+                null,
+                OffsetDateTime.parse("2026-01-01T10:15:30+03:00")
+        );
+
+        when(publicFormService.loadConfigRaw("web-remote")).thenReturn(Optional.of(enabledConfig));
+        when(publicFormService.buildRequesterKey("127.0.0.1", null)).thenReturn("remote-key");
+        when(publicFormService.createSession(eq("web-remote"), any(PublicFormSubmission.class), eq("remote-key")))
+                .thenReturn(createdSession);
+        when(publicFormService.buildContinuationOptions("web-remote", "token-remote")).thenReturn(Map.of("enabled", false));
+
+        mockMvc.perform(post("/api/public/forms/web-remote/sessions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "message": "Нужна помощь"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.token").value("token-remote"));
     }
 
     @Test
@@ -604,6 +648,50 @@ class PublicFormApiControllerWebMvcTest {
     }
 
     @Test
+    void createSessionReturnsGoneWhenFormDisabledWith410Policy() throws Exception {
+        PublicFormConfig disabledConfig = new PublicFormConfig(
+                28L,
+                "web-disabled-gone",
+                "Web Form",
+                1,
+                false,
+                false,
+                410,
+                null,
+                null,
+                List.of()
+        );
+        when(publicFormService.loadConfigRaw("web-disabled-gone")).thenReturn(Optional.of(disabledConfig));
+
+        mockMvc.perform(post("/api/public/forms/web-disabled-gone/sessions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "message": "Нужна помощь"
+                                }
+                                """))
+                .andExpect(status().isGone())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("FORM_DISABLED"));
+    }
+
+    @Test
+    void createSessionReturnsNotFoundWhenChannelDoesNotExist() throws Exception {
+        when(publicFormService.loadConfigRaw("web-no-channel")).thenReturn(Optional.empty());
+
+        mockMvc.perform(post("/api/public/forms/web-no-channel/sessions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "message": "Нужна помощь"
+                                }
+                                """))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("CHANNEL_NOT_FOUND"));
+    }
+
+    @Test
     void sessionTracksLookupMetrics() throws Exception {
         PublicFormSessionDto session = new PublicFormSessionDto(
                 "token-2",
@@ -635,6 +723,47 @@ class PublicFormApiControllerWebMvcTest {
                 .andExpect(jsonPath("$.continuation.command").value("/continue token-2"));
 
         verify(publicFormService).recordSessionLookup(15L, true);
+    }
+
+    @Test
+    void sessionReturnsMappedMessagesPayload() throws Exception {
+        PublicFormSessionDto session = new PublicFormSessionDto(
+                "token-4",
+                "T-404",
+                29L,
+                "web-history",
+                "Олег",
+                "+79990000000",
+                "oleg",
+                OffsetDateTime.parse("2026-01-01T10:15:30+03:00")
+        );
+        when(publicFormService.resolveChannelId("web-history")).thenReturn(Optional.of(29L));
+        when(publicFormService.findSession("web-history", "token-4")).thenReturn(Optional.of(session));
+        when(publicFormService.buildContinuationOptions("web-history", "token-4")).thenReturn(Map.of("enabled", false));
+        when(dialogConversationReadService.loadHistory("T-404", null)).thenReturn(List.of(
+                new ChatMessageDto(
+                        "support",
+                        "Готовы помочь",
+                        "Готовы помочь",
+                        "2026-01-01T10:20:00+03:00",
+                        "text",
+                        null,
+                        null,
+                        null,
+                        "preview",
+                        null,
+                        null,
+                        null
+                )
+        ));
+
+        mockMvc.perform(get("/api/public/forms/web-history/sessions/token-4"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.session.ticketId").value("T-404"))
+                .andExpect(jsonPath("$.messages[0].sender").value("support"))
+                .andExpect(jsonPath("$.messages[0].messageType").value("text"))
+                .andExpect(jsonPath("$.messages[0].replyPreview").value("preview"));
     }
 
     @Test

@@ -116,6 +116,29 @@ class DialogAiOpsControllerWebMvcTest {
     }
 
     @Test
+    void aiControlUpdateAcceptsCamelCaseAliases() throws Exception {
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_control_update"), eq("T-702A")))
+            .thenReturn(null);
+        when(dialogAiOpsService.updateControlState("T-702A", false, true, "throttle", "operator"))
+            .thenReturn(Map.of("success", true, "updated", true));
+
+        mockMvc.perform(post("/api/dialogs/T-702A/ai-control")
+                .with(user("operator"))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "aiDisabled": false,
+                      "autoReplyBlocked": true,
+                      "reason": "throttle"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.updated").value(true));
+    }
+
+    @Test
     void aiMonitoringEventsSupportsCsvFormat() throws Exception {
         when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_monitoring_events"), eq("T-703")))
             .thenReturn(null);
@@ -170,6 +193,28 @@ class DialogAiOpsControllerWebMvcTest {
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.error").value("client_problem_message and operator_solution_message are required"));
+    }
+
+    @Test
+    void aiLearningMappingAcceptsCamelCaseAliases() throws Exception {
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_learning_mapping"), eq("T-705A")))
+            .thenReturn(null);
+        when(dialogAiOpsService.submitLearningMapping("T-705A", "problem", "solution", "operator"))
+            .thenReturn(Map.of("success", true, "saved", true));
+
+        mockMvc.perform(post("/api/dialogs/T-705A/ai-learning/mapping")
+                .with(user("operator"))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "clientProblemMessage": "problem",
+                      "operatorSolutionMessage": "solution"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.saved").value(true));
     }
 
     @Test
@@ -342,6 +387,22 @@ class DialogAiOpsControllerWebMvcTest {
     }
 
     @Test
+    void aiReclassifyDelegatesNullRequestBody() throws Exception {
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_reclassify"), eq("T-710A")))
+            .thenReturn(null);
+        when(dialogAiOpsService.reclassify("T-710A", null, null, null))
+            .thenReturn(Map.of("success", true, "classification", "unknown"));
+
+        mockMvc.perform(post("/api/dialogs/T-710A/ai-reclassify")
+                .with(user("operator"))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.classification").value("unknown"));
+    }
+
+    @Test
     void aiRetrieveDebugAcceptsAliasAndOptionalLimit() throws Exception {
         when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_retrieve_debug"), eq("T-711")))
             .thenReturn(null);
@@ -362,6 +423,22 @@ class DialogAiOpsControllerWebMvcTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.items[0].score").value(0.91));
+    }
+
+    @Test
+    void aiRetrieveDebugDelegatesNullRequestBody() throws Exception {
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_retrieve_debug"), eq("T-711B")))
+            .thenReturn(null);
+        when(dialogAiOpsService.retrieveDebug("T-711B", null, null, null, null))
+            .thenReturn(Map.of("success", true, "items", List.of()));
+
+        mockMvc.perform(post("/api/dialogs/T-711B/ai-retrieve-debug")
+                .with(user("operator"))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.items").isArray());
     }
 
     @Test
@@ -584,6 +661,42 @@ class DialogAiOpsControllerWebMvcTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.items[0].unit_key").value("kb-1"));
+    }
+
+    @Test
+    void aiReviewApproveAllowsNullBodyAndDelegatesNullMessageIds() throws Exception {
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_review_approve"), eq("T-708A")))
+            .thenReturn(null);
+        when(dialogAiOpsService.approveReview("T-708A", "operator", null, null))
+            .thenReturn(Map.of("success", true, "approved", true));
+
+        mockMvc.perform(post("/api/dialogs/T-708A/ai-review/approve")
+                .with(user("operator"))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.approved").value(true));
+    }
+
+    @Test
+    void aiMonitoringEventsReturnsJsonPayloadByDefault() throws Exception {
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_monitoring_events"), eq("T-712")))
+            .thenReturn(null);
+        when(dialogAiOpsService.loadMonitoringEvents(14, 50, "T-712", "decision", "operator"))
+            .thenReturn(List.of(Map.of("ticket_id", "T-712", "event_type", "decision")));
+
+        mockMvc.perform(get("/api/dialogs/ai-monitoring/events")
+                .param("days", "14")
+                .param("limit", "50")
+                .param("ticketId", "T-712")
+                .param("eventType", "decision")
+                .param("actor", "operator")
+                .with(user("operator")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.items[0].ticket_id").value("T-712"))
+            .andExpect(jsonPath("$.items[0].event_type").value("decision"));
     }
 
     @Test

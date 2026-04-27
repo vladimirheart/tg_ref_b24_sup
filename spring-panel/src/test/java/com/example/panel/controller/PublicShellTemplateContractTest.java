@@ -31,6 +31,11 @@ class PublicShellTemplateContractTest {
         assertTemplateHasPublicPreset("error/500.html");
     }
 
+    @Test
+    void publicFormTemplateIncludesUiHeadBootstrapAndExplicitPublicPreset() throws Exception {
+        assertTemplateHasPublicPreset("public/form.html");
+    }
+
     private void assertTemplateHasPublicPreset(String relativePath) throws Exception {
         String template = Files.readString(TEMPLATE_ROOT.resolve(relativePath));
 

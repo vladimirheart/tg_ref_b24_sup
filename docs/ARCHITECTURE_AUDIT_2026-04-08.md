@@ -619,6 +619,13 @@ integration-сценария поверх users/settings runtime boundary всё
 - `PublicFormController` тоже больше не ограничен одной bootstrap-проверкой:
   под safety net уже лежат `dialog` fallback в `initialToken`, `404` для
   unknown channel и configured disabled-status response.
+- `PublicForm` boundary стал устойчивее ещё на один слой: добавлены
+  remoteAddr fallback без proxy headers, generic validation fallback,
+  success payload `session/messages`, precedence `token` над `dialog`,
+  model attrs страницы и raw template contract для `public/form.html`.
+- `DialogAiOpsController` теперь прикрыт не только по основным happy/error
+  flows, но и по alias/null-body/default-path сценариям, что уменьшает риск
+  regressions в transport-layer normalisation.
 
 **Автор исходного аудита:** GitHub Copilot  
 **Статус:** Документ актуализирован под состояние кода на 27 апреля 2026

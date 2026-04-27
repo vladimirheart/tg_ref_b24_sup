@@ -78,6 +78,30 @@ class PublicFormControllerWebMvcTest {
     }
 
     @Test
+    void publicFormPagePrefersExplicitTokenOverDialogFallback() throws Exception {
+        when(publicFormService.loadConfigRaw("support-explicit")).thenReturn(Optional.of(
+                new PublicFormConfig(
+                        16L,
+                        "support-explicit",
+                        "Support Explicit",
+                        1,
+                        true,
+                        false,
+                        404,
+                        null,
+                        null,
+                        List.of()
+                )));
+
+        mockMvc.perform(get("/public/forms/support-explicit")
+                        .param("token", "token-123")
+                        .param("dialog", "dialog-456"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("public/form"))
+                .andExpect(model().attribute("initialToken", "token-123"));
+    }
+
+    @Test
     void publicFormPageReturnsNotFoundForUnknownChannel() throws Exception {
         when(publicFormService.loadConfigRaw("missing-form")).thenReturn(Optional.empty());
 
@@ -103,5 +127,48 @@ class PublicFormControllerWebMvcTest {
 
         mockMvc.perform(get("/public/forms/disabled-form"))
                 .andExpect(status().isGone());
+    }
+
+    @Test
+    void publicFormPageFallsBackToNotFoundWhenDisabledStatusIsInvalid() throws Exception {
+        when(publicFormService.loadConfigRaw("invalid-disabled")).thenReturn(Optional.of(
+                new PublicFormConfig(
+                        17L,
+                        "invalid-disabled",
+                        "Invalid Disabled",
+                        1,
+                        false,
+                        false,
+                        999,
+                        null,
+                        null,
+                        List.of()
+                )));
+
+        mockMvc.perform(get("/public/forms/invalid-disabled"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void publicFormPagePopulatesChannelMetadataInModel() throws Exception {
+        when(publicFormService.loadConfigRaw("meta-form")).thenReturn(Optional.of(
+                new PublicFormConfig(
+                        18L,
+                        "meta-form",
+                        "Meta Form",
+                        1,
+                        true,
+                        false,
+                        404,
+                        null,
+                        null,
+                        List.of()
+                )));
+
+        mockMvc.perform(get("/public/forms/meta-form"))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("channelId", 18L))
+                .andExpect(model().attribute("channelRef", "meta-form"))
+                .andExpect(model().attribute("channelName", "Meta Form"));
     }
 }
