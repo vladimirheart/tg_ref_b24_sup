@@ -575,6 +575,37 @@ class PublicFormApiControllerWebMvcTest {
     }
 
     @Test
+    void createSessionFallsBackToGenericValidationErrorCode() throws Exception {
+        PublicFormConfig enabledConfig = new PublicFormConfig(
+                31L,
+                "web-generic-validation",
+                "Web Form",
+                1,
+                true,
+                false,
+                404,
+                null,
+                null,
+                List.of()
+        );
+
+        when(publicFormService.loadConfigRaw("web-generic-validation")).thenReturn(Optional.of(enabledConfig));
+        when(publicFormService.buildRequesterKey(any(), any())).thenReturn("ip-key");
+        when(publicFormService.createSession(eq("web-generic-validation"), any(PublicFormSubmission.class), eq("ip-key")))
+                .thenThrow(new IllegalArgumentException("validation failed"));
+
+        mockMvc.perform(post("/api/public/forms/web-generic-validation/sessions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "message": "Нужна помощь"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"));
+    }
+
+    @Test
     void createSessionUsesXRealIpWhenForwardedHeaderIsAbsent() throws Exception {
         PublicFormConfig enabledConfig = new PublicFormConfig(
                 23L,

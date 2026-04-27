@@ -626,6 +626,13 @@ integration-сценария поверх users/settings runtime boundary всё
 - `DialogAiOpsController` теперь прикрыт не только по основным happy/error
   flows, но и по alias/null-body/default-path сценариям, что уменьшает риск
   regressions в transport-layer normalisation.
+- `AuthManagementApiController` получил более плотный regression net по
+  route-compatibility и optional-column flows: trailing slash,
+  `PUT/PATCH` compatibility, `photo-upload`, decoded `phones`,
+  admin/capability flags и ветки без `role_id`.
+- `BotProcessApiController` стал лучше прикрыт по fallback/error contract:
+  теперь под тестами и `null` exception message у `runtime-contract`,
+  и case-insensitive success-path для `STOPPED`.
 
 **Автор исходного аудита:** GitHub Copilot  
 **Статус:** Документ актуализирован под состояние кода на 27 апреля 2026

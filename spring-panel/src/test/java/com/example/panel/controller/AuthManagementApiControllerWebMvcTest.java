@@ -14,6 +14,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -105,6 +106,38 @@ class AuthManagementApiControllerWebMvcTest {
     }
 
     @Test
+    void getAuthStateReturnsDecodedPhonesAndAdminCapabilityFlags() throws Exception {
+        when(permissionService.isSuperUser(any())).thenReturn(true);
+        when(permissionService.hasAuthority(any(), anyString())).thenReturn(true);
+        when(sharedConfigService.loadOrgStructure()).thenReturn(OBJECT_MAPPER.valueToTree(Map.of("departments", List.of())));
+        when(usersJdbcTemplate.queryForList(startsWith("SELECT u.*"))).thenReturn(List.of(Map.ofEntries(
+            Map.entry("id", 11L),
+            Map.entry("username", "self"),
+            Map.entry("full_name", "Self User"),
+            Map.entry("role_name", "admin"),
+            Map.entry("role_id", 3L),
+            Map.entry("photo", ""),
+            Map.entry("registration_date", "2026-01-01T00:00:00Z"),
+            Map.entry("birth_date", ""),
+            Map.entry("email", "self@example.com"),
+            Map.entry("department", "Support"),
+            Map.entry("phones", "[{\"label\":\"work\",\"value\":\"+7-900\"}]"),
+            Map.entry("is_blocked", 0)
+        )));
+        when(usersJdbcTemplate.queryForList(startsWith("SELECT id, name, description, permissions FROM roles"))).thenReturn(List.of());
+        when(usersJdbcTemplate.queryForList(startsWith("SELECT id FROM users"), eq("self")))
+            .thenReturn(List.of(Map.of("id", 11L)));
+
+        mockMvc.perform(get("/api/auth/state")
+                .with(user("self").authorities(() -> "PAGE_SETTINGS")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.current_user_id").isEmpty())
+            .andExpect(jsonPath("$.users[0].can_edit_password").value(true))
+            .andExpect(jsonPath("$.users[0].role_is_admin").value(true))
+            .andExpect(jsonPath("$.users[0].phones[0].label").value("work"));
+    }
+
+    @Test
     void updateOrgStructurePersistsPayloadThroughSharedConfigBoundary() throws Exception {
         mockMvc.perform(post("/api/auth/org-structure")
                 .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
@@ -148,6 +181,23 @@ class AuthManagementApiControllerWebMvcTest {
         verify(sharedConfigService).saveOrgStructure(eq(Map.of(
             "departments", List.of(Map.of("id", "ops", "title", "Operations"))
         )));
+    }
+
+    @Test
+    void updateOrgStructureSupportsTrailingSlashRoute() throws Exception {
+        mockMvc.perform(post("/api/auth/org-structure/")
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf())
+                .contentType("application/json")
+                .content("""
+                    {
+                      "departments": []
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true));
+
+        verify(sharedConfigService).saveOrgStructure(eq(Map.of("departments", List.of())));
     }
 
     @Test
@@ -235,6 +285,27 @@ class AuthManagementApiControllerWebMvcTest {
     }
 
     @Test
+    void createUserSupportsTrailingSlashRoute() throws Exception {
+        when(permissionService.isSuperUser(any())).thenReturn(true);
+        when(usersJdbcTemplate.queryForObject(startsWith("SELECT COUNT(*) FROM users"), eq(Integer.class), eq("fresh-slash")))
+            .thenReturn(0);
+        when(passwordEncoder.encode("secret")).thenReturn("hashed-secret");
+
+        mockMvc.perform(post("/api/users/")
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf())
+                .contentType("application/json")
+                .content("""
+                    {
+                      "username": "fresh-slash",
+                      "password": "secret"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
     void createUserPersistsOptionalFieldsPhonesAndRoleIdWhenColumnsExist() throws Exception {
         when(permissionService.isSuperUser(any())).thenReturn(true);
         ReflectionTestUtils.setField(controller, "userColumns", Set.of(
@@ -314,6 +385,30 @@ class AuthManagementApiControllerWebMvcTest {
             eq(1),
             eq("hashed-next-secret"),
             eq(7L)
+        );
+    }
+
+    @Test
+    void updateUserSupportsPutRoute() throws Exception {
+        when(permissionService.isSuperUser(any())).thenReturn(true);
+        ReflectionTestUtils.setField(controller, "userColumns", Set.of("full_name"));
+
+        mockMvc.perform(put("/api/users/12")
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf())
+                .contentType("application/json")
+                .content("""
+                    {
+                      "full_name": "Updated Name"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true));
+
+        verify(usersJdbcTemplate).update(
+            eq("UPDATE users SET full_name = ? WHERE id = ?"),
+            eq("Updated Name"),
+            eq(12L)
         );
     }
 
@@ -664,6 +759,26 @@ class AuthManagementApiControllerWebMvcTest {
     }
 
     @Test
+    void createRoleSupportsTrailingSlashRoute() throws Exception {
+        when(permissionService.isSuperUser(any())).thenReturn(true);
+        when(usersJdbcTemplate.queryForObject(startsWith("SELECT COUNT(*) FROM roles"), eq(Integer.class), eq("reviewer-slash")))
+            .thenReturn(0);
+
+        mockMvc.perform(post("/api/roles/")
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf())
+                .contentType("application/json")
+                .content("""
+                    {
+                      "name": "reviewer-slash",
+                      "description": "Role"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
     void updateRoleReturnsNoDataWhenPayloadEmpty() throws Exception {
         when(permissionService.isSuperUser(any())).thenReturn(true);
 
@@ -703,6 +818,29 @@ class AuthManagementApiControllerWebMvcTest {
             eq("UPDATE roles SET permissions = ? WHERE id = ?"),
             anyString(),
             eq(5L)
+        );
+    }
+
+    @Test
+    void updateRoleSupportsPutRoute() throws Exception {
+        when(permissionService.isSuperUser(any())).thenReturn(true);
+
+        mockMvc.perform(put("/api/roles/6")
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf())
+                .contentType("application/json")
+                .content("""
+                    {
+                      "description": "Updated role"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true));
+
+        verify(usersJdbcTemplate).update(
+            eq("UPDATE roles SET description = ? WHERE id = ?"),
+            eq("Updated role"),
+            eq(6L)
         );
     }
 
@@ -881,6 +1019,25 @@ class AuthManagementApiControllerWebMvcTest {
     }
 
     @Test
+    void deleteRoleSkipsUsageCheckWhenRoleIdColumnIsAbsent() throws Exception {
+        when(permissionService.isSuperUser(any())).thenReturn(true);
+        ReflectionTestUtils.setField(controller, "userColumns", Set.of("username"));
+        when(usersJdbcTemplate.update("DELETE FROM roles WHERE id = ?", 10L)).thenReturn(1);
+
+        mockMvc.perform(delete("/api/roles/10")
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true));
+
+        verify(usersJdbcTemplate, never()).queryForObject(
+            eq("SELECT COUNT(*) FROM users WHERE role_id = ?"),
+            eq(Integer.class),
+            eq(10L)
+        );
+    }
+
+    @Test
     void getUserPasswordAlwaysReturnsStaticDenial() throws Exception {
         mockMvc.perform(get("/api/users/12/password")
                 .with(user("admin").authorities(() -> "PAGE_SETTINGS")))
@@ -942,5 +1099,23 @@ class AuthManagementApiControllerWebMvcTest {
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.url").value(org.hamcrest.Matchers.startsWith("/api/attachments/avatars/")))
             .andExpect(jsonPath("$.filename").isNotEmpty());
+    }
+
+    @Test
+    void uploadUserPhotoSupportsTrailingSlashRoute() throws Exception {
+        MockMultipartFile file = new MockMultipartFile(
+            "photo",
+            "avatar.webp",
+            "image/webp",
+            "webp-binary".getBytes(StandardCharsets.UTF_8)
+        );
+
+        mockMvc.perform(multipart("/api/users/photo-upload/")
+                .file(file)
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.filename").value(org.hamcrest.Matchers.endsWith(".webp")));
     }
 }
