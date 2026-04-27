@@ -104,4 +104,44 @@ class DialogTriagePreferencesControllerWebMvcTest {
             isNull()
         );
     }
+
+    @Test
+    void postTriagePreferencesRejectsMissingBody() throws Exception {
+        mockMvc.perform(post("/api/dialogs/triage-preferences")
+                .with(user("operator"))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("request body is required"));
+    }
+
+    @Test
+    void postTriagePreferencesFallsBackToGeneratedUpdatedAtWhenServiceOmitsField() throws Exception {
+        when(dialogTriagePreferenceService.normalizeView("all")).thenReturn("all");
+        when(dialogTriagePreferenceService.normalizeSortMode("recent")).thenReturn("recent");
+        when(dialogTriagePreferenceService.normalizeSlaWindowMinutes(null)).thenReturn(null);
+        when(dialogTriagePreferenceService.normalizePageSizePreference("25")).thenReturn("25");
+        when(dialogTriagePreferenceService.saveForOperator("operator", "all", "recent", null, "25"))
+            .thenReturn(Map.of(
+                "view", "all",
+                "sort_mode", "recent",
+                "page_size", "25"
+            ));
+
+        mockMvc.perform(post("/api/dialogs/triage-preferences")
+                .with(user("operator"))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "view": "all",
+                      "sort_mode": "recent",
+                      "page_size": "25"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.updated_at_utc").isNotEmpty());
+    }
 }

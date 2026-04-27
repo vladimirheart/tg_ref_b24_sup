@@ -72,4 +72,31 @@ class DialogWorkspaceTelemetryControllerWebMvcTest {
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.totals.workspace_open_ms_count").value(5));
     }
+
+    @Test
+    void workspaceTelemetryAllowsNullBodyAndUsesAuthenticatedOperator() throws Exception {
+        doReturn(ResponseEntity.ok(Map.of("success", true, "accepted", true)))
+            .when(dialogWorkspaceTelemetryService)
+            .logTelemetry(org.mockito.ArgumentMatchers.eq("operator"), org.mockito.ArgumentMatchers.isNull());
+
+        mockMvc.perform(post("/api/dialogs/workspace-telemetry")
+                .with(user("operator"))
+                .with(csrf())
+                .contentType("application/json"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.accepted").value(true));
+    }
+
+    @Test
+    void workspaceTelemetrySummaryUsesDefaultWindowWhenParamsOmitted() throws Exception {
+        doReturn(ResponseEntity.ok(Map.of("success", true, "totals", Map.of())))
+            .when(dialogWorkspaceTelemetryService)
+            .loadSummary(7, null, null, null);
+
+        mockMvc.perform(get("/api/dialogs/workspace-telemetry/summary")
+                .with(user("operator")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true));
+    }
 }

@@ -316,6 +316,22 @@
   `phones/role_id/role` и reject-ветку blank role name;
   `SharedConfigServiceTest` — nested settings round-trip и empty
   `bot_credentials` round-trip.
+- следующим расширенным пакетом `Phase 6` добран и по
+  `dialogs/settings controller edge-case` boundary:
+  `DialogQuickActionsControllerWebMvcTest` теперь прикрывает domain error
+  на `resolve`, null-body `categories`, invalid `snooze` и media failure;
+  `DialogReadControllerWebMvcTest` — `public-form-metrics`, details без
+  `channelId` и default `offset=0`;
+  `DialogMacroControllerWebMvcTest` — alias `text` и variables без
+  `ticketId`;
+  `DialogTriagePreferencesControllerWebMvcTest` — missing body и fallback
+  `updated_at_utc`;
+  `DialogWorkspaceTelemetryControllerWebMvcTest` — null body и default
+  summary window `days=7`;
+  `DialogListControllerWebMvcTest` — empty dialogs payload;
+  `SettingsParametersControllerWebMvcTest` и
+  `SettingsItEquipmentControllerWebMvcTest` — trailing slash и `PATCH`
+  contract.
 
 ---
 
