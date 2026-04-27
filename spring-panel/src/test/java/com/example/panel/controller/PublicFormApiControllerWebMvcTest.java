@@ -79,6 +79,28 @@ class PublicFormApiControllerWebMvcTest {
     }
 
     @Test
+    void configFallsBackToNotFoundWhenDisabledStatusIsInvalid() throws Exception {
+        PublicFormConfig disabledConfig = new PublicFormConfig(
+                17L,
+                "web-invalid-status",
+                "Web Form",
+                1,
+                false,
+                false,
+                999,
+                null,
+                null,
+                List.of()
+        );
+        when(publicFormService.loadConfigRaw("web-invalid-status")).thenReturn(Optional.of(disabledConfig));
+
+        mockMvc.perform(get("/api/public/forms/web-invalid-status/config"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("FORM_DISABLED"));
+    }
+
+    @Test
     void createSessionUsesForwardedHeadersAndPassesRequestId() throws Exception {
         PublicFormConfig enabledConfig = new PublicFormConfig(
                 8L,
@@ -251,6 +273,175 @@ class PublicFormApiControllerWebMvcTest {
                 .andExpect(jsonPath("$.errorCode").value("RATE_LIMITED"));
 
         verify(publicFormService, times(1)).recordSubmitError(13L, "Слишком много запросов. Попробуйте позже");
+    }
+
+    @Test
+    void createSessionMapsValidationEmailErrorCode() throws Exception {
+        PublicFormConfig enabledConfig = new PublicFormConfig(
+                19L,
+                "web-email",
+                "Web Form",
+                1,
+                true,
+                false,
+                404,
+                null,
+                null,
+                List.of()
+        );
+
+        when(publicFormService.loadConfigRaw("web-email")).thenReturn(Optional.of(enabledConfig));
+        when(publicFormService.buildRequesterKey(any(), any())).thenReturn("ip-key");
+        when(publicFormService.createSession(eq("web-email"), any(PublicFormSubmission.class), eq("ip-key")))
+                .thenThrow(new IllegalArgumentException("Введите корректный email"));
+
+        mockMvc.perform(post("/api/public/forms/web-email/sessions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "message": "Нужна помощь"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_EMAIL"));
+    }
+
+    @Test
+    void createSessionMapsValidationPhoneErrorCode() throws Exception {
+        PublicFormConfig enabledConfig = new PublicFormConfig(
+                20L,
+                "web-phone",
+                "Web Form",
+                1,
+                true,
+                false,
+                404,
+                null,
+                null,
+                List.of()
+        );
+
+        when(publicFormService.loadConfigRaw("web-phone")).thenReturn(Optional.of(enabledConfig));
+        when(publicFormService.buildRequesterKey(any(), any())).thenReturn("ip-key");
+        when(publicFormService.createSession(eq("web-phone"), any(PublicFormSubmission.class), eq("ip-key")))
+                .thenThrow(new IllegalArgumentException("Введите корректный телефон"));
+
+        mockMvc.perform(post("/api/public/forms/web-phone/sessions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "message": "Нужна помощь"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_PHONE"));
+    }
+
+    @Test
+    void createSessionMapsCaptchaErrorCode() throws Exception {
+        PublicFormConfig enabledConfig = new PublicFormConfig(
+                21L,
+                "web-captcha",
+                "Web Form",
+                1,
+                true,
+                false,
+                404,
+                null,
+                null,
+                List.of()
+        );
+
+        when(publicFormService.loadConfigRaw("web-captcha")).thenReturn(Optional.of(enabledConfig));
+        when(publicFormService.buildRequesterKey(any(), any())).thenReturn("ip-key");
+        when(publicFormService.createSession(eq("web-captcha"), any(PublicFormSubmission.class), eq("ip-key")))
+                .thenThrow(new IllegalArgumentException("captcha failed"));
+
+        mockMvc.perform(post("/api/public/forms/web-captcha/sessions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "message": "Нужна помощь"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("CAPTCHA_FAILED"));
+    }
+
+    @Test
+    void createSessionMapsIdempotencyConflictErrorCode() throws Exception {
+        PublicFormConfig enabledConfig = new PublicFormConfig(
+                22L,
+                "web-idempotency",
+                "Web Form",
+                1,
+                true,
+                false,
+                404,
+                null,
+                null,
+                List.of()
+        );
+
+        when(publicFormService.loadConfigRaw("web-idempotency")).thenReturn(Optional.of(enabledConfig));
+        when(publicFormService.buildRequesterKey(any(), any())).thenReturn("ip-key");
+        when(publicFormService.createSession(eq("web-idempotency"), any(PublicFormSubmission.class), eq("ip-key")))
+                .thenThrow(new IllegalArgumentException("requestId idempotency conflict"));
+
+        mockMvc.perform(post("/api/public/forms/web-idempotency/sessions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "message": "Нужна помощь"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("IDEMPOTENCY_CONFLICT"));
+    }
+
+    @Test
+    void createSessionUsesXRealIpWhenForwardedHeaderIsAbsent() throws Exception {
+        PublicFormConfig enabledConfig = new PublicFormConfig(
+                23L,
+                "web-real-ip",
+                "Web Form",
+                1,
+                true,
+                false,
+                404,
+                null,
+                null,
+                List.of()
+        );
+        PublicFormSessionDto createdSession = new PublicFormSessionDto(
+                "token-real",
+                "T-404",
+                23L,
+                "web-real-ip",
+                null,
+                null,
+                null,
+                OffsetDateTime.parse("2026-01-01T10:15:30+03:00")
+        );
+
+        when(publicFormService.loadConfigRaw("web-real-ip")).thenReturn(Optional.of(enabledConfig));
+        when(publicFormService.buildRequesterKey("198.51.100.7", null)).thenReturn("real-ip-key");
+        when(publicFormService.createSession(eq("web-real-ip"), any(PublicFormSubmission.class), eq("real-ip-key")))
+                .thenReturn(createdSession);
+        when(publicFormService.buildContinuationOptions("web-real-ip", "token-real"))
+                .thenReturn(Map.of("enabled", false));
+
+        mockMvc.perform(post("/api/public/forms/web-real-ip/sessions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-Real-IP", "198.51.100.7")
+                        .content("""
+                                {
+                                  "message": "Нужна помощь"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.token").value("token-real"));
     }
 
     @Test

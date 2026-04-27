@@ -345,6 +345,17 @@
   contract;
   `BotProcessApiControllerWebMvcTest` — blank exception message fallback
   для `runtime-contract`.
+- следующим ещё более глубоким пакетом `Phase 6` добран по
+  `DialogAiOps/PublicForm` controller boundary:
+  `DialogAiOpsControllerWebMvcTest` теперь дополнительно покрывает
+  `ai-control state`, `ai-review approve/reject`, alias `message_type`
+  у `ai-reclassify`, alias+limit у `ai-retrieve-debug`, camelCase aliases
+  у `ai-solution-memory update`, delete/history для solution memory,
+  monitoring summary и offline-eval run;
+  `PublicFormApiControllerWebMvcTest` — invalid disabled status fallback
+  в `config`, validation error code mapping для
+  `email/phone/captcha/idempotency` и `X-Real-IP` fallback при создании
+  session.
 
 ---
 
