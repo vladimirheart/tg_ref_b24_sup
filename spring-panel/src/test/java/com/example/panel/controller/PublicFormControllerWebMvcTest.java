@@ -15,6 +15,7 @@ import java.util.Optional;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
@@ -51,5 +52,56 @@ class PublicFormControllerWebMvcTest {
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/theme.js")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-config.js")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("data-ui-page=\"public\"")));
+    }
+
+    @Test
+    void publicFormPageUsesTokenFallbackFromDialogParam() throws Exception {
+        when(publicFormService.loadConfigRaw("support-dialog")).thenReturn(Optional.of(
+                new PublicFormConfig(
+                        14L,
+                        "support-dialog",
+                        "Support Dialog",
+                        1,
+                        true,
+                        false,
+                        404,
+                        null,
+                        null,
+                        List.of()
+                )));
+
+        mockMvc.perform(get("/public/forms/support-dialog").param("dialog", "dlg-token-1"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("public/form"))
+                .andExpect(model().attribute("initialToken", "dlg-token-1"))
+                .andExpect(model().attribute("channelRef", "support-dialog"));
+    }
+
+    @Test
+    void publicFormPageReturnsNotFoundForUnknownChannel() throws Exception {
+        when(publicFormService.loadConfigRaw("missing-form")).thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/public/forms/missing-form"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void publicFormPageUsesConfiguredDisabledStatus() throws Exception {
+        when(publicFormService.loadConfigRaw("disabled-form")).thenReturn(Optional.of(
+                new PublicFormConfig(
+                        15L,
+                        "disabled-form",
+                        "Disabled Form",
+                        1,
+                        false,
+                        false,
+                        410,
+                        null,
+                        null,
+                        List.of()
+                )));
+
+        mockMvc.perform(get("/public/forms/disabled-form"))
+                .andExpect(status().isGone());
     }
 }

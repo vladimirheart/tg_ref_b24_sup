@@ -207,6 +207,44 @@ class PublicFormApiControllerWebMvcTest {
     }
 
     @Test
+    void configReturnsQuestionsAndRecordsConfigView() throws Exception {
+        PublicFormConfig enabledConfig = new PublicFormConfig(
+                10L,
+                "web-questions",
+                "Support Form",
+                2,
+                true,
+                true,
+                404,
+                "Instruction",
+                30,
+                List.of(
+                        new PublicFormQuestion("topic", "Тема", "select", 1, Map.of("required", true, "placeholder", "Выберите тему")),
+                        new PublicFormQuestion("details", "Описание", "textarea", 2, Map.of("maxLength", 500))
+                )
+        );
+        when(publicFormService.loadConfigRaw("web-questions")).thenReturn(Optional.of(enabledConfig));
+        when(publicFormService.resolveAnswersPayloadMaxLength()).thenReturn(4096);
+        when(publicFormService.isSessionPollingEnabled()).thenReturn(false);
+        when(publicFormService.resolveSessionPollingIntervalSeconds()).thenReturn(20);
+        when(publicFormService.resolveUiLocale()).thenReturn("ru");
+        when(publicFormService.buildContinuationOptions("web-questions", null)).thenReturn(Map.of("enabled", false));
+
+        mockMvc.perform(get("/api/public/forms/web-questions/config"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.channel.id").value(10))
+                .andExpect(jsonPath("$.channel.publicId").value("web-questions"))
+                .andExpect(jsonPath("$.schemaVersion").value(2))
+                .andExpect(jsonPath("$.captchaEnabled").value(true))
+                .andExpect(jsonPath("$.questions[0].id").value("topic"))
+                .andExpect(jsonPath("$.questions[0].required").value(true))
+                .andExpect(jsonPath("$.questions[1].maxLength").value(500));
+
+        verify(publicFormService).recordConfigView(10L);
+    }
+
+    @Test
     void createSessionReturnsServerErrorOnUnexpectedException() throws Exception {
         PublicFormConfig enabledConfig = new PublicFormConfig(
                 12L,
@@ -400,6 +438,99 @@ class PublicFormApiControllerWebMvcTest {
     }
 
     @Test
+    void createSessionMapsValidationRequiredErrorCode() throws Exception {
+        PublicFormConfig enabledConfig = new PublicFormConfig(
+                24L,
+                "web-required",
+                "Web Form",
+                1,
+                true,
+                false,
+                404,
+                null,
+                null,
+                List.of()
+        );
+
+        when(publicFormService.loadConfigRaw("web-required")).thenReturn(Optional.of(enabledConfig));
+        when(publicFormService.buildRequesterKey(any(), any())).thenReturn("ip-key");
+        when(publicFormService.createSession(eq("web-required"), any(PublicFormSubmission.class), eq("ip-key")))
+                .thenThrow(new IllegalArgumentException("required field missing"));
+
+        mockMvc.perform(post("/api/public/forms/web-required/sessions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "message": "Нужна помощь"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_REQUIRED"));
+    }
+
+    @Test
+    void createSessionMapsValidationMaxLengthErrorCode() throws Exception {
+        PublicFormConfig enabledConfig = new PublicFormConfig(
+                25L,
+                "web-max",
+                "Web Form",
+                1,
+                true,
+                false,
+                404,
+                null,
+                null,
+                List.of()
+        );
+
+        when(publicFormService.loadConfigRaw("web-max")).thenReturn(Optional.of(enabledConfig));
+        when(publicFormService.buildRequesterKey(any(), any())).thenReturn("ip-key");
+        when(publicFormService.createSession(eq("web-max"), any(PublicFormSubmission.class), eq("ip-key")))
+                .thenThrow(new IllegalArgumentException("message exceeds max length"));
+
+        mockMvc.perform(post("/api/public/forms/web-max/sessions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "message": "Нужна помощь"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_MAX_LENGTH"));
+    }
+
+    @Test
+    void createSessionMapsValidationMinLengthErrorCode() throws Exception {
+        PublicFormConfig enabledConfig = new PublicFormConfig(
+                26L,
+                "web-min",
+                "Web Form",
+                1,
+                true,
+                false,
+                404,
+                null,
+                null,
+                List.of()
+        );
+
+        when(publicFormService.loadConfigRaw("web-min")).thenReturn(Optional.of(enabledConfig));
+        when(publicFormService.buildRequesterKey(any(), any())).thenReturn("ip-key");
+        when(publicFormService.createSession(eq("web-min"), any(PublicFormSubmission.class), eq("ip-key")))
+                .thenThrow(new IllegalArgumentException("minimum 3 symbols"));
+
+        mockMvc.perform(post("/api/public/forms/web-min/sessions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "message": "Нужна помощь"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_MIN_LENGTH"));
+    }
+
+    @Test
     void createSessionUsesXRealIpWhenForwardedHeaderIsAbsent() throws Exception {
         PublicFormConfig enabledConfig = new PublicFormConfig(
                 23L,
@@ -542,6 +673,17 @@ class PublicFormApiControllerWebMvcTest {
                 .andExpect(jsonPath("$.success").value(true));
 
         verify(dialogConversationReadService).loadHistory("T-303", 44L);
+    }
+
+    @Test
+    void sessionDoesNotRecordLookupWhenChannelIdCannotBeResolved() throws Exception {
+        when(publicFormService.resolveChannelId("web-unresolved")).thenReturn(Optional.empty());
+        when(publicFormService.findSession("web-unresolved", "token-none")).thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/api/public/forms/web-unresolved/sessions/token-none"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("SESSION_NOT_FOUND"));
     }
 
 }
