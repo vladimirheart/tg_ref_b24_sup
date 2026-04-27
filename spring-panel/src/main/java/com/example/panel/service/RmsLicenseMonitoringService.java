@@ -146,7 +146,6 @@ public class RmsLicenseMonitoringService {
         return repository.findAllByOrderByRmsAddressAscIdAsc();
     }
 
-    @Transactional(transactionManager = "monitoringTransactionManager")
     public RmsLicenseMonitor createMonitor(String rmsAddress,
                                            String authLogin,
                                            String authPassword,
@@ -179,7 +178,6 @@ public class RmsLicenseMonitoringService {
         return repository.findById(monitor.getId()).orElse(monitor);
     }
 
-    @Transactional(transactionManager = "monitoringTransactionManager")
     public RmsLicenseMonitor updateMonitor(long id,
                                            String rmsAddress,
                                            String authLogin,
@@ -213,7 +211,6 @@ public class RmsLicenseMonitoringService {
         return repository.findById(monitor.getId()).orElse(monitor);
     }
 
-    @Transactional(transactionManager = "monitoringTransactionManager")
     public void deleteMonitor(long id) {
         if (!repository.existsById(id)) {
             throw new IllegalArgumentException("RMS-запись не найдена");
@@ -239,7 +236,6 @@ public class RmsLicenseMonitoringService {
         return queueNetworkRefresh(id);
     }
 
-    @Transactional(transactionManager = "monitoringTransactionManager")
     public void setLicenseMonitoringEnabledForAll(boolean enabled) {
         List<RmsLicenseMonitor> monitors = repository.findAllByOrderByRmsAddressAscIdAsc();
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
@@ -258,7 +254,6 @@ public class RmsLicenseMonitoringService {
         }
     }
 
-    @Transactional(transactionManager = "monitoringTransactionManager")
     public void setNetworkMonitoringEnabledForAll(boolean enabled) {
         List<RmsLicenseMonitor> monitors = repository.findAllByOrderByRmsAddressAscIdAsc();
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);

@@ -509,35 +509,34 @@
       if (String(site.server_type || '').trim().toUpperCase() === 'IIKO_CHAIN') {
         row.classList.add('rms-chain-row');
       }
+      const licenseStatusTitle = `Последняя проверка лицензии: ${formatDateTime(site.license_last_checked_at || site.updated_at)}`;
+      const rmsStatusTitle = `Последний ping: ${formatDateTime(site.rms_last_checked_at)}`;
       row.innerHTML = `
         <td>
           <div class="fw-semibold font-mono">${escapeHtml(site.rms_address_display || site.rms_address || '—')}</div>
-          <div class="small ${site.password_saved ? 'text-success' : 'text-warning'}">${site.password_saved ? 'Пароль сохранён и зашифрован' : 'Пароль не сохранён'}</div>
+          <div class="rms-feature-icons mt-2">
+            ${featureIcon('S', recordEnabled, `Запись мониторинга: ${recordEnabled ? 'включена' : 'выключена'}`)}
+            ${featureIcon('L', licenseFeatureEnabled, `Мониторинг лицензии: ${licenseFeatureEnabled ? 'включён' : 'выключен'}`)}
+            ${featureIcon('N', networkFeatureEnabled, `Мониторинг доступности: ${networkFeatureEnabled ? 'включён' : 'выключен'}`)}
+          </div>
         </td>
         <td>
           <div class="fw-semibold">${escapeHtml(site.server_name_display || site.server_name || '—')}</div>
-          <div class="small text-muted">Последняя проверка: ${escapeHtml(formatDateTime(site.license_last_checked_at || site.updated_at))}</div>
         </td>
         <td>
           <div>${escapeHtml(formatDateOnly(site.license_expires_at))}</div>
           <div class="small text-muted">Осталось: ${escapeHtml(formatDaysLeft(site.license_days_left))}</div>
           <div class="small text-muted">Лицензий 100: ${escapeHtml(site.target_license_count ?? '—')}</div>
         </td>
-        <td class="license-cell status-${escapeHtml(licenseLevel || 'error')}">
+        <td class="license-cell status-${escapeHtml(licenseLevel || 'error')}" title="${escapeHtml(licenseStatusTitle)}">
           <div>${licenseBadge(licenseLevel)}</div>
           <div class="small text-muted mt-1">${escapeHtml(site.license_error_message || '')}</div>
           <div class="small mt-2">${refreshStateChip(site.license_refresh_state, 'Лицензия')}</div>
         </td>
-        <td class="rms-cell status-${escapeHtml(rmsLevel || 'unknown')}">
+        <td class="rms-cell status-${escapeHtml(rmsLevel || 'unknown')}" title="${escapeHtml(rmsStatusTitle)}">
           <div>${rmsBadge(rmsLevel)}</div>
           <div class="small text-muted mt-1">${escapeHtml(site.rms_status_message || '—')}</div>
-          <div class="small text-muted">${escapeHtml(formatDateTime(site.rms_last_checked_at))}</div>
           <div class="small mt-2">${refreshStateChip(site.network_refresh_state, 'RMS')}</div>
-          <div class="rms-feature-icons mt-2">
-            ${featureIcon('S', recordEnabled, `Запись мониторинга: ${recordEnabled ? 'включена' : 'выключена'}`)}
-            ${featureIcon('L', licenseFeatureEnabled, `Мониторинг лицензии: ${licenseFeatureEnabled ? 'включён' : 'выключен'}`)}
-            ${featureIcon('N', networkFeatureEnabled, `Мониторинг доступности: ${networkFeatureEnabled ? 'включён' : 'выключен'}`)}
-          </div>
           ${site.traceroute_summary ? `<div class="small mt-2">${escapeHtml(site.traceroute_summary)}</div>` : ''}
         </td>
         <td>
