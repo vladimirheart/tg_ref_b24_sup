@@ -502,6 +502,18 @@
   empty list, failed Telegram bot-info refresh tolerance, blank credential
   platform normalisation, default `is_active` и safe delete credential без
   лишнего `saveAll()`.
+- следующим пакетом `Phase 6` расширен уже по комбинированному
+  `channel-management/auth-management/shared-config` boundary:
+  `ChannelApiControllerWebMvcTest` теперь покрывает failed `saveAll()` после
+  Telegram bot-info refresh, reject-сценарий VK platform switch без
+  callback configuration, пустой результат Telegram `getMe`, sparse/null
+  allocation нового credential id и cleanup нескольких связанных каналов
+  при delete credential;
+  `AuthManagementApiControllerWebMvcTest` — raw payload contract
+  `/api/auth/org-structure`, create/update/delete persistence для optional
+  `phones/role_id/role` и reject-ветку blank role name;
+  `SharedConfigServiceTest` — nested settings round-trip и empty
+  `bot_credentials` round-trip.
 - этот же smoke-слой расширен на detail/subpage contract:
   `ai-ops`, `unblock requests`, `users/detail` и оба passport editor route
   (`/object-passports/new`, `/object-passports/{id}`) теперь тоже прикрыты

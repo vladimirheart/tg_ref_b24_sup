@@ -49,6 +49,25 @@ class SharedConfigServiceTest {
     }
 
     @Test
+    void saveSettingsPersistsNestedArraysAndMapsRoundTrip() {
+        SharedConfigService sharedConfigService = new SharedConfigService(objectMapper, tempDir.toString());
+
+        sharedConfigService.saveSettings(Map.of(
+            "themes", List.of("neo", "catppuccin"),
+            "dialog_config", Map.of(
+                "sla_target_minutes", 240,
+                "channels", List.of("telegram", "vk")
+            )
+        ));
+
+        Map<String, Object> settings = sharedConfigService.loadSettings();
+
+        assertEquals(List.of("neo", "catppuccin"), settings.get("themes"));
+        assertEquals(240, ((Map<?, ?>) settings.get("dialog_config")).get("sla_target_minutes"));
+        assertEquals(List.of("telegram", "vk"), ((Map<?, ?>) settings.get("dialog_config")).get("channels"));
+    }
+
+    @Test
     void saveLocationsPersistsRoundTripJsonTree() {
         SharedConfigService sharedConfigService = new SharedConfigService(objectMapper, tempDir.toString());
 
@@ -127,6 +146,18 @@ class SharedConfigServiceTest {
         assertTrue(Boolean.TRUE.equals(credentials.get(0).active()));
         assertEquals("VK Backup", credentials.get(1).name());
         assertTrue(Boolean.FALSE.equals(credentials.get(1).active()));
+    }
+
+    @Test
+    void saveBotCredentialsPersistsEmptyListRoundTrip() {
+        SharedConfigService sharedConfigService = new SharedConfigService(objectMapper, tempDir.toString());
+
+        sharedConfigService.saveBotCredentials(List.of());
+
+        List<BotCredential> credentials = sharedConfigService.loadBotCredentials();
+
+        assertTrue(Files.isRegularFile(tempDir.resolve("bot_credentials.json")));
+        assertTrue(credentials.isEmpty());
     }
 
     @Test

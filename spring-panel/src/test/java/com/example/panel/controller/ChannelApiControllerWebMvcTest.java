@@ -112,6 +112,43 @@ class ChannelApiControllerWebMvcTest {
     }
 
     @Test
+    void getChannelsContinuesWhenSavingRefreshedTelegramBotInfoFails() throws Exception {
+        Channel channel = new Channel();
+        channel.setId(75L);
+        channel.setChannelName("TG Support");
+        channel.setPlatform("telegram");
+        channel.setToken("tg-token");
+        channel.setPublicId("pub-75");
+        channel.setQuestionsCfg("{}");
+        channel.setDeliverySettings("{}");
+
+        @SuppressWarnings("unchecked")
+        HttpResponse<String> response = (HttpResponse<String>) mock(HttpResponse.class);
+        HttpClient httpClient = mock(HttpClient.class);
+        when(response.statusCode()).thenReturn(200);
+        when(response.body()).thenReturn("""
+                {
+                  "ok": true,
+                  "result": {
+                    "username": "support_bot",
+                    "first_name": "Support"
+                  }
+                }
+                """);
+        when(channelRepository.findAll()).thenReturn(List.of(channel));
+        when(channelRepository.saveAll(any())).thenThrow(new RuntimeException("db unavailable"));
+        when(sharedConfigService.loadBotCredentials()).thenReturn(List.of());
+        when(integrationNetworkService.createChannelHttpClient(any(Channel.class), any())).thenReturn(httpClient);
+        when(httpClient.send(any(), any(HttpResponse.BodyHandler.class))).thenReturn(response);
+
+        mockMvc.perform(get("/api/channels"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.channels[0].bot_name").value("Support"))
+            .andExpect(jsonPath("$.channels[0].bot_username").value("support_bot"));
+    }
+
+    @Test
     void createChannelPersistsVkPlatformConfigAndTemplateSelections() throws Exception {
         when(channelRepository.save(any(Channel.class))).thenAnswer(invocation -> {
             Channel channel = invocation.getArgument(0);
@@ -339,6 +376,31 @@ class ChannelApiControllerWebMvcTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error").value("questions_cfg должен быть объектом или массивом"));
+    }
+
+    @Test
+    void patchChannelRejectsVkPlatformSwitchWithoutCallbackConfiguration() throws Exception {
+        Channel channel = new Channel();
+        channel.setId(46L);
+        channel.setChannelName("Platform Switch");
+        channel.setPlatform("telegram");
+        channel.setToken("vk-token");
+        channel.setDeliverySettings("{}");
+        channel.setQuestionsCfg("{}");
+        channel.setPublicId("public-46");
+
+        when(channelRepository.findById(46L)).thenReturn(Optional.of(channel));
+
+        mockMvc.perform(post("/api/channels/46")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "platform": "vk"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error").value("Для VK укажите корректный ID сообщества (group_id)."));
     }
 
     @Test
@@ -760,6 +822,38 @@ class ChannelApiControllerWebMvcTest {
     }
 
     @Test
+    void refreshBotInfoReturnsBadRequestWhenTelegramResultIsEmpty() throws Exception {
+        Channel channel = new Channel();
+        channel.setId(76L);
+        channel.setPlatform("telegram");
+        channel.setToken("tg-token");
+        channel.setPublicId("public-76");
+        channel.setQuestionsCfg("{}");
+        channel.setDeliverySettings("{}");
+
+        @SuppressWarnings("unchecked")
+        HttpResponse<String> response = (HttpResponse<String>) mock(HttpResponse.class);
+        HttpClient httpClient = mock(HttpClient.class);
+        when(response.statusCode()).thenReturn(200);
+        when(response.body()).thenReturn("""
+                {
+                  "ok": true,
+                  "result": {}
+                }
+                """);
+        when(channelRepository.findById(76L)).thenReturn(Optional.of(channel));
+        when(integrationNetworkService.createChannelHttpClient(any(Channel.class), any())).thenReturn(httpClient);
+        when(httpClient.send(any(), any(HttpResponse.BodyHandler.class))).thenReturn(response);
+
+        mockMvc.perform(post("/api/channels/76/bot-info"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error").value("Не удалось получить данные бота"));
+
+        verify(channelRepository, never()).save(any(Channel.class));
+    }
+
+    @Test
     void getChannelsEmbedsCredentialSummaryForBoundCredential() throws Exception {
         Channel channel = new Channel();
         channel.setId(12L);
@@ -902,6 +996,30 @@ class ChannelApiControllerWebMvcTest {
     }
 
     @Test
+    void createBotCredentialAssignsNextIdAfterSparseAndNullExistingIds() throws Exception {
+        when(sharedConfigService.loadBotCredentials()).thenReturn(List.of(
+            new BotCredential(null, "Legacy Null", "telegram", "token-0", true),
+            new BotCredential(10L, "TG Main", "telegram", "token-1", true),
+            new BotCredential(4L, "VK Backup", "vk", "token-2", false)
+        ));
+
+        mockMvc.perform(post("/api/bot-credentials")
+                .contentType("application/json")
+                .content("""
+                    {
+                      "name": "MAX Main",
+                      "platform": "max",
+                      "token": "max-token",
+                      "is_active": true
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.credential.id").value(11))
+            .andExpect(jsonPath("$.credential.platform").value("max"));
+    }
+
+    @Test
     void deleteBotCredentialClearsLinkedChannelsAndPersistsTrimmedCredentialList() throws Exception {
         when(sharedConfigService.loadBotCredentials()).thenReturn(List.of(
             new BotCredential(7L, "TG Main", "telegram", "token-1", true),
@@ -951,6 +1069,31 @@ class ChannelApiControllerWebMvcTest {
             .andExpect(jsonPath("$.success").value(true));
 
         verify(channelRepository, never()).saveAll(any());
+    }
+
+    @Test
+    void deleteBotCredentialClearsMultipleLinkedChannels() throws Exception {
+        when(sharedConfigService.loadBotCredentials()).thenReturn(List.of(
+            new BotCredential(7L, "TG Main", "telegram", "token-1", true),
+            new BotCredential(8L, "VK Backup", "vk", "token-2", false)
+        ));
+        Channel first = new Channel();
+        first.setId(201L);
+        first.setCredentialId(8L);
+        Channel second = new Channel();
+        second.setId(202L);
+        second.setCredentialId(8L);
+        when(channelRepository.findAll()).thenReturn(List.of(first, second));
+
+        mockMvc.perform(delete("/api/bot-credentials/8"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true));
+
+        verify(channelRepository).saveAll(argThat(channels -> {
+            List<Channel> items = new ArrayList<>();
+            channels.forEach(items::add);
+            return items.size() == 2 && items.stream().allMatch(item -> item.getCredentialId() == null);
+        }));
     }
 
     @Test

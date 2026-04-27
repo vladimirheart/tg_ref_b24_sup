@@ -129,6 +129,28 @@ class AuthManagementApiControllerWebMvcTest {
     }
 
     @Test
+    void updateOrgStructureAcceptsRawPayloadWithoutWrapper() throws Exception {
+        mockMvc.perform(post("/api/auth/org-structure")
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf())
+                .contentType("application/json")
+                .content("""
+                    {
+                      "departments": [
+                        {"id": "ops", "title": "Operations"}
+                      ]
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.org_structure.departments[0].id").value("ops"));
+
+        verify(sharedConfigService).saveOrgStructure(eq(Map.of(
+            "departments", List.of(Map.of("id", "ops", "title", "Operations"))
+        )));
+    }
+
+    @Test
     void createUserRejectsDuplicateUsername() throws Exception {
         when(permissionService.isSuperUser(any())).thenReturn(true);
         when(usersJdbcTemplate.queryForObject(startsWith("SELECT COUNT(*) FROM users"), eq(Integer.class), eq("existing")))
@@ -210,6 +232,48 @@ class AuthManagementApiControllerWebMvcTest {
             .andExpect(jsonPath("$.success").value(true));
 
         verify(usersJdbcTemplate).update(startsWith("INSERT INTO users"), eq("fresh"), eq("hashed-secret"));
+    }
+
+    @Test
+    void createUserPersistsOptionalFieldsPhonesAndRoleIdWhenColumnsExist() throws Exception {
+        when(permissionService.isSuperUser(any())).thenReturn(true);
+        ReflectionTestUtils.setField(controller, "userColumns", Set.of(
+            "username", "password", "full_name", "email", "department", "phones", "role_id"
+        ));
+        when(usersJdbcTemplate.queryForObject(startsWith("SELECT COUNT(*) FROM users"), eq(Integer.class), eq("fresh")))
+            .thenReturn(0);
+        when(passwordEncoder.encode("secret")).thenReturn("hashed-secret");
+
+        mockMvc.perform(post("/api/users")
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf())
+                .contentType("application/json")
+                .content("""
+                    {
+                      "username": "fresh",
+                      "password": "secret",
+                      "full_name": "Fresh User",
+                      "email": "fresh@example.com",
+                      "department": "Support",
+                      "role_id": 4,
+                      "phones": [
+                        {"label": "work", "value": "+7-900-000-00-00"}
+                      ]
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true));
+
+        verify(usersJdbcTemplate).update(
+            eq("INSERT INTO users (username, password, full_name, email, department, phones, role_id) VALUES (?, ?, ?, ?, ?, ?, ?)"),
+            eq("fresh"),
+            eq("hashed-secret"),
+            eq("Fresh User"),
+            eq("fresh@example.com"),
+            eq("Support"),
+            eq("[{\"label\":\"work\",\"value\":\"+7-900-000-00-00\"}]"),
+            eq(4)
+        );
     }
 
     @Test
@@ -363,6 +427,32 @@ class AuthManagementApiControllerWebMvcTest {
     }
 
     @Test
+    void updateUserPersistsRoleIdAndRoleWhenColumnsExist() throws Exception {
+        when(permissionService.isSuperUser(any())).thenReturn(true);
+        ReflectionTestUtils.setField(controller, "userColumns", Set.of("role_id", "role"));
+
+        mockMvc.perform(patch("/api/users/7")
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf())
+                .contentType("application/json")
+                .content("""
+                    {
+                      "role_id": 8,
+                      "role": "reviewer"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true));
+
+        verify(usersJdbcTemplate).update(
+            eq("UPDATE users SET role_id = ?, role = ? WHERE id = ?"),
+            eq(8),
+            eq("reviewer"),
+            eq(7L)
+        );
+    }
+
+    @Test
     void createUserPersistsPasswordHashColumnWhenAvailable() throws Exception {
         when(permissionService.isSuperUser(any())).thenReturn(true);
         ReflectionTestUtils.setField(controller, "userColumns", Set.of("username", "password", "password_hash"));
@@ -453,6 +543,18 @@ class AuthManagementApiControllerWebMvcTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.error").value("Пользователь не найден"));
+    }
+
+    @Test
+    void deleteUserRemovesExistingUser() throws Exception {
+        when(permissionService.isSuperUser(any())).thenReturn(true);
+        when(usersJdbcTemplate.update("DELETE FROM users WHERE id = ?", 42L)).thenReturn(1);
+
+        mockMvc.perform(delete("/api/users/42")
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true));
     }
 
     @Test
@@ -673,6 +775,24 @@ class AuthManagementApiControllerWebMvcTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.error").value("Недостаточно прав для изменения названия роли"));
+    }
+
+    @Test
+    void updateRoleRejectsBlankNameEvenWhenPermissionIsGranted() throws Exception {
+        when(permissionService.isSuperUser(any())).thenReturn(true);
+
+        mockMvc.perform(patch("/api/roles/5")
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf())
+                .contentType("application/json")
+                .content("""
+                    {
+                      "name": ""
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("Название роли не может быть пустым"));
     }
 
     @Test
