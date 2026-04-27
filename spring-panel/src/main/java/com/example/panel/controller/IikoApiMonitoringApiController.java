@@ -123,6 +123,7 @@ public class IikoApiMonitoringApiController {
             payload.put("last_error_message", view.lastErrorMessage());
             payload.put("summary", view.summary());
             payload.put("response_excerpt", view.responseExcerpt());
+            payload.put("timeline", view.timeline());
             return ResponseEntity.ok(payload);
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(errorResponse(ex.getMessage()));

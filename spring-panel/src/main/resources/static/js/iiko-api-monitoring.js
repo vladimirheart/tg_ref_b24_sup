@@ -63,6 +63,7 @@
   const responseModal = responseModalEl && window.bootstrap ? new bootstrap.Modal(responseModalEl) : null;
   const responseMeta = document.getElementById('iikoResponseMeta');
   const responseSummary = document.getElementById('iikoResponseSummary');
+  const responseTimeline = document.getElementById('iikoResponseTimeline');
   const responseExcerpt = document.getElementById('iikoResponseExcerpt');
 
   let monitors = [];
@@ -125,6 +126,36 @@
     return entries.slice(0, 6).map(([key, value]) => (
       `<span class="badge text-bg-light border">${escapeHtml(key)}: ${escapeHtml(value)}</span>`
     )).join('');
+  }
+
+  function renderTimeline(entries) {
+    const items = Array.isArray(entries) ? entries : [];
+    if (!items.length) {
+      return '<div class="text-muted">История проверок пока не накоплена.</div>';
+    }
+    return items.map((entry) => {
+      const checkKind = entry.check_kind || entry.checkKind || 'request';
+      const httpStatus = entry.http_status ?? entry.httpStatus;
+      const durationMs = entry.duration_ms ?? entry.durationMs;
+      const createdAt = entry.created_at || entry.createdAt;
+      const status = normalizeStatus(entry.status || '');
+      return `
+        <div class="border rounded-3 p-3 bg-body-tertiary">
+          <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+            <div>
+              <div class="small text-muted">${escapeHtml(checkKind)}</div>
+              <div class="fw-semibold">${escapeHtml(formatDateTime(createdAt))}</div>
+            </div>
+            <div>${statusBadge(status)}</div>
+          </div>
+          <div class="small mt-2">${escapeHtml(entry.summary || '—')}</div>
+          <div class="small text-muted mt-1">
+            ${httpStatus !== null && httpStatus !== undefined && httpStatus !== '' ? `HTTP: ${escapeHtml(httpStatus)} ` : ''}
+            ${durationMs !== null && durationMs !== undefined && durationMs !== '' ? `• ${escapeHtml(durationMs)} мс` : ''}
+          </div>
+        </div>
+      `;
+    }).join('');
   }
 
   function listToText(values) {
@@ -479,19 +510,22 @@
   }
 
   async function openResponseModal(monitorId) {
-    if (!responseModal || !responseMeta || !responseSummary || !responseExcerpt) return;
+    if (!responseModal || !responseMeta || !responseSummary || !responseTimeline || !responseExcerpt) return;
     const item = findMonitor(monitorId);
     responseMeta.textContent = item?.monitor_name || 'Загрузка...';
     responseSummary.innerHTML = '<span class="text-muted">Загрузка...</span>';
+    responseTimeline.innerHTML = '<div class="text-muted">Загрузка...</div>';
     responseExcerpt.textContent = 'Загрузка...';
     responseModal.show();
     try {
       const data = await requestJson(`/api/monitoring/iiko/monitors/${monitorId}/response`);
       responseMeta.textContent = `${data.monitor_name || 'Монитор'} • ${data.request_type_label || data.request_type || '-'} • ${formatDateTime(data.last_checked_at)}`;
       responseSummary.innerHTML = summaryBadges(data.summary || {});
+      responseTimeline.innerHTML = renderTimeline(data.timeline);
       responseExcerpt.textContent = String(data.response_excerpt || 'Нет данных.');
     } catch (error) {
       responseSummary.innerHTML = `<span class="text-danger">${escapeHtml(error.message || 'Не удалось загрузить ответ.')}</span>`;
+      responseTimeline.innerHTML = '<div class="text-muted">Нет данных.</div>';
       responseExcerpt.textContent = 'Нет данных.';
     }
   }
