@@ -3,6 +3,7 @@ package com.example.panel.service;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.example.panel.entity.RmsLicenseMonitor;
+import com.example.panel.repository.MonitoringCheckHistoryRepository;
 import com.example.panel.repository.RmsLicenseMonitorRepository;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
@@ -99,6 +100,7 @@ public class RmsLicenseMonitoringService {
     };
 
     private final RmsLicenseMonitorRepository repository;
+    private final MonitoringCheckHistoryRepository historyRepository;
     private final NotificationService notificationService;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
@@ -116,9 +118,11 @@ public class RmsLicenseMonitoringService {
     private final AtomicReference<OffsetDateTime> lastNetworkRefreshCompletedAt = new AtomicReference<>();
 
     public RmsLicenseMonitoringService(RmsLicenseMonitorRepository repository,
+                                       MonitoringCheckHistoryRepository historyRepository,
                                        NotificationService notificationService,
                                        ObjectMapper objectMapper) {
         this.repository = repository;
+        this.historyRepository = historyRepository;
         this.notificationService = notificationService;
         this.objectMapper = objectMapper;
         this.httpClient = buildUnsafeHttpClient();
@@ -315,7 +319,7 @@ public class RmsLicenseMonitoringService {
             return new LicenseDetailsView(
                 monitor.getId(),
                 monitor.getRmsAddress(),
-                monitor.getServerName(),
+                resolveDisplayServerNameForView(monitor),
                 monitor.getLicenseLastCheckedAt(),
                 items
             );
@@ -331,7 +335,7 @@ public class RmsLicenseMonitoringService {
         return new DiagnosticsView(
             monitor.getId(),
             monitor.getRmsAddress(),
-            monitor.getServerName(),
+            resolveDisplayServerNameForView(monitor),
             monitor.getLicenseLastCheckedAt(),
             monitor.getRmsLastCheckedAt(),
             monitor.getLicenseStatus(),
@@ -341,7 +345,20 @@ public class RmsLicenseMonitoringService {
             monitor.getRmsStatusMessage(),
             monitor.getPingOutput(),
             monitor.getTracerouteSummary(),
-            monitor.getTracerouteReport()
+            monitor.getTracerouteReport(),
+            loadTimelineForMonitor(monitor.getId())
+        );
+    }
+
+    public String resolveDisplayServerNameForView(RmsLicenseMonitor monitor) {
+        if (monitor == null) {
+            return "";
+        }
+        return resolveDisplayServerNameInternal(
+            null,
+            monitor.getServerName(),
+            monitor.getHost(),
+            monitor.getLicenseDetailsJson()
         );
     }
 
@@ -389,6 +406,67 @@ public class RmsLicenseMonitoringService {
         }
         String status = normalizeStatus(monitor.getRmsStatus());
         return StringUtils.hasText(status) ? status : RMS_STATUS_UNKNOWN;
+    }
+
+    private List<TimelineEntryView> loadTimelineForMonitor(Long monitorId) {
+        if (monitorId == null) {
+            return List.of();
+        }
+        return historyRepository.findRecent("rms", monitorId, 20).stream()
+            .map(entry -> new TimelineEntryView(
+                entry.checkKind(),
+                entry.status(),
+                entry.summary(),
+                entry.detailsExcerpt(),
+                entry.httpStatus(),
+                entry.durationMs(),
+                entry.createdAt()
+            ))
+            .toList();
+    }
+
+    private void recordTimelineEntry(RmsLicenseMonitor monitor,
+                                     String checkKind,
+                                     String status,
+                                     String summary,
+                                     String detailsExcerpt,
+                                     OffsetDateTime createdAt) {
+        if (monitor == null || monitor.getId() == null) {
+            return;
+        }
+        historyRepository.record(
+            "rms",
+            monitor.getId(),
+            checkKind,
+            trimText(status, 40, ""),
+            trimText(summary, 600, ""),
+            trimText(detailsExcerpt, 4_000, ""),
+            null,
+            null,
+            createdAt != null ? createdAt : OffsetDateTime.now(ZoneOffset.UTC)
+        );
+    }
+
+    private String buildLicenseTimelineSummary(RmsLicenseMonitor monitor) {
+        if (monitor == null) {
+            return "";
+        }
+        StringBuilder summary = new StringBuilder();
+        if (monitor.getLicenseExpiresAt() != null) {
+            summary.append(TARGET_LICENSE_TITLE)
+                .append(" до ")
+                .append(monitor.getLicenseExpiresAt().toLocalDate());
+        }
+        if (monitor.getLicenseDaysLeft() != null) {
+            if (summary.length() > 0) {
+                summary.append(", ");
+            }
+            summary.append("осталось ").append(monitor.getLicenseDaysLeft()).append(" дн.");
+        }
+        if (summary.length() == 0 && StringUtils.hasText(monitor.getLicenseErrorMessage())) {
+            summary.append(monitor.getLicenseErrorMessage());
+        }
+        return trimText(summary.toString(), 600, "");
     }
 
     private void runQueuedLicenseRefresh() {
@@ -466,7 +544,7 @@ public class RmsLicenseMonitoringService {
             monitor.setServerVersion(metadata.serverVersion());
 
             LicenseSnapshot license = fetchLicenseSnapshot(monitor, metadata.serverEdition(), metadata.serverVersion());
-            monitor.setServerName(resolveDisplayServerName(metadata.serverName(), monitor.getServerName(), monitor.getHost(), license.detailsJson()));
+            monitor.setServerName(resolveDisplayServerNameInternal(metadata.serverName(), monitor.getServerName(), monitor.getHost(), license.detailsJson()));
             monitor.setLicenseExpiresAt(license.expiresAt());
             monitor.setLicenseDaysLeft(license.daysLeft());
             monitor.setLicenseDetailsJson(license.detailsJson());
@@ -479,6 +557,14 @@ public class RmsLicenseMonitoringService {
                 monitor.setLicenseLastNotifiedAt(now);
             }
             repository.save(monitor);
+            recordTimelineEntry(
+                monitor,
+                "license",
+                monitor.getLicenseStatus(),
+                buildLicenseTimelineSummary(monitor),
+                monitor.getLicenseDebugExcerpt(),
+                now
+            );
         } catch (Exception ex) {
             String errorMessage = resolveExceptionMessage(ex, "Не удалось обновить лицензию RMS");
             if (ex instanceof LicenseSnapshotException snapshotException) {
@@ -492,6 +578,14 @@ public class RmsLicenseMonitoringService {
             monitor.setLicenseStatus(LICENSE_STATUS_ERROR);
             monitor.setLicenseErrorMessage(trimText(errorMessage, 600, "Не удалось обновить лицензию RMS"));
             repository.save(monitor);
+            recordTimelineEntry(
+                monitor,
+                "license",
+                monitor.getLicenseStatus(),
+                monitor.getLicenseErrorMessage(),
+                monitor.getLicenseDebugExcerpt(),
+                now
+            );
             log.warn("RMS license refresh failed for {}: {}", monitor.getRmsAddress(), errorMessage);
         }
     }
@@ -537,11 +631,27 @@ public class RmsLicenseMonitoringService {
                 monitor.setTracerouteCheckedAt(now);
             }
             repository.save(monitor);
+            recordTimelineEntry(
+                monitor,
+                "network",
+                monitor.getRmsStatus(),
+                monitor.getRmsStatusMessage(),
+                StringUtils.hasText(monitor.getTracerouteReport()) ? monitor.getTracerouteReport() : monitor.getPingOutput(),
+                now
+            );
         } catch (Exception ex) {
             String errorMessage = resolveExceptionMessage(ex, "Не удалось проверить доступность RMS");
             monitor.setRmsStatus(RMS_STATUS_DOWN);
             monitor.setRmsStatusMessage(trimText(errorMessage, 600, "Не удалось проверить доступность RMS"));
             repository.save(monitor);
+            recordTimelineEntry(
+                monitor,
+                "network",
+                monitor.getRmsStatus(),
+                monitor.getRmsStatusMessage(),
+                monitor.getPingOutput(),
+                now
+            );
             log.warn("RMS network refresh failed for {}: {}", monitor.getRmsAddress(), errorMessage);
         }
     }
@@ -1288,10 +1398,10 @@ public class RmsLicenseMonitoringService {
         return trimText(fallbackHost, 255, fallbackHost);
     }
 
-    private String resolveDisplayServerName(String metadataServerName,
-                                            String currentServerName,
-                                            String fallbackHost,
-                                            String detailsJson) {
+    private String resolveDisplayServerNameInternal(String metadataServerName,
+                                                    String currentServerName,
+                                                    String fallbackHost,
+                                                    String detailsJson) {
         String sanitizedMetadata = sanitizeServerName(metadataServerName, currentServerName, fallbackHost);
         if (StringUtils.hasText(sanitizedMetadata) && !looksLikeBrokenText(sanitizedMetadata) && !sanitizedMetadata.equals(fallbackHost)) {
             return sanitizedMetadata;
@@ -1966,7 +2076,17 @@ public class RmsLicenseMonitoringService {
                                   String rmsStatusMessage,
                                   String pingOutput,
                                   String tracerouteSummary,
-                                  String tracerouteReport) {
+                                  String tracerouteReport,
+                                  List<TimelineEntryView> timeline) {
+    }
+
+    public record TimelineEntryView(String checkKind,
+                                    String status,
+                                    String summary,
+                                    String detailsExcerpt,
+                                    Integer httpStatus,
+                                    Long durationMs,
+                                    OffsetDateTime createdAt) {
     }
 
     private record LicenseRefreshTask(Long monitorId, boolean withNotifications) {

@@ -36,6 +36,7 @@
   const diagnosticsModal = diagnosticsModalEl && window.bootstrap ? new bootstrap.Modal(diagnosticsModalEl) : null;
   const diagnosticsMeta = document.getElementById('rmsDiagnosticsMeta');
   const diagnosticsSummary = document.getElementById('rmsDiagnosticsSummary');
+  const diagnosticsTimeline = document.getElementById('rmsDiagnosticsTimeline');
   const diagnosticsPingOutput = document.getElementById('rmsDiagnosticsPingOutput');
   const diagnosticsTracerouteOutput = document.getElementById('rmsDiagnosticsTracerouteOutput');
   const diagnosticsLicenseOutput = document.getElementById('rmsDiagnosticsLicenseOutput');
@@ -80,6 +81,51 @@
         <div>${escapeHtml(normalizeDiagnosticText(value, '—'))}</div>
       </div>
     `;
+  }
+
+  function rmsTimelineKindLabel(value) {
+    if (value === 'license') return 'Лицензия';
+    if (value === 'network') return 'Доступность';
+    return value || 'Событие';
+  }
+
+  function renderTimeline(entries) {
+    const items = Array.isArray(entries) ? entries : [];
+    if (!items.length) {
+      return '<div class="text-muted">История проверок пока не накоплена.</div>';
+    }
+    return items.map((entry) => {
+      const checkKind = entry.check_kind || entry.checkKind || '';
+      const httpStatus = entry.http_status ?? entry.httpStatus;
+      const durationMs = entry.duration_ms ?? entry.durationMs;
+      const createdAt = entry.created_at || entry.createdAt;
+      const status = normalizeStatus(entry.status || '');
+      const statusBadgeHtml = checkKind === 'network'
+        ? rmsBadge(status)
+        : licenseBadge(status);
+      const details = [];
+      if (entry.summary) {
+        details.push(`<div class="small">${escapeHtml(normalizeDiagnosticText(entry.summary, ''))}</div>`);
+      }
+      if (httpStatus !== null && httpStatus !== undefined && httpStatus !== '') {
+        details.push(`<div class="small text-muted">HTTP: ${escapeHtml(httpStatus)}</div>`);
+      }
+      if (durationMs !== null && durationMs !== undefined && durationMs !== '') {
+        details.push(`<div class="small text-muted">Длительность: ${escapeHtml(durationMs)} мс</div>`);
+      }
+      return `
+        <div class="diagnostics-summary-item">
+          <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+            <div>
+              <div class="small text-muted">${escapeHtml(rmsTimelineKindLabel(checkKind))}</div>
+              <div class="fw-semibold">${escapeHtml(formatDateTime(createdAt))}</div>
+            </div>
+            <div>${statusBadgeHtml}</div>
+          </div>
+          <div class="mt-2">${details.join('')}</div>
+        </div>
+      `;
+    }).join('');
   }
 
   function showMessage(message, type) {
@@ -215,7 +261,7 @@
           ${site.password_saved ? '' : '<div class="small text-warning">Пароль не сохранён</div>'}
         </td>
         <td>
-          <div class="fw-semibold">${escapeHtml(site.server_name || '—')}</div>
+          <div class="fw-semibold">${escapeHtml(site.server_name_display || site.server_name || '—')}</div>
           <div class="small text-muted">Последняя проверка: ${escapeHtml(formatDateTime(site.license_last_checked_at || site.updated_at))}</div>
         </td>
         <td>
@@ -461,7 +507,7 @@
 
   function renderLicenseDetailsModal(data) {
     if (!licenseDetailsBody || !licenseDetailsMeta) return;
-    const title = data.server_name || data.rms_address || 'RMS';
+    const title = data.server_name_display || data.server_name || data.rms_address || 'RMS';
     licenseDetailsMeta.textContent = `${title} • последняя проверка: ${formatDateTime(data.last_checked_at)}`;
     const items = Array.isArray(data.items) ? data.items : [];
     if (!items.length) {
@@ -500,7 +546,7 @@
   async function openLicenseDetails(siteId) {
     if (!licenseDetailsModal || !licenseDetailsBody || !licenseDetailsMeta) return;
     const site = findSite(siteId);
-    licenseDetailsMeta.textContent = site?.server_name || site?.rms_address_display || 'Загрузка...';
+    licenseDetailsMeta.textContent = site?.server_name_display || site?.server_name || site?.rms_address_display || 'Загрузка...';
     licenseDetailsBody.innerHTML = '<div class="text-muted">Загрузка состава лицензий...</div>';
     licenseDetailsModal.show();
     try {
@@ -512,8 +558,8 @@
   }
 
   function renderDiagnosticsModal(data) {
-    if (!diagnosticsMeta || !diagnosticsSummary || !diagnosticsPingOutput || !diagnosticsTracerouteOutput || !diagnosticsLicenseOutput) return;
-    const title = data.server_name || data.rms_address || 'RMS';
+    if (!diagnosticsMeta || !diagnosticsSummary || !diagnosticsTimeline || !diagnosticsPingOutput || !diagnosticsTracerouteOutput || !diagnosticsLicenseOutput) return;
+    const title = data.server_name_display || data.server_name || data.rms_address || 'RMS';
     diagnosticsMeta.textContent = `${title} • лицензии: ${formatDateTime(data.license_last_checked_at)} • сеть: ${formatDateTime(data.rms_last_checked_at)}`;
     diagnosticsSummary.innerHTML = `
       ${diagnosticsSummaryItem('Статус лицензии', data.license_status || '—')}
@@ -522,16 +568,18 @@
       ${diagnosticsSummaryItem('Сетевое сообщение', data.rms_status_message || '—')}
       ${data.traceroute_summary ? diagnosticsSummaryItem('Сводка трассировки', data.traceroute_summary) : ''}
     `;
+    diagnosticsTimeline.innerHTML = renderTimeline(data.timeline);
     diagnosticsPingOutput.textContent = normalizeDiagnosticText(data.ping_output, 'Нет сохранённого ping output.');
     diagnosticsTracerouteOutput.textContent = normalizeDiagnosticText(data.traceroute_report, 'Нет сохранённой трассировки.');
     diagnosticsLicenseOutput.textContent = normalizeDiagnosticText(data.license_debug_excerpt || data.license_error_message, 'Нет лицензионной диагностики.');
   }
 
   async function openDiagnostics(siteId) {
-    if (!diagnosticsModal || !diagnosticsMeta || !diagnosticsSummary || !diagnosticsPingOutput || !diagnosticsTracerouteOutput || !diagnosticsLicenseOutput) return;
+    if (!diagnosticsModal || !diagnosticsMeta || !diagnosticsSummary || !diagnosticsTimeline || !diagnosticsPingOutput || !diagnosticsTracerouteOutput || !diagnosticsLicenseOutput) return;
     const site = findSite(siteId);
-    diagnosticsMeta.textContent = site?.server_name || site?.rms_address_display || 'Загрузка...';
+    diagnosticsMeta.textContent = site?.server_name_display || site?.server_name || site?.rms_address_display || 'Загрузка...';
     diagnosticsSummary.innerHTML = '<div class="text-muted">Загрузка...</div>';
+    diagnosticsTimeline.innerHTML = '<div class="text-muted">Загрузка...</div>';
     diagnosticsPingOutput.textContent = 'Загрузка...';
     diagnosticsTracerouteOutput.textContent = 'Загрузка...';
     diagnosticsLicenseOutput.textContent = 'Загрузка...';
@@ -541,6 +589,7 @@
       renderDiagnosticsModal(data);
     } catch (error) {
       diagnosticsSummary.innerHTML = `<div class="text-danger">${escapeHtml(error.message || 'Не удалось загрузить диагностику.')}</div>`;
+      diagnosticsTimeline.innerHTML = '<div class="text-muted">Нет данных.</div>';
       diagnosticsPingOutput.textContent = 'Нет данных.';
       diagnosticsTracerouteOutput.textContent = 'Нет данных.';
       diagnosticsLicenseOutput.textContent = 'Нет данных.';

@@ -188,6 +188,25 @@ public class MonitoringDatabaseBootstrapService implements ApplicationRunner {
             "last_response_summary_json",
             "ALTER TABLE iiko_api_monitors ADD COLUMN last_response_summary_json TEXT"
         );
+
+        monitoringJdbcTemplate.execute("""
+            CREATE TABLE IF NOT EXISTS monitoring_check_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                monitor_kind TEXT NOT NULL,
+                monitor_id INTEGER NOT NULL,
+                check_kind TEXT NOT NULL,
+                status TEXT,
+                summary TEXT,
+                details_excerpt TEXT,
+                http_status INTEGER,
+                duration_ms INTEGER,
+                created_at TEXT NOT NULL
+            )
+            """);
+        monitoringJdbcTemplate.execute("""
+            CREATE INDEX IF NOT EXISTS idx_monitoring_check_history_monitor
+            ON monitoring_check_history(monitor_kind, monitor_id, created_at DESC, id DESC)
+            """);
     }
 
     private void migrateFromPrimaryDatabase() {

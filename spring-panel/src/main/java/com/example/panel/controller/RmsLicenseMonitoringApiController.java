@@ -179,6 +179,7 @@ public class RmsLicenseMonitoringApiController {
                 "id", view.id(),
                 "rms_address", view.rmsAddress(),
                 "server_name", view.serverName(),
+                "server_name_display", view.serverName(),
                 "last_checked_at", view.lastCheckedAt(),
                 "items", view.items()
             ));
@@ -196,6 +197,7 @@ public class RmsLicenseMonitoringApiController {
             payload.put("id", view.id());
             payload.put("rms_address", view.rmsAddress());
             payload.put("server_name", view.serverName());
+            payload.put("server_name_display", view.serverName());
             payload.put("license_last_checked_at", view.licenseLastCheckedAt());
             payload.put("rms_last_checked_at", view.rmsLastCheckedAt());
             payload.put("license_status", view.licenseStatus());
@@ -206,6 +208,7 @@ public class RmsLicenseMonitoringApiController {
             payload.put("ping_output", view.pingOutput());
             payload.put("traceroute_summary", view.tracerouteSummary());
             payload.put("traceroute_report", view.tracerouteReport());
+            payload.put("timeline", view.timeline());
             return ResponseEntity.ok(payload);
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(Map.of("success", false, "error", ex.getMessage()));
@@ -228,6 +231,7 @@ public class RmsLicenseMonitoringApiController {
         dto.put("license_monitoring_enabled", item.getLicenseMonitoringEnabled());
         dto.put("network_monitoring_enabled", item.getNetworkMonitoringEnabled());
         dto.put("server_name", item.getServerName());
+        dto.put("server_name_display", monitoringService.resolveDisplayServerNameForView(item));
         dto.put("server_type", item.getServerType());
         dto.put("server_version", item.getServerVersion());
         dto.put("license_status", item.getLicenseStatus());

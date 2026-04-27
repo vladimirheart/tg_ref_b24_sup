@@ -1,6 +1,7 @@
 package com.example.panel.service;
 
 import com.example.panel.entity.IikoApiMonitor;
+import com.example.panel.repository.MonitoringCheckHistoryRepository;
 import com.example.panel.repository.IikoApiMonitorRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -54,6 +55,7 @@ public class IikoApiMonitoringService {
     private static final String DEFAULT_BASE_URL = "https://api-ru.iiko.services";
 
     private final IikoApiMonitorRepository repository;
+    private final MonitoringCheckHistoryRepository historyRepository;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
     private final ExecutorService refreshExecutor;
@@ -64,8 +66,10 @@ public class IikoApiMonitoringService {
     private final AtomicReference<OffsetDateTime> lastRefreshCompletedAt = new AtomicReference<>();
 
     public IikoApiMonitoringService(IikoApiMonitorRepository repository,
+                                    MonitoringCheckHistoryRepository historyRepository,
                                     ObjectMapper objectMapper) {
         this.repository = repository;
+        this.historyRepository = historyRepository;
         this.objectMapper = objectMapper;
         this.httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofMillis(HTTP_TIMEOUT_MS))
@@ -175,7 +179,8 @@ public class IikoApiMonitoringService {
             monitor.getLastDurationMs(),
             monitor.getLastErrorMessage(),
             readResponseSummary(monitor),
-            StringUtils.hasText(monitor.getLastResponseExcerpt()) ? monitor.getLastResponseExcerpt() : ""
+            StringUtils.hasText(monitor.getLastResponseExcerpt()) ? monitor.getLastResponseExcerpt() : "",
+            loadTimelineForMonitor(monitor.getId())
         );
     }
 
@@ -229,6 +234,47 @@ public class IikoApiMonitoringService {
             items.add(new RequestTypeOption(type.code(), type.label(), type.endpointPath(), type.description()));
         }
         return items;
+    }
+
+    private List<TimelineEntryView> loadTimelineForMonitor(Long monitorId) {
+        if (monitorId == null) {
+            return List.of();
+        }
+        return historyRepository.findRecent("iiko", monitorId, 20).stream()
+            .map(entry -> new TimelineEntryView(
+                entry.checkKind(),
+                entry.status(),
+                entry.summary(),
+                entry.detailsExcerpt(),
+                entry.httpStatus(),
+                entry.durationMs(),
+                entry.createdAt()
+            ))
+            .toList();
+    }
+
+    private void recordTimelineEntry(IikoApiMonitor monitor,
+                                     String checkKind,
+                                     String status,
+                                     String summary,
+                                     String detailsExcerpt,
+                                     Integer httpStatus,
+                                     Long durationMs,
+                                     OffsetDateTime createdAt) {
+        if (monitor == null || monitor.getId() == null) {
+            return;
+        }
+        historyRepository.record(
+            "iiko",
+            monitor.getId(),
+            checkKind,
+            trimText(status, 40, ""),
+            trimText(summary, 600, ""),
+            trimText(detailsExcerpt, EXCERPT_LIMIT, ""),
+            httpStatus,
+            durationMs,
+            createdAt != null ? createdAt : OffsetDateTime.now(ZoneOffset.UTC)
+        );
     }
 
     private RefreshRequestResult queueRefresh(Long monitorId) {
@@ -295,6 +341,16 @@ public class IikoApiMonitoringService {
             monitor.setLastResponseExcerpt(null);
             monitor.setConsecutiveFailures(incrementFailures(monitor));
             repository.save(monitor);
+            recordTimelineEntry(
+                monitor,
+                "request",
+                monitor.getLastStatus(),
+                monitor.getLastErrorMessage(),
+                null,
+                null,
+                null,
+                now
+            );
             return;
         }
 
@@ -336,6 +392,16 @@ public class IikoApiMonitoringService {
             monitor.setConsecutiveFailures(0);
             monitor.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
             repository.save(monitor);
+            recordTimelineEntry(
+                monitor,
+                "request",
+                monitor.getLastStatus(),
+                buildTimelineSummary(requestType, httpStatus, responseSummary),
+                responseExcerpt,
+                httpStatus,
+                durationMs,
+                now
+            );
         } catch (MonitorRequestException ex) {
             long durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt);
             monitor.setLastStatus(STATUS_ERROR);
@@ -347,6 +413,16 @@ public class IikoApiMonitoringService {
             monitor.setConsecutiveFailures(incrementFailures(monitor));
             monitor.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
             repository.save(monitor);
+            recordTimelineEntry(
+                monitor,
+                "request",
+                monitor.getLastStatus(),
+                monitor.getLastErrorMessage(),
+                monitor.getLastResponseExcerpt(),
+                monitor.getLastHttpStatus(),
+                durationMs,
+                now
+            );
         } catch (Exception ex) {
             long durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt);
             monitor.setLastStatus(STATUS_ERROR);
@@ -358,6 +434,16 @@ public class IikoApiMonitoringService {
             monitor.setConsecutiveFailures(incrementFailures(monitor));
             monitor.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
             repository.save(monitor);
+            recordTimelineEntry(
+                monitor,
+                "request",
+                monitor.getLastStatus(),
+                monitor.getLastErrorMessage(),
+                null,
+                null,
+                durationMs,
+                now
+            );
         }
     }
 
@@ -541,6 +627,33 @@ public class IikoApiMonitoringService {
         if (value != null && value.isNumber()) {
             summary.put(key, value.numberValue());
         }
+    }
+
+    private String buildTimelineSummary(RequestType requestType, Integer httpStatus, Map<String, Object> responseSummary) {
+        StringBuilder summary = new StringBuilder();
+        if (requestType != null) {
+            summary.append(requestType.label());
+        }
+        if (httpStatus != null) {
+            if (summary.length() > 0) {
+                summary.append(", ");
+            }
+            summary.append("HTTP ").append(httpStatus);
+        }
+        if (responseSummary != null && !responseSummary.isEmpty()) {
+            String compact = responseSummary.entrySet().stream()
+                .limit(3)
+                .map(entry -> entry.getKey() + "=" + String.valueOf(entry.getValue()))
+                .reduce((left, right) -> left + ", " + right)
+                .orElse("");
+            if (StringUtils.hasText(compact)) {
+                if (summary.length() > 0) {
+                    summary.append(", ");
+                }
+                summary.append(compact);
+            }
+        }
+        return trimText(summary.toString(), 600, "");
     }
 
     private MonitorDraft normalizeDraft(MonitorDraft draft) {
@@ -872,7 +985,17 @@ public class IikoApiMonitoringService {
                                    Long lastDurationMs,
                                    String lastErrorMessage,
                                    Map<String, Object> summary,
-                                   String responseExcerpt) {
+                                   String responseExcerpt,
+                                   List<TimelineEntryView> timeline) {
+    }
+
+    public record TimelineEntryView(String checkKind,
+                                    String status,
+                                    String summary,
+                                    String detailsExcerpt,
+                                    Integer httpStatus,
+                                    Long durationMs,
+                                    OffsetDateTime createdAt) {
     }
 
     private record MonitorHttpResponse(int statusCode, String body, JsonNode json) {
