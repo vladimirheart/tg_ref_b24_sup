@@ -237,4 +237,184 @@ class DialogAiOpsControllerWebMvcTest {
             "operator"
         );
     }
+
+    @Test
+    void aiControlStateReturnsServicePayload() throws Exception {
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_control_state"), eq("T-707")))
+            .thenReturn(null);
+        when(dialogAiOpsService.loadControlState("T-707"))
+            .thenReturn(Map.of("success", true, "control", Map.of("ai_disabled", false)));
+
+        mockMvc.perform(get("/api/dialogs/T-707/ai-control")
+                .with(user("operator")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.control.ai_disabled").value(false));
+    }
+
+    @Test
+    void aiReviewApproveAcceptsSnakeCaseAliases() throws Exception {
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_review_approve"), eq("T-708")))
+            .thenReturn(null);
+        when(dialogAiOpsService.approveReview("T-708", "operator", 11L, 22L))
+            .thenReturn(Map.of("success", true, "approved", true));
+
+        mockMvc.perform(post("/api/dialogs/T-708/ai-review/approve")
+                .with(user("operator"))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "client_message_id": 11,
+                      "operator_message_id": 22
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.approved").value(true));
+    }
+
+    @Test
+    void aiReviewRejectDelegatesOperator() throws Exception {
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_review_reject"), eq("T-709")))
+            .thenReturn(null);
+        when(dialogAiOpsService.rejectReview("T-709", "operator"))
+            .thenReturn(Map.of("success", true, "rejected", true));
+
+        mockMvc.perform(post("/api/dialogs/T-709/ai-review/reject")
+                .with(user("operator"))
+                .with(csrf()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.rejected").value(true));
+    }
+
+    @Test
+    void aiReclassifyAcceptsMessageTypeAlias() throws Exception {
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_reclassify"), eq("T-710")))
+            .thenReturn(null);
+        when(dialogAiOpsService.reclassify("T-710", "hello", "image", "file.png"))
+            .thenReturn(Map.of("success", true, "classification", "faq"));
+
+        mockMvc.perform(post("/api/dialogs/T-710/ai-reclassify")
+                .with(user("operator"))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "message": "hello",
+                      "message_type": "image",
+                      "attachment": "file.png"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.classification").value("faq"));
+    }
+
+    @Test
+    void aiRetrieveDebugAcceptsAliasAndOptionalLimit() throws Exception {
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_retrieve_debug"), eq("T-711")))
+            .thenReturn(null);
+        when(dialogAiOpsService.retrieveDebug("T-711", "need help", "text", null, 3))
+            .thenReturn(Map.of("success", true, "items", List.of(Map.of("score", 0.91))));
+
+        mockMvc.perform(post("/api/dialogs/T-711/ai-retrieve-debug")
+                .with(user("operator"))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "message": "need help",
+                      "messageType": "text",
+                      "limit": 3
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.items[0].score").value(0.91));
+    }
+
+    @Test
+    void aiSolutionMemoryUpdateAcceptsCamelCaseAliases() throws Exception {
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_solution_memory_update"), eq((String) null)))
+            .thenReturn(null);
+        when(dialogAiOpsService.updateSolutionMemory("query-3", "Q", "A", true, "operator"))
+            .thenReturn(Map.of("success", true, "updated", true));
+
+        mockMvc.perform(post("/api/dialogs/ai-solution-memory/query-3")
+                .with(user("operator"))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "queryText": "Q",
+                      "solutionText": "A",
+                      "reviewRequired": true
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.updated").value(true));
+    }
+
+    @Test
+    void aiSolutionMemoryDeleteDelegatesOperator() throws Exception {
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_solution_memory_delete"), eq((String) null)))
+            .thenReturn(null);
+        when(dialogAiOpsService.deleteSolutionMemory("query-4", "operator"))
+            .thenReturn(Map.of("success", true, "deleted", true));
+
+        mockMvc.perform(delete("/api/dialogs/ai-solution-memory/query-4")
+                .with(user("operator"))
+                .with(csrf()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.deleted").value(true));
+    }
+
+    @Test
+    void aiSolutionMemoryHistoryDelegatesLimit() throws Exception {
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_solution_memory_history"), eq((String) null)))
+            .thenReturn(null);
+        when(dialogAiOpsService.loadSolutionMemoryHistory("query-5", 15))
+            .thenReturn(Map.of("success", true, "items", List.of(Map.of("history_id", 41))));
+
+        mockMvc.perform(get("/api/dialogs/ai-solution-memory/query-5/history")
+                .param("limit", "15")
+                .with(user("operator")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.items[0].history_id").value(41));
+    }
+
+    @Test
+    void aiMonitoringSummaryDelegatesOptionalDays() throws Exception {
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_monitoring_summary"), eq((String) null)))
+            .thenReturn(null);
+        when(dialogAiOpsService.loadMonitoringSummary(30))
+            .thenReturn(Map.of("success", true, "totals", Map.of("decisions", 10)));
+
+        mockMvc.perform(get("/api/dialogs/ai-monitoring/summary")
+                .param("days", "30")
+                .with(user("operator")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.totals.decisions").value(10));
+    }
+
+    @Test
+    void aiOfflineEvalRunDelegatesOperator() throws Exception {
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_offline_eval_run"), eq((String) null)))
+            .thenReturn(null);
+        when(dialogAiOpsService.runOfflineEvalNow("operator"))
+            .thenReturn(Map.of("success", true, "job_started", true));
+
+        mockMvc.perform(post("/api/dialogs/ai-monitoring/offline-eval/run")
+                .with(user("operator"))
+                .with(csrf()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.job_started").value(true));
+    }
 }
