@@ -2,11 +2,13 @@
   const POLL_INTERVAL_MS = 15000;
 
   const tableBody = document.getElementById('rmsMonitoringTableBody');
+  const tableHead = tableBody?.closest('table')?.querySelector('thead') || null;
   const queueStateEl = document.getElementById('rmsQueueState');
   const availabilityPercentEl = document.getElementById('rmsAvailabilityPercent');
   const availabilityCaptionEl = document.getElementById('rmsAvailabilityCaption');
   const availabilityBarEl = document.getElementById('rmsAvailabilityOverviewBar');
   const availabilityMetaEl = document.getElementById('rmsAvailabilityOverviewMeta');
+  const availabilityFiltersEl = document.getElementById('rmsAvailabilityFilters');
 
   const createModalEl = document.getElementById('rmsCreateModal');
   const createModal = createModalEl && window.bootstrap ? new bootstrap.Modal(createModalEl) : null;
@@ -55,6 +57,27 @@
   let refreshState = null;
   let availabilityOverview = null;
   let pollTimer = null;
+  let availabilityFilter = 'all';
+  const sortState = {
+    key: 'address',
+    direction: 'asc',
+  };
+
+  const licenseStatusRank = {
+    ok: 1,
+    warning: 2,
+    critical: 3,
+    expired: 4,
+    error: 5,
+    disabled: 6,
+  };
+
+  const rmsStatusRank = {
+    up: 1,
+    down: 2,
+    unknown: 3,
+    disabled: 4,
+  };
 
   function escapeHtml(value) {
     if (value === null || value === undefined) return '';
@@ -154,6 +177,13 @@
     return date.toLocaleString('ru-RU');
   }
 
+  function formatDateOnly(value) {
+    if (!value) return '—';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '—';
+    return date.toLocaleDateString('ru-RU');
+  }
+
   function formatDaysLeft(value) {
     if (value === null || value === undefined || value === '') return '—';
     const numeric = Number(value);
@@ -164,6 +194,25 @@
 
   function normalizeStatus(value) {
     return String(value || '').trim().toLowerCase();
+  }
+
+  function parseTimestamp(value) {
+    if (!value) return null;
+    const timestamp = Date.parse(value);
+    return Number.isFinite(timestamp) ? timestamp : null;
+  }
+
+  function compareNullable(left, right, comparator) {
+    const leftMissing = left === null || left === undefined || left === '';
+    const rightMissing = right === null || right === undefined || right === '';
+    if (leftMissing && rightMissing) return 0;
+    if (leftMissing) return 1;
+    if (rightMissing) return -1;
+    return comparator(left, right);
+  }
+
+  function compareStrings(left, right) {
+    return String(left).localeCompare(String(right), 'ru', { sensitivity: 'base', numeric: true });
   }
 
   function licenseBadge(level) {
@@ -180,6 +229,11 @@
     if (level === 'down') return '<span class="badge text-bg-danger">Недоступен</span>';
     if (level === 'disabled') return '<span class="badge text-bg-secondary">Отключён</span>';
     return '<span class="badge text-bg-secondary">Нет данных</span>';
+  }
+
+  function featureIcon(label, enabled, title) {
+    const stateClass = enabled ? 'is-enabled' : 'is-disabled';
+    return `<span class="rms-feature-icon ${stateClass}" title="${escapeHtml(title)}">${escapeHtml(label)}</span>`;
   }
 
   function featureBadge(enabled, title) {
@@ -201,6 +255,60 @@
       return `<span class="refresh-state-chip">${escapeHtml(prefix)}: ожидание</span>`;
     }
     return `<span class="refresh-state-chip state-${escapeHtml(state)}">${escapeHtml(prefix)}: ${escapeHtml(refreshStateLabel(state))}</span>`;
+  }
+
+  function compareSites(left, right) {
+    const key = sortState.key;
+    const direction = sortState.direction === 'desc' ? -1 : 1;
+    let result = 0;
+
+    if (key === 'address') {
+      result = compareNullable(left?.rms_address_display || left?.rms_address, right?.rms_address_display || right?.rms_address, compareStrings);
+    } else if (key === 'name') {
+      result = compareNullable(left?.server_name_display || left?.server_name, right?.server_name_display || right?.server_name, compareStrings);
+    } else if (key === 'expires_at') {
+      result = compareNullable(parseTimestamp(left?.license_expires_at), parseTimestamp(right?.license_expires_at), (a, b) => a - b);
+    } else if (key === 'license_status') {
+      result = (licenseStatusRank[normalizeStatus(left?.license_status_level || left?.license_status)] ?? 99)
+        - (licenseStatusRank[normalizeStatus(right?.license_status_level || right?.license_status)] ?? 99);
+    } else if (key === 'rms_status') {
+      result = (rmsStatusRank[normalizeStatus(left?.rms_status_level || left?.rms_status)] ?? 99)
+        - (rmsStatusRank[normalizeStatus(right?.rms_status_level || right?.rms_status)] ?? 99);
+    } else if (key === 'server_type') {
+      result = compareNullable(left?.server_type, right?.server_type, compareStrings);
+    }
+
+    if (result === 0) {
+      result = Number(left?.id || 0) - Number(right?.id || 0);
+    }
+    return result * direction;
+  }
+
+  function getFilteredAndSortedSites() {
+    return [...sites]
+      .filter((site) => {
+        if (availabilityFilter === 'all') return true;
+        return normalizeStatus(site?.rms_status_level || site?.rms_status) === availabilityFilter;
+      })
+      .sort(compareSites);
+  }
+
+  function updateSortIndicators() {
+    if (!tableHead) return;
+    tableHead.querySelectorAll('.sortable-button[data-sort-key]').forEach((button) => {
+      const indicator = button.querySelector('.sort-indicator');
+      const isActive = button.dataset.sortKey === sortState.key;
+      button.classList.toggle('active', isActive);
+      if (!indicator) return;
+      indicator.textContent = isActive ? (sortState.direction === 'asc' ? '↑' : '↓') : '↕';
+    });
+  }
+
+  function updateAvailabilityFilterButtons() {
+    if (!availabilityFiltersEl) return;
+    availabilityFiltersEl.querySelectorAll('[data-filter-value]').forEach((button) => {
+      button.classList.toggle('active', button.getAttribute('data-filter-value') === availabilityFilter);
+    });
   }
 
   function queueBadge(running, queued) {
@@ -330,6 +438,7 @@
         </div>
       `;
       availabilityMetaEl.innerHTML = '';
+      updateAvailabilityFilterButtons();
       return;
     }
 
@@ -364,6 +473,7 @@
       <span class="rms-overview-chip text-secondary">Неизвестно: ${escapeHtml(unknown)}</span>
       <span class="rms-overview-chip text-body-secondary">Отключены: ${escapeHtml(disabled)}</span>
     `;
+    updateAvailabilityFilterButtons();
   }
 
   function renderEmptyState(message, className) {
@@ -373,13 +483,19 @@
 
   function renderSites() {
     if (!tableBody) return;
-    if (!sites.length) {
+    updateSortIndicators();
+    const visibleSites = getFilteredAndSortedSites();
+    if (!visibleSites.length) {
+      if (sites.length && availabilityFilter !== 'all') {
+        renderEmptyState('Нет RMS, подходящих под выбранный статус доступности.', 'text-muted');
+        return;
+      }
       renderEmptyState('Пока нет RMS для мониторинга.', 'text-muted');
       return;
     }
 
     tableBody.innerHTML = '';
-    sites.forEach((site) => {
+    visibleSites.forEach((site) => {
       const licenseLevel = normalizeStatus(site.license_status_level || site.license_status);
       const rmsLevel = normalizeStatus(site.rms_status_level || site.rms_status);
       const tracerouteButton = site.has_traceroute_report
@@ -390,15 +506,12 @@
       const networkFeatureEnabled = Boolean(site.network_monitoring_enabled);
       const row = document.createElement('tr');
       row.dataset.siteId = String(site.id);
+      if (String(site.server_type || '').trim().toUpperCase() === 'IIKO_CHAIN') {
+        row.classList.add('rms-chain-row');
+      }
       row.innerHTML = `
         <td>
           <div class="fw-semibold font-mono">${escapeHtml(site.rms_address_display || site.rms_address || '—')}</div>
-          <div class="d-flex flex-wrap gap-1 mt-1">
-            ${featureBadge(recordEnabled, 'Запись')}
-            ${featureBadge(licenseFeatureEnabled, 'Лицензии')}
-            ${featureBadge(networkFeatureEnabled, 'Доступность')}
-          </div>
-          <div class="small text-muted mt-1">Логин: ${escapeHtml(site.auth_login || '—')}</div>
           <div class="small ${site.password_saved ? 'text-success' : 'text-warning'}">${site.password_saved ? 'Пароль сохранён и зашифрован' : 'Пароль не сохранён'}</div>
         </td>
         <td>
@@ -406,8 +519,9 @@
           <div class="small text-muted">Последняя проверка: ${escapeHtml(formatDateTime(site.license_last_checked_at || site.updated_at))}</div>
         </td>
         <td>
-          <div>${escapeHtml(formatDateTime(site.license_expires_at))}</div>
+          <div>${escapeHtml(formatDateOnly(site.license_expires_at))}</div>
           <div class="small text-muted">Осталось: ${escapeHtml(formatDaysLeft(site.license_days_left))}</div>
+          <div class="small text-muted">Лицензий 100: ${escapeHtml(site.target_license_count ?? '—')}</div>
         </td>
         <td class="license-cell status-${escapeHtml(licenseLevel || 'error')}">
           <div>${licenseBadge(licenseLevel)}</div>
@@ -419,6 +533,11 @@
           <div class="small text-muted mt-1">${escapeHtml(site.rms_status_message || '—')}</div>
           <div class="small text-muted">${escapeHtml(formatDateTime(site.rms_last_checked_at))}</div>
           <div class="small mt-2">${refreshStateChip(site.network_refresh_state, 'RMS')}</div>
+          <div class="rms-feature-icons mt-2">
+            ${featureIcon('S', recordEnabled, `Запись мониторинга: ${recordEnabled ? 'включена' : 'выключена'}`)}
+            ${featureIcon('L', licenseFeatureEnabled, `Мониторинг лицензии: ${licenseFeatureEnabled ? 'включён' : 'выключен'}`)}
+            ${featureIcon('N', networkFeatureEnabled, `Мониторинг доступности: ${networkFeatureEnabled ? 'включён' : 'выключен'}`)}
+          </div>
           ${site.traceroute_summary ? `<div class="small mt-2">${escapeHtml(site.traceroute_summary)}</div>` : ''}
         </td>
         <td>
@@ -745,6 +864,28 @@
     if (button.dataset.action === 'delete') {
       deleteSite(siteId);
     }
+  });
+
+  tableHead?.addEventListener('click', (event) => {
+    const button = event.target.closest('.sortable-button[data-sort-key]');
+    if (!button) return;
+    const selectedKey = String(button.dataset.sortKey || '').trim();
+    if (!selectedKey) return;
+    if (sortState.key === selectedKey) {
+      sortState.direction = sortState.direction === 'asc' ? 'desc' : 'asc';
+    } else {
+      sortState.key = selectedKey;
+      sortState.direction = 'asc';
+    }
+    renderSites();
+  });
+
+  availabilityFiltersEl?.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-filter-value]');
+    if (!button) return;
+    availabilityFilter = String(button.getAttribute('data-filter-value') || 'all');
+    updateAvailabilityFilterButtons();
+    renderSites();
   });
 
   createForm?.addEventListener('submit', createSite);

@@ -34,6 +34,31 @@
         .sortable-button.active .sort-indicator {
             color: var(--bs-primary);
         }
+        .overview-filter-button {
+            border: 1px solid rgba(108, 117, 125, .18);
+            border-radius: 999px;
+            padding: .3rem .7rem;
+            background: rgba(248, 249, 250, .75);
+            color: inherit;
+            font-size: .875rem;
+        }
+        .overview-filter-button.active {
+            background: rgba(13, 110, 253, .12);
+            border-color: rgba(13, 110, 253, .35);
+            color: #0d6efd;
+        }
+        .monitor-overview-progress {
+            height: 1rem;
+            overflow: hidden;
+            border-radius: 999px;
+            background: rgba(108, 117, 125, .12);
+        }
+        .monitor-overview-chip {
+            border: 1px solid rgba(108, 117, 125, .18);
+            border-radius: 999px;
+            padding: .35rem .65rem;
+            background: rgba(248, 249, 250, .75);
+        }
         td.status-cell.status-ok,
         td.availability-cell.availability-up {
             background-color: rgba(25, 135, 84, .12);
@@ -65,48 +90,56 @@
         </div>
         <div class="d-flex flex-wrap gap-2">
             <a class="btn btn-outline-secondary" th:href="@{/analytics}">Назад в аналитику</a>
+            <button class="btn btn-success" id="openCertificateCreateModalBtn" type="button">Добавить сайт</button>
             <button class="btn btn-primary" id="refreshAllCertificatesBtn" type="button">Обновить все сертификаты</button>
         </div>
     </div>
 
     <div class="card shadow-sm mb-4">
         <div class="card-body">
-            <h2 class="h5 mb-3">Добавить сайт</h2>
-            <form class="row g-3" id="certificateSiteCreateForm">
-                <div class="col-12 col-lg-3">
-                    <label class="form-label" for="siteNameInput">Название</label>
-                    <input class="form-control" id="siteNameInput" placeholder="Например: Production API">
-                </div>
-                <div class="col-12 col-lg-6">
-                    <label class="form-label" for="siteEndpointInput">URL или домен</label>
-                    <input class="form-control" id="siteEndpointInput" placeholder="https://example.com или example.com:8443" required>
-                    <div class="form-text mt-1">
-                        Правила: только HTTPS, можно вводить домен без протокола, порт опционален.
-                        Кириллические домены поддерживаются (например, https://сушивесла.рф).
+            <div class="row g-4">
+                <div class="col-12 col-xl-7">
+                    <div class="d-flex flex-wrap gap-2 mb-2">
+                        <span class="badge text-bg-success">OK: более 14 дней</span>
+                        <span class="badge text-bg-warning">Warning: 4-14 дней</span>
+                        <span class="badge text-bg-danger">Critical: 0-3 дня</span>
+                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Expired: просрочен</span>
+                        <span class="badge text-bg-secondary">Error/Disabled</span>
+                    </div>
+                    <div class="small text-muted">
+                        Добавляйте сайты через отдельную модалку. Верхняя плашка показывает общую доступность SSL-мониторинга и позволяет отфильтровать список по сетевому состоянию.
                     </div>
                 </div>
-                <div class="col-12 col-lg-2 d-flex align-items-end">
-                    <div class="form-check form-switch mb-2">
-                        <input class="form-check-input" type="checkbox" id="siteEnabledInput" checked>
-                        <label class="form-check-label" for="siteEnabledInput">Активен</label>
+                <div class="col-12 col-xl-5">
+                    <div class="border rounded-4 p-3 h-100 bg-body-tertiary">
+                        <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+                            <div>
+                                <div class="small text-muted">Общая доступность SSL</div>
+                                <div class="h2 mb-0" id="certificateAvailabilityPercent">—</div>
+                            </div>
+                            <div class="text-end small text-muted" id="certificateAvailabilityCaption">нет данных</div>
+                        </div>
+                        <div class="progress-stacked monitor-overview-progress mb-3" id="certificateAvailabilityOverviewBar">
+                            <div class="progress" role="progressbar" style="width: 100%;">
+                                <div class="progress-bar bg-secondary-subtle text-secondary">Загрузка...</div>
+                            </div>
+                        </div>
+                        <div class="d-flex flex-wrap gap-2 small mb-2" id="certificateAvailabilityOverviewMeta"></div>
+                        <div class="d-flex flex-wrap gap-2" id="certificateAvailabilityFilters">
+                            <button class="overview-filter-button active" type="button" data-filter-value="all">Все</button>
+                            <button class="overview-filter-button" type="button" data-filter-value="up">Доступны</button>
+                            <button class="overview-filter-button" type="button" data-filter-value="down">Недоступны</button>
+                            <button class="overview-filter-button" type="button" data-filter-value="unknown">Неизвестно</button>
+                            <button class="overview-filter-button" type="button" data-filter-value="disabled">Отключены</button>
+                        </div>
                     </div>
                 </div>
-                <div class="col-12 col-lg-1 d-flex align-items-end">
-                    <button class="btn btn-success w-100" type="submit">Добавить</button>
-                </div>
-            </form>
+            </div>
         </div>
     </div>
 
     <div class="card shadow-sm">
         <div class="card-body">
-            <div class="d-flex flex-wrap gap-2 mb-3">
-                <span class="badge text-bg-success">OK: более 14 дней</span>
-                <span class="badge text-bg-warning">Warning: 4-14 дней</span>
-                <span class="badge text-bg-danger">Critical: 0-3 дня</span>
-                <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Expired: просрочен</span>
-                <span class="badge text-bg-secondary">Error/Disabled</span>
-            </div>
             <div class="table-responsive">
                 <table class="table align-middle mb-0" id="certificateMonitoringTable">
                     <thead class="table-light">
@@ -164,6 +197,42 @@
         </div>
     </div>
 </main>
+
+<div class="modal fade" id="certificateCreateModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <form class="modal-content" id="certificateSiteCreateForm">
+            <div class="modal-header">
+                <h5 class="modal-title">Добавить сайт</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3">
+                    <div class="col-12 col-lg-4">
+                        <label class="form-label" for="siteNameInput">Название</label>
+                        <input class="form-control" id="siteNameInput" placeholder="Например: Production API">
+                    </div>
+                    <div class="col-12 col-lg-8">
+                        <label class="form-label" for="siteEndpointInput">URL или домен</label>
+                        <input class="form-control" id="siteEndpointInput" placeholder="https://example.com или example.com:8443" required>
+                        <div class="form-text mt-1">
+                            Только HTTPS. Можно вводить домен без протокола, порт опционален. Кириллические домены поддерживаются.
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="siteEnabledInput" checked>
+                            <label class="form-check-label" for="siteEnabledInput">Активен</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Отмена</button>
+                <button class="btn btn-success" type="submit">Добавить</button>
+            </div>
+        </form>
+    </div>
+</div>
 
 <div class="modal fade" id="certificateEditModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">

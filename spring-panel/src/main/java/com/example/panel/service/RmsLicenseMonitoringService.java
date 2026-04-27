@@ -427,6 +427,37 @@ public class RmsLicenseMonitoringService {
         return monitor == null || monitor.getId() == null ? "idle" : networkQueueTracker.resolveState(monitor.getId());
     }
 
+    public Integer resolveTargetLicenseQuantity(RmsLicenseMonitor monitor) {
+        if (monitor == null || !StringUtils.hasText(monitor.getLicenseDetailsJson())) {
+            return null;
+        }
+        try {
+            List<LinkedHashMap<String, String>> storedItems = objectMapper.readValue(
+                monitor.getLicenseDetailsJson(),
+                new TypeReference<List<LinkedHashMap<String, String>>>() {
+                }
+            );
+            Map<String, String> targetLicense = findTargetLicense(new ArrayList<>(storedItems));
+            if (targetLicense == null) {
+                return null;
+            }
+            String quantity = firstNonBlank(
+                targetLicense.get("quantity"),
+                targetLicense.get("connections_count"),
+                targetLicense.get("amount"),
+                targetLicense.get("count"),
+                targetLicense.get("connections"),
+                targetLicense.get("limit")
+            );
+            if (!StringUtils.hasText(quantity)) {
+                return null;
+            }
+            return Integer.valueOf(quantity.trim());
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
     public AvailabilityOverview buildAvailabilityOverview(List<RmsLicenseMonitor> monitors) {
         int total = 0;
         int up = 0;
