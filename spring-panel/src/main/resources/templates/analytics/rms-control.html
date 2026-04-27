@@ -56,6 +56,43 @@
             color: var(--bs-secondary-color);
             margin-bottom: .125rem;
         }
+        .rms-overview-progress {
+            height: 1rem;
+            overflow: hidden;
+            border-radius: 999px;
+            background: rgba(108, 117, 125, .12);
+        }
+        .rms-overview-chip {
+            border: 1px solid rgba(108, 117, 125, .18);
+            border-radius: 999px;
+            padding: .35rem .65rem;
+            background: rgba(248, 249, 250, .75);
+        }
+        .refresh-state-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: .35rem;
+            border-radius: 999px;
+            padding: .125rem .5rem;
+            font-size: .75rem;
+            border: 1px solid rgba(108, 117, 125, .18);
+            background: rgba(248, 249, 250, .8);
+        }
+        .refresh-state-chip.state-running {
+            color: #0d6efd;
+            border-color: rgba(13, 110, 253, .35);
+            background: rgba(13, 110, 253, .08);
+        }
+        .refresh-state-chip.state-queued {
+            color: #997404;
+            border-color: rgba(255, 193, 7, .45);
+            background: rgba(255, 193, 7, .12);
+        }
+        .refresh-state-chip.state-done {
+            color: #146c43;
+            border-color: rgba(25, 135, 84, .35);
+            background: rgba(25, 135, 84, .08);
+        }
     </style>
 </head>
 <body class="with-sidebar sidebar-pinned" data-ui-page="analytics">
@@ -69,6 +106,7 @@
         </div>
         <div class="d-flex flex-wrap gap-2">
             <a class="btn btn-outline-secondary" th:href="@{/analytics}">Назад в аналитику</a>
+            <button class="btn btn-success" id="openRmsCreateModalBtn" type="button">Добавить RMS</button>
             <button class="btn btn-primary" id="refreshRmsLicensesBtn" type="button">Обновить лицензии</button>
             <button class="btn btn-outline-primary" id="refreshRmsNetworkBtn" type="button">Обновить статусы RMS</button>
         </div>
@@ -76,64 +114,44 @@
 
     <div class="card shadow-sm mb-4">
         <div class="card-body">
-            <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
-                <span class="badge text-bg-success">Лицензия OK: больше 7 дней</span>
-                <span class="badge text-bg-warning">Внимание: 7 дней и меньше</span>
-                <span class="badge text-bg-danger">Критично: 3 дня и меньше</span>
-                <span class="badge text-bg-danger">RMS DOWN</span>
-                <span class="badge text-bg-secondary">Disabled / Unknown</span>
-            </div>
-            <div class="small text-muted mb-2">
-                Автообновление лицензий запускается раз в сутки, статусов RMS — раз в 5 минут. Между проверками действует очередь с паузой 20 секунд.
-            </div>
-            <div class="d-flex flex-wrap gap-2 mb-2">
-                <button class="btn btn-outline-success btn-sm" id="bulkEnableLicenseMonitoringBtn" type="button">Включить лицензии у всех</button>
-                <button class="btn btn-outline-secondary btn-sm" id="bulkDisableLicenseMonitoringBtn" type="button">Отключить лицензии у всех</button>
-                <button class="btn btn-outline-success btn-sm" id="bulkEnableNetworkMonitoringBtn" type="button">Включить доступность у всех</button>
-                <button class="btn btn-outline-secondary btn-sm" id="bulkDisableNetworkMonitoringBtn" type="button">Отключить доступность у всех</button>
-            </div>
-            <div class="small text-muted" id="rmsQueueState">Загрузка состояния очередей...</div>
-        </div>
-    </div>
-
-    <div class="card shadow-sm mb-4">
-        <div class="card-body">
-            <h2 class="h5 mb-3">Добавить RMS</h2>
-            <form class="row g-3" id="rmsCreateForm">
-                <div class="col-12 col-lg-4">
-                    <label class="form-label" for="rmsAddressInput">Адрес RMS</label>
-                    <input class="form-control" id="rmsAddressInput" placeholder="https://host:443 или host" required>
+            <div class="row g-4">
+                <div class="col-12 col-xl-7">
+                    <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+                        <span class="badge text-bg-success">Лицензия OK: больше 7 дней</span>
+                        <span class="badge text-bg-warning">Внимание: 7 дней и меньше</span>
+                        <span class="badge text-bg-danger">Критично: 3 дня и меньше</span>
+                        <span class="badge text-bg-danger">RMS DOWN</span>
+                        <span class="badge text-bg-secondary">Disabled / Unknown</span>
+                    </div>
+                    <div class="small text-muted mb-2">
+                        Автообновление лицензий запускается раз в сутки, статусов RMS — раз в 5 минут. Между проверками действует очередь с паузой 20 секунд.
+                    </div>
+                    <div class="d-flex flex-wrap gap-2 mb-2">
+                        <button class="btn btn-outline-success btn-sm" id="bulkEnableLicenseMonitoringBtn" type="button">Включить лицензии у всех</button>
+                        <button class="btn btn-outline-secondary btn-sm" id="bulkDisableLicenseMonitoringBtn" type="button">Отключить лицензии у всех</button>
+                        <button class="btn btn-outline-success btn-sm" id="bulkEnableNetworkMonitoringBtn" type="button">Включить доступность у всех</button>
+                        <button class="btn btn-outline-secondary btn-sm" id="bulkDisableNetworkMonitoringBtn" type="button">Отключить доступность у всех</button>
+                    </div>
+                    <div class="small text-muted" id="rmsQueueState">Загрузка состояния очередей...</div>
                 </div>
-                <div class="col-12 col-lg-3">
-                    <label class="form-label" for="rmsLoginInput">Логин</label>
-                    <input class="form-control" id="rmsLoginInput" required>
-                </div>
-                <div class="col-12 col-lg-3">
-                    <label class="form-label" for="rmsPasswordInput">Пароль</label>
-                    <input class="form-control" id="rmsPasswordInput" type="password" required>
-                </div>
-                <div class="col-12 col-lg-1 d-flex align-items-end">
-                    <div class="form-check form-switch mb-2">
-                        <input class="form-check-input" type="checkbox" id="rmsEnabledInput" checked>
-                        <label class="form-check-label" for="rmsEnabledInput">Запись</label>
+                <div class="col-12 col-xl-5">
+                    <div class="border rounded-4 p-3 h-100 bg-body-tertiary">
+                        <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+                            <div>
+                                <div class="small text-muted">Общая доступность RMS</div>
+                                <div class="h2 mb-0" id="rmsAvailabilityPercent">—</div>
+                            </div>
+                            <div class="text-end small text-muted" id="rmsAvailabilityCaption">нет данных</div>
+                        </div>
+                        <div class="progress-stacked rms-overview-progress mb-3" id="rmsAvailabilityOverviewBar">
+                            <div class="progress" role="progressbar" style="width: 100%;">
+                                <div class="progress-bar bg-secondary-subtle text-secondary">Загрузка...</div>
+                            </div>
+                        </div>
+                        <div class="d-flex flex-wrap gap-2 small" id="rmsAvailabilityOverviewMeta"></div>
                     </div>
                 </div>
-                <div class="col-12 col-lg-1 d-flex align-items-end">
-                    <div class="form-check form-switch mb-2">
-                        <input class="form-check-input" type="checkbox" id="rmsLicenseMonitoringInput" checked>
-                        <label class="form-check-label" for="rmsLicenseMonitoringInput">Лиц.</label>
-                    </div>
-                </div>
-                <div class="col-12 col-lg-1 d-flex align-items-end">
-                    <div class="form-check form-switch mb-2">
-                        <input class="form-check-input" type="checkbox" id="rmsNetworkMonitoringInput" checked>
-                        <label class="form-check-label" for="rmsNetworkMonitoringInput">RMS</label>
-                    </div>
-                </div>
-                <div class="col-12 col-lg-1 d-flex align-items-end ms-lg-auto">
-                    <button class="btn btn-success w-100" type="submit">Добавить</button>
-                </div>
-            </form>
+            </div>
         </div>
     </div>
 
@@ -163,6 +181,54 @@
     </div>
 </main>
 
+<div class="modal fade" id="rmsCreateModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <form class="modal-content" id="rmsCreateForm">
+            <div class="modal-header">
+                <h5 class="modal-title">Добавить RMS</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3">
+                    <div class="col-12 col-lg-6">
+                        <label class="form-label" for="rmsAddressInput">Адрес RMS</label>
+                        <input class="form-control" id="rmsAddressInput" placeholder="https://host:443 или host" required>
+                    </div>
+                    <div class="col-12 col-lg-3">
+                        <label class="form-label" for="rmsLoginInput">Логин</label>
+                        <input class="form-control" id="rmsLoginInput" required>
+                    </div>
+                    <div class="col-12 col-lg-3">
+                        <label class="form-label" for="rmsPasswordInput">Пароль</label>
+                        <input class="form-control" id="rmsPasswordInput" type="password" required>
+                        <div class="form-text">Пароль будет сохранён в monitoring DB в зашифрованном виде.</div>
+                    </div>
+                    <div class="col-12">
+                        <div class="d-flex flex-wrap gap-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="rmsEnabledInput" checked>
+                                <label class="form-check-label" for="rmsEnabledInput">Запись активна</label>
+                            </div>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="rmsLicenseMonitoringInput" checked>
+                                <label class="form-check-label" for="rmsLicenseMonitoringInput">Мониторинг лицензий</label>
+                            </div>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="rmsNetworkMonitoringInput" checked>
+                                <label class="form-check-label" for="rmsNetworkMonitoringInput">Мониторинг доступности</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Отмена</button>
+                <button class="btn btn-success" type="submit">Добавить</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <div class="modal fade" id="rmsEditModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
         <form class="modal-content" id="rmsEditForm">
@@ -183,7 +249,7 @@
                 <div class="mb-3">
                     <label class="form-label" for="editRmsPasswordInput">Пароль</label>
                     <input class="form-control" id="editRmsPasswordInput" type="password" placeholder="Оставьте пустым, чтобы не менять">
-                    <div class="form-text" id="editRmsPasswordHint">Сохранённый пароль можно оставить без изменений.</div>
+                    <div class="form-text" id="editRmsPasswordHint">Сохранённый пароль можно оставить без изменений. Хранится в зашифрованном виде.</div>
                 </div>
                 <div class="form-check form-switch">
                     <input class="form-check-input" type="checkbox" id="editRmsEnabledInput">

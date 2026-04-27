@@ -34,12 +34,14 @@ public class RmsLicenseMonitoringApiController {
 
     @GetMapping("/sites")
     public Map<String, Object> listSites() {
-        List<Map<String, Object>> items = monitoringService.findAll().stream().map(this::toDto).toList();
-        return Map.of(
-            "success", true,
-            "items", items,
-            "refresh_state", toRefreshState(monitoringService.currentRefreshState())
-        );
+        List<RmsLicenseMonitor> monitors = monitoringService.findAll();
+        List<Map<String, Object>> items = monitors.stream().map(this::toDto).toList();
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("success", true);
+        payload.put("items", items);
+        payload.put("refresh_state", toRefreshState(monitoringService.currentRefreshState()));
+        payload.put("availability_overview", toAvailabilityOverview(monitoringService.buildAvailabilityOverview(monitors)));
+        return payload;
     }
 
     @PostMapping("/sites")
@@ -230,6 +232,8 @@ public class RmsLicenseMonitoringApiController {
         dto.put("enabled", item.getEnabled());
         dto.put("license_monitoring_enabled", item.getLicenseMonitoringEnabled());
         dto.put("network_monitoring_enabled", item.getNetworkMonitoringEnabled());
+        dto.put("license_refresh_state", monitoringService.resolveLicenseRefreshState(item));
+        dto.put("network_refresh_state", monitoringService.resolveNetworkRefreshState(item));
         dto.put("server_name", item.getServerName());
         dto.put("server_name_display", monitoringService.resolveDisplayServerNameForView(item));
         dto.put("server_type", item.getServerType());
@@ -271,6 +275,20 @@ public class RmsLicenseMonitoringApiController {
         payload.put("queued", state.queued());
         payload.put("last_requested_at", state.lastRequestedAt());
         payload.put("last_completed_at", state.lastCompletedAt());
+        payload.put("current_monitor_id", state.currentMonitorId());
+        payload.put("total_count", state.totalCount());
+        payload.put("completed_count", state.completedCount());
+        return payload;
+    }
+
+    private Map<String, Object> toAvailabilityOverview(RmsLicenseMonitoringService.AvailabilityOverview overview) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("total", overview.total());
+        payload.put("up", overview.up());
+        payload.put("down", overview.down());
+        payload.put("unknown", overview.unknown());
+        payload.put("disabled", overview.disabled());
+        payload.put("availability_percent", overview.availabilityPercent());
         return payload;
     }
 

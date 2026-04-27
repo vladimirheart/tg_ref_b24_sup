@@ -33,6 +33,7 @@ public class MonitoringDatabaseBootstrapService implements ApplicationRunner {
     private final IikoApiMonitorRepository iikoApiMonitorRepository;
     private final SslCertificateMonitorRepository sslRepository;
     private final RmsLicenseMonitorRepository rmsRepository;
+    private final MonitoringCredentialsCryptoService credentialsCryptoService;
     private final SqliteDataSourceProperties primaryProperties;
     private final MonitoringSqliteDataSourceProperties monitoringProperties;
 
@@ -41,6 +42,7 @@ public class MonitoringDatabaseBootstrapService implements ApplicationRunner {
                                               IikoApiMonitorRepository iikoApiMonitorRepository,
                                               SslCertificateMonitorRepository sslRepository,
                                               RmsLicenseMonitorRepository rmsRepository,
+                                              MonitoringCredentialsCryptoService credentialsCryptoService,
                                               SqliteDataSourceProperties primaryProperties,
                                               MonitoringSqliteDataSourceProperties monitoringProperties) {
         this.primaryJdbcTemplate = primaryJdbcTemplate;
@@ -48,6 +50,7 @@ public class MonitoringDatabaseBootstrapService implements ApplicationRunner {
         this.iikoApiMonitorRepository = iikoApiMonitorRepository;
         this.sslRepository = sslRepository;
         this.rmsRepository = rmsRepository;
+        this.credentialsCryptoService = credentialsCryptoService;
         this.primaryProperties = primaryProperties;
         this.monitoringProperties = monitoringProperties;
     }
@@ -56,6 +59,7 @@ public class MonitoringDatabaseBootstrapService implements ApplicationRunner {
     public void run(ApplicationArguments args) {
         ensureSchema();
         migrateFromPrimaryDatabase();
+        migrateEncryptedRmsCredentials();
     }
 
     private void ensureSchema() {
@@ -330,6 +334,38 @@ public class MonitoringDatabaseBootstrapService implements ApplicationRunner {
             return primaryProperties.getNormalizedPath().equals(monitoringProperties.getNormalizedPath());
         } catch (Exception ex) {
             return false;
+        }
+    }
+
+    private void migrateEncryptedRmsCredentials() {
+        try {
+            List<Long> ids = monitoringJdbcTemplate.query(
+                "SELECT id FROM rms_license_monitors WHERE auth_password IS NOT NULL AND auth_password <> ''",
+                (rs, rowNum) -> rs.getLong("id")
+            );
+            int updated = 0;
+            for (Long id : ids) {
+                String stored = monitoringJdbcTemplate.queryForObject(
+                    "SELECT auth_password FROM rms_license_monitors WHERE id = ?",
+                    String.class,
+                    id
+                );
+                if (stored == null || stored.isBlank() || credentialsCryptoService.isEncrypted(stored)) {
+                    continue;
+                }
+                String encrypted = credentialsCryptoService.encryptIfNeeded(stored);
+                monitoringJdbcTemplate.update(
+                    "UPDATE rms_license_monitors SET auth_password = ? WHERE id = ?",
+                    encrypted,
+                    id
+                );
+                updated++;
+            }
+            if (updated > 0) {
+                log.info("Encrypted {} plaintext RMS credential(s) in monitoring.db", updated);
+            }
+        } catch (Exception ex) {
+            log.warn("Failed to migrate RMS credentials to encrypted storage", ex);
         }
     }
 
