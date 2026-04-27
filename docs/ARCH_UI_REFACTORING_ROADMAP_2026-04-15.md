@@ -530,6 +530,19 @@
   `SettingsParametersControllerWebMvcTest` и
   `SettingsItEquipmentControllerWebMvcTest` — trailing slash и `PATCH`
   contract.
+- следующим ещё более широким пакетом `Phase 6` добран по
+  `ai-ops/public-form/settings-bridge/bot-process` boundary:
+  `DialogAiOpsControllerWebMvcTest` теперь прикрывает missing body для
+  `ai-control`, validation для `ai-learning-mapping`,
+  `ai-solution-memory update`, `rollback history_id`, queue `limit`
+  и alias `suggested_reply`;
+  `PublicFormApiControllerWebMvcTest` — missing channel config,
+  disabled form submit, session not found с `recordSessionLookup(false)`
+  и history lookup с `channel` filter;
+  `SettingsBridgeControllerWebMvcTest` — `PUT`, `PATCH` и trailing slash
+  contract;
+  `BotProcessApiControllerWebMvcTest` — blank exception message fallback
+  для `runtime-contract`.
 - этот же smoke-слой расширен на detail/subpage contract:
   `ai-ops`, `unblock requests`, `users/detail` и оба passport editor route
   (`/object-passports/new`, `/object-passports/{id}`) теперь тоже прикрыты
@@ -552,6 +565,10 @@
 - добрать WebMvc tests под оставшиеся новые dialog/settings controllers,
   уже после закрытия основного alias/default/error слоя для quick-actions,
   read, macro, triage, telemetry, parameters и it-equipment;
+- продолжить тем же подходом расширять controller edge-case net уже beyond
+  `dialogs/settings` на `ai-ops/public forms/settings bridge/bot process`,
+  чтобы отлавливать alias/validation/fallback contracts до следующего
+  крупного рефакторинга;
 - расширить shared config/env resolution tests и settings regression net от
   targeted-слоя к более полным integration сценариям;
 - расширить `settings` regression net дальше от уже появившихся

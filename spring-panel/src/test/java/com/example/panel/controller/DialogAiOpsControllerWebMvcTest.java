@@ -6,6 +6,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -121,5 +122,119 @@ class DialogAiOpsControllerWebMvcTest {
             .andExpect(content().string("ticket_id\nT-703\n"));
 
         verify(dialogAiOpsService).loadMonitoringEvents(7, 10, "T-703", "decision", "operator");
+    }
+
+    @Test
+    void aiControlUpdateRejectsMissingBody() throws Exception {
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_control_update"), eq("T-704")))
+            .thenReturn(null);
+
+        mockMvc.perform(post("/api/dialogs/T-704/ai-control")
+                .with(user("operator"))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("request body is required"));
+    }
+
+    @Test
+    void aiLearningMappingRequiresBothMessages() throws Exception {
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_learning_mapping"), eq("T-705")))
+            .thenReturn(null);
+
+        mockMvc.perform(post("/api/dialogs/T-705/ai-learning/mapping")
+                .with(user("operator"))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "client_problem_message": "Не работает"
+                    }
+                    """))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("client_problem_message and operator_solution_message are required"));
+    }
+
+    @Test
+    void aiSolutionMemoryUpdateRequiresBothTexts() throws Exception {
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_solution_memory_update"), eq((String) null)))
+            .thenReturn(null);
+
+        mockMvc.perform(post("/api/dialogs/ai-solution-memory/query-1")
+                .with(user("operator"))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "query_text": "Как сбросить пароль?"
+                    }
+                    """))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("query_text and solution_text are required"));
+    }
+
+    @Test
+    void aiSolutionMemoryRollbackRequiresHistoryId() throws Exception {
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_solution_memory_rollback"), eq((String) null)))
+            .thenReturn(null);
+
+        mockMvc.perform(post("/api/dialogs/ai-solution-memory/query-2/rollback")
+                .with(user("operator"))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("history_id is required"));
+    }
+
+    @Test
+    void aiReviewsQueueDelegatesOptionalLimit() throws Exception {
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_reviews_queue"), eq((String) null)))
+            .thenReturn(null);
+        when(dialogAiOpsService.loadPendingReviewsQueue(25))
+            .thenReturn(List.of(Map.of("query_key", "q-1")));
+
+        mockMvc.perform(get("/api/dialogs/ai-reviews")
+                .param("limit", "25")
+                .with(user("operator")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.items[0].query_key").value("q-1"));
+    }
+
+    @Test
+    void aiSuggestionFeedbackAcceptsSuggestedReplyAliasAndDelegatesOperator() throws Exception {
+        when(dialogAuthorizationService.requirePermission(any(), eq("can_reply"), eq("ai_suggestion_feedback"), eq("T-706")))
+            .thenReturn(null);
+
+        mockMvc.perform(post("/api/dialogs/T-706/ai-suggestions/feedback")
+                .with(user("operator"))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "decision": "accepted",
+                      "source": "rag",
+                      "title": "KB article",
+                      "snippet": "snippet",
+                      "suggested_reply": "готовый ответ"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true));
+
+        verify(dialogAiOpsService).recordSuggestionFeedback(
+            "T-706",
+            "accepted",
+            "rag",
+            "KB article",
+            "snippet",
+            "готовый ответ",
+            "operator"
+        );
     }
 }

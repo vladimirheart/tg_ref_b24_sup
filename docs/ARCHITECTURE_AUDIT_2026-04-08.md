@@ -332,6 +332,19 @@
   `SettingsParametersControllerWebMvcTest` и
   `SettingsItEquipmentControllerWebMvcTest` — trailing slash и `PATCH`
   contract.
+- следующим ещё более широким пакетом `Phase 6` расширен по
+  `ai-ops/public-form/settings-bridge/bot-process` boundary:
+  `DialogAiOpsControllerWebMvcTest` теперь прикрывает missing body для
+  `ai-control`, validation для `ai-learning-mapping`,
+  `ai-solution-memory update`, `rollback history_id`, queue `limit`
+  и alias `suggested_reply`;
+  `PublicFormApiControllerWebMvcTest` — missing channel config,
+  disabled form submit, session not found с `recordSessionLookup(false)`
+  и history lookup с `channel` filter;
+  `SettingsBridgeControllerWebMvcTest` — `PUT`, `PATCH` и trailing slash
+  contract;
+  `BotProcessApiControllerWebMvcTest` — blank exception message fallback
+  для `runtime-contract`.
 
 ---
 

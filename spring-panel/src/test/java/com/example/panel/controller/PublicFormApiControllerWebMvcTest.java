@@ -69,6 +69,16 @@ class PublicFormApiControllerWebMvcTest {
     }
 
     @Test
+    void configReturnsNotFoundWhenChannelDoesNotExist() throws Exception {
+        when(publicFormService.loadConfigRaw("missing-channel")).thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/api/public/forms/missing-channel/config"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("CHANNEL_NOT_FOUND"));
+    }
+
+    @Test
     void createSessionUsesForwardedHeadersAndPassesRequestId() throws Exception {
         PublicFormConfig enabledConfig = new PublicFormConfig(
                 8L,
@@ -244,6 +254,34 @@ class PublicFormApiControllerWebMvcTest {
     }
 
     @Test
+    void createSessionReturnsDisabledStatusWhenFormDisabled() throws Exception {
+        PublicFormConfig disabledConfig = new PublicFormConfig(
+                14L,
+                "web-disabled",
+                "Web Form",
+                1,
+                false,
+                false,
+                404,
+                null,
+                null,
+                List.of()
+        );
+        when(publicFormService.loadConfigRaw("web-disabled")).thenReturn(Optional.of(disabledConfig));
+
+        mockMvc.perform(post("/api/public/forms/web-disabled/sessions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "message": "Нужна помощь"
+                                }
+                                """))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("FORM_DISABLED"));
+    }
+
+    @Test
     void sessionTracksLookupMetrics() throws Exception {
         PublicFormSessionDto session = new PublicFormSessionDto(
                 "token-2",
@@ -275,6 +313,44 @@ class PublicFormApiControllerWebMvcTest {
                 .andExpect(jsonPath("$.continuation.command").value("/continue token-2"));
 
         verify(publicFormService).recordSessionLookup(15L, true);
+    }
+
+    @Test
+    void sessionReturnsNotFoundAndTracksMissedLookup() throws Exception {
+        when(publicFormService.resolveChannelId("web-missing-session")).thenReturn(Optional.of(16L));
+        when(publicFormService.findSession("web-missing-session", "token-missing")).thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/api/public/forms/web-missing-session/sessions/token-missing"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("SESSION_NOT_FOUND"));
+
+        verify(publicFormService).recordSessionLookup(16L, false);
+    }
+
+    @Test
+    void sessionPassesChannelFilterIntoHistoryLoader() throws Exception {
+        PublicFormSessionDto session = new PublicFormSessionDto(
+                "token-3",
+                "T-303",
+                18L,
+                "web-filter",
+                "Мария",
+                null,
+                "web_form",
+                OffsetDateTime.parse("2026-01-01T10:15:30+03:00")
+        );
+        when(publicFormService.resolveChannelId("web-filter")).thenReturn(Optional.of(18L));
+        when(publicFormService.findSession("web-filter", "token-3")).thenReturn(Optional.of(session));
+        when(publicFormService.buildContinuationOptions("web-filter", "token-3")).thenReturn(Map.of("enabled", false));
+        when(dialogConversationReadService.loadHistory("T-303", 44L)).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/public/forms/web-filter/sessions/token-3")
+                        .param("channel", "44"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        verify(dialogConversationReadService).loadHistory("T-303", 44L);
     }
 
 }

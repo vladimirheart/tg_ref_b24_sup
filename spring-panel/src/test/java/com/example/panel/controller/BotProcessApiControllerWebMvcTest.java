@@ -282,6 +282,22 @@ class BotProcessApiControllerWebMvcTest {
     }
 
     @Test
+    void runtimeContractReturnsFallbackErrorWhenExceptionMessageIsBlank() throws Exception {
+        Channel channel = new Channel();
+        channel.setId(57L);
+        channel.setPlatform("telegram");
+
+        when(channelRepository.findById(57L)).thenReturn(Optional.of(channel));
+        when(botProcessService.describeRuntimeContract(channel))
+            .thenThrow(new IllegalStateException("   "));
+
+        mockMvc.perform(get("/api/bots/57/runtime-contract"))
+            .andExpect(status().isInternalServerError())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("Не удалось построить runtime contract"));
+    }
+
+    @Test
     void startReturnsUnknownStatusWhenServiceMessageIsBlank() throws Exception {
         Channel channel = new Channel();
         channel.setId(54L);
