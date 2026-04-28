@@ -145,9 +145,12 @@
   выделен и часть потребителей переведена на новый слой; теперь к нему
   добавлен и второй conversation read slice, что заметно уменьшает pressure
   на giant service; теперь к этому добавлены ещё lookup/responsibility slices,
-  а теперь и lifecycle/audit/details slices, но remaining bounded contexts и
-  legacy helper blocks всё ещё не закрыты полностью; при этом сам класс уже
-  заметно уменьшился и сейчас находится примерно на уровне `5520` строк, то
+  а теперь и lifecycle/audit/details slices; отдельно giant service уже
+  потерял и дублирующий `macro governance audit` bounded context, который
+  окончательно живёт в `DialogMacroGovernanceAuditService`, а не внутри
+  giant service; но remaining bounded contexts и legacy helper blocks всё
+  ещё не закрыты полностью; при этом сам класс уже заметно уменьшился и
+  сейчас находится примерно на уровне `4900` строк, то
   есть речь уже не о “старом монолите без движения”, а о незавершённом, но
   активно режущемся giant service;
 - `DialogWorkspaceService` всё ещё крупный, хотя уже начал разгружаться через
@@ -169,6 +172,10 @@
   следующий шаг там теперь уже не в raw JDBC/helper выносе, а в дожиме самой
   telemetry summary orchestration и постепенном схлопывании compatibility
   bridge/delegate слоя вокруг `DialogService`;
+- важный реальный progress point: `buildMacroGovernanceAudit(...)` в
+  `DialogService` теперь лишь compatibility delegate, а constructor giant
+  service уже не тянет `DialogMacroGovernanceSupportService`, потому что
+  macro governance audit полностью живёт в отдельном domain service;
 - `settings` subdomain layer получил адресную test-страховку на уже
   вынесенных сервисах (`runtime/public-form/sla-ai/template/workspace`), но
   больше не ограничивается только ими: теперь targeted tests есть и на
