@@ -225,6 +225,17 @@
   progress не зависел от устаревающих фиксированных дат;
   сам `DialogService` после telemetry analytics + external KPI split
   сжался уже примерно до `3199` строк.
+- следующим ещё более широким `Phase 3` пакетом giant service потерял и
+  rollout decision / scorecard bounded context:
+  `DialogWorkspaceRolloutAssessmentService` теперь владеет rollout action
+  logic, scorecard assembly и external checkpoint itemization, а
+  `DialogService` переключён на новый bounded service и больше не держит
+  даже constructor dependency на `DialogWorkspaceExternalKpiService`;
+  под это добавлен отдельный `DialogWorkspaceRolloutAssessmentServiceTest`,
+  а точечные rollout integration tests подтверждают, что UTC scorecard /
+  governance packet contract не сломался после выноса;
+  сам `DialogService` после этого прохода сжался уже примерно до
+  `2533` строк.
 
 Что остаётся:
 
@@ -233,7 +244,8 @@
 - продолжить вытаскивать из `DialogService` remaining read/write bounded
   contexts уже поверх вынесенного `DialogClientContextReadService`;
 - продолжить ужимать compatibility/orchestration слой giant service уже
-  после вынесенных telemetry analytics и external KPI slices:
+  после вынесенных telemetry analytics, external KPI и rollout assessment
+  slices:
   главный следующий кандидат теперь rollout packet / governance packet /
   reply-write bounded contexts;
 - продолжить снимать remaining consumer-facades вокруг notifier / telemetry /
