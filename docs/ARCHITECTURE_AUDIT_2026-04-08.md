@@ -428,7 +428,9 @@ boundary между `spring-panel` и `java-bot`.
 ### 4. Монолитные сервисы со слишком большой ответственностью
 
 **Актуальный фокус:**
-- `DialogService` остаётся главным giant service и основным SRP-риском;
+- `DialogService` остаётся главным giant service и основным SRP-риском,
+  но уже сужен примерно до `3199` строк после выноса telemetry analytics и
+  external KPI rollout logic;
 - `DialogWorkspaceService` уже заметно сужен, но всё ещё остаётся крупным
   сервисом-оркестратором;
 - часть orchestration в `settings` уже разрезана, но remaining subdomains
@@ -453,10 +455,13 @@ DialogService
   │   ├─ DialogTicketLifecycleService
   │   ├─ DialogAuditService
   │   ├─ DialogWorkspaceTelemetryDataService
+  │   ├─ DialogWorkspaceTelemetryAnalyticsService
+  │   ├─ DialogWorkspaceExternalKpiService
   │   ├─ DialogMacroGovernanceSupportService
   │   └─ DialogMacroGovernanceAuditService
   ├─ still to narrow:
   │   ├─ DialogWorkspaceService
+  │   ├─ rollout packet / governance packet orchestration
   │   ├─ telemetry summary orchestration + compatibility bridge
   │   ├─ reply/message write-side flows
   │   ├─ AI/notification/escalation flows
@@ -653,6 +658,15 @@ integration-сценария поверх users/settings runtime boundary всё
   теми же runtime fallback сценариями, что раньше были только вокруг
   `stop/runtime-contract`: case-insensitive `STOPPED` и `null` message
   now explicitly locked by tests.
+- giant `DialogService` за последние два `Phase 3` прохода перестал держать
+  внутри себя и telemetry analytics, и external KPI rollout gate:
+  эти bounded contexts теперь живут в
+  `DialogWorkspaceTelemetryAnalyticsService` и
+  `DialogWorkspaceExternalKpiService`, а сам giant service держит только
+  orchestration/compatibility слой;
+  дополнительно стабилизированы integration tests по rollout scorecard и
+  governance packet, чтобы fresh/stale review logic не зависела от
+  устаревающих фиксированных UTC timestamp’ов.
 
 **Автор исходного аудита:** GitHub Copilot  
 **Статус:** Документ актуализирован под состояние кода на 28 апреля 2026
