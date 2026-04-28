@@ -811,6 +811,46 @@ class PublicFormApiControllerWebMvcTest {
     }
 
     @Test
+    void sessionDoesNotLoadHistoryWhenSessionIsMissing() throws Exception {
+        when(publicFormService.resolveChannelId("web-no-history")).thenReturn(Optional.of(17L));
+        when(publicFormService.findSession("web-no-history", "token-none")).thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/api/public/forms/web-no-history/sessions/token-none"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("SESSION_NOT_FOUND"));
+
+        verify(publicFormService).recordSessionLookup(17L, false);
+        verify(dialogConversationReadService, times(0)).loadHistory(any(), any());
+    }
+
+    @Test
+    void sessionReturnsClientFieldsAndCreatedAtFromSessionPayload() throws Exception {
+        PublicFormSessionDto session = new PublicFormSessionDto(
+                "token-5",
+                "T-505",
+                30L,
+                "web-client",
+                "Елена",
+                "+79991112233",
+                "elena",
+                OffsetDateTime.parse("2026-01-01T12:15:30+03:00")
+        );
+        when(publicFormService.resolveChannelId("web-client")).thenReturn(Optional.of(30L));
+        when(publicFormService.findSession("web-client", "token-5")).thenReturn(Optional.of(session));
+        when(publicFormService.buildContinuationOptions("web-client", "token-5")).thenReturn(Map.of("enabled", false));
+        when(dialogConversationReadService.loadHistory("T-505", null)).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/public/forms/web-client/sessions/token-5"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.session.clientName").value("Елена"))
+                .andExpect(jsonPath("$.session.clientContact").value("+79991112233"))
+                .andExpect(jsonPath("$.session.username").value("elena"))
+                .andExpect(jsonPath("$.session.createdAt").value("2026-01-01T12:15:30+03:00"));
+    }
+
+    @Test
     void sessionPassesChannelFilterIntoHistoryLoader() throws Exception {
         PublicFormSessionDto session = new PublicFormSessionDto(
                 "token-3",

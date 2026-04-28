@@ -159,6 +159,18 @@ class BotProcessApiControllerWebMvcTest {
     }
 
     @Test
+    void statusTreatsStoppedCaseInsensitivelyAsSuccess() throws Exception {
+        when(botProcessService.status(60L)).thenReturn(
+            new BotProcessService.BotProcessStatus(false, "STOPPED", null)
+        );
+
+        mockMvc.perform(get("/api/bots/60/status"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.status").value("STOPPED"));
+    }
+
+    @Test
     void statusReturnsErrorPayloadWhenServiceReportsFailure() throws Exception {
         when(botProcessService.status(17L)).thenReturn(
             new BotProcessService.BotProcessStatus(false, "startup log missing", null)
@@ -343,6 +355,23 @@ class BotProcessApiControllerWebMvcTest {
     }
 
     @Test
+    void startTreatsStoppedCaseInsensitivelyAsSuccess() throws Exception {
+        Channel channel = new Channel();
+        channel.setId(61L);
+        channel.setPlatform("telegram");
+
+        when(channelRepository.findById(61L)).thenReturn(Optional.of(channel));
+        when(botProcessService.start(channel)).thenReturn(
+            new BotProcessService.BotProcessStatus(false, "STOPPED", null)
+        );
+
+        mockMvc.perform(post("/api/bots/61/start"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.status").value("STOPPED"));
+    }
+
+    @Test
     void stopReturnsUnknownStatusWhenServiceMessageIsBlank() throws Exception {
         when(botProcessService.stop(55L)).thenReturn(
             new BotProcessService.BotProcessStatus(false, "", null)
@@ -361,6 +390,18 @@ class BotProcessApiControllerWebMvcTest {
         );
 
         mockMvc.perform(get("/api/bots/56/status"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.status").value("unknown"));
+    }
+
+    @Test
+    void statusReturnsUnknownStatusWhenServiceMessageIsNull() throws Exception {
+        when(botProcessService.status(62L)).thenReturn(
+            new BotProcessService.BotProcessStatus(false, null, null)
+        );
+
+        mockMvc.perform(get("/api/bots/62/status"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.status").value("unknown"));

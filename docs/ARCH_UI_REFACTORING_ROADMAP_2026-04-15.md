@@ -565,6 +565,13 @@
   сценария.
 - legacy WebMvc test-слой частично синхронизирован с новой controller
   структурой.
+- `auth-management/public-form/bot-process` boundary добран ещё глубже:
+  теперь `AuthManagementApiControllerWebMvcTest` прикрывает invalid JSON
+  fallbacks, simple-query mode без `role_id` и empty-permissions flows
+  для roles; `PublicFormApiControllerWebMvcTest` — success/miss session
+  payload contract beyond config/create flows; `BotProcessApiControllerWebMvcTest`
+  — case-insensitive `STOPPED` и `null` message fallback уже не только
+  в `stop`, но и в `status/start`.
 
 Что остаётся:
 
@@ -580,6 +587,9 @@
   `dialogs/settings` на `ai-ops/public forms/settings bridge/bot process`,
   чтобы отлавливать alias/validation/fallback contracts до следующего
   крупного рефакторинга;
+- продолжить этим же способом расширять `auth-management` list/update
+  contract и `public-form` session/runtime contract, потому что именно
+  там теперь уже заметен выигрыш от transport-level regression net;
 - расширить shared config/env resolution tests и settings regression net от
   targeted-слоя к более полным integration сценариям;
 - расширить `settings` regression net дальше от уже появившихся
@@ -621,9 +631,9 @@
    и panel-bot runtime edge-cases; поверх этого почти до полного
    controller-contract добран `DialogAiOps`, а `public-form` покрыт уже не
    только bootstrap/smoke, но и success/error/validation/page/template
-   boundary; рядом с этим также расширен `auth-management` route contract
-   и `bot-process` fallback/error contract, хотя это всё ещё не полноценная
-   end-to-end safety net.
+   boundary; рядом с этим также расширен `auth-management` route contract,
+   invalid JSON/optional-column fallback и `bot-process` fallback/error
+   contract, хотя это всё ещё не полноценная end-to-end safety net.
 
 ## Следующий Фокус
 
