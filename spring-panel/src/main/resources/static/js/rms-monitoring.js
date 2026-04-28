@@ -514,6 +514,14 @@
       const targetLicenseLabel = site.target_license_label || 'Лицензия';
       const targetLicenseId = site.target_license_id || '—';
       const kioskCount = site.kiosk_connector_license_count;
+      const licenseSummaryBadges = [
+        `<span class="badge text-bg-light border">${escapeHtml(targetLicenseLabel)} [id=${escapeHtml(targetLicenseId)}]: ${escapeHtml(site.target_license_count ?? '—')}</span>`,
+      ];
+      if (kioskCount !== null && kioskCount !== undefined && kioskCount !== '') {
+        licenseSummaryBadges.push(
+          `<span class="badge text-bg-light border">iikoConnector for Get Kiosk [id=36073118]: ${escapeHtml(kioskCount)}</span>`,
+        );
+      }
       row.innerHTML = `
         <td>
           <div class="fw-semibold font-mono">${escapeHtml(site.rms_address_display || site.rms_address || '—')}</div>
@@ -529,10 +537,7 @@
         <td>
           <div>${escapeHtml(formatDateOnly(site.license_expires_at))}</div>
           <div class="small text-muted">Осталось: ${escapeHtml(formatDaysLeft(site.license_days_left))}</div>
-          <div class="small text-muted">${escapeHtml(targetLicenseLabel)} [id=${escapeHtml(targetLicenseId)}]: ${escapeHtml(site.target_license_count ?? '—')}</div>
-          ${kioskCount !== null && kioskCount !== undefined && kioskCount !== ''
-            ? `<div class="small text-muted">iikoConnector for Get Kiosk [id=36073118]: ${escapeHtml(kioskCount)}</div>`
-            : ''}
+          <div class="d-flex flex-wrap gap-2 mt-2">${licenseSummaryBadges.join('')}</div>
         </td>
         <td class="license-cell status-${escapeHtml(licenseLevel || 'error')}" title="${escapeHtml(licenseStatusTitle)}">
           <div>${licenseBadge(licenseLevel)}</div>
