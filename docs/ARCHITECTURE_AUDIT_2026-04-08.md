@@ -429,8 +429,9 @@ boundary между `spring-panel` и `java-bot`.
 
 **Актуальный фокус:**
 - `DialogService` остаётся главным giant service и основным SRP-риском,
-  но уже сужен примерно до `3199` строк после выноса telemetry analytics и
-  external KPI rollout logic;
+  но уже сужен примерно до `2533` строк после выноса telemetry analytics,
+  external KPI rollout logic и rollout assessment / scorecard bounded
+  context;
 - `DialogWorkspaceService` уже заметно сужен, но всё ещё остаётся крупным
   сервисом-оркестратором;
 - часть orchestration в `settings` уже разрезана, но remaining subdomains
@@ -457,6 +458,7 @@ DialogService
   │   ├─ DialogWorkspaceTelemetryDataService
   │   ├─ DialogWorkspaceTelemetryAnalyticsService
   │   ├─ DialogWorkspaceExternalKpiService
+  │   ├─ DialogWorkspaceRolloutAssessmentService
   │   ├─ DialogMacroGovernanceSupportService
   │   └─ DialogMacroGovernanceAuditService
   ├─ still to narrow:
@@ -667,6 +669,16 @@ integration-сценария поверх users/settings runtime boundary всё
   дополнительно стабилизированы integration tests по rollout scorecard и
   governance packet, чтобы fresh/stale review logic не зависела от
   устаревающих фиксированных UTC timestamp’ов.
+- следующим `Phase 3` пакетом giant `DialogService` потерял ещё и rollout
+  decision / scorecard bounded context:
+  `DialogWorkspaceRolloutAssessmentService` теперь владеет rollout action
+  logic, scorecard assembly и external checkpoint itemization;
+  `DialogService` после этого больше не держит constructor dependency на
+  `DialogWorkspaceExternalKpiService`, а rollout integration tests
+  подтверждают, что UTC scorecard / governance packet contract не сломался;
+  текущий остаточный фокус giant service после этого сместился уже не в
+  scorecard, а в rollout packet / governance packet / reply-write
+  orchestration.
 
 **Автор исходного аудита:** GitHub Copilot  
 **Статус:** Документ актуализирован под состояние кода на 28 апреля 2026

@@ -47,7 +47,7 @@ class DialogServiceTest {
                 mock(SharedConfigService.class),
                 mock(DialogWorkspaceTelemetryDataService.class),
                 mock(DialogWorkspaceTelemetryAnalyticsService.class),
-                mock(DialogWorkspaceExternalKpiService.class),
+                mock(DialogWorkspaceRolloutAssessmentService.class),
                 macroGovernanceAuditService,
                 mock(DialogLookupReadService.class),
                 mock(DialogResponsibilityService.class),
