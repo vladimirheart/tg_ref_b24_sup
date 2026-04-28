@@ -79,8 +79,12 @@ public class RmsLicenseMonitoringService {
     public static final String RMS_STATUS_DOWN = "down";
     public static final String RMS_STATUS_DISABLED = "disabled";
     public static final String RMS_STATUS_UNKNOWN = "unknown";
-    private static final String TARGET_LICENSE_ID = "100";
-    private static final String TARGET_LICENSE_TITLE = "RMS (Front Fast Food)";
+    private static final String RMS_TARGET_LICENSE_ID = "100";
+    private static final String RMS_TARGET_LICENSE_TITLE = "RMS (Front Fast Food)";
+    private static final String CHAIN_TARGET_LICENSE_ID = "10";
+    private static final String CHAIN_TARGET_LICENSE_TITLE = "FullEdition (Server)";
+    private static final String KIOSK_CONNECTOR_LICENSE_ID = "36073118";
+    private static final String KIOSK_CONNECTOR_LICENSE_TITLE = "iikoConnector for Get Kiosk (iikoFront)";
     private static final Charset WINDOWS_OEM_CHARSET = Charset.forName("IBM866");
     private static final Charset WINDOWS_ANSI_CHARSET = Charset.forName("windows-1251");
 
@@ -423,6 +427,25 @@ public class RmsLicenseMonitoringService {
     }
 
     public Integer resolveTargetLicenseQuantity(RmsLicenseMonitor monitor) {
+        return resolveLicenseQuantity(monitor, resolvePrimaryLicenseDescriptor(monitor));
+    }
+
+    public Integer resolveKioskConnectorLicenseQuantity(RmsLicenseMonitor monitor) {
+        if (monitor == null || !isIikoRmsServer(monitor)) {
+            return null;
+        }
+        return resolveLicenseQuantity(monitor, kioskConnectorLicenseDescriptor());
+    }
+
+    public String resolveTargetLicenseLabel(RmsLicenseMonitor monitor) {
+        return resolvePrimaryLicenseDescriptor(monitor).title();
+    }
+
+    public String resolveTargetLicenseId(RmsLicenseMonitor monitor) {
+        return resolvePrimaryLicenseDescriptor(monitor).id();
+    }
+
+    private Integer resolveLicenseQuantity(RmsLicenseMonitor monitor, LicenseDescriptor descriptor) {
         if (monitor == null || !StringUtils.hasText(monitor.getLicenseDetailsJson())) {
             return null;
         }
@@ -432,7 +455,7 @@ public class RmsLicenseMonitoringService {
                 new TypeReference<List<LinkedHashMap<String, String>>>() {
                 }
             );
-            Map<String, String> targetLicense = findTargetLicense(new ArrayList<>(storedItems));
+            Map<String, String> targetLicense = findTargetLicense(new ArrayList<>(storedItems), descriptor);
             if (targetLicense == null) {
                 return null;
             }
@@ -524,7 +547,7 @@ public class RmsLicenseMonitoringService {
         }
         StringBuilder summary = new StringBuilder();
         if (monitor.getLicenseExpiresAt() != null) {
-            summary.append(TARGET_LICENSE_TITLE)
+            summary.append(resolvePrimaryLicenseDescriptor(monitor).title())
                 .append(" до ")
                 .append(monitor.getLicenseExpiresAt().toLocalDate());
         }
@@ -859,10 +882,11 @@ public class RmsLicenseMonitoringService {
         Document xml = parseXml(response);
         List<Map<String, String>> details = parseLicenseDetails(xml);
         String diagnosticExcerpt = buildLicenseDiagnosticExcerpt(response, xml);
-        Map<String, String> targetLicense = findTargetLicense(details);
+        LicenseDescriptor targetDescriptor = resolvePrimaryLicenseDescriptor(monitor);
+        Map<String, String> targetLicense = findTargetLicense(details, targetDescriptor);
         if (targetLicense == null) {
             throw new LicenseSnapshotException(
-                "Не найдена лицензия RMS (Front Fast Food) с id=100",
+                "Не найдена лицензия " + targetDescriptor.title() + " с id=" + targetDescriptor.id(),
                 writeLicenseDetails(details),
                 diagnosticExcerpt
             );
@@ -870,7 +894,7 @@ public class RmsLicenseMonitoringService {
         OffsetDateTime targetExpiration = resolveLicenseExpiration(targetLicense);
         if (targetExpiration == null) {
             throw new LicenseSnapshotException(
-                "Не удалось определить дату окончания лицензии RMS (Front Fast Food) [id=100]",
+                "Не удалось определить дату окончания лицензии " + targetDescriptor.title() + " [id=" + targetDescriptor.id() + "]",
                 writeLicenseDetails(details),
                 diagnosticExcerpt
             );
@@ -1791,8 +1815,14 @@ public class RmsLicenseMonitoringService {
     }
 
     private String resolveModuleTitle(String moduleId) {
-        if (TARGET_LICENSE_ID.equals(moduleId)) {
-            return TARGET_LICENSE_TITLE;
+        if (RMS_TARGET_LICENSE_ID.equals(moduleId)) {
+            return RMS_TARGET_LICENSE_TITLE;
+        }
+        if (CHAIN_TARGET_LICENSE_ID.equals(moduleId)) {
+            return CHAIN_TARGET_LICENSE_TITLE;
+        }
+        if (KIOSK_CONNECTOR_LICENSE_ID.equals(moduleId)) {
+            return KIOSK_CONNECTOR_LICENSE_TITLE;
         }
         return "Модуль " + moduleId;
     }
@@ -1865,7 +1895,7 @@ public class RmsLicenseMonitoringService {
         return formatDiagnosticText(response, 12_000);
     }
 
-    private Map<String, String> findTargetLicense(List<Map<String, String>> details) {
+    private Map<String, String> findTargetLicense(List<Map<String, String>> details, LicenseDescriptor descriptor) {
         if (details == null || details.isEmpty()) {
             return null;
         }
@@ -1879,7 +1909,7 @@ public class RmsLicenseMonitoringService {
                 item.get("type_id"),
                 item.get("module_license_id")
             );
-            if (TARGET_LICENSE_ID.equals(StringUtils.trimWhitespace(licenseId))) {
+            if (descriptor.id().equals(StringUtils.trimWhitespace(licenseId))) {
                 return item;
             }
         }
@@ -1895,12 +1925,12 @@ public class RmsLicenseMonitoringService {
                 item.get("module_name"),
                 item.get("display_name")
             );
-            if (StringUtils.hasText(title) && TARGET_LICENSE_TITLE.equalsIgnoreCase(title.trim())) {
+            if (StringUtils.hasText(title) && descriptor.title().equalsIgnoreCase(title.trim())) {
                 return item;
             }
         }
         for (Map<String, String> item : details) {
-            if (containsTargetLicenseMarkers(item)) {
+            if (containsTargetLicenseMarkers(item, descriptor)) {
                 return item;
             }
         }
@@ -2021,11 +2051,11 @@ public class RmsLicenseMonitoringService {
         }
     }
 
-    private boolean containsTargetLicenseMarkers(Map<String, String> item) {
+    private boolean containsTargetLicenseMarkers(Map<String, String> item, LicenseDescriptor descriptor) {
         if (item == null || item.isEmpty()) {
             return false;
         }
-        String normalizedTitle = normalizeSearchToken(TARGET_LICENSE_TITLE);
+        String normalizedTitle = normalizeSearchToken(descriptor.title());
         boolean hasTargetId = false;
         boolean hasTargetName = false;
         for (Map.Entry<String, String> entry : item.entrySet()) {
@@ -2034,18 +2064,55 @@ public class RmsLicenseMonitoringService {
             if (!StringUtils.hasText(value)) {
                 continue;
             }
-            if (!hasTargetId && key.contains("id") && TARGET_LICENSE_ID.equals(value)) {
+            if (!hasTargetId && key.contains("id") && descriptor.id().equals(value)) {
                 hasTargetId = true;
             }
-            if (!hasTargetId && TARGET_LICENSE_ID.equals(value)) {
+            if (!hasTargetId && descriptor.id().equals(value)) {
                 hasTargetId = true;
             }
-            if (!hasTargetName && (value.equals(normalizedTitle)
-                || value.contains("rms") && value.contains("front fast food"))) {
+            if (!hasTargetName && matchesLicenseTitleMarker(value, normalizedTitle, descriptor)) {
                 hasTargetName = true;
             }
         }
         return hasTargetName && (hasTargetId || !item.containsKey("id"));
+    }
+
+    private boolean matchesLicenseTitleMarker(String value, String normalizedTitle, LicenseDescriptor descriptor) {
+        if (!StringUtils.hasText(value)) {
+            return false;
+        }
+        if (value.equals(normalizedTitle)) {
+            return true;
+        }
+        if (RMS_TARGET_LICENSE_ID.equals(descriptor.id())) {
+            return value.contains("rms") && value.contains("front fast food");
+        }
+        if (CHAIN_TARGET_LICENSE_ID.equals(descriptor.id())) {
+            return value.contains("fulledition") && value.contains("server");
+        }
+        if (KIOSK_CONNECTOR_LICENSE_ID.equals(descriptor.id())) {
+            return value.contains("iikoconnector") && value.contains("kiosk");
+        }
+        return false;
+    }
+
+    private LicenseDescriptor resolvePrimaryLicenseDescriptor(RmsLicenseMonitor monitor) {
+        if (isIikoChainServer(monitor)) {
+            return new LicenseDescriptor(CHAIN_TARGET_LICENSE_ID, CHAIN_TARGET_LICENSE_TITLE);
+        }
+        return new LicenseDescriptor(RMS_TARGET_LICENSE_ID, RMS_TARGET_LICENSE_TITLE);
+    }
+
+    private LicenseDescriptor kioskConnectorLicenseDescriptor() {
+        return new LicenseDescriptor(KIOSK_CONNECTOR_LICENSE_ID, KIOSK_CONNECTOR_LICENSE_TITLE);
+    }
+
+    private boolean isIikoChainServer(RmsLicenseMonitor monitor) {
+        return monitor != null && "IIKO_CHAIN".equalsIgnoreCase(StringUtils.trimWhitespace(monitor.getServerType()));
+    }
+
+    private boolean isIikoRmsServer(RmsLicenseMonitor monitor) {
+        return monitor != null && "IIKO_RMS".equalsIgnoreCase(StringUtils.trimWhitespace(monitor.getServerType()));
     }
 
     private OffsetDateTime resolveLicenseExpiration(Map<String, String> targetLicense) {
@@ -2205,6 +2272,9 @@ public class RmsLicenseMonitoringService {
     }
 
     private record LicenseSnapshot(OffsetDateTime expiresAt, int daysLeft, String detailsJson, String debugExcerpt) {
+    }
+
+    private record LicenseDescriptor(String id, String title) {
     }
 
     private record CommandResult(boolean success, String output) {

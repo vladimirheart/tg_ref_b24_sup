@@ -511,6 +511,9 @@
       }
       const licenseStatusTitle = `Последняя проверка лицензии: ${formatDateTime(site.license_last_checked_at || site.updated_at)}`;
       const rmsStatusTitle = `Последний ping: ${formatDateTime(site.rms_last_checked_at)}`;
+      const targetLicenseLabel = site.target_license_label || 'Лицензия';
+      const targetLicenseId = site.target_license_id || '—';
+      const kioskCount = site.kiosk_connector_license_count;
       row.innerHTML = `
         <td>
           <div class="fw-semibold font-mono">${escapeHtml(site.rms_address_display || site.rms_address || '—')}</div>
@@ -526,7 +529,10 @@
         <td>
           <div>${escapeHtml(formatDateOnly(site.license_expires_at))}</div>
           <div class="small text-muted">Осталось: ${escapeHtml(formatDaysLeft(site.license_days_left))}</div>
-          <div class="small text-muted">Лицензий 100: ${escapeHtml(site.target_license_count ?? '—')}</div>
+          <div class="small text-muted">${escapeHtml(targetLicenseLabel)} [id=${escapeHtml(targetLicenseId)}]: ${escapeHtml(site.target_license_count ?? '—')}</div>
+          ${kioskCount !== null && kioskCount !== undefined && kioskCount !== ''
+            ? `<div class="small text-muted">iikoConnector for Get Kiosk [id=36073118]: ${escapeHtml(kioskCount)}</div>`
+            : ''}
         </td>
         <td class="license-cell status-${escapeHtml(licenseLevel || 'error')}" title="${escapeHtml(licenseStatusTitle)}">
           <div>${licenseBadge(licenseLevel)}</div>
