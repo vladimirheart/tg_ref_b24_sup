@@ -46,6 +46,8 @@ class DialogServiceTest {
                 mock(JdbcTemplate.class),
                 mock(SharedConfigService.class),
                 mock(DialogWorkspaceTelemetryDataService.class),
+                mock(DialogWorkspaceTelemetryAnalyticsService.class),
+                mock(DialogWorkspaceExternalKpiService.class),
                 macroGovernanceAuditService,
                 mock(DialogLookupReadService.class),
                 mock(DialogResponsibilityService.class),

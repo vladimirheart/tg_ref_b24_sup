@@ -216,6 +216,15 @@
   compatibility delegate на `DialogMacroGovernanceAuditService`, а
   `DialogMacroGovernanceSupportService` больше не входит в constructor
   dependency самого giant service.
+- следующим более широким `Phase 3` пакетом из giant service вынесен
+  ещё один rollout slice: `DialogWorkspaceExternalKpiService` теперь
+  владеет `external_kpi_signal`, datamart review/freshness/contract
+  orchestration и снимает этот bounded context с `DialogService`;
+  параллельно time-sensitive integration tests по rollout scorecard и
+  governance packet переведены на fresh UTC timestamps, чтобы phase 3
+  progress не зависел от устаревающих фиксированных дат;
+  сам `DialogService` после telemetry analytics + external KPI split
+  сжался уже примерно до `3199` строк.
 
 Что остаётся:
 
@@ -223,10 +232,10 @@
   mapping layers;
 - продолжить вытаскивать из `DialogService` remaining read/write bounded
   contexts уже поверх вынесенного `DialogClientContextReadService`;
-- довести до конца orchestration split вокруг workspace telemetry summary,
-  чтобы после уже завершённого macro-governance audit split убрать временный
-  `DialogWorkspaceTelemetrySummaryBridgeService` и схлопнуть remaining
-  compatibility delegates giant service;
+- продолжить ужимать compatibility/orchestration слой giant service уже
+  после вынесенных telemetry analytics и external KPI slices:
+  главный следующий кандидат теперь rollout packet / governance packet /
+  reply-write bounded contexts;
 - продолжить снимать remaining consumer-facades вокруг notifier / telemetry /
   escalation слоёв там, где giant service ещё остаётся техническим посредником;
 - продолжить service-level split уже поверх вынесенных `DialogClientContextReadService`

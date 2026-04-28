@@ -834,14 +834,15 @@ class SupportPanelIntegrationTests {
 
     @Test
     void workspaceTelemetrySummaryBuildsRolloutScorecardWithUtcTimestamps() {
+        String reviewedAtUtc = OffsetDateTime.now(ZoneOffset.UTC).minusHours(2).withNano(0).toString();
         saveDialogConfig("""
                         {"workspace_rollout_external_kpi_gate_enabled":true,
                          "workspace_rollout_external_kpi_omnichannel_ready":true,
                          "workspace_rollout_external_kpi_finance_ready":true,
                          "workspace_rollout_external_kpi_reviewed_by":"release-oncall",
-                         "workspace_rollout_external_kpi_reviewed_at":"2026-02-03T04:05:06",
+                         "workspace_rollout_external_kpi_reviewed_at":"%s",
                          "workspace_rollout_external_kpi_review_ttl_hours":999}
-                        """);
+                        """.formatted(reviewedAtUtc));
 
         for (int i = 0; i < 70; i++) {
             String cohort = i < 35 ? "control" : "test";
@@ -877,11 +878,11 @@ class SupportPanelIntegrationTests {
         assertThat(items).anySatisfy(item -> {
             if ("external_kpi_gate".equals(item.get("key"))) {
                 assertThat(item.get("status")).isEqualTo("ok");
-                assertThat(item.get("measured_at")).isEqualTo("2026-02-03T04:05:06Z");
+                assertThat(item.get("measured_at")).isEqualTo(reviewedAtUtc);
             }
             if ("external_review".equals(item.get("key"))) {
                 assertThat(item.get("status")).isEqualTo("ok");
-                assertThat(item.get("measured_at")).isEqualTo("2026-02-03T04:05:06Z");
+                assertThat(item.get("measured_at")).isEqualTo(reviewedAtUtc);
             }
             if ("external_data_freshness".equals(item.get("key"))) {
                 assertThat(item.get("status")).isEqualTo("off");
@@ -891,13 +892,14 @@ class SupportPanelIntegrationTests {
 
     @Test
     void workspaceTelemetrySummaryBuildsGovernancePacketWithOwnerSignoffInUtc() {
+        String ownerSignoffAtUtc = OffsetDateTime.now(ZoneOffset.UTC).minusHours(2).withNano(0).toString();
         saveDialogConfig("""
                         {"workspace_rollout_governance_packet_required":true,
                          "workspace_rollout_governance_owner_signoff_required":true,
                          "workspace_rollout_governance_owner_signoff_by":"ops-director",
-                         "workspace_rollout_governance_owner_signoff_at":"2026-02-03T04:05:06",
+                         "workspace_rollout_governance_owner_signoff_at":"%s",
                          "workspace_rollout_governance_owner_signoff_ttl_hours":999}
-                        """);
+                        """.formatted(ownerSignoffAtUtc));
         OffsetDateTime baseTime = OffsetDateTime.now(ZoneOffset.UTC);
         recordWorkspaceTelemetryEvent("op1", "workspace_open_ms", "performance", "T-PACKET-1", null, null, 880L,
                 "workspace_v1_rollout", "test", "team=ops;shift=day", null, null, baseTime.minusHours(2));
@@ -916,14 +918,14 @@ class SupportPanelIntegrationTests {
         assertThat(items).anySatisfy(item -> {
             if ("owner_signoff".equals(item.get("key"))) {
                 assertThat(item.get("status")).isEqualTo("ok");
-                assertThat(item.get("measured_at")).isEqualTo("2026-02-03T04:05:06Z");
+                assertThat(item.get("measured_at")).isEqualTo(ownerSignoffAtUtc);
                 assertThat(item.get("current_value")).isEqualTo("signed_by=ops-director");
             }
         });
         assertThat(ownerSignoff).containsEntry("required", true);
         assertThat(ownerSignoff).containsEntry("ready", true);
         assertThat(ownerSignoff).containsEntry("signed_by", "ops-director");
-        assertThat(ownerSignoff).containsEntry("signed_at", "2026-02-03T04:05:06Z");
+        assertThat(ownerSignoff).containsEntry("signed_at", ownerSignoffAtUtc);
         assertThat(paritySnapshot).containsEntry("ready", true);
         assertThat(paritySnapshot).containsEntry("workspace_open_events", 1L);
         assertThat(paritySnapshot).containsEntry("parity_gap_events", 1L);
@@ -1421,6 +1423,7 @@ class SupportPanelIntegrationTests {
 
     @Test
     void workspaceTelemetrySummaryExpandsExternalCheckpointScorecardItems() {
+        String datamartHealthUpdatedAtUtc = OffsetDateTime.now(ZoneOffset.UTC).minusHours(2).withNano(0).toString();
         saveDialogConfig("""
                         {"workspace_rollout_external_kpi_gate_enabled":true,
                          "workspace_rollout_external_kpi_omnichannel_ready":true,
@@ -1435,7 +1438,7 @@ class SupportPanelIntegrationTests {
                          "workspace_rollout_external_kpi_datamart_health_required":true,
                          "workspace_rollout_external_kpi_datamart_health_status":"healthy",
                          "workspace_rollout_external_kpi_datamart_health_freshness_required":true,
-                         "workspace_rollout_external_kpi_datamart_health_updated_at":"2026-02-03T04:05:06",
+                         "workspace_rollout_external_kpi_datamart_health_updated_at":"%s",
                          "workspace_rollout_external_kpi_datamart_program_blocker_required":true,
                          "workspace_rollout_external_kpi_datamart_program_status":"blocked",
                          "workspace_rollout_external_kpi_datamart_program_note":"blocked by vendor",
@@ -1455,7 +1458,7 @@ class SupportPanelIntegrationTests {
                          "workspace_rollout_external_kpi_datamart_contract_available_fields":"frt,ttr",
                          "cross_product_omnichannel_dashboard_url":"https://dash.example.com/omni",
                          "cross_product_finance_dashboard_url":"https://dash.example.com/finance"}
-                        """);
+                        """.formatted(datamartHealthUpdatedAtUtc));
 
         Map<String, Object> summary = dialogService.loadWorkspaceTelemetrySummary(7, "workspace_v1_rollout");
         Map<String, Object> scorecard = (Map<String, Object>) summary.get("rollout_scorecard");
@@ -1476,7 +1479,7 @@ class SupportPanelIntegrationTests {
             }
             if ("external_datamart_health".equals(item.get("key"))) {
                 assertThat(item.get("status")).isEqualTo("ok");
-                assertThat(item.get("measured_at")).isEqualTo("2026-02-03T04:05:06Z");
+                assertThat(item.get("measured_at")).isEqualTo(datamartHealthUpdatedAtUtc);
             }
             if ("external_datamart_program".equals(item.get("key"))) {
                 assertThat(item.get("status")).isEqualTo("hold");
