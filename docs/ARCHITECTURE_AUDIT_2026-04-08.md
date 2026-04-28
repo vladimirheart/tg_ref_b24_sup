@@ -633,6 +633,19 @@ integration-сценария поверх users/settings runtime boundary всё
 - `BotProcessApiController` стал лучше прикрыт по fallback/error contract:
   теперь под тестами и `null` exception message у `runtime-contract`,
   и case-insensitive success-path для `STOPPED`.
+- `AuthManagementApiController` стал устойчивее ещё и на list/fallback
+  уровне: теперь под тестами invalid `phones` JSON, invalid role
+  `permissions` JSON, simple-query mode без `role_id`, parsed role
+  permissions payload в `auth state`, а также empty-permissions flows
+  для `createRole/updateRole`.
+- `PublicFormApiController` больше не прикрыт только config/create
+  ветками: у `session` теперь есть отдельный transport net на miss без
+  history lookup и на success payload `clientName/clientContact/username/
+  createdAt`.
+- `BotProcessApiController` дополнительно прикрыт на `status/start`
+  теми же runtime fallback сценариями, что раньше были только вокруг
+  `stop/runtime-contract`: case-insensitive `STOPPED` и `null` message
+  now explicitly locked by tests.
 
 **Автор исходного аудита:** GitHub Copilot  
-**Статус:** Документ актуализирован под состояние кода на 27 апреля 2026
+**Статус:** Документ актуализирован под состояние кода на 28 апреля 2026

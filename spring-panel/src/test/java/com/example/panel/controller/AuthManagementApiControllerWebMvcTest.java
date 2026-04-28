@@ -138,6 +138,141 @@ class AuthManagementApiControllerWebMvcTest {
     }
 
     @Test
+    void getAuthStateReturnsParsedStoredRolePermissionsPayload() throws Exception {
+        when(permissionService.isSuperUser(any())).thenReturn(true);
+        when(permissionService.hasAuthority(any(), anyString())).thenReturn(true);
+        when(sharedConfigService.loadOrgStructure()).thenReturn(OBJECT_MAPPER.valueToTree(Map.of("departments", List.of())));
+        when(usersJdbcTemplate.queryForList(startsWith("SELECT u.*"))).thenReturn(List.of());
+        when(usersJdbcTemplate.queryForList(startsWith("SELECT id, name, description, permissions FROM roles"))).thenReturn(List.of(
+            Map.of(
+                "id", 21L,
+                "name", "reviewer",
+                "description", "Review role",
+                "permissions",
+                """
+                {
+                  "pages": ["dialogs", "settings"],
+                  "fields": {
+                    "edit": ["user.create", "role.name"],
+                    "view": ["user.password"]
+                  }
+                }
+                """
+            )
+        ));
+        when(usersJdbcTemplate.queryForList(startsWith("SELECT id FROM users"), eq("operator")))
+            .thenReturn(List.of(Map.of("id", 21L)));
+
+        mockMvc.perform(get("/api/auth/state")
+                .with(user("operator").authorities(() -> "PAGE_SETTINGS")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.roles[0].name").value("reviewer"))
+            .andExpect(jsonPath("$.roles[0].permissions.pages[0]").value("dialogs"))
+            .andExpect(jsonPath("$.roles[0].permissions.fields.edit[0]").value("user.create"))
+            .andExpect(jsonPath("$.roles[0].permissions.fields.view[0]").value("user.password"));
+    }
+
+    @Test
+    void getAuthStateFallsBackToEmptyCapabilitiesWhenStoredRolePermissionsInvalid() throws Exception {
+        when(permissionService.isSuperUser(any())).thenReturn(false);
+        when(permissionService.hasAuthority(any(), eq("ROLE_PORTAL_ADMIN"))).thenReturn(false);
+        when(permissionService.hasAuthority(any(), eq("PAGE_SETTINGS"))).thenReturn(true);
+        when(sharedConfigService.loadOrgStructure()).thenReturn(OBJECT_MAPPER.valueToTree(Map.of("departments", List.of())));
+        when(usersJdbcTemplate.queryForList(startsWith("SELECT u.*"))).thenReturn(List.of());
+        when(usersJdbcTemplate.queryForList(startsWith("SELECT id, name, description, permissions FROM roles"))).thenReturn(List.of());
+        when(usersJdbcTemplate.queryForList(startsWith("SELECT id FROM users"), eq("broken")))
+            .thenReturn(List.of(Map.of("id", 22L)));
+        when(usersJdbcTemplate.queryForList(startsWith("SELECT r.permissions AS permissions"), eq("broken")))
+            .thenReturn(List.of(Map.of("permissions", "{not-json")));
+
+        mockMvc.perform(get("/api/auth/state")
+                .with(user("broken").authorities(() -> "PAGE_SETTINGS")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.capabilities.fields.edit['user.create']").value(false))
+            .andExpect(jsonPath("$.capabilities.fields.edit['role.name']").value(false))
+            .andExpect(jsonPath("$.capabilities.fields.view['user.password']").value(false));
+    }
+
+    @Test
+    void listUsersFallsBackToEmptyPhonesWhenStoredJsonInvalid() throws Exception {
+        when(permissionService.isSuperUser(any())).thenReturn(true);
+        when(usersJdbcTemplate.queryForList(startsWith("SELECT u.*"))).thenReturn(List.of(Map.ofEntries(
+            Map.entry("id", 31L),
+            Map.entry("username", "broken-phones"),
+            Map.entry("full_name", "Broken Phones"),
+            Map.entry("role_name", "operator"),
+            Map.entry("role_id", 3L),
+            Map.entry("photo", ""),
+            Map.entry("registration_date", "2026-01-01T00:00:00Z"),
+            Map.entry("birth_date", ""),
+            Map.entry("email", "broken@example.com"),
+            Map.entry("department", "Support"),
+            Map.entry("phones", "{oops"),
+            Map.entry("is_blocked", 0)
+        )));
+        when(usersJdbcTemplate.queryForList(startsWith("SELECT id FROM users"), eq("admin")))
+            .thenReturn(List.of(Map.of("id", 7L)));
+
+        mockMvc.perform(get("/api/users")
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].username").value("broken-phones"))
+            .andExpect(jsonPath("$[0].phones").isArray())
+            .andExpect(jsonPath("$[0].phones").isEmpty());
+    }
+
+    @Test
+    void listUsersUsesSimpleQueryWhenRoleIdColumnIsAbsentAndParsesBlockedFlag() throws Exception {
+        when(permissionService.isSuperUser(any())).thenReturn(false);
+        when(permissionService.hasAuthority(any(), eq("ROLE_PORTAL_ADMIN"))).thenReturn(false);
+        when(permissionService.hasAuthority(any(), eq("PAGE_SETTINGS"))).thenReturn(true);
+        when(usersJdbcTemplate.queryForList(eq("SELECT u.* FROM users u ORDER BY lower(u.username)"))).thenReturn(List.of(Map.ofEntries(
+            Map.entry("id", 41L),
+            Map.entry("username", "solo"),
+            Map.entry("full_name", "Solo User"),
+            Map.entry("role", "operator"),
+            Map.entry("photo", ""),
+            Map.entry("registration_date", "2026-01-01T00:00:00Z"),
+            Map.entry("birth_date", ""),
+            Map.entry("email", "solo@example.com"),
+            Map.entry("department", "Support"),
+            Map.entry("phones", "[]"),
+            Map.entry("is_blocked", "1")
+        )));
+        when(usersJdbcTemplate.queryForList(startsWith("SELECT id FROM users"), eq("solo")))
+            .thenReturn(List.of(Map.of("id", 41L)));
+        when(usersJdbcTemplate.queryForList(startsWith("SELECT r.permissions AS permissions"), eq("solo")))
+            .thenReturn(List.of());
+        ReflectionTestUtils.setField(controller, "userColumns", Set.of("username", "phones", "is_blocked"));
+
+        mockMvc.perform(get("/api/users")
+                .with(user("solo").authorities(() -> "PAGE_SETTINGS")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].username").value("solo"))
+            .andExpect(jsonPath("$[0].is_blocked").value(true))
+            .andExpect(jsonPath("$[0].role").value("operator"));
+    }
+
+    @Test
+    void listRolesFallsBackToEmptyPermissionsWhenStoredJsonInvalid() throws Exception {
+        when(usersJdbcTemplate.queryForList(startsWith("SELECT id, name, description, permissions FROM roles"))).thenReturn(List.of(Map.of(
+            "id", 51L,
+            "name", "broken-role",
+            "description", "Broken permissions",
+            "permissions", "{oops"
+        )));
+
+        mockMvc.perform(get("/api/roles")
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].name").value("broken-role"))
+            .andExpect(jsonPath("$[0].permissions.pages").isArray())
+            .andExpect(jsonPath("$[0].permissions.pages").isEmpty())
+            .andExpect(jsonPath("$[0].permissions.fields.edit").isArray())
+            .andExpect(jsonPath("$[0].permissions.fields.view").isArray());
+    }
+
+    @Test
     void updateOrgStructurePersistsPayloadThroughSharedConfigBoundary() throws Exception {
         mockMvc.perform(post("/api/auth/org-structure")
                 .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
@@ -759,6 +894,33 @@ class AuthManagementApiControllerWebMvcTest {
     }
 
     @Test
+    void createRoleStoresEmptyPermissionsWhenPayloadDoesNotContainPermissions() throws Exception {
+        when(permissionService.isSuperUser(any())).thenReturn(true);
+        when(usersJdbcTemplate.queryForObject(startsWith("SELECT COUNT(*) FROM roles"), eq(Integer.class), eq("empty-perms")))
+            .thenReturn(0);
+
+        mockMvc.perform(post("/api/roles")
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf())
+                .contentType("application/json")
+                .content("""
+                    {
+                      "name": "empty-perms",
+                      "description": "No permissions"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true));
+
+        verify(usersJdbcTemplate).update(
+            eq("INSERT INTO roles(name, description, permissions) VALUES (?, ?, ?)"),
+            eq("empty-perms"),
+            eq("No permissions"),
+            eq("{}")
+        );
+    }
+
+    @Test
     void createRoleSupportsTrailingSlashRoute() throws Exception {
         when(permissionService.isSuperUser(any())).thenReturn(true);
         when(usersJdbcTemplate.queryForObject(startsWith("SELECT COUNT(*) FROM roles"), eq(Integer.class), eq("reviewer-slash")))
@@ -893,6 +1055,29 @@ class AuthManagementApiControllerWebMvcTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.error").value("Недостаточно прав для изменения разрешений роли"));
+    }
+
+    @Test
+    void updateRoleStoresEmptyPermissionsWhenPayloadExplicitlySetsNull() throws Exception {
+        when(permissionService.isSuperUser(any())).thenReturn(true);
+
+        mockMvc.perform(patch("/api/roles/13")
+                .with(user("admin").authorities(() -> "PAGE_SETTINGS"))
+                .with(csrf())
+                .contentType("application/json")
+                .content("""
+                    {
+                      "permissions": null
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true));
+
+        verify(usersJdbcTemplate).update(
+            eq("UPDATE roles SET permissions = ? WHERE id = ?"),
+            eq("{}"),
+            eq(13L)
+        );
     }
 
     @Test
