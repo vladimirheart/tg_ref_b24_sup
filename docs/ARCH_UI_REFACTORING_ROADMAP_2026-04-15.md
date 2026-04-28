@@ -210,6 +210,12 @@
   переведён на отдельный `DialogWorkspaceTelemetrySummaryBridgeService`, а
   remaining зависимость на `DialogService` честно локализована в compatibility
   bridge вместо прямой domain/service связи.
+- следующим `Phase 3` пакетом giant service потерял ещё один крупный
+  дублирующий bounded context: `macro governance audit` удалён из
+  `DialogService`, `buildMacroGovernanceAudit(...)` оставлен только как
+  compatibility delegate на `DialogMacroGovernanceAuditService`, а
+  `DialogMacroGovernanceSupportService` больше не входит в constructor
+  dependency самого giant service.
 
 Что остаётся:
 
