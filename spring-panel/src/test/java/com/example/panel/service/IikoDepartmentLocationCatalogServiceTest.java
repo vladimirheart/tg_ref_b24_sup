@@ -73,4 +73,53 @@ class IikoDepartmentLocationCatalogServiceTest {
         assertThat((List<String>) sushiFranchise.get("Ростов-на-Дону")).containsExactly("Зорге 33");
         assertThat(snapshot.tree().toString()).doesNotContain("CLOSED");
     }
+    @Test
+    void buildEffectiveLocationsPayloadGeneratesMetaForLiveCatalogAndPreservesStatuses() throws Exception {
+        ObjectMapper objectMapper = new ObjectMapper();
+        SharedConfigService sharedConfigService = new SharedConfigService(
+                objectMapper,
+                Files.createTempDirectory("shared-config").toString()
+        );
+        sharedConfigService.saveLocations(Map.of(
+                "tree", Map.of("БлинБери", Map.of("Корпоративная сеть", Map.of("Москва", List.of("Тверская")))),
+                "statuses", Map.of("open", "Открыта")
+        ));
+        IikoDepartmentLocationCatalogService service = new IikoDepartmentLocationCatalogService(
+                new IikoApiMonitorRepository(null),
+                sharedConfigService,
+                objectMapper,
+                new IikoDepartmentLocationCatalogService.IikoDepartmentGateway() {
+                    @Override
+                    public String requestAccessToken(String baseUrl, String apiLogin) {
+                        throw new UnsupportedOperationException();
+                    }
+
+                    @Override
+                    public List<String> loadOrganizationIds(String baseUrl, String token) {
+                        throw new UnsupportedOperationException();
+                    }
+
+                    @Override
+                    public List<String> loadActiveDepartmentNames(String baseUrl, String token, List<String> organizationIds) {
+                        throw new UnsupportedOperationException();
+                    }
+                }
+        );
+
+        Map<String, Object> payload = service.buildEffectiveLocationsPayload(
+                new IikoDepartmentLocationCatalogService.LocationCatalogSnapshot(
+                        Map.of("БлинБери", Map.of("Корпоративная сеть", Map.of("Смоленск", List.of("Ленина 1")))),
+                        Map.of(),
+                        "iiko_api",
+                        false,
+                        List.of()
+                )
+        );
+
+        assertThat(payload).containsEntry("statuses", Map.of("open", "Открыта"));
+        assertThat(payload).containsKey("city_meta");
+        assertThat(payload).containsKey("location_meta");
+        assertThat(payload.get("city_meta").toString()).contains("Смоленск");
+        assertThat(payload.get("location_meta").toString()).contains("Ленина 1");
+    }
 }

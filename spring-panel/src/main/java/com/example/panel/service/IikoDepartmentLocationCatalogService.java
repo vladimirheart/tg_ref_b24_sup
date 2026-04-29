@@ -37,6 +37,7 @@ public class IikoDepartmentLocationCatalogService {
     private static final Duration HTTP_TIMEOUT = Duration.ofSeconds(15);
     private static final String DEFAULT_SOURCE = "shared_config";
     private static final String LIVE_SOURCE = "iiko_api";
+    private static final String DEFAULT_COUNTRY = "Россия";
     private static final String TYPE_CORPORATE = "Корпоративная сеть";
     private static final String TYPE_FRANCHISE = "Партнёры-франчайзи";
     private static final String BUSINESS_BLINBERI = "БлинБери";
@@ -82,6 +83,11 @@ public class IikoDepartmentLocationCatalogService {
         LocationCatalogSnapshot resolved = loadLiveCatalog(fallback);
         cachedCatalog = new CachedCatalog(resolved, Instant.now());
         return resolved;
+    }
+
+    public Map<String, Object> buildEffectiveLocationsPayload(LocationCatalogSnapshot snapshot) {
+        Map<String, Object> basePayload = loadFallbackPayload();
+        return mergeCatalogIntoPayload(basePayload, snapshot);
     }
 
     LocationCatalogSnapshot buildCatalogFromDepartmentNames(Collection<String> departmentNames,
@@ -138,14 +144,47 @@ public class IikoDepartmentLocationCatalogService {
     }
 
     private LocationCatalogSnapshot loadFallbackCatalog() {
-        JsonNode payload = sharedConfigService.loadLocations();
-        if (payload == null || !payload.isObject()) {
-            return new LocationCatalogSnapshot(Map.of(), Map.of(), DEFAULT_SOURCE, true, List.of());
-        }
-        Map<String, Object> root = objectMapper.convertValue(payload, Map.class);
+        Map<String, Object> root = loadFallbackPayload();
         Map<String, Object> tree = toStringObjectMap(root.get("tree"));
         Map<String, Object> statuses = toStringObjectMap(root.get("statuses"));
         return new LocationCatalogSnapshot(tree, statuses, DEFAULT_SOURCE, true, List.of());
+    }
+
+    private Map<String, Object> loadFallbackPayload() {
+        JsonNode payload = sharedConfigService.loadLocations();
+        if (payload == null || !payload.isObject()) {
+            return new LinkedHashMap<>();
+        }
+        return objectMapper.convertValue(payload, Map.class);
+    }
+
+    Map<String, Object> mergeCatalogIntoPayload(Map<String, Object> basePayload,
+                                                LocationCatalogSnapshot snapshot) {
+        LinkedHashMap<String, Object> merged = new LinkedHashMap<>();
+        if (basePayload != null && !basePayload.isEmpty()) {
+            merged.putAll(basePayload);
+        }
+
+        Map<String, Object> resolvedTree = snapshot != null && !snapshot.tree().isEmpty()
+                ? new LinkedHashMap<>(snapshot.tree())
+                : toStringObjectMap(merged.get("tree"));
+        Map<String, Object> resolvedStatuses = snapshot != null && !snapshot.statuses().isEmpty()
+                ? new LinkedHashMap<>(snapshot.statuses())
+                : toStringObjectMap(merged.get("statuses"));
+
+        merged.put("tree", resolvedTree);
+        merged.put("statuses", resolvedStatuses);
+
+        if (snapshot != null && LIVE_SOURCE.equals(snapshot.source()) && !resolvedTree.isEmpty()) {
+            merged.put("city_meta", mergeGeneratedMeta(
+                    buildCityMetaFromTree(resolvedTree),
+                    merged.get("city_meta")));
+            merged.put("location_meta", mergeGeneratedMeta(
+                    buildLocationMetaFromTree(resolvedTree),
+                    merged.get("location_meta")));
+        }
+
+        return merged;
     }
 
     private Map<String, Object> buildTree(Collection<String> departmentNames, List<String> knownCities) {
@@ -339,6 +378,87 @@ public class IikoDepartmentLocationCatalogService {
 
     private String normalizeText(String value) {
         return StringUtils.hasText(value) ? value.trim() : null;
+    }
+
+    private Map<String, Object> buildCityMetaFromTree(Map<String, Object> tree) {
+        LinkedHashMap<String, Object> result = new LinkedHashMap<>();
+        for (Map.Entry<String, Object> businessEntry : toStringObjectMap(tree).entrySet()) {
+            String business = normalizeText(businessEntry.getKey());
+            Map<String, Object> types = toStringObjectMap(businessEntry.getValue());
+            for (Map.Entry<String, Object> typeEntry : types.entrySet()) {
+                String partnerType = normalizeText(typeEntry.getKey());
+                Map<String, Object> cities = toStringObjectMap(typeEntry.getValue());
+                for (String city : cities.keySet()) {
+                    if (!StringUtils.hasText(business) || !StringUtils.hasText(partnerType) || !StringUtils.hasText(city)) {
+                        continue;
+                    }
+                    result.put(String.join("::", business, partnerType, city), defaultMeta(partnerType));
+                }
+            }
+        }
+        return result;
+    }
+
+    private Map<String, Object> buildLocationMetaFromTree(Map<String, Object> tree) {
+        LinkedHashMap<String, Object> result = new LinkedHashMap<>();
+        for (Map.Entry<String, Object> businessEntry : toStringObjectMap(tree).entrySet()) {
+            String business = normalizeText(businessEntry.getKey());
+            Map<String, Object> types = toStringObjectMap(businessEntry.getValue());
+            for (Map.Entry<String, Object> typeEntry : types.entrySet()) {
+                String partnerType = normalizeText(typeEntry.getKey());
+                Map<String, Object> cities = toStringObjectMap(typeEntry.getValue());
+                for (Map.Entry<String, Object> cityEntry : cities.entrySet()) {
+                    String city = normalizeText(cityEntry.getKey());
+                    for (String location : toStringList(cityEntry.getValue())) {
+                        if (!StringUtils.hasText(business)
+                                || !StringUtils.hasText(partnerType)
+                                || !StringUtils.hasText(city)
+                                || !StringUtils.hasText(location)) {
+                            continue;
+                        }
+                        result.put(String.join("::", business, partnerType, city, location), defaultMeta(partnerType));
+                    }
+                }
+            }
+        }
+        return result;
+    }
+
+    private Map<String, Object> defaultMeta(String partnerType) {
+        LinkedHashMap<String, Object> meta = new LinkedHashMap<>();
+        meta.put("country", DEFAULT_COUNTRY);
+        meta.put("partner_type", StringUtils.hasText(partnerType) ? partnerType : "");
+        return meta;
+    }
+
+    private Map<String, Object> mergeGeneratedMeta(Map<String, Object> generated,
+                                                   Object existingRaw) {
+        LinkedHashMap<String, Object> merged = new LinkedHashMap<>();
+        for (Map.Entry<String, Object> entry : toStringObjectMap(generated).entrySet()) {
+            merged.put(entry.getKey(), new LinkedHashMap<>(toStringObjectMap(entry.getValue())));
+        }
+        for (Map.Entry<String, Object> entry : toStringObjectMap(existingRaw).entrySet()) {
+            LinkedHashMap<String, Object> attrs = new LinkedHashMap<>(toStringObjectMap(merged.get(entry.getKey())));
+            attrs.putAll(toStringObjectMap(entry.getValue()));
+            merged.put(entry.getKey(), attrs);
+        }
+        return merged;
+    }
+
+    private List<String> toStringList(Object rawValue) {
+        if (rawValue instanceof List<?> list) {
+            List<String> result = new ArrayList<>();
+            for (Object item : list) {
+                if (item != null) {
+                    String value = item.toString().trim();
+                    if (!value.isEmpty()) {
+                        result.add(value);
+                    }
+                }
+            }
+            return result;
+        }
+        return List.of();
     }
 
     @SuppressWarnings("unchecked")

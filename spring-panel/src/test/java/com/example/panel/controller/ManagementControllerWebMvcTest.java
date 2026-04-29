@@ -77,14 +77,28 @@ class ManagementControllerWebMvcTest {
         when(appSettingRepository.findAll()).thenReturn(List.of());
         when(settingsParameterRepository.findAll()).thenReturn(List.of());
         when(sharedConfigService.loadSettings()).thenReturn(Map.of());
-        when(sharedConfigService.loadLocations()).thenReturn(null);
-        when(locationCatalogService.loadCatalog()).thenReturn(new IikoDepartmentLocationCatalogService.LocationCatalogSnapshot(Map.of(), Map.of(), "shared_config", true, List.of()));
-        when(settingsCatalogService.collectCities(Map.of())).thenReturn(List.of());
+        IikoDepartmentLocationCatalogService.LocationCatalogSnapshot liveCatalog =
+                new IikoDepartmentLocationCatalogService.LocationCatalogSnapshot(
+                        Map.of("БлинБери", Map.of("Корпоративная сеть", Map.of("Смоленск", List.of("Ленина 1")))),
+                        Map.of(),
+                        "iiko_api",
+                        false,
+                        List.of()
+                );
+        Map<String, Object> effectiveLocationsPayload = Map.of(
+                "tree", liveCatalog.tree(),
+                "statuses", Map.of(),
+                "city_meta", Map.of("БлинБери::Корпоративная сеть::Смоленск", Map.of("country", "Россия", "partner_type", "Корпоративная сеть")),
+                "location_meta", Map.of("БлинБери::Корпоративная сеть::Смоленск::Ленина 1", Map.of("country", "Россия", "partner_type", "Корпоративная сеть"))
+        );
+        when(locationCatalogService.loadCatalog()).thenReturn(liveCatalog);
+        when(locationCatalogService.buildEffectiveLocationsPayload(liveCatalog)).thenReturn(effectiveLocationsPayload);
+        when(settingsCatalogService.collectCities(liveCatalog.tree())).thenReturn(List.of("Смоленск"));
         when(settingsCatalogService.getParameterTypes()).thenReturn(Map.of());
         when(settingsCatalogService.getParameterDependencies()).thenReturn(Map.of());
         when(settingsCatalogService.getItConnectionCategories(Map.of())).thenReturn(Map.of());
         when(settingsCatalogService.getItConnectionCategoryFields()).thenReturn(Map.of());
-        when(settingsCatalogService.buildLocationPresets(Map.of(), Map.of())).thenReturn(Map.of());
+        when(settingsCatalogService.buildLocationPresets(liveCatalog.tree(), Map.of())).thenReturn(Map.of());
         when(permissionService.hasAuthority(any(), any())).thenReturn(false);
 
         mockMvc.perform(get("/settings").with(user("operator").authorities(() -> "PAGE_SETTINGS")))
@@ -93,7 +107,8 @@ class ManagementControllerWebMvcTest {
             .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-preferences.js")))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/theme.js")))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-config.js")))
-            .andExpect(content().string(org.hamcrest.Matchers.containsString("data-ui-page=\"settings\"")));
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("data-ui-page=\"settings\"")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("Смоленск")));
     }
 
     @Test

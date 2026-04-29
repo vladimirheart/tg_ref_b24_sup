@@ -16,6 +16,8 @@ import com.example.supportbot.settings.dto.QuestionFlowItemDto;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -36,6 +38,7 @@ public class MaxWebhookController {
 
     private static final Logger log = LoggerFactory.getLogger(MaxWebhookController.class);
     private static final List<String> CORE_LOCATION_FIELDS = List.of("business", "location_type", "city", "location_name");
+    private static final Duration LOCATION_CACHE_TTL = Duration.ofMinutes(5);
 
     private final MaxBotProperties properties;
     private final ChannelService channelService;
@@ -48,8 +51,10 @@ public class MaxWebhookController {
     private final ObjectMapper objectMapper;
 
     private final Map<Long, ConversationSession> sessions = new ConcurrentHashMap<>();
+    private final Object locationCacheMonitor = new Object();
     private volatile Map<String, Object> cachedLocationTree;
     private volatile Map<String, Object> cachedPresetDefinitions;
+    private volatile Instant locationCacheUpdatedAt;
 
     public MaxWebhookController(MaxBotProperties properties,
                                 ChannelService channelService,
@@ -123,7 +128,7 @@ public class MaxWebhookController {
             return ResponseEntity.ok(Map.of("ok", true));
         }
 
-        if ("/cancel".equalsIgnoreCase(text)) {
+        if (isCancelCommand(text)) {
             sessions.remove(userId);
             messagingService.sendToUser(channel, userId, "Текущая заявка отменена.");
             return ResponseEntity.ok(Map.of("ok", true, "cancelled", true));
@@ -439,32 +444,59 @@ public class MaxWebhookController {
     }
 
     private Map<String, Object> locationTree() {
-        if (cachedLocationTree != null) {
-            return cachedLocationTree;
-        }
-        JsonNode locations = sharedConfigService.loadLocations();
-        if (locations == null || locations.isNull()) {
-            cachedLocationTree = new LinkedHashMap<>();
-            return cachedLocationTree;
-        }
-        JsonNode treeNode = locations.get("tree");
-        Map<String, Object> resolved = objectMapper.convertValue(
-                treeNode != null && !treeNode.isNull() ? treeNode : locations,
-                new TypeReference<>() {
-                }
-        );
-        cachedLocationTree = resolved != null ? resolved : new LinkedHashMap<>();
+        ensureLocationCacheFresh();
         return cachedLocationTree;
     }
 
     private Map<String, Object> presetDefinitions() {
-        if (cachedPresetDefinitions != null) {
-            return cachedPresetDefinitions;
-        }
-        Map<String, Object> baseDefinitions = sharedConfigService.presetDefinitions();
-        Map<String, Object> merged = botSettingsService.buildLocationPresets(locationTree(), baseDefinitions);
-        cachedPresetDefinitions = merged != null ? merged : new LinkedHashMap<>();
+        ensureLocationCacheFresh();
         return cachedPresetDefinitions;
+    }
+
+    private void ensureLocationCacheFresh() {
+        if (isLocationCacheFresh()) {
+            return;
+        }
+        synchronized (locationCacheMonitor) {
+            if (isLocationCacheFresh()) {
+                return;
+            }
+            JsonNode locations = sharedConfigService.loadLocations();
+            Map<String, Object> resolvedTree = new LinkedHashMap<>();
+            if (locations != null && !locations.isNull()) {
+                JsonNode treeNode = locations.get("tree");
+                Map<String, Object> converted = objectMapper.convertValue(
+                        treeNode != null && !treeNode.isNull() ? treeNode : locations,
+                        new TypeReference<>() {
+                        }
+                );
+                if (converted != null) {
+                    resolvedTree = converted;
+                }
+            }
+            Map<String, Object> baseDefinitions = sharedConfigService.presetDefinitions();
+            Map<String, Object> mergedDefinitions = botSettingsService.buildLocationPresets(resolvedTree, baseDefinitions);
+            cachedLocationTree = resolvedTree;
+            cachedPresetDefinitions = mergedDefinitions != null ? mergedDefinitions : new LinkedHashMap<>();
+            locationCacheUpdatedAt = Instant.now();
+        }
+    }
+
+    private boolean isLocationCacheFresh() {
+        return cachedLocationTree != null
+                && cachedPresetDefinitions != null
+                && locationCacheUpdatedAt != null
+                && locationCacheUpdatedAt.plus(LOCATION_CACHE_TTL).isAfter(Instant.now());
+    }
+
+    private boolean isCancelCommand(String text) {
+        if (text == null) {
+            return false;
+        }
+        String normalized = text.trim().toLowerCase(java.util.Locale.ROOT);
+        return "/cancel".equals(normalized)
+                || "cancel".equals(normalized)
+                || "отмена".equals(normalized);
     }
 
     private String extractMessageText(JsonNode message) {
