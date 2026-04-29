@@ -437,6 +437,21 @@ public class RmsLicenseMonitoringService {
         return resolveLicenseQuantity(monitor, kioskConnectorLicenseDescriptor());
     }
 
+    public String resolveServerTypeKey(RmsLicenseMonitor monitor) {
+        return normalizeServerTypeKey(monitor == null ? null : monitor.getServerType());
+    }
+
+    public String resolveServerTypeDisplay(RmsLicenseMonitor monitor) {
+        String normalized = resolveServerTypeKey(monitor);
+        if (StringUtils.hasText(normalized)) {
+            return normalized;
+        }
+        if (monitor == null || !StringUtils.hasText(monitor.getServerType())) {
+            return "";
+        }
+        return monitor.getServerType().trim();
+    }
+
     public String resolveTargetLicenseLabel(RmsLicenseMonitor monitor) {
         return resolvePrimaryLicenseDescriptor(monitor).title();
     }
@@ -2108,11 +2123,34 @@ public class RmsLicenseMonitoringService {
     }
 
     private boolean isIikoChainServer(RmsLicenseMonitor monitor) {
-        return monitor != null && "IIKO_CHAIN".equalsIgnoreCase(StringUtils.trimWhitespace(monitor.getServerType()));
+        return "IIKO_CHAIN".equals(resolveServerTypeKey(monitor));
     }
 
     private boolean isIikoRmsServer(RmsLicenseMonitor monitor) {
-        return monitor != null && "IIKO_RMS".equalsIgnoreCase(StringUtils.trimWhitespace(monitor.getServerType()));
+        return "IIKO_RMS".equals(resolveServerTypeKey(monitor));
+    }
+
+    private String normalizeServerTypeKey(String rawServerType) {
+        if (!StringUtils.hasText(rawServerType)) {
+            return "";
+        }
+        String normalized = rawServerType.trim()
+            .replace('\\', '/')
+            .replace('-', '_')
+            .replace(' ', '_')
+            .toLowerCase(Locale.ROOT);
+        if (normalized.contains("iiko_chain") || normalized.contains("iikochain") || "chain".equals(normalized)) {
+            return "IIKO_CHAIN";
+        }
+        if (normalized.contains("iiko_rms")
+            || normalized.contains("iikorms")
+            || normalized.contains("iiko_office")
+            || normalized.contains("iikooffice")
+            || "office".equals(normalized)
+            || "default".equals(normalized)) {
+            return "IIKO_RMS";
+        }
+        return "";
     }
 
     private OffsetDateTime resolveLicenseExpiration(Map<String, String> targetLicense) {

@@ -97,7 +97,7 @@ public class RmsMonitoringSeedImportService implements ApplicationRunner {
                 monitor.setLicenseMonitoringEnabled(Boolean.TRUE);
                 monitor.setNetworkMonitoringEnabled(Boolean.TRUE);
                 monitor.setServerName(row.name());
-                monitor.setServerType(row.type());
+                monitor.setServerType(normalizeSeedServerType(row.type()));
                 monitor.setServerVersion(null);
                 monitor.setLicenseStatus(RmsLicenseMonitoringService.LICENSE_STATUS_DISABLED);
                 monitor.setLicenseErrorMessage(null);
@@ -181,6 +181,20 @@ public class RmsMonitoringSeedImportService implements ApplicationRunner {
         } catch (NumberFormatException ex) {
             return null;
         }
+    }
+
+    private String normalizeSeedServerType(String rawType) {
+        if (!StringUtils.hasText(rawType)) {
+            return rawType;
+        }
+        String normalized = rawType.trim().toLowerCase(Locale.ROOT);
+        if ("iikochain".equals(normalized)) {
+            return "IIKO_CHAIN";
+        }
+        if ("iikooffice".equals(normalized)) {
+            return "IIKO_RMS";
+        }
+        return rawType.trim();
     }
 
     private String clean(String value) {

@@ -237,6 +237,8 @@ public class RmsLicenseMonitoringApiController {
         dto.put("server_name", item.getServerName());
         dto.put("server_name_display", monitoringService.resolveDisplayServerNameForView(item));
         dto.put("server_type", item.getServerType());
+        dto.put("server_type_key", monitoringService.resolveServerTypeKey(item));
+        dto.put("server_type_display", monitoringService.resolveServerTypeDisplay(item));
         dto.put("server_version", item.getServerVersion());
         dto.put("license_status", item.getLicenseStatus());
         dto.put("license_status_level", monitoringService.resolveLicenseSeverity(item));
