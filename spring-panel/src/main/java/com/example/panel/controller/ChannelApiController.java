@@ -44,6 +44,7 @@ import java.util.UUID;
 public class ChannelApiController {
 
     private static final Logger log = LoggerFactory.getLogger(ChannelApiController.class);
+    private static final Set<String> LOCATION_FIELD_IDS = Set.of("business", "location_type", "city", "location_name");
 
     private final ChannelRepository channelRepository;
     private final ObjectMapper objectMapper;
@@ -955,10 +956,12 @@ public class ChannelApiController {
                         }
                     }
                 }
-                if (options.isEmpty()) {
+                if (options.isEmpty() && !LOCATION_FIELD_IDS.contains(id)) {
                     throw new IllegalArgumentException("Поле «" + id + "» типа select должно содержать хотя бы одну option");
                 }
-                normalized.put("options", options);
+                if (!options.isEmpty()) {
+                    normalized.put("options", options);
+                }
             }
             fields.add(normalized);
         }

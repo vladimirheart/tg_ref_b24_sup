@@ -289,6 +289,49 @@ class PublicFormApiControllerWebMvcTest {
     }
 
     @Test
+    void configReturnsLocationTreesForDependentQuestions() throws Exception {
+        PublicFormConfig enabledConfig = new PublicFormConfig(
+                18L,
+                "web-locations",
+                "Support Form",
+                2,
+                true,
+                false,
+                404,
+                null,
+                null,
+                List.of(
+                        new PublicFormQuestion("business", "Бизнес", "select", 1, Map.of(
+                                "options", List.of("БлинБери", "СушиВёсла")
+                        )),
+                        new PublicFormQuestion("city", "Город", "select", 2, Map.of(
+                                "options", List.of("Москва", "Пенза"),
+                                "tree", Map.of(
+                                        "БлинБери", Map.of(
+                                                "Корпоративная сеть", List.of("Москва"),
+                                                "Партнёры-франчайзи", List.of("Пенза")
+                                        )
+                                ),
+                                "option_dependencies", Map.of(
+                                        "Москва", Map.of("business", List.of("БлинБери"))
+                                )
+                        ))
+                )
+        );
+        when(publicFormService.loadConfigRaw("web-locations")).thenReturn(Optional.of(enabledConfig));
+        when(publicFormService.resolveAnswersPayloadMaxLength()).thenReturn(6000);
+        when(publicFormService.isSessionPollingEnabled()).thenReturn(true);
+        when(publicFormService.resolveSessionPollingIntervalSeconds()).thenReturn(15);
+        when(publicFormService.resolveUiLocale()).thenReturn("ru");
+        when(publicFormService.buildContinuationOptions("web-locations", null)).thenReturn(Map.of("enabled", false));
+
+        mockMvc.perform(get("/api/public/forms/web-locations/config"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.questions[1].tree['БлинБери']['Корпоративная сеть'][0]").value("Москва"))
+                .andExpect(jsonPath("$.questions[1].option_dependencies['Москва'].business[0]").value("БлинБери"));
+    }
+
+    @Test
     void createSessionReturnsServerErrorOnUnexpectedException() throws Exception {
         PublicFormConfig enabledConfig = new PublicFormConfig(
                 12L,

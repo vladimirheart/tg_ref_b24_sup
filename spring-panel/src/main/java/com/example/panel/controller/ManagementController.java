@@ -14,6 +14,7 @@ import com.example.panel.repository.SettingsParameterRepository;
 import com.example.panel.repository.TaskRepository;
 import com.example.panel.service.NavigationService;
 import com.example.panel.service.PermissionService;
+import com.example.panel.service.IikoDepartmentLocationCatalogService;
 import com.example.panel.service.SettingsCatalogService;
 import com.example.panel.service.SharedConfigService;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -45,6 +46,7 @@ public class ManagementController {
     private final ItEquipmentCatalogRepository equipmentRepository;
     private final SharedConfigService sharedConfigService;
     private final SettingsCatalogService settingsCatalogService;
+    private final IikoDepartmentLocationCatalogService locationCatalogService;
     private final PermissionService permissionService;
     private final ObjectMapper objectMapper;
 
@@ -57,6 +59,7 @@ public class ManagementController {
                                 ItEquipmentCatalogRepository equipmentRepository,
                                 SharedConfigService sharedConfigService,
                                 SettingsCatalogService settingsCatalogService,
+                                IikoDepartmentLocationCatalogService locationCatalogService,
                                 PermissionService permissionService,
                                 ObjectMapper objectMapper) {
         this.navigationService = navigationService;
@@ -68,6 +71,7 @@ public class ManagementController {
         this.equipmentRepository = equipmentRepository;
         this.sharedConfigService = sharedConfigService;
         this.settingsCatalogService = settingsCatalogService;
+        this.locationCatalogService = locationCatalogService;
         this.permissionService = permissionService;
         this.objectMapper = objectMapper;
     }
@@ -151,7 +155,10 @@ public class ManagementController {
             model.addAttribute("clientStatusColors", settings.getOrDefault("client_status_colors", Map.of()));
             model.addAttribute("settingsPayload", settings);
             model.addAttribute("locationsPayload", locationsMap);
-            model.addAttribute("cities", settingsCatalogService.collectCities(locationTree));
+            IikoDepartmentLocationCatalogService.LocationCatalogSnapshot effectiveCatalog = locationCatalogService.loadCatalog();
+            Map<String, Object> effectiveLocationTree = effectiveCatalog.tree().isEmpty() ? locationTree : effectiveCatalog.tree();
+            Map<String, Object> effectiveLocationStatuses = effectiveCatalog.statuses();
+            model.addAttribute("cities", settingsCatalogService.collectCities(effectiveLocationTree));
             model.addAttribute("parameterTypes", settingsCatalogService.getParameterTypes());
             model.addAttribute("parameterDependencies", settingsCatalogService.getParameterDependencies());
             model.addAttribute("itConnectionCategories", settingsCatalogService.getItConnectionCategories(settings));
@@ -161,7 +168,10 @@ public class ManagementController {
                 locationStatuses = (Map<String, Object>) statuses;
             }
             model.addAttribute("botQuestionPresets",
-                settingsCatalogService.buildLocationPresets(locationTree, locationStatuses));
+                settingsCatalogService.buildLocationPresets(
+                        effectiveLocationTree,
+                        effectiveLocationStatuses.isEmpty() ? locationStatuses : effectiveLocationStatuses));
+            model.addAttribute("locationsCatalogSource", effectiveCatalog.source());
             model.addAttribute("contractUsage", Map.of());
             model.addAttribute("statusUsage", Map.of());
             model.addAttribute("canPublishDialogMacros",
