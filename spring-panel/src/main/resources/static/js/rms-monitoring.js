@@ -13,6 +13,7 @@
   const createModalEl = document.getElementById('rmsCreateModal');
   const createModal = createModalEl && window.bootstrap ? new bootstrap.Modal(createModalEl) : null;
   const openCreateModalBtn = document.getElementById('openRmsCreateModalBtn');
+  const openExportModalBtn = document.getElementById('openRmsExportModalBtn');
   const createForm = document.getElementById('rmsCreateForm');
   const refreshLicensesBtn = document.getElementById('refreshRmsLicensesBtn');
   const refreshNetworkBtn = document.getElementById('refreshRmsNetworkBtn');
@@ -38,6 +39,13 @@
   const editRmsLicenseMonitoringInput = document.getElementById('editRmsLicenseMonitoringInput');
   const editRmsNetworkMonitoringInput = document.getElementById('editRmsNetworkMonitoringInput');
   const editRmsPasswordHint = document.getElementById('editRmsPasswordHint');
+
+  const exportModalEl = document.getElementById('rmsExportModal');
+  const exportModal = exportModalEl && window.bootstrap ? new bootstrap.Modal(exportModalEl) : null;
+  const exportColumnsEl = document.getElementById('rmsExportColumns');
+  const exportSubmitBtn = document.getElementById('rmsExportSubmitBtn');
+  const exportSelectAllBtn = document.getElementById('rmsExportSelectAllBtn');
+  const exportClearBtn = document.getElementById('rmsExportClearBtn');
 
   const licenseDetailsModalEl = document.getElementById('rmsLicenseDetailsModal');
   const licenseDetailsModal = licenseDetailsModalEl && window.bootstrap ? new bootstrap.Modal(licenseDetailsModalEl) : null;
@@ -78,6 +86,22 @@
     unknown: 3,
     disabled: 4,
   };
+
+  const RMS_EXPORT_COLUMNS = [
+    { key: 'address', label: 'Адрес RMS', selected: true },
+    { key: 'name', label: 'Имя', selected: true },
+    { key: 'server_type', label: 'Тип сервера', selected: true },
+    { key: 'target_license_label', label: 'Целевая лицензия', selected: true },
+    { key: 'target_license_count', label: 'Количество целевой лицензии', selected: true },
+    { key: 'kiosk_connector_license_count', label: 'Количество iikoConnector for Get Kiosk', selected: true },
+    { key: 'license_expires_at', label: 'Дата окончания лицензии', selected: true },
+    { key: 'license_days_left', label: 'Осталось дней', selected: true },
+    { key: 'license_status', label: 'Статус лицензии', selected: true },
+    { key: 'license_error_message', label: 'Комментарий по лицензии', selected: true },
+    { key: 'rms_status', label: 'Статус RMS', selected: true },
+    { key: 'resolved_ip', label: 'IP-адрес', selected: true },
+    { key: 'rms_status_message', label: 'Комментарий по доступности', selected: true },
+  ];
 
   function escapeHtml(value) {
     if (value === null || value === undefined) return '';
@@ -215,6 +239,124 @@
     return String(left).localeCompare(String(right), 'ru', { sensitivity: 'base', numeric: true });
   }
 
+  function parsePositiveNumber(value) {
+    const numeric = Number(value);
+    return Number.isFinite(numeric) && numeric > 0 ? numeric : null;
+  }
+
+  function formatLicenseStatusText(level) {
+    if (level === 'ok') return 'OK';
+    if (level === 'warning') return 'Внимание';
+    if (level === 'critical') return 'Критично';
+    if (level === 'expired') return 'Просрочено';
+    if (level === 'disabled') return 'Отключено';
+    return 'Ошибка';
+  }
+
+  function formatRmsStatusText(level) {
+    if (level === 'up') return 'Доступен';
+    if (level === 'down') return 'Недоступен';
+    if (level === 'disabled') return 'Отключен';
+    return 'Нет данных';
+  }
+
+  function extractResolvedIp(site) {
+    const message = String(site?.rms_status_message || '');
+    const match = message.match(/IP:\s*([0-9a-fA-F:.]+)/i);
+    return match ? match[1] : '';
+  }
+
+  function copyTextToClipboard(value) {
+    const text = String(value || '').trim();
+    if (!text) {
+      showMessage('Адрес RMS пустой, копировать нечего.', 'error');
+      return;
+    }
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text)
+        .then(() => showMessage('Адрес RMS скопирован.', 'success'))
+        .catch(() => fallbackCopyText(text));
+      return;
+    }
+    fallbackCopyText(text);
+  }
+
+  function fallbackCopyText(text) {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', 'readonly');
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    try {
+      document.execCommand('copy');
+      showMessage('Адрес RMS скопирован.', 'success');
+    } catch (error) {
+      void error;
+      showMessage('Не удалось скопировать адрес RMS.', 'error');
+    } finally {
+      document.body.removeChild(textarea);
+    }
+  }
+
+  function exportColumnValue(site, columnKey) {
+    const licenseLevel = normalizeStatus(site.license_status_level || site.license_status);
+    const rmsLevel = normalizeStatus(site.rms_status_level || site.rms_status);
+    const kioskCount = parsePositiveNumber(site.kiosk_connector_license_count);
+    if (columnKey === 'address') return site.rms_address_display || site.rms_address || '';
+    if (columnKey === 'name') return site.server_name_display || site.server_name || '';
+    if (columnKey === 'server_type') return site.server_type_display || site.server_type || '';
+    if (columnKey === 'target_license_label') {
+      const label = site.target_license_label || 'Лицензия';
+      const id = site.target_license_id || '—';
+      return `${label} [id=${id}]`;
+    }
+    if (columnKey === 'target_license_count') return site.target_license_count ?? '';
+    if (columnKey === 'kiosk_connector_license_count') return kioskCount ?? '';
+    if (columnKey === 'license_expires_at') return formatDateOnly(site.license_expires_at);
+    if (columnKey === 'license_days_left') return formatDaysLeft(site.license_days_left);
+    if (columnKey === 'license_status') return formatLicenseStatusText(licenseLevel);
+    if (columnKey === 'license_error_message') return site.license_error_message || '';
+    if (columnKey === 'rms_status') return formatRmsStatusText(rmsLevel);
+    if (columnKey === 'resolved_ip') return extractResolvedIp(site);
+    if (columnKey === 'rms_status_message') return site.rms_status_message || '';
+    return '';
+  }
+
+  function sanitizeExcelValue(value) {
+    if (value === null || value === undefined) return '';
+    return String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function createExcelWorkbookXml(columns, rows) {
+    const headerCells = columns.map((column) => (
+      `<Cell><Data ss:Type="String">${sanitizeExcelValue(column.label)}</Data></Cell>`
+    )).join('');
+    const bodyRows = rows.map((row) => {
+      const cells = columns.map((column) => (
+        `<Cell><Data ss:Type="String">${sanitizeExcelValue(exportColumnValue(row, column.key))}</Data></Cell>`
+      )).join('');
+      return `<Row>${cells}</Row>`;
+    }).join('');
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+  <Worksheet ss:Name="RMS monitoring">
+    <Table>
+      <Row>${headerCells}</Row>
+      ${bodyRows}
+    </Table>
+  </Worksheet>
+</Workbook>`;
+  }
+
   function licenseBadge(level) {
     if (level === 'ok') return '<span class="badge text-bg-success">OK</span>';
     if (level === 'warning') return '<span class="badge text-bg-warning">Внимание</span>';
@@ -295,6 +437,59 @@
         return normalizeStatus(site?.rms_status_level || site?.rms_status) === availabilityFilter;
       })
       .sort(compareSites);
+  }
+
+  function renderExportColumns() {
+    if (!exportColumnsEl) return;
+    exportColumnsEl.innerHTML = RMS_EXPORT_COLUMNS.map((column) => `
+      <div class="col-12 col-sm-6">
+        <label class="form-check border rounded-3 p-3 h-100">
+          <input class="form-check-input me-2" type="checkbox" data-export-column="${escapeHtml(column.key)}" ${column.selected ? 'checked' : ''}>
+          <span class="form-check-label">${escapeHtml(column.label)}</span>
+        </label>
+      </div>
+    `).join('');
+  }
+
+  function setExportColumnsChecked(checked) {
+    exportColumnsEl?.querySelectorAll('[data-export-column]').forEach((input) => {
+      input.checked = checked;
+    });
+  }
+
+  function getSelectedExportColumns() {
+    const selectedKeys = new Set(
+      Array.from(exportColumnsEl?.querySelectorAll('[data-export-column]:checked') || [])
+        .map((input) => String(input.getAttribute('data-export-column') || '').trim())
+        .filter(Boolean),
+    );
+    return RMS_EXPORT_COLUMNS.filter((column) => selectedKeys.has(column.key));
+  }
+
+  function downloadExcelExport() {
+    const columns = getSelectedExportColumns();
+    if (!columns.length) {
+      showMessage('Выберите хотя бы один столбец для выгрузки.', 'error');
+      return;
+    }
+    const rows = getFilteredAndSortedSites();
+    if (!rows.length) {
+      showMessage('Нет записей для выгрузки.', 'error');
+      return;
+    }
+    const xml = createExcelWorkbookXml(columns, rows);
+    const blob = new Blob([xml], { type: 'application/vnd.ms-excel;charset=utf-8' });
+    const date = new Date();
+    const stamp = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}_${String(date.getHours()).padStart(2, '0')}${String(date.getMinutes()).padStart(2, '0')}${String(date.getSeconds()).padStart(2, '0')}`;
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `rms-monitoring-${stamp}.xls`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+    exportModal?.hide();
+    showMessage('Excel-файл подготовлен.', 'success');
   }
 
   function updateSortIndicators() {
@@ -518,13 +713,13 @@
       const rmsStatusTitle = `Последний ping: ${formatDateTime(site.rms_last_checked_at)}`;
       const targetLicenseLabel = site.target_license_label || 'Лицензия';
       const targetLicenseId = site.target_license_id || '—';
-      const kioskCount = site.kiosk_connector_license_count;
+      const kioskCount = parsePositiveNumber(site.kiosk_connector_license_count);
       const licenseSummaryBadges = [
         `<span class="badge text-bg-light border">${escapeHtml(targetLicenseLabel)} [id=${escapeHtml(targetLicenseId)}]: ${escapeHtml(site.target_license_count ?? '—')}</span>`,
       ];
-      if (serverTypeKey === 'IIKO_RMS') {
+      if (serverTypeKey === 'IIKO_RMS' && kioskCount !== null) {
         licenseSummaryBadges.push(
-          `<span class="badge text-bg-light border">iikoConnector for Get Kiosk [id=36073118]: ${escapeHtml(kioskCount ?? '—')}</span>`,
+          `<span class="badge text-bg-light border">iikoConnector for Get Kiosk [id=36073118]: ${escapeHtml(kioskCount)}</span>`,
         );
       }
       row.innerHTML = `
@@ -567,6 +762,8 @@
                 Действия
               </button>
               <ul class="dropdown-menu dropdown-menu-end">
+                <li><button class="dropdown-item" type="button" data-action="copy-address">Копировать адрес RMS</button></li>
+                <li><hr class="dropdown-divider"></li>
                 <li><button class="dropdown-item" type="button" data-action="refresh-license" ${recordEnabled && licenseFeatureEnabled ? '' : 'disabled'}>Обновить лицензию</button></li>
                 <li><button class="dropdown-item" type="button" data-action="view-licenses" ${site.has_license_details ? '' : 'disabled'}>Посмотреть лицензии</button></li>
                 <li><button class="dropdown-item" type="button" data-action="refresh-network" ${recordEnabled && networkFeatureEnabled ? '' : 'disabled'}>Проверить доступность</button></li>
@@ -847,6 +1044,10 @@
     resetCreateForm();
     createModal?.show();
   });
+  openExportModalBtn?.addEventListener('click', () => {
+    renderExportColumns();
+    exportModal?.show();
+  });
 
   tableBody?.addEventListener('click', (event) => {
     const button = event.target.closest('[data-action]');
@@ -856,6 +1057,11 @@
     const siteId = Number(row.dataset.siteId);
     if (!Number.isFinite(siteId)) return;
 
+    if (button.dataset.action === 'copy-address') {
+      const site = findSite(siteId);
+      copyTextToClipboard(site?.rms_address || site?.rms_address_display || '');
+      return;
+    }
     if (button.dataset.action === 'edit') {
       openEditModal(siteId);
       return;
@@ -923,7 +1129,17 @@
   bulkDisableNetworkMonitoringBtn?.addEventListener('click', () => {
     toggleBulkFeature('network', false);
   });
+  exportSelectAllBtn?.addEventListener('click', () => {
+    setExportColumnsChecked(true);
+  });
+  exportClearBtn?.addEventListener('click', () => {
+    setExportColumnsChecked(false);
+  });
+  exportSubmitBtn?.addEventListener('click', () => {
+    downloadExcelExport();
+  });
 
+  renderExportColumns();
   loadSites(true);
   startPolling();
 })();

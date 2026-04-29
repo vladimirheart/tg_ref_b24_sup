@@ -172,6 +172,7 @@
         <div class="d-flex flex-wrap gap-2">
             <a class="btn btn-outline-secondary" th:href="@{/analytics}">Назад в аналитику</a>
             <button class="btn btn-success" id="openRmsCreateModalBtn" type="button">Добавить RMS</button>
+            <button class="btn btn-outline-success" id="openRmsExportModalBtn" type="button">Выгрузить в Excel</button>
             <button class="btn btn-primary" id="refreshRmsLicensesBtn" type="button">Обновить лицензии</button>
             <button class="btn btn-outline-primary" id="refreshRmsNetworkBtn" type="button">Обновить статусы RMS</button>
         </div>
@@ -365,6 +366,29 @@
                 <button class="btn btn-primary" type="submit">Сохранить</button>
             </div>
         </form>
+    </div>
+</div>
+
+<div class="modal fade" id="rmsExportModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Выгрузка RMS в Excel</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-3">В файл попадут текущие видимые записи с учётом фильтра и сортировки на странице.</p>
+                <div class="d-flex gap-2 mb-3">
+                    <button class="btn btn-outline-secondary btn-sm" id="rmsExportSelectAllBtn" type="button">Выбрать все</button>
+                    <button class="btn btn-outline-secondary btn-sm" id="rmsExportClearBtn" type="button">Снять выбор</button>
+                </div>
+                <div class="row g-2" id="rmsExportColumns"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Отмена</button>
+                <button class="btn btn-success" id="rmsExportSubmitBtn" type="button">Скачать Excel</button>
+            </div>
+        </div>
     </div>
 </div>
 
