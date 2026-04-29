@@ -143,34 +143,29 @@ public class ManagementController {
             model.addAttribute("appSettings", appSettings);
             model.addAttribute("systemParameters", systemParameters);
             var settings = sharedConfigService.loadSettings();
-            JsonNode locationsPayload = sharedConfigService.loadLocations();
-            Map<String, Object> locationsMap = locationsPayload != null && locationsPayload.isObject()
-                ? objectMapper.convertValue(locationsPayload, Map.class)
-                : Map.of();
-            Map<String, Object> locationTree = Map.of();
-            if (locationsMap.get("tree") instanceof Map<?, ?> tree) {
-                locationTree = (Map<String, Object>) tree;
-            }
             model.addAttribute("clientStatuses", settings.getOrDefault("client_statuses", List.of()));
             model.addAttribute("clientStatusColors", settings.getOrDefault("client_status_colors", Map.of()));
             model.addAttribute("settingsPayload", settings);
-            model.addAttribute("locationsPayload", locationsMap);
             IikoDepartmentLocationCatalogService.LocationCatalogSnapshot effectiveCatalog = locationCatalogService.loadCatalog();
-            Map<String, Object> effectiveLocationTree = effectiveCatalog.tree().isEmpty() ? locationTree : effectiveCatalog.tree();
-            Map<String, Object> effectiveLocationStatuses = effectiveCatalog.statuses();
+            Map<String, Object> effectiveLocationsPayload = locationCatalogService.buildEffectiveLocationsPayload(effectiveCatalog);
+            Map<String, Object> effectiveLocationTree = Map.of();
+            if (effectiveLocationsPayload.get("tree") instanceof Map<?, ?> tree) {
+                effectiveLocationTree = (Map<String, Object>) tree;
+            }
+            Map<String, Object> effectiveLocationStatuses = Map.of();
+            if (effectiveLocationsPayload.get("statuses") instanceof Map<?, ?> statuses) {
+                effectiveLocationStatuses = (Map<String, Object>) statuses;
+            }
+            model.addAttribute("locationsPayload", effectiveLocationsPayload);
             model.addAttribute("cities", settingsCatalogService.collectCities(effectiveLocationTree));
             model.addAttribute("parameterTypes", settingsCatalogService.getParameterTypes());
             model.addAttribute("parameterDependencies", settingsCatalogService.getParameterDependencies());
             model.addAttribute("itConnectionCategories", settingsCatalogService.getItConnectionCategories(settings));
             model.addAttribute("itConnectionCategoryFields", settingsCatalogService.getItConnectionCategoryFields());
-            Map<String, Object> locationStatuses = Map.of();
-            if (locationsMap.get("statuses") instanceof Map<?, ?> statuses) {
-                locationStatuses = (Map<String, Object>) statuses;
-            }
             model.addAttribute("botQuestionPresets",
                 settingsCatalogService.buildLocationPresets(
                         effectiveLocationTree,
-                        effectiveLocationStatuses.isEmpty() ? locationStatuses : effectiveLocationStatuses));
+                        effectiveLocationStatuses));
             model.addAttribute("locationsCatalogSource", effectiveCatalog.source());
             model.addAttribute("contractUsage", Map.of());
             model.addAttribute("statusUsage", Map.of());
