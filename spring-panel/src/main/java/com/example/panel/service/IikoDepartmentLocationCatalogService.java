@@ -4,7 +4,6 @@ import com.example.panel.entity.IikoApiMonitor;
 import com.example.panel.repository.IikoApiMonitorRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -103,17 +102,17 @@ public class IikoDepartmentLocationCatalogService {
             return fallback;
         }
 
-        Set<String> departmentNames = new LinkedHashSet<>();
+        Set<String> locationNames = new LinkedHashSet<>();
         List<String> warnings = new ArrayList<>();
         for (ApiCredential credential : credentials) {
             try {
                 String token = gateway.requestAccessToken(credential.baseUrl(), credential.apiLogin());
-                List<String> organizationIds = gateway.loadOrganizationIds(credential.baseUrl(), token);
-                if (organizationIds.isEmpty()) {
+                List<String> organizations = gateway.loadActiveOrganizationNames(credential.baseUrl(), token);
+                if (organizations.isEmpty()) {
                     warnings.add("Для " + credential.baseUrl() + " не найдено организаций");
                     continue;
                 }
-                departmentNames.addAll(gateway.loadActiveDepartmentNames(credential.baseUrl(), token, organizationIds));
+                locationNames.addAll(organizations);
             } catch (Exception ex) {
                 String message = "Не удалось загрузить департаменты из iiko " + credential.baseUrl() + ": " + ex.getMessage();
                 warnings.add(message);
@@ -121,11 +120,11 @@ public class IikoDepartmentLocationCatalogService {
             }
         }
 
-        if (departmentNames.isEmpty()) {
+        if (locationNames.isEmpty()) {
             return fallback.withWarnings(warnings);
         }
 
-        Map<String, Object> tree = buildTree(departmentNames, extractKnownCities(fallback.tree()));
+        Map<String, Object> tree = buildTree(locationNames, extractKnownCities(fallback.tree()));
         if (tree.isEmpty()) {
             return fallback.withWarnings(warnings);
         }
@@ -134,13 +133,20 @@ public class IikoDepartmentLocationCatalogService {
 
     private List<ApiCredential> loadCredentials() {
         return monitorRepository.findAllByOrderByMonitorNameAscIdAsc().stream()
-                .filter(monitor -> Boolean.TRUE.equals(monitor.getEnabled()))
+                .filter(this::isLiveLocationSource)
                 .map(monitor -> new ApiCredential(
                         normalizeText(monitor.getBaseUrl()),
                         normalizeText(monitor.getApiLogin())))
                 .filter(credential -> StringUtils.hasText(credential.baseUrl()) && StringUtils.hasText(credential.apiLogin()))
                 .distinct()
                 .toList();
+    }
+
+    private boolean isLiveLocationSource(IikoApiMonitor monitor) {
+        return monitor != null
+                && Boolean.TRUE.equals(monitor.getEnabled())
+                && Boolean.TRUE.equals(monitor.getLocationsSyncEnabled())
+                && "organizations".equalsIgnoreCase(normalizeText(monitor.getRequestType()));
     }
 
     private LocationCatalogSnapshot loadFallbackCatalog() {
@@ -495,9 +501,7 @@ public class IikoDepartmentLocationCatalogService {
     interface IikoDepartmentGateway {
         String requestAccessToken(String baseUrl, String apiLogin) throws Exception;
 
-        List<String> loadOrganizationIds(String baseUrl, String token) throws Exception;
-
-        List<String> loadActiveDepartmentNames(String baseUrl, String token, List<String> organizationIds) throws Exception;
+        List<String> loadActiveOrganizationNames(String baseUrl, String token) throws Exception;
     }
 
     private record CachedCatalog(LocationCatalogSnapshot snapshot, Instant cachedAt) {
@@ -558,48 +562,46 @@ public class IikoDepartmentLocationCatalogService {
         }
 
         @Override
-        public List<String> loadOrganizationIds(String baseUrl, String token) throws Exception {
-            JsonNode response = postJson(baseUrl, "/api/1/organizations", objectMapper.createObjectNode(), token);
-            List<String> organizationIds = new ArrayList<>();
-            for (JsonNode organization : response.path("organizations")) {
-                String id = firstNonBlank(
-                        organization.path("id").asText(null),
-                        organization.path("organizationId").asText(null)
-                );
-                if (StringUtils.hasText(id)) {
-                    organizationIds.add(id.trim());
-                }
-            }
-            return organizationIds.stream().distinct().toList();
-        }
-
-        @Override
-        public List<String> loadActiveDepartmentNames(String baseUrl, String token, List<String> organizationIds) throws Exception {
+        public List<String> loadActiveOrganizationNames(String baseUrl, String token) throws Exception {
             ObjectNode payload = objectMapper.createObjectNode();
-            ArrayNode organizationIdsNode = payload.putArray("organizationIds");
-            for (String organizationId : organizationIds) {
-                if (StringUtils.hasText(organizationId)) {
-                    organizationIdsNode.add(organizationId.trim());
+            payload.put("includeDisabled", false);
+            JsonNode response = postJson(baseUrl, "/api/1/organizations", payload, token);
+            List<String> organizationNames = new ArrayList<>();
+            for (JsonNode organization : response.path("organizations")) {
+                if (!isActiveOrganization(organization)) {
+                    continue;
+                }
+                String name = firstNonBlank(
+                        organization.path("name").asText(null),
+                        organization.path("organizationName").asText(null)
+                );
+                if (StringUtils.hasText(name)) {
+                    organizationNames.add(name.trim());
                 }
             }
-            JsonNode response = postJson(baseUrl, "/api/1/terminal_groups", payload, token);
-            List<String> departmentNames = new ArrayList<>();
-            collectTerminalGroupNames(response.path("terminalGroups"), departmentNames);
-            return departmentNames.stream().distinct().toList();
+            return organizationNames.stream().distinct().toList();
         }
 
-        private void collectTerminalGroupNames(JsonNode wrappersNode, List<String> departmentNames) {
-            if (wrappersNode == null || !wrappersNode.isArray()) {
-                return;
+        private boolean isActiveOrganization(JsonNode organization) {
+            if (organization == null || organization.isMissingNode() || organization.isNull()) {
+                return false;
             }
-            for (JsonNode wrapper : wrappersNode) {
-                for (JsonNode item : wrapper.path("items")) {
-                    String name = firstNonBlank(item.path("name").asText(null));
-                    if (StringUtils.hasText(name)) {
-                        departmentNames.add(name.trim());
-                    }
-                }
+            if (organization.hasNonNull("isActive")) {
+                return organization.path("isActive").asBoolean(false);
             }
+            if (organization.hasNonNull("active")) {
+                return organization.path("active").asBoolean(false);
+            }
+            if (organization.hasNonNull("isDisabled")) {
+                return !organization.path("isDisabled").asBoolean(false);
+            }
+            if (organization.hasNonNull("disabled")) {
+                return !organization.path("disabled").asBoolean(false);
+            }
+            if (organization.hasNonNull("deleted")) {
+                return !organization.path("deleted").asBoolean(false);
+            }
+            return true;
         }
 
         private JsonNode postJson(String baseUrl, String path, JsonNode body, String token) throws Exception {

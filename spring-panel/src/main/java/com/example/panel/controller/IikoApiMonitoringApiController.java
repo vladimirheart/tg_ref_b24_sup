@@ -151,7 +151,8 @@ public class IikoApiMonitoringApiController {
             normalize(payload.apiLogin()),
             normalize(payload.requestType()),
             config,
-            payload.enabled()
+            payload.enabled(),
+            payload.locationsSyncEnabled()
         );
     }
 
@@ -214,6 +215,7 @@ public class IikoApiMonitoringApiController {
         dto.put("return_external_data", config.returnExternalData());
         dto.put("return_size", config.returnSize());
         dto.put("enabled", item.getEnabled());
+        dto.put("locations_sync_enabled", item.getLocationsSyncEnabled());
         dto.put("last_status", item.getLastStatus());
         dto.put("last_status_level", monitoringService.resolveStatus(item));
         dto.put("last_http_status", item.getLastHttpStatus());
@@ -256,7 +258,7 @@ public class IikoApiMonitoringApiController {
             null, null, null, null,
             List.of(), null, List.of(),
             null, null, null, null, null,
-            null, null, List.of(), null, null
+            null, null, List.of(), null, null, null
         );
     }
 
@@ -276,7 +278,8 @@ public class IikoApiMonitoringApiController {
                                   Boolean includeDisabled,
                                   List<String> returnExternalData,
                                   Boolean returnSize,
-                                  Boolean enabled) {
+                                  Boolean enabled,
+                                  Boolean locationsSyncEnabled) {
     }
 
     private record EnabledPayload(Boolean enabled) {
