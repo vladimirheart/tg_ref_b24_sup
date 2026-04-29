@@ -275,7 +275,11 @@
       result = (rmsStatusRank[normalizeStatus(left?.rms_status_level || left?.rms_status)] ?? 99)
         - (rmsStatusRank[normalizeStatus(right?.rms_status_level || right?.rms_status)] ?? 99);
     } else if (key === 'server_type') {
-      result = compareNullable(left?.server_type, right?.server_type, compareStrings);
+      result = compareNullable(
+        left?.server_type_display || left?.server_type,
+        right?.server_type_display || right?.server_type,
+        compareStrings,
+      );
     }
 
     if (result === 0) {
@@ -506,7 +510,8 @@
       const networkFeatureEnabled = Boolean(site.network_monitoring_enabled);
       const row = document.createElement('tr');
       row.dataset.siteId = String(site.id);
-      if (String(site.server_type || '').trim().toUpperCase() === 'IIKO_CHAIN') {
+      const serverTypeKey = String(site.server_type_key || '').trim().toUpperCase();
+      if (serverTypeKey === 'IIKO_CHAIN') {
         row.classList.add('rms-chain-row');
       }
       const licenseStatusTitle = `Последняя проверка лицензии: ${formatDateTime(site.license_last_checked_at || site.updated_at)}`;
@@ -517,9 +522,9 @@
       const licenseSummaryBadges = [
         `<span class="badge text-bg-light border">${escapeHtml(targetLicenseLabel)} [id=${escapeHtml(targetLicenseId)}]: ${escapeHtml(site.target_license_count ?? '—')}</span>`,
       ];
-      if (kioskCount !== null && kioskCount !== undefined && kioskCount !== '') {
+      if (serverTypeKey === 'IIKO_RMS') {
         licenseSummaryBadges.push(
-          `<span class="badge text-bg-light border">iikoConnector for Get Kiosk [id=36073118]: ${escapeHtml(kioskCount)}</span>`,
+          `<span class="badge text-bg-light border">iikoConnector for Get Kiosk [id=36073118]: ${escapeHtml(kioskCount ?? '—')}</span>`,
         );
       }
       row.innerHTML = `
@@ -551,7 +556,7 @@
           ${site.traceroute_summary ? `<div class="small mt-2">${escapeHtml(site.traceroute_summary)}</div>` : ''}
         </td>
         <td>
-          <div>${escapeHtml(site.server_type || '—')}</div>
+          <div>${escapeHtml(site.server_type_display || site.server_type || '—')}</div>
           <div class="small text-muted">${escapeHtml(site.server_version || '')}</div>
         </td>
         <td class="text-end">
