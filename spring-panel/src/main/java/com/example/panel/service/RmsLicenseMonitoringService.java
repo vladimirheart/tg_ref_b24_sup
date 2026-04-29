@@ -81,8 +81,8 @@ public class RmsLicenseMonitoringService {
     public static final String RMS_STATUS_UNKNOWN = "unknown";
     private static final String RMS_TARGET_LICENSE_ID = "100";
     private static final String RMS_TARGET_LICENSE_TITLE = "RMS (Front Fast Food)";
-    private static final String CHAIN_TARGET_LICENSE_ID = "10";
-    private static final String CHAIN_TARGET_LICENSE_TITLE = "FullEdition (Server)";
+    private static final String CHAIN_TARGET_LICENSE_ID = "1300";
+    private static final String CHAIN_TARGET_LICENSE_TITLE = "Chain (Store Connector (1 RMS))";
     private static final String KIOSK_CONNECTOR_LICENSE_ID = "36073118";
     private static final String KIOSK_CONNECTOR_LICENSE_TITLE = "iikoConnector for Get Kiosk (iikoFront)";
     private static final Charset WINDOWS_OEM_CHARSET = Charset.forName("IBM866");
@@ -364,6 +364,26 @@ public class RmsLicenseMonitoringService {
             monitor.getHost(),
             monitor.getLicenseDetailsJson()
         );
+    }
+
+    public String resolveLicenseErrorMessageForView(RmsLicenseMonitor monitor) {
+        if (monitor == null) {
+            return "";
+        }
+        String message = monitor.getLicenseErrorMessage();
+        if (!StringUtils.hasText(message)) {
+            return "";
+        }
+        LicenseDescriptor currentDescriptor = resolvePrimaryLicenseDescriptor(monitor);
+        if (message.contains(currentDescriptor.title()) || message.contains("id=" + currentDescriptor.id())) {
+            return message;
+        }
+        if (message.contains(RMS_TARGET_LICENSE_TITLE)
+            || message.contains("id=" + RMS_TARGET_LICENSE_ID)
+            || message.contains("[" + RMS_TARGET_LICENSE_ID + "]")) {
+            return "Данные лицензии устарели для текущего типа сервера. Запустите обновление лицензий.";
+        }
+        return message;
     }
 
     public RefreshState currentRefreshState() {
@@ -2103,7 +2123,7 @@ public class RmsLicenseMonitoringService {
             return value.contains("rms") && value.contains("front fast food");
         }
         if (CHAIN_TARGET_LICENSE_ID.equals(descriptor.id())) {
-            return value.contains("fulledition") && value.contains("server");
+            return value.contains("chain") && value.contains("store connector");
         }
         if (KIOSK_CONNECTOR_LICENSE_ID.equals(descriptor.id())) {
             return value.contains("iikoconnector") && value.contains("kiosk");

@@ -242,7 +242,7 @@ public class RmsLicenseMonitoringApiController {
         dto.put("server_version", item.getServerVersion());
         dto.put("license_status", item.getLicenseStatus());
         dto.put("license_status_level", monitoringService.resolveLicenseSeverity(item));
-        dto.put("license_error_message", item.getLicenseErrorMessage());
+        dto.put("license_error_message", monitoringService.resolveLicenseErrorMessageForView(item));
         dto.put("license_expires_at", item.getLicenseExpiresAt());
         dto.put("license_days_left", item.getLicenseDaysLeft());
         dto.put("target_license_id", monitoringService.resolveTargetLicenseId(item));
