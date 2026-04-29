@@ -48,6 +48,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.HexFormat;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -71,6 +72,7 @@ public class PublicFormService {
     private static final double DEFAULT_ALERT_CAPTCHA_FAILURE_RATE = 0.20d;
     private static final double DEFAULT_ALERT_RATE_LIMIT_REJECTION_RATE = 0.20d;
     private static final double DEFAULT_ALERT_SESSION_LOOKUP_MISS_RATE = 0.30d;
+    private static final Set<String> LOCATION_FIELD_IDS = Set.of("business", "location_type", "city", "location_name");
 
     private final ChannelRepository channelRepository;
     private final WebFormSessionRepository sessionRepository;
@@ -80,6 +82,8 @@ public class PublicFormService {
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
     private final SharedConfigService sharedConfigService;
+    private final SettingsCatalogService settingsCatalogService;
+    private final IikoDepartmentLocationCatalogService locationCatalogService;
     private final DialogAuditService dialogAuditService;
     private final AlertQueueService alertQueueService;
     private final Map<String, Deque<Long>> rateLimitBuckets = new ConcurrentHashMap<>();
@@ -96,6 +100,8 @@ public class PublicFormService {
                              JdbcTemplate jdbcTemplate,
                              ObjectMapper objectMapper,
                              SharedConfigService sharedConfigService,
+                             SettingsCatalogService settingsCatalogService,
+                             IikoDepartmentLocationCatalogService locationCatalogService,
                              DialogAuditService dialogAuditService,
                              AlertQueueService alertQueueService) {
         this.channelRepository = channelRepository;
@@ -106,6 +112,8 @@ public class PublicFormService {
         this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper;
         this.sharedConfigService = sharedConfigService;
+        this.settingsCatalogService = settingsCatalogService;
+        this.locationCatalogService = locationCatalogService;
         this.dialogAuditService = dialogAuditService;
         this.alertQueueService = alertQueueService;
     }
@@ -574,11 +582,11 @@ public class PublicFormService {
             if (value.length() > maxQuestionLength) {
                 throw new IllegalArgumentException("Поле «" + questionLabel(question) + "» превышает лимит " + maxQuestionLength + " символов");
             }
-            validateByType(question, value);
+            validateByType(question, value, answers);
         }
     }
 
-    private void validateByType(PublicFormQuestion question, String value) {
+    private void validateByType(PublicFormQuestion question, String value, Map<String, String> answers) {
         String type = Optional.ofNullable(question.type()).orElse("text").toLowerCase(Locale.ROOT);
         if ("checkbox".equals(type)) {
             if (!"true".equalsIgnoreCase(value) && !"false".equalsIgnoreCase(value) && !"1".equals(value) && !"0".equals(value)) {
@@ -596,9 +604,13 @@ public class PublicFormService {
             throw new IllegalArgumentException("Поле «" + questionLabel(question) + "» должно содержать корректный телефон");
         }
         if ("select".equals(type)) {
-            List<String> options = metadataStringList(question, "options");
+            List<String> options = resolveSelectOptions(question, answers);
             boolean allowCustom = metadataBoolean(question, "allowCustom", false);
-            if (!allowCustom && !options.isEmpty() && options.stream().noneMatch(value::equalsIgnoreCase)) {
+            boolean validOption = options.stream().anyMatch(value::equalsIgnoreCase);
+            boolean rejectValue = LOCATION_FIELD_IDS.contains(question.id())
+                    ? !validOption
+                    : !options.isEmpty() && !validOption;
+            if (!allowCustom && rejectValue) {
                 throw new IllegalArgumentException("Поле «" + questionLabel(question) + "» содержит недопустимое значение");
             }
         }
@@ -787,11 +799,73 @@ public class PublicFormService {
         if (settings.fields().isEmpty()) {
             return List.of();
         }
+        Map<String, Map<String, Object>> locationFields = loadLocationPresetFields();
         AtomicInteger index = new AtomicInteger(0);
         return settings.fields().stream()
                 .map(entry -> normalizeQuestion(entry, index.incrementAndGet()))
+                .map(question -> enrichLocationQuestion(question, locationFields))
                 .sorted((a, b) -> Integer.compare(Optional.ofNullable(a.order()).orElse(0), Optional.ofNullable(b.order()).orElse(0)))
                 .toList();
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Map<String, Object>> loadLocationPresetFields() {
+        try {
+            IikoDepartmentLocationCatalogService.LocationCatalogSnapshot catalog = locationCatalogService.loadCatalog();
+            Map<String, Object> presets = settingsCatalogService.buildLocationPresets(catalog.tree(), catalog.statuses());
+            Object locationsGroup = presets.get("locations");
+            if (!(locationsGroup instanceof Map<?, ?> groupMap)) {
+                return Map.of();
+            }
+            Object fieldsRaw = groupMap.get("fields");
+            if (!(fieldsRaw instanceof Map<?, ?> fieldsMap)) {
+                return Map.of();
+            }
+            LinkedHashMap<String, Map<String, Object>> result = new LinkedHashMap<>();
+            fieldsMap.forEach((key, value) -> {
+                if (key != null && value instanceof Map<?, ?> fieldMap) {
+                    LinkedHashMap<String, Object> metadata = new LinkedHashMap<>();
+                    fieldMap.forEach((metaKey, metaValue) -> {
+                        if (metaKey != null) {
+                            metadata.put(String.valueOf(metaKey), metaValue);
+                        }
+                    });
+                    result.put(String.valueOf(key), metadata);
+                }
+            });
+            return result;
+        } catch (Exception ex) {
+            log.warn("Failed to load location presets for public form: {}", ex.getMessage());
+            return Map.of();
+        }
+    }
+
+    private PublicFormQuestion enrichLocationQuestion(PublicFormQuestion question, Map<String, Map<String, Object>> locationFields) {
+        if (question == null || !LOCATION_FIELD_IDS.contains(question.id())) {
+            return question;
+        }
+        Map<String, Object> presetMetadata = locationFields.get(question.id());
+        if (presetMetadata == null || presetMetadata.isEmpty()) {
+            return question;
+        }
+        LinkedHashMap<String, Object> metadata = new LinkedHashMap<>(Optional.ofNullable(question.metadata()).orElse(Map.of()));
+        if (presetMetadata.containsKey("options")) {
+            metadata.put("options", presetMetadata.get("options"));
+        }
+        if (presetMetadata.containsKey("tree")) {
+            metadata.put("tree", presetMetadata.get("tree"));
+        } else {
+            metadata.remove("tree");
+        }
+        if (presetMetadata.containsKey("option_dependencies")) {
+            metadata.put("option_dependencies", presetMetadata.get("option_dependencies"));
+        } else {
+            metadata.remove("option_dependencies");
+        }
+        if (!metadata.containsKey("placeholder")) {
+            metadata.put("placeholder", "Выберите вариант");
+        }
+        return new PublicFormQuestion(question.id(), question.text(), "select", question.order(), metadata);
     }
 
     private ParsedPublicFormSettings parseSettings(Channel channel) {
@@ -975,6 +1049,92 @@ public class PublicFormService {
                 .filter(entry -> !List.of("id", "text", "type", "order").contains(entry.getKey()))
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> b, LinkedHashMap::new));
         return new PublicFormQuestion(id, text, type, order, metadata);
+    }
+
+    private List<String> resolveSelectOptions(PublicFormQuestion question, Map<String, String> answers) {
+        List<String> flatOptions = metadataStringList(question, "options");
+        if (question == null || !LOCATION_FIELD_IDS.contains(question.id())) {
+            return flatOptions;
+        }
+        Map<String, Object> tree = metadataMap(question, "tree");
+        if (tree.isEmpty()) {
+            return flatOptions;
+        }
+        return switch (question.id()) {
+            case "business" -> flatOptions;
+            case "location_type" -> {
+                String business = answers.get("business");
+                yield toStringList(findNestedValue(tree, business));
+            }
+            case "city" -> {
+                String business = answers.get("business");
+                String locationType = answers.get("location_type");
+                Map<String, Object> businessNode = toStringObjectMap(findNestedValue(tree, business));
+                yield toStringList(findNestedValue(businessNode, locationType));
+            }
+            case "location_name" -> {
+                String business = answers.get("business");
+                String locationType = answers.get("location_type");
+                String city = answers.get("city");
+                Map<String, Object> businessNode = toStringObjectMap(findNestedValue(tree, business));
+                Map<String, Object> typeNode = toStringObjectMap(findNestedValue(businessNode, locationType));
+                yield toStringList(findNestedValue(typeNode, city));
+            }
+            default -> flatOptions;
+        };
+    }
+
+    private Object findNestedValue(Map<String, Object> source, String key) {
+        if (source == null || source.isEmpty() || !StringUtils.hasText(key)) {
+            return null;
+        }
+        for (Map.Entry<String, Object> entry : source.entrySet()) {
+            if (entry.getKey().equalsIgnoreCase(key.trim())) {
+                return entry.getValue();
+            }
+        }
+        return null;
+    }
+
+    private Map<String, Object> metadataMap(PublicFormQuestion question, String key) {
+        if (question == null || question.metadata() == null) {
+            return Map.of();
+        }
+        return toStringObjectMap(question.metadata().get(key));
+    }
+
+    private Map<String, Object> toStringObjectMap(Object rawValue) {
+        if (rawValue instanceof Map<?, ?> rawMap) {
+            LinkedHashMap<String, Object> result = new LinkedHashMap<>();
+            rawMap.forEach((key, value) -> {
+                if (key != null) {
+                    result.put(String.valueOf(key), value);
+                }
+            });
+            return result;
+        }
+        return Map.of();
+    }
+
+    private List<String> toStringList(Object rawValue) {
+        if (rawValue instanceof List<?> list) {
+            return list.stream()
+                    .map(String::valueOf)
+                    .map(String::trim)
+                    .filter(StringUtils::hasText)
+                    .toList();
+        }
+        if (rawValue instanceof Iterable<?> iterable) {
+            List<String> result = new java.util.ArrayList<>();
+            for (Object item : iterable) {
+                String value = item != null ? item.toString().trim() : "";
+                if (StringUtils.hasText(value)) {
+                    result.add(value);
+                }
+            }
+            return result;
+        }
+        return List.of();
     }
 
     private Map<String, String> sanitizeAnswers(Map<String, String> source, boolean stripHtmlTags) {

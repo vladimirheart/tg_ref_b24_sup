@@ -30,6 +30,8 @@
     let successInstruction = '';
     let responseEtaMinutes = null;
     let continuationConfig = null;
+    const LOCATION_FIELD_IDS = new Set(['business', 'location_type', 'city', 'location_name']);
+    const LOCATION_FIELD_ORDER = ['business', 'location_type', 'city', 'location_name'];
 
     let uiLocale = 'auto';
 
@@ -285,12 +287,138 @@
             type: (question.type || 'text').toLowerCase(),
             required: Boolean(question.required),
             placeholder: question.placeholder || '',
-            options: Array.isArray(question.options) ? question.options : [],
+            options: normalizeStringList(question.options),
             rows: Number(question.rows || 3),
             minLength: Number(question.minLength || 0),
             maxLength: Number(question.maxLength || 500),
             helpText: question.helpText || question.help_text || '',
+            optionDependencies: normalizeObject(question.option_dependencies || question.optionDependencies),
+            tree: normalizeObject(question.tree),
         };
+    }
+
+    function normalizeStringList(value) {
+        if (!Array.isArray(value)) {
+            return [];
+        }
+        return value
+            .map(item => String(item ?? '').trim())
+            .filter(Boolean);
+    }
+
+    function normalizeObject(value) {
+        return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+    }
+
+    function isLocationQuestion(questionId) {
+        return LOCATION_FIELD_IDS.has(String(questionId || '').trim());
+    }
+
+    function getQuestionById(questionId) {
+        return activeQuestions.find(question => question.id === questionId) || null;
+    }
+
+    function getQuestionControl(questionId) {
+        return dynamicQuestionsContainer.querySelector(`[data-question-id="${questionId}"]`);
+    }
+
+    function findValueIgnoreCase(source, key) {
+        if (!source || typeof source !== 'object' || Array.isArray(source) || !key) {
+            return undefined;
+        }
+        const normalizedKey = String(key).trim().toLowerCase();
+        for (const [entryKey, entryValue] of Object.entries(source)) {
+            if (String(entryKey).trim().toLowerCase() === normalizedKey) {
+                return entryValue;
+            }
+        }
+        return undefined;
+    }
+
+    function resolveQuestionOptions(question, answers = {}) {
+        const flatOptions = normalizeStringList(question?.options);
+        if (!question || !isLocationQuestion(question.id)) {
+            return flatOptions;
+        }
+        const tree = normalizeObject(question.tree);
+        if (Object.keys(tree).length === 0) {
+            return flatOptions;
+        }
+        switch (question.id) {
+            case 'business':
+                return flatOptions;
+            case 'location_type':
+                return normalizeStringList(findValueIgnoreCase(tree, answers.business));
+            case 'city': {
+                const businessNode = normalizeObject(findValueIgnoreCase(tree, answers.business));
+                return normalizeStringList(findValueIgnoreCase(businessNode, answers.location_type));
+            }
+            case 'location_name': {
+                const businessNode = normalizeObject(findValueIgnoreCase(tree, answers.business));
+                const typeNode = normalizeObject(findValueIgnoreCase(businessNode, answers.location_type));
+                return normalizeStringList(findValueIgnoreCase(typeNode, answers.city));
+            }
+            default:
+                return flatOptions;
+        }
+    }
+
+    function readCurrentAnswersFromControls() {
+        const answers = {};
+        activeQuestions.forEach(question => {
+            const control = getQuestionControl(question.id);
+            if (!control) {
+                return;
+            }
+            if (question.type === 'checkbox') {
+                answers[question.id] = control.checked ? 'true' : 'false';
+                return;
+            }
+            if (question.type === 'file') {
+                return;
+            }
+            const value = String(control.value || '').trim();
+            if (value) {
+                answers[question.id] = value;
+            }
+        });
+        return answers;
+    }
+
+    function rebuildSelectOptions(control, options, placeholder, selectedValue) {
+        const normalizedOptions = normalizeStringList(options);
+        const nextValue = normalizedOptions.includes(selectedValue) ? selectedValue : '';
+        control.innerHTML = '';
+        const placeholderOption = document.createElement('option');
+        placeholderOption.value = '';
+        placeholderOption.textContent = placeholder || t('selectPlaceholder');
+        control.appendChild(placeholderOption);
+        normalizedOptions.forEach(optionValue => {
+            const option = document.createElement('option');
+            option.value = optionValue;
+            option.textContent = optionValue;
+            control.appendChild(option);
+        });
+        control.value = nextValue;
+    }
+
+    function syncLocationQuestionControls() {
+        const answers = readCurrentAnswersFromControls();
+        LOCATION_FIELD_ORDER.forEach(questionId => {
+            const question = getQuestionById(questionId);
+            const control = getQuestionControl(questionId);
+            if (!question || !control || question.type !== 'select') {
+                return;
+            }
+            const selectedValue = String(control.value || '').trim();
+            const options = resolveQuestionOptions(question, answers);
+            rebuildSelectOptions(control, options, question.placeholder || t('selectPlaceholder'), selectedValue);
+            if (control.value) {
+                answers[questionId] = control.value;
+            } else {
+                delete answers[questionId];
+            }
+        });
     }
 
     function makeQuestionControl(question) {
@@ -354,6 +482,9 @@
             const control = makeQuestionControl(question);
             control.name = `answer_${question.id}`;
             control.dataset.questionId = question.id;
+            if (isLocationQuestion(question.id) && question.type === 'select') {
+                control.addEventListener('change', () => syncLocationQuestionControls());
+            }
 
             if (question.type === 'checkbox') {
                 const checkboxWrap = document.createElement('div');
@@ -397,6 +528,8 @@
 
             dynamicQuestionsContainer.appendChild(wrapper);
         });
+
+        syncLocationQuestionControls();
     }
 
     function buildAnswers(formData) {
@@ -453,8 +586,13 @@
             if (question.type === 'phone' && !/^[+]?[-()\s0-9]{6,20}$/.test(value)) {
                 return t('invalidPhone', { field: question.text });
             }
-            if (question.type === 'select' && question.options.length > 0 && !question.options.includes(value)) {
-                return t('invalidOption', { field: question.text });
+            if (question.type === 'select') {
+                const options = resolveQuestionOptions(question, answers);
+                const invalidLocationValue = isLocationQuestion(question.id) && !options.includes(value);
+                const invalidStaticValue = !isLocationQuestion(question.id) && options.length > 0 && !options.includes(value);
+                if (invalidLocationValue || invalidStaticValue) {
+                    return t('invalidOption', { field: question.text });
+                }
             }
             if (question.minLength > 0 && value.length < question.minLength) {
                 return t('minLength', { field: question.text, min: question.minLength });
