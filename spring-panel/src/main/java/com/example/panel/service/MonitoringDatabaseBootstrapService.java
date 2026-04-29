@@ -161,6 +161,7 @@ public class MonitoringDatabaseBootstrapService implements ApplicationRunner {
                 request_type TEXT NOT NULL,
                 request_config_json TEXT,
                 enabled INTEGER NOT NULL DEFAULT 1,
+                locations_sync_enabled INTEGER NOT NULL DEFAULT 0,
                 last_status TEXT,
                 last_http_status INTEGER,
                 last_error_message TEXT,
@@ -191,6 +192,11 @@ public class MonitoringDatabaseBootstrapService implements ApplicationRunner {
             "iiko_api_monitors",
             "last_response_summary_json",
             "ALTER TABLE iiko_api_monitors ADD COLUMN last_response_summary_json TEXT"
+        );
+        ensureColumn(
+            "iiko_api_monitors",
+            "locations_sync_enabled",
+            "ALTER TABLE iiko_api_monitors ADD COLUMN locations_sync_enabled INTEGER NOT NULL DEFAULT 0"
         );
 
         monitoringJdbcTemplate.execute("""

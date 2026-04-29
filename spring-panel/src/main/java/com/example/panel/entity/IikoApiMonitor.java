@@ -37,6 +37,9 @@ public class IikoApiMonitor {
     @Column(name = "enabled", nullable = false)
     private Boolean enabled;
 
+    @Column(name = "locations_sync_enabled", nullable = false)
+    private Boolean locationsSyncEnabled;
+
     @Column(name = "last_status")
     private String lastStatus;
 
@@ -128,6 +131,14 @@ public class IikoApiMonitor {
 
     public void setEnabled(Boolean enabled) {
         this.enabled = enabled;
+    }
+
+    public Boolean getLocationsSyncEnabled() {
+        return locationsSyncEnabled;
+    }
+
+    public void setLocationsSyncEnabled(Boolean locationsSyncEnabled) {
+        this.locationsSyncEnabled = locationsSyncEnabled;
     }
 
     public String getLastStatus() {

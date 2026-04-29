@@ -9,6 +9,7 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -28,6 +29,7 @@ public class IikoApiMonitorRepository {
         item.setRequestType(rs.getString("request_type"));
         item.setRequestConfigJson(rs.getString("request_config_json"));
         item.setEnabled(rs.getInt("enabled") != 0);
+        item.setLocationsSyncEnabled(readBooleanColumn(rs, "locations_sync_enabled", false));
         item.setLastStatus(rs.getString("last_status"));
         Object lastHttpStatus = rs.getObject("last_http_status");
         item.setLastHttpStatus(lastHttpStatus == null ? null : rs.getInt("last_http_status"));
@@ -102,10 +104,10 @@ public class IikoApiMonitorRepository {
                 """
                 INSERT INTO iiko_api_monitors (
                     monitor_name, base_url, api_login, request_type, request_config_json,
-                    enabled, last_status, last_http_status, last_error_message, last_duration_ms,
+                    enabled, locations_sync_enabled, last_status, last_http_status, last_error_message, last_duration_ms,
                     last_checked_at, last_token_checked_at, last_response_excerpt, last_response_summary_json,
                     consecutive_failures, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """
             );
             bindCommon(ps, item);
@@ -128,6 +130,7 @@ public class IikoApiMonitorRepository {
                    request_type = ?,
                    request_config_json = ?,
                    enabled = ?,
+                   locations_sync_enabled = ?,
                    last_status = ?,
                    last_http_status = ?,
                    last_error_message = ?,
@@ -147,6 +150,7 @@ public class IikoApiMonitorRepository {
             item.getRequestType(),
             item.getRequestConfigJson(),
             toInt(item.getEnabled()),
+            toInt(item.getLocationsSyncEnabled()),
             item.getLastStatus(),
             item.getLastHttpStatus(),
             item.getLastErrorMessage(),
@@ -169,17 +173,18 @@ public class IikoApiMonitorRepository {
         ps.setString(4, item.getRequestType());
         ps.setString(5, item.getRequestConfigJson());
         ps.setInt(6, toInt(item.getEnabled()));
-        ps.setString(7, item.getLastStatus());
-        ps.setObject(8, item.getLastHttpStatus());
-        ps.setString(9, item.getLastErrorMessage());
-        ps.setObject(10, item.getLastDurationMs());
-        ps.setString(11, formatOffsetDateTime(item.getLastCheckedAt()));
-        ps.setString(12, formatOffsetDateTime(item.getLastTokenCheckedAt()));
-        ps.setString(13, item.getLastResponseExcerpt());
-        ps.setString(14, item.getLastResponseSummaryJson());
-        ps.setInt(15, item.getConsecutiveFailures() == null ? 0 : item.getConsecutiveFailures());
-        ps.setString(16, formatOffsetDateTime(item.getCreatedAt()));
-        ps.setString(17, formatOffsetDateTime(item.getUpdatedAt()));
+        ps.setInt(7, toInt(item.getLocationsSyncEnabled()));
+        ps.setString(8, item.getLastStatus());
+        ps.setObject(9, item.getLastHttpStatus());
+        ps.setString(10, item.getLastErrorMessage());
+        ps.setObject(11, item.getLastDurationMs());
+        ps.setString(12, formatOffsetDateTime(item.getLastCheckedAt()));
+        ps.setString(13, formatOffsetDateTime(item.getLastTokenCheckedAt()));
+        ps.setString(14, item.getLastResponseExcerpt());
+        ps.setString(15, item.getLastResponseSummaryJson());
+        ps.setInt(16, item.getConsecutiveFailures() == null ? 0 : item.getConsecutiveFailures());
+        ps.setString(17, formatOffsetDateTime(item.getCreatedAt()));
+        ps.setString(18, formatOffsetDateTime(item.getUpdatedAt()));
     }
 
     private static int toInt(Boolean value) {
@@ -192,5 +197,13 @@ public class IikoApiMonitorRepository {
 
     private static OffsetDateTime parseOffsetDateTime(String value) {
         return DATE_TIME_CONVERTER.convertToEntityAttribute(value);
+    }
+
+    private static boolean readBooleanColumn(ResultSet rs, String columnName, boolean defaultValue) {
+        try {
+            return rs.getInt(columnName) != 0;
+        } catch (Exception ignored) {
+            return defaultValue;
+        }
     }
 }

@@ -100,6 +100,7 @@ public class IikoApiMonitoringService {
         monitor.setRequestType(normalizedDraft.requestType());
         monitor.setRequestConfigJson(writeConfig(normalizedDraft.config()));
         monitor.setEnabled(normalizedDraft.enabled() == null || normalizedDraft.enabled());
+        monitor.setLocationsSyncEnabled(Boolean.TRUE.equals(normalizedDraft.locationsSyncEnabled()));
         monitor.setLastStatus(Boolean.TRUE.equals(monitor.getEnabled()) ? STATUS_ERROR : STATUS_DISABLED);
         monitor.setLastErrorMessage(Boolean.TRUE.equals(monitor.getEnabled()) ? "Ожидает первой проверки" : "Мониторинг отключён");
         monitor.setConsecutiveFailures(0);
@@ -123,6 +124,7 @@ public class IikoApiMonitoringService {
         monitor.setRequestType(normalizedDraft.requestType());
         monitor.setRequestConfigJson(writeConfig(normalizedDraft.config()));
         monitor.setEnabled(normalizedDraft.enabled() == null || normalizedDraft.enabled());
+        monitor.setLocationsSyncEnabled(Boolean.TRUE.equals(normalizedDraft.locationsSyncEnabled()));
         monitor.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
         repository.save(monitor);
 
@@ -666,7 +668,18 @@ public class IikoApiMonitoringService {
         RequestType requestType = requestTypeFromInput(draft.requestType());
         MonitorConfig config = sanitizeConfig(draft.config());
         validateConfig(requestType, config);
-        return new MonitorDraft(monitorName, baseUrl, apiLogin, requestType.code(), config, draft.enabled());
+        if (Boolean.TRUE.equals(draft.locationsSyncEnabled()) && requestType != RequestType.ORGANIZATIONS) {
+            throw new IllegalArgumentException("Источник структуры локаций можно включить только для organizations");
+        }
+        return new MonitorDraft(
+            monitorName,
+            baseUrl,
+            apiLogin,
+            requestType.code(),
+            config,
+            draft.enabled(),
+            Boolean.TRUE.equals(draft.locationsSyncEnabled())
+        );
     }
 
     private void validateConfig(RequestType requestType, MonitorConfig config) {
@@ -944,7 +957,8 @@ public class IikoApiMonitoringService {
                                String apiLogin,
                                String requestType,
                                MonitorConfig config,
-                               Boolean enabled) {
+                               Boolean enabled,
+                               Boolean locationsSyncEnabled) {
     }
 
     public record MonitorConfig(List<String> organizationIds,
