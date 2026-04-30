@@ -1,7 +1,7 @@
 # Architecture And UI Refactoring Roadmap
 
 Дата старта: `2026-04-15`
-Обновлено: `2026-04-23`
+Обновлено: `2026-04-30`
 
 ## Цель
 
@@ -248,18 +248,34 @@
   contract не сломался и после этого выноса;
   сам `DialogService` после этого прохода сжался уже примерно до
   `902` строк.
+- следующим ещё более широким `Phase 3` пакетом из `DialogService`
+  удалён уже мёртвый private legacy/support слой, который целиком
+  дублировался в `DialogLookupReadService` и `DialogResponsibilityService`:
+  старые `loadDialogsLegacy/findDialogLegacy`, responsible-profile
+  enrichment helper’ы, users-table inspection и legacy responsibility
+  private methods больше не живут в самом фасаде;
+  после этого `DialogService` сжался уже примерно до `275` строк и
+  стал реально thin orchestration facade.
+- следующим пакетом фокус уже смещён в `DialogWorkspaceService`:
+  request-contract normalization и final payload assembly вынесены в
+  `DialogWorkspaceRequestContractService` и
+  `DialogWorkspacePayloadAssemblerService`, а из
+  `DialogWorkspaceService` удалены локальные include/limit/cursor/config
+  helper'ы и финальный payload-builder; после этого `workspace`-сервис
+  сжался примерно до `327` строк и стал ближе к thin orchestration слою.
 
 Что остаётся:
 
-- service-level split `DialogService` на list/workspace/history/SLA/AI и related
-  mapping layers;
-- продолжить вытаскивать из `DialogService` remaining read/write bounded
-  contexts уже поверх вынесенного `DialogClientContextReadService`;
-- продолжить ужимать compatibility/orchestration слой giant service уже
-  после вынесенных telemetry analytics, external KPI, rollout assessment
-  и rollout governance slices:
-  главный следующий кандидат теперь reply-write / escalation / notifier /
-  remaining mapper bounded contexts;
+- `DialogService` уже доведён до thin orchestration facade; главный
+  `Phase 3` фокус теперь смещается в remaining notifier/reply compatibility
+  tails и в `DialogWorkspaceService`, чтобы orchestration-risk не просто
+  переехал из одного класса в другой;
+- `DialogWorkspaceService` уже резко сужен, поэтому следующий пакет стоит
+  брать не по generic helper'ам, а по оставшимся bounded contexts:
+  reply/message write-side, notifier/escalation и remaining mapper/assembly
+  tails вокруг workspace consumers;
+- главный следующий кандидат теперь reply-write / escalation / notifier
+  bounded contexts и их прямые consumers вокруг `DialogWorkspaceService`;
 - продолжить снимать remaining consumer-facades вокруг notifier / telemetry /
   escalation слоёв там, где giant service ещё остаётся техническим посредником;
 - продолжить service-level split уже поверх вынесенных `DialogClientContextReadService`
@@ -314,6 +330,12 @@
   разгружен через `SettingsDialogTemplateConfigService` и
   `SettingsDialogRuntimeConfigService`, так что template/macro governance и
   базовые runtime-настройки больше не живут в одном giant update-method.
+- продолжено: `SettingsApiController` тоже переведён на более узкий
+  subdomain baseline — `client statuses` вынесены в
+  `SettingsClientStatusService`, `it connection categories` — в
+  `SettingsItConnectionCategoryService`, а `integration network probe` — в
+  `SettingsIntegrationNetworkProbeService`; поверх этого добавлен отдельный
+  `SettingsApiControllerWebMvcTest` и targeted unit tests на новые сервисы.
 - добавлена минимальная test safety net: routing/validation для нового
   `dialog_config` split покрыты unit-тестами, а legacy
   `DialogApiControllerWebMvcTest` синхронизирован с новой controller-разбивкой,
@@ -323,13 +345,18 @@
 
 - основные самые рискованные giant flows в `settings` уже разрезаны;
 - `SettingsBridgeController` и `SettingsUpdateService` больше не являются
-  единственными точками концентрации домена.
+  единственными точками концентрации домена;
+- `SettingsApiController` больше не держит внутри себя catalog/probe/status
+  orchestration и ближе к thin transport wrapper.
 
 Что остаётся:
 
 - выделить remaining subdomains уровня `catalog/reference data`,
   `partner/network`, `bot/integration settings`, если они всё ещё живут в
   слишком общих слоях;
+- отдельно проверить `AnalyticsController` и соседние settings-adjacent
+  governance endpoints, чтобы catalog/network policy не начали повторно
+  собираться вне выделенных subdomain services;
 - при необходимости сузить remaining responsibilities
   `SettingsDialogWorkspaceConfigService`, если он снова начнёт разрастаться;
 - расширить тестовую страховку вокруг settings update/routing контрактов.
@@ -658,8 +685,9 @@
 1. `Phase 1` завершён.
 2. `Phase 2` стабилизирован и требует скорее нормализации ownership, чем
    срочной архитектурной ломки.
-3. `Phase 3` завершён на controller boundary и уже движется в service-level
-   split `DialogWorkspaceService`, но всё ещё упирается в giant `DialogService`.
+3. `Phase 3` уже довёл `DialogService` до thin facade и теперь реально
+   концентрируется на `DialogWorkspaceService`, notifier/reply consumers и
+   remaining mapper/assembly tails.
 4. `Phase 4` выполнен по самым рискованным giant flows и требует добивки
    remaining subdomains.
 5. `Phase 5` уже начат в коде.
@@ -683,8 +711,8 @@
 2. Параллельно расширять `Phase 6`, чтобы следующие рефакторинги шли под
    лучшей страховкой.
 3. После этого продолжать service-level split `dialogs`: сначала дожать
-   `DialogWorkspaceService`, затем резать сам `DialogService`, который остаётся
-   самым большим архитектурным риском.
+   `DialogWorkspaceService` и прямых notifier/reply consumers, а уже потом
+   дочищать оставшиеся compatibility/delegate tails вокруг thin `DialogService`.
 
 ## Порядок выполнения
 
