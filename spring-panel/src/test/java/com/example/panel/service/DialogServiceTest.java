@@ -2,7 +2,6 @@ package com.example.panel.service;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.InvalidDataAccessResourceUsageException;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.UncategorizedSQLException;
 
 import java.sql.SQLException;
@@ -42,9 +41,6 @@ class DialogServiceTest {
     void delegatesMacroGovernanceAuditToDedicatedService() {
         DialogMacroGovernanceAuditService macroGovernanceAuditService = mock(DialogMacroGovernanceAuditService.class);
         DialogService dialogService = new DialogService(
-                mock(JdbcTemplate.class),
-                mock(JdbcTemplate.class),
-                mock(SharedConfigService.class),
                 mock(DialogWorkspaceTelemetryDataService.class),
                 mock(DialogWorkspaceTelemetryAnalyticsService.class),
                 mock(DialogWorkspaceRolloutAssessmentService.class),

@@ -248,19 +248,23 @@
   contract не сломался и после этого выноса;
   сам `DialogService` после этого прохода сжался уже примерно до
   `902` строк.
+- следующим ещё более широким `Phase 3` пакетом из `DialogService`
+  удалён уже мёртвый private legacy/support слой, который целиком
+  дублировался в `DialogLookupReadService` и `DialogResponsibilityService`:
+  старые `loadDialogsLegacy/findDialogLegacy`, responsible-profile
+  enrichment helper’ы, users-table inspection и legacy responsibility
+  private methods больше не живут в самом фасаде;
+  после этого `DialogService` сжался уже примерно до `275` строк и
+  стал реально thin orchestration facade.
 
 Что остаётся:
 
-- `DialogService` уже не giant по размеру, но ещё не доведён до truly thin
-  facade: внутри остаются reply/message write-side, escalation/notifier и
-  mapper/assembly compatibility slices;
-- продолжить вытаскивать из `DialogService` remaining read/write bounded
-  contexts уже поверх вынесенных rollout/telemetry/governance services;
-- продолжить ужимать compatibility/orchestration слой giant service уже
-  после вынесенных telemetry analytics, external KPI, rollout assessment
-  и rollout governance slices:
-  главный следующий кандидат теперь reply-write / escalation / notifier /
-  remaining mapper bounded contexts;
+- `DialogService` уже доведён до thin orchestration facade; главный
+  `Phase 3` фокус теперь смещается в remaining notifier/reply compatibility
+  tails и в `DialogWorkspaceService`, чтобы orchestration-risk не просто
+  переехал из одного класса в другой;
+- главный следующий кандидат теперь reply-write / escalation / notifier
+  bounded contexts и их прямые consumers вокруг `DialogWorkspaceService`;
 - продолжить снимать remaining consumer-facades вокруг notifier / telemetry /
   escalation слоёв там, где giant service ещё остаётся техническим посредником;
 - продолжить service-level split уже поверх вынесенных `DialogClientContextReadService`
