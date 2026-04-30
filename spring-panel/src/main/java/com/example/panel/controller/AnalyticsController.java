@@ -2,6 +2,7 @@ package com.example.panel.controller;
 
 import com.example.panel.model.AnalyticsClientSummary;
 import com.example.panel.model.AnalyticsTicketSummary;
+import com.example.panel.service.AnalyticsMacroGovernancePolicyService;
 import com.example.panel.service.AnalyticsService;
 import com.example.panel.service.DialogAuditService;
 import com.example.panel.service.NavigationService;
@@ -39,15 +40,18 @@ public class AnalyticsController {
     private static final Logger log = LoggerFactory.getLogger(AnalyticsController.class);
 
     private final AnalyticsService analyticsService;
+    private final AnalyticsMacroGovernancePolicyService analyticsMacroGovernancePolicyService;
     private final DialogAuditService dialogAuditService;
     private final NavigationService navigationService;
     private final SharedConfigService sharedConfigService;
 
     public AnalyticsController(AnalyticsService analyticsService,
+                               AnalyticsMacroGovernancePolicyService analyticsMacroGovernancePolicyService,
                                DialogAuditService dialogAuditService,
                                NavigationService navigationService,
                                SharedConfigService sharedConfigService) {
         this.analyticsService = analyticsService;
+        this.analyticsMacroGovernancePolicyService = analyticsMacroGovernancePolicyService;
         this.dialogAuditService = dialogAuditService;
         this.navigationService = navigationService;
         this.sharedConfigService = sharedConfigService;
@@ -823,92 +827,14 @@ public class AnalyticsController {
     @PreAuthorize("hasAuthority('PAGE_ANALYTICS')")
     public ResponseEntity<?> updateMacroGovernanceReview(@RequestBody(required = false) MacroGovernanceReviewRequest request,
                                                          Authentication authentication) {
-        String actor = authentication != null ? authentication.getName() : null;
-        String reviewedBy = normalize(String.valueOf(request != null ? request.reviewedBy() : null));
-        if (reviewedBy == null) {
-            reviewedBy = resolveActor(authentication, null);
-        }
-        actor = resolveActor(authentication, reviewedBy);
-        String reviewedAtRaw = normalize(String.valueOf(request != null ? request.reviewedAtUtc() : null));
-        OffsetDateTime reviewedAtUtc;
-        if (reviewedAtRaw == null) {
-            reviewedAtUtc = OffsetDateTime.now(ZoneOffset.UTC);
-        } else {
-            reviewedAtUtc = parseUtcTimestamp(reviewedAtRaw);
-            if (reviewedAtUtc == null) {
-                return ResponseEntity.badRequest().body(Map.of(
-                        "success", false,
-                        "error", "reviewed_at_utc must be a valid UTC timestamp (ISO-8601)"));
-            }
-        }
-        String reviewNote = normalize(String.valueOf(request != null ? request.reviewNote() : null));
-        if (reviewNote != null && reviewNote.length() > 500) {
-            reviewNote = reviewNote.substring(0, 500);
-        }
-        String cleanupTicketId = normalize(String.valueOf(request != null ? request.cleanupTicketId() : null));
-        if (cleanupTicketId != null && cleanupTicketId.length() > 80) {
-            cleanupTicketId = cleanupTicketId.substring(0, 80);
-        }
-        String decision = normalize(String.valueOf(request != null ? request.decision() : null));
-        if (decision != null) {
-            decision = decision.toLowerCase(Locale.ROOT);
-            if (!"go".equals(decision) && !"hold".equals(decision)) {
-                return ResponseEntity.badRequest().body(Map.of(
-                        "success", false,
-                        "error", "decision must be one of: go, hold"));
-            }
-        }
-
-        Map<String, Object> settings = new LinkedHashMap<>(sharedConfigService.loadSettings());
-        Map<String, Object> dialogConfig = settings.get("dialog_config") instanceof Map<?, ?> map
-                ? new LinkedHashMap<>((Map<String, Object>) map)
-                : new LinkedHashMap<>();
-        dialogConfig.put("macro_governance_reviewed_by", reviewedBy);
-        dialogConfig.put("macro_governance_reviewed_at", reviewedAtUtc.toInstant().toString());
-        if (reviewNote == null) {
-            dialogConfig.remove("macro_governance_review_note");
-        } else {
-            dialogConfig.put("macro_governance_review_note", reviewNote);
-        }
-        if (cleanupTicketId == null) {
-            dialogConfig.remove("macro_governance_cleanup_ticket_id");
-        } else {
-            dialogConfig.put("macro_governance_cleanup_ticket_id", cleanupTicketId);
-        }
-        if (decision == null) {
-            dialogConfig.remove("macro_governance_review_decision");
-        } else {
-            dialogConfig.put("macro_governance_review_decision", decision);
-        }
-        settings.put("dialog_config", dialogConfig);
-        sharedConfigService.saveSettings(settings);
-
-        dialogAuditService.logWorkspaceTelemetry(
-                actor,
-                "workspace_macro_governance_review_updated",
-                "experiment",
-                null,
-                "analytics_macro_governance_review",
-                null,
-                "workspace.v1",
-                null,
-                "workspace_v1_rollout",
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
+        return analyticsMacroGovernancePolicyService.updateMacroGovernanceReview(
+                authentication,
+                request != null ? request.reviewedBy() : null,
+                request != null ? request.reviewedAtUtc() : null,
+                request != null ? request.reviewNote() : null,
+                request != null ? request.cleanupTicketId() : null,
+                request != null ? request.decision() : null
         );
-
-        return ResponseEntity.ok(Map.of(
-                "success", true,
-                "reviewed_by", reviewedBy,
-                "reviewed_at_utc", reviewedAtUtc.toInstant().toString(),
-                "review_note", reviewNote == null ? "" : reviewNote,
-                "cleanup_ticket_id", cleanupTicketId == null ? "" : cleanupTicketId,
-                "decision", decision == null ? "" : decision
-        ));
     }
 
     @PostMapping(value = "/macro-governance/external-catalog-policy", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -916,109 +842,16 @@ public class AnalyticsController {
     @PreAuthorize("hasAuthority('PAGE_ANALYTICS')")
     public ResponseEntity<?> updateMacroExternalCatalogPolicy(@RequestBody(required = false) MacroExternalCatalogPolicyRequest request,
                                                               Authentication authentication) {
-        String actor = authentication != null ? authentication.getName() : null;
-        String verifiedBy = normalize(String.valueOf(request != null ? request.verifiedBy() : null));
-        if (verifiedBy == null) {
-            verifiedBy = resolveActor(authentication, null);
-        }
-        actor = resolveActor(authentication, verifiedBy);
-        String verifiedAtRaw = normalize(String.valueOf(request != null ? request.verifiedAtUtc() : null));
-        OffsetDateTime verifiedAtUtc;
-        if (verifiedAtRaw == null) {
-            verifiedAtUtc = OffsetDateTime.now(ZoneOffset.UTC);
-        } else {
-            verifiedAtUtc = parseUtcTimestamp(verifiedAtRaw);
-            if (verifiedAtUtc == null) {
-                return ResponseEntity.badRequest().body(Map.of(
-                        "success", false,
-                        "error", "verified_at_utc must be a valid UTC timestamp (ISO-8601)"));
-            }
-        }
-        String expectedVersion = normalize(String.valueOf(request != null ? request.expectedVersion() : null));
-        if (expectedVersion != null && expectedVersion.length() > 120) {
-            expectedVersion = expectedVersion.substring(0, 120);
-        }
-        String observedVersion = normalize(String.valueOf(request != null ? request.observedVersion() : null));
-        if (observedVersion != null && observedVersion.length() > 120) {
-            observedVersion = observedVersion.substring(0, 120);
-        }
-        String reviewNote = normalize(String.valueOf(request != null ? request.reviewNote() : null));
-        if (reviewNote != null && reviewNote.length() > 500) {
-            reviewNote = reviewNote.substring(0, 500);
-        }
-        String decision = normalize(String.valueOf(request != null ? request.decision() : null));
-        if (decision != null) {
-            decision = decision.toLowerCase(Locale.ROOT);
-            if (!"go".equals(decision) && !"hold".equals(decision)) {
-                return ResponseEntity.badRequest().body(Map.of(
-                        "success", false,
-                        "error", "decision must be one of: go, hold"));
-            }
-        }
-        long reviewTtlHours = parsePositiveLong(request != null ? request.reviewTtlHours() : null);
-        if (reviewTtlHours <= 0) {
-            reviewTtlHours = 168;
-        }
-        reviewTtlHours = Math.min(reviewTtlHours, 24L * 90L);
-
-        Map<String, Object> settings = new LinkedHashMap<>(sharedConfigService.loadSettings());
-        Map<String, Object> dialogConfig = settings.get("dialog_config") instanceof Map<?, ?> map
-                ? new LinkedHashMap<>((Map<String, Object>) map)
-                : new LinkedHashMap<>();
-        dialogConfig.put("macro_external_catalog_verified_by", verifiedBy);
-        dialogConfig.put("macro_external_catalog_verified_at", verifiedAtUtc.toInstant().toString());
-        dialogConfig.put("macro_external_catalog_contract_ttl_hours", reviewTtlHours);
-        if (expectedVersion == null) {
-            dialogConfig.remove("macro_external_catalog_expected_version");
-        } else {
-            dialogConfig.put("macro_external_catalog_expected_version", expectedVersion);
-        }
-        if (observedVersion == null) {
-            dialogConfig.remove("macro_external_catalog_observed_version");
-        } else {
-            dialogConfig.put("macro_external_catalog_observed_version", observedVersion);
-        }
-        if (reviewNote == null) {
-            dialogConfig.remove("macro_external_catalog_review_note");
-        } else {
-            dialogConfig.put("macro_external_catalog_review_note", reviewNote);
-        }
-        if (decision == null) {
-            dialogConfig.remove("macro_external_catalog_decision");
-        } else {
-            dialogConfig.put("macro_external_catalog_decision", decision);
-        }
-        settings.put("dialog_config", dialogConfig);
-        sharedConfigService.saveSettings(settings);
-
-        dialogAuditService.logWorkspaceTelemetry(
-                actor,
-                "workspace_macro_external_catalog_policy_updated",
-                "experiment",
-                null,
-                "analytics_macro_external_catalog_policy",
-                null,
-                "workspace.v1",
-                null,
-                "workspace_v1_rollout",
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
+        return analyticsMacroGovernancePolicyService.updateMacroExternalCatalogPolicy(
+                authentication,
+                request != null ? request.verifiedBy() : null,
+                request != null ? request.verifiedAtUtc() : null,
+                request != null ? request.expectedVersion() : null,
+                request != null ? request.observedVersion() : null,
+                request != null ? request.reviewNote() : null,
+                request != null ? request.decision() : null,
+                request != null ? request.reviewTtlHours() : null
         );
-
-        return ResponseEntity.ok(Map.of(
-                "success", true,
-                "verified_by", verifiedBy,
-                "verified_at_utc", verifiedAtUtc.toInstant().toString(),
-                "expected_version", expectedVersion == null ? "" : expectedVersion,
-                "observed_version", observedVersion == null ? "" : observedVersion,
-                "review_note", reviewNote == null ? "" : reviewNote,
-                "decision", decision == null ? "" : decision,
-                "review_ttl_hours", reviewTtlHours
-        ));
     }
 
     @PostMapping(value = "/macro-governance/deprecation-policy", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -1026,99 +859,15 @@ public class AnalyticsController {
     @PreAuthorize("hasAuthority('PAGE_ANALYTICS')")
     public ResponseEntity<?> updateMacroDeprecationPolicy(@RequestBody(required = false) MacroDeprecationPolicyRequest request,
                                                           Authentication authentication) {
-        String actor = authentication != null ? authentication.getName() : null;
-        String reviewedBy = normalize(String.valueOf(request != null ? request.reviewedBy() : null));
-        if (reviewedBy == null) {
-            reviewedBy = resolveActor(authentication, null);
-        }
-        actor = resolveActor(authentication, reviewedBy);
-        String reviewedAtRaw = normalize(String.valueOf(request != null ? request.reviewedAtUtc() : null));
-        OffsetDateTime reviewedAtUtc;
-        if (reviewedAtRaw == null) {
-            reviewedAtUtc = OffsetDateTime.now(ZoneOffset.UTC);
-        } else {
-            reviewedAtUtc = parseUtcTimestamp(reviewedAtRaw);
-            if (reviewedAtUtc == null) {
-                return ResponseEntity.badRequest().body(Map.of(
-                        "success", false,
-                        "error", "reviewed_at_utc must be a valid UTC timestamp (ISO-8601)"));
-            }
-        }
-        String deprecationTicketId = normalize(String.valueOf(request != null ? request.deprecationTicketId() : null));
-        if (deprecationTicketId != null && deprecationTicketId.length() > 80) {
-            deprecationTicketId = deprecationTicketId.substring(0, 80);
-        }
-        String reviewNote = normalize(String.valueOf(request != null ? request.reviewNote() : null));
-        if (reviewNote != null && reviewNote.length() > 500) {
-            reviewNote = reviewNote.substring(0, 500);
-        }
-        String decision = normalize(String.valueOf(request != null ? request.decision() : null));
-        if (decision != null) {
-            decision = decision.toLowerCase(Locale.ROOT);
-            if (!"go".equals(decision) && !"hold".equals(decision)) {
-                return ResponseEntity.badRequest().body(Map.of(
-                        "success", false,
-                        "error", "decision must be one of: go, hold"));
-            }
-        }
-        long reviewTtlHours = parsePositiveLong(request != null ? request.reviewTtlHours() : null);
-        if (reviewTtlHours <= 0) {
-            reviewTtlHours = 168;
-        }
-        reviewTtlHours = Math.min(reviewTtlHours, 24L * 90L);
-
-        Map<String, Object> settings = new LinkedHashMap<>(sharedConfigService.loadSettings());
-        Map<String, Object> dialogConfig = settings.get("dialog_config") instanceof Map<?, ?> map
-                ? new LinkedHashMap<>((Map<String, Object>) map)
-                : new LinkedHashMap<>();
-        dialogConfig.put("macro_deprecation_policy_reviewed_by", reviewedBy);
-        dialogConfig.put("macro_deprecation_policy_reviewed_at", reviewedAtUtc.toInstant().toString());
-        dialogConfig.put("macro_deprecation_policy_ttl_hours", reviewTtlHours);
-        if (deprecationTicketId == null) {
-            dialogConfig.remove("macro_deprecation_policy_ticket_id");
-        } else {
-            dialogConfig.put("macro_deprecation_policy_ticket_id", deprecationTicketId);
-        }
-        if (reviewNote == null) {
-            dialogConfig.remove("macro_deprecation_policy_review_note");
-        } else {
-            dialogConfig.put("macro_deprecation_policy_review_note", reviewNote);
-        }
-        if (decision == null) {
-            dialogConfig.remove("macro_deprecation_policy_decision");
-        } else {
-            dialogConfig.put("macro_deprecation_policy_decision", decision);
-        }
-        settings.put("dialog_config", dialogConfig);
-        sharedConfigService.saveSettings(settings);
-
-        dialogAuditService.logWorkspaceTelemetry(
-                actor,
-                "workspace_macro_deprecation_policy_updated",
-                "experiment",
-                null,
-                "analytics_macro_deprecation_policy",
-                null,
-                "workspace.v1",
-                null,
-                "workspace_v1_rollout",
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
+        return analyticsMacroGovernancePolicyService.updateMacroDeprecationPolicy(
+                authentication,
+                request != null ? request.reviewedBy() : null,
+                request != null ? request.reviewedAtUtc() : null,
+                request != null ? request.deprecationTicketId() : null,
+                request != null ? request.reviewNote() : null,
+                request != null ? request.decision() : null,
+                request != null ? request.reviewTtlHours() : null
         );
-
-        return ResponseEntity.ok(Map.of(
-                "success", true,
-                "reviewed_by", reviewedBy,
-                "reviewed_at_utc", reviewedAtUtc.toInstant().toString(),
-                "deprecation_ticket_id", deprecationTicketId == null ? "" : deprecationTicketId,
-                "review_note", reviewNote == null ? "" : reviewNote,
-                "decision", decision == null ? "" : decision,
-                "review_ttl_hours", reviewTtlHours
-        ));
     }
 
     private static String normalize(String value) {
