@@ -748,6 +748,19 @@ integration-сценария поверх users/settings runtime boundary всё
   основной dialog monolith split завершён, а remaining риск смещён не в
   `DialogService`, а в adjacent notifier/reply/telemetry/runtime boundaries
   и качество integration contracts вокруг уже вынесенных services.
+- следующим hardening-пакетом эти adjacent boundaries тоже сузились:
+  `DialogWorkspaceTelemetryService` переведён на
+  `DialogWorkspaceTelemetryControlService` и сжался примерно до `222` строк;
+  `WorkspaceGuardrailWebhookNotifier` после выноса
+  `WorkspaceGuardrailWebhookCommandService` и
+  `WorkspaceGuardrailWebhookDeliveryService` сжался примерно до `43` строк;
+  `SlaEscalationWebhookNotifier` потерял собственный webhook
+  endpoint/delivery хвост через `SlaEscalationWebhookDeliveryService`.
+- после этого главный оставшийся notifier/runtime hotspot уже локализован
+  точнее: это не весь telemetry/notifier perimeter, а прежде всего giant
+  `SlaEscalationWebhookNotifier` (~`2078` строк) с его governance-audit и
+  auto-assign orchestration слоями. Именно туда теперь логично направлять
+  следующий большой refactor-пакет.
 
 **Автор исходного аудита:** GitHub Copilot  
-**Статус:** Документ актуализирован под состояние кода на 30 апреля 2026
+**Статус:** Документ актуализирован под состояние кода на 1 мая 2026
