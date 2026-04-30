@@ -748,6 +748,9 @@
    вокруг remaining notifier/runtime hotspots: в первую очередь giant
    `SlaEscalationWebhookNotifier`, затем `DialogWorkspaceService` и соседних
    telemetry/runtime contracts.
+4. Внутри `SlaEscalationWebhookNotifier` первым делом резать candidate
+   selection и auto-assign, а governance-audit / routing-policy review tail
+   оставлять следующим bounded context, а не тащить всё одним куском.
 
 ## Порядок выполнения
 
@@ -756,8 +759,9 @@
 1. Довести `Phase 5` от launcher strategy до более явного runtime contract.
 2. Расширить `Phase 6`, чтобы новые refactor-проходы не шли почти без тестов.
 3. Вернуться к `dialogs` и дожимать remaining workspace/notifier/reply
-   boundaries, начиная с governance-audit и auto-assign orchestration tail в
-   `SlaEscalationWebhookNotifier`.
+   boundaries, начиная с governance-audit tail в
+   `SlaEscalationWebhookNotifier` после уже вынесенных candidate scan и
+   auto-assign services.
 4. Добить remaining `settings` subdomains, если они ещё остаются в общих слоях.
 5. После этого уже решать, где нужен следующий integration/e2e слой, а где
    достаточно targeted runtime tests.

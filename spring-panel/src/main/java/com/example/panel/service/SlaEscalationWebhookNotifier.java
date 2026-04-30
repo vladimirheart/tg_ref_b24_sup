@@ -37,6 +37,8 @@ public class SlaEscalationWebhookNotifier {
     private final DialogResponsibilityService dialogResponsibilityService;
     private final DialogAuditService dialogAuditService;
     private final ObjectMapper objectMapper;
+    private final SlaEscalationCandidateService slaEscalationCandidateService;
+    private final SlaEscalationAutoAssignService slaEscalationAutoAssignService;
     private final SlaEscalationWebhookDeliveryService slaEscalationWebhookDeliveryService;
     private final Map<String, Instant> ticketCooldownCache = new ConcurrentHashMap<>();
     private final Map<String, Integer> roundRobinCursorByRoute = new ConcurrentHashMap<>();
@@ -55,12 +57,16 @@ public class SlaEscalationWebhookNotifier {
                                         DialogResponsibilityService dialogResponsibilityService,
                                         DialogAuditService dialogAuditService,
                                         ObjectMapper objectMapper,
+                                        SlaEscalationCandidateService slaEscalationCandidateService,
+                                        SlaEscalationAutoAssignService slaEscalationAutoAssignService,
                                         SlaEscalationWebhookDeliveryService slaEscalationWebhookDeliveryService) {
         this.sharedConfigService = sharedConfigService;
         this.dialogLookupReadService = dialogLookupReadService;
         this.dialogResponsibilityService = dialogResponsibilityService;
         this.dialogAuditService = dialogAuditService;
         this.objectMapper = objectMapper;
+        this.slaEscalationCandidateService = slaEscalationCandidateService;
+        this.slaEscalationAutoAssignService = slaEscalationAutoAssignService;
         this.slaEscalationWebhookDeliveryService = slaEscalationWebhookDeliveryService;
     }
 
@@ -72,6 +78,8 @@ public class SlaEscalationWebhookNotifier {
         this.dialogResponsibilityService = null;
         this.dialogAuditService = null;
         this.objectMapper = objectMapper;
+        this.slaEscalationCandidateService = new SlaEscalationCandidateService();
+        this.slaEscalationAutoAssignService = new SlaEscalationAutoAssignService(dialogLookupReadService);
         this.slaEscalationWebhookDeliveryService = new SlaEscalationWebhookDeliveryService(objectMapper);
     }
 
@@ -209,7 +217,7 @@ public class SlaEscalationWebhookNotifier {
     }
 
     List<String> resolveAutoAssignTicketIds(List<Map<String, Object>> candidates, Map<String, Object> dialogConfig) {
-        return resolveAutoAssignDecisions(candidates, dialogConfig).stream().map(AutoAssignDecision::ticketId).toList();
+        return slaEscalationAutoAssignService.resolveAutoAssignTicketIds(candidates, dialogConfig);
     }
 
     public Map<String, Object> buildRoutingPolicySnapshot(DialogListItem dialog, Map<String, Object> settings) {
@@ -1041,139 +1049,20 @@ public class SlaEscalationWebhookNotifier {
 
     List<AutoAssignDecision> resolveAutoAssignDecisions(List<Map<String, Object>> candidates,
                                                         Map<String, Object> dialogConfig) {
-        if (!resolveBoolean(dialogConfig, "sla_critical_auto_assign_enabled", false)) {
-            return List.of();
-        }
-        List<AutoAssignRule> rules = parseAutoAssignRules(dialogConfig.get("sla_critical_auto_assign_rules"));
-        String fallbackAssignee = trimToNull(String.valueOf(dialogConfig.get("sla_critical_auto_assign_to")));
-        int maxPerRun = resolvePositiveInt(dialogConfig, "sla_critical_auto_assign_max_per_run", 5, 100);
-        Integer maxOpenPerOperator = resolveOptionalNonNegativeInt(dialogConfig.get("sla_critical_auto_assign_max_open_per_operator"));
-        boolean requireCategories = resolveBoolean(dialogConfig, "sla_critical_auto_assign_require_categories", false);
-        boolean includeAssigned = resolveBoolean(dialogConfig, "sla_critical_auto_assign_include_assigned", false);
-        if ((rules.isEmpty() && fallbackAssignee == null) || candidates == null || candidates.isEmpty()) {
-            return List.of();
-        }
-        List<AutoAssignDecision> decisions = new ArrayList<>();
-        List<String> processedTicketIds = new ArrayList<>();
-        Map<String, Long> openLoadCache = new HashMap<>();
-        Map<String, Set<String>> operatorSkills = parseOperatorSkills(dialogConfig.get("sla_critical_operator_skills"));
-        Map<String, Set<String>> operatorQueues = parseOperatorSkills(dialogConfig.get("sla_critical_operator_queues"));
-        for (Map<String, Object> candidate : candidates) {
-            if (decisions.size() >= maxPerRun) {
-                break;
-            }
-            String ticketId = trimToNull(String.valueOf(candidate.get("ticket_id")));
-            if (ticketId == null || processedTicketIds.contains(ticketId)) {
-                continue;
-            }
-            processedTicketIds.add(ticketId);
-            String currentResponsible = trimToNull(String.valueOf(candidate.get("responsible")));
-            if (!includeAssigned && currentResponsible != null) {
-                continue;
-            }
-            String candidateChannel = normalizeMatchValue(candidate.get("channel"));
-            String candidateBusiness = normalizeMatchValue(candidate.get("business"));
-            String candidateLocation = normalizeMatchValue(candidate.get("location"));
-            Set<String> candidateCategories = parseCandidateCategories(candidate.get("categories"));
-            if (requireCategories && candidateCategories.isEmpty()) {
-                continue;
-            }
-            String candidateClientStatus = normalizeMatchValue(candidate.get("client_status"));
-            Integer candidateUnreadCount = parseOptionalNonNegativeInt(candidate.get("unread_count"));
-            Integer candidateRating = parseOptionalNonNegativeInt(candidate.get("rating"));
-            Long candidateMinutesLeft = parseOptionalLong(candidate.get("minutes_left"));
-            String candidateSlaState = normalizeSlaState(candidate.get("sla_state"));
-            String candidateRequestNumber = trimToNull(String.valueOf(candidate.get("request_number")));
-
-            AutoAssignRule matchedRule = findBestMatchedRule(
-                    rules,
-                    candidateChannel,
-                    candidateBusiness,
-                    candidateLocation,
-                    candidateCategories,
-                    candidateClientStatus,
-                    candidateUnreadCount,
-                    candidateRating,
-                    candidateMinutesLeft,
-                    candidateSlaState,
-                    candidateRequestNumber
-            );
-            String assignee = matchedRule != null
-                    ? resolveRuleAssignee(matchedRule, ticketId, maxOpenPerOperator, openLoadCache, operatorSkills, operatorQueues)
-                    : fallbackAssignee;
-            if (!isAssigneeEligible(assignee, maxOpenPerOperator, openLoadCache, operatorSkills, operatorQueues,
-                    matchedRule != null ? matchedRule.requiredAssigneeSkills() : Set.of(),
-                    matchedRule != null ? matchedRule.requiredAssigneeQueues() : Set.of())) {
-                assignee = null;
-            }
-            if (assignee == null && fallbackAssignee != null && isAssigneeEligible(fallbackAssignee, maxOpenPerOperator,
-                    openLoadCache, operatorSkills, operatorQueues, Set.of(), Set.of())) {
-                assignee = fallbackAssignee;
-                matchedRule = null;
-            }
-            if (assignee == null) {
-                continue;
-            }
-            if (currentResponsible != null && currentResponsible.equalsIgnoreCase(assignee)) {
-                continue;
-            }
-            String source = matchedRule != null ? "rules" : "fallback";
-            String route = matchedRule != null ? matchedRule.route() : "fallback_default";
-            decisions.add(new AutoAssignDecision(ticketId, assignee, source, route, currentResponsible));
-        }
-        return decisions;
+        return slaEscalationAutoAssignService.resolveAutoAssignDecisions(candidates, dialogConfig);
     }
 
     List<Map<String, Object>> findEscalationCandidates(List<DialogListItem> dialogs,
                                                         int targetMinutes,
                                                         int criticalMinutes) {
-        return findEscalationCandidates(dialogs, targetMinutes, criticalMinutes, false);
+        return slaEscalationCandidateService.findEscalationCandidates(dialogs, targetMinutes, criticalMinutes);
     }
 
     List<Map<String, Object>> findEscalationCandidates(List<DialogListItem> dialogs,
                                                         int targetMinutes,
                                                         int criticalMinutes,
                                                         boolean includeAssigned) {
-        List<Map<String, Object>> result = new ArrayList<>();
-        if (dialogs == null || dialogs.isEmpty()) {
-            return result;
-        }
-
-        long nowMs = System.currentTimeMillis();
-        for (DialogListItem dialog : dialogs) {
-            if (dialog == null || dialog.ticketId() == null || dialog.ticketId().isBlank()) {
-                continue;
-            }
-            if (!"open".equals(normalizeLifecycleState(dialog.statusKey()))) {
-                continue;
-            }
-            String responsible = trimToNull(dialog.responsible());
-            if (responsible != null && !includeAssigned) {
-                continue;
-            }
-            Long minutesLeft = resolveMinutesLeft(dialog.createdAt(), targetMinutes, nowMs);
-            if (minutesLeft == null || minutesLeft > criticalMinutes) {
-                continue;
-            }
-            Map<String, Object> row = new LinkedHashMap<>();
-            row.put("ticket_id", dialog.ticketId());
-            row.put("request_number", dialog.requestNumber());
-            row.put("client", dialog.displayClientName());
-            row.put("minutes_left", minutesLeft);
-            row.put("status", dialog.statusLabel());
-            row.put("channel", dialog.channelLabel());
-            row.put("business", dialog.businessLabel());
-            row.put("location", dialog.location());
-            row.put("categories", dialog.categories());
-            row.put("client_status", dialog.clientStatus());
-            row.put("responsible", responsible);
-            row.put("unread_count", dialog.unreadCount());
-            row.put("rating", dialog.rating());
-            row.put("sla_state", minutesLeft < 0 ? "breached" : "at_risk");
-            row.put("escalation_scope", responsible == null ? "unassigned" : "assigned");
-            result.add(row);
-        }
-        return result;
+        return slaEscalationCandidateService.findEscalationCandidates(dialogs, targetMinutes, criticalMinutes, includeAssigned);
     }
 
     private void cleanupCooldownCache(Instant now, int cooldownMinutes) {
