@@ -2,7 +2,7 @@
 **Дата:** 8 апреля 2026  
 **Статус:** Актуально, но в активной фазе исправления  
 **Актуализация:** 9 апреля 2026 (см. `docs/ARCHITECTURE_AUDIT_VALIDATION_2026-04-09.md`)  
-**Последняя актуализация:** 24 апреля 2026
+**Последняя актуализация:** 30 апреля 2026
 
 ---
 
@@ -160,8 +160,13 @@
 - но сам `workspace` уже заметно сузился: из него дополнительно убраны
   мёртвые helper-блоки по SLA/source-coverage/export formatting;
 - `settings` всё ещё содержит remaining subdomains, которые могут снова
-  разрастаться в общих слоях; в первую очередь это `catalog/reference`,
-  `partner/network` и часть `bot/integration` сценариев;
+  разрастаться в общих слоях; но после выноса
+  `SettingsClientStatusService`,
+  `SettingsItConnectionCategoryService` и
+  `SettingsIntegrationNetworkProbeService` главный риск уже меньше в
+  `SettingsApiController` как таковом и больше в `catalog/reference`,
+  `partner/network` и части `bot/integration` сценариев вокруг соседних
+  governance endpoints;
 - `SharedConfigService` дублируется между `spring-panel` и `java-bot`;
 - DTO/API contract и error contract всё ещё не унифицированы по проекту;
 - persistence-слой по-прежнему смешивает raw JDBC и JPA/Repository подходы;
@@ -194,6 +199,12 @@
   `SettingsBridgeControllerWebMvcTest` и `ProfileApiControllerWebMvcTest`,
   так что основной `/settings` coordinator flow и server-backed UI preferences
   прикрыты не только subdomain services, но и coordinator/WebMvc-контрактом;
+- соседний `SettingsApiController` тоже уже не остаётся серой зоной:
+  `client statuses`, `it connection categories` и `integration network probe`
+  вынесены в отдельные subdomain services, а поверх них добавлены
+  `SettingsApiControllerWebMvcTest` и targeted unit tests, так что
+  `settings` boundary прикрыт уже не только вокруг giant `/settings` update,
+  но и вокруг catalog/network adjunct API;
 - в server-backed UI preferences был найден и закрыт реальный alias-bug:
   `sortMode/pageSize/updatedAtUtc` в `dialogsTriage` могли теряться из-за
   premature default-normalization, теперь этот контракт исправлен и покрыт
@@ -428,12 +439,16 @@ boundary между `spring-panel` и `java-bot`.
 ### 4. Монолитные сервисы со слишком большой ответственностью
 
 **Актуальный фокус:**
-- `DialogService` остаётся главным giant service и основным SRP-риском,
-  но уже сужен примерно до `902` строк после выноса telemetry analytics,
-  external KPI rollout logic, rollout assessment / scorecard и rollout
-  governance bounded contexts;
-- `DialogWorkspaceService` уже заметно сужен, но всё ещё остаётся крупным
-  сервисом-оркестратором;
+- `DialogService` больше не giant и уже доведён до thin orchestration
+  facade примерно на `275` строк после выноса telemetry analytics,
+  external KPI rollout logic, rollout assessment / scorecard, rollout
+  governance bounded contexts и зачистки мёртвого private legacy/support
+  слоя;
+- `DialogWorkspaceService` уже заметно сужен и после выноса
+  `DialogWorkspaceRequestContractService` и
+  `DialogWorkspacePayloadAssemblerService` находится примерно на уровне
+  `327` строк, но всё ещё остаётся главным orchestration hotspot рядом с
+  notifier/reply consumers;
 - часть orchestration в `settings` уже разрезана, но remaining subdomains
   всё ещё требуют контроля.
 
@@ -441,9 +456,10 @@ boundary между `spring-panel` и `java-bot`.
 hotspot. Крупные controller-сценарии уже вынесены в отдельные controllers и
 services, поэтому главный риск сместился в service layer.
 
-**Решение:** Продолжать разрезать `DialogService` по bounded contexts. Важно,
-что значимая часть работы уже сделана, поэтому ниже не просто wishlist, а
-фактический каркас текущего split:
+**Решение:** `DialogService` уже доведён до thin facade, поэтому следующий
+архитектурный выигрыш теперь не в дальнейшей “борьбе с giant class”,
+а в том, чтобы не дать orchestration-risk переехать в соседние сервисы.
+Ниже фактический каркас текущего split:
 
 ```text
 DialogService
@@ -460,15 +476,16 @@ DialogService
   │   ├─ DialogWorkspaceExternalKpiService
   │   ├─ DialogWorkspaceRolloutAssessmentService
   │   ├─ DialogWorkspaceRolloutGovernanceService
+  │   ├─ DialogWorkspaceRequestContractService
+  │   ├─ DialogWorkspacePayloadAssemblerService
   │   ├─ DialogMacroGovernanceSupportService
   │   └─ DialogMacroGovernanceAuditService
-  ├─ still to narrow:
+  ├─ next focus:
   │   ├─ DialogWorkspaceService
-  │   ├─ telemetry summary orchestration + compatibility bridge
-  │   ├─ reply/message write-side flows
-  │   ├─ AI/notification/escalation flows
-  │   └─ mapper / assembly layer
-  └─ then shrink compatibility delegates in DialogService itself
+  │   ├─ reply/message write-side direct consumers
+  │   ├─ AI/notification/escalation flows around notifier/runtime boundaries
+  │   └─ remaining mapper / assembly tails around workspace consumers
+  └─ DialogService itself is now a thin orchestration facade
 ```
 
 ### 5. Дублирование кода между модулями
@@ -567,7 +584,7 @@ integration-сценария поверх users/settings runtime boundary всё
 |---------|--------|-------------|
 | Layered Architecture | ⚠️ Частично | Controller-level split заметно улучшен, service-level split ещё не завершён |
 | Dependency Inversion | ⚠️ Частично | На границах доменов стало лучше, но проект в целом всё ещё concrete-class heavy |
-| Single Responsibility | ❌ НЕТ | Главный hotspot теперь `DialogService` и remaining giant services в `settings` |
+| Single Responsibility | ⚠️ Частично | Главный hotspot сместился из `DialogService` в `DialogWorkspaceService`, notifier/reply consumers и remaining settings slices |
 | Don't Repeat Yourself | ❌ НЕТ | `SharedConfigService` и часть runtime contract still duplicated |
 | SOLID Principles | ⚠️ Частично | Часть transport-layer нарушений снижена, но service boundaries ещё не доведены |
 | Spring Best Practices | ⚠️ Частично | Улучшены bootstrap/runtime/test слои, но нужен единый error/API contract |
@@ -579,7 +596,7 @@ integration-сценария поверх users/settings runtime boundary всё
 | Метрика | Текущее | Цель |
 |---------|---------|------|
 | Крупные controller hot spots | Сильно снижены | 0 giant controllers |
-| Крупные service hot spots | Всё ещё есть, но главный риск сужен до `DialogService` и remaining settings/workspace slices | bounded services по доменам |
+| Крупные service hot spots | Главный риск уже не giant-class size, а orchestration tails в `DialogWorkspaceService` (~327 строк), notifier/reply consumers и `settings` | bounded services по доменам |
 | Regression safety net | Есть расширенный targeted unit/WebMvc/lifecycle/page-smoke net, включая settings governance, orchestration и ui-preferences, но он ещё не полный | широкий regression net |
 | Code Coverage | Не формализована | 60%+ |
 | Persistence consistency | Смешанный JDBC/JPA | явные domain boundaries |
@@ -596,8 +613,8 @@ integration-сценария поверх users/settings runtime boundary всё
 - [x] Выполнить основной controller split для `dialogs/settings`
 
 ### Фаза 2: Текущий главный фокус
-- [ ] Разрезать `DialogService` по bounded contexts
-- [ ] Досузить `DialogWorkspaceService` и consumer-фасады вокруг него
+- [x] Дожать remaining bounded contexts и compatibility delegates в `DialogService`
+- [ ] Досузить remaining orchestration tails в `DialogWorkspaceService` и consumer-фасады вокруг него
 - [ ] Добить remaining `settings` subdomains
 - [ ] Расширить и стабилизировать safety net для следующих крупных рефакторингов
 - [ ] Закрыть remaining runtime/notifier хвосты, которые ещё держатся на legacy-compatible фасадах
@@ -612,12 +629,11 @@ integration-сценария поверх users/settings runtime boundary всё
 
 ## 📁 Следующие шаги
 
-1. Дожать service-level split `DialogService` и сузить remaining workspace/orchestration consumers
-2. Добить remaining `settings` subdomains и persistence boundaries
-3. Продолжить расширять `Phase 6` от targeted service/WebMvc tests к более широким integration-сценариям shared config/runtime и panel-bot orchestration boundary
-4. Отдельно удерживать autostart/network/runtime boundary под regression net, чтобы новые refactor-проходы не возвращали хрупкость `null/exception` на одном канале
-5. Отдельно удерживать bot-process/auth-management orchestration boundary под regression net, чтобы structured error/persistence contract не расползался
-6. После этого возвращаться к shared-config unification и DTO/error contract
+1. Следующим `Phase 3` пакетом забирать reply/message write-side и связанный escalation/notifier tail уже не из `DialogService`, а из их прямых consumers вокруг `DialogWorkspaceService`
+2. Досузить `DialogWorkspaceService` по remaining payload/mapper/write-side хвостам, чтобы остаточный orchestration-risk не просто переехал из одного класса в другой
+3. Добить remaining `settings` subdomains и persistence boundaries
+4. Продолжить расширять `Phase 6` уже не только targeted unit/WebMvc tests, а integration-сценариями shared config/runtime и panel-bot orchestration boundary
+5. После этого возвращаться к shared-config unification, DTO/error contract и общему API governance
 
 ### Что ещё заметно улучшилось в текущем проходе
 
@@ -691,6 +707,26 @@ integration-сценария поверх users/settings runtime boundary всё
   текущий остаточный фокус giant service после этого сместился уже не
   в rollout packet, а в reply-write / escalation / notifier /
   compatibility delegates.
+- следующим `Phase 3` пакетом из `DialogService` удалён уже мёртвый
+  private legacy/support слой, который целиком дублировался в
+  `DialogLookupReadService` и `DialogResponsibilityService`:
+  старые `loadDialogsLegacy/findDialogLegacy`, responsible-profile
+  enrichment helper’ы, users-table inspection и legacy responsibility
+  private methods больше не живут в самом фасаде;
+  после этого `DialogService` сжался уже примерно до `275` строк и
+  фактически перестал быть service-level hotspot сам по себе;
+  следующий реальный фокус после этого шага смещён уже в
+  `DialogWorkspaceService`, notifier/reply consumers и remaining
+  settings/runtime tails.
+- следующим пакетом уже сам `DialogWorkspaceService` переведён на более
+  узкий orchestration baseline: request-contract normalization вынесен в
+  `DialogWorkspaceRequestContractService`, final payload assembly — в
+  `DialogWorkspacePayloadAssemblerService`, а локальные
+  include/limit/cursor/config helper’ы и финальный payload-builder удалены
+  из самого workspace-сервиса;
+  после этого `DialogWorkspaceService` сжался уже примерно до `327` строк,
+  а следующий практический фокус сместился в reply/message write-side,
+  notifier/escalation и remaining mapper tails вокруг workspace consumers.
 
 **Автор исходного аудита:** GitHub Copilot  
 **Статус:** Документ актуализирован под состояние кода на 30 апреля 2026

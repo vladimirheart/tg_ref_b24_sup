@@ -12,26 +12,14 @@ import org.springframework.util.StringUtils;
 
 import java.time.Instant;
 import java.time.Duration;
-import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import java.util.ArrayList;
 import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 @Service
 public class DialogWorkspaceService {
@@ -53,11 +41,10 @@ public class DialogWorkspaceService {
     private final DialogClientContextReadService dialogClientContextReadService;
     private final DialogConversationReadService dialogConversationReadService;
     private final DialogResponsibilityService dialogResponsibilityService;
+    private final DialogWorkspaceRequestContractService dialogWorkspaceRequestContractService;
+    private final DialogWorkspacePayloadAssemblerService dialogWorkspacePayloadAssemblerService;
     private static final int DEFAULT_SLA_TARGET_MINUTES = 24 * 60;
     private static final int DEFAULT_SLA_WARNING_MINUTES = 4 * 60;
-    private static final int DEFAULT_WORKSPACE_LIMIT = 50;
-    private static final int MAX_WORKSPACE_LIMIT = 200;
-    private static final Set<String> WORKSPACE_INCLUDE_ALLOWED = Set.of("messages", "context", "sla", "permissions");
     public DialogWorkspaceService(DialogDetailsReadService dialogDetailsReadService,
                                   SharedConfigService sharedConfigService,
                                   DialogAuthorizationService dialogAuthorizationService,
@@ -74,7 +61,9 @@ public class DialogWorkspaceService {
                                   DialogSlaRuntimeService dialogSlaRuntimeService,
                                   DialogClientContextReadService dialogClientContextReadService,
                                   DialogConversationReadService dialogConversationReadService,
-                                  DialogResponsibilityService dialogResponsibilityService) {
+                                  DialogResponsibilityService dialogResponsibilityService,
+                                  DialogWorkspaceRequestContractService dialogWorkspaceRequestContractService,
+                                  DialogWorkspacePayloadAssemblerService dialogWorkspacePayloadAssemblerService) {
         this.dialogDetailsReadService = dialogDetailsReadService;
         this.sharedConfigService = sharedConfigService;
         this.dialogAuthorizationService = dialogAuthorizationService;
@@ -92,6 +81,8 @@ public class DialogWorkspaceService {
         this.dialogClientContextReadService = dialogClientContextReadService;
         this.dialogConversationReadService = dialogConversationReadService;
         this.dialogResponsibilityService = dialogResponsibilityService;
+        this.dialogWorkspaceRequestContractService = dialogWorkspaceRequestContractService;
+        this.dialogWorkspacePayloadAssemblerService = dialogWorkspacePayloadAssemblerService;
     }
 
     private Map<String, Object> resolveWorkspaceExternalProfileEnrichment(Map<String, Object> settings,
@@ -144,9 +135,9 @@ public class DialogWorkspaceService {
 
         DialogDetails dialogDetails = details.get();
         DialogListItem summary = dialogDetails.summary();
-        Set<String> includeSections = resolveWorkspaceInclude(include);
-        int resolvedLimit = resolveWorkspaceLimit(limit);
-        int resolvedCursor = resolveWorkspaceCursor(cursor);
+        Set<String> includeSections = dialogWorkspaceRequestContractService.resolveWorkspaceInclude(include);
+        int resolvedLimit = dialogWorkspaceRequestContractService.resolveWorkspaceLimit(limit);
+        int resolvedCursor = dialogWorkspaceRequestContractService.resolveWorkspaceCursor(cursor);
         List<ChatMessageDto> history = dialogConversationReadService.loadHistory(ticketId, channelId);
 
         int safeCursor = Math.min(Math.max(resolvedCursor, 0), history.size());
@@ -164,8 +155,8 @@ public class DialogWorkspaceService {
         String slaState = dialogSlaRuntimeService.resolveSlaState(summary.createdAt(), slaTargetMinutes, slaWarningMinutes, summary.statusKey());
         Long slaMinutesLeft = dialogSlaRuntimeService.resolveSlaMinutesLeft(summary.createdAt(), slaTargetMinutes, summary.statusKey(), System.currentTimeMillis());
         Map<String, Object> settings = sharedConfigService.loadSettings();
-        int workspaceHistoryLimit = resolveDialogConfigRangeMinutes(settings, "workspace_context_history_limit", 5, 1, 20);
-        int workspaceRelatedEventsLimit = resolveDialogConfigRangeMinutes(settings, "workspace_context_related_events_limit", 5, 1, 20);
+        int workspaceHistoryLimit = dialogWorkspaceRequestContractService.resolveDialogConfigRangeMinutes(settings, "workspace_context_history_limit", 5, 1, 20);
+        int workspaceRelatedEventsLimit = dialogWorkspaceRequestContractService.resolveDialogConfigRangeMinutes(settings, "workspace_context_related_events_limit", 5, 1, 20);
         List<Map<String, Object>> clientHistory = dialogClientContextReadService.loadClientDialogHistory(summary.userId(), ticketId, workspaceHistoryLimit);
         List<Map<String, Object>> relatedEvents = dialogClientContextReadService.loadRelatedEvents(ticketId, workspaceRelatedEventsLimit);
         Map<String, Object> profileEnrichment = dialogClientContextReadService.loadClientProfileEnrichment(summary.userId());
@@ -207,10 +198,10 @@ public class DialogWorkspaceService {
             workspaceClient.putAll(filteredProfileEnrichment);
         }
         Map<String, String> profileMatchIncomingValues = new LinkedHashMap<>();
-        putProfileMatchField(profileMatchIncomingValues, "business", summary.businessLabel());
-        putProfileMatchField(profileMatchIncomingValues, "location", summary.location());
-        putProfileMatchField(profileMatchIncomingValues, "city", workspaceClient.get("city"));
-        putProfileMatchField(profileMatchIncomingValues, "country", workspaceClient.get("country"));
+        dialogWorkspaceRequestContractService.putProfileMatchField(profileMatchIncomingValues, "business", summary.businessLabel());
+        dialogWorkspaceRequestContractService.putProfileMatchField(profileMatchIncomingValues, "location", summary.location());
+        dialogWorkspaceRequestContractService.putProfileMatchField(profileMatchIncomingValues, "city", workspaceClient.get("city"));
+        dialogWorkspaceRequestContractService.putProfileMatchField(profileMatchIncomingValues, "country", workspaceClient.get("country"));
         Map<String, Object> profileMatchCandidates = dialogClientContextReadService.loadDialogProfileMatchCandidates(profileMatchIncomingValues, 5);
         if (!profileMatchCandidates.isEmpty()) {
             workspaceClient.put("profile_match_candidates", profileMatchCandidates);
@@ -287,290 +278,42 @@ public class DialogWorkspaceService {
                 workspaceRollout
         );
 
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("contract_version", "workspace.v1");
+        Map<String, Object> payload = dialogWorkspacePayloadAssemblerService.buildWorkspacePayload(
+                includeSections,
+                resolvedLimit,
+                safeCursor,
+                pagedHistory,
+                nextCursor,
+                hasMore,
+                workspaceClient,
+                clientHistory,
+                profileMatchCandidates,
+                relatedEvents,
+                profileHealth,
+                contextSources,
+                attributePolicies,
+                contextBlocks,
+                contextBlocksHealth,
+                contextContract,
+                workspacePermissions,
+                workspaceComposer,
+                slaTargetMinutes,
+                slaWarningMinutes,
+                slaCriticalMinutes,
+                dialogSlaRuntimeService.computeDeadlineAt(summary.createdAt(), slaTargetMinutes),
+                slaState,
+                slaMinutesLeft,
+                workspaceSlaPolicy,
+                workspaceRollout,
+                workspaceNavigation,
+                workspaceParity
+        );
         payload.put("conversation", summary);
-        payload.put("messages", includeSections.contains("messages")
-                ? mapWithNullableValues(
-                "items", pagedHistory,
-                "next_cursor", nextCursor,
-                "has_more", hasMore,
-                "limit", resolvedLimit,
-                "cursor", safeCursor
-        )
-                : mapWithNullableValues(
-                "items", List.of(),
-                "next_cursor", null,
-                "has_more", false,
-                "unavailable", true
-        ));
-        payload.put("context", includeSections.contains("context")
-                ? Map.of(
-                "client", workspaceClient,
-                "history", clientHistory,
-                "profile_match_candidates", profileMatchCandidates,
-                "related_events", relatedEvents,
-                "profile_health", profileHealth,
-                "context_sources", contextSources,
-                "attribute_policies", attributePolicies,
-                "blocks", contextBlocks,
-                "blocks_health", contextBlocksHealth,
-                "contract", contextContract
-        )
-                : Map.of(
-                "client", Map.of(),
-                "history", List.of(),
-                "related_events", List.of(),
-                "context_sources", List.of(),
-                "attribute_policies", List.of(),
-                "blocks", List.of(),
-                "contract", Map.of("enabled", false),
-                "unavailable", true
-        ));
-        payload.put("permissions", workspacePermissions);
-        payload.put("composer", workspaceComposer);
-        payload.put("sla", includeSections.contains("sla")
-                ? mapWithNullableValues(
-                "target_minutes", slaTargetMinutes,
-                "warning_minutes", slaWarningMinutes,
-                "critical_minutes", slaCriticalMinutes,
-                "deadline_at", dialogSlaRuntimeService.computeDeadlineAt(summary.createdAt(), slaTargetMinutes),
-                "state", slaState,
-                "minutes_left", slaMinutesLeft,
-                "escalation_required", slaMinutesLeft != null && slaMinutesLeft <= slaCriticalMinutes,
-                "policy", workspaceSlaPolicy
-        )
-                : mapWithNullableValues(
-                "target_minutes", slaTargetMinutes,
-                "warning_minutes", slaWarningMinutes,
-                "critical_minutes", slaCriticalMinutes,
-                "deadline_at", dialogSlaRuntimeService.computeDeadlineAt(summary.createdAt(), slaTargetMinutes),
-                "state", "unknown",
-                "minutes_left", null,
-                "escalation_required", false,
-                "policy", workspaceSlaPolicy,
-                "unavailable", true
-        ));
-        payload.put("meta", mapWithNullableValues(
-                "include", includeSections,
-                "limit", resolvedLimit,
-                "cursor", safeCursor,
-                "rollout", workspaceRollout,
-                "navigation", workspaceNavigation,
-                "parity", workspaceParity
-        ));
-        payload.put("success", true);
         return ResponseEntity.ok(payload);
-    }
-
-    private void putProfileMatchField(Map<String, String> target, String key, Object value) {
-        if (target == null || !StringUtils.hasText(key) || value == null) {
-            return;
-        }
-        String normalized = String.valueOf(value).trim();
-        if (!StringUtils.hasText(normalized) || "—".equals(normalized) || "-".equals(normalized)) {
-            return;
-        }
-        target.put(key, normalized);
-    }
-
-    private Map<String, Object> mapWithNullableValues(Object... keyValues) {
-        if (keyValues == null || keyValues.length == 0) {
-            return Map.of();
-        }
-        if (keyValues.length % 2 != 0) {
-            throw new IllegalArgumentException("mapWithNullableValues expects even number of arguments");
-        }
-        Map<String, Object> payload = new LinkedHashMap<>();
-        for (int i = 0; i < keyValues.length; i += 2) {
-            payload.put(String.valueOf(keyValues[i]), keyValues[i + 1]);
-        }
-        return payload;
-    }
-
-    private boolean toBoolean(Object value) {
-        if (value instanceof Boolean booleanValue) {
-            return booleanValue;
-        }
-        if (value instanceof Number number) {
-            return number.intValue() != 0;
-        }
-        String normalized = value != null ? String.valueOf(value).trim().toLowerCase() : "";
-        if (!StringUtils.hasText(normalized)) {
-            return false;
-        }
-        return switch (normalized) {
-            case "1", "true", "yes", "on", "ok", "ready" -> true;
-            default -> false;
-        };
-    }
-
-    private List<String> safeStringList(Object rawValue) {
-        if (!(rawValue instanceof List<?> values)) {
-            return List.of();
-        }
-        return values.stream()
-                .map(item -> trimToNull(String.valueOf(item)))
-                .filter(StringUtils::hasText)
-                .toList();
-    }
-    private Map<String, List<String>> safeStringListMap(Object rawValue) {
-        if (!(rawValue instanceof Map<?, ?> map)) {
-            return Map.of();
-        }
-        Map<String, List<String>> result = new LinkedHashMap<>();
-        for (Map.Entry<?, ?> entry : map.entrySet()) {
-            String key = trimToNull(String.valueOf(entry.getKey()));
-            if (!StringUtils.hasText(key)) {
-                continue;
-            }
-            List<String> items = safeStringList(entry.getValue());
-            if (!items.isEmpty()) {
-                result.put(key.toLowerCase(Locale.ROOT), items);
-            }
-        }
-        return result;
-    }
-
-    private boolean resolveBooleanDialogConfig(Map<?, ?> dialogConfig, String key, boolean fallbackValue) {
-        if (dialogConfig == null || key == null) {
-            return fallbackValue;
-        }
-        Object value = dialogConfig.get(key);
-        if (value == null) {
-            return fallbackValue;
-        }
-        if (value instanceof Boolean booleanValue) {
-            return booleanValue;
-        }
-        String normalized = String.valueOf(value).trim().toLowerCase();
-        if (!StringUtils.hasText(normalized)) {
-            return fallbackValue;
-        }
-        return switch (normalized) {
-            case "1", "true", "yes", "on" -> true;
-            case "0", "false", "no", "off" -> false;
-            default -> fallbackValue;
-        };
-    }
-
-    private int resolveIntegerDialogConfig(Map<?, ?> dialogConfig,
-                                           String key,
-                                           int fallbackValue,
-                                           int minValue,
-                                           int maxValue) {
-        if (dialogConfig == null || key == null) {
-            return fallbackValue;
-        }
-        Object value = dialogConfig.get(key);
-        if (value == null) {
-            return fallbackValue;
-        }
-        int parsed;
-        if (value instanceof Number number) {
-            parsed = number.intValue();
-        } else {
-            try {
-                parsed = Integer.parseInt(String.valueOf(value).trim());
-            } catch (NumberFormatException ex) {
-                return fallbackValue;
-            }
-        }
-        if (parsed < minValue || parsed > maxValue) {
-            return fallbackValue;
-        }
-        return parsed;
-    }
-
-    private OffsetDateTime parseUtcTimestamp(String rawValue) {
-        if (!StringUtils.hasText(rawValue)) {
-            return null;
-        }
-        try {
-            return OffsetDateTime.parse(rawValue).withOffsetSameInstant(ZoneOffset.UTC);
-        } catch (DateTimeParseException ignored) {
-            // fallback to legacy datetime-local without explicit offset
-        }
-        try {
-            return LocalDateTime.parse(rawValue).atOffset(ZoneOffset.UTC);
-        } catch (DateTimeParseException ignored) {
-            return null;
-        }
-    }
-
-    private String normalizeUtcTimestamp(Object rawValue) {
-        String normalized = trimToNull(String.valueOf(rawValue));
-        if (!StringUtils.hasText(normalized)) {
-            return null;
-        }
-        OffsetDateTime parsed = parseUtcTimestamp(normalized);
-        return parsed != null ? parsed.toString() : null;
-    }
-
-    private int resolveDialogConfigRangeMinutes(Map<String, Object> settings,
-                                                String key,
-                                                int fallbackValue,
-                                                int min,
-                                                int max) {
-        if (settings == null || settings.isEmpty()) {
-            return fallbackValue;
-        }
-        Object dialogConfigRaw = settings.get("dialog_config");
-        if (!(dialogConfigRaw instanceof Map<?, ?> dialogConfig)) {
-            return fallbackValue;
-        }
-        Object value = dialogConfig.get(key);
-        if (value == null) {
-            return fallbackValue;
-        }
-        try {
-            int parsed = Integer.parseInt(String.valueOf(value).trim());
-            if (parsed < min || parsed > max) {
-                return fallbackValue;
-            }
-            return parsed;
-        } catch (NumberFormatException ex) {
-            return fallbackValue;
-        }
-    }
-
-    private Set<String> resolveWorkspaceInclude(String include) {
-        if (include == null || include.isBlank()) {
-            return WORKSPACE_INCLUDE_ALLOWED;
-        }
-        Set<String> result = new HashSet<>();
-        Arrays.stream(include.split(","))
-                .map(String::trim)
-                .map(String::toLowerCase)
-                .filter(WORKSPACE_INCLUDE_ALLOWED::contains)
-                .forEach(result::add);
-        return result.isEmpty() ? WORKSPACE_INCLUDE_ALLOWED : Collections.unmodifiableSet(result);
-    }
-
-    private int resolveWorkspaceLimit(Integer limit) {
-        if (limit == null || limit <= 0) {
-            return DEFAULT_WORKSPACE_LIMIT;
-        }
-        return Math.min(limit, MAX_WORKSPACE_LIMIT);
-    }
-
-    private int resolveWorkspaceCursor(String cursor) {
-        if (cursor == null || cursor.isBlank()) {
-            return 0;
-        }
-        try {
-            return Math.max(Integer.parseInt(cursor.trim()), 0);
-        } catch (NumberFormatException ex) {
-            return 0;
-        }
     }
 
     private int resolveDialogConfigMinutes(String key, int fallbackValue) {
         return dialogSlaRuntimeService.resolveDialogConfigMinutes(sharedConfigService.loadSettings(), key, fallbackValue);
-    }
-
-    private boolean resolveDialogConfigBoolean(String key, boolean fallbackValue) {
-        return dialogSlaRuntimeService.resolveDialogConfigBoolean(sharedConfigService.loadSettings(), key, fallbackValue);
     }
 
     private String trimToNull(String value) {
@@ -579,46 +322,6 @@ public class DialogWorkspaceService {
         }
         String normalized = value.trim();
         return normalized.isEmpty() ? null : normalized;
-    }
-
-    private String normalizeMacroVariableKey(String rawValue) {
-        String value = trimToNull(rawValue);
-        if (value == null) {
-            return null;
-        }
-        String normalized = value.toLowerCase()
-                .replaceAll("[^a-z0-9_]+", "_")
-                .replaceAll("_+", "_")
-                .replaceAll("^_+|_+$", "");
-        return normalized.isEmpty() ? null : normalized;
-    }
-
-    private boolean asBoolean(Object raw) {
-        if (raw instanceof Boolean b) {
-            return b;
-        }
-        if (raw instanceof Number n) {
-            return n.intValue() != 0;
-        }
-        if (raw == null) {
-            return false;
-        }
-        String normalized = String.valueOf(raw).trim();
-        return "true".equalsIgnoreCase(normalized) || "1".equals(normalized);
-    }
-
-    private long asLong(Object raw) {
-        if (raw instanceof Number number) {
-            return number.longValue();
-        }
-        if (raw == null) {
-            return 0L;
-        }
-        try {
-            return Long.parseLong(String.valueOf(raw).trim());
-        } catch (NumberFormatException ex) {
-            return 0L;
-        }
     }
 
 }
