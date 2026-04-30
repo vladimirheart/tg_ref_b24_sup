@@ -207,9 +207,10 @@
   orchestration;
 - следующим пакетом снят и последний прямой consumer-boundary хвост giant
   service в основном приложении: `DialogWorkspaceTelemetrySummaryService`
-  переведён на отдельный `DialogWorkspaceTelemetrySummaryBridgeService`, а
-  remaining зависимость на `DialogService` честно локализована в compatibility
-  bridge вместо прямой domain/service связи.
+  сначала был переведён на compatibility bridge, а затем уже summary assembly
+  ушёл в `DialogWorkspaceTelemetrySummaryAssemblerService`, так что текущий
+  telemetry summary слой больше не зависит от `DialogService` и не держится
+  на промежуточном bridge как на постоянном решении.
 - следующим `Phase 3` пакетом giant service потерял ещё один крупный
   дублирующий bounded context: `macro governance audit` удалён из
   `DialogService`, `buildMacroGovernanceAudit(...)` оставлен только как
@@ -263,25 +264,42 @@
   `DialogWorkspaceService` удалены локальные include/limit/cursor/config
   helper'ы и финальный payload-builder; после этого `workspace`-сервис
   сжался примерно до `327` строк и стал ближе к thin orchestration слою.
+- следующим ещё более широким пакетом уже не giant `DialogService`, а
+  reply/runtime хвосты вокруг него разрезаны на отдельные bounded services:
+  `DialogReplyTargetService` теперь владеет target lookup, ticket activity,
+  web-form fallback и reply persistence, а `DialogReplyTransportService` —
+  Telegram/VK/MAX text/media transport;
+  `DialogReplyService` после этого сжат до примерно `194` строк и стал
+  thin write-side orchestration слоем поверх target/transport dependencies.
+- этим же пакетом убран последний telemetry-summary bridge-tail через giant
+  service: raw summary assembly вынесена в
+  `DialogWorkspaceTelemetrySummaryAssemblerService`, старый
+  `DialogWorkspaceTelemetrySummaryBridgeService` удалён, а
+  `DialogWorkspaceTelemetrySummaryService` и `DialogService` теперь
+  делегируют напрямую в новый bounded service;
+  после этого `DialogService` сжался уже примерно до `140` строк и
+  фактически перестал быть самостоятельным архитектурным hotspot.
+- по исходной цели roadmap `Phase 3` теперь можно считать выполненной:
+  transport split домена `dialogs` завершён, giant `DialogService`
+  доведён до thin facade, а remaining работа смещается из “monolith split”
+  в post-phase hardening вокруг reply/notifier/telemetry consumers и
+  integration-quality dialog boundaries.
 
 Что остаётся:
 
-- `DialogService` уже доведён до thin orchestration facade; главный
-  `Phase 3` фокус теперь смещается в remaining notifier/reply compatibility
-  tails и в `DialogWorkspaceService`, чтобы orchestration-risk не просто
-  переехал из одного класса в другой;
+- `DialogService` уже доведён до thin orchestration facade; оставшийся
+  dialog-risk теперь живёт не в giant class, а в adjacent runtime/write-side
+  boundaries вокруг reply/notifier/telemetry;
 - `DialogWorkspaceService` уже резко сужен, поэтому следующий пакет стоит
   брать не по generic helper'ам, а по оставшимся bounded contexts:
   reply/message write-side, notifier/escalation и remaining mapper/assembly
   tails вокруг workspace consumers;
 - главный следующий кандидат теперь reply-write / escalation / notifier
-  bounded contexts и их прямые consumers вокруг `DialogWorkspaceService`;
+  bounded contexts и их прямые consumers вокруг `DialogWorkspaceService`,
+  `DialogWorkspaceTelemetryService` и webhook-notifier слоя;
 - продолжить снимать remaining consumer-facades вокруг notifier / telemetry /
-  escalation слоёв там, где giant service ещё остаётся техническим посредником;
-- продолжить service-level split уже поверх вынесенных `DialogClientContextReadService`
-  и `DialogConversationReadService`, чтобы следующий пакет брал либо
-  lookup/list-assembly, details-read слой, либо write-side bounded contexts;
-- при необходимости вынести DTO mapping и summary assembly из giant service;
+  escalation слоёв там, где остались legacy-compatible transport contracts
+  или shared runtime helper’ы;
 - расширить targeted WebMvc/service tests под новую controller/service
   раскладку.
 
@@ -696,9 +714,10 @@
 1. `Phase 1` завершён.
 2. `Phase 2` стабилизирован и требует скорее нормализации ownership, чем
    срочной архитектурной ломки.
-3. `Phase 3` уже довёл `DialogService` до thin facade и теперь реально
-   концентрируется на `DialogWorkspaceService`, notifier/reply consumers и
-   remaining mapper/assembly tails.
+3. `Phase 3` выполнен по исходной цели giant dialog split: `DialogService`
+   доведён до thin facade, а remaining dialog-risk смещён в
+   `DialogWorkspaceService`, notifier/reply consumers и adjacent runtime
+   boundaries.
 4. `Phase 4` выполнен по самым рискованным giant flows и требует добивки
    remaining subdomains.
 5. `Phase 5` уже начат в коде.
@@ -721,9 +740,9 @@
    окружения и финальное решение по supervisor/service boundary.
 2. Параллельно расширять `Phase 6`, чтобы следующие рефакторинги шли под
    лучшей страховкой.
-3. После этого продолжать service-level split `dialogs`: сначала дожать
-   `DialogWorkspaceService` и прямых notifier/reply consumers, а уже потом
-   дочищать оставшиеся compatibility/delegate tails вокруг thin `DialogService`.
+3. После этого продолжать dialog hardening уже не вокруг giant service, а
+   вокруг `DialogWorkspaceService`, notifier/reply consumers и соседних
+   telemetry/runtime contracts.
 
 ## Порядок выполнения
 
@@ -731,8 +750,8 @@
 
 1. Довести `Phase 5` от launcher strategy до более явного runtime contract.
 2. Расширить `Phase 6`, чтобы новые refactor-проходы не шли почти без тестов.
-3. Вернуться к `dialogs` и резать `DialogService` по service-level bounded
-   contexts.
+3. Вернуться к `dialogs` и дожимать remaining workspace/notifier/reply
+   boundaries вместо старого giant `DialogService`.
 4. Добить remaining `settings` subdomains, если они ещё остаются в общих слоях.
 5. После этого уже решать, где нужен следующий integration/e2e слой, а где
    достаточно targeted runtime tests.

@@ -40,11 +40,9 @@ class DialogServiceTest {
     @Test
     void delegatesMacroGovernanceAuditToDedicatedService() {
         DialogMacroGovernanceAuditService macroGovernanceAuditService = mock(DialogMacroGovernanceAuditService.class);
+        DialogWorkspaceTelemetrySummaryAssemblerService telemetrySummaryAssemblerService = mock(DialogWorkspaceTelemetrySummaryAssemblerService.class);
         DialogService dialogService = new DialogService(
-                mock(DialogWorkspaceTelemetryDataService.class),
-                mock(DialogWorkspaceTelemetryAnalyticsService.class),
-                mock(DialogWorkspaceRolloutAssessmentService.class),
-                mock(DialogWorkspaceRolloutGovernanceService.class),
+                telemetrySummaryAssemblerService,
                 macroGovernanceAuditService,
                 mock(DialogLookupReadService.class),
                 mock(DialogResponsibilityService.class),
@@ -62,5 +60,28 @@ class DialogServiceTest {
 
         assertThat(actual).isEqualTo(expected);
         verify(macroGovernanceAuditService).buildAudit(settings);
+    }
+
+    @Test
+    void delegatesWorkspaceTelemetrySummaryToAssemblerService() {
+        DialogWorkspaceTelemetrySummaryAssemblerService telemetrySummaryAssemblerService = mock(DialogWorkspaceTelemetrySummaryAssemblerService.class);
+        DialogService dialogService = new DialogService(
+                telemetrySummaryAssemblerService,
+                mock(DialogMacroGovernanceAuditService.class),
+                mock(DialogLookupReadService.class),
+                mock(DialogResponsibilityService.class),
+                mock(DialogClientContextReadService.class),
+                mock(DialogConversationReadService.class),
+                mock(DialogDetailsReadService.class),
+                mock(DialogAuditService.class),
+                mock(DialogTicketLifecycleService.class)
+        );
+        Map<String, Object> expected = Map.of("window_days", 7, "success", true);
+        when(telemetrySummaryAssemblerService.loadSummary(7, "exp-a")).thenReturn(expected);
+
+        Map<String, Object> actual = dialogService.loadWorkspaceTelemetrySummary(7, "exp-a");
+
+        assertThat(actual).isEqualTo(expected);
+        verify(telemetrySummaryAssemblerService).loadSummary(7, "exp-a");
     }
 }
