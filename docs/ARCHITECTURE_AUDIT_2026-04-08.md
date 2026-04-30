@@ -205,6 +205,15 @@
   `SettingsApiControllerWebMvcTest` и targeted unit tests, так что
   `settings` boundary прикрыт уже не только вокруг giant `/settings` update,
   но и вокруг catalog/network adjunct API;
+- следующий adjacent governance хвост тоже уже вынесен:
+  `AnalyticsMacroGovernancePolicyService` теперь владеет
+  `macro governance review`, `external catalog policy` и
+  `deprecation policy`, а `AnalyticsController` больше не держит эти
+  settings-adjacent persistence/audit сценарии внутри себя;
+- после этого `Phase 4` уже можно считать выполненной по исходной цели:
+  giant settings transport/update слой разрезан, а remaining работа перешла
+  в режим hardening и соседних governance/integration boundaries, а не
+  незавершённого monolith split.
 - в server-backed UI preferences был найден и закрыт реальный alias-bug:
   `sortMode/pageSize/updatedAtUtc` в `dialogsTriage` могли теряться из-за
   premature default-normalization, теперь этот контракт исправлен и покрыт

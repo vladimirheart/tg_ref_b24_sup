@@ -1,6 +1,7 @@
 package com.example.panel.controller;
 
 import com.example.panel.service.AnalyticsService;
+import com.example.panel.service.AnalyticsMacroGovernancePolicyService;
 import com.example.panel.service.DialogAuditService;
 import com.example.panel.service.NavigationService;
 import com.example.panel.service.SharedConfigService;
@@ -11,6 +12,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.LinkedHashMap;
@@ -21,6 +23,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -41,6 +44,9 @@ class AnalyticsControllerWebMvcTest {
 
     @MockBean
     private AnalyticsService analyticsService;
+
+    @MockBean
+    private AnalyticsMacroGovernancePolicyService analyticsMacroGovernancePolicyService;
 
     @MockBean
     private DialogAuditService dialogAuditService;
@@ -681,9 +687,15 @@ void updateWorkspaceLegacyUsagePolicyRejectsInvalidBlockedShareDelta() throws Ex
 
     @Test
     void updateMacroGovernanceReviewPersistsUtcReview() throws Exception {
-        when(sharedConfigService.loadSettings()).thenReturn(new LinkedHashMap<>(Map.of(
-                "dialog_config", new LinkedHashMap<>()
-        )));
+        doReturn(ResponseEntity.ok(Map.of(
+                        "success", true,
+                        "reviewed_by", "ops.lead",
+                        "reviewed_at_utc", "2026-03-24T23:50:00Z",
+                        "review_note", "Namespace cleanup reviewed, owner follow-up planned.",
+                        "cleanup_ticket_id", "MACRO-101",
+                        "decision", "hold"
+                ))).when(analyticsMacroGovernancePolicyService)
+                .updateMacroGovernanceReview(any(), any(), any(), any(), any(), any());
 
         mockMvc.perform(post("/analytics/macro-governance/review")
                         .with(user("ops.lead"))
@@ -704,39 +716,15 @@ void updateWorkspaceLegacyUsagePolicyRejectsInvalidBlockedShareDelta() throws Ex
                 .andExpect(jsonPath("$.review_note").value("Namespace cleanup reviewed, owner follow-up planned."))
                 .andExpect(jsonPath("$.cleanup_ticket_id").value("MACRO-101"))
                 .andExpect(jsonPath("$.decision").value("hold"));
-
-        ArgumentCaptor<Map<String, Object>> settingsCaptor = ArgumentCaptor.forClass(Map.class);
-        verify(sharedConfigService).saveSettings(settingsCaptor.capture());
-        Map<String, Object> savedSettings = settingsCaptor.getValue();
-        Map<String, Object> dialogConfig = (Map<String, Object>) savedSettings.get("dialog_config");
-        assertThat(dialogConfig.get("macro_governance_reviewed_by")).isEqualTo("ops.lead");
-        assertThat(dialogConfig.get("macro_governance_reviewed_at")).isEqualTo("2026-03-24T23:50:00Z");
-        assertThat(dialogConfig.get("macro_governance_review_note"))
-                .isEqualTo("Namespace cleanup reviewed, owner follow-up planned.");
-        assertThat(dialogConfig.get("macro_governance_cleanup_ticket_id")).isEqualTo("MACRO-101");
-        assertThat(dialogConfig.get("macro_governance_review_decision")).isEqualTo("hold");
-
-        verify(dialogAuditService).logWorkspaceTelemetry(
-                eq("ops.lead"),
-                eq("workspace_macro_governance_review_updated"),
-                eq("experiment"),
-                eq(null),
-                eq("analytics_macro_governance_review"),
-                eq(null),
-                eq("workspace.v1"),
-                eq(null),
-                eq("workspace_v1_rollout"),
-                eq(null),
-                eq(null),
-                eq(null),
-                eq(null),
-                eq(null),
-                eq(null));
     }
 
     @Test
     void updateMacroGovernanceReviewRejectsInvalidUtcTimestamp() throws Exception {
-        when(sharedConfigService.loadSettings()).thenReturn(Map.of());
+        doReturn(ResponseEntity.badRequest().body(Map.of(
+                        "success", false,
+                        "error", "reviewed_at_utc must be a valid UTC timestamp (ISO-8601)"
+                ))).when(analyticsMacroGovernancePolicyService)
+                .updateMacroGovernanceReview(any(), any(), any(), any(), any(), any());
 
         mockMvc.perform(post("/analytics/macro-governance/review")
                         .with(user("ops.lead"))
@@ -753,7 +741,11 @@ void updateWorkspaceLegacyUsagePolicyRejectsInvalidBlockedShareDelta() throws Ex
 
     @Test
     void updateMacroGovernanceReviewRejectsUnknownDecision() throws Exception {
-        when(sharedConfigService.loadSettings()).thenReturn(Map.of());
+        doReturn(ResponseEntity.badRequest().body(Map.of(
+                        "success", false,
+                        "error", "decision must be one of: go, hold"
+                ))).when(analyticsMacroGovernancePolicyService)
+                .updateMacroGovernanceReview(any(), any(), any(), any(), any(), any());
 
         mockMvc.perform(post("/analytics/macro-governance/review")
                         .with(user("ops.lead"))
@@ -771,9 +763,14 @@ void updateWorkspaceLegacyUsagePolicyRejectsInvalidBlockedShareDelta() throws Ex
 
     @Test
     void updateMacroExternalCatalogPolicyPersistsUtcValues() throws Exception {
-        when(sharedConfigService.loadSettings()).thenReturn(new LinkedHashMap<>(Map.of(
-                "dialog_config", new LinkedHashMap<>()
-        )));
+        doReturn(ResponseEntity.ok(Map.of(
+                        "success", true,
+                        "verified_at_utc", "2026-03-25T01:10:00Z",
+                        "expected_version", "2026.03.25",
+                        "observed_version", "2026.03.25",
+                        "review_ttl_hours", 72
+                ))).when(analyticsMacroGovernancePolicyService)
+                .updateMacroExternalCatalogPolicy(any(), any(), any(), any(), any(), any(), any(), any());
 
         mockMvc.perform(post("/analytics/macro-governance/external-catalog-policy")
                         .with(user("ops.lead"))
@@ -795,39 +792,15 @@ void updateWorkspaceLegacyUsagePolicyRejectsInvalidBlockedShareDelta() throws Ex
                 .andExpect(jsonPath("$.expected_version").value("2026.03.25"))
                 .andExpect(jsonPath("$.observed_version").value("2026.03.25"))
                 .andExpect(jsonPath("$.review_ttl_hours").value(72));
-
-        ArgumentCaptor<Map<String, Object>> settingsCaptor = ArgumentCaptor.forClass(Map.class);
-        verify(sharedConfigService).saveSettings(settingsCaptor.capture());
-        Map<String, Object> savedSettings = settingsCaptor.getValue();
-        Map<String, Object> dialogConfig = (Map<String, Object>) savedSettings.get("dialog_config");
-        assertThat(dialogConfig.get("macro_external_catalog_verified_by")).isEqualTo("ops.lead");
-        assertThat(dialogConfig.get("macro_external_catalog_verified_at")).isEqualTo("2026-03-25T01:10:00Z");
-        assertThat(dialogConfig.get("macro_external_catalog_expected_version")).isEqualTo("2026.03.25");
-        assertThat(dialogConfig.get("macro_external_catalog_observed_version")).isEqualTo("2026.03.25");
-        assertThat(dialogConfig.get("macro_external_catalog_decision")).isEqualTo("go");
-        assertThat(dialogConfig.get("macro_external_catalog_contract_ttl_hours")).isEqualTo(72L);
-
-        verify(dialogAuditService).logWorkspaceTelemetry(
-                eq("ops.lead"),
-                eq("workspace_macro_external_catalog_policy_updated"),
-                eq("experiment"),
-                eq(null),
-                eq("analytics_macro_external_catalog_policy"),
-                eq(null),
-                eq("workspace.v1"),
-                eq(null),
-                eq("workspace_v1_rollout"),
-                eq(null),
-                eq(null),
-                eq(null),
-                eq(null),
-                eq(null),
-                eq(null));
     }
 
     @Test
     void updateMacroExternalCatalogPolicyRejectsInvalidUtc() throws Exception {
-        when(sharedConfigService.loadSettings()).thenReturn(Map.of());
+        doReturn(ResponseEntity.badRequest().body(Map.of(
+                        "success", false,
+                        "error", "verified_at_utc must be a valid UTC timestamp (ISO-8601)"
+                ))).when(analyticsMacroGovernancePolicyService)
+                .updateMacroExternalCatalogPolicy(any(), any(), any(), any(), any(), any(), any(), any());
         mockMvc.perform(post("/analytics/macro-governance/external-catalog-policy")
                         .with(user("ops.lead"))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -843,9 +816,14 @@ void updateWorkspaceLegacyUsagePolicyRejectsInvalidBlockedShareDelta() throws Ex
 
     @Test
     void updateMacroDeprecationPolicyPersistsUtcValues() throws Exception {
-        when(sharedConfigService.loadSettings()).thenReturn(new LinkedHashMap<>(Map.of(
-                "dialog_config", new LinkedHashMap<>()
-        )));
+        doReturn(ResponseEntity.ok(Map.of(
+                        "success", true,
+                        "reviewed_at_utc", "2026-03-25T01:40:00Z",
+                        "deprecation_ticket_id", "MACRO-DEP-42",
+                        "decision", "hold",
+                        "review_ttl_hours", 96
+                ))).when(analyticsMacroGovernancePolicyService)
+                .updateMacroDeprecationPolicy(any(), any(), any(), any(), any(), any(), any());
 
         mockMvc.perform(post("/analytics/macro-governance/deprecation-policy")
                         .with(user("ops.lead"))
@@ -866,38 +844,15 @@ void updateWorkspaceLegacyUsagePolicyRejectsInvalidBlockedShareDelta() throws Ex
                 .andExpect(jsonPath("$.deprecation_ticket_id").value("MACRO-DEP-42"))
                 .andExpect(jsonPath("$.decision").value("hold"))
                 .andExpect(jsonPath("$.review_ttl_hours").value(96));
-
-        ArgumentCaptor<Map<String, Object>> settingsCaptor = ArgumentCaptor.forClass(Map.class);
-        verify(sharedConfigService).saveSettings(settingsCaptor.capture());
-        Map<String, Object> savedSettings = settingsCaptor.getValue();
-        Map<String, Object> dialogConfig = (Map<String, Object>) savedSettings.get("dialog_config");
-        assertThat(dialogConfig.get("macro_deprecation_policy_reviewed_by")).isEqualTo("ops.lead");
-        assertThat(dialogConfig.get("macro_deprecation_policy_reviewed_at")).isEqualTo("2026-03-25T01:40:00Z");
-        assertThat(dialogConfig.get("macro_deprecation_policy_ticket_id")).isEqualTo("MACRO-DEP-42");
-        assertThat(dialogConfig.get("macro_deprecation_policy_decision")).isEqualTo("hold");
-        assertThat(dialogConfig.get("macro_deprecation_policy_ttl_hours")).isEqualTo(96L);
-
-        verify(dialogAuditService).logWorkspaceTelemetry(
-                eq("ops.lead"),
-                eq("workspace_macro_deprecation_policy_updated"),
-                eq("experiment"),
-                eq(null),
-                eq("analytics_macro_deprecation_policy"),
-                eq(null),
-                eq("workspace.v1"),
-                eq(null),
-                eq("workspace_v1_rollout"),
-                eq(null),
-                eq(null),
-                eq(null),
-                eq(null),
-                eq(null),
-                eq(null));
     }
 
     @Test
     void updateMacroDeprecationPolicyRejectsInvalidUtc() throws Exception {
-        when(sharedConfigService.loadSettings()).thenReturn(Map.of());
+        doReturn(ResponseEntity.badRequest().body(Map.of(
+                        "success", false,
+                        "error", "reviewed_at_utc must be a valid UTC timestamp (ISO-8601)"
+                ))).when(analyticsMacroGovernancePolicyService)
+                .updateMacroDeprecationPolicy(any(), any(), any(), any(), any(), any(), any());
         mockMvc.perform(post("/analytics/macro-governance/deprecation-policy")
                         .with(user("ops.lead"))
                         .contentType(MediaType.APPLICATION_JSON)

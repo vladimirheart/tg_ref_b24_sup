@@ -302,6 +302,10 @@
 
 Статус:
 
+- завершено по основным целям roadmap: giant `SettingsBridgeController` /
+  `SettingsUpdateService` больше не являются точками концентрации домена, а
+  transport/service split для основных `settings` subdomains доведён до
+  рабочего baseline.
 - начато: parameters API `/api/settings/parameters` и связанная логика
   location/parameter sync вынесены в `SettingsParametersController` и
   `SettingsParameterService`.
@@ -336,6 +340,11 @@
   `SettingsItConnectionCategoryService`, а `integration network probe` — в
   `SettingsIntegrationNetworkProbeService`; поверх этого добавлен отдельный
   `SettingsApiControllerWebMvcTest` и targeted unit tests на новые сервисы.
+- продолжено: settings-adjacent governance хвост в `AnalyticsController`
+  тоже разрезан — `macro governance review`, `external catalog policy` и
+  `deprecation policy` вынесены в
+  `AnalyticsMacroGovernancePolicyService`, а `AnalyticsController` оставлен
+  thin transport wrapper над этим subdomain service.
 - добавлена минимальная test safety net: routing/validation для нового
   `dialog_config` split покрыты unit-тестами, а legacy
   `DialogApiControllerWebMvcTest` синхронизирован с новой controller-разбивкой,
@@ -347,16 +356,18 @@
 - `SettingsBridgeController` и `SettingsUpdateService` больше не являются
   единственными точками концентрации домена;
 - `SettingsApiController` больше не держит внутри себя catalog/probe/status
-  orchestration и ближе к thin transport wrapper.
+  orchestration и ближе к thin transport wrapper;
+- `Phase 4` можно считать выполненной по исходной цели roadmap: giant
+  `settings` transport/update слой разрезан, а remaining работа теперь уже
+  относится скорее к hardening и соседним governance/integration boundary.
 
 Что остаётся:
 
-- выделить remaining subdomains уровня `catalog/reference data`,
-  `partner/network`, `bot/integration settings`, если они всё ещё живут в
-  слишком общих слоях;
-- отдельно проверить `AnalyticsController` и соседние settings-adjacent
-  governance endpoints, чтобы catalog/network policy не начали повторно
-  собираться вне выделенных subdomain services;
+- держать под наблюдением remaining `catalog/reference data`,
+  `partner/network`, `bot/integration settings`, чтобы они не начали снова
+  собираться в общих слоях;
+- отдельно дочищать соседние governance/integration endpoints уже как
+  post-phase hardening, а не как незавершённый giant split;
 - при необходимости сузить remaining responsibilities
   `SettingsDialogWorkspaceConfigService`, если он снова начнёт разрастаться;
 - расширить тестовую страховку вокруг settings update/routing контрактов.
