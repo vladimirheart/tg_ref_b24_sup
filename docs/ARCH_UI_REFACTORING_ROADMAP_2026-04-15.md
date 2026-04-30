@@ -236,6 +236,18 @@
   governance packet contract не сломался после выноса;
   сам `DialogService` после этого прохода сжался уже примерно до
   `2533` строк.
+- следующим ещё более широким `Phase 3` пакетом giant service потерял и
+  rollout packet / governance packet bounded context:
+  `DialogWorkspaceRolloutGovernanceService` теперь владеет governance
+  packet assembly, parity exit criteria, legacy-only inventory, legacy
+  manual-open policy и context-contract rollout packet orchestration, а
+  `DialogService` переключён на thin delegate к новому bounded service;
+  под это добавлен отдельный
+  `DialogWorkspaceRolloutGovernanceServiceTest`, а targeted rollout
+  integration tests подтверждают, что UTC scorecard / governance packet
+  contract не сломался и после этого выноса;
+  сам `DialogService` после этого прохода сжался уже примерно до
+  `902` строк.
 
 Что остаётся:
 
@@ -244,10 +256,10 @@
 - продолжить вытаскивать из `DialogService` remaining read/write bounded
   contexts уже поверх вынесенного `DialogClientContextReadService`;
 - продолжить ужимать compatibility/orchestration слой giant service уже
-  после вынесенных telemetry analytics, external KPI и rollout assessment
-  slices:
-  главный следующий кандидат теперь rollout packet / governance packet /
-  reply-write bounded contexts;
+  после вынесенных telemetry analytics, external KPI, rollout assessment
+  и rollout governance slices:
+  главный следующий кандидат теперь reply-write / escalation / notifier /
+  remaining mapper bounded contexts;
 - продолжить снимать remaining consumer-facades вокруг notifier / telemetry /
   escalation слоёв там, где giant service ещё остаётся техническим посредником;
 - продолжить service-level split уже поверх вынесенных `DialogClientContextReadService`

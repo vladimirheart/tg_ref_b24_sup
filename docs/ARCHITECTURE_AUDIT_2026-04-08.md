@@ -429,9 +429,9 @@ boundary между `spring-panel` и `java-bot`.
 
 **Актуальный фокус:**
 - `DialogService` остаётся главным giant service и основным SRP-риском,
-  но уже сужен примерно до `2533` строк после выноса telemetry analytics,
-  external KPI rollout logic и rollout assessment / scorecard bounded
-  context;
+  но уже сужен примерно до `902` строк после выноса telemetry analytics,
+  external KPI rollout logic, rollout assessment / scorecard и rollout
+  governance bounded contexts;
 - `DialogWorkspaceService` уже заметно сужен, но всё ещё остаётся крупным
   сервисом-оркестратором;
 - часть orchestration в `settings` уже разрезана, но remaining subdomains
@@ -459,11 +459,11 @@ DialogService
   │   ├─ DialogWorkspaceTelemetryAnalyticsService
   │   ├─ DialogWorkspaceExternalKpiService
   │   ├─ DialogWorkspaceRolloutAssessmentService
+  │   ├─ DialogWorkspaceRolloutGovernanceService
   │   ├─ DialogMacroGovernanceSupportService
   │   └─ DialogMacroGovernanceAuditService
   ├─ still to narrow:
   │   ├─ DialogWorkspaceService
-  │   ├─ rollout packet / governance packet orchestration
   │   ├─ telemetry summary orchestration + compatibility bridge
   │   ├─ reply/message write-side flows
   │   ├─ AI/notification/escalation flows
@@ -679,6 +679,18 @@ integration-сценария поверх users/settings runtime boundary всё
   текущий остаточный фокус giant service после этого сместился уже не в
   scorecard, а в rollout packet / governance packet / reply-write
   orchestration.
+- следующим `Phase 3` пакетом giant `DialogService` потерял и rollout
+  packet / governance packet bounded context:
+  `DialogWorkspaceRolloutGovernanceService` теперь владеет governance
+  packet assembly, parity exit criteria, legacy-only inventory, legacy
+  manual-open policy и context-contract rollout packet orchestration;
+  `DialogService` после этого держит только thin delegate на новый
+  bounded service, а targeted rollout integration tests подтверждают,
+  что UTC scorecard / governance packet contract не сломался и после
+  этого выноса;
+  текущий остаточный фокус giant service после этого сместился уже не
+  в rollout packet, а в reply-write / escalation / notifier /
+  compatibility delegates.
 
 **Автор исходного аудита:** GitHub Copilot  
-**Статус:** Документ актуализирован под состояние кода на 28 апреля 2026
+**Статус:** Документ актуализирован под состояние кода на 30 апреля 2026
