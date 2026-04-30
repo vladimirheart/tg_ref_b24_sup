@@ -744,13 +744,8 @@
    окружения и финальное решение по supervisor/service boundary.
 2. Параллельно расширять `Phase 6`, чтобы следующие рефакторинги шли под
    лучшей страховкой.
-3. После этого продолжать dialog hardening уже не вокруг giant service, а
-   вокруг remaining notifier/runtime hotspots: в первую очередь giant
-   `SlaEscalationWebhookNotifier`, затем `DialogWorkspaceService` и соседних
-   telemetry/runtime contracts.
-4. Внутри `SlaEscalationWebhookNotifier` первым делом резать candidate
-   selection и auto-assign, а governance-audit / routing-policy review tail
-   оставлять следующим bounded context, а не тащить всё одним куском.
+3. После этого продолжать dialog hardening уже не вокруг giant service, а вокруг remaining notifier/runtime hotspots: в первую очередь `SlaRoutingPolicyService` как вынесенный governance/routing bounded context, затем `DialogWorkspaceService` и соседних telemetry/runtime contracts.
+4. Внутри бывшего notifier hotspot candidate selection, auto-assign и routing snapshot уже вынесены; следующим bounded context теперь резать governance review packet, issue classification и rule-definition parsing внутри `SlaRoutingPolicyService`.
 
 ## Порядок выполнения
 
@@ -758,10 +753,7 @@
 
 1. Довести `Phase 5` от launcher strategy до более явного runtime contract.
 2. Расширить `Phase 6`, чтобы новые refactor-проходы не шли почти без тестов.
-3. Вернуться к `dialogs` и дожимать remaining workspace/notifier/reply
-   boundaries, начиная с governance-audit tail в
-   `SlaEscalationWebhookNotifier` после уже вынесенных candidate scan и
-   auto-assign services.
+3. Вернуться к `dialogs` и дожимать remaining workspace/notifier/reply boundaries, начиная уже с `SlaRoutingPolicyService` после вынесения candidate scan, auto-assign и routing snapshot out of notifier.
 4. Добить remaining `settings` subdomains, если они ещё остаются в общих слоях.
 5. После этого уже решать, где нужен следующий integration/e2e слой, а где
    достаточно targeted runtime tests.
@@ -772,3 +764,11 @@
 - не переписывать одновременно `DialogService`, `settings` subdomains и bot
   runtime contract;
 - не смешивать визуальный редизайн с архитектурным рефакторингом сервиса.
+
+- следующим более широким пакетом governance/routing tail тоже вынесен из
+  SlaEscalationWebhookNotifier: новый SlaRoutingPolicyService теперь
+  держит routing policy snapshot и governance audit, а сам notifier после этого
+  сжат уже примерно до 350 строк;
+- следующий hotspot в этом периметре теперь уже не notifier-wrapper, а
+  SlaRoutingPolicyService (~1786 строк) с review checkpoint / issue
+  classification / rule-definition parsing логикой.

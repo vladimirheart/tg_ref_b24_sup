@@ -766,9 +766,17 @@ integration-сценария поверх users/settings runtime boundary всё
   filtering, `SlaEscalationAutoAssignService` — rule matching, assignee pools,
   round-robin/least-loaded routing и operator load guards; сам
   `SlaEscalationWebhookNotifier` после перевода на новые bounded services
-  сжался примерно до `1967` строк. После этого главным remaining notifier-risk
-  остаётся уже не auto-assign orchestration, а прежде всего governance-audit /
-  routing-policy audit tail.
+  сжался примерно до `1967` строк. После этого главным remaining notifier-risk уже успел стать не auto-assign orchestration, а governance-audit / routing-policy audit tail.
 
 **Автор исходного аудита:** GitHub Copilot  
 **Статус:** Документ актуализирован под состояние кода на 1 мая 2026
+
+- следующим более широким пакетом этот tail тоже вынесен из
+  SlaEscalationWebhookNotifier: новый SlaRoutingPolicyService теперь
+  держит uildRoutingPolicySnapshot(...), uildRoutingGovernanceAudit(...)
+  и связанный rule-definition/governance helper слой; сам notifier после этого
+  сжат уже примерно до 350 строк и перестал быть главным runtime hot spot.
+- после этого основной remaining риск в notifier/runtime boundary смещён в
+  SlaRoutingPolicyService (~1786 строк), а не в transport/delivery wrapper;
+  следующий логичный split там — governance review packet, issue
+  classification и rule-definition parsing bounded contexts.
