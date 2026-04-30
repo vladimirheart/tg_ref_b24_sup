@@ -251,10 +251,11 @@
 
 Что остаётся:
 
-- service-level split `DialogService` на list/workspace/history/SLA/AI и related
-  mapping layers;
+- `DialogService` уже не giant по размеру, но ещё не доведён до truly thin
+  facade: внутри остаются reply/message write-side, escalation/notifier и
+  mapper/assembly compatibility slices;
 - продолжить вытаскивать из `DialogService` remaining read/write bounded
-  contexts уже поверх вынесенного `DialogClientContextReadService`;
+  contexts уже поверх вынесенных rollout/telemetry/governance services;
 - продолжить ужимать compatibility/orchestration слой giant service уже
   после вынесенных telemetry analytics, external KPI, rollout assessment
   и rollout governance slices:
