@@ -1,7 +1,7 @@
 # Architecture And UI Refactoring Roadmap
 
 Дата старта: `2026-04-15`
-Обновлено: `2026-04-23`
+Обновлено: `2026-04-30`
 
 ## Цель
 
@@ -256,6 +256,13 @@
   private methods больше не живут в самом фасаде;
   после этого `DialogService` сжался уже примерно до `275` строк и
   стал реально thin orchestration facade.
+- следующим пакетом фокус уже смещён в `DialogWorkspaceService`:
+  request-contract normalization и final payload assembly вынесены в
+  `DialogWorkspaceRequestContractService` и
+  `DialogWorkspacePayloadAssemblerService`, а из
+  `DialogWorkspaceService` удалены локальные include/limit/cursor/config
+  helper'ы и финальный payload-builder; после этого `workspace`-сервис
+  сжался примерно до `327` строк и стал ближе к thin orchestration слою.
 
 Что остаётся:
 
@@ -263,6 +270,10 @@
   `Phase 3` фокус теперь смещается в remaining notifier/reply compatibility
   tails и в `DialogWorkspaceService`, чтобы orchestration-risk не просто
   переехал из одного класса в другой;
+- `DialogWorkspaceService` уже резко сужен, поэтому следующий пакет стоит
+  брать не по generic helper'ам, а по оставшимся bounded contexts:
+  reply/message write-side, notifier/escalation и remaining mapper/assembly
+  tails вокруг workspace consumers;
 - главный следующий кандидат теперь reply-write / escalation / notifier
   bounded contexts и их прямые consumers вокруг `DialogWorkspaceService`;
 - продолжить снимать remaining consumer-facades вокруг notifier / telemetry /
@@ -663,8 +674,9 @@
 1. `Phase 1` завершён.
 2. `Phase 2` стабилизирован и требует скорее нормализации ownership, чем
    срочной архитектурной ломки.
-3. `Phase 3` завершён на controller boundary и уже движется в service-level
-   split `DialogWorkspaceService`, но всё ещё упирается в giant `DialogService`.
+3. `Phase 3` уже довёл `DialogService` до thin facade и теперь реально
+   концентрируется на `DialogWorkspaceService`, notifier/reply consumers и
+   remaining mapper/assembly tails.
 4. `Phase 4` выполнен по самым рискованным giant flows и требует добивки
    remaining subdomains.
 5. `Phase 5` уже начат в коде.
@@ -688,8 +700,8 @@
 2. Параллельно расширять `Phase 6`, чтобы следующие рефакторинги шли под
    лучшей страховкой.
 3. После этого продолжать service-level split `dialogs`: сначала дожать
-   `DialogWorkspaceService`, затем резать сам `DialogService`, который остаётся
-   самым большим архитектурным риском.
+   `DialogWorkspaceService` и прямых notifier/reply consumers, а уже потом
+   дочищать оставшиеся compatibility/delegate tails вокруг thin `DialogService`.
 
 ## Порядок выполнения
 
