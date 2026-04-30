@@ -98,10 +98,10 @@
   macro-governance audit slice;
 - следующим пакетом и последний прямой consumer-хвост в основном
   service/controller-слое снят с giant service: `DialogWorkspaceTelemetrySummaryService`
-  теперь работает через отдельный `DialogWorkspaceTelemetrySummaryBridgeService`,
-  а не тянет `DialogService` напрямую; это ещё не полный вынос summary-логики,
-  но уже переводит оставшуюся связность в явный compatibility bridge вместо
-  прямой доменной зависимости;
+  сначала был переведён на compatibility bridge, а затем и сам summary-слой
+  ушёл в `DialogWorkspaceTelemetrySummaryAssemblerService`, поэтому текущая
+  связность уже не держится на прямой зависимости от `DialogService` и не
+  требует промежуточный bridge как постоянное решение;
 - SLA/runtime дублирование между `DialogWorkspaceService` и
   `DialogListReadService` уменьшено через общий `DialogSlaRuntimeService`,
   который теперь держит lifecycle-state, deadline, minutes-left и config
@@ -140,20 +140,13 @@
 
 Что остаётся главным архитектурным риском:
 
-- `DialogService` всё ещё слишком крупный и остаётся главным кандидатом на
-  service-level split, хотя первый client-context read slice из него уже
-  выделен и часть потребителей переведена на новый слой; теперь к нему
-  добавлен и второй conversation read slice, что заметно уменьшает pressure
-  на giant service; теперь к этому добавлены ещё lookup/responsibility slices,
-  а теперь и lifecycle/audit/details slices; отдельно giant service уже
-  потерял и дублирующий `macro governance audit` bounded context, который
-  окончательно живёт в `DialogMacroGovernanceAuditService`, а не внутри
-  giant service; но remaining bounded contexts и legacy helper blocks всё
-  ещё не закрыты полностью; при этом сам класс уже заметно уменьшился и
-  сейчас находится примерно на уровне `4900` строк, то
-  есть речь уже не о “старом монолите без движения”, а о незавершённом, но
-  активно режущемся giant service;
-- `DialogWorkspaceService` всё ещё крупный, хотя уже начал разгружаться через
+- `DialogService` больше не является giant-service риском сам по себе:
+  после выноса rollout, telemetry, macro governance и reply-adjacent tails
+  он уже находится примерно на уровне `140` строк и работает как thin
+  orchestration facade; основной residual risk сместился с размера класса на
+  качество remaining compatibility/runtime boundaries вокруг него.
+- `DialogWorkspaceService` всё ещё крупный по сравнению с остальными
+  dialog-срезами, хотя уже начал разгружаться через
   выделенные workspace sub-services и уже прикрыт targeted service tests по
   parity, navigation, rollout, client profile, context blocks, client payload,
   context source policy и context contract;
@@ -171,12 +164,12 @@
 - DTO/API contract и error contract всё ещё не унифицированы по проекту;
 - persistence-слой по-прежнему смешивает raw JDBC и JPA/Repository подходы;
 - boundary-wrapper слой вокруг telemetry/notifier уже подкреплён реальными
-  `DialogWorkspaceTelemetryDataService` и
-  `DialogMacroGovernanceSupportService`, а прямой consumer-зависимости
-  `DialogWorkspaceTelemetrySummaryService -> DialogService` больше нет;
-  следующий шаг там теперь уже не в raw JDBC/helper выносе, а в дожиме самой
-  telemetry summary orchestration и постепенном схлопывании compatibility
-  bridge/delegate слоя вокруг `DialogService`;
+  `DialogWorkspaceTelemetryDataService`,
+  `DialogMacroGovernanceSupportService` и теперь ещё
+  `DialogWorkspaceTelemetrySummaryAssemblerService`; прямой
+  consumer-зависимости `DialogWorkspaceTelemetrySummaryService ->
+  DialogService` больше нет, а следующий шаг там уже не в bridge-cleanup,
+  а в hardening notifier/runtime contracts и соседних orchestration tails;
 - важный реальный progress point: `buildMacroGovernanceAudit(...)` в
   `DialogService` теперь лишь compatibility delegate, а constructor giant
   service уже не тянет `DialogMacroGovernanceSupportService`, потому что
@@ -638,7 +631,7 @@ integration-сценария поверх users/settings runtime boundary всё
 
 ## 📁 Следующие шаги
 
-1. Следующим `Phase 3` пакетом забирать reply/message write-side и связанный escalation/notifier tail уже не из `DialogService`, а из их прямых consumers вокруг `DialogWorkspaceService`
+1. Следующим пакетом добирать remaining notifier/escalation/reply runtime tails уже вокруг `DialogWorkspaceService`, `DialogWorkspaceTelemetryService` и webhook-consumers, а не вокруг giant `DialogService`
 2. Досузить `DialogWorkspaceService` по remaining payload/mapper/write-side хвостам, чтобы остаточный orchestration-risk не просто переехал из одного класса в другой
 3. Добить remaining `settings` subdomains и persistence boundaries
 4. Продолжить расширять `Phase 6` уже не только targeted unit/WebMvc tests, а integration-сценариями shared config/runtime и panel-bot orchestration boundary
@@ -736,6 +729,25 @@ integration-сценария поверх users/settings runtime boundary всё
   после этого `DialogWorkspaceService` сжался уже примерно до `327` строк,
   а следующий практический фокус сместился в reply/message write-side,
   notifier/escalation и remaining mapper tails вокруг workspace consumers.
+- следующим более широким пакетом эти reply/runtime хвосты тоже начали
+  резаться в коде:
+  `DialogReplyTargetService` теперь владеет target lookup, ticket activity,
+  web-form fallback и reply persistence, а
+  `DialogReplyTransportService` — Telegram/VK/MAX text/media transport;
+  `DialogReplyService` после этого сжат уже примерно до `194` строк и стал
+  thin write-side orchestration слоем поверх bounded dependencies.
+- этим же пакетом убран и последний telemetry-summary bridge tail вокруг
+  `DialogService`: появился
+  `DialogWorkspaceTelemetrySummaryAssemblerService`, старый
+  `DialogWorkspaceTelemetrySummaryBridgeService` удалён, а
+  `DialogWorkspaceTelemetrySummaryService` и `DialogService` делегируют
+  напрямую в новый bounded service;
+  после этого `DialogService` сжался уже примерно до `140` строк и больше
+  не выглядит как самостоятельный giant-service hotspot.
+- по исходной архитектурной цели `Phase 3` теперь можно считать выполненной:
+  основной dialog monolith split завершён, а remaining риск смещён не в
+  `DialogService`, а в adjacent notifier/reply/telemetry/runtime boundaries
+  и качество integration contracts вокруг уже вынесенных services.
 
 **Автор исходного аудита:** GitHub Copilot  
 **Статус:** Документ актуализирован под состояние кода на 30 апреля 2026

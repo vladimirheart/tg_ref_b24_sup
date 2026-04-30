@@ -8,20 +8,20 @@ import java.util.Map;
 @Service
 public class DialogWorkspaceTelemetrySummaryService {
 
-    private final DialogWorkspaceTelemetrySummaryBridgeService dialogWorkspaceTelemetrySummaryBridgeService;
+    private final DialogWorkspaceTelemetrySummaryAssemblerService dialogWorkspaceTelemetrySummaryAssemblerService;
 
-    public DialogWorkspaceTelemetrySummaryService(DialogWorkspaceTelemetrySummaryBridgeService dialogWorkspaceTelemetrySummaryBridgeService) {
-        this.dialogWorkspaceTelemetrySummaryBridgeService = dialogWorkspaceTelemetrySummaryBridgeService;
+    public DialogWorkspaceTelemetrySummaryService(DialogWorkspaceTelemetrySummaryAssemblerService dialogWorkspaceTelemetrySummaryAssemblerService) {
+        this.dialogWorkspaceTelemetrySummaryAssemblerService = dialogWorkspaceTelemetrySummaryAssemblerService;
     }
 
     public Map<String, Object> loadSummary(int days, String experimentName) {
-        return dialogWorkspaceTelemetrySummaryBridgeService.loadSummary(days, experimentName);
+        return dialogWorkspaceTelemetrySummaryAssemblerService.loadSummary(days, experimentName);
     }
 
     public Map<String, Object> loadSummary(int days,
                                            String experimentName,
                                            Instant fromUtc,
                                            Instant toUtc) {
-        return dialogWorkspaceTelemetrySummaryBridgeService.loadSummary(days, experimentName, fromUtc, toUtc);
+        return dialogWorkspaceTelemetrySummaryAssemblerService.loadSummary(days, experimentName, fromUtc, toUtc);
     }
 }
