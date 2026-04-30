@@ -761,6 +761,14 @@ integration-сценария поверх users/settings runtime boundary всё
   `SlaEscalationWebhookNotifier` (~`2078` строк) с его governance-audit и
   auto-assign orchestration слоями. Именно туда теперь логично направлять
   следующий большой refactor-пакет.
+- следующим широким пакетом этот hotspot уже начал реально разрезаться:
+  `SlaEscalationCandidateService` вынес candidate scan и SLA breach/risk
+  filtering, `SlaEscalationAutoAssignService` — rule matching, assignee pools,
+  round-robin/least-loaded routing и operator load guards; сам
+  `SlaEscalationWebhookNotifier` после перевода на новые bounded services
+  сжался примерно до `1967` строк. После этого главным remaining notifier-risk
+  остаётся уже не auto-assign orchestration, а прежде всего governance-audit /
+  routing-policy audit tail.
 
 **Автор исходного аудита:** GitHub Copilot  
 **Статус:** Документ актуализирован под состояние кода на 1 мая 2026
