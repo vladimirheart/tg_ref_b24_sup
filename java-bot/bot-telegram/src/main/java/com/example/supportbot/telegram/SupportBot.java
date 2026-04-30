@@ -269,7 +269,7 @@ public class SupportBot extends TelegramLongPollingBot {
             log.info("Handled support chat confirmation for chat {}", message.getChatId());
             return;
         }
-        if (message.hasText() && tryHandleFeedback(message, channel)) {
+        if (session == null && message.hasText() && tryHandleFeedback(message, channel)) {
             log.info("Handled rating feedback from user {} in update {}", userId, update.getUpdateId());
             return;
         }

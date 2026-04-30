@@ -134,6 +134,68 @@ class MaxWebhookControllerTest {
         assertThat(response.getBody()).containsEntry("rating", 5);
         verify(feedbackService).storeFeedback(request, 5);
         verify(messagingService).sendToUser(channel, 1001L, "Спасибо за оценку!");
-        verify(ticketService, never()).findActiveTicketForUser(1001L, "max_1001");
+        verify(ticketService).findActiveTicketForUser(1001L, "max_1001");
+    }
+
+    @Test
+    void handleUpdateDoesNotTreatNumericPresetAnswerAsFeedbackWhenSessionIsActive() {
+        MaxBotProperties properties = new MaxBotProperties();
+        properties.setEnabled(true);
+        properties.setChannelId(42L);
+        properties.setToken("token");
+
+        ChannelService channelService = mock(ChannelService.class);
+        TicketService ticketService = mock(TicketService.class);
+        ChatHistoryService chatHistoryService = mock(ChatHistoryService.class);
+        MessagingService messagingService = mock(MessagingService.class);
+        FeedbackService feedbackService = mock(FeedbackService.class);
+        PublicFormConversationLinkService linkService = mock(PublicFormConversationLinkService.class);
+        BotSettingsService botSettingsService = mock(BotSettingsService.class);
+        SharedConfigService sharedConfigService = mock(SharedConfigService.class);
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        Channel channel = new Channel();
+        channel.setId(42L);
+        when(channelService.resolveConfiguredChannel(42L, "token", "MAX", "max")).thenReturn(channel);
+        when(ticketService.findActiveTicketForUser(1001L, "max_1001")).thenReturn(Optional.empty());
+
+        BotSettingsDto settings = new BotSettingsDto();
+        when(botSettingsService.loadFromChannel(channel)).thenReturn(settings);
+
+        MaxWebhookController controller = new MaxWebhookController(
+                properties,
+                channelService,
+                ticketService,
+                chatHistoryService,
+                messagingService,
+                feedbackService,
+                linkService,
+                botSettingsService,
+                sharedConfigService,
+                objectMapper
+        );
+
+        ObjectNode startUpdate = objectMapper.createObjectNode();
+        startUpdate.put("update_type", "message_created");
+        ObjectNode startMessage = startUpdate.putObject("message");
+        startMessage.putObject("sender").put("user_id", 1001L);
+        startMessage.putObject("recipient").put("chat_id", 2002L);
+        startMessage.putObject("body").put("text", "/start");
+
+        ResponseEntity<Map<String, Object>> startResponse = controller.handleUpdate(startUpdate, "");
+        assertThat(startResponse.getStatusCode().is2xxSuccessful()).isTrue();
+
+        ObjectNode numericUpdate = objectMapper.createObjectNode();
+        numericUpdate.put("update_type", "message_created");
+        ObjectNode numericMessage = numericUpdate.putObject("message");
+        numericMessage.putObject("sender").put("user_id", 1001L);
+        numericMessage.putObject("recipient").put("chat_id", 2002L);
+        numericMessage.putObject("body").put("text", "2");
+
+        ResponseEntity<Map<String, Object>> numericResponse = controller.handleUpdate(numericUpdate, "");
+
+        assertThat(numericResponse.getStatusCode().is2xxSuccessful()).isTrue();
+        assertThat(numericResponse.getBody()).containsEntry("missing_options", true);
+        verify(feedbackService, never()).findActiveRequest(1001L, channel);
     }
 }
