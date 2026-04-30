@@ -720,8 +720,12 @@
    boundaries.
 4. `Phase 4` выполнен по самым рискованным giant flows и требует добивки
    remaining subdomains.
-5. `Phase 5` уже начат в коде.
-6. `Phase 6` усилен адресными runtime/UI тестами и уже покрывает основной
+5. Post-`Phase 3` hardening уже сузил telemetry/notifier слой:
+   `DialogWorkspaceTelemetryService` вынес control-builder bounded context и
+   сжался примерно до `222` строк, `WorkspaceGuardrailWebhookNotifier`
+   переведён на command/delivery split и сжался примерно до `43` строк.
+6. `Phase 5` уже начат в коде.
+7. `Phase 6` усилен адресными runtime/UI тестами и уже покрывает основной
    sliced dialog/settings controller layer, shared config/env foundation и
    заметную часть page bootstrap contract; дополнительно туда уже вошли
    `autostart`, `integration network`, `bot process api`, `auth management`
@@ -741,7 +745,8 @@
 2. Параллельно расширять `Phase 6`, чтобы следующие рефакторинги шли под
    лучшей страховкой.
 3. После этого продолжать dialog hardening уже не вокруг giant service, а
-   вокруг `DialogWorkspaceService`, notifier/reply consumers и соседних
+   вокруг remaining notifier/runtime hotspots: в первую очередь giant
+   `SlaEscalationWebhookNotifier`, затем `DialogWorkspaceService` и соседних
    telemetry/runtime contracts.
 
 ## Порядок выполнения
@@ -751,7 +756,8 @@
 1. Довести `Phase 5` от launcher strategy до более явного runtime contract.
 2. Расширить `Phase 6`, чтобы новые refactor-проходы не шли почти без тестов.
 3. Вернуться к `dialogs` и дожимать remaining workspace/notifier/reply
-   boundaries вместо старого giant `DialogService`.
+   boundaries, начиная с governance-audit и auto-assign orchestration tail в
+   `SlaEscalationWebhookNotifier`.
 4. Добить remaining `settings` subdomains, если они ещё остаются в общих слоях.
 5. После этого уже решать, где нужен следующий integration/e2e слой, а где
    достаточно targeted runtime tests.

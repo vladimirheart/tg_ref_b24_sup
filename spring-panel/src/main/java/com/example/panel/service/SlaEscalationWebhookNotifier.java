@@ -1,7 +1,6 @@
 package com.example.panel.service;
 
 import com.example.panel.model.dialog.DialogListItem;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.slf4j.Logger;
@@ -9,19 +8,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -38,7 +30,6 @@ import java.util.stream.Collectors;
 public class SlaEscalationWebhookNotifier {
 
     private static final Logger log = LoggerFactory.getLogger(SlaEscalationWebhookNotifier.class);
-    private static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
     private static final int DEFAULT_SLA_TARGET_MINUTES = 24 * 60;
 
     private final SharedConfigService sharedConfigService;
@@ -46,6 +37,7 @@ public class SlaEscalationWebhookNotifier {
     private final DialogResponsibilityService dialogResponsibilityService;
     private final DialogAuditService dialogAuditService;
     private final ObjectMapper objectMapper;
+    private final SlaEscalationWebhookDeliveryService slaEscalationWebhookDeliveryService;
     private final Map<String, Instant> ticketCooldownCache = new ConcurrentHashMap<>();
     private final Map<String, Integer> roundRobinCursorByRoute = new ConcurrentHashMap<>();
 
@@ -62,12 +54,14 @@ public class SlaEscalationWebhookNotifier {
                                         DialogLookupReadService dialogLookupReadService,
                                         DialogResponsibilityService dialogResponsibilityService,
                                         DialogAuditService dialogAuditService,
-                                        ObjectMapper objectMapper) {
+                                        ObjectMapper objectMapper,
+                                        SlaEscalationWebhookDeliveryService slaEscalationWebhookDeliveryService) {
         this.sharedConfigService = sharedConfigService;
         this.dialogLookupReadService = dialogLookupReadService;
         this.dialogResponsibilityService = dialogResponsibilityService;
         this.dialogAuditService = dialogAuditService;
         this.objectMapper = objectMapper;
+        this.slaEscalationWebhookDeliveryService = slaEscalationWebhookDeliveryService;
     }
 
     SlaEscalationWebhookNotifier(SharedConfigService sharedConfigService,
@@ -78,6 +72,7 @@ public class SlaEscalationWebhookNotifier {
         this.dialogResponsibilityService = null;
         this.dialogAuditService = null;
         this.objectMapper = objectMapper;
+        this.slaEscalationWebhookDeliveryService = new SlaEscalationWebhookDeliveryService(objectMapper);
     }
 
     @Scheduled(fixedDelayString = "${panel.sla-escalation.webhook-check-interval-ms:120000}")
@@ -164,7 +159,7 @@ public class SlaEscalationWebhookNotifier {
         int retryAttempts = resolvePositiveInt(dialogConfig, "sla_critical_escalation_webhook_retry_attempts", 1, 3);
         int retryBackoffMs = resolvePositiveInt(dialogConfig, "sla_critical_escalation_webhook_retry_backoff_ms", 250, 3000);
 
-        if (sendWebhookFanout(webhookEndpoints, payload, timeoutMs, retryAttempts, retryBackoffMs)) {
+        if (slaEscalationWebhookDeliveryService.sendWebhookFanout(webhookEndpoints, payload, timeoutMs, retryAttempts, retryBackoffMs)) {
             readyToNotify.forEach(candidate -> {
                 String ticketId = String.valueOf(candidate.get("ticket_id"));
                 ticketCooldownCache.put(ticketId, now);
@@ -175,93 +170,11 @@ public class SlaEscalationWebhookNotifier {
     }
 
     List<String> resolveWebhookUrls(Map<String, Object> dialogConfig) {
-        return resolveWebhookEndpoints(dialogConfig).stream().map(WebhookEndpoint::url).toList();
+        return slaEscalationWebhookDeliveryService.resolveWebhookUrls(dialogConfig);
     }
 
     List<WebhookEndpoint> resolveWebhookEndpoints(Map<String, Object> dialogConfig) {
-        if (dialogConfig == null || dialogConfig.isEmpty()) {
-            return List.of();
-        }
-        LinkedHashMap<String, WebhookEndpoint> uniqueEndpoints = new LinkedHashMap<>();
-        Object rawEndpoints = dialogConfig.get("sla_critical_escalation_webhooks");
-        if (rawEndpoints instanceof List<?> list) {
-            for (Object item : list) {
-                if (!(item instanceof Map<?, ?> endpointMap)) {
-                    continue;
-                }
-                String url = trimToNull(String.valueOf(endpointMap.get("url")));
-                if (url == null || !resolveBoolean(convertToObjectMap(endpointMap), "enabled", true)) {
-                    continue;
-                }
-                uniqueEndpoints.putIfAbsent(url, new WebhookEndpoint(url, extractHeaders(endpointMap.get("headers"))));
-            }
-        }
-
-        LinkedHashSet<String> legacyUrls = new LinkedHashSet<>();
-        Object rawList = dialogConfig.get("sla_critical_escalation_webhook_urls");
-        if (rawList instanceof List<?> list) {
-            for (Object item : list) {
-                collectWebhookUrl(String.valueOf(item), legacyUrls);
-            }
-        }
-        collectWebhookUrl(String.valueOf(dialogConfig.get("sla_critical_escalation_webhook_url")), legacyUrls);
-        for (String url : legacyUrls) {
-            uniqueEndpoints.putIfAbsent(url, new WebhookEndpoint(url, Collections.emptyMap()));
-        }
-        return new ArrayList<>(uniqueEndpoints.values());
-    }
-
-    private void collectWebhookUrl(String rawValue, Set<String> uniqueUrls) {
-        String normalized = trimToNull(rawValue);
-        if (normalized == null) {
-            return;
-        }
-        String[] split = normalized.split("[,;\\n]");
-        for (String chunk : split) {
-            String url = trimToNull(chunk);
-            if (url == null) {
-                continue;
-            }
-            uniqueUrls.add(url);
-        }
-    }
-
-    private boolean sendWebhookFanout(List<WebhookEndpoint> webhookEndpoints,
-                                      Map<String, Object> payload,
-                                      int timeoutMs,
-                                      int retryAttempts,
-                                      int retryBackoffMs) {
-        boolean atLeastOneSuccess = false;
-        for (WebhookEndpoint endpoint : webhookEndpoints) {
-            if (sendWebhookWithRetry(endpoint, payload, timeoutMs, retryAttempts, retryBackoffMs)) {
-                atLeastOneSuccess = true;
-                continue;
-            }
-            log.warn("SLA escalation webhook endpoint failed: {}", endpoint.url());
-        }
-        return atLeastOneSuccess;
-    }
-
-    private boolean sendWebhookWithRetry(WebhookEndpoint endpoint,
-                                         Map<String, Object> payload,
-                                         int timeoutMs,
-                                         int retryAttempts,
-                                         int retryBackoffMs) {
-        int attempts = Math.max(1, retryAttempts);
-        for (int attempt = 1; attempt <= attempts; attempt++) {
-            if (sendWebhook(endpoint, payload, timeoutMs)) {
-                return true;
-            }
-            if (attempt < attempts) {
-                try {
-                    Thread.sleep((long) retryBackoffMs * attempt);
-                } catch (InterruptedException ex) {
-                    Thread.currentThread().interrupt();
-                    return false;
-                }
-            }
-        }
-        return false;
+        return slaEscalationWebhookDeliveryService.resolveWebhookEndpoints(dialogConfig);
     }
 
     private void applyAutoAssignment(List<Map<String, Object>> candidates, Map<String, Object> dialogConfig) {
@@ -1263,53 +1176,6 @@ public class SlaEscalationWebhookNotifier {
         return result;
     }
 
-    private boolean sendWebhook(WebhookEndpoint endpoint, Map<String, Object> payload, int timeoutMs) {
-        try {
-            HttpRequest.Builder builder = HttpRequest.newBuilder()
-                    .uri(new URI(endpoint.url()))
-                    .timeout(Duration.ofMillis(timeoutMs))
-                    .header("Content-Type", "application/json");
-            endpoint.headers().forEach(builder::header);
-            HttpRequest request = builder.POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload))).build();
-            HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() / 100 == 2) {
-                return true;
-            }
-            log.warn("SLA escalation webhook failed: status={}, body={}", response.statusCode(), truncate(response.body(), 300));
-            return false;
-        } catch (JsonProcessingException ex) {
-            log.warn("Unable to serialize SLA escalation payload: {}", ex.getMessage());
-            return false;
-        } catch (IOException | InterruptedException | URISyntaxException ex) {
-            if (ex instanceof InterruptedException) {
-                Thread.currentThread().interrupt();
-            }
-            log.warn("Unable to send SLA escalation webhook: {}", ex.getMessage());
-            return false;
-        }
-    }
-
-    private Map<String, String> extractHeaders(Object rawHeaders) {
-        if (!(rawHeaders instanceof Map<?, ?> headersMap) || headersMap.isEmpty()) {
-            return Collections.emptyMap();
-        }
-        Map<String, String> headers = new LinkedHashMap<>();
-        headersMap.forEach((key, value) -> {
-            String headerName = trimToNull(String.valueOf(key));
-            String headerValue = trimToNull(String.valueOf(value));
-            if (headerName != null && headerValue != null) {
-                headers.put(headerName, headerValue);
-            }
-        });
-        return headers;
-    }
-
-    private Map<String, Object> convertToObjectMap(Map<?, ?> rawMap) {
-        Map<String, Object> normalized = new LinkedHashMap<>();
-        rawMap.forEach((key, value) -> normalized.put(String.valueOf(key), value));
-        return normalized;
-    }
-
     private void cleanupCooldownCache(Instant now, int cooldownMinutes) {
         Instant threshold = now.minus(Duration.ofMinutes(cooldownMinutes * 2L));
         ticketCooldownCache.entrySet().removeIf(entry -> entry.getValue() == null || entry.getValue().isBefore(threshold));
@@ -2004,13 +1870,6 @@ public class SlaEscalationWebhookNotifier {
         } catch (NumberFormatException ignored) {
             return 0L;
         }
-    }
-
-    private String truncate(String value, int max) {
-        if (value == null || value.length() <= max) {
-            return value;
-        }
-        return value.substring(0, max) + "…";
     }
 
     record AutoAssignDecision(String ticketId, String assignee, String source, String route, String previousResponsible) {
