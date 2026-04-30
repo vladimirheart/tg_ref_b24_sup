@@ -140,11 +140,6 @@ public class MaxWebhookController {
             return ResponseEntity.ok(Map.of("ok", true, "cancelled", true));
         }
 
-        ResponseEntity<Map<String, Object>> feedbackResponse = tryHandleFeedback(channel, userId, text);
-        if (feedbackResponse != null) {
-            return feedbackResponse;
-        }
-
         Optional<TicketActive> active = ticketService.findActiveTicketForUser(userId, clientProfile.identity());
         if (active.isPresent()) {
             sessions.remove(userId);
@@ -161,6 +156,10 @@ public class MaxWebhookController {
 
         ConversationSession session = sessions.get(userId);
         if (session == null) {
+            ResponseEntity<Map<String, Object>> feedbackResponse = tryHandleFeedback(channel, userId, text);
+            if (feedbackResponse != null) {
+                return feedbackResponse;
+            }
             session = startSession(userId, chatId, clientProfile.username(), clientProfile.clientName(), channel);
             sessions.put(userId, session);
             promptCurrentQuestion(channel, session);
