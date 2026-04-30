@@ -2,9 +2,11 @@ package com.example.supportbot.max;
 
 import com.example.supportbot.config.MaxBotProperties;
 import com.example.supportbot.entity.Channel;
+import com.example.supportbot.entity.PendingFeedbackRequest;
 import com.example.supportbot.entity.TicketActive;
 import com.example.supportbot.service.ChannelService;
 import com.example.supportbot.service.ChatHistoryService;
+import com.example.supportbot.service.FeedbackService;
 import com.example.supportbot.service.MessagingService;
 import com.example.supportbot.service.PublicFormConversationLinkService;
 import com.example.supportbot.service.SharedConfigService;
@@ -25,6 +27,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,6 +48,7 @@ public class MaxWebhookController {
     private final TicketService ticketService;
     private final ChatHistoryService chatHistoryService;
     private final MessagingService messagingService;
+    private final FeedbackService feedbackService;
     private final PublicFormConversationLinkService publicFormConversationLinkService;
     private final BotSettingsService botSettingsService;
     private final SharedConfigService sharedConfigService;
@@ -61,6 +65,7 @@ public class MaxWebhookController {
                                 TicketService ticketService,
                                 ChatHistoryService chatHistoryService,
                                 MessagingService messagingService,
+                                FeedbackService feedbackService,
                                 PublicFormConversationLinkService publicFormConversationLinkService,
                                 BotSettingsService botSettingsService,
                                 SharedConfigService sharedConfigService,
@@ -70,6 +75,7 @@ public class MaxWebhookController {
         this.ticketService = ticketService;
         this.chatHistoryService = chatHistoryService;
         this.messagingService = messagingService;
+        this.feedbackService = feedbackService;
         this.publicFormConversationLinkService = publicFormConversationLinkService;
         this.botSettingsService = botSettingsService;
         this.sharedConfigService = sharedConfigService;
@@ -132,6 +138,11 @@ public class MaxWebhookController {
             sessions.remove(userId);
             messagingService.sendToUser(channel, userId, "Текущая заявка отменена.");
             return ResponseEntity.ok(Map.of("ok", true, "cancelled", true));
+        }
+
+        ResponseEntity<Map<String, Object>> feedbackResponse = tryHandleFeedback(channel, userId, text);
+        if (feedbackResponse != null) {
+            return feedbackResponse;
         }
 
         Optional<TicketActive> active = ticketService.findActiveTicketForUser(userId, clientProfile.identity());
@@ -200,6 +211,35 @@ public class MaxWebhookController {
 
         promptCurrentQuestion(channel, session);
         return ResponseEntity.ok(Map.of("ok", true, "question_prompted", true));
+    }
+
+    private ResponseEntity<Map<String, Object>> tryHandleFeedback(Channel channel, Long userId, String text) {
+        if (userId == null || text == null) {
+            return null;
+        }
+        String normalized = text.trim();
+        if (!normalized.matches("\\d+")) {
+            return null;
+        }
+        Optional<PendingFeedbackRequest> pendingOpt = feedbackService.findActiveRequest(userId, channel);
+        if (pendingOpt.isEmpty()) {
+            return null;
+        }
+
+        log.info("Processing MAX feedback rating {} from user {}", normalized, userId);
+        BotSettingsDto settings = botSettingsService.loadFromChannel(channel);
+        Set<String> allowed = botSettingsService.ratingAllowedValues(settings);
+        if (!allowed.contains(normalized)) {
+            int scale = botSettingsService.ratingScale(settings, 5);
+            messagingService.sendToUser(channel, userId, "Отправьте число от 1 до " + scale);
+            return ResponseEntity.ok(Map.of("ok", true, "awaiting_valid_rating", true));
+        }
+
+        int rating = Integer.parseInt(normalized);
+        feedbackService.storeFeedback(pendingOpt.get(), rating);
+        String response = botSettingsService.ratingResponseFor(settings, rating).orElse("Спасибо за оценку!");
+        messagingService.sendToUser(channel, userId, response);
+        return ResponseEntity.ok(Map.of("ok", true, "feedback_saved", true, "rating", rating));
     }
 
     private ConversationSession startSession(Long userId, Long chatId, String username, String clientName, Channel channel) {
