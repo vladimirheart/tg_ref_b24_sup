@@ -160,8 +160,13 @@
 - но сам `workspace` уже заметно сузился: из него дополнительно убраны
   мёртвые helper-блоки по SLA/source-coverage/export formatting;
 - `settings` всё ещё содержит remaining subdomains, которые могут снова
-  разрастаться в общих слоях; в первую очередь это `catalog/reference`,
-  `partner/network` и часть `bot/integration` сценариев;
+  разрастаться в общих слоях; но после выноса
+  `SettingsClientStatusService`,
+  `SettingsItConnectionCategoryService` и
+  `SettingsIntegrationNetworkProbeService` главный риск уже меньше в
+  `SettingsApiController` как таковом и больше в `catalog/reference`,
+  `partner/network` и части `bot/integration` сценариев вокруг соседних
+  governance endpoints;
 - `SharedConfigService` дублируется между `spring-panel` и `java-bot`;
 - DTO/API contract и error contract всё ещё не унифицированы по проекту;
 - persistence-слой по-прежнему смешивает raw JDBC и JPA/Repository подходы;
@@ -194,6 +199,12 @@
   `SettingsBridgeControllerWebMvcTest` и `ProfileApiControllerWebMvcTest`,
   так что основной `/settings` coordinator flow и server-backed UI preferences
   прикрыты не только subdomain services, но и coordinator/WebMvc-контрактом;
+- соседний `SettingsApiController` тоже уже не остаётся серой зоной:
+  `client statuses`, `it connection categories` и `integration network probe`
+  вынесены в отдельные subdomain services, а поверх них добавлены
+  `SettingsApiControllerWebMvcTest` и targeted unit tests, так что
+  `settings` boundary прикрыт уже не только вокруг giant `/settings` update,
+  но и вокруг catalog/network adjunct API;
 - в server-backed UI preferences был найден и закрыт реальный alias-bug:
   `sortMode/pageSize/updatedAtUtc` в `dialogsTriage` могли теряться из-за
   premature default-normalization, теперь этот контракт исправлен и покрыт

@@ -330,6 +330,12 @@
   разгружен через `SettingsDialogTemplateConfigService` и
   `SettingsDialogRuntimeConfigService`, так что template/macro governance и
   базовые runtime-настройки больше не живут в одном giant update-method.
+- продолжено: `SettingsApiController` тоже переведён на более узкий
+  subdomain baseline — `client statuses` вынесены в
+  `SettingsClientStatusService`, `it connection categories` — в
+  `SettingsItConnectionCategoryService`, а `integration network probe` — в
+  `SettingsIntegrationNetworkProbeService`; поверх этого добавлен отдельный
+  `SettingsApiControllerWebMvcTest` и targeted unit tests на новые сервисы.
 - добавлена минимальная test safety net: routing/validation для нового
   `dialog_config` split покрыты unit-тестами, а legacy
   `DialogApiControllerWebMvcTest` синхронизирован с новой controller-разбивкой,
@@ -339,13 +345,18 @@
 
 - основные самые рискованные giant flows в `settings` уже разрезаны;
 - `SettingsBridgeController` и `SettingsUpdateService` больше не являются
-  единственными точками концентрации домена.
+  единственными точками концентрации домена;
+- `SettingsApiController` больше не держит внутри себя catalog/probe/status
+  orchestration и ближе к thin transport wrapper.
 
 Что остаётся:
 
 - выделить remaining subdomains уровня `catalog/reference data`,
   `partner/network`, `bot/integration settings`, если они всё ещё живут в
   слишком общих слоях;
+- отдельно проверить `AnalyticsController` и соседние settings-adjacent
+  governance endpoints, чтобы catalog/network policy не начали повторно
+  собираться вне выделенных subdomain services;
 - при необходимости сузить remaining responsibilities
   `SettingsDialogWorkspaceConfigService`, если он снова начнёт разрастаться;
 - расширить тестовую страховку вокруг settings update/routing контрактов.
