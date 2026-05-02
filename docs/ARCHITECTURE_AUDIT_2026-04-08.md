@@ -780,3 +780,13 @@ integration-сценария поверх users/settings runtime boundary всё
   SlaRoutingPolicyService (~1786 строк), а не в transport/delivery wrapper;
   следующий логичный split там — governance review packet, issue
   classification и rule-definition parsing bounded contexts.
+- следующим большим пакетом этот слой тоже разрезан: `SlaRoutingRuleAuditService`
+  вынес из `SlaRoutingPolicyService` rule-definition parsing, conflict/broad-rule
+  analysis, issue classification и rule-level audit payload assembly.
+- после этого `SlaRoutingPolicyService` уже не выглядит как giant runtime
+  hotspot сам по себе: он сжат примерно до `639` строк и выполняет роль
+  governance overlay / итогового audit summary слоя.
+- новый remaining hotspot в этом периметре теперь точнее локализован в
+  `SlaRoutingRuleAuditService` (~`778` строк), а не в notifier wrapper или policy
+  facade; следующий логичный split там — parser/normalization bounded context и
+  отдельно governance issue matrix assembly.
