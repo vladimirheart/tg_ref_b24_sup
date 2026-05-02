@@ -74,7 +74,8 @@ public class SlaEscalationWebhookNotifier {
         this.slaEscalationAutoAssignService = new SlaEscalationAutoAssignService(dialogLookupReadService);
         this.slaRoutingPolicyService = new SlaRoutingPolicyService(
                 this.slaEscalationCandidateService,
-                this.slaEscalationAutoAssignService
+                this.slaEscalationAutoAssignService,
+                new SlaRoutingRuleAuditService()
         );
         this.slaEscalationWebhookDeliveryService = new SlaEscalationWebhookDeliveryService(objectMapper);
     }

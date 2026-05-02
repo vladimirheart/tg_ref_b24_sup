@@ -772,3 +772,12 @@
 - следующий hotspot в этом периметре теперь уже не notifier-wrapper, а
   SlaRoutingPolicyService (~1786 строк) с review checkpoint / issue
   classification / rule-definition parsing логикой.
+- следующим более широким пакетом и этот hotspot сузился: появился
+  `SlaRoutingRuleAuditService`, который забрал rule-definition parsing,
+  conflict/broad-rule analysis, issue classification и rule-level audit
+  payloads, а `SlaRoutingPolicyService` после этого сжат примерно до `639`
+  строк и стал thin governance overlay.
+- новый remaining hotspot в notifier/runtime hardening теперь уже не notifier и
+  не policy wrapper, а `SlaRoutingRuleAuditService` (~`778` строк); следующий
+  bounded split там — parser/normalization слой и governance issue matrix
+  assembly.
