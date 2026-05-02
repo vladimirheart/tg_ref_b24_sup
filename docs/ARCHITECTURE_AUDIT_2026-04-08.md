@@ -790,3 +790,12 @@ integration-сценария поверх users/settings runtime boundary всё
   `SlaRoutingRuleAuditService` (~`778` строк), а не в notifier wrapper или policy
   facade; следующий логичный split там — parser/normalization bounded context и
   отдельно governance issue matrix assembly.
+- следующим ещё более широким пакетом этот bounded context тоже разрезан:
+  `SlaRoutingRuleParserService` забрал rule normalization / candidate-match /
+  rule-definition parsing, `SlaRoutingGovernanceIssueService` — rule-level
+  governance issue matrix и payload assembly.
+- после этого `SlaRoutingRuleAuditService` уже не выглядит как hotspot сам по
+  себе: он сжат примерно до `161` строки и выполняет роль coordinator-слоя.
+- новый remaining notifier/runtime hotspot теперь локализован ещё точнее в
+  `SlaRoutingRuleParserService` (~`444` строки), а не в notifier, policy facade
+  или audit coordinator.
