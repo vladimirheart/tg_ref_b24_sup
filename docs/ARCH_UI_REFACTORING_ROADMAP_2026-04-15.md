@@ -781,3 +781,12 @@
   не policy wrapper, а `SlaRoutingRuleAuditService` (~`778` строк); следующий
   bounded split там — parser/normalization слой и governance issue matrix
   assembly.
+- следующим более широким пакетом этот hotspot тоже сужен:
+  `SlaRoutingRuleParserService` вынес rule normalization / candidate-match /
+  rule-definition parsing, `SlaRoutingGovernanceIssueService` — governance issue
+  matrix и rule-level payload assembly, а `SlaRoutingRuleAuditService` после
+  этого стал thin coordinator примерно на `161` строку.
+- новый remaining hotspot в notifier/runtime hardening теперь уже не audit
+  coordinator, а `SlaRoutingRuleParserService` (~`444` строки); если он
+  продолжит расти, следующий bounded split логично делать вокруг shared match
+  DTO / normalization helpers.
