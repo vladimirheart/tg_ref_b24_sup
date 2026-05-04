@@ -23,18 +23,27 @@ public class SlaRoutingPolicyService {
     private final SlaEscalationCandidateService slaEscalationCandidateService;
     private final SlaEscalationAutoAssignService slaEscalationAutoAssignService;
     private final SlaRoutingRuleAuditService slaRoutingRuleAuditService;
+    private final SlaRoutingRuleScalarParserService scalarParserService;
 
     public SlaRoutingPolicyService(SlaEscalationCandidateService slaEscalationCandidateService,
                                    SlaEscalationAutoAssignService slaEscalationAutoAssignService,
-                                   SlaRoutingRuleAuditService slaRoutingRuleAuditService) {
+                                   SlaRoutingRuleAuditService slaRoutingRuleAuditService,
+                                   SlaRoutingRuleScalarParserService scalarParserService) {
         this.slaEscalationCandidateService = slaEscalationCandidateService;
         this.slaEscalationAutoAssignService = slaEscalationAutoAssignService;
         this.slaRoutingRuleAuditService = slaRoutingRuleAuditService;
+        this.scalarParserService = scalarParserService;
     }
 
     public SlaRoutingPolicyService(SlaEscalationCandidateService slaEscalationCandidateService,
                                    SlaEscalationAutoAssignService slaEscalationAutoAssignService) {
-        this(slaEscalationCandidateService, slaEscalationAutoAssignService, new SlaRoutingRuleAuditService());
+        this(slaEscalationCandidateService, slaEscalationAutoAssignService, new SlaRoutingRuleAuditService(), new SlaRoutingRuleScalarParserService());
+    }
+
+    public SlaRoutingPolicyService(SlaEscalationCandidateService slaEscalationCandidateService,
+                                   SlaEscalationAutoAssignService slaEscalationAutoAssignService,
+                                   SlaRoutingRuleAuditService slaRoutingRuleAuditService) {
+        this(slaEscalationCandidateService, slaEscalationAutoAssignService, slaRoutingRuleAuditService, new SlaRoutingRuleScalarParserService());
     }
 
     public Map<String, Object> buildRoutingPolicySnapshot(DialogListItem dialog, Map<String, Object> settings) {
@@ -214,24 +223,24 @@ public class SlaRoutingPolicyService {
         boolean governanceDecisionRequired = governanceDecisionRequiredConfigured
                 || "standard".equals(governanceReviewPath)
                 || "strict".equals(governanceReviewPath);
-        String governanceReviewedBy = trimToNull(String.valueOf(dialogConfig.get("sla_critical_auto_assign_governance_reviewed_by")));
-        String governanceReviewedAtRaw = trimToNull(String.valueOf(dialogConfig.get("sla_critical_auto_assign_governance_reviewed_at")));
-        Instant governanceReviewedAt = parseUtcInstant(governanceReviewedAtRaw);
+        String governanceReviewedBy = scalarParserService.trimToNull(String.valueOf(dialogConfig.get("sla_critical_auto_assign_governance_reviewed_by")));
+        String governanceReviewedAtRaw = scalarParserService.trimToNull(String.valueOf(dialogConfig.get("sla_critical_auto_assign_governance_reviewed_at")));
+        Instant governanceReviewedAt = scalarParserService.parseUtcInstant(governanceReviewedAtRaw);
         boolean governanceReviewedAtInvalid = governanceReviewedAtRaw != null && governanceReviewedAt == null;
         long governanceReviewAgeHours = governanceReviewedAt != null ? Math.max(0L, Duration.between(governanceReviewedAt, generatedAt).toHours()) : -1L;
         boolean governanceReviewFresh = governanceReviewedAt != null && governanceReviewAgeHours <= governanceReviewTtlHours;
         boolean governanceReviewPresent = governanceReviewedAt != null && governanceReviewedBy != null;
-        String policyChangedAtRaw = trimToNull(String.valueOf(dialogConfig.get("sla_critical_auto_assign_governance_policy_changed_at")));
-        Instant policyChangedAt = parseUtcInstant(policyChangedAtRaw);
+        String policyChangedAtRaw = scalarParserService.trimToNull(String.valueOf(dialogConfig.get("sla_critical_auto_assign_governance_policy_changed_at")));
+        Instant policyChangedAt = scalarParserService.parseUtcInstant(policyChangedAtRaw);
         boolean policyChangedAtInvalid = policyChangedAtRaw != null && policyChangedAt == null;
         long policyDecisionLeadTimeHours = policyChangedAt != null && governanceReviewedAt != null
                 ? Math.max(0L, Duration.between(policyChangedAt, governanceReviewedAt).toHours()) : -1L;
         long policyDecisionLeadTimeActiveHours = policyChangedAt != null && governanceReviewedAt == null
                 ? Math.max(0L, Duration.between(policyChangedAt, generatedAt).toHours()) : -1L;
         boolean policyChangedAfterReview = policyChangedAt != null && (governanceReviewedAt == null || policyChangedAt.isAfter(governanceReviewedAt));
-        String governanceReviewNote = trimToNull(String.valueOf(dialogConfig.get("sla_critical_auto_assign_governance_review_note")));
-        String governanceDryRunTicketId = trimToNull(String.valueOf(dialogConfig.get("sla_critical_auto_assign_governance_dry_run_ticket_id")));
-        String governanceDecision = trimToNull(String.valueOf(dialogConfig.get("sla_critical_auto_assign_governance_decision")));
+        String governanceReviewNote = scalarParserService.trimToNull(String.valueOf(dialogConfig.get("sla_critical_auto_assign_governance_review_note")));
+        String governanceDryRunTicketId = scalarParserService.trimToNull(String.valueOf(dialogConfig.get("sla_critical_auto_assign_governance_dry_run_ticket_id")));
+        String governanceDecision = scalarParserService.trimToNull(String.valueOf(dialogConfig.get("sla_critical_auto_assign_governance_decision")));
         if (governanceDecision != null) {
             governanceDecision = governanceDecision.toLowerCase(Locale.ROOT);
             if (!"go".equals(governanceDecision) && !"hold".equals(governanceDecision)) {
@@ -495,7 +504,7 @@ public class SlaRoutingPolicyService {
     }
 
     private String resolveGovernanceReviewPath(Object rawValue) {
-        String normalized = trimToNull(String.valueOf(rawValue));
+        String normalized = scalarParserService.trimToNull(String.valueOf(rawValue));
         if (normalized == null) return "custom";
         return switch (normalized.toLowerCase(Locale.ROOT)) {
             case "light" -> "light";
@@ -557,20 +566,6 @@ public class SlaRoutingPolicyService {
         } catch (DateTimeParseException ignored) {
             try {
                 return OffsetDateTime.parse(rawValue.trim()).toInstant();
-            } catch (DateTimeParseException ignoredAgain) {
-                return null;
-            }
-        }
-    }
-
-    private Instant parseUtcInstant(String rawValue) {
-        String normalized = trimToNull(rawValue);
-        if (normalized == null) return null;
-        try {
-            return Instant.parse(normalized);
-        } catch (DateTimeParseException ignored) {
-            try {
-                return OffsetDateTime.parse(normalized).withOffsetSameInstant(ZoneOffset.UTC).toInstant();
             } catch (DateTimeParseException ignoredAgain) {
                 return null;
             }

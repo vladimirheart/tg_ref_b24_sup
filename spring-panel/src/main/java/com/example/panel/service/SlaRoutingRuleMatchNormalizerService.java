@@ -2,10 +2,6 @@ package com.example.panel.service;
 
 import org.springframework.stereotype.Service;
 
-import java.time.Instant;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -14,7 +10,17 @@ import java.util.Locale;
 import java.util.Set;
 
 @Service
-public class SlaRoutingRuleValueParserService {
+public class SlaRoutingRuleMatchNormalizerService {
+
+    private final SlaRoutingRuleScalarParserService scalarParserService;
+
+    public SlaRoutingRuleMatchNormalizerService(SlaRoutingRuleScalarParserService scalarParserService) {
+        this.scalarParserService = scalarParserService;
+    }
+
+    public SlaRoutingRuleMatchNormalizerService() {
+        this(new SlaRoutingRuleScalarParserService());
+    }
 
     public Set<String> parseRuleMatchValues(Object rawSingle, Object rawMultiple) {
         Set<String> values = new LinkedHashSet<>();
@@ -45,7 +51,7 @@ public class SlaRoutingRuleValueParserService {
             }
             return categories;
         }
-        String raw = trimToNull(String.valueOf(rawCategories));
+        String raw = scalarParserService.trimToNull(String.valueOf(rawCategories));
         if (raw == null) return categories;
         for (String chunk : raw.split("[,\n]")) {
             String normalized = normalizeMatchValue(chunk);
@@ -80,12 +86,12 @@ public class SlaRoutingRuleValueParserService {
         List<String> assigneePool = new ArrayList<>();
         if (rawPool instanceof List<?> list) {
             for (Object item : list) {
-                String normalized = trimToNull(String.valueOf(item));
+                String normalized = scalarParserService.trimToNull(String.valueOf(item));
                 if (normalized != null && !assigneePool.contains(normalized)) assigneePool.add(normalized);
             }
         } else if (rawPool instanceof String text) {
             for (String chunk : text.split("[,\n]")) {
-                String normalized = trimToNull(chunk);
+                String normalized = scalarParserService.trimToNull(chunk);
                 if (normalized != null && !assigneePool.contains(normalized)) assigneePool.add(normalized);
             }
         }
@@ -93,7 +99,7 @@ public class SlaRoutingRuleValueParserService {
     }
 
     public SlaRoutingRuleTypes.CategoryMatchMode parseCategoryMatchMode(Object rawMode) {
-        String mode = rawMode == null ? null : trimToNull(String.valueOf(rawMode));
+        String mode = rawMode == null ? null : scalarParserService.trimToNull(String.valueOf(rawMode));
         if (mode == null) return SlaRoutingRuleTypes.CategoryMatchMode.ANY;
         return switch (mode.trim().toLowerCase(Locale.ROOT)) {
             case "all", "every", "all_of" -> SlaRoutingRuleTypes.CategoryMatchMode.ALL;
@@ -102,7 +108,7 @@ public class SlaRoutingRuleValueParserService {
     }
 
     public SlaRoutingRuleTypes.PoolAssignStrategy parsePoolAssignStrategy(Object rawValue) {
-        String raw = trimToNull(String.valueOf(rawValue));
+        String raw = scalarParserService.trimToNull(String.valueOf(rawValue));
         if (raw == null) return SlaRoutingRuleTypes.PoolAssignStrategy.HASH_BY_TICKET;
         return switch (raw.trim().toLowerCase(Locale.ROOT)) {
             case "round_robin", "rr" -> SlaRoutingRuleTypes.PoolAssignStrategy.ROUND_ROBIN;
@@ -111,51 +117,8 @@ public class SlaRoutingRuleValueParserService {
         };
     }
 
-    public Boolean parseOptionalBoolean(Object rawValue) {
-        if (rawValue instanceof Boolean bool) return bool;
-        if (rawValue instanceof Number number) return number.intValue() != 0;
-        String raw = trimToNull(String.valueOf(rawValue));
-        if (raw == null) return null;
-        String normalized = raw.toLowerCase(Locale.ROOT);
-        if ("true".equals(normalized) || "1".equals(normalized) || "yes".equals(normalized)) return true;
-        if ("false".equals(normalized) || "0".equals(normalized) || "no".equals(normalized)) return false;
-        return null;
-    }
-
-    public Integer parseOptionalNonNegativeInt(Object rawValue) {
-        if (rawValue == null) return null;
-        if (rawValue instanceof Number number) return number.intValue() < 0 ? null : number.intValue();
-        try {
-            int parsed = Integer.parseInt(String.valueOf(rawValue).trim());
-            return parsed < 0 ? null : parsed;
-        } catch (NumberFormatException ignored) {
-            return null;
-        }
-    }
-
-    public Long parseOptionalLong(Object rawValue) {
-        if (rawValue == null) return null;
-        if (rawValue instanceof Number number) return number.longValue();
-        try {
-            return Long.parseLong(String.valueOf(rawValue).trim());
-        } catch (NumberFormatException ignored) {
-            return null;
-        }
-    }
-
-    public int parsePriority(Object rawValue) {
-        if (rawValue == null) return 0;
-        if (rawValue instanceof Number number) return Math.max(Math.min(number.intValue(), 100), -100);
-        try {
-            int parsed = Integer.parseInt(String.valueOf(rawValue).trim());
-            return Math.max(Math.min(parsed, 100), -100);
-        } catch (NumberFormatException ignored) {
-            return 0;
-        }
-    }
-
     public String normalizeRuleLayer(Object rawValue) {
-        String normalized = trimToNull(String.valueOf(rawValue));
+        String normalized = scalarParserService.trimToNull(String.valueOf(rawValue));
         if (normalized == null) return "legacy";
         return switch (normalized.toLowerCase(Locale.ROOT)) {
             case "global", "base" -> "global";
@@ -165,27 +128,13 @@ public class SlaRoutingRuleValueParserService {
         };
     }
 
-    public Instant parseUtcInstant(String rawValue) {
-        String normalized = trimToNull(rawValue);
-        if (normalized == null) return null;
-        try {
-            return Instant.parse(normalized);
-        } catch (DateTimeParseException ignored) {
-            try {
-                return OffsetDateTime.parse(normalized).withOffsetSameInstant(ZoneOffset.UTC).toInstant();
-            } catch (DateTimeParseException ignoredAgain) {
-                return null;
-            }
-        }
-    }
-
     public String normalizeMatchValue(Object rawValue) {
-        String normalized = trimToNull(String.valueOf(rawValue));
+        String normalized = scalarParserService.trimToNull(String.valueOf(rawValue));
         return normalized == null ? null : normalized.toLowerCase(Locale.ROOT);
     }
 
     public String normalizeSlaState(Object value) {
-        String normalized = trimToNull(String.valueOf(value));
+        String normalized = scalarParserService.trimToNull(String.valueOf(value));
         if (normalized == null) return null;
         String lowered = normalized.toLowerCase(Locale.ROOT);
         return switch (lowered) {
@@ -197,14 +146,8 @@ public class SlaRoutingRuleValueParserService {
         };
     }
 
-    public String trimToNull(String value) {
-        if (value == null) return null;
-        String trimmed = value.trim();
-        return trimmed.isEmpty() || "null".equalsIgnoreCase(trimmed) ? null : trimmed;
-    }
-
     private void addRequestPrefix(Set<String> values, Object rawValue) {
-        String normalized = trimToNull(String.valueOf(rawValue));
+        String normalized = scalarParserService.trimToNull(String.valueOf(rawValue));
         if (normalized != null) values.add(normalized.toLowerCase(Locale.ROOT));
     }
 

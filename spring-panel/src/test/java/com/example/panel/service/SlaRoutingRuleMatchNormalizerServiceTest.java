@@ -6,12 +6,12 @@ import java.util.List;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class SlaRoutingRuleValueParserServiceTest {
+class SlaRoutingRuleMatchNormalizerServiceTest {
 
-    private final SlaRoutingRuleValueParserService service = new SlaRoutingRuleValueParserService();
+    private final SlaRoutingRuleMatchNormalizerService service =
+            new SlaRoutingRuleMatchNormalizerService(new SlaRoutingRuleScalarParserService());
 
     @Test
     void parsesCandidateCategoriesAndAssigneePoolWithNormalization() {
@@ -20,12 +20,9 @@ class SlaRoutingRuleValueParserServiceTest {
     }
 
     @Test
-    void parsesOptionalValuesAndUtcFallbacks() {
-        assertEquals(12, service.parseOptionalNonNegativeInt("12"));
-        assertNull(service.parseOptionalNonNegativeInt("-1"));
-        assertEquals(42L, service.parseOptionalLong("42"));
+    void normalizesRuleLayerAndSlaStates() {
         assertEquals("domain", service.normalizeRuleLayer("team"));
-        assertTrue(service.parseUtcInstant("2026-05-01T10:00:00Z") != null);
-        assertNull(service.parseUtcInstant("broken"));
+        assertEquals(Set.of("breached", "at_risk"), service.parseRuleSlaStates("expired", List.of("warning", "broken")));
+        assertTrue(service.parseRuleRequestPrefixes("INC", "SRV, BUG").contains("inc"));
     }
 }

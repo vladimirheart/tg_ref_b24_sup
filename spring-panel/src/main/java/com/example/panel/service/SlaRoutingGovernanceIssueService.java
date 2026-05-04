@@ -14,13 +14,16 @@ import java.util.Set;
 public class SlaRoutingGovernanceIssueService {
 
     private final SlaRoutingGovernanceIssueFactoryService issueFactoryService;
+    private final SlaRoutingRuleScalarParserService scalarParserService;
 
-    public SlaRoutingGovernanceIssueService(SlaRoutingGovernanceIssueFactoryService issueFactoryService) {
+    public SlaRoutingGovernanceIssueService(SlaRoutingGovernanceIssueFactoryService issueFactoryService,
+                                            SlaRoutingRuleScalarParserService scalarParserService) {
         this.issueFactoryService = issueFactoryService;
+        this.scalarParserService = scalarParserService;
     }
 
     public SlaRoutingGovernanceIssueService() {
-        this(new SlaRoutingGovernanceIssueFactoryService());
+        this(new SlaRoutingGovernanceIssueFactoryService(), new SlaRoutingRuleScalarParserService());
     }
 
     public RuleGovernanceEvaluation evaluateRule(SlaRoutingRuleTypes.AutoAssignRuleDefinition definition,
@@ -40,7 +43,7 @@ public class SlaRoutingGovernanceIssueService {
                                                  String assigneeTarget) {
         boolean unusedRule = matchedCount == 0;
         boolean missingLayer = "legacy".equals(definition.layer());
-        boolean ownerMissing = trimToNull(definition.owner()) == null;
+        boolean ownerMissing = scalarParserService.trimToNull(definition.owner()) == null;
         boolean reviewMissing = definition.reviewedAtUtc() == null;
         boolean reviewStale = definition.reviewedAtUtc() != null
                 && definition.reviewedAtUtc().plus(Duration.ofHours(reviewTtlHours)).isBefore(generatedAt);
@@ -119,12 +122,6 @@ public class SlaRoutingGovernanceIssueService {
         rulePayload.put("status", status);
 
         return new RuleGovernanceEvaluation(rulePayload, emittedIssues);
-    }
-
-    private String trimToNull(String value) {
-        if (value == null) return null;
-        String trimmed = value.trim();
-        return trimmed.isEmpty() || "null".equalsIgnoreCase(trimmed) ? null : trimmed;
     }
 
     public record RuleGovernanceEvaluation(Map<String, Object> rulePayload,

@@ -790,12 +790,19 @@
   coordinator, а `SlaRoutingRuleParserService` (~`444` строки); если он
   продолжит расти, следующий bounded split логично делать вокруг shared match
   DTO / normalization helpers.
-- следующим ещё более широким пакетом и этот tail сузился:
+- следующим ещё более широким пакетом и этот tail сузился ещё сильнее:
   `SlaRoutingRuleTypes` вынес общие rule DTO/enum типы,
-  `SlaRoutingRuleValueParserService` — normalization/value parsing,
-  `SlaRoutingGovernanceIssueFactoryService` — issue payload factory; после
-  этого `SlaRoutingRuleParserService` сжат примерно до `147` строк, а
-  `SlaRoutingGovernanceIssueService` — до `133` строк.
-- новый remaining hotspot в notifier/runtime hardening теперь уже не parser,
-  issue service или audit coordinator, а `SlaRoutingRuleValueParserService`
-  (~`219` строк).
+  `SlaRoutingRuleScalarParserService` — scalar/temporal parsing,
+  `SlaRoutingRuleMatchNormalizerService` — match/category/state normalization,
+  `SlaRoutingGovernanceIssueFactoryService` — issue payload factory, а старый
+  `SlaRoutingRuleValueParserService` после этого удалён.
+- после этого `SlaRoutingRuleParserService` сжат примерно до `138` строк,
+  `SlaRoutingGovernanceIssueService` — до `118`, а
+  `SlaRoutingRuleAuditService` остаётся thin coordinator примерно на `145`
+  строках.
+- параллельно из `SlaRoutingPolicyService` убран локальный UTC/trim helper-tail
+  для governance review checkpoint parsing, и он сжат примерно до `586`
+  строк.
+- новый remaining hotspot в notifier/runtime hardening теперь уже не
+  parser/value helper слой, а `SlaRoutingPolicyService` (~`586` строк) с
+  governance review / checkpoint summary overlay логикой.
