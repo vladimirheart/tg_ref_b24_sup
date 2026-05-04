@@ -815,3 +815,14 @@ integration-сценария поверх users/settings runtime boundary всё
   `SlaRoutingPolicyService` (~`586` строк), прежде всего в governance review /
   checkpoint summary / audit overlay, а не в parser/value helper bounded
   context.
+- следующим ещё более широким пакетом и этот tail заметно сузился:
+  `SlaRoutingPolicyConfigService` вынес shared config/runtime parsing,
+  `SlaRoutingGovernanceReviewService` — governance review state, issues,
+  requirements и review payload fragments.
+- после этого `SlaRoutingPolicyService` уже не смешивает parsing/review state с
+  orchestration: он сжат примерно до `448` строк и выполняет роль summary /
+  checkpoint coordinator поверх candidate scan и rule audit.
+- новый remaining notifier/runtime hotspot теперь локализован ещё уже в
+  `SlaRoutingPolicyService` (~`448` строк), а не в config/review parsing слоях;
+  следующий логичный bounded split там — финальный summary/checkpoint assembly
+  и advisory-path metrics.

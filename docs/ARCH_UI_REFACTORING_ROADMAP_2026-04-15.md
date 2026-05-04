@@ -806,3 +806,13 @@
 - новый remaining hotspot в notifier/runtime hardening теперь уже не
   parser/value helper слой, а `SlaRoutingPolicyService` (~`586` строк) с
   governance review / checkpoint summary overlay логикой.
+- следующим ещё более широким пакетом и этот hotspot заметно сузился:
+  `SlaRoutingPolicyConfigService` забрал shared config/runtime parsing,
+  `SlaRoutingGovernanceReviewService` — governance review state, issues,
+  requirements и review payload fragments.
+- после этого `SlaRoutingPolicyService` сжат примерно до `448` строк и уже
+  выполняет роль summary/checkpoint orchestration слоя поверх candidate scan,
+  rule audit и governance review bounded services.
+- новый remaining hotspot в notifier/runtime hardening теперь уже не
+  config/review parsing, а финальный summary/checkpoint tail внутри
+  `SlaRoutingPolicyService` (~`448` строк).
