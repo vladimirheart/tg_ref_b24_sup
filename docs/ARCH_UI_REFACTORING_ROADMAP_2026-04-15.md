@@ -744,8 +744,8 @@
    окружения и финальное решение по supervisor/service boundary.
 2. Параллельно расширять `Phase 6`, чтобы следующие рефакторинги шли под
    лучшей страховкой.
-3. После этого продолжать dialog hardening уже не вокруг giant service, а вокруг remaining notifier/runtime hotspots: в первую очередь `SlaRoutingPolicyService` как вынесенный governance/routing bounded context, затем `DialogWorkspaceService` и соседних telemetry/runtime contracts.
-4. Внутри бывшего notifier hotspot candidate selection, auto-assign и routing snapshot уже вынесены; следующим bounded context теперь резать governance review packet, issue classification и rule-definition parsing внутри `SlaRoutingPolicyService`.
+3. После этого продолжать dialog hardening уже не вокруг giant service, а вокруг remaining notifier/runtime hotspots: в первую очередь `SlaRoutingGovernanceSummaryService` и вторично `SlaRoutingPolicySnapshotService`, затем уже соседние telemetry/runtime contracts.
+4. Внутри бывшего notifier hotspot candidate selection, auto-assign, routing snapshot, governance review packet, issue classification и rule-definition parsing уже вынесены; следующий bounded split теперь делать не в `SlaRoutingPolicyService`, а в `SlaRoutingGovernanceSummaryService`, если снова начнёт разрастаться checkpoint/advisory-path assembly.
 
 ## Порядок выполнения
 
@@ -753,10 +753,9 @@
 
 1. Довести `Phase 5` от launcher strategy до более явного runtime contract.
 2. Расширить `Phase 6`, чтобы новые refactor-проходы не шли почти без тестов.
-3. Вернуться к `dialogs` и дожимать remaining workspace/notifier/reply boundaries, начиная уже с `SlaRoutingPolicyService` после вынесения candidate scan, auto-assign и routing snapshot out of notifier.
-4. Добить remaining `settings` subdomains, если они ещё остаются в общих слоях.
-5. После этого уже решать, где нужен следующий integration/e2e слой, а где
-   достаточно targeted runtime tests.
+3. Вернуться к `dialogs` и дожимать remaining notifier/runtime boundaries, начиная уже с `SlaRoutingGovernanceSummaryService` и вторично `SlaRoutingPolicySnapshotService` после того, как `SlaRoutingPolicyService` уже сжат до thin facade.
+4. Добить remaining telemetry/runtime integration tails и решить, где нужен следующий integration/e2e слой, а где достаточно targeted runtime tests.
+5. Держать `settings` в режиме hardening, а не giant split: `Phase 4` уже выполнен, поэтому там приоритет только у regression/integration quality.
 
 ## Что не делать сейчас
 
@@ -826,3 +825,10 @@
 - новый remaining hotspot в notifier/runtime hardening теперь уже не policy
   facade, а `SlaRoutingGovernanceSummaryService` (~`223` строки) и вторично
   `SlaRoutingPolicySnapshotService` (~`181` строк).
+- это уже post-phase hardening, а не незавершённая фаза giant split:
+  `Phase 3` и `Phase 4` остаются выполненными, а следующий фокус смещён в
+  локальные notifier/runtime bounded services и integration-quality хвосты.
+- следующий логичный bounded split теперь делать в
+  `SlaRoutingGovernanceSummaryService`, если там продолжит расти
+  checkpoint/advisory-path assembly; вторым приоритетом остаётся
+  `SlaRoutingPolicySnapshotService`.

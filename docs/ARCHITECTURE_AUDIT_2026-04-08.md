@@ -836,3 +836,14 @@ integration-сценария поверх users/settings runtime boundary всё
   facade, а в `SlaRoutingGovernanceSummaryService` (~`223` строки) и вторично
   в `SlaRoutingPolicySnapshotService` (~`181` строк), то есть риск стал гораздо
   уже и локальнее.
+- это уже post-phase hardening, а не незавершённый giant split:
+  `Phase 3` и `Phase 4` остаются выполненными, а основной архитектурный риск
+  смещён в локальные notifier/runtime bounded services и integration-quality
+  хвосты вокруг них.
+- следующий логичный пакет теперь уже не про `SlaRoutingPolicyService`, а про
+  дочистку `SlaRoutingGovernanceSummaryService` на более мелкие bounded части:
+  отдельно `checkpoint/advisory-path metrics`, отдельно финальный governance
+  summary payload assembler, если этот слой продолжит расти.
+- вторым приоритетом после этого остаётся `SlaRoutingPolicySnapshotService`:
+  если snapshot preview начнёт снова разрастаться, его безопаснее резать по
+  границе `candidate payload assembly` против `summary/advisory preview`.
