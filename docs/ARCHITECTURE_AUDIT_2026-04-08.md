@@ -826,3 +826,13 @@ integration-сценария поверх users/settings runtime boundary всё
   `SlaRoutingPolicyService` (~`448` строк), а не в config/review parsing слоях;
   следующий логичный bounded split там — финальный summary/checkpoint assembly
   и advisory-path metrics.
+- следующим ещё более широким пакетом и этот facade-tail тоже разрезан:
+  `SlaRoutingPolicySnapshotService` вынес полный snapshot preview flow,
+  `SlaRoutingGovernanceSummaryService` — финальный audit summary /
+  checkpoint / advisory-path assembly.
+- после этого `SlaRoutingPolicyService` уже не выглядит как hotspot сам по
+  себе: он сжат примерно до `123` строк и выполняет роль thin coordinator.
+- новый remaining notifier/runtime hotspot теперь локализован уже не в policy
+  facade, а в `SlaRoutingGovernanceSummaryService` (~`223` строки) и вторично
+  в `SlaRoutingPolicySnapshotService` (~`181` строк), то есть риск стал гораздо
+  уже и локальнее.

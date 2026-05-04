@@ -816,3 +816,13 @@
 - новый remaining hotspot в notifier/runtime hardening теперь уже не
   config/review parsing, а финальный summary/checkpoint tail внутри
   `SlaRoutingPolicyService` (~`448` строк).
+- следующим ещё более широким пакетом и этот tail сужен ещё сильнее:
+  `SlaRoutingPolicySnapshotService` вынес snapshot preview flow,
+  `SlaRoutingGovernanceSummaryService` — audit summary / checkpoint /
+  advisory-path assembly.
+- после этого `SlaRoutingPolicyService` сжат примерно до `123` строк и стал
+  почти чистым facade/coordinator поверх snapshot, candidate scan, rule audit,
+  config parsing и governance review слоёв.
+- новый remaining hotspot в notifier/runtime hardening теперь уже не policy
+  facade, а `SlaRoutingGovernanceSummaryService` (~`223` строки) и вторично
+  `SlaRoutingPolicySnapshotService` (~`181` строк).
