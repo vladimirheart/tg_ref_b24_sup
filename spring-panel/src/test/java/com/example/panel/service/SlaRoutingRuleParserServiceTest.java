@@ -14,7 +14,7 @@ class SlaRoutingRuleParserServiceTest {
 
     @Test
     void parseDefinitionsNormalizesRuleMetadata() {
-        List<SlaRoutingRuleParserService.AutoAssignRuleDefinition> definitions = service.parseDefinitions(List.of(
+        List<SlaRoutingRuleTypes.AutoAssignRuleDefinition> definitions = service.parseDefinitions(List.of(
                 Map.of(
                         "name", "telegram_hot",
                         "match_channel", "Telegram",
@@ -27,7 +27,7 @@ class SlaRoutingRuleParserServiceTest {
         ));
 
         assertEquals(1, definitions.size());
-        SlaRoutingRuleParserService.AutoAssignRuleDefinition definition = definitions.get(0);
+        SlaRoutingRuleTypes.AutoAssignRuleDefinition definition = definitions.get(0);
         assertEquals("telegram_hot", definition.ruleId());
         assertEquals("domain", definition.layer());
         assertEquals("ops.lead", definition.owner());
@@ -38,13 +38,13 @@ class SlaRoutingRuleParserServiceTest {
 
     @Test
     void resolveWinningDefinitionsPrefersSpecificityThenPriority() {
-        List<SlaRoutingRuleParserService.AutoAssignRuleDefinition> definitions = service.parseDefinitions(List.of(
+        List<SlaRoutingRuleTypes.AutoAssignRuleDefinition> definitions = service.parseDefinitions(List.of(
                 Map.of("rule_id", "generic", "match_channel", "telegram", "assign_to", "duty_a", "priority", 1),
                 Map.of("rule_id", "specific_low", "match_channel", "telegram", "match_location", "moscow", "assign_to", "duty_b", "priority", 1),
                 Map.of("rule_id", "specific_high", "match_channel", "telegram", "match_location", "moscow", "assign_to", "duty_c", "priority", 5)
         ));
 
-        List<SlaRoutingRuleParserService.AutoAssignRuleDefinition> winners = service.resolveWinningDefinitions(definitions);
+        List<SlaRoutingRuleTypes.AutoAssignRuleDefinition> winners = service.resolveWinningDefinitions(definitions);
         assertEquals(1, winners.size());
         assertEquals("specific_high", winners.get(0).ruleId());
     }

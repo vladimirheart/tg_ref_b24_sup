@@ -37,8 +37,8 @@ public class SlaRoutingRuleAuditService {
                                         boolean blockOnConflict,
                                         long reviewTtlHours) {
         List<Map<String, Object>> safeCandidates = criticalCandidates == null ? List.of() : criticalCandidates;
-        List<SlaRoutingRuleParserService.AutoAssignRuleDefinition> definitions = parserService.parseDefinitions(rawRules);
-        List<SlaRoutingRuleParserService.AutoAssignRuleDefinition> activeDefinitions = definitions.stream()
+        List<SlaRoutingRuleTypes.AutoAssignRuleDefinition> definitions = parserService.parseDefinitions(rawRules);
+        List<SlaRoutingRuleTypes.AutoAssignRuleDefinition> activeDefinitions = definitions.stream()
                 .filter(definition -> definition.rule() != null)
                 .toList();
 
@@ -49,25 +49,25 @@ public class SlaRoutingRuleAuditService {
         Map<String, Set<String>> tiedRoutesByRoute = new LinkedHashMap<>();
         Map<String, Integer> layerCounts = new LinkedHashMap<>();
 
-        for (SlaRoutingRuleParserService.AutoAssignRuleDefinition definition : definitions) {
+        for (SlaRoutingRuleTypes.AutoAssignRuleDefinition definition : definitions) {
             layerCounts.merge(definition.layer(), 1, Integer::sum);
             usageStatsByRoute.put(definition.ruleId(), new RuleUsageStats());
         }
 
         for (Map<String, Object> candidate : safeCandidates) {
-            List<SlaRoutingRuleParserService.AutoAssignRuleDefinition> matchedDefinitions = activeDefinitions.stream()
+            List<SlaRoutingRuleTypes.AutoAssignRuleDefinition> matchedDefinitions = activeDefinitions.stream()
                     .filter(definition -> parserService.matchesDefinition(definition, candidate))
                     .toList();
             matchedDefinitions.forEach(definition -> usageStatsByRoute.get(definition.ruleId()).matchedTickets().add(parserService.ticketId(candidate)));
-            List<SlaRoutingRuleParserService.AutoAssignRuleDefinition> winners = parserService.resolveWinningDefinitions(matchedDefinitions);
+            List<SlaRoutingRuleTypes.AutoAssignRuleDefinition> winners = parserService.resolveWinningDefinitions(matchedDefinitions);
             if (!winners.isEmpty()) {
                 winners.forEach(definition -> usageStatsByRoute.get(definition.ruleId()).selectedTickets().add(parserService.ticketId(candidate)));
             }
             if (winners.size() > 1) {
                 Set<String> winnerRouteIds = winners.stream()
-                        .map(SlaRoutingRuleParserService.AutoAssignRuleDefinition::ruleId)
+                        .map(SlaRoutingRuleTypes.AutoAssignRuleDefinition::ruleId)
                         .collect(Collectors.toCollection(LinkedHashSet::new));
-                for (SlaRoutingRuleParserService.AutoAssignRuleDefinition winner : winners) {
+                for (SlaRoutingRuleTypes.AutoAssignRuleDefinition winner : winners) {
                     conflictTicketsByRoute.computeIfAbsent(winner.ruleId(), key -> new LinkedHashSet<>()).add(parserService.ticketId(candidate));
                     tiedRoutesByRoute.computeIfAbsent(winner.ruleId(), key -> new LinkedHashSet<>()).addAll(
                             winnerRouteIds.stream().filter(routeId -> !winner.ruleId().equals(routeId)).toList());
@@ -75,7 +75,7 @@ public class SlaRoutingRuleAuditService {
             }
         }
 
-        for (SlaRoutingRuleParserService.AutoAssignRuleDefinition definition : definitions) {
+        for (SlaRoutingRuleTypes.AutoAssignRuleDefinition definition : definitions) {
             RuleUsageStats usageStats = usageStatsByRoute.getOrDefault(definition.ruleId(), new RuleUsageStats());
             int matchedCount = usageStats.matchedTickets().size();
             int selectedCount = usageStats.selectedTickets().size();

@@ -790,3 +790,12 @@
   coordinator, а `SlaRoutingRuleParserService` (~`444` строки); если он
   продолжит расти, следующий bounded split логично делать вокруг shared match
   DTO / normalization helpers.
+- следующим ещё более широким пакетом и этот tail сузился:
+  `SlaRoutingRuleTypes` вынес общие rule DTO/enum типы,
+  `SlaRoutingRuleValueParserService` — normalization/value parsing,
+  `SlaRoutingGovernanceIssueFactoryService` — issue payload factory; после
+  этого `SlaRoutingRuleParserService` сжат примерно до `147` строк, а
+  `SlaRoutingGovernanceIssueService` — до `133` строк.
+- новый remaining hotspot в notifier/runtime hardening теперь уже не parser,
+  issue service или audit coordinator, а `SlaRoutingRuleValueParserService`
+  (~`219` строк).

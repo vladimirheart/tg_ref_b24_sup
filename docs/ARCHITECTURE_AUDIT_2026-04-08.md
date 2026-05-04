@@ -799,3 +799,13 @@ integration-сценария поверх users/settings runtime boundary всё
 - новый remaining notifier/runtime hotspot теперь локализован ещё точнее в
   `SlaRoutingRuleParserService` (~`444` строки), а не в notifier, policy facade
   или audit coordinator.
+- следующим ещё более широким пакетом и этот parser-boundary разрезан:
+  `SlaRoutingRuleTypes` вынес общие rule DTO/enum типы,
+  `SlaRoutingRuleValueParserService` — normalization/value parsing,
+  `SlaRoutingGovernanceIssueFactoryService` — issue payload factory.
+- после этого `SlaRoutingRuleParserService` уже не выглядит как hotspot сам по
+  себе: он сжат примерно до `147` строк, а `SlaRoutingGovernanceIssueService`
+  — до `133` строк.
+- новый remaining notifier/runtime hotspot теперь локализован ещё уже в
+  `SlaRoutingRuleValueParserService` (~`219` строк), а не в parser, issue
+  service или audit coordinator.

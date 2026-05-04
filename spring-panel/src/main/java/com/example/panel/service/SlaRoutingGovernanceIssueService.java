@@ -13,7 +13,17 @@ import java.util.Set;
 @Service
 public class SlaRoutingGovernanceIssueService {
 
-    public RuleGovernanceEvaluation evaluateRule(SlaRoutingRuleParserService.AutoAssignRuleDefinition definition,
+    private final SlaRoutingGovernanceIssueFactoryService issueFactoryService;
+
+    public SlaRoutingGovernanceIssueService(SlaRoutingGovernanceIssueFactoryService issueFactoryService) {
+        this.issueFactoryService = issueFactoryService;
+    }
+
+    public SlaRoutingGovernanceIssueService() {
+        this(new SlaRoutingGovernanceIssueFactoryService());
+    }
+
+    public RuleGovernanceEvaluation evaluateRule(SlaRoutingRuleTypes.AutoAssignRuleDefinition definition,
                                                  int matchedCount,
                                                  int selectedCount,
                                                  double coverageRate,
@@ -39,7 +49,7 @@ public class SlaRoutingGovernanceIssueService {
         List<Map<String, Object>> emittedIssues = new ArrayList<>();
         if (hasConflict) {
             ruleIssues.add("ambiguous_overlap");
-            emittedIssues.add(buildGovernanceIssue("rollout_blocker", blockOnConflict ? "hold" : "attention", "rule_conflict",
+            emittedIssues.add(issueFactoryService.buildGovernanceIssue("rollout_blocker", blockOnConflict ? "hold" : "attention", "rule_conflict",
                     definition.ruleId(), "Обнаружен конфликт SLA-routing правил с одинаковым приоритетом/specificity.",
                     "tickets=%d".formatted(conflictTickets == null ? 0 : conflictTickets.size()),
                     conflictTickets == null ? List.of() : conflictTickets.stream().limit(3).toList(),
@@ -47,42 +57,41 @@ public class SlaRoutingGovernanceIssueService {
         }
         if (broadRule) {
             ruleIssues.add("too_broad");
-            emittedIssues.add(buildGovernanceIssue("backlog_candidate", "attention", "broad_rule", definition.ruleId(),
+            emittedIssues.add(issueFactoryService.buildGovernanceIssue("backlog_candidate", "attention", "broad_rule", definition.ruleId(),
                     "Правило покрывает слишком большой процент критичных кейсов и рискует стать catch-all.",
                     "coverage=%.1f%%".formatted(coverageRate * 100d), List.of(), List.of(definition.layer())));
         }
         if (unusedRule) {
             ruleIssues.add("unused");
-            emittedIssues.add(buildGovernanceIssue("backlog_candidate", "attention", "unused_rule", definition.ruleId(),
+            emittedIssues.add(issueFactoryService.buildGovernanceIssue("backlog_candidate", "attention", "unused_rule", definition.ruleId(),
                     "Правило не матчится ни на один критичный кейс и выглядит как конфигурационный долг.",
                     "matched=0", List.of(), List.of(definition.layer())));
         }
         if (requireLayers && missingLayer) {
             ruleIssues.add("layer_missing");
-            emittedIssues.add(buildGovernanceIssue("backlog_candidate", "attention", "layer_missing", definition.ruleId(),
+            emittedIssues.add(issueFactoryService.buildGovernanceIssue("backlog_candidate", "attention", "layer_missing", definition.ruleId(),
                     "Для production governance правило должно быть отнесено к layer: global/domain/emergency_override.",
                     "layer=legacy", List.of(), List.of()));
         }
         if (requireOwner && ownerMissing) {
             ruleIssues.add("owner_missing");
-            emittedIssues.add(buildGovernanceIssue("backlog_candidate", "attention", "owner_missing", definition.ruleId(),
+            emittedIssues.add(issueFactoryService.buildGovernanceIssue("backlog_candidate", "attention", "owner_missing", definition.ruleId(),
                     "У SLA-routing правила должен быть назначен owner для ревизии и cleanup.",
                     "owner=missing", List.of(), List.of()));
         }
         if (definition.reviewedAtInvalid()) {
             ruleIssues.add("reviewed_at_invalid_utc");
-            emittedIssues.add(buildGovernanceIssue("rollout_blocker", requireReview ? "hold" : "attention", "review_invalid_utc",
+            emittedIssues.add(issueFactoryService.buildGovernanceIssue("rollout_blocker", requireReview ? "hold" : "attention", "review_invalid_utc",
                     definition.ruleId(), "Поле reviewed_at у SLA-routing правила невалидно и должно быть задано в UTC.",
                     "reviewed_at=invalid", List.of(), List.of()));
         } else if (requireReview && reviewMissing) {
             ruleIssues.add("review_missing");
-            emittedIssues.add(buildGovernanceIssue("rollout_blocker", "hold", "review_missing", definition.ruleId(),
+            emittedIssues.add(issueFactoryService.buildGovernanceIssue("rollout_blocker", "hold", "review_missing", definition.ruleId(),
                     "Для routing governance нужен review timestamp в UTC.", "reviewed_at=missing", List.of(), List.of()));
         } else if (requireReview && reviewStale) {
             ruleIssues.add("review_stale");
-            emittedIssues.add(buildGovernanceIssue("rollout_blocker", "hold", "review_stale", definition.ruleId(),
-                    "Review SLA-routing правила устарел и должен быть обновлён.", "ttl_hours=%d".formatted(reviewTtlHours),
-                    List.of(), List.of()));
+            emittedIssues.add(issueFactoryService.buildGovernanceIssue("rollout_blocker", "hold", "review_stale", definition.ruleId(),
+                    "Review SLA-routing правила устарел и должен быть обновлён.", "ttl_hours=%d".formatted(reviewTtlHours), List.of(), List.of()));
         }
 
         String status = "ok";
@@ -110,26 +119,6 @@ public class SlaRoutingGovernanceIssueService {
         rulePayload.put("status", status);
 
         return new RuleGovernanceEvaluation(rulePayload, emittedIssues);
-    }
-
-    public Map<String, Object> buildGovernanceIssue(String classification,
-                                                    String status,
-                                                    String type,
-                                                    String ruleId,
-                                                    String summary,
-                                                    String detail,
-                                                    List<String> ticketIds,
-                                                    List<String> relatedRulesOrMeta) {
-        return Map.of(
-                "classification", classification,
-                "status", status,
-                "type", type,
-                "rule_id", ruleId,
-                "summary", summary,
-                "detail", detail == null ? "" : detail,
-                "tickets", ticketIds == null ? List.of() : ticketIds,
-                "related", relatedRulesOrMeta == null ? List.of() : relatedRulesOrMeta
-        );
     }
 
     private String trimToNull(String value) {

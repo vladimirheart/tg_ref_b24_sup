@@ -17,7 +17,7 @@ class SlaRoutingGovernanceIssueServiceTest {
 
     @Test
     void evaluateRuleBuildsConflictAndBroadIssues() {
-        SlaRoutingRuleParserService.AutoAssignRuleDefinition definition = parserService.parseDefinitions(List.of(
+        SlaRoutingRuleTypes.AutoAssignRuleDefinition definition = parserService.parseDefinitions(List.of(
                 Map.of("rule_id", "alpha", "match_channel", "telegram", "assign_to", "duty_a")
         )).get(0);
 
@@ -46,7 +46,7 @@ class SlaRoutingGovernanceIssueServiceTest {
 
     @Test
     void evaluateRuleBuildsOwnershipAndReviewIssues() {
-        SlaRoutingRuleParserService.AutoAssignRuleDefinition definition = parserService.parseDefinitions(List.of(
+        SlaRoutingRuleTypes.AutoAssignRuleDefinition definition = parserService.parseDefinitions(List.of(
                 Map.of(
                         "rule_id", "legacy_rule",
                         "match_channel", "telegram",
