@@ -10,15 +10,18 @@ public class SlaRoutingRuleParserService {
 
     private final SlaRoutingRuleMatchNormalizerService matchNormalizerService;
     private final SlaRoutingRuleScalarParserService scalarParserService;
+    private final SlaRoutingRuleBehaviorService ruleBehaviorService;
 
     public SlaRoutingRuleParserService(SlaRoutingRuleMatchNormalizerService matchNormalizerService,
-                                       SlaRoutingRuleScalarParserService scalarParserService) {
+                                       SlaRoutingRuleScalarParserService scalarParserService,
+                                       SlaRoutingRuleBehaviorService ruleBehaviorService) {
         this.matchNormalizerService = matchNormalizerService;
         this.scalarParserService = scalarParserService;
+        this.ruleBehaviorService = ruleBehaviorService;
     }
 
     public SlaRoutingRuleParserService() {
-        this(new SlaRoutingRuleMatchNormalizerService(), new SlaRoutingRuleScalarParserService());
+        this(new SlaRoutingRuleMatchNormalizerService(), new SlaRoutingRuleScalarParserService(), new SlaRoutingRuleBehaviorService());
     }
 
     public List<SlaRoutingRuleTypes.AutoAssignRuleDefinition> parseDefinitions(Object rawRules) {
@@ -61,7 +64,7 @@ public class SlaRoutingRuleParserService {
                     resolveRoute(ruleMap),
                     matchNormalizerService.parsePoolAssignStrategy(ruleMap.get("assign_to_pool_strategy"))
             );
-            if (isEmptyRule(rule)) {
+            if (ruleBehaviorService.isEmptyRule(rule)) {
                 continue;
             }
             String ruleId = rule.routeName() != null ? rule.routeName() : "rule_" + ruleIndex;
@@ -83,7 +86,8 @@ public class SlaRoutingRuleParserService {
     public boolean matchesDefinition(SlaRoutingRuleTypes.AutoAssignRuleDefinition definition, Map<String, Object> candidate) {
         return definition != null
                 && definition.rule() != null
-                && definition.rule().matches(
+                && ruleBehaviorService.matches(
+                definition.rule(),
                 matchNormalizerService.normalizeMatchValue(candidate == null ? null : candidate.get("channel")),
                 matchNormalizerService.normalizeMatchValue(candidate == null ? null : candidate.get("business")),
                 matchNormalizerService.normalizeMatchValue(candidate == null ? null : candidate.get("location")),
@@ -101,23 +105,22 @@ public class SlaRoutingRuleParserService {
         if (matchedDefinitions == null || matchedDefinitions.isEmpty()) {
             return List.of();
         }
-        int bestSpecificity = matchedDefinitions.stream().map(definition -> definition.rule().specificityScore()).max(Integer::compareTo).orElse(Integer.MIN_VALUE);
+        int bestSpecificity = matchedDefinitions.stream()
+                .map(definition -> ruleBehaviorService.specificityScore(definition.rule()))
+                .max(Integer::compareTo).orElse(Integer.MIN_VALUE);
         int bestPriority = matchedDefinitions.stream()
-                .filter(definition -> definition.rule().specificityScore() == bestSpecificity)
+                .filter(definition -> ruleBehaviorService.specificityScore(definition.rule()) == bestSpecificity)
                 .map(definition -> definition.rule().priority())
                 .max(Integer::compareTo)
                 .orElse(Integer.MIN_VALUE);
         return matchedDefinitions.stream()
-                .filter(definition -> definition.rule().specificityScore() == bestSpecificity)
+                .filter(definition -> ruleBehaviorService.specificityScore(definition.rule()) == bestSpecificity)
                 .filter(definition -> definition.rule().priority() == bestPriority)
                 .toList();
     }
 
     public String formatRuleAssigneeTarget(SlaRoutingRuleTypes.AutoAssignRule rule) {
-        if (rule == null) return "";
-        if (rule.assignee() != null) return rule.assignee();
-        if (rule.assigneePool() != null && !rule.assigneePool().isEmpty()) return String.join(", ", rule.assigneePool());
-        return "";
+        return ruleBehaviorService.formatAssigneeTarget(rule);
     }
 
     public String ticketId(Map<String, Object> candidate) {
@@ -130,22 +133,4 @@ public class SlaRoutingRuleParserService {
         return route != null ? route : scalarParserService.trimToNull(String.valueOf(ruleMap.get("name")));
     }
 
-    private boolean isEmptyRule(SlaRoutingRuleTypes.AutoAssignRule rule) {
-        return rule.channels().isEmpty()
-                && rule.businesses().isEmpty()
-                && rule.locations().isEmpty()
-                && rule.clientStatuses().isEmpty()
-                && rule.categories().isEmpty()
-                && rule.excludedCategories().isEmpty()
-                && rule.matchHasCategories() == null
-                && rule.unreadMin() == null
-                && rule.unreadMax() == null
-                && rule.ratingMin() == null
-                && rule.ratingMax() == null
-                && rule.minutesLeftLte() == null
-                && rule.minutesLeftGte() == null
-                && rule.slaStates().isEmpty()
-                && rule.requestPrefixes().isEmpty()
-                && rule.excludeRequestPrefixes().isEmpty();
-    }
 }

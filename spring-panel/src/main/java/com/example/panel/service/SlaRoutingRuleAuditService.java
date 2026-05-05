@@ -16,15 +16,18 @@ public class SlaRoutingRuleAuditService {
 
     private final SlaRoutingRuleParserService parserService;
     private final SlaRoutingGovernanceIssueService issueService;
+    private final SlaRoutingRuleBehaviorService ruleBehaviorService;
 
     public SlaRoutingRuleAuditService(SlaRoutingRuleParserService parserService,
-                                      SlaRoutingGovernanceIssueService issueService) {
+                                      SlaRoutingGovernanceIssueService issueService,
+                                      SlaRoutingRuleBehaviorService ruleBehaviorService) {
         this.parserService = parserService;
         this.issueService = issueService;
+        this.ruleBehaviorService = ruleBehaviorService;
     }
 
     public SlaRoutingRuleAuditService() {
-        this(new SlaRoutingRuleParserService(), new SlaRoutingGovernanceIssueService());
+        this(new SlaRoutingRuleParserService(), new SlaRoutingGovernanceIssueService(), new SlaRoutingRuleBehaviorService());
     }
 
     public RoutingAuditAnalysis analyze(List<Map<String, Object>> criticalCandidates,
@@ -82,7 +85,7 @@ public class SlaRoutingRuleAuditService {
             double coverageRate = safeCandidates.isEmpty() ? 0d : (double) matchedCount / safeCandidates.size();
             boolean broadRule = !safeCandidates.isEmpty()
                     && coverageRate >= (broadCoveragePct / 100d)
-                    && definition.rule().specificityScore() <= 2;
+                    && ruleBehaviorService.specificityScore(definition.rule()) <= 2;
             SlaRoutingGovernanceIssueService.RuleGovernanceEvaluation evaluation = issueService.evaluateRule(
                     definition,
                     matchedCount,

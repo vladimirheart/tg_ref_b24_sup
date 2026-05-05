@@ -15,15 +15,18 @@ public class SlaRoutingGovernanceIssueService {
 
     private final SlaRoutingGovernanceIssueFactoryService issueFactoryService;
     private final SlaRoutingRuleScalarParserService scalarParserService;
+    private final SlaRoutingRuleBehaviorService ruleBehaviorService;
 
     public SlaRoutingGovernanceIssueService(SlaRoutingGovernanceIssueFactoryService issueFactoryService,
-                                            SlaRoutingRuleScalarParserService scalarParserService) {
+                                            SlaRoutingRuleScalarParserService scalarParserService,
+                                            SlaRoutingRuleBehaviorService ruleBehaviorService) {
         this.issueFactoryService = issueFactoryService;
         this.scalarParserService = scalarParserService;
+        this.ruleBehaviorService = ruleBehaviorService;
     }
 
     public SlaRoutingGovernanceIssueService() {
-        this(new SlaRoutingGovernanceIssueFactoryService(), new SlaRoutingRuleScalarParserService());
+        this(new SlaRoutingGovernanceIssueFactoryService(), new SlaRoutingRuleScalarParserService(), new SlaRoutingRuleBehaviorService());
     }
 
     public RuleGovernanceEvaluation evaluateRule(SlaRoutingRuleTypes.AutoAssignRuleDefinition definition,
@@ -112,11 +115,11 @@ public class SlaRoutingGovernanceIssueService {
         rulePayload.put("reviewed_at_utc", definition.reviewedAtUtc() != null ? definition.reviewedAtUtc().toString() : "");
         rulePayload.put("reviewed_at_invalid_utc", definition.reviewedAtInvalid());
         rulePayload.put("priority", definition.rule().priority());
-        rulePayload.put("specificity_score", definition.rule().specificityScore());
+        rulePayload.put("specificity_score", ruleBehaviorService.specificityScore(definition.rule()));
         rulePayload.put("matched_candidates", matchedCount);
         rulePayload.put("selected_candidates", selectedCount);
         rulePayload.put("coverage_rate", coverageRate);
-        rulePayload.put("route", definition.rule().route());
+        rulePayload.put("route", ruleBehaviorService.route(definition.rule()));
         rulePayload.put("assignee_target", assigneeTarget == null ? "" : assigneeTarget);
         rulePayload.put("issues", ruleIssues);
         rulePayload.put("status", status);

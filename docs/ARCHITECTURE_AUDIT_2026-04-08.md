@@ -895,3 +895,18 @@ integration-сценария поверх users/settings runtime boundary всё
   notifier/runtime hotspot смещён уже в `SlaRoutingGovernanceReviewStateService`
   (~`167` строк) и рядом с ним в `SlaRoutingRuleTypes` / rule normalization
   bounded contexts, а не в mixed orchestration services.
+- следующим ещё более широким пакетом и этот tail тоже сузился:
+  `SlaRoutingGovernanceReviewDecisionService` вынес freshness/decision/timestamp
+  evaluation, `SlaRoutingGovernanceReviewIssueService` — issue collection для
+  governance review, а `SlaRoutingRuleBehaviorService` забрал matcher,
+  specificity, route и assignee-target heuristics из `SlaRoutingRuleTypes`.
+- после этого `SlaRoutingGovernanceReviewStateService` сжат примерно до `72`
+  строк, `SlaRoutingRuleTypes` — до `47`, `SlaRoutingRuleParserService` — до
+  `123`, `SlaRoutingGovernanceIssueService` — до `121`, а
+  `SlaRoutingRuleAuditService` остаётся thin coordinator примерно на `148`
+  строках.
+- новый remaining notifier/runtime hotspot теперь уже не в governance review
+  state и не в rule DTO: он смещён в `SlaRoutingRuleBehaviorService`
+  (~`151` строк) и вторично в `SlaRoutingRuleAuditService` (~`148` строк),
+  то есть риск локализован в компактных rule-behavior / audit bounded
+  services, а не в orchestration facade.

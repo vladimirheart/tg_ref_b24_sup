@@ -875,3 +875,17 @@
   строк, `SlaRoutingPolicyConfigService` — до `89`, а remaining hotspot в
   notifier/runtime hardening смещён уже в `SlaRoutingGovernanceReviewStateService`
   (~`167` строк) и соседние rule normalization/types bounded contexts.
+- следующим ещё более широким пакетом review/rule слой тоже разрезан:
+  `SlaRoutingGovernanceReviewDecisionService` вынес governance review
+  freshness/decision evaluation, `SlaRoutingGovernanceReviewIssueService` —
+  issue collection, `SlaRoutingRuleBehaviorService` — matcher/specificity/route
+  heuristics из `SlaRoutingRuleTypes`.
+- после этого `SlaRoutingGovernanceReviewStateService` сжат примерно до `72`
+  строк, `SlaRoutingRuleTypes` — до `47`, `SlaRoutingRuleParserService` — до
+  `123`, `SlaRoutingGovernanceIssueService` — до `121`, а
+  `SlaRoutingRuleAuditService` остаётся thin coordinator примерно на `148`
+  строках.
+- следующий локальный post-phase hardening focus теперь уже не в review-state:
+  первично это `SlaRoutingRuleBehaviorService` (~`151` строк) и вторично
+  `SlaRoutingRuleAuditService` (~`148` строк), если rule-behavior/audit слой
+  снова начнёт расти.
