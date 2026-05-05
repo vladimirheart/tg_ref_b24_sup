@@ -16,11 +16,13 @@ public class SlaRoutingPolicySnapshotService {
 
     private final SlaRoutingPolicyConfigService policyConfigService;
     private final SlaRoutingPolicyDecisionService decisionService;
+    private final SlaRoutingPolicySnapshotStateService snapshotStateService;
 
     public SlaRoutingPolicySnapshotService(SlaRoutingPolicyConfigService policyConfigService,
                                            SlaEscalationAutoAssignService slaEscalationAutoAssignService) {
         this(
                 policyConfigService,
+                new SlaRoutingPolicySnapshotStateService(),
                 new SlaRoutingPolicyDecisionService(
                         slaEscalationAutoAssignService,
                         new SlaRoutingPolicyCandidateBuilderService(),
@@ -31,13 +33,15 @@ public class SlaRoutingPolicySnapshotService {
     }
 
     public SlaRoutingPolicySnapshotService(SlaRoutingPolicyConfigService policyConfigService,
+                                           SlaRoutingPolicySnapshotStateService snapshotStateService,
                                            SlaRoutingPolicyDecisionService decisionService) {
         this.policyConfigService = policyConfigService;
+        this.snapshotStateService = snapshotStateService;
         this.decisionService = decisionService;
     }
 
     public SlaRoutingPolicySnapshotService() {
-        this(new SlaRoutingPolicyConfigService(), new SlaRoutingPolicyDecisionService());
+        this(new SlaRoutingPolicyConfigService(), new SlaRoutingPolicySnapshotStateService(), new SlaRoutingPolicyDecisionService());
     }
 
     public Map<String, Object> buildRoutingPolicySnapshot(DialogListItem dialog, Map<String, Object> settings) {
@@ -51,21 +55,18 @@ public class SlaRoutingPolicySnapshotService {
         SlaEscalationWebhookNotifier.SlaOrchestrationMode orchestrationMode =
                 policyConfigService.resolveOrchestrationMode(dialogConfig.get("sla_critical_orchestration_mode"));
 
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("enabled", orchestrationEnabled);
-        payload.put("mode", orchestrationMode.name().toLowerCase(Locale.ROOT));
-        payload.put("evaluated_at_utc", evaluatedAt.toString());
-        payload.put("target_minutes", targetMinutes);
-        payload.put("critical_minutes", criticalMinutes);
-        payload.put("auto_assign_enabled", autoAssignEnabled);
-        payload.put("webhook_enabled", webhookEnabled);
+        Map<String, Object> payload = new LinkedHashMap<>(snapshotStateService.initializeBasePayload(
+                orchestrationEnabled,
+                autoAssignEnabled,
+                webhookEnabled,
+                orchestrationMode,
+                evaluatedAt,
+                targetMinutes,
+                criticalMinutes
+        ));
 
         if (dialog == null || policyConfigService.trimToNull(dialog.ticketId()) == null) {
-            payload.put("status", "attention");
-            payload.put("ready", false);
-            payload.put("action", "unavailable");
-            payload.put("summary", "SLA policy недоступен: не удалось определить тикет.");
-            payload.put("issues", List.of("ticket_missing"));
+            payload.putAll(snapshotStateService.buildTicketMissingPayload());
             return payload;
         }
 
@@ -77,22 +78,14 @@ public class SlaRoutingPolicySnapshotService {
         }
 
         if (!orchestrationEnabled) {
-            payload.put("status", "disabled");
-            payload.put("ready", true);
-            payload.put("action", "disabled");
-            payload.put("summary", "SLA orchestration выключен настройкой: текущий поток не меняется.");
-            payload.put("issues", List.of());
+            payload.putAll(snapshotStateService.buildDisabledPayload());
             return payload;
         }
 
         Long minutesLeft = policyConfigService.resolveMinutesLeft(dialog.createdAt(), targetMinutes, System.currentTimeMillis());
         payload.put("minutes_left", minutesLeft);
         if (minutesLeft == null) {
-            payload.put("status", "invalid_utc");
-            payload.put("ready", false);
-            payload.put("action", "attention");
-            payload.put("summary", "SLA policy не может быть рассчитан: дата создания пуста или невалидна для UTC.");
-            payload.put("issues", List.of("created_at_invalid_utc"));
+            payload.putAll(snapshotStateService.buildInvalidUtcPayload());
             return payload;
         }
 
@@ -106,19 +99,11 @@ public class SlaRoutingPolicySnapshotService {
         payload.put("critical", critical);
 
         if (!openLifecycle) {
-            payload.put("status", "ready");
-            payload.put("ready", true);
-            payload.put("action", "not_applicable");
-            payload.put("summary", "SLA policy не применяется: диалог уже не в open lifecycle.");
-            payload.put("issues", List.of());
+            payload.putAll(snapshotStateService.buildNotApplicablePayload());
             return payload;
         }
         if (!critical) {
-            payload.put("status", "ready");
-            payload.put("ready", true);
-            payload.put("action", "monitor");
-            payload.put("summary", "Диалог под SLA-наблюдением, но ещё вне критичного окна policy.");
-            payload.put("issues", List.of());
+            payload.putAll(snapshotStateService.buildMonitorPayload());
             return payload;
         }
         payload.putAll(decisionService.buildCriticalSnapshotDecision(

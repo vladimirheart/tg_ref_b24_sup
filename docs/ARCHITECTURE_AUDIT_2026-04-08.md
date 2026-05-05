@@ -875,3 +875,12 @@ integration-сценария поверх users/settings runtime boundary всё
   первично это `SlaRoutingPolicySnapshotService` (~`136` строк) и вторично
   `SlaRoutingGovernanceSignalService` (~`132` строки), а path/checkpoint
   orchestration уже живёт в отдельных bounded services.
+- следующим ещё более широким пакетом и эти два хвоста тоже сузились:
+  `SlaRoutingGovernanceLeadTimeService` вынес lead-time/risk evaluation,
+  `SlaRoutingGovernancePriorityService` — weekly-review priority и checkpoint
+  closure policy, `SlaRoutingPolicySnapshotStateService` — base snapshot
+  header и pre-critical state payloads.
+- после этого `SlaRoutingGovernanceSignalService` сжат примерно до `96`
+  строк, `SlaRoutingPolicySnapshotService` — до `121`, а remaining
+  notifier/runtime hotspot локализован уже в совсем малых bounded services,
+  а не в общем routing hardening wrapper.

@@ -857,3 +857,11 @@
   строк, а remaining hotspot в notifier/runtime hardening смещён уже в
   `SlaRoutingPolicySnapshotService` (~`136` строк) и вторично в
   `SlaRoutingGovernanceSignalService` (~`132` строки).
+- следующим ещё более широким пакетом и эти хвосты тоже разрезаны:
+  `SlaRoutingGovernanceLeadTimeService` вынес lead-time/risk evaluation,
+  `SlaRoutingGovernancePriorityService` — weekly-review priority и checkpoint
+  closure policy, `SlaRoutingPolicySnapshotStateService` — base snapshot
+  header и pre-critical state payloads.
+- после этого `SlaRoutingGovernanceSignalService` сжат примерно до `96`
+  строк, `SlaRoutingPolicySnapshotService` — до `121`, а remaining hotspot в
+  notifier/runtime hardening смещён уже в совсем локальные bounded services.
