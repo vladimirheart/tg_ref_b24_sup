@@ -1,5 +1,6 @@
 package com.example.panel.service;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
@@ -9,6 +10,7 @@ public class SlaRoutingPolicySnapshotBranchService {
 
     private final SlaRoutingPolicySnapshotStateService snapshotStateService;
 
+    @Autowired
     public SlaRoutingPolicySnapshotBranchService(SlaRoutingPolicySnapshotStateService snapshotStateService) {
         this.snapshotStateService = snapshotStateService;
     }

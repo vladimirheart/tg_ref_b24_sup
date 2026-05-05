@@ -1,5 +1,6 @@
 package com.example.panel.service;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.Locale;
@@ -12,6 +13,7 @@ public class SlaRoutingPolicyConfigService {
     private final SlaRoutingPolicyTimeService timeService;
     private final SlaRoutingLifecycleStateService lifecycleStateService;
 
+    @Autowired
     public SlaRoutingPolicyConfigService(SlaRoutingRuleScalarParserService scalarParserService,
                                         SlaRoutingPolicyTimeService timeService,
                                         SlaRoutingLifecycleStateService lifecycleStateService) {

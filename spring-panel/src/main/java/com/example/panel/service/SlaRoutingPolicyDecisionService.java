@@ -1,6 +1,7 @@
 package com.example.panel.service;
 
 import com.example.panel.model.dialog.DialogListItem;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -15,6 +16,7 @@ public class SlaRoutingPolicyDecisionService {
     private final SlaRoutingPolicyCandidateBuilderService candidateBuilderService;
     private final SlaRoutingPolicyDecisionPayloadService payloadService;
 
+    @Autowired
     public SlaRoutingPolicyDecisionService(SlaEscalationAutoAssignService slaEscalationAutoAssignService,
                                            SlaRoutingPolicyCandidateBuilderService candidateBuilderService,
                                            SlaRoutingPolicyDecisionPayloadService payloadService) {

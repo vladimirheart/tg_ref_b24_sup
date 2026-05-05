@@ -1,6 +1,7 @@
 package com.example.panel.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import java.time.Instant;
@@ -14,6 +15,7 @@ public class WorkspaceGuardrailWebhookNotifier {
     private final AtomicReference<Instant> lastSentAt = new AtomicReference<>();
     private final AtomicReference<String> lastPayloadFingerprint = new AtomicReference<>("");
 
+    @Autowired
     public WorkspaceGuardrailWebhookNotifier(SharedConfigService sharedConfigService,
                                              DialogWorkspaceTelemetrySummaryService dialogWorkspaceTelemetrySummaryService,
                                              ObjectMapper objectMapper) {

@@ -1,5 +1,6 @@
 package com.example.panel.service;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -13,6 +14,7 @@ public class SlaRoutingGovernanceReviewDecisionService {
     private final SlaRoutingRuleScalarParserService scalarParserService;
     private final SlaRoutingPolicyConfigService policyConfigService;
 
+    @Autowired
     public SlaRoutingGovernanceReviewDecisionService(SlaRoutingRuleScalarParserService scalarParserService,
                                                      SlaRoutingPolicyConfigService policyConfigService) {
         this.scalarParserService = scalarParserService;

@@ -1,6 +1,7 @@
 package com.example.panel.service;
 
 import com.example.panel.model.dialog.DialogListItem;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -19,13 +20,15 @@ public class SlaRoutingPolicyService {
     private final SlaRoutingPolicySnapshotService snapshotService;
     private final SlaRoutingGovernanceSummaryService governanceSummaryService;
 
-    public SlaRoutingPolicyService(SlaEscalationCandidateService slaEscalationCandidateService,
-                                   SlaEscalationAutoAssignService slaEscalationAutoAssignService,
-                                   SlaRoutingRuleAuditService slaRoutingRuleAuditService,
-                                   SlaRoutingPolicyConfigService policyConfigService,
-                                   SlaRoutingGovernanceReviewService governanceReviewService,
-                                   SlaRoutingPolicySnapshotService snapshotService,
-                                   SlaRoutingGovernanceSummaryService governanceSummaryService) {
+    @Autowired
+    public SlaRoutingPolicyService(
+            SlaEscalationCandidateService slaEscalationCandidateService,
+            SlaEscalationAutoAssignService slaEscalationAutoAssignService,
+            SlaRoutingRuleAuditService slaRoutingRuleAuditService,
+            SlaRoutingPolicyConfigService policyConfigService,
+            SlaRoutingGovernanceReviewService governanceReviewService,
+            SlaRoutingPolicySnapshotService snapshotService,
+            SlaRoutingGovernanceSummaryService governanceSummaryService) {
         this.slaEscalationCandidateService = slaEscalationCandidateService;
         this.slaRoutingRuleAuditService = slaRoutingRuleAuditService;
         this.policyConfigService = policyConfigService;

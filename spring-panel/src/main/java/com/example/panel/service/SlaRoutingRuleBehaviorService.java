@@ -1,5 +1,6 @@
 package com.example.panel.service;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -12,6 +13,7 @@ public class SlaRoutingRuleBehaviorService {
     private final SlaRoutingRuleMatchService matchService;
     private final SlaRoutingRuleDescriptorService descriptorService;
 
+    @Autowired
     public SlaRoutingRuleBehaviorService(SlaRoutingRuleMatchService matchService,
                                          SlaRoutingRuleDescriptorService descriptorService) {
         this.matchService = matchService;

@@ -1,5 +1,6 @@
 package com.example.panel.service;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
@@ -11,6 +12,7 @@ public class SlaRoutingRuleCandidateContextService {
     private final SlaRoutingRuleMatchNormalizerService matchNormalizerService;
     private final SlaRoutingRuleScalarParserService scalarParserService;
 
+    @Autowired
     public SlaRoutingRuleCandidateContextService(SlaRoutingRuleMatchNormalizerService matchNormalizerService,
                                                  SlaRoutingRuleScalarParserService scalarParserService) {
         this.matchNormalizerService = matchNormalizerService;

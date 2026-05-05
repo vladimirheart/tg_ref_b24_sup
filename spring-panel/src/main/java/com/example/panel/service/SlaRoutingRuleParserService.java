@@ -1,5 +1,6 @@
 package com.example.panel.service;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -13,6 +14,7 @@ public class SlaRoutingRuleParserService {
     private final SlaRoutingRuleBehaviorService ruleBehaviorService;
     private final SlaRoutingRuleDescriptorService descriptorService;
 
+    @Autowired
     public SlaRoutingRuleParserService(SlaRoutingRuleDefinitionFactoryService definitionFactoryService,
                                        SlaRoutingRuleCandidateContextService candidateContextService,
                                        SlaRoutingRuleBehaviorService ruleBehaviorService,

@@ -1,5 +1,6 @@
 package com.example.panel.service;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -14,6 +15,7 @@ public class SlaRoutingRuleMatchNormalizerService {
 
     private final SlaRoutingRuleScalarParserService scalarParserService;
 
+    @Autowired
     public SlaRoutingRuleMatchNormalizerService(SlaRoutingRuleScalarParserService scalarParserService) {
         this.scalarParserService = scalarParserService;
     }

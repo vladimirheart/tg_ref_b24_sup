@@ -1,5 +1,6 @@
 package com.example.panel.service;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -12,6 +13,7 @@ public class SlaRoutingGovernanceReviewIssueService {
 
     private final SlaRoutingGovernanceIssueFactoryService issueFactoryService;
 
+    @Autowired
     public SlaRoutingGovernanceReviewIssueService(SlaRoutingGovernanceIssueFactoryService issueFactoryService) {
         this.issueFactoryService = issueFactoryService;
     }

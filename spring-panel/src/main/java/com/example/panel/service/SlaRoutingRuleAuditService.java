@@ -1,5 +1,6 @@
 package com.example.panel.service;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -20,6 +21,7 @@ public class SlaRoutingRuleAuditService {
     private final SlaRoutingRuleUsageAnalysisService usageAnalysisService;
     private final SlaRoutingRuleAuditMetricsService auditMetricsService;
 
+    @Autowired
     public SlaRoutingRuleAuditService(SlaRoutingRuleParserService parserService,
                                       SlaRoutingGovernanceIssueService issueService,
                                       SlaRoutingRuleBehaviorService ruleBehaviorService,

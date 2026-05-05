@@ -1,5 +1,6 @@
 package com.example.panel.service;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -13,6 +14,7 @@ public class SlaRoutingGovernanceCheckpointService {
     private final SlaRoutingGovernanceReviewPathService reviewPathService;
     private final SlaRoutingGovernanceSignalService signalService;
 
+    @Autowired
     public SlaRoutingGovernanceCheckpointService(SlaRoutingGovernanceReviewPathService reviewPathService,
                                                  SlaRoutingGovernanceSignalService signalService) {
         this.reviewPathService = reviewPathService;

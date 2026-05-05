@@ -1,6 +1,7 @@
 package com.example.panel.service;
 
 import com.example.panel.model.dialog.DialogListItem;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -15,6 +16,7 @@ public class SlaRoutingPolicySnapshotRuntimeService {
     private final SlaRoutingPolicyConfigService policyConfigService;
     private final SlaRoutingPolicySnapshotStateService snapshotStateService;
 
+    @Autowired
     public SlaRoutingPolicySnapshotRuntimeService(SlaRoutingPolicyConfigService policyConfigService,
                                                   SlaRoutingPolicySnapshotStateService snapshotStateService) {
         this.policyConfigService = policyConfigService;

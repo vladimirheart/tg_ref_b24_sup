@@ -1,5 +1,6 @@
 package com.example.panel.service;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.LinkedHashMap;
@@ -14,6 +15,7 @@ public class SlaRoutingRuleUsageAnalysisService {
 
     private final SlaRoutingRuleParserService parserService;
 
+    @Autowired
     public SlaRoutingRuleUsageAnalysisService(SlaRoutingRuleParserService parserService) {
         this.parserService = parserService;
     }

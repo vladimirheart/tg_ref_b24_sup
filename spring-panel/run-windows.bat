@@ -101,16 +101,33 @@ set "TEST_SKIP_ARGS=-Dmaven.test.skip=true"
 if defined RUN_WITH_TESTS set "TEST_SKIP_ARGS="
 
 echo Starting Spring panel with %MVN_CMD%
-echo [INFO] Running Maven clean phase before startup to remove stale compiled classes.
-if "%MVN_CMD%"=="mvn" (
-    call mvn !MVN_REPO_ARG! !TEST_SKIP_ARGS! !EXTRA_APP_ARG! clean spring-boot:run %*
+set "SKIP_MAVEN_CLEAN=0"
+if /I "%SPRING_PANEL_SKIP_CLEAN%"=="1" set "SKIP_MAVEN_CLEAN=1"
+if /I "%SPRING_PANEL_SKIP_CLEAN%"=="true" set "SKIP_MAVEN_CLEAN=1"
+
+if "!SKIP_MAVEN_CLEAN!"=="1" (
+    echo [INFO] Skipping Maven clean phase because SPRING_PANEL_SKIP_CLEAN=%SPRING_PANEL_SKIP_CLEAN%.
 ) else (
-    call "%MVN_CMD%" !MVN_REPO_ARG! !TEST_SKIP_ARGS! !EXTRA_APP_ARG! clean spring-boot:run %*
+    echo [INFO] Running Maven clean phase before startup to remove stale compiled classes.
+    call :RunMaven clean %*
+    if errorlevel 1 (
+        echo [WARN] Maven clean failed. Files under target may be locked by another process.
+        echo [WARN] Continuing with spring-boot:run without clean. Close IDE Java processes if startup still fails.
+    )
 )
 
+call :RunMaven spring-boot:run %*
 set "EXIT_CODE=%ERRORLEVEL%"
 popd >nul
 endlocal & exit /b %EXIT_CODE%
+
+:RunMaven
+if "%MVN_CMD%"=="mvn" (
+    call mvn !MVN_REPO_ARG! !TEST_SKIP_ARGS! !EXTRA_APP_ARG! %*
+) else (
+    call "%MVN_CMD%" !MVN_REPO_ARG! !TEST_SKIP_ARGS! !EXTRA_APP_ARG! %*
+)
+exit /b %ERRORLEVEL%
 
 :CheckPort
 set "PORT_BUSY=0"
