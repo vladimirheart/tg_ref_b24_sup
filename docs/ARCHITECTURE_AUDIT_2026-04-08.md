@@ -847,3 +847,12 @@ integration-сценария поверх users/settings runtime boundary всё
 - вторым приоритетом после этого остаётся `SlaRoutingPolicySnapshotService`:
   если snapshot preview начнёт снова разрастаться, его безопаснее резать по
   границе `candidate payload assembly` против `summary/advisory preview`.
+- следующим пакетом и этот tail уже реально сузился:
+  `SlaRoutingGovernanceCheckpointService` вынес required/advisory checkpoint
+  metrics, `SlaRoutingGovernanceAuditPayloadAssemblerService` — финальную audit
+  payload assembly, а `SlaRoutingGovernanceSummaryService` после этого сжат
+  примерно до `127` строк и стал coordinator-слоем.
+- новый remaining notifier/runtime hotspot теперь локализован уже не в summary
+  service, а в `SlaRoutingPolicySnapshotService` (~`202` строки) и вторично в
+  `SlaRoutingGovernanceCheckpointService` (~`189` строк); риск снова сузился до
+  двух локальных bounded services, а не orchestration wrapper.

@@ -832,3 +832,12 @@
   `SlaRoutingGovernanceSummaryService`, если там продолжит расти
   checkpoint/advisory-path assembly; вторым приоритетом остаётся
   `SlaRoutingPolicySnapshotService`.
+- следующим пакетом и этот summary-tail тоже разрезан:
+  `SlaRoutingGovernanceCheckpointService` вынес required/advisory checkpoint
+  metrics, `SlaRoutingGovernanceAuditPayloadAssemblerService` — финальную audit
+  payload assembly, а `SlaRoutingGovernanceSummaryService` после этого сжат
+  примерно до `127` строк и стал coordinator-слоем.
+- новый remaining hotspot в notifier/runtime hardening теперь уже не
+  `SlaRoutingGovernanceSummaryService`, а `SlaRoutingPolicySnapshotService`
+  (~`202` строки) и вторично `SlaRoutingGovernanceCheckpointService`
+  (~`189` строк).
