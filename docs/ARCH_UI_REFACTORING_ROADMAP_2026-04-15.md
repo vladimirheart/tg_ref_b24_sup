@@ -849,3 +849,11 @@
   а remaining hotspot в notifier/runtime hardening смещён уже в
   `SlaRoutingGovernanceCheckpointService` (~`189` строк) и вторично в
   `SlaRoutingPolicySnapshotService` (~`136` строк).
+- следующим более широким пакетом и checkpoint-tail тоже разрезан:
+  `SlaRoutingGovernanceReviewPathService` вынес minimum required review path и
+  advisory checkpoint builder, `SlaRoutingGovernanceSignalService` — noise,
+  churn, lead-time и weekly-review priority signals.
+- после этого `SlaRoutingGovernanceCheckpointService` сжат примерно до `127`
+  строк, а remaining hotspot в notifier/runtime hardening смещён уже в
+  `SlaRoutingPolicySnapshotService` (~`136` строк) и вторично в
+  `SlaRoutingGovernanceSignalService` (~`132` строки).

@@ -865,3 +865,13 @@ integration-сценария поверх users/settings runtime boundary всё
   helper-слое: он сместился в `SlaRoutingGovernanceCheckpointService`
   (~`189` строк) и вторично в `SlaRoutingPolicySnapshotService` (~`136`
   строк), а decision/candidate preview уже живут в отдельных bounded services.
+- следующим более широким пакетом и checkpoint-tail тоже сузился:
+  `SlaRoutingGovernanceReviewPathService` вынес minimum required review path и
+  advisory checkpoint builder, `SlaRoutingGovernanceSignalService` — noise,
+  churn, lead-time и weekly-review priority signals; сам
+  `SlaRoutingGovernanceCheckpointService` после этого сжат примерно до `127`
+  строк и стал coordinator-слоем.
+- после этого remaining notifier/runtime hotspot локализован уже ещё уже:
+  первично это `SlaRoutingPolicySnapshotService` (~`136` строк) и вторично
+  `SlaRoutingGovernanceSignalService` (~`132` строки), а path/checkpoint
+  orchestration уже живёт в отдельных bounded services.
