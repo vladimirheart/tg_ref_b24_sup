@@ -1,14 +1,15 @@
 package com.example.panel.service;
 
-import com.example.panel.entity.IikoApiMonitor;
-import com.example.panel.repository.IikoApiMonitorRepository;
+import com.example.panel.service.EmployeeDiscountAutomationCredentialService.IikoProfile;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.io.StringReader;
 import java.net.URI;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -21,11 +22,17 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import javax.xml.XMLConstants;
+import javax.xml.parsers.DocumentBuilderFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.NodeList;
+import org.xml.sax.InputSource;
 
 @Service
 public class IikoDepartmentLocationCatalogService {
@@ -48,7 +55,7 @@ public class IikoDepartmentLocationCatalogService {
     private static final List<String> BUSINESS_ORDER = List.of(BUSINESS_BLINBERI, BUSINESS_SUSHIVESLA);
     private static final List<String> LOCATION_TYPE_ORDER = List.of(TYPE_CORPORATE, TYPE_FRANCHISE);
 
-    private final IikoApiMonitorRepository monitorRepository;
+    private final EmployeeDiscountAutomationCredentialService credentialService;
     private final SharedConfigService sharedConfigService;
     private final ObjectMapper objectMapper;
     private final IikoDepartmentGateway gateway;
@@ -56,17 +63,17 @@ public class IikoDepartmentLocationCatalogService {
     private volatile CachedCatalog cachedCatalog;
 
     @Autowired
-    public IikoDepartmentLocationCatalogService(IikoApiMonitorRepository monitorRepository,
+    public IikoDepartmentLocationCatalogService(EmployeeDiscountAutomationCredentialService credentialService,
                                                 SharedConfigService sharedConfigService,
                                                 ObjectMapper objectMapper) {
-        this(monitorRepository, sharedConfigService, objectMapper, new HttpIikoDepartmentGateway(objectMapper));
+        this(credentialService, sharedConfigService, objectMapper, new HttpIikoDepartmentGateway(objectMapper));
     }
 
-    IikoDepartmentLocationCatalogService(IikoApiMonitorRepository monitorRepository,
+    IikoDepartmentLocationCatalogService(EmployeeDiscountAutomationCredentialService credentialService,
                                          SharedConfigService sharedConfigService,
                                          ObjectMapper objectMapper,
                                          IikoDepartmentGateway gateway) {
-        this.monitorRepository = monitorRepository;
+        this.credentialService = credentialService;
         this.sharedConfigService = sharedConfigService;
         this.objectMapper = objectMapper;
         this.gateway = gateway;
@@ -106,13 +113,17 @@ public class IikoDepartmentLocationCatalogService {
         List<String> warnings = new ArrayList<>();
         for (ApiCredential credential : credentials) {
             try {
-                String token = gateway.requestAccessToken(credential.baseUrl(), credential.apiLogin());
-                List<String> organizations = gateway.loadActiveOrganizationNames(credential.baseUrl(), token);
-                if (organizations.isEmpty()) {
-                    warnings.add("Для " + credential.baseUrl() + " не найдено организаций");
+                String token = gateway.requestAccessToken(
+                        credential.baseUrl(),
+                        credential.apiLogin(),
+                        credential.apiSecret()
+                );
+                List<String> departments = gateway.loadActiveDepartmentNames(credential.baseUrl(), token);
+                if (departments.isEmpty()) {
+                    warnings.add("Для " + credential.baseUrl() + " не найдено активных департаментов");
                     continue;
                 }
-                locationNames.addAll(organizations);
+                locationNames.addAll(departments);
             } catch (Exception ex) {
                 String message = "Не удалось загрузить департаменты из iiko " + credential.baseUrl() + ": " + ex.getMessage();
                 warnings.add(message);
@@ -132,21 +143,17 @@ public class IikoDepartmentLocationCatalogService {
     }
 
     private List<ApiCredential> loadCredentials() {
-        return monitorRepository.findAllByOrderByMonitorNameAscIdAsc().stream()
-                .filter(this::isLiveLocationSource)
-                .map(monitor -> new ApiCredential(
-                        normalizeText(monitor.getBaseUrl()),
-                        normalizeText(monitor.getApiLogin())))
-                .filter(credential -> StringUtils.hasText(credential.baseUrl()) && StringUtils.hasText(credential.apiLogin()))
+        return credentialService.loadActiveIikoProfilesForAllUsers().stream()
+                .map(profile -> new ApiCredential(
+                        normalizeText(profile.baseUrl()),
+                        normalizeText(profile.apiLogin()),
+                        normalizeText(profile.apiSecret())))
+                .filter(credential ->
+                        StringUtils.hasText(credential.baseUrl())
+                                && StringUtils.hasText(credential.apiLogin())
+                                && StringUtils.hasText(credential.apiSecret()))
                 .distinct()
                 .toList();
-    }
-
-    private boolean isLiveLocationSource(IikoApiMonitor monitor) {
-        return monitor != null
-                && Boolean.TRUE.equals(monitor.getEnabled())
-                && Boolean.TRUE.equals(monitor.getLocationsSyncEnabled())
-                && "organizations".equalsIgnoreCase(normalizeText(monitor.getRequestType()));
     }
 
     private LocationCatalogSnapshot loadFallbackCatalog() {
@@ -499,9 +506,9 @@ public class IikoDepartmentLocationCatalogService {
     }
 
     interface IikoDepartmentGateway {
-        String requestAccessToken(String baseUrl, String apiLogin) throws Exception;
+        String requestAccessToken(String baseUrl, String apiLogin, String apiSecret) throws Exception;
 
-        List<String> loadActiveOrganizationNames(String baseUrl, String token) throws Exception;
+        List<String> loadActiveDepartmentNames(String baseUrl, String token) throws Exception;
     }
 
     private record CachedCatalog(LocationCatalogSnapshot snapshot, Instant cachedAt) {
@@ -510,7 +517,7 @@ public class IikoDepartmentLocationCatalogService {
         }
     }
 
-    private record ApiCredential(String baseUrl, String apiLogin) {
+    private record ApiCredential(String baseUrl, String apiLogin, String apiSecret) {
 
         @Override
         public boolean equals(Object other) {
@@ -521,12 +528,13 @@ public class IikoDepartmentLocationCatalogService {
                 return false;
             }
             return Objects.equals(baseUrl, credential.baseUrl)
-                    && Objects.equals(apiLogin, credential.apiLogin);
+                    && Objects.equals(apiLogin, credential.apiLogin)
+                    && Objects.equals(apiSecret, credential.apiSecret);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(baseUrl, apiLogin);
+            return Objects.hash(baseUrl, apiLogin, apiSecret);
         }
     }
 
@@ -550,11 +558,26 @@ public class IikoDepartmentLocationCatalogService {
         }
 
         @Override
-        public String requestAccessToken(String baseUrl, String apiLogin) throws Exception {
-            ObjectNode payload = objectMapper.createObjectNode();
-            payload.put("apiLogin", apiLogin);
-            JsonNode response = postJson(baseUrl, "/api/1/access_token", payload, null);
-            String token = firstNonBlank(response.path("token").asText(null), response.path("accessToken").asText(null));
+        public String requestAccessToken(String baseUrl, String apiLogin, String apiSecret) throws Exception {
+            String url = buildUrl(
+                    baseUrl,
+                    "/api/0/auth/access_token",
+                    Map.of(
+                            "user_id", apiLogin,
+                            "user_secret", apiSecret
+                    )
+            );
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .timeout(HTTP_TIMEOUT)
+                    .GET()
+                    .build();
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                throw new IllegalStateException("HTTP " + response.statusCode() + " при получении access token");
+            }
+            String body = firstNonBlank(response.body(), "{}");
+            String token = tryExtractToken(body);
             if (!StringUtils.hasText(token)) {
                 throw new IllegalStateException("iiko не вернул access token");
             }
@@ -562,62 +585,139 @@ public class IikoDepartmentLocationCatalogService {
         }
 
         @Override
-        public List<String> loadActiveOrganizationNames(String baseUrl, String token) throws Exception {
-            ObjectNode payload = objectMapper.createObjectNode();
-            payload.put("includeDisabled", false);
-            JsonNode response = postJson(baseUrl, "/api/1/organizations", payload, token);
-            List<String> organizationNames = new ArrayList<>();
-            for (JsonNode organization : response.path("organizations")) {
-                if (!isActiveOrganization(organization)) {
+        public List<String> loadActiveDepartmentNames(String baseUrl, String token) throws Exception {
+            String url = buildUrl(
+                    baseUrl,
+                    "/resto/api/corporation/departments/",
+                    Map.of("key", token)
+            );
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .timeout(HTTP_TIMEOUT)
+                    .header("Accept", "application/xml, text/xml, */*")
+                    .GET()
+                    .build();
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                throw new IllegalStateException("HTTP " + response.statusCode() + " при запросе departments");
+            }
+            List<String> departmentNames = new ArrayList<>();
+            for (Element department : parseDepartmentElements(firstNonBlank(response.body(), ""))) {
+                if (!isActiveDepartment(department)) {
                     continue;
                 }
                 String name = firstNonBlank(
-                        organization.path("name").asText(null),
-                        organization.path("organizationName").asText(null)
+                        childText(department, "name"),
+                        childText(department, "departmentName"),
+                        childText(department, "title")
                 );
                 if (StringUtils.hasText(name)) {
-                    organizationNames.add(name.trim());
+                    departmentNames.add(name.trim());
                 }
             }
-            return organizationNames.stream().distinct().toList();
+            return departmentNames.stream().distinct().toList();
         }
 
-        private boolean isActiveOrganization(JsonNode organization) {
-            if (organization == null || organization.isMissingNode() || organization.isNull()) {
+        private List<Element> parseDepartmentElements(String xml) throws Exception {
+            if (!StringUtils.hasText(xml)) {
+                return List.of();
+            }
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            factory.setNamespaceAware(false);
+            factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+            factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+            factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
+            factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+            factory.setXIncludeAware(false);
+            factory.setExpandEntityReferences(false);
+
+            Document document = factory.newDocumentBuilder().parse(new InputSource(new StringReader(xml)));
+            NodeList items = document.getElementsByTagName("corporateItemDto");
+            List<Element> departments = new ArrayList<>();
+            for (int index = 0; index < items.getLength(); index++) {
+                if (!(items.item(index) instanceof Element element)) {
+                    continue;
+                }
+                String type = firstNonBlank(childText(element, "type"), element.getAttribute("type"));
+                if ("DEPARTMENT".equalsIgnoreCase(type)) {
+                    departments.add(element);
+                }
+            }
+            return departments;
+        }
+
+        private boolean isActiveDepartment(Element department) {
+            if (department == null) {
                 return false;
             }
-            if (organization.hasNonNull("isActive")) {
-                return organization.path("isActive").asBoolean(false);
+            String isActive = firstNonBlank(childText(department, "isActive"), childText(department, "active"));
+            if (StringUtils.hasText(isActive)) {
+                return parseBoolean(isActive, false);
             }
-            if (organization.hasNonNull("active")) {
-                return organization.path("active").asBoolean(false);
+            if (parseBoolean(firstNonBlank(childText(department, "deleted"), childText(department, "isDeleted")), false)) {
+                return false;
             }
-            if (organization.hasNonNull("isDisabled")) {
-                return !organization.path("isDisabled").asBoolean(false);
+            if (parseBoolean(firstNonBlank(childText(department, "disabled"), childText(department, "isDisabled")), false)) {
+                return false;
             }
-            if (organization.hasNonNull("disabled")) {
-                return !organization.path("disabled").asBoolean(false);
-            }
-            if (organization.hasNonNull("deleted")) {
-                return !organization.path("deleted").asBoolean(false);
+            if (parseBoolean(childText(department, "archived"), false)) {
+                return false;
             }
             return true;
         }
 
-        private JsonNode postJson(String baseUrl, String path, JsonNode body, String token) throws Exception {
-            HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
-                    .uri(URI.create(normalizeBaseUrl(baseUrl) + path))
-                    .timeout(HTTP_TIMEOUT)
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(body == null ? objectMapper.createObjectNode() : body)));
-            if (StringUtils.hasText(token)) {
-                requestBuilder.header("Authorization", "Bearer " + token.trim());
+        private String tryExtractToken(String body) {
+            if (!StringUtils.hasText(body)) {
+                return null;
             }
-            HttpResponse<String> response = httpClient.send(requestBuilder.build(), HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                throw new IllegalStateException("HTTP " + response.statusCode() + " при запросе " + path);
+            try {
+                JsonNode parsed = objectMapper.readTree(body);
+                return firstNonBlank(
+                        parsed.path("access_token").asText(null),
+                        parsed.path("accessToken").asText(null),
+                        parsed.path("token").asText(null)
+                );
+            } catch (Exception ignored) {
+                return body.replace("\"", "").trim();
             }
-            return objectMapper.readTree(firstNonBlank(response.body(), "{}"));
+        }
+
+        private String childText(Element parent, String tagName) {
+            if (parent == null || !StringUtils.hasText(tagName)) {
+                return null;
+            }
+            NodeList nodes = parent.getElementsByTagName(tagName);
+            if (nodes.getLength() == 0 || nodes.item(0) == null) {
+                return null;
+            }
+            String value = nodes.item(0).getTextContent();
+            return StringUtils.hasText(value) ? value.trim() : null;
+        }
+
+        private boolean parseBoolean(String rawValue, boolean fallback) {
+            if (!StringUtils.hasText(rawValue)) {
+                return fallback;
+            }
+            String normalized = rawValue.trim().toLowerCase(Locale.ROOT);
+            if ("1".equals(normalized) || "true".equals(normalized) || "yes".equals(normalized)) {
+                return true;
+            }
+            if ("0".equals(normalized) || "false".equals(normalized) || "no".equals(normalized)) {
+                return false;
+            }
+            return fallback;
+        }
+
+        private String buildUrl(String baseUrl, String path, Map<String, String> query) {
+            StringBuilder result = new StringBuilder(normalizeBaseUrl(baseUrl)).append(path);
+            if (query != null && !query.isEmpty()) {
+                List<String> parts = new ArrayList<>();
+                for (Map.Entry<String, String> entry : query.entrySet()) {
+                    parts.add(encode(entry.getKey()) + "=" + encode(entry.getValue()));
+                }
+                result.append("?").append(String.join("&", parts));
+            }
+            return result.toString();
         }
 
         private String normalizeBaseUrl(String baseUrl) {
@@ -630,6 +730,10 @@ public class IikoDepartmentLocationCatalogService {
                 normalized = normalized.substring(0, normalized.length() - 1);
             }
             return normalized;
+        }
+
+        private String encode(String value) {
+            return URLEncoder.encode(firstNonBlank(value, ""), StandardCharsets.UTF_8);
         }
 
         private static String firstNonBlank(String... values) {

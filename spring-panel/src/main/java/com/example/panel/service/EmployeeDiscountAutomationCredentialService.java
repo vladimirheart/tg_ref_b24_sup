@@ -10,9 +10,11 @@ import org.springframework.util.StringUtils;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 public class EmployeeDiscountAutomationCredentialService {
@@ -56,6 +58,35 @@ public class EmployeeDiscountAutomationCredentialService {
 
     public IikoProfile loadActiveIikoProfile(String username) {
         return loadForUser(username).activeIikoProfile();
+    }
+
+    public List<IikoProfile> loadActiveIikoProfilesForAllUsers() {
+        List<IikoProfile> profiles = new ArrayList<>();
+        Set<String> seenKeys = new LinkedHashSet<>();
+        try {
+            List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                "SELECT extra_json FROM settings_parameters WHERE param_type = ? AND is_deleted = 0 ORDER BY id DESC",
+                PARAM_TYPE
+            );
+            for (Map<String, Object> row : rows) {
+                Map<String, Object> payload = parsePayload(row.get("extra_json"));
+                IikoProfile profile = extractActiveProfile(payload);
+                if (profile == null || !StringUtils.hasText(profile.baseUrl())) {
+                    continue;
+                }
+                String dedupeKey = String.join("|",
+                    text(profile.baseUrl()),
+                    text(profile.apiLogin()),
+                    text(profile.apiSecret())
+                );
+                if (!seenKeys.add(dedupeKey)) {
+                    continue;
+                }
+                profiles.add(profile);
+            }
+        } catch (Exception ignored) {
+        }
+        return List.copyOf(profiles);
     }
 
     public Map<String, Object> loadClientView(String username) {
@@ -216,14 +247,41 @@ public class EmployeeDiscountAutomationCredentialService {
             if (rows.isEmpty()) {
                 return Map.of();
             }
-            Object rawJson = rows.get(0).get("extra_json");
-            if (!(rawJson instanceof String json) || !StringUtils.hasText(json)) {
-                return Map.of();
-            }
+            return parsePayload(rows.get(0).get("extra_json"));
+        } catch (Exception ex) {
+            return Map.of();
+        }
+    }
+
+    private Map<String, Object> parsePayload(Object rawJson) {
+        if (!(rawJson instanceof String json) || !StringUtils.hasText(json)) {
+            return Map.of();
+        }
+        try {
             return objectMapper.readValue(json, new TypeReference<LinkedHashMap<String, Object>>() {});
         } catch (Exception ex) {
             return Map.of();
         }
+    }
+
+    private IikoProfile extractActiveProfile(Map<String, Object> payload) {
+        if (payload == null || payload.isEmpty()) {
+            return null;
+        }
+        EmployeeDiscountAutomationCredentials credentials = new EmployeeDiscountAutomationCredentials(
+            parseBitrix(payload.get("bitrix24")),
+            normalizeProfileKey(text(
+                payload.get("active_iiko_profile_url"),
+                payload.get("activeIikoProfileUrl")
+            )),
+            parseProfiles(payload.get("iiko_profiles"))
+        );
+        IikoProfile profile = credentials.activeIikoProfile();
+        if (profile != null && StringUtils.hasText(profile.baseUrl())) {
+            return profile;
+        }
+        IikoProfile legacyProfile = parseLegacyIiko(payload.get("iiko"));
+        return StringUtils.hasText(legacyProfile.baseUrl()) ? legacyProfile : null;
     }
 
     private void persistForUser(String username, EmployeeDiscountAutomationCredentials credentials) {

@@ -26,7 +26,6 @@
   const createApiLoginInput = document.getElementById('iikoApiLoginInput');
   const createRequestTypeInput = document.getElementById('iikoRequestTypeInput');
   const createEnabledInput = document.getElementById('iikoEnabledInput');
-  let createLocationsSyncEnabledInput = document.getElementById('iikoLocationsSyncEnabledInput');
   const createOrganizationIdsInput = document.getElementById('iikoOrganizationIdsInput');
   const createOrganizationIdInput = document.getElementById('iikoOrganizationIdInput');
   const createTerminalGroupIdsInput = document.getElementById('iikoTerminalGroupIdsInput');
@@ -50,7 +49,6 @@
   const editApiLoginInput = document.getElementById('editIikoApiLoginInput');
   const editRequestTypeInput = document.getElementById('editIikoRequestTypeInput');
   const editEnabledInput = document.getElementById('editIikoEnabledInput');
-  let editLocationsSyncEnabledInput = document.getElementById('editIikoLocationsSyncEnabledInput');
   const editOrganizationIdsInput = document.getElementById('editIikoOrganizationIdsInput');
   const editOrganizationIdInput = document.getElementById('editIikoOrganizationIdInput');
   const editTerminalGroupIdsInput = document.getElementById('editIikoTerminalGroupIdsInput');
@@ -76,43 +74,6 @@
   let refreshState = null;
   let requestTypes = [];
   let pollTimer = null;
-
-  function ensureLocationSourceControls() {
-    if (!createLocationsSyncEnabledInput && createEnabledInput) {
-      const createColumn = createEnabledInput.closest('.col-12');
-      if (createColumn) {
-        const wrapper = document.createElement('div');
-        wrapper.className = 'col-12 col-lg-3 iiko-config-section';
-        wrapper.dataset.scope = 'create';
-        wrapper.dataset.requestTypes = 'organizations';
-        wrapper.innerHTML = `
-          <div class="form-check form-switch mt-lg-4">
-            <input class="form-check-input" type="checkbox" id="iikoLocationsSyncEnabledInput">
-            <label class="form-check-label" for="iikoLocationsSyncEnabledInput">Источник структуры локаций</label>
-          </div>
-        `;
-        createColumn.insertAdjacentElement('afterend', wrapper);
-        createLocationsSyncEnabledInput = wrapper.querySelector('#iikoLocationsSyncEnabledInput');
-      }
-    }
-    if (!editLocationsSyncEnabledInput && editEnabledInput) {
-      const editColumn = editEnabledInput.closest('.col-12');
-      if (editColumn) {
-        const wrapper = document.createElement('div');
-        wrapper.className = 'col-12 col-lg-6 iiko-config-section';
-        wrapper.dataset.scope = 'edit';
-        wrapper.dataset.requestTypes = 'organizations';
-        wrapper.innerHTML = `
-          <div class="form-check form-switch mt-lg-4">
-            <input class="form-check-input" type="checkbox" id="editIikoLocationsSyncEnabledInput">
-            <label class="form-check-label" for="editIikoLocationsSyncEnabledInput">Источник структуры локаций</label>
-          </div>
-        `;
-        editColumn.insertAdjacentElement('afterend', wrapper);
-        editLocationsSyncEnabledInput = wrapper.querySelector('#editIikoLocationsSyncEnabledInput');
-      }
-    }
-  }
 
   function escapeHtml(value) {
     if (value === null || value === undefined) return '';
@@ -285,12 +246,6 @@
       const supported = String(section.getAttribute('data-request-types') || '').split(/\s+/).filter(Boolean);
       section.hidden = !supported.includes(requestType);
     });
-    if (scope === 'create' && requestType !== 'organizations' && createLocationsSyncEnabledInput) {
-      createLocationsSyncEnabledInput.checked = false;
-    }
-    if (scope === 'edit' && requestType !== 'organizations' && editLocationsSyncEnabledInput) {
-      editLocationsSyncEnabledInput.checked = false;
-    }
     const hintEl = scope === 'create' ? createTypeHint : editTypeHint;
     if (hintEl) {
       hintEl.textContent = TYPE_HINTS[requestType] || 'Выберите тип запроса, чтобы увидеть параметры.';
@@ -317,9 +272,7 @@
           returnExternalData: textToList(createReturnExternalDataInput?.value),
           returnSize: createReturnSizeInput?.checked || false,
           enabled: createEnabledInput?.checked ?? true,
-          locationsSyncEnabled: (createRequestTypeInput?.value || '') === 'organizations'
-            ? (createLocationsSyncEnabledInput?.checked || false)
-            : false,
+          locationsSyncEnabled: false,
         }
       : {
           monitorName: editMonitorNameInput?.value || '',
@@ -339,9 +292,7 @@
           returnExternalData: textToList(editReturnExternalDataInput?.value),
           returnSize: editReturnSizeInput?.checked || false,
           enabled: editEnabledInput?.checked ?? true,
-          locationsSyncEnabled: (editRequestTypeInput?.value || '') === 'organizations'
-            ? (editLocationsSyncEnabledInput?.checked || false)
-            : false,
+          locationsSyncEnabled: false,
         };
     return map;
   }
@@ -350,7 +301,6 @@
     createForm?.reset();
     if (createBaseUrlInput) createBaseUrlInput.value = DEFAULT_BASE_URL;
     if (createEnabledInput) createEnabledInput.checked = true;
-    if (createLocationsSyncEnabledInput) createLocationsSyncEnabledInput.checked = false;
     if (createRequestTypeInput && requestTypes.length) {
       createRequestTypeInput.value = requestTypes[0].code;
     }
@@ -395,9 +345,6 @@
       const summaryHtml = summaryBadges(item.last_response_summary || {});
       const row = document.createElement('tr');
       row.dataset.monitorId = String(item.id);
-      const locationSourceBadge = item.locations_sync_enabled
-        ? '<span class="badge text-bg-info-subtle border text-info-emphasis mt-2">Источник локаций</span>'
-        : '';
       row.innerHTML = `
         <td>
           <div class="fw-semibold">${escapeHtml(item.monitor_name || '—')}</div>
@@ -435,12 +382,6 @@
           </div>
         </td>
       `;
-      if (item.locations_sync_enabled) {
-        row.querySelector('td')?.insertAdjacentHTML(
-          'beforeend',
-          '<span class="badge text-bg-info-subtle border text-info-emphasis mt-2">Источник локаций</span>'
-        );
-      }
       tableBody.appendChild(row);
     });
   }
@@ -501,7 +442,6 @@
     if (editApiLoginInput) editApiLoginInput.value = item.api_login || '';
     if (editRequestTypeInput) editRequestTypeInput.value = item.request_type || '';
     if (editEnabledInput) editEnabledInput.checked = Boolean(item.enabled);
-    if (editLocationsSyncEnabledInput) editLocationsSyncEnabledInput.checked = Boolean(item.locations_sync_enabled);
     if (editOrganizationIdsInput) editOrganizationIdsInput.value = listToText(item.organization_ids);
     if (editOrganizationIdInput) editOrganizationIdInput.value = item.organization_id || '';
     if (editTerminalGroupIdsInput) editTerminalGroupIdsInput.value = listToText(item.terminal_group_ids);
@@ -664,7 +604,6 @@
     createBaseUrlInput.value = DEFAULT_BASE_URL;
   }
 
-  ensureLocationSourceControls();
   loadMonitors(true);
   startPolling();
 })();

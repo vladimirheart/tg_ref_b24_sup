@@ -2,8 +2,7 @@ package com.example.panel.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.example.panel.entity.IikoApiMonitor;
-import com.example.panel.repository.IikoApiMonitorRepository;
+import com.example.panel.service.EmployeeDiscountAutomationCredentialService.IikoProfile;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.file.Files;
 import java.util.List;
@@ -16,20 +15,10 @@ class IikoDepartmentLocationCatalogServiceTest {
     void buildCatalogFromDepartmentNamesParsesBusinessTypeCityAndLocation() throws Exception {
         ObjectMapper objectMapper = new ObjectMapper();
         IikoDepartmentLocationCatalogService service = new IikoDepartmentLocationCatalogService(
-                new IikoApiMonitorRepository(null),
+                emptyCredentialService(objectMapper),
                 new SharedConfigService(objectMapper, Files.createTempDirectory("shared-config").toString()),
                 objectMapper,
-                new IikoDepartmentLocationCatalogService.IikoDepartmentGateway() {
-                    @Override
-                    public String requestAccessToken(String baseUrl, String apiLogin) {
-                        throw new UnsupportedOperationException();
-                    }
-
-                    @Override
-                    public List<String> loadActiveOrganizationNames(String baseUrl, String token) {
-                        throw new UnsupportedOperationException();
-                    }
-                }
+                new UnsupportedGateway()
         );
 
         Map<String, Object> fallbackTree = Map.of(
@@ -69,6 +58,7 @@ class IikoDepartmentLocationCatalogServiceTest {
         assertThat((List<String>) sushiFranchise.get("Ростов-на-Дону")).containsExactly("Зорге 33");
         assertThat(snapshot.tree().toString()).doesNotContain("CLOSED");
     }
+
     @Test
     void buildEffectiveLocationsPayloadGeneratesMetaForLiveCatalogAndPreservesStatuses() throws Exception {
         ObjectMapper objectMapper = new ObjectMapper();
@@ -81,20 +71,10 @@ class IikoDepartmentLocationCatalogServiceTest {
                 "statuses", Map.of("open", "Открыта")
         ));
         IikoDepartmentLocationCatalogService service = new IikoDepartmentLocationCatalogService(
-                new IikoApiMonitorRepository(null),
+                emptyCredentialService(objectMapper),
                 sharedConfigService,
                 objectMapper,
-                new IikoDepartmentLocationCatalogService.IikoDepartmentGateway() {
-                    @Override
-                    public String requestAccessToken(String baseUrl, String apiLogin) {
-                        throw new UnsupportedOperationException();
-                    }
-
-                    @Override
-                    public List<String> loadActiveOrganizationNames(String baseUrl, String token) {
-                        throw new UnsupportedOperationException();
-                    }
-                }
+                new UnsupportedGateway()
         );
 
         Map<String, Object> payload = service.buildEffectiveLocationsPayload(
@@ -115,53 +95,43 @@ class IikoDepartmentLocationCatalogServiceTest {
     }
 
     @Test
-    void loadCatalogUsesOnlyOrganizationMonitorsFlaggedForLocationSync() throws Exception {
+    void loadCatalogUsesOnlyConfiguredIikoServerProfiles() throws Exception {
         ObjectMapper objectMapper = new ObjectMapper();
         SharedConfigService sharedConfigService = new SharedConfigService(
                 objectMapper,
                 Files.createTempDirectory("shared-config").toString()
         );
         sharedConfigService.saveLocations(Map.of(
-                "tree", Map.of("Р‘Р»РёРЅР‘РµСЂРё", Map.of("РљРѕСЂРїРѕСЂР°С‚РёРІРЅР°СЏ СЃРµС‚СЊ", Map.of("РЎРјРѕР»РµРЅСЃРє", List.of("Тестовая")))),
+                "tree", Map.of("БлинБери", Map.of("Корпоративная сеть", Map.of("Москва", List.of("Тестовая")))),
                 "statuses", Map.of()
         ));
 
-        IikoApiMonitor sourceMonitor = new IikoApiMonitor();
-        sourceMonitor.setEnabled(true);
-        sourceMonitor.setLocationsSyncEnabled(true);
-        sourceMonitor.setRequestType("organizations");
-        sourceMonitor.setBaseUrl("https://api-ru.iiko.services");
-        sourceMonitor.setApiLogin("key-1");
-
-        IikoApiMonitor ignoredMonitor = new IikoApiMonitor();
-        ignoredMonitor.setEnabled(true);
-        ignoredMonitor.setLocationsSyncEnabled(false);
-        ignoredMonitor.setRequestType("organizations");
-        ignoredMonitor.setBaseUrl("https://ignored.example");
-        ignoredMonitor.setApiLogin("key-2");
-
-        IikoApiMonitorRepository monitorRepository = new IikoApiMonitorRepository(null) {
+        EmployeeDiscountAutomationCredentialService credentialService = new EmployeeDiscountAutomationCredentialService(null, objectMapper) {
             @Override
-            public List<IikoApiMonitor> findAllByOrderByMonitorNameAscIdAsc() {
-                return List.of(sourceMonitor, ignoredMonitor);
+            public List<IikoProfile> loadActiveIikoProfilesForAllUsers() {
+                return List.of(
+                        new IikoProfile("https://server-a.example", "login-a", "secret-a", "", List.of(), List.of()),
+                        new IikoProfile("https://server-a.example", "login-a", "secret-a", "", List.of(), List.of())
+                );
             }
         };
 
         IikoDepartmentLocationCatalogService service = new IikoDepartmentLocationCatalogService(
-                monitorRepository,
+                credentialService,
                 sharedConfigService,
                 objectMapper,
                 new IikoDepartmentLocationCatalogService.IikoDepartmentGateway() {
                     @Override
-                    public String requestAccessToken(String baseUrl, String apiLogin) {
-                        assertThat(baseUrl).isEqualTo("https://api-ru.iiko.services");
-                        assertThat(apiLogin).isEqualTo("key-1");
+                    public String requestAccessToken(String baseUrl, String apiLogin, String apiSecret) {
+                        assertThat(baseUrl).isEqualTo("https://server-a.example");
+                        assertThat(apiLogin).isEqualTo("login-a");
+                        assertThat(apiSecret).isEqualTo("secret-a");
                         return "token";
                     }
 
                     @Override
-                    public List<String> loadActiveOrganizationNames(String baseUrl, String token) {
-                        assertThat(baseUrl).isEqualTo("https://api-ru.iiko.services");
+                    public List<String> loadActiveDepartmentNames(String baseUrl, String token) {
+                        assertThat(baseUrl).isEqualTo("https://server-a.example");
                         assertThat(token).isEqualTo("token");
                         return List.of("ББ Смоленск Ленина 1", "CLOSED ББ Смоленск Архив");
                     }
@@ -175,5 +145,27 @@ class IikoDepartmentLocationCatalogServiceTest {
         assertThat(snapshot.tree().toString()).contains("Ленина 1");
         assertThat(snapshot.tree().toString()).doesNotContain("CLOSED");
         assertThat(snapshot.warnings()).isEmpty();
+    }
+
+    private EmployeeDiscountAutomationCredentialService emptyCredentialService(ObjectMapper objectMapper) {
+        return new EmployeeDiscountAutomationCredentialService(null, objectMapper) {
+            @Override
+            public List<IikoProfile> loadActiveIikoProfilesForAllUsers() {
+                return List.of();
+            }
+        };
+    }
+
+    private static final class UnsupportedGateway implements IikoDepartmentLocationCatalogService.IikoDepartmentGateway {
+
+        @Override
+        public String requestAccessToken(String baseUrl, String apiLogin, String apiSecret) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public List<String> loadActiveDepartmentNames(String baseUrl, String token) {
+            throw new UnsupportedOperationException();
+        }
     }
 }
