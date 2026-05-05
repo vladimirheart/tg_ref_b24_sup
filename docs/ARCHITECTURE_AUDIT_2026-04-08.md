@@ -856,3 +856,12 @@ integration-сценария поверх users/settings runtime boundary всё
   service, а в `SlaRoutingPolicySnapshotService` (~`202` строки) и вторично в
   `SlaRoutingGovernanceCheckpointService` (~`189` строк); риск снова сузился до
   двух локальных bounded services, а не orchestration wrapper.
+- следующим пакетом и snapshot-tail тоже разрезан:
+  `SlaRoutingPolicyCandidateBuilderService` вынес candidate payload assembly,
+  `SlaRoutingPolicyPreviewSummaryService` — preview summary text,
+  `SlaRoutingPolicyDecisionService` — critical decision tail; сам
+  `SlaRoutingPolicySnapshotService` после этого сжат примерно до `136` строк.
+- после этого remaining notifier/runtime hotspot уже не в mixed snapshot
+  helper-слое: он сместился в `SlaRoutingGovernanceCheckpointService`
+  (~`189` строк) и вторично в `SlaRoutingPolicySnapshotService` (~`136`
+  строк), а decision/candidate preview уже живут в отдельных bounded services.

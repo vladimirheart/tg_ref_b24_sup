@@ -841,3 +841,11 @@
   `SlaRoutingGovernanceSummaryService`, а `SlaRoutingPolicySnapshotService`
   (~`202` строки) и вторично `SlaRoutingGovernanceCheckpointService`
   (~`189` строк).
+- следующим пакетом и этот snapshot-tail тоже разрезан:
+  `SlaRoutingPolicyCandidateBuilderService` вынес candidate payload assembly,
+  `SlaRoutingPolicyPreviewSummaryService` — preview summary text,
+  `SlaRoutingPolicyDecisionService` — critical decision tail.
+- после этого `SlaRoutingPolicySnapshotService` сжат примерно до `136` строк,
+  а remaining hotspot в notifier/runtime hardening смещён уже в
+  `SlaRoutingGovernanceCheckpointService` (~`189` строк) и вторично в
+  `SlaRoutingPolicySnapshotService` (~`136` строк).
