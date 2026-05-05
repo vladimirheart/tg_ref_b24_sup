@@ -14,7 +14,8 @@ class SettingsTopLevelUpdateServiceTest {
 
     @Test
     void applyTopLevelUpdatesNormalizesListsAndMaps() {
-        SettingsTopLevelUpdateService service = new SettingsTopLevelUpdateService();
+        SettingsTopLevelUpdateService service =
+                new SettingsTopLevelUpdateService(new LocationsIikoServerSourceSettingsService());
         Map<String, Object> settings = new LinkedHashMap<>();
 
         boolean modified = service.applyTopLevelUpdates(Map.of(
@@ -35,7 +36,8 @@ class SettingsTopLevelUpdateServiceTest {
 
     @Test
     void applyTopLevelUpdatesReturnsFalseWhenPayloadDoesNotContainKnownKeys() {
-        SettingsTopLevelUpdateService service = new SettingsTopLevelUpdateService();
+        SettingsTopLevelUpdateService service =
+                new SettingsTopLevelUpdateService(new LocationsIikoServerSourceSettingsService());
 
         assertFalse(service.applyTopLevelUpdates(Map.of("unknown_key", "value"), new LinkedHashMap<>()));
     }

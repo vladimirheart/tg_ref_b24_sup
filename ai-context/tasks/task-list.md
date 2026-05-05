@@ -91,3 +91,4 @@
 🟣 [01-069] Сделать запуск spring-panel в Windows устойчивым к падению Maven clean из-за заблокированного target
 🟣 [01-070] Починить создание Spring bean для SlaRoutingPolicyService при запуске панели
 🟣 [01-071] Перевести источник департаментов локаций с iiko Transport на iikoServer API
+🟣 [01-072] Вынести iikoServer-источники локаций в страницу настроек и не смешивать их с iiko biz

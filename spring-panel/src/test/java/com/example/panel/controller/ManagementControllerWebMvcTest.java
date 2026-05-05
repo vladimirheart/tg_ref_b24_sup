@@ -18,6 +18,7 @@ import com.example.panel.repository.TaskRepository;
 import com.example.panel.service.NavigationService;
 import com.example.panel.service.PermissionService;
 import com.example.panel.service.IikoDepartmentLocationCatalogService;
+import com.example.panel.service.LocationsIikoServerSourceSettingsService;
 import com.example.panel.service.SettingsCatalogService;
 import com.example.panel.service.SharedConfigService;
 import java.util.List;
@@ -66,6 +67,9 @@ class ManagementControllerWebMvcTest {
     private SettingsCatalogService settingsCatalogService;
 
     @MockBean
+    private LocationsIikoServerSourceSettingsService locationsIikoServerSourceSettingsService;
+
+    @MockBean
     private IikoDepartmentLocationCatalogService locationCatalogService;
 
     @MockBean
@@ -77,6 +81,7 @@ class ManagementControllerWebMvcTest {
         when(appSettingRepository.findAll()).thenReturn(List.of());
         when(settingsParameterRepository.findAll()).thenReturn(List.of());
         when(sharedConfigService.loadSettings()).thenReturn(Map.of());
+        when(locationsIikoServerSourceSettingsService.loadForClient(Map.of())).thenReturn(List.of());
         IikoDepartmentLocationCatalogService.LocationCatalogSnapshot liveCatalog =
                 new IikoDepartmentLocationCatalogService.LocationCatalogSnapshot(
                         Map.of("БлинБери", Map.of("Корпоративная сеть", Map.of("Смоленск", List.of("Ленина 1")))),

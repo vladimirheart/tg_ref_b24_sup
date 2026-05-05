@@ -1,6 +1,6 @@
 package com.example.panel.service;
 
-import com.example.panel.service.EmployeeDiscountAutomationCredentialService.IikoProfile;
+import com.example.panel.service.LocationsIikoServerSourceSettingsService.LocationIikoServerSource;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.StringReader;
@@ -55,7 +55,7 @@ public class IikoDepartmentLocationCatalogService {
     private static final List<String> BUSINESS_ORDER = List.of(BUSINESS_BLINBERI, BUSINESS_SUSHIVESLA);
     private static final List<String> LOCATION_TYPE_ORDER = List.of(TYPE_CORPORATE, TYPE_FRANCHISE);
 
-    private final EmployeeDiscountAutomationCredentialService credentialService;
+    private final LocationsIikoServerSourceSettingsService locationsIikoServerSourceSettingsService;
     private final SharedConfigService sharedConfigService;
     private final ObjectMapper objectMapper;
     private final IikoDepartmentGateway gateway;
@@ -63,17 +63,17 @@ public class IikoDepartmentLocationCatalogService {
     private volatile CachedCatalog cachedCatalog;
 
     @Autowired
-    public IikoDepartmentLocationCatalogService(EmployeeDiscountAutomationCredentialService credentialService,
+    public IikoDepartmentLocationCatalogService(LocationsIikoServerSourceSettingsService locationsIikoServerSourceSettingsService,
                                                 SharedConfigService sharedConfigService,
                                                 ObjectMapper objectMapper) {
-        this(credentialService, sharedConfigService, objectMapper, new HttpIikoDepartmentGateway(objectMapper));
+        this(locationsIikoServerSourceSettingsService, sharedConfigService, objectMapper, new HttpIikoDepartmentGateway(objectMapper));
     }
 
-    IikoDepartmentLocationCatalogService(EmployeeDiscountAutomationCredentialService credentialService,
+    IikoDepartmentLocationCatalogService(LocationsIikoServerSourceSettingsService locationsIikoServerSourceSettingsService,
                                          SharedConfigService sharedConfigService,
                                          ObjectMapper objectMapper,
                                          IikoDepartmentGateway gateway) {
-        this.credentialService = credentialService;
+        this.locationsIikoServerSourceSettingsService = locationsIikoServerSourceSettingsService;
         this.sharedConfigService = sharedConfigService;
         this.objectMapper = objectMapper;
         this.gateway = gateway;
@@ -143,11 +143,12 @@ public class IikoDepartmentLocationCatalogService {
     }
 
     private List<ApiCredential> loadCredentials() {
-        return credentialService.loadActiveIikoProfilesForAllUsers().stream()
-                .map(profile -> new ApiCredential(
-                        normalizeText(profile.baseUrl()),
-                        normalizeText(profile.apiLogin()),
-                        normalizeText(profile.apiSecret())))
+        return locationsIikoServerSourceSettingsService.loadForRuntime(sharedConfigService.loadSettings()).stream()
+                .filter(LocationIikoServerSource::enabled)
+                .map(source -> new ApiCredential(
+                        normalizeText(source.baseUrl()),
+                        normalizeText(source.apiLogin()),
+                        normalizeText(source.apiSecret())))
                 .filter(credential ->
                         StringUtils.hasText(credential.baseUrl())
                                 && StringUtils.hasText(credential.apiLogin())

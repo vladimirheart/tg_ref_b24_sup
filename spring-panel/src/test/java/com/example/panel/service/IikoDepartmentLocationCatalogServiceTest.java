@@ -2,7 +2,6 @@ package com.example.panel.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.example.panel.service.EmployeeDiscountAutomationCredentialService.IikoProfile;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.file.Files;
 import java.util.List;
@@ -15,7 +14,7 @@ class IikoDepartmentLocationCatalogServiceTest {
     void buildCatalogFromDepartmentNamesParsesBusinessTypeCityAndLocation() throws Exception {
         ObjectMapper objectMapper = new ObjectMapper();
         IikoDepartmentLocationCatalogService service = new IikoDepartmentLocationCatalogService(
-                emptyCredentialService(objectMapper),
+                new LocationsIikoServerSourceSettingsService(),
                 new SharedConfigService(objectMapper, Files.createTempDirectory("shared-config").toString()),
                 objectMapper,
                 new UnsupportedGateway()
@@ -71,7 +70,7 @@ class IikoDepartmentLocationCatalogServiceTest {
                 "statuses", Map.of("open", "Открыта")
         ));
         IikoDepartmentLocationCatalogService service = new IikoDepartmentLocationCatalogService(
-                emptyCredentialService(objectMapper),
+                new LocationsIikoServerSourceSettingsService(),
                 sharedConfigService,
                 objectMapper,
                 new UnsupportedGateway()
@@ -95,7 +94,7 @@ class IikoDepartmentLocationCatalogServiceTest {
     }
 
     @Test
-    void loadCatalogUsesOnlyConfiguredIikoServerProfiles() throws Exception {
+    void loadCatalogUsesOnlyConfiguredEnabledIikoServerSources() throws Exception {
         ObjectMapper objectMapper = new ObjectMapper();
         SharedConfigService sharedConfigService = new SharedConfigService(
                 objectMapper,
@@ -105,19 +104,30 @@ class IikoDepartmentLocationCatalogServiceTest {
                 "tree", Map.of("БлинБери", Map.of("Корпоративная сеть", Map.of("Москва", List.of("Тестовая")))),
                 "statuses", Map.of()
         ));
-
-        EmployeeDiscountAutomationCredentialService credentialService = new EmployeeDiscountAutomationCredentialService(null, objectMapper) {
-            @Override
-            public List<IikoProfile> loadActiveIikoProfilesForAllUsers() {
-                return List.of(
-                        new IikoProfile("https://server-a.example", "login-a", "secret-a", "", List.of(), List.of()),
-                        new IikoProfile("https://server-a.example", "login-a", "secret-a", "", List.of(), List.of())
-                );
-            }
-        };
+        sharedConfigService.saveSettings(Map.of(
+                LocationsIikoServerSourceSettingsService.SETTINGS_KEY,
+                List.of(
+                        Map.of(
+                                "id", "source-a",
+                                "name", "Server A",
+                                "base_url", "https://server-a.example/",
+                                "api_login", "login-a",
+                                "api_secret", "secret-a",
+                                "enabled", true
+                        ),
+                        Map.of(
+                                "id", "source-b",
+                                "name", "Server B",
+                                "base_url", "https://server-b.example",
+                                "api_login", "login-b",
+                                "api_secret", "secret-b",
+                                "enabled", false
+                        )
+                )
+        ));
 
         IikoDepartmentLocationCatalogService service = new IikoDepartmentLocationCatalogService(
-                credentialService,
+                new LocationsIikoServerSourceSettingsService(),
                 sharedConfigService,
                 objectMapper,
                 new IikoDepartmentLocationCatalogService.IikoDepartmentGateway() {
@@ -145,15 +155,6 @@ class IikoDepartmentLocationCatalogServiceTest {
         assertThat(snapshot.tree().toString()).contains("Ленина 1");
         assertThat(snapshot.tree().toString()).doesNotContain("CLOSED");
         assertThat(snapshot.warnings()).isEmpty();
-    }
-
-    private EmployeeDiscountAutomationCredentialService emptyCredentialService(ObjectMapper objectMapper) {
-        return new EmployeeDiscountAutomationCredentialService(null, objectMapper) {
-            @Override
-            public List<IikoProfile> loadActiveIikoProfilesForAllUsers() {
-                return List.of();
-            }
-        };
     }
 
     private static final class UnsupportedGateway implements IikoDepartmentLocationCatalogService.IikoDepartmentGateway {

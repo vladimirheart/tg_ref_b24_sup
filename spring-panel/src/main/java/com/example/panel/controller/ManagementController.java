@@ -15,6 +15,7 @@ import com.example.panel.repository.TaskRepository;
 import com.example.panel.service.NavigationService;
 import com.example.panel.service.PermissionService;
 import com.example.panel.service.IikoDepartmentLocationCatalogService;
+import com.example.panel.service.LocationsIikoServerSourceSettingsService;
 import com.example.panel.service.SettingsCatalogService;
 import com.example.panel.service.SharedConfigService;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -46,6 +47,7 @@ public class ManagementController {
     private final ItEquipmentCatalogRepository equipmentRepository;
     private final SharedConfigService sharedConfigService;
     private final SettingsCatalogService settingsCatalogService;
+    private final LocationsIikoServerSourceSettingsService locationsIikoServerSourceSettingsService;
     private final IikoDepartmentLocationCatalogService locationCatalogService;
     private final PermissionService permissionService;
     private final ObjectMapper objectMapper;
@@ -59,6 +61,7 @@ public class ManagementController {
                                 ItEquipmentCatalogRepository equipmentRepository,
                                 SharedConfigService sharedConfigService,
                                 SettingsCatalogService settingsCatalogService,
+                                LocationsIikoServerSourceSettingsService locationsIikoServerSourceSettingsService,
                                 IikoDepartmentLocationCatalogService locationCatalogService,
                                 PermissionService permissionService,
                                 ObjectMapper objectMapper) {
@@ -71,6 +74,7 @@ public class ManagementController {
         this.equipmentRepository = equipmentRepository;
         this.sharedConfigService = sharedConfigService;
         this.settingsCatalogService = settingsCatalogService;
+        this.locationsIikoServerSourceSettingsService = locationsIikoServerSourceSettingsService;
         this.locationCatalogService = locationCatalogService;
         this.permissionService = permissionService;
         this.objectMapper = objectMapper;
@@ -146,6 +150,8 @@ public class ManagementController {
             model.addAttribute("clientStatuses", settings.getOrDefault("client_statuses", List.of()));
             model.addAttribute("clientStatusColors", settings.getOrDefault("client_status_colors", Map.of()));
             model.addAttribute("settingsPayload", settings);
+            model.addAttribute("locationsIikoServerSources",
+                    locationsIikoServerSourceSettingsService.loadForClient(settings));
             IikoDepartmentLocationCatalogService.LocationCatalogSnapshot effectiveCatalog = locationCatalogService.loadCatalog();
             Map<String, Object> effectiveLocationsPayload = locationCatalogService.buildEffectiveLocationsPayload(effectiveCatalog);
             Map<String, Object> effectiveLocationTree = Map.of();
