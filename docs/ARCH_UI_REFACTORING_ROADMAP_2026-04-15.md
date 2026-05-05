@@ -865,3 +865,13 @@
 - после этого `SlaRoutingGovernanceSignalService` сжат примерно до `96`
   строк, `SlaRoutingPolicySnapshotService` — до `121`, а remaining hotspot в
   notifier/runtime hardening смещён уже в совсем локальные bounded services.
+- следующим ещё более широким пакетом и review/config слой тоже разрезан:
+  `SlaRoutingGovernanceReviewStateService` вынес governance review state и
+  issue evaluation, `SlaRoutingGovernanceReviewPayloadService` — requirements и
+  governance review payload builders, `SlaRoutingPolicyTimeService` —
+  UTC/minutes-left parsing, `SlaRoutingLifecycleStateService` — lifecycle
+  normalization.
+- после этого `SlaRoutingGovernanceReviewService` сжат примерно до `86`
+  строк, `SlaRoutingPolicyConfigService` — до `89`, а remaining hotspot в
+  notifier/runtime hardening смещён уже в `SlaRoutingGovernanceReviewStateService`
+  (~`167` строк) и соседние rule normalization/types bounded contexts.

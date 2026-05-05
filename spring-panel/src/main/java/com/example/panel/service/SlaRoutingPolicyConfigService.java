@@ -2,9 +2,6 @@ package com.example.panel.service;
 
 import org.springframework.stereotype.Service;
 
-import java.time.Instant;
-import java.time.OffsetDateTime;
-import java.time.format.DateTimeParseException;
 import java.util.Locale;
 import java.util.Map;
 
@@ -12,13 +9,21 @@ import java.util.Map;
 public class SlaRoutingPolicyConfigService {
 
     private final SlaRoutingRuleScalarParserService scalarParserService;
+    private final SlaRoutingPolicyTimeService timeService;
+    private final SlaRoutingLifecycleStateService lifecycleStateService;
 
-    public SlaRoutingPolicyConfigService(SlaRoutingRuleScalarParserService scalarParserService) {
+    public SlaRoutingPolicyConfigService(SlaRoutingRuleScalarParserService scalarParserService,
+                                        SlaRoutingPolicyTimeService timeService,
+                                        SlaRoutingLifecycleStateService lifecycleStateService) {
         this.scalarParserService = scalarParserService;
+        this.timeService = timeService;
+        this.lifecycleStateService = lifecycleStateService;
     }
 
     public SlaRoutingPolicyConfigService() {
-        this(new SlaRoutingRuleScalarParserService());
+        this(new SlaRoutingRuleScalarParserService(),
+                new SlaRoutingPolicyTimeService(),
+                new SlaRoutingLifecycleStateService());
     }
 
     @SuppressWarnings("unchecked")
@@ -67,52 +72,18 @@ public class SlaRoutingPolicyConfigService {
     }
 
     public Long resolveMinutesLeft(String createdAt, int targetMinutes, long nowMs) {
-        Instant created = parseInstant(createdAt);
-        if (created == null) return null;
-        return Math.floorDiv(created.toEpochMilli() + targetMinutes * 60_000L - nowMs, 60_000L);
+        return timeService.resolveMinutesLeft(createdAt, targetMinutes, nowMs);
     }
 
     public String normalizeUtcTimestamp(String rawValue) {
-        Instant parsed = parseInstant(rawValue);
-        return parsed == null ? null : parsed.toString();
+        return timeService.normalizeUtcTimestamp(rawValue);
     }
 
     public String normalizeLifecycleState(String... values) {
-        for (String value : values) {
-            String normalized = trimToNull(value);
-            if (normalized == null) {
-                continue;
-            }
-            String lowered = normalized.toLowerCase(Locale.ROOT);
-            switch (lowered) {
-                case "open", "new", "waiting_operator", "waiting_client" -> {
-                    return "open";
-                }
-                case "closed", "resolved", "auto_closed" -> {
-                    return "closed";
-                }
-                default -> {
-                    return lowered;
-                }
-            }
-        }
-        return "unknown";
+        return lifecycleStateService.normalizeLifecycleState(values);
     }
 
     public String trimToNull(String value) {
         return scalarParserService.trimToNull(value);
-    }
-
-    private Instant parseInstant(String rawValue) {
-        if (rawValue == null || rawValue.isBlank()) return null;
-        try {
-            return Instant.parse(rawValue.trim());
-        } catch (DateTimeParseException ignored) {
-            try {
-                return OffsetDateTime.parse(rawValue.trim()).toInstant();
-            } catch (DateTimeParseException ignoredAgain) {
-                return null;
-            }
-        }
     }
 }

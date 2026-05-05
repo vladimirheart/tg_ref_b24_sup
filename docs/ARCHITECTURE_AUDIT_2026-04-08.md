@@ -884,3 +884,14 @@ integration-сценария поверх users/settings runtime boundary всё
   строк, `SlaRoutingPolicySnapshotService` — до `121`, а remaining
   notifier/runtime hotspot локализован уже в совсем малых bounded services,
   а не в общем routing hardening wrapper.
+- следующим ещё более широким пакетом и review/config слой тоже сузился:
+  `SlaRoutingGovernanceReviewStateService` вынес governance review state и
+  issue evaluation, `SlaRoutingGovernanceReviewPayloadService` — requirements и
+  governance review payload builders, `SlaRoutingPolicyTimeService` —
+  UTC/minutes-left parsing, `SlaRoutingLifecycleStateService` — lifecycle
+  normalization.
+- после этого `SlaRoutingGovernanceReviewService` сжат примерно до `86`
+  строк, `SlaRoutingPolicyConfigService` — до `89`, а remaining
+  notifier/runtime hotspot смещён уже в `SlaRoutingGovernanceReviewStateService`
+  (~`167` строк) и рядом с ним в `SlaRoutingRuleTypes` / rule normalization
+  bounded contexts, а не в mixed orchestration services.
