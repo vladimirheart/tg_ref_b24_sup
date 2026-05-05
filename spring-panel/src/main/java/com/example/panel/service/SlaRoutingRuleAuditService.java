@@ -17,17 +17,29 @@ public class SlaRoutingRuleAuditService {
     private final SlaRoutingRuleParserService parserService;
     private final SlaRoutingGovernanceIssueService issueService;
     private final SlaRoutingRuleBehaviorService ruleBehaviorService;
+    private final SlaRoutingRuleUsageAnalysisService usageAnalysisService;
+    private final SlaRoutingRuleAuditMetricsService auditMetricsService;
 
     public SlaRoutingRuleAuditService(SlaRoutingRuleParserService parserService,
                                       SlaRoutingGovernanceIssueService issueService,
-                                      SlaRoutingRuleBehaviorService ruleBehaviorService) {
+                                      SlaRoutingRuleBehaviorService ruleBehaviorService,
+                                      SlaRoutingRuleUsageAnalysisService usageAnalysisService,
+                                      SlaRoutingRuleAuditMetricsService auditMetricsService) {
         this.parserService = parserService;
         this.issueService = issueService;
         this.ruleBehaviorService = ruleBehaviorService;
+        this.usageAnalysisService = usageAnalysisService;
+        this.auditMetricsService = auditMetricsService;
     }
 
     public SlaRoutingRuleAuditService() {
-        this(new SlaRoutingRuleParserService(), new SlaRoutingGovernanceIssueService(), new SlaRoutingRuleBehaviorService());
+        this(
+                new SlaRoutingRuleParserService(),
+                new SlaRoutingGovernanceIssueService(),
+                new SlaRoutingRuleBehaviorService(),
+                new SlaRoutingRuleUsageAnalysisService(),
+                new SlaRoutingRuleAuditMetricsService()
+        );
     }
 
     public RoutingAuditAnalysis analyze(List<Map<String, Object>> criticalCandidates,
@@ -41,45 +53,13 @@ public class SlaRoutingRuleAuditService {
                                         long reviewTtlHours) {
         List<Map<String, Object>> safeCandidates = criticalCandidates == null ? List.of() : criticalCandidates;
         List<SlaRoutingRuleTypes.AutoAssignRuleDefinition> definitions = parserService.parseDefinitions(rawRules);
-        List<SlaRoutingRuleTypes.AutoAssignRuleDefinition> activeDefinitions = definitions.stream()
-                .filter(definition -> definition.rule() != null)
-                .toList();
-
         List<Map<String, Object>> issues = new ArrayList<>();
         List<Map<String, Object>> rules = new ArrayList<>();
-        Map<String, RuleUsageStats> usageStatsByRoute = new LinkedHashMap<>();
-        Map<String, Set<String>> conflictTicketsByRoute = new LinkedHashMap<>();
-        Map<String, Set<String>> tiedRoutesByRoute = new LinkedHashMap<>();
-        Map<String, Integer> layerCounts = new LinkedHashMap<>();
+        SlaRoutingRuleUsageAnalysisService.RuleUsageAnalysis usageAnalysis = usageAnalysisService.analyze(safeCandidates, definitions);
 
         for (SlaRoutingRuleTypes.AutoAssignRuleDefinition definition : definitions) {
-            layerCounts.merge(definition.layer(), 1, Integer::sum);
-            usageStatsByRoute.put(definition.ruleId(), new RuleUsageStats());
-        }
-
-        for (Map<String, Object> candidate : safeCandidates) {
-            List<SlaRoutingRuleTypes.AutoAssignRuleDefinition> matchedDefinitions = activeDefinitions.stream()
-                    .filter(definition -> parserService.matchesDefinition(definition, candidate))
-                    .toList();
-            matchedDefinitions.forEach(definition -> usageStatsByRoute.get(definition.ruleId()).matchedTickets().add(parserService.ticketId(candidate)));
-            List<SlaRoutingRuleTypes.AutoAssignRuleDefinition> winners = parserService.resolveWinningDefinitions(matchedDefinitions);
-            if (!winners.isEmpty()) {
-                winners.forEach(definition -> usageStatsByRoute.get(definition.ruleId()).selectedTickets().add(parserService.ticketId(candidate)));
-            }
-            if (winners.size() > 1) {
-                Set<String> winnerRouteIds = winners.stream()
-                        .map(SlaRoutingRuleTypes.AutoAssignRuleDefinition::ruleId)
-                        .collect(Collectors.toCollection(LinkedHashSet::new));
-                for (SlaRoutingRuleTypes.AutoAssignRuleDefinition winner : winners) {
-                    conflictTicketsByRoute.computeIfAbsent(winner.ruleId(), key -> new LinkedHashSet<>()).add(parserService.ticketId(candidate));
-                    tiedRoutesByRoute.computeIfAbsent(winner.ruleId(), key -> new LinkedHashSet<>()).addAll(
-                            winnerRouteIds.stream().filter(routeId -> !winner.ruleId().equals(routeId)).toList());
-                }
-            }
-        }
-
-        for (SlaRoutingRuleTypes.AutoAssignRuleDefinition definition : definitions) {
-            RuleUsageStats usageStats = usageStatsByRoute.getOrDefault(definition.ruleId(), new RuleUsageStats());
+            SlaRoutingRuleUsageAnalysisService.RuleUsageStats usageStats = usageAnalysis.usageStatsByRoute()
+                    .getOrDefault(definition.ruleId(), new SlaRoutingRuleUsageAnalysisService.RuleUsageStats());
             int matchedCount = usageStats.matchedTickets().size();
             int selectedCount = usageStats.selectedTickets().size();
             double coverageRate = safeCandidates.isEmpty() ? 0d : (double) matchedCount / safeCandidates.size();
@@ -98,36 +78,22 @@ public class SlaRoutingRuleAuditService {
                     blockOnConflict,
                     reviewTtlHours,
                     generatedAt,
-                    conflictTicketsByRoute.containsKey(definition.ruleId()),
-                    conflictTicketsByRoute.getOrDefault(definition.ruleId(), Set.of()),
-                    tiedRoutesByRoute.getOrDefault(definition.ruleId(), Set.of()),
+                    usageAnalysis.conflictTicketsByRoute().containsKey(definition.ruleId()),
+                    usageAnalysis.conflictTicketsByRoute().getOrDefault(definition.ruleId(), Set.of()),
+                    usageAnalysis.tiedRoutesByRoute().getOrDefault(definition.ruleId(), Set.of()),
                     parserService.formatRuleAssigneeTarget(definition.rule())
             );
             issues.addAll(evaluation.emittedIssues());
             rules.add(evaluation.rulePayload());
         }
 
-        Map<String, Long> decisionsByLayer = rules.stream().collect(Collectors.groupingBy(
-                row -> String.valueOf(row.get("layer")),
-                LinkedHashMap::new,
-                Collectors.summingLong(row -> toLong(row.get("selected_candidates")))
-        ));
-        Map<String, Long> decisionsByRoute = rules.stream().collect(Collectors.groupingBy(
-                row -> String.valueOf(row.get("route")),
-                LinkedHashMap::new,
-                Collectors.summingLong(row -> toLong(row.get("selected_candidates")))
-        ));
-        long conflictingRulesCount = conflictTicketsByRoute.keySet().size();
-        long conflictingTicketsCount = conflictTicketsByRoute.values().stream().flatMap(Set::stream).distinct().count();
-        long mandatoryIssueTotal = issues.stream().filter(issue -> "rollout_blocker".equals(String.valueOf(issue.get("classification")))).count();
-        long advisoryIssueTotal = Math.max(0L, issues.size() - mandatoryIssueTotal);
-        long conflictIssueTotal = issues.stream().filter(issue -> String.valueOf(issue.get("type")).contains("conflict")).count();
-        long reviewIssueTotal = issues.stream().filter(issue -> String.valueOf(issue.get("type")).contains("review") || String.valueOf(issue.get("type")).contains("decision")).count();
-        long ownershipIssueTotal = issues.stream().filter(issue -> String.valueOf(issue.get("type")).contains("owner") || String.valueOf(issue.get("type")).contains("layer")).count();
+        SlaRoutingRuleAuditMetricsService.AuditMetrics metrics =
+                auditMetricsService.summarize(issues, rules, usageAnalysis.conflictTicketsByRoute());
 
-        return new RoutingAuditAnalysis(definitions.size(), issues, rules, layerCounts, decisionsByLayer, decisionsByRoute,
-                conflictTicketsByRoute, conflictingRulesCount, conflictingTicketsCount, mandatoryIssueTotal,
-                advisoryIssueTotal, conflictIssueTotal, reviewIssueTotal, ownershipIssueTotal);
+        return new RoutingAuditAnalysis(definitions.size(), issues, rules, usageAnalysis.layerCounts(), metrics.decisionsByLayer(),
+                metrics.decisionsByRoute(), usageAnalysis.conflictTicketsByRoute(), metrics.conflictingRulesCount(),
+                metrics.conflictingTicketsCount(), metrics.mandatoryIssueTotal(), metrics.advisoryIssueTotal(),
+                metrics.conflictIssueTotal(), metrics.reviewIssueTotal(), metrics.ownershipIssueTotal());
     }
 
     public record RoutingAuditAnalysis(int rulesTotal,
@@ -146,19 +112,4 @@ public class SlaRoutingRuleAuditService {
                                        long ownershipIssueTotal) {
     }
 
-    private long toLong(Object value) {
-        if (value instanceof Number number) return number.longValue();
-        if (value == null) return 0L;
-        try {
-            return Long.parseLong(String.valueOf(value).trim());
-        } catch (NumberFormatException ignored) {
-            return 0L;
-        }
-    }
-
-    private record RuleUsageStats(Set<String> matchedTickets, Set<String> selectedTickets) {
-        private RuleUsageStats() {
-            this(new LinkedHashSet<>(), new LinkedHashSet<>());
-        }
-    }
 }

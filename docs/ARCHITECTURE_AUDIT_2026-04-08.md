@@ -910,3 +910,16 @@ integration-сценария поверх users/settings runtime boundary всё
   (~`151` строк) и вторично в `SlaRoutingRuleAuditService` (~`148` строк),
   то есть риск локализован в компактных rule-behavior / audit bounded
   services, а не в orchestration facade.
+- следующим ещё более широким пакетом и этот слой тоже сузился:
+  `SlaRoutingRuleMatchService` вынес match/empty-rule логику,
+  `SlaRoutingRuleDescriptorService` — specificity/route/assignee-target,
+  `SlaRoutingRuleUsageAnalysisService` — usage/conflict analysis,
+  `SlaRoutingRuleAuditMetricsService` — decisions/issues aggregates,
+  `SlaRoutingPolicyDecisionPayloadService` — ready/manual-review/webhook-only
+  payload assembly.
+- после этого `SlaRoutingRuleBehaviorService` сжат примерно до `45` строк,
+  `SlaRoutingRuleAuditService` — до `103`, `SlaRoutingPolicyDecisionService`
+  — до `56`, а новый remaining notifier/runtime tail локализован уже в
+  `SlaRoutingRuleParserService` (~`123` строки), `SlaRoutingRuleMatchService`
+  (~`110`) и `SlaRoutingPolicySnapshotService` (~`107`), то есть в реально
+  компактных bounded services без giant-wrapper симптомов.

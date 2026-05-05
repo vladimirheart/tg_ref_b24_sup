@@ -15,8 +15,7 @@ class SlaRoutingPolicyDecisionServiceTest {
     private final SlaRoutingPolicyDecisionService service = new SlaRoutingPolicyDecisionService(
             new SlaEscalationAutoAssignService(null),
             new SlaRoutingPolicyCandidateBuilderService(),
-            new SlaRoutingPolicyPreviewSummaryService(),
-            new SlaRoutingPolicyConfigService()
+            new SlaRoutingPolicyDecisionPayloadService()
     );
 
     @Test

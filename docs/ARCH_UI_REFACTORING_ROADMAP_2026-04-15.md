@@ -889,3 +889,14 @@
   первично это `SlaRoutingRuleBehaviorService` (~`151` строк) и вторично
   `SlaRoutingRuleAuditService` (~`148` строк), если rule-behavior/audit слой
   снова начнёт расти.
+- следующим ещё более широким пакетом и этот хвост тоже разрезан:
+  появились `SlaRoutingRuleMatchService`, `SlaRoutingRuleDescriptorService`,
+  `SlaRoutingRuleUsageAnalysisService`, `SlaRoutingRuleAuditMetricsService` и
+  `SlaRoutingPolicyDecisionPayloadService`.
+- после этого `SlaRoutingRuleBehaviorService` сжат примерно до `45` строк,
+  `SlaRoutingRuleAuditService` — до `103`, `SlaRoutingPolicyDecisionService`
+  — до `56`.
+- следующий локальный post-phase hardening focus теперь уже смещён в
+  `SlaRoutingRuleParserService` (~`123` строки), `SlaRoutingRuleMatchService`
+  (~`110`) и `SlaRoutingPolicySnapshotService` (~`107`), если эти bounded
+  services снова начнут расти.

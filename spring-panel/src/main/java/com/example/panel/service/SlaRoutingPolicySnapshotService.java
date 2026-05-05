@@ -26,8 +26,10 @@ public class SlaRoutingPolicySnapshotService {
                 new SlaRoutingPolicyDecisionService(
                         slaEscalationAutoAssignService,
                         new SlaRoutingPolicyCandidateBuilderService(),
-                        new SlaRoutingPolicyPreviewSummaryService(),
-                        policyConfigService
+                        new SlaRoutingPolicyDecisionPayloadService(
+                                new SlaRoutingPolicyPreviewSummaryService(),
+                                policyConfigService
+                        )
                 )
         );
     }
