@@ -923,3 +923,15 @@ integration-сценария поверх users/settings runtime boundary всё
   `SlaRoutingRuleParserService` (~`123` строки), `SlaRoutingRuleMatchService`
   (~`110`) и `SlaRoutingPolicySnapshotService` (~`107`), то есть в реально
   компактных bounded services без giant-wrapper симптомов.
+- следующим ещё более широким пакетом и parser/snapshot tail тоже сузился:
+  `SlaRoutingRuleDefinitionFactoryService` вынес rule-definition assembly,
+  `SlaRoutingRuleCandidateContextService` — normalized candidate context и
+  ticket-id extraction, `SlaRoutingPolicySnapshotRuntimeService` — runtime
+  context assembly, `SlaRoutingPolicySnapshotBranchService` — early-exit branch
+  resolution.
+- после этого `SlaRoutingRuleParserService` сжат примерно до `83` строк,
+  `SlaRoutingPolicySnapshotService` — до `56`, а remaining notifier/runtime
+  хвост уже локализован в `SlaRoutingRuleMatchService` (~`110` строк),
+  `SlaRoutingRuleAuditService` (~`103`) и вторично в
+  `SlaRoutingPolicySnapshotRuntimeService` (~`81`), то есть giant-tail по
+  сути уже снят даже на post-phase hardening уровне.

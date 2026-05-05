@@ -900,3 +900,14 @@
   `SlaRoutingRuleParserService` (~`123` строки), `SlaRoutingRuleMatchService`
   (~`110`) и `SlaRoutingPolicySnapshotService` (~`107`), если эти bounded
   services снова начнут расти.
+- следующим ещё более широким пакетом parser/snapshot слой тоже разрезан:
+  появились `SlaRoutingRuleDefinitionFactoryService`,
+  `SlaRoutingRuleCandidateContextService`,
+  `SlaRoutingPolicySnapshotRuntimeService` и
+  `SlaRoutingPolicySnapshotBranchService`.
+- после этого `SlaRoutingRuleParserService` сжат примерно до `83` строк,
+  `SlaRoutingPolicySnapshotService` — до `56`.
+- следующий локальный post-phase hardening focus теперь уже смещён в
+  `SlaRoutingRuleMatchService` (~`110` строк), `SlaRoutingRuleAuditService`
+  (~`103`) и вторично `SlaRoutingPolicySnapshotRuntimeService` (~`81`), если
+  эти bounded services снова начнут расти.

@@ -1,0 +1,20 @@
+# 2026-05-05 14:19:00 - SLA routing parser and snapshot wide split
+
+## Что сделано
+
+- добавлен `SlaRoutingRuleDefinitionFactoryService` для rule-definition assembly;
+- добавлен `SlaRoutingRuleCandidateContextService` для normalized candidate context и ticket-id extraction;
+- добавлен `SlaRoutingPolicySnapshotRuntimeService` для snapshot runtime context assembly;
+- добавлен `SlaRoutingPolicySnapshotBranchService` для early-exit branch resolution;
+- `SlaRoutingRuleParserService` и `SlaRoutingPolicySnapshotService` переведены на более thin coordinator-модель поверх новых bounded services.
+
+## Тесты
+
+- `.\mvnw.cmd -q -DskipTests compile`
+- `.\mvnw.cmd -q "-Dtest=SlaRoutingRuleDefinitionFactoryServiceTest,SlaRoutingRuleCandidateContextServiceTest,SlaRoutingPolicySnapshotRuntimeServiceTest,SlaRoutingPolicySnapshotBranchServiceTest,SlaRoutingRuleMatchServiceTest,SlaRoutingRuleDescriptorServiceTest,SlaRoutingRuleUsageAnalysisServiceTest,SlaRoutingRuleAuditMetricsServiceTest,SlaRoutingPolicyDecisionPayloadServiceTest,SlaRoutingRuleBehaviorServiceTest,SlaRoutingRuleAuditServiceTest,SlaRoutingRuleParserServiceTest,SlaRoutingGovernanceIssueServiceTest,SlaRoutingGovernanceReviewDecisionServiceTest,SlaRoutingGovernanceReviewIssueServiceTest,SlaRoutingGovernanceReviewStateServiceTest,SlaRoutingGovernanceReviewPayloadServiceTest,SlaRoutingGovernanceReviewServiceTest,SlaRoutingPolicyDecisionServiceTest,SlaRoutingPolicySnapshotServiceTest,SlaRoutingGovernanceCheckpointServiceTest,SlaRoutingGovernanceSummaryServiceTest,SlaRoutingPolicyServiceTest,SlaRoutingPolicyConfigServiceTest,SlaRoutingRuleScalarParserServiceTest,SlaRoutingRuleMatchNormalizerServiceTest,SlaRoutingGovernanceLeadTimeServiceTest,SlaRoutingGovernancePriorityServiceTest,SlaRoutingPolicySnapshotStateServiceTest,SlaRoutingGovernanceReviewPathServiceTest,SlaRoutingGovernanceSignalServiceTest,SlaRoutingGovernanceAuditPayloadAssemblerServiceTest,SlaEscalationWebhookNotifierTest,SlaEscalationCandidateServiceTest,SlaEscalationAutoAssignServiceTest,SlaEscalationWebhookDeliveryServiceTest" test`
+
+## Итог
+
+- `Phase 3` и `Phase 4` остаются выполненными;
+- remaining notifier/runtime hotspot смещён в `SlaRoutingRuleMatchService`, `SlaRoutingRuleAuditService` и вторично `SlaRoutingPolicySnapshotRuntimeService`;
+- `spring-panel.log` мог обновиться от локальных Maven-прогонов.

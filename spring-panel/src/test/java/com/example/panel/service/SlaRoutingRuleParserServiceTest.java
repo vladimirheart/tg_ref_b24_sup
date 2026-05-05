@@ -14,17 +14,15 @@ class SlaRoutingRuleParserServiceTest {
 
     @Test
     void parseDefinitionsNormalizesRuleMetadata() {
-        List<SlaRoutingRuleTypes.AutoAssignRuleDefinition> definitions = service.parseDefinitions(List.of(
-                Map.of(
-                        "name", "telegram_hot",
-                        "match_channel", "Telegram",
-                        "match_categories", List.of("Billing", "VIP"),
-                        "assign_to_pool", List.of("duty_a", "duty_b", "duty_a"),
-                        "layer", "team",
-                        "owner", "ops.lead",
-                        "reviewed_at", "2026-05-01T10:00:00Z"
-                )
-        ));
+        List<SlaRoutingRuleTypes.AutoAssignRuleDefinition> definitions = service.parseDefinitions(List.of(Map.of(
+                "name", "telegram_hot",
+                "match_channel", "Telegram",
+                "match_categories", List.of("Billing", "VIP"),
+                "assign_to_pool", List.of("duty_a", "duty_b", "duty_a"),
+                "layer", "team",
+                "owner", "ops.lead",
+                "reviewed_at", "2026-05-01T10:00:00Z"
+        )));
 
         assertEquals(1, definitions.size());
         SlaRoutingRuleTypes.AutoAssignRuleDefinition definition = definitions.get(0);
@@ -47,5 +45,14 @@ class SlaRoutingRuleParserServiceTest {
         List<SlaRoutingRuleTypes.AutoAssignRuleDefinition> winners = service.resolveWinningDefinitions(definitions);
         assertEquals(1, winners.size());
         assertEquals("specific_high", winners.get(0).ruleId());
+    }
+
+    @Test
+    void matchesDefinitionUsesCandidateContextNormalization() {
+        SlaRoutingRuleTypes.AutoAssignRuleDefinition definition = service.parseDefinitions(List.of(
+                Map.of("rule_id", "alpha", "match_channel", "telegram", "match_sla_state", "at_risk", "assign_to", "duty_a")
+        )).get(0);
+
+        assertTrue(service.matchesDefinition(definition, Map.of("channel", "Telegram", "sla_state", "warning")));
     }
 }
