@@ -92,3 +92,4 @@
 🟣 [01-070] Починить создание Spring bean для SlaRoutingPolicyService при запуске панели
 🟣 [01-071] Перевести источник департаментов локаций с iiko Transport на iikoServer API
 🟣 [01-072] Вынести iikoServer-источники локаций в страницу настроек и не смешивать их с iiko biz
+🟣 [01-073] Починить сохранение локаций при дублях city/value в settings_parameters

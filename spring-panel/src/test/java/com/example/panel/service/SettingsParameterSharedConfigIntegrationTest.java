@@ -44,7 +44,8 @@ class SettingsParameterSharedConfigIntegrationTest {
                     state VARCHAR(255),
                     is_deleted INTEGER,
                     deleted_at TIMESTAMP NULL,
-                    extra_json CLOB
+                    extra_json CLOB,
+                    UNIQUE(param_type, value)
                 )
                 """);
 
@@ -152,5 +153,38 @@ class SettingsParameterSharedConfigIntegrationTest {
         );
         assertTrue(departmentExtra.contains("\"city\":\"Moscow\""));
         assertTrue(departmentExtra.contains("\"business\":\"Retail\""));
+    }
+
+    @Test
+    void syncParametersFromLocationsPayloadSkipsDuplicateCityValuesAcrossBusinesses() {
+        Map<String, Object> locationsPayload = Map.of(
+                "tree", Map.of(
+                        "БлинБери", Map.of(
+                                "Корпоративная сеть", Map.of("Москва", List.of("Тверская"))
+                        ),
+                        "СушиВёсла", Map.of(
+                                "Корпоративная сеть", Map.of("Москва", List.of("Арбат"))
+                        )
+                ),
+                "city_meta", Map.of(
+                        "БлинБери::Корпоративная сеть::Москва", Map.of("country", "Россия", "partner_type", "Корпоративная сеть"),
+                        "СушиВёсла::Корпоративная сеть::Москва", Map.of("country", "Россия", "partner_type", "Корпоративная сеть")
+                ),
+                "location_meta", Map.of(
+                        "БлинБери::Корпоративная сеть::Москва::Тверская", Map.of("country", "Россия", "partner_type", "Корпоративная сеть"),
+                        "СушиВёсла::Корпоративная сеть::Москва::Арбат", Map.of("country", "Россия", "partner_type", "Корпоративная сеть")
+                )
+        );
+
+        service.syncParametersFromLocationsPayload(locationsPayload);
+
+        assertEquals(1, jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM settings_parameters WHERE param_type = 'city' AND value = 'Москва'",
+                Integer.class
+        ));
+        assertEquals(2, jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM settings_parameters WHERE param_type = 'department'",
+                Integer.class
+        ));
     }
 }

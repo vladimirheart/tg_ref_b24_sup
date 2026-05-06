@@ -40,7 +40,8 @@ class SettingsParameterServiceTest {
                     state VARCHAR(255),
                     is_deleted INTEGER,
                     deleted_at TIMESTAMP NULL,
-                    extra_json CLOB
+                    extra_json CLOB,
+                    UNIQUE(param_type, value)
                 )
                 """);
 

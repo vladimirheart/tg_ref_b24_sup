@@ -3,16 +3,15 @@ package com.example.panel.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
-
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 @Service
 public class SettingsParameterService {
@@ -47,7 +46,7 @@ public class SettingsParameterService {
             state = "Активен";
         }
         try {
-            validateParameterUniqueness(paramType, value, payload, null);
+            validateParameterUniqueness(paramType, value, null);
         } catch (IllegalArgumentException ex) {
             return Map.of("success", false, "error", ex.getMessage());
         }
@@ -75,7 +74,7 @@ public class SettingsParameterService {
                 ? stringValue(payload.get("value"))
                 : stringValue(existing.get("value"));
         try {
-            validateParameterUniqueness(paramType, finalValue, payload, paramId);
+            validateParameterUniqueness(paramType, finalValue, paramId);
         } catch (IllegalArgumentException ex) {
             return Map.of("success", false, "error", ex.getMessage());
         }
@@ -241,16 +240,12 @@ public class SettingsParameterService {
 
     private void validateParameterUniqueness(String paramType,
                                              String value,
-                                             Map<String, Object> payload,
                                              Long excludeId) {
         if (!StringUtils.hasText(paramType) || !StringUtils.hasText(value)) {
             return;
         }
-        List<String> dependencyKeys = settingsCatalogService.getParameterDependencies().getOrDefault(paramType, List.of());
-        Map<String, String> incomingDependencies = extractDependencies(payload, dependencyKeys);
-
         List<Map<String, Object>> candidates = jdbcTemplate.queryForList(
-                "SELECT id, extra_json FROM settings_parameters WHERE param_type = ? AND value = ? AND is_deleted = 0",
+                "SELECT id FROM settings_parameters WHERE param_type = ? AND value = ? AND is_deleted = 0",
                 paramType,
                 value
         );
@@ -259,13 +254,7 @@ public class SettingsParameterService {
             if (excludeId != null && candidateId != null && excludeId.equals(candidateId)) {
                 continue;
             }
-            Map<String, String> existingDependencies = extractDependencies(
-                    parseExtraJson(candidate.get("extra_json")),
-                    dependencyKeys
-            );
-            if (dependencyKeys.isEmpty() || existingDependencies.equals(incomingDependencies)) {
-                throw new IllegalArgumentException("Такая запись уже существует");
-            }
+            throw new IllegalArgumentException("Такая запись уже существует");
         }
     }
 
@@ -492,19 +481,45 @@ public class SettingsParameterService {
         if (!StringUtils.hasText(paramType) || !StringUtils.hasText(value)) {
             return;
         }
-        List<String> dependencyKeys = settingsCatalogService.getParameterDependencies().getOrDefault(paramType, List.of());
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
                 "SELECT id, extra_json FROM settings_parameters WHERE param_type = ? AND value = ? AND is_deleted = 0",
                 paramType,
                 value
         );
-        for (Map<String, Object> row : rows) {
-            Map<String, String> existingDeps = extractDependencies(parseExtraJson(row.get("extra_json")), dependencyKeys);
-            Map<String, String> targetDeps = new LinkedHashMap<>();
-            for (String key : dependencyKeys) {
-                targetDeps.put(key, stringValue(dependencies.get(key)));
-            }
-            if (dependencyKeys.isEmpty() || existingDeps.equals(targetDeps)) {
+        if (!rows.isEmpty()) {
+            for (Map<String, Object> row : rows) {
+                Map<String, Object> extra = parseExtraJson(row.get("extra_json"));
+                boolean modified = false;
+                Map<String, Object> extraDependencies = extra.get("dependencies") instanceof Map<?, ?> map
+                        ? new LinkedHashMap<>((Map<String, Object>) map)
+                        : new LinkedHashMap<>();
+
+                for (Map.Entry<String, String> dependency : dependencies.entrySet()) {
+                    String key = stringValue(dependency.getKey());
+                    String incomingValue = stringValue(dependency.getValue());
+                    if (!StringUtils.hasText(key) || !StringUtils.hasText(incomingValue)) {
+                        continue;
+                    }
+                    if (!StringUtils.hasText(stringValue(extra.get(key)))) {
+                        extra.put(key, incomingValue);
+                        modified = true;
+                    }
+                    if (!StringUtils.hasText(stringValue(extraDependencies.get(key)))) {
+                        extraDependencies.put(key, incomingValue);
+                        modified = true;
+                    }
+                }
+
+                if (!extraDependencies.isEmpty()) {
+                    extra.put("dependencies", extraDependencies);
+                }
+                if (modified && row.get("id") instanceof Number id) {
+                    jdbcTemplate.update(
+                            "UPDATE settings_parameters SET extra_json = ? WHERE id = ?",
+                            writeJson(extra),
+                            id.longValue()
+                    );
+                }
                 return;
             }
         }
