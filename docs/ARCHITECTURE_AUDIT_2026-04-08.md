@@ -935,3 +935,13 @@ integration-сценария поверх users/settings runtime boundary всё
   `SlaRoutingRuleAuditService` (~`103`) и вторично в
   `SlaRoutingPolicySnapshotRuntimeService` (~`81`), то есть giant-tail по
   сути уже снят даже на post-phase hardening уровне.
+- следующим ещё более широким пакетом и этот слой тоже сузился:
+  `SlaRoutingRuleDimensionMatchService`, `SlaRoutingRuleThresholdMatchService`
+  и `SlaRoutingRuleRequestMatchService` вынесли отдельные match families,
+  `SlaRoutingRuleAuditEvaluationService` — per-rule audit evaluation pass,
+  `SlaRoutingPolicySnapshotDialogStateService` — dialog-state enrichment.
+- после этого `SlaRoutingRuleMatchService` сжат примерно до `40` строк,
+  `SlaRoutingRuleAuditService` — до `76`, `SlaRoutingPolicySnapshotRuntimeService`
+  удерживается около `83`, а remaining notifier/runtime risk смещён уже в
+  набор очень компактных bounded services без какого-либо giant-wrapper
+  признака.

@@ -911,3 +911,15 @@
   `SlaRoutingRuleMatchService` (~`110` строк), `SlaRoutingRuleAuditService`
   (~`103`) и вторично `SlaRoutingPolicySnapshotRuntimeService` (~`81`), если
   эти bounded services снова начнут расти.
+- следующим ещё более широким пакетом и этот хвост тоже разрезан:
+  появились `SlaRoutingRuleDimensionMatchService`,
+  `SlaRoutingRuleThresholdMatchService`,
+  `SlaRoutingRuleRequestMatchService`,
+  `SlaRoutingRuleAuditEvaluationService` и
+  `SlaRoutingPolicySnapshotDialogStateService`.
+- после этого `SlaRoutingRuleMatchService` сжат примерно до `40` строк,
+  `SlaRoutingRuleAuditService` — до `76`.
+- следующий локальный post-phase hardening focus теперь уже смещён в
+  `SlaRoutingPolicySnapshotRuntimeService` (~`83` строки), `SlaRoutingRuleParserService`
+  (~`83`) и `SlaRoutingRuleAuditEvaluationService` (~`69`), если эти bounded
+  services снова начнут расти.

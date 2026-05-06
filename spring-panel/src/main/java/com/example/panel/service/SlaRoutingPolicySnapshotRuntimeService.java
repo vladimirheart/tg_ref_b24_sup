@@ -15,16 +15,23 @@ public class SlaRoutingPolicySnapshotRuntimeService {
 
     private final SlaRoutingPolicyConfigService policyConfigService;
     private final SlaRoutingPolicySnapshotStateService snapshotStateService;
+    private final SlaRoutingPolicySnapshotDialogStateService dialogStateService;
 
-    @Autowired
     public SlaRoutingPolicySnapshotRuntimeService(SlaRoutingPolicyConfigService policyConfigService,
-                                                  SlaRoutingPolicySnapshotStateService snapshotStateService) {
+                                                  SlaRoutingPolicySnapshotStateService snapshotStateService,
+                                                  SlaRoutingPolicySnapshotDialogStateService dialogStateService) {
         this.policyConfigService = policyConfigService;
         this.snapshotStateService = snapshotStateService;
+        this.dialogStateService = dialogStateService;
+    }
+
+    public SlaRoutingPolicySnapshotRuntimeService(SlaRoutingPolicyConfigService policyConfigService,
+                                                  SlaRoutingPolicySnapshotStateService snapshotStateService) {
+        this(policyConfigService, snapshotStateService, new SlaRoutingPolicySnapshotDialogStateService(policyConfigService));
     }
 
     public SlaRoutingPolicySnapshotRuntimeService() {
-        this(new SlaRoutingPolicyConfigService(), new SlaRoutingPolicySnapshotStateService());
+        this(new SlaRoutingPolicyConfigService(), new SlaRoutingPolicySnapshotStateService(), new SlaRoutingPolicySnapshotDialogStateService());
     }
 
     public SnapshotRuntimeContext build(DialogListItem dialog, Map<String, Object> settings, Instant evaluatedAt) {
@@ -52,29 +59,22 @@ public class SlaRoutingPolicySnapshotRuntimeService {
                     orchestrationMode, targetMinutes, criticalMinutes, null, null, null, null, false, false, false, true);
         }
 
-        String lifecycleState = policyConfigService.normalizeLifecycleState(dialog.statusKey(), dialog.status());
-        String createdAtUtc = policyConfigService.normalizeUtcTimestamp(dialog.createdAt());
+        SlaRoutingPolicySnapshotDialogStateService.DialogState dialogState =
+                dialogStateService.build(dialog, dialogConfig, targetMinutes, criticalMinutes, orchestrationMode);
         payload.put("ticket_id", dialog.ticketId());
-        if (createdAtUtc != null) {
-            payload.put("created_at_utc", createdAtUtc);
+        if (dialogState.createdAtUtc() != null) {
+            payload.put("created_at_utc", dialogState.createdAtUtc());
         }
-
-        Long minutesLeft = policyConfigService.resolveMinutesLeft(dialog.createdAt(), targetMinutes, System.currentTimeMillis());
-        if (minutesLeft != null) {
-            payload.put("minutes_left", minutesLeft);
+        if (dialogState.minutesLeft() != null) {
+            payload.put("minutes_left", dialogState.minutesLeft());
         }
-        boolean openLifecycle = "open".equals(lifecycleState);
-        boolean critical = minutesLeft != null && openLifecycle && minutesLeft <= criticalMinutes;
-        boolean autoAssignIncludeAssigned = policyConfigService.resolveBoolean(dialogConfig, "sla_critical_auto_assign_include_assigned", false);
-        boolean effectiveIncludeAssigned = orchestrationMode == SlaEscalationWebhookNotifier.SlaOrchestrationMode.AUTOPILOT || autoAssignIncludeAssigned;
-        String currentResponsible = policyConfigService.trimToNull(dialog.responsible());
-        payload.put("current_responsible", currentResponsible);
-        payload.put("effective_include_assigned", effectiveIncludeAssigned);
-        payload.put("critical", critical);
+        payload.put("current_responsible", dialogState.currentResponsible());
+        payload.put("effective_include_assigned", dialogState.effectiveIncludeAssigned());
+        payload.put("critical", dialogState.critical());
 
         return new SnapshotRuntimeContext(dialogConfig, payload, orchestrationEnabled, autoAssignEnabled, webhookEnabled,
-                orchestrationMode, targetMinutes, criticalMinutes, lifecycleState, createdAtUtc, minutesLeft,
-                currentResponsible, effectiveIncludeAssigned, openLifecycle, critical, false);
+                orchestrationMode, targetMinutes, criticalMinutes, dialogState.lifecycleState(), dialogState.createdAtUtc(), dialogState.minutesLeft(),
+                dialogState.currentResponsible(), dialogState.effectiveIncludeAssigned(), dialogState.openLifecycle(), dialogState.critical(), false);
     }
 
     public record SnapshotRuntimeContext(Map<String, Object> dialogConfig,
