@@ -740,22 +740,28 @@
 
 Наиболее логичный следующий шаг после текущего состояния:
 
-1. Дожать `Phase 5` через распространение explicit `jar` contract на реальные
-   окружения и финальное решение по supervisor/service boundary.
-2. Параллельно расширять `Phase 6`, чтобы следующие рефакторинги шли под
-   лучшей страховкой.
-3. После этого продолжать dialog hardening уже не вокруг giant service, а вокруг remaining notifier/runtime hotspots: в первую очередь `SlaRoutingGovernanceSummaryService` и вторично `SlaRoutingPolicySnapshotService`, затем уже соседние telemetry/runtime contracts.
-4. Внутри бывшего notifier hotspot candidate selection, auto-assign, routing snapshot, governance review packet, issue classification и rule-definition parsing уже вынесены; следующий bounded split теперь делать не в `SlaRoutingPolicyService`, а в `SlaRoutingGovernanceSummaryService`, если снова начнёт разрастаться checkpoint/advisory-path assembly.
+1. `Phase 3` и `Phase 4` считать закрытыми и не возвращаться к ним как к
+   giant-split проблемам.
+2. Главный практический фокус держать на `DialogWorkspaceService` и соседних
+   workspace consumers, чтобы orchestration-risk не переехал туда.
+3. Параллельно продолжать `Phase 5/6` уже не по giant wrappers, а по
+   shared-config/runtime consistency и integration-quality.
+4. В notifier/runtime hardening идти только по локальным bounded services,
+   если они снова начинают расти, а не открывать новый monolith refactor.
 
 ## Порядок выполнения
 
 Актуальный порядок после уже выполненных этапов:
 
 1. Довести `Phase 5` от launcher strategy до более явного runtime contract.
-2. Расширить `Phase 6`, чтобы новые refactor-проходы не шли почти без тестов.
-3. Вернуться к `dialogs` и дожимать remaining notifier/runtime boundaries, начиная уже с `SlaRoutingGovernanceSummaryService` и вторично `SlaRoutingPolicySnapshotService` после того, как `SlaRoutingPolicyService` уже сжат до thin facade.
-4. Добить remaining telemetry/runtime integration tails и решить, где нужен следующий integration/e2e слой, а где достаточно targeted runtime tests.
-5. Держать `settings` в режиме hardening, а не giant split: `Phase 4` уже выполнен, поэтому там приоритет только у regression/integration quality.
+2. Расширить `Phase 6`, чтобы новые refactor-проходы шли уже под
+   integration-quality, а не только под targeted tests.
+3. Дожать `DialogWorkspaceService` и соседние workspace/reply/notifier
+   consumers как главный orchestration risk.
+4. Добить remaining telemetry/runtime integration tails и решить, где нужен
+   следующий integration/e2e слой, а где достаточно targeted runtime tests.
+5. Держать `settings` в режиме hardening, а не giant split: `Phase 4` уже
+   выполнена, поэтому там приоритет только у regression/integration quality.
 
 ## Что не делать сейчас
 

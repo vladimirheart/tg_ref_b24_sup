@@ -2,7 +2,7 @@
 **Дата:** 8 апреля 2026  
 **Статус:** Актуально, но в активной фазе исправления  
 **Актуализация:** 9 апреля 2026 (см. `docs/ARCHITECTURE_AUDIT_VALIDATION_2026-04-09.md`)  
-**Последняя актуализация:** 30 апреля 2026
+**Последняя актуализация:** 6 мая 2026
 
 ---
 
@@ -15,14 +15,52 @@
 ✅ Добавлен foundation-слой для UI runtime, preferences и page presets  
 ✅ Усилен `Phase 6` safety net через targeted unit/WebMvc/lifecycle/smoke tests  
 ✅ Формализован bot runtime contract через launcher-strategy, explicit artifact contract и runtime diagnostics  
-✅ `DialogService` уже заметно разгружен через несколько read/write service slices, хотя полный split ещё не завершён  
+✅ `Phase 3` по giant `dialogs` split завершён: `DialogService` доведён до thin facade  
+✅ `Phase 4` по giant `settings` transport/update split завершён  
+✅ Post-phase hardening по notifier/runtime сильно продвинут и больше не выглядит как giant-wrapper проблема  
 
 ---
 
 ## 🧭 Текущее состояние
 
-Этот документ больше нельзя читать как “чистый список проблем на старте”. К
-23 апреля 2026 часть наиболее болезненных рисков уже снижена в коде.
+Этот документ больше нельзя читать как “чистый список проблем на старте”.
+К 6 мая 2026 основные giant transport/service hotspots уже разрезаны, а
+текущая работа сместилась в post-phase hardening и качество bounded
+contracts.
+
+### Короткий статус на сейчас
+
+Что уже выполнено:
+
+- `Phase 3` закрыта: giant `DialogService` больше не является hotspot и
+  работает как thin orchestration facade;
+- `Phase 4` закрыта: giant `settings` transport/update слой и соседние
+  risky subdomains разрезаны;
+- `Phase 6` safety net сильно расширен: targeted unit/WebMvc/runtime/page
+  smoke coverage больше не точечная, а системная;
+- notifier/runtime hardening вокруг SLA routing уже доведён до небольших
+  bounded services вместо giant wrappers.
+
+Что ещё остаётся:
+
+- не допустить повторного разрастания `DialogWorkspaceService` и соседних
+  workspace consumer tails;
+- довести notifier/runtime слой уже не через giant split, а через
+  integration-quality, shared-config/runtime consistency и локальные bounded
+  cleanups;
+- унифицировать shared config/runtime contract между `spring-panel` и
+  `java-bot`;
+- закрепить единый DTO/error/API contract на уровне проекта.
+
+Что сейчас в приоритете:
+
+1. `P1`: не дать orchestration-risk переехать в `DialogWorkspaceService` и
+   смежные workspace/reply/notifier consumers.
+2. `P1`: продолжать notifier/runtime hardening только там, где bounded
+   services снова начинают расти или где не хватает integration-quality.
+3. `P1`: довести shared-config/runtime contract до более явного
+   cross-module правила.
+4. `P2`: стабилизировать DTO/error contract и persistence/API governance.
 
 Что уже существенно улучшено:
 
@@ -609,21 +647,32 @@ integration-сценария поверх users/settings runtime boundary всё
 
 ## 🎯 Актуальный план действий
 
-### Фаза 1: Уже частично закрыта
+### Фаза 1: Базовый foundation
 - [x] Зафиксировать roadmap и начать поэтапный рефакторинг
 - [x] Централизовать UI bootstrap и ownership UI preferences
 - [x] Выполнить основной controller split для `dialogs/settings`
 
-### Фаза 2: Текущий главный фокус
+### Фаза 2: Foundation hardening
 - [x] Дожать remaining bounded contexts и compatibility delegates в `DialogService`
-- [ ] Досузить remaining orchestration tails в `DialogWorkspaceService` и consumer-фасады вокруг него
-- [ ] Добить remaining `settings` subdomains
-- [ ] Расширить и стабилизировать safety net для следующих крупных рефакторингов
-- [ ] Закрыть remaining runtime/notifier хвосты, которые ещё держатся на legacy-compatible фасадах
-- [ ] Решить, где следующий уровень проверки должен стать integration/e2e, а не только targeted runtime/unit net
+- [x] Добить remaining `settings` subdomains
+- [x] Расширить и стабилизировать safety net для следующих крупных рефакторингов
+- [x] Снять giant notifier/runtime wrappers до bounded services
 
-### Фаза 3: Следующий архитектурный уровень
+### Фаза 3: Giant dialogs split
+- [x] Довести `DialogService` до thin orchestration facade
+- [x] Убрать giant dialog hotspot как главный архитектурный риск
+
+### Фаза 4: Giant settings split
+- [x] Разрезать giant `/settings` transport/update слой
+- [x] Убрать `SettingsApiController` из списка главных hotspot’ов
+
+### Фаза 5: Runtime contract
 - [ ] Унифицировать shared config/runtime contract между `spring-panel` и `java-bot`
+- [ ] Довести bot runtime/platform boundary до более явного cross-module правила
+
+### Фаза 6: Quality and governance
+- [ ] Досузить remaining orchestration tails в `DialogWorkspaceService` и вокруг workspace consumers
+- [ ] Решить, где следующий уровень проверки должен стать integration/e2e, а не только targeted runtime/unit net
 - [ ] Довести DTO/API contract до системного правила
 - [ ] Закрепить единый error contract и API governance
 
@@ -631,11 +680,18 @@ integration-сценария поверх users/settings runtime boundary всё
 
 ## 📁 Следующие шаги
 
-1. Следующим пакетом добирать remaining notifier/escalation/reply runtime tails уже вокруг `DialogWorkspaceService`, `DialogWorkspaceTelemetryService` и webhook-consumers, а не вокруг giant `DialogService`
-2. Досузить `DialogWorkspaceService` по remaining payload/mapper/write-side хвостам, чтобы остаточный orchestration-risk не просто переехал из одного класса в другой
-3. Добить remaining `settings` subdomains и persistence boundaries
-4. Продолжить расширять `Phase 6` уже не только targeted unit/WebMvc tests, а integration-сценариями shared config/runtime и panel-bot orchestration boundary
-5. После этого возвращаться к shared-config unification, DTO/error contract и общему API governance
+1. Сначала удержать под контролем `DialogWorkspaceService` и соседние
+   workspace consumers, чтобы orchestration-risk не переехал туда после
+   завершения `Phase 3`.
+2. Затем продолжать notifier/runtime hardening только по локальным bounded
+   services, которые реально начинают разрастаться, а не через новый giant
+   split.
+3. Следующим системным шагом поднять уровень проверки: больше
+   integration-сценариев для shared config/runtime и panel-bot orchestration
+   boundary.
+4. После этого переходить к cross-module unification:
+   `SharedConfigService`, runtime contract, DTO/error contract и API
+   governance.
 
 ### Что ещё заметно улучшилось в текущем проходе
 
