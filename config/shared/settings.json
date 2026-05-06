@@ -286,5 +286,9 @@
     "api_login" : "SinicinVV",
     "api_secret" : "❌ Ошибка: PreparedStatementCallback; uncategorized SQLException for SQL [INSERT INTO settings_parameters(param_type, value, state, is_deleted, extra_json) VALUES (?, ?, 'Активен', 0, ?)]; SQL state [null]; error code [19]; [SQLITE_CONSTRAINT_UNIQUE] A UNIQUE constraint failed (UNIQUE constraint failed: settings_parameters.param_type, settings_parameters.value)",
     "enabled" : true
-  } ]
+  } ],
+  "locations_iiko_sync" : {
+    "enabled" : true,
+    "interval_minutes" : 140
+  }
 }
