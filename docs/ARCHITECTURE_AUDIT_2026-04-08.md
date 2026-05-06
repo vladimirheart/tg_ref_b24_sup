@@ -1015,3 +1015,13 @@ integration-сценария поверх users/settings runtime boundary всё
   очень компактном наборе `snapshot runtime/settings/context` и
   `usage-analysis/evaluation-context` bounded services, если они снова начнут
   расти.
+- параллельно по новому приоритету аудита дополнительно сузился и
+  `DialogWorkspaceService`: history pagination вынесен в
+  `DialogWorkspaceHistorySliceService`, SLA/runtime envelope — в
+  `DialogWorkspaceSlaViewService`, а client/context assembly — в
+  `DialogWorkspaceClientContextAssemblerService`.
+- после этого `DialogWorkspaceService` сжат примерно до `164` строк и уже
+  работает как orchestration façade над history/context/SLA bounded
+  services; remaining workspace-risk смещён уже не в giant method, а в
+  `DialogWorkspaceClientContextAssemblerService` (~`211` строк) и соседние
+  context-centric bounded services, если они снова начнут разрастаться.

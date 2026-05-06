@@ -943,3 +943,13 @@
   `SlaRoutingRuleUsageAnalysisService`, `SlaRoutingPolicySnapshotRuntimeService`
   и вторично `SlaRoutingRuleEvaluationContextService`, если эти компактные
   bounded services снова начнут расти.
+- следующим более широким пакетом по новому приоритету аудита дополнительно
+  сужен и workspace orchestration layer: появились
+  `DialogWorkspaceHistorySliceService`,
+  `DialogWorkspaceSlaViewService` и
+  `DialogWorkspaceClientContextAssemblerService`.
+- после этого `DialogWorkspaceService` сжат примерно до `164` строк и уже не
+  выглядит как основной orchestration hotspot сам по себе.
+- следующий локальный focus в `dialogs` теперь уже не в самом
+  `DialogWorkspaceService`, а в `DialogWorkspaceClientContextAssemblerService`
+  и соседних context-heavy bounded services, если они снова начнут расти.
