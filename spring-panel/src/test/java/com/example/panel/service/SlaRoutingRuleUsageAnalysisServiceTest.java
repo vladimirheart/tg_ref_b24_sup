@@ -11,7 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class SlaRoutingRuleUsageAnalysisServiceTest {
 
     private final SlaRoutingRuleParserService parserService = new SlaRoutingRuleParserService();
-    private final SlaRoutingRuleUsageAnalysisService service = new SlaRoutingRuleUsageAnalysisService(parserService);
+    private final SlaRoutingRuleUsageAnalysisService service = new SlaRoutingRuleUsageAnalysisService();
 
     @Test
     void analyzeBuildsUsageStatsAndConflictMaps() {

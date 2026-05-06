@@ -10,24 +10,24 @@ import java.util.Map;
 public class SlaRoutingRuleParserService {
 
     private final SlaRoutingRuleDefinitionFactoryService definitionFactoryService;
+    private final SlaRoutingRuleDefinitionMatchService definitionMatchService;
+    private final SlaRoutingRuleWinnerSelectionService winnerSelectionService;
     private final SlaRoutingRuleCandidateContextService candidateContextService;
-    private final SlaRoutingRuleBehaviorService ruleBehaviorService;
-    private final SlaRoutingRuleDescriptorService descriptorService;
 
     @Autowired
     public SlaRoutingRuleParserService(SlaRoutingRuleDefinitionFactoryService definitionFactoryService,
-                                       SlaRoutingRuleCandidateContextService candidateContextService,
-                                       SlaRoutingRuleBehaviorService ruleBehaviorService,
-                                       SlaRoutingRuleDescriptorService descriptorService) {
+                                       SlaRoutingRuleDefinitionMatchService definitionMatchService,
+                                       SlaRoutingRuleWinnerSelectionService winnerSelectionService,
+                                       SlaRoutingRuleCandidateContextService candidateContextService) {
         this.definitionFactoryService = definitionFactoryService;
+        this.definitionMatchService = definitionMatchService;
+        this.winnerSelectionService = winnerSelectionService;
         this.candidateContextService = candidateContextService;
-        this.ruleBehaviorService = ruleBehaviorService;
-        this.descriptorService = descriptorService;
     }
 
     public SlaRoutingRuleParserService() {
-        this(new SlaRoutingRuleDefinitionFactoryService(), new SlaRoutingRuleCandidateContextService(),
-                new SlaRoutingRuleBehaviorService(), new SlaRoutingRuleDescriptorService());
+        this(new SlaRoutingRuleDefinitionFactoryService(), new SlaRoutingRuleDefinitionMatchService(),
+                new SlaRoutingRuleWinnerSelectionService(), new SlaRoutingRuleCandidateContextService());
     }
 
     public List<SlaRoutingRuleTypes.AutoAssignRuleDefinition> parseDefinitions(Object rawRules) {
@@ -50,44 +50,15 @@ public class SlaRoutingRuleParserService {
     }
 
     public boolean matchesDefinition(SlaRoutingRuleTypes.AutoAssignRuleDefinition definition, Map<String, Object> candidate) {
-        SlaRoutingRuleCandidateContextService.CandidateContext context = candidateContextService.build(candidate);
-        return definition != null
-                && definition.rule() != null
-                && ruleBehaviorService.matches(
-                definition.rule(),
-                context.channel(),
-                context.business(),
-                context.location(),
-                context.categories(),
-                context.clientStatus(),
-                context.unreadCount(),
-                context.rating(),
-                context.minutesLeft(),
-                context.slaState(),
-                context.requestNumber()
-        );
+        return definitionMatchService.matchesDefinition(definition, candidate);
     }
 
     public List<SlaRoutingRuleTypes.AutoAssignRuleDefinition> resolveWinningDefinitions(List<SlaRoutingRuleTypes.AutoAssignRuleDefinition> matchedDefinitions) {
-        if (matchedDefinitions == null || matchedDefinitions.isEmpty()) {
-            return List.of();
-        }
-        int bestSpecificity = matchedDefinitions.stream()
-                .map(definition -> descriptorService.specificityScore(definition.rule()))
-                .max(Integer::compareTo).orElse(Integer.MIN_VALUE);
-        int bestPriority = matchedDefinitions.stream()
-                .filter(definition -> descriptorService.specificityScore(definition.rule()) == bestSpecificity)
-                .map(definition -> definition.rule().priority())
-                .max(Integer::compareTo)
-                .orElse(Integer.MIN_VALUE);
-        return matchedDefinitions.stream()
-                .filter(definition -> descriptorService.specificityScore(definition.rule()) == bestSpecificity)
-                .filter(definition -> definition.rule().priority() == bestPriority)
-                .toList();
+        return winnerSelectionService.resolveWinningDefinitions(matchedDefinitions);
     }
 
     public String formatRuleAssigneeTarget(SlaRoutingRuleTypes.AutoAssignRule rule) {
-        return descriptorService.formatAssigneeTarget(rule);
+        return winnerSelectionService.formatRuleAssigneeTarget(rule);
     }
 
     public String ticketId(Map<String, Object> candidate) {

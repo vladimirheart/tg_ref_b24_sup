@@ -945,3 +945,17 @@ integration-сценария поверх users/settings runtime boundary всё
   удерживается около `83`, а remaining notifier/runtime risk смещён уже в
   набор очень компактных bounded services без какого-либо giant-wrapper
   признака.
+- следующим ещё более широким пакетом этот хвост дополнительно сузился:
+  появились `SlaRoutingPolicySnapshotSettingsService`,
+  `SlaRoutingPolicySnapshotContextService`,
+  `SlaRoutingRuleDefinitionMatchService`,
+  `SlaRoutingRuleWinnerSelectionService` и
+  `SlaRoutingRuleEvaluationContextService`.
+- после этого `SlaRoutingPolicySnapshotRuntimeService` удерживается на уровне
+  примерно `86` строк, `SlaRoutingRuleParserService` — около `67`,
+  `SlaRoutingRuleUsageAnalysisService` — около `88`, а
+  `SlaRoutingRuleAuditEvaluationService` — около `71`; remaining
+  notifier/runtime risk теперь уже не в parser/evaluation wrappers, а в
+  очень компактном наборе `snapshot runtime/settings/context` и
+  `usage-analysis/evaluation-context` bounded services, если они снова начнут
+  расти.

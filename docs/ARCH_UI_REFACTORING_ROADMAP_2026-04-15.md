@@ -923,3 +923,17 @@
   `SlaRoutingPolicySnapshotRuntimeService` (~`83` строки), `SlaRoutingRuleParserService`
   (~`83`) и `SlaRoutingRuleAuditEvaluationService` (~`69`), если эти bounded
   services снова начнут расти.
+- следующим ещё более широким пакетом и этот слой тоже дополнительно
+  разрезан: появились `SlaRoutingPolicySnapshotSettingsService`,
+  `SlaRoutingPolicySnapshotContextService`,
+  `SlaRoutingRuleDefinitionMatchService`,
+  `SlaRoutingRuleWinnerSelectionService` и
+  `SlaRoutingRuleEvaluationContextService`.
+- после этого `SlaRoutingPolicySnapshotRuntimeService` удерживается около
+  `86` строк, `SlaRoutingRuleParserService` — около `67`,
+  `SlaRoutingRuleUsageAnalysisService` — около `88`, а
+  `SlaRoutingRuleAuditEvaluationService` — около `71`.
+- следующий локальный post-phase hardening focus теперь уже смещён в
+  `SlaRoutingRuleUsageAnalysisService`, `SlaRoutingPolicySnapshotRuntimeService`
+  и вторично `SlaRoutingRuleEvaluationContextService`, если эти компактные
+  bounded services снова начнут расти.
