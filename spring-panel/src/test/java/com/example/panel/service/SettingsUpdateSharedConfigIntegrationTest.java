@@ -38,7 +38,10 @@ class SettingsUpdateSharedConfigIntegrationTest {
         sharedConfigService = new SharedConfigService(new ObjectMapper(), tempDir.toString());
         sharedConfigService.saveSettings(new java.util.LinkedHashMap<>());
         settingsDialogConfigUpdateService = mock(SettingsDialogConfigUpdateService.class);
-        settingsTopLevelUpdateService = new SettingsTopLevelUpdateService(new LocationsIikoServerSourceSettingsService());
+        settingsTopLevelUpdateService = new SettingsTopLevelUpdateService(
+                new LocationsIikoServerSourceSettingsService(),
+                new LocationsIikoSyncSettingsService()
+        );
         settingsParameterService = mock(SettingsParameterService.class);
         doNothing().when(settingsParameterService).syncParametersFromLocationsPayload(any());
         settingsLocationsUpdateService = new SettingsLocationsUpdateService(sharedConfigService, settingsParameterService);

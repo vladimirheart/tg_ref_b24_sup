@@ -12,9 +12,12 @@ import java.util.Map;
 public class SettingsTopLevelUpdateService {
 
     private final LocationsIikoServerSourceSettingsService locationsIikoServerSourceSettingsService;
+    private final LocationsIikoSyncSettingsService locationsIikoSyncSettingsService;
 
-    public SettingsTopLevelUpdateService(LocationsIikoServerSourceSettingsService locationsIikoServerSourceSettingsService) {
+    public SettingsTopLevelUpdateService(LocationsIikoServerSourceSettingsService locationsIikoServerSourceSettingsService,
+                                         LocationsIikoSyncSettingsService locationsIikoSyncSettingsService) {
         this.locationsIikoServerSourceSettingsService = locationsIikoServerSourceSettingsService;
+        this.locationsIikoSyncSettingsService = locationsIikoSyncSettingsService;
     }
 
     public boolean applyTopLevelUpdates(Map<String, Object> payload,
@@ -54,6 +57,7 @@ public class SettingsTopLevelUpdateService {
         modified |= copyIfPresent(payload, settings, "reporting_config");
         modified |= copyIfPresent(payload, settings, "manager_location_bindings");
         modified |= locationsIikoServerSourceSettingsService.applyPayload(payload, settings);
+        modified |= locationsIikoSyncSettingsService.applyPayload(payload, settings);
 
         return modified;
     }

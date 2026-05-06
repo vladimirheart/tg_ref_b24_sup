@@ -4429,33 +4429,91 @@
           <div class="modal-body">
             <div class="settings-modal-lead" role="note">
               <i class="bi bi-geo-alt-fill" aria-hidden="true"></i>
-              <div class="settings-modal-lead__text">Редактируйте структуру бизнес → тип → город → локации. При открытии дерево свёрнуто до уровня типов для быстрого старта.</div>
+              <div class="settings-modal-lead__text">В одной вкладке редактируйте дерево бизнес → тип → город → локации, в другой управляйте live-синхронизацией из <code>iikoServer API</code>.</div>
             </div>
-            <div class="card mb-3">
-              <div class="card-body">
-                <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
-                  <div>
-                    <h6 class="mb-1">Источники iikoServer API</h6>
-                    <p class="small text-muted mb-0">
-                      Эти адреса используются только для live-синхронизации департаментов в структуру локаций.
-                      Они не связаны с <code>AI Ops</code> и кредитами <code>iiko biz</code>. Если поле секрета оставить пустым, текущий сохранённый секрет не изменится.
-                    </p>
-                  </div>
-                  <button class="btn btn-sm btn-outline-primary" type="button" onclick="addLocationsIikoServerSource()">
-                    <i class="bi bi-plus-lg me-1"></i>Добавить источник
-                  </button>
+            <ul class="nav nav-tabs settings-menu-tabs" id="locationsModalTabs" role="tablist">
+              <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="locations-structure-tab" data-bs-toggle="tab" data-bs-target="#locations-structure-pane" type="button" role="tab" aria-controls="locations-structure-pane" aria-selected="true">
+                  <i class="bi bi-diagram-3"></i>
+                  <span>Структура</span>
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" id="locations-sync-tab" data-bs-toggle="tab" data-bs-target="#locations-sync-pane" type="button" role="tab" aria-controls="locations-sync-pane" aria-selected="false">
+                  <i class="bi bi-arrow-repeat"></i>
+                  <span>Синхронизация iikoServer</span>
+                </button>
+              </li>
+            </ul>
+            <div class="tab-content settings-tab-content mt-3">
+              <div class="tab-pane fade show active" id="locations-structure-pane" role="tabpanel" aria-labelledby="locations-structure-tab" tabindex="0">
+                <div class="d-flex flex-wrap gap-2 mb-3">
+                  <button class="btn btn-sm btn-primary" type="button" onclick="openAddLocationWizard()">Добавить запись</button>
+                  <button class="btn btn-sm btn-success" type="button" onclick="addBusiness()">+ Добавить бизнес</button>
                 </div>
-                <div id="locationsIikoServerSourcesEditor" class="mt-3">
-                  <!-- Источники iikoServer будут построены динамически -->
+                <div id="locationsEditor" class="mb-3">
+                  <!-- Дерево будет построено динамически -->
                 </div>
               </div>
-            </div>
-            <div class="d-flex flex-wrap gap-2 mb-3">
-              <button class="btn btn-sm btn-primary" type="button" onclick="openAddLocationWizard()">Добавить запись</button>
-              <button class="btn btn-sm btn-success" type="button" onclick="addBusiness()">+ Добавить бизнес</button>
-            </div>
-            <div id="locationsEditor" class="mb-3">
-              <!-- Дерево будет построено динамически -->
+              <div class="tab-pane fade" id="locations-sync-pane" role="tabpanel" aria-labelledby="locations-sync-tab" tabindex="0">
+                <div class="card mb-3">
+                  <div class="card-body">
+                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+                      <div>
+                        <h6 class="mb-1">Источники iikoServer API</h6>
+                        <p class="small text-muted mb-0">
+                          Эти адреса используются только для live-синхронизации департаментов в структуру локаций.
+                          Они не связаны с <code>AI Ops</code> и кредитами <code>iiko biz</code>. Если поле секрета оставить пустым, текущий сохранённый секрет не изменится.
+                        </p>
+                      </div>
+                      <button class="btn btn-sm btn-outline-primary" type="button" onclick="addLocationsIikoServerSource()">
+                        <i class="bi bi-plus-lg me-1"></i>Добавить источник
+                      </button>
+                    </div>
+                    <div id="locationsIikoServerSourcesEditor" class="mt-3">
+                      <!-- Источники iikoServer будут построены динамически -->
+                    </div>
+                  </div>
+                </div>
+                <div class="row g-3">
+                  <div class="col-lg-5">
+                    <div class="card h-100">
+                      <div class="card-body">
+                        <h6 class="mb-2">Расписание синхронизации</h6>
+                        <p class="small text-muted mb-3">Панель проверяет это расписание автоматически и запускает очередную sync без рестарта приложения.</p>
+                        <div class="form-check form-switch mb-3">
+                          <input class="form-check-input" type="checkbox" id="locationsIikoSyncEnabled" onchange="updateLocationsIikoSyncSetting('enabled', this.checked)">
+                          <label class="form-check-label" for="locationsIikoSyncEnabled">Включить автосинхронизацию</label>
+                        </div>
+                        <label class="form-label" for="locationsIikoSyncInterval">Интервал, минут</label>
+                        <input class="form-control" type="number" min="1" max="1440" id="locationsIikoSyncInterval" oninput="updateLocationsIikoSyncSetting('interval_minutes', this.value)">
+                        <div class="form-text">Минимум 1 минута, максимум 1440 минут.</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-lg-7">
+                    <div class="card h-100">
+                      <div class="card-body">
+                        <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+                          <div>
+                            <h6 class="mb-1">Принудительная синхронизация</h6>
+                            <p class="small text-muted mb-0">Сохраняет текущие sync-настройки и запускает обновление live-структуры прямо сейчас.</p>
+                          </div>
+                          <button class="btn btn-primary" type="button" id="locationsSyncRunBtn" onclick="runLocationsIikoSyncNow()">
+                            <i class="bi bi-play-fill me-1"></i>Синхронизировать сейчас
+                          </button>
+                        </div>
+                        <div class="progress mb-2" role="progressbar" aria-label="Статус синхронизации локаций">
+                          <div id="locationsSyncProgressBar" class="progress-bar progress-bar-striped" style="width: 0%">0%</div>
+                        </div>
+                        <div class="small text-muted mb-3" id="locationsSyncStatusText">Синхронизация ещё не запускалась.</div>
+                        <div class="small" id="locationsSyncMeta"></div>
+                        <div class="small text-danger mt-2 d-none" id="locationsSyncWarnings"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
           <div class="modal-footer justify-content-end">
@@ -13419,7 +13477,9 @@
   const EXPAND_ICON_HTML = '<i class="bi bi-chevron-right"></i>';
   const LOCATIONS_INITIAL = /*[[${locationsPayload}]]*/ {};
   const LOCATIONS_IIKO_SERVER_SOURCES_INITIAL = /*[[${locationsIikoServerSources}]]*/ [];
+  const LOCATIONS_IIKO_SYNC_SETTINGS_INITIAL = /*[[${locationsIikoSyncSettings}]]*/ {};
   const collapsedLocationNodes = new Set();
+  let locationsSyncStatusPollTimer = null;
 
   function createLocationsIikoServerSourceId() {
     return `iiko-source-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -13474,6 +13534,19 @@
 
   let locationsIikoServerSourcesState = sanitizeLocationsIikoServerSources(LOCATIONS_IIKO_SERVER_SOURCES_INITIAL);
 
+  function sanitizeLocationsIikoSyncSettings(source) {
+    const normalized = source && typeof source === 'object' ? source : {};
+    const enabled = typeof normalized.enabled === 'boolean' ? normalized.enabled : true;
+    const rawInterval = Number.parseInt(String(normalized.interval_minutes ?? normalized.intervalMinutes ?? 5), 10);
+    const intervalMinutes = Number.isFinite(rawInterval) ? Math.min(1440, Math.max(1, rawInterval)) : 5;
+    return {
+      enabled,
+      interval_minutes: intervalMinutes,
+    };
+  }
+
+  let locationsIikoSyncSettingsState = sanitizeLocationsIikoSyncSettings(LOCATIONS_IIKO_SYNC_SETTINGS_INITIAL);
+
   function serializeLocationsIikoServerSources() {
     return sanitizeLocationsIikoServerSources(locationsIikoServerSourcesState).map((source) => ({
       id: source.id,
@@ -13483,6 +13556,10 @@
       api_secret: source.api_secret,
       enabled: Boolean(source.enabled),
     }));
+  }
+
+  function serializeLocationsIikoSyncSettings() {
+    return sanitizeLocationsIikoSyncSettings(locationsIikoSyncSettingsState);
   }
 
   function renderLocationsIikoServerSourcesEditor() {
@@ -13576,6 +13653,183 @@
         </div>
       `;
     }).join('');
+  }
+
+  function renderLocationsIikoSyncSettings() {
+    const enabledInput = document.getElementById('locationsIikoSyncEnabled');
+    const intervalInput = document.getElementById('locationsIikoSyncInterval');
+    if (enabledInput) {
+      enabledInput.checked = Boolean(locationsIikoSyncSettingsState.enabled);
+    }
+    if (intervalInput) {
+      intervalInput.value = String(locationsIikoSyncSettingsState.interval_minutes || 5);
+      intervalInput.disabled = !Boolean(locationsIikoSyncSettingsState.enabled);
+    }
+  }
+
+  function updateLocationsIikoSyncSetting(field, value) {
+    const next = { ...locationsIikoSyncSettingsState };
+    if (field === 'enabled') {
+      next.enabled = Boolean(value);
+    } else if (field === 'interval_minutes') {
+      const parsed = Number.parseInt(String(value || '').trim(), 10);
+      next.interval_minutes = Number.isFinite(parsed) ? Math.min(1440, Math.max(1, parsed)) : 5;
+    }
+    locationsIikoSyncSettingsState = sanitizeLocationsIikoSyncSettings(next);
+    renderLocationsIikoSyncSettings();
+  }
+
+  function formatLocationsSyncTimestamp(value) {
+    if (!value || value === 'after_startup_tick') {
+      return value === 'after_startup_tick' ? 'после ближайшего тика scheduler' : '—';
+    }
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      return value;
+    }
+    return parsed.toLocaleString('ru-RU');
+  }
+
+  function renderLocationsSyncStatus(status) {
+    const normalized = status && typeof status === 'object' ? status : {};
+    const state = String(normalized.state || 'idle').trim().toLowerCase();
+    const progressPercent = Math.min(100, Math.max(0, Number.parseInt(String(normalized.progressPercent ?? normalized.progress_percent ?? 0), 10) || 0));
+    const message = String(normalized.message || 'Синхронизация ещё не запускалась.').trim();
+    const running = Boolean(normalized.running || state === 'running');
+    const warnings = Array.isArray(normalized.warnings) ? normalized.warnings.filter(Boolean) : [];
+
+    const progressBar = document.getElementById('locationsSyncProgressBar');
+    const statusText = document.getElementById('locationsSyncStatusText');
+    const metaNode = document.getElementById('locationsSyncMeta');
+    const warningsNode = document.getElementById('locationsSyncWarnings');
+    const runButton = document.getElementById('locationsSyncRunBtn');
+
+    if (progressBar) {
+      progressBar.style.width = `${progressPercent}%`;
+      progressBar.textContent = `${progressPercent}%`;
+      progressBar.classList.toggle('progress-bar-striped', running);
+      progressBar.classList.toggle('progress-bar-animated', running);
+      progressBar.classList.remove('bg-success', 'bg-danger', 'bg-warning');
+      if (state === 'success') {
+        progressBar.classList.add('bg-success');
+      } else if (state === 'error') {
+        progressBar.classList.add('bg-danger');
+      } else if (state === 'skipped' || state === 'disabled') {
+        progressBar.classList.add('bg-warning');
+      }
+    }
+    if (statusText) {
+      statusText.textContent = message;
+    }
+    if (metaNode) {
+      const parts = [];
+      parts.push(`Триггер: ${normalized.trigger ? String(normalized.trigger) : '—'}`);
+      parts.push(`Автосинхронизация: ${normalized.intervalMinutes ? `каждые ${normalized.intervalMinutes} мин` : '—'}`);
+      parts.push(`Старт: ${formatLocationsSyncTimestamp(normalized.startedAtUtc || normalized.started_at_utc)}`);
+      parts.push(`Финиш: ${formatLocationsSyncTimestamp(normalized.finishedAtUtc || normalized.finished_at_utc)}`);
+      parts.push(`Следующий запуск: ${formatLocationsSyncTimestamp(normalized.nextRunAtUtc || normalized.next_run_at_utc)}`);
+      parts.push(`Изменения: ${normalized.changed ? 'да' : 'нет'}`);
+      metaNode.innerHTML = parts.map((item) => `<div>${escapeHtml(item)}</div>`).join('');
+    }
+    if (warningsNode) {
+      if (warnings.length) {
+        warningsNode.classList.remove('d-none');
+        warningsNode.textContent = warnings.join('\n');
+      } else {
+        warningsNode.classList.add('d-none');
+        warningsNode.textContent = '';
+      }
+    }
+    if (runButton) {
+      runButton.disabled = running;
+      runButton.innerHTML = running
+        ? '<i class="bi bi-arrow-repeat me-1"></i>Синхронизация идёт'
+        : '<i class="bi bi-play-fill me-1"></i>Синхронизировать сейчас';
+    }
+  }
+
+  async function loadLocationsSyncStatus() {
+    try {
+      const response = await fetch('/api/settings/locations-sync/status');
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      const status = await response.json();
+      renderLocationsSyncStatus(status);
+      const running = Boolean(status && (status.running || String(status.state || '').toLowerCase() === 'running'));
+      if (!running) {
+        stopLocationsSyncStatusPolling();
+      }
+      return status;
+    } catch (error) {
+      renderLocationsSyncStatus({
+        state: 'error',
+        progressPercent: 100,
+        message: `Не удалось получить статус синхронизации: ${error.message}`,
+        running: false,
+        warnings: [],
+      });
+      stopLocationsSyncStatusPolling();
+      return null;
+    }
+  }
+
+  function startLocationsSyncStatusPolling() {
+    if (locationsSyncStatusPollTimer) {
+      return;
+    }
+    locationsSyncStatusPollTimer = window.setInterval(() => {
+      loadLocationsSyncStatus();
+    }, 1500);
+  }
+
+  function stopLocationsSyncStatusPolling() {
+    if (!locationsSyncStatusPollTimer) {
+      return;
+    }
+    window.clearInterval(locationsSyncStatusPollTimer);
+    locationsSyncStatusPollTimer = null;
+  }
+
+  async function saveLocationsSyncSettingsOnly() {
+    const response = await fetch('/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        locations_iiko_server_sources: serializeLocationsIikoServerSources(),
+        locations_iiko_sync: serializeLocationsIikoSyncSettings(),
+      }),
+    });
+    const data = await response.json();
+    if (!data.success) {
+      throw new Error(data.error || 'неизвестная ошибка');
+    }
+    markLocationsIikoServerSourcesSaved();
+    return data;
+  }
+
+  async function runLocationsIikoSyncNow() {
+    try {
+      await saveLocationsSyncSettingsOnly();
+      const response = await fetch('/api/settings/locations-sync/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await response.json();
+      if (!data.success) {
+        throw new Error(data.error || 'неизвестная ошибка');
+      }
+      if (data.status) {
+        renderLocationsSyncStatus(data.status);
+      }
+      if (!data.started) {
+        showPopup('Синхронизация уже выполняется.');
+      }
+      startLocationsSyncStatusPolling();
+      await loadLocationsSyncStatus();
+    } catch (error) {
+      showPopup('❌ Не удалось запустить синхронизацию: ' + error.message);
+    }
   }
 
   function addLocationsIikoServerSource() {
@@ -14750,6 +15004,7 @@
         body: JSON.stringify({
           locations: locationsState,
           locations_iiko_server_sources: serializeLocationsIikoServerSources(),
+          locations_iiko_sync: serializeLocationsIikoSyncSettings(),
         }),
       });
       const data = await response.json();
@@ -20126,6 +20381,7 @@
           client_statuses: statuses,
           locations: locationsState,
           locations_iiko_server_sources: serializeLocationsIikoServerSources(),
+          locations_iiko_sync: serializeLocationsIikoSyncSettings(),
           network_profiles: networkProfilesPayload,
           dialog_category_templates: categoryTemplates,
           dialog_question_templates: questionTemplates,
@@ -20170,10 +20426,29 @@
     initDialogStatusBadges();
     initLocationWizard();
     renderLocationsIikoServerSourcesEditor();
+    renderLocationsIikoSyncSettings();
+    loadLocationsSyncStatus();
     buildLocationsTree();
     initChannelsManagement();
     loadParameters();
     renderNetworkProfiles();
+
+    const locationsModalEl = document.getElementById('locationsModal');
+    if (locationsModalEl) {
+      locationsModalEl.addEventListener('shown.bs.modal', () => {
+        renderLocationsIikoServerSourcesEditor();
+        renderLocationsIikoSyncSettings();
+        loadLocationsSyncStatus().then((status) => {
+          const running = Boolean(status && (status.running || String(status.state || '').toLowerCase() === 'running'));
+          if (running) {
+            startLocationsSyncStatusPolling();
+          }
+        });
+      });
+      locationsModalEl.addEventListener('hidden.bs.modal', () => {
+        stopLocationsSyncStatusPolling();
+      });
+    }
 
     try {
       const params = new URLSearchParams(window.location.search);

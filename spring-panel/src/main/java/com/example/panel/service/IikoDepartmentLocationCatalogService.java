@@ -80,9 +80,13 @@ public class IikoDepartmentLocationCatalogService {
     }
 
     public LocationCatalogSnapshot loadCatalog() {
+        return loadCatalog(false);
+    }
+
+    public LocationCatalogSnapshot loadCatalog(boolean forceRefresh) {
         LocationCatalogSnapshot fallback = loadFallbackCatalog();
         CachedCatalog cached = cachedCatalog;
-        if (cached != null && cached.isFresh()) {
+        if (!forceRefresh && cached != null && cached.isFresh()) {
             return cached.snapshot();
         }
 
