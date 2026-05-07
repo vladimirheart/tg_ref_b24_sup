@@ -22,17 +22,25 @@ class DialogWorkspaceClientContextAssemblerServiceTest {
     private final DialogWorkspaceContextContractService contextContractService = mock(DialogWorkspaceContextContractService.class);
     private final DialogClientContextReadService clientContextReadService = mock(DialogClientContextReadService.class);
     private final DialogWorkspaceRequestContractService requestContractService = new DialogWorkspaceRequestContractService();
+    private final DialogWorkspaceProfileEnrichmentService profileEnrichmentService =
+            new DialogWorkspaceProfileEnrichmentService(externalProfileService, clientPayloadService);
+    private final DialogWorkspaceClientCardService clientCardService =
+            new DialogWorkspaceClientCardService(clientProfileService, clientPayloadService);
+    private final DialogWorkspaceContextGraphService contextGraphService =
+            new DialogWorkspaceContextGraphService(
+                    contextSourceService,
+                    contextBlockService,
+                    contextContractService,
+                    clientContextReadService,
+                    clientProfileService,
+                    requestContractService
+            );
 
     private final DialogWorkspaceClientContextAssemblerService service =
             new DialogWorkspaceClientContextAssemblerService(
-                    externalProfileService,
-                    clientProfileService,
-                    contextBlockService,
-                    clientPayloadService,
-                    contextSourceService,
-                    contextContractService,
-                    clientContextReadService,
-                    requestContractService
+                    profileEnrichmentService,
+                    clientCardService,
+                    contextGraphService
             );
 
     @Test

@@ -230,8 +230,11 @@ public class SettingsMacroTemplateService {
             boolean wasDeprecated = previous != null && asBoolean(previous.get("deprecated"));
             String previousDeprecatedAt = previous != null ? stringValue(previous.get("deprecated_at")) : "";
             String previousDeprecatedBy = previous != null ? stringValue(previous.get("deprecated_by")) : "";
+            String requestedDeprecatedAt = stringValue(sourceMap.get("deprecated_at"));
             String deprecatedAt = deprecated
-                    ? (wasDeprecated && StringUtils.hasText(previousDeprecatedAt) ? previousDeprecatedAt : now)
+                    ? (wasDeprecated && StringUtils.hasText(previousDeprecatedAt)
+                    ? previousDeprecatedAt
+                    : (StringUtils.hasText(requestedDeprecatedAt) ? requestedDeprecatedAt : now))
                     : "";
             String deprecatedBy = deprecated
                     ? (wasDeprecated && StringUtils.hasText(previousDeprecatedBy) ? previousDeprecatedBy : normalizedActor)

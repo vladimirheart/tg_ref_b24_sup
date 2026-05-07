@@ -2,7 +2,7 @@
 **Дата:** 8 апреля 2026  
 **Статус:** Актуально, но в активной фазе исправления  
 **Актуализация:** 9 апреля 2026 (см. `docs/ARCHITECTURE_AUDIT_VALIDATION_2026-04-09.md`)  
-**Последняя актуализация:** 6 мая 2026
+**Последняя актуализация:** 7 мая 2026
 
 ---
 
@@ -18,6 +18,7 @@
 ✅ `Phase 3` по giant `dialogs` split завершён: `DialogService` доведён до thin facade  
 ✅ `Phase 4` по giant `settings` transport/update split завершён  
 ✅ Post-phase hardening по notifier/runtime сильно продвинут и больше не выглядит как giant-wrapper проблема  
+✅ Macro-governance audit slice разрезан на bounded services и стабилизирован по legacy integration contract  
 
 ---
 
@@ -40,6 +41,9 @@ contracts.
   smoke coverage больше не точечная, а системная;
 - notifier/runtime hardening вокруг SLA routing уже доведён до небольших
   bounded services вместо giant wrappers.
+- macro-governance audit больше не является giant-helper проблемой:
+  config/template/checkpoint/payload слой уже выделен и дополнительно
+  стабилизирован по mixed SQLite timestamp / shared-config compatibility.
 
 Что ещё остаётся:
 
@@ -54,10 +58,12 @@ contracts.
 
 Что сейчас в приоритете:
 
-1. `P1`: не дать orchestration-risk переехать в `DialogWorkspaceService` и
+1. `P1`: забрать следующий крупный bounded context из
+   `DialogWorkspaceRolloutGovernanceService`, `DialogAiAssistantService` или
+   `PublicFormService`, потому что именно там сейчас основной architectural
+   weight.
+2. `P1`: не дать orchestration-risk переехать в `DialogWorkspaceService` и
    смежные workspace/reply/notifier consumers.
-2. `P1`: продолжать notifier/runtime hardening только там, где bounded
-   services снова начинают расти или где не хватает integration-quality.
 3. `P1`: довести shared-config/runtime contract до более явного
    cross-module правила.
 4. `P2`: стабилизировать DTO/error contract и persistence/API governance.
@@ -134,6 +140,15 @@ contracts.
 - следующим пакетом `DialogMacroGovernanceAuditService` перестал быть тонкой
   обёрткой над giant service и стал самостоятельным owner’ом
   macro-governance audit slice;
+- следующим более широким пакетом сам macro-governance audit slice уже
+  разрезан на `DialogMacroGovernanceConfigService`,
+  `DialogMacroGovernanceTemplateAuditService`,
+  `DialogMacroGovernanceCheckpointService` и
+  `DialogMacroGovernanceAuditPayloadService`; вместе с этим возвращён
+  compatibility baseline для mixed SQLite timestamps, legacy `deprecated_at`,
+  minimum required checkpoints и historical noise heuristic, так что
+  integration-сценарий `macroGovernanceAuditHighlightsOwnershipReviewAndUsageGaps`
+  снова проходит;
 - следующим пакетом и последний прямой consumer-хвост в основном
   service/controller-слое снят с giant service: `DialogWorkspaceTelemetrySummaryService`
   сначала был переведён на compatibility bridge, а затем и сам summary-слой
@@ -208,6 +223,11 @@ contracts.
   consumer-зависимости `DialogWorkspaceTelemetrySummaryService ->
   DialogService` больше нет, а следующий шаг там уже не в bridge-cleanup,
   а в hardening notifier/runtime contracts и соседних orchestration tails;
+- `DialogMacroGovernanceAuditService` уже не выглядит remaining hotspot:
+  после выноса config/template/checkpoint/payload bounded services он стал
+  thin coordinator, а риск сместился с giant audit-builder на
+  shared-config/integration compatibility, которая теперь тоже частично
+  стабилизирована regression-net’ом;
 - важный реальный progress point: `buildMacroGovernanceAudit(...)` в
   `DialogService` теперь лишь compatibility delegate, а constructor giant
   service уже не тянет `DialogMacroGovernanceSupportService`, потому что
@@ -672,6 +692,7 @@ integration-сценария поверх users/settings runtime boundary всё
 
 ### Фаза 6: Quality and governance
 - [ ] Досузить remaining orchestration tails в `DialogWorkspaceService` и вокруг workspace consumers
+- [ ] Забрать следующий крупный bounded context из `DialogWorkspaceRolloutGovernanceService`, `DialogAiAssistantService` или `PublicFormService`
 - [ ] Решить, где следующий уровень проверки должен стать integration/e2e, а не только targeted runtime/unit net
 - [ ] Довести DTO/API contract до системного правила
 - [ ] Закрепить единый error contract и API governance
@@ -680,16 +701,15 @@ integration-сценария поверх users/settings runtime boundary всё
 
 ## 📁 Следующие шаги
 
-1. Сначала удержать под контролем `DialogWorkspaceService` и соседние
+1. Следующим крупным refactoring пакетом забрать
+   `DialogWorkspaceRolloutGovernanceService` либо `PublicFormService`, потому
+   что именно там сейчас самый заметный architectural weight.
+2. Параллельно удержать под контролем `DialogWorkspaceService` и соседние
    workspace consumers, чтобы orchestration-risk не переехал туда после
-   завершения `Phase 3`.
-2. Затем продолжать notifier/runtime hardening только по локальным bounded
-   services, которые реально начинают разрастаться, а не через новый giant
-   split.
-3. Следующим системным шагом поднять уровень проверки: больше
-   integration-сценариев для shared config/runtime и panel-bot orchestration
-   boundary.
-4. После этого переходить к cross-module unification:
+   уже закрытого giant `DialogService`.
+3. notifier/runtime hardening продолжать только адресно:
+   по integration-quality и compatibility, а не через новый giant split.
+4. После этого поднимать уровень cross-module unification:
    `SharedConfigService`, runtime contract, DTO/error contract и API
    governance.
 

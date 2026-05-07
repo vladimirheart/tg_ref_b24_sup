@@ -46,6 +46,21 @@ class DialogMacroGovernanceSupportServiceTest {
     }
 
     @Test
+    void loadsMacroTemplateUsageFromEpochMillisTelemetryAudit() {
+        Instant now = Instant.now();
+        insertAudit("macro_apply", "macro-2", "Refund", String.valueOf(now.minusSeconds(40L * 24L * 3600L).toEpochMilli()), null);
+        insertAudit("macro_preview", "macro-2", "Refund", String.valueOf(now.minusSeconds(10).toEpochMilli()), null);
+
+        Map<String, Object> usage = service.loadMacroTemplateUsage("macro-2", "Refund", 30);
+
+        assertThat(usage)
+                .containsEntry("usage_count", 0L)
+                .containsEntry("preview_count", 1L)
+                .containsEntry("error_count", 0L);
+        assertThat(String.valueOf(usage.get("last_used_at"))).contains("T");
+    }
+
+    @Test
     void resolvesKnownVariablesAliasesAndIssuePayload() {
         Map<String, Object> dialogConfig = Map.of(
                 "macro_variable_catalog", List.of(Map.of("key", "ORDER_ID"), Map.of("key", "client_name")),

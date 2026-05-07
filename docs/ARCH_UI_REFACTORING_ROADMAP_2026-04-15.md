@@ -1,7 +1,7 @@
 # Architecture And UI Refactoring Roadmap
 
 Дата старта: `2026-04-15`
-Обновлено: `2026-04-30`
+Обновлено: `2026-05-07`
 
 ## Цель
 
@@ -32,15 +32,19 @@
 
 Что остаётся главными hotspots:
 
-- `DialogService` всё ещё слишком крупный и остаётся главным кандидатом на
-  service-level split по bounded context;
-- в `settings` ещё не выделены оставшиеся крупные поддомены уровня
-  `catalog/reference/bot-settings/partner-network`;
-- Phase 5 начат, но ещё не доведён до полноценного runtime contract между
+- `DialogService` уже больше не hotspot: `Phase 3` закрыта, giant dialog split
+  доведён до thin facade;
+- giant `/settings` transport/update тоже больше не hotspot: `Phase 4`
+  закрыта, а remaining риск смещён в consistency/hardening;
+- сейчас main architectural weight находится в
+  `DialogWorkspaceRolloutGovernanceService`, `DialogAiAssistantService` и
+  `PublicFormService`;
+- Phase 5 всё ещё не доведён до полноценного runtime contract между
   `spring-panel` и `java-bot`;
-- Phase 6 пока даёт только точечную страховку, а не широкий regression net;
-- крупные inline `style/script` блоки в `settings`, `dashboard`, `dialogs`
-  остаются техническим долгом UI-слоя.
+- Phase 6 уже широкая и системная, но ей всё ещё не хватает следующего слоя
+  integration/e2e quality;
+- часть inline `style/script` блоков в `settings`, `dashboard`, `dialogs`
+  остаётся техническим долгом UI-слоя, но это уже не главный риск.
 
 ## Фазы
 
@@ -724,8 +728,13 @@
    `DialogWorkspaceTelemetryService` вынес control-builder bounded context и
    сжался примерно до `222` строк, `WorkspaceGuardrailWebhookNotifier`
    переведён на command/delivery split и сжался примерно до `43` строк.
-6. `Phase 5` уже начат в коде.
-7. `Phase 6` усилен адресными runtime/UI тестами и уже покрывает основной
+6. Macro-governance audit slice тоже уже не giant-helper проблема:
+   `DialogMacroGovernanceAuditService` стал thin coordinator поверх
+   config/template/checkpoint/payload bounded services, а compatibility
+   contract для mixed SQLite timestamps и legacy shared-config fixtures
+   закреплён regression/integration tests.
+7. `Phase 5` уже начат в коде.
+8. `Phase 6` усилен адресными runtime/UI тестами и уже покрывает основной
    sliced dialog/settings controller layer, shared config/env foundation и
    заметную часть page bootstrap contract; дополнительно туда уже вошли
    `autostart`, `integration network`, `bot process api`, `auth management`
@@ -742,8 +751,10 @@
 
 1. `Phase 3` и `Phase 4` считать закрытыми и не возвращаться к ним как к
    giant-split проблемам.
-2. Главный практический фокус держать на `DialogWorkspaceService` и соседних
-   workspace consumers, чтобы orchestration-risk не переехал туда.
+2. Главный практический фокус теперь держать на
+   `DialogWorkspaceRolloutGovernanceService`, `DialogAiAssistantService` и
+   `PublicFormService`, а `DialogWorkspaceService` удерживать как thin
+   orchestration layer.
 3. Параллельно продолжать `Phase 5/6` уже не по giant wrappers, а по
    shared-config/runtime consistency и integration-quality.
 4. В notifier/runtime hardening идти только по локальным bounded services,
@@ -753,13 +764,13 @@
 
 Актуальный порядок после уже выполненных этапов:
 
-1. Довести `Phase 5` от launcher strategy до более явного runtime contract.
-2. Расширить `Phase 6`, чтобы новые refactor-проходы шли уже под
+1. Забрать следующий крупный bounded context из
+   `DialogWorkspaceRolloutGovernanceService` либо `PublicFormService`.
+2. Довести `Phase 5` от launcher strategy до более явного runtime contract.
+3. Расширить `Phase 6`, чтобы новые refactor-проходы шли уже под
    integration-quality, а не только под targeted tests.
-3. Дожать `DialogWorkspaceService` и соседние workspace/reply/notifier
-   consumers как главный orchestration risk.
-4. Добить remaining telemetry/runtime integration tails и решить, где нужен
-   следующий integration/e2e слой, а где достаточно targeted runtime tests.
+4. Держать `DialogWorkspaceService` и соседние workspace consumers в
+   thin-orchestration диапазоне, не возвращая giant-service риск.
 5. Держать `settings` в режиме hardening, а не giant split: `Phase 4` уже
    выполнена, поэтому там приоритет только у regression/integration quality.
 

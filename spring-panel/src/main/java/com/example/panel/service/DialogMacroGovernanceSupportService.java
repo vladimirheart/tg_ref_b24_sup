@@ -9,6 +9,9 @@ import org.springframework.util.StringUtils;
 
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -55,15 +58,11 @@ public class DialogMacroGovernanceSupportService {
         }
         List<Object> args = new ArrayList<>();
         StringBuilder sql = new StringBuilder("""
-                SELECT SUM(CASE WHEN event_type = 'macro_apply' THEN 1 ELSE 0 END) AS usage_count,
-                       SUM(CASE WHEN event_type = 'macro_preview' THEN 1 ELSE 0 END) AS preview_count,
-                       SUM(CASE WHEN error_code IS NOT NULL AND TRIM(CAST(error_code AS TEXT)) <> '' THEN 1 ELSE 0 END) AS error_count,
-                       MAX(CASE WHEN event_type = 'macro_apply' THEN created_at ELSE NULL END) AS last_used_at
+                SELECT event_type, error_code, created_at
                   FROM workspace_telemetry_audit
                  WHERE event_type IN ('macro_apply', 'macro_preview')
-                   AND created_at >= ?
                 """);
-        args.add(Timestamp.from(Instant.now().minusSeconds(Math.max(1, usageWindowDays) * 24L * 3600L)));
+        Instant windowStart = Instant.now().minusSeconds(Math.max(1, usageWindowDays) * 24L * 3600L);
         if (StringUtils.hasText(templateId) && StringUtils.hasText(templateName)) {
             sql.append(" AND (template_id = ? OR template_name = ?)");
             args.add(templateId);
@@ -76,15 +75,44 @@ public class DialogMacroGovernanceSupportService {
             args.add(templateName);
         }
         try {
-            return jdbcTemplate.queryForObject(sql.toString(), (rs, rowNum) -> {
+            List<Map<String, Object>> rows = jdbcTemplate.query(sql.toString(), (rs, rowNum) -> {
                 Map<String, Object> row = new LinkedHashMap<>();
-                row.put("usage_count", rs.getLong("usage_count"));
-                row.put("preview_count", rs.getLong("preview_count"));
-                row.put("error_count", rs.getLong("error_count"));
-                Object lastUsed = rs.getObject("last_used_at");
-                row.put("last_used_at", lastUsed != null ? String.valueOf(lastUsed) : "");
+                row.put("event_type", rs.getString("event_type"));
+                row.put("error_code", rs.getObject("error_code"));
+                row.put("created_at", rs.getObject("created_at"));
                 return row;
             }, args.toArray());
+            long usageCount = 0L;
+            long previewCount = 0L;
+            long errorCount = 0L;
+            Instant lastUsedAt = null;
+            for (Map<String, Object> row : rows) {
+                Instant createdAt = parseTelemetryTimestamp(row.get("created_at"));
+                if (createdAt == null) {
+                    continue;
+                }
+                String eventType = normalizeNullString(String.valueOf(row.get("event_type")));
+                boolean insideWindow = !createdAt.isBefore(windowStart);
+                if ("macro_apply".equals(eventType)) {
+                    if (insideWindow) {
+                        usageCount += 1;
+                    }
+                    if (lastUsedAt == null || createdAt.isAfter(lastUsedAt)) {
+                        lastUsedAt = createdAt;
+                    }
+                } else if ("macro_preview".equals(eventType) && insideWindow) {
+                    previewCount += 1;
+                }
+                if (insideWindow && row.get("error_code") != null && StringUtils.hasText(String.valueOf(row.get("error_code")))) {
+                    errorCount += 1;
+                }
+            }
+            Map<String, Object> usage = new LinkedHashMap<>();
+            usage.put("usage_count", usageCount);
+            usage.put("preview_count", previewCount);
+            usage.put("error_count", errorCount);
+            usage.put("last_used_at", lastUsedAt != null ? lastUsedAt.toString() : "");
+            return usage;
         } catch (DataAccessException ex) {
             log.warn("Unable to load macro usage audit for template {}: {}", templateId, DialogDataAccessSupport.summarizeDataAccessException(ex));
             return Map.of("usage_count", 0L, "preview_count", 0L, "error_count", 0L, "last_used_at", "");
@@ -206,5 +234,29 @@ public class DialogMacroGovernanceSupportService {
             case "ok", "attention", "hold", "off" -> normalized;
             default -> "hold";
         };
+    }
+
+    private Instant parseTelemetryTimestamp(Object rawValue) {
+        String value = normalizeNullString(rawValue == null ? null : String.valueOf(rawValue));
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        try {
+            return Instant.ofEpochMilli(Long.parseLong(value));
+        } catch (Exception ignored) {
+        }
+        try {
+            return OffsetDateTime.parse(value).toInstant();
+        } catch (Exception ignored) {
+        }
+        try {
+            return LocalDateTime.parse(value).toInstant(ZoneOffset.UTC);
+        } catch (Exception ignored) {
+        }
+        try {
+            return Timestamp.valueOf(value).toInstant();
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 }

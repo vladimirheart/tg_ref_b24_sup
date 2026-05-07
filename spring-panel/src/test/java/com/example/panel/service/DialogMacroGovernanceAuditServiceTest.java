@@ -14,10 +14,20 @@ import static org.mockito.Mockito.when;
 
 class DialogMacroGovernanceAuditServiceTest {
 
+    private DialogMacroGovernanceAuditService buildService(DialogMacroGovernanceSupportService supportService) {
+        DialogMacroGovernanceConfigService configService = new DialogMacroGovernanceConfigService(supportService);
+        DialogMacroGovernanceTemplateAuditService templateAuditService =
+                new DialogMacroGovernanceTemplateAuditService(supportService, configService);
+        DialogMacroGovernanceCheckpointService checkpointService =
+                new DialogMacroGovernanceCheckpointService(supportService, configService);
+        DialogMacroGovernanceAuditPayloadService payloadService = new DialogMacroGovernanceAuditPayloadService();
+        return new DialogMacroGovernanceAuditService(configService, templateAuditService, checkpointService, payloadService);
+    }
+
     @Test
     void returnsOffStatusWhenMacroTemplatesAreMissing() {
         DialogMacroGovernanceSupportService supportService = mock(DialogMacroGovernanceSupportService.class);
-        DialogMacroGovernanceAuditService service = new DialogMacroGovernanceAuditService(supportService);
+        DialogMacroGovernanceAuditService service = buildService(supportService);
 
         Map<String, Object> audit = service.buildAudit(Map.of());
 
@@ -29,7 +39,7 @@ class DialogMacroGovernanceAuditServiceTest {
     @Test
     void reportsMissingOwnerForPublishedTemplateWhenOwnerIsRequired() {
         DialogMacroGovernanceSupportService supportService = mock(DialogMacroGovernanceSupportService.class);
-        DialogMacroGovernanceAuditService service = new DialogMacroGovernanceAuditService(supportService);
+        DialogMacroGovernanceAuditService service = buildService(supportService);
         when(supportService.resolveKnownMacroVariableKeys(any())).thenReturn(Set.of("client_name"));
         when(supportService.loadMacroTemplateUsage(eq("macro-1"), eq("Welcome"), eq(30)))
                 .thenReturn(Map.of("usage_count", 0L, "preview_count", 0L, "error_count", 0L, "last_used_at", ""));
