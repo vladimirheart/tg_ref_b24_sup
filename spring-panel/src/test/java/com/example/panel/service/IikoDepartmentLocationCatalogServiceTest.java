@@ -2,10 +2,14 @@ package com.example.panel.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.sun.net.httpserver.HttpServer;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.net.InetSocketAddress;
 import java.nio.file.Files;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
 class IikoDepartmentLocationCatalogServiceTest {
@@ -155,6 +159,54 @@ class IikoDepartmentLocationCatalogServiceTest {
         assertThat(snapshot.tree().toString()).contains("Ленина 1");
         assertThat(snapshot.tree().toString()).doesNotContain("CLOSED");
         assertThat(snapshot.warnings()).isEmpty();
+    }
+
+    @Test
+    void httpGatewayUsesIikoServerAuthEndpointWithLoginAndSha1Pass() throws Exception {
+        AtomicInteger authCalls = new AtomicInteger();
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/resto/api/auth", exchange -> {
+            authCalls.incrementAndGet();
+            assertThat(exchange.getRequestMethod()).isEqualTo("GET");
+            assertThat(exchange.getRequestURI().getPath()).isEqualTo("/resto/api/auth");
+            assertThat(exchange.getRequestURI().getRawQuery()).contains("login=test-login");
+            assertThat(exchange.getRequestURI().getRawQuery()).contains("pass=5baa61e4c9b93f3f0682250b6cf8331b7ee68fd8");
+            byte[] body = "token-123".getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, body.length);
+            exchange.getResponseBody().write(body);
+            exchange.close();
+        });
+        server.createContext("/resto/api/corporation/departments/", exchange -> {
+            assertThat(exchange.getRequestURI().getRawQuery()).contains("key=token-123");
+            byte[] body = """
+                    <root>
+                      <corporateItemDto>
+                        <type>DEPARTMENT</type>
+                        <isActive>true</isActive>
+                        <name>ББ Смоленск Ленина 1</name>
+                      </corporateItemDto>
+                    </root>
+                    """.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "application/xml");
+            exchange.sendResponseHeaders(200, body.length);
+            exchange.getResponseBody().write(body);
+            exchange.close();
+        });
+        server.start();
+        try {
+            IikoDepartmentLocationCatalogService.HttpIikoDepartmentGateway gateway =
+                    new IikoDepartmentLocationCatalogService.HttpIikoDepartmentGateway(new ObjectMapper());
+
+            String baseUrl = "http://127.0.0.1:" + server.getAddress().getPort();
+            String token = gateway.requestAccessToken(baseUrl, "test-login", "password");
+            List<String> departments = gateway.loadActiveDepartmentNames(baseUrl, token);
+
+            assertThat(token).isEqualTo("token-123");
+            assertThat(departments).containsExactly("ББ Смоленск Ленина 1");
+            assertThat(authCalls.get()).isEqualTo(1);
+        } finally {
+            server.stop(0);
+        }
     }
 
     private static final class UnsupportedGateway implements IikoDepartmentLocationCatalogService.IikoDepartmentGateway {
