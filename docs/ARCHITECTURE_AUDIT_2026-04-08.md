@@ -692,7 +692,7 @@ integration-сценария поверх users/settings runtime boundary всё
 
 ### Фаза 6: Quality and governance
 - [ ] Досузить remaining orchestration tails в `DialogWorkspaceService` и вокруг workspace consumers
-- [ ] Забрать следующий крупный bounded context из `DialogWorkspaceRolloutGovernanceService`, `DialogAiAssistantService` или `PublicFormService`
+- [ ] Забрать следующий крупный bounded context из `DialogAiAssistantService` или `PublicFormService`
 - [ ] Решить, где следующий уровень проверки должен стать integration/e2e, а не только targeted runtime/unit net
 - [ ] Довести DTO/API contract до системного правила
 - [ ] Закрепить единый error contract и API governance
@@ -702,14 +702,17 @@ integration-сценария поверх users/settings runtime boundary всё
 ## 📁 Следующие шаги
 
 1. Следующим крупным refactoring пакетом забрать
-   `DialogWorkspaceRolloutGovernanceService` либо `PublicFormService`, потому
-   что именно там сейчас самый заметный architectural weight.
+   `DialogAiAssistantService` либо `PublicFormService`: после текущего wide
+   split `DialogWorkspaceRolloutGovernanceService` уже не выглядит главным
+   hotspot’ом и удерживается как bounded coordinator около `449` строк.
 2. Параллельно удержать под контролем `DialogWorkspaceService` и соседние
    workspace consumers, чтобы orchestration-risk не переехал туда после
    уже закрытого giant `DialogService`.
-3. notifier/runtime hardening продолжать только адресно:
+3. `DialogWorkspaceRolloutGovernanceService` держать уже в режиме hardening и
+   compatibility regression, а не как giant-split priority.
+4. notifier/runtime hardening продолжать только адресно:
    по integration-quality и compatibility, а не через новый giant split.
-4. После этого поднимать уровень cross-module unification:
+5. После этого поднимать уровень cross-module unification:
    `SharedConfigService`, runtime contract, DTO/error contract и API
    governance.
 

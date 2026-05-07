@@ -1,8 +1,6 @@
 package com.example.panel.service;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.jdbc.core.JdbcTemplate;
-
 import java.util.List;
 import java.util.Map;
 
@@ -16,7 +14,6 @@ class DialogWorkspaceRolloutGovernanceServiceTest {
 
     @Test
     void buildWorkspaceRolloutPacketReturnsOffWhenGovernanceIsDisabledAndNoSignalsExist() {
-        JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
         SharedConfigService sharedConfigService = mock(SharedConfigService.class);
         DialogWorkspaceTelemetryDataService telemetryDataService = mock(DialogWorkspaceTelemetryDataService.class);
         DialogWorkspaceTelemetryAnalyticsService telemetryAnalyticsService = mock(DialogWorkspaceTelemetryAnalyticsService.class);
@@ -28,11 +25,14 @@ class DialogWorkspaceRolloutGovernanceServiceTest {
         when(telemetryAnalyticsService.computeWorkspaceTelemetryTotals(any()))
                 .thenReturn(Map.of("workspace_open_events", 0L));
 
+        DialogWorkspaceRolloutGovernanceConfigService configService =
+                new DialogWorkspaceRolloutGovernanceConfigService(sharedConfigService);
         DialogWorkspaceRolloutGovernanceService service = new DialogWorkspaceRolloutGovernanceService(
-                jdbcTemplate,
-                sharedConfigService,
-                telemetryDataService,
-                telemetryAnalyticsService
+                configService,
+                new DialogWorkspaceRolloutParityService(mock(org.springframework.jdbc.core.JdbcTemplate.class), telemetryDataService, configService),
+                new DialogWorkspaceRolloutLegacyInventoryService(configService),
+                new DialogWorkspaceRolloutContextContractService(configService),
+                new DialogWorkspaceRolloutLegacyUsagePolicyService(telemetryDataService, telemetryAnalyticsService, configService)
         );
 
         Map<String, Object> packet = service.buildWorkspaceRolloutPacket(

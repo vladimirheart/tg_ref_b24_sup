@@ -752,9 +752,10 @@
 1. `Phase 3` и `Phase 4` считать закрытыми и не возвращаться к ним как к
    giant-split проблемам.
 2. Главный практический фокус теперь держать на
-   `DialogWorkspaceRolloutGovernanceService`, `DialogAiAssistantService` и
-   `PublicFormService`, а `DialogWorkspaceService` удерживать как thin
-   orchestration layer.
+   `DialogAiAssistantService` и `PublicFormService`, а
+   `DialogWorkspaceRolloutGovernanceService` после нового wide split держать
+   уже в режиме hardening/compatibility. `DialogWorkspaceService` при этом
+   удерживать как thin orchestration layer.
 3. Параллельно продолжать `Phase 5/6` уже не по giant wrappers, а по
    shared-config/runtime consistency и integration-quality.
 4. В notifier/runtime hardening идти только по локальным bounded services,
@@ -765,7 +766,7 @@
 Актуальный порядок после уже выполненных этапов:
 
 1. Забрать следующий крупный bounded context из
-   `DialogWorkspaceRolloutGovernanceService` либо `PublicFormService`.
+   `DialogAiAssistantService` либо `PublicFormService`.
 2. Довести `Phase 5` от launcher strategy до более явного runtime contract.
 3. Расширить `Phase 6`, чтобы новые refactor-проходы шли уже под
    integration-quality, а не только под targeted tests.
