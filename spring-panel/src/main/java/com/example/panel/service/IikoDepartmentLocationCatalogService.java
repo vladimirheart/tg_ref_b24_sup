@@ -10,7 +10,6 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -565,13 +564,12 @@ public class IikoDepartmentLocationCatalogService {
 
         @Override
         public String requestAccessToken(String baseUrl, String apiLogin, String apiSecret) throws Exception {
-            String authSecret = normalizeAuthSecret(apiSecret);
             String url = buildUrl(
                     baseUrl,
                     "/resto/api/auth",
                     Map.of(
                             "login", apiLogin,
-                            "pass", authSecret
+                            "pass", apiSecret
                     )
             );
             HttpRequest request = HttpRequest.newBuilder()
@@ -687,28 +685,6 @@ public class IikoDepartmentLocationCatalogService {
             } catch (Exception ignored) {
                 return body.replace("\"", "").trim();
             }
-        }
-
-        private String normalizeAuthSecret(String apiSecret) {
-            String normalizedSecret = firstNonBlank(apiSecret, "");
-            if (looksLikeSha1(normalizedSecret)) {
-                return normalizedSecret;
-            }
-            try {
-                MessageDigest digest = MessageDigest.getInstance("SHA-1");
-                byte[] hash = digest.digest(normalizedSecret.getBytes(StandardCharsets.UTF_8));
-                StringBuilder builder = new StringBuilder(hash.length * 2);
-                for (byte current : hash) {
-                    builder.append(String.format("%02x", current));
-                }
-                return builder.toString();
-            } catch (Exception ex) {
-                throw new IllegalStateException("Не удалось вычислить SHA-1 для iikoServer secret", ex);
-            }
-        }
-
-        private boolean looksLikeSha1(String value) {
-            return StringUtils.hasText(value) && value.matches("(?i)^[0-9a-f]{40}$");
         }
 
         private String childText(Element parent, String tagName) {

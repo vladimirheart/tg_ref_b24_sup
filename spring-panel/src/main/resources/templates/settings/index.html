@@ -13580,8 +13580,8 @@
         ? '<span class="badge text-bg-success-subtle border border-success-subtle text-success-emphasis">Активен</span>'
         : '<span class="badge text-bg-secondary-subtle border">Выключен</span>';
       const secretHint = source.api_secret_saved
-        ? 'Секрет уже сохранён. Оставьте поле пустым, чтобы не менять его.'
-        : 'Секрет пока не сохранён. Без него источник не будет участвовать в синхронизации.';
+        ? 'SHA-1 пароль уже сохранён. Оставьте поле пустым, чтобы не менять его.'
+        : 'Укажите SHA-1 пароль пользователя iikoServer. Без него источник не будет участвовать в синхронизации.';
       return `
         <div class="card mb-3">
           <div class="card-body">
@@ -13616,7 +13616,7 @@
                 >
               </div>
               <div class="col-md-3">
-                <label class="form-label">API login</label>
+                <label class="form-label">Логин iikoServer</label>
                 <input
                   type="text"
                   class="form-control"
@@ -13626,15 +13626,15 @@
                 >
               </div>
               <div class="col-md-8">
-                <label class="form-label">API secret</label>
+                <label class="form-label">SHA-1 пароль</label>
                 <input
                   type="password"
                   class="form-control"
-                  placeholder="${source.api_secret_saved ? 'Секрет сохранён, введите новый только для замены' : 'Введите секрет'}"
+                  placeholder="${source.api_secret_saved ? 'Пароль сохранён, введите новый SHA-1 только для замены' : '40-символьный SHA-1 hex'}"
                   value=""
                   oninput="updateLocationsIikoServerSource(${index}, 'api_secret', this.value)"
                 >
-                <div class="form-text">${escapeHtml(secretHint)}</div>
+                <div class="form-text">${escapeHtml(secretHint)} Формат: 40 символов <code>0-9</code> / <code>a-f</code>.</div>
               </div>
               <div class="col-md-4 d-flex align-items-end">
                 <div class="form-check form-switch mb-2">

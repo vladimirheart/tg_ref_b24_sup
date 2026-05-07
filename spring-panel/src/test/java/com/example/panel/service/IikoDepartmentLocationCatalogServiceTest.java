@@ -162,7 +162,7 @@ class IikoDepartmentLocationCatalogServiceTest {
     }
 
     @Test
-    void httpGatewayUsesIikoServerAuthEndpointWithLoginAndSha1Pass() throws Exception {
+    void httpGatewayUsesProvidedSha1PasswordAsIs() throws Exception {
         AtomicInteger authCalls = new AtomicInteger();
         HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
         server.createContext("/resto/api/auth", exchange -> {
@@ -198,7 +198,7 @@ class IikoDepartmentLocationCatalogServiceTest {
                     new IikoDepartmentLocationCatalogService.HttpIikoDepartmentGateway(new ObjectMapper());
 
             String baseUrl = "http://127.0.0.1:" + server.getAddress().getPort();
-            String token = gateway.requestAccessToken(baseUrl, "test-login", "password");
+            String token = gateway.requestAccessToken(baseUrl, "test-login", "5baa61e4c9b93f3f0682250b6cf8331b7ee68fd8");
             List<String> departments = gateway.loadActiveDepartmentNames(baseUrl, token);
 
             assertThat(token).isEqualTo("token-123");

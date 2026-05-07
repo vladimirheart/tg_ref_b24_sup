@@ -12,6 +12,7 @@ import org.springframework.util.StringUtils;
 public class LocationsIikoServerSourceSettingsService {
 
     public static final String SETTINGS_KEY = "locations_iiko_server_sources";
+    private static final String SHA1_PATTERN = "(?i)^[0-9a-f]{40}$";
 
     public List<LocationIikoServerSource> loadForRuntime(Map<String, Object> settings) {
         return parseSources(settings != null ? settings.get(SETTINGS_KEY) : null, true, Map.of());
@@ -58,9 +59,13 @@ public class LocationsIikoServerSourceSettingsService {
             String baseUrl = normalizeUrl(text(map.get("base_url"), map.get("baseUrl")));
             String apiLogin = text(map.get("api_login"), map.get("apiLogin"));
             boolean enabled = parseBoolean(map.get("enabled"), true);
+            boolean hasNewSecretValue = hasNonBlankSecretValue(map);
             String apiSecret = allowRawSecrets
                     ? text(map.get("api_secret"), map.get("apiSecret"))
                     : resolveSecret(map, currentSecretsById.getOrDefault(id, ""));
+            if (!allowRawSecrets && hasNewSecretValue) {
+                apiSecret = normalizeSha1Secret(apiSecret, StringUtils.hasText(name) ? name : baseUrl);
+            }
             if (!StringUtils.hasText(name) && StringUtils.hasText(baseUrl)) {
                 name = baseUrl;
             }
@@ -82,6 +87,28 @@ public class LocationsIikoServerSourceSettingsService {
         }
         String value = text(map.get("api_secret"), map.get("apiSecret"));
         return StringUtils.hasText(value) ? value : fallback;
+    }
+
+    private boolean hasNonBlankSecretValue(Map<?, ?> map) {
+        if (map == null) {
+            return false;
+        }
+        return StringUtils.hasText(text(map.get("api_secret"), map.get("apiSecret")));
+    }
+
+    private String normalizeSha1Secret(String rawValue, String sourceName) {
+        String value = text(rawValue);
+        if (!StringUtils.hasText(value)) {
+            return "";
+        }
+        String normalized = value.trim().toLowerCase();
+        if (!normalized.matches(SHA1_PATTERN)) {
+            String suffix = StringUtils.hasText(sourceName) ? " для источника «" + sourceName + "»" : "";
+            throw new IllegalArgumentException(
+                    "SHA-1 пароль" + suffix + " должен содержать ровно 40 символов hex (0-9, a-f)"
+            );
+        }
+        return normalized;
     }
 
     private boolean parseBoolean(Object raw, boolean fallback) {
