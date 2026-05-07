@@ -44,6 +44,8 @@ public class IikoDepartmentLocationCatalogService {
     private static final String DEFAULT_SOURCE = "shared_config";
     private static final String LIVE_SOURCE = "iiko_api";
     private static final String DEFAULT_COUNTRY = "Россия";
+    private static final String STATUS_ACTIVE = "Активен";
+    private static final String STATUS_CLOSED = "Закрыт";
     private static final String TYPE_CORPORATE = "Корпоративная сеть";
     private static final String TYPE_FRANCHISE = "Партнёры-франчайзи";
     private static final String BUSINESS_BLINBERI = "БлинБери";
@@ -102,9 +104,17 @@ public class IikoDepartmentLocationCatalogService {
 
     LocationCatalogSnapshot buildCatalogFromDepartmentNames(Collection<String> departmentNames,
                                                             Map<String, Object> fallbackTree) {
+        return buildCatalogFromDepartmentNames(departmentNames, fallbackTree, Map.of());
+    }
+
+    LocationCatalogSnapshot buildCatalogFromDepartmentNames(Collection<String> departmentNames,
+                                                            Map<String, Object> fallbackTree,
+                                                            Map<String, Object> fallbackStatuses) {
         List<String> knownCities = extractKnownCities(fallbackTree);
-        Map<String, Object> tree = buildTree(departmentNames, knownCities);
-        return new LocationCatalogSnapshot(tree, Map.of(), LIVE_SOURCE, false, List.of());
+        List<ParsedDepartment> activeDepartments = parseDepartments(departmentNames, knownCities);
+        Map<String, Object> tree = buildMergedTree(activeDepartments, fallbackTree);
+        Map<String, Object> statuses = buildLocationStatuses(tree, activeDepartments, fallbackStatuses);
+        return new LocationCatalogSnapshot(tree, statuses, LIVE_SOURCE, false, List.of());
     }
 
     private LocationCatalogSnapshot loadLiveCatalog(LocationCatalogSnapshot fallback) {
@@ -139,11 +149,15 @@ public class IikoDepartmentLocationCatalogService {
             return fallback.withWarnings(warnings);
         }
 
-        Map<String, Object> tree = buildTree(locationNames, extractKnownCities(fallback.tree()));
-        if (tree.isEmpty()) {
+        LocationCatalogSnapshot snapshot = buildCatalogFromDepartmentNames(
+                locationNames,
+                fallback.tree(),
+                fallback.statuses()
+        );
+        if (snapshot.tree().isEmpty()) {
             return fallback.withWarnings(warnings);
         }
-        return new LocationCatalogSnapshot(tree, Map.of(), LIVE_SOURCE, false, List.copyOf(warnings));
+        return snapshot.withWarnings(warnings);
     }
 
     private List<ApiCredential> loadCredentials() {
@@ -206,29 +220,118 @@ public class IikoDepartmentLocationCatalogService {
     }
 
     private Map<String, Object> buildTree(Collection<String> departmentNames, List<String> knownCities) {
-        Map<String, Map<String, Map<String, Set<String>>>> rawTree = new LinkedHashMap<>();
+        return buildMergedTree(parseDepartments(departmentNames, knownCities), Map.of());
+    }
+
+    private List<ParsedDepartment> parseDepartments(Collection<String> departmentNames, List<String> knownCities) {
         List<String> sortedCities = knownCities.stream()
                 .filter(StringUtils::hasText)
                 .map(String::trim)
                 .distinct()
                 .sorted(Comparator.comparingInt(String::length).reversed().thenComparing(String.CASE_INSENSITIVE_ORDER))
                 .toList();
+        List<ParsedDepartment> result = new ArrayList<>();
+        if (departmentNames == null) {
+            return result;
+        }
+        for (String departmentName : departmentNames) {
+            ParsedDepartment parsed = parseDepartment(departmentName, sortedCities);
+            if (parsed != null) {
+                result.add(parsed);
+            }
+        }
+        return result;
+    }
 
-        if (departmentNames != null) {
-            for (String departmentName : departmentNames) {
-                ParsedDepartment parsed = parseDepartment(departmentName, sortedCities);
-                if (parsed == null) {
-                    continue;
-                }
-                rawTree
-                        .computeIfAbsent(parsed.business(), key -> new LinkedHashMap<>())
-                        .computeIfAbsent(parsed.locationType(), key -> new LinkedHashMap<>())
-                        .computeIfAbsent(parsed.city(), key -> new LinkedHashSet<>())
-                        .add(parsed.locationName());
+    private Map<String, Object> buildMergedTree(List<ParsedDepartment> activeDepartments,
+                                                Map<String, Object> fallbackTree) {
+        Map<String, Map<String, Map<String, Set<String>>>> rawTree = new LinkedHashMap<>();
+        for (ParsedDepartment parsed : activeDepartments) {
+            addLocation(rawTree, parsed.business(), parsed.locationType(), parsed.city(), parsed.locationName());
+        }
+        mergeFallbackTree(rawTree, fallbackTree);
+        return sortTree(rawTree);
+    }
+
+    private Map<String, Object> buildLocationStatuses(Map<String, Object> mergedTree,
+                                                      List<ParsedDepartment> activeDepartments,
+                                                      Map<String, Object> fallbackStatuses) {
+        LinkedHashMap<String, Object> statuses = new LinkedHashMap<>();
+        for (Map.Entry<String, Object> entry : toStringObjectMap(fallbackStatuses).entrySet()) {
+            if (!isLocationStatusKey(entry.getKey())) {
+                statuses.put(entry.getKey(), entry.getValue());
             }
         }
 
-        return sortTree(rawTree);
+        Set<String> activeKeys = new LinkedHashSet<>();
+        for (ParsedDepartment department : activeDepartments) {
+            activeKeys.add(makeStatusKey("location", department.business(), department.locationType(), department.city(), department.locationName()));
+        }
+
+        forEachLocation(mergedTree, (business, locationType, city, locationName) -> {
+            String key = makeStatusKey("location", business, locationType, city, locationName);
+            statuses.put(key, activeKeys.contains(key) ? STATUS_ACTIVE : STATUS_CLOSED);
+        });
+        return statuses;
+    }
+
+    private void mergeFallbackTree(Map<String, Map<String, Map<String, Set<String>>>> rawTree,
+                                   Map<String, Object> fallbackTree) {
+        forEachLocation(fallbackTree, (business, locationType, city, locationName) ->
+                addLocation(rawTree, business, locationType, city, locationName));
+    }
+
+    private void addLocation(Map<String, Map<String, Map<String, Set<String>>>> rawTree,
+                             String business,
+                             String locationType,
+                             String city,
+                             String locationName) {
+        if (!StringUtils.hasText(business)
+                || !StringUtils.hasText(locationType)
+                || !StringUtils.hasText(city)
+                || !StringUtils.hasText(locationName)) {
+            return;
+        }
+        rawTree
+                .computeIfAbsent(business, key -> new LinkedHashMap<>())
+                .computeIfAbsent(locationType, key -> new LinkedHashMap<>())
+                .computeIfAbsent(city, key -> new LinkedHashSet<>())
+                .add(locationName);
+    }
+
+    private void forEachLocation(Map<String, Object> tree,
+                                 LocationConsumer consumer) {
+        if (tree == null || consumer == null) {
+            return;
+        }
+        for (Map.Entry<String, Object> businessEntry : toStringObjectMap(tree).entrySet()) {
+            String business = normalizeText(businessEntry.getKey());
+            Map<String, Object> types = toStringObjectMap(businessEntry.getValue());
+            for (Map.Entry<String, Object> typeEntry : types.entrySet()) {
+                String locationType = normalizeText(typeEntry.getKey());
+                Map<String, Object> cities = toStringObjectMap(typeEntry.getValue());
+                for (Map.Entry<String, Object> cityEntry : cities.entrySet()) {
+                    String city = normalizeText(cityEntry.getKey());
+                    for (String locationName : toStringList(cityEntry.getValue())) {
+                        consumer.accept(business, locationType, city, normalizeText(locationName));
+                    }
+                }
+            }
+        }
+    }
+
+    private boolean isLocationStatusKey(String key) {
+        return StringUtils.hasText(key) && key.startsWith("location::");
+    }
+
+    private String makeStatusKey(String level, String... parts) {
+        StringBuilder builder = new StringBuilder(level == null ? "" : level.trim());
+        if (parts != null) {
+            for (String part : parts) {
+                builder.append("::").append(part == null ? "" : part.trim());
+            }
+        }
+        return builder.toString();
     }
 
     private ParsedDepartment parseDepartment(String rawName, List<String> knownCities) {
@@ -547,6 +650,11 @@ public class IikoDepartmentLocationCatalogService {
                                     String locationType,
                                     String city,
                                     String locationName) {
+    }
+
+    @FunctionalInterface
+    private interface LocationConsumer {
+        void accept(String business, String locationType, String city, String locationName);
     }
 
     static final class HttpIikoDepartmentGateway implements IikoDepartmentGateway {

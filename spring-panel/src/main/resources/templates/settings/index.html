@@ -4508,6 +4508,7 @@
                         </div>
                         <div class="small text-muted mb-3" id="locationsSyncStatusText">Синхронизация ещё не запускалась.</div>
                         <div class="small" id="locationsSyncMeta"></div>
+                        <div class="small mt-3 d-none" id="locationsSyncResult"></div>
                         <div class="small text-danger mt-2 d-none" id="locationsSyncWarnings"></div>
                       </div>
                     </div>
@@ -13697,10 +13698,12 @@
     const message = String(normalized.message || 'Синхронизация ещё не запускалась.').trim();
     const running = Boolean(normalized.running || state === 'running');
     const warnings = Array.isArray(normalized.warnings) ? normalized.warnings.filter(Boolean) : [];
+    const result = normalized.result && typeof normalized.result === 'object' ? normalized.result : null;
 
     const progressBar = document.getElementById('locationsSyncProgressBar');
     const statusText = document.getElementById('locationsSyncStatusText');
     const metaNode = document.getElementById('locationsSyncMeta');
+    const resultNode = document.getElementById('locationsSyncResult');
     const warningsNode = document.getElementById('locationsSyncWarnings');
     const runButton = document.getElementById('locationsSyncRunBtn');
 
@@ -13730,6 +13733,43 @@
       parts.push(`Следующий запуск: ${formatLocationsSyncTimestamp(normalized.nextRunAtUtc || normalized.next_run_at_utc)}`);
       parts.push(`Изменения: ${normalized.changed ? 'да' : 'нет'}`);
       metaNode.innerHTML = parts.map((item) => `<div>${escapeHtml(item)}</div>`).join('');
+    }
+    if (resultNode) {
+      if (result && state === 'success') {
+        const summary = [
+          `Всего локаций: ${Number(result.totalLocations ?? result.total_locations ?? 0) || 0}`,
+          `Активных: ${Number(result.activeLocations ?? result.active_locations ?? 0) || 0}`,
+          `Закрытых: ${Number(result.closedLocations ?? result.closed_locations ?? 0) || 0}`,
+          `Добавлено: ${Number(result.addedLocations ?? result.added_locations ?? 0) || 0}`,
+          `Закрыто этой sync: ${Number(result.closedBySync ?? result.closed_by_sync ?? 0) || 0}`,
+          `Переоткрыто: ${Number(result.reopenedLocations ?? result.reopened_locations ?? 0) || 0}`,
+        ];
+        const renderExamples = (title, values) => {
+          const safeValues = Array.isArray(values) ? values.filter(Boolean).slice(0, 8) : [];
+          if (!safeValues.length) {
+            return '';
+          }
+          return `
+            <div class="mt-2">
+              <div class="fw-semibold">${escapeHtml(title)}</div>
+              ${safeValues.map((item) => `<div class="text-muted">${escapeHtml(item)}</div>`).join('')}
+            </div>
+          `;
+        };
+        resultNode.classList.remove('d-none');
+        resultNode.innerHTML = `
+          <div class="border rounded-3 p-3 bg-light-subtle">
+            <div class="fw-semibold mb-2">Результат синхронизации</div>
+            ${summary.map((item) => `<div>${escapeHtml(item)}</div>`).join('')}
+            ${renderExamples('Добавлены', result.addedExamples ?? result.added_examples)}
+            ${renderExamples('Закрыты этой sync', result.closedExamples ?? result.closed_examples)}
+            ${renderExamples('Переоткрыты', result.reopenedExamples ?? result.reopened_examples)}
+          </div>
+        `;
+      } else {
+        resultNode.classList.add('d-none');
+        resultNode.innerHTML = '';
+      }
     }
     if (warningsNode) {
       if (warnings.length) {

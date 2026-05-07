@@ -56,10 +56,49 @@ class IikoDepartmentLocationCatalogServiceTest {
         Map<String, Object> sushiFranchise = (Map<String, Object>) sushiVesla.get("Партнёры-франчайзи");
 
         assertThat(snapshot.source()).isEqualTo("iiko_api");
-        assertThat((List<String>) corporate.get("Москва")).containsExactly("Вегас");
+        assertThat((List<String>) corporate.get("Москва")).containsExactlyInAnyOrder("Тверская", "Вегас");
         assertThat((List<String>) franchise.get("Йошкар-Ола")).containsExactly("Баумана");
         assertThat((List<String>) sushiFranchise.get("Ростов-на-Дону")).containsExactly("Зорге 33");
         assertThat(snapshot.tree().toString()).doesNotContain("CLOSED");
+        assertThat(snapshot.statuses())
+                .containsEntry("location::БлинБери::Корпоративная сеть::Москва::Тверская", "Закрыт")
+                .containsEntry("location::БлинБери::Корпоративная сеть::Москва::Вегас", "Активен")
+                .containsEntry("location::БлинБери::Партнёры-франчайзи::Йошкар-Ола::Баумана", "Активен");
+    }
+
+    @Test
+    void buildCatalogFromDepartmentNamesKeepsMissingFallbackLocationsAsClosed() throws Exception {
+        ObjectMapper objectMapper = new ObjectMapper();
+        IikoDepartmentLocationCatalogService service = new IikoDepartmentLocationCatalogService(
+                new LocationsIikoServerSourceSettingsService(),
+                new SharedConfigService(objectMapper, Files.createTempDirectory("shared-config").toString()),
+                objectMapper,
+                new UnsupportedGateway()
+        );
+
+        Map<String, Object> fallbackTree = Map.of(
+                "БлинБери", Map.of(
+                        "Корпоративная сеть", Map.of(
+                                "Москва", List.of("Тверская", "Вегас")
+                        )
+                )
+        );
+
+        IikoDepartmentLocationCatalogService.LocationCatalogSnapshot snapshot = service.buildCatalogFromDepartmentNames(
+                List.of("ББ Москва Вегас"),
+                fallbackTree,
+                Map.of("location::БлинБери::Корпоративная сеть::Москва::Тверская", "Активен")
+        );
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> blinberi = (Map<String, Object>) snapshot.tree().get("БлинБери");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> corporate = (Map<String, Object>) blinberi.get("Корпоративная сеть");
+
+        assertThat((List<String>) corporate.get("Москва")).containsExactlyInAnyOrder("Тверская", "Вегас");
+        assertThat(snapshot.statuses())
+                .containsEntry("location::БлинБери::Корпоративная сеть::Москва::Тверская", "Закрыт")
+                .containsEntry("location::БлинБери::Корпоративная сеть::Москва::Вегас", "Активен");
     }
 
     @Test

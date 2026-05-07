@@ -5,6 +5,8 @@ import jakarta.annotation.PreDestroy;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -20,6 +22,8 @@ public class IikoDepartmentLocationsSyncService {
 
     private static final Logger log = LoggerFactory.getLogger(IikoDepartmentLocationsSyncService.class);
     private static final DateTimeFormatter UTC_FORMATTER = DateTimeFormatter.ISO_OFFSET_DATE_TIME.withZone(ZoneOffset.UTC);
+    private static final String STATUS_CLOSED = "Закрыт";
+    private static final int RESULT_EXAMPLES_LIMIT = 8;
 
     private final IikoDepartmentLocationCatalogService locationCatalogService;
     private final SharedConfigService sharedConfigService;
@@ -87,7 +91,8 @@ public class IikoDepartmentLocationsSyncService {
                 null,
                 false,
                 List.of(),
-                null,
+                status.result(),
+                status.lastSuccessAtUtc(),
                 true,
                 0,
                 null
@@ -103,6 +108,7 @@ public class IikoDepartmentLocationsSyncService {
                         startedAt,
                         false,
                         snapshot != null ? snapshot.warnings() : List.of(),
+                        null,
                         "Live-структура из iiko не получена"
                 );
                 return result;
@@ -111,6 +117,7 @@ public class IikoDepartmentLocationsSyncService {
             updateProgress(60, "Сравниваем live-данные с текущим shared config");
             Map<String, Object> existingPayload = locationCatalogService.buildEffectiveLocationsPayload(null);
             Map<String, Object> effectivePayload = locationCatalogService.buildEffectiveLocationsPayload(snapshot);
+            SyncResultSummary resultSummary = buildResultSummary(existingPayload, effectivePayload);
             boolean changed = !Objects.equals(existingPayload, effectivePayload);
 
             if (changed) {
@@ -127,6 +134,7 @@ public class IikoDepartmentLocationsSyncService {
                     startedAt,
                     changed,
                     snapshot.warnings(),
+                    resultSummary,
                     changed ? "Синхронизация завершена, данные обновлены" : "Синхронизация завершена, изменений нет"
             );
             log.info("iiko department locations sync completed: trigger={}, changed={}, warnings={}",
@@ -142,6 +150,7 @@ public class IikoDepartmentLocationsSyncService {
                     startedAt,
                     false,
                     List.of(ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName()),
+                    null,
                     "Синхронизация завершилась ошибкой"
             );
             return result;
@@ -165,6 +174,7 @@ public class IikoDepartmentLocationsSyncService {
                 null,
                 false,
                 List.of(),
+                status.result(),
                 status.lastSuccessAtUtc(),
                 true,
                 0,
@@ -185,7 +195,8 @@ public class IikoDepartmentLocationsSyncService {
                 null,
                 false,
                 current.warnings(),
-                null,
+                current.result(),
+                current.lastSuccessAtUtc(),
                 true,
                 0,
                 null
@@ -197,6 +208,7 @@ public class IikoDepartmentLocationsSyncService {
                                       Instant startedAt,
                                       boolean changed,
                                       List<String> warnings,
+                                      SyncResultSummary result,
                                       String message) {
         Instant finishedAt = Instant.now();
         SyncStatusSnapshot snapshot = new SyncStatusSnapshot(
@@ -208,6 +220,7 @@ public class IikoDepartmentLocationsSyncService {
                 formatUtc(finishedAt),
                 changed,
                 warnings == null ? List.of() : List.copyOf(warnings),
+                result,
                 "success".equals(state) ? formatUtc(finishedAt) : status.lastSuccessAtUtc(),
                 false,
                 0,
@@ -219,6 +232,134 @@ public class IikoDepartmentLocationsSyncService {
 
     private void updateStatus(SyncStatusSnapshot snapshot) {
         status = snapshot;
+    }
+
+    private SyncResultSummary buildResultSummary(Map<String, Object> currentPayload,
+                                                 Map<String, Object> effectivePayload) {
+        Map<String, LocationState> currentLocations = flattenLocations(currentPayload);
+        Map<String, LocationState> nextLocations = flattenLocations(effectivePayload);
+
+        List<String> added = new ArrayList<>();
+        List<String> closedNow = new ArrayList<>();
+        List<String> reopened = new ArrayList<>();
+
+        for (Map.Entry<String, LocationState> entry : nextLocations.entrySet()) {
+            String key = entry.getKey();
+            LocationState next = entry.getValue();
+            LocationState current = currentLocations.get(key);
+            if (current == null) {
+                added.add(next.label());
+                continue;
+            }
+            if (!current.closed() && next.closed()) {
+                closedNow.add(next.label());
+            } else if (current.closed() && !next.closed()) {
+                reopened.add(next.label());
+            }
+        }
+
+        int totalCount = nextLocations.size();
+        int activeCount = (int) nextLocations.values().stream().filter(location -> !location.closed()).count();
+
+        return new SyncResultSummary(
+                totalCount,
+                activeCount,
+                totalCount - activeCount,
+                added.size(),
+                closedNow.size(),
+                reopened.size(),
+                limitExamples(added),
+                limitExamples(closedNow),
+                limitExamples(reopened)
+        );
+    }
+
+    private Map<String, LocationState> flattenLocations(Map<String, Object> payload) {
+        LinkedHashMap<String, LocationState> result = new LinkedHashMap<>();
+        Map<String, Object> tree = toStringObjectMap(payload == null ? null : payload.get("tree"));
+        Map<String, Object> statuses = toStringObjectMap(payload == null ? null : payload.get("statuses"));
+        for (Map.Entry<String, Object> businessEntry : tree.entrySet()) {
+            String business = normalizeText(businessEntry.getKey());
+            for (Map.Entry<String, Object> typeEntry : toStringObjectMap(businessEntry.getValue()).entrySet()) {
+                String locationType = normalizeText(typeEntry.getKey());
+                for (Map.Entry<String, Object> cityEntry : toStringObjectMap(typeEntry.getValue()).entrySet()) {
+                    String city = normalizeText(cityEntry.getKey());
+                    for (String locationName : toStringList(cityEntry.getValue())) {
+                        String normalizedLocationName = normalizeText(locationName);
+                        if (business == null || locationType == null || city == null || normalizedLocationName == null) {
+                            continue;
+                        }
+                        String key = makeStatusKey("location", business, locationType, city, normalizedLocationName);
+                        boolean closed = STATUS_CLOSED.equalsIgnoreCase(String.valueOf(statuses.getOrDefault(key, "")).trim());
+                        result.put(key, new LocationState(key, buildLocationLabel(business, locationType, city, normalizedLocationName), closed));
+                    }
+                }
+            }
+        }
+        return result;
+    }
+
+    private List<String> limitExamples(List<String> values) {
+        return values.stream()
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(value -> !value.isEmpty())
+                .sorted(String.CASE_INSENSITIVE_ORDER)
+                .limit(RESULT_EXAMPLES_LIMIT)
+                .toList();
+    }
+
+    private String buildLocationLabel(String business,
+                                      String locationType,
+                                      String city,
+                                      String locationName) {
+        return String.join(" / ", business, locationType, city, locationName);
+    }
+
+    private String makeStatusKey(String level, String... parts) {
+        StringBuilder builder = new StringBuilder(level == null ? "" : level.trim());
+        if (parts != null) {
+            for (String part : parts) {
+                builder.append("::").append(part == null ? "" : part.trim());
+            }
+        }
+        return builder.toString();
+    }
+
+    private String normalizeText(Object value) {
+        if (value == null) {
+            return null;
+        }
+        String normalized = String.valueOf(value).trim();
+        return normalized.isEmpty() ? null : normalized;
+    }
+
+    private List<String> toStringList(Object rawValue) {
+        if (!(rawValue instanceof Iterable<?> iterable)) {
+            return List.of();
+        }
+        List<String> result = new ArrayList<>();
+        for (Object item : iterable) {
+            String normalized = normalizeText(item);
+            if (normalized != null) {
+                result.add(normalized);
+            }
+        }
+        return result;
+    }
+
+    private Map<String, Object> toStringObjectMap(Object rawValue) {
+        if (!(rawValue instanceof Map<?, ?> map)) {
+            return Map.of();
+        }
+        LinkedHashMap<String, Object> result = new LinkedHashMap<>();
+        map.forEach((key, value) -> {
+            String normalized = normalizeText(key);
+            if (normalized != null) {
+                result.put(normalized, value);
+            }
+        });
+        return result;
     }
 
     private String formatUtc(Instant instant) {
@@ -241,6 +382,7 @@ public class IikoDepartmentLocationsSyncService {
                                      String finishedAtUtc,
                                      boolean changed,
                                      List<String> warnings,
+                                     SyncResultSummary result,
                                      String lastSuccessAtUtc,
                                      boolean running,
                                      int intervalMinutes,
@@ -256,6 +398,7 @@ public class IikoDepartmentLocationsSyncService {
                     null,
                     false,
                     List.of(),
+                    null,
                     null,
                     false,
                     0,
@@ -277,11 +420,26 @@ public class IikoDepartmentLocationsSyncService {
                     finishedAtUtc,
                     changed,
                     warnings,
+                    result,
                     lastSuccessAtUtc,
                     running,
                     intervalMinutes,
                     nextRunAtUtc
             );
         }
+    }
+
+    public record SyncResultSummary(int totalLocations,
+                                    int activeLocations,
+                                    int closedLocations,
+                                    int addedLocations,
+                                    int closedBySync,
+                                    int reopenedLocations,
+                                    List<String> addedExamples,
+                                    List<String> closedExamples,
+                                    List<String> reopenedExamples) {
+    }
+
+    private record LocationState(String key, String label, boolean closed) {
     }
 }

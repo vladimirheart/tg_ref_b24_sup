@@ -38,8 +38,16 @@ class IikoDepartmentLocationsSyncServiceTest {
                 "statuses", Map.of("open", "Открыта")
         );
         Map<String, Object> effectivePayload = Map.of(
-                "tree", Map.of("БлинБери", Map.of("Корпоративная сеть", Map.of("Смоленск", List.of("Ленина 1")))),
-                "statuses", Map.of("open", "Открыта"),
+                "tree", Map.of("БлинБери", Map.of(
+                        "Корпоративная сеть", Map.of(
+                                "Москва", List.of("Тверская"),
+                                "Смоленск", List.of("Ленина 1")
+                        ))),
+                "statuses", Map.of(
+                        "open", "Открыта",
+                        "location::БлинБери::Корпоративная сеть::Москва::Тверская", "Закрыт",
+                        "location::БлинБери::Корпоративная сеть::Смоленск::Ленина 1", "Активен"
+                ),
                 "city_meta", Map.of("БлинБери::Корпоративная сеть::Смоленск", Map.of("country", "Россия", "partner_type", "Корпоративная сеть")),
                 "location_meta", Map.of("БлинБери::Корпоративная сеть::Смоленск::Ленина 1", Map.of("country", "Россия", "partner_type", "Корпоративная сеть"))
         );
@@ -54,6 +62,15 @@ class IikoDepartmentLocationsSyncServiceTest {
         verify(settingsParameterService).syncParametersFromLocationsPayload(effectivePayload);
         assertThat(result.state()).isEqualTo("success");
         assertThat(result.changed()).isTrue();
+        assertThat(result.result()).isNotNull();
+        assertThat(result.result().totalLocations()).isEqualTo(2);
+        assertThat(result.result().activeLocations()).isEqualTo(1);
+        assertThat(result.result().closedLocations()).isEqualTo(1);
+        assertThat(result.result().addedLocations()).isEqualTo(1);
+        assertThat(result.result().closedBySync()).isEqualTo(1);
+        assertThat(result.result().reopenedLocations()).isEqualTo(0);
+        assertThat(result.result().addedExamples()).anyMatch(item -> item.contains("Ленина 1"));
+        assertThat(result.result().closedExamples()).anyMatch(item -> item.contains("Тверская"));
     }
 
     @Test
