@@ -55,8 +55,8 @@ public class DialogReplyService {
                     sender
             );
             dialogReplyTargetService.touchTicketActivity(ticketId, target.userId());
-            dialogResponsibilityService.assignResponsibleIfMissing(ticketId, operator);
-            return DialogReplyResult.success(timestamp, null);
+            String responsible = dialogResponsibilityService.assignResponsibleIfMissing(ticketId, operator);
+            return DialogReplyResult.success(timestamp, null, responsible);
         }
         if (!StringUtils.hasText(channel.getToken())) {
             return DialogReplyResult.error("Не задан токен бота для канала.");
@@ -78,8 +78,8 @@ public class DialogReplyService {
                 sender
         );
         dialogReplyTargetService.touchTicketActivity(ticketId, target.userId());
-        dialogResponsibilityService.assignResponsibleIfMissing(ticketId, operator);
-        return DialogReplyResult.success(timestamp, transportResult.telegramMessageId());
+        String responsible = dialogResponsibilityService.assignResponsibleIfMissing(ticketId, operator);
+        return DialogReplyResult.success(timestamp, transportResult.telegramMessageId(), responsible);
     }
 
     public DialogReplyResult editOperatorMessage(String ticketId, Long telegramMessageId, String message, String operator) {
@@ -103,8 +103,8 @@ public class DialogReplyService {
         if (updated == 0) {
             return DialogReplyResult.error("Сообщение оператора не найдено.");
         }
-        dialogResponsibilityService.assignResponsibleIfMissing(ticketId, operator);
-        return DialogReplyResult.success(OffsetDateTime.now().toString(), telegramMessageId);
+        String responsible = dialogResponsibilityService.assignResponsibleIfMissing(ticketId, operator);
+        return DialogReplyResult.success(OffsetDateTime.now().toString(), telegramMessageId, responsible);
     }
 
     public DialogReplyResult deleteOperatorMessage(String ticketId, Long telegramMessageId, String operator) {
@@ -128,8 +128,8 @@ public class DialogReplyService {
         if (updated == 0) {
             return DialogReplyResult.error("Сообщение оператора не найдено.");
         }
-        dialogResponsibilityService.assignResponsibleIfMissing(ticketId, operator);
-        return DialogReplyResult.success(OffsetDateTime.now().toString(), telegramMessageId);
+        String responsible = dialogResponsibilityService.assignResponsibleIfMissing(ticketId, operator);
+        return DialogReplyResult.success(OffsetDateTime.now().toString(), telegramMessageId, responsible);
     }
 
     public DialogMediaReplyResult sendMediaReply(String ticketId,
@@ -176,17 +176,21 @@ public class DialogReplyService {
                 transportResult.telegramMessageId()
         );
         dialogReplyTargetService.touchTicketActivity(ticketId, target.userId());
-        dialogResponsibilityService.assignResponsibleIfMissing(ticketId, operator);
-        return DialogMediaReplyResult.success(timestamp, transportResult.telegramMessageId(), storedName, messageType, caption);
+        String responsible = dialogResponsibilityService.assignResponsibleIfMissing(ticketId, operator);
+        return DialogMediaReplyResult.success(timestamp, transportResult.telegramMessageId(), storedName, messageType, caption, responsible);
     }
 
-    public record DialogReplyResult(boolean success, String error, String timestamp, Long telegramMessageId) {
+    public record DialogReplyResult(boolean success,
+                                    String error,
+                                    String timestamp,
+                                    Long telegramMessageId,
+                                    String responsible) {
         public static DialogReplyResult error(String error) {
-            return new DialogReplyResult(false, error, null, null);
+            return new DialogReplyResult(false, error, null, null, null);
         }
 
-        public static DialogReplyResult success(String timestamp, Long telegramMessageId) {
-            return new DialogReplyResult(true, null, timestamp, telegramMessageId);
+        public static DialogReplyResult success(String timestamp, Long telegramMessageId, String responsible) {
+            return new DialogReplyResult(true, null, timestamp, telegramMessageId, responsible);
         }
     }
 
@@ -196,17 +200,19 @@ public class DialogReplyService {
                                          Long telegramMessageId,
                                          String storedName,
                                          String messageType,
-                                         String message) {
+                                         String message,
+                                         String responsible) {
         static DialogMediaReplyResult error(String error) {
-            return new DialogMediaReplyResult(false, error, null, null, null, null, null);
+            return new DialogMediaReplyResult(false, error, null, null, null, null, null, null);
         }
 
         static DialogMediaReplyResult success(String timestamp,
                                               Long telegramMessageId,
                                               String storedName,
                                               String messageType,
-                                              String message) {
-            return new DialogMediaReplyResult(true, null, timestamp, telegramMessageId, storedName, messageType, message);
+                                              String message,
+                                              String responsible) {
+            return new DialogMediaReplyResult(true, null, timestamp, telegramMessageId, storedName, messageType, message, responsible);
         }
     }
 }

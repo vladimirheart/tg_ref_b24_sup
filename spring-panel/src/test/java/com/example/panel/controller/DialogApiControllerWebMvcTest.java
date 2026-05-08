@@ -1905,7 +1905,7 @@ class DialogApiControllerWebMvcTest {
     void replyAcceptsReplyTargetInRequest() throws Exception {
         when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(true);
         when(dialogReplyService.sendReply("T-1", "test", 77L, "operator"))
-                .thenReturn(DialogReplyService.DialogReplyResult.success("2026-01-01T10:00:00Z", 7001L));
+                .thenReturn(DialogReplyService.DialogReplyResult.success("2026-01-01T10:00:00Z", 7001L, "operator"));
 
         mockMvc.perform(post("/api/dialogs/T-1/reply")
                         .with(user("operator"))
@@ -1925,7 +1925,7 @@ class DialogApiControllerWebMvcTest {
     void replyReturnsSuccessWhenTransportMessageIdIsNull() throws Exception {
         when(permissionService.hasAuthority(org.mockito.ArgumentMatchers.any(), eq("PAGE_DIALOGS"))).thenReturn(true);
         when(dialogReplyService.sendReply("T-1", "max reply", null, "operator"))
-                .thenReturn(DialogReplyService.DialogReplyResult.success("2026-01-01T10:00:00Z", null));
+                .thenReturn(DialogReplyService.DialogReplyResult.success("2026-01-01T10:00:00Z", null, "operator"));
 
         mockMvc.perform(post("/api/dialogs/T-1/reply")
                         .with(user("operator"))
@@ -1959,7 +1959,8 @@ class DialogApiControllerWebMvcTest {
                         7002L,
                         "stored-fun.gif",
                         "animation",
-                        null
+                        null,
+                        "operator"
                 ));
 
         MockMultipartFile file = new MockMultipartFile("file", "fun.gif", "image/gif", "gif-bytes".getBytes());

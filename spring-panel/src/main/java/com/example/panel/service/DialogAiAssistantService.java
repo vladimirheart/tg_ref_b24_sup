@@ -142,7 +142,6 @@ public class DialogAiAssistantService {
         }
 
         mode = preRouting.effectiveMode();
-        dialogResponsibilityService.assignResponsibleIfMissing(t, "ai_agent");
         markProcessing(t, "processing", null, null, "processing", "incoming_message", null, mode);
         AiControlledLlmService.RewriteResult rewriteResult = aiControlledLlmService.rewriteQuery(t, m);
         String retrievalQuery = firstNonBlank(trim(rewriteResult.effectiveQuery()), m);

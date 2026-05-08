@@ -65,7 +65,7 @@ public class DialogQuickActionsController {
         payload.put("success", true);
         payload.put("timestamp", result.timestamp());
         payload.put("telegramMessageId", result.telegramMessageId());
-        payload.put("responsible", operator);
+        payload.put("responsible", result.responsible());
         return ResponseEntity.ok(payload);
     }
 

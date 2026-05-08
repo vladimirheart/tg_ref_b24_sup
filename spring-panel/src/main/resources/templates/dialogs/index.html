@@ -172,7 +172,7 @@
         <div class="card shadow-sm workspace-shell-card gradient-border-hover ui-panel">
             <div class="card-body">
                 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-                    <div>
+                    <div class="dialog-details-header-copy">
                         <h2 class="h5 mb-1" id="workspaceConversationTitle">Workspace</h2>
                         <p class="small text-muted mb-0" id="workspaceConversationMeta">Загрузка карточки диалога…</p>
                     </div>
@@ -404,13 +404,13 @@
                         </td>
                         <td th:text="${dialog.displayTicketNumber()}">—</td>
                         <td>
-                            <div class="d-flex align-items-center gap-2">
+                            <div class="client-cell">
                                 <div class="dialog-avatar"
                                      th:attr="data-avatar-user-id=${dialog.userId}, data-avatar-name=${dialog.displayClientName()}">
                                     <img class="dialog-avatar-img d-none" alt="Аватар клиента" data-avatar-img>
                                     <span class="avatar-circle" data-avatar-initial th:text="${dialog.avatarInitial()}">—</span>
                                 </div>
-                                <div>
+                                <div class="dialog-client-meta">
                                     <div class="fw-semibold" th:text="${dialog.displayClientName()}">Клиент</div>
                                     <div class="small text-muted" th:text="${dialog.clientStatusLabel()}">статус</div>
                                 </div>
@@ -566,30 +566,32 @@
 <div class="modal fade resizable-modal" id="dialogDetailsModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
-            <div class="modal-header">
+            <div class="modal-header dialog-details-modal-header">
                 <div class="dialog-details-header">
                     <div class="dialog-details-avatar" id="dialogDetailsAvatar" aria-hidden="true">
                         <img class="dialog-details-avatar-img d-none" alt="Аватар клиента" data-avatar-img>
                         <span class="dialog-details-avatar-initial" data-avatar-initial>—</span>
                     </div>
-                    <div>
-                        <h5 class="modal-title mb-1">Детали диалога</h5>
-                        <div class="text-muted small d-flex flex-wrap gap-2">
+                    <div class="dialog-details-header-copy">
+                        <div class="text-muted small d-flex flex-wrap gap-2 dialog-details-title-row">
+                            <h5 class="modal-title mb-0">Диалог</h5>
                             <span id="dialogDetailsMeta"></span>
                             <span class="text-warning d-none" id="dialogDetailsRating"></span>
                             <span class="badge dialog-unread-count d-none" id="dialogDetailsUnreadCount"></span>
                         </div>
-                        <div class="small text-muted dialog-details-categories" id="dialogDetailsCategories">Категории: —</div>
-                        <div class="small">
-                            <span class="fw-semibold" id="dialogDetailsClientName">—</span>
+                        <div class="dialog-details-client-row">
+                            <button class="dialog-details-client-link" id="dialogDetailsOpenClientCard" type="button" disabled>
+                                <span class="fw-semibold" id="dialogDetailsClientName">—</span>
+                            </button>
                             <span class="text-muted" id="dialogDetailsClientStatus">—</span>
-                        </div>
-                        <div class="mt-1">
-                            <button class="btn btn-sm btn-outline-primary" id="dialogDetailsOpenClientCard" type="button" disabled>Открыть карточку клиента</button>
+                            <div class="small text-muted dialog-details-categories" id="dialogDetailsCategories">Категории: —</div>
                         </div>
                     </div>
                 </div>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                <div class="dialog-details-header-actions">
+                    <button type="button" class="btn btn-outline-success btn-sm d-none" id="dialogDetailsTakeBtn">Взять себе</button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                </div>
             </div>
             <div class="modal-body">
                 <div class="dialog-details-layout">
@@ -635,10 +637,15 @@
                             <div class="card-body d-flex flex-column">
                                 <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
                                     <div class="fw-semibold">История сообщений</div>
-                                    <label class="dialog-font-control small text-muted">
-                                        Размер шрифта
-                                        <input type="range" class="form-range" id="dialogFontSizeRange" min="12" max="18" step="1" value="14">
-                                    </label>
+                                    <div class="dialog-details-main-actions">
+                                        <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#dialogCategoriesModal">
+                                            Категории
+                                        </button>
+                                        <label class="dialog-font-control small text-muted">
+                                            Размер шрифта
+                                            <input type="range" class="form-range" id="dialogFontSizeRange" min="12" max="18" step="1" value="14">
+                                        </label>
+                                    </div>
                                 </div>
                                 <div class="d-flex flex-column gap-2 chat-history flex-grow-1" id="dialogDetailsHistory"></div>
                                 <div class="dialog-details-composer mt-3">
@@ -709,23 +716,6 @@
                                     </div>
                                     <div class="form-text">Сообщение будет отправлено в активный диалог клиента.</div>
                                 </div>
-                                <div class="dialog-details-section mt-3">
-                                    <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
-                                        <div class="fw-semibold">Категории обращения</div>
-                                        <button class="btn btn-outline-secondary btn-sm" type="button" data-template-toggle="category">
-                                            Выбрать
-                                        </button>
-                                    </div>
-                                    <div class="dialog-template-panel is-open" id="dialogCategoryTemplatesSection">
-                                        <div class="d-flex align-items-center justify-content-between mb-2">
-                                            <div class="fw-semibold small">Набор категорий</div>
-                                            <select class="form-select form-select-sm w-auto" id="dialogCategoryTemplateSelect"></select>
-                                        </div>
-                                        <div class="d-flex flex-wrap gap-2 small" id="dialogCategoryTemplateList"></div>
-                                        <div class="text-muted small d-none" id="dialogCategoryTemplateEmpty">Категории не настроены.</div>
-                                        <div class="form-text small mt-2">Выбор сохраняется автоматически.</div>
-                                    </div>
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -736,6 +726,33 @@
                 <button type="button" class="btn btn-outline-success" id="dialogDetailsResolve">Закрыть обращение</button>
                 <button type="button" class="btn btn-outline-warning d-none" id="dialogDetailsReopen">Переоткрыть обращение</button>
                 <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="dialogCategoriesModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title">Категории обращения</h5>
+                    <div class="small text-muted">Выбор сохраняется автоматически.</div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <div class="dialog-template-panel dialog-template-panel--summary" id="dialogCategoryTemplatesSection">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <div class="fw-semibold small">Набор категорий</div>
+                        <select class="form-select form-select-sm w-auto" id="dialogCategoryTemplateSelect"></select>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2 small" id="dialogCategoryTemplateList"></div>
+                    <div class="text-muted small d-none" id="dialogCategoryTemplateEmpty">Категории не настроены.</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Готово</button>
             </div>
         </div>
     </div>

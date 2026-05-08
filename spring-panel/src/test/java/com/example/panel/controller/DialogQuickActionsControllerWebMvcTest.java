@@ -44,7 +44,7 @@ class DialogQuickActionsControllerWebMvcTest {
         when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_reply"), eq("reply"), eq("T-600")))
             .thenReturn(null);
         when(dialogQuickActionService.sendReply("T-600", "Принято", 123L, "operator"))
-            .thenReturn(new DialogReplyService.DialogReplyResult(true, null, "2026-04-20T08:10:00Z", 456L));
+            .thenReturn(new DialogReplyService.DialogReplyResult(true, null, "2026-04-20T08:10:00Z", 456L, "operator"));
 
         mockMvc.perform(post("/api/dialogs/T-600/reply")
                 .with(user("operator"))

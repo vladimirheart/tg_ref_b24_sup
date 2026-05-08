@@ -98,6 +98,7 @@
   const filtersModalEl = document.getElementById('dialogFiltersModal');
   const columnsModalEl = document.getElementById('dialogColumnsModal');
   const detailsModalEl = document.getElementById('dialogDetailsModal');
+  const categoriesModalEl = document.getElementById('dialogCategoriesModal');
   const hotkeysModalEl = document.getElementById('dialogHotkeysModal');
   const workspaceShell = document.getElementById('dialogsWorkspaceShell');
   const workspaceConversationTitle = document.getElementById('workspaceConversationTitle');
@@ -201,6 +202,7 @@
   const detailsClientName = document.getElementById('dialogDetailsClientName');
   const detailsClientStatus = document.getElementById('dialogDetailsClientStatus');
   const detailsOpenClientCard = document.getElementById('dialogDetailsOpenClientCard');
+  const detailsTakeBtn = document.getElementById('dialogDetailsTakeBtn');
   const detailsCategories = document.getElementById('dialogDetailsCategories');
   const detailsUnreadCount = document.getElementById('dialogDetailsUnreadCount');
   const detailsRating = document.getElementById('dialogDetailsRating');
@@ -266,6 +268,9 @@
     : null;
   const detailsModal = (typeof bootstrap !== 'undefined' && detailsModalEl)
     ? new bootstrap.Modal(detailsModalEl)
+    : null;
+  const categoriesModal = (typeof bootstrap !== 'undefined' && categoriesModalEl)
+    ? new bootstrap.Modal(categoriesModalEl)
     : null;
   const hotkeysModal = (typeof bootstrap !== 'undefined' && hotkeysModalEl)
     ? new bootstrap.Modal(hotkeysModalEl)
@@ -2089,6 +2094,33 @@
     if (takeBtn) {
       takeBtn.classList.toggle('d-none', isOwnedByCurrentOperator(value) || !canRunAction('can_assign'));
     }
+    if (row === activeDialogRow || String(row.dataset.ticketId || '').trim() === String(activeDialogTicketId || '').trim()) {
+      updateDetailsResponsible(value || '—');
+    }
+  }
+
+  function updateDetailsTakeButton(responsible) {
+    if (!detailsTakeBtn) return;
+    const safeResponsible = String(responsible || '').trim();
+    const canTakeOwnership = Boolean(activeDialogTicketId) && canRunAction('can_assign') && !isOwnedByCurrentOperator(safeResponsible);
+    detailsTakeBtn.disabled = !canTakeOwnership;
+    detailsTakeBtn.classList.toggle('d-none', !canTakeOwnership);
+  }
+
+  function updateDetailsResponsible(responsible) {
+    const safeResponsible = String(responsible || '').trim() || '—';
+    activeDialogContext.operatorName = safeResponsible;
+    const responsibleRow = detailsSummary
+      ? Array.from(detailsSummary.querySelectorAll('.d-flex.justify-content-between.gap-2'))
+        .find((row) => row.firstElementChild?.textContent?.trim() === 'Ответственный')
+      : null;
+    const responsibleValue = responsibleRow?.lastElementChild || null;
+    if (responsibleValue) {
+      responsibleValue.innerHTML = safeResponsible !== '—'
+        ? `<a class="dialog-summary-value-link" href="/users/${encodeURIComponent(safeResponsible)}" target="_blank" rel="noopener">${escapeHtml(safeResponsible)}</a>`
+        : '—';
+    }
+    updateDetailsTakeButton(safeResponsible);
   }
 
   function applyCompactMode(enabled) {
@@ -2267,6 +2299,7 @@
       if (typeof showNotification === 'function') {
         showNotification('Диалог назначен на вас', 'success');
       }
+      return data;
     } catch (error) {
       if (btn) btn.disabled = false;
       if (typeof showNotification === 'function') {
@@ -6631,6 +6664,10 @@
 
   function openCategoryPanel() {
     if (!categoryTemplatesSection || categoryTemplatesSection.classList.contains('d-none')) return;
+    if (categoriesModalEl) {
+      showModalSafe(categoriesModalEl, categoriesModal);
+      return;
+    }
     categoryTemplatesSection.classList.add('is-open');
     categoryTemplatesSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
@@ -7380,6 +7417,7 @@
       detailsOpenClientCard.classList.add('disabled');
       detailsOpenClientCard.setAttribute('aria-disabled', 'true');
     }
+    updateDetailsTakeButton(fallbackRow?.dataset?.responsible || '');
 
     showModalSafe(detailsModalEl, detailsModal);
     try {
@@ -7457,6 +7495,7 @@
           detailsOpenClientCard.setAttribute('aria-disabled', 'true');
         }
       }
+      updateDetailsResponsible(responsibleLabel);
       updateSummaryCategories(categoriesLabel || '—');
       if (detailsProblem) detailsProblem.textContent = problemLabel;
       if (detailsMeta) detailsMeta.textContent = formatDialogMeta(ticketId, requestNumber);
@@ -7515,7 +7554,9 @@
           if (label === 'Ответственный' && safeValue !== '—') {
             renderedValue = `<a class="dialog-summary-value-link" href="/users/${encodeURIComponent(safeValue)}" target="_blank" rel="noopener">${escapeHtml(safeValue)}</a>`;
           }
-          const fieldAttr = label === 'Категории' ? ' data-summary-field="categories"' : '';
+          const fieldAttr = label === 'Категории'
+            ? ' data-summary-field="categories"'
+            : (label === 'Ответственный' ? ' data-summary-field="responsible"' : '');
           const valueMarkup = label === 'Категории'
             ? `<span data-summary-value>${renderCategoryBadges(safeValue)}</span>`
             : renderedValue;
@@ -7776,6 +7817,18 @@
     });
   }
 
+  if (detailsTakeBtn) {
+    detailsTakeBtn.addEventListener('click', async () => {
+      if (!activeDialogTicketId || !activeDialogRow) return;
+      try {
+        const data = await takeDialog(activeDialogTicketId, activeDialogRow, detailsTakeBtn);
+        updateDetailsResponsible(data?.responsible || activeDialogRow.dataset.responsible || '');
+      } catch (_error) {
+        // notification is already shown inside takeDialog
+      }
+    });
+  }
+
   if (workspaceCreateTaskBtn) {
     workspaceCreateTaskBtn.addEventListener('click', (event) => {
       event.preventDefault();
@@ -8027,7 +8080,7 @@
         }
         detailsReplyText.value = '';
         resetReplyTarget();
-        activeDialogContext.operatorName = data.responsible || activeDialogContext.operatorName;
+        updateDetailsResponsible(data.responsible || activeDialogContext.operatorName);
         appendHistoryMessage({
           sender: OPERATOR_DISPLAY_NAME || data.responsible || 'Оператор',
           message,
@@ -8117,7 +8170,7 @@
         if (!resp.ok || !data?.success) {
           throw new Error(data?.error || `Ошибка ${resp.status}`);
         }
-        activeDialogContext.operatorName = data.responsible || activeDialogContext.operatorName;
+        updateDetailsResponsible(data.responsible || activeDialogContext.operatorName);
         if (appendHistory) {
           appendHistoryMessage({
             sender: OPERATOR_DISPLAY_NAME || data.responsible || 'Оператор',
@@ -8419,6 +8472,9 @@
       startHistoryPolling();
     });
     detailsModalEl.addEventListener('hidden.bs.modal', () => {
+      if (categoriesModal) {
+        categoriesModal.hide();
+      }
       activeDialogTicketId = null;
       initMacroVariableCatalog(null, true);
       activeDialogChannelId = null;
@@ -8439,6 +8495,7 @@
         createdAt: '—',
       };
       selectedCategories = new Set();
+      updateDetailsTakeButton('');
       stopHistoryPolling();
       if (WORKSPACE_V1_ENABLED && isWorkspaceDialogPath(window.location.pathname)) {
         const nextPath = window.location.pathname === '/'

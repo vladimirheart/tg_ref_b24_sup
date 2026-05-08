@@ -34,12 +34,14 @@ class DialogReplyServiceTest {
                 .thenReturn(new DialogReplyTransportService.DialogReplyTransportResult(null, 77L));
         when(targetService.logOutgoingMessage(any(), eq("T-900"), eq("Принято"), eq("operator_message"), eq(77L), eq(45L), eq("operator")))
                 .thenReturn("2026-04-30T12:00:00Z");
+        when(responsibilityService.assignResponsibleIfMissing("T-900", "operator")).thenReturn("operator");
 
         DialogReplyService.DialogReplyResult result = dialogReplyService.sendReply("T-900", "Принято", 45L, "operator");
 
         assertThat(result.success()).isTrue();
         assertThat(result.timestamp()).isEqualTo("2026-04-30T12:00:00Z");
         assertThat(result.telegramMessageId()).isEqualTo(77L);
+        assertThat(result.responsible()).isEqualTo("operator");
         verify(targetService).touchTicketActivity("T-900", 123L);
         verify(responsibilityService).assignResponsibleIfMissing("T-900", "operator");
     }
@@ -63,6 +65,7 @@ class DialogReplyServiceTest {
                 .thenReturn(new DialogReplyTransportService.DialogReplyTransportResult(null, 88L));
         when(targetService.logOutgoingMediaMessage(any(), eq("T-901"), eq("caption"), eq("stored.bin"), eq("image"), eq(88L)))
                 .thenReturn("2026-04-30T12:05:00Z");
+        when(responsibilityService.assignResponsibleIfMissing("T-901", "operator")).thenReturn("operator");
 
         DialogReplyService.DialogMediaReplyResult result =
                 dialogReplyService.sendMediaReply("T-901", file, "caption", "operator", "stored.bin", "image.png");
@@ -70,6 +73,7 @@ class DialogReplyServiceTest {
         assertThat(result.success()).isTrue();
         assertThat(result.telegramMessageId()).isEqualTo(88L);
         assertThat(result.messageType()).isEqualTo("image");
+        assertThat(result.responsible()).isEqualTo("operator");
         verify(targetService).touchTicketActivity("T-901", 200L);
         verify(responsibilityService).assignResponsibleIfMissing("T-901", "operator");
     }
@@ -88,11 +92,13 @@ class DialogReplyServiceTest {
         when(targetService.hasWebFormSession("T-902")).thenReturn(true);
         when(targetService.logOutgoingMessage(any(), eq("T-902"), eq("Текст"), eq("operator_message"), eq(null), eq(null), eq("operator")))
                 .thenReturn("2026-04-30T12:10:00Z");
+        when(responsibilityService.assignResponsibleIfMissing("T-902", "operator")).thenReturn("operator");
 
         DialogReplyService.DialogReplyResult result = dialogReplyService.sendReply("T-902", "Текст", null, "operator");
 
         assertThat(result.success()).isTrue();
         assertThat(result.telegramMessageId()).isNull();
+        assertThat(result.responsible()).isEqualTo("operator");
         verify(transportService, never()).sendText(any(), any(), any(), any());
     }
 }

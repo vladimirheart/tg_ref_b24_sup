@@ -124,7 +124,7 @@ public class DialogQuickActionService {
         response.put("success", true);
         response.put("timestamp", result.timestamp());
         response.put("telegramMessageId", result.telegramMessageId());
-        response.put("responsible", operator);
+        response.put("responsible", result.responsible());
         response.put("attachment", attachmentUrl);
         response.put("messageType", result.messageType());
         response.put("message", result.message());
@@ -172,7 +172,6 @@ public class DialogQuickActionService {
     public void updateCategories(String ticketId,
                                  String operator,
                                  List<String> categories) {
-        dialogResponsibilityService.assignResponsibleIfMissing(ticketId, operator);
         dialogTicketLifecycleService.setTicketCategories(ticketId, categories);
         notifyDialogParticipantsSafely(
                 ticketId,

@@ -11,6 +11,7 @@ import org.springframework.util.StringUtils;
 public class DialogResponsibilityService {
 
     private static final Logger log = LoggerFactory.getLogger(DialogResponsibilityService.class);
+    private static final String AI_AGENT_USERNAME = "ai_agent";
 
     private final JdbcTemplate jdbcTemplate;
 
@@ -18,27 +19,31 @@ public class DialogResponsibilityService {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    public void assignResponsibleIfMissing(String ticketId, String username) {
+    public String assignResponsibleIfMissing(String ticketId, String username) {
         if (!StringUtils.hasText(ticketId) || !StringUtils.hasText(username)) {
-            return;
+            return loadResponsible(ticketId);
+        }
+        String normalizedUsername = trimToNull(username);
+        if (normalizedUsername == null || AI_AGENT_USERNAME.equalsIgnoreCase(normalizedUsername)) {
+            return loadResponsible(ticketId);
         }
         try {
             jdbcTemplate.update(
                     "INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by) "
                             + "SELECT ?, ?, ? WHERE NOT EXISTS ("
                             + "SELECT 1 FROM ticket_responsibles WHERE ticket_id = ?)",
-                    ticketId, username, username, ticketId
+                    ticketId, normalizedUsername, normalizedUsername, ticketId
             );
         } catch (DataAccessException ex) {
             log.warn("Unable to assign responsible for ticket {}: {}", ticketId, DialogDataAccessSupport.summarizeDataAccessException(ex));
         }
+        return loadResponsible(ticketId);
     }
 
     public void markDialogAsRead(String ticketId, String operator) {
         if (!StringUtils.hasText(ticketId) || !StringUtils.hasText(operator)) {
             return;
         }
-        assignResponsibleIfMissing(ticketId, operator);
         try {
             jdbcTemplate.update(
                     "UPDATE ticket_responsibles "
@@ -77,5 +82,25 @@ public class DialogResponsibilityService {
         } catch (DataAccessException ex) {
             log.warn("Unable to update responsible for ticket {}: {}", ticketId, DialogDataAccessSupport.summarizeDataAccessException(ex));
         }
+    }
+
+    public String loadResponsible(String ticketId) {
+        if (!StringUtils.hasText(ticketId)) {
+            return null;
+        }
+        try {
+            return jdbcTemplate.query(
+                    "SELECT responsible FROM ticket_responsibles WHERE ticket_id = ? LIMIT 1",
+                    rs -> rs.next() ? trimToNull(rs.getString("responsible")) : null,
+                    ticketId
+            );
+        } catch (DataAccessException ex) {
+            log.warn("Unable to load responsible for ticket {}: {}", ticketId, DialogDataAccessSupport.summarizeDataAccessException(ex));
+            return null;
+        }
+    }
+
+    private String trimToNull(String value) {
+        return StringUtils.hasText(value) ? value.trim() : null;
     }
 }
