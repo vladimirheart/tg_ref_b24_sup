@@ -35,6 +35,10 @@ class DialogTicketLifecycleServiceTest {
                 """,
                 "T-100", "pending", 77L, 5L, 0, 0
         );
+        jdbcTemplate.update(
+                "INSERT INTO ticket_active(ticket_id, user_identity, last_seen) VALUES (?, ?, ?)",
+                "T-100", "77", "2026-05-08T10:00:00Z"
+        );
 
         DialogResolveResult result = service.resolveTicket("T-100", "operator", List.of("billing", "billing", "payments"));
 
@@ -58,6 +62,12 @@ class DialogTicketLifecycleServiceTest {
                 "T-100"
         );
         assertThat(pendingFeedback.get("source")).isEqualTo("operator_close");
+        Integer activeCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM ticket_active WHERE ticket_id = ?",
+                Integer.class,
+                "T-100"
+        );
+        assertThat(activeCount).isZero();
     }
 
     @Test
@@ -86,6 +96,12 @@ class DialogTicketLifecycleServiceTest {
         );
         assertThat(responsible.get("responsible")).isEqualTo("operator");
         assertThat(responsible.get("assigned_by")).isEqualTo("operator");
+        Map<String, Object> active = jdbcTemplate.queryForMap(
+                "SELECT ticket_id, user_identity FROM ticket_active WHERE ticket_id = ?",
+                "T-200"
+        );
+        assertThat(active.get("ticket_id")).isEqualTo("T-200");
+        assertThat(active.get("user_identity")).isEqualTo("88");
     }
 
     private void createSchema() {
@@ -128,6 +144,13 @@ class DialogTicketLifecycleServiceTest {
                     responsible TEXT,
                     assigned_by TEXT,
                     last_read_at TEXT
+                )
+                """);
+        jdbcTemplate.execute("""
+                CREATE TABLE ticket_active (
+                    ticket_id TEXT PRIMARY KEY,
+                    user_identity TEXT,
+                    last_seen TEXT
                 )
                 """);
     }

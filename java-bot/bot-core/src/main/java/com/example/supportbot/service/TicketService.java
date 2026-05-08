@@ -343,6 +343,14 @@ public class TicketService {
     }
 
     @Transactional
+    public void clearTicketActivity(String ticketId) {
+        if (!StringUtils.hasText(ticketId)) {
+            return;
+        }
+        ticketActiveRepository.findById(ticketId).ifPresent(ticketActiveRepository::delete);
+    }
+
+    @Transactional
     public void ensureFeedbackRequest(String ticketId, Long userId, Channel channel, String source) {
         OffsetDateTime now = OffsetDateTime.now();
         boolean markAsSent = "user_prompt".equalsIgnoreCase(source);

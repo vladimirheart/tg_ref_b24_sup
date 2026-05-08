@@ -138,6 +138,84 @@ class MaxWebhookControllerTest {
     }
 
     @Test
+    void handleUpdateClearsResolvedActiveTicketBeforeSavingFeedback() {
+        MaxBotProperties properties = new MaxBotProperties();
+        properties.setEnabled(true);
+        properties.setChannelId(42L);
+        properties.setToken("token");
+
+        ChannelService channelService = mock(ChannelService.class);
+        TicketService ticketService = mock(TicketService.class);
+        ChatHistoryService chatHistoryService = mock(ChatHistoryService.class);
+        MessagingService messagingService = mock(MessagingService.class);
+        FeedbackService feedbackService = mock(FeedbackService.class);
+        PublicFormConversationLinkService linkService = mock(PublicFormConversationLinkService.class);
+        BotSettingsService botSettingsService = mock(BotSettingsService.class);
+        SharedConfigService sharedConfigService = mock(SharedConfigService.class);
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        Channel channel = new Channel();
+        channel.setId(42L);
+        when(channelService.resolveConfiguredChannel(42L, "token", "MAX", "max")).thenReturn(channel);
+
+        com.example.supportbot.entity.TicketActive active = new com.example.supportbot.entity.TicketActive();
+        active.setTicketId("T-100");
+        active.setUser("1001");
+        when(ticketService.findActiveTicketForUser(1001L, "max_1001")).thenReturn(Optional.of(active));
+        when(ticketService.findByTicketId("T-100"))
+                .thenReturn(Optional.of(new TicketService.TicketWithUser(1001L, "T-100", "resolved")));
+
+        PendingFeedbackRequest request = new PendingFeedbackRequest();
+        request.setUserId(1001L);
+        request.setChannel(channel);
+        request.setTicketId("T-100");
+        when(feedbackService.findActiveRequest(1001L, channel)).thenReturn(Optional.of(request));
+
+        BotSettingsDto settings = new BotSettingsDto();
+        when(botSettingsService.loadFromChannel(channel)).thenReturn(settings);
+        when(botSettingsService.ratingAllowedValues(settings)).thenReturn(Set.of("1", "2", "3", "4", "5"));
+        when(botSettingsService.ratingResponseFor(settings, 5)).thenReturn(Optional.of("Спасибо за оценку!"));
+
+        MaxWebhookController controller = new MaxWebhookController(
+                properties,
+                channelService,
+                ticketService,
+                chatHistoryService,
+                messagingService,
+                feedbackService,
+                linkService,
+                botSettingsService,
+                sharedConfigService,
+                objectMapper
+        );
+
+        ObjectNode update = objectMapper.createObjectNode();
+        update.put("update_type", "message_created");
+        ObjectNode message = update.putObject("message");
+        message.putObject("sender").put("user_id", 1001L);
+        message.putObject("recipient").put("chat_id", 2002L);
+        message.putObject("body").put("text", "5");
+
+        ResponseEntity<Map<String, Object>> response = controller.handleUpdate(update, "");
+
+        assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
+        assertThat(response.getBody()).containsEntry("feedback_saved", true);
+        verify(ticketService).clearTicketActivity("T-100");
+        verify(feedbackService).storeFeedback(request, 5);
+        verify(chatHistoryService, never()).storeUserMessage(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()
+        );
+    }
+
+    @Test
     void handleUpdateDoesNotTreatNumericPresetAnswerAsFeedbackWhenSessionIsActive() {
         MaxBotProperties properties = new MaxBotProperties();
         properties.setEnabled(true);

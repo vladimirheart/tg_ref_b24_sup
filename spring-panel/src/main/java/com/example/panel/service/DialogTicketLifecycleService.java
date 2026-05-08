@@ -69,6 +69,7 @@ public class DialogTicketLifecycleService {
                     ticketId
             );
             if (updated > 0) {
+                clearTicketActivity(ticketId);
                 setTicketCategories(ticketId, normalizedCategories);
                 ensurePendingFeedbackRequest(ticketId, resolvedBy);
             }
@@ -99,8 +100,11 @@ public class DialogTicketLifecycleService {
                             + "WHERE ticket_id = ? AND status = 'resolved'",
                     ticketId
             );
-            if (updated > 0 && StringUtils.hasText(operator)) {
-                dialogResponsibilityService.assignResponsibleIfMissing(ticketId, operator);
+            if (updated > 0) {
+                restoreTicketActivity(ticketId);
+                if (StringUtils.hasText(operator)) {
+                    dialogResponsibilityService.assignResponsibleIfMissing(ticketId, operator);
+                }
             }
             return new DialogResolveResult(updated > 0, true, null);
         } catch (DataAccessException ex) {
@@ -149,6 +153,54 @@ public class DialogTicketLifecycleService {
         }
     }
 
+    private void clearTicketActivity(String ticketId) {
+        if (!StringUtils.hasText(ticketId)) {
+            return;
+        }
+        try {
+            jdbcTemplate.update("DELETE FROM ticket_active WHERE ticket_id = ?", ticketId);
+        } catch (DataAccessException ex) {
+            log.warn("Unable to clear ticket_active for ticket {}: {}", ticketId, DialogDataAccessSupport.summarizeDataAccessException(ex));
+        }
+    }
+
+    private void restoreTicketActivity(String ticketId) {
+        if (!StringUtils.hasText(ticketId)) {
+            return;
+        }
+        try {
+            String identity = jdbcTemplate.query(
+                    "SELECT user_id FROM tickets WHERE ticket_id = ?",
+                    rs -> rs.next() ? trimToNull(rs.getString("user_id")) : null,
+                    ticketId
+            );
+            if (!StringUtils.hasText(identity)) {
+                return;
+            }
+            int updated = jdbcTemplate.update("""
+                    UPDATE ticket_active
+                       SET user_identity = CASE
+                               WHEN user_identity IS NULL OR trim(user_identity) = '' THEN ?
+                               ELSE user_identity
+                           END,
+                           last_seen = CURRENT_TIMESTAMP
+                     WHERE ticket_id = ?
+                    """,
+                    identity,
+                    ticketId
+            );
+            if (updated == 0) {
+                jdbcTemplate.update(
+                        "INSERT INTO ticket_active(ticket_id, user_identity, last_seen) VALUES(?, ?, CURRENT_TIMESTAMP)",
+                        ticketId,
+                        identity
+                );
+            }
+        } catch (DataAccessException ex) {
+            log.warn("Unable to restore ticket_active for ticket {}: {}", ticketId, DialogDataAccessSupport.summarizeDataAccessException(ex));
+        }
+    }
+
     private boolean isAutoCloseResolvedBy(String resolvedBy) {
         if (!StringUtils.hasText(resolvedBy)) {
             return false;
@@ -166,6 +218,10 @@ public class DialogTicketLifecycleService {
                 .map(String::trim)
                 .distinct()
                 .toList();
+    }
+
+    private String trimToNull(String value) {
+        return StringUtils.hasText(value) ? value.trim() : null;
     }
 
     private record TicketOwner(long userId, long channelId) {

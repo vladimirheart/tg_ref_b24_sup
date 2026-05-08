@@ -141,6 +141,10 @@ public class MaxWebhookController {
         }
 
         Optional<TicketActive> active = ticketService.findActiveTicketForUser(userId, clientProfile.identity());
+        if (active.isPresent() && isStaleActiveTicket(active.get().getTicketId())) {
+            ticketService.clearTicketActivity(active.get().getTicketId());
+            active = Optional.empty();
+        }
         if (active.isPresent()) {
             sessions.remove(userId);
             String ticketId = active.get().getTicketId();
@@ -239,6 +243,22 @@ public class MaxWebhookController {
         String response = botSettingsService.ratingResponseFor(settings, rating).orElse("Спасибо за оценку!");
         messagingService.sendToUser(channel, userId, response);
         return ResponseEntity.ok(Map.of("ok", true, "feedback_saved", true, "rating", rating));
+    }
+
+    private boolean isStaleActiveTicket(String ticketId) {
+        if (ticketId == null || ticketId.isBlank()) {
+            return true;
+        }
+        return ticketService.findByTicketId(ticketId)
+                .map(ticket -> {
+                    String status = ticket.status();
+                    if (status == null) {
+                        return false;
+                    }
+                    String normalized = status.trim().toLowerCase();
+                    return "resolved".equals(normalized) || "closed".equals(normalized);
+                })
+                .orElse(true);
     }
 
     private ConversationSession startSession(Long userId, Long chatId, String username, String clientName, Channel channel) {
