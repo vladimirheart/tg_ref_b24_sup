@@ -56,6 +56,8 @@ public class DialogAiAssistantService {
     private final AiKnowledgeService aiKnowledgeService;
     private final AiInputNormalizerService aiInputNormalizerService;
     private final AiControlledLlmService aiControlledLlmService;
+    private final DialogAiAssistantReviewService dialogAiAssistantReviewService;
+    private final DialogAiSolutionMemoryService dialogAiSolutionMemoryService;
     private final ObjectMapper objectMapper;
 
     public DialogAiAssistantService(JdbcTemplate jdbcTemplate,
@@ -72,6 +74,8 @@ public class DialogAiAssistantService {
                                     AiKnowledgeService aiKnowledgeService,
                                     AiInputNormalizerService aiInputNormalizerService,
                                     AiControlledLlmService aiControlledLlmService,
+                                    DialogAiAssistantReviewService dialogAiAssistantReviewService,
+                                    DialogAiSolutionMemoryService dialogAiSolutionMemoryService,
                                     ObjectMapper objectMapper) {
         this.jdbcTemplate = jdbcTemplate;
         this.dialogResponsibilityService = dialogResponsibilityService;
@@ -87,6 +91,8 @@ public class DialogAiAssistantService {
         this.aiKnowledgeService = aiKnowledgeService;
         this.aiInputNormalizerService = aiInputNormalizerService;
         this.aiControlledLlmService = aiControlledLlmService;
+        this.dialogAiAssistantReviewService = dialogAiAssistantReviewService;
+        this.dialogAiSolutionMemoryService = dialogAiSolutionMemoryService;
         this.objectMapper = objectMapper;
     }
 
@@ -461,341 +467,19 @@ public class DialogAiAssistantService {
     }
 
     public Map<String, Object> loadPendingReview(String ticketId) {
-        String t = trim(ticketId);
-        if (t == null) return Map.of("pending", false);
-        try {
-            Map<String, Object> row = loadPendingReviewRowByTicket(t);
-            if (row == null) return Map.of("pending", false);
-            String key = trim(safe(row.get("query_key")));
-            if (key == null) return Map.of("pending", false);
-            List<Map<String, Object>> problemCandidates = loadReviewMessageCandidates(t, false, 20);
-            List<Map<String, Object>> solutionCandidates = loadReviewMessageCandidates(t, true, 20);
-            Map<String, Object> payload = new LinkedHashMap<>();
-            payload.put("pending", true);
-            payload.put("ticket_id", t);
-            payload.put("query_key", key);
-            payload.put("query_text", safe(row.get("query_text")));
-            payload.put("current_solution", safe(row.get("solution_text")));
-            payload.put("pending_solution", safe(row.get("pending_solution_text")));
-            payload.put("updated_at", safe(row.get("updated_at")));
-            payload.put("problem_message_candidates", problemCandidates);
-            payload.put("solution_message_candidates", solutionCandidates);
-            payload.put("selected_problem_message_id", resolveReviewMessageSelection(problemCandidates, safe(row.get("query_text"))));
-            payload.put("selected_solution_message_id", resolveReviewMessageSelection(solutionCandidates, safe(row.get("pending_solution_text"))));
-            return payload;
-        } catch (Exception ex) {
-            return Map.of("pending", false);
-        }
+        return dialogAiAssistantReviewService.loadPendingReview(ticketId);
     }
 
     public boolean approvePendingReview(String ticketId, String operator) {
-        return approvePendingReview(ticketId, operator, null, null);
+        return dialogAiAssistantReviewService.approvePendingReview(ticketId, operator);
     }
 
     public boolean approvePendingReview(String ticketId, String operator, Long clientMessageId, Long operatorMessageId) {
-        String t = trim(ticketId);
-        if (t == null) return false;
-        try {
-            Map<String, Object> reviewRow = loadPendingReviewRowByTicket(t);
-            if (reviewRow == null) return false;
-            String sourceKey = trim(safe(reviewRow.get("query_key")));
-            if (sourceKey == null) return false;
-
-            String selectedClientMessage = loadReviewMessageText(t, clientMessageId, false);
-            String selectedOperatorMessage = loadReviewMessageText(t, operatorMessageId, true);
-
-            String resolvedQueryText = trim(selectedClientMessage);
-            if (resolvedQueryText == null) resolvedQueryText = trim(safe(reviewRow.get("query_text")));
-            if (resolvedQueryText == null) resolvedQueryText = loadLastClientMessage(t);
-
-            String resolvedSolutionText = trim(selectedOperatorMessage);
-            if (resolvedSolutionText == null) resolvedSolutionText = trim(safe(reviewRow.get("pending_solution_text")));
-
-            if (resolvedQueryText == null || resolvedSolutionText == null) {
-                return false;
-            }
-
-            String targetKey = buildKey(resolvedQueryText);
-            String safeOperator = trim(operator);
-            int sourceUpdated;
-            if (targetKey.equals(sourceKey)) {
-                sourceUpdated = jdbcTemplate.update(
-                        """
-                        UPDATE ai_agent_solution_memory
-                           SET query_text = ?,
-                               solution_text = ?,
-                               pending_solution_text = NULL,
-                               review_required = 0,
-                               times_confirmed = COALESCE(times_confirmed,0) + 1,
-                               last_operator = ?,
-                               last_ticket_id = ?,
-                               last_client_message = ?,
-                               updated_at = CURRENT_TIMESTAMP
-                         WHERE query_key = ?
-                           AND COALESCE(review_required,0) = 1
-                           AND trim(COALESCE(pending_solution_text,'')) <> ''
-                        """,
-                        cut(resolvedQueryText, 600),
-                        cut(resolvedSolutionText, 2000),
-                        safeOperator,
-                        t,
-                        cut(resolvedQueryText, 600),
-                        sourceKey
-                );
-                if (sourceUpdated > 0) {
-                    applyMemoryGovernance(
-                            sourceKey,
-                            "approved",
-                            "medium",
-                            null,
-                            null,
-                            null,
-                            "normal",
-                            "operator",
-                            true,
-                            safeOperator
-                    );
-                }
-            } else {
-                int targetUpdated = jdbcTemplate.update(
-                        """
-                        UPDATE ai_agent_solution_memory
-                           SET query_text = ?,
-                               solution_text = ?,
-                               review_required = 0,
-                               pending_solution_text = NULL,
-                               times_confirmed = COALESCE(times_confirmed,0) + 1,
-                               last_operator = ?,
-                               last_ticket_id = ?,
-                               last_client_message = ?,
-                               updated_at = CURRENT_TIMESTAMP
-                         WHERE query_key = ?
-                        """,
-                        cut(resolvedQueryText, 600),
-                        cut(resolvedSolutionText, 2000),
-                        safeOperator,
-                        t,
-                        cut(resolvedQueryText, 600),
-                        targetKey
-                );
-                if (targetUpdated == 0) {
-                    jdbcTemplate.update(
-                            """
-                            INSERT INTO ai_agent_solution_memory(
-                                query_key, query_text, solution_text, source,
-                                times_used, times_confirmed, times_corrected,
-                                review_required, pending_solution_text,
-                                last_operator, last_ticket_id, last_client_message,
-                                created_at, updated_at
-                            ) VALUES (?, ?, ?, 'operator', 0, 1, 0, 0, NULL, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-                            """,
-                            targetKey,
-                            cut(resolvedQueryText, 600),
-                            cut(resolvedSolutionText, 2000),
-                            safeOperator,
-                            t,
-                            cut(resolvedQueryText, 600)
-                    );
-                }
-                applyMemoryGovernance(
-                        targetKey,
-                        "approved",
-                        "medium",
-                        null,
-                        null,
-                        null,
-                        "normal",
-                        "operator",
-                        true,
-                        safeOperator
-                );
-                sourceUpdated = jdbcTemplate.update(
-                        """
-                        UPDATE ai_agent_solution_memory
-                           SET pending_solution_text = NULL,
-                               review_required = 0,
-                               last_operator = ?,
-                               updated_at = CURRENT_TIMESTAMP
-                         WHERE query_key = ?
-                           AND COALESCE(review_required,0) = 1
-                        """,
-                        safeOperator,
-                        sourceKey
-                );
-                if (sourceUpdated > 0) {
-                    applyMemoryGovernance(
-                            sourceKey,
-                            "deprecated",
-                            "low",
-                            null,
-                            null,
-                            null,
-                            "normal",
-                            "operator",
-                            false,
-                            safeOperator
-                    );
-                }
-            }
-            if (sourceUpdated > 0) {
-                aiKnowledgeService.syncFromMemory(targetKey);
-                if (!targetKey.equals(sourceKey)) {
-                    aiKnowledgeService.syncFromMemory(sourceKey);
-                }
-                clearProcessing(t, "operator_correction_approved", null);
-                Map<String, Object> payload = new LinkedHashMap<>();
-                payload.put("query_key", targetKey);
-                payload.put("source_query_key", sourceKey);
-                payload.put("message_mapping_updated", !targetKey.equals(sourceKey));
-                if (clientMessageId != null && clientMessageId > 0) payload.put("client_message_id", clientMessageId);
-                if (operatorMessageId != null && operatorMessageId > 0) payload.put("operator_message_id", operatorMessageId);
-                recordAiEvent(t, "ai_agent_correction_approved", safeOperator, "review", "approved", null, null, null, payload);
-                return true;
-            }
-            return false;
-        } catch (Exception ex) {
-            return false;
-        }
+        return dialogAiAssistantReviewService.approvePendingReview(ticketId, operator, clientMessageId, operatorMessageId);
     }
 
     public boolean rejectPendingReview(String ticketId, String operator) {
-        String t = trim(ticketId);
-        if (t == null) return false;
-        try {
-            Map<String, Object> reviewRow = loadPendingReviewRowByTicket(t);
-            if (reviewRow == null) return false;
-            String key = trim(safe(reviewRow.get("query_key")));
-            if (key == null) return false;
-            int updated = jdbcTemplate.update(
-                    "UPDATE ai_agent_solution_memory SET pending_solution_text = NULL, review_required = 0, last_operator = ?, updated_at = CURRENT_TIMESTAMP WHERE query_key = ? AND COALESCE(review_required,0) = 1",
-                    trim(operator),
-                    key
-            );
-            if (updated > 0) {
-                applyMemoryGovernance(
-                        key,
-                        "rejected",
-                        "low",
-                        null,
-                        null,
-                        null,
-                        "normal",
-                        "operator",
-                        false,
-                        trim(operator)
-                );
-                aiKnowledgeService.syncFromMemory(key);
-                clearProcessing(t, "operator_correction_rejected", null);
-                recordAiEvent(t, "ai_agent_correction_rejected", trim(operator), "review", "rejected", null, null, null, null);
-                return true;
-            }
-            return false;
-        } catch (Exception ex) {
-            return false;
-        }
-    }
-
-    private Map<String, Object> loadPendingReviewRowByTicket(String ticketId) {
-        String t = trim(ticketId);
-        if (t == null) {
-            return null;
-        }
-        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-                """
-                SELECT query_key, query_text, solution_text, pending_solution_text, updated_at
-                  FROM ai_agent_solution_memory
-                 WHERE last_ticket_id = ?
-                   AND COALESCE(review_required,0) = 1
-                   AND trim(COALESCE(pending_solution_text,'')) <> ''
-                 ORDER BY COALESCE(updated_at, created_at) DESC
-                 LIMIT 1
-                """,
-                t
-        );
-        if (!rows.isEmpty()) {
-            return rows.get(0);
-        }
-        String lastClient = loadLastClientMessage(t);
-        if (!StringUtils.hasText(lastClient)) {
-            return null;
-        }
-        String key = buildKey(lastClient);
-        List<Map<String, Object>> fallbackRows = jdbcTemplate.queryForList(
-                """
-                SELECT query_key, query_text, solution_text, pending_solution_text, updated_at
-                  FROM ai_agent_solution_memory
-                 WHERE query_key = ?
-                   AND COALESCE(review_required,0) = 1
-                   AND trim(COALESCE(pending_solution_text,'')) <> ''
-                 LIMIT 1
-                """,
-                key
-        );
-        return fallbackRows.isEmpty() ? null : fallbackRows.get(0);
-    }
-
-    private List<Map<String, Object>> loadReviewMessageCandidates(String ticketId, boolean operatorMessages, int limit) {
-        String t = trim(ticketId);
-        if (t == null) {
-            return List.of();
-        }
-        int safeLimit = Math.max(1, Math.min(limit, 50));
-        String senderFilter = operatorMessages
-                ? "IN ('operator','support','admin','system')"
-                : "NOT IN ('operator','support','admin','system','ai_agent')";
-        try {
-            List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-                    "SELECT id, sender, message, timestamp FROM chat_history WHERE ticket_id = ? AND lower(COALESCE(sender,'')) " + senderFilter + " AND message IS NOT NULL AND trim(message) <> '' ORDER BY id DESC LIMIT ?",
-                    t,
-                    safeLimit
-            );
-            List<Map<String, Object>> out = new ArrayList<>();
-            for (int i = rows.size() - 1; i >= 0; i--) {
-                Map<String, Object> row = rows.get(i);
-                Map<String, Object> item = new LinkedHashMap<>();
-                item.put("id", toLong(row.get("id")));
-                item.put("sender", safe(row.get("sender")));
-                item.put("text", safe(row.get("message")));
-                item.put("timestamp", safe(row.get("timestamp")));
-                out.add(item);
-            }
-            return out;
-        } catch (Exception ex) {
-            return List.of();
-        }
-    }
-
-    private Long resolveReviewMessageSelection(List<Map<String, Object>> candidates, String targetText) {
-        String target = trim(targetText);
-        if (target == null || candidates == null || candidates.isEmpty()) {
-            return null;
-        }
-        for (Map<String, Object> candidate : candidates) {
-            if (target.equals(trim(safe(candidate.get("text"))))) {
-                return toLong(candidate.get("id"));
-            }
-        }
-        return toLong(candidates.get(candidates.size() - 1).get("id"));
-    }
-
-    private String loadReviewMessageText(String ticketId, Long messageId, boolean operatorMessage) {
-        String t = trim(ticketId);
-        if (t == null || messageId == null || messageId <= 0) {
-            return null;
-        }
-        String senderFilter = operatorMessage
-                ? "IN ('operator','support','admin','system')"
-                : "NOT IN ('operator','support','admin','system','ai_agent')";
-        try {
-            return jdbcTemplate.query(
-                    "SELECT message FROM chat_history WHERE ticket_id = ? AND id = ? AND lower(COALESCE(sender,'')) " + senderFilter + " AND message IS NOT NULL AND trim(message) <> '' LIMIT 1",
-                    rs -> rs.next() ? trim(rs.getString("message")) : null,
-                    t,
-                    messageId
-            );
-        } catch (Exception ex) {
-            return null;
-        }
+        return dialogAiAssistantReviewService.rejectPendingReview(ticketId, operator);
     }
 
     public boolean isProcessing(String ticketId) {
@@ -917,57 +601,11 @@ public class DialogAiAssistantService {
     }
 
     public List<Map<String, Object>> loadPendingReviewsQueue(Integer limit) {
-        int safeLimit = Math.max(1, Math.min(limit != null ? limit : 25, 200));
-        try {
-            return jdbcTemplate.queryForList(
-                    "SELECT query_key, query_text, solution_text, pending_solution_text, last_ticket_id, updated_at, times_confirmed, times_corrected, status, trust_level, safety_level FROM ai_agent_solution_memory WHERE COALESCE(review_required,0)=1 AND trim(COALESCE(pending_solution_text,''))<>'' ORDER BY COALESCE(updated_at, created_at) DESC LIMIT ?",
-                    safeLimit
-            );
-        } catch (Exception ex) {
-            return List.of();
-        }
+        return dialogAiAssistantReviewService.loadPendingReviewsQueue(limit);
     }
 
     public List<Map<String, Object>> loadSolutionMemory(Integer limit, String query) {
-        int safeLimit = Math.max(1, Math.min(limit != null ? limit : 100, 500));
-        String q = trim(query);
-        try {
-            if (q == null) {
-                return jdbcTemplate.queryForList(
-                        """
-                        SELECT query_key, query_text, solution_text, pending_solution_text, review_required,
-                               times_used, times_confirmed, times_corrected, last_operator, last_ticket_id,
-                               status, trust_level, intent_key, slot_signature, scope_channel, scope_business, scope_location,
-                               safety_level, source_type, last_verified_at, expires_at, verified_by,
-                               created_at, updated_at
-                          FROM ai_agent_solution_memory
-                         ORDER BY COALESCE(updated_at, created_at) DESC
-                         LIMIT ?
-                        """,
-                        safeLimit
-                );
-            }
-            String like = "%" + q.toLowerCase(Locale.ROOT) + "%";
-            return jdbcTemplate.queryForList(
-                    """
-                    SELECT query_key, query_text, solution_text, pending_solution_text, review_required,
-                           times_used, times_confirmed, times_corrected, last_operator, last_ticket_id,
-                           status, trust_level, intent_key, slot_signature, scope_channel, scope_business, scope_location,
-                           safety_level, source_type, last_verified_at, expires_at, verified_by,
-                           created_at, updated_at
-                      FROM ai_agent_solution_memory
-                     WHERE lower(COALESCE(query_text,'')) LIKE ?
-                        OR lower(COALESCE(solution_text,'')) LIKE ?
-                     ORDER BY COALESCE(updated_at, created_at) DESC
-                     LIMIT ?
-                    """,
-                    like,
-                    like,
-                    safeLimit
-            );
-        } catch (Exception ex) {
-            return List.of();
-        }
+        return dialogAiSolutionMemoryService.loadSolutionMemory(limit, query);
     }
 
     public boolean updateSolutionMemory(String queryKey,
@@ -975,217 +613,19 @@ public class DialogAiAssistantService {
                                         String solutionText,
                                         Boolean reviewRequired,
                                         String operator) {
-        String key = trim(queryKey);
-        String q = trim(queryText);
-        String s = trim(solutionText);
-        if (key == null || q == null || s == null) {
-            return false;
-        }
-        boolean requireReview = reviewRequired != null && reviewRequired;
-        try {
-            Map<String, Object> before = loadSolutionMemoryByKey(key);
-            if (before == null) {
-                return false;
-            }
-            int updated = jdbcTemplate.update(
-                    """
-                    UPDATE ai_agent_solution_memory
-                       SET query_text = ?,
-                           solution_text = ?,
-                           review_required = ?,
-                           pending_solution_text = CASE WHEN ? = 1 THEN pending_solution_text ELSE NULL END,
-                           last_operator = ?,
-                           updated_at = CURRENT_TIMESTAMP
-                     WHERE query_key = ?
-                    """,
-                    cut(q, 600),
-                    cut(s, 2000),
-                    requireReview ? 1 : 0,
-                    requireReview ? 1 : 0,
-                    trim(operator),
-                    key
-            );
-            if (updated > 0) {
-                applyMemoryGovernance(
-                        key,
-                        requireReview ? "draft" : "approved",
-                        requireReview ? "low" : "medium",
-                        null,
-                        null,
-                        null,
-                        "normal",
-                        "operator",
-                        !requireReview,
-                        trim(operator)
-                );
-                insertSolutionMemoryHistory(
-                        key,
-                        trim(operator),
-                        "manual",
-                        "update",
-                        safe(before.get("query_text")),
-                        safe(before.get("solution_text")),
-                        isTrue(before.get("review_required")),
-                        cut(q, 600),
-                        cut(s, 2000),
-                        requireReview,
-                        "manual_edit"
-                );
-                aiKnowledgeService.syncFromMemory(key);
-                return true;
-            }
-            return false;
-        } catch (Exception ex) {
-            return false;
-        }
+        return dialogAiSolutionMemoryService.updateSolutionMemory(queryKey, queryText, solutionText, reviewRequired, operator);
     }
 
     public boolean deleteSolutionMemory(String queryKey, String operator) {
-        String key = trim(queryKey);
-        if (key == null) {
-            return false;
-        }
-        try {
-            Map<String, Object> before = loadSolutionMemoryByKey(key);
-            if (before == null) {
-                return false;
-            }
-            int deleted = jdbcTemplate.update(
-                    "DELETE FROM ai_agent_solution_memory WHERE query_key = ?",
-                    key
-            );
-            if (deleted <= 0) {
-                return false;
-            }
-            aiKnowledgeService.forgetMemory(key);
-            insertSolutionMemoryHistory(
-                    key,
-                    trim(operator),
-                    "manual",
-                    "delete",
-                    safe(before.get("query_text")),
-                    safe(before.get("solution_text")),
-                    isTrue(before.get("review_required")),
-                    null,
-                    null,
-                    false,
-                    "manual_delete"
-            );
-            return true;
-        } catch (Exception ex) {
-            return false;
-        }
+        return dialogAiSolutionMemoryService.deleteSolutionMemory(queryKey, operator);
     }
 
     public List<Map<String, Object>> loadSolutionMemoryHistory(String queryKey, Integer limit) {
-        String key = trim(queryKey);
-        if (key == null) {
-            return List.of();
-        }
-        int safeLimit = Math.max(1, Math.min(limit != null ? limit : 30, 200));
-        try {
-            return jdbcTemplate.queryForList(
-                    """
-                    SELECT id, query_key, changed_by, change_source, change_action,
-                           old_query_text, old_solution_text, old_review_required,
-                           new_query_text, new_solution_text, new_review_required,
-                           note, created_at
-                      FROM ai_agent_solution_memory_history
-                     WHERE query_key = ?
-                     ORDER BY id DESC
-                     LIMIT ?
-                    """,
-                    key,
-                    safeLimit
-            );
-        } catch (Exception ex) {
-            return List.of();
-        }
+        return dialogAiSolutionMemoryService.loadSolutionMemoryHistory(queryKey, limit);
     }
 
     public boolean rollbackSolutionMemory(String queryKey, Long historyId, String operator) {
-        String key = trim(queryKey);
-        if (key == null || historyId == null || historyId <= 0) {
-            return false;
-        }
-        try {
-            Map<String, Object> before = loadSolutionMemoryByKey(key);
-            if (before == null) {
-                return false;
-            }
-            Map<String, Object> history = jdbcTemplate.query(
-                    """
-                    SELECT old_query_text, old_solution_text, old_review_required
-                      FROM ai_agent_solution_memory_history
-                     WHERE id = ? AND query_key = ?
-                     LIMIT 1
-                    """,
-                    rs -> rs.next() ? Map.of(
-                            "old_query_text", trim(rs.getString("old_query_text")),
-                            "old_solution_text", trim(rs.getString("old_solution_text")),
-                            "old_review_required", rs.getInt("old_review_required")) : null,
-                    historyId,
-                    key
-            );
-            if (history == null) {
-                return false;
-            }
-            String rollbackQuery = trim(safe(history.get("old_query_text")));
-            String rollbackSolution = trim(safe(history.get("old_solution_text")));
-            boolean rollbackReview = isTrue(history.get("old_review_required"));
-            if (rollbackQuery == null || rollbackSolution == null) {
-                return false;
-            }
-            int updated = jdbcTemplate.update(
-                    """
-                    UPDATE ai_agent_solution_memory
-                       SET query_text = ?,
-                           solution_text = ?,
-                           review_required = ?,
-                           pending_solution_text = NULL,
-                           last_operator = ?,
-                           updated_at = CURRENT_TIMESTAMP
-                     WHERE query_key = ?
-                    """,
-                    cut(rollbackQuery, 600),
-                    cut(rollbackSolution, 2000),
-                    rollbackReview ? 1 : 0,
-                    trim(operator),
-                    key
-            );
-            if (updated > 0) {
-                applyMemoryGovernance(
-                        key,
-                        rollbackReview ? "draft" : "approved",
-                        rollbackReview ? "low" : "medium",
-                        null,
-                        null,
-                        null,
-                        "normal",
-                        "operator",
-                        !rollbackReview,
-                        trim(operator)
-                );
-                insertSolutionMemoryHistory(
-                        key,
-                        trim(operator),
-                        "manual",
-                        "rollback",
-                        safe(before.get("query_text")),
-                        safe(before.get("solution_text")),
-                        isTrue(before.get("review_required")),
-                        cut(rollbackQuery, 600),
-                        cut(rollbackSolution, 2000),
-                        rollbackReview,
-                        "rollback_to_history_id=" + historyId
-                );
-                aiKnowledgeService.syncFromMemory(key);
-                return true;
-            }
-            return false;
-        } catch (Exception ex) {
-            return false;
-        }
+        return dialogAiSolutionMemoryService.rollbackSolutionMemory(queryKey, historyId, operator);
     }
 
     public Map<String, Object> loadMonitoringSummary(Integer days) {
@@ -1201,143 +641,16 @@ public class DialogAiAssistantService {
     }
 
     public boolean approvePendingReviewByKey(String queryKey, String operator) {
-        String key = trim(queryKey);
-        if (key == null) return false;
-        try {
-            String ticketId = jdbcTemplate.query(
-                    "SELECT last_ticket_id FROM ai_agent_solution_memory WHERE query_key = ? LIMIT 1",
-                    rs -> rs.next() ? trim(rs.getString("last_ticket_id")) : null,
-                    key
-            );
-            int updated = jdbcTemplate.update(
-                    "UPDATE ai_agent_solution_memory SET solution_text = pending_solution_text, pending_solution_text = NULL, review_required = 0, times_confirmed = COALESCE(times_confirmed,0) + 1, last_operator = ?, updated_at = CURRENT_TIMESTAMP WHERE query_key = ? AND COALESCE(review_required,0)=1 AND trim(COALESCE(pending_solution_text,''))<>''",
-                    trim(operator),
-                    key
-            );
-            if (updated > 0) {
-                applyMemoryGovernance(
-                        key,
-                        "approved",
-                        "medium",
-                        null,
-                        null,
-                        null,
-                        "normal",
-                        "operator",
-                        true,
-                        trim(operator)
-                );
-                aiKnowledgeService.syncFromMemory(key);
-            }
-            if (updated > 0 && ticketId != null) {
-                clearProcessing(ticketId, "operator_correction_approved", null);
-                recordAiEvent(ticketId, "ai_agent_correction_approved", trim(operator), "review", "approved", null, null, null, Map.of(
-                        "query_key", key
-                ));
-            }
-            return updated > 0;
-        } catch (Exception ex) {
-            return false;
-        }
+        return dialogAiAssistantReviewService.approvePendingReviewByKey(queryKey, operator);
     }
 
     public boolean rejectPendingReviewByKey(String queryKey, String operator) {
-        String key = trim(queryKey);
-        if (key == null) return false;
-        try {
-            String ticketId = jdbcTemplate.query(
-                    "SELECT last_ticket_id FROM ai_agent_solution_memory WHERE query_key = ? LIMIT 1",
-                    rs -> rs.next() ? trim(rs.getString("last_ticket_id")) : null,
-                    key
-            );
-            int updated = jdbcTemplate.update(
-                    "UPDATE ai_agent_solution_memory SET pending_solution_text = NULL, review_required = 0, last_operator = ?, updated_at = CURRENT_TIMESTAMP WHERE query_key = ? AND COALESCE(review_required,0)=1",
-                    trim(operator),
-                    key
-            );
-            if (updated > 0) {
-                applyMemoryGovernance(
-                        key,
-                        "rejected",
-                        "low",
-                        null,
-                        null,
-                        null,
-                        "normal",
-                        "operator",
-                        false,
-                        trim(operator)
-                );
-                aiKnowledgeService.syncFromMemory(key);
-            }
-            if (updated > 0 && ticketId != null) {
-                clearProcessing(ticketId, "operator_correction_rejected", null);
-                recordAiEvent(ticketId, "ai_agent_correction_rejected", trim(operator), "review", "rejected", null, null, null, Map.of(
-                        "query_key", key
-                ));
-            }
-            return updated > 0;
-        } catch (Exception ex) {
-            return false;
-        }
+        return dialogAiAssistantReviewService.rejectPendingReviewByKey(queryKey, operator);
     }
 
     private void markMemoryUsage(String key) { try { jdbcTemplate.update("UPDATE ai_agent_solution_memory SET times_used=COALESCE(times_used,0)+1,updated_at=CURRENT_TIMESTAMP WHERE query_key=?", key); } catch (Exception ignored) {} }
     private boolean hasOpenCorrectionRequest(String ticketId) { String a = jdbcTemplate.query("SELECT last_action FROM ticket_ai_agent_state WHERE ticket_id=? LIMIT 1", rs -> rs.next() ? trim(rs.getString("last_action")) : null, ticketId); return "operator_correction_requested".equalsIgnoreCase(String.valueOf(a)); }
     private String loadLastSuggestedReply(String ticketId) { return jdbcTemplate.query("SELECT last_suggested_reply FROM ticket_ai_agent_state WHERE ticket_id=? LIMIT 1", rs -> rs.next() ? trim(rs.getString("last_suggested_reply")) : null, ticketId); }
-    private Map<String, Object> loadSolutionMemoryByKey(String queryKey) {
-        String key = trim(queryKey);
-        if (key == null) {
-            return null;
-        }
-        try {
-            List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-                    "SELECT query_text, solution_text, review_required FROM ai_agent_solution_memory WHERE query_key = ? LIMIT 1",
-                    key
-            );
-            return rows.isEmpty() ? null : rows.get(0);
-        } catch (Exception ex) {
-            return null;
-        }
-    }
-
-    private void insertSolutionMemoryHistory(String queryKey,
-                                             String changedBy,
-                                             String changeSource,
-                                             String changeAction,
-                                             String oldQueryText,
-                                             String oldSolutionText,
-                                             boolean oldReviewRequired,
-                                             String newQueryText,
-                                             String newSolutionText,
-                                             boolean newReviewRequired,
-                                             String note) {
-        try {
-            jdbcTemplate.update(
-                    """
-                    INSERT INTO ai_agent_solution_memory_history(
-                        query_key, changed_by, change_source, change_action,
-                        old_query_text, old_solution_text, old_review_required,
-                        new_query_text, new_solution_text, new_review_required, note, created_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-                    """,
-                    trim(queryKey),
-                    trim(changedBy),
-                    cut(trim(changeSource), 64),
-                    cut(trim(changeAction), 64),
-                    cut(trim(oldQueryText), 600),
-                    cut(trim(oldSolutionText), 2000),
-                    oldReviewRequired ? 1 : 0,
-                    cut(trim(newQueryText), 600),
-                    cut(trim(newSolutionText), 2000),
-                    newReviewRequired ? 1 : 0,
-                    cut(trim(note), 500)
-            );
-        } catch (Exception ex) {
-            log.debug("Failed to insert ai solution memory history for {}: {}", queryKey, ex.getMessage());
-        }
-    }
-
     private String loadLastClientMessage(String ticketId) { return jdbcTemplate.query("SELECT message FROM chat_history WHERE ticket_id=? AND lower(sender) NOT IN ('operator','support','admin','system','ai_agent') AND message IS NOT NULL AND trim(message)<>'' ORDER BY id DESC LIMIT 1", rs -> rs.next() ? trim(rs.getString("message")) : null, ticketId); }
     private String buildDeterministicReply(AiSuggestion s) {
         String body = cleanTextForRetrieval(s != null ? s.snippet : null);

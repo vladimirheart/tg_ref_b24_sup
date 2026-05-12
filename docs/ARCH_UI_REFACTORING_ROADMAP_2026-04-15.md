@@ -1,7 +1,7 @@
 # Architecture And UI Refactoring Roadmap
 
 Дата старта: `2026-04-15`
-Обновлено: `2026-05-07`
+Обновлено: `2026-05-12`
 
 ## Цель
 
@@ -36,9 +36,10 @@
   доведён до thin facade;
 - giant `/settings` transport/update тоже больше не hotspot: `Phase 4`
   закрыта, а remaining риск смещён в consistency/hardening;
-- сейчас main architectural weight находится в
-  `DialogWorkspaceRolloutGovernanceService`, `DialogAiAssistantService` и
-  `PublicFormService`;
+- сейчас main architectural weight находится прежде всего в
+  `DialogAiAssistantService` и `PublicFormService`, а
+  `DialogWorkspaceRolloutGovernanceService` уже переведён в режим
+  hardening/compatibility;
 - Phase 5 всё ещё не доведён до полноценного runtime contract между
   `spring-panel` и `java-bot`;
 - Phase 6 уже широкая и системная, но ей всё ещё не хватает следующего слоя
@@ -752,7 +753,7 @@
 1. `Phase 3` и `Phase 4` считать закрытыми и не возвращаться к ним как к
    giant-split проблемам.
 2. Главный практический фокус теперь держать на
-   `DialogAiAssistantService` и `PublicFormService`, а
+   `DialogAiAssistantService` и затем `PublicFormService`, а
    `DialogWorkspaceRolloutGovernanceService` после нового wide split держать
    уже в режиме hardening/compatibility. `DialogWorkspaceService` при этом
    удерживать как thin orchestration layer.
@@ -765,8 +766,9 @@
 
 Актуальный порядок после уже выполненных этапов:
 
-1. Забрать следующий крупный bounded context из
-   `DialogAiAssistantService` либо `PublicFormService`.
+1. Продолжить `DialogAiAssistantService` после уже вынесенных
+   review-flow и solution-memory bounded contexts, а следующим крупным
+   bounded split держать `PublicFormService`.
 2. Довести `Phase 5` от launcher strategy до более явного runtime contract.
 3. Расширить `Phase 6`, чтобы новые refactor-проходы шли уже под
    integration-quality, а не только под targeted tests.
@@ -965,3 +967,14 @@
 - следующий локальный focus в `dialogs` теперь уже не в самом
   `DialogWorkspaceService`, а в `DialogWorkspaceClientContextAssemblerService`
   и соседних context-heavy bounded services, если они снова начнут расти.
+- следующим широким пакетом по новому главному приоритету аудита дополнительно
+  сужен `DialogAiAssistantService`: review-flow вынесен в
+  `DialogAiAssistantReviewService`, solution-memory lifecycle — в
+  `DialogAiSolutionMemoryService`, а общий persistence/support слой — в
+  `DialogAiAssistantPersistenceService`.
+- после этого `DialogAiAssistantService` сжат примерно с `1932` до `1256`
+  строк и уже не смешивает review/memory bounded contexts с остальным AI
+  orchestration path.
+- следующий локальный focus теперь смещён в remaining
+  message-processing/control tail внутри `DialogAiAssistantService`; вторым
+  bounded candidate после этого остаётся `PublicFormService`.

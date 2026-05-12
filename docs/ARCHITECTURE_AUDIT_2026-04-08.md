@@ -2,7 +2,7 @@
 **Дата:** 8 апреля 2026  
 **Статус:** Актуально, но в активной фазе исправления  
 **Актуализация:** 9 апреля 2026 (см. `docs/ARCHITECTURE_AUDIT_VALIDATION_2026-04-09.md`)  
-**Последняя актуализация:** 7 мая 2026
+**Последняя актуализация:** 12 мая 2026
 
 ---
 
@@ -58,10 +58,9 @@ contracts.
 
 Что сейчас в приоритете:
 
-1. `P1`: забрать следующий крупный bounded context из
-   `DialogWorkspaceRolloutGovernanceService`, `DialogAiAssistantService` или
-   `PublicFormService`, потому что именно там сейчас основной architectural
-   weight.
+1. `P1`: добить remaining orchestration tail в `DialogAiAssistantService` и
+   затем переключиться на `PublicFormService`, потому что именно там сейчас
+   основной architectural weight.
 2. `P1`: не дать orchestration-risk переехать в `DialogWorkspaceService` и
    смежные workspace/reply/notifier consumers.
 3. `P1`: довести shared-config/runtime contract до более явного
@@ -692,7 +691,7 @@ integration-сценария поверх users/settings runtime boundary всё
 
 ### Фаза 6: Quality and governance
 - [ ] Досузить remaining orchestration tails в `DialogWorkspaceService` и вокруг workspace consumers
-- [ ] Забрать следующий крупный bounded context из `DialogAiAssistantService` или `PublicFormService`
+- [ ] Досузить remaining orchestration tails в `DialogAiAssistantService` и затем забрать `PublicFormService`
 - [ ] Решить, где следующий уровень проверки должен стать integration/e2e, а не только targeted runtime/unit net
 - [ ] Довести DTO/API contract до системного правила
 - [ ] Закрепить единый error contract и API governance
@@ -701,10 +700,11 @@ integration-сценария поверх users/settings runtime boundary всё
 
 ## 📁 Следующие шаги
 
-1. Следующим крупным refactoring пакетом забрать
-   `DialogAiAssistantService` либо `PublicFormService`: после текущего wide
-   split `DialogWorkspaceRolloutGovernanceService` уже не выглядит главным
-   hotspot’ом и удерживается как bounded coordinator около `449` строк.
+1. Следующим крупным refactoring пакетом продолжать
+   `DialogAiAssistantService`: после выноса review-flow и solution-memory
+   bounded contexts он сжат примерно до `1256` строк, но всё ещё остаётся
+   главным крупным orchestration hotspot; следующим после него держать
+   `PublicFormService`.
 2. Параллельно удержать под контролем `DialogWorkspaceService` и соседние
    workspace consumers, чтобы orchestration-risk не переехал туда после
    уже закрытого giant `DialogService`.
@@ -1048,3 +1048,14 @@ integration-сценария поверх users/settings runtime boundary всё
   services; remaining workspace-risk смещён уже не в giant method, а в
   `DialogWorkspaceClientContextAssemblerService` (~`211` строк) и соседние
   context-centric bounded services, если они снова начнут разрастаться.
+- следующим широким пакетом по новому `P1` приоритету аудита дополнительно
+  сужен `DialogAiAssistantService`: review workflow вынесен в
+  `DialogAiAssistantReviewService`, solution-memory lifecycle — в
+  `DialogAiSolutionMemoryService`, а shared persistence/support helpers — в
+  `DialogAiAssistantPersistenceService`.
+- после этого `DialogAiAssistantService` сжат примерно с `1932` до `1256`
+  строк; главный remaining tail там уже не в review/memory slices, а в
+  message-processing/control и смежном AI orchestration path.
+- под новый split добавлены `DialogAiAssistantReviewServiceTest` и
+  `DialogAiSolutionMemoryServiceTest`; targeted AI assistant regression net,
+  `DialogAiOpsControllerWebMvcTest` и compile-проверка остаются зелёными.
