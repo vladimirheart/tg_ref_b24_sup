@@ -2070,6 +2070,9 @@ public class SupportBot extends TelegramLongPollingBot {
         String scheme = env("APP_NETWORK_PROXY_SCHEME").toLowerCase(Locale.ROOT);
         String host = env("APP_NETWORK_PROXY_HOST");
         int port = parsePositiveInt(env("APP_NETWORK_PROXY_PORT"));
+        if ("mtproto".equals(scheme)) {
+            throw new IllegalStateException("MTProto proxy не поддерживается текущим Telegram Bot API runtime. Используйте HTTP/HTTPS/SOCKS или внешний MTProto-адаптер.");
+        }
 
         if (!host.isBlank() && port > 0) {
             options.setProxyHost(host);

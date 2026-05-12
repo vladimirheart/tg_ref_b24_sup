@@ -5192,6 +5192,7 @@
                       <option value="socks5">SOCKS5</option>
                       <option value="socks4">SOCKS4</option>
                       <option value="vless">VLESS</option>
+                      <option value="mtproto">MTProto</option>
                     </select>
                   </div>
                   <div class="col-12 col-md-5">
@@ -5214,7 +5215,11 @@
                     <label class="form-label" for="integrationNetworkProfileProxyTokenInput">Token</label>
                     <input type="text" class="form-control" id="integrationNetworkProfileProxyTokenInput" data-integration-network-profile-proxy-token placeholder="UUID / token для VLESS">
                   </div>
-                  <div class="col-12 small text-muted">Для VLESS обязательны только `host`, `port` и `token`.</div>
+                  <div class="col-12 d-none" data-proxy-secret="integration-profile">
+                    <label class="form-label" for="integrationNetworkProfileProxySecretInput">Secret</label>
+                    <input type="text" class="form-control" id="integrationNetworkProfileProxySecretInput" data-integration-network-profile-proxy-secret placeholder="16-byte hex secret для MTProto">
+                  </div>
+                  <div class="col-12 small text-muted">Для VLESS обязательны `host`, `port` и `token`. Для MTProto обязательны `host`, `port` и `secret`.</div>
                 </div>
               </div>
               <div class="mt-3 d-none" data-integration-network-profile-vpn-fields>
@@ -5818,6 +5823,7 @@
                                 <option value="socks5">SOCKS5</option>
                                 <option value="socks4">SOCKS4</option>
                                 <option value="vless">VLESS</option>
+                                <option value="mtproto">MTProto</option>
                               </select>
                             </div>
                             <div class="col-12 col-md-5">
@@ -5839,6 +5845,10 @@
                             <div class="col-12 d-none" data-proxy-token="project">
                               <label class="form-label" for="projectProxyToken">Token</label>
                               <input class="form-control" id="projectProxyToken" placeholder="UUID / token для VLESS">
+                            </div>
+                            <div class="col-12 d-none" data-proxy-secret="project">
+                              <label class="form-label" for="projectProxySecret">Secret</label>
+                              <input class="form-control" id="projectProxySecret" placeholder="16-byte hex secret для MTProto">
                             </div>
                           </div>
                           <div class="row g-2 d-none" data-network-route-vpn="project">
@@ -5899,6 +5909,7 @@
                                 <option value="socks5">SOCKS5</option>
                                 <option value="socks4">SOCKS4</option>
                                 <option value="vless">VLESS</option>
+                                <option value="mtproto">MTProto</option>
                               </select>
                             </div>
                             <div class="col-12 col-md-5">
@@ -5920,6 +5931,10 @@
                             <div class="col-12 d-none" data-proxy-token="bots">
                               <label class="form-label" for="botsProxyToken">Token</label>
                               <input class="form-control" id="botsProxyToken" placeholder="UUID / token для VLESS">
+                            </div>
+                            <div class="col-12 d-none" data-proxy-secret="bots">
+                              <label class="form-label" for="botsProxySecret">Secret</label>
+                              <input class="form-control" id="botsProxySecret" placeholder="16-byte hex secret для MTProto">
                             </div>
                           </div>
                           <div class="row g-2 d-none" data-network-route-vpn="bots">
@@ -6676,6 +6691,7 @@
                   <option value="socks5">SOCKS5</option>
                   <option value="socks4">SOCKS4</option>
                   <option value="vless">VLESS</option>
+                  <option value="mtproto">MTProto</option>
                 </select>
               </div>
               <div class="col-12 col-md-5">
@@ -6697,6 +6713,10 @@
               <div class="col-12 d-none" data-proxy-token="channel">
                 <label class="form-label" for="channelEditorProxyToken">Token</label>
                 <input class="form-control" id="channelEditorProxyToken" placeholder="UUID / token для VLESS" />
+              </div>
+              <div class="col-12 d-none" data-proxy-secret="channel">
+                <label class="form-label" for="channelEditorProxySecret">Secret</label>
+                <input class="form-control" id="channelEditorProxySecret" placeholder="16-byte hex secret для MTProto" />
               </div>
             </div>
             <div class="row g-3 mt-1 d-none" data-network-route-vpn="channel">
@@ -20578,6 +20598,7 @@
   const projectProxyUsernameInput = document.getElementById('projectProxyUsername');
   const projectProxyPasswordInput = document.getElementById('projectProxyPassword');
   const projectProxyTokenInput = document.getElementById('projectProxyToken');
+  const projectProxySecretInput = document.getElementById('projectProxySecret');
   const projectVpnNameInput = document.getElementById('projectVpnName');
   const projectVpnEndpointInput = document.getElementById('projectVpnEndpoint');
   const projectVpnConfigPathInput = document.getElementById('projectVpnConfigPath');
@@ -20590,6 +20611,7 @@
   const botsProxyUsernameInput = document.getElementById('botsProxyUsername');
   const botsProxyPasswordInput = document.getElementById('botsProxyPassword');
   const botsProxyTokenInput = document.getElementById('botsProxyToken');
+  const botsProxySecretInput = document.getElementById('botsProxySecret');
   const botsVpnNameInput = document.getElementById('botsVpnName');
   const botsVpnEndpointInput = document.getElementById('botsVpnEndpoint');
   const botsVpnConfigPathInput = document.getElementById('botsVpnConfigPath');
@@ -20604,6 +20626,7 @@
   const channelEditorProxyUsernameInput = document.getElementById('channelEditorProxyUsername');
   const channelEditorProxyPasswordInput = document.getElementById('channelEditorProxyPassword');
   const channelEditorProxyTokenInput = document.getElementById('channelEditorProxyToken');
+  const channelEditorProxySecretInput = document.getElementById('channelEditorProxySecret');
   const channelEditorVpnNameInput = document.getElementById('channelEditorVpnName');
   const channelEditorVpnEndpointInput = document.getElementById('channelEditorVpnEndpoint');
   const channelEditorVpnConfigPathInput = document.getElementById('channelEditorVpnConfigPath');
@@ -20630,6 +20653,7 @@
   const integrationNetworkProfileProxyUsernameInput = integrationNetworkProfileEditorModalEl ? integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-proxy-username]') : null;
   const integrationNetworkProfileProxyPasswordInput = integrationNetworkProfileEditorModalEl ? integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-proxy-password]') : null;
   const integrationNetworkProfileProxyTokenInput = integrationNetworkProfileEditorModalEl ? integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-proxy-token]') : null;
+  const integrationNetworkProfileProxySecretInput = integrationNetworkProfileEditorModalEl ? integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-proxy-secret]') : null;
   const integrationNetworkProfileVpnNameInput = integrationNetworkProfileEditorModalEl ? integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-vpn-name]') : null;
   const integrationNetworkProfileVpnEndpointInput = integrationNetworkProfileEditorModalEl ? integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-vpn-endpoint]') : null;
   const integrationNetworkProfileVpnConfigPathInput = integrationNetworkProfileEditorModalEl ? integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-vpn-config-path]') : null;
@@ -20781,12 +20805,16 @@
     const source = raw && typeof raw === 'object' ? raw : {};
     const scheme = String(source.scheme || '').toLowerCase();
     const token = String(source.token || '').trim();
+    const secret = String(source.secret || '').trim();
     const fallbackToken = scheme === 'vless'
       ? (token || String(source.username || source.password || '').trim())
       : token;
+    const fallbackSecret = scheme === 'mtproto'
+      ? (secret || token)
+      : secret;
     const port = Number.parseInt(source.port, 10);
     return {
-      scheme: ['http', 'https', 'socks5', 'socks4', 'vless'].includes(scheme)
+      scheme: ['http', 'https', 'socks5', 'socks4', 'vless', 'mtproto'].includes(scheme)
         ? scheme
         : 'http',
       host: String(source.host || '').trim(),
@@ -20794,6 +20822,7 @@
       username: String(source.username || '').trim(),
       password: String(source.password || '').trim(),
       token: fallbackToken,
+      secret: fallbackSecret,
     };
   }
 
@@ -20901,30 +20930,41 @@
     return String(value || '').trim().toLowerCase() === 'vless';
   }
 
+  function isMtprotoScheme(value) {
+    return String(value || '').trim().toLowerCase() === 'mtproto';
+  }
+
   function toggleProxyCredentialFields(scope) {
     let scheme = '';
     let authRows = [];
     let tokenRows = [];
+    let secretRows = [];
     if (scope === 'project') {
       scheme = projectProxySchemeInput?.value || '';
       authRows = Array.from(document.querySelectorAll('[data-proxy-auth="project"]'));
       tokenRows = Array.from(document.querySelectorAll('[data-proxy-token="project"]'));
+      secretRows = Array.from(document.querySelectorAll('[data-proxy-secret="project"]'));
     } else if (scope === 'bots') {
       scheme = botsProxySchemeInput?.value || '';
       authRows = Array.from(document.querySelectorAll('[data-proxy-auth="bots"]'));
       tokenRows = Array.from(document.querySelectorAll('[data-proxy-token="bots"]'));
+      secretRows = Array.from(document.querySelectorAll('[data-proxy-secret="bots"]'));
     } else if (scope === 'channel') {
       scheme = channelEditorProxySchemeInput?.value || '';
       authRows = Array.from(document.querySelectorAll('[data-proxy-auth="channel"]'));
       tokenRows = Array.from(document.querySelectorAll('[data-proxy-token="channel"]'));
+      secretRows = Array.from(document.querySelectorAll('[data-proxy-secret="channel"]'));
     } else if (scope === 'integration-profile') {
       scheme = integrationNetworkProfileProxySchemeInput?.value || '';
       authRows = Array.from(integrationNetworkProfileEditorModalEl?.querySelectorAll('[data-proxy-auth="integration-profile"]') || []);
       tokenRows = Array.from(integrationNetworkProfileEditorModalEl?.querySelectorAll('[data-proxy-token="integration-profile"]') || []);
+      secretRows = Array.from(integrationNetworkProfileEditorModalEl?.querySelectorAll('[data-proxy-secret="integration-profile"]') || []);
     }
     const showToken = isVlessScheme(scheme);
-    authRows.forEach((el) => el.classList.toggle('d-none', showToken));
+    const showSecret = isMtprotoScheme(scheme);
+    authRows.forEach((el) => el.classList.toggle('d-none', showToken || showSecret));
     tokenRows.forEach((el) => el.classList.toggle('d-none', !showToken));
+    secretRows.forEach((el) => el.classList.toggle('d-none', !showSecret));
   }
 
   function applyRouteToInputs(scope, route) {
@@ -20939,6 +20979,7 @@
       if (projectProxyUsernameInput) projectProxyUsernameInput.value = normalized.proxy.username;
       if (projectProxyPasswordInput) projectProxyPasswordInput.value = normalized.proxy.password;
       if (projectProxyTokenInput) projectProxyTokenInput.value = normalized.proxy.token || '';
+      if (projectProxySecretInput) projectProxySecretInput.value = normalized.proxy.secret || '';
       if (projectVpnNameInput) projectVpnNameInput.value = normalized.vpn.name;
       if (projectVpnEndpointInput) projectVpnEndpointInput.value = normalized.vpn.endpoint;
       if (projectVpnConfigPathInput) projectVpnConfigPathInput.value = normalized.vpn.config_path;
@@ -20953,6 +20994,7 @@
       if (botsProxyUsernameInput) botsProxyUsernameInput.value = normalized.proxy.username;
       if (botsProxyPasswordInput) botsProxyPasswordInput.value = normalized.proxy.password;
       if (botsProxyTokenInput) botsProxyTokenInput.value = normalized.proxy.token || '';
+      if (botsProxySecretInput) botsProxySecretInput.value = normalized.proxy.secret || '';
       if (botsVpnNameInput) botsVpnNameInput.value = normalized.vpn.name;
       if (botsVpnEndpointInput) botsVpnEndpointInput.value = normalized.vpn.endpoint;
       if (botsVpnConfigPathInput) botsVpnConfigPathInput.value = normalized.vpn.config_path;
@@ -20967,6 +21009,7 @@
       if (channelEditorProxyUsernameInput) channelEditorProxyUsernameInput.value = normalized.proxy.username;
       if (channelEditorProxyPasswordInput) channelEditorProxyPasswordInput.value = normalized.proxy.password;
       if (channelEditorProxyTokenInput) channelEditorProxyTokenInput.value = normalized.proxy.token || '';
+      if (channelEditorProxySecretInput) channelEditorProxySecretInput.value = normalized.proxy.secret || '';
       if (channelEditorVpnNameInput) channelEditorVpnNameInput.value = normalized.vpn.name;
       if (channelEditorVpnEndpointInput) channelEditorVpnEndpointInput.value = normalized.vpn.endpoint;
       if (channelEditorVpnConfigPathInput) channelEditorVpnConfigPathInput.value = normalized.vpn.config_path;
@@ -20990,6 +21033,7 @@
           username: projectProxyUsernameInput?.value || '',
           password: projectProxyPasswordInput?.value || '',
           token: projectProxyTokenInput?.value || '',
+          secret: projectProxySecretInput?.value || '',
         },
         vpn: {
           name: projectVpnNameInput?.value || '',
@@ -21013,6 +21057,7 @@
           username: botsProxyUsernameInput?.value || '',
           password: botsProxyPasswordInput?.value || '',
           token: botsProxyTokenInput?.value || '',
+          secret: botsProxySecretInput?.value || '',
         },
         vpn: {
           name: botsVpnNameInput?.value || '',
@@ -21035,6 +21080,7 @@
         username: channelEditorProxyUsernameInput?.value || '',
         password: channelEditorProxyPasswordInput?.value || '',
         token: channelEditorProxyTokenInput?.value || '',
+        secret: channelEditorProxySecretInput?.value || '',
       },
       vpn: {
         name: channelEditorVpnNameInput?.value || '',
@@ -21062,6 +21108,9 @@
       }
       if (route.mode === 'proxy') {
         const host = route.proxy.host || 'host не указан';
+        if (isMtprotoScheme(route.proxy.scheme)) {
+          return `Весь проект сохранит MTProto endpoint ${host}:${route.proxy.port || 443}. Для Telegram Bot API такой маршрут потребует внешний HTTP/SOCKS-адаптер и не будет применён напрямую текущим runtime.`;
+        }
         return `Весь проект пойдёт через прокси ${host}:${route.proxy.port || 8080}. Эти настройки станут базовыми и для ботов, если ниже оставить наследование.`;
       }
       if (route.mode === 'vpn') {
@@ -21083,6 +21132,9 @@
       }
       if (route.mode === 'proxy') {
         const host = route.proxy.host || 'host не указан';
+        if (isMtprotoScheme(route.proxy.scheme)) {
+          return `Боты сохранят отдельный MTProto endpoint ${host}:${route.proxy.port || 443}, но текущий Telegram runtime не умеет использовать его напрямую. Для запуска нужен внешний адаптер.`;
+        }
         return `Боты будут запускаться через отдельный прокси ${host}:${route.proxy.port || 8080}, а остальная панель сохранит маршрут из блока «Весь проект».`;
       }
       if (route.mode === 'vpn') {
@@ -21102,6 +21154,9 @@
     }
     if (route.mode === 'proxy') {
       const host = route.proxy.host || 'host не указан';
+      if (isMtprotoScheme(route.proxy.scheme)) {
+        return `Для этого бота сохранён MTProto endpoint ${host}:${route.proxy.port || 443}. Это перекрывает общие маршруты, но текущий Telegram runtime потребует внешний адаптер.`;
+      }
       return `Только этот бот будет ходить через отдельный прокси ${host}:${route.proxy.port || 8080}. Это перекрывает общие настройки ботов.`;
     }
     if (route.mode === 'vpn') {
@@ -21140,7 +21195,7 @@
     applyRouteToInputs('project', integrationNetworkState.project);
     applyRouteToInputs('bots', integrationNetworkState.bots);
     if (integrationNetworkStatusEl) {
-      integrationNetworkStatusEl.textContent = 'Прокси применяются к запросам панели и автоматически передаются отдельным процессам ботов. VPN сохраняется как конфигурация маршрута для окружения и конкретных ботов.';
+      integrationNetworkStatusEl.textContent = 'HTTP/SOCKS/VLESS прокси применяются к запросам панели и передаются отдельным процессам ботов. MTProto сохраняется как маршрутный контракт и требует внешний адаптер для Telegram Bot API runtime.';
     }
   }
 
@@ -21159,8 +21214,16 @@
       showPopup('Для маршрута «Весь проект» в режиме VLESS заполните token.');
       return;
     }
+    if (projectRoute.mode === 'proxy' && projectRoute.proxy.scheme === 'mtproto' && !String(projectRoute.proxy.secret || '').trim()) {
+      showPopup('Для маршрута «Весь проект» в режиме MTProto заполните secret.');
+      return;
+    }
     if (botsRoute.mode === 'proxy' && botsRoute.proxy.scheme === 'vless' && !String(botsRoute.proxy.token || '').trim()) {
       showPopup('Для маршрута «Подсистема ботов» в режиме VLESS заполните token.');
+      return;
+    }
+    if (botsRoute.mode === 'proxy' && botsRoute.proxy.scheme === 'mtproto' && !String(botsRoute.proxy.secret || '').trim()) {
+      showPopup('Для маршрута «Подсистема ботов» в режиме MTProto заполните secret.');
       return;
     }
     const payload = {
@@ -21404,6 +21467,7 @@
     if (integrationNetworkProfileProxyUsernameInput) integrationNetworkProfileProxyUsernameInput.value = normalized.proxy.username;
     if (integrationNetworkProfileProxyPasswordInput) integrationNetworkProfileProxyPasswordInput.value = normalized.proxy.password;
     if (integrationNetworkProfileProxyTokenInput) integrationNetworkProfileProxyTokenInput.value = normalized.proxy.token || '';
+    if (integrationNetworkProfileProxySecretInput) integrationNetworkProfileProxySecretInput.value = normalized.proxy.secret || '';
     if (integrationNetworkProfileVpnNameInput) integrationNetworkProfileVpnNameInput.value = normalized.vpn.name;
     if (integrationNetworkProfileVpnEndpointInput) integrationNetworkProfileVpnEndpointInput.value = normalized.vpn.endpoint;
     if (integrationNetworkProfileVpnConfigPathInput) integrationNetworkProfileVpnConfigPathInput.value = normalized.vpn.config_path;
@@ -23164,6 +23228,10 @@
       showPopup('Для VLESS-маршрута бота заполните token.');
       return;
     }
+    if (channelRoute.mode === 'proxy' && channelRoute.proxy.scheme === 'mtproto' && !String(channelRoute.proxy.secret || '').trim()) {
+      showPopup('Для MTProto-маршрута бота заполните secret.');
+      return;
+    }
 
     body.delivery_settings = {
       broadcast_channel_id: channelEditorBroadcastChannelInput?.value?.trim() || null,
@@ -23426,6 +23494,7 @@
           username: integrationNetworkProfileProxyUsernameInput?.value || '',
           password: integrationNetworkProfileProxyPasswordInput?.value || '',
           token: integrationNetworkProfileProxyTokenInput?.value || '',
+          secret: integrationNetworkProfileProxySecretInput?.value || '',
         },
         vpn: {
           name: integrationNetworkProfileVpnNameInput?.value || '',
@@ -23444,6 +23513,10 @@
       }
       if (mode === 'proxy' && draft.proxy.scheme === 'vless' && !String(draft.proxy.token || '').trim()) {
         showPopup('Для VLESS укажите token.');
+        return;
+      }
+      if (mode === 'proxy' && draft.proxy.scheme === 'mtproto' && !String(draft.proxy.secret || '').trim()) {
+        showPopup('Для MTProto укажите secret.');
         return;
       }
       if (mode === 'vpn' && !draft.vpn.name && !draft.vpn.endpoint) {

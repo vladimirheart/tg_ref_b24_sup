@@ -276,6 +276,34 @@ class BotRuntimeContractServiceTest {
     }
 
     @Test
+    void buildEnvironmentForTelegramRejectsMtprotoProxyContract() {
+        BotRuntimeContractService service = createService("auto", Map.of(), Map.of(
+            "integration_network", Map.of(
+                "bots", Map.of(
+                    "mode", "proxy",
+                    "proxy", Map.of(
+                        "scheme", "mtproto",
+                        "host", "mtproto.internal",
+                        "port", 443,
+                        "secret", "0123456789abcdef0123456789abcdef"
+                    )
+                )
+            )
+        ));
+        Channel channel = new Channel();
+        channel.setId(35L);
+        channel.setPlatform("telegram");
+
+        assertThatThrownBy(() -> service.buildEnvironment(
+            channel,
+            new com.example.panel.model.channel.BotCredential(8L, "tg", "telegram", "tg-token", true),
+            tempDir.resolve("telegram-mtproto.log")
+        ))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("MTProto");
+    }
+
+    @Test
     void buildEnvironmentDefaultsTelegramSupportChatIdToZero() {
         BotRuntimeContractService service = createService("auto", Map.of());
         Channel channel = new Channel();
@@ -370,6 +398,31 @@ class BotRuntimeContractServiceTest {
         BotRuntimeContractService.BotRuntimeContract contract = service.describe(channel, tempDir.resolve("java-bot"));
 
         assertThat(contract.optionalEnvironmentKeys()).contains("APP_NETWORK_MODE", "APP_NETWORK_VPN_NAME");
+    }
+
+    @Test
+    void describeWarnsWhenTelegramRouteUsesMtproto() {
+        BotRuntimeContractService service = createService("auto", Map.of(), Map.of(
+            "integration_network", Map.of(
+                "bots", Map.of(
+                    "mode", "proxy",
+                    "proxy", Map.of(
+                        "scheme", "mtproto",
+                        "host", "mtproto.internal",
+                        "port", 443,
+                        "secret", "0123456789abcdef0123456789abcdef"
+                    )
+                )
+            )
+        ));
+        Channel channel = new Channel();
+        channel.setId(36L);
+        channel.setPlatform("telegram");
+
+        BotRuntimeContractService.BotRuntimeContract contract = service.describe(channel, tempDir.resolve("java-bot"));
+
+        assertThat(contract.warnings()).anyMatch(item -> item.contains("MTProto"));
+        assertThat(contract.production().blockingReasons()).anyMatch(item -> item.contains("MTProto"));
     }
 
     @Test

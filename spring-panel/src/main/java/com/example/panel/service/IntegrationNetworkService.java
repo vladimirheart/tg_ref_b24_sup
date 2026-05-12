@@ -86,17 +86,21 @@ public class IntegrationNetworkService {
             if (hasText(proxy.token())) {
                 env.put("APP_NETWORK_PROXY_TOKEN", proxy.token());
             }
-
-            String proxyUrl = buildProxyUrl(proxy);
-            env.put("HTTP_PROXY", proxyUrl);
-            env.put("HTTPS_PROXY", proxyUrl);
-            env.put("http_proxy", proxyUrl);
-            env.put("https_proxy", proxyUrl);
-            if (normalizedScheme.startsWith("socks") || "vless".equals(normalizedScheme)) {
-                env.put("ALL_PROXY", proxyUrl);
-                env.put("all_proxy", proxyUrl);
+            if (hasText(proxy.secret())) {
+                env.put("APP_NETWORK_PROXY_SECRET", proxy.secret());
             }
-            env.put("JAVA_TOOL_OPTIONS", mergeJavaToolOptions(System.getenv("JAVA_TOOL_OPTIONS"), buildJavaToolOptions(proxy)));
+            if (!proxy.isMtproto()) {
+                String proxyUrl = buildProxyUrl(proxy);
+                env.put("HTTP_PROXY", proxyUrl);
+                env.put("HTTPS_PROXY", proxyUrl);
+                env.put("http_proxy", proxyUrl);
+                env.put("https_proxy", proxyUrl);
+                if (normalizedScheme.startsWith("socks") || "vless".equals(normalizedScheme)) {
+                    env.put("ALL_PROXY", proxyUrl);
+                    env.put("all_proxy", proxyUrl);
+                }
+                env.put("JAVA_TOOL_OPTIONS", mergeJavaToolOptions(System.getenv("JAVA_TOOL_OPTIONS"), buildJavaToolOptions(proxy)));
+            }
         } else if ("vpn".equals(resolved.mode()) && hasText(resolved.vpnName())) {
             env.put("APP_NETWORK_VPN_NAME", resolved.vpnName());
         }
@@ -110,6 +114,9 @@ public class IntegrationNetworkService {
 
         if ("proxy".equals(route.mode()) && route.proxySettings() != null && route.proxySettings().isConfigured()) {
             ProxySettings proxy = route.proxySettings();
+            if (proxy.isMtproto()) {
+                throw new IllegalStateException("MTProto proxy не может быть использован для HTTP-запросов Bot API в текущем runtime.");
+            }
             builder.proxy(ProxySelector.of(new InetSocketAddress(proxy.host(), proxy.port())));
             if (hasText(proxy.username())) {
                 builder.authenticator(new Authenticator() {
@@ -389,6 +396,15 @@ public class IntegrationNetworkService {
             if (proxy == null || !proxy.isConfigured()) {
                 return "Прокси-профиль заполнен не полностью.";
             }
+            if (proxy.isMtproto()) {
+                if (reachable) {
+                    return "MTProto endpoint доступен по TCP, но для Telegram Bot API всё равно нужен внешний HTTP/SOCKS-адаптер.";
+                }
+                if (cooldownSeconds > 0) {
+                    return "MTProto endpoint недоступен, действует failover cooldown.";
+                }
+                return "MTProto endpoint недоступен.";
+            }
             if (reachable) {
                 return "Прокси доступен.";
             }
@@ -462,6 +478,8 @@ public class IntegrationNetworkService {
         String scheme = proxy.scheme().toLowerCase(Locale.ROOT);
         if ("vless".equals(scheme) && hasText(proxy.token())) {
             value.append(proxy.token()).append('@');
+        } else if ("mtproto".equals(scheme) && hasText(proxy.secret())) {
+            value.append(proxy.secret()).append('@');
         } else if (hasText(proxy.username())) {
             value.append(proxy.username());
             if (hasText(proxy.password())) {
@@ -476,6 +494,9 @@ public class IntegrationNetworkService {
     private String buildJavaToolOptions(ProxySettings proxy) {
         List<String> options = new ArrayList<>();
         String scheme = proxy.scheme().toLowerCase(Locale.ROOT);
+        if ("mtproto".equals(scheme)) {
+            return "";
+        }
         if (scheme.startsWith("socks") || "vless".equals(scheme)) {
             options.add("-DsocksProxyHost=" + proxy.host());
             options.add("-DsocksProxyPort=" + proxy.port());
@@ -693,10 +714,10 @@ public class IntegrationNetworkService {
         }
     }
 
-    public record ProxySettings(String scheme, String host, int port, String username, String password, String token) {
+    public record ProxySettings(String scheme, String host, int port, String username, String password, String token, String secret) {
 
         public static ProxySettings empty() {
-            return new ProxySettings("http", "", 0, "", "", "");
+            return new ProxySettings("http", "", 0, "", "", "", "");
         }
 
         public static ProxySettings fromMap(Map<String, Object> raw) {
@@ -708,7 +729,7 @@ public class IntegrationNetworkService {
                 scheme = "http";
             }
             String normalizedScheme = scheme.toLowerCase(Locale.ROOT);
-            if (!List.of("http", "https", "socks5", "socks4", "vless").contains(normalizedScheme)) {
+            if (!List.of("http", "https", "socks5", "socks4", "vless", "mtproto").contains(normalizedScheme)) {
                 normalizedScheme = "http";
             }
             String host = string(raw.get("host"));
@@ -716,21 +737,32 @@ public class IntegrationNetworkService {
             String username = string(raw.get("username"));
             String password = string(raw.get("password"));
             String token = string(raw.get("token"));
+            String secret = string(raw.get("secret"));
             if (token.isEmpty() && "vless".equals(normalizedScheme)) {
                 token = !username.isEmpty() ? username : password;
             }
-            return new ProxySettings(normalizedScheme, host, port, username, password, token);
+            if (secret.isEmpty() && "mtproto".equals(normalizedScheme)) {
+                secret = token;
+            }
+            return new ProxySettings(normalizedScheme, host, port, username, password, token, secret);
         }
 
         public boolean isConfigured() {
             if ("vless".equals(scheme.toLowerCase(Locale.ROOT))) {
                 return !host.isBlank() && port > 0 && !token.isBlank();
             }
+            if ("mtproto".equals(scheme.toLowerCase(Locale.ROOT))) {
+                return !host.isBlank() && port > 0 && !secret.isBlank();
+            }
             return !host.isBlank() && port > 0;
         }
 
+        public boolean isMtproto() {
+            return "mtproto".equals(scheme.toLowerCase(Locale.ROOT));
+        }
+
         public String fingerprint() {
-            return scheme + "|" + host + "|" + port + "|" + username + "|" + token;
+            return scheme + "|" + host + "|" + port + "|" + username + "|" + token + "|" + secret;
         }
 
         private static int integer(Object raw) {

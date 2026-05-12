@@ -7,6 +7,7 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -202,6 +203,27 @@ class IntegrationNetworkServiceTest {
     }
 
     @Test
+    void buildsMtprotoEnvironmentWithoutGenericProxyVariables() {
+        IntegrationNetworkService.RouteSettings route = IntegrationNetworkService.RouteSettings.fromMap(new LinkedHashMap<>(Map.of(
+            "mode", "proxy",
+            "proxy", Map.of(
+                "scheme", "mtproto",
+                "host", "mtproto.internal",
+                "port", 443,
+                "secret", "0123456789abcdef0123456789abcdef"
+            )
+        )), true);
+
+        Map<String, String> env = service.buildProcessEnvironment(route);
+
+        assertThat(env)
+            .containsEntry("APP_NETWORK_MODE", "proxy")
+            .containsEntry("APP_NETWORK_PROXY_SCHEME", "mtproto")
+            .containsEntry("APP_NETWORK_PROXY_SECRET", "0123456789abcdef0123456789abcdef")
+            .doesNotContainKeys("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "JAVA_TOOL_OPTIONS");
+    }
+
+    @Test
     void buildsVpnEnvironmentForBotProcess() {
         IntegrationNetworkService.RouteSettings route = IntegrationNetworkService.RouteSettings.fromMap(new LinkedHashMap<>(Map.of(
             "mode", "vpn",
@@ -286,5 +308,26 @@ class IntegrationNetworkServiceTest {
         assertThat(result.message()).isEqualTo("Прокси-профиль заполнен не полностью.");
         assertThat(result.host()).isEqualTo("proxy.internal");
         assertThat(result.port()).isZero();
+    }
+
+    @Test
+    void createChannelHttpClientRejectsMtprotoProxyForHttpRequests() {
+        when(sharedConfigService.loadSettings()).thenReturn(Map.of(
+            "integration_network", Map.of(
+                "bots", Map.of(
+                    "mode", "proxy",
+                    "proxy", Map.of(
+                        "scheme", "mtproto",
+                        "host", "mtproto.internal",
+                        "port", 443,
+                        "secret", "0123456789abcdef0123456789abcdef"
+                    )
+                )
+            )
+        ));
+
+        assertThatThrownBy(() -> service.createChannelHttpClient(new Channel(), java.time.Duration.ofSeconds(5)))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("MTProto proxy");
     }
 }

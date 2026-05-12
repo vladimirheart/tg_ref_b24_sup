@@ -60,6 +60,7 @@ public class BotRuntimeContractService {
         BotProcessProperties.LaunchMode launchMode = botProcessProperties.resolveLaunchMode();
         ResolvedExecutableJar executableJar = resolveExecutableJarDetailed(botWorkingDir, botModule);
         BotLaunchPlan launchPlan = resolveLaunchPlan(botWorkingDir, botModule);
+        IntegrationNetworkService.RouteSettings route = integrationNetworkService.resolveBotRoute(channel);
         List<String> warnings = new ArrayList<>();
         if (launchMode == BotProcessProperties.LaunchMode.JAR && executableJar == null) {
             warnings.add("В режиме jar собранный артефакт не найден, запуск завершится ошибкой.");
@@ -70,7 +71,10 @@ public class BotRuntimeContractService {
         if (executableJar != null && !"explicit-config".equals(executableJar.source())) {
             warnings.add("Для production лучше явно задать app.bots.executable-jars вместо target scan.");
         }
-        BotProductionContract production = productionContract(botWorkingDir, botModule, launchMode, executableJar, launchPlan);
+        if (isUnsupportedMtprotoRouteForTelegram(channel, route)) {
+            warnings.add("Маршрут MTProto сохранён, но текущий Telegram runtime построен на Bot API over HTTPS и не умеет использовать MTProto proxy напрямую.");
+        }
+        BotProductionContract production = productionContract(botWorkingDir, botModule, launchMode, executableJar, launchPlan, channel, route);
         BotLifecycleContract lifecycle = lifecycleContract();
         return new BotRuntimeContract(
             channel != null ? channel.getId() : null,
@@ -156,9 +160,11 @@ public class BotRuntimeContractService {
         appendEnvOption(env, "JAVA_TOOL_OPTIONS", "-Dsun.jnu.encoding=UTF-8");
         appendEnvOption(env, "JAVA_TOOL_OPTIONS", "-Dsun.stdout.encoding=UTF-8");
         appendEnvOption(env, "JAVA_TOOL_OPTIONS", "-Dsun.stderr.encoding=UTF-8");
-        Map<String, String> networkEnv = integrationNetworkService.buildProcessEnvironment(
-            integrationNetworkService.resolveBotRoute(channel)
-        );
+        IntegrationNetworkService.RouteSettings route = integrationNetworkService.resolveBotRoute(channel);
+        if (isUnsupportedMtprotoRouteForTelegram(channel, route)) {
+            throw new IllegalStateException("MTProto proxy сохранён в настройках, но текущий Telegram runtime работает через Bot API over HTTPS и не поддерживает MTProto напрямую. Нужен внешний HTTP/SOCKS-адаптер.");
+        }
+        Map<String, String> networkEnv = integrationNetworkService.buildProcessEnvironment(route);
         for (Map.Entry<String, String> entry : networkEnv.entrySet()) {
             if ("JAVA_TOOL_OPTIONS".equals(entry.getKey())) {
                 appendEnvOption(env, "JAVA_TOOL_OPTIONS", entry.getValue());
@@ -237,7 +243,9 @@ public class BotRuntimeContractService {
                                                      String botModule,
                                                      BotProcessProperties.LaunchMode configuredLaunchMode,
                                                      ResolvedExecutableJar executableJar,
-                                                     BotLaunchPlan launchPlan) {
+                                                     BotLaunchPlan launchPlan,
+                                                     Channel channel,
+                                                     IntegrationNetworkService.RouteSettings route) {
         String preferredLauncher = botProcessProperties.resolvePreferredProductionLauncher().name().toLowerCase();
         String recommendedArtifactPath = resolveRecommendedArtifactPath(botWorkingDir, botModule);
         List<String> blockers = new ArrayList<>();
@@ -254,6 +262,9 @@ public class BotRuntimeContractService {
         }
         if (configuredLaunchMode == BotProcessProperties.LaunchMode.MAVEN) {
             blockers.add("app.bots.launch-mode=maven подходит только как controlled dev fallback.");
+        }
+        if (isUnsupportedMtprotoRouteForTelegram(channel, route)) {
+            blockers.add("Маршрут MTProto нельзя использовать напрямую с текущим Telegram Bot API runtime без внешнего адаптера.");
         }
         boolean readyForProduction = blockers.isEmpty();
         return new BotProductionContract(
@@ -425,6 +436,14 @@ public class BotRuntimeContractService {
         }
         String updated = existing.isBlank() ? option.trim() : existing + " " + option.trim();
         env.put(key, updated);
+    }
+
+    private boolean isUnsupportedMtprotoRouteForTelegram(Channel channel, IntegrationNetworkService.RouteSettings route) {
+        return "telegram".equals(normalizePlatform(channel))
+            && route != null
+            && "proxy".equals(route.mode())
+            && route.proxySettings() != null
+            && route.proxySettings().isMtproto();
     }
 
     private record ResolvedExecutableJar(Path path, String source) {}
