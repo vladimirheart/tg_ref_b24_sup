@@ -58,9 +58,9 @@ contracts.
 
 Что сейчас в приоритете:
 
-1. `P1`: добить remaining orchestration tail в `DialogAiAssistantService` и
-   затем переключиться на `PublicFormService`, потому что именно там сейчас
-   основной architectural weight.
+1. `P1`: добить remaining message-processing/control tail в
+   `DialogAiAssistantService` и затем переключиться на `PublicFormService`,
+   потому что именно там сейчас основной architectural weight.
 2. `P1`: не дать orchestration-risk переехать в `DialogWorkspaceService` и
    смежные workspace/reply/notifier consumers.
 3. `P1`: довести shared-config/runtime contract до более явного
@@ -691,7 +691,7 @@ integration-сценария поверх users/settings runtime boundary всё
 
 ### Фаза 6: Quality and governance
 - [ ] Досузить remaining orchestration tails в `DialogWorkspaceService` и вокруг workspace consumers
-- [ ] Досузить remaining orchestration tails в `DialogAiAssistantService` и затем забрать `PublicFormService`
+- [ ] Досузить remaining message-processing/control tail в `DialogAiAssistantService` и затем забрать `PublicFormService`
 - [ ] Решить, где следующий уровень проверки должен стать integration/e2e, а не только targeted runtime/unit net
 - [ ] Довести DTO/API contract до системного правила
 - [ ] Закрепить единый error contract и API governance
@@ -701,10 +701,10 @@ integration-сценария поверх users/settings runtime boundary всё
 ## 📁 Следующие шаги
 
 1. Следующим крупным refactoring пакетом продолжать
-   `DialogAiAssistantService`: после выноса review-flow и solution-memory
-   bounded contexts он сжат примерно до `1256` строк, но всё ещё остаётся
-   главным крупным orchestration hotspot; следующим после него держать
-   `PublicFormService`.
+   `DialogAiAssistantService`: после выноса review-flow, solution-memory,
+   state/control и operator-feedback bounded contexts он сжат примерно до
+   `882` строк, но всё ещё остаётся главным крупным orchestration hotspot;
+   следующим после него держать `PublicFormService`.
 2. Параллельно удержать под контролем `DialogWorkspaceService` и соседние
    workspace consumers, чтобы orchestration-risk не переехал туда после
    уже закрытого giant `DialogService`.
@@ -1059,3 +1059,15 @@ integration-сценария поверх users/settings runtime boundary всё
 - под новый split добавлены `DialogAiAssistantReviewServiceTest` и
   `DialogAiSolutionMemoryServiceTest`; targeted AI assistant regression net,
   `DialogAiOpsControllerWebMvcTest` и compile-проверка остаются зелёными.
+- следующим широким пакетом этот AI assistant slice дополнительно сужен:
+  появились `DialogAiAssistantStateService`,
+  `DialogAiAssistantConfigService` и
+  `DialogAiAssistantOperatorFeedbackService`.
+- после этого `DialogAiAssistantService` сжат примерно с `1256` до `882`
+  строк; из coordinator убраны dialog control/state updates, processing
+  flags, auto-reply guard/config parsing и operator feedback/correction
+  lifecycle.
+- под новый split добавлены `DialogAiAssistantStateServiceTest`,
+  `DialogAiAssistantConfigServiceTest` и
+  `DialogAiAssistantOperatorFeedbackServiceTest`; compile, targeted AI
+  assistant tests и `DialogAiOpsControllerWebMvcTest` остаются зелёными.

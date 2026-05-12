@@ -275,4 +275,8 @@ public class DialogAiSolutionMemoryService {
             return false;
         }
     }
+
+    public void markMemoryUsage(String queryKey) {
+        persistenceService.markMemoryUsage(queryKey);
+    }
 }

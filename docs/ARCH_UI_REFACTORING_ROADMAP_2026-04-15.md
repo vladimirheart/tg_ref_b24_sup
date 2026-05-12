@@ -767,8 +767,8 @@
 Актуальный порядок после уже выполненных этапов:
 
 1. Продолжить `DialogAiAssistantService` после уже вынесенных
-   review-flow и solution-memory bounded contexts, а следующим крупным
-   bounded split держать `PublicFormService`.
+   review-flow, solution-memory, state/control и operator-feedback bounded
+   contexts, а следующим крупным bounded split держать `PublicFormService`.
 2. Довести `Phase 5` от launcher strategy до более явного runtime contract.
 3. Расширить `Phase 6`, чтобы новые refactor-проходы шли уже под
    integration-quality, а не только под targeted tests.
@@ -975,6 +975,13 @@
 - после этого `DialogAiAssistantService` сжат примерно с `1932` до `1256`
   строк и уже не смешивает review/memory bounded contexts с остальным AI
   orchestration path.
+- следующим широким пакетом тот же AI assistant slice дополнительно сужен:
+  появились `DialogAiAssistantStateService`,
+  `DialogAiAssistantConfigService` и
+  `DialogAiAssistantOperatorFeedbackService`.
+- после этого `DialogAiAssistantService` сжат примерно с `1256` до `882`
+  строк и уже не держит dialog control/state updates, processing flags,
+  auto-reply guard/config parsing и operator feedback/correction lifecycle.
 - следующий локальный focus теперь смещён в remaining
   message-processing/control tail внутри `DialogAiAssistantService`; вторым
   bounded candidate после этого остаётся `PublicFormService`.

@@ -8,91 +8,69 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
-import java.util.HexFormat;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
-import java.util.regex.Pattern;
 
 @Service
 public class DialogAiAssistantService {
     private static final Logger log = LoggerFactory.getLogger(DialogAiAssistantService.class);
-    private static final Pattern TOKEN_SPLIT = Pattern.compile("[^\\p{IsAlphabetic}\\p{IsDigit}]+");
-    private static final Set<String> STOP = Set.of("и","в","на","не","что","как","для","или","по","из","к","у","о","об","the","a","an","to","of","in","on","for","and","or","is","are","be");
-    private static final double AUTO_REPLY_THRESHOLD_DEFAULT = 0.62d;
-    private static final double SUGGEST_THRESHOLD_DEFAULT = 0.46d;
-    private static final double DIFFERENCE_THRESHOLD_DEFAULT = 0.42d;
-    private static final int MAX_AUTO_REPLIES_PER_DIALOG_DEFAULT = 3;
-    private static final int AUTO_REPLY_WINDOW_MINUTES_DEFAULT = 60;
-    private static final int AUTO_REPLY_COOLDOWN_SECONDS_DEFAULT = 90;
     private static final int DEFAULT_SUGGESTION_LIMIT = 3;
     private static final String MODE_AUTO_REPLY = "auto_reply";
     private static final String MODE_ASSIST_ONLY = "assist_only";
     private static final String MODE_ESCALATE_ONLY = "escalate_only";
 
     private final JdbcTemplate jdbcTemplate;
-    private final DialogResponsibilityService dialogResponsibilityService;
     private final DialogReplyService dialogReplyService;
     private final NotificationService notificationService;
-    private final SharedConfigService sharedConfigService;
     private final AiPolicyService aiPolicyService;
     private final AiRetrievalService aiRetrievalService;
     private final AiIntentService aiIntentService;
     private final AiDecisionService aiDecisionService;
-    private final AiLearningService aiLearningService;
     private final AiMonitoringService aiMonitoringService;
-    private final AiKnowledgeService aiKnowledgeService;
     private final AiInputNormalizerService aiInputNormalizerService;
     private final AiControlledLlmService aiControlledLlmService;
     private final DialogAiAssistantReviewService dialogAiAssistantReviewService;
     private final DialogAiSolutionMemoryService dialogAiSolutionMemoryService;
+    private final DialogAiAssistantStateService dialogAiAssistantStateService;
+    private final DialogAiAssistantConfigService dialogAiAssistantConfigService;
+    private final DialogAiAssistantOperatorFeedbackService dialogAiAssistantOperatorFeedbackService;
     private final ObjectMapper objectMapper;
 
     public DialogAiAssistantService(JdbcTemplate jdbcTemplate,
-                                    DialogResponsibilityService dialogResponsibilityService,
                                     DialogReplyService dialogReplyService,
                                     NotificationService notificationService,
-                                    SharedConfigService sharedConfigService,
                                     AiPolicyService aiPolicyService,
                                     AiRetrievalService aiRetrievalService,
                                     AiIntentService aiIntentService,
                                     AiDecisionService aiDecisionService,
-                                    AiLearningService aiLearningService,
                                     AiMonitoringService aiMonitoringService,
-                                    AiKnowledgeService aiKnowledgeService,
                                     AiInputNormalizerService aiInputNormalizerService,
                                     AiControlledLlmService aiControlledLlmService,
                                     DialogAiAssistantReviewService dialogAiAssistantReviewService,
                                     DialogAiSolutionMemoryService dialogAiSolutionMemoryService,
+                                    DialogAiAssistantStateService dialogAiAssistantStateService,
+                                    DialogAiAssistantConfigService dialogAiAssistantConfigService,
+                                    DialogAiAssistantOperatorFeedbackService dialogAiAssistantOperatorFeedbackService,
                                     ObjectMapper objectMapper) {
         this.jdbcTemplate = jdbcTemplate;
-        this.dialogResponsibilityService = dialogResponsibilityService;
         this.dialogReplyService = dialogReplyService;
         this.notificationService = notificationService;
-        this.sharedConfigService = sharedConfigService;
         this.aiPolicyService = aiPolicyService;
         this.aiRetrievalService = aiRetrievalService;
         this.aiIntentService = aiIntentService;
         this.aiDecisionService = aiDecisionService;
-        this.aiLearningService = aiLearningService;
         this.aiMonitoringService = aiMonitoringService;
-        this.aiKnowledgeService = aiKnowledgeService;
         this.aiInputNormalizerService = aiInputNormalizerService;
         this.aiControlledLlmService = aiControlledLlmService;
         this.dialogAiAssistantReviewService = dialogAiAssistantReviewService;
         this.dialogAiSolutionMemoryService = dialogAiSolutionMemoryService;
+        this.dialogAiAssistantStateService = dialogAiAssistantStateService;
+        this.dialogAiAssistantConfigService = dialogAiAssistantConfigService;
+        this.dialogAiAssistantOperatorFeedbackService = dialogAiAssistantOperatorFeedbackService;
         this.objectMapper = objectMapper;
     }
 
@@ -115,9 +93,9 @@ public class DialogAiAssistantService {
         }
         String m = payload.message();
 
-        DialogAiControl control = loadDialogControl(t);
-        String mode = resolveAgentMode();
-        boolean agentEnabled = isAgentEnabled();
+        DialogAiAssistantStateService.DialogAiControl control = dialogAiAssistantStateService.loadDialogControl(t);
+        String mode = dialogAiAssistantConfigService.resolveAgentMode();
+        boolean agentEnabled = dialogAiAssistantConfigService.isAgentEnabled();
         PolicyOrderDecision preRouting = evaluatePreRoutingPolicy(t, m, mode, control, agentEnabled);
         if (preRouting.stopProcessing()) {
             clearProcessing(t, preRouting.action(), preRouting.detail(), preRouting.decisionType(), preRouting.decisionReason(), null, preRouting.effectiveMode());
@@ -167,8 +145,8 @@ public class DialogAiAssistantService {
         }
 
         AiSuggestion top = suggestions.get(0);
-        double autoReplyThreshold = resolveAutoReplyThreshold();
-        double suggestThreshold = resolveSuggestThreshold();
+        double autoReplyThreshold = dialogAiAssistantConfigService.resolveAutoReplyThreshold();
+        double suggestThreshold = dialogAiAssistantConfigService.resolveSuggestThreshold();
         boolean sourceEligibleForAutoReply = aiPolicyService.isAutoReplyEligibleSource(
                 top.source,
                 top.status,
@@ -250,7 +228,7 @@ public class DialogAiAssistantService {
             return;
         }
 
-        AutoReplyGuard guard = evaluateAutoReplyGuard(t);
+        DialogAiAssistantConfigService.AutoReplyGuard guard = dialogAiAssistantConfigService.evaluateAutoReplyGuard(t);
         if (!guard.allowed()) {
             markProcessing(t, "auto_reply_suppressed", top, guard.reason(), "suppressed", "loop_guard", sourceHits, mode);
             notifyOperatorsEscalation(t, m, "Auto-reply suppressed by loop guard: " + guard.reason());
@@ -278,7 +256,7 @@ public class DialogAiAssistantService {
         }
 
         if (top.memoryKey != null) {
-            markMemoryUsage(top.memoryKey);
+            dialogAiSolutionMemoryService.markMemoryUsage(top.memoryKey);
         }
         markProcessing(t, "auto_replied", top, null, "auto_reply", "score_above_threshold", sourceHits, mode);
         Map<String, Object> eventPayload = buildRetrievalPayload(sourceHits, top, retrievalResult, preRouting.sensitiveMatch().matched(), rewriteResult);
@@ -291,73 +269,19 @@ public class DialogAiAssistantService {
     }
 
     public void registerOperatorReply(String ticketId, String operatorReply, String operator) {
-        try {
-            String t = trim(ticketId), r = trim(operatorReply);
-            if (t == null || r == null) return;
-            String lastClient = loadLastClientMessage(t);
-            if (!StringUtils.hasText(lastClient)) return;
-            AiLearningService.UpsertResult upsertResult = aiLearningService.upsertLearningSolution(
-                    t,
-                    lastClient,
-                    r,
-                    operator,
-                    resolveDifferenceThreshold()
-            );
-            if (upsertResult == null) return;
-            String key = upsertResult.queryKey();
-            String suggested = loadLastSuggestedReply(t);
-            if (!StringUtils.hasText(suggested) || !isMeaningfullyDifferent(suggested, r) || hasOpenCorrectionRequest(t)) return;
-            notificationService.notifyDialogParticipants(
-                    t,
-                    "AI suggestion for ticket " + t + " differs from operator reply. " +
-                            "Please refine learning markup: 1) which client message describes the issue; " +
-                            "2) which operator message is the correct solution.",
-                    "/dialogs?ticketId=" + t,
-                    null
-            );
-            clearProcessing(t, "operator_correction_requested", "operator_reply_differs");
-            recordAiEvent(t, "ai_agent_correction_requested", trim(operator), "review", "operator_reply_differs", null, null, "Operator reply differs from AI memory", Map.of(
-                    "ticket_id", t,
-                    "memory_key", key,
-                    "learning_action", upsertResult.action()
-            ));
-            jdbcTemplate.update("UPDATE ai_agent_solution_memory SET review_required = 1, pending_solution_text = ?, updated_at = CURRENT_TIMESTAMP WHERE query_key = ?", cut(r, 2000), key);
-        } catch (Exception ex) {
-            log.debug("registerOperatorReply failed for {}: {}", ticketId, ex.getMessage());
-        }
+        dialogAiAssistantOperatorFeedbackService.registerOperatorReply(ticketId, operatorReply, operator);
     }
 
     public boolean submitOperatorLearningMapping(String ticketId,
                                                  String clientProblemMessage,
                                                  String operatorSolutionMessage,
                                                  String operator) {
-        String t = trim(ticketId);
-        String client = trim(clientProblemMessage);
-        String solution = trim(operatorSolutionMessage);
-        if (t == null || client == null || solution == null) {
-            return false;
-        }
-        try {
-            AiLearningService.UpsertResult result = aiLearningService.upsertLearningSolution(
-                    t,
-                    client,
-                    solution,
-                    trim(operator),
-                    resolveDifferenceThreshold()
-            );
-            if (result == null) {
-                return false;
-            }
-            clearProcessing(t, "operator_learning_mapping_submitted", null, "review", "operator_mapping_submitted", null);
-            recordAiEvent(t, "ai_agent_operator_mapping_submitted", trim(operator), "review", "operator_mapping_submitted", null, null, result.action(), Map.of(
-                    "query_key", result.queryKey(),
-                    "mapping_action", result.action()
-            ));
-            return true;
-        } catch (Exception ex) {
-            log.debug("submitOperatorLearningMapping failed for {}: {}", ticketId, ex.getMessage());
-            return false;
-        }
+        return dialogAiAssistantOperatorFeedbackService.submitOperatorLearningMapping(
+                ticketId,
+                clientProblemMessage,
+                operatorSolutionMessage,
+                operator
+        );
     }
 
     public List<Map<String, Object>> loadOperatorSuggestions(String ticketId, Integer limit) {
@@ -383,15 +307,7 @@ public class DialogAiAssistantService {
     }
 
     public Map<String, Object> loadDialogControlState(String ticketId) {
-        DialogAiControl control = loadDialogControl(ticketId);
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("ticket_id", trim(ticketId));
-        payload.put("ai_disabled", control.aiDisabled());
-        payload.put("auto_reply_blocked", control.autoReplyBlocked());
-        payload.put("reason", control.reason());
-        payload.put("updated_by", control.updatedBy());
-        payload.put("updated_at", control.updatedAt());
-        return payload;
+        return dialogAiAssistantStateService.loadDialogControlState(ticketId);
     }
 
     public boolean updateDialogControlState(String ticketId,
@@ -399,36 +315,14 @@ public class DialogAiAssistantService {
                                             Boolean autoReplyBlocked,
                                             String reason,
                                             String actor) {
-        String t = trim(ticketId);
-        if (t == null) return false;
-        DialogAiControl current = loadDialogControl(t);
-        boolean nextAiDisabled = aiDisabled != null ? aiDisabled : current.aiDisabled();
-        boolean nextAutoReplyBlocked = autoReplyBlocked != null ? autoReplyBlocked : current.autoReplyBlocked();
-        try {
-            jdbcTemplate.update("""
-                    INSERT INTO ticket_ai_agent_dialog_control(ticket_id, ai_disabled, auto_reply_blocked, reason, updated_by, updated_at)
-                    VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-                    ON CONFLICT(ticket_id) DO UPDATE SET
-                        ai_disabled = excluded.ai_disabled,
-                        auto_reply_blocked = excluded.auto_reply_blocked,
-                        reason = excluded.reason,
-                        updated_by = excluded.updated_by,
-                        updated_at = CURRENT_TIMESTAMP
-                    """,
-                    t,
-                    nextAiDisabled ? 1 : 0,
-                    nextAutoReplyBlocked ? 1 : 0,
-                    cut(reason, 500),
-                    trim(actor)
-            );
-            recordAiEvent(t, "ai_agent_control_changed", trim(actor), "control_update", "dialog_control_updated", null, null, trim(reason), Map.of(
-                    "ai_disabled", nextAiDisabled,
-                    "auto_reply_blocked", nextAutoReplyBlocked
-            ));
-            return true;
-        } catch (Exception ex) {
-            return false;
-        }
+        return dialogAiAssistantStateService.updateDialogControlState(
+                ticketId,
+                aiDisabled,
+                autoReplyBlocked,
+                reason,
+                actor,
+                dialogAiAssistantConfigService.resolveAgentMode()
+        );
     }
 
     public void recordSuggestionFeedback(String ticketId,
@@ -438,32 +332,15 @@ public class DialogAiAssistantService {
                                          String snippet,
                                          String suggestedReply,
                                          String actor) {
-        String t = trim(ticketId);
-        String d = trim(decision);
-        if (t == null || d == null) return;
-        try {
-            jdbcTemplate.update("""
-                    INSERT INTO ai_agent_suggestion_feedback(ticket_id, decision, source, title, snippet, suggested_reply, actor, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-                    """,
-                    t,
-                    cut(d.toLowerCase(Locale.ROOT), 64),
-                    cut(source, 128),
-                    cut(title, 255),
-                    cut(snippet, 2000),
-                    cut(suggestedReply, 2000),
-                    trim(actor)
-            );
-            String normalizedDecision = d.toLowerCase(Locale.ROOT);
-            String eventType = "accepted".equals(normalizedDecision)
-                    ? "ai_agent_suggestion_applied"
-                    : ("rejected".equals(normalizedDecision) ? "ai_agent_suggestion_rejected" : "ai_agent_suggestion_feedback");
-            recordAiEvent(t, eventType, trim(actor), "suggestion_feedback", normalizedDecision, trim(source), null, trim(title), Map.of(
-                    "decision", normalizedDecision
-            ));
-        } catch (Exception ex) {
-            log.debug("Failed to persist ai feedback for {}: {}", t, ex.getMessage());
-        }
+        dialogAiAssistantOperatorFeedbackService.recordSuggestionFeedback(
+                ticketId,
+                decision,
+                source,
+                title,
+                snippet,
+                suggestedReply,
+                actor
+        );
     }
 
     public Map<String, Object> loadPendingReview(String ticketId) {
@@ -483,29 +360,24 @@ public class DialogAiAssistantService {
     }
 
     public boolean isProcessing(String ticketId) {
-        String t = trim(ticketId);
-        if (t == null) return false;
-        try { Integer v = jdbcTemplate.queryForObject("SELECT COALESCE(is_processing, 0) FROM ticket_ai_agent_state WHERE ticket_id = ?", Integer.class, t); return v != null && v > 0; }
-        catch (Exception ex) { return false; }
+        return dialogAiAssistantStateService.isProcessing(ticketId);
     }
 
     public void clearProcessing(String ticketId, String action, String error) {
-        clearProcessing(ticketId, action, error, null, null, null);
+        dialogAiAssistantStateService.clearProcessing(ticketId, action, error);
     }
 
     private void clearProcessing(String ticketId, String action, String error, String decisionType, String decisionReason, String sourceHits) {
-        clearProcessing(ticketId, action, error, decisionType, decisionReason, sourceHits, resolveAgentMode());
+        clearProcessing(ticketId, action, error, decisionType, decisionReason, sourceHits, dialogAiAssistantConfigService.resolveAgentMode());
     }
 
     private void clearProcessing(String ticketId, String action, String error, String decisionType, String decisionReason, String sourceHits, String mode) {
-        upsertState(ticketId, false, mode, action, error, null, null, null, decisionType, decisionReason, sourceHits);
+        dialogAiAssistantStateService.clearProcessing(ticketId, action, error, decisionType, decisionReason, sourceHits, mode);
     }
 
     private void markProcessing(String ticketId, String action, AiSuggestion suggestion, String error, String decisionType, String decisionReason, String sourceHits, String mode) {
-        upsertState(
+        dialogAiAssistantStateService.markProcessing(
                 ticketId,
-                true,
-                mode,
                 action,
                 error,
                 suggestion != null ? suggestion.source : null,
@@ -513,58 +385,9 @@ public class DialogAiAssistantService {
                 suggestion != null ? trim(buildDeterministicReply(suggestion)) : null,
                 decisionType,
                 decisionReason,
-                sourceHits
+                sourceHits,
+                mode
         );
-    }
-
-    private void upsertState(String ticketId,
-                             boolean processing,
-                             String mode,
-                             String action,
-                             String error,
-                             String source,
-                             Double score,
-                             String suggestedReply,
-                             String decisionType,
-                             String decisionReason,
-                             String sourceHits) {
-        String t = trim(ticketId);
-        if (t == null) return;
-        try {
-            jdbcTemplate.update("""
-                    INSERT INTO ticket_ai_agent_state(ticket_id, is_processing, mode, last_action, last_error, last_source, last_score, last_suggested_reply, decision_type, decision_reason, source_hits, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-                    ON CONFLICT(ticket_id) DO UPDATE SET
-                        is_processing = excluded.is_processing,
-                        mode = excluded.mode,
-                        last_action = excluded.last_action,
-                        last_error = excluded.last_error,
-                        last_source = excluded.last_source,
-                        last_score = excluded.last_score,
-                        last_suggested_reply = excluded.last_suggested_reply,
-                        decision_type = excluded.decision_type,
-                        decision_reason = excluded.decision_reason,
-                        source_hits = excluded.source_hits,
-                        updated_at = CURRENT_TIMESTAMP
-                    """,
-                    t, processing ? 1 : 0, trim(mode), trim(action), trim(error), trim(source), score, trim(suggestedReply),
-                    trim(decisionType), trim(decisionReason), trim(sourceHits));
-        } catch (Exception schemaMismatch) {
-            jdbcTemplate.update("""
-                    INSERT INTO ticket_ai_agent_state(ticket_id, is_processing, mode, last_action, last_error, last_source, last_score, last_suggested_reply, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-                    ON CONFLICT(ticket_id) DO UPDATE SET
-                        is_processing = excluded.is_processing,
-                        mode = excluded.mode,
-                        last_action = excluded.last_action,
-                        last_error = excluded.last_error,
-                        last_source = excluded.last_source,
-                        last_score = excluded.last_score,
-                        last_suggested_reply = excluded.last_suggested_reply,
-                        updated_at = CURRENT_TIMESTAMP
-                    """,
-                    t, processing ? 1 : 0, trim(mode), trim(action), trim(error), trim(source), score, trim(suggestedReply));
-        }
     }
 
     private List<AiSuggestion> findSuggestions(String ticketId, String query, int limit) {
@@ -648,10 +471,6 @@ public class DialogAiAssistantService {
         return dialogAiAssistantReviewService.rejectPendingReviewByKey(queryKey, operator);
     }
 
-    private void markMemoryUsage(String key) { try { jdbcTemplate.update("UPDATE ai_agent_solution_memory SET times_used=COALESCE(times_used,0)+1,updated_at=CURRENT_TIMESTAMP WHERE query_key=?", key); } catch (Exception ignored) {} }
-    private boolean hasOpenCorrectionRequest(String ticketId) { String a = jdbcTemplate.query("SELECT last_action FROM ticket_ai_agent_state WHERE ticket_id=? LIMIT 1", rs -> rs.next() ? trim(rs.getString("last_action")) : null, ticketId); return "operator_correction_requested".equalsIgnoreCase(String.valueOf(a)); }
-    private String loadLastSuggestedReply(String ticketId) { return jdbcTemplate.query("SELECT last_suggested_reply FROM ticket_ai_agent_state WHERE ticket_id=? LIMIT 1", rs -> rs.next() ? trim(rs.getString("last_suggested_reply")) : null, ticketId); }
-    private String loadLastClientMessage(String ticketId) { return jdbcTemplate.query("SELECT message FROM chat_history WHERE ticket_id=? AND lower(sender) NOT IN ('operator','support','admin','system','ai_agent') AND message IS NOT NULL AND trim(message)<>'' ORDER BY id DESC LIMIT 1", rs -> rs.next() ? trim(rs.getString("message")) : null, ticketId); }
     private String buildDeterministicReply(AiSuggestion s) {
         String body = cleanTextForRetrieval(s != null ? s.snippet : null);
         if (!StringUtils.hasText(body)) {
@@ -746,8 +565,6 @@ public class DialogAiAssistantService {
         notificationService.notifyAllOperators(text, "/dialogs?ticketId=" + ticketId, null);
     }
 
-    private boolean isAgentEnabled() { try { Object d = sharedConfigService.loadSettings().get("dialog_config"); if (d instanceof Map<?,?> m) { Object e = m.get("ai_agent_enabled"); if (e instanceof Boolean b) return b; String n = String.valueOf(e).trim().toLowerCase(Locale.ROOT); return !"false".equals(n) && !"0".equals(n) && !"off".equals(n); } } catch (Exception ex) { log.debug("ai_agent_enabled read failed: {}", ex.getMessage()); } return true; }
-
     private boolean requiresHumanImmediately(String m) {
         String n = normalize(m);
         return n.contains("оператор")
@@ -758,9 +575,6 @@ public class DialogAiAssistantService {
                 || n.contains("живой");
     }
 
-    private boolean isMeaningfullyDifferent(String a, String b) { return similarity(a, b) < resolveDifferenceThreshold(); }
-    private double similarity(String a, String b) { Set<String> x = tokenize(a), y = tokenize(b); if (x.isEmpty() || y.isEmpty()) return 0d; int i = 0; for (String t : x) if (y.contains(t)) i++; int u = x.size() + y.size() - i; return u <= 0 ? 0d : i / (double) u; }
-    private Set<String> tokenize(String v) { String n = normalize(v); if (!StringUtils.hasText(n)) return Set.of(); Set<String> out = new LinkedHashSet<>(); for (String t : TOKEN_SPLIT.split(n)) { String x = trim(t); if (x == null || x.length() < 2 || STOP.contains(x)) continue; out.add(x); } return out; }
     private String normalize(String v) { if (!StringUtils.hasText(v)) return ""; return v.toLowerCase(Locale.ROOT).replace('\u0451', '\u0435'); }
     private String cleanTextForRetrieval(String value) {
         if (!StringUtils.hasText(value)) return "";
@@ -798,87 +612,10 @@ public class DialogAiAssistantService {
     private Long toLong(Object v) { try { if (v == null) return null; return Long.parseLong(String.valueOf(v)); } catch (Exception ex) { return null; } }
     private boolean isTrue(Object v) { if (v instanceof Boolean b) return b; String n = String.valueOf(v).trim().toLowerCase(Locale.ROOT); return "1".equals(n) || "true".equals(n) || "yes".equals(n) || "on".equals(n); }
     private String formatScore(double score) { return String.format(Locale.ROOT, "%.2f", Math.max(0d, Math.min(1d, score))); }
-    private String buildKey(String question) { try { return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(normalize(question).getBytes(StandardCharsets.UTF_8))); } catch (Exception ex) { return Integer.toHexString(normalize(question).hashCode()); } }
-    private double resolveAutoReplyThreshold() { return resolveDialogConfigDouble("ai_agent_auto_reply_threshold", AUTO_REPLY_THRESHOLD_DEFAULT, 0.2d, 0.95d); }
-    private double resolveSuggestThreshold() { return resolveDialogConfigDouble("ai_agent_suggest_threshold", SUGGEST_THRESHOLD_DEFAULT, 0.1d, 0.95d); }
-    private double resolveDifferenceThreshold() { return resolveDialogConfigDouble("ai_agent_difference_threshold", DIFFERENCE_THRESHOLD_DEFAULT, 0.1d, 0.9d); }
-    private String resolveAgentMode() {
-        return resolveDialogConfigString("ai_agent_mode", MODE_AUTO_REPLY, Set.of(MODE_AUTO_REPLY, MODE_ASSIST_ONLY, MODE_ESCALATE_ONLY));
-    }
-    private int resolveMaxAutoRepliesPerDialog() {
-        return resolveDialogConfigInt("ai_agent_max_auto_replies_per_dialog", MAX_AUTO_REPLIES_PER_DIALOG_DEFAULT, 1, 20);
-    }
-    private int resolveAutoReplyWindowMinutes() {
-        return resolveDialogConfigInt("ai_agent_auto_reply_window_minutes", AUTO_REPLY_WINDOW_MINUTES_DEFAULT, 1, 1440);
-    }
-    private int resolveAutoReplyCooldownSeconds() {
-        return resolveDialogConfigInt("ai_agent_auto_reply_cooldown_seconds", AUTO_REPLY_COOLDOWN_SECONDS_DEFAULT, 0, 3600);
-    }
-    private AutoReplyGuard evaluateAutoReplyGuard(String ticketId) {
-        int maxReplies = resolveMaxAutoRepliesPerDialog();
-        int windowMinutes = resolveAutoReplyWindowMinutes();
-        int cooldownSeconds = resolveAutoReplyCooldownSeconds();
-        String windowExpr = "-" + windowMinutes + " minutes";
-        Integer replyCount = null;
-        try {
-            replyCount = jdbcTemplate.queryForObject(
-                    "SELECT COUNT(*) FROM chat_history WHERE ticket_id = ? AND lower(COALESCE(sender,'')) = 'ai_agent' AND datetime(substr(COALESCE(timestamp,''),1,19)) >= datetime('now', ?)",
-                    Integer.class,
-                    ticketId,
-                    windowExpr
-            );
-        } catch (Exception ignored) {
-        }
-        if (replyCount != null && replyCount >= maxReplies) {
-            return new AutoReplyGuard(false, "limit_reached:" + replyCount + "/" + maxReplies);
-        }
-        if (cooldownSeconds <= 0) {
-            return new AutoReplyGuard(true, null);
-        }
-        try {
-            List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-                    "SELECT last_action, updated_at FROM ticket_ai_agent_state WHERE ticket_id = ? LIMIT 1",
-                    ticketId
-            );
-            if (!rows.isEmpty()) {
-                String lastAction = trim(safe(rows.get(0).get("last_action")));
-                Instant updatedAt = parseInstant(rows.get(0).get("updated_at"));
-                if ("auto_reply".equalsIgnoreCase(lastAction) && updatedAt != null) {
-                    long elapsed = Duration.between(updatedAt, Instant.now()).getSeconds();
-                    if (elapsed >= 0 && elapsed < cooldownSeconds) {
-                        return new AutoReplyGuard(false, "cooldown:" + elapsed + "/" + cooldownSeconds + "s");
-                    }
-                }
-            }
-        } catch (Exception ignored) {
-        }
-        return new AutoReplyGuard(true, null);
-    }
-    private DialogAiControl loadDialogControl(String ticketId) {
-        String t = trim(ticketId);
-        if (t == null) return DialogAiControl.DEFAULT;
-        try {
-            List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-                    "SELECT ai_disabled, auto_reply_blocked, reason, updated_by, updated_at FROM ticket_ai_agent_dialog_control WHERE ticket_id = ? LIMIT 1",
-                    t
-            );
-            if (rows.isEmpty()) return DialogAiControl.DEFAULT;
-            Map<String, Object> row = rows.get(0);
-            return new DialogAiControl(
-                    isTrue(row.get("ai_disabled")),
-                    isTrue(row.get("auto_reply_blocked")),
-                    trim(safe(row.get("reason"))),
-                    trim(safe(row.get("updated_by"))),
-                    trim(safe(row.get("updated_at")))
-            );
-        } catch (Exception ex) {
-            return DialogAiControl.DEFAULT;
-        }
-    }
     private PolicyOrderDecision evaluatePreRoutingPolicy(String ticketId,
                                                          String message,
                                                          String baseMode,
-                                                         DialogAiControl control,
+                                                         DialogAiAssistantStateService.DialogAiControl control,
                                                          boolean agentEnabled) {
         AiPolicyService.SensitiveTopicMatch sensitiveMatch = aiPolicyService.detectSensitiveTopic(message);
         String effectiveMode = aiPolicyService.applySensitiveModeOverride(baseMode, sensitiveMatch);
@@ -962,53 +699,6 @@ public class DialogAiAssistantService {
             payload.putAll(right);
         }
         return payload;
-    }
-
-    private void applyMemoryGovernance(String queryKey,
-                                       String status,
-                                       String trustLevel,
-                                       String intentKey,
-                                       String slotSignature,
-                                       String scopeChannel,
-                                       String safetyLevel,
-                                       String sourceType,
-                                       boolean verified,
-                                       String verifiedBy) {
-        String key = trim(queryKey);
-        if (key == null) {
-            return;
-        }
-        try {
-            jdbcTemplate.update(
-                    """
-                    UPDATE ai_agent_solution_memory
-                       SET status = ?,
-                           trust_level = ?,
-                           intent_key = ?,
-                           slot_signature = ?,
-                           scope_channel = COALESCE(scope_channel, ?),
-                           safety_level = ?,
-                           source_type = ?,
-                           last_verified_at = CASE WHEN ? = 1 THEN CURRENT_TIMESTAMP ELSE last_verified_at END,
-                           verified_by = CASE WHEN ? = 1 THEN ? ELSE verified_by END,
-                           updated_at = CURRENT_TIMESTAMP
-                     WHERE query_key = ?
-                    """,
-                    aiPolicyService.normalizeStatus(status, "draft"),
-                    aiPolicyService.normalizeTrustLevel(trustLevel, "low"),
-                    cut(trim(intentKey), 120),
-                    cut(trim(slotSignature), 300),
-                    cut(trim(scopeChannel), 120),
-                    aiPolicyService.normalizeSafetyLevel(safetyLevel, "normal"),
-                    aiPolicyService.normalizeSourceType("memory", sourceType),
-                    verified ? 1 : 0,
-                    verified ? 1 : 0,
-                    cut(trim(verifiedBy), 120),
-                    key
-            );
-        } catch (Exception ignored) {
-            // Backward compatibility for databases where governance columns are not present yet.
-        }
     }
 
     private String encodeSourceHits(List<AiSuggestion> suggestions) {
@@ -1107,26 +797,6 @@ public class DialogAiAssistantService {
         }
         return null;
     }
-    private Instant parseInstant(Object value) {
-        String raw = trim(value != null ? String.valueOf(value) : null);
-        if (raw == null) return null;
-        try {
-            return Instant.parse(raw);
-        } catch (DateTimeParseException ignored) {
-        }
-        try {
-            return OffsetDateTime.parse(raw).toInstant();
-        } catch (DateTimeParseException ignored) {
-        }
-        try {
-            String normalized = raw.replace(' ', 'T');
-            if (normalized.length() == 19) {
-                return LocalDateTime.parse(normalized).toInstant(ZoneOffset.UTC);
-            }
-        } catch (DateTimeParseException ignored) {
-        }
-        return null;
-    }
     private void recordAiEvent(String ticketId,
                                String eventType,
                                String actor,
@@ -1198,47 +868,6 @@ public class DialogAiAssistantService {
             return null;
         }
     }
-    private int resolveDialogConfigInt(String key, int fallback, int min, int max) {
-        try {
-            Object raw = sharedConfigService.loadSettings().get("dialog_config");
-            if (!(raw instanceof Map<?, ?> map)) return fallback;
-            Object value = map.get(key);
-            if (value == null) return fallback;
-            int parsed = Integer.parseInt(String.valueOf(value).trim());
-            return Math.max(min, Math.min(max, parsed));
-        } catch (Exception ex) {
-            return fallback;
-        }
-    }
-    private String resolveDialogConfigString(String key, String fallback, Set<String> allowedValues) {
-        try {
-            Object raw = sharedConfigService.loadSettings().get("dialog_config");
-            if (!(raw instanceof Map<?, ?> map)) return fallback;
-            Object rawValue = map.get(key);
-            if (rawValue == null) return fallback;
-            String value = trim(String.valueOf(rawValue));
-            if (value == null) return fallback;
-            String normalized = value.toLowerCase(Locale.ROOT);
-            return allowedValues.contains(normalized) ? normalized : fallback;
-        } catch (Exception ex) {
-            return fallback;
-        }
-    }
-    private double resolveDialogConfigDouble(String key, double fallback, double min, double max) {
-        try {
-            Object raw = sharedConfigService.loadSettings().get("dialog_config");
-            if (!(raw instanceof Map<?,?> map)) return fallback;
-            Object val = map.get(key);
-            if (val == null) return fallback;
-            double parsed = Double.parseDouble(String.valueOf(val).trim());
-            if (Double.isNaN(parsed) || Double.isInfinite(parsed)) return fallback;
-            return Math.max(min, Math.min(max, parsed));
-        } catch (Exception ex) {
-            return fallback;
-        }
-    }
-
-    private record AutoReplyGuard(boolean allowed, String reason) {}
     private record PolicyOrderDecision(boolean stopProcessing,
                                        String action,
                                        String eventType,
@@ -1249,13 +878,6 @@ public class DialogAiAssistantService {
                                        String effectiveMode,
                                        String detail,
                                        AiPolicyService.SensitiveTopicMatch sensitiveMatch) {
-    }
-    private record DialogAiControl(boolean aiDisabled,
-                                   boolean autoReplyBlocked,
-                                   String reason,
-                                   String updatedBy,
-                                   String updatedAt) {
-        static final DialogAiControl DEFAULT = new DialogAiControl(false, false, null, null, null);
     }
     private static final class AiSuggestion {
         final String source;

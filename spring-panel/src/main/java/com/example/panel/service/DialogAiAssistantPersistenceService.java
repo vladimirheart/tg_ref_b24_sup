@@ -308,6 +308,46 @@ public class DialogAiAssistantPersistenceService {
         aiKnowledgeService.forgetMemory(queryKey);
     }
 
+    public void updatePendingSolutionText(String queryKey, String pendingSolutionText) {
+        jdbcTemplate.update(
+                "UPDATE ai_agent_solution_memory SET review_required = 1, pending_solution_text = ?, updated_at = CURRENT_TIMESTAMP WHERE query_key = ?",
+                cut(pendingSolutionText, 2000),
+                trim(queryKey)
+        );
+    }
+
+    public void persistSuggestionFeedback(String ticketId,
+                                          String decision,
+                                          String source,
+                                          String title,
+                                          String snippet,
+                                          String suggestedReply,
+                                          String actor) {
+        jdbcTemplate.update(
+                """
+                INSERT INTO ai_agent_suggestion_feedback(ticket_id, decision, source, title, snippet, suggested_reply, actor, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                """,
+                trim(ticketId),
+                cut(decision != null ? decision.toLowerCase(Locale.ROOT) : null, 64),
+                cut(source, 128),
+                cut(title, 255),
+                cut(snippet, 2000),
+                cut(suggestedReply, 2000),
+                trim(actor)
+        );
+    }
+
+    public void markMemoryUsage(String queryKey) {
+        try {
+            jdbcTemplate.update(
+                    "UPDATE ai_agent_solution_memory SET times_used=COALESCE(times_used,0)+1,updated_at=CURRENT_TIMESTAMP WHERE query_key=?",
+                    trim(queryKey)
+            );
+        } catch (Exception ignored) {
+        }
+    }
+
     private String normalize(String value) {
         if (!StringUtils.hasText(value)) {
             return "";
