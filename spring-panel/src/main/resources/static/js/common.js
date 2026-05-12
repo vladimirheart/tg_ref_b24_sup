@@ -52,31 +52,43 @@ if (typeof window !== 'undefined' && window.fetch) {
 
 // Функция для показа уведомлений (например, об ошибках или успехе)
 function showNotification(message, type = 'info', containerId = 'notification-container') {
+    const root = document.documentElement || document.body;
     let overlay = document.getElementById(containerId);
+    if (overlay && overlay.parentElement !== root) {
+        overlay.remove();
+        overlay = null;
+    }
     if (!overlay) {
         overlay = document.createElement('div');
         overlay.id = containerId;
-        document.body.appendChild(overlay);
+        root.appendChild(overlay);
     }
 
-    overlay.innerHTML = '';
-    overlay.style.position = 'fixed';
-    overlay.style.inset = '0';
-    overlay.style.zIndex = '2147483647';
-    overlay.style.display = 'flex';
-    overlay.style.alignItems = 'center';
-    overlay.style.justifyContent = 'center';
-    overlay.style.padding = '1rem';
-    overlay.style.background = 'rgba(15, 23, 42, 0.38)';
-    overlay.style.pointerEvents = 'auto';
+    overlay.replaceChildren();
+    overlay.setAttribute('role', 'alertdialog');
+    overlay.setAttribute('aria-live', 'assertive');
+    overlay.style.setProperty('position', 'fixed', 'important');
+    overlay.style.setProperty('inset', '0', 'important');
+    overlay.style.setProperty('z-index', '2147483647', 'important');
+    overlay.style.setProperty('display', 'flex', 'important');
+    overlay.style.setProperty('align-items', 'center', 'important');
+    overlay.style.setProperty('justify-content', 'center', 'important');
+    overlay.style.setProperty('padding', '1rem', 'important');
+    overlay.style.setProperty('background', 'rgba(15, 23, 42, 0.38)', 'important');
+    overlay.style.setProperty('pointer-events', 'auto', 'important');
+    overlay.style.setProperty('visibility', 'visible', 'important');
+    overlay.style.setProperty('opacity', '1', 'important');
+    overlay.style.setProperty('isolation', 'isolate', 'important');
 
     const popup = document.createElement('div');
-    popup.style.width = 'min(92vw, 520px)';
-    popup.style.background = '#ffffff';
-    popup.style.border = '1px solid rgba(15, 23, 42, 0.15)';
-    popup.style.borderRadius = '0.9rem';
-    popup.style.boxShadow = '0 1rem 2rem rgba(15, 23, 42, 0.28)';
-    popup.style.overflow = 'hidden';
+    popup.style.setProperty('position', 'relative', 'important');
+    popup.style.setProperty('z-index', '2147483647', 'important');
+    popup.style.setProperty('width', 'min(92vw, 520px)', 'important');
+    popup.style.setProperty('background', '#ffffff', 'important');
+    popup.style.setProperty('border', '1px solid rgba(15, 23, 42, 0.15)', 'important');
+    popup.style.setProperty('border-radius', '0.9rem', 'important');
+    popup.style.setProperty('box-shadow', '0 1rem 2rem rgba(15, 23, 42, 0.28)', 'important');
+    popup.style.setProperty('overflow', 'hidden', 'important');
 
     const header = document.createElement('div');
     header.style.display = 'flex';
