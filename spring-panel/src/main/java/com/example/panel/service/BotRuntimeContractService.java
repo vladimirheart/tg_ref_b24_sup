@@ -161,10 +161,8 @@ public class BotRuntimeContractService {
         appendEnvOption(env, "JAVA_TOOL_OPTIONS", "-Dsun.stdout.encoding=UTF-8");
         appendEnvOption(env, "JAVA_TOOL_OPTIONS", "-Dsun.stderr.encoding=UTF-8");
         IntegrationNetworkService.RouteSettings route = integrationNetworkService.resolveBotRoute(channel);
-        if (isUnsupportedMtprotoRouteForTelegram(channel, route)) {
-            throw new IllegalStateException("MTProto proxy сохранён в настройках, но текущий Telegram runtime работает через Bot API over HTTPS и не поддерживает MTProto напрямую. Нужен внешний HTTP/SOCKS-адаптер.");
-        }
-        Map<String, String> networkEnv = integrationNetworkService.buildProcessEnvironment(route);
+        IntegrationNetworkService.RouteSettings processRoute = resolveProcessRoute(channel, route, env);
+        Map<String, String> networkEnv = integrationNetworkService.buildProcessEnvironment(processRoute);
         for (Map.Entry<String, String> entry : networkEnv.entrySet()) {
             if ("JAVA_TOOL_OPTIONS".equals(entry.getKey())) {
                 appendEnvOption(env, "JAVA_TOOL_OPTIONS", entry.getValue());
@@ -235,7 +233,11 @@ public class BotRuntimeContractService {
         if ("max".equals(platform)) {
             keys.add("MAX_WEBHOOK_SECRET");
         }
-        keys.addAll(integrationNetworkService.buildProcessEnvironment(integrationNetworkService.resolveBotRoute(channel)).keySet());
+        IntegrationNetworkService.RouteSettings route = integrationNetworkService.resolveBotRoute(channel);
+        keys.addAll(integrationNetworkService.buildProcessEnvironment(resolveProcessRoute(channel, route, null)).keySet());
+        if (isUnsupportedMtprotoRouteForTelegram(channel, route)) {
+            keys.add("APP_NETWORK_UNSUPPORTED_PROXY_SCHEME");
+        }
         return keys;
     }
 
@@ -444,6 +446,18 @@ public class BotRuntimeContractService {
             && "proxy".equals(route.mode())
             && route.proxySettings() != null
             && route.proxySettings().isMtproto();
+    }
+
+    private IntegrationNetworkService.RouteSettings resolveProcessRoute(Channel channel,
+                                                                        IntegrationNetworkService.RouteSettings route,
+                                                                        Map<String, String> env) {
+        if (!isUnsupportedMtprotoRouteForTelegram(channel, route)) {
+            return route;
+        }
+        if (env != null) {
+            env.put("APP_NETWORK_UNSUPPORTED_PROXY_SCHEME", "mtproto");
+        }
+        return IntegrationNetworkService.RouteSettings.direct();
     }
 
     private record ResolvedExecutableJar(Path path, String source) {}

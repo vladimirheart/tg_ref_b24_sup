@@ -7,7 +7,6 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -311,7 +310,7 @@ class IntegrationNetworkServiceTest {
     }
 
     @Test
-    void createChannelHttpClientRejectsMtprotoProxyForHttpRequests() {
+    void createChannelHttpClientFallsBackToDirectWhenMtprotoProxyConfigured() {
         when(sharedConfigService.loadSettings()).thenReturn(Map.of(
             "integration_network", Map.of(
                 "bots", Map.of(
@@ -326,8 +325,6 @@ class IntegrationNetworkServiceTest {
             )
         ));
 
-        assertThatThrownBy(() -> service.createChannelHttpClient(new Channel(), java.time.Duration.ofSeconds(5)))
-            .isInstanceOf(IllegalStateException.class)
-            .hasMessageContaining("MTProto proxy");
+        assertThat(service.createChannelHttpClient(new Channel(), java.time.Duration.ofSeconds(5))).isNotNull();
     }
 }

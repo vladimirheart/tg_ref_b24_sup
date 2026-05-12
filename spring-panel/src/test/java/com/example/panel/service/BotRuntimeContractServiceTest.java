@@ -276,7 +276,7 @@ class BotRuntimeContractServiceTest {
     }
 
     @Test
-    void buildEnvironmentForTelegramRejectsMtprotoProxyContract() {
+    void buildEnvironmentForTelegramFallsBackToDirectForMtprotoProxyContract() {
         BotRuntimeContractService service = createService("auto", Map.of(), Map.of(
             "integration_network", Map.of(
                 "bots", Map.of(
@@ -294,13 +294,16 @@ class BotRuntimeContractServiceTest {
         channel.setId(35L);
         channel.setPlatform("telegram");
 
-        assertThatThrownBy(() -> service.buildEnvironment(
+        Map<String, String> env = service.buildEnvironment(
             channel,
             new com.example.panel.model.channel.BotCredential(8L, "tg", "telegram", "tg-token", true),
             tempDir.resolve("telegram-mtproto.log")
-        ))
-            .isInstanceOf(IllegalStateException.class)
-            .hasMessageContaining("MTProto");
+        );
+
+        assertThat(env)
+            .containsEntry("APP_NETWORK_MODE", "direct")
+            .containsEntry("APP_NETWORK_UNSUPPORTED_PROXY_SCHEME", "mtproto")
+            .doesNotContainKeys("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY");
     }
 
     @Test

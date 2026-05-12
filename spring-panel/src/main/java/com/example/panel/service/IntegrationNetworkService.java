@@ -115,7 +115,10 @@ public class IntegrationNetworkService {
         if ("proxy".equals(route.mode()) && route.proxySettings() != null && route.proxySettings().isConfigured()) {
             ProxySettings proxy = route.proxySettings();
             if (proxy.isMtproto()) {
-                throw new IllegalStateException("MTProto proxy не может быть использован для HTTP-запросов Bot API в текущем runtime.");
+                log.warn("MTProto proxy {}:{} сохранён в настройках, но текущий HTTP client панели не умеет использовать его напрямую. Будет применён direct fallback.",
+                    proxy.host(),
+                    proxy.port());
+                return builder.build();
             }
             builder.proxy(ProxySelector.of(new InetSocketAddress(proxy.host(), proxy.port())));
             if (hasText(proxy.username())) {

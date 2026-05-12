@@ -5810,7 +5810,7 @@
                             <select class="form-select" id="projectNetworkProfileId" multiple size="4">
                               <option value="">Выберите профиль…</option>
                             </select>
-                            <div class="form-text">Для выбора нескольких профилей используйте <code>Ctrl + клик</code> (Windows/Linux) или <code>Cmd + клик</code> (macOS).</div>
+                            <div class="form-text">Профили можно выбирать обычными кликами. Повторный клик снимает выбор.</div>
                             <div class="small text-muted mt-1">Первый профиль — основной, дальше резервные. При проблеме соединения система переключится на следующий доступный профиль.</div>
                             <div class="small border rounded-2 p-2 mt-2 bg-light-subtle" data-network-route-profile-preview="project">Цепочка пока не выбрана.</div>
                           </div>
@@ -5896,7 +5896,7 @@
                             <select class="form-select" id="botsNetworkProfileId" multiple size="4">
                               <option value="">Выберите профиль…</option>
                             </select>
-                            <div class="form-text">Для выбора нескольких профилей используйте <code>Ctrl + клик</code> (Windows/Linux) или <code>Cmd + клик</code> (macOS).</div>
+                            <div class="form-text">Профили можно выбирать обычными кликами. Повторный клик снимает выбор.</div>
                             <div class="small text-muted mt-1">Можно выбрать отдельную цепочку профилей только для процессов ботов.</div>
                             <div class="small border rounded-2 p-2 mt-2 bg-light-subtle" data-network-route-profile-preview="bots">Цепочка пока не выбрана.</div>
                           </div>
@@ -6678,7 +6678,7 @@
               <select class="form-select" id="channelEditorNetworkProfileId" multiple size="4">
                 <option value="">Выберите профиль…</option>
               </select>
-              <div class="form-text">Для выбора нескольких профилей используйте <code>Ctrl + клик</code> (Windows/Linux) или <code>Cmd + клик</code> (macOS).</div>
+              <div class="form-text">Профили можно выбирать обычными кликами. Повторный клик снимает выбор.</div>
               <div class="small text-muted mt-1">Профиль можно переиспользовать для нескольких ботов; порядок выбора определяет failover-цепочку.</div>
               <div class="small border rounded-2 p-2 mt-2 bg-light-subtle" data-network-route-profile-preview="channel">Цепочка пока не выбрана.</div>
             </div>
@@ -20892,6 +20892,19 @@
       .filter((value) => value);
   }
 
+  function enableMultiSelectToggle(selectEl) {
+    if (!selectEl || selectEl.dataset.multiToggleReady === 'true') return;
+    selectEl.dataset.multiToggleReady = 'true';
+    selectEl.addEventListener('mousedown', (event) => {
+      const option = event.target instanceof HTMLOptionElement ? event.target : null;
+      if (!option) return;
+      event.preventDefault();
+      option.selected = !option.selected;
+      selectEl.focus();
+      selectEl.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+  }
+
   function applyMultiSelectValues(selectEl, values) {
     if (!selectEl) return;
     const selected = new Set(normalizeProfileIds(values));
@@ -21194,6 +21207,9 @@
     renderIntegrationNetworkProfileSelectors();
     applyRouteToInputs('project', integrationNetworkState.project);
     applyRouteToInputs('bots', integrationNetworkState.bots);
+    enableMultiSelectToggle(projectNetworkProfileIdInput);
+    enableMultiSelectToggle(botsNetworkProfileIdInput);
+    enableMultiSelectToggle(channelEditorNetworkProfileIdInput);
     if (integrationNetworkStatusEl) {
       integrationNetworkStatusEl.textContent = 'HTTP/SOCKS/VLESS прокси применяются к запросам панели и передаются отдельным процессам ботов. MTProto сохраняется как маршрутный контракт и требует внешний адаптер для Telegram Bot API runtime.';
     }
