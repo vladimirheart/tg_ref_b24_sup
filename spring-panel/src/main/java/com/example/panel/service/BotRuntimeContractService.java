@@ -60,7 +60,6 @@ public class BotRuntimeContractService {
         BotProcessProperties.LaunchMode launchMode = botProcessProperties.resolveLaunchMode();
         ResolvedExecutableJar executableJar = resolveExecutableJarDetailed(botWorkingDir, botModule);
         BotLaunchPlan launchPlan = resolveLaunchPlan(botWorkingDir, botModule);
-        IntegrationNetworkService.RouteSettings route = integrationNetworkService.resolveBotRoute(channel);
         List<String> warnings = new ArrayList<>();
         if (launchMode == BotProcessProperties.LaunchMode.JAR && executableJar == null) {
             warnings.add("В режиме jar собранный артефакт не найден, запуск завершится ошибкой.");
@@ -71,10 +70,7 @@ public class BotRuntimeContractService {
         if (executableJar != null && !"explicit-config".equals(executableJar.source())) {
             warnings.add("Для production лучше явно задать app.bots.executable-jars вместо target scan.");
         }
-        if (isUnsupportedMtprotoRouteForTelegram(channel, route)) {
-            warnings.add("Маршрут MTProto сохранён, но текущий Telegram runtime построен на Bot API over HTTPS и не умеет использовать MTProto proxy напрямую.");
-        }
-        BotProductionContract production = productionContract(botWorkingDir, botModule, launchMode, executableJar, launchPlan, channel, route);
+        BotProductionContract production = productionContract(botWorkingDir, botModule, launchMode, executableJar, launchPlan);
         BotLifecycleContract lifecycle = lifecycleContract();
         return new BotRuntimeContract(
             channel != null ? channel.getId() : null,
@@ -160,9 +156,8 @@ public class BotRuntimeContractService {
         appendEnvOption(env, "JAVA_TOOL_OPTIONS", "-Dsun.jnu.encoding=UTF-8");
         appendEnvOption(env, "JAVA_TOOL_OPTIONS", "-Dsun.stdout.encoding=UTF-8");
         appendEnvOption(env, "JAVA_TOOL_OPTIONS", "-Dsun.stderr.encoding=UTF-8");
-        IntegrationNetworkService.RouteSettings route = integrationNetworkService.resolveBotRoute(channel);
-        IntegrationNetworkService.RouteSettings processRoute = resolveProcessRoute(channel, route, env);
-        Map<String, String> networkEnv = integrationNetworkService.buildProcessEnvironment(processRoute);
+
+        Map<String, String> networkEnv = integrationNetworkService.buildProcessEnvironment(integrationNetworkService.resolveBotRoute(channel));
         for (Map.Entry<String, String> entry : networkEnv.entrySet()) {
             if ("JAVA_TOOL_OPTIONS".equals(entry.getKey())) {
                 appendEnvOption(env, "JAVA_TOOL_OPTIONS", entry.getValue());
@@ -233,11 +228,8 @@ public class BotRuntimeContractService {
         if ("max".equals(platform)) {
             keys.add("MAX_WEBHOOK_SECRET");
         }
-        IntegrationNetworkService.RouteSettings route = integrationNetworkService.resolveBotRoute(channel);
-        keys.addAll(integrationNetworkService.buildProcessEnvironment(resolveProcessRoute(channel, route, null)).keySet());
-        if (isUnsupportedMtprotoRouteForTelegram(channel, route)) {
-            keys.add("APP_NETWORK_UNSUPPORTED_PROXY_SCHEME");
-        }
+
+        keys.addAll(integrationNetworkService.buildProcessEnvironment(integrationNetworkService.resolveBotRoute(channel)).keySet());
         return keys;
     }
 
@@ -245,9 +237,7 @@ public class BotRuntimeContractService {
                                                      String botModule,
                                                      BotProcessProperties.LaunchMode configuredLaunchMode,
                                                      ResolvedExecutableJar executableJar,
-                                                     BotLaunchPlan launchPlan,
-                                                     Channel channel,
-                                                     IntegrationNetworkService.RouteSettings route) {
+                                                     BotLaunchPlan launchPlan) {
         String preferredLauncher = botProcessProperties.resolvePreferredProductionLauncher().name().toLowerCase();
         String recommendedArtifactPath = resolveRecommendedArtifactPath(botWorkingDir, botModule);
         List<String> blockers = new ArrayList<>();
@@ -264,9 +254,6 @@ public class BotRuntimeContractService {
         }
         if (configuredLaunchMode == BotProcessProperties.LaunchMode.MAVEN) {
             blockers.add("app.bots.launch-mode=maven подходит только как controlled dev fallback.");
-        }
-        if (isUnsupportedMtprotoRouteForTelegram(channel, route)) {
-            blockers.add("Маршрут MTProto нельзя использовать напрямую с текущим Telegram Bot API runtime без внешнего адаптера.");
         }
         boolean readyForProduction = blockers.isEmpty();
         return new BotProductionContract(
@@ -438,26 +425,6 @@ public class BotRuntimeContractService {
         }
         String updated = existing.isBlank() ? option.trim() : existing + " " + option.trim();
         env.put(key, updated);
-    }
-
-    private boolean isUnsupportedMtprotoRouteForTelegram(Channel channel, IntegrationNetworkService.RouteSettings route) {
-        return "telegram".equals(normalizePlatform(channel))
-            && route != null
-            && "proxy".equals(route.mode())
-            && route.proxySettings() != null
-            && route.proxySettings().isMtproto();
-    }
-
-    private IntegrationNetworkService.RouteSettings resolveProcessRoute(Channel channel,
-                                                                        IntegrationNetworkService.RouteSettings route,
-                                                                        Map<String, String> env) {
-        if (!isUnsupportedMtprotoRouteForTelegram(channel, route)) {
-            return route;
-        }
-        if (env != null) {
-            env.put("APP_NETWORK_UNSUPPORTED_PROXY_SCHEME", "mtproto");
-        }
-        return IntegrationNetworkService.RouteSettings.direct();
     }
 
     private record ResolvedExecutableJar(Path path, String source) {}

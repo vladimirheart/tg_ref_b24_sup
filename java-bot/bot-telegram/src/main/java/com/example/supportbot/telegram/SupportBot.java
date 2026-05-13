@@ -131,11 +131,6 @@ public class SupportBot extends TelegramLongPollingBot {
         String networkMode = env("APP_NETWORK_MODE").toLowerCase(Locale.ROOT);
         String proxyHost = env("APP_NETWORK_PROXY_HOST");
         int proxyPort = parsePositiveInt(env("APP_NETWORK_PROXY_PORT"));
-        String unsupportedProxyScheme = env("APP_NETWORK_UNSUPPORTED_PROXY_SCHEME");
-        if (!unsupportedProxyScheme.isBlank()) {
-            log.warn("Configured proxy scheme '{}' is stored in panel settings but is not applied by the current Telegram runtime. Direct connection fallback is active.",
-                    unsupportedProxyScheme);
-        }
         if ("proxy".equals(networkMode) && !proxyHost.isBlank() && proxyPort > 0) {
             log.info("Telegram client will use proxy {}://{}:{}",
                     env("APP_NETWORK_PROXY_SCHEME").isBlank() ? "http" : env("APP_NETWORK_PROXY_SCHEME"),
@@ -2075,10 +2070,6 @@ public class SupportBot extends TelegramLongPollingBot {
         String scheme = env("APP_NETWORK_PROXY_SCHEME").toLowerCase(Locale.ROOT);
         String host = env("APP_NETWORK_PROXY_HOST");
         int port = parsePositiveInt(env("APP_NETWORK_PROXY_PORT"));
-        if ("mtproto".equals(scheme)) {
-            options.setProxyType(DefaultBotOptions.ProxyType.NO_PROXY);
-            return options;
-        }
 
         if (!host.isBlank() && port > 0) {
             options.setProxyHost(host);
