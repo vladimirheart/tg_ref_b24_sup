@@ -1190,6 +1190,7 @@ body[data-ui-page='dialogs'][data-ui-density='comfortable'] .workspace-shell-car
   align-items: center;
   gap: 0.5rem;
   flex-shrink: 0;
+  flex-wrap: nowrap;
 }
 
 .dialog-details-avatar {
@@ -1379,7 +1380,8 @@ body[data-ui-page='dialogs'][data-ui-density='comfortable'] .workspace-shell-car
   }
 
   .dialog-details-header-actions {
-    justify-content: space-between;
+    justify-content: flex-end;
+    flex-wrap: wrap;
   }
 
   .dialog-details-main-actions {

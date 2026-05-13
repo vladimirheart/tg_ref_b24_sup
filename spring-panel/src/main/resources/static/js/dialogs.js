@@ -64,6 +64,9 @@
   const aiKpiEscalationRate = document.getElementById('aiKpiEscalationRate');
   const aiKpiCorrectionRate = document.getElementById('aiKpiCorrectionRate');
   const pageSizeSelect = document.getElementById('dialogPageSize');
+  const pagePrevBtn = document.getElementById('dialogPagePrev');
+  const pageNextBtn = document.getElementById('dialogPageNext');
+  const pageState = document.getElementById('dialogPageState');
   const slaWindowSelect = document.getElementById('dialogSlaWindow');
   const sortModeSelect = document.getElementById('dialogSortMode');
   const filtersBtn = document.getElementById('dialogFiltersBtn');
@@ -2448,10 +2451,12 @@
     status: '',
     view: DIALOG_DEFAULT_VIEW,
     pageSize: DEFAULT_PAGE_SIZE,
+    page: 1,
     slaWindowMinutes: DIALOG_DEFAULT_SLA_WINDOW,
     sortMode: 'default',
   };
   let lastManualSortMode = filterState.sortMode;
+  let lastFilteredRows = [];
   const slaOrchestrationByTicket = new Map();
 
   function syncSlaOrchestrationSignals(slaOrchestration) {
@@ -2797,7 +2802,10 @@
     updateBulkActionsState();
   }
 
-  function applyFilters() {
+  function applyFilters(options = {}) {
+    if (options.resetPage === true) {
+      filterState.page = 1;
+    }
     updateAllSlaBadges();
     const search = (filterState.search || '').trim().toLowerCase();
     const status = (filterState.status || '').trim().toLowerCase();
@@ -2822,6 +2830,7 @@
     if (filterState.sortMode === 'sla_priority') {
       matchedRows.sort(compareRowsBySlaPriority);
     }
+    lastFilteredRows = matchedRows.slice();
     const tableBody = table.tBodies[0];
     matchedRows.forEach((row) => tableBody.appendChild(row));
     hiddenRows.forEach((row) => tableBody.appendChild(row));
@@ -2834,7 +2843,7 @@
 
   function applyQuickSearch(value) {
     filterState.search = value || '';
-    applyFilters();
+    applyFilters({ resetPage: true });
   }
 
   function applyStatusFilter(statusLabel = '') {
@@ -2845,7 +2854,7 @@
       const match = options.find((option) => String(option.value || '').trim().toLowerCase() === normalized);
       statusFilter.value = match ? match.value : '';
     }
-    applyFilters();
+    applyFilters({ resetPage: true });
   }
 
   function setViewTab(nextView) {
@@ -2877,15 +2886,36 @@
       emitWorkspaceTelemetry('triage_view_switch', { reason: `${previousView}->${resolvedView}` });
     }
     persistDialogPreferences();
-    applyFilters();
+    applyFilters({ resetPage: true });
   }
 
   function visibleRows() {
     return rowsList().filter((row) => !row.classList.contains('d-none'));
   }
 
+  function ensureDialogRowPage(row) {
+    if (!row || filterState.pageSize === Infinity || !row.classList.contains('d-none')) {
+      return;
+    }
+    const rowIndex = lastFilteredRows.indexOf(row);
+    if (rowIndex < 0) {
+      return;
+    }
+    const limit = Number.isFinite(filterState.pageSize) && filterState.pageSize > 0
+      ? filterState.pageSize
+      : DEFAULT_PAGE_SIZE;
+    const nextPage = Math.floor(rowIndex / limit) + 1;
+    if (nextPage !== filterState.page) {
+      filterState.page = nextPage;
+      applyFilters();
+    }
+  }
+
   function setActiveDialogRow(row, options = {}) {
     const nextRow = row && row.tagName === 'TR' ? row : null;
+    if (nextRow && options.ensureVisible) {
+      ensureDialogRowPage(nextRow);
+    }
     if (activeDialogRow && activeDialogRow !== nextRow) {
       activeDialogRow.classList.remove('dialog-row-active');
     }
@@ -6165,21 +6195,74 @@
     });
   }
 
-  function applyPageSize(matchedRows) {
+  function resolveListPagination(totalItems) {
     let limit = filterState.pageSize;
     if (limit === Infinity) {
-      return matchedRows.length;
+      return {
+        limit: Infinity,
+        totalItems,
+        totalPages: totalItems > 0 ? 1 : 0,
+        currentPage: totalItems > 0 ? 1 : 0,
+        startIndex: 0,
+        endIndex: totalItems,
+        visibleCount: totalItems,
+      };
     }
     if (!Number.isFinite(limit) || limit <= 0) {
       limit = DEFAULT_PAGE_SIZE;
     }
-    let visibleCount = 0;
+    const totalPages = totalItems > 0 ? Math.ceil(totalItems / limit) : 0;
+    const currentPage = totalPages > 0
+      ? Math.min(Math.max(1, Number.parseInt(filterState.page, 10) || 1), totalPages)
+      : 0;
+    const startIndex = currentPage > 0 ? (currentPage - 1) * limit : 0;
+    const endIndex = currentPage > 0 ? Math.min(startIndex + limit, totalItems) : 0;
+    return {
+      limit,
+      totalItems,
+      totalPages,
+      currentPage,
+      startIndex,
+      endIndex,
+      visibleCount: Math.max(0, endIndex - startIndex),
+    };
+  }
+
+  function updatePaginationControls(pagination) {
+    if (!pagePrevBtn || !pageNextBtn || !pageState) return;
+    const totalItems = Number(pagination?.totalItems || 0);
+    const totalPages = Number(pagination?.totalPages || 0);
+    const currentPage = Number(pagination?.currentPage || 0);
+    const start = totalItems > 0 ? Number(pagination?.startIndex || 0) + 1 : 0;
+    const end = totalItems > 0 ? Number(pagination?.endIndex || 0) : 0;
+
+    pagePrevBtn.disabled = currentPage <= 1;
+    pageNextBtn.disabled = currentPage <= 0 || currentPage >= totalPages;
+
+    if (totalItems === 0) {
+      pageState.textContent = '0 из 0';
+      return;
+    }
+
+    if (pagination?.limit === Infinity || totalPages <= 1) {
+      pageState.textContent = `${totalItems} из ${totalItems}`;
+      return;
+    }
+
+    pageState.textContent = `${start}-${end} из ${totalItems} | стр. ${currentPage}/${totalPages}`;
+  }
+
+  function applyPageSize(matchedRows) {
+    const pagination = resolveListPagination(matchedRows.length);
+    filterState.page = pagination.currentPage || 1;
     matchedRows.forEach((row, index) => {
-      const visible = index < limit;
+      const visible = pagination.limit === Infinity
+        ? true
+        : index >= pagination.startIndex && index < pagination.endIndex;
       row.classList.toggle('d-none', !visible);
-      if (visible) visibleCount += 1;
     });
-    return visibleCount;
+    updatePaginationControls(pagination);
+    return pagination.visibleCount;
   }
 
   function updateZebraRows(matchedRows) {
@@ -7077,6 +7160,86 @@
     return false;
   }
 
+  function normalizeHistoryComparisonValue(value) {
+    return String(value || '')
+      .toLowerCase()
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function buildHistoryTechnicalValueSet(context = {}) {
+    const values = new Set();
+    const addValue = (value) => {
+      const normalized = normalizeHistoryComparisonValue(value);
+      if (!normalized) return;
+      values.add(normalized);
+      normalized
+        .split(/[,/|]+/)
+        .map((item) => normalizeHistoryComparisonValue(item))
+        .filter(Boolean)
+        .forEach((item) => values.add(item));
+    };
+    addValue(context?.business);
+    addValue(context?.location);
+    return values;
+  }
+
+  function isLikelyQuestionnaireProblemMessage(text, technicalValues) {
+    const normalized = normalizeHistoryComparisonValue(text);
+    if (!normalized) return false;
+    if (technicalValues.has(normalized)) return false;
+    const words = normalized.split(' ').filter(Boolean);
+    if (normalized.length >= 48) return true;
+    if (words.length >= 4) return true;
+    if (/[,.!?;:()-]/.test(text) && words.length >= 2) return true;
+    return false;
+  }
+
+  function filterDialogHistoryMessages(messages, context = activeDialogContext) {
+    const baseMessages = Array.isArray(messages)
+      ? messages.filter((msg) => !isTechnicalHistoryMessage(msg))
+      : [];
+    if (baseMessages.length < 2) {
+      return baseMessages;
+    }
+
+    let prefixLength = 0;
+    while (prefixLength < baseMessages.length) {
+      const senderType = normalizeMessageSenderByType(baseMessages[prefixLength]?.messageType, baseMessages[prefixLength]?.sender);
+      if (senderType !== 'user') {
+        break;
+      }
+      prefixLength += 1;
+    }
+
+    if (prefixLength < 2) {
+      return baseMessages;
+    }
+
+    const technicalValues = buildHistoryTechnicalValueSet(context);
+    const prefix = baseMessages.slice(0, prefixLength);
+    const preservedIndexes = new Set();
+
+    prefix.forEach((message, index) => {
+      if (message?.attachment) {
+        preservedIndexes.add(index);
+      }
+    });
+
+    let informativeIndex = -1;
+    for (let index = prefix.length - 1; index >= 0; index -= 1) {
+      const text = String(prefix[index]?.message || '').trim();
+      if (isLikelyQuestionnaireProblemMessage(text, technicalValues)) {
+        informativeIndex = index;
+        break;
+      }
+    }
+
+    preservedIndexes.add(informativeIndex >= 0 ? informativeIndex : prefix.length - 1);
+
+    return baseMessages.filter((message, index) => index >= prefixLength || preservedIndexes.has(index));
+  }
+
   function resetPreviousDialogHistoryState() {
     previousDialogHistoryBatches = [];
     previousDialogHistoryNextOffset = 0;
@@ -7101,9 +7264,7 @@
   }
 
   function renderArchivedHistoryBatch(batch) {
-    const messages = Array.isArray(batch?.messages)
-      ? batch.messages.filter((msg) => !isTechnicalHistoryMessage(msg))
-      : [];
+    const messages = filterDialogHistoryMessages(batch?.messages || []);
     const ticketId = String(batch?.ticketId || '—').trim() || '—';
     const createdAt = formatTimestamp(batch?.createdAt || batch?.created_at, { includeTime: true, fallback: '—' });
     const status = String(batch?.status || '—').trim() || '—';
@@ -7131,9 +7292,7 @@
 
   function renderDialogHistory(options = {}) {
     if (!detailsHistory) return;
-    const currentMessages = Array.isArray(activeDialogCurrentMessages)
-      ? activeDialogCurrentMessages.filter((msg) => !isTechnicalHistoryMessage(msg))
-      : [];
+    const currentMessages = filterDialogHistoryMessages(activeDialogCurrentMessages);
     const controlsMarkup = renderPreviousDialogHistoryControls();
     const archivedMarkup = previousDialogHistoryBatches.map(renderArchivedHistoryBatch).join('');
     const currentMarkup = currentMessages.length
@@ -7147,7 +7306,7 @@
 
   function renderHistory(messages, options = {}) {
     activeDialogCurrentMessages = Array.isArray(messages) ? messages : [];
-    const filteredMessages = activeDialogCurrentMessages.filter((msg) => !isTechnicalHistoryMessage(msg));
+    const filteredMessages = filterDialogHistoryMessages(activeDialogCurrentMessages);
     lastHistoryMarker = historyMarker(filteredMessages);
     renderDialogHistory(options);
   }
@@ -8346,11 +8505,26 @@
     quickSearch.addEventListener('input', () => applyQuickSearch(quickSearch.value));
   }
 
+  if (pagePrevBtn) {
+    pagePrevBtn.addEventListener('click', () => {
+      if ((filterState.page || 1) <= 1) return;
+      filterState.page = Math.max(1, (filterState.page || 1) - 1);
+      applyFilters();
+    });
+  }
+
+  if (pageNextBtn) {
+    pageNextBtn.addEventListener('click', () => {
+      filterState.page = Math.max(1, (filterState.page || 1) + 1);
+      applyFilters();
+    });
+  }
+
   if (pageSizeSelect) {
     pageSizeSelect.addEventListener('change', () => {
       filterState.pageSize = normalizePageSize(pageSizeSelect.value);
       persistPageSize();
-      applyFilters();
+      applyFilters({ resetPage: true });
     });
   }
 
@@ -8359,7 +8533,7 @@
       const parsed = Number.parseInt(slaWindowSelect.value, 10);
       filterState.slaWindowMinutes = Number.isFinite(parsed) && parsed > 0 ? parsed : null;
       persistDialogPreferences();
-      applyFilters();
+      applyFilters({ resetPage: true });
     });
   }
 
@@ -8371,7 +8545,7 @@
         lastManualSortMode = filterState.sortMode;
       }
       persistDialogPreferences();
-      applyFilters();
+      applyFilters({ resetPage: true });
     });
   }
 
@@ -8397,7 +8571,7 @@
         filterState.status = filtersForm.status.value;
         if (quickSearch) quickSearch.value = filterState.search || '';
       }
-      applyFilters();
+      applyFilters({ resetPage: true });
       hideModalSafe(filtersModalEl, filtersModal);
     });
   }
@@ -8418,7 +8592,7 @@
       filterState.sortMode = 'default';
       lastManualSortMode = 'default';
       persistDialogPreferences();
-      applyFilters();
+      applyFilters({ resetPage: true });
     });
   }
 
