@@ -110,6 +110,20 @@ class BotProcessServiceTest {
     }
 
     @Test
+    void awaitProcessReadinessRejectsProcessThatDiesRightAfterStartedMarker() throws Exception {
+        TestableBotProcessService service = new TestableBotProcessService(Duration.ofSeconds(3), Duration.ofMillis(50));
+        Path processLog = tempDir.resolve("bot-process.log");
+
+        process = launchProbe("started-then-exit", processLog);
+
+        BotProcessService.BotProcessStatus status =
+            service.awaitProcessReadiness(process, processLog, 0L, 100L, OffsetDateTime.now());
+
+        assertThat(status.running()).isFalse();
+        assertThat(status.message()).contains("Started ProbeApplication");
+    }
+
+    @Test
     void resolveLaunchPlanPrefersJarInAutoModeWhenArtifactExists() throws Exception {
         Path botWorkingDir = tempDir.resolve("java-bot");
         Path jar = botWorkingDir.resolve("bot-telegram").resolve("target").resolve("bot-telegram-0.0.1-SNAPSHOT.jar");
@@ -368,6 +382,14 @@ class BotProcessServiceTest {
                     System.out.println("Bootstrapping probe");
                     System.out.flush();
                     Thread.sleep(5_000);
+                }
+                case "started-then-exit" -> {
+                    System.out.println("Bootstrapping probe");
+                    Thread.sleep(100);
+                    System.out.println("Started ProbeApplication in 0.321 seconds");
+                    System.out.flush();
+                    Thread.sleep(25);
+                    System.exit(1);
                 }
                 default -> throw new IllegalArgumentException("Unknown mode: " + mode);
             }

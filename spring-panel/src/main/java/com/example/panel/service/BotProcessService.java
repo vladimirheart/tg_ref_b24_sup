@@ -34,6 +34,7 @@ public class BotProcessService {
         Pattern.compile("(?m)\\bStarted\\s+.+Application\\s+in\\s+.+$");
     private static final Pattern STARTUP_FAILURE_PATTERN =
         Pattern.compile("(?m)^\\*{10,}\\s*$\\R^APPLICATION FAILED TO START\\s*$", Pattern.MULTILINE);
+    private static final long MIN_STARTUP_STABILITY_WINDOW_MS = 750L;
 
     private final SharedConfigService sharedConfigService;
     private final BotProcessProperties botProcessProperties;
@@ -199,6 +200,7 @@ public class BotProcessService {
                                            Long channelId,
                                            OffsetDateTime startedAt) {
         long deadlineNanos = System.nanoTime() + startupReadinessTimeout().toNanos();
+        Long startedMarkerSeenAtNanos = null;
         String latestStartupLog = "";
         while (System.nanoTime() < deadlineNanos) {
             latestStartupLog = readProcessOutputSince(processOutputLogFile, processOutputStartOffset);
@@ -207,8 +209,18 @@ public class BotProcessService {
                 log.warn("Bot process for channel {} reported startup failure: {}", channelId, failureMessage);
                 return BotProcessStatus.error(failureMessage);
             }
-            if (containsStartedMarker(latestStartupLog) && process.isAlive()) {
-                return BotProcessStatus.running(startedAt);
+            if (containsStartedMarker(latestStartupLog)) {
+                if (!process.isAlive()) {
+                    String failureMessage = extractEarlyExitMessage(latestStartupLog);
+                    log.warn("Bot process for channel {} exited right after startup marker: {}", channelId, failureMessage);
+                    return BotProcessStatus.error(failureMessage);
+                }
+                if (startedMarkerSeenAtNanos == null) {
+                    startedMarkerSeenAtNanos = System.nanoTime();
+                }
+                if (System.nanoTime() - startedMarkerSeenAtNanos >= startupStabilityWindow().toNanos()) {
+                    return BotProcessStatus.running(startedAt);
+                }
             }
             if (!process.isAlive()) {
                 String failureMessage = extractEarlyExitMessage(latestStartupLog);
@@ -271,6 +283,12 @@ public class BotProcessService {
 
     Duration startupPollInterval() {
         return botProcessProperties.resolveStartupPollInterval();
+    }
+
+    Duration startupStabilityWindow() {
+        long pollWindowMs = Math.max(startupPollInterval().toMillis() * 2L, MIN_STARTUP_STABILITY_WINDOW_MS);
+        long timeoutCapMs = Math.max(250L, startupReadinessTimeout().toMillis() / 4L);
+        return Duration.ofMillis(Math.min(pollWindowMs, timeoutCapMs));
     }
 
     private Path resolveMavenRepoDir(Path botWorkingDir) {

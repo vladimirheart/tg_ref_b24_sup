@@ -202,6 +202,27 @@ class IntegrationNetworkServiceTest {
     }
 
     @Test
+    void preservesUnsupportedProxySchemeWithoutMappingItToHttp() {
+        IntegrationNetworkService.RouteSettings route = IntegrationNetworkService.RouteSettings.fromMap(new LinkedHashMap<>(Map.of(
+            "mode", "proxy",
+            "proxy", Map.of(
+                "scheme", "mtproto",
+                "host", "proxy.internal",
+                "port", 853
+            )
+        )), true);
+
+        Map<String, String> env = service.buildProcessEnvironment(route);
+
+        assertThat(route.proxySettings().scheme()).isEqualTo("mtproto");
+        assertThat(route.proxySettings().isSupportedScheme()).isFalse();
+        assertThat(env)
+            .containsEntry("APP_NETWORK_MODE", "proxy")
+            .containsEntry("APP_NETWORK_PROXY_SCHEME", "mtproto")
+            .doesNotContainKeys("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "JAVA_TOOL_OPTIONS");
+    }
+
+    @Test
     void buildsVpnEnvironmentForBotProcess() {
         IntegrationNetworkService.RouteSettings route = IntegrationNetworkService.RouteSettings.fromMap(new LinkedHashMap<>(Map.of(
             "mode", "vpn",
@@ -286,6 +307,22 @@ class IntegrationNetworkServiceTest {
         assertThat(result.message()).isEqualTo("Прокси-профиль заполнен не полностью.");
         assertThat(result.host()).isEqualTo("proxy.internal");
         assertThat(result.port()).isZero();
+    }
+
+    @Test
+    void probeProfileRouteReportsUnsupportedProxyScheme() {
+        IntegrationNetworkService.RouteProbeResult result = service.probeProfileRoute(Map.of(
+            "mode", "proxy",
+            "proxy", Map.of(
+                "scheme", "mtproto",
+                "host", "proxy.internal",
+                "port", 853
+            )
+        ));
+
+        assertThat(result.reachable()).isFalse();
+        assertThat(result.host()).isEqualTo("proxy.internal");
+        assertThat(result.port()).isEqualTo(853);
     }
 
 }

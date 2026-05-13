@@ -114,6 +114,8 @@ class BotRuntimeContractServiceTest {
             .containsEntry("MAX_CHANNEL_ID", "17")
             .containsEntry("MAX_SUPPORT_CHAT_ID", "support-room")
             .containsEntry("MAX_WEBHOOK_SECRET", "max-secret")
+            .containsEntry("SUPPORT_BOT_DATABASE_PATH", tempDir.resolve("tickets.db").toString())
+            .containsEntry("SPRING_SQL_INIT_MODE", "always")
             .containsEntry("SPRING_MAIN_WEB_APPLICATION_TYPE", "servlet");
     }
 
@@ -199,6 +201,8 @@ class BotRuntimeContractServiceTest {
 
         assertThat(env)
             .containsEntry("APP_DB_TICKETS", tempDir.resolve("tickets.db").toString())
+            .containsEntry("SUPPORT_BOT_DATABASE_PATH", tempDir.resolve("tickets.db").toString())
+            .containsEntry("SPRING_SQL_INIT_MODE", "always")
             .containsEntry("TELEGRAM_BOT_TOKEN", "tg-token")
             .containsEntry("TELEGRAM_BOT_USERNAME", "support_bot")
             .containsEntry("GROUP_CHAT_ID", "ops-room")
@@ -273,6 +277,34 @@ class BotRuntimeContractServiceTest {
             .contains("-Dfile.encoding=UTF-8")
             .contains("-DsocksProxyHost=vless.internal")
             .contains("-DsocksProxyPort=7443");
+    }
+
+    @Test
+    void buildEnvironmentRejectsUnsupportedProxyScheme() {
+        BotRuntimeContractService service = createService("auto", Map.of(), Map.of(
+            "integration_network", Map.of(
+                "bots", Map.of(
+                    "mode", "proxy",
+                    "proxy", Map.of(
+                        "scheme", "mtproto",
+                        "host", "proxy.internal",
+                        "port", 853
+                    )
+                )
+            )
+        ));
+        Channel channel = new Channel();
+        channel.setId(35L);
+        channel.setPlatform("telegram");
+
+        assertThatThrownBy(() -> service.buildEnvironment(
+            channel,
+            new com.example.panel.model.channel.BotCredential(8L, "tg", "telegram", "tg-token", true),
+            tempDir.resolve("telegram-mtproto.log")
+        ))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("mtproto")
+            .hasMessageContaining("not supported");
     }
 
     @Test

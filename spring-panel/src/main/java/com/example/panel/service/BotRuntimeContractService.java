@@ -113,7 +113,10 @@ public class BotRuntimeContractService {
 
     public Map<String, String> buildEnvironment(Channel channel, BotCredential credential, Path logFile) {
         Map<String, String> env = new LinkedHashMap<>();
-        env.put("APP_DB_TICKETS", ticketsDbProperties.getNormalizedPath().toString());
+        String ticketsDbPath = ticketsDbProperties.getNormalizedPath().toString();
+        env.put("APP_DB_TICKETS", ticketsDbPath);
+        env.put("SUPPORT_BOT_DATABASE_PATH", ticketsDbPath);
+        env.put("SPRING_SQL_INIT_MODE", "always");
         env.put("TELEGRAM_BOT_TOKEN", credential.token());
         env.put("TELEGRAM_BOT_USERNAME", Objects.toString(channel.getBotUsername(), ""));
         env.put("GROUP_CHAT_ID", Objects.toString(channel.getSupportChatId(), "0"));
@@ -157,7 +160,17 @@ public class BotRuntimeContractService {
         appendEnvOption(env, "JAVA_TOOL_OPTIONS", "-Dsun.stdout.encoding=UTF-8");
         appendEnvOption(env, "JAVA_TOOL_OPTIONS", "-Dsun.stderr.encoding=UTF-8");
 
-        Map<String, String> networkEnv = integrationNetworkService.buildProcessEnvironment(integrationNetworkService.resolveBotRoute(channel));
+        IntegrationNetworkService.RouteSettings route = integrationNetworkService.resolveBotRoute(channel);
+        if ("proxy".equals(route.mode())
+            && route.proxySettings() != null
+            && route.proxySettings().isConfigured()
+            && !route.proxySettings().isSupportedScheme()) {
+            throw new IllegalStateException(
+                "Proxy scheme '" + route.proxySettings().scheme()
+                    + "' is not supported by the bot runtime. Use HTTP, HTTPS, SOCKS4, SOCKS5, or VLESS."
+            );
+        }
+        Map<String, String> networkEnv = integrationNetworkService.buildProcessEnvironment(route);
         for (Map.Entry<String, String> entry : networkEnv.entrySet()) {
             if ("JAVA_TOOL_OPTIONS".equals(entry.getKey())) {
                 appendEnvOption(env, "JAVA_TOOL_OPTIONS", entry.getValue());

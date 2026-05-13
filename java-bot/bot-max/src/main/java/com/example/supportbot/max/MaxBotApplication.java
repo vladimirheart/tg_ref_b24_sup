@@ -13,11 +13,6 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 public class MaxBotApplication {
 
     public static void main(String[] args) {
-        SpringApplication app = new SpringApplication(MaxBotApplication.class);
-        String[] effectiveArgs = java.util.stream.Stream.concat(
-                java.util.Arrays.stream(args),
-                java.util.stream.Stream.of("--spring.main.web-application-type=none"))
-            .toArray(String[]::new);
-        app.run(effectiveArgs);
+        SpringApplication.run(MaxBotApplication.class, args);
     }
 }

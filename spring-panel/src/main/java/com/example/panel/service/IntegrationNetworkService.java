@@ -86,6 +86,11 @@ public class IntegrationNetworkService {
             if (hasText(proxy.token())) {
                 env.put("APP_NETWORK_PROXY_TOKEN", proxy.token());
             }
+            if (!proxy.isSupportedScheme()) {
+                log.warn("Unsupported proxy scheme '{}' for runtime route {}:{}; proxy variables will be skipped",
+                    proxy.scheme(), proxy.host(), proxy.port());
+                return env;
+            }
             String proxyUrl = buildProxyUrl(proxy);
             env.put("HTTP_PROXY", proxyUrl);
             env.put("HTTPS_PROXY", proxyUrl);
@@ -109,6 +114,11 @@ public class IntegrationNetworkService {
 
         if ("proxy".equals(route.mode()) && route.proxySettings() != null && route.proxySettings().isConfigured()) {
             ProxySettings proxy = route.proxySettings();
+            if (!proxy.isSupportedScheme()) {
+                log.warn("Unsupported proxy scheme '{}' for HttpClient route {}:{}; using direct client",
+                    proxy.scheme(), proxy.host(), proxy.port());
+                return builder.build();
+            }
             builder.proxy(ProxySelector.of(new InetSocketAddress(proxy.host(), proxy.port())));
             if (hasText(proxy.username())) {
                 builder.authenticator(new Authenticator() {
@@ -270,6 +280,9 @@ public class IntegrationNetworkService {
         if ("proxy".equals(candidate.mode())) {
             ProxySettings proxy = candidate.proxySettings();
             if (proxy == null || !proxy.isConfigured()) {
+                return false;
+            }
+            if (!proxy.isSupportedScheme()) {
                 return false;
             }
             return canConnect(proxy.host(), proxy.port());
@@ -694,6 +707,8 @@ public class IntegrationNetworkService {
 
     public record ProxySettings(String scheme, String host, int port, String username, String password, String token) {
 
+        private static final List<String> SUPPORTED_SCHEMES = List.of("http", "https", "socks5", "socks4", "vless");
+
         public static ProxySettings empty() {
             return new ProxySettings("http", "", 0, "", "", "");
         }
@@ -707,9 +722,6 @@ public class IntegrationNetworkService {
                 scheme = "http";
             }
             String normalizedScheme = scheme.toLowerCase(Locale.ROOT);
-            if (!List.of("http", "https", "socks5", "socks4", "vless").contains(normalizedScheme)) {
-                normalizedScheme = "http";
-            }
             String host = string(raw.get("host"));
             int port = integer(raw.get("port"));
             String username = string(raw.get("username"));
@@ -726,6 +738,10 @@ public class IntegrationNetworkService {
                 return !host.isBlank() && port > 0 && !token.isBlank();
             }
             return !host.isBlank() && port > 0;
+        }
+
+        public boolean isSupportedScheme() {
+            return SUPPORTED_SCHEMES.contains(scheme.toLowerCase(Locale.ROOT));
         }
 
         public String fingerprint() {
