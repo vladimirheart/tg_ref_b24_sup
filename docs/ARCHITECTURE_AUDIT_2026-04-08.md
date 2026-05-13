@@ -2,7 +2,7 @@
 **Дата:** 8 апреля 2026  
 **Статус:** Актуально, но в активной фазе исправления  
 **Актуализация:** 9 апреля 2026 (см. `docs/ARCHITECTURE_AUDIT_VALIDATION_2026-04-09.md`)  
-**Последняя актуализация:** 12 мая 2026
+**Последняя актуализация:** 13 мая 2026
 
 ---
 
@@ -59,8 +59,10 @@ contracts.
 Что сейчас в приоритете:
 
 1. `P1`: добить remaining message-processing/control tail в
-   `DialogAiAssistantService` и затем переключиться на `PublicFormService`,
-   потому что именно там сейчас основной architectural weight.
+   `DialogAiAssistantService`: после новых split’ов coordinator уже сжат
+   примерно до `482` строк, поэтому следующий шаг там должен быть не
+   giant-cut, а вынос final message-processing / escalation orchestration
+   хвоста; сразу после этого переключиться на `PublicFormService`.
 2. `P1`: не дать orchestration-risk переехать в `DialogWorkspaceService` и
    смежные workspace/reply/notifier consumers.
 3. `P1`: довести shared-config/runtime contract до более явного
@@ -702,9 +704,10 @@ integration-сценария поверх users/settings runtime boundary всё
 
 1. Следующим крупным refactoring пакетом продолжать
    `DialogAiAssistantService`: после выноса review-flow, solution-memory,
-   state/control и operator-feedback bounded contexts он сжат примерно до
-   `882` строк, но всё ещё остаётся главным крупным orchestration hotspot;
-   следующим после него держать `PublicFormService`.
+   state/control, operator-feedback, pre-routing policy, suggestion
+   composition и AI event/payload слоя он сжат примерно до `482` строк;
+   там остался уже узкий message-processing/escalation tail, а следующим
+   bounded candidate после него остаётся `PublicFormService`.
 2. Параллельно удержать под контролем `DialogWorkspaceService` и соседние
    workspace consumers, чтобы orchestration-risk не переехал туда после
    уже закрытого giant `DialogService`.
@@ -1071,3 +1074,17 @@ integration-сценария поверх users/settings runtime boundary всё
   `DialogAiAssistantConfigServiceTest` и
   `DialogAiAssistantOperatorFeedbackServiceTest`; compile, targeted AI
   assistant tests и `DialogAiOpsControllerWebMvcTest` остаются зелёными.
+- следующим широким пакетом этот же AI assistant slice дополнительно
+  разрезан по remaining orchestration tail: появились
+  `DialogAiAssistantPolicyService`,
+  `DialogAiAssistantSuggestionService`,
+  `DialogAiAssistantEventService` и
+  общий `DialogAiAssistantSuggestionCandidate`.
+- после этого `DialogAiAssistantService` сжат примерно с `882` до `482`
+  строк; из coordinator убраны pre-routing policy evaluation, suggestion
+  composition, retrieval payload/event logging и значительная часть
+  message-processing helper-логики.
+- под новый split добавлены `DialogAiAssistantPolicyServiceTest`,
+  `DialogAiAssistantSuggestionServiceTest` и
+  `DialogAiAssistantEventServiceTest`; compile, targeted AI assistant
+  regression net и `DialogAiOpsControllerWebMvcTest` остаются зелёными.

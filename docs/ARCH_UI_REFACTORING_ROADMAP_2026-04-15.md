@@ -1,7 +1,7 @@
 # Architecture And UI Refactoring Roadmap
 
 Дата старта: `2026-04-15`
-Обновлено: `2026-05-12`
+Обновлено: `2026-05-13`
 
 ## Цель
 
@@ -767,8 +767,10 @@
 Актуальный порядок после уже выполненных этапов:
 
 1. Продолжить `DialogAiAssistantService` после уже вынесенных
-   review-flow, solution-memory, state/control и operator-feedback bounded
-   contexts, а следующим крупным bounded split держать `PublicFormService`.
+   review-flow, solution-memory, state/control, operator-feedback,
+   pre-routing policy, suggestion composition и AI event bounded contexts;
+   добить remaining orchestration/escalation tail и следующим крупным
+   bounded split держать `PublicFormService`.
 2. Довести `Phase 5` от launcher strategy до более явного runtime contract.
 3. Расширить `Phase 6`, чтобы новые refactor-проходы шли уже под
    integration-quality, а не только под targeted tests.
@@ -982,6 +984,14 @@
 - после этого `DialogAiAssistantService` сжат примерно с `1256` до `882`
   строк и уже не держит dialog control/state updates, processing flags,
   auto-reply guard/config parsing и operator feedback/correction lifecycle.
+- следующим широким пакетом remaining AI assistant tail дополнительно
+  разрезан: появились `DialogAiAssistantPolicyService`,
+  `DialogAiAssistantSuggestionService`,
+  `DialogAiAssistantEventService` и
+  общий `DialogAiAssistantSuggestionCandidate`.
+- после этого `DialogAiAssistantService` сжат примерно с `882` до `482`
+  строк; message-processing/control slice уже не giant, а следующий
+  practical focus сужен до final orchestration/escalation хвоста.
 - следующий локальный focus теперь смещён в remaining
   message-processing/control tail внутри `DialogAiAssistantService`; вторым
   bounded candidate после этого остаётся `PublicFormService`.
