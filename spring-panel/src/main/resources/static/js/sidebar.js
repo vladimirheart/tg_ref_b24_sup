@@ -32,6 +32,14 @@
   let hoverLeaveTimer = null;
   const MOBILE_BREAKPOINT = 991.98;
 
+  function moveModalToBody(modalEl) {
+    if (!(modalEl instanceof HTMLElement) || !document.body) return;
+    if (modalEl.parentElement === document.body) return;
+    document.body.appendChild(modalEl);
+  }
+
+  moveModalToBody(changePasswordModalEl);
+
   function getPreference(name, fallback = null) {
     if (prefApi) {
       const value = prefApi.get(name);

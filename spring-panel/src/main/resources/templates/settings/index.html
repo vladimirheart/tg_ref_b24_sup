@@ -851,6 +851,16 @@
       --auth-user-modal-left-offset: calc(var(--sidebar-w-collapsed, 84px) + 0.75rem);
     }
 
+    #partnerContactEditorModal {
+      --partner-contact-modal-left-offset: calc(var(--settings-sheet-sidebar-offset, var(--sidebar-w, 308px)) + 0.75rem);
+      z-index: 20010;
+      padding-left: var(--partner-contact-modal-left-offset);
+    }
+
+    body.sidebar-collapsed #partnerContactEditorModal {
+      --partner-contact-modal-left-offset: calc(var(--sidebar-w-collapsed, 84px) + 0.75rem);
+    }
+
     #usersModal.auth-management-child-open .modal-dialog {
       pointer-events: none;
       opacity: 0.58;
@@ -869,6 +879,13 @@
       pointer-events: none;
       opacity: 0.52;
       filter: saturate(0.8);
+      transition: opacity 0.18s ease, filter 0.18s ease;
+    }
+
+    #parametersModal.partner-contact-child-open .modal-dialog {
+      pointer-events: none;
+      opacity: 0.58;
+      filter: saturate(0.82);
       transition: opacity 0.18s ease, filter 0.18s ease;
     }
 
@@ -1080,12 +1097,27 @@
       max-width: min(1280px, calc(100vw - var(--auth-user-modal-left-offset) - 1rem));
     }
 
+    .partner-contact-editor-modal-dialog {
+      width: auto;
+      margin: 1rem 1rem 1rem auto;
+      max-width: min(1140px, calc(100vw - var(--partner-contact-modal-left-offset) - 1rem));
+    }
+
     @media (max-width: 575.98px) {
       #authUserDetailsModal {
         padding-left: 0;
       }
 
+      #partnerContactEditorModal {
+        padding-left: 0;
+      }
+
       .auth-user-modal-dialog {
+        margin: 0.5rem auto;
+        max-width: calc(100vw - 1rem);
+      }
+
+      .partner-contact-editor-modal-dialog {
         margin: 0.5rem auto;
         max-width: calc(100vw - 1rem);
       }
@@ -4848,7 +4880,7 @@
     </div>
 
     <div class="modal fade" id="partnerContactEditorModal" tabindex="-1" aria-hidden="true">
-      <div class="modal-dialog modal-xl modal-dialog-scrollable">
+      <div class="modal-dialog modal-xl modal-dialog-scrollable partner-contact-editor-modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" data-partner-contact-editor-title>Карточка контакта</h5>
@@ -7250,6 +7282,9 @@
   let partnerContactPersonCounter = 0;
   const partnerContactDetailsState = new Map();
   const partnerContactEditorModalEl = document.getElementById('partnerContactEditorModal');
+  if (partnerContactEditorModalEl && partnerContactEditorModalEl.parentElement !== document.body) {
+    document.body.appendChild(partnerContactEditorModalEl);
+  }
   const partnerContactEditorBody = partnerContactEditorModalEl
     ? partnerContactEditorModalEl.querySelector('[data-partner-contact-editor-body]')
     : null;
@@ -7262,6 +7297,21 @@
   const partnerContactEditorModal = partnerContactEditorModalEl
     ? new bootstrap.Modal(partnerContactEditorModalEl)
     : null;
+
+  function setParametersModalSuspended(suspended) {
+    if (!(parametersModalEl instanceof HTMLElement)) {
+      return;
+    }
+    const nextState = Boolean(suspended);
+    parametersModalEl.classList.toggle('partner-contact-child-open', nextState);
+    if (nextState) {
+      parametersModalEl.setAttribute('aria-hidden', 'true');
+      parametersModalEl.inert = true;
+    } else {
+      parametersModalEl.removeAttribute('aria-hidden');
+      parametersModalEl.inert = false;
+    }
+  }
   let partnerContactEditorState = null;
 
   function cssEscape(value) {
@@ -10181,6 +10231,10 @@
       renderPartnerContacts();
     });
     parametersModalEl.addEventListener('hidden.bs.modal', () => {
+      setParametersModalSuspended(false);
+      if (partnerContactEditorModal) {
+        partnerContactEditorModal.hide();
+      }
       partnerContactDrafts = [];
       partnerContactDraftCounter = 0;
       partnerContactEdits.clear();
@@ -10190,7 +10244,11 @@
   }
 
   if (partnerContactEditorModalEl) {
+    partnerContactEditorModalEl.addEventListener('show.bs.modal', () => {
+      setParametersModalSuspended(true);
+    });
     partnerContactEditorModalEl.addEventListener('hidden.bs.modal', () => {
+      setParametersModalSuspended(false);
       if (partnerContactEditorState && partnerContactEditorState.key) {
         const key = partnerContactEditorState.key;
         if (key.startsWith('draft:')) {
