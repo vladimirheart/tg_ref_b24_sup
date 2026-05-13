@@ -46,6 +46,9 @@ public class RmsLicenseMonitor {
     @Column(name = "network_monitoring_enabled", nullable = false)
     private Boolean networkMonitoringEnabled;
 
+    @Column(name = "is_deleted", nullable = false)
+    private Boolean deleted;
+
     @Column(name = "server_name")
     private String serverName;
 
@@ -112,6 +115,10 @@ public class RmsLicenseMonitor {
     @Column(name = "updated_at", nullable = false)
     @Convert(converter = LenientOffsetDateTimeConverter.class)
     private OffsetDateTime updatedAt;
+
+    @Column(name = "deleted_at")
+    @Convert(converter = LenientOffsetDateTimeConverter.class)
+    private OffsetDateTime deletedAt;
 
     public Long getId() {
         return id;
@@ -191,6 +198,14 @@ public class RmsLicenseMonitor {
 
     public void setNetworkMonitoringEnabled(Boolean networkMonitoringEnabled) {
         this.networkMonitoringEnabled = networkMonitoringEnabled;
+    }
+
+    public Boolean getDeleted() {
+        return deleted;
+    }
+
+    public void setDeleted(Boolean deleted) {
+        this.deleted = deleted;
     }
 
     public String getServerName() {
@@ -351,5 +366,13 @@ public class RmsLicenseMonitor {
 
     public void setUpdatedAt(OffsetDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public OffsetDateTime getDeletedAt() {
+        return deletedAt;
+    }
+
+    public void setDeletedAt(OffsetDateTime deletedAt) {
+        this.deletedAt = deletedAt;
     }
 }

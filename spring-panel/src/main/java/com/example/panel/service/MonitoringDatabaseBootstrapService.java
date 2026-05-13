@@ -120,7 +120,9 @@ public class MonitoringDatabaseBootstrapService implements ApplicationRunner {
                 traceroute_checked_at TEXT,
                 rms_last_checked_at TEXT,
                 created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL
+                updated_at TEXT NOT NULL,
+                is_deleted INTEGER NOT NULL DEFAULT 0,
+                deleted_at TEXT
             )
             """);
         monitoringJdbcTemplate.execute("""
@@ -150,6 +152,16 @@ public class MonitoringDatabaseBootstrapService implements ApplicationRunner {
             "rms_license_monitors",
             "network_monitoring_enabled",
             "ALTER TABLE rms_license_monitors ADD COLUMN network_monitoring_enabled INTEGER NOT NULL DEFAULT 1"
+        );
+        ensureColumn(
+            "rms_license_monitors",
+            "is_deleted",
+            "ALTER TABLE rms_license_monitors ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0"
+        );
+        ensureColumn(
+            "rms_license_monitors",
+            "deleted_at",
+            "ALTER TABLE rms_license_monitors ADD COLUMN deleted_at TEXT"
         );
 
         monitoringJdbcTemplate.execute("""
@@ -287,6 +299,7 @@ public class MonitoringDatabaseBootstrapService implements ApplicationRunner {
                 item.setEnabled(rs.getInt("enabled") != 0);
                 item.setLicenseMonitoringEnabled(readBooleanColumn(rs, "license_monitoring_enabled", true));
                 item.setNetworkMonitoringEnabled(readBooleanColumn(rs, "network_monitoring_enabled", true));
+                item.setDeleted(readBooleanColumn(rs, "is_deleted", false));
                 item.setServerName(rs.getString("server_name"));
                 item.setServerType(rs.getString("server_type"));
                 item.setServerVersion(rs.getString("server_version"));
@@ -308,6 +321,7 @@ public class MonitoringDatabaseBootstrapService implements ApplicationRunner {
                 item.setRmsLastCheckedAt(parseOffsetDateTime(rs.getString("rms_last_checked_at")));
                 item.setCreatedAt(parseOffsetDateTime(rs.getString("created_at")));
                 item.setUpdatedAt(parseOffsetDateTime(rs.getString("updated_at")));
+                item.setDeletedAt(parseOffsetDateTime(readStringColumn(rs, "deleted_at")));
                 return item;
             }
         );
@@ -317,7 +331,7 @@ public class MonitoringDatabaseBootstrapService implements ApplicationRunner {
             if (item.getRmsAddress() == null || item.getRmsAddress().isBlank()) {
                 continue;
             }
-            rmsRepository.findByRmsAddress(item.getRmsAddress()).ifPresent(existing -> item.setId(existing.getId()));
+            rmsRepository.findAnyByRmsAddress(item.getRmsAddress()).ifPresent(existing -> item.setId(existing.getId()));
             rmsRepository.save(item);
             migrated++;
         }

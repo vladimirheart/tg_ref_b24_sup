@@ -43,6 +43,7 @@ public class RmsLicenseMonitorRepository {
             item.setEnabled(rs.getInt("enabled") != 0);
             item.setLicenseMonitoringEnabled(rs.getInt("license_monitoring_enabled") != 0);
             item.setNetworkMonitoringEnabled(rs.getInt("network_monitoring_enabled") != 0);
+            item.setDeleted(readBooleanColumn(rs, "is_deleted"));
             item.setServerName(rs.getString("server_name"));
             item.setServerType(rs.getString("server_type"));
             item.setServerVersion(rs.getString("server_version"));
@@ -66,19 +67,36 @@ public class RmsLicenseMonitorRepository {
             item.setRmsLastCheckedAt(parseOffsetDateTime(rs.getString("rms_last_checked_at")));
             item.setCreatedAt(parseOffsetDateTime(rs.getString("created_at")));
             item.setUpdatedAt(parseOffsetDateTime(rs.getString("updated_at")));
+            item.setDeletedAt(parseOffsetDateTime(readStringColumn(rs, "deleted_at")));
             return item;
         };
     }
 
     public List<RmsLicenseMonitor> findAll() {
+        return jdbcTemplate.query("SELECT * FROM rms_license_monitors WHERE is_deleted = 0 ORDER BY id ASC", rowMapper);
+    }
+
+    public List<RmsLicenseMonitor> findAllIncludingDeleted() {
         return jdbcTemplate.query("SELECT * FROM rms_license_monitors ORDER BY id ASC", rowMapper);
     }
 
     public List<RmsLicenseMonitor> findAllByOrderByRmsAddressAscIdAsc() {
-        return jdbcTemplate.query("SELECT * FROM rms_license_monitors ORDER BY rms_address ASC, id ASC", rowMapper);
+        return jdbcTemplate.query("SELECT * FROM rms_license_monitors WHERE is_deleted = 0 ORDER BY rms_address ASC, id ASC", rowMapper);
     }
 
     public Optional<RmsLicenseMonitor> findByRmsAddress(String rmsAddress) {
+        try {
+            return Optional.ofNullable(jdbcTemplate.queryForObject(
+                "SELECT * FROM rms_license_monitors WHERE rms_address = ? AND is_deleted = 0 LIMIT 1",
+                rowMapper,
+                rmsAddress
+            ));
+        } catch (EmptyResultDataAccessException ex) {
+            return Optional.empty();
+        }
+    }
+
+    public Optional<RmsLicenseMonitor> findAnyByRmsAddress(String rmsAddress) {
         try {
             return Optional.ofNullable(jdbcTemplate.queryForObject(
                 "SELECT * FROM rms_license_monitors WHERE rms_address = ? LIMIT 1",
@@ -93,7 +111,7 @@ public class RmsLicenseMonitorRepository {
     public Optional<RmsLicenseMonitor> findById(Long id) {
         try {
             return Optional.ofNullable(jdbcTemplate.queryForObject(
-                "SELECT * FROM rms_license_monitors WHERE id = ? LIMIT 1",
+                "SELECT * FROM rms_license_monitors WHERE id = ? AND is_deleted = 0 LIMIT 1",
                 rowMapper,
                 id
             ));
@@ -104,15 +122,21 @@ public class RmsLicenseMonitorRepository {
 
     public boolean existsById(Long id) {
         Integer count = jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM rms_license_monitors WHERE id = ?",
+            "SELECT COUNT(*) FROM rms_license_monitors WHERE id = ? AND is_deleted = 0",
             Integer.class,
             id
         );
         return count != null && count > 0;
     }
 
-    public void deleteById(Long id) {
-        runWithBusyRetry(() -> jdbcTemplate.update("DELETE FROM rms_license_monitors WHERE id = ?", id));
+    public void softDeleteById(Long id) {
+        OffsetDateTime now = OffsetDateTime.now(java.time.ZoneOffset.UTC);
+        runWithBusyRetry(() -> jdbcTemplate.update(
+            "UPDATE rms_license_monitors SET is_deleted = 1, deleted_at = ?, updated_at = ? WHERE id = ?",
+            formatOffsetDateTime(now),
+            formatOffsetDateTime(now),
+            id
+        ));
     }
 
     public RmsLicenseMonitor save(RmsLicenseMonitor item) {
@@ -137,14 +161,14 @@ public class RmsLicenseMonitorRepository {
                 """
                 INSERT INTO rms_license_monitors (
                     rms_address, scheme, host, port, auth_login, auth_password, enabled,
-                    license_monitoring_enabled, network_monitoring_enabled,
+                    license_monitoring_enabled, network_monitoring_enabled, is_deleted,
                     server_name, server_type, server_version,
                     license_status, license_error_message, license_details_json, license_expires_at, license_days_left,
                     license_last_checked_at, license_last_notified_at,
                     rms_status, rms_status_message, ping_output,
                     traceroute_summary, traceroute_report, traceroute_checked_at, license_debug_excerpt,
-                    rms_last_checked_at, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    rms_last_checked_at, created_at, updated_at, deleted_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """
             );
             bindCommon(ps, item);
@@ -170,6 +194,7 @@ public class RmsLicenseMonitorRepository {
                    enabled = ?,
                    license_monitoring_enabled = ?,
                    network_monitoring_enabled = ?,
+                   is_deleted = ?,
                    server_name = ?,
                    server_type = ?,
                    server_version = ?,
@@ -189,7 +214,8 @@ public class RmsLicenseMonitorRepository {
                    license_debug_excerpt = ?,
                    rms_last_checked_at = ?,
                    created_at = ?,
-                   updated_at = ?
+                   updated_at = ?,
+                   deleted_at = ?
              WHERE id = ?
             """,
             item.getRmsAddress(),
@@ -201,6 +227,7 @@ public class RmsLicenseMonitorRepository {
             toInt(item.getEnabled()),
             toInt(item.getLicenseMonitoringEnabled()),
             toInt(item.getNetworkMonitoringEnabled()),
+            toInt(item.getDeleted()),
             item.getServerName(),
             item.getServerType(),
             item.getServerVersion(),
@@ -221,6 +248,7 @@ public class RmsLicenseMonitorRepository {
             formatOffsetDateTime(item.getRmsLastCheckedAt()),
             formatOffsetDateTime(item.getCreatedAt()),
             formatOffsetDateTime(item.getUpdatedAt()),
+            formatOffsetDateTime(item.getDeletedAt()),
             item.getId()
         ));
     }
@@ -279,30 +307,32 @@ public class RmsLicenseMonitorRepository {
         ps.setInt(7, toInt(item.getEnabled()));
         ps.setInt(8, toInt(item.getLicenseMonitoringEnabled()));
         ps.setInt(9, toInt(item.getNetworkMonitoringEnabled()));
-        ps.setString(10, item.getServerName());
-        ps.setString(11, item.getServerType());
-        ps.setString(12, item.getServerVersion());
-        ps.setString(13, item.getLicenseStatus());
-        ps.setString(14, item.getLicenseErrorMessage());
-        ps.setString(15, item.getLicenseDetailsJson());
-        ps.setString(16, formatOffsetDateTime(item.getLicenseExpiresAt()));
+        ps.setInt(10, toInt(item.getDeleted()));
+        ps.setString(11, item.getServerName());
+        ps.setString(12, item.getServerType());
+        ps.setString(13, item.getServerVersion());
+        ps.setString(14, item.getLicenseStatus());
+        ps.setString(15, item.getLicenseErrorMessage());
+        ps.setString(16, item.getLicenseDetailsJson());
+        ps.setString(17, formatOffsetDateTime(item.getLicenseExpiresAt()));
         if (item.getLicenseDaysLeft() != null) {
-            ps.setInt(17, item.getLicenseDaysLeft());
+            ps.setInt(18, item.getLicenseDaysLeft());
         } else {
-            ps.setObject(17, null);
+            ps.setObject(18, null);
         }
-        ps.setString(18, formatOffsetDateTime(item.getLicenseLastCheckedAt()));
-        ps.setString(19, formatOffsetDateTime(item.getLicenseLastNotifiedAt()));
-        ps.setString(20, item.getRmsStatus());
-        ps.setString(21, item.getRmsStatusMessage());
-        ps.setString(22, item.getPingOutput());
-        ps.setString(23, item.getTracerouteSummary());
-        ps.setString(24, item.getTracerouteReport());
-        ps.setString(25, formatOffsetDateTime(item.getTracerouteCheckedAt()));
-        ps.setString(26, item.getLicenseDebugExcerpt());
-        ps.setString(27, formatOffsetDateTime(item.getRmsLastCheckedAt()));
-        ps.setString(28, formatOffsetDateTime(item.getCreatedAt()));
-        ps.setString(29, formatOffsetDateTime(item.getUpdatedAt()));
+        ps.setString(19, formatOffsetDateTime(item.getLicenseLastCheckedAt()));
+        ps.setString(20, formatOffsetDateTime(item.getLicenseLastNotifiedAt()));
+        ps.setString(21, item.getRmsStatus());
+        ps.setString(22, item.getRmsStatusMessage());
+        ps.setString(23, item.getPingOutput());
+        ps.setString(24, item.getTracerouteSummary());
+        ps.setString(25, item.getTracerouteReport());
+        ps.setString(26, formatOffsetDateTime(item.getTracerouteCheckedAt()));
+        ps.setString(27, item.getLicenseDebugExcerpt());
+        ps.setString(28, formatOffsetDateTime(item.getRmsLastCheckedAt()));
+        ps.setString(29, formatOffsetDateTime(item.getCreatedAt()));
+        ps.setString(30, formatOffsetDateTime(item.getUpdatedAt()));
+        ps.setString(31, formatOffsetDateTime(item.getDeletedAt()));
     }
 
     private static int toInt(Boolean value) {
@@ -322,6 +352,14 @@ public class RmsLicenseMonitorRepository {
             return rs.getString(columnName);
         } catch (Exception ignored) {
             return null;
+        }
+    }
+
+    private static boolean readBooleanColumn(java.sql.ResultSet rs, String columnName) {
+        try {
+            return rs.getInt(columnName) != 0;
+        } catch (Exception ignored) {
+            return false;
         }
     }
 }

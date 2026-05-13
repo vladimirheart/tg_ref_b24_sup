@@ -48,7 +48,7 @@ public class RmsMonitoringSeedImportService implements ApplicationRunner {
         }
 
         Set<String> existingAddresses = new HashSet<>();
-        for (RmsLicenseMonitor monitor : repository.findAll()) {
+        for (RmsLicenseMonitor monitor : repository.findAllIncludingDeleted()) {
             if (StringUtils.hasText(monitor.getRmsAddress())) {
                 existingAddresses.add(monitor.getRmsAddress().trim().toLowerCase(Locale.ROOT));
             }
@@ -96,6 +96,8 @@ public class RmsMonitoringSeedImportService implements ApplicationRunner {
                 monitor.setEnabled(Boolean.FALSE);
                 monitor.setLicenseMonitoringEnabled(Boolean.TRUE);
                 monitor.setNetworkMonitoringEnabled(Boolean.TRUE);
+                monitor.setDeleted(Boolean.FALSE);
+                monitor.setDeletedAt(null);
                 monitor.setServerName(row.name());
                 monitor.setServerType(normalizeSeedServerType(row.type()));
                 monitor.setServerVersion(null);

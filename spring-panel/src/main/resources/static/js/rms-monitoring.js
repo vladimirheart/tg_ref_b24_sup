@@ -879,11 +879,11 @@
   }
 
   async function deleteSite(siteId) {
-    if (!window.confirm('Удалить RMS из мониторинга?')) return;
+    if (!window.confirm('Убрать RMS из списка мониторинга? Запись сохранится в базе и сможет быть возвращена повторным добавлением.')) return;
     try {
       await requestJson(`/api/monitoring/rms/sites/${siteId}`, { method: 'DELETE' });
       await loadSites(false);
-      showMessage('RMS удалён.', 'success');
+      showMessage('RMS скрыт из списка мониторинга.', 'success');
     } catch (error) {
       showMessage(`Не удалось удалить RMS: ${error.message}`, 'error');
     }

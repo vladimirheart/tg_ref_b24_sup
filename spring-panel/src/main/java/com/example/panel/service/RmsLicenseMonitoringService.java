@@ -157,12 +157,13 @@ public class RmsLicenseMonitoringService {
                                            Boolean licenseMonitoringEnabled,
                                            Boolean networkMonitoringEnabled) {
         EndpointTarget target = parseEndpointSafe(rmsAddress);
-        if (repository.findByRmsAddress(target.normalizedAddress()).isPresent()) {
+        Optional<RmsLicenseMonitor> existingMonitor = repository.findAnyByRmsAddress(target.normalizedAddress());
+        if (existingMonitor.isPresent() && !Boolean.TRUE.equals(existingMonitor.get().getDeleted())) {
             throw new IllegalArgumentException("Этот RMS уже добавлен в мониторинг");
         }
 
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-        RmsLicenseMonitor monitor = new RmsLicenseMonitor();
+        RmsLicenseMonitor monitor = existingMonitor.orElseGet(RmsLicenseMonitor::new);
         monitor.setRmsAddress(target.normalizedAddress());
         monitor.setScheme(target.scheme());
         monitor.setHost(target.host());
@@ -172,9 +173,13 @@ public class RmsLicenseMonitoringService {
         monitor.setEnabled(enabled == null || enabled);
         monitor.setLicenseMonitoringEnabled(licenseMonitoringEnabled == null || licenseMonitoringEnabled);
         monitor.setNetworkMonitoringEnabled(networkMonitoringEnabled == null || networkMonitoringEnabled);
+        monitor.setDeleted(false);
+        monitor.setDeletedAt(null);
         monitor.setLicenseStatus(LICENSE_STATUS_DISABLED);
         monitor.setRmsStatus(RMS_STATUS_DISABLED);
-        monitor.setCreatedAt(now);
+        if (monitor.getCreatedAt() == null) {
+            monitor.setCreatedAt(now);
+        }
         monitor.setUpdatedAt(now);
         monitor = repository.save(monitor);
 
@@ -193,7 +198,7 @@ public class RmsLicenseMonitoringService {
             .orElseThrow(() -> new IllegalArgumentException("RMS-запись не найдена"));
 
         EndpointTarget target = parseEndpointSafe(rmsAddress);
-        repository.findByRmsAddress(target.normalizedAddress()).ifPresent(existing -> {
+        repository.findAnyByRmsAddress(target.normalizedAddress()).ifPresent(existing -> {
             if (!existing.getId().equals(monitor.getId())) {
                 throw new IllegalArgumentException("Этот RMS уже добавлен в мониторинг");
             }
@@ -208,6 +213,8 @@ public class RmsLicenseMonitoringService {
         monitor.setEnabled(enabled == null || enabled);
         monitor.setLicenseMonitoringEnabled(licenseMonitoringEnabled == null || licenseMonitoringEnabled);
         monitor.setNetworkMonitoringEnabled(networkMonitoringEnabled == null || networkMonitoringEnabled);
+        monitor.setDeleted(false);
+        monitor.setDeletedAt(null);
         monitor.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
         repository.save(monitor);
 
@@ -219,7 +226,7 @@ public class RmsLicenseMonitoringService {
         if (!repository.existsById(id)) {
             throw new IllegalArgumentException("RMS-запись не найдена");
         }
-        repository.deleteById(id);
+        repository.softDeleteById(id);
     }
 
     public RefreshRequestResult requestLicenseRefresh(boolean withNotifications) {
