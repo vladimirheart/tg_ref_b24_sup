@@ -2,6 +2,7 @@ package com.example.panel.service;
 
 import com.example.panel.model.dialog.DialogChannelStat;
 import com.example.panel.model.dialog.DialogListItem;
+import com.example.panel.model.dialog.DialogMyDialogs;
 import com.example.panel.model.dialog.DialogSummary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -232,6 +233,32 @@ public class DialogLookupReadService {
             log.warn("Unable to load dialogs, returning empty list: {}", DialogDataAccessSupport.summarizeDataAccessException(ex));
             return List.of();
         }
+    }
+
+    public DialogMyDialogs loadMyActiveDialogs(String currentOperator) {
+        return groupMyActiveDialogs(loadDialogs(currentOperator), currentOperator);
+    }
+
+    public DialogMyDialogs groupMyActiveDialogs(List<DialogListItem> dialogs, String currentOperator) {
+        String normalizedOperator = normalizeIdentity(currentOperator);
+        if (normalizedOperator == null || dialogs == null || dialogs.isEmpty()) {
+            return DialogMyDialogs.empty();
+        }
+        List<DialogListItem> unanswered = new ArrayList<>();
+        List<DialogListItem> inWork = new ArrayList<>();
+        for (DialogListItem item : dialogs) {
+            if (!belongsToCurrentOperator(item, normalizedOperator) || isClosedDialog(item)) {
+                continue;
+            }
+            int unreadCount = item.unreadCount() != null ? item.unreadCount() : 0;
+            String statusKey = normalizeIdentity(item.statusKey());
+            if (unreadCount > 0 || "waiting_operator".equals(statusKey)) {
+                unanswered.add(item);
+                continue;
+            }
+            inWork.add(item);
+        }
+        return new DialogMyDialogs(List.copyOf(unanswered), List.copyOf(inWork));
     }
 
     public Optional<DialogListItem> findDialog(String ticketId, String operator) {
@@ -569,6 +596,16 @@ public class DialogLookupReadService {
         }
         String normalized = value.trim().toLowerCase(Locale.ROOT);
         return normalized.isEmpty() ? null : normalized;
+    }
+
+    private boolean belongsToCurrentOperator(DialogListItem item, String normalizedOperator) {
+        return normalizedOperator != null
+                && normalizedOperator.equals(normalizeIdentity(item != null ? item.rawResponsible() : null));
+    }
+
+    private boolean isClosedDialog(DialogListItem item) {
+        String statusKey = normalizeIdentity(item != null ? item.statusKey() : null);
+        return "closed".equals(statusKey) || "auto_closed".equals(statusKey);
     }
 
     private String trimToNull(String value) {

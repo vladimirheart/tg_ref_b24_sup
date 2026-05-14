@@ -1,6 +1,7 @@
 package com.example.panel.service;
 
 import com.example.panel.model.dialog.DialogListItem;
+import com.example.panel.model.dialog.DialogMyDialogs;
 import com.example.panel.model.dialog.DialogSummary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,10 +35,15 @@ public class DialogListReadService {
     public Map<String, Object> loadListPayload(String operator) {
         DialogSummary summary = dialogLookupReadService.loadSummary();
         List<DialogListItem> dialogs = dialogLookupReadService.loadDialogs(operator);
+        DialogMyDialogs myDialogs = dialogLookupReadService.groupMyActiveDialogs(dialogs, operator);
 
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("summary", summary);
         payload.put("dialogs", dialogs);
+        payload.put("my_dialogs", Map.of(
+                "unanswered", myDialogs.unanswered(),
+                "in_work", myDialogs.inWork()
+        ));
         payload.put("sla_orchestration", buildSlaOrchestration(dialogs));
         payload.put("success", true);
 

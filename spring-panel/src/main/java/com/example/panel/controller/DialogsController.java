@@ -1,6 +1,8 @@
 package com.example.panel.controller;
 
 import com.example.panel.model.dialog.DialogSummary;
+import com.example.panel.model.dialog.DialogListItem;
+import com.example.panel.model.dialog.DialogMyDialogs;
 import com.example.panel.service.DialogLookupReadService;
 import com.example.panel.service.NavigationService;
 import com.example.panel.service.SharedConfigService;
@@ -68,8 +70,12 @@ public class DialogsController {
         model.addAttribute("operatorIdentity", operatorIdentity);
         try {
             DialogSummary summary = dialogLookupReadService.loadSummary();
+            List<DialogListItem> dialogs = dialogLookupReadService.loadDialogs(operatorIdentity);
+            DialogMyDialogs myDialogs = dialogLookupReadService.groupMyActiveDialogs(dialogs, operatorIdentity);
             model.addAttribute("summary", summary);
-            model.addAttribute("dialogs", dialogLookupReadService.loadDialogs(authentication != null ? authentication.getName() : null));
+            model.addAttribute("dialogs", dialogs);
+            model.addAttribute("myUnansweredDialogs", myDialogs.unanswered());
+            model.addAttribute("myInWorkDialogs", myDialogs.inWork());
             model.addAttribute("settingsPayload", sharedConfigService.loadSettings());
             log.info("Loaded dialogs page for user {}", operatorIdentity);
         } catch (Exception ex) {

@@ -1262,6 +1262,76 @@ body[data-ui-page='dialogs'][data-ui-density='comfortable'] .workspace-shell-car
   padding: 1rem;
 }
 
+.dialog-my-dialogs-section + .dialog-my-dialogs-section {
+  margin-top: 0.9rem;
+}
+
+.dialog-my-dialogs-heading {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #6c757d;
+  margin-bottom: 0.5rem;
+}
+
+.dialog-my-dialogs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.dialog-my-dialog-item {
+  width: 100%;
+  border: 1px solid rgba(13, 110, 253, 0.14);
+  border-radius: 0.75rem;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  padding: 0.7rem 0.8rem;
+  text-align: left;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.dialog-my-dialog-item:hover,
+.dialog-my-dialog-item:focus-visible {
+  border-color: rgba(13, 110, 253, 0.42);
+  box-shadow: 0 0.35rem 0.85rem rgba(13, 110, 253, 0.12);
+  transform: translateY(-1px);
+  outline: none;
+}
+
+.dialog-my-dialog-item.is-active {
+  border-color: rgba(25, 135, 84, 0.48);
+  box-shadow: 0 0.45rem 1rem rgba(25, 135, 84, 0.14);
+  background: linear-gradient(180deg, #f8fff9 0%, #eefbf1 100%);
+}
+
+.dialog-my-dialog-item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.35rem;
+}
+
+.dialog-my-dialog-item-title {
+  font-weight: 700;
+  color: #212529;
+  min-width: 0;
+}
+
+.dialog-my-dialog-item-meta,
+.dialog-my-dialog-item-last {
+  font-size: 0.85rem;
+  color: #6c757d;
+  line-height: 1.35;
+}
+
+.dialog-my-dialog-item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
 .dialog-details-main-actions {
   display: flex;
   align-items: center;

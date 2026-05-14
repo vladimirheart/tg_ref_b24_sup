@@ -248,6 +248,7 @@ public record DialogListItem(String ticketId,
         return null;
     }
 
+    @JsonProperty("rawResponsible")
     public String rawResponsible() {
         return responsible;
     }
