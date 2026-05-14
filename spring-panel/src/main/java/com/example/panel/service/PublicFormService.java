@@ -679,7 +679,7 @@ public class PublicFormService {
             verifyTurnstileCaptcha(submission.captchaToken());
             return;
         }
-        String expected = value(readDialogConfig().get("public_form_captcha_shared_secret"));
+        String expected = readDialogConfigString("public_form_captcha_shared_secret", "");
         String token = submission.captchaToken();
         if (!StringUtils.hasText(expected)) {
             throw new IllegalArgumentException("CAPTCHA включена, но секрет не настроен");
