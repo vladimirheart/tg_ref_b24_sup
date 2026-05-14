@@ -79,7 +79,6 @@ public class AuthManagementApiController {
     private final PasswordEncoder passwordEncoder;
     private final ObjectMapper objectMapper;
     private final Path avatarsRoot;
-    private final Set<String> userColumns;
 
     public AuthManagementApiController(@Qualifier("usersJdbcTemplate") JdbcTemplate usersJdbcTemplate,
                                        SharedConfigService sharedConfigService,
@@ -93,7 +92,6 @@ public class AuthManagementApiController {
         this.passwordEncoder = passwordEncoder;
         this.objectMapper = objectMapper;
         this.avatarsRoot = ensureDirectory(avatarsDir);
-        this.userColumns = loadUserColumns();
     }
 
     @GetMapping("/auth/state")
@@ -149,6 +147,7 @@ public class AuthManagementApiController {
     }
 
     private Map<String, Object> createUserFromPayload(Map<String, Object> payload) {
+        Set<String> userColumns = loadUserColumns();
         String username = stringValue(payload.get("username"));
         String password = stringValue(payload.get("password"));
         if (!StringUtils.hasText(username) || !StringUtils.hasText(password)) {
@@ -177,12 +176,12 @@ public class AuthManagementApiController {
             fields.put("registration_date", OffsetDateTime.now().toString());
         }
 
-        addOptionalUserField(fields, payload, "full_name");
-        addOptionalUserField(fields, payload, "role");
-        addOptionalUserField(fields, payload, "photo");
-        addOptionalUserField(fields, payload, "birth_date");
-        addOptionalUserField(fields, payload, "email");
-        addOptionalUserField(fields, payload, "department");
+        addOptionalUserField(fields, payload, userColumns, "full_name");
+        addOptionalUserField(fields, payload, userColumns, "role");
+        addOptionalUserField(fields, payload, userColumns, "photo");
+        addOptionalUserField(fields, payload, userColumns, "birth_date");
+        addOptionalUserField(fields, payload, userColumns, "email");
+        addOptionalUserField(fields, payload, userColumns, "department");
 
         if (userColumns.contains("phones")) {
             fields.put("phones", encodePhones(payload.get("phones")));
@@ -204,6 +203,7 @@ public class AuthManagementApiController {
     public Map<String, Object> updateUser(@PathVariable long userId,
                                           Authentication authentication,
                                           @RequestBody Map<String, Object> payload) {
+        Set<String> userColumns = loadUserColumns();
         List<String> updates = new ArrayList<>();
         List<Object> params = new ArrayList<>();
 
@@ -211,14 +211,14 @@ public class AuthManagementApiController {
         boolean isSelf = currentUserId != null && currentUserId.equals(userId);
 
         if (hasEditPermission(authentication, "user.username")) {
-            updateColumnIfPresent(payload, updates, params, "username", "username");
+            updateColumnIfPresent(payload, updates, params, userColumns, "username", "username");
         }
         if (hasEditPermission(authentication, "user.username") || isSelf) {
-            updateColumnIfPresent(payload, updates, params, "full_name", "full_name");
-            updateColumnIfPresent(payload, updates, params, "email", "email");
-            updateColumnIfPresent(payload, updates, params, "department", "department");
-            updateColumnIfPresent(payload, updates, params, "photo", "photo");
-            updateColumnIfPresent(payload, updates, params, "birth_date", "birth_date");
+            updateColumnIfPresent(payload, updates, params, userColumns, "full_name", "full_name");
+            updateColumnIfPresent(payload, updates, params, userColumns, "email", "email");
+            updateColumnIfPresent(payload, updates, params, userColumns, "department", "department");
+            updateColumnIfPresent(payload, updates, params, userColumns, "photo", "photo");
+            updateColumnIfPresent(payload, updates, params, userColumns, "birth_date", "birth_date");
         }
 
         if ((hasEditPermission(authentication, "user.username") || isSelf)
@@ -378,6 +378,7 @@ public class AuthManagementApiController {
     @DeleteMapping("/roles/{roleId}")
     @PreAuthorize("hasAuthority('PAGE_SETTINGS') or hasAuthority('PAGE_USERS')")
     public Map<String, Object> deleteRole(@PathVariable long roleId, Authentication authentication) {
+        Set<String> userColumns = loadUserColumns();
         if (!hasEditPermission(authentication, "role.delete")) {
             return Map.of("success", false, "error", "Недостаточно прав для удаления роли");
         }
@@ -416,7 +417,8 @@ public class AuthManagementApiController {
     }
 
     private List<Map<String, Object>> fetchUsers(Authentication authentication) {
-        String usersQuery = buildUsersQuery();
+        Set<String> userColumns = loadUserColumns();
+        String usersQuery = buildUsersQuery(userColumns);
         List<Map<String, Object>> rows = usersJdbcTemplate.queryForList(usersQuery);
         Long currentId = resolveCurrentUserId(authentication);
         boolean canEditPassword = hasEditPermission(authentication, "user.password");
@@ -455,7 +457,7 @@ public class AuthManagementApiController {
         return users;
     }
 
-    private String buildUsersQuery() {
+    private String buildUsersQuery(Set<String> userColumns) {
         if (userColumns.contains("role_id")) {
             return "SELECT u.*, r.name AS role_name, r.permissions AS role_permissions " +
                 "FROM users u LEFT JOIN roles r ON r.id = u.role_id ORDER BY lower(u.username)";
@@ -613,7 +615,7 @@ public class AuthManagementApiController {
     }
 
     private void updateColumnIfPresent(Map<String, Object> payload, List<String> updates, List<Object> params,
-                                       String payloadKey, String column) {
+                                       Set<String> userColumns, String payloadKey, String column) {
         if (!payload.containsKey(payloadKey) || !userColumns.contains(column)) {
             return;
         }
@@ -621,7 +623,8 @@ public class AuthManagementApiController {
         params.add(payload.get(payloadKey));
     }
 
-    private void addOptionalUserField(Map<String, Object> fields, Map<String, Object> payload, String key) {
+    private void addOptionalUserField(Map<String, Object> fields, Map<String, Object> payload,
+                                      Set<String> userColumns, String key) {
         if (payload.containsKey(key) && userColumns.contains(key)) {
             Object value = payload.get(key);
             if (value != null) {
