@@ -87,6 +87,54 @@ class DialogLookupReadServiceTest {
         assertThat(dialog.orElseThrow().categories()).isEqualTo("billing");
     }
 
+    @Test
+    void groupMyActiveDialogsKeepsOnlyCurrentOperatorsOpenDialogsAndSplitsByUnread() {
+        List<DialogListItem> dialogs = List.of(
+                dialogItem("T-101", "operator", "pending", "client", 2),
+                dialogItem("T-102", "operator", "pending", "support", 0),
+                dialogItem("T-103", "other", "pending", "client", 4),
+                dialogItem("T-104", "operator", "resolved", "support", 0)
+        );
+
+        var myDialogs = service.groupMyActiveDialogs(dialogs, "operator");
+
+        assertThat(myDialogs.unanswered()).extracting(DialogListItem::ticketId).containsExactly("T-101");
+        assertThat(myDialogs.inWork()).extracting(DialogListItem::ticketId).containsExactly("T-102");
+    }
+
+    private DialogListItem dialogItem(String ticketId,
+                                      String responsible,
+                                      String status,
+                                      String lastMessageSender,
+                                      int unreadCount) {
+        return new DialogListItem(
+                ticketId,
+                100L,
+                55L,
+                "client55",
+                "Клиент",
+                "billing",
+                7L,
+                "Telegram Support",
+                "Москва",
+                "Офис",
+                "Проблема",
+                "2026-04-21T09:00:00Z",
+                status,
+                false,
+                null,
+                responsible,
+                "2026-04-21",
+                "09:00:00",
+                null,
+                lastMessageSender,
+                "2026-04-21T09:05:00Z",
+                unreadCount,
+                null,
+                "billing"
+        );
+    }
+
     private void createPanelSchema() {
         jdbcTemplate.execute("""
                 CREATE TABLE tickets (

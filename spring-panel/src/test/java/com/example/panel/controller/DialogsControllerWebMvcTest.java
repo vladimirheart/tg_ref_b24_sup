@@ -1,6 +1,7 @@
 package com.example.panel.controller;
 
 import com.example.panel.model.dialog.DialogListItem;
+import com.example.panel.model.dialog.DialogMyDialogs;
 import com.example.panel.model.dialog.DialogSummary;
 import com.example.panel.service.DialogLookupReadService;
 import com.example.panel.service.NavigationService;
@@ -13,9 +14,11 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
@@ -48,6 +51,8 @@ class DialogsControllerWebMvcTest {
         doNothing().when(navigationService).enrich(any(), any());
         when(dialogLookupReadService.loadSummary()).thenReturn(new DialogSummary(0, 0, 0, Collections.emptyList()));
         when(dialogLookupReadService.loadDialogs(anyString())).thenReturn(Collections.emptyList());
+        when(dialogLookupReadService.groupMyActiveDialogs(anyList(), anyString()))
+                .thenReturn(DialogMyDialogs.empty());
         when(sharedConfigService.loadSettings()).thenReturn(Map.of());
 
         mockMvc.perform(get("/dialogs/T-123").with(user("operator")))
@@ -60,7 +65,7 @@ class DialogsControllerWebMvcTest {
     void dialogsListRendersOpenActionsAsRealDialogLinks() throws Exception {
         doNothing().when(navigationService).enrich(any(), any());
         when(dialogLookupReadService.loadSummary()).thenReturn(new DialogSummary(1, 1, 0, Collections.emptyList()));
-        when(dialogLookupReadService.loadDialogs(anyString())).thenReturn(Collections.singletonList(
+        List<DialogListItem> dialogs = Collections.singletonList(
                 new DialogListItem(
                         "T-555",
                         1001L,
@@ -87,12 +92,17 @@ class DialogsControllerWebMvcTest {
                         null,
                         null
                 )
-        ));
+        );
+        when(dialogLookupReadService.loadDialogs(anyString())).thenReturn(dialogs);
+        when(dialogLookupReadService.groupMyActiveDialogs(anyList(), anyString()))
+                .thenReturn(new DialogMyDialogs(dialogs, List.of()));
         when(sharedConfigService.loadSettings()).thenReturn(Map.of());
 
         mockMvc.perform(get("/dialogs").with(user("operator")))
                 .andExpect(status().isOk())
                 .andExpect(view().name("dialogs/index"))
+                .andExpect(model().attributeExists("myUnansweredDialogs"))
+                .andExpect(model().attributeExists("myInWorkDialogs"))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"dialogsTable\"")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("Действия")));
     }
@@ -102,6 +112,8 @@ class DialogsControllerWebMvcTest {
         doNothing().when(navigationService).enrich(any(), any());
         when(dialogLookupReadService.loadSummary()).thenReturn(new DialogSummary(0, 0, 0, Collections.emptyList()));
         when(dialogLookupReadService.loadDialogs(anyString())).thenReturn(Collections.emptyList());
+        when(dialogLookupReadService.groupMyActiveDialogs(anyList(), anyString()))
+                .thenReturn(DialogMyDialogs.empty());
         when(sharedConfigService.loadSettings()).thenReturn(Map.of());
 
         mockMvc.perform(get("/dialogs").with(user("operator")))

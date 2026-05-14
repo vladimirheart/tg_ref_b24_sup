@@ -32,14 +32,19 @@ class DialogListControllerWebMvcTest {
             .thenReturn(Map.of(
                     "success", true,
                     "dialogs", List.of(Map.of("ticketId", "T-900")),
-                    "summary", Map.of("open", 1)
+                    "summary", Map.of("open", 1),
+                    "my_dialogs", Map.of(
+                            "unanswered", List.of(Map.of("ticketId", "T-900")),
+                            "in_work", List.of()
+                    )
             ));
 
         mockMvc.perform(get("/api/dialogs").with(user("operator")))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-900"))
-            .andExpect(jsonPath("$.summary.open").value(1));
+            .andExpect(jsonPath("$.summary.open").value(1))
+            .andExpect(jsonPath("$.my_dialogs.unanswered[0].ticketId").value("T-900"));
     }
 
     @Test

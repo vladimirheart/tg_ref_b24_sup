@@ -2576,6 +2576,12 @@
         lastListMarker = marker;
       }
       syncDialogsTable(dialogs);
+      if (data.my_dialogs && typeof data.my_dialogs === 'object') {
+        normalizeMyDialogsState(data.my_dialogs);
+      } else {
+        syncMyDialogsStateFromTable();
+      }
+      renderMyDialogsPanel();
       applySlaOrchestrationToRows();
       refreshSummaryCounters(data.summary || {});
       if (hasListChanges) {
@@ -7648,6 +7654,8 @@
     }
     setRowUnreadCount(row, unreadCount);
     updateRowQuickActions(row);
+    syncMyDialogsStateFromTable();
+    renderMyDialogsPanel();
   }
 
   function updateDetailsStatusSummary(statusLabel, statusKey = 'waiting_client') {
@@ -8085,6 +8093,21 @@
         });
     }
   });
+
+  if (myDialogsPanel) {
+    myDialogsPanel.addEventListener('click', (event) => {
+      const trigger = event.target instanceof Element
+        ? event.target.closest('[data-my-dialog-ticket-id]')
+        : null;
+      if (!trigger) return;
+      event.preventDefault();
+      const ticketId = String(trigger.getAttribute('data-my-dialog-ticket-id') || '').trim();
+      if (!ticketId) return;
+      const row = rowsList().find((item) => String(item.dataset.ticketId || '') === ticketId) || null;
+      setActiveDialogRow(row, { ensureVisible: true });
+      openDialogDetails(ticketId, row);
+    });
+  }
 
   document.addEventListener('click', (event) => {
     const target = event.target instanceof Element ? event.target : null;
@@ -9693,6 +9716,7 @@
   } else {
     applyFilters();
   }
+  renderMyDialogsPanel();
   window.openDialogDetailsByTicketId = (ticketId) => {
     const normalizedTicketId = String(ticketId || '').trim();
     if (!normalizedTicketId) return;

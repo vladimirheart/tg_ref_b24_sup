@@ -1,9 +1,12 @@
 package com.example.panel.service;
 
 import com.example.panel.model.dialog.DialogListItem;
+import com.example.panel.model.dialog.DialogMyDialogs;
 import com.example.panel.model.dialog.DialogSummary;
 import org.junit.jupiter.api.Test;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 
@@ -22,10 +25,13 @@ class DialogListReadServiceTest {
     @Test
     void loadListPayloadBuildsSlaOrchestrationWithCriticalUnassignedTicket() {
         when(dialogLookupReadService.loadSummary()).thenReturn(mock(DialogSummary.class));
-        when(dialogLookupReadService.loadDialogs("operator")).thenReturn(List.of(
+        List<DialogListItem> dialogs = List.of(
                 sampleDialog("T-100", null, "2026-04-21T00:00:00Z", "open"),
-                sampleDialog("T-200", "operator", "2026-04-21T09:50:00Z", "open")
-        ));
+                sampleDialog("T-200", "operator", Instant.now().minus(10, ChronoUnit.MINUTES).toString(), "open")
+        );
+        when(dialogLookupReadService.loadDialogs("operator")).thenReturn(dialogs);
+        when(dialogLookupReadService.groupMyActiveDialogs(dialogs, "operator"))
+                .thenReturn(new DialogMyDialogs(List.of(), List.of(dialogs.get(1))));
         when(sharedConfigService.loadSettings()).thenReturn(Map.of(
                 "dialog_config", Map.of(
                         "sla_target_minutes", 180,
@@ -42,6 +48,7 @@ class DialogListReadServiceTest {
         Map<?, ?> tickets = (Map<?, ?>) orchestration.get("tickets");
         Map<?, ?> criticalTicket = (Map<?, ?>) tickets.get("T-100");
         Map<?, ?> freshTicket = (Map<?, ?>) tickets.get("T-200");
+        Map<?, ?> myDialogs = (Map<?, ?>) payload.get("my_dialogs");
 
         assertThat(orchestration.get("enabled")).isEqualTo(true);
         assertThat(orchestration.get("critical_minutes")).isEqualTo(30);
@@ -49,6 +56,8 @@ class DialogListReadServiceTest {
         assertThat(criticalTicket.get("escalation_required")).isEqualTo(true);
         assertThat(criticalTicket.get("escalation_reason")).isEqualTo("critical_sla_unassigned");
         assertThat(freshTicket.get("auto_pin")).isEqualTo(false);
+        assertThat((List<?>) myDialogs.get("unanswered")).isEmpty();
+        assertThat((List<?>) myDialogs.get("in_work")).hasSize(1);
     }
 
     private DialogListItem sampleDialog(String ticketId, String responsible, String createdAt, String statusKey) {
