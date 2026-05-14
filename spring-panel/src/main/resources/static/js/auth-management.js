@@ -188,6 +188,10 @@
     }
 
     init() {
+      this.moveManagedModalToBody(this.elements.userModal);
+      this.moveManagedModalToBody(this.elements.userPasswordModal);
+      this.moveManagedModalToBody(this.elements.userPhotoViewerModal);
+      this.moveManagedModalToBody(this.elements.orgMembersModal);
       this.bindEvents();
       if (this.elements.userModal && this.bootstrap?.Modal) {
         this.modalInstance = this.bootstrap.Modal.getOrCreateInstance(this.elements.userModal);
@@ -210,6 +214,16 @@
       this.refreshPhoneControlsFromSettings();
       this.refreshDepartmentSelect();
       return this.refresh();
+    }
+
+    moveManagedModalToBody(modalEl) {
+      if (!(modalEl instanceof HTMLElement) || !this.documentRoot?.body) {
+        return;
+      }
+      if (modalEl.parentElement === this.documentRoot.body) {
+        return;
+      }
+      this.documentRoot.body.appendChild(modalEl);
     }
 
     bindEvents() {
