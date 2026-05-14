@@ -58,11 +58,12 @@ contracts.
 
 Что сейчас в приоритете:
 
-1. `P1`: добить remaining message-processing/control tail в
-   `DialogAiAssistantService`: после новых split’ов coordinator уже сжат
-   примерно до `482` строк, поэтому следующий шаг там должен быть не
-   giant-cut, а вынос final message-processing / escalation orchestration
-   хвоста; сразу после этого переключиться на `PublicFormService`.
+1. `P1`: добить remaining message-processing/control tail вокруг
+   `DialogAiAssistantService`: сам facade уже сжат примерно до `208` строк,
+   а основной flow переехал в bounded `DialogAiAssistantMessageFlowService`
+   (~`369` строк); следующий шаг там должен быть не giant-cut, а добивка
+   final orchestration/escalation хвоста, после чего переключиться на
+   `PublicFormService`.
 2. `P1`: не дать orchestration-risk переехать в `DialogWorkspaceService` и
    смежные workspace/reply/notifier consumers.
 3. `P1`: довести shared-config/runtime contract до более явного
@@ -702,12 +703,12 @@ integration-сценария поверх users/settings runtime boundary всё
 
 ## 📁 Следующие шаги
 
-1. Следующим крупным refactoring пакетом продолжать
-   `DialogAiAssistantService`: после выноса review-flow, solution-memory,
-   state/control, operator-feedback, pre-routing policy, suggestion
-   composition и AI event/payload слоя он сжат примерно до `482` строк;
-   там остался уже узкий message-processing/escalation tail, а следующим
-   bounded candidate после него остаётся `PublicFormService`.
+1. Следующим крупным refactoring пакетом продолжать remaining
+   AI-assistant orchestration tail: `DialogAiAssistantService` уже сжат
+   примерно до `208` строк и работает как facade, а узкий
+   message-processing/escalation сценарий локализован в bounded
+   `DialogAiAssistantMessageFlowService` (~`369` строк); следующим bounded
+   candidate после этого остаётся `PublicFormService`.
 2. Параллельно удержать под контролем `DialogWorkspaceService` и соседние
    workspace consumers, чтобы orchestration-risk не переехал туда после
    уже закрытого giant `DialogService`.
@@ -1087,4 +1088,15 @@ integration-сценария поверх users/settings runtime boundary всё
 - под новый split добавлены `DialogAiAssistantPolicyServiceTest`,
   `DialogAiAssistantSuggestionServiceTest` и
   `DialogAiAssistantEventServiceTest`; compile, targeted AI assistant
+  regression net и `DialogAiOpsControllerWebMvcTest` остаются зелёными.
+- следующим широким пакетом remaining AI assistant orchestration tail
+  разрезан ещё на transport/flow слой: появились
+  `DialogAiAssistantEscalationService` и
+  `DialogAiAssistantMessageFlowService`.
+- после этого `DialogAiAssistantService` сжат примерно с `482` до `208`
+  строк и уже работает как facade над bounded AI assistant slices; основной
+  remaining flow-tail локализован в `DialogAiAssistantMessageFlowService`
+  (~`369` строк), а не в самом facade.
+- под новый split добавлены `DialogAiAssistantEscalationServiceTest` и
+  `DialogAiAssistantMessageFlowServiceTest`; compile, targeted AI assistant
   regression net и `DialogAiOpsControllerWebMvcTest` остаются зелёными.
