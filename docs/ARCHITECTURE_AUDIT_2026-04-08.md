@@ -62,9 +62,14 @@ contracts.
    `DialogAiAssistantService`: сам facade уже сжат примерно до `208` строк,
    а основной flow переехал в bounded `DialogAiAssistantMessageFlowService`
    (~`369` строк); следующий шаг там должен быть не giant-cut, а добивка
-   final orchestration/escalation хвоста, после чего переключиться на
-   `PublicFormService`.
-2. `P1`: не дать orchestration-risk переехать в `DialogWorkspaceService` и
+   final orchestration/control хвоста.
+2. `P1`: продолжать уже начатый bounded split вокруг `PublicFormService`:
+   runtime config, metrics и session lookup/rotation уже вынесены в
+   `PublicFormRuntimeConfigService`, `PublicFormMetricsService` и
+   `PublicFormSessionService`, сам `PublicFormService` сжат примерно до
+   `1020` строк; следующий practical focus там теперь в submit/config/
+   idempotency/rate-limit tails.
+3. `P1`: не дать orchestration-risk переехать в `DialogWorkspaceService` и
    смежные workspace/reply/notifier consumers.
 3. `P1`: довести shared-config/runtime contract до более явного
    cross-module правила.
@@ -694,7 +699,8 @@ integration-сценария поверх users/settings runtime boundary всё
 
 ### Фаза 6: Quality and governance
 - [ ] Досузить remaining orchestration tails в `DialogWorkspaceService` и вокруг workspace consumers
-- [ ] Досузить remaining message-processing/control tail в `DialogAiAssistantService` и затем забрать `PublicFormService`
+- [ ] Досузить remaining message-processing/control tail в `DialogAiAssistantMessageFlowService`
+- [ ] Продолжить bounded split `PublicFormService` по submit/config/idempotency/rate-limit slices
 - [ ] Решить, где следующий уровень проверки должен стать integration/e2e, а не только targeted runtime/unit net
 - [ ] Довести DTO/API contract до системного правила
 - [ ] Закрепить единый error contract и API governance
@@ -707,16 +713,19 @@ integration-сценария поверх users/settings runtime boundary всё
    AI-assistant orchestration tail: `DialogAiAssistantService` уже сжат
    примерно до `208` строк и работает как facade, а узкий
    message-processing/escalation сценарий локализован в bounded
-   `DialogAiAssistantMessageFlowService` (~`369` строк); следующим bounded
-   candidate после этого остаётся `PublicFormService`.
-2. Параллельно удержать под контролем `DialogWorkspaceService` и соседние
+   `DialogAiAssistantMessageFlowService` (~`369` строк).
+2. Следующим параллельным bounded пакетом продолжать уже начатый split
+   `PublicFormService`: runtime config, metrics и session flow уже
+   вынесены, а remaining риск теперь сидит в submit/config/idempotency/
+   rate-limit orchestration tail.
+3. Параллельно удержать под контролем `DialogWorkspaceService` и соседние
    workspace consumers, чтобы orchestration-risk не переехал туда после
    уже закрытого giant `DialogService`.
-3. `DialogWorkspaceRolloutGovernanceService` держать уже в режиме hardening и
+4. `DialogWorkspaceRolloutGovernanceService` держать уже в режиме hardening и
    compatibility regression, а не как giant-split priority.
-4. notifier/runtime hardening продолжать только адресно:
+5. notifier/runtime hardening продолжать только адресно:
    по integration-quality и compatibility, а не через новый giant split.
-5. После этого поднимать уровень cross-module unification:
+6. После этого поднимать уровень cross-module unification:
    `SharedConfigService`, runtime contract, DTO/error contract и API
    governance.
 
@@ -1100,3 +1109,13 @@ integration-сценария поверх users/settings runtime boundary всё
 - под новый split добавлены `DialogAiAssistantEscalationServiceTest` и
   `DialogAiAssistantMessageFlowServiceTest`; compile, targeted AI assistant
   regression net и `DialogAiOpsControllerWebMvcTest` остаются зелёными.
+- следующим широким пакетом уже по следующему P1-candidate начат bounded
+  split `PublicFormService`: выделены `PublicFormRuntimeConfigService`,
+  `PublicFormMetricsService` и `PublicFormSessionService`.
+- после этого `PublicFormService` сжат примерно с `1327` до `1020` строк;
+  из coordinator убраны runtime dialog config readers, in-memory metrics
+  slice и session lookup/token rotation helper-блок.
+- под новый split добавлены `PublicFormRuntimeConfigServiceTest`,
+  `PublicFormMetricsServiceTest` и `PublicFormSessionServiceTest`; compile,
+  `PublicFormApiControllerWebMvcTest`, `PublicFormControllerWebMvcTest` и
+  targeted AI assistant regression net остаются зелёными.

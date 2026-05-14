@@ -40,6 +40,9 @@
   AI-assistant message-flow bounded slice и `PublicFormService`, а
   `DialogWorkspaceRolloutGovernanceService` уже переведён в режим
   hardening/compatibility;
+- при этом `PublicFormService` уже не untouched hotspot: runtime config,
+  metrics и session flow вынесены в отдельные bounded services, а remaining
+  weight там смещён в submit/config/idempotency/rate-limit slice;
 - Phase 5 всё ещё не доведён до полноценного runtime contract между
   `spring-panel` и `java-bot`;
 - Phase 6 уже широкая и системная, но ей всё ещё не хватает следующего слоя
@@ -1000,5 +1003,12 @@
   локализован в `DialogAiAssistantMessageFlowService` (~`369` строк), а не
   в самом сервисе-координаторе.
 - следующий локальный focus теперь смещён в remaining
-  message-processing/control tail внутри `DialogAiAssistantMessageFlowService`;
-  вторым bounded candidate после этого остаётся `PublicFormService`.
+  message-processing/control tail внутри `DialogAiAssistantMessageFlowService`.
+- следующим широким пакетом стартовал и соседний bounded split
+  `PublicFormService`: `PublicFormRuntimeConfigService` забрал dialog config
+  readers и locale/polling/disabled-status rules, `PublicFormMetricsService`
+  — config/submit/session metrics, `PublicFormSessionService` — session
+  lookup/token rotation lifecycle.
+- после этого `PublicFormService` сжат примерно с `1327` до `1020` строк, а
+  следующий practical focus там уже уже: submit/config/idempotency/rate-limit
+  orchestration tail.

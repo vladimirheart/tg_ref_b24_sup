@@ -82,13 +82,15 @@ public class PublicFormService {
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
     private final SharedConfigService sharedConfigService;
+    private final PublicFormRuntimeConfigService publicFormRuntimeConfigService;
+    private final PublicFormMetricsService publicFormMetricsService;
+    private final PublicFormSessionService publicFormSessionService;
     private final SettingsCatalogService settingsCatalogService;
     private final IikoDepartmentLocationCatalogService locationCatalogService;
     private final DialogAuditService dialogAuditService;
     private final AlertQueueService alertQueueService;
     private final Map<String, Deque<Long>> rateLimitBuckets = new ConcurrentHashMap<>();
     private final Map<String, IdempotencyEntry> idempotencyCache = new ConcurrentHashMap<>();
-    private final Map<Long, PublicFormMetricsAccumulator> metricsByChannel = new ConcurrentHashMap<>();
     private final AtomicLong syntheticMessageId = new AtomicLong(System.currentTimeMillis());
     private final HttpClient httpClient = HttpClient.newBuilder().build();
 
@@ -100,6 +102,9 @@ public class PublicFormService {
                              JdbcTemplate jdbcTemplate,
                              ObjectMapper objectMapper,
                              SharedConfigService sharedConfigService,
+                             PublicFormRuntimeConfigService publicFormRuntimeConfigService,
+                             PublicFormMetricsService publicFormMetricsService,
+                             PublicFormSessionService publicFormSessionService,
                              SettingsCatalogService settingsCatalogService,
                              IikoDepartmentLocationCatalogService locationCatalogService,
                              DialogAuditService dialogAuditService,
@@ -112,6 +117,9 @@ public class PublicFormService {
         this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper;
         this.sharedConfigService = sharedConfigService;
+        this.publicFormRuntimeConfigService = publicFormRuntimeConfigService;
+        this.publicFormMetricsService = publicFormMetricsService;
+        this.publicFormSessionService = publicFormSessionService;
         this.settingsCatalogService = settingsCatalogService;
         this.locationCatalogService = locationCatalogService;
         this.dialogAuditService = dialogAuditService;
@@ -263,151 +271,24 @@ public class PublicFormService {
     }
 
     public void recordConfigView(Long channelId) {
-        if (!isMetricsEnabled() || channelId == null) {
-            return;
-        }
-        metrics(channelId).views.incrementAndGet();
-        metrics(channelId).touch();
+        publicFormMetricsService.recordConfigView(channelId);
     }
 
     public void recordSubmitSuccess(Long channelId) {
-        if (!isMetricsEnabled() || channelId == null) {
-            return;
-        }
-        metrics(channelId).submits.incrementAndGet();
-        metrics(channelId).touch();
+        publicFormMetricsService.recordSubmitSuccess(channelId);
     }
 
     public void recordSubmitError(Long channelId, String reason) {
-        if (!isMetricsEnabled() || channelId == null) {
-            return;
-        }
-        PublicFormMetricsAccumulator accumulator = metrics(channelId);
-        accumulator.submitErrors.incrementAndGet();
-        String normalizedReason = Optional.ofNullable(reason).orElse("unknown").trim().toLowerCase(Locale.ROOT);
-        if (normalizedReason.contains("captcha")) {
-            accumulator.captchaFailures.incrementAndGet();
-        }
-        if (normalizedReason.contains("слишком много запросов")
-                || normalizedReason.contains("too many requests")
-                || normalizedReason.contains("rate limit")) {
-            accumulator.rateLimitRejections.incrementAndGet();
-        }
-        accumulator.touch();
+        publicFormMetricsService.recordSubmitError(channelId, reason);
     }
 
     public void recordSessionLookup(Long channelId, boolean found) {
-        if (!isMetricsEnabled() || channelId == null) {
-            return;
-        }
-        PublicFormMetricsAccumulator accumulator = metrics(channelId);
-        accumulator.sessionLookups.incrementAndGet();
-        if (!found) {
-            accumulator.sessionLookupMisses.incrementAndGet();
-        }
-        accumulator.touch();
+        publicFormMetricsService.recordSessionLookup(channelId, found);
     }
 
     @Transactional(readOnly = true)
     public Map<String, Object> loadMetricsSnapshot(Long channelId) {
-        boolean alertsEnabled = readDialogConfigBoolean("public_form_alerts_enabled", true);
-        int minViews = readDialogConfigInt("public_form_alert_min_views", DEFAULT_ALERT_MIN_VIEWS, 1, 10_000);
-        double errorRateThreshold = readDialogConfigDouble("public_form_alert_error_rate_threshold", DEFAULT_ALERT_ERROR_RATE, 0.01d, 1d);
-        double captchaFailureRateThreshold = readDialogConfigDouble("public_form_alert_captcha_failure_rate_threshold", DEFAULT_ALERT_CAPTCHA_FAILURE_RATE, 0.01d, 1d);
-        double rateLimitRejectionRateThreshold = readDialogConfigDouble("public_form_alert_rate_limit_rejection_rate_threshold", DEFAULT_ALERT_RATE_LIMIT_REJECTION_RATE, 0.01d, 1d);
-        double sessionLookupMissRateThreshold = readDialogConfigDouble("public_form_alert_session_lookup_miss_rate_threshold", DEFAULT_ALERT_SESSION_LOOKUP_MISS_RATE, 0.01d, 1d);
-        List<Map<String, Object>> channels = metricsByChannel.entrySet().stream()
-                .filter(entry -> channelId == null || channelId.equals(entry.getKey()))
-                .sorted(Comparator.comparingLong(Map.Entry::getKey))
-                .map(entry -> {
-                    PublicFormMetricsAccumulator metric = entry.getValue();
-                    long views = metric.views.get();
-                    long submits = metric.submits.get();
-                    long submitErrors = metric.submitErrors.get();
-                    long captchaFailures = metric.captchaFailures.get();
-                    long rateLimitRejections = metric.rateLimitRejections.get();
-                    long sessionLookups = metric.sessionLookups.get();
-                    long sessionLookupMisses = metric.sessionLookupMisses.get();
-                    long submitAttempts = submits + submitErrors;
-                    double submitErrorRateByAttempts = submitAttempts > 0 ? (double) submitErrors / submitAttempts : 0.0d;
-                    double captchaFailureRateByAttempts = submitAttempts > 0 ? (double) captchaFailures / submitAttempts : 0.0d;
-                    double rateLimitRejectionRateByAttempts = submitAttempts > 0 ? (double) rateLimitRejections / submitAttempts : 0.0d;
-                    double sessionLookupMissRate = sessionLookups > 0 ? (double) sessionLookupMisses / sessionLookups : 0.0d;
-                    List<String> alerts = buildMetricAlerts(alertsEnabled,
-                            views,
-                            minViews,
-                            submitErrorRateByAttempts,
-                            errorRateThreshold,
-                            captchaFailureRateByAttempts,
-                            captchaFailureRateThreshold,
-                            rateLimitRejectionRateByAttempts,
-                            rateLimitRejectionRateThreshold,
-                            sessionLookupMissRate,
-                            sessionLookupMissRateThreshold);
-                    Map<String, Object> row = new LinkedHashMap<>();
-                    row.put("channelId", entry.getKey());
-                    row.put("views", views);
-                    row.put("submits", submits);
-                    row.put("submitErrors", submitErrors);
-                    row.put("captchaFailures", captchaFailures);
-                    row.put("rateLimitRejections", rateLimitRejections);
-                    row.put("sessionLookups", sessionLookups);
-                    row.put("sessionLookupMisses", sessionLookupMisses);
-                    row.put("sessionLookupMissRate", sessionLookupMissRate);
-                    row.put("conversion", views > 0 ? (double) submits / views : 0.0d);
-                    row.put("errorRate", submits > 0 ? (double) submitErrors / submits : 0.0d);
-                    row.put("submitErrorRateByAttempts", submitErrorRateByAttempts);
-                    row.put("captchaFailureRateByAttempts", captchaFailureRateByAttempts);
-                    row.put("rateLimitRejectionRateByAttempts", rateLimitRejectionRateByAttempts);
-                    row.put("alerts", alerts);
-                    row.put("updatedAt", OffsetDateTime.ofInstant(java.time.Instant.ofEpochMilli(metric.lastUpdatedAtMs.get()), java.time.ZoneOffset.UTC));
-                    return row;
-                })
-                .toList();
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("enabled", isMetricsEnabled());
-        payload.put("alertsEnabled", alertsEnabled);
-        payload.put("alertThresholds", Map.of(
-                "minViews", minViews,
-                "errorRate", errorRateThreshold,
-                "captchaFailureRate", captchaFailureRateThreshold,
-                "rateLimitRejectionRate", rateLimitRejectionRateThreshold,
-                "sessionLookupMissRate", sessionLookupMissRateThreshold));
-        payload.put("channelsWithAlerts", channels.stream()
-                .filter(channel -> channel.get("alerts") instanceof List<?> alertList && !alertList.isEmpty())
-                .count());
-        payload.put("channels", channels);
-        return payload;
-    }
-
-    private List<String> buildMetricAlerts(boolean alertsEnabled,
-                                           long views,
-                                           int minViews,
-                                           double submitErrorRate,
-                                           double submitErrorThreshold,
-                                           double captchaFailureRate,
-                                           double captchaFailureThreshold,
-                                           double rateLimitRejectionRate,
-                                           double rateLimitRejectionThreshold,
-                                           double sessionLookupMissRate,
-                                           double sessionLookupMissRateThreshold) {
-        if (!alertsEnabled || views < minViews) {
-            return List.of();
-        }
-        List<String> alerts = new java.util.ArrayList<>();
-        if (submitErrorRate >= submitErrorThreshold) {
-            alerts.add("high_submit_error_rate");
-        }
-        if (captchaFailureRate >= captchaFailureThreshold) {
-            alerts.add("high_captcha_failure_rate");
-        }
-        if (rateLimitRejectionRate >= rateLimitRejectionThreshold) {
-            alerts.add("high_rate_limit_rejection_rate");
-        }
-        if (sessionLookupMissRate >= sessionLookupMissRateThreshold) {
-            alerts.add("high_session_lookup_miss_rate");
-        }
-        return alerts;
+        return publicFormMetricsService.loadMetricsSnapshot(channelId);
     }
 
     public Optional<PublicFormSessionDto> findSession(String channelRef, String token) {
@@ -415,138 +296,12 @@ public class PublicFormService {
             return Optional.empty();
         }
         return resolveChannel(channelRef)
-                .flatMap(channel -> loadSessionRow(token, channel.getId())
-                        .filter(this::isSessionActive)
-                        .map(session -> {
-                            PublicSessionRow persistedSession = maybeRotateSessionToken(session);
-                            return new PublicFormSessionDto(
-                                persistedSession.token(),
-                                persistedSession.ticketId(),
-                                channel.getId(),
-                                channel.getPublicId(),
-                                persistedSession.clientName(),
-                                persistedSession.clientContact(),
-                                persistedSession.username(),
-                                persistedSession.createdAt()
-                            );
-                        }));
+                .flatMap(channel -> publicFormSessionService.findSession(channel, token));
     }
 
     @Transactional(readOnly = true)
     public Optional<Long> resolveChannelId(String channelRef) {
         return resolveChannel(channelRef).map(Channel::getId);
-    }
-
-    private PublicSessionRow maybeRotateSessionToken(PublicSessionRow session) {
-        if (!readDialogConfigBoolean("public_form_session_token_rotate_on_read", false)) {
-            return session;
-        }
-        String nextToken = generateToken();
-        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-        jdbcTemplate.update("""
-                UPDATE web_form_sessions
-                   SET token = ?, last_active_at = ?
-                 WHERE id = ?
-                """,
-                nextToken,
-                Timestamp.from(now.toInstant()),
-                session.id()
-        );
-        return new PublicSessionRow(
-                session.id(),
-                nextToken,
-                session.ticketId(),
-                session.channelId(),
-                session.userId(),
-                session.clientName(),
-                session.clientContact(),
-                session.username(),
-                session.createdAt(),
-                now
-        );
-    }
-
-    private boolean isSessionActive(PublicSessionRow session) {
-        int ttlHours = readDialogConfigInt("public_form_session_ttl_hours", 72, 1, 24 * 30);
-        OffsetDateTime createdAt = session.createdAt();
-        if (createdAt == null) {
-            return true;
-        }
-        return createdAt.plusHours(ttlHours).isAfter(OffsetDateTime.now(ZoneOffset.UTC));
-    }
-
-    private Optional<PublicSessionRow> loadSessionRow(String token, Long channelId) {
-        if (!StringUtils.hasText(token) || channelId == null) {
-            return Optional.empty();
-        }
-        return jdbcTemplate.query("""
-                        SELECT id, token, ticket_id, channel_id, user_id, client_name, client_contact, username, created_at, last_active_at
-                          FROM web_form_sessions
-                         WHERE token = ? AND channel_id = ?
-                         LIMIT 1
-                        """,
-                (rs, rowNum) -> new PublicSessionRow(
-                        rs.getLong("id"),
-                        rs.getString("token"),
-                        rs.getString("ticket_id"),
-                        rs.getLong("channel_id"),
-                        rs.getLong("user_id"),
-                        rs.getString("client_name"),
-                        rs.getString("client_contact"),
-                        rs.getString("username"),
-                        parseOffsetDateTimeValue(rs.getObject("created_at")),
-                        parseOffsetDateTimeValue(rs.getObject("last_active_at"))
-                ),
-                token,
-                channelId
-        ).stream().findFirst();
-    }
-
-    private OffsetDateTime parseOffsetDateTimeValue(Object value) {
-        if (value == null) {
-            return null;
-        }
-        if (value instanceof OffsetDateTime offsetDateTime) {
-            return offsetDateTime.withOffsetSameInstant(ZoneOffset.UTC);
-        }
-        if (value instanceof Timestamp timestamp) {
-            return OffsetDateTime.ofInstant(timestamp.toInstant(), ZoneOffset.UTC);
-        }
-        if (value instanceof java.util.Date date) {
-            return OffsetDateTime.ofInstant(date.toInstant(), ZoneOffset.UTC);
-        }
-        if (value instanceof Number number) {
-            return OffsetDateTime.ofInstant(Instant.ofEpochMilli(number.longValue()), ZoneOffset.UTC);
-        }
-        String raw = value.toString().trim();
-        if (!StringUtils.hasText(raw)) {
-            return null;
-        }
-        try {
-            return OffsetDateTime.parse(raw).withOffsetSameInstant(ZoneOffset.UTC);
-        } catch (Exception ignored) {
-        }
-        try {
-            return LocalDateTime.parse(raw.replace(' ', 'T')).atOffset(ZoneOffset.UTC);
-        } catch (Exception ignored) {
-        }
-        try {
-            return OffsetDateTime.ofInstant(Instant.ofEpochMilli(Long.parseLong(raw)), ZoneOffset.UTC);
-        } catch (Exception ignored) {
-        }
-        return null;
-    }
-
-    private record PublicSessionRow(Long id,
-                                    String token,
-                                    String ticketId,
-                                    Long channelId,
-                                    Long userId,
-                                    String clientName,
-                                    String clientContact,
-                                    String username,
-                                    OffsetDateTime createdAt,
-                                    OffsetDateTime lastActiveAt) {
     }
 
     private void validateSubmission(PublicFormConfig config, PublicFormSubmission submission, Map<String, String> answers) {
@@ -975,19 +730,19 @@ public class PublicFormService {
     }
 
     private boolean isMetricsEnabled() {
-        return readDialogConfigBoolean("public_form_metrics_enabled", true);
+        return publicFormRuntimeConfigService.isMetricsEnabled();
     }
 
     public int resolveAnswersPayloadMaxLength() {
-        return readDialogConfigInt("public_form_answers_total_max_length", DEFAULT_ANSWERS_TOTAL_MAX_LENGTH, 200, 50000);
+        return publicFormRuntimeConfigService.resolveAnswersPayloadMaxLength();
     }
 
     public boolean isSessionPollingEnabled() {
-        return readDialogConfigBoolean("public_form_session_polling_enabled", true);
+        return publicFormRuntimeConfigService.isSessionPollingEnabled();
     }
 
     public int resolveSessionPollingIntervalSeconds() {
-        return readDialogConfigInt("public_form_session_polling_interval_seconds", 15, 5, 300);
+        return publicFormRuntimeConfigService.resolveSessionPollingIntervalSeconds();
     }
 
     @Transactional(readOnly = true)
@@ -1028,16 +783,7 @@ public class PublicFormService {
     }
 
     public String resolveUiLocale() {
-        String configured = readDialogConfigString("public_form_default_locale", "auto");
-        String normalized = configured.trim().toLowerCase(Locale.ROOT);
-        return switch (normalized) {
-            case "ru", "en", "auto" -> normalized;
-            default -> "auto";
-        };
-    }
-
-    private PublicFormMetricsAccumulator metrics(Long channelId) {
-        return metricsByChannel.computeIfAbsent(channelId, key -> new PublicFormMetricsAccumulator());
+        return publicFormRuntimeConfigService.resolveUiLocale();
     }
 
     private PublicFormQuestion normalizeQuestion(Map<String, Object> raw, int index) {
@@ -1284,68 +1030,20 @@ public class PublicFormService {
         return List.of();
     }
 
-    @SuppressWarnings("unchecked")
-    private Map<String, Object> readDialogConfig() {
-        Map<String, Object> settings = sharedConfigService.loadSettings();
-        Object dialogConfig = settings.get("dialog_config");
-        if (dialogConfig instanceof Map<?, ?> map) {
-            return (Map<String, Object>) map;
-        }
-        return Map.of();
-    }
-
     private boolean readDialogConfigBoolean(String key, boolean defaultValue) {
-        Object raw = readDialogConfig().get(key);
-        if (raw instanceof Boolean bool) {
-            return bool;
-        }
-        if (raw instanceof Number number) {
-            return number.intValue() != 0;
-        }
-        if (raw instanceof String text) {
-            return "true".equalsIgnoreCase(text.trim()) || "1".equals(text.trim());
-        }
-        return defaultValue;
+        return publicFormRuntimeConfigService.readDialogConfigBoolean(key, defaultValue);
     }
 
     private int readDialogConfigInt(String key, int defaultValue, int minValue, int maxValue) {
-        Object raw = readDialogConfig().get(key);
-        int value = defaultValue;
-        if (raw instanceof Number number) {
-            value = number.intValue();
-        } else if (raw instanceof String text) {
-            try {
-                value = Integer.parseInt(text.trim());
-            } catch (NumberFormatException ignored) {
-                value = defaultValue;
-            }
-        }
-        return Math.max(minValue, Math.min(maxValue, value));
+        return publicFormRuntimeConfigService.readDialogConfigInt(key, defaultValue, minValue, maxValue);
     }
 
     private double readDialogConfigDouble(String key, double defaultValue, double minValue, double maxValue) {
-        Object value = readDialogConfig().get(key);
-        if (value == null) {
-            return defaultValue;
-        }
-        try {
-            double parsed = value instanceof Number number ? number.doubleValue() : Double.parseDouble(String.valueOf(value).trim());
-            if (!Double.isFinite(parsed) || parsed < minValue || parsed > maxValue) {
-                return defaultValue;
-            }
-            return parsed;
-        } catch (Exception ignored) {
-            return defaultValue;
-        }
+        return publicFormRuntimeConfigService.readDialogConfigDouble(key, defaultValue, minValue, maxValue);
     }
 
     private String readDialogConfigString(String key, String defaultValue) {
-        Object raw = readDialogConfig().get(key);
-        if (raw == null) {
-            return defaultValue;
-        }
-        String value = raw.toString().trim();
-        return StringUtils.hasText(value) ? value : defaultValue;
+        return publicFormRuntimeConfigService.readDialogConfigString(key, defaultValue);
     }
 
     private String generateToken() {
@@ -1380,7 +1078,7 @@ public class PublicFormService {
     }
 
     private int normalizeDisabledStatus(int value) {
-        return value == 410 ? 410 : 404;
+        return publicFormRuntimeConfigService.normalizeDisabledStatus(value);
     }
 
     private int normalizeRange(int value, int min, int max) {
@@ -1406,18 +1104,4 @@ public class PublicFormService {
         }
     }
 
-    private static final class PublicFormMetricsAccumulator {
-        private final AtomicLong views = new AtomicLong(0);
-        private final AtomicLong submits = new AtomicLong(0);
-        private final AtomicLong submitErrors = new AtomicLong(0);
-        private final AtomicLong captchaFailures = new AtomicLong(0);
-        private final AtomicLong rateLimitRejections = new AtomicLong(0);
-        private final AtomicLong sessionLookups = new AtomicLong(0);
-        private final AtomicLong sessionLookupMisses = new AtomicLong(0);
-        private final AtomicLong lastUpdatedAtMs = new AtomicLong(System.currentTimeMillis());
-
-        private void touch() {
-            lastUpdatedAtMs.set(System.currentTimeMillis());
-        }
-    }
 }
