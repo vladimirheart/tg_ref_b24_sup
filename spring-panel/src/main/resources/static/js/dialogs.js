@@ -207,6 +207,7 @@
   const detailsOpenClientCard = document.getElementById('dialogDetailsOpenClientCard');
   const detailsTakeBtn = document.getElementById('dialogDetailsTakeBtn');
   const detailsCategories = document.getElementById('dialogDetailsCategories');
+  const detailsCategoriesBtn = document.getElementById('dialogDetailsCategoriesBtn');
   const detailsUnreadCount = document.getElementById('dialogDetailsUnreadCount');
   const detailsRating = document.getElementById('dialogDetailsRating');
   const detailsSummary = document.getElementById('dialogDetailsSummary');
@@ -968,6 +969,10 @@
   const selectedTicketIds = new Set();
   let mediaImageScale = 1;
   let categorySaveTimer = null;
+  let detailsCategoryModalState = {
+    suppressDetailsReset: false,
+    reopenAfterClose: false,
+  };
   let activeMacroTemplate = null;
   let activeMacroMeta = null;
   let experimentTelemetryRefreshTimer = null;
@@ -6747,6 +6752,10 @@
 
   function openCategoryPanel() {
     if (!categoryTemplatesSection || categoryTemplatesSection.classList.contains('d-none')) return;
+    if (detailsModalEl?.classList.contains('show') && activeDialogTicketId) {
+      detailsCategoryModalState.suppressDetailsReset = true;
+      detailsCategoryModalState.reopenAfterClose = true;
+    }
     if (categoriesModalEl) {
       showModalSafe(categoriesModalEl, categoriesModal);
       return;
@@ -8646,6 +8655,9 @@
       startHistoryPolling();
     });
     detailsModalEl.addEventListener('hidden.bs.modal', () => {
+      if (detailsCategoryModalState.suppressDetailsReset) {
+        return;
+      }
       if (categoriesModal) {
         categoriesModal.hide();
       }
@@ -8676,6 +8688,20 @@
           ? '/'
           : '/dialogs';
         window.history.replaceState(null, '', nextPath);
+      }
+    });
+  }
+
+  if (categoriesModalEl) {
+    bindFallbackModalDismiss(categoriesModalEl, categoriesModal);
+    categoriesModalEl.addEventListener('hidden.bs.modal', () => {
+      const shouldReopenDetails = detailsCategoryModalState.reopenAfterClose;
+      detailsCategoryModalState = {
+        suppressDetailsReset: false,
+        reopenAfterClose: false,
+      };
+      if (shouldReopenDetails && detailsModalEl && activeDialogTicketId) {
+        showModalSafe(detailsModalEl, detailsModal);
       }
     });
   }
@@ -8723,6 +8749,13 @@
       renderWorkspaceCategories();
       updateSummaryCategories('—');
       scheduleCategorySave();
+    });
+  }
+
+  if (detailsCategoriesBtn) {
+    detailsCategoriesBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      openCategoryPanel();
     });
   }
 
