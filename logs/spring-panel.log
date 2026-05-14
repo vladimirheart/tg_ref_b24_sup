@@ -1,0 +1,1340 @@
+2026-05-14 15:12:20.131+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
+2026-05-14 15:12:20.227+03:00 INFO  [main] c.e.p.config.EnvDefaultsInitializer - Applied default SQLite paths for missing APP_DB_* variables: {APP_DB_USERS=C:\Users\sushi\Git_H\tg_ref_b24_sup\spring-panel\users.db, APP_DB_KNOWLEDGE=C:\Users\sushi\Git_H\tg_ref_b24_sup\spring-panel\knowledge_base.db, APP_DB_CLIENTS=C:\Users\sushi\Git_H\tg_ref_b24_sup\spring-panel\clients.db, APP_DB_MONITORING=C:\Users\sushi\Git_H\tg_ref_b24_sup\spring-panel\monitoring.db, APP_DB_OBJECT_PASSPORTS=C:\Users\sushi\Git_H\tg_ref_b24_sup\spring-panel\object_passports.db, APP_DB_OBJECTS=C:\Users\sushi\Git_H\tg_ref_b24_sup\spring-panel\objects.db, APP_DB_SETTINGS=C:\Users\sushi\Git_H\tg_ref_b24_sup\spring-panel\settings.db, APP_DB_BOT=C:\Users\sushi\Git_H\tg_ref_b24_sup\spring-panel\bot_database.db, APP_DB_TICKETS=C:\Users\sushi\Git_H\tg_ref_b24_sup\spring-panel\tickets.db}
+2026-05-14 15:12:20.240+03:00 INFO  [main] c.e.p.c.DialogListControllerWebMvcTest - Starting DialogListControllerWebMvcTest using Java 17.0.12 with PID 10068 (started by S_V in C:\Users\sushi\Git_H\tg_ref_b24_sup\spring-panel)
+2026-05-14 15:12:20.242+03:00 INFO  [main] c.e.p.c.DialogListControllerWebMvcTest - No active profile set, falling back to 1 default profile: "default"
+2026-05-14 15:12:20.243+03:00 DEBUG [main] o.s.boot.SpringApplication - Loading source class com.example.panel.PanelApplication
+2026-05-14 15:12:20.286+03:00 DEBUG [main] o.s.w.c.s.GenericWebApplicationContext - Refreshing org.springframework.web.context.support.GenericWebApplicationContext@359b650b
+2026-05-14 15:12:25.515+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestMappingHandlerMapping - 3 mappings in 'requestMappingHandlerMapping'
+2026-05-14 15:12:25.550+03:00 DEBUG [main] o.s.w.s.h.SimpleUrlHandlerMapping - Patterns [/login, /error/403, /error/404, /error/500, /favicon.ico] in 'viewControllerHandlerMapping'
+2026-05-14 15:12:25.618+03:00 DEBUG [main] o.s.b.a.AutoConfigurationPackages - @EnableAutoConfiguration was declared on a class in the package 'com.example.panel'. Automatic @Repository and @Entity scanning is enabled.
+2026-05-14 15:12:25.981+03:00 DEBUG [main] o.s.w.s.h.SimpleUrlHandlerMapping - Patterns [/webjars/**, /**] in 'resourceHandlerMapping'
+2026-05-14 15:12:26.138+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestMappingHandlerAdapter - ControllerAdvice beans: 1 @ModelAttribute, 0 @InitBinder, 1 RequestBodyAdvice, 1 ResponseBodyAdvice
+2026-05-14 15:12:26.255+03:00 DEBUG [main] o.s.w.s.m.m.a.ExceptionHandlerExceptionResolver - ControllerAdvice beans: 1 @ExceptionHandler, 1 ResponseBodyAdvice
+2026-05-14 15:12:26.749+03:00 WARN  [main] o.s.b.a.s.s.UserDetailsServiceAutoConfiguration - 
+
+Using generated security password: d612937e-840b-4913-b340-2df518a21189
+
+This generated password is for development use only. Your security configuration must be updated before running your application in production.
+
+2026-05-14 15:12:27.162+03:00 INFO  [main] o.s.s.web.DefaultSecurityFilterChain - Will secure any request with [org.springframework.security.web.session.DisableEncodeUrlFilter@53079ae6, org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@718ad3a6, org.springframework.security.web.context.SecurityContextHolderFilter@66682e8f, org.springframework.security.web.header.HeaderWriterFilter@2cdcfaa6, org.springframework.web.filter.CorsFilter@603c2dee, org.springframework.security.web.csrf.CsrfFilter@2ca132ad, org.springframework.security.web.authentication.logout.LogoutFilter@4888d1ea, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter@6338afe2, org.springframework.security.web.authentication.ui.DefaultLoginPageGeneratingFilter@2052f095, org.springframework.security.web.authentication.ui.DefaultLogoutPageGeneratingFilter@50d666a2, org.springframework.security.web.authentication.www.BasicAuthenticationFilter@6ec98ccc, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@611587f7, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@4d0abb23, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@3f6906f4, org.springframework.security.web.access.ExceptionTranslationFilter@731ab49b, org.springframework.security.web.access.intercept.AuthorizationFilter@6fc28e5b]
+2026-05-14 15:12:27.243+03:00 DEBUG [main] o.s.b.w.s.ServletContextInitializerBeans - Mapping filters: springSecurityFilterChain urls=[/*] order=-100, characterEncodingFilter urls=[/*] order=-2147483648, formContentFilter urls=[/*] order=-9900, requestContextFilter urls=[/*] order=-105, securityHeadersFilter urls=[/*] order=2147483647, userLastActivityFilter urls=[/*] order=2147483647
+2026-05-14 15:12:27.244+03:00 DEBUG [main] o.s.b.w.s.ServletContextInitializerBeans - Mapping servlets: 
+2026-05-14 15:12:27.301+03:00 DEBUG [main] o.s.b.w.s.f.OrderedCharacterEncodingFilter - Filter 'characterEncodingFilter' configured for use
+2026-05-14 15:12:27.302+03:00 DEBUG [main] o.s.b.w.s.f.OrderedFormContentFilter - Filter 'formContentFilter' configured for use
+2026-05-14 15:12:27.302+03:00 DEBUG [main] o.s.b.w.s.f.OrderedRequestContextFilter - Filter 'requestContextFilter' configured for use
+2026-05-14 15:12:27.302+03:00 DEBUG [main] o.s.b.w.s.DelegatingFilterProxyRegistrationBean$1 - Filter 'springSecurityFilterChain' configured for use
+2026-05-14 15:12:27.319+03:00 INFO  [main] o.s.b.t.m.w.SpringBootMockServletContext - Initializing Spring TestDispatcherServlet ''
+2026-05-14 15:12:27.320+03:00 INFO  [main] o.s.t.w.s.TestDispatcherServlet - Initializing Servlet ''
+2026-05-14 15:12:27.323+03:00 INFO  [main] o.s.t.w.s.TestDispatcherServlet - Completed initialization in 3 ms
+2026-05-14 15:12:27.398+03:00 DEBUG [main] o.s.b.a.l.ConditionEvaluationReportLogger - 
+
+
+============================
+CONDITIONS EVALUATION REPORT
+============================
+
+
+Positive matches:
+-----------------
+
+   CacheAutoConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.cache.CacheManager' (OnClassCondition)
+      - @ConditionalOnBean (types: org.springframework.cache.interceptor.CacheAspectSupport; SearchStrategy: all) found bean 'cacheInterceptor'; @ConditionalOnMissingBean (names: cacheResolver types: org.springframework.cache.CacheManager; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   CacheAutoConfiguration#cacheManagerCustomizers matched:
+      - @ConditionalOnMissingBean (types: org.springframework.boot.autoconfigure.cache.CacheManagerCustomizers; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   ErrorMvcAutoConfiguration matched:
+      - @ConditionalOnClass found required classes 'jakarta.servlet.Servlet', 'org.springframework.web.servlet.DispatcherServlet' (OnClassCondition)
+      - found 'session' scope (OnWebApplicationCondition)
+
+   ErrorMvcAutoConfiguration#basicErrorController matched:
+      - @ConditionalOnMissingBean (types: org.springframework.boot.web.servlet.error.ErrorController; SearchStrategy: current) did not find any beans (OnBeanCondition)
+
+   ErrorMvcAutoConfiguration#errorAttributes matched:
+      - @ConditionalOnMissingBean (types: org.springframework.boot.web.servlet.error.ErrorAttributes; SearchStrategy: current) did not find any beans (OnBeanCondition)
+
+   GsonAutoConfiguration matched:
+      - @ConditionalOnClass found required class 'com.google.gson.Gson' (OnClassCondition)
+
+   GsonAutoConfiguration#gson matched:
+      - @ConditionalOnMissingBean (types: com.google.gson.Gson; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   GsonAutoConfiguration#gsonBuilder matched:
+      - @ConditionalOnMissingBean (types: com.google.gson.GsonBuilder; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   GsonHttpMessageConvertersConfiguration matched:
+      - @ConditionalOnClass found required class 'com.google.gson.Gson' (OnClassCondition)
+
+   HttpEncodingAutoConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.web.filter.CharacterEncodingFilter' (OnClassCondition)
+      - found 'session' scope (OnWebApplicationCondition)
+      - @ConditionalOnProperty (server.servlet.encoding.enabled) matched (OnPropertyCondition)
+
+   HttpEncodingAutoConfiguration#characterEncodingFilter matched:
+      - @ConditionalOnMissingBean (types: org.springframework.web.filter.CharacterEncodingFilter; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   HttpMessageConvertersAutoConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.http.converter.HttpMessageConverter' (OnClassCondition)
+      - NoneNestedConditions 0 matched 1 did not; NestedCondition on HttpMessageConvertersAutoConfiguration.NotReactiveWebApplicationCondition.ReactiveWebApplication did not find reactive web application classes (HttpMessageConvertersAutoConfiguration.NotReactiveWebApplicationCondition)
+
+   HttpMessageConvertersAutoConfiguration#messageConverters matched:
+      - @ConditionalOnMissingBean (types: org.springframework.boot.autoconfigure.http.HttpMessageConverters; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   HttpMessageConvertersAutoConfiguration.StringHttpMessageConverterConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.http.converter.StringHttpMessageConverter' (OnClassCondition)
+
+   HttpMessageConvertersAutoConfiguration.StringHttpMessageConverterConfiguration#stringHttpMessageConverter matched:
+      - @ConditionalOnMissingBean (types: org.springframework.http.converter.StringHttpMessageConverter; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   JacksonAutoConfiguration matched:
+      - @ConditionalOnClass found required class 'com.fasterxml.jackson.databind.ObjectMapper' (OnClassCondition)
+
+   JacksonAutoConfiguration.Jackson2ObjectMapperBuilderCustomizerConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.http.converter.json.Jackson2ObjectMapperBuilder' (OnClassCondition)
+
+   JacksonAutoConfiguration.JacksonObjectMapperBuilderConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.http.converter.json.Jackson2ObjectMapperBuilder' (OnClassCondition)
+
+   JacksonAutoConfiguration.JacksonObjectMapperBuilderConfiguration#jacksonObjectMapperBuilder matched:
+      - @ConditionalOnMissingBean (types: org.springframework.http.converter.json.Jackson2ObjectMapperBuilder; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   JacksonAutoConfiguration.JacksonObjectMapperConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.http.converter.json.Jackson2ObjectMapperBuilder' (OnClassCondition)
+
+   JacksonAutoConfiguration.JacksonObjectMapperConfiguration#jacksonObjectMapper matched:
+      - @ConditionalOnMissingBean (types: com.fasterxml.jackson.databind.ObjectMapper; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   JacksonAutoConfiguration.ParameterNamesModuleConfiguration matched:
+      - @ConditionalOnClass found required class 'com.fasterxml.jackson.module.paramnames.ParameterNamesModule' (OnClassCondition)
+
+   JacksonAutoConfiguration.ParameterNamesModuleConfiguration#parameterNamesModule matched:
+      - @ConditionalOnMissingBean (types: com.fasterxml.jackson.module.paramnames.ParameterNamesModule; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   JacksonHttpMessageConvertersConfiguration.MappingJackson2HttpMessageConverterConfiguration matched:
+      - @ConditionalOnClass found required class 'com.fasterxml.jackson.databind.ObjectMapper' (OnClassCondition)
+      - @ConditionalOnProperty (spring.mvc.converters.preferred-json-mapper=jackson) matched (OnPropertyCondition)
+      - @ConditionalOnBean (types: com.fasterxml.jackson.databind.ObjectMapper; SearchStrategy: all) found bean 'jacksonObjectMapper' (OnBeanCondition)
+
+   JacksonHttpMessageConvertersConfiguration.MappingJackson2HttpMessageConverterConfiguration#mappingJackson2HttpMessageConverter matched:
+      - @ConditionalOnMissingBean (types: org.springframework.http.converter.json.MappingJackson2HttpMessageConverter ignored: org.springframework.hateoas.server.mvc.TypeConstrainedMappingJackson2HttpMessageConverter,org.springframework.data.rest.webmvc.alps.AlpsJsonHttpMessageConverter; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   MockMvcAutoConfiguration matched:
+      - found 'session' scope (OnWebApplicationCondition)
+
+   MockMvcAutoConfiguration#dispatcherServlet matched:
+      - @ConditionalOnMissingBean (types: org.springframework.web.servlet.DispatcherServlet; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   MockMvcAutoConfiguration#dispatcherServletPath matched:
+      - @ConditionalOnMissingBean (types: org.springframework.boot.autoconfigure.web.servlet.DispatcherServletPath; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   MockMvcAutoConfiguration#mockMvc matched:
+      - @ConditionalOnMissingBean (types: org.springframework.test.web.servlet.MockMvc; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   MockMvcAutoConfiguration#mockMvcBuilder matched:
+      - @ConditionalOnMissingBean (types: org.springframework.test.web.servlet.MockMvcBuilder; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   MockMvcSecurityConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors' (OnClassCondition)
+
+   MockMvcSecurityConfiguration#securityMockMvcBuilderCustomizer matched:
+      - @ConditionalOnBean (names: springSecurityFilterChain; SearchStrategy: all) found bean 'springSecurityFilterChain' (OnBeanCondition)
+
+   NoOpCacheConfiguration matched:
+      - Cache org.springframework.boot.autoconfigure.cache.NoOpCacheConfiguration NONE cache type (CacheCondition)
+      - @ConditionalOnMissingBean (types: org.springframework.cache.CacheManager; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   SecurityAutoConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.security.authentication.DefaultAuthenticationEventPublisher' (OnClassCondition)
+
+   SecurityAutoConfiguration#authenticationEventPublisher matched:
+      - @ConditionalOnMissingBean (types: org.springframework.security.authentication.AuthenticationEventPublisher; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   SecurityFilterAutoConfiguration matched:
+      - @ConditionalOnClass found required classes 'org.springframework.security.web.context.AbstractSecurityWebApplicationInitializer', 'org.springframework.security.config.http.SessionCreationPolicy' (OnClassCondition)
+      - found 'session' scope (OnWebApplicationCondition)
+
+   SecurityFilterAutoConfiguration#securityFilterChainRegistration matched:
+      - @ConditionalOnBean (names: springSecurityFilterChain; SearchStrategy: all) found bean 'springSecurityFilterChain' (OnBeanCondition)
+
+   SpringBootWebSecurityConfiguration matched:
+      - found 'session' scope (OnWebApplicationCondition)
+
+   SpringBootWebSecurityConfiguration.SecurityFilterChainConfiguration matched:
+      - AllNestedConditions 2 matched 0 did not; NestedCondition on DefaultWebSecurityCondition.Beans @ConditionalOnMissingBean (types: org.springframework.security.web.SecurityFilterChain; SearchStrategy: all) did not find any beans; NestedCondition on DefaultWebSecurityCondition.Classes @ConditionalOnClass found required classes 'org.springframework.security.web.SecurityFilterChain', 'org.springframework.security.config.annotation.web.builders.HttpSecurity' (DefaultWebSecurityCondition)
+
+   SpringBootWebSecurityConfiguration.WebSecurityEnablerConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.security.config.annotation.web.configuration.EnableWebSecurity' (OnClassCondition)
+      - @ConditionalOnMissingBean (names: springSecurityFilterChain; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   SpringDataWebAutoConfiguration matched:
+      - @ConditionalOnClass found required classes 'org.springframework.data.web.PageableHandlerMethodArgumentResolver', 'org.springframework.web.servlet.config.annotation.WebMvcConfigurer' (OnClassCondition)
+      - found 'session' scope (OnWebApplicationCondition)
+      - @ConditionalOnMissingBean (types: org.springframework.data.web.PageableHandlerMethodArgumentResolver; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   SpringDataWebAutoConfiguration#pageableCustomizer matched:
+      - @ConditionalOnMissingBean (types: org.springframework.data.web.config.PageableHandlerMethodArgumentResolverCustomizer; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   SpringDataWebAutoConfiguration#sortCustomizer matched:
+      - @ConditionalOnMissingBean (types: org.springframework.data.web.config.SortHandlerMethodArgumentResolverCustomizer; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   TaskExecutionAutoConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor' (OnClassCondition)
+
+   TaskExecutorConfigurations.SimpleAsyncTaskExecutorBuilderConfiguration#simpleAsyncTaskExecutorBuilder matched:
+      - @ConditionalOnMissingBean (types: org.springframework.boot.task.SimpleAsyncTaskExecutorBuilder; SearchStrategy: all) did not find any beans (OnBeanCondition)
+      - @ConditionalOnThreading found PLATFORM (OnThreadingCondition)
+
+   TaskExecutorConfigurations.TaskExecutorBuilderConfiguration#taskExecutorBuilder matched:
+      - @ConditionalOnMissingBean (types: org.springframework.boot.task.TaskExecutorBuilder; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   TaskExecutorConfigurations.TaskExecutorConfiguration matched:
+      - @ConditionalOnMissingBean (types: java.util.concurrent.Executor; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   TaskExecutorConfigurations.TaskExecutorConfiguration#applicationTaskExecutor matched:
+      - @ConditionalOnThreading found PLATFORM (OnThreadingCondition)
+
+   TaskExecutorConfigurations.ThreadPoolTaskExecutorBuilderConfiguration#threadPoolTaskExecutorBuilder matched:
+      - @ConditionalOnMissingBean (types: org.springframework.boot.task.TaskExecutorBuilder,org.springframework.boot.task.ThreadPoolTaskExecutorBuilder; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   TemplateEngineConfigurations.DefaultTemplateEngineConfiguration#templateEngine matched:
+      - @ConditionalOnMissingBean (types: org.thymeleaf.spring6.ISpringTemplateEngine; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   ThymeleafAutoConfiguration matched:
+      - @ConditionalOnClass found required classes 'org.thymeleaf.templatemode.TemplateMode', 'org.thymeleaf.spring6.SpringTemplateEngine' (OnClassCondition)
+
+   ThymeleafAutoConfiguration.DefaultTemplateResolverConfiguration matched:
+      - @ConditionalOnMissingBean (names: defaultTemplateResolver; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   ThymeleafAutoConfiguration.ThymeleafWebMvcConfiguration matched:
+      - found 'session' scope (OnWebApplicationCondition)
+      - @ConditionalOnProperty (spring.thymeleaf.enabled) matched (OnPropertyCondition)
+
+   ThymeleafAutoConfiguration.ThymeleafWebMvcConfiguration.ThymeleafViewResolverConfiguration#thymeleafViewResolver matched:
+      - @ConditionalOnMissingBean (names: thymeleafViewResolver; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   UserDetailsServiceAutoConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.security.authentication.AuthenticationManager' (OnClassCondition)
+      - AnyNestedCondition 1 matched 2 did not; NestedCondition on UserDetailsServiceAutoConfiguration.MissingAlternativeOrUserPropertiesConfigured.PasswordConfigured @ConditionalOnProperty (spring.security.user.password) did not find property 'password'; NestedCondition on UserDetailsServiceAutoConfiguration.MissingAlternativeOrUserPropertiesConfigured.NameConfigured @ConditionalOnProperty (spring.security.user.name) did not find property 'name'; NestedCondition on UserDetailsServiceAutoConfiguration.MissingAlternativeOrUserPropertiesConfigured.MissingAlternative @ConditionalOnMissingClass did not find unwanted classes 'org.springframework.security.oauth2.client.registration.ClientRegistrationRepository', 'org.springframework.security.oauth2.server.resource.introspection.OpaqueTokenIntrospector', 'org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistrationRepository' (UserDetailsServiceAutoConfiguration.MissingAlternativeOrUserPropertiesConfigured)
+      - @ConditionalOnBean (types: org.springframework.security.config.annotation.ObjectPostProcessor; SearchStrategy: all) found bean 'objectPostProcessor'; @ConditionalOnMissingBean (types: org.springframework.security.authentication.AuthenticationManager,org.springframework.security.authentication.AuthenticationProvider,org.springframework.security.core.userdetails.UserDetailsService,org.springframework.security.authentication.AuthenticationManagerResolver,org.springframework.security.oauth2.jwt.JwtDecoder; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   ValidationAutoConfiguration matched:
+      - @ConditionalOnClass found required class 'jakarta.validation.executable.ExecutableValidator' (OnClassCondition)
+      - @ConditionalOnResource found location classpath:META-INF/services/jakarta.validation.spi.ValidationProvider (OnResourceCondition)
+
+   ValidationAutoConfiguration#defaultValidator matched:
+      - @ConditionalOnMissingBean (types: jakarta.validation.Validator; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   ValidationAutoConfiguration#methodValidationPostProcessor matched:
+      - @ConditionalOnMissingBean (types: org.springframework.validation.beanvalidation.MethodValidationPostProcessor; SearchStrategy: current) did not find any beans (OnBeanCondition)
+
+   WebMvcAutoConfiguration matched:
+      - @ConditionalOnClass found required classes 'jakarta.servlet.Servlet', 'org.springframework.web.servlet.DispatcherServlet', 'org.springframework.web.servlet.config.annotation.WebMvcConfigurer' (OnClassCondition)
+      - found 'session' scope (OnWebApplicationCondition)
+      - @ConditionalOnMissingBean (types: org.springframework.web.servlet.config.annotation.WebMvcConfigurationSupport; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   WebMvcAutoConfiguration#formContentFilter matched:
+      - @ConditionalOnProperty (spring.mvc.formcontent.filter.enabled) matched (OnPropertyCondition)
+      - @ConditionalOnMissingBean (types: org.springframework.web.filter.FormContentFilter; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   WebMvcAutoConfiguration.EnableWebMvcConfiguration#flashMapManager matched:
+      - @ConditionalOnMissingBean (names: flashMapManager; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   WebMvcAutoConfiguration.EnableWebMvcConfiguration#localeResolver matched:
+      - @ConditionalOnMissingBean (names: localeResolver; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   WebMvcAutoConfiguration.EnableWebMvcConfiguration#themeResolver matched:
+      - @ConditionalOnMissingBean (names: themeResolver; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   WebMvcAutoConfiguration.WebMvcAutoConfigurationAdapter#defaultViewResolver matched:
+      - @ConditionalOnMissingBean (types: org.springframework.web.servlet.view.InternalResourceViewResolver; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   WebMvcAutoConfiguration.WebMvcAutoConfigurationAdapter#requestContextFilter matched:
+      - @ConditionalOnMissingBean (types: org.springframework.web.context.request.RequestContextListener,org.springframework.web.filter.RequestContextFilter; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   WebMvcAutoConfiguration.WebMvcAutoConfigurationAdapter#viewResolver matched:
+      - @ConditionalOnBean (types: org.springframework.web.servlet.ViewResolver; SearchStrategy: all) found beans 'defaultViewResolver', 'mvcViewResolver'; @ConditionalOnMissingBean (names: viewResolver types: org.springframework.web.servlet.view.ContentNegotiatingViewResolver; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+
+Negative matches:
+-----------------
+
+   Cache2kCacheConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.cache2k.Cache2kBuilder' (OnClassCondition)
+
+   CacheAutoConfiguration.CacheManagerEntityManagerFactoryDependsOnPostProcessor:
+      Did not match:
+         - @ConditionalOnBean (types: org.springframework.orm.jpa.AbstractEntityManagerFactoryBean; SearchStrategy: all) did not find any beans of type org.springframework.orm.jpa.AbstractEntityManagerFactoryBean (OnBeanCondition)
+      Matched:
+         - @ConditionalOnClass found required class 'org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean' (OnClassCondition)
+
+   CaffeineCacheConfiguration:
+      Did not match:
+         - Cache org.springframework.boot.autoconfigure.cache.CaffeineCacheConfiguration unknown cache type (CacheCondition)
+      Matched:
+         - @ConditionalOnClass found required classes 'com.github.benmanes.caffeine.cache.Caffeine', 'org.springframework.cache.caffeine.CaffeineCacheManager' (OnClassCondition)
+
+   CouchbaseCacheConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'com.couchbase.client.java.Cluster' (OnClassCondition)
+
+   ErrorMvcAutoConfiguration.DefaultErrorViewResolverConfiguration#conventionErrorViewResolver:
+      Did not match:
+         - @ConditionalOnBean (types: org.springframework.web.servlet.DispatcherServlet; SearchStrategy: all) did not find any beans of type org.springframework.web.servlet.DispatcherServlet (OnBeanCondition)
+
+   ErrorMvcAutoConfiguration.WhitelabelErrorViewConfiguration:
+      Did not match:
+         - @ConditionalOnProperty (server.error.whitelabel.enabled) found different value in property 'enabled' (OnPropertyCondition)
+
+   FreeMarkerAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'freemarker.template.Configuration' (OnClassCondition)
+
+   GenericCacheConfiguration:
+      Did not match:
+         - Cache org.springframework.boot.autoconfigure.cache.GenericCacheConfiguration unknown cache type (CacheCondition)
+
+   GroovyTemplateAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'groovy.text.markup.MarkupTemplateEngine' (OnClassCondition)
+
+   GsonHttpMessageConvertersConfiguration.GsonHttpMessageConverterConfiguration:
+      Did not match:
+         - AnyNestedCondition 0 matched 2 did not; NestedCondition on GsonHttpMessageConvertersConfiguration.PreferGsonOrJacksonAndJsonbUnavailableCondition.JacksonJsonbUnavailable NoneNestedConditions 1 matched 1 did not; NestedCondition on GsonHttpMessageConvertersConfiguration.JacksonAndJsonbUnavailableCondition.JsonbPreferred @ConditionalOnProperty (spring.mvc.converters.preferred-json-mapper=jsonb) did not find property 'spring.mvc.converters.preferred-json-mapper'; NestedCondition on GsonHttpMessageConvertersConfiguration.JacksonAndJsonbUnavailableCondition.JacksonAvailable @ConditionalOnBean (types: org.springframework.http.converter.json.MappingJackson2HttpMessageConverter; SearchStrategy: all) found bean 'mappingJackson2HttpMessageConverter'; NestedCondition on GsonHttpMessageConvertersConfiguration.PreferGsonOrJacksonAndJsonbUnavailableCondition.GsonPreferred @ConditionalOnProperty (spring.mvc.converters.preferred-json-mapper=gson) did not find property 'spring.mvc.converters.preferred-json-mapper' (GsonHttpMessageConvertersConfiguration.PreferGsonOrJacksonAndJsonbUnavailableCondition)
+
+   HazelcastCacheConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'com.hazelcast.core.HazelcastInstance' (OnClassCondition)
+
+   HypermediaAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.hateoas.EntityModel' (OnClassCondition)
+
+   InfinispanCacheConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.infinispan.spring.embedded.provider.SpringEmbeddedCacheManager' (OnClassCondition)
+
+   JCacheCacheConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'javax.cache.Caching' (OnClassCondition)
+
+   JacksonHttpMessageConvertersConfiguration.MappingJackson2XmlHttpMessageConverterConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'com.fasterxml.jackson.dataformat.xml.XmlMapper' (OnClassCondition)
+
+   JsonbAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'jakarta.json.bind.Jsonb' (OnClassCondition)
+
+   JsonbHttpMessageConvertersConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'jakarta.json.bind.Jsonb' (OnClassCondition)
+
+   MessageSourceAutoConfiguration:
+      Did not match:
+         - ResourceBundle did not find bundle with basename messages (MessageSourceAutoConfiguration.ResourceBundleCondition)
+
+   MockMvcAutoConfiguration.WebTestClientMockMvcConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.web.reactive.function.client.WebClient' (OnClassCondition)
+
+   MockMvcWebClientAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'com.gargoylesoftware.htmlunit.WebClient' (OnClassCondition)
+
+   MockMvcWebDriverAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.openqa.selenium.htmlunit.HtmlUnitDriver' (OnClassCondition)
+
+   MustacheAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'com.samskivert.mustache.Mustache' (OnClassCondition)
+
+   OAuth2ClientAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.security.oauth2.client.registration.ClientRegistration' (OnClassCondition)
+
+   OAuth2ResourceServerAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.security.oauth2.server.resource.authentication.BearerTokenAuthenticationToken' (OnClassCondition)
+
+   RedisCacheConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.data.redis.connection.RedisConnectionFactory' (OnClassCondition)
+
+   SecurityDataConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.security.data.repository.query.SecurityEvaluationContextExtension' (OnClassCondition)
+
+   SimpleCacheConfiguration:
+      Did not match:
+         - Cache org.springframework.boot.autoconfigure.cache.SimpleCacheConfiguration unknown cache type (CacheCondition)
+
+   TaskExecutorConfigurations.SimpleAsyncTaskExecutorBuilderConfiguration#simpleAsyncTaskExecutorBuilderVirtualThreads:
+      Did not match:
+         - @ConditionalOnMissingBean (types: org.springframework.boot.task.SimpleAsyncTaskExecutorBuilder; SearchStrategy: all) found beans of type 'org.springframework.boot.task.SimpleAsyncTaskExecutorBuilder' simpleAsyncTaskExecutorBuilder (OnBeanCondition)
+
+   TaskExecutorConfigurations.TaskExecutorConfiguration#applicationTaskExecutorVirtualThreads:
+      Did not match:
+         - @ConditionalOnThreading did not find VIRTUAL (OnThreadingCondition)
+
+   TemplateEngineConfigurations.ReactiveTemplateEngineConfiguration:
+      Did not match:
+         - did not find reactive web application classes (OnWebApplicationCondition)
+
+   ThymeleafAutoConfiguration.DataAttributeDialectConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'com.github.mxab.thymeleaf.extras.dataattribute.dialect.DataAttributeDialect' (OnClassCondition)
+
+   ThymeleafAutoConfiguration.ThymeleafSecurityDialectConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.thymeleaf.extras.springsecurity6.dialect.SpringSecurityDialect' (OnClassCondition)
+
+   ThymeleafAutoConfiguration.ThymeleafWebFluxConfiguration:
+      Did not match:
+         - did not find reactive web application classes (OnWebApplicationCondition)
+
+   ThymeleafAutoConfiguration.ThymeleafWebLayoutConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'nz.net.ultraq.thymeleaf.layoutdialect.LayoutDialect' (OnClassCondition)
+
+   ThymeleafAutoConfiguration.ThymeleafWebMvcConfiguration#resourceUrlEncodingFilter:
+      Did not match:
+         - @ConditionalOnEnabledResourceChain did not find class org.webjars.WebJarAssetLocator (OnEnabledResourceChainCondition)
+
+   WebMvcAutoConfiguration#hiddenHttpMethodFilter:
+      Did not match:
+         - @ConditionalOnProperty (spring.mvc.hiddenmethod.filter.enabled) did not find property 'enabled' (OnPropertyCondition)
+
+   WebMvcAutoConfiguration.ProblemDetailsErrorHandlingConfiguration:
+      Did not match:
+         - @ConditionalOnProperty (spring.mvc.problemdetails.enabled=true) did not find property 'enabled' (OnPropertyCondition)
+
+   WebMvcAutoConfiguration.ResourceChainCustomizerConfiguration:
+      Did not match:
+         - @ConditionalOnEnabledResourceChain did not find class org.webjars.WebJarAssetLocator (OnEnabledResourceChainCondition)
+
+   WebMvcAutoConfiguration.WebMvcAutoConfigurationAdapter#beanNameViewResolver:
+      Did not match:
+         - @ConditionalOnBean (types: org.springframework.web.servlet.View; SearchStrategy: all) did not find any beans of type org.springframework.web.servlet.View (OnBeanCondition)
+
+   WebTestClientAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.web.reactive.function.client.WebClient' (OnClassCondition)
+
+
+Exclusions:
+-----------
+
+    None
+
+
+Unconditional classes:
+----------------------
+
+    None
+
+
+
+2026-05-14 15:12:27.410+03:00 INFO  [main] c.e.p.c.DialogListControllerWebMvcTest - Started DialogListControllerWebMvcTest in 8.141 seconds (process running for 10.324)
+2026-05-14 15:12:27.670+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.example.panel.controller.DialogListController#list(Authentication)
+2026-05-14 15:12:27.760+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestResponseBodyMethodProcessor - Using 'application/json', given [*/*] and supported [application/json, application/*+json]
+2026-05-14 15:12:27.764+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestResponseBodyMethodProcessor - Writing [{success=true, my_dialogs={in_work=[], unanswered=[{ticketId=T-900}]}, summary={open=1}, dialogs=[{t (truncated)...]
+2026-05-14 15:12:28.083+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.example.panel.controller.DialogListController#list(Authentication)
+2026-05-14 15:12:28.085+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestResponseBodyMethodProcessor - Using 'application/json', given [*/*] and supported [application/json, application/*+json]
+2026-05-14 15:12:28.086+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestResponseBodyMethodProcessor - Writing [{dialogs=[], success=true, summary={open=0}}]
+2026-05-14 15:12:28.114+03:00 DEBUG [main] o.s.b.t.a.w.s.WebMvcTestContextBootstrapper - Neither @ContextConfiguration nor @ContextHierarchy found for test class [DialogsControllerWebMvcTest]: using SpringBootContextLoader
+2026-05-14 15:12:28.117+03:00 INFO  [main] o.s.t.c.s.AnnotationConfigContextLoaderUtils - Could not detect default configuration classes for test class [com.example.panel.controller.DialogsControllerWebMvcTest]: DialogsControllerWebMvcTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-05-14 15:12:28.120+03:00 DEBUG [main] o.s.b.t.a.w.s.WebMvcTestContextBootstrapper - Using ContextCustomizerFactory implementations for test class [DialogsControllerWebMvcTest]: [ImportsContextCustomizerFactory, ExcludeFilterContextCustomizerFactory, HttpGraphQlTesterContextCustomizerFactory, DuplicateJsonObjectContextCustomizerFactory, MockitoContextCustomizerFactory, TestRestTemplateContextCustomizerFactory, WebTestClientContextCustomizerFactory, OverrideAutoConfigurationContextCustomizerFactory, ObservabilityContextCustomizerFactory, TypeExcludeFiltersContextCustomizerFactory, PropertyMappingContextCustomizerFactory, WebDriverContextCustomizerFactory, MockServerContainerContextCustomizerFactory, DynamicPropertiesContextCustomizerFactory]
+2026-05-14 15:12:28.151+03:00 DEBUG [main] o.s.b.t.a.w.s.WebMvcTestContextBootstrapper - Using ContextCustomizers for test class [DialogsControllerWebMvcTest]: [ImportsContextCustomizer, ExcludeFilterContextCustomizer, DuplicateJsonObjectContextCustomizer, MockitoContextCustomizer, DisableAutoConfigurationContextCustomizer, DisableObservabilityContextCustomizer, TypeExcludeFiltersContextCustomizer, PropertyMappingContextCustomizer, WebDriverContextCustomizer]
+2026-05-14 15:12:28.152+03:00 INFO  [main] o.s.b.t.c.SpringBootTestContextBootstrapper - Found @SpringBootConfiguration com.example.panel.PanelApplication for test class com.example.panel.controller.DialogsControllerWebMvcTest
+2026-05-14 15:12:28.164+03:00 DEBUG [main] o.s.b.t.a.w.s.WebMvcTestContextBootstrapper - Using TestExecutionListeners for test class [DialogsControllerWebMvcTest]: [ServletTestExecutionListener, DirtiesContextBeforeModesTestExecutionListener, ApplicationEventsTestExecutionListener, MockitoTestExecutionListener, DependencyInjectionTestExecutionListener, DirtiesContextTestExecutionListener, TransactionalTestExecutionListener, SqlScriptsTestExecutionListener, EventPublishingTestExecutionListener, WithSecurityContextTestExecutionListener, ReactorContextTestExecutionListener, ResetMocksTestExecutionListener, RestDocsTestExecutionListener, MockRestServiceServerResetTestExecutionListener, MockMvcPrintOnlyOnFailureTestExecutionListener, WebDriverTestExecutionListener, MockWebServiceServerTestExecutionListener]
+2026-05-14 15:12:28.235+03:00 DEBUG [main] o.s.boot.env.OriginTrackedYamlLoader - Loading from YAML: class path resource [application.yml]
+2026-05-14 15:12:28.245+03:00 DEBUG [main] o.s.boot.env.OriginTrackedYamlLoader - Merging document (no matchers set): {spring={application={name=panel}, jpa={hibernate={ddl-auto=none}, properties={hibernate={format_sql=true, temp={use_jdbc_metadata_defaults=false}}}}, flyway={locations=[classpath:db/migration/sqlite], baseline-on-migrate=true, baseline-version=0, out-of-order=true, placeholders={autoIncrement=AUTOINCREMENT}}, sql={init={mode=${SQL_INIT_MODE:never}}}, main={banner-mode=false}, session={store-type=jdbc, jdbc={table-name=SPRING_SESSION}}}, app={datasource={sqlite={path=${APP_DB_TICKETS:${APP_DB_BOT:bot_database.db}}}, monitoring-sqlite={path=${APP_DB_MONITORING:monitoring.db}}, users-sqlite={path=${APP_DB_USERS:users.db}}, bot-sqlite={path=${APP_DB_BOT:bot_database.db}}, clients-sqlite={path=${APP_DB_CLIENTS:clients.db}}, knowledge-sqlite={path=${APP_DB_KNOWLEDGE:knowledge_base.db}}, objects-sqlite={path=${APP_DB_OBJECTS:objects.db}}, settings-sqlite={path=${APP_DB_SETTINGS:settings.db}}}, bots={database-dir=${APP_BOT_DATABASE_DIR:../bot_databases}, launch-mode=${APP_BOT_LAUNCH_MODE:auto}, executable-jars={}, preferred-production-launcher=${APP_BOT_PREFERRED_PRODUCTION_LAUNCHER:jar}, recommended-artifact-directory=${APP_BOT_RECOMMENDED_ARTIFACT_DIRECTORY:dist}, startup-readiness-timeout=${APP_BOT_STARTUP_READINESS_TIMEOUT:45s}, startup-poll-interval=${APP_BOT_STARTUP_POLL_INTERVAL:250ms}}, storage={attachments=${APP_STORAGE_ATTACHMENTS:../attachments}, knowledge-base=${APP_STORAGE_KNOWLEDGE_BASE:${APP_STORAGE_ATTACHMENTS:../attachments}/knowledge_base}, avatars=${APP_STORAGE_AVATARS:${APP_STORAGE_ATTACHMENTS:../attachments}/avatars}}}, server={port=${APP_HTTP_PORT:8080}, error={whitelabel={enabled=false}}}, logging={file={name=${APP_PANEL_LOG_PATH:${APP_PANEL_LOG_DIR:../logs}/spring-panel.log}}, level={org.apache.coyote.http11.Http11Processor=WARN}}}
+2026-05-14 15:12:28.251+03:00 DEBUG [main] o.s.boot.env.OriginTrackedYamlLoader - Loaded 1 document from YAML resource: class path resource [application.yml]
+2026-05-14 15:12:28.277+03:00 DEBUG [main] o.s.b.w.s.c.ApplicationServletEnvironment - Activating profiles []
+2026-05-14 15:12:28.305+03:00 INFO  [main] c.e.p.config.EnvDefaultsInitializer - Applied default SQLite paths for missing APP_DB_* variables: {APP_DB_USERS=C:\Users\sushi\Git_H\tg_ref_b24_sup\spring-panel\users.db, APP_DB_KNOWLEDGE=C:\Users\sushi\Git_H\tg_ref_b24_sup\spring-panel\knowledge_base.db, APP_DB_CLIENTS=C:\Users\sushi\Git_H\tg_ref_b24_sup\spring-panel\clients.db, APP_DB_MONITORING=C:\Users\sushi\Git_H\tg_ref_b24_sup\spring-panel\monitoring.db, APP_DB_OBJECT_PASSPORTS=C:\Users\sushi\Git_H\tg_ref_b24_sup\spring-panel\object_passports.db, APP_DB_OBJECTS=C:\Users\sushi\Git_H\tg_ref_b24_sup\spring-panel\objects.db, APP_DB_SETTINGS=C:\Users\sushi\Git_H\tg_ref_b24_sup\spring-panel\settings.db, APP_DB_BOT=C:\Users\sushi\Git_H\tg_ref_b24_sup\spring-panel\bot_database.db, APP_DB_TICKETS=C:\Users\sushi\Git_H\tg_ref_b24_sup\spring-panel\tickets.db}
+2026-05-14 15:12:28.306+03:00 INFO  [main] c.e.p.c.DialogsControllerWebMvcTest - Starting DialogsControllerWebMvcTest using Java 17.0.12 with PID 10068 (started by S_V in C:\Users\sushi\Git_H\tg_ref_b24_sup\spring-panel)
+2026-05-14 15:12:28.307+03:00 INFO  [main] c.e.p.c.DialogsControllerWebMvcTest - No active profile set, falling back to 1 default profile: "default"
+2026-05-14 15:12:28.308+03:00 DEBUG [main] o.s.boot.SpringApplication - Loading source class com.example.panel.PanelApplication
+2026-05-14 15:12:28.321+03:00 DEBUG [main] o.s.w.c.s.GenericWebApplicationContext - Refreshing org.springframework.web.context.support.GenericWebApplicationContext@1dd9a3ae
+2026-05-14 15:12:29.815+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestMappingHandlerMapping - 6 mappings in 'requestMappingHandlerMapping'
+2026-05-14 15:12:29.827+03:00 DEBUG [main] o.s.w.s.h.SimpleUrlHandlerMapping - Patterns [/login, /error/403, /error/404, /error/500, /favicon.ico] in 'viewControllerHandlerMapping'
+2026-05-14 15:12:29.873+03:00 DEBUG [main] o.s.b.a.AutoConfigurationPackages - @EnableAutoConfiguration was declared on a class in the package 'com.example.panel'. Automatic @Repository and @Entity scanning is enabled.
+2026-05-14 15:12:29.952+03:00 DEBUG [main] o.s.w.s.h.SimpleUrlHandlerMapping - Patterns [/webjars/**, /**] in 'resourceHandlerMapping'
+2026-05-14 15:12:29.979+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestMappingHandlerAdapter - ControllerAdvice beans: 1 @ModelAttribute, 0 @InitBinder, 1 RequestBodyAdvice, 1 ResponseBodyAdvice
+2026-05-14 15:12:29.991+03:00 DEBUG [main] o.s.w.s.m.m.a.ExceptionHandlerExceptionResolver - ControllerAdvice beans: 1 @ExceptionHandler, 1 ResponseBodyAdvice
+2026-05-14 15:12:30.093+03:00 WARN  [main] o.s.b.a.s.s.UserDetailsServiceAutoConfiguration - 
+
+Using generated security password: daca8ce7-32f6-47cc-84be-0454d3c3763e
+
+This generated password is for development use only. Your security configuration must be updated before running your application in production.
+
+2026-05-14 15:12:30.136+03:00 INFO  [main] o.s.s.web.DefaultSecurityFilterChain - Will secure any request with [org.springframework.security.web.session.DisableEncodeUrlFilter@587bf2e1, org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@6530a1de, org.springframework.security.web.context.SecurityContextHolderFilter@3891b430, org.springframework.security.web.header.HeaderWriterFilter@21d6dc81, org.springframework.web.filter.CorsFilter@20b921be, org.springframework.security.web.csrf.CsrfFilter@e581302, org.springframework.security.web.authentication.logout.LogoutFilter@1715193f, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter@2c8e096, org.springframework.security.web.authentication.ui.DefaultLoginPageGeneratingFilter@2f03fdc0, org.springframework.security.web.authentication.ui.DefaultLogoutPageGeneratingFilter@431923ed, org.springframework.security.web.authentication.www.BasicAuthenticationFilter@3dabdd11, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@769f6023, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@38a61c81, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@44723d95, org.springframework.security.web.access.ExceptionTranslationFilter@2b5ca574, org.springframework.security.web.access.intercept.AuthorizationFilter@2f025e9e]
+2026-05-14 15:12:30.164+03:00 INFO  [main] o.s.b.t.m.w.SpringBootMockServletContext - Initializing Spring TestDispatcherServlet ''
+2026-05-14 15:12:30.165+03:00 INFO  [main] o.s.t.w.s.TestDispatcherServlet - Initializing Servlet ''
+2026-05-14 15:12:30.168+03:00 INFO  [main] o.s.t.w.s.TestDispatcherServlet - Completed initialization in 3 ms
+2026-05-14 15:12:30.190+03:00 DEBUG [main] o.s.b.a.l.ConditionEvaluationReportLogger - 
+
+
+============================
+CONDITIONS EVALUATION REPORT
+============================
+
+
+Positive matches:
+-----------------
+
+   CacheAutoConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.cache.CacheManager' (OnClassCondition)
+      - @ConditionalOnBean (types: org.springframework.cache.interceptor.CacheAspectSupport; SearchStrategy: all) found bean 'cacheInterceptor'; @ConditionalOnMissingBean (names: cacheResolver types: org.springframework.cache.CacheManager; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   CacheAutoConfiguration#cacheManagerCustomizers matched:
+      - @ConditionalOnMissingBean (types: org.springframework.boot.autoconfigure.cache.CacheManagerCustomizers; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   ErrorMvcAutoConfiguration matched:
+      - @ConditionalOnClass found required classes 'jakarta.servlet.Servlet', 'org.springframework.web.servlet.DispatcherServlet' (OnClassCondition)
+      - found 'session' scope (OnWebApplicationCondition)
+
+   ErrorMvcAutoConfiguration#basicErrorController matched:
+      - @ConditionalOnMissingBean (types: org.springframework.boot.web.servlet.error.ErrorController; SearchStrategy: current) did not find any beans (OnBeanCondition)
+
+   ErrorMvcAutoConfiguration#errorAttributes matched:
+      - @ConditionalOnMissingBean (types: org.springframework.boot.web.servlet.error.ErrorAttributes; SearchStrategy: current) did not find any beans (OnBeanCondition)
+
+   GsonAutoConfiguration matched:
+      - @ConditionalOnClass found required class 'com.google.gson.Gson' (OnClassCondition)
+
+   GsonAutoConfiguration#gson matched:
+      - @ConditionalOnMissingBean (types: com.google.gson.Gson; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   GsonAutoConfiguration#gsonBuilder matched:
+      - @ConditionalOnMissingBean (types: com.google.gson.GsonBuilder; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   GsonHttpMessageConvertersConfiguration matched:
+      - @ConditionalOnClass found required class 'com.google.gson.Gson' (OnClassCondition)
+
+   HttpEncodingAutoConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.web.filter.CharacterEncodingFilter' (OnClassCondition)
+      - found 'session' scope (OnWebApplicationCondition)
+      - @ConditionalOnProperty (server.servlet.encoding.enabled) matched (OnPropertyCondition)
+
+   HttpEncodingAutoConfiguration#characterEncodingFilter matched:
+      - @ConditionalOnMissingBean (types: org.springframework.web.filter.CharacterEncodingFilter; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   HttpMessageConvertersAutoConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.http.converter.HttpMessageConverter' (OnClassCondition)
+      - NoneNestedConditions 0 matched 1 did not; NestedCondition on HttpMessageConvertersAutoConfiguration.NotReactiveWebApplicationCondition.ReactiveWebApplication did not find reactive web application classes (HttpMessageConvertersAutoConfiguration.NotReactiveWebApplicationCondition)
+
+   HttpMessageConvertersAutoConfiguration#messageConverters matched:
+      - @ConditionalOnMissingBean (types: org.springframework.boot.autoconfigure.http.HttpMessageConverters; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   HttpMessageConvertersAutoConfiguration.StringHttpMessageConverterConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.http.converter.StringHttpMessageConverter' (OnClassCondition)
+
+   HttpMessageConvertersAutoConfiguration.StringHttpMessageConverterConfiguration#stringHttpMessageConverter matched:
+      - @ConditionalOnMissingBean (types: org.springframework.http.converter.StringHttpMessageConverter; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   JacksonAutoConfiguration matched:
+      - @ConditionalOnClass found required class 'com.fasterxml.jackson.databind.ObjectMapper' (OnClassCondition)
+
+   JacksonAutoConfiguration.Jackson2ObjectMapperBuilderCustomizerConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.http.converter.json.Jackson2ObjectMapperBuilder' (OnClassCondition)
+
+   JacksonAutoConfiguration.JacksonObjectMapperBuilderConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.http.converter.json.Jackson2ObjectMapperBuilder' (OnClassCondition)
+
+   JacksonAutoConfiguration.JacksonObjectMapperBuilderConfiguration#jacksonObjectMapperBuilder matched:
+      - @ConditionalOnMissingBean (types: org.springframework.http.converter.json.Jackson2ObjectMapperBuilder; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   JacksonAutoConfiguration.JacksonObjectMapperConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.http.converter.json.Jackson2ObjectMapperBuilder' (OnClassCondition)
+
+   JacksonAutoConfiguration.JacksonObjectMapperConfiguration#jacksonObjectMapper matched:
+      - @ConditionalOnMissingBean (types: com.fasterxml.jackson.databind.ObjectMapper; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   JacksonAutoConfiguration.ParameterNamesModuleConfiguration matched:
+      - @ConditionalOnClass found required class 'com.fasterxml.jackson.module.paramnames.ParameterNamesModule' (OnClassCondition)
+
+   JacksonAutoConfiguration.ParameterNamesModuleConfiguration#parameterNamesModule matched:
+      - @ConditionalOnMissingBean (types: com.fasterxml.jackson.module.paramnames.ParameterNamesModule; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   JacksonHttpMessageConvertersConfiguration.MappingJackson2HttpMessageConverterConfiguration matched:
+      - @ConditionalOnClass found required class 'com.fasterxml.jackson.databind.ObjectMapper' (OnClassCondition)
+      - @ConditionalOnProperty (spring.mvc.converters.preferred-json-mapper=jackson) matched (OnPropertyCondition)
+      - @ConditionalOnBean (types: com.fasterxml.jackson.databind.ObjectMapper; SearchStrategy: all) found bean 'jacksonObjectMapper' (OnBeanCondition)
+
+   JacksonHttpMessageConvertersConfiguration.MappingJackson2HttpMessageConverterConfiguration#mappingJackson2HttpMessageConverter matched:
+      - @ConditionalOnMissingBean (types: org.springframework.http.converter.json.MappingJackson2HttpMessageConverter ignored: org.springframework.hateoas.server.mvc.TypeConstrainedMappingJackson2HttpMessageConverter,org.springframework.data.rest.webmvc.alps.AlpsJsonHttpMessageConverter; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   MockMvcAutoConfiguration matched:
+      - found 'session' scope (OnWebApplicationCondition)
+
+   MockMvcAutoConfiguration#dispatcherServlet matched:
+      - @ConditionalOnMissingBean (types: org.springframework.web.servlet.DispatcherServlet; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   MockMvcAutoConfiguration#dispatcherServletPath matched:
+      - @ConditionalOnMissingBean (types: org.springframework.boot.autoconfigure.web.servlet.DispatcherServletPath; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   MockMvcAutoConfiguration#mockMvc matched:
+      - @ConditionalOnMissingBean (types: org.springframework.test.web.servlet.MockMvc; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   MockMvcAutoConfiguration#mockMvcBuilder matched:
+      - @ConditionalOnMissingBean (types: org.springframework.test.web.servlet.MockMvcBuilder; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   MockMvcSecurityConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors' (OnClassCondition)
+
+   MockMvcSecurityConfiguration#securityMockMvcBuilderCustomizer matched:
+      - @ConditionalOnBean (names: springSecurityFilterChain; SearchStrategy: all) found bean 'springSecurityFilterChain' (OnBeanCondition)
+
+   NoOpCacheConfiguration matched:
+      - Cache org.springframework.boot.autoconfigure.cache.NoOpCacheConfiguration NONE cache type (CacheCondition)
+      - @ConditionalOnMissingBean (types: org.springframework.cache.CacheManager; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   SecurityAutoConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.security.authentication.DefaultAuthenticationEventPublisher' (OnClassCondition)
+
+   SecurityAutoConfiguration#authenticationEventPublisher matched:
+      - @ConditionalOnMissingBean (types: org.springframework.security.authentication.AuthenticationEventPublisher; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   SecurityFilterAutoConfiguration matched:
+      - @ConditionalOnClass found required classes 'org.springframework.security.web.context.AbstractSecurityWebApplicationInitializer', 'org.springframework.security.config.http.SessionCreationPolicy' (OnClassCondition)
+      - found 'session' scope (OnWebApplicationCondition)
+
+   SecurityFilterAutoConfiguration#securityFilterChainRegistration matched:
+      - @ConditionalOnBean (names: springSecurityFilterChain; SearchStrategy: all) found bean 'springSecurityFilterChain' (OnBeanCondition)
+
+   SpringBootWebSecurityConfiguration matched:
+      - found 'session' scope (OnWebApplicationCondition)
+
+   SpringBootWebSecurityConfiguration.SecurityFilterChainConfiguration matched:
+      - AllNestedConditions 2 matched 0 did not; NestedCondition on DefaultWebSecurityCondition.Beans @ConditionalOnMissingBean (types: org.springframework.security.web.SecurityFilterChain; SearchStrategy: all) did not find any beans; NestedCondition on DefaultWebSecurityCondition.Classes @ConditionalOnClass found required classes 'org.springframework.security.web.SecurityFilterChain', 'org.springframework.security.config.annotation.web.builders.HttpSecurity' (DefaultWebSecurityCondition)
+
+   SpringBootWebSecurityConfiguration.WebSecurityEnablerConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.security.config.annotation.web.configuration.EnableWebSecurity' (OnClassCondition)
+      - @ConditionalOnMissingBean (names: springSecurityFilterChain; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   SpringDataWebAutoConfiguration matched:
+      - @ConditionalOnClass found required classes 'org.springframework.data.web.PageableHandlerMethodArgumentResolver', 'org.springframework.web.servlet.config.annotation.WebMvcConfigurer' (OnClassCondition)
+      - found 'session' scope (OnWebApplicationCondition)
+      - @ConditionalOnMissingBean (types: org.springframework.data.web.PageableHandlerMethodArgumentResolver; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   SpringDataWebAutoConfiguration#pageableCustomizer matched:
+      - @ConditionalOnMissingBean (types: org.springframework.data.web.config.PageableHandlerMethodArgumentResolverCustomizer; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   SpringDataWebAutoConfiguration#sortCustomizer matched:
+      - @ConditionalOnMissingBean (types: org.springframework.data.web.config.SortHandlerMethodArgumentResolverCustomizer; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   TaskExecutionAutoConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor' (OnClassCondition)
+
+   TaskExecutorConfigurations.SimpleAsyncTaskExecutorBuilderConfiguration#simpleAsyncTaskExecutorBuilder matched:
+      - @ConditionalOnMissingBean (types: org.springframework.boot.task.SimpleAsyncTaskExecutorBuilder; SearchStrategy: all) did not find any beans (OnBeanCondition)
+      - @ConditionalOnThreading found PLATFORM (OnThreadingCondition)
+
+   TaskExecutorConfigurations.TaskExecutorBuilderConfiguration#taskExecutorBuilder matched:
+      - @ConditionalOnMissingBean (types: org.springframework.boot.task.TaskExecutorBuilder; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   TaskExecutorConfigurations.TaskExecutorConfiguration matched:
+      - @ConditionalOnMissingBean (types: java.util.concurrent.Executor; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   TaskExecutorConfigurations.TaskExecutorConfiguration#applicationTaskExecutor matched:
+      - @ConditionalOnThreading found PLATFORM (OnThreadingCondition)
+
+   TaskExecutorConfigurations.ThreadPoolTaskExecutorBuilderConfiguration#threadPoolTaskExecutorBuilder matched:
+      - @ConditionalOnMissingBean (types: org.springframework.boot.task.TaskExecutorBuilder,org.springframework.boot.task.ThreadPoolTaskExecutorBuilder; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   TemplateEngineConfigurations.DefaultTemplateEngineConfiguration#templateEngine matched:
+      - @ConditionalOnMissingBean (types: org.thymeleaf.spring6.ISpringTemplateEngine; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   ThymeleafAutoConfiguration matched:
+      - @ConditionalOnClass found required classes 'org.thymeleaf.templatemode.TemplateMode', 'org.thymeleaf.spring6.SpringTemplateEngine' (OnClassCondition)
+
+   ThymeleafAutoConfiguration.DefaultTemplateResolverConfiguration matched:
+      - @ConditionalOnMissingBean (names: defaultTemplateResolver; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   ThymeleafAutoConfiguration.ThymeleafWebMvcConfiguration matched:
+      - found 'session' scope (OnWebApplicationCondition)
+      - @ConditionalOnProperty (spring.thymeleaf.enabled) matched (OnPropertyCondition)
+
+   ThymeleafAutoConfiguration.ThymeleafWebMvcConfiguration.ThymeleafViewResolverConfiguration#thymeleafViewResolver matched:
+      - @ConditionalOnMissingBean (names: thymeleafViewResolver; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   UserDetailsServiceAutoConfiguration matched:
+      - @ConditionalOnClass found required class 'org.springframework.security.authentication.AuthenticationManager' (OnClassCondition)
+      - AnyNestedCondition 1 matched 2 did not; NestedCondition on UserDetailsServiceAutoConfiguration.MissingAlternativeOrUserPropertiesConfigured.PasswordConfigured @ConditionalOnProperty (spring.security.user.password) did not find property 'password'; NestedCondition on UserDetailsServiceAutoConfiguration.MissingAlternativeOrUserPropertiesConfigured.NameConfigured @ConditionalOnProperty (spring.security.user.name) did not find property 'name'; NestedCondition on UserDetailsServiceAutoConfiguration.MissingAlternativeOrUserPropertiesConfigured.MissingAlternative @ConditionalOnMissingClass did not find unwanted classes 'org.springframework.security.oauth2.client.registration.ClientRegistrationRepository', 'org.springframework.security.oauth2.server.resource.introspection.OpaqueTokenIntrospector', 'org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistrationRepository' (UserDetailsServiceAutoConfiguration.MissingAlternativeOrUserPropertiesConfigured)
+      - @ConditionalOnBean (types: org.springframework.security.config.annotation.ObjectPostProcessor; SearchStrategy: all) found bean 'objectPostProcessor'; @ConditionalOnMissingBean (types: org.springframework.security.authentication.AuthenticationManager,org.springframework.security.authentication.AuthenticationProvider,org.springframework.security.core.userdetails.UserDetailsService,org.springframework.security.authentication.AuthenticationManagerResolver,org.springframework.security.oauth2.jwt.JwtDecoder; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   ValidationAutoConfiguration matched:
+      - @ConditionalOnClass found required class 'jakarta.validation.executable.ExecutableValidator' (OnClassCondition)
+      - @ConditionalOnResource found location classpath:META-INF/services/jakarta.validation.spi.ValidationProvider (OnResourceCondition)
+
+   ValidationAutoConfiguration#defaultValidator matched:
+      - @ConditionalOnMissingBean (types: jakarta.validation.Validator; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   ValidationAutoConfiguration#methodValidationPostProcessor matched:
+      - @ConditionalOnMissingBean (types: org.springframework.validation.beanvalidation.MethodValidationPostProcessor; SearchStrategy: current) did not find any beans (OnBeanCondition)
+
+   WebMvcAutoConfiguration matched:
+      - @ConditionalOnClass found required classes 'jakarta.servlet.Servlet', 'org.springframework.web.servlet.DispatcherServlet', 'org.springframework.web.servlet.config.annotation.WebMvcConfigurer' (OnClassCondition)
+      - found 'session' scope (OnWebApplicationCondition)
+      - @ConditionalOnMissingBean (types: org.springframework.web.servlet.config.annotation.WebMvcConfigurationSupport; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   WebMvcAutoConfiguration#formContentFilter matched:
+      - @ConditionalOnProperty (spring.mvc.formcontent.filter.enabled) matched (OnPropertyCondition)
+      - @ConditionalOnMissingBean (types: org.springframework.web.filter.FormContentFilter; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   WebMvcAutoConfiguration.EnableWebMvcConfiguration#flashMapManager matched:
+      - @ConditionalOnMissingBean (names: flashMapManager; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   WebMvcAutoConfiguration.EnableWebMvcConfiguration#localeResolver matched:
+      - @ConditionalOnMissingBean (names: localeResolver; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   WebMvcAutoConfiguration.EnableWebMvcConfiguration#themeResolver matched:
+      - @ConditionalOnMissingBean (names: themeResolver; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   WebMvcAutoConfiguration.WebMvcAutoConfigurationAdapter#defaultViewResolver matched:
+      - @ConditionalOnMissingBean (types: org.springframework.web.servlet.view.InternalResourceViewResolver; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   WebMvcAutoConfiguration.WebMvcAutoConfigurationAdapter#requestContextFilter matched:
+      - @ConditionalOnMissingBean (types: org.springframework.web.context.request.RequestContextListener,org.springframework.web.filter.RequestContextFilter; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+   WebMvcAutoConfiguration.WebMvcAutoConfigurationAdapter#viewResolver matched:
+      - @ConditionalOnBean (types: org.springframework.web.servlet.ViewResolver; SearchStrategy: all) found beans 'defaultViewResolver', 'mvcViewResolver'; @ConditionalOnMissingBean (names: viewResolver types: org.springframework.web.servlet.view.ContentNegotiatingViewResolver; SearchStrategy: all) did not find any beans (OnBeanCondition)
+
+
+Negative matches:
+-----------------
+
+   Cache2kCacheConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.cache2k.Cache2kBuilder' (OnClassCondition)
+
+   CacheAutoConfiguration.CacheManagerEntityManagerFactoryDependsOnPostProcessor:
+      Did not match:
+         - @ConditionalOnBean (types: org.springframework.orm.jpa.AbstractEntityManagerFactoryBean; SearchStrategy: all) did not find any beans of type org.springframework.orm.jpa.AbstractEntityManagerFactoryBean (OnBeanCondition)
+      Matched:
+         - @ConditionalOnClass found required class 'org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean' (OnClassCondition)
+
+   CaffeineCacheConfiguration:
+      Did not match:
+         - Cache org.springframework.boot.autoconfigure.cache.CaffeineCacheConfiguration unknown cache type (CacheCondition)
+      Matched:
+         - @ConditionalOnClass found required classes 'com.github.benmanes.caffeine.cache.Caffeine', 'org.springframework.cache.caffeine.CaffeineCacheManager' (OnClassCondition)
+
+   CouchbaseCacheConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'com.couchbase.client.java.Cluster' (OnClassCondition)
+
+   ErrorMvcAutoConfiguration.DefaultErrorViewResolverConfiguration#conventionErrorViewResolver:
+      Did not match:
+         - @ConditionalOnBean (types: org.springframework.web.servlet.DispatcherServlet; SearchStrategy: all) did not find any beans of type org.springframework.web.servlet.DispatcherServlet (OnBeanCondition)
+
+   ErrorMvcAutoConfiguration.WhitelabelErrorViewConfiguration:
+      Did not match:
+         - @ConditionalOnProperty (server.error.whitelabel.enabled) found different value in property 'enabled' (OnPropertyCondition)
+
+   FreeMarkerAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'freemarker.template.Configuration' (OnClassCondition)
+
+   GenericCacheConfiguration:
+      Did not match:
+         - Cache org.springframework.boot.autoconfigure.cache.GenericCacheConfiguration unknown cache type (CacheCondition)
+
+   GroovyTemplateAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'groovy.text.markup.MarkupTemplateEngine' (OnClassCondition)
+
+   GsonHttpMessageConvertersConfiguration.GsonHttpMessageConverterConfiguration:
+      Did not match:
+         - AnyNestedCondition 0 matched 2 did not; NestedCondition on GsonHttpMessageConvertersConfiguration.PreferGsonOrJacksonAndJsonbUnavailableCondition.JacksonJsonbUnavailable NoneNestedConditions 1 matched 1 did not; NestedCondition on GsonHttpMessageConvertersConfiguration.JacksonAndJsonbUnavailableCondition.JsonbPreferred @ConditionalOnProperty (spring.mvc.converters.preferred-json-mapper=jsonb) did not find property 'spring.mvc.converters.preferred-json-mapper'; NestedCondition on GsonHttpMessageConvertersConfiguration.JacksonAndJsonbUnavailableCondition.JacksonAvailable @ConditionalOnBean (types: org.springframework.http.converter.json.MappingJackson2HttpMessageConverter; SearchStrategy: all) found bean 'mappingJackson2HttpMessageConverter'; NestedCondition on GsonHttpMessageConvertersConfiguration.PreferGsonOrJacksonAndJsonbUnavailableCondition.GsonPreferred @ConditionalOnProperty (spring.mvc.converters.preferred-json-mapper=gson) did not find property 'spring.mvc.converters.preferred-json-mapper' (GsonHttpMessageConvertersConfiguration.PreferGsonOrJacksonAndJsonbUnavailableCondition)
+
+   HazelcastCacheConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'com.hazelcast.core.HazelcastInstance' (OnClassCondition)
+
+   HypermediaAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.hateoas.EntityModel' (OnClassCondition)
+
+   InfinispanCacheConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.infinispan.spring.embedded.provider.SpringEmbeddedCacheManager' (OnClassCondition)
+
+   JCacheCacheConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'javax.cache.Caching' (OnClassCondition)
+
+   JacksonHttpMessageConvertersConfiguration.MappingJackson2XmlHttpMessageConverterConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'com.fasterxml.jackson.dataformat.xml.XmlMapper' (OnClassCondition)
+
+   JsonbAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'jakarta.json.bind.Jsonb' (OnClassCondition)
+
+   JsonbHttpMessageConvertersConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'jakarta.json.bind.Jsonb' (OnClassCondition)
+
+   MessageSourceAutoConfiguration:
+      Did not match:
+         - ResourceBundle did not find bundle with basename messages (MessageSourceAutoConfiguration.ResourceBundleCondition)
+
+   MockMvcAutoConfiguration.WebTestClientMockMvcConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.web.reactive.function.client.WebClient' (OnClassCondition)
+
+   MockMvcWebClientAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'com.gargoylesoftware.htmlunit.WebClient' (OnClassCondition)
+
+   MockMvcWebDriverAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.openqa.selenium.htmlunit.HtmlUnitDriver' (OnClassCondition)
+
+   MustacheAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'com.samskivert.mustache.Mustache' (OnClassCondition)
+
+   OAuth2ClientAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.security.oauth2.client.registration.ClientRegistration' (OnClassCondition)
+
+   OAuth2ResourceServerAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.security.oauth2.server.resource.authentication.BearerTokenAuthenticationToken' (OnClassCondition)
+
+   RedisCacheConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.data.redis.connection.RedisConnectionFactory' (OnClassCondition)
+
+   SecurityDataConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.security.data.repository.query.SecurityEvaluationContextExtension' (OnClassCondition)
+
+   SimpleCacheConfiguration:
+      Did not match:
+         - Cache org.springframework.boot.autoconfigure.cache.SimpleCacheConfiguration unknown cache type (CacheCondition)
+
+   TaskExecutorConfigurations.SimpleAsyncTaskExecutorBuilderConfiguration#simpleAsyncTaskExecutorBuilderVirtualThreads:
+      Did not match:
+         - @ConditionalOnMissingBean (types: org.springframework.boot.task.SimpleAsyncTaskExecutorBuilder; SearchStrategy: all) found beans of type 'org.springframework.boot.task.SimpleAsyncTaskExecutorBuilder' simpleAsyncTaskExecutorBuilder (OnBeanCondition)
+
+   TaskExecutorConfigurations.TaskExecutorConfiguration#applicationTaskExecutorVirtualThreads:
+      Did not match:
+         - @ConditionalOnThreading did not find VIRTUAL (OnThreadingCondition)
+
+   TemplateEngineConfigurations.ReactiveTemplateEngineConfiguration:
+      Did not match:
+         - did not find reactive web application classes (OnWebApplicationCondition)
+
+   ThymeleafAutoConfiguration.DataAttributeDialectConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'com.github.mxab.thymeleaf.extras.dataattribute.dialect.DataAttributeDialect' (OnClassCondition)
+
+   ThymeleafAutoConfiguration.ThymeleafSecurityDialectConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.thymeleaf.extras.springsecurity6.dialect.SpringSecurityDialect' (OnClassCondition)
+
+   ThymeleafAutoConfiguration.ThymeleafWebFluxConfiguration:
+      Did not match:
+         - did not find reactive web application classes (OnWebApplicationCondition)
+
+   ThymeleafAutoConfiguration.ThymeleafWebLayoutConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'nz.net.ultraq.thymeleaf.layoutdialect.LayoutDialect' (OnClassCondition)
+
+   ThymeleafAutoConfiguration.ThymeleafWebMvcConfiguration#resourceUrlEncodingFilter:
+      Did not match:
+         - @ConditionalOnEnabledResourceChain did not find class org.webjars.WebJarAssetLocator (OnEnabledResourceChainCondition)
+
+   WebMvcAutoConfiguration#hiddenHttpMethodFilter:
+      Did not match:
+         - @ConditionalOnProperty (spring.mvc.hiddenmethod.filter.enabled) did not find property 'enabled' (OnPropertyCondition)
+
+   WebMvcAutoConfiguration.ProblemDetailsErrorHandlingConfiguration:
+      Did not match:
+         - @ConditionalOnProperty (spring.mvc.problemdetails.enabled=true) did not find property 'enabled' (OnPropertyCondition)
+
+   WebMvcAutoConfiguration.ResourceChainCustomizerConfiguration:
+      Did not match:
+         - @ConditionalOnEnabledResourceChain did not find class org.webjars.WebJarAssetLocator (OnEnabledResourceChainCondition)
+
+   WebMvcAutoConfiguration.WebMvcAutoConfigurationAdapter#beanNameViewResolver:
+      Did not match:
+         - @ConditionalOnBean (types: org.springframework.web.servlet.View; SearchStrategy: all) did not find any beans of type org.springframework.web.servlet.View (OnBeanCondition)
+
+   WebTestClientAutoConfiguration:
+      Did not match:
+         - @ConditionalOnClass did not find required class 'org.springframework.web.reactive.function.client.WebClient' (OnClassCondition)
+
+
+Exclusions:
+-----------
+
+    None
+
+
+Unconditional classes:
+----------------------
+
+    None
+
+
+
+2026-05-14 15:12:30.193+03:00 INFO  [main] c.e.p.c.DialogsControllerWebMvcTest - Started DialogsControllerWebMvcTest in 1.983 seconds (process running for 13.108)
+2026-05-14 15:12:30.238+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.example.panel.controller.DialogsController#dialogsWorkspaceTicket(String, Authentication, Model)
+2026-05-14 15:12:30.273+03:00 INFO  [main] c.e.p.controller.DialogsController - Loaded dialogs page for user anonymous
+2026-05-14 15:12:30.287+03:00 DEBUG [main] o.s.w.s.v.ContentNegotiatingViewResolver - Selected '*/*' given [*/*]
+2026-05-14 15:12:31.417+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.example.panel.controller.DialogsController#aiOps(Authentication, Model)
+2026-05-14 15:12:31.421+03:00 DEBUG [main] o.s.w.s.v.ContentNegotiatingViewResolver - Selected '*/*' given [*/*]
+2026-05-14 15:12:31.496+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.example.panel.controller.DialogsController#dialogsList(Authentication, Model)
+2026-05-14 15:12:31.498+03:00 INFO  [main] c.e.p.controller.DialogsController - Loaded dialogs page for user anonymous
+2026-05-14 15:12:31.499+03:00 DEBUG [main] o.s.w.s.v.ContentNegotiatingViewResolver - Selected '*/*' given [*/*]
+2026-05-14 15:12:31.548+03:00 DEBUG [main] o.s.w.s.m.m.a.RequestMappingHandlerMapping - Mapped to com.example.panel.controller.DialogsController#dialogsList(Authentication, Model)
+2026-05-14 15:12:31.552+03:00 INFO  [main] c.e.p.controller.DialogsController - Loaded dialogs page for user anonymous
+2026-05-14 15:12:31.553+03:00 DEBUG [main] o.s.w.s.v.ContentNegotiatingViewResolver - Selected '*/*' given [*/*]
+2026-05-14 15:12:32.005+03:00 INFO  [main] c.e.p.service.DialogListReadService - Loaded dialogs list payload: 2 dialogs, summary stats loaded
+2026-05-14 15:12:32.215+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing SQL statement [CREATE TABLE tickets (
+    ticket_id TEXT PRIMARY KEY,
+    status TEXT,
+    resolved_by TEXT,
+    resolved_at TEXT,
+    user_id INTEGER,
+    channel_id INTEGER,
+    created_at TEXT
+)
+]
+2026-05-14 15:12:32.650+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing SQL statement [CREATE TABLE messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    group_msg_id INTEGER,
+    ticket_id TEXT,
+    user_id INTEGER,
+    username TEXT,
+    client_name TEXT,
+    business TEXT,
+    channel_id INTEGER,
+    city TEXT,
+    location_name TEXT,
+    problem TEXT,
+    created_at TEXT,
+    created_date TEXT,
+    created_time TEXT
+)
+]
+2026-05-14 15:12:32.661+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing SQL statement [CREATE TABLE channels (
+    id INTEGER PRIMARY KEY,
+    channel_name TEXT
+)
+]
+2026-05-14 15:12:32.678+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing SQL statement [CREATE TABLE ticket_responsibles (
+    ticket_id TEXT PRIMARY KEY,
+    responsible TEXT,
+    assigned_by TEXT,
+    last_read_at TEXT
+)
+]
+2026-05-14 15:12:32.690+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing SQL statement [CREATE TABLE ticket_ai_agent_state (
+    ticket_id TEXT PRIMARY KEY,
+    is_processing INTEGER
+)
+]
+2026-05-14 15:12:32.701+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing SQL statement [CREATE TABLE client_statuses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    status TEXT,
+    updated_at TEXT
+)
+]
+2026-05-14 15:12:32.711+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing SQL statement [CREATE TABLE chat_history (
+    id INTEGER PRIMARY KEY,
+    ticket_id TEXT,
+    sender TEXT,
+    timestamp TEXT,
+    tg_message_id INTEGER
+)
+]
+2026-05-14 15:12:32.719+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing SQL statement [CREATE TABLE feedbacks (
+    id INTEGER PRIMARY KEY,
+    ticket_id TEXT,
+    rating INTEGER,
+    timestamp TEXT
+)
+]
+2026-05-14 15:12:32.729+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing SQL statement [CREATE TABLE ticket_categories (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ticket_id TEXT,
+    category TEXT
+)
+]
+2026-05-14 15:12:32.741+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing SQL statement [CREATE TABLE users (
+    username TEXT PRIMARY KEY,
+    full_name TEXT,
+    photo TEXT
+)
+]
+2026-05-14 15:12:32.752+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL update
+2026-05-14 15:12:32.753+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [INSERT INTO channels(id, channel_name) VALUES (?, ?)]
+2026-05-14 15:12:32.778+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL update
+2026-05-14 15:12:32.779+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [INSERT INTO tickets(ticket_id, status, resolved_by, resolved_at, user_id, channel_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)]
+2026-05-14 15:12:32.800+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL update
+2026-05-14 15:12:32.801+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [INSERT INTO messages(group_msg_id, ticket_id, user_id, username, client_name, business, channel_id, city, location_name, problem, created_at, created_date, created_time)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+]
+2026-05-14 15:12:32.810+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL update
+2026-05-14 15:12:32.810+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at) VALUES (?, ?, ?, ?)]
+2026-05-14 15:12:32.820+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL update
+2026-05-14 15:12:32.821+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [INSERT INTO chat_history(id, ticket_id, sender, timestamp, tg_message_id) VALUES (?, ?, ?, ?, ?)]
+2026-05-14 15:12:32.832+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL update
+2026-05-14 15:12:32.833+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [INSERT INTO feedbacks(id, ticket_id, rating, timestamp) VALUES (?, ?, ?, ?)]
+2026-05-14 15:12:32.848+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL update
+2026-05-14 15:12:32.848+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [INSERT INTO ticket_categories(ticket_id, category) VALUES (?, ?)]
+2026-05-14 15:12:32.857+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL update
+2026-05-14 15:12:32.857+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [INSERT INTO users(username, full_name, photo) VALUES (?, ?, ?)]
+2026-05-14 15:12:32.871+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing SQL query [SELECT COUNT(*) FROM tickets]
+2026-05-14 15:12:32.882+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing SQL query [SELECT COUNT(*) FROM tickets WHERE status = 'resolved']
+2026-05-14 15:12:32.885+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing SQL query [SELECT COALESCE(c.channel_name, 'Без канала') AS name, COUNT(*) AS total FROM tickets t LEFT JOIN channels c ON c.id = t.channel_id GROUP BY COALESCE(c.channel_name, 'Без канала') ORDER BY total DESC]
+2026-05-14 15:12:32.906+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-05-14 15:12:32.907+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT t.ticket_id, m.group_msg_id AS request_number,
+       COALESCE(
+           m.user_id,
+           t.user_id,
+           (
+               SELECT m3.user_id
+                 FROM messages m3
+                WHERE m3.ticket_id = t.ticket_id
+                  AND m3.user_id IS NOT NULL
+                ORDER BY substr(m3.created_at, 1, 19) DESC,
+                         m3.group_msg_id DESC
+                LIMIT 1
+           )
+       ) AS user_id,
+       m.username, m.client_name, m.business,
+       COALESCE(m.channel_id, t.channel_id) AS channel_id,
+       c.channel_name AS channel_name,
+       m.city, m.location_name,
+       m.problem,
+       COALESCE(m.created_at, t.created_at) AS created_at,
+       t.status, t.resolved_by, t.resolved_at,
+       COALESCE(tas.is_processing, 0) AS ai_processing,
+       tr.responsible AS responsible,
+       COALESCE(m.created_date, substr(COALESCE(m.created_at, t.created_at), 1, 10)) AS created_date,
+       COALESCE(m.created_time, substr(COALESCE(m.created_at, t.created_at), 12, 8)) AS created_time,
+       cs.status AS client_status,
+       (
+    SELECT rating
+      FROM feedbacks f
+     WHERE f.ticket_id = m.ticket_id
+     ORDER BY f.timestamp DESC, f.id DESC
+     LIMIT 1
+) AS rating,
+
+       (
+           SELECT sender
+             FROM chat_history ch
+            WHERE ch.ticket_id = t.ticket_id
+            ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                     COALESCE(ch.tg_message_id, 0) DESC,
+                     ch.id DESC
+            LIMIT 1
+       ) AS last_sender,
+       (
+           SELECT timestamp
+             FROM chat_history ch
+            WHERE ch.ticket_id = t.ticket_id
+            ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                     COALESCE(ch.tg_message_id, 0) DESC,
+                     ch.id DESC
+            LIMIT 1
+       ) AS last_sender_time,
+       (
+           SELECT GROUP_CONCAT(tc.category, ', ')
+             FROM ticket_categories tc
+            WHERE tc.ticket_id = t.ticket_id
+       ) AS categories,
+       CASE
+           WHEN tr.responsible IS NULL OR trim(tr.responsible) = '' OR lower(COALESCE(tr.responsible, '')) = lower(?) THEN (
+               SELECT COUNT(*)
+                 FROM chat_history ch
+                WHERE ch.ticket_id = t.ticket_id
+                  AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+                  AND ch.timestamp > COALESCE(
+                      tr.last_read_at,
+                      (
+                          SELECT MAX(op.timestamp)
+                            FROM chat_history op
+                           WHERE op.ticket_id = t.ticket_id
+                             AND lower(op.sender) IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+                      ),
+                      ''
+                  )
+           )
+           ELSE 0
+       END AS unread_count
+  FROM tickets t
+  LEFT JOIN messages m ON m.group_msg_id = (
+      SELECT m2.group_msg_id
+        FROM messages m2
+       WHERE m2.ticket_id = t.ticket_id
+       ORDER BY substr(m2.created_at, 1, 19) DESC,
+                m2.group_msg_id DESC
+       LIMIT 1
+  )
+  LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
+  LEFT JOIN ticket_responsibles tr ON tr.ticket_id = t.ticket_id
+  LEFT JOIN ticket_ai_agent_state tas ON tas.ticket_id = t.ticket_id
+  LEFT JOIN client_statuses cs ON cs.user_id = COALESCE(
+           m.user_id,
+           t.user_id,
+           (
+               SELECT m3.user_id
+                 FROM messages m3
+                WHERE m3.ticket_id = t.ticket_id
+                  AND m3.user_id IS NOT NULL
+                ORDER BY substr(m3.created_at, 1, 19) DESC,
+                         m3.group_msg_id DESC
+                LIMIT 1
+           )
+       )
+       AND cs.updated_at = (
+           SELECT MAX(updated_at) FROM client_statuses WHERE user_id = COALESCE(
+               m.user_id,
+               t.user_id,
+               (
+                   SELECT m3.user_id
+                     FROM messages m3
+                    WHERE m3.ticket_id = t.ticket_id
+                      AND m3.user_id IS NOT NULL
+                    ORDER BY substr(m3.created_at, 1, 19) DESC,
+                             m3.group_msg_id DESC
+                    LIMIT 1
+               )
+           )
+       )
+  ORDER BY substr(COALESCE(
+               (
+                   SELECT timestamp
+                     FROM chat_history ch
+                    WHERE ch.ticket_id = t.ticket_id
+                    ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                             COALESCE(ch.tg_message_id, 0) DESC,
+                             ch.id DESC
+                    LIMIT 1
+               ),
+               COALESCE(m.created_at, t.created_at)
+           ), 1, 19) DESC,
+           t.ticket_id DESC
+]
+2026-05-14 15:12:32.922+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-05-14 15:12:32.922+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT username, full_name, photo
+  FROM users
+ WHERE lower(username) IN (?)
+]
+2026-05-14 15:12:32.929+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-05-14 15:12:32.929+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT t.ticket_id, m.group_msg_id AS request_number,
+       COALESCE(
+           m.user_id,
+           t.user_id,
+           (
+               SELECT m3.user_id
+                 FROM messages m3
+                WHERE m3.ticket_id = t.ticket_id
+                  AND m3.user_id IS NOT NULL
+                ORDER BY substr(m3.created_at, 1, 19) DESC,
+                         m3.group_msg_id DESC
+                LIMIT 1
+           )
+       ) AS user_id,
+       m.username, m.client_name, m.business,
+       COALESCE(m.channel_id, t.channel_id) AS channel_id,
+       c.channel_name AS channel_name,
+       m.city, m.location_name,
+       m.problem,
+       COALESCE(m.created_at, t.created_at) AS created_at,
+       t.status, t.resolved_by, t.resolved_at,
+       COALESCE(tas.is_processing, 0) AS ai_processing,
+       tr.responsible AS responsible,
+       COALESCE(m.created_date, substr(COALESCE(m.created_at, t.created_at), 1, 10)) AS created_date,
+       COALESCE(m.created_time, substr(COALESCE(m.created_at, t.created_at), 12, 8)) AS created_time,
+       cs.status AS client_status,
+       (
+    SELECT rating
+      FROM feedbacks f
+     WHERE f.ticket_id = m.ticket_id
+     ORDER BY f.timestamp DESC, f.id DESC
+     LIMIT 1
+) AS rating,
+
+       (
+           SELECT sender
+             FROM chat_history ch
+            WHERE ch.ticket_id = t.ticket_id
+            ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                     COALESCE(ch.tg_message_id, 0) DESC,
+                     ch.id DESC
+            LIMIT 1
+       ) AS last_sender,
+       (
+           SELECT timestamp
+             FROM chat_history ch
+            WHERE ch.ticket_id = t.ticket_id
+            ORDER BY substr(ch.timestamp, 1, 19) DESC,
+                     COALESCE(ch.tg_message_id, 0) DESC,
+                     ch.id DESC
+            LIMIT 1
+       ) AS last_sender_time,
+       (
+           SELECT GROUP_CONCAT(tc.category, ', ')
+             FROM ticket_categories tc
+            WHERE tc.ticket_id = t.ticket_id
+       ) AS categories,
+       CASE
+           WHEN tr.responsible IS NULL OR trim(tr.responsible) = '' OR lower(COALESCE(tr.responsible, '')) = lower(?) THEN (
+               SELECT COUNT(*)
+                 FROM chat_history ch
+                WHERE ch.ticket_id = t.ticket_id
+                  AND lower(ch.sender) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+                  AND ch.timestamp > COALESCE(
+                      tr.last_read_at,
+                      (
+                          SELECT MAX(op.timestamp)
+                            FROM chat_history op
+                           WHERE op.ticket_id = t.ticket_id
+                             AND lower(op.sender) IN ('operator', 'support', 'admin', 'system', 'ai_agent')
+                      ),
+                      ''
+                  )
+           )
+           ELSE 0
+       END AS unread_count
+  FROM tickets t
+  LEFT JOIN messages m ON m.group_msg_id = (
+      SELECT m2.group_msg_id
+        FROM messages m2
+       WHERE m2.ticket_id = t.ticket_id
+       ORDER BY substr(m2.created_at, 1, 19) DESC,
+                m2.group_msg_id DESC
+       LIMIT 1
+  )
+  LEFT JOIN channels c ON c.id = COALESCE(m.channel_id, t.channel_id)
+  LEFT JOIN ticket_responsibles tr ON tr.ticket_id = t.ticket_id
+  LEFT JOIN ticket_ai_agent_state tas ON tas.ticket_id = t.ticket_id
+  LEFT JOIN client_statuses cs ON cs.user_id = COALESCE(
+           m.user_id,
+           t.user_id,
+           (
+               SELECT m3.user_id
+                 FROM messages m3
+                WHERE m3.ticket_id = t.ticket_id
+                  AND m3.user_id IS NOT NULL
+                ORDER BY substr(m3.created_at, 1, 19) DESC,
+                         m3.group_msg_id DESC
+                LIMIT 1
+           )
+       )
+       AND cs.updated_at = (
+           SELECT MAX(updated_at) FROM client_statuses WHERE user_id = COALESCE(
+               m.user_id,
+               t.user_id,
+               (
+                   SELECT m3.user_id
+                     FROM messages m3
+                    WHERE m3.ticket_id = t.ticket_id
+                      AND m3.user_id IS NOT NULL
+                    ORDER BY substr(m3.created_at, 1, 19) DESC,
+                             m3.group_msg_id DESC
+                    LIMIT 1
+               )
+           )
+       )
+ WHERE t.ticket_id = ?
+]
+2026-05-14 15:12:32.938+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL query
+2026-05-14 15:12:32.938+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing prepared SQL statement [SELECT username, full_name, photo
+  FROM users
+ WHERE lower(username) IN (?)
+]
+2026-05-14 15:12:32.960+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing SQL statement [CREATE TABLE tickets (
+    ticket_id TEXT PRIMARY KEY,
+    status TEXT,
+    resolved_by TEXT,
+    resolved_at TEXT,
+    user_id INTEGER,
+    channel_id INTEGER,
+    created_at TEXT
+)
+]
+2026-05-14 15:12:32.969+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing SQL statement [CREATE TABLE messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    group_msg_id INTEGER,
+    ticket_id TEXT,
+    user_id INTEGER,
+    username TEXT,
+    client_name TEXT,
+    business TEXT,
+    channel_id INTEGER,
+    city TEXT,
+    location_name TEXT,
+    problem TEXT,
+    created_at TEXT,
+    created_date TEXT,
+    created_time TEXT
+)
+]
+2026-05-14 15:12:32.979+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing SQL statement [CREATE TABLE channels (
+    id INTEGER PRIMARY KEY,
+    channel_name TEXT
+)
+]
+2026-05-14 15:12:32.988+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing SQL statement [CREATE TABLE ticket_responsibles (
+    ticket_id TEXT PRIMARY KEY,
+    responsible TEXT,
+    assigned_by TEXT,
+    last_read_at TEXT
+)
+]
+2026-05-14 15:12:32.998+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing SQL statement [CREATE TABLE ticket_ai_agent_state (
+    ticket_id TEXT PRIMARY KEY,
+    is_processing INTEGER
+)
+]
+2026-05-14 15:12:33.007+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing SQL statement [CREATE TABLE client_statuses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    status TEXT,
+    updated_at TEXT
+)
+]
+2026-05-14 15:12:33.020+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing SQL statement [CREATE TABLE chat_history (
+    id INTEGER PRIMARY KEY,
+    ticket_id TEXT,
+    sender TEXT,
+    timestamp TEXT,
+    tg_message_id INTEGER
+)
+]
+2026-05-14 15:12:33.034+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing SQL statement [CREATE TABLE feedbacks (
+    id INTEGER PRIMARY KEY,
+    ticket_id TEXT,
+    rating INTEGER,
+    timestamp TEXT
+)
+]
+2026-05-14 15:12:33.059+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing SQL statement [CREATE TABLE ticket_categories (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ticket_id TEXT,
+    category TEXT
+)
+]
+2026-05-14 15:12:33.072+03:00 DEBUG [main] o.s.jdbc.core.JdbcTemplate - Executing SQL statement [CREATE TABLE users (
+    username TEXT PRIMARY KEY,
+    full_name TEXT,
+    photo TEXT
+)
+]
+2026-05-14 15:12:33.157+03:00 DEBUG [SpringApplicationShutdownHook] o.s.w.c.s.GenericWebApplicationContext - Closing org.springframework.web.context.support.GenericWebApplicationContext@359b650b, started on Thu May 14 15:12:20 MSK 2026
+2026-05-14 15:12:33.180+03:00 DEBUG [SpringApplicationShutdownHook] o.s.w.c.s.GenericWebApplicationContext - Closing org.springframework.web.context.support.GenericWebApplicationContext@1dd9a3ae, started on Thu May 14 15:12:28 MSK 2026
