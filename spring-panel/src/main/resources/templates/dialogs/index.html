@@ -571,7 +571,7 @@
 </div>
 
 <div class="modal fade resizable-modal" id="dialogDetailsModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header dialog-details-modal-header">
                 <div class="dialog-details-header">
@@ -593,6 +593,7 @@
                             <span class="text-muted" id="dialogDetailsClientStatus">—</span>
                             <div class="small text-muted dialog-details-categories" id="dialogDetailsCategories">Категории: —</div>
                         </div>
+                        <div class="small text-muted dialog-details-location" id="dialogDetailsLocation">Локация: —</div>
                     </div>
                 </div>
                 <div class="dialog-details-header-actions">
@@ -606,52 +607,60 @@
             <div class="modal-body">
                 <div class="dialog-details-layout">
                     <div class="dialog-details-sidebar" id="dialogDetailsSidebar">
-                        <div class="dialog-details-section">
-                            <div class="fw-semibold mb-2">Сводка</div>
-                            <div class="d-flex flex-column gap-1" id="dialogDetailsSummary"></div>
-                        </div>
-                        <div class="dialog-details-section">
-                            <div class="fw-semibold mb-2">Проблема</div>
-                            <div class="dialog-details-problem" id="dialogDetailsProblem">—</div>
-                        </div>
-                        <div class="dialog-details-section">
-                            <div class="fw-semibold mb-2">Метрики</div>
-                            <div class="d-flex flex-column gap-2 small" id="dialogDetailsMetrics"></div>
-                        </div>
-                        <div class="dialog-details-section">
-                            <div class="d-flex align-items-center justify-content-between mb-2">
-                                <div class="fw-semibold">AI-помощник</div>
-                                <button class="btn btn-sm btn-outline-secondary" id="dialogDetailsAiRefresh" type="button">Обновить</button>
-                            </div>
-                            <div class="small text-muted" id="dialogDetailsAiState">Откройте диалог для загрузки подсказок.</div>
-                            <div class="d-flex flex-column gap-2 mt-2 d-none" id="dialogDetailsAiList"></div>
-                        </div>
-                        <div class="dialog-details-section dialog-templates-dropdown" id="dialogCompletionTemplatesSection">
-                            <button class="dialog-templates-toggle" type="button" id="dialogCompletionTemplatesToggle">
-                                Шаблоны действий
-                                <span class="dialog-templates-caret" aria-hidden="true">▾</span>
-                            </button>
-                            <div class="dialog-templates-menu" id="dialogCompletionTemplatesMenu">
-                                <div class="d-flex align-items-center justify-content-between mb-2">
-                                    <div class="fw-semibold small">Набор шаблонов</div>
-                                    <select class="form-select form-select-sm w-auto" id="dialogCompletionTemplateSelect"></select>
+                            <div class="dialog-details-sidebar-scroll">
+                                <details class="dialog-details-section dialog-details-disclosure">
+                                    <summary class="dialog-details-disclosure-toggle">
+                                        <span class="fw-semibold">Сводка</span>
+                                        <span class="dialog-details-disclosure-caret" aria-hidden="true">▾</span>
+                                    </summary>
+                                    <div class="dialog-details-disclosure-body d-flex flex-column gap-1" id="dialogDetailsSummary"></div>
+                                </details>
+                                <div class="dialog-details-section">
+                                    <div class="fw-semibold mb-2">Проблема</div>
+                                    <div class="dialog-details-problem" id="dialogDetailsProblem">—</div>
                                 </div>
-                                <div class="d-flex flex-column gap-2 small" id="dialogCompletionTemplateList"></div>
-                                <div class="text-muted small d-none" id="dialogCompletionTemplateEmpty">Шаблоны действий не настроены.</div>
+                                <details class="dialog-details-section dialog-details-disclosure">
+                                    <summary class="dialog-details-disclosure-toggle">
+                                        <span class="fw-semibold">Метрики</span>
+                                        <span class="dialog-details-disclosure-caret" aria-hidden="true">▾</span>
+                                    </summary>
+                                    <div class="dialog-details-disclosure-body d-flex flex-column gap-2 small" id="dialogDetailsMetrics"></div>
+                                </details>
+                                <div class="dialog-details-section">
+                                    <div class="d-flex align-items-center justify-content-between mb-2">
+                                        <div class="fw-semibold">AI-помощник</div>
+                                        <button class="btn btn-sm btn-outline-secondary" id="dialogDetailsAiRefresh" type="button">Обновить</button>
+                                    </div>
+                                    <div class="small text-muted" id="dialogDetailsAiState">Откройте диалог для загрузки подсказок.</div>
+                                    <div class="d-flex flex-column gap-2 mt-2 d-none" id="dialogDetailsAiList"></div>
+                                </div>
+                                <div class="dialog-details-section dialog-templates-dropdown" id="dialogCompletionTemplatesSection">
+                                    <button class="dialog-templates-toggle" type="button" id="dialogCompletionTemplatesToggle">
+                                        Шаблоны действий
+                                        <span class="dialog-templates-caret" aria-hidden="true">▾</span>
+                                    </button>
+                                    <div class="dialog-templates-menu" id="dialogCompletionTemplatesMenu">
+                                        <div class="d-flex align-items-center justify-content-between mb-2">
+                                            <div class="fw-semibold small">Набор шаблонов</div>
+                                            <select class="form-select form-select-sm w-auto" id="dialogCompletionTemplateSelect"></select>
+                                        </div>
+                                        <div class="d-flex flex-column gap-2 small" id="dialogCompletionTemplateList"></div>
+                                        <div class="text-muted small d-none" id="dialogCompletionTemplateEmpty">Шаблоны действий не настроены.</div>
+                                    </div>
+                                </div>
+                                <div class="dialog-details-section" id="dialogMyDialogsPanel">
+                                    <div class="fw-semibold mb-2">Мои диалоги</div>
+                                    <div class="text-muted small d-none" id="dialogMyDialogsEmpty">У вас нет открытых диалогов</div>
+                                    <div class="dialog-my-dialogs-section d-none" id="dialogMyDialogsUnansweredSection">
+                                        <div class="dialog-my-dialogs-heading">Неотвеченные</div>
+                                        <div class="dialog-my-dialogs-list" id="dialogMyDialogsUnansweredList"></div>
+                                    </div>
+                                    <div class="dialog-my-dialogs-section d-none" id="dialogMyDialogsInWorkSection">
+                                        <div class="dialog-my-dialogs-heading">В работе</div>
+                                        <div class="dialog-my-dialogs-list" id="dialogMyDialogsInWorkList"></div>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                        <div class="dialog-details-section" id="dialogMyDialogsPanel">
-                            <div class="fw-semibold mb-2">Мои диалоги</div>
-                            <div class="text-muted small d-none" id="dialogMyDialogsEmpty">У вас нет открытых диалогов</div>
-                            <div class="dialog-my-dialogs-section d-none" id="dialogMyDialogsUnansweredSection">
-                                <div class="dialog-my-dialogs-heading">Неотвеченные</div>
-                                <div class="dialog-my-dialogs-list" id="dialogMyDialogsUnansweredList"></div>
-                            </div>
-                            <div class="dialog-my-dialogs-section d-none" id="dialogMyDialogsInWorkSection">
-                                <div class="dialog-my-dialogs-heading">В работе</div>
-                                <div class="dialog-my-dialogs-list" id="dialogMyDialogsInWorkList"></div>
-                            </div>
-                        </div>
                         <div class="dialog-details-resize-handle" id="dialogDetailsResizeHandle" aria-hidden="true"></div>
                     </div>
                     <div class="dialog-details-main">

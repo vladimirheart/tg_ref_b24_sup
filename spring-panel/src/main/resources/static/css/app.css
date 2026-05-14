@@ -1148,6 +1148,10 @@ body[data-ui-page='dialogs'][data-ui-density='comfortable'] .workspace-shell-car
   min-width: 0;
 }
 
+.dialog-details-location {
+  margin-top: 0.25rem;
+}
+
 .dialog-details-title-row {
   align-items: center;
   margin-bottom: 0.2rem;
@@ -1226,6 +1230,7 @@ body[data-ui-page='dialogs'][data-ui-density='comfortable'] .workspace-shell-car
   gap: 1rem;
   min-height: 0;
   flex: 1 1 auto;
+  height: 100%;
 }
 
 .dialog-details-sidebar {
@@ -1235,7 +1240,20 @@ body[data-ui-page='dialogs'][data-ui-density='comfortable'] .workspace-shell-car
   max-width: 480px;
   display: flex;
   flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.dialog-details-sidebar-scroll {
+  display: flex;
+  flex-direction: column;
   gap: 1rem;
+  min-height: 0;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 0.4rem;
+  scrollbar-gutter: stable;
 }
 
 .dialog-details-main {
@@ -1260,6 +1278,38 @@ body[data-ui-page='dialogs'][data-ui-density='comfortable'] .workspace-shell-car
   border-radius: 0.75rem;
   box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.06);
   padding: 1rem;
+}
+
+.dialog-details-disclosure {
+  padding: 0;
+  overflow: hidden;
+}
+
+.dialog-details-disclosure-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  list-style: none;
+  cursor: pointer;
+  padding: 1rem;
+}
+
+.dialog-details-disclosure-toggle::-webkit-details-marker {
+  display: none;
+}
+
+.dialog-details-disclosure-body {
+  padding: 0 1rem 1rem;
+}
+
+.dialog-details-disclosure-caret {
+  color: #6c757d;
+  transition: transform 0.2s ease;
+}
+
+.dialog-details-disclosure[open] .dialog-details-disclosure-caret {
+  transform: rotate(180deg);
 }
 
 .dialog-my-dialogs-section + .dialog-my-dialogs-section {
@@ -1362,11 +1412,12 @@ body[data-ui-page='dialogs'][data-ui-density='comfortable'] .workspace-shell-car
 
 #dialogDetailsModal .modal-dialog {
   resize: both;
-  overflow: auto;
+  overflow: hidden;
   min-width: 640px;
   min-height: 420px;
   max-width: 95vw;
-  max-height: 95vh;
+  max-height: calc(100dvh - 2rem);
+  height: calc(100dvh - 2rem);
 }
 
 #dialogDetailsModal .modal-content {
@@ -1378,6 +1429,7 @@ body[data-ui-page='dialogs'][data-ui-density='comfortable'] .workspace-shell-car
   flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
+  overflow: hidden;
 }
 
 #dialogDetailsModal .chat-history {
@@ -1465,6 +1517,13 @@ body[data-ui-page='dialogs'][data-ui-density='comfortable'] .workspace-shell-car
   .dialog-details-sidebar {
     flex: 1 1 auto;
     max-width: none;
+    overflow: visible;
+  }
+
+  .dialog-details-sidebar-scroll {
+    height: auto;
+    overflow: visible;
+    padding-right: 0;
   }
 
   .dialog-details-resize-handle {

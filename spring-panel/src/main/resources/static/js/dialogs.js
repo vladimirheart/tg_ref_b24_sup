@@ -204,6 +204,7 @@
   const detailsAvatar = document.getElementById('dialogDetailsAvatar');
   const detailsClientName = document.getElementById('dialogDetailsClientName');
   const detailsClientStatus = document.getElementById('dialogDetailsClientStatus');
+  const detailsLocation = document.getElementById('dialogDetailsLocation');
   const detailsOpenClientCard = document.getElementById('dialogDetailsOpenClientCard');
   const detailsTakeBtn = document.getElementById('dialogDetailsTakeBtn');
   const detailsCategories = document.getElementById('dialogDetailsCategories');
@@ -1372,6 +1373,12 @@
         activeDialogRow.children[categoriesIndex].textContent = rowLabel;
       }
     }
+  }
+
+  function updateDetailsLocationLabel(value) {
+    if (!detailsLocation) return;
+    const safeValue = String(value || '—').trim() || '—';
+    detailsLocation.textContent = `Локация: ${safeValue}`;
   }
 
   async function persistDialogCategories(categories) {
@@ -7736,6 +7743,8 @@
     }
     resetPreviousDialogHistoryState();
     if (detailsSummary) detailsSummary.innerHTML = '<div>Загрузка...</div>';
+    if (detailsMetrics) detailsMetrics.innerHTML = '<div class="text-muted">Загрузка метрик...</div>';
+    updateDetailsLocationLabel('—');
     if (detailsHistory) {
       activeDialogCurrentMessages = [];
       renderDialogHistory({ scrollToBottom: false });
@@ -7817,6 +7826,7 @@
       }
       if (detailsClientName) detailsClientName.textContent = clientName;
       if (detailsClientStatus) detailsClientStatus.textContent = clientStatus;
+      updateDetailsLocationLabel(locationLabel);
       if (detailsOpenClientCard) {
         if (clientUserId) {
           detailsOpenClientCard.dataset.userId = clientUserId;
@@ -7850,7 +7860,6 @@
         ['Канал', summary.channelName || fallbackRow?.dataset.channel || '—'],
         ['Бизнес', businessLabel],
         ['Проблема', summary.problem || fallbackRow?.dataset.problem || '—'],
-        ['Локация', summary.locationName || summary.city || fallbackRow?.dataset.location || '—'],
         ['Категории', categoriesLabel || '—'],
         ['Ответственный', responsibleLabel],
         ['Создан', createdDisplay || createdLabel],
@@ -7952,6 +7961,10 @@
       if (detailsSummary) {
         detailsSummary.innerHTML = `<div class="text-danger">Не удалось загрузить детали: ${error.message}</div>`;
       }
+      if (detailsMetrics) {
+        detailsMetrics.innerHTML = '<div class="text-muted">Метрики недоступны.</div>';
+      }
+      updateDetailsLocationLabel('—');
     }
 
     startHistoryPolling();
@@ -9769,6 +9782,4 @@
   initDetailsResize();
   window.__dialogsPrimaryReady = true;
 })();
-
-
 
