@@ -360,10 +360,15 @@ public class IikoDepartmentLocationCatalogService {
         String city = resolveCity(remainder, knownCities);
         String locationName;
         if (StringUtils.hasText(city)) {
-            locationName = remainder.substring(city.length()).trim();
+            locationName = stripLeadingLocationDelimiters(remainder.substring(city.length()).trim());
         } else {
             city = firstToken(remainder);
-            locationName = city.length() < remainder.length() ? remainder.substring(city.length()).trim() : "";
+            if (!startsWithLetterOrDigit(city)) {
+                return null;
+            }
+            locationName = city.length() < remainder.length()
+                    ? stripLeadingLocationDelimiters(remainder.substring(city.length()).trim())
+                    : "";
         }
 
         if (!StringUtils.hasText(city)) {
@@ -427,7 +432,27 @@ public class IikoDepartmentLocationCatalogService {
             return false;
         }
         char next = remainder.charAt(city.length());
-        return Character.isWhitespace(next) || next == '-' || next == ',' || next == '.';
+        return Character.isWhitespace(next) || next == ',' || next == '.';
+    }
+
+    private boolean startsWithLetterOrDigit(String value) {
+        return StringUtils.hasText(value) && Character.isLetterOrDigit(value.charAt(0));
+    }
+
+    private String stripLeadingLocationDelimiters(String value) {
+        if (!StringUtils.hasText(value)) {
+            return value;
+        }
+        int index = 0;
+        while (index < value.length()) {
+            char ch = value.charAt(index);
+            if (Character.isWhitespace(ch) || ch == '-' || ch == '_' || ch == ',' || ch == '.') {
+                index += 1;
+                continue;
+            }
+            break;
+        }
+        return value.substring(index).trim();
     }
 
     private List<String> extractKnownCities(Map<String, Object> tree) {

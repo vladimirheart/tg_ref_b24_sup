@@ -989,23 +989,132 @@
 
     enrichEquipmentOptionSetsFromEquipment(passportData.equipment);
 
-    let parameterValues = (typeof structuredClone === 'function')
+    let parameterItemsByType = (typeof structuredClone === 'function')
       ? structuredClone(parameterValuesInitial)
       : JSON.parse(JSON.stringify(parameterValuesInitial));
     const parameterKeys = Object.keys(parameterValuesInitial || {});
+    let parameterValues = {};
 
-    function normalizeParameterResponse(source) {
+    function normalizeParameterDependencies(raw) {
+      const result = {};
+      if (!raw || typeof raw !== 'object') {
+        return result;
+      }
+      Object.entries(raw).forEach(([key, value]) => {
+        const normalizedKey = normalizeCatalogValue(key);
+        const normalizedValue = normalizeCatalogValue(value);
+        if (normalizedKey && normalizedValue) {
+          result[normalizedKey] = normalizedValue;
+        }
+      });
+      return result;
+    }
+
+    function normalizeParameterCatalog(source) {
       const data = source && typeof source === 'object' ? source : {};
       const result = {};
       parameterKeys.forEach((key) => {
         const items = Array.isArray(data[key]) ? data[key] : [];
+        result[key] = items
+          .filter((item) => item && typeof item === 'object')
+          .map((item) => ({
+            id: item.id ?? null,
+            value: normalizeCatalogValue(item.value),
+            is_deleted: Boolean(item.is_deleted),
+            dependencies: normalizeParameterDependencies(item.dependencies),
+            extra: item.extra && typeof item.extra === 'object' ? item.extra : {},
+          }))
+          .filter((item) => item.value);
+      });
+      return result;
+    }
+
+    function extractParameterValueLists(source) {
+      const result = {};
+      parameterKeys.forEach((key) => {
+        const items = Array.isArray(source[key]) ? source[key] : [];
         const values = items
-          .filter((item) => item && !item.is_deleted && typeof item.value === 'string' && item.value.trim())
-          .map((item) => item.value.trim());
+          .filter((item) => item && !item.is_deleted && item.value)
+          .map((item) => item.value);
         result[key] = Array.from(new Set(values));
       });
       return result;
     }
+
+    function getCurrentLocationSelections() {
+      return {
+        country: normalizeCatalogValue(countrySelect ? countrySelect.value : ''),
+        partner_type: normalizeCatalogValue(partnerTypeSelect ? partnerTypeSelect.value : ''),
+        business: normalizeCatalogValue(businessSelect ? businessSelect.value : ''),
+        city: normalizeCatalogValue(cityInput ? cityInput.value : ''),
+      };
+    }
+
+    function itemMatchesSelections(item, selections, dependencyKeys) {
+      if (!item || item.is_deleted) return false;
+      const deps = item.dependencies && typeof item.dependencies === 'object' ? item.dependencies : {};
+      const keys = Array.isArray(dependencyKeys) ? dependencyKeys : [];
+      return keys.every((depKey) => {
+        const selectedValue = normalizeCatalogValue(selections[depKey]);
+        if (!selectedValue) {
+          return true;
+        }
+        const candidateValue = normalizeCatalogValue(deps[depKey]);
+        return candidateValue && candidateValue === selectedValue;
+      });
+    }
+
+    function collectDerivedBusinessValues(selections) {
+      const selectedCountry = normalizeCatalogValue(selections.country);
+      const selectedPartnerType = normalizeCatalogValue(selections.partner_type);
+      if (!selectedCountry && !selectedPartnerType) {
+        return [];
+      }
+      const derived = new Set();
+      ['city', 'department'].forEach((key) => {
+        const items = Array.isArray(parameterItemsByType[key]) ? parameterItemsByType[key] : [];
+        items.forEach((item) => {
+          if (!itemMatchesSelections(item, selections, ['country', 'partner_type'])) {
+            return;
+          }
+          const businessValue = normalizeCatalogValue(item.dependencies && item.dependencies.business);
+          if (businessValue) {
+            derived.add(businessValue);
+          }
+        });
+      });
+      return Array.from(derived);
+    }
+
+    function getFilteredParameterValues(key, { preserveCurrent = false } = {}) {
+      const items = Array.isArray(parameterItemsByType[key]) ? parameterItemsByType[key] : [];
+      const selections = getCurrentLocationSelections();
+      let values = [];
+      if (key === 'business') {
+        const derived = collectDerivedBusinessValues(selections);
+        values = derived.length
+          ? derived
+          : (parameterValues[key] || []);
+      } else {
+        const dependencyKeys = Array.isArray(PARAMETER_DEPENDENCIES[key]) ? PARAMETER_DEPENDENCIES[key] : [];
+        values = items
+          .filter((item) => itemMatchesSelections(item, selections, dependencyKeys))
+          .map((item) => item.value);
+      }
+      const unique = Array.from(new Set(values.filter(Boolean)));
+      const currentValue = normalizeCatalogValue(
+        key === 'city'
+          ? (cityInput ? cityInput.value : '')
+          : (document.getElementById(`${key === 'partner_type' ? 'partnerType' : key === 'legal_entity' ? 'legalEntity' : key}Select`) || {}).value,
+      );
+      if (preserveCurrent && currentValue && !unique.includes(currentValue)) {
+        unique.push(currentValue);
+      }
+      return unique.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+    }
+
+    parameterItemsByType = normalizeParameterCatalog(parameterItemsByType);
+    parameterValues = extractParameterValueLists(parameterItemsByType);
 
     function buildSelectOptions(values, currentValue) {
       const list = Array.isArray(values) ? values.filter(Boolean) : [];
@@ -1580,6 +1689,7 @@
     const countrySelect = document.getElementById('countrySelect');
     const legalEntitySelect = document.getElementById('legalEntitySelect');
     const cityInput = document.getElementById('cityInput');
+    const citiesList = document.getElementById('citiesList');
     const locationAddressInput = document.getElementById('locationAddressInput');
     const statusSelect = document.getElementById('statusSelect');
     const internalNetworkInput = document.getElementById('internalNetworkInput');
@@ -2428,9 +2538,39 @@
       equipmentDisabledHint.classList.toggle('d-none', !disabled);
     }
 
+    function updateSelectValues(select, values, { preserveCurrent = false } = {}) {
+      if (!select) return;
+      const current = normalizeCatalogValue(select.value);
+      select.innerHTML = buildSelectOptions(values, preserveCurrent ? current : '');
+      if (!preserveCurrent && current && !values.includes(current)) {
+        select.value = '';
+      } else if (current) {
+        ensureSelectHasOption(select, current);
+        select.value = current;
+      }
+      refreshSearchableSelect(select);
+    }
+
+    function refreshCityOptions({ preserveCurrent = false } = {}) {
+      if (!citiesList) return;
+      const current = normalizeCatalogValue(cityInput ? cityInput.value : '');
+      const values = getFilteredParameterValues('city', { preserveCurrent });
+      citiesList.innerHTML = buildDatalistOptions(values, preserveCurrent ? current : '');
+    }
+
+    function refreshLocationParameterOptions({ preserveCurrent = false } = {}) {
+      updateSelectValues(countrySelect, getFilteredParameterValues('country', { preserveCurrent }), { preserveCurrent });
+      updateSelectValues(partnerTypeSelect, getFilteredParameterValues('partner_type', { preserveCurrent }), { preserveCurrent });
+      updateSelectValues(businessSelect, getFilteredParameterValues('business', { preserveCurrent }), { preserveCurrent });
+      refreshCityOptions({ preserveCurrent });
+      updateSelectValues(departmentSelect, getFilteredParameterValues('department', { preserveCurrent }), { preserveCurrent });
+      updateSelectValues(legalEntitySelect, getFilteredParameterValues('legal_entity', { preserveCurrent }), { preserveCurrent });
+    }
+
     function populateForm() {
       pausePassportDirtyTracking();
       const data = passportData || {};
+      refreshLocationParameterOptions({ preserveCurrent: true });
       ensureSelectHasOption(departmentSelect, data.department || '');
       departmentSelect.value = data.department || '';
       refreshSearchableSelect(departmentSelect);
@@ -2447,6 +2587,7 @@
       legalEntitySelect.value = data.legal_entity || '';
       refreshSearchableSelect(legalEntitySelect);
       cityInput.value = data.city || '';
+      refreshLocationParameterOptions({ preserveCurrent: true });
       if (locationAddressInput) {
         locationAddressInput.value = data.location_address || '';
       }
@@ -2629,7 +2770,8 @@
         if (!response.ok || data.success === false) {
           throw new Error(data.error || 'Не удалось добавить значение');
         }
-        parameterValues = normalizeParameterResponse((data && data.data) || parameterValues);
+        parameterItemsByType = normalizeParameterCatalog((data && data.data) || parameterItemsByType);
+        parameterValues = extractParameterValueLists(parameterItemsByType);
         updateSelectOptions();
         select.value = value.trim();
         refreshSearchableSelect(select);
@@ -2644,25 +2786,7 @@
     }
 
     function updateSelectOptions() {
-      const mapping = [
-        { select: departmentSelect, key: 'department' },
-        { select: businessSelect, key: 'business' },
-        { select: partnerTypeSelect, key: 'partner_type' },
-        { select: countrySelect, key: 'country' },
-        { select: legalEntitySelect, key: 'legal_entity' },
-      ];
-      mapping.forEach(({ select, key }) => {
-        const current = (select.value || '').trim();
-        const options = parameterValues[key] || [];
-        select.innerHTML = '<option value="">Не выбрано</option>' + options.map((val) => `<option value="${escapeHtml(val)}">${escapeHtml(val)}</option>`).join('');
-        if (current) {
-          ensureSelectHasOption(select, current);
-          select.value = current;
-        } else {
-          select.value = '';
-        }
-        refreshSearchableSelect(select);
-      });
+      refreshLocationParameterOptions({ preserveCurrent: true });
       updateObjectTitle();
     }
 
@@ -3859,10 +3983,24 @@
     networkSpeedInput.addEventListener('change', handleSpeedFormatting);
     networkSpeedInput.addEventListener('blur', handleSpeedFormatting);
     networkLegalEntityInput.addEventListener('change', () => handleNetworkProfileSelection('legal_entity', networkLegalEntityInput.value));
+    [countrySelect, partnerTypeSelect, businessSelect].forEach((select) => {
+      if (!select) return;
+      select.addEventListener('change', () => {
+        refreshLocationParameterOptions({ preserveCurrent: false });
+      });
+    });
+    if (cityInput) {
+      cityInput.addEventListener('change', () => {
+        refreshLocationParameterOptions({ preserveCurrent: false });
+      });
+      cityInput.addEventListener('input', () => {
+        refreshCityOptions({ preserveCurrent: true });
+        updateObjectTitle();
+      });
+    }
     [businessSelect, departmentSelect].forEach((select) => {
       select.addEventListener('change', updateObjectTitle);
     });
-    cityInput.addEventListener('input', updateObjectTitle);
     if (toggleItBlockBtn && itBlock) {
       toggleItBlockBtn.addEventListener('click', () => {
         const hiddenNow = itBlock.classList.toggle('d-none');

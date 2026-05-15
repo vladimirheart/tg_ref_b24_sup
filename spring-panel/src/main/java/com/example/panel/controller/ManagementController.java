@@ -18,6 +18,7 @@ import com.example.panel.service.IikoDepartmentLocationCatalogService;
 import com.example.panel.service.LocationsIikoServerSourceSettingsService;
 import com.example.panel.service.LocationsIikoSyncSettingsService;
 import com.example.panel.service.SettingsCatalogService;
+import com.example.panel.service.SettingsParameterService;
 import com.example.panel.service.SharedConfigService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -31,6 +32,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -48,6 +51,7 @@ public class ManagementController {
     private final ItEquipmentCatalogRepository equipmentRepository;
     private final SharedConfigService sharedConfigService;
     private final SettingsCatalogService settingsCatalogService;
+    private final SettingsParameterService settingsParameterService;
     private final LocationsIikoServerSourceSettingsService locationsIikoServerSourceSettingsService;
     private final LocationsIikoSyncSettingsService locationsIikoSyncSettingsService;
     private final IikoDepartmentLocationCatalogService locationCatalogService;
@@ -63,6 +67,7 @@ public class ManagementController {
                                 ItEquipmentCatalogRepository equipmentRepository,
                                 SharedConfigService sharedConfigService,
                                 SettingsCatalogService settingsCatalogService,
+                                SettingsParameterService settingsParameterService,
                                 LocationsIikoServerSourceSettingsService locationsIikoServerSourceSettingsService,
                                 LocationsIikoSyncSettingsService locationsIikoSyncSettingsService,
                                 IikoDepartmentLocationCatalogService locationCatalogService,
@@ -77,6 +82,7 @@ public class ManagementController {
         this.equipmentRepository = equipmentRepository;
         this.sharedConfigService = sharedConfigService;
         this.settingsCatalogService = settingsCatalogService;
+        this.settingsParameterService = settingsParameterService;
         this.locationsIikoServerSourceSettingsService = locationsIikoServerSourceSettingsService;
         this.locationsIikoSyncSettingsService = locationsIikoSyncSettingsService;
         this.locationCatalogService = locationCatalogService;
@@ -225,25 +231,12 @@ public class ManagementController {
     private void populatePassportEditor(Model model, boolean isNew) {
         Map<String, String> parameterTypes = settingsCatalogService.getParameterTypes();
         Map<String, List<String>> parameterDependencies = settingsCatalogService.getParameterDependencies();
-
-        Map<String, List<String>> parameterValues = new java.util.LinkedHashMap<>();
-        Map<String, List<Map<String, Object>>> parameterValuesPayload = new java.util.LinkedHashMap<>();
-        parameterTypes.keySet().forEach(key -> {
-            List<SettingsParameter> items = settingsParameterRepository.findByParamType(key);
-            List<String> values = items.stream()
-                .filter(item -> item.getDeleted() == null || !item.getDeleted())
-                .map(SettingsParameter::getValue)
-                .filter(value -> value != null && !value.isBlank())
-                .distinct()
-                .toList();
-            parameterValues.put(key, values);
-            List<Map<String, Object>> payloadItems = values.stream()
-                .map(value -> Map.<String, Object>of("value", value, "is_deleted", false))
-                .toList();
-            parameterValuesPayload.put(key, payloadItems);
-        });
-
         Map<String, Object> settings = sharedConfigService.loadSettings();
+
+        Map<String, List<Map<String, Object>>> parameterValuesPayload =
+                buildPassportParameterPayload(parameterTypes.keySet(), settings);
+        Map<String, List<String>> parameterValues = buildPassportParameterValues(parameterValuesPayload);
+
         List<String> statuses = toStringList(settings.get("object_statuses"));
         if (statuses.isEmpty()) {
             statuses = toStringList(settings.get("client_statuses"));
@@ -322,6 +315,167 @@ public class ManagementController {
         model.addAttribute("networkLegalEntityOptions", toStringList(settings.get("network_legal_entity_options")));
         model.addAttribute("cities", toStringList(settings.get("cities")));
         model.addAttribute("passportPayloadJson", passportPayloadJson);
+    }
+
+    private Map<String, List<Map<String, Object>>> buildPassportParameterPayload(Set<String> parameterKeys,
+                                                                                 Map<String, Object> settings) {
+        Map<String, Object> grouped = settingsParameterService.listParameters(false);
+        Map<String, List<Map<String, Object>>> result = new LinkedHashMap<>();
+        parameterKeys.forEach(key -> result.put(key, normalizeParameterItems(grouped.get(key))));
+
+        List<Map<String, Object>> legalEntityItems =
+                result.computeIfAbsent("legal_entity", key -> new java.util.ArrayList<>());
+        LinkedHashSet<String> legalEntities = new LinkedHashSet<>();
+        legalEntityItems.forEach(item -> legalEntities.add(normalizeText(item.get("value"))));
+        toStringList(settings.get("network_legal_entity_options")).forEach(value -> {
+            if (legalEntities.add(value)) {
+                legalEntityItems.add(parameterOption(value, Map.of(), Map.of("source", "network_legal_entity_options")));
+            }
+        });
+        toObjectList(settings.get("network_profiles")).forEach(raw -> {
+            if (!(raw instanceof Map<?, ?> profile)) {
+                return;
+            }
+            String value = normalizeText(profile.get("legal_entity"));
+            if (legalEntities.add(value)) {
+                legalEntityItems.add(parameterOption(value, Map.of(), Map.of("source", "network_profiles")));
+            }
+        });
+        sanitizePassportParameterPayload(result);
+        return result;
+    }
+
+    private Map<String, List<String>> buildPassportParameterValues(Map<String, List<Map<String, Object>>> payload) {
+        Map<String, List<String>> result = new LinkedHashMap<>();
+        payload.forEach((key, items) -> result.put(
+                key,
+                items.stream()
+                        .filter(item -> !asBoolean(item.get("is_deleted")))
+                        .map(item -> normalizeText(item.get("value")))
+                        .filter(value -> value != null && !value.isBlank())
+                        .distinct()
+                        .toList()
+        ));
+        return result;
+    }
+
+    private List<Map<String, Object>> normalizeParameterItems(Object raw) {
+        if (!(raw instanceof List<?> list)) {
+            return List.of();
+        }
+        List<Map<String, Object>> result = new java.util.ArrayList<>();
+        for (Object itemRaw : list) {
+            if (!(itemRaw instanceof Map<?, ?> item)) {
+                continue;
+            }
+            String value = normalizeText(item.get("value"));
+            if (value == null || value.isBlank()) {
+                continue;
+            }
+            Map<String, String> dependencies = normalizeStringMap(item.get("dependencies"));
+            Map<String, Object> extra = normalizeObjectMap(item.get("extra"));
+            Map<String, Object> normalized = new LinkedHashMap<>();
+            normalized.put("id", item.get("id"));
+            normalized.put("value", value);
+            normalized.put("state", normalizeText(item.get("state")));
+            normalized.put("is_deleted", asBoolean(item.get("is_deleted")));
+            normalized.put("dependencies", dependencies);
+            normalized.put("extra", extra);
+            result.add(normalized);
+        }
+        return result;
+    }
+
+    private Map<String, Object> parameterOption(String value,
+                                                Map<String, String> dependencies,
+                                                Map<String, Object> extra) {
+        Map<String, Object> item = new LinkedHashMap<>();
+        item.put("value", value);
+        item.put("state", "Активен");
+        item.put("is_deleted", false);
+        item.put("dependencies", dependencies != null ? dependencies : Map.of());
+        item.put("extra", extra != null ? extra : Map.of());
+        return item;
+    }
+
+    private void sanitizePassportParameterPayload(Map<String, List<Map<String, Object>>> payload) {
+        LinkedHashSet<String> businesses = new LinkedHashSet<>();
+        payload.getOrDefault("business", List.of()).forEach(item -> {
+            String value = normalizeText(item.get("value"));
+            if (value != null && !value.isBlank()) {
+                businesses.add(value);
+            }
+        });
+        payload.computeIfPresent("city", (key, items) -> items.stream()
+                .filter(item -> !looksBrokenCityValue(normalizeText(item.get("value")), businesses))
+                .toList());
+        payload.computeIfPresent("department", (key, items) -> items.stream()
+                .filter(item -> !looksBrokenDepartmentValue(normalizeText(item.get("value"))))
+                .toList());
+    }
+
+    private boolean looksBrokenCityValue(String value, Set<String> businesses) {
+        if (value == null || value.isBlank()) {
+            return true;
+        }
+        if (!startsWithLetterOrDigit(value)) {
+            return true;
+        }
+        return businesses != null && businesses.contains(value);
+    }
+
+    private boolean looksBrokenDepartmentValue(String value) {
+        return value == null || value.isBlank() || !startsWithLetterOrDigit(value);
+    }
+
+    private Map<String, String> normalizeStringMap(Object raw) {
+        if (!(raw instanceof Map<?, ?> map)) {
+            return Map.of();
+        }
+        Map<String, String> result = new LinkedHashMap<>();
+        map.forEach((key, value) -> {
+            String normalizedKey = normalizeText(key);
+            String normalizedValue = normalizeText(value);
+            if (normalizedKey != null && !normalizedKey.isBlank() && normalizedValue != null && !normalizedValue.isBlank()) {
+                result.put(normalizedKey, normalizedValue);
+            }
+        });
+        return result;
+    }
+
+    private Map<String, Object> normalizeObjectMap(Object raw) {
+        if (!(raw instanceof Map<?, ?> map)) {
+            return Map.of();
+        }
+        Map<String, Object> result = new LinkedHashMap<>();
+        map.forEach((key, value) -> {
+            String normalizedKey = normalizeText(key);
+            if (normalizedKey != null && !normalizedKey.isBlank()) {
+                result.put(normalizedKey, value);
+            }
+        });
+        return result;
+    }
+
+    private boolean asBoolean(Object raw) {
+        if (raw instanceof Boolean value) {
+            return value;
+        }
+        if (raw instanceof Number value) {
+            return value.intValue() != 0;
+        }
+        if (raw instanceof String value) {
+            return "true".equalsIgnoreCase(value) || "1".equals(value);
+        }
+        return false;
+    }
+
+    private String normalizeText(Object raw) {
+        return raw == null ? null : raw.toString().trim();
+    }
+
+    private boolean startsWithLetterOrDigit(String value) {
+        return value != null && !value.isBlank() && Character.isLetterOrDigit(value.charAt(0));
     }
 
     private boolean canPublishDialogMacros(Authentication authentication, Map<String, Object> settings) {

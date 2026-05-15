@@ -29,13 +29,13 @@ public class SettingsParametersController {
     }
 
     @GetMapping("/api/settings/parameters")
-    @PreAuthorize("hasAuthority('PAGE_SETTINGS')")
+    @PreAuthorize("hasAuthority('PAGE_SETTINGS') or hasAuthority('PAGE_OBJECT_PASSPORTS')")
     public Map<String, Object> listParameters() {
         return settingsParameterService.listParameters(true);
     }
 
     @PostMapping({"/api/settings/parameters", "/api/settings/parameters/"})
-    @PreAuthorize("hasAuthority('PAGE_SETTINGS')")
+    @PreAuthorize("hasAuthority('PAGE_SETTINGS') or hasAuthority('PAGE_OBJECT_PASSPORTS')")
     public Map<String, Object> createParameter(HttpServletRequest request) throws IOException {
         Map<String, Object> payload = RequestPayloadUtils.readPayload(request, objectMapper);
         return settingsParameterService.createParameter(payload);
@@ -45,14 +45,14 @@ public class SettingsParametersController {
             value = {"/api/settings/parameters/{paramId}", "/api/settings/parameters/{paramId}/"},
             method = {RequestMethod.POST, RequestMethod.PUT, RequestMethod.PATCH}
     )
-    @PreAuthorize("hasAuthority('PAGE_SETTINGS')")
+    @PreAuthorize("hasAuthority('PAGE_SETTINGS') or hasAuthority('PAGE_OBJECT_PASSPORTS')")
     public Map<String, Object> updateParameter(@PathVariable long paramId,
                                                @RequestBody Map<String, Object> payload) {
         return settingsParameterService.updateParameter(paramId, payload);
     }
 
     @DeleteMapping("/api/settings/parameters/{paramId}")
-    @PreAuthorize("hasAuthority('PAGE_SETTINGS')")
+    @PreAuthorize("hasAuthority('PAGE_SETTINGS') or hasAuthority('PAGE_OBJECT_PASSPORTS')")
     public Map<String, Object> deleteParameter(@PathVariable long paramId) {
         return settingsParameterService.deleteParameter(paramId);
     }

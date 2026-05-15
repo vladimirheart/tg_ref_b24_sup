@@ -21,6 +21,7 @@ import com.example.panel.service.IikoDepartmentLocationCatalogService;
 import com.example.panel.service.LocationsIikoServerSourceSettingsService;
 import com.example.panel.service.LocationsIikoSyncSettingsService;
 import com.example.panel.service.SettingsCatalogService;
+import com.example.panel.service.SettingsParameterService;
 import com.example.panel.service.SharedConfigService;
 import java.util.List;
 import java.util.Map;
@@ -66,6 +67,9 @@ class ManagementControllerWebMvcTest {
 
     @MockBean
     private SettingsCatalogService settingsCatalogService;
+
+    @MockBean
+    private SettingsParameterService settingsParameterService;
 
     @MockBean
     private LocationsIikoServerSourceSettingsService locationsIikoServerSourceSettingsService;
@@ -227,6 +231,7 @@ class ManagementControllerWebMvcTest {
         when(settingsCatalogService.getParameterTypes()).thenReturn(Map.of());
         when(settingsCatalogService.getParameterDependencies()).thenReturn(Map.of());
         when(sharedConfigService.loadSettings()).thenReturn(Map.of());
+        when(settingsParameterService.listParameters(false)).thenReturn(Map.of());
         when(equipmentRepository.findAll()).thenReturn(List.of());
     }
 }
