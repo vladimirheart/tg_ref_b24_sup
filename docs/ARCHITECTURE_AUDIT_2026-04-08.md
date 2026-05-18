@@ -774,6 +774,12 @@ integration-сценария поверх users/settings runtime boundary всё
   contract: missing channel, disabled form, malformed body и session miss
   теперь проверяются в живом `SpringBootTest` контексте с SQLite и
   structured `errorCode/path/timestamp` payload.
+- Следующим более широким integration-пакетом тот же
+  `PublicFormFlowSmokeIntegrationTest` добран до continuation/session
+  lifecycle: platform-specific continuation payload для `telegram` и `max`,
+  telegram deep-link generation и rotate-on-read token lifecycle теперь
+  проверяются в живом runtime contract через `SpringBootTest` + SQLite +
+  temp shared config.
 - `DialogAiOpsController` теперь прикрыт не только по основным happy/error
   flows, но и по alias/null-body/default-path сценариям, что уменьшает риск
   regressions в transport-layer normalisation.

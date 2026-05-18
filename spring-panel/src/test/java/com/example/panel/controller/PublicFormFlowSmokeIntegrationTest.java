@@ -16,10 +16,13 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import com.example.panel.service.SharedConfigService;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -37,11 +40,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class PublicFormFlowSmokeIntegrationTest {
 
     private static Path dbFile;
+    private static Path sharedConfigDir;
 
     @DynamicPropertySource
     static void sqlite(DynamicPropertyRegistry registry) throws IOException {
         dbFile = Files.createTempFile("panel-public-form-smoke", ".db");
+        sharedConfigDir = Files.createTempDirectory("panel-public-form-shared-config");
         registry.add("app.datasource.sqlite.path", () -> dbFile.toString());
+        registry.add("shared-config.dir", () -> sharedConfigDir.toString());
     }
 
     @Autowired
@@ -52,6 +58,9 @@ class PublicFormFlowSmokeIntegrationTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private SharedConfigService sharedConfigService;
 
     @BeforeEach
     void clean() {
@@ -67,6 +76,7 @@ class PublicFormFlowSmokeIntegrationTest {
         jdbcTemplate.update("DELETE FROM tickets");
         jdbcTemplate.update("DELETE FROM client_statuses");
         jdbcTemplate.update("DELETE FROM channels");
+        sharedConfigService.saveSettings(new LinkedHashMap<>());
     }
 
     @Test
@@ -184,5 +194,126 @@ class PublicFormFlowSmokeIntegrationTest {
                 .andExpect(jsonPath("$.errorCode").value("SESSION_NOT_FOUND"))
                 .andExpect(jsonPath("$.path").value("/api/public/forms/web-runtime/sessions/token-none"))
                 .andExpect(jsonPath("$.timestamp").isNotEmpty());
+    }
+
+    @Test
+    void publicFormContinuationContractSupportsTelegramAndMaxPlatforms() throws Exception {
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id, platform, bot_username, bot_name, questions_cfg)
+                VALUES (44, 'web-telegram', 'Telegram Form', 1, CURRENT_TIMESTAMP, 'web-telegram', 'telegram', '@support_test_bot', 'Support Bot', ?)
+                """,
+                "{\"schemaVersion\":1,\"enabled\":true,\"captchaEnabled\":false,\"disabledStatus\":404,\"fields\":[]}");
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id, platform, bot_username, bot_name, questions_cfg)
+                VALUES (45, 'web-max', 'MAX Form', 1, CURRENT_TIMESTAMP, 'web-max', 'max', 'max_support_bot', 'MAX Bot', ?)
+                """,
+                "{\"schemaVersion\":1,\"enabled\":true,\"captchaEnabled\":false,\"disabledStatus\":404,\"fields\":[]}");
+
+        mockMvc.perform(get("/api/public/forms/web-telegram/config"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.continuation.enabled").value(true))
+                .andExpect(jsonPath("$.continuation.platform").value("telegram"))
+                .andExpect(jsonPath("$.continuation.platformLabel").value("Telegram"))
+                .andExpect(jsonPath("$.continuation.command").value("/continue <token>"))
+                .andExpect(jsonPath("$.continuation.openUrl").value(""));
+
+        mockMvc.perform(get("/api/public/forms/web-max/config"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.continuation.enabled").value(true))
+                .andExpect(jsonPath("$.continuation.platform").value("max"))
+                .andExpect(jsonPath("$.continuation.platformLabel").value("MAX"))
+                .andExpect(jsonPath("$.continuation.command").value("/continue <token>"))
+                .andExpect(jsonPath("$.continuation.openUrl").value(""));
+
+        MvcResult telegramCreate = mockMvc.perform(post("/api/public/forms/web-telegram/sessions")
+                        .header("X-Forwarded-For", "203.0.113.44")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "message": "Нужна помощь в Telegram"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.continuation.enabled").value(true))
+                .andExpect(jsonPath("$.continuation.platform").value("telegram"))
+                .andExpect(jsonPath("$.continuation.platformLabel").value("Telegram"))
+                .andExpect(jsonPath("$.continuation.command").isNotEmpty())
+                .andExpect(jsonPath("$.continuation.openUrl").value(org.hamcrest.Matchers.startsWith("https://t.me/support_test_bot?start=web_")))
+                .andReturn();
+
+        JsonNode telegramPayload = objectMapper.readTree(telegramCreate.getResponse().getContentAsString());
+        String telegramToken = telegramPayload.path("token").asText();
+
+        mockMvc.perform(get("/api/public/forms/web-telegram/sessions/{token}", telegramToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.continuation.enabled").value(true))
+                .andExpect(jsonPath("$.continuation.platform").value("telegram"))
+                .andExpect(jsonPath("$.continuation.command").value("/continue " + telegramToken))
+                .andExpect(jsonPath("$.continuation.openUrl").value(org.hamcrest.Matchers.startsWith("https://t.me/support_test_bot?start=web_")));
+
+        mockMvc.perform(post("/api/public/forms/web-max/sessions")
+                        .header("X-Forwarded-For", "203.0.113.45")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "message": "Нужна помощь в MAX"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.continuation.enabled").value(true))
+                .andExpect(jsonPath("$.continuation.platform").value("max"))
+                .andExpect(jsonPath("$.continuation.platformLabel").value("MAX"))
+                .andExpect(jsonPath("$.continuation.command").isNotEmpty())
+                .andExpect(jsonPath("$.continuation.openUrl").value(""));
+    }
+
+    @Test
+    void publicFormSessionTokenRotationInvalidatesOriginalTokenAndPromotesNewOne() throws Exception {
+        sharedConfigService.saveSettings(Map.of(
+                "dialog_config", Map.of("public_form_session_token_rotate_on_read", true)
+        ));
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id, platform, bot_username, questions_cfg)
+                VALUES (46, 'web-rotate', 'Rotating Form', 1, CURRENT_TIMESTAMP, 'web-rotate', 'telegram', '@rotate_test_bot', ?)
+                """,
+                "{\"schemaVersion\":1,\"enabled\":true,\"captchaEnabled\":false,\"disabledStatus\":404,\"fields\":[]}");
+
+        MvcResult createResult = mockMvc.perform(post("/api/public/forms/web-rotate/sessions")
+                        .header("X-Forwarded-For", "203.0.113.46")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "message": "Нужна помощь с продолжением"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.success").value(true))
+                .andReturn();
+
+        JsonNode createPayload = objectMapper.readTree(createResult.getResponse().getContentAsString());
+        String originalToken = createPayload.path("token").asText();
+
+        MvcResult firstRead = mockMvc.perform(get("/api/public/forms/web-rotate/sessions/{token}", originalToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andReturn();
+
+        JsonNode firstReadPayload = objectMapper.readTree(firstRead.getResponse().getContentAsString());
+        String rotatedToken = firstReadPayload.path("session").path("token").asText();
+        assertThat(rotatedToken).isNotBlank();
+        assertThat(rotatedToken).isNotEqualTo(originalToken);
+
+        mockMvc.perform(get("/api/public/forms/web-rotate/sessions/{token}", originalToken))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("SESSION_NOT_FOUND"));
+
+        mockMvc.perform(get("/api/public/forms/web-rotate/sessions/{token}", rotatedToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.session.token").isNotEmpty())
+                .andExpect(jsonPath("$.session.token").value(org.hamcrest.Matchers.not(rotatedToken)));
     }
 }

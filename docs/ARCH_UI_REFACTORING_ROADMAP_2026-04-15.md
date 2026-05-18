@@ -686,6 +686,12 @@
   contract: missing channel, disabled form, malformed body и session miss
   теперь зафиксированы в `SpringBootTest` + SQLite с тем же structured
   `errorCode/path/timestamp` payload.
+- следующим более широким integration-пакетом тот же
+  `PublicFormFlowSmokeIntegrationTest` добран до continuation/session
+  lifecycle: platform-specific continuation payload для `telegram` и `max`,
+  telegram deep-link generation и rotate-on-read token lifecycle теперь
+  тоже зафиксированы в живом runtime contract через `SpringBootTest` +
+  SQLite + temp shared config.
 - этот же smoke-слой расширен на detail/subpage contract:
   `ai-ops`, `unblock requests`, `users/detail` и оба passport editor route
   (`/object-passports/new`, `/object-passports/{id}`) теперь тоже прикрыты
