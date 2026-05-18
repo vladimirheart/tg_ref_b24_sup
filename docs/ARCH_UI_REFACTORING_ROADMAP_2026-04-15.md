@@ -44,11 +44,11 @@
   `DialogWorkspaceRolloutGovernanceService` уже переведён в режим
   hardening/compatibility;
 - при этом `PublicFormService` уже не untouched hotspot: runtime config,
-  metrics, session flow, anti-abuse/request-identity и теперь ещё
-  submit/captcha/validation плюс form-definition/config assembly слой
-  вынесены в отдельные bounded services, а ticket/session persistence тоже
-  уже снят в отдельный bounded projection service; remaining weight там
-  смещён в continuation/runtime helper tail и entry-flow coordinator layer;
+  metrics, session flow, anti-abuse/request-identity, submit/captcha/
+  validation, form-definition/config assembly, ticket/session persistence и
+  теперь ещё channel/config/session lookup plus continuation helper tail
+  вынесены в отдельные bounded services; remaining weight там смещён уже в
+  thin entry-flow coordinator layer;
 - Phase 5 всё ещё не доведён до полноценного runtime contract между
   `spring-panel` и `java-bot`;
 - Phase 6 уже широкая и системная, но ей всё ещё не хватает следующего слоя
@@ -766,9 +766,10 @@
    удерживать в режиме hardening/compatibility; при этом
    `DialogWorkspaceRolloutGovernanceService` после нового wide split держать
    уже в режиме hardening/compatibility. Внутри `PublicFormService`
-   следующий bounded проход теперь логичнее вести по continuation/runtime
-   helper tail и entry-flow coordinator logic, а
-   `DialogWorkspaceService` при этом удерживать как thin orchestration layer.
+   remaining bounded проход теперь логичнее вести уже по thin
+   entry-flow coordinator logic и contract/hardening around `createSession`,
+   а `DialogWorkspaceService` при этом удерживать как thin orchestration
+   layer.
 3. Параллельно продолжать `Phase 5/6` уже не по giant wrappers, а по
    shared-config/runtime consistency и integration-quality.
 4. В notifier/runtime hardening идти только по локальным bounded services,
@@ -779,9 +780,10 @@
 Актуальный порядок после уже выполненных этапов:
 
 1. После нового outcome split увести AI assistant slice в режим
-   hardening/compatibility и следующим крупным bounded split держать
+   hardening/compatibility и следующим крупным bounded проходом держать
    `PublicFormService`, но уже не по anti-abuse/submit/config/persistence
-   tail, а по continuation и entry-flow coordinator slices.
+   tail и не по continuation plumbing, а по финальному entry-flow
+   coordinator/hardening slice.
 2. Довести `Phase 5` от launcher strategy до более явного runtime contract.
 3. Расширить `Phase 6`, чтобы новые refactor-проходы шли уже под
    integration-quality, а не только под targeted tests.
@@ -1078,3 +1080,18 @@
   `PublicFormFlowSmokeIntegrationTest`, `PublicFormAntiAbuseServiceTest`,
   `PublicFormSubmissionPolicyServiceTest`, `PublicFormDefinitionServiceTest`
   и новый persistence-service unit net остаются зелёными.
+- следующим пакетом из `PublicFormService` вынесен channel/config/session
+  lookup bounded slice: новый `PublicFormChannelService` теперь владеет
+  `loadConfig`, `loadConfigRaw`, `findSession`, channel resolution и
+  continuation-option assembly.
+- после этого `PublicFormService` сжат примерно с `198` до `115` строк, а
+  remaining practical focus там смещён уже не в runtime plumbing, а в
+  thin `createSession` entry-flow coordinator и final runtime contract
+  hardening.
+- под новый split добавлен `PublicFormChannelServiceTest`; targeted
+  `PublicFormApiControllerWebMvcTest`, `PublicFormControllerWebMvcTest`,
+  `PublicFormLocationIntegrationTest`, `PublicFormFlowSmokeIntegrationTest`,
+  `PublicFormAntiAbuseServiceTest`, `PublicFormSubmissionPolicyServiceTest`,
+  `PublicFormDefinitionServiceTest`,
+  `PublicFormSubmissionPersistenceServiceTest` и новый channel-service unit
+  net остаются зелёными.
