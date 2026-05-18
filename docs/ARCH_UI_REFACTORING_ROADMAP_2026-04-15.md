@@ -46,8 +46,9 @@
 - при этом `PublicFormService` уже не untouched hotspot: runtime config,
   metrics, session flow, anti-abuse/request-identity и теперь ещё
   submit/captcha/validation плюс form-definition/config assembly слой
-  вынесены в отдельные bounded services, а remaining weight там смещён в
-  ticket/session projection orchestration и continuation/runtime helper tail;
+  вынесены в отдельные bounded services, а ticket/session persistence тоже
+  уже снят в отдельный bounded projection service; remaining weight там
+  смещён в continuation/runtime helper tail и entry-flow coordinator layer;
 - Phase 5 всё ещё не доведён до полноценного runtime contract между
   `spring-panel` и `java-bot`;
 - Phase 6 уже широкая и системная, но ей всё ещё не хватает следующего слоя
@@ -765,8 +766,8 @@
    удерживать в режиме hardening/compatibility; при этом
    `DialogWorkspaceRolloutGovernanceService` после нового wide split держать
    уже в режиме hardening/compatibility. Внутри `PublicFormService`
-   следующий bounded проход теперь логичнее вести по ticket/session
-   projection orchestration и continuation/runtime helper tail, а
+   следующий bounded проход теперь логичнее вести по continuation/runtime
+   helper tail и entry-flow coordinator logic, а
    `DialogWorkspaceService` при этом удерживать как thin orchestration layer.
 3. Параллельно продолжать `Phase 5/6` уже не по giant wrappers, а по
    shared-config/runtime consistency и integration-quality.
@@ -779,8 +780,8 @@
 
 1. После нового outcome split увести AI assistant slice в режим
    hardening/compatibility и следующим крупным bounded split держать
-   `PublicFormService`, но уже не по anti-abuse/submit/config tail, а по
-   ticket/session projection и continuation slices.
+   `PublicFormService`, но уже не по anti-abuse/submit/config/persistence
+   tail, а по continuation и entry-flow coordinator slices.
 2. Довести `Phase 5` от launcher strategy до более явного runtime contract.
 3. Расширить `Phase 6`, чтобы новые refactor-проходы шли уже под
    integration-quality, а не только под targeted tests.
@@ -1064,3 +1065,16 @@
   `PublicFormLocationIntegrationTest`, `PublicFormFlowSmokeIntegrationTest`,
   `PublicFormAntiAbuseServiceTest`, `PublicFormSubmissionPolicyServiceTest`
   и новый definition-service unit net остаются зелёными.
+- следующим пакетом из `PublicFormService` вынесен persistence/projection
+  bounded slice: новый `PublicFormSubmissionPersistenceService` теперь
+  владеет session creation, ticket/message/chat-history projection, dialog
+  audit и new-appeal alert side-effects.
+- после этого `PublicFormService` сжат примерно с `343` до `198` строк, а
+  remaining practical focus там смещён уже в continuation/runtime helper
+  tail и thin entry-flow coordinator logic.
+- под новый split добавлен `PublicFormSubmissionPersistenceServiceTest`;
+  targeted `PublicFormApiControllerWebMvcTest`,
+  `PublicFormControllerWebMvcTest`, `PublicFormLocationIntegrationTest`,
+  `PublicFormFlowSmokeIntegrationTest`, `PublicFormAntiAbuseServiceTest`,
+  `PublicFormSubmissionPolicyServiceTest`, `PublicFormDefinitionServiceTest`
+  и новый persistence-service unit net остаются зелёными.
