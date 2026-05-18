@@ -8,7 +8,6 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
@@ -130,16 +129,12 @@ public class ObjectPassportService {
 
     private long insertObject(Connection connection, Map<String, Object> payload) throws SQLException {
         String sql = "INSERT INTO objects(name, address, created_at) VALUES (?, ?, ?)";
-        try (PreparedStatement statement = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, buildObjectName(payload));
             statement.setString(2, stringValue(payload.get("location_address")));
             statement.setString(3, nowText());
             statement.executeUpdate();
-            try (ResultSet keys = statement.getGeneratedKeys()) {
-                if (keys.next()) {
-                    return keys.getLong(1);
-                }
-            }
+            return fetchLastInsertRowId(connection);
         }
         throw new SQLException("Не удалось создать объект для паспорта");
     }
@@ -156,19 +151,25 @@ public class ObjectPassportService {
 
     private long insertPassport(Connection connection, long objectId, Map<String, Object> payload) throws SQLException {
         String sql = "INSERT INTO object_passports(object_id, passport_number, details, created_at) VALUES (?, ?, ?, ?)";
-        try (PreparedStatement statement = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setLong(1, objectId);
             statement.setString(2, buildPassportNumber(payload));
             statement.setString(3, writeJson(normalizePayload(Map.of(), payload, null)));
             statement.setString(4, nowText());
             statement.executeUpdate();
-            try (ResultSet keys = statement.getGeneratedKeys()) {
-                if (keys.next()) {
-                    return keys.getLong(1);
-                }
-            }
+            return fetchLastInsertRowId(connection);
         }
         throw new SQLException("Не удалось создать запись паспорта");
+    }
+
+    private long fetchLastInsertRowId(Connection connection) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("SELECT last_insert_rowid()");
+             ResultSet rs = statement.executeQuery()) {
+            if (rs.next()) {
+                return rs.getLong(1);
+            }
+        }
+        throw new SQLException("РќРµ СѓРґР°Р»РѕСЃСЊ РїРѕР»СѓС‡РёС‚СЊ id РІСЃС‚Р°РІР»РµРЅРЅРѕР№ Р·Р°РїРёСЃРё");
     }
 
     private void updatePassportRow(Connection connection,
