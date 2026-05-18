@@ -78,7 +78,9 @@ contracts.
    cross-module правила.
 5. `P2`: стабилизировать DTO/error contract и persistence/API governance.
    Для `public-form` тут уже сделан ещё один шаг: controller-managed errors
-   приведены к structured payload через `PublicFormApiResponseService`.
+   приведены к structured payload через `PublicFormApiResponseService`, а
+   remaining contract/helper tail локализован в
+   `PublicFormApiContractService`.
 
 Что уже существенно улучшено:
 
@@ -757,6 +759,11 @@ integration-сценария поверх users/settings runtime boundary всё
   переведён на отдельный `PublicFormApiResponseService`: success payload
   assembly вынесен из controller, а controller-managed error responses
   нормализованы до structured contract с `path/timestamp`.
+- Следующим bounded API-consistency пакетом `PublicFormApiController`
+  досужен ещё на один слой: новый `PublicFormApiContractService` забрал
+  disabled-status fallback, requester-context resolution, error-code mapping
+  и token masking, а malformed-body transport contract теперь закреплён
+  отдельным WebMvc сценарием.
 - `DialogAiOpsController` теперь прикрыт не только по основным happy/error
   flows, но и по alias/null-body/default-path сценариям, что уменьшает риск
   regressions в transport-layer normalisation.

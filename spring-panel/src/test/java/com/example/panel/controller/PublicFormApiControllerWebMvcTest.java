@@ -5,6 +5,7 @@ import com.example.panel.model.publicform.PublicFormConfig;
 import com.example.panel.model.publicform.PublicFormQuestion;
 import com.example.panel.model.publicform.PublicFormSessionDto;
 import com.example.panel.model.publicform.PublicFormSubmission;
+import com.example.panel.service.PublicFormApiContractService;
 import com.example.panel.service.DialogConversationReadService;
 import com.example.panel.service.PublicFormApiResponseService;
 import com.example.panel.service.PublicFormService;
@@ -37,7 +38,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(PublicFormApiController.class)
 @AutoConfigureMockMvc(addFilters = false)
-@Import(PublicFormApiResponseService.class)
+@Import({PublicFormApiResponseService.class, PublicFormApiContractService.class})
 class PublicFormApiControllerWebMvcTest {
 
     @Autowired
@@ -674,6 +675,25 @@ class PublicFormApiControllerWebMvcTest {
                 .andExpect(jsonPath("$.errorCode").value("VALIDATION_REQUIRED"))
                 .andExpect(jsonPath("$.error").isNotEmpty())
                 .andExpect(jsonPath("$.path").value("/api/public/forms/web-required-body/sessions"))
+                .andExpect(jsonPath("$.timestamp").isNotEmpty());
+
+        verifyNoInteractions(publicFormService, dialogConversationReadService);
+    }
+
+    @Test
+    void createSessionReturnsMalformedBodyContractForInvalidJson() throws Exception {
+        mockMvc.perform(post("/api/public/forms/web-malformed/sessions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "message":
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("MALFORMED_BODY"))
+                .andExpect(jsonPath("$.error").value("Некорректное тело запроса"))
+                .andExpect(jsonPath("$.path").value("/api/public/forms/web-malformed/sessions"))
                 .andExpect(jsonPath("$.timestamp").isNotEmpty());
 
         verifyNoInteractions(publicFormService, dialogConversationReadService);

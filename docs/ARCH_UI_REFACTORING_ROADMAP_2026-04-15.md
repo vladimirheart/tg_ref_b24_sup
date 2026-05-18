@@ -671,6 +671,11 @@
   переведён на отдельный `PublicFormApiResponseService`: success payload
   assembly вынесен из controller, а controller-managed error responses
   нормализованы до общего structured contract с `path/timestamp`.
+- следующим bounded API-consistency пакетом из `PublicFormApiController`
+  вынесен remaining contract/helper tail в `PublicFormApiContractService`:
+  disabled-status fallback, requester-context resolution, error-code mapping
+  и token masking больше не сидят прямо в controller, а malformed-body
+  transport path зафиксирован отдельным WebMvc сценарием.
 - этот же smoke-слой расширен на detail/subpage contract:
   `ai-ops`, `unblock requests`, `users/detail` и оба passport editor route
   (`/object-passports/new`, `/object-passports/{id}`) теперь тоже прикрыты
