@@ -232,9 +232,12 @@ public class ManagementController {
         Map<String, String> parameterTypes = settingsCatalogService.getParameterTypes();
         Map<String, List<String>> parameterDependencies = settingsCatalogService.getParameterDependencies();
         Map<String, Object> settings = sharedConfigService.loadSettings();
+        IikoDepartmentLocationCatalogService.LocationCatalogSnapshot effectiveCatalog = locationCatalogService.loadCatalog();
+        Map<String, Object> effectiveLocationsPayload = locationCatalogService.buildEffectiveLocationsPayload(effectiveCatalog);
+        Map<String, Object> effectiveLocationTree = normalizeObjectMap(effectiveLocationsPayload.get("tree"));
 
         Map<String, List<Map<String, Object>>> parameterValuesPayload =
-                buildPassportParameterPayload(parameterTypes.keySet(), settings);
+                buildPassportParameterPayload(parameterTypes.keySet(), settings, effectiveLocationsPayload);
         Map<String, List<String>> parameterValues = buildPassportParameterValues(parameterValuesPayload);
 
         List<String> statuses = toStringList(settings.get("object_statuses"));
@@ -313,15 +316,17 @@ public class ManagementController {
         model.addAttribute("networkSupportPhoneOptions", toStringList(settings.get("network_support_phone_options")));
         model.addAttribute("networkSpeedOptions", toStringList(settings.get("network_speed_options")));
         model.addAttribute("networkLegalEntityOptions", toStringList(settings.get("network_legal_entity_options")));
-        model.addAttribute("cities", toStringList(settings.get("cities")));
+        model.addAttribute("cities", settingsCatalogService.collectCities(effectiveLocationTree));
         model.addAttribute("passportPayloadJson", passportPayloadJson);
     }
 
     private Map<String, List<Map<String, Object>>> buildPassportParameterPayload(Set<String> parameterKeys,
-                                                                                 Map<String, Object> settings) {
+                                                                                 Map<String, Object> settings,
+                                                                                 Map<String, Object> effectiveLocationsPayload) {
         Map<String, Object> grouped = settingsParameterService.listParameters(false);
         Map<String, List<Map<String, Object>>> result = new LinkedHashMap<>();
         parameterKeys.forEach(key -> result.put(key, normalizeParameterItems(grouped.get(key))));
+        mergePassportLocationParameters(result, effectiveLocationsPayload);
 
         List<Map<String, Object>> legalEntityItems =
                 result.computeIfAbsent("legal_entity", key -> new java.util.ArrayList<>());
@@ -342,6 +347,197 @@ public class ManagementController {
             }
         });
         sanitizePassportParameterPayload(result);
+        return result;
+    }
+
+    private void mergePassportLocationParameters(Map<String, List<Map<String, Object>>> payload,
+                                                 Map<String, Object> effectiveLocationsPayload) {
+        Map<String, Object> tree = normalizeObjectMap(effectiveLocationsPayload.get("tree"));
+        if (tree.isEmpty()) {
+            return;
+        }
+        Map<String, Map<String, String>> cityMeta = readLocationMetaMap(effectiveLocationsPayload.get("city_meta"));
+        Map<String, Map<String, String>> locationMeta = readLocationMetaMap(effectiveLocationsPayload.get("location_meta"));
+
+        List<Map<String, Object>> countryItems = new java.util.ArrayList<>();
+        List<Map<String, Object>> partnerTypeItems = new java.util.ArrayList<>();
+        List<Map<String, Object>> businessItems = new java.util.ArrayList<>();
+        List<Map<String, Object>> cityItems = new java.util.ArrayList<>();
+        List<Map<String, Object>> departmentItems = new java.util.ArrayList<>();
+
+        Set<String> countryKeys = new LinkedHashSet<>();
+        Set<String> partnerTypeKeys = new LinkedHashSet<>();
+        Set<String> businessKeys = new LinkedHashSet<>();
+        Set<String> cityKeys = new LinkedHashSet<>();
+        Set<String> departmentKeys = new LinkedHashSet<>();
+
+        tree.forEach((businessKey, typesRaw) -> {
+            String business = normalizeText(businessKey);
+            if (business == null || business.isBlank()) {
+                return;
+            }
+            Map<String, Object> types = normalizeObjectMap(typesRaw);
+            types.forEach((typeKey, citiesRaw) -> {
+                String fallbackPartnerType = normalizeText(typeKey);
+                Map<String, Object> cities = normalizeObjectMap(citiesRaw);
+                cities.forEach((cityKey, locationsRaw) -> {
+                    String city = normalizeText(cityKey);
+                    if (city == null || city.isBlank()) {
+                        return;
+                    }
+                    String cityPath = String.join("::", business, fallbackPartnerType == null ? "" : fallbackPartnerType, city);
+                    Map<String, String> cityAttrs = cityMeta.getOrDefault(cityPath, Map.of());
+                    String country = normalizeText(cityAttrs.get("country"));
+                    String partnerType = normalizeText(cityAttrs.get("partner_type"));
+                    if (partnerType == null || partnerType.isBlank()) {
+                        partnerType = fallbackPartnerType;
+                    }
+
+                    addParameterOption(countryItems, countryKeys, country, Map.of(), "effective_locations");
+                    addParameterOption(
+                            partnerTypeItems,
+                            partnerTypeKeys,
+                            partnerType,
+                            buildDependencies(Map.of("country", country)),
+                            "effective_locations");
+                    addParameterOption(
+                            businessItems,
+                            businessKeys,
+                            business,
+                            buildDependencies(Map.of(
+                                    "country", country,
+                                    "partner_type", partnerType)),
+                            "effective_locations");
+                    addParameterOption(
+                            cityItems,
+                            cityKeys,
+                            city,
+                            buildDependencies(Map.of(
+                                    "country", country,
+                                    "partner_type", partnerType,
+                                    "business", business)),
+                            "effective_locations");
+
+                    if (!(locationsRaw instanceof List<?> locations)) {
+                        return;
+                    }
+                    for (Object locationRaw : locations) {
+                        String department = normalizeText(locationRaw);
+                        if (department == null || department.isBlank()) {
+                            continue;
+                        }
+                        String locationPath = String.join(
+                                "::",
+                                business,
+                                fallbackPartnerType == null ? "" : fallbackPartnerType,
+                                city,
+                                department);
+                        Map<String, String> locationAttrs = locationMeta.getOrDefault(locationPath, Map.of());
+                        String locationCountry = normalizeText(locationAttrs.get("country"));
+                        if (locationCountry == null || locationCountry.isBlank()) {
+                            locationCountry = country;
+                        }
+                        String locationPartnerType = normalizeText(locationAttrs.get("partner_type"));
+                        if (locationPartnerType == null || locationPartnerType.isBlank()) {
+                            locationPartnerType = partnerType;
+                        }
+
+                        addParameterOption(countryItems, countryKeys, locationCountry, Map.of(), "effective_locations");
+                        addParameterOption(
+                                partnerTypeItems,
+                                partnerTypeKeys,
+                                locationPartnerType,
+                                buildDependencies(Map.of("country", locationCountry)),
+                                "effective_locations");
+                        addParameterOption(
+                                businessItems,
+                                businessKeys,
+                                business,
+                                buildDependencies(Map.of(
+                                        "country", locationCountry,
+                                        "partner_type", locationPartnerType)),
+                                "effective_locations");
+                        addParameterOption(
+                                departmentItems,
+                                departmentKeys,
+                                department,
+                                buildDependencies(Map.of(
+                                        "country", locationCountry,
+                                        "partner_type", locationPartnerType,
+                                        "business", business,
+                                        "city", city)),
+                                "effective_locations");
+                    }
+                });
+            });
+        });
+
+        overrideParameterItems(payload, "country", countryItems);
+        overrideParameterItems(payload, "partner_type", partnerTypeItems);
+        overrideParameterItems(payload, "business", businessItems);
+        overrideParameterItems(payload, "city", cityItems);
+        overrideParameterItems(payload, "department", departmentItems);
+    }
+
+    private void overrideParameterItems(Map<String, List<Map<String, Object>>> payload,
+                                        String key,
+                                        List<Map<String, Object>> items) {
+        if (items == null || items.isEmpty()) {
+            return;
+        }
+        payload.put(key, items);
+    }
+
+    private void addParameterOption(List<Map<String, Object>> target,
+                                    Set<String> uniquenessGuard,
+                                    String value,
+                                    Map<String, String> dependencies,
+                                    String source) {
+        if (value == null || value.isBlank()) {
+            return;
+        }
+        Map<String, String> normalizedDependencies = dependencies != null ? dependencies : Map.of();
+        String signature = value + "|" + normalizedDependencies.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .map(entry -> entry.getKey() + "=" + entry.getValue())
+                .collect(java.util.stream.Collectors.joining("&"));
+        if (!uniquenessGuard.add(signature)) {
+            return;
+        }
+        target.add(parameterOption(
+                value,
+                normalizedDependencies,
+                Map.of("source", source)));
+    }
+
+    private Map<String, String> buildDependencies(Map<String, String> values) {
+        Map<String, String> dependencies = new LinkedHashMap<>();
+        if (values == null) {
+            return dependencies;
+        }
+        values.forEach((key, value) -> {
+            String normalizedKey = normalizeText(key);
+            String normalizedValue = normalizeText(value);
+            if (normalizedKey != null && !normalizedKey.isBlank()
+                    && normalizedValue != null && !normalizedValue.isBlank()) {
+                dependencies.put(normalizedKey, normalizedValue);
+            }
+        });
+        return dependencies;
+    }
+
+    private Map<String, Map<String, String>> readLocationMetaMap(Object raw) {
+        Map<String, Map<String, String>> result = new LinkedHashMap<>();
+        if (!(raw instanceof Map<?, ?> map)) {
+            return result;
+        }
+        map.forEach((key, value) -> {
+            String normalizedKey = normalizeText(key);
+            if (normalizedKey == null || normalizedKey.isBlank()) {
+                return;
+            }
+            result.put(normalizedKey, normalizeStringMap(value));
+        });
         return result;
     }
 

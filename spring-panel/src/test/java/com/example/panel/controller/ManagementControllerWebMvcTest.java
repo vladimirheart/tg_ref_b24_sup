@@ -23,6 +23,7 @@ import com.example.panel.service.LocationsIikoSyncSettingsService;
 import com.example.panel.service.SettingsCatalogService;
 import com.example.panel.service.SettingsParameterService;
 import com.example.panel.service.SharedConfigService;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -214,6 +215,20 @@ class ManagementControllerWebMvcTest {
     }
 
     @Test
+    void newObjectPassportEditorUsesEffectiveLocationsCatalogForLocationFields() throws Exception {
+        doNothing().when(navigationService).enrich(any(), any());
+        stubPassportEditorDependencies();
+
+        mockMvc.perform(get("/object-passports/new").with(user("operator").authorities(() -> "PAGE_OBJECT_PASSPORTS")))
+            .andExpect(status().isOk())
+            .andExpect(view().name("passports/new"))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("БлинБери")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("Корпоративная сеть")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("Смоленск")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("Ленина 1")));
+    }
+
+    @Test
     void existingObjectPassportEditorIncludesUiHeadBootstrapAndExplicitPagePreset() throws Exception {
         doNothing().when(navigationService).enrich(any(), any());
         stubPassportEditorDependencies();
@@ -228,10 +243,43 @@ class ManagementControllerWebMvcTest {
     }
 
     private void stubPassportEditorDependencies() {
-        when(settingsCatalogService.getParameterTypes()).thenReturn(Map.of());
-        when(settingsCatalogService.getParameterDependencies()).thenReturn(Map.of());
+        Map<String, String> parameterTypes = new LinkedHashMap<>();
+        parameterTypes.put("business", "Бизнес");
+        parameterTypes.put("partner_type", "Тип партнёра");
+        parameterTypes.put("country", "Страна");
+        parameterTypes.put("city", "Город");
+        parameterTypes.put("department", "Департамент");
+        parameterTypes.put("legal_entity", "ЮЛ");
+        when(settingsCatalogService.getParameterTypes()).thenReturn(parameterTypes);
+        when(settingsCatalogService.getParameterDependencies()).thenReturn(Map.of(
+                "partner_type", List.of("country"),
+                "business", List.of("country", "partner_type"),
+                "city", List.of("country", "partner_type", "business"),
+                "department", List.of("country", "partner_type", "business", "city")
+        ));
         when(sharedConfigService.loadSettings()).thenReturn(Map.of());
         when(settingsParameterService.listParameters(false)).thenReturn(Map.of());
         when(equipmentRepository.findAll()).thenReturn(List.of());
+        IikoDepartmentLocationCatalogService.LocationCatalogSnapshot liveCatalog =
+                new IikoDepartmentLocationCatalogService.LocationCatalogSnapshot(
+                        Map.of("БлинБери", Map.of("Корпоративная сеть", Map.of("Смоленск", List.of("Ленина 1")))),
+                        Map.of(),
+                        "iiko_api",
+                        false,
+                        List.of()
+                );
+        Map<String, Object> effectiveLocationsPayload = Map.of(
+                "tree", liveCatalog.tree(),
+                "statuses", Map.of(),
+                "city_meta", Map.of(
+                        "БлинБери::Корпоративная сеть::Смоленск",
+                        Map.of("country", "Россия", "partner_type", "Корпоративная сеть")),
+                "location_meta", Map.of(
+                        "БлинБери::Корпоративная сеть::Смоленск::Ленина 1",
+                        Map.of("country", "Россия", "partner_type", "Корпоративная сеть"))
+        );
+        when(locationCatalogService.loadCatalog()).thenReturn(liveCatalog);
+        when(locationCatalogService.buildEffectiveLocationsPayload(liveCatalog)).thenReturn(effectiveLocationsPayload);
+        when(settingsCatalogService.collectCities(liveCatalog.tree())).thenReturn(List.of("Смоленск"));
     }
 }
