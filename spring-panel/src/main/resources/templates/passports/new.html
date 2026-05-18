@@ -3913,7 +3913,10 @@
     }
 
     async function ensurePassportDataLoaded() {
-      if (!initialPassportParseFailed || passportData.is_new || !passportData.id) {
+      const hasMeaningfulInitialPayload = passportData
+        && typeof passportData === 'object'
+        && Object.keys(passportData).some((key) => !['id', 'is_new'].includes(key));
+      if ((hasMeaningfulInitialPayload && !initialPassportParseFailed) || passportData.is_new || !passportData.id) {
         populateForm();
         return;
       }
