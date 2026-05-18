@@ -26,6 +26,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -646,6 +647,24 @@ class PublicFormApiControllerWebMvcTest {
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"));
+    }
+
+    @Test
+    void createSessionReturnsValidationRequiredForBlankRequestMessage() throws Exception {
+        mockMvc.perform(post("/api/public/forms/web-required-body/sessions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "message": "   "
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_REQUIRED"))
+                .andExpect(jsonPath("$.error").isNotEmpty())
+                .andExpect(jsonPath("$.path").value("/api/public/forms/web-required-body/sessions"));
+
+        verifyNoInteractions(publicFormService, dialogConversationReadService);
     }
 
     @Test

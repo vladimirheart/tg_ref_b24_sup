@@ -43,13 +43,15 @@ public class RestExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiErrorResponse> handleValidation(MethodArgumentNotValidException ex,
                                                              HttpServletRequest request) {
-        String error = ex.getBindingResult()
+        FieldError fieldError = ex.getBindingResult()
                 .getFieldErrors()
                 .stream()
                 .findFirst()
-                .map(FieldError::getDefaultMessage)
-                .orElse("Некорректные параметры запроса");
-        return build(HttpStatus.BAD_REQUEST, error, "VALIDATION_ERROR", request);
+                .orElse(null);
+        String error = fieldError != null && fieldError.getDefaultMessage() != null && !fieldError.getDefaultMessage().isBlank()
+                ? fieldError.getDefaultMessage()
+                : "Некорректные параметры запроса";
+        return build(HttpStatus.BAD_REQUEST, error, resolveValidationCode(fieldError), request);
     }
 
     @ExceptionHandler(MissingServletRequestParameterException.class)
@@ -98,5 +100,15 @@ public class RestExceptionHandler {
                 OffsetDateTime.now()
         );
         return ResponseEntity.status(status).body(body);
+    }
+
+    private String resolveValidationCode(FieldError fieldError) {
+        if (fieldError == null || fieldError.getCode() == null) {
+            return "VALIDATION_ERROR";
+        }
+        return switch (fieldError.getCode()) {
+            case "NotBlank", "NotEmpty", "NotNull" -> "VALIDATION_REQUIRED";
+            default -> "VALIDATION_ERROR";
+        };
     }
 }

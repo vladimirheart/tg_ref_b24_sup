@@ -663,6 +663,10 @@
   в `config`, validation error code mapping для
   `email/phone/captcha/idempotency` и `X-Real-IP` fallback при создании
   session.
+- следующим маленьким hardening-пакетом тот же `PublicFormApiController`
+  дополнительно прикрыт на bean-validation required-path: пустой
+  `message` теперь возвращает explicit `VALIDATION_REQUIRED`, а не generic
+  `VALIDATION_ERROR`.
 - этот же smoke-слой расширен на detail/subpage contract:
   `ai-ops`, `unblock requests`, `users/detail` и оба passport editor route
   (`/object-passports/new`, `/object-passports/{id}`) теперь тоже прикрыты

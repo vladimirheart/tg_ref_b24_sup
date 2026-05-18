@@ -770,6 +770,10 @@ integration-сценария поверх users/settings runtime boundary всё
   ветками: у `session` теперь есть отдельный transport net на miss без
   history lookup и на success payload `clientName/clientContact/username/
   createdAt`.
+- В том же `PublicFormApiController` зафиксирован ещё один маленький
+  contract-hardening сценарий: bean-validation required-path для пустого
+  `message` теперь тоже возвращает explicit `VALIDATION_REQUIRED`, а не
+  generic `VALIDATION_ERROR`.
 - `BotProcessApiController` дополнительно прикрыт на `status/start`
   теми же runtime fallback сценариями, что раньше были только вокруг
   `stop/runtime-contract`: case-insensitive `STOPPED` и `null` message
