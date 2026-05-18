@@ -42,7 +42,7 @@ class DialogReplyServiceTest {
         assertThat(result.timestamp()).isEqualTo("2026-04-30T12:00:00Z");
         assertThat(result.telegramMessageId()).isEqualTo(77L);
         assertThat(result.responsible()).isEqualTo("operator");
-        verify(targetService).touchTicketActivity("T-900", 123L);
+        verify(targetService).touchTicketActivity("T-900", "operator");
         verify(responsibilityService).assignResponsibleIfMissing("T-900", "operator");
     }
 
@@ -74,7 +74,7 @@ class DialogReplyServiceTest {
         assertThat(result.telegramMessageId()).isEqualTo(88L);
         assertThat(result.messageType()).isEqualTo("image");
         assertThat(result.responsible()).isEqualTo("operator");
-        verify(targetService).touchTicketActivity("T-901", 200L);
+        verify(targetService).touchTicketActivity("T-901", "operator");
         verify(responsibilityService).assignResponsibleIfMissing("T-901", "operator");
     }
 

@@ -111,6 +111,15 @@ public class OperatorNotificationWatcher {
                         boolean initialPublicFormMessage = dialogAuditService.hasSuccessfulDialogAction(ticketId, "public_form_submit")
                                 && isFirstExternalMessage(ticketId, id);
                         if (initialPublicFormMessage) {
+                            String text = "Новое обращение " + ticketId;
+                            if (StringUtils.hasText(message)) {
+                                text += ": " + truncate(message, 100);
+                            }
+                            notificationService.notifyAllOperators(
+                                    text,
+                                    "/dialogs?ticketId=" + ticketId,
+                                    null
+                            );
                             dialogAiAssistantService.processIncomingClientMessage(ticketId, message, messageType, attachment);
                             continue;
                         }
@@ -215,7 +224,7 @@ public class OperatorNotificationWatcher {
                    )
                  ORDER BY t.ticket_id DESC
                 """,
-                rs -> {
+                (org.springframework.jdbc.core.ResultSetExtractor<Void>) rs -> {
                     while (rs.next()) {
                         String ticketId = trimToNull(rs.getString("ticket_id"));
                         Long channelId = rs.getObject("channel_id") != null ? rs.getLong("channel_id") : null;
@@ -249,6 +258,7 @@ public class OperatorNotificationWatcher {
                             );
                         }
                     }
+                    return null;
                 }
         );
     }

@@ -90,11 +90,11 @@ public class DialogReplyTargetService {
         return timestamp;
     }
 
-    public void touchTicketActivity(String ticketId, Long userId) {
-        if (!StringUtils.hasText(ticketId) || userId == null) {
+    public void touchTicketActivity(String ticketId, String operatorIdentity) {
+        String identity = normalizeOperatorIdentity(operatorIdentity);
+        if (!StringUtils.hasText(ticketId) || !StringUtils.hasText(identity)) {
             return;
         }
-        String identity = Long.toString(userId);
         String timestamp = OffsetDateTime.now().toString();
         int updated = jdbcTemplate.update("""
                 UPDATE ticket_active
@@ -149,5 +149,13 @@ public class DialogReplyTargetService {
             case "operator", "support", "admin", "system", "ai_agent" -> normalized;
             default -> "operator";
         };
+    }
+
+    private String normalizeOperatorIdentity(String operatorIdentity) {
+        if (!StringUtils.hasText(operatorIdentity)) {
+            return null;
+        }
+        String normalized = operatorIdentity.trim().toLowerCase();
+        return normalized.isEmpty() ? null : normalized;
     }
 }

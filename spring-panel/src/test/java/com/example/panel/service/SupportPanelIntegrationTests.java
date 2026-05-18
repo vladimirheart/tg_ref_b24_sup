@@ -17,6 +17,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -28,6 +29,7 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestPropertySource;
 
 import java.io.IOException;
+import java.sql.DriverManager;
 import java.sql.Timestamp;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -50,19 +52,64 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class SupportPanelIntegrationTests {
 
     private static Path dbFile;
+    private static Path usersDbFile;
     private static Path sharedConfigDir;
     private static final TypeReference<LinkedHashMap<String, Object>> MAP_TYPE = new TypeReference<>() {};
 
     @DynamicPropertySource
     static void sqlite(DynamicPropertyRegistry registry) throws IOException {
         dbFile = Files.createTempFile("panel-test", ".db");
+        usersDbFile = Files.createTempFile("panel-users-test", ".db");
+        initializeUsersDb(usersDbFile);
         sharedConfigDir = Files.createTempDirectory("panel-shared-config");
         registry.add("app.datasource.sqlite.path", () -> dbFile.toString());
+        registry.add("app.datasource.users-sqlite.path", () -> usersDbFile.toString());
         registry.add("shared-config.dir", () -> sharedConfigDir.toString());
+    }
+
+    private static void initializeUsersDb(Path path) {
+        try (var connection = DriverManager.getConnection("jdbc:sqlite:" + path.toAbsolutePath());
+             var statement = connection.createStatement()) {
+            statement.execute("""
+                    CREATE TABLE IF NOT EXISTS users (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        username TEXT NOT NULL UNIQUE,
+                        password TEXT NOT NULL,
+                        enabled BOOLEAN NOT NULL DEFAULT 1,
+                        role_id INTEGER,
+                        department TEXT,
+                        is_blocked BOOLEAN NOT NULL DEFAULT 0,
+                        last_portal_activity_at TEXT,
+                        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+                    )
+                    """);
+            statement.execute("""
+                    CREATE TABLE IF NOT EXISTS user_authorities (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id INTEGER NOT NULL,
+                        authority TEXT NOT NULL,
+                        UNIQUE(user_id, authority)
+                    )
+                    """);
+            statement.execute("""
+                    CREATE TABLE IF NOT EXISTS roles (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        name TEXT NOT NULL UNIQUE,
+                        description TEXT,
+                        permissions TEXT NOT NULL DEFAULT '{}'
+                    )
+                    """);
+        } catch (Exception ex) {
+            throw new IllegalStateException("Failed to initialize users test database", ex);
+        }
     }
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    @Qualifier("usersJdbcTemplate")
+    private JdbcTemplate usersJdbcTemplate;
 
     @Autowired
     private DialogService dialogService;
@@ -94,6 +141,9 @@ class SupportPanelIntegrationTests {
     @Autowired
     private DialogNotificationService dialogNotificationService;
 
+    @Autowired
+    private OperatorNotificationWatcher operatorNotificationWatcher;
+
     @BeforeEach
     void clean() {
         SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(
@@ -118,7 +168,13 @@ class SupportPanelIntegrationTests {
         jdbcTemplate.update("DELETE FROM notifications");
         jdbcTemplate.update("DELETE FROM workspace_telemetry_audit");
         jdbcTemplate.update("DELETE FROM app_settings");
+        jdbcTemplate.update("DELETE FROM dialog_action_audit");
+        jdbcTemplate.update("DELETE FROM user_authorities WHERE user_id IN (SELECT id FROM users WHERE username LIKE 'watcher_%')");
+        jdbcTemplate.update("DELETE FROM users WHERE username LIKE 'watcher_%'");
         sharedConfigService.saveSettings(new LinkedHashMap<>());
+        usersJdbcTemplate.update("DELETE FROM user_authorities WHERE user_id IN (SELECT id FROM users WHERE username LIKE 'watcher_%')");
+        usersJdbcTemplate.update("DELETE FROM users WHERE username LIKE 'watcher_%'");
+        operatorNotificationWatcher.initialize();
     }
 
     private void saveDialogConfig(String rawJson) {
@@ -384,6 +440,11 @@ class SupportPanelIntegrationTests {
                     assertThat(message.sender()).isEqualTo("operator");
                     assertThat(message.message()).contains("Подскажите номер заказа");
                 });
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT user_identity FROM ticket_active WHERE ticket_id = ?",
+                String.class,
+                session.ticketId()
+        )).isEqualTo("operator");
     }
 
     @Test
@@ -643,6 +704,44 @@ class SupportPanelIntegrationTests {
         notificationService.markAsRead("operator", notifications.get(0).id());
         NotificationSummary after = notificationService.summary("operator");
         assertThat(after.unreadCount()).isEqualTo(1);
+    }
+
+
+    @Test
+    void operatorNotificationWatcherCreatesBellNotificationForFollowUpClientMessage() {
+        insertOperatorUser("watcher_followup");
+        assertThat(notificationService.findAllOperatorRecipients()).contains("watcher_followup");
+        jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id) VALUES (62, 'web-followup', 'Веб-форма', 1, CURRENT_TIMESTAMP, 'watcher-followup')");
+        jdbcTemplate.update("INSERT INTO tickets (user_id, ticket_id, status, channel_id) VALUES (?,?,?,?)",
+                910002L, "WATCHER-WEB-2", "open", 62);
+        jdbcTemplate.update("INSERT INTO messages (group_msg_id, user_id, problem, created_at, username, ticket_id, created_date, created_time, client_name, channel_id, updated_at, updated_by) " +
+                        "VALUES (?, ?, ?, CURRENT_TIMESTAMP, ?, ?, DATE('now'), TIME('now'), ?, ?, CURRENT_TIMESTAMP, ?)",
+                910102L, 910002L, "Нужна помощь", "web_form", "WATCHER-WEB-2", "Олег", 62, "public_form");
+        jdbcTemplate.update("INSERT INTO chat_history (user_id, sender, message, timestamp, ticket_id, message_type, channel_id) VALUES (?,?,?,?,?,?,?)",
+                910002L, "user", "Первое сообщение", OffsetDateTime.now().toString(), "WATCHER-WEB-2", "text", 62);
+        jdbcTemplate.update("INSERT INTO dialog_action_audit (ticket_id, actor, action, result, detail, created_at) VALUES (?,?,?,?,?,CURRENT_TIMESTAMP)",
+                "WATCHER-WEB-2", "web_form", "public_form_submit", "success", "channel=62");
+
+        operatorNotificationWatcher.watch();
+        jdbcTemplate.update("DELETE FROM notifications WHERE user_identity = ?", "watcher_followup");
+
+        jdbcTemplate.update("INSERT INTO chat_history (user_id, sender, message, timestamp, ticket_id, message_type, channel_id) VALUES (?,?,?,?,?,?,?)",
+                910002L, "user", "Есть ещё уточнение по открытому диалогу", OffsetDateTime.now().toString(), "WATCHER-WEB-2", "text", 62);
+
+        operatorNotificationWatcher.watch();
+
+        Integer notificationCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM notifications WHERE url = ?",
+                Integer.class,
+                "/dialogs?ticketId=WATCHER-WEB-2"
+        );
+        String notificationText = jdbcTemplate.queryForObject(
+                "SELECT text FROM notifications WHERE url = ? ORDER BY id DESC LIMIT 1",
+                String.class,
+                "/dialogs?ticketId=WATCHER-WEB-2"
+        );
+        assertThat(notificationCount).isGreaterThanOrEqualTo(1);
+        assertThat(notificationText).isNotBlank();
     }
 
     @Test
@@ -2580,6 +2679,21 @@ class SupportPanelIntegrationTests {
         assertThat(rolloutDecision).containsEntry("action", "hold");
         assertThat(rolloutDecision).containsEntry("kpi_outcome_ready", true);
         assertThat(rolloutDecision).containsEntry("kpi_outcome_regressions", true);
+    }
+
+    private void insertOperatorUser(String username) {
+        usersJdbcTemplate.update(
+                "INSERT OR IGNORE INTO users (username, password, enabled, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)",
+                username,
+                "{noop}test",
+                true
+        );
+        jdbcTemplate.update(
+                "INSERT OR IGNORE INTO users (username, password, enabled, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)",
+                username,
+                "{noop}test",
+                true
+        );
     }
 
 }

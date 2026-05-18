@@ -4024,9 +4024,6 @@
         updateRowResponsible(activeDialogRow, data.responsible || activeDialogRow.dataset.responsible || '');
         applyFilters();
       }
-      if (typeof showNotification === 'function') {
-        showNotification('Сообщение отправлено', 'success');
-      }
     } catch (error) {
       if (typeof showNotification === 'function') {
         showNotification(error.message || 'Не удалось отправить сообщение', 'error');
@@ -8456,9 +8453,6 @@
           applyFilters();
         }
         updateDetailsStatusSummary('ожидает ответа клиента', 'waiting_client');
-        if (typeof showNotification === 'function') {
-          showNotification('Сообщение отправлено', 'success');
-        }
       } catch (error) {
         if (typeof showNotification === 'function') {
           showNotification(error.message || 'Не удалось отправить сообщение', 'error');

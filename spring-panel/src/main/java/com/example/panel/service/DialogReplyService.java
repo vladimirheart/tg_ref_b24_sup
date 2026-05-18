@@ -54,7 +54,7 @@ public class DialogReplyService {
                     replyToTelegramId,
                     sender
             );
-            dialogReplyTargetService.touchTicketActivity(ticketId, target.userId());
+            dialogReplyTargetService.touchTicketActivity(ticketId, operator);
             String responsible = dialogResponsibilityService.assignResponsibleIfMissing(ticketId, operator);
             return DialogReplyResult.success(timestamp, null, responsible);
         }
@@ -77,7 +77,7 @@ public class DialogReplyService {
                 replyToTelegramId,
                 sender
         );
-        dialogReplyTargetService.touchTicketActivity(ticketId, target.userId());
+        dialogReplyTargetService.touchTicketActivity(ticketId, operator);
         String responsible = dialogResponsibilityService.assignResponsibleIfMissing(ticketId, operator);
         return DialogReplyResult.success(timestamp, transportResult.telegramMessageId(), responsible);
     }
@@ -175,7 +175,7 @@ public class DialogReplyService {
                 messageType,
                 transportResult.telegramMessageId()
         );
-        dialogReplyTargetService.touchTicketActivity(ticketId, target.userId());
+        dialogReplyTargetService.touchTicketActivity(ticketId, operator);
         String responsible = dialogResponsibilityService.assignResponsibleIfMissing(ticketId, operator);
         return DialogMediaReplyResult.success(timestamp, transportResult.telegramMessageId(), storedName, messageType, caption, responsible);
     }
