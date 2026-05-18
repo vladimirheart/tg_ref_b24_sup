@@ -136,7 +136,6 @@ public class ObjectPassportService {
             statement.executeUpdate();
             return fetchLastInsertRowId(connection);
         }
-        throw new SQLException("Не удалось создать объект для паспорта");
     }
 
     private boolean updateObject(Connection connection, long objectId, Map<String, Object> payload) throws SQLException {
@@ -159,7 +158,6 @@ public class ObjectPassportService {
             statement.executeUpdate();
             return fetchLastInsertRowId(connection);
         }
-        throw new SQLException("Не удалось создать запись паспорта");
     }
 
     private long fetchLastInsertRowId(Connection connection) throws SQLException {
@@ -169,7 +167,7 @@ public class ObjectPassportService {
                 return rs.getLong(1);
             }
         }
-        throw new SQLException("РќРµ СѓРґР°Р»РѕСЃСЊ РїРѕР»СѓС‡РёС‚СЊ id РІСЃС‚Р°РІР»РµРЅРЅРѕР№ Р·Р°РїРёСЃРё");
+        throw new SQLException("Не удалось получить id вставленной записи");
     }
 
     private void updatePassportRow(Connection connection,
@@ -272,13 +270,13 @@ public class ObjectPassportService {
         String city = stringValue(payload.get("city"));
         String business = stringValue(payload.get("business"));
         if (StringUtils.hasText(department) && StringUtils.hasText(city)) {
-            return city + " — " + department;
+            return city + " - " + department;
         }
         if (StringUtils.hasText(department)) {
             return department;
         }
         if (StringUtils.hasText(business) && StringUtils.hasText(city)) {
-            return business + " — " + city;
+            return business + " - " + city;
         }
         return "Паспорт объекта";
     }
