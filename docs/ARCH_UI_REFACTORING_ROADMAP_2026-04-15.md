@@ -44,8 +44,9 @@
   `DialogWorkspaceRolloutGovernanceService` уже переведён в режим
   hardening/compatibility;
 - при этом `PublicFormService` уже не untouched hotspot: runtime config,
-  metrics и session flow вынесены в отдельные bounded services, а remaining
-  weight там смещён в submit/config/idempotency/rate-limit slice;
+  metrics, session flow и anti-abuse/request-identity слой вынесены в
+  отдельные bounded services, а remaining weight там смещён в
+  submit/captcha/validation и соседний config-parser slice;
 - Phase 5 всё ещё не доведён до полноценного runtime contract между
   `spring-panel` и `java-bot`;
 - Phase 6 уже широкая и системная, но ей всё ещё не хватает следующего слоя
@@ -1025,3 +1026,12 @@
 - после этого `PublicFormService` сжат примерно с `1327` до `1020` строк, а
   следующий practical focus там уже уже: submit/config/idempotency/rate-limit
   orchestration tail.
+- следующим пакетом из `PublicFormService` вынесен anti-abuse/request identity
+  bounded slice: новый `PublicFormAntiAbuseService` теперь владеет
+  requester fingerprint key, requestId normalization, payload hash,
+  idempotency cache и rate-limit policy.
+- после этого `PublicFormService` сжат примерно с `1020` до `889` строк, а
+  remaining practical focus там смещён уже не в mixed anti-abuse tail, а в
+  submit/captcha/validation orchestration и соседний public-form config parser.
+- под новый split добавлен `PublicFormAntiAbuseServiceTest`; targeted
+  public-form WebMvc/unit/integration net остаётся зелёным.

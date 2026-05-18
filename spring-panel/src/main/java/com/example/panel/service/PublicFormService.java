@@ -34,23 +34,18 @@ import java.net.http.HttpResponse;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.security.MessageDigest;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Deque;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.HexFormat;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
@@ -79,18 +74,15 @@ public class PublicFormService {
     private final ChatHistoryRepository chatHistoryRepository;
     private final TicketRepository ticketRepository;
     private final MessageRepository messageRepository;
-    private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
-    private final SharedConfigService sharedConfigService;
     private final PublicFormRuntimeConfigService publicFormRuntimeConfigService;
     private final PublicFormMetricsService publicFormMetricsService;
     private final PublicFormSessionService publicFormSessionService;
+    private final PublicFormAntiAbuseService publicFormAntiAbuseService;
     private final SettingsCatalogService settingsCatalogService;
     private final IikoDepartmentLocationCatalogService locationCatalogService;
     private final DialogAuditService dialogAuditService;
     private final AlertQueueService alertQueueService;
-    private final Map<String, Deque<Long>> rateLimitBuckets = new ConcurrentHashMap<>();
-    private final Map<String, IdempotencyEntry> idempotencyCache = new ConcurrentHashMap<>();
     private final AtomicLong syntheticMessageId = new AtomicLong(System.currentTimeMillis());
     private final HttpClient httpClient = HttpClient.newBuilder().build();
 
@@ -99,12 +91,11 @@ public class PublicFormService {
                              ChatHistoryRepository chatHistoryRepository,
                              TicketRepository ticketRepository,
                              MessageRepository messageRepository,
-                             JdbcTemplate jdbcTemplate,
                              ObjectMapper objectMapper,
-                             SharedConfigService sharedConfigService,
                              PublicFormRuntimeConfigService publicFormRuntimeConfigService,
                              PublicFormMetricsService publicFormMetricsService,
                              PublicFormSessionService publicFormSessionService,
+                             PublicFormAntiAbuseService publicFormAntiAbuseService,
                              SettingsCatalogService settingsCatalogService,
                              IikoDepartmentLocationCatalogService locationCatalogService,
                              DialogAuditService dialogAuditService,
@@ -114,12 +105,11 @@ public class PublicFormService {
         this.chatHistoryRepository = chatHistoryRepository;
         this.ticketRepository = ticketRepository;
         this.messageRepository = messageRepository;
-        this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper;
-        this.sharedConfigService = sharedConfigService;
         this.publicFormRuntimeConfigService = publicFormRuntimeConfigService;
         this.publicFormMetricsService = publicFormMetricsService;
         this.publicFormSessionService = publicFormSessionService;
+        this.publicFormAntiAbuseService = publicFormAntiAbuseService;
         this.settingsCatalogService = settingsCatalogService;
         this.locationCatalogService = locationCatalogService;
         this.dialogAuditService = dialogAuditService;
@@ -153,16 +143,17 @@ public class PublicFormService {
         boolean stripHtmlTags = readDialogConfigBoolean("public_form_strip_html_tags", true);
         PublicFormSubmission normalizedSubmission = normalizeSubmission(submission, stripHtmlTags);
         Map<String, String> answers = sanitizeAnswers(submission.answers(), stripHtmlTags);
-        String requestId = normalizeRequestId(submission.requestId());
-        String payloadHash = buildPayloadHash(normalizedSubmission, answers);
-        Optional<PublicFormSessionDto> duplicate = findIdempotentSession(channel, requesterKey, requestId, payloadHash);
+        PublicFormAntiAbuseService.SubmissionFingerprint fingerprint =
+                publicFormAntiAbuseService.prepareSubmissionFingerprint(normalizedSubmission, answers);
+        Optional<PublicFormSessionDto> duplicate =
+                publicFormAntiAbuseService.findIdempotentSession(channel, requesterKey, fingerprint);
         if (duplicate.isPresent()) {
             log.info("Public form idempotency hit for channel {} requesterHash {} requestId {}",
-                    channel.getId(), summarizeRequester(requesterKey), requestId);
+                    channel.getId(), publicFormAntiAbuseService.summarizeRequester(requesterKey), fingerprint.requestId());
             return duplicate.get();
         }
 
-        enforceRateLimit(channel, requesterKey);
+        publicFormAntiAbuseService.enforceRateLimit(channel, requesterKey);
         enforceCaptcha(config, normalizedSubmission);
         validateSubmission(config, normalizedSubmission, answers);
         String combinedMessage = buildCombinedMessage(config, answers, normalizedSubmission.message());
@@ -209,7 +200,7 @@ public class PublicFormService {
                 "channel=" + channel.getId() + ", source=web_form"
         );
         alertQueueService.notifyQueueForNewPublicAppeal(channel, saved.getTicketId(), combinedMessage);
-        cacheIdempotentSession(channel, requesterKey, requestId, payloadHash, result);
+        publicFormAntiAbuseService.cacheIdempotentSession(channel, requesterKey, fingerprint, result);
         return result;
     }
 
@@ -371,137 +362,8 @@ public class PublicFormService {
         }
     }
 
-    private Optional<PublicFormSessionDto> findIdempotentSession(Channel channel,
-                                                              String requesterKey,
-                                                              String requestId,
-                                                              String payloadHash) {
-        if (!StringUtils.hasText(requestId)) {
-            return Optional.empty();
-        }
-        purgeExpiredIdempotencyEntries();
-        IdempotencyEntry entry = idempotencyCache.get(idempotencyCacheKey(channel, requesterKey, requestId));
-        if (entry == null) {
-            return Optional.empty();
-        }
-        if (!entry.payloadHash().equals(payloadHash)) {
-            throw new IllegalArgumentException("Запрос с таким requestId уже был отправлен с другим payload");
-        }
-        return Optional.of(entry.session());
-    }
-
-    private void cacheIdempotentSession(Channel channel,
-                                        String requesterKey,
-                                        String requestId,
-                                        String payloadHash,
-                                        PublicFormSessionDto session) {
-        if (!StringUtils.hasText(requestId)) {
-            return;
-        }
-        purgeExpiredIdempotencyEntries();
-        idempotencyCache.put(idempotencyCacheKey(channel, requesterKey, requestId),
-                new IdempotencyEntry(payloadHash, session, System.currentTimeMillis()));
-    }
-
-    private void purgeExpiredIdempotencyEntries() {
-        long now = System.currentTimeMillis();
-        int ttlSeconds = readDialogConfigInt("public_form_idempotency_ttl_seconds", 300, 30, 3600);
-        long ttlMs = ttlSeconds * 1000L;
-        idempotencyCache.entrySet().removeIf(entry -> (now - entry.getValue().createdAtMs()) > ttlMs);
-    }
-
-    private String summarizeRequester(String requesterKey) {
-        if (!StringUtils.hasText(requesterKey)) {
-            return "unknown";
-        }
-        String normalized = requesterKey.trim();
-        if (normalized.length() <= 12) {
-            return hashValue(normalized).substring(0, 12);
-        }
-        return normalized.substring(0, 6) + "…" + hashValue(normalized).substring(0, 6);
-    }
-
-    private String idempotencyCacheKey(Channel channel, String requesterKey, String requestId) {
-        String requester = StringUtils.hasText(requesterKey) ? requesterKey.trim() : "unknown";
-        return channel.getId() + "|" + requester + "|" + requestId;
-    }
-
-    private String normalizeRequestId(String requestId) {
-        if (!StringUtils.hasText(requestId)) {
-            return null;
-        }
-        String normalized = requestId.trim();
-        if (normalized.length() > 128) {
-            throw new IllegalArgumentException("requestId слишком длинный");
-        }
-        return normalized;
-    }
-
-    private String buildPayloadHash(PublicFormSubmission submission, Map<String, String> answers) {
-        StringBuilder builder = new StringBuilder()
-                .append(Optional.ofNullable(submission.message()).orElse("").trim())
-                .append('|')
-                .append(Optional.ofNullable(submission.clientName()).orElse("").trim())
-                .append('|')
-                .append(Optional.ofNullable(submission.clientContact()).orElse("").trim());
-        for (Map.Entry<String, String> entry : answers.entrySet().stream().sorted(Map.Entry.comparingByKey()).toList()) {
-            builder.append('|').append(entry.getKey()).append('=')
-                    .append(Optional.ofNullable(entry.getValue()).orElse(""));
-        }
-        return hashValue(builder.toString());
-    }
-
-    private String hashValue(String payload) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            digest.update(Optional.ofNullable(payload).orElse("").getBytes(StandardCharsets.UTF_8));
-            return HexFormat.of().formatHex(digest.digest());
-        } catch (Exception ex) {
-            throw new IllegalStateException("Не удалось подготовить хеш запроса", ex);
-        }
-    }
-
     public String buildRequesterKey(String requesterIp, String fingerprint) {
-        String ipPart = StringUtils.hasText(requesterIp) ? requesterIp.trim() : "anon";
-        if (!readDialogConfigBoolean("public_form_rate_limit_use_fingerprint", true)) {
-            return ipPart;
-        }
-        if (!StringUtils.hasText(fingerprint)) {
-            return ipPart;
-        }
-        String normalizedFingerprint = fingerprint.trim();
-        if (normalizedFingerprint.length() > 256) {
-            normalizedFingerprint = normalizedFingerprint.substring(0, 256);
-        }
-        return ipPart + "|fp:" + hashValue(normalizedFingerprint);
-    }
-
-    private void enforceRateLimit(Channel channel, String requesterKey) {
-        ParsedPublicFormSettings settings = parseSettings(channel);
-        boolean enabled = settings.rateLimitEnabled() != null
-                ? settings.rateLimitEnabled()
-                : readDialogConfigBoolean("public_form_rate_limit_enabled", true);
-        if (!enabled) {
-            return;
-        }
-        int windowSeconds = settings.rateLimitWindowSeconds() != null
-                ? settings.rateLimitWindowSeconds()
-                : readDialogConfigInt("public_form_rate_limit_window_seconds", 60, 10, 3600);
-        int maxRequests = settings.rateLimitMaxRequests() != null
-                ? settings.rateLimitMaxRequests()
-                : readDialogConfigInt("public_form_rate_limit_max_requests", 5, 1, 500);
-        String bucketKey = (channel.getId() == null ? "unknown" : channel.getId()) + ":" + (StringUtils.hasText(requesterKey) ? requesterKey : "anon");
-        long now = System.currentTimeMillis();
-        long threshold = now - (windowSeconds * 1000L);
-        Deque<Long> bucket = rateLimitBuckets.computeIfAbsent(bucketKey, key -> new ArrayDeque<>());
-        synchronized (bucket) {
-            while (!bucket.isEmpty() && bucket.peekFirst() < threshold) {
-                bucket.removeFirst();
-            }
-            if (bucket.size() >= maxRequests) {
-                throw new IllegalArgumentException("Слишком много запросов. Попробуйте чуть позже.");
-            }
-            bucket.addLast(now);
-        }
+        return publicFormAntiAbuseService.buildRequesterKey(requesterIp, fingerprint);
     }
 
     private Optional<Channel> resolveChannel(String channelRef) {
@@ -1083,9 +945,6 @@ public class PublicFormService {
 
     private int normalizeRange(int value, int min, int max) {
         return Math.max(min, Math.min(max, value));
-    }
-
-    private record IdempotencyEntry(String payloadHash, PublicFormSessionDto session, long createdAtMs) {
     }
 
     private record ParsedPublicFormSettings(int schemaVersion,

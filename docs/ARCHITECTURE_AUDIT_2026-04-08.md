@@ -60,10 +60,11 @@ contracts.
 
 1. `P1`: продолжать уже начатый bounded split вокруг `PublicFormService`:
    runtime config, metrics и session lookup/rotation уже вынесены в
-   `PublicFormRuntimeConfigService`, `PublicFormMetricsService` и
-   `PublicFormSessionService`, сам `PublicFormService` сжат примерно до
-   `1020` строк; следующий practical focus там теперь в submit/config/
-   idempotency/rate-limit tails.
+   `PublicFormRuntimeConfigService`, `PublicFormMetricsService`,
+   `PublicFormSessionService` и теперь ещё `PublicFormAntiAbuseService`,
+   сам `PublicFormService` сжат примерно до `889` строк; следующий
+   practical focus там теперь в submit/captcha/validation orchestration
+   и соседнем config-parser tail.
 2. `P1`: удержать AI assistant в post-split hardening: `DialogAiAssistantService`
    уже thin facade примерно на `208` строк, `DialogAiAssistantMessageFlowService`
    сжат до `267` строк, а decision/consistency/auto-reply outcome слой
@@ -711,9 +712,9 @@ integration-сценария поверх users/settings runtime boundary всё
 ## 📁 Следующие шаги
 
 1. Следующим крупным refactoring пакетом продолжать уже начатый split
-   `PublicFormService`: runtime config, metrics и session flow уже
-   вынесены, а remaining риск теперь сидит в submit/config/idempotency/
-   rate-limit orchestration tail.
+   `PublicFormService`: runtime config, metrics, session flow и anti-abuse
+   слой уже вынесены, а remaining риск теперь сидит в
+   submit/captcha/validation orchestration и соседнем config-parser tail.
 2. Параллельно держать AI assistant уже в post-split hardening:
    `DialogAiAssistantMessageFlowService` и
    `DialogAiAssistantMessageOutcomeService` должны оставаться локальными
@@ -1131,3 +1132,15 @@ integration-сценария поверх users/settings runtime boundary всё
   `PublicFormMetricsServiceTest` и `PublicFormSessionServiceTest`; compile,
   `PublicFormApiControllerWebMvcTest`, `PublicFormControllerWebMvcTest` и
   targeted AI assistant regression net остаются зелёными.
+- следующим пакетом из `PublicFormService` вынесен anti-abuse/request identity
+  bounded slice: новый `PublicFormAntiAbuseService` теперь владеет
+  requester fingerprint key, requestId normalization, payload hash,
+  idempotency cache и rate-limit policy.
+- после этого `PublicFormService` сжат примерно с `1020` до `889` строк;
+  из coordinator убраны mixed idempotency/rate-limit/requester-key helper’ы,
+  а remaining practical focus смещён уже в submit/captcha/validation
+  orchestration и соседний config-parser tail.
+- под новый split добавлен `PublicFormAntiAbuseServiceTest`; targeted
+  `PublicFormApiControllerWebMvcTest`, `PublicFormControllerWebMvcTest`,
+  `PublicFormLocationIntegrationTest` и новый anti-abuse unit net остаются
+  зелёными.
