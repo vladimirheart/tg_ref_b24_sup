@@ -1,4 +1,14 @@
 {
     "java.compile.nullAnalysis.mode": "automatic",
-    "java.configuration.updateBuildConfiguration": "interactive"
+    "java.configuration.updateBuildConfiguration": "interactive",
+    "chat.tools.terminal.autoApprove": {
+        "/^git rebase --abort; git merge --abort; git status --short; git stash list$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "/^git status -sb; git rev-list --left-right --count origin/main\\.\\.\\.main; git log --oneline --decorate --graph --left-right --cherry origin/main\\.\\.\\.main$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
 }
