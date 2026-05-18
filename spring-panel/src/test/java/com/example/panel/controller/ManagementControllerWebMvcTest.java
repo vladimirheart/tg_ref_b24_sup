@@ -211,6 +211,8 @@ class ManagementControllerWebMvcTest {
             .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-preferences.js")))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/theme.js")))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/ui-config.js")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("/js/common.js")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("meta name=\"_csrf\"")))
             .andExpect(content().string(org.hamcrest.Matchers.containsString("data-ui-page=\"passports\"")));
     }
 
