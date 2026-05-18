@@ -116,4 +116,73 @@ class PublicFormFlowSmokeIntegrationTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.dialogs[0].ticketId").value(ticketId));
     }
+
+    @Test
+    void publicFormMissingChannelReturnsStructuredConfigAndSessionErrors() throws Exception {
+        mockMvc.perform(get("/api/public/forms/web-missing/config"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("CHANNEL_NOT_FOUND"))
+                .andExpect(jsonPath("$.path").value("/api/public/forms/web-missing/config"))
+                .andExpect(jsonPath("$.timestamp").isNotEmpty());
+
+        mockMvc.perform(get("/api/public/forms/web-missing/sessions/token-missing"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("SESSION_NOT_FOUND"))
+                .andExpect(jsonPath("$.path").value("/api/public/forms/web-missing/sessions/token-missing"))
+                .andExpect(jsonPath("$.timestamp").isNotEmpty());
+    }
+
+    @Test
+    void publicFormDisabledChannelReturnsConfiguredStatusForConfigAndSubmit() throws Exception {
+        jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id, questions_cfg) VALUES (42, 'web-disabled', 'Отключенная форма', 1, CURRENT_TIMESTAMP, 'web-disabled', ?)",
+                "{\"schemaVersion\":1,\"enabled\":false,\"captchaEnabled\":false,\"disabledStatus\":410,\"fields\":[]}");
+
+        mockMvc.perform(get("/api/public/forms/web-disabled/config"))
+                .andExpect(status().isGone())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("FORM_DISABLED"))
+                .andExpect(jsonPath("$.path").value("/api/public/forms/web-disabled/config"))
+                .andExpect(jsonPath("$.timestamp").isNotEmpty());
+
+        mockMvc.perform(post("/api/public/forms/web-disabled/sessions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "message": "Нужна помощь"
+                                }
+                                """))
+                .andExpect(status().isGone())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("FORM_DISABLED"))
+                .andExpect(jsonPath("$.path").value("/api/public/forms/web-disabled/sessions"))
+                .andExpect(jsonPath("$.timestamp").isNotEmpty());
+    }
+
+    @Test
+    void publicFormMalformedBodyAndMissingSessionReturnStructuredTransportErrors() throws Exception {
+        jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id, questions_cfg) VALUES (43, 'web-runtime', 'Runtime Form', 1, CURRENT_TIMESTAMP, 'web-runtime', ?)",
+                "{\"schemaVersion\":1,\"enabled\":true,\"captchaEnabled\":false,\"disabledStatus\":404,\"fields\":[]}");
+
+        mockMvc.perform(post("/api/public/forms/web-runtime/sessions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "message":
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("MALFORMED_BODY"))
+                .andExpect(jsonPath("$.path").value("/api/public/forms/web-runtime/sessions"))
+                .andExpect(jsonPath("$.timestamp").isNotEmpty());
+
+        mockMvc.perform(get("/api/public/forms/web-runtime/sessions/token-none"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("SESSION_NOT_FOUND"))
+                .andExpect(jsonPath("$.path").value("/api/public/forms/web-runtime/sessions/token-none"))
+                .andExpect(jsonPath("$.timestamp").isNotEmpty());
+    }
 }

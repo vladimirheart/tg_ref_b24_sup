@@ -769,6 +769,11 @@ integration-сценария поверх users/settings runtime boundary всё
   превратился в уже довольно thin public-form transport boundary поверх
   `PublicFormApiResponseService` и `PublicFormApiContractService`; следующий
   practical focus смещён в integration/e2e/runtime contract coverage.
+- Следующим integration-пакетом `PublicFormFlowSmokeIntegrationTest`
+  расширен уже не только на happy-path submit, но и на real-app runtime
+  contract: missing channel, disabled form, malformed body и session miss
+  теперь проверяются в живом `SpringBootTest` контексте с SQLite и
+  structured `errorCode/path/timestamp` payload.
 - `DialogAiOpsController` теперь прикрыт не только по основным happy/error
   flows, но и по alias/null-body/default-path сценариям, что уменьшает риск
   regressions в transport-layer normalisation.

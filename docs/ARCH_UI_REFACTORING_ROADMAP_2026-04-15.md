@@ -681,6 +681,11 @@
   `PublicFormApiResponseService` и `PublicFormApiContractService`; следующий
   practical focus там смещён уже не в helper split, а в
   integration/e2e/runtime contract coverage.
+- следующим integration-пакетом `PublicFormFlowSmokeIntegrationTest`
+  расширен уже не только на happy-path submit, но и на живой runtime
+  contract: missing channel, disabled form, malformed body и session miss
+  теперь зафиксированы в `SpringBootTest` + SQLite с тем же structured
+  `errorCode/path/timestamp` payload.
 - этот же smoke-слой расширен на detail/subpage contract:
   `ai-ops`, `unblock requests`, `users/detail` и оба passport editor route
   (`/object-passports/new`, `/object-passports/{id}`) теперь тоже прикрыты
