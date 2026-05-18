@@ -36,19 +36,19 @@
   доведён до thin facade;
 - giant `/settings` transport/update тоже больше не hotspot: `Phase 4`
   закрыта, а remaining риск смещён в consistency/hardening;
-- сейчас main architectural weight находится прежде всего в
-  `PublicFormService`, а remaining AI-assistant risk уже не живёт в одном
-  giant flow и локализован в bounded паре
+- сейчас main architectural weight уже не живёт в одном giant service:
+  `PublicFormService` доведён до thin facade, а remaining AI-assistant risk
+  тоже не живёт в одном giant flow и локализован в bounded паре
   `DialogAiAssistantMessageFlowService` /
   `DialogAiAssistantMessageOutcomeService`; при этом
   `DialogWorkspaceRolloutGovernanceService` уже переведён в режим
   hardening/compatibility;
 - при этом `PublicFormService` уже не untouched hotspot: runtime config,
   metrics, session flow, anti-abuse/request-identity, submit/captcha/
-  validation, form-definition/config assembly, ticket/session persistence и
-  теперь ещё channel/config/session lookup plus continuation helper tail
-  вынесены в отдельные bounded services; remaining weight там смещён уже в
-  thin entry-flow coordinator layer;
+  validation, form-definition/config assembly, ticket/session persistence,
+  channel/config/session lookup и теперь ещё submit entry-flow coordinator
+  вынесены в отдельные bounded services; remaining weight там смещён уже не
+  в giant service split, а в runtime contract и integration hardening;
 - Phase 5 всё ещё не доведён до полноценного runtime contract между
   `spring-panel` и `java-bot`;
 - Phase 6 уже широкая и системная, но ей всё ещё не хватает следующего слоя
@@ -761,15 +761,13 @@
 
 1. `Phase 3` и `Phase 4` считать закрытыми и не возвращаться к ним как к
    giant-split проблемам.
-2. Главный практический фокус теперь держать прежде всего на
-   `PublicFormService`, а AI assistant slice после нового outcome split
-   удерживать в режиме hardening/compatibility; при этом
-   `DialogWorkspaceRolloutGovernanceService` после нового wide split держать
-   уже в режиме hardening/compatibility. Внутри `PublicFormService`
-   remaining bounded проход теперь логичнее вести уже по thin
-   entry-flow coordinator logic и contract/hardening around `createSession`,
-   а `DialogWorkspaceService` при этом удерживать как thin orchestration
-   layer.
+2. Главный практический фокус теперь держать уже не на giant split
+   `PublicFormService`, а на post-split hardening: AI assistant slice после
+   нового outcome split удерживать в режиме hardening/compatibility,
+   `DialogWorkspaceRolloutGovernanceService` после нового wide split тоже
+   держать в этом режиме, а public-form путь продолжать уже через runtime
+   contract, integration-quality и API consistency. `DialogWorkspaceService`
+   при этом удерживать как thin orchestration layer.
 3. Параллельно продолжать `Phase 5/6` уже не по giant wrappers, а по
    shared-config/runtime consistency и integration-quality.
 4. В notifier/runtime hardening идти только по локальным bounded services,
@@ -780,12 +778,10 @@
 Актуальный порядок после уже выполненных этапов:
 
 1. После нового outcome split увести AI assistant slice в режим
-   hardening/compatibility и следующим крупным bounded проходом держать
-   `PublicFormService`, но уже не по anti-abuse/submit/config/persistence
-   tail и не по continuation plumbing, а по финальному entry-flow
-   coordinator/hardening slice.
+   hardening/compatibility и giant split `PublicFormService` считать
+   практически закрытым.
 2. Довести `Phase 5` от launcher strategy до более явного runtime contract.
-3. Расширить `Phase 6`, чтобы новые refactor-проходы шли уже под
+3. Расширить `Phase 6`, чтобы новые проходы шли уже под
    integration-quality, а не только под targeted tests.
 4. Держать `DialogWorkspaceService` и соседние workspace consumers в
    thin-orchestration диапазоне, не возвращая giant-service риск.
@@ -1095,3 +1091,19 @@
   `PublicFormDefinitionServiceTest`,
   `PublicFormSubmissionPersistenceServiceTest` и новый channel-service unit
   net остаются зелёными.
+- следующим пакетом из `PublicFormService` вынесен submit entry-flow
+  coordinator bounded slice: новый `PublicFormSubmissionFlowService`
+  теперь владеет channel/config gating, submission preparation, anti-abuse
+  idempotency/rate-limit orchestration и persistence handoff.
+- после этого `PublicFormService` сжат примерно с `115` до `81` строки и
+  превращён в thin facade; giant public-form split можно считать
+  практически закрытым, а следующий practical focus смещён уже на runtime
+  contract, integration-quality и API consistency.
+- под новый split добавлен `PublicFormSubmissionFlowServiceTest`; targeted
+  `PublicFormApiControllerWebMvcTest`, `PublicFormControllerWebMvcTest`,
+  `PublicFormLocationIntegrationTest`, `PublicFormFlowSmokeIntegrationTest`,
+  `PublicFormAntiAbuseServiceTest`, `PublicFormSubmissionPolicyServiceTest`,
+  `PublicFormDefinitionServiceTest`,
+  `PublicFormSubmissionPersistenceServiceTest`,
+  `PublicFormChannelServiceTest` и новый flow-service unit net остаются
+  зелёными.

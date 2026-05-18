@@ -58,16 +58,14 @@ contracts.
 
 Что сейчас в приоритете:
 
-1. `P1`: продолжать уже начатый bounded split вокруг `PublicFormService`:
-   runtime config, metrics и session lookup/rotation уже вынесены в
-   `PublicFormRuntimeConfigService`, `PublicFormMetricsService`,
-   `PublicFormSessionService`, `PublicFormAntiAbuseService` и теперь ещё
-   `PublicFormSubmissionPolicyService`, `PublicFormDefinitionService` и
-   теперь ещё `PublicFormSubmissionPersistenceService` плюс
-   `PublicFormChannelService`, сам `PublicFormService` сжат примерно до
-   `115` строк; следующий practical focus там теперь уже не в runtime
-   plumbing, а в thin entry-flow coordinator logic и final hardening around
-   `createSession`.
+1. `P1`: giant split вокруг `PublicFormService` практически закрыт: runtime
+   config, metrics, session lookup/rotation, anti-abuse,
+   submit/captcha/validation, form-definition/config assembly,
+   persistence/projection, channel/config/session lookup и теперь ещё submit
+   entry-flow coordinator уже вынесены в отдельные bounded services, сам
+   `PublicFormService` сжат примерно до `81` строки; следующий practical
+   focus там теперь уже не в giant split, а в runtime contract,
+   integration-quality и API consistency.
 2. `P1`: удержать AI assistant в post-split hardening: `DialogAiAssistantService`
    уже thin facade примерно на `208` строк, `DialogAiAssistantMessageFlowService`
    сжат до `267` строк, а decision/consistency/auto-reply outcome слой
@@ -705,7 +703,7 @@ integration-сценария поверх users/settings runtime boundary всё
 ### Фаза 6: Quality and governance
 - [ ] Досузить remaining orchestration tails в `DialogWorkspaceService` и вокруг workspace consumers
 - [x] Досузить remaining message-processing/control tail в `DialogAiAssistantMessageFlowService`
-- [ ] Завершить thin-coordinator/hardening хвост `PublicFormService` вокруг `createSession`
+- [x] Завершить thin-coordinator/hardening хвост `PublicFormService` вокруг `createSession`
 - [ ] Решить, где следующий уровень проверки должен стать integration/e2e, а не только targeted runtime/unit net
 - [ ] Довести DTO/API contract до системного правила
 - [ ] Закрепить единый error contract и API governance
@@ -714,12 +712,12 @@ integration-сценария поверх users/settings runtime boundary всё
 
 ## 📁 Следующие шаги
 
-1. Следующим крупным refactoring пакетом продолжать уже начатый split
-   `PublicFormService`: runtime config, metrics, session flow, anti-abuse,
+1. Следующим крупным пакетом идти уже не в giant split `PublicFormService`:
+   runtime config, metrics, session flow, anti-abuse,
    submit/captcha/validation, form-definition/config assembly,
-   persistence/projection и channel/config/session lookup слой уже
-   вынесены, а remaining риск теперь сидит в thin entry-flow coordinator
-   logic и runtime contract hardening вокруг `createSession`.
+   persistence/projection, channel/config/session lookup и submit
+   entry-flow coordinator уже вынесены, а remaining риск теперь сидит в
+   runtime contract hardening, integration/e2e coverage и API consistency.
 2. Параллельно держать AI assistant уже в post-split hardening:
    `DialogAiAssistantMessageFlowService` и
    `DialogAiAssistantMessageOutcomeService` должны оставаться локальными
@@ -1206,4 +1204,20 @@ integration-сценария поверх users/settings runtime boundary всё
   `PublicFormSubmissionPolicyServiceTest`, `PublicFormDefinitionServiceTest`,
   `PublicFormSubmissionPersistenceServiceTest` и новый channel-service unit
   net остаются зелёными.
+- следующим пакетом из `PublicFormService` вынесен submit entry-flow
+  coordinator bounded slice: новый `PublicFormSubmissionFlowService`
+  теперь владеет channel/config gating, submission preparation, anti-abuse
+  idempotency/rate-limit orchestration и persistence handoff.
+- после этого `PublicFormService` сжат примерно с `115` до `81` строки;
+  giant public-form split можно считать практически закрытым, а remaining
+  practical focus смещён уже в runtime contract, integration-quality и API
+  consistency.
+- под новый split добавлен `PublicFormSubmissionFlowServiceTest`; targeted
+  `PublicFormApiControllerWebMvcTest`,
+  `PublicFormControllerWebMvcTest`, `PublicFormLocationIntegrationTest`,
+  `PublicFormFlowSmokeIntegrationTest`, `PublicFormAntiAbuseServiceTest`,
+  `PublicFormSubmissionPolicyServiceTest`, `PublicFormDefinitionServiceTest`,
+  `PublicFormSubmissionPersistenceServiceTest`,
+  `PublicFormChannelServiceTest` и новый flow-service unit net остаются
+  зелёными.
   и новый persistence-service unit net остаются зелёными.
