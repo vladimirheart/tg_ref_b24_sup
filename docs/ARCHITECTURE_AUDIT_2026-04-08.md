@@ -80,7 +80,8 @@ contracts.
    Для `public-form` тут уже сделан ещё один шаг: controller-managed errors
    приведены к structured payload через `PublicFormApiResponseService`, а
    remaining contract/helper tail локализован в
-   `PublicFormApiContractService`.
+   `PublicFormApiContractService`; следующий разумный фокус там уже не в
+   controller helper split, а в integration/e2e/runtime contract coverage.
 
 Что уже существенно улучшено:
 
@@ -764,6 +765,10 @@ integration-сценария поверх users/settings runtime boundary всё
   disabled-status fallback, requester-context resolution, error-code mapping
   и token masking, а malformed-body transport contract теперь закреплён
   отдельным WebMvc сценарием.
+- После этого `PublicFormApiController` сжат примерно до `156` строк и
+  превратился в уже довольно thin public-form transport boundary поверх
+  `PublicFormApiResponseService` и `PublicFormApiContractService`; следующий
+  practical focus смещён в integration/e2e/runtime contract coverage.
 - `DialogAiOpsController` теперь прикрыт не только по основным happy/error
   flows, но и по alias/null-body/default-path сценариям, что уменьшает риск
   regressions в transport-layer normalisation.

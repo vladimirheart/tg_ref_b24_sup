@@ -676,6 +676,11 @@
   disabled-status fallback, requester-context resolution, error-code mapping
   и token masking больше не сидят прямо в controller, а malformed-body
   transport path зафиксирован отдельным WebMvc сценарием.
+- после этого `PublicFormApiController` сжат примерно до `156` строк и
+  доведён до уже довольно thin transport boundary поверх
+  `PublicFormApiResponseService` и `PublicFormApiContractService`; следующий
+  practical focus там смещён уже не в helper split, а в
+  integration/e2e/runtime contract coverage.
 - этот же smoke-слой расширен на detail/subpage contract:
   `ai-ops`, `unblock requests`, `users/detail` и оба passport editor route
   (`/object-passports/new`, `/object-passports/{id}`) теперь тоже прикрыты
