@@ -6,6 +6,7 @@ import com.example.panel.model.publicform.PublicFormQuestion;
 import com.example.panel.model.publicform.PublicFormSessionDto;
 import com.example.panel.model.publicform.PublicFormSubmission;
 import com.example.panel.service.DialogConversationReadService;
+import com.example.panel.service.PublicFormApiResponseService;
 import com.example.panel.service.PublicFormService;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -14,6 +15,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.OffsetDateTime;
@@ -35,6 +37,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(PublicFormApiController.class)
 @AutoConfigureMockMvc(addFilters = false)
+@Import(PublicFormApiResponseService.class)
 class PublicFormApiControllerWebMvcTest {
 
     @Autowired
@@ -67,7 +70,9 @@ class PublicFormApiControllerWebMvcTest {
                 .andExpect(status().isGone())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error").value("Форма канала отключена"))
-                .andExpect(jsonPath("$.errorCode").value("FORM_DISABLED"));
+                .andExpect(jsonPath("$.errorCode").value("FORM_DISABLED"))
+                .andExpect(jsonPath("$.path").value("/api/public/forms/web-gone/config"))
+                .andExpect(jsonPath("$.timestamp").isNotEmpty());
     }
 
     @Test
@@ -77,7 +82,9 @@ class PublicFormApiControllerWebMvcTest {
         mockMvc.perform(get("/api/public/forms/missing-channel/config"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.errorCode").value("CHANNEL_NOT_FOUND"));
+                .andExpect(jsonPath("$.errorCode").value("CHANNEL_NOT_FOUND"))
+                .andExpect(jsonPath("$.path").value("/api/public/forms/missing-channel/config"))
+                .andExpect(jsonPath("$.timestamp").isNotEmpty());
     }
 
     @Test
@@ -361,7 +368,9 @@ class PublicFormApiControllerWebMvcTest {
                                 """))
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.errorCode").value("INTERNAL_ERROR"));
+                .andExpect(jsonPath("$.errorCode").value("INTERNAL_ERROR"))
+                .andExpect(jsonPath("$.path").value("/api/public/forms/web-err/sessions"))
+                .andExpect(jsonPath("$.timestamp").isNotEmpty());
 
         verify(publicFormService, times(1)).recordSubmitError(12L, "internal_error");
     }
@@ -396,7 +405,9 @@ class PublicFormApiControllerWebMvcTest {
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.errorCode").value("RATE_LIMITED"));
+                .andExpect(jsonPath("$.errorCode").value("RATE_LIMITED"))
+                .andExpect(jsonPath("$.path").value("/api/public/forms/web-limit/sessions"))
+                .andExpect(jsonPath("$.timestamp").isNotEmpty());
 
         verify(publicFormService, times(1)).recordSubmitError(13L, "Слишком много запросов. Попробуйте позже");
     }
@@ -662,7 +673,8 @@ class PublicFormApiControllerWebMvcTest {
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.errorCode").value("VALIDATION_REQUIRED"))
                 .andExpect(jsonPath("$.error").isNotEmpty())
-                .andExpect(jsonPath("$.path").value("/api/public/forms/web-required-body/sessions"));
+                .andExpect(jsonPath("$.path").value("/api/public/forms/web-required-body/sessions"))
+                .andExpect(jsonPath("$.timestamp").isNotEmpty());
 
         verifyNoInteractions(publicFormService, dialogConversationReadService);
     }
@@ -945,7 +957,9 @@ class PublicFormApiControllerWebMvcTest {
         mockMvc.perform(get("/api/public/forms/web-unresolved/sessions/token-none"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.errorCode").value("SESSION_NOT_FOUND"));
+                .andExpect(jsonPath("$.errorCode").value("SESSION_NOT_FOUND"))
+                .andExpect(jsonPath("$.path").value("/api/public/forms/web-unresolved/sessions/token-none"))
+                .andExpect(jsonPath("$.timestamp").isNotEmpty());
     }
 
 }

@@ -667,6 +667,10 @@
   дополнительно прикрыт на bean-validation required-path: пустой
   `message` теперь возвращает explicit `VALIDATION_REQUIRED`, а не generic
   `VALIDATION_ERROR`.
+- следующим более широким post-split пакетом `PublicFormApiController`
+  переведён на отдельный `PublicFormApiResponseService`: success payload
+  assembly вынесен из controller, а controller-managed error responses
+  нормализованы до общего structured contract с `path/timestamp`.
 - этот же smoke-слой расширен на detail/subpage contract:
   `ai-ops`, `unblock requests`, `users/detail` и оба passport editor route
   (`/object-passports/new`, `/object-passports/{id}`) теперь тоже прикрыты

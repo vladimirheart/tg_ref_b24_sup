@@ -77,6 +77,8 @@ contracts.
 4. `P1`: довести shared-config/runtime contract до более явного
    cross-module правила.
 5. `P2`: стабилизировать DTO/error contract и persistence/API governance.
+   Для `public-form` тут уже сделан ещё один шаг: controller-managed errors
+   приведены к structured payload через `PublicFormApiResponseService`.
 
 Что уже существенно улучшено:
 
@@ -751,6 +753,10 @@ integration-сценария поверх users/settings runtime boundary всё
   remoteAddr fallback без proxy headers, generic validation fallback,
   success payload `session/messages`, precedence `token` над `dialog`,
   model attrs страницы и raw template contract для `public/form.html`.
+- Следующим более широким post-split пакетом `PublicFormApiController`
+  переведён на отдельный `PublicFormApiResponseService`: success payload
+  assembly вынесен из controller, а controller-managed error responses
+  нормализованы до structured contract с `path/timestamp`.
 - `DialogAiOpsController` теперь прикрыт не только по основным happy/error
   flows, но и по alias/null-body/default-path сценариям, что уменьшает риск
   regressions в transport-layer normalisation.
