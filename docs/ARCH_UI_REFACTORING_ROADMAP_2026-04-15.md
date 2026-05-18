@@ -44,9 +44,10 @@
   `DialogWorkspaceRolloutGovernanceService` уже переведён в режим
   hardening/compatibility;
 - при этом `PublicFormService` уже не untouched hotspot: runtime config,
-  metrics, session flow и anti-abuse/request-identity слой вынесены в
-  отдельные bounded services, а remaining weight там смещён в
-  submit/captcha/validation и соседний config-parser slice;
+  metrics, session flow, anti-abuse/request-identity и теперь ещё
+  submit/captcha/validation слой вынесены в отдельные bounded services, а
+  remaining weight там смещён в config parser, location preset enrichment и
+  ticket/session projection orchestration;
 - Phase 5 всё ещё не доведён до полноценного runtime contract между
   `spring-panel` и `java-bot`;
 - Phase 6 уже широкая и системная, но ей всё ещё не хватает следующего слоя
@@ -763,8 +764,10 @@
    `PublicFormService`, а AI assistant slice после нового outcome split
    удерживать в режиме hardening/compatibility; при этом
    `DialogWorkspaceRolloutGovernanceService` после нового wide split держать
-   уже в режиме hardening/compatibility. `DialogWorkspaceService` при этом
-   удерживать как thin orchestration layer.
+   уже в режиме hardening/compatibility. Внутри `PublicFormService`
+   следующий bounded проход теперь логичнее вести по config parser,
+   location preset enrichment и ticket/session projection orchestration, а
+   `DialogWorkspaceService` при этом удерживать как thin orchestration layer.
 3. Параллельно продолжать `Phase 5/6` уже не по giant wrappers, а по
    shared-config/runtime consistency и integration-quality.
 4. В notifier/runtime hardening идти только по локальным bounded services,
@@ -776,7 +779,8 @@
 
 1. После нового outcome split увести AI assistant slice в режим
    hardening/compatibility и следующим крупным bounded split держать
-   `PublicFormService`.
+   `PublicFormService`, но уже не по anti-abuse/submit tail, а по
+   config parser и ticket/session projection slices.
 2. Довести `Phase 5` от launcher strategy до более явного runtime contract.
 3. Расширить `Phase 6`, чтобы новые refactor-проходы шли уже под
    integration-quality, а не только под targeted tests.
@@ -1035,3 +1039,14 @@
   submit/captcha/validation orchestration и соседний public-form config parser.
 - под новый split добавлен `PublicFormAntiAbuseServiceTest`; targeted
   public-form WebMvc/unit/integration net остаётся зелёным.
+- следующим пакетом из `PublicFormService` вынесен submit/captcha/validation
+  bounded slice: новый `PublicFormSubmissionPolicyService` теперь владеет
+  payload sanitization, form summary assembly, captcha enforcement,
+  field/type/location validation и client-name resolution.
+- после этого `PublicFormService` сжат примерно с `889` до `534` строк, а
+  remaining practical focus там смещён уже в public-form config parser,
+  location preset enrichment и ticket/session projection orchestration.
+- под новый split добавлен `PublicFormSubmissionPolicyServiceTest`; targeted
+  `PublicFormApiControllerWebMvcTest`, `PublicFormControllerWebMvcTest`,
+  `PublicFormLocationIntegrationTest`, `PublicFormAntiAbuseServiceTest` и
+  новый submission-policy unit net остаются зелёными.
