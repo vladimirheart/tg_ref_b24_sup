@@ -1,7 +1,7 @@
 # Architecture And UI Refactoring Roadmap
 
 Дата старта: `2026-04-15`
-Обновлено: `2026-05-13`
+Обновлено: `2026-05-18`
 
 ## Цель
 
@@ -36,8 +36,11 @@
   доведён до thin facade;
 - giant `/settings` transport/update тоже больше не hotspot: `Phase 4`
   закрыта, а remaining риск смещён в consistency/hardening;
-- сейчас main architectural weight находится прежде всего в remaining
-  AI-assistant message-flow bounded slice и `PublicFormService`, а
+- сейчас main architectural weight находится прежде всего в
+  `PublicFormService`, а remaining AI-assistant risk уже не живёт в одном
+  giant flow и локализован в bounded паре
+  `DialogAiAssistantMessageFlowService` /
+  `DialogAiAssistantMessageOutcomeService`; при этом
   `DialogWorkspaceRolloutGovernanceService` уже переведён в режим
   hardening/compatibility;
 - при этом `PublicFormService` уже не untouched hotspot: runtime config,
@@ -755,8 +758,9 @@
 
 1. `Phase 3` и `Phase 4` считать закрытыми и не возвращаться к ним как к
    giant-split проблемам.
-2. Главный практический фокус теперь держать на
-   `DialogAiAssistantService` и затем `PublicFormService`, а
+2. Главный практический фокус теперь держать прежде всего на
+   `PublicFormService`, а AI assistant slice после нового outcome split
+   удерживать в режиме hardening/compatibility; при этом
    `DialogWorkspaceRolloutGovernanceService` после нового wide split держать
    уже в режиме hardening/compatibility. `DialogWorkspaceService` при этом
    удерживать как thin orchestration layer.
@@ -769,11 +773,9 @@
 
 Актуальный порядок после уже выполненных этапов:
 
-1. Продолжить remaining AI-assistant orchestration tail после уже вынесенных
-   review-flow, solution-memory, state/control, operator-feedback,
-   pre-routing policy, suggestion composition, AI event и escalation
-   bounded contexts; добить `DialogAiAssistantMessageFlowService` и
-   следующим крупным bounded split держать `PublicFormService`.
+1. После нового outcome split увести AI assistant slice в режим
+   hardening/compatibility и следующим крупным bounded split держать
+   `PublicFormService`.
 2. Довести `Phase 5` от launcher strategy до более явного runtime contract.
 3. Расширить `Phase 6`, чтобы новые refactor-проходы шли уже под
    integration-quality, а не только под targeted tests.
@@ -1004,6 +1006,17 @@
   в самом сервисе-координаторе.
 - следующий локальный focus теперь смещён в remaining
   message-processing/control tail внутри `DialogAiAssistantMessageFlowService`.
+- следующим широким пакетом и этот AI tail дополнительно досужен:
+  появился `DialogAiAssistantMessageOutcomeService`, который забрал
+  decision outcome, consistency block и auto-reply/send lifecycle orchestration
+  из `DialogAiAssistantMessageFlowService`.
+- после этого `DialogAiAssistantMessageFlowService` сжат примерно с `369`
+  до `267` строк, а новый bounded outcome-слой удерживается примерно на
+  `337` строках; remaining AI risk теперь уже не в одном message-flow
+  coordinator, а в локальной паре flow/outcome services без giant-facade
+  симптомов.
+- под новый split добавлен `DialogAiAssistantMessageOutcomeServiceTest`;
+  compile и targeted AI assistant regression net остаются зелёными.
 - следующим широким пакетом стартовал и соседний bounded split
   `PublicFormService`: `PublicFormRuntimeConfigService` забрал dialog config
   readers и locale/polling/disabled-status rules, `PublicFormMetricsService`

@@ -2,7 +2,7 @@
 **Дата:** 8 апреля 2026  
 **Статус:** Актуально, но в активной фазе исправления  
 **Актуализация:** 9 апреля 2026 (см. `docs/ARCHITECTURE_AUDIT_VALIDATION_2026-04-09.md`)  
-**Последняя актуализация:** 13 мая 2026
+**Последняя актуализация:** 18 мая 2026
 
 ---
 
@@ -58,22 +58,23 @@ contracts.
 
 Что сейчас в приоритете:
 
-1. `P1`: добить remaining message-processing/control tail вокруг
-   `DialogAiAssistantService`: сам facade уже сжат примерно до `208` строк,
-   а основной flow переехал в bounded `DialogAiAssistantMessageFlowService`
-   (~`369` строк); следующий шаг там должен быть не giant-cut, а добивка
-   final orchestration/control хвоста.
-2. `P1`: продолжать уже начатый bounded split вокруг `PublicFormService`:
+1. `P1`: продолжать уже начатый bounded split вокруг `PublicFormService`:
    runtime config, metrics и session lookup/rotation уже вынесены в
    `PublicFormRuntimeConfigService`, `PublicFormMetricsService` и
    `PublicFormSessionService`, сам `PublicFormService` сжат примерно до
    `1020` строк; следующий practical focus там теперь в submit/config/
    idempotency/rate-limit tails.
+2. `P1`: удержать AI assistant в post-split hardening: `DialogAiAssistantService`
+   уже thin facade примерно на `208` строк, `DialogAiAssistantMessageFlowService`
+   сжат до `267` строк, а decision/consistency/auto-reply outcome слой
+   локализован в bounded `DialogAiAssistantMessageOutcomeService`
+   (~`337` строк); следующий шаг там теперь не giant-cut, а только локальная
+   compatibility/integration hardening.
 3. `P1`: не дать orchestration-risk переехать в `DialogWorkspaceService` и
    смежные workspace/reply/notifier consumers.
-3. `P1`: довести shared-config/runtime contract до более явного
+4. `P1`: довести shared-config/runtime contract до более явного
    cross-module правила.
-4. `P2`: стабилизировать DTO/error contract и persistence/API governance.
+5. `P2`: стабилизировать DTO/error contract и persistence/API governance.
 
 Что уже существенно улучшено:
 
@@ -699,7 +700,7 @@ integration-сценария поверх users/settings runtime boundary всё
 
 ### Фаза 6: Quality and governance
 - [ ] Досузить remaining orchestration tails в `DialogWorkspaceService` и вокруг workspace consumers
-- [ ] Досузить remaining message-processing/control tail в `DialogAiAssistantMessageFlowService`
+- [x] Досузить remaining message-processing/control tail в `DialogAiAssistantMessageFlowService`
 - [ ] Продолжить bounded split `PublicFormService` по submit/config/idempotency/rate-limit slices
 - [ ] Решить, где следующий уровень проверки должен стать integration/e2e, а не только targeted runtime/unit net
 - [ ] Довести DTO/API contract до системного правила
@@ -709,15 +710,14 @@ integration-сценария поверх users/settings runtime boundary всё
 
 ## 📁 Следующие шаги
 
-1. Следующим крупным refactoring пакетом продолжать remaining
-   AI-assistant orchestration tail: `DialogAiAssistantService` уже сжат
-   примерно до `208` строк и работает как facade, а узкий
-   message-processing/escalation сценарий локализован в bounded
-   `DialogAiAssistantMessageFlowService` (~`369` строк).
-2. Следующим параллельным bounded пакетом продолжать уже начатый split
+1. Следующим крупным refactoring пакетом продолжать уже начатый split
    `PublicFormService`: runtime config, metrics и session flow уже
    вынесены, а remaining риск теперь сидит в submit/config/idempotency/
    rate-limit orchestration tail.
+2. Параллельно держать AI assistant уже в post-split hardening:
+   `DialogAiAssistantMessageFlowService` и
+   `DialogAiAssistantMessageOutcomeService` должны оставаться локальными
+   bounded services без повторного роста в giant coordinator.
 3. Параллельно удержать под контролем `DialogWorkspaceService` и соседние
    workspace consumers, чтобы orchestration-risk не переехал туда после
    уже закрытого giant `DialogService`.
@@ -1109,6 +1109,18 @@ integration-сценария поверх users/settings runtime boundary всё
 - под новый split добавлены `DialogAiAssistantEscalationServiceTest` и
   `DialogAiAssistantMessageFlowServiceTest`; compile, targeted AI assistant
   regression net и `DialogAiOpsControllerWebMvcTest` остаются зелёными.
+- следующим широким пакетом и этот remaining AI tail дополнительно досужен:
+  появился `DialogAiAssistantMessageOutcomeService`, который забрал
+  decision outcome, consistency block и auto-reply/send lifecycle orchestration
+  из `DialogAiAssistantMessageFlowService`.
+- после этого `DialogAiAssistantMessageFlowService` сжат примерно с `369`
+  до `267` строк, а новый bounded `DialogAiAssistantMessageOutcomeService`
+  удерживается примерно на `337` строках; remaining AI risk теперь уже не
+  в одном message-flow coordinator, а в локальной flow/outcome паре без
+  giant-facade симптомов.
+- под новый split добавлен `DialogAiAssistantMessageOutcomeServiceTest`;
+  compile, targeted AI assistant regression net и
+  `DialogAiOpsControllerWebMvcTest` остаются зелёными.
 - следующим широким пакетом уже по следующему P1-candidate начат bounded
   split `PublicFormService`: выделены `PublicFormRuntimeConfigService`,
   `PublicFormMetricsService` и `PublicFormSessionService`.

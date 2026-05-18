@@ -34,21 +34,29 @@ class DialogAiAssistantMessageFlowServiceTest {
         DialogAiAssistantSuggestionService dialogAiAssistantSuggestionService = mock(DialogAiAssistantSuggestionService.class);
         DialogAiAssistantEventService dialogAiAssistantEventService = mock(DialogAiAssistantEventService.class);
         DialogAiAssistantEscalationService dialogAiAssistantEscalationService = mock(DialogAiAssistantEscalationService.class);
+        DialogAiAssistantMessageOutcomeService dialogAiAssistantMessageOutcomeService = new DialogAiAssistantMessageOutcomeService(
+                dialogReplyService,
+                dialogAiSolutionMemoryService,
+                dialogAiAssistantStateService,
+                dialogAiAssistantConfigService,
+                dialogAiAssistantSuggestionService,
+                dialogAiAssistantEventService,
+                dialogAiAssistantEscalationService
+        );
 
         DialogAiAssistantMessageFlowService service = new DialogAiAssistantMessageFlowService(
-                dialogReplyService,
                 aiPolicyService,
                 aiRetrievalService,
                 aiDecisionService,
                 aiInputNormalizerService,
                 aiControlledLlmService,
-                dialogAiSolutionMemoryService,
                 dialogAiAssistantStateService,
                 dialogAiAssistantConfigService,
                 dialogAiAssistantPolicyService,
                 dialogAiAssistantSuggestionService,
                 dialogAiAssistantEventService,
-                dialogAiAssistantEscalationService
+                dialogAiAssistantEscalationService,
+                dialogAiAssistantMessageOutcomeService
         );
 
         DialogAiAssistantStateService.DialogAiControl control =
@@ -122,21 +130,29 @@ class DialogAiAssistantMessageFlowServiceTest {
         DialogAiAssistantSuggestionService dialogAiAssistantSuggestionService = mock(DialogAiAssistantSuggestionService.class);
         DialogAiAssistantEventService dialogAiAssistantEventService = mock(DialogAiAssistantEventService.class);
         DialogAiAssistantEscalationService dialogAiAssistantEscalationService = mock(DialogAiAssistantEscalationService.class);
+        DialogAiAssistantMessageOutcomeService dialogAiAssistantMessageOutcomeService = new DialogAiAssistantMessageOutcomeService(
+                dialogReplyService,
+                dialogAiSolutionMemoryService,
+                dialogAiAssistantStateService,
+                dialogAiAssistantConfigService,
+                dialogAiAssistantSuggestionService,
+                dialogAiAssistantEventService,
+                dialogAiAssistantEscalationService
+        );
 
         DialogAiAssistantMessageFlowService service = new DialogAiAssistantMessageFlowService(
-                dialogReplyService,
                 aiPolicyService,
                 aiRetrievalService,
                 aiDecisionService,
                 aiInputNormalizerService,
                 aiControlledLlmService,
-                dialogAiSolutionMemoryService,
                 dialogAiAssistantStateService,
                 dialogAiAssistantConfigService,
                 dialogAiAssistantPolicyService,
                 dialogAiAssistantSuggestionService,
                 dialogAiAssistantEventService,
-                dialogAiAssistantEscalationService
+                dialogAiAssistantEscalationService,
+                dialogAiAssistantMessageOutcomeService
         );
 
         DialogAiAssistantStateService.DialogAiControl control =

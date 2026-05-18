@@ -5,7 +5,6 @@ import org.springframework.util.StringUtils;
 
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 @Service
@@ -14,46 +13,43 @@ public class DialogAiAssistantMessageFlowService {
     private static final String MODE_ASSIST_ONLY = "assist_only";
     private static final String MODE_ESCALATE_ONLY = "escalate_only";
 
-    private final DialogReplyService dialogReplyService;
     private final AiPolicyService aiPolicyService;
     private final AiRetrievalService aiRetrievalService;
     private final AiDecisionService aiDecisionService;
     private final AiInputNormalizerService aiInputNormalizerService;
     private final AiControlledLlmService aiControlledLlmService;
-    private final DialogAiSolutionMemoryService dialogAiSolutionMemoryService;
     private final DialogAiAssistantStateService dialogAiAssistantStateService;
     private final DialogAiAssistantConfigService dialogAiAssistantConfigService;
     private final DialogAiAssistantPolicyService dialogAiAssistantPolicyService;
     private final DialogAiAssistantSuggestionService dialogAiAssistantSuggestionService;
     private final DialogAiAssistantEventService dialogAiAssistantEventService;
     private final DialogAiAssistantEscalationService dialogAiAssistantEscalationService;
+    private final DialogAiAssistantMessageOutcomeService dialogAiAssistantMessageOutcomeService;
 
-    public DialogAiAssistantMessageFlowService(DialogReplyService dialogReplyService,
-                                               AiPolicyService aiPolicyService,
+    public DialogAiAssistantMessageFlowService(AiPolicyService aiPolicyService,
                                                AiRetrievalService aiRetrievalService,
                                                AiDecisionService aiDecisionService,
                                                AiInputNormalizerService aiInputNormalizerService,
                                                AiControlledLlmService aiControlledLlmService,
-                                               DialogAiSolutionMemoryService dialogAiSolutionMemoryService,
                                                DialogAiAssistantStateService dialogAiAssistantStateService,
                                                DialogAiAssistantConfigService dialogAiAssistantConfigService,
                                                DialogAiAssistantPolicyService dialogAiAssistantPolicyService,
                                                DialogAiAssistantSuggestionService dialogAiAssistantSuggestionService,
                                                DialogAiAssistantEventService dialogAiAssistantEventService,
-                                               DialogAiAssistantEscalationService dialogAiAssistantEscalationService) {
-        this.dialogReplyService = dialogReplyService;
+                                               DialogAiAssistantEscalationService dialogAiAssistantEscalationService,
+                                               DialogAiAssistantMessageOutcomeService dialogAiAssistantMessageOutcomeService) {
         this.aiPolicyService = aiPolicyService;
         this.aiRetrievalService = aiRetrievalService;
         this.aiDecisionService = aiDecisionService;
         this.aiInputNormalizerService = aiInputNormalizerService;
         this.aiControlledLlmService = aiControlledLlmService;
-        this.dialogAiSolutionMemoryService = dialogAiSolutionMemoryService;
         this.dialogAiAssistantStateService = dialogAiAssistantStateService;
         this.dialogAiAssistantConfigService = dialogAiAssistantConfigService;
         this.dialogAiAssistantPolicyService = dialogAiAssistantPolicyService;
         this.dialogAiAssistantSuggestionService = dialogAiAssistantSuggestionService;
         this.dialogAiAssistantEventService = dialogAiAssistantEventService;
         this.dialogAiAssistantEscalationService = dialogAiAssistantEscalationService;
+        this.dialogAiAssistantMessageOutcomeService = dialogAiAssistantMessageOutcomeService;
     }
 
     public void processIncomingClientMessage(String ticketId, String message, String messageType, String attachment) {
@@ -120,14 +116,15 @@ public class DialogAiAssistantMessageFlowService {
         String sourceHits = dialogAiAssistantEventService.encodeSourceHits(suggestions);
 
         if (suggestions.isEmpty()) {
-            markProcessing(normalizedTicketId, "no_match", null, "No relevant sources found.", "escalate", "no_match", sourceHits, mode);
-            dialogAiAssistantEscalationService.notifyOperatorsEscalation(normalizedTicketId, clientMessage, "AI agent did not find a relevant answer.");
-            Map<String, Object> eventPayload = dialogAiAssistantEventService.buildRetrievalPayload(
-                    sourceHits, null, retrievalResult, preRouting.sensitiveMatch().matched(), rewriteResult
+            dialogAiAssistantMessageOutcomeService.handleNoSuggestions(
+                    normalizedTicketId,
+                    clientMessage,
+                    mode,
+                    sourceHits,
+                    retrievalResult,
+                    rewriteResult,
+                    preRouting.sensitiveMatch().matched()
             );
-            eventPayload.put("policy_stage", "4_evidence");
-            eventPayload.put("policy_outcome", "insufficient_evidence");
-            recordAiEvent(normalizedTicketId, "ai_agent_escalated", null, "escalate", "no_match", null, null, "No relevant sources", eventPayload);
             return;
         }
 
@@ -141,127 +138,26 @@ public class DialogAiAssistantMessageFlowService {
         AiDecisionService.Decision decision = aiDecisionService.evaluateCandidateDecision(
                 mode, top.score(), suggestThreshold, autoReplyThreshold, control.autoReplyBlocked(), sourceEligibleForAutoReply
         );
-
-        if (decision.action() == AiDecisionService.DecisionAction.ESCALATE) {
-            markProcessing(normalizedTicketId, decision.processingAction(), top, decision.detail(),
-                    decision.decisionType(), decision.decisionReason(), sourceHits, mode);
-            dialogAiAssistantEscalationService.notifyOperatorsEscalation(
-                    normalizedTicketId,
-                    clientMessage,
-                    "mode_escalate_only".equals(decision.decisionReason())
-                            ? "AI mode is escalate_only."
-                            : ("below_suggest_threshold".equals(decision.decisionReason())
-                            ? "Low confidence score: " + formatScore(top.score())
-                            : "Escalated by decision policy.")
-            );
-            Map<String, Object> eventPayload = dialogAiAssistantEventService.buildRetrievalPayload(
-                    sourceHits, top, retrievalResult, preRouting.sensitiveMatch().matched(), rewriteResult
-            );
-            eventPayload.put("suggest_threshold", suggestThreshold);
-            eventPayload.put("auto_reply_threshold", autoReplyThreshold);
-            eventPayload.put("policy_stage", decision.policyStage());
-            eventPayload.put("policy_outcome", decision.policyOutcome());
-            recordAiEvent(normalizedTicketId, "ai_agent_escalated", null, decision.decisionType(),
-                    decision.decisionReason(), top.source(), top.score(), decision.detail(), eventPayload);
-            return;
-        }
-        if (decision.action() == AiDecisionService.DecisionAction.SUGGEST_ONLY) {
-            markProcessing(normalizedTicketId, decision.processingAction(), top, null,
-                    decision.decisionType(), decision.decisionReason(), sourceHits, mode);
-            Map<String, Object> eventPayload = dialogAiAssistantEventService.buildRetrievalPayload(
-                    sourceHits, top, retrievalResult, preRouting.sensitiveMatch().matched(), rewriteResult
-            );
-            eventPayload.put("auto_reply_threshold", autoReplyThreshold);
-            eventPayload.put("suggest_threshold", suggestThreshold);
-            eventPayload.put("policy_stage", decision.policyStage());
-            eventPayload.put("policy_outcome", decision.policyOutcome());
-            recordAiEvent(normalizedTicketId, "ai_agent_suggestion_shown", null, decision.decisionType(),
-                    decision.decisionReason(), top.source(), top.score(), "Suggestion shown to operator", eventPayload);
-            return;
-        }
-
-        if (!retrievalResult.consistency().autoReplyAllowed()) {
-            String detail = "evidence_conflict".equals(retrievalResult.consistency().reason())
-                    ? "Conflicting evidence across top candidates."
-                    : "Not enough independent confirmations for auto-reply.";
-            String decisionType = retrievalResult.consistency().hasConflict() ? "escalate" : "suggest_only";
-            String decisionReason = retrievalResult.consistency().reason();
-            String action = retrievalResult.consistency().hasConflict() ? "escalated" : "suggest_only";
-            markProcessing(normalizedTicketId, action, top, detail, decisionType, decisionReason, sourceHits, mode);
-            if (retrievalResult.consistency().hasConflict()) {
-                dialogAiAssistantEscalationService.notifyOperatorsEscalation(normalizedTicketId, clientMessage, detail);
-            }
-            Map<String, Object> eventPayload = dialogAiAssistantEventService.buildRetrievalPayload(
-                    sourceHits, top, retrievalResult, preRouting.sensitiveMatch().matched(), rewriteResult
-            );
-            eventPayload.put("auto_reply_threshold", autoReplyThreshold);
-            eventPayload.put("suggest_threshold", suggestThreshold);
-            eventPayload.put("policy_stage", "6_consistency");
-            eventPayload.put("policy_outcome", retrievalResult.consistency().hasConflict()
-                    ? "blocked_by_conflict" : "blocked_by_insufficient_confirmation");
-            recordAiEvent(
-                    normalizedTicketId,
-                    retrievalResult.consistency().hasConflict() ? "ai_agent_escalated" : "ai_agent_suggestion_shown",
-                    null,
-                    decisionType,
-                    decisionReason,
-                    top.source(),
-                    top.score(),
-                    detail,
-                    eventPayload
-            );
-            return;
-        }
-
-        DialogAiAssistantConfigService.AutoReplyGuard guard = dialogAiAssistantConfigService.evaluateAutoReplyGuard(normalizedTicketId);
-        if (!guard.allowed()) {
-            markProcessing(normalizedTicketId, "auto_reply_suppressed", top, guard.reason(), "suppressed", "loop_guard", sourceHits, mode);
-            dialogAiAssistantEscalationService.notifyOperatorsEscalation(normalizedTicketId, clientMessage, "Auto-reply suppressed by loop guard: " + guard.reason());
-            Map<String, Object> eventPayload = dialogAiAssistantEventService.buildRetrievalPayload(
-                    sourceHits, top, retrievalResult, preRouting.sensitiveMatch().matched(), rewriteResult
-            );
-            eventPayload.put("auto_reply_threshold", autoReplyThreshold);
-            eventPayload.put("suggest_threshold", suggestThreshold);
-            eventPayload.put("policy_stage", "7_loop_guard");
-            eventPayload.put("policy_outcome", "suppressed");
-            recordAiEvent(normalizedTicketId, "ai_agent_decision_made", null, "suppressed", "loop_guard",
-                    top.source(), top.score(), guard.reason(), eventPayload);
-            return;
-        }
-
-        String reply = dialogAiAssistantSuggestionService.buildAutoReply(
-                normalizedTicketId, clientMessage, top, retrievalResult.context().intentPolicy(), true
+        DialogAiAssistantMessageOutcomeContext context = new DialogAiAssistantMessageOutcomeContext(
+                normalizedTicketId,
+                clientMessage,
+                mode,
+                sourceHits,
+                top,
+                suggestThreshold,
+                autoReplyThreshold,
+                decision,
+                retrievalResult,
+                rewriteResult,
+                preRouting.sensitiveMatch().matched()
         );
-        DialogReplyService.DialogReplyResult result = dialogReplyService.sendReply(normalizedTicketId, reply, null, null, "ai_agent");
-        if (!result.success()) {
-            markProcessing(normalizedTicketId, "send_failed", top, result.error(), "escalate", "send_failed", sourceHits, mode);
-            dialogAiAssistantEscalationService.notifyOperatorsEscalation(normalizedTicketId, clientMessage, "Failed to send AI reply: " + result.error());
-            Map<String, Object> eventPayload = dialogAiAssistantEventService.buildRetrievalPayload(
-                    sourceHits, top, retrievalResult, preRouting.sensitiveMatch().matched(), rewriteResult
-            );
-            eventPayload.put("auto_reply_threshold", autoReplyThreshold);
-            eventPayload.put("suggest_threshold", suggestThreshold);
-            eventPayload.put("policy_stage", "8_auto_reply_allowed");
-            eventPayload.put("policy_outcome", "send_failed");
-            recordAiEvent(normalizedTicketId, "ai_agent_escalated", null, "escalate", "send_failed",
-                    top.source(), top.score(), result.error(), eventPayload);
+        if (dialogAiAssistantMessageOutcomeService.handleDecisionOutcome(context)) {
             return;
         }
-
-        if (top.memoryKey() != null) {
-            dialogAiSolutionMemoryService.markMemoryUsage(top.memoryKey());
+        if (dialogAiAssistantMessageOutcomeService.handleConsistencyBlock(context)) {
+            return;
         }
-        markProcessing(normalizedTicketId, "auto_replied", top, null, "auto_reply", "score_above_threshold", sourceHits, mode);
-        Map<String, Object> eventPayload = dialogAiAssistantEventService.buildRetrievalPayload(
-                sourceHits, top, retrievalResult, preRouting.sensitiveMatch().matched(), rewriteResult
-        );
-        eventPayload.put("reply_preview", cut(reply, 300));
-        eventPayload.put("auto_reply_threshold", autoReplyThreshold);
-        eventPayload.put("suggest_threshold", suggestThreshold);
-        eventPayload.put("policy_stage", "8_auto_reply_allowed");
-        eventPayload.put("policy_outcome", "auto_reply");
-        recordAiEvent(normalizedTicketId, "ai_agent_auto_reply_sent", "ai_agent", "auto_reply",
-                "score_above_threshold", top.source(), top.score(), "Auto reply sent", eventPayload);
+        dialogAiAssistantMessageOutcomeService.handleAutoReply(context);
     }
 
     private void clearProcessing(String ticketId, String action, String error, String decisionType, String decisionReason, String sourceHits) {
@@ -389,7 +285,4 @@ public class DialogAiAssistantMessageFlowService {
         return normalized.isEmpty() ? null : normalized;
     }
 
-    private String formatScore(double score) {
-        return String.format(Locale.ROOT, "%.2f", Math.max(0d, Math.min(1d, score)));
-    }
 }
