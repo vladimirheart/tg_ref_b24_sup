@@ -697,6 +697,12 @@
   contract: HTTP idempotency reuse, structured `IDEMPOTENCY_CONFLICT`,
   live `RATE_LIMITED` rejection и `public_form_session_ttl_hours` expiry
   теперь тоже закреплены в живом `SpringBootTest` + SQLite сценарии.
+- следующим более широким lifecycle-пакетом этот же
+  `PublicFormFlowSmokeIntegrationTest` добран до polling/history contract:
+  live `sessionPollingEnabled/sessionPollingIntervalSeconds`, shared
+  conversation history после operator reply и system notifications, а также
+  `replyPreview` для threaded ответа теперь тоже закреплены в реальном
+  `public-form` session runtime.
 - этот же smoke-слой расширен на detail/subpage contract:
   `ai-ops`, `unblock requests`, `users/detail` и оба passport editor route
   (`/object-passports/new`, `/object-passports/{id}`) теперь тоже прикрыты

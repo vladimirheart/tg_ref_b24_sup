@@ -785,6 +785,12 @@ integration-сценария поверх users/settings runtime boundary всё
   contract: HTTP idempotency reuse, structured `IDEMPOTENCY_CONFLICT`,
   live `RATE_LIMITED` rejection и `public_form_session_ttl_hours` expiry
   теперь тоже проверяются в живом `SpringBootTest` + SQLite сценарии.
+- Следующим более широким lifecycle-пакетом тот же
+  `PublicFormFlowSmokeIntegrationTest` добран до polling/history contract:
+  live `sessionPollingEnabled/sessionPollingIntervalSeconds`, shared
+  conversation history после operator reply и system notifications, а также
+  `replyPreview` для threaded ответа теперь тоже закреплены в реальном
+  `public-form` session runtime.
 - `DialogAiOpsController` теперь прикрыт не только по основным happy/error
   flows, но и по alias/null-body/default-path сценариям, что уменьшает риск
   regressions в transport-layer normalisation.

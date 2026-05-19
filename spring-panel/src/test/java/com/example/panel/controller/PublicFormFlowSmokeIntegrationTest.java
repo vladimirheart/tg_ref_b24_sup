@@ -16,6 +16,8 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import com.example.panel.service.DialogNotificationService;
+import com.example.panel.service.DialogReplyService;
 import com.example.panel.service.SharedConfigService;
 
 import java.io.IOException;
@@ -25,6 +27,7 @@ import java.nio.file.Path;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -64,6 +67,12 @@ class PublicFormFlowSmokeIntegrationTest {
 
     @Autowired
     private SharedConfigService sharedConfigService;
+
+    @Autowired
+    private DialogReplyService dialogReplyService;
+
+    @Autowired
+    private DialogNotificationService dialogNotificationService;
 
     @BeforeEach
     void clean() {
@@ -128,6 +137,27 @@ class PublicFormFlowSmokeIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.dialogs[0].ticketId").value(ticketId));
+    }
+
+    @Test
+    void publicFormConfigReflectsLiveSessionPollingRuntimeSettings() throws Exception {
+        sharedConfigService.saveSettings(Map.of(
+                "dialog_config", Map.of(
+                        "public_form_session_polling_enabled", false,
+                        "public_form_session_polling_interval_seconds", 45
+                )
+        ));
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id, questions_cfg)
+                VALUES (40, 'web-polling', 'Polling Form', 1, CURRENT_TIMESTAMP, 'web-polling', ?)
+                """,
+                "{\"schemaVersion\":1,\"enabled\":true,\"captchaEnabled\":false,\"disabledStatus\":404,\"fields\":[]}");
+
+        mockMvc.perform(get("/api/public/forms/web-polling/config"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.sessionPollingEnabled").value(false))
+                .andExpect(jsonPath("$.sessionPollingIntervalSeconds").value(45));
     }
 
     @Test
@@ -318,6 +348,89 @@ class PublicFormFlowSmokeIntegrationTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.session.token").isNotEmpty())
                 .andExpect(jsonPath("$.session.token").value(org.hamcrest.Matchers.not(rotatedToken)));
+    }
+
+    @Test
+    void publicFormSessionHistoryReflectsOperatorReplySystemNotificationsAndReplyPreview() throws Exception {
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at, public_id, questions_cfg)
+                VALUES (50, 'web-lifecycle', 'Lifecycle Form', 'vk', 1, CURRENT_TIMESTAMP, 'web-lifecycle', ?)
+                """,
+                "{\"schemaVersion\":1,\"enabled\":true,\"captchaEnabled\":false,\"disabledStatus\":404,\"fields\":[]}");
+
+        MvcResult createResult = mockMvc.perform(post("/api/public/forms/web-lifecycle/sessions")
+                        .header("X-Forwarded-For", "203.0.113.50")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "message": "Need help with order"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.success").value(true))
+                .andReturn();
+
+        JsonNode createPayload = objectMapper.readTree(createResult.getResponse().getContentAsString());
+        String ticketId = createPayload.path("ticketId").asText();
+        String token = createPayload.path("token").asText();
+        Long userId = jdbcTemplate.queryForObject(
+                "SELECT user_id FROM messages WHERE ticket_id = ? ORDER BY created_at DESC LIMIT 1",
+                Long.class,
+                ticketId
+        );
+        assertThat(userId).isNotNull();
+
+        jdbcTemplate.update("""
+                INSERT INTO chat_history(user_id, sender, message, timestamp, ticket_id, message_type, channel_id, tg_message_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                userId,
+                "support",
+                "Please share order number",
+                OffsetDateTime.now(ZoneOffset.UTC).minusMinutes(1).toString(),
+                ticketId,
+                "text",
+                50L,
+                7001L
+        );
+
+        DialogReplyService.DialogReplyResult reply = dialogReplyService.sendReply(
+                ticketId,
+                "Order number 12345, checking details",
+                7001L,
+                "operator"
+        );
+        assertThat(reply.success()).isTrue();
+
+        dialogNotificationService.notifyResolved(ticketId);
+
+        MvcResult sessionResult = mockMvc.perform(get("/api/public/forms/web-lifecycle/sessions/{token}", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andReturn();
+
+        JsonNode sessionPayload = objectMapper.readTree(sessionResult.getResponse().getContentAsByteArray());
+        List<JsonNode> messages = sessionPayload.path("messages").findValues("message");
+        assertThat(messages.stream().map(JsonNode::asText).toList())
+                .contains("Need help with order")
+                .contains("Please share order number")
+                .contains("Order number 12345, checking details");
+
+        long systemMessageCount = 0;
+        JsonNode operatorReply = null;
+        for (JsonNode node : sessionPayload.path("messages")) {
+            if ("system".equals(node.path("sender").asText())) {
+                systemMessageCount++;
+            }
+            if ("Order number 12345, checking details".equals(node.path("message").asText())) {
+                operatorReply = node;
+            }
+        }
+
+        assertThat(operatorReply).isNotNull();
+        assertThat(operatorReply.path("sender").asText()).isEqualTo("operator");
+        assertThat(operatorReply.path("replyPreview").asText()).isEqualTo("Please share order number");
+        assertThat(systemMessageCount).isEqualTo(2);
     }
 
     @Test
