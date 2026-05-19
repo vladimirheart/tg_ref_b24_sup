@@ -709,6 +709,14 @@
   обращениях одного requester, включая `sourceKey/sourceLabel` и resolved
   status предыдущего тикета, а resolve/reopen lifecycle через
   `DialogQuickActionService` закреплён и в `public-form` session history.
+- следующим более широким bridge/runtime-пакетом этот же
+  `PublicFormFlowSmokeIntegrationTest` добран до live `public-form ->
+  dialogs` read bridge: `/api/dialogs/{ticketId}` и
+  `/api/dialogs/{ticketId}/history` теперь проверяются на shared history
+  для `web_form` тикета, а `DialogReadService` дополнительно закреплён на
+  `last_read_at` update для ответственного оператора; рядом тем же smoke
+  слоем зафиксирован и `/api/dialogs/public-form-metrics` runtime bridge
+  на живые `views/submits/sessionLookups/sessionLookupMisses`.
 - этот же smoke-слой расширен на detail/subpage contract:
   `ai-ops`, `unblock requests`, `users/detail` и оба passport editor route
   (`/object-passports/new`, `/object-passports/{id}`) теперь тоже прикрыты

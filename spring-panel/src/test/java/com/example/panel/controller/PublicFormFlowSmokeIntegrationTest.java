@@ -16,6 +16,7 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import com.example.panel.service.DialogReadService;
 import com.example.panel.service.DialogNotificationService;
 import com.example.panel.service.DialogQuickActionService;
 import com.example.panel.service.DialogReplyService;
@@ -32,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -77,6 +79,9 @@ class PublicFormFlowSmokeIntegrationTest {
 
     @Autowired
     private DialogQuickActionService dialogQuickActionService;
+
+    @Autowired
+    private DialogReadService dialogReadService;
 
     @BeforeEach
     void clean() {
@@ -487,6 +492,55 @@ class PublicFormFlowSmokeIntegrationTest {
     }
 
     @Test
+    void publicFormDialogReadBridgeUpdatesReadMarkerAndExposesSharedHistory() throws Exception {
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at, public_id, questions_cfg)
+                VALUES (53, 'web-dialog-read', 'Dialog Read Form', 'vk', 1, CURRENT_TIMESTAMP, 'web-dialog-read', ?)
+                """,
+                "{\"schemaVersion\":1,\"enabled\":true,\"captchaEnabled\":false,\"disabledStatus\":404,\"fields\":[]}");
+
+        MvcResult createResult = mockMvc.perform(post("/api/public/forms/web-dialog-read/sessions")
+                        .header("X-Forwarded-For", "203.0.113.53")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "message": "Need dialog bridge"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.success").value(true))
+                .andReturn();
+
+        String ticketId = objectMapper.readTree(createResult.getResponse().getContentAsString()).path("ticketId").asText();
+        assertThat(dialogQuickActionService.takeTicket(ticketId, "operator")).contains("operator");
+        assertThat(dialogReplyService.sendReply(ticketId, "Bridge reply from operator", null, "operator").success()).isTrue();
+
+        mockMvc.perform(get("/api/dialogs/{ticketId}", ticketId).with(user("operator")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.ticketId").value(ticketId))
+                .andExpect(jsonPath("$.summary.channelId").value(53))
+                .andExpect(jsonPath("$.summary.channelName").value("Dialog Read Form"))
+                .andExpect(jsonPath("$.history[0].message").value("Need dialog bridge"))
+                .andExpect(jsonPath("$.history[1].message").value("Bridge reply from operator"))
+                .andExpect(jsonPath("$.categories").isArray());
+
+        mockMvc.perform(get("/api/dialogs/{ticketId}/history", ticketId).with(user("operator")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.messages[0].message").value("Need dialog bridge"))
+                .andExpect(jsonPath("$.messages[1].sender").value("operator"));
+
+        dialogReadService.loadDetails(ticketId, null, "operator");
+
+        String lastReadAt = jdbcTemplate.queryForObject(
+                "SELECT last_read_at FROM ticket_responsibles WHERE ticket_id = ?",
+                String.class,
+                ticketId
+        );
+        assertThat(lastReadAt).isNotBlank();
+    }
+
+    @Test
     void publicFormSessionHistoryReflectsResolveAndReopenLifecycleNotifications() throws Exception {
         jdbcTemplate.update("""
                 INSERT INTO channels (id, token, channel_name, platform, is_active, created_at, public_id, questions_cfg)
@@ -528,6 +582,53 @@ class PublicFormFlowSmokeIntegrationTest {
                 String.class,
                 ticketId
         )).isEqualTo("pending");
+    }
+
+    @Test
+    void publicFormMetricsBridgeReflectsLiveConfigSubmitAndLookupTraffic() throws Exception {
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id, questions_cfg)
+                VALUES (54, 'web-metrics-bridge', 'Metrics Bridge Form', 1, CURRENT_TIMESTAMP, 'web-metrics-bridge', ?)
+                """,
+                "{\"schemaVersion\":1,\"enabled\":true,\"captchaEnabled\":false,\"disabledStatus\":404,\"fields\":[]}");
+
+        mockMvc.perform(get("/api/public/forms/web-metrics-bridge/config"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        MvcResult createResult = mockMvc.perform(post("/api/public/forms/web-metrics-bridge/sessions")
+                        .header("X-Forwarded-For", "203.0.113.54")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "message": "Need metrics bridge"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.success").value(true))
+                .andReturn();
+
+        String token = objectMapper.readTree(createResult.getResponse().getContentAsString()).path("token").asText();
+
+        mockMvc.perform(get("/api/public/forms/web-metrics-bridge/sessions/{token}", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        mockMvc.perform(get("/api/public/forms/web-metrics-bridge/sessions/token-missing"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errorCode").value("SESSION_NOT_FOUND"));
+
+        mockMvc.perform(get("/api/dialogs/public-form-metrics")
+                        .param("channelId", "54")
+                        .with(user("operator")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.metrics.enabled").value(true))
+                .andExpect(jsonPath("$.metrics.channels[0].channelId").value(54))
+                .andExpect(jsonPath("$.metrics.channels[0].views").value(1))
+                .andExpect(jsonPath("$.metrics.channels[0].submits").value(1))
+                .andExpect(jsonPath("$.metrics.channels[0].sessionLookups").value(2))
+                .andExpect(jsonPath("$.metrics.channels[0].sessionLookupMisses").value(1));
     }
 
     @Test
