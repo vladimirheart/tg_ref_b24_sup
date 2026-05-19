@@ -717,6 +717,15 @@
   `last_read_at` update для ответственного оператора; рядом тем же smoke
   слоем зафиксирован и `/api/dialogs/public-form-metrics` runtime bridge
   на живые `views/submits/sessionLookups/sessionLookupMisses`.
+- следующим более широким lifecycle/triage-пакетом этот же
+  `PublicFormFlowSmokeIntegrationTest` добран уже до live
+  `public-form -> dialogs` list/details bridge: `/api/dialogs` теперь
+  проверяется на `summary`, `statusKey` переходы `new ->
+  waiting_operator -> waiting_client`, critical SLA escalation signals и
+  operator ownership lifecycle для `web_form` тикета; соседним сценарием
+  закреплены `resolved`/categories projection в `/api/dialogs/{ticketId}`
+  и continuity этого же resolved dialog через
+  `/api/dialogs/{ticketId}/history/previous`.
 - этот же smoke-слой расширен на detail/subpage contract:
   `ai-ops`, `unblock requests`, `users/detail` и оба passport editor route
   (`/object-passports/new`, `/object-passports/{id}`) теперь тоже прикрыты

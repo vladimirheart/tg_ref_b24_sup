@@ -1,5 +1,6 @@
 package com.example.panel.controller;
 
+import com.example.panel.model.dialog.DialogListItem;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,6 +17,7 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import com.example.panel.service.DialogListReadService;
 import com.example.panel.service.DialogReadService;
 import com.example.panel.service.DialogNotificationService;
 import com.example.panel.service.DialogQuickActionService;
@@ -82,6 +84,9 @@ class PublicFormFlowSmokeIntegrationTest {
 
     @Autowired
     private DialogReadService dialogReadService;
+
+    @Autowired
+    private DialogListReadService dialogListReadService;
 
     @BeforeEach
     void clean() {
@@ -632,6 +637,165 @@ class PublicFormFlowSmokeIntegrationTest {
     }
 
     @Test
+    void publicFormDialogsListBridgeReflectsOperatorLifecycleAndSlaSignals() throws Exception {
+        sharedConfigService.saveSettings(Map.of(
+                "dialog_config", Map.of(
+                        "sla_target_minutes", 60,
+                        "sla_warning_minutes", 20,
+                        "sla_critical_minutes", 10,
+                        "sla_critical_escalation_enabled", true
+                )
+        ));
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id, questions_cfg)
+                VALUES (55, 'web-dialog-list', 'Dialog List Form', 1, CURRENT_TIMESTAMP, 'web-dialog-list', ?)
+                """,
+                "{\"schemaVersion\":1,\"enabled\":true,\"captchaEnabled\":false,\"disabledStatus\":404,\"fields\":[]}");
+
+        MvcResult createResult = mockMvc.perform(post("/api/public/forms/web-dialog-list/sessions")
+                        .header("X-Forwarded-For", "203.0.113.55")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "message": "Need triage bridge"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.success").value(true))
+                .andReturn();
+
+        String ticketId = objectMapper.readTree(createResult.getResponse().getContentAsString()).path("ticketId").asText();
+        ageDialogForCriticalSla(ticketId, 55);
+
+        mockMvc.perform(get("/api/dialogs").with(user("operator")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.summary.totalTickets").value(1))
+                .andExpect(jsonPath("$.summary.pendingTickets").value(1))
+                .andExpect(jsonPath("$.summary.resolvedTickets").value(0))
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value(ticketId))
+                .andExpect(jsonPath("$.dialogs[0].statusKey").value("new"))
+                .andExpect(jsonPath("$.dialogs[0].rawResponsible").doesNotExist())
+                .andExpect(jsonPath("$.my_dialogs.unanswered").isEmpty())
+                .andExpect(jsonPath("$.my_dialogs.in_work").isEmpty())
+                .andExpect(jsonPath("$.sla_orchestration.tickets['" + ticketId + "'].is_critical").value(true))
+                .andExpect(jsonPath("$.sla_orchestration.tickets['" + ticketId + "'].auto_pin").value(true))
+                .andExpect(jsonPath("$.sla_orchestration.tickets['" + ticketId + "'].escalation_required").value(true))
+                .andExpect(jsonPath("$.sla_orchestration.tickets['" + ticketId + "'].escalation_reason").value("critical_sla_unassigned"));
+
+        Map<String, Object> initialPayload = dialogListReadService.loadListPayload("operator");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> initialMyDialogs = (Map<String, Object>) initialPayload.get("my_dialogs");
+        assertThat((List<?>) initialMyDialogs.get("unanswered")).isEmpty();
+        assertThat((List<?>) initialMyDialogs.get("in_work")).isEmpty();
+
+        assertThat(dialogQuickActionService.takeTicket(ticketId, "operator")).contains("operator");
+
+        mockMvc.perform(get("/api/dialogs").with(user("operator")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value(ticketId))
+                .andExpect(jsonPath("$.dialogs[0].statusKey").value("waiting_operator"))
+                .andExpect(jsonPath("$.dialogs[0].rawResponsible").value("operator"))
+                .andExpect(jsonPath("$.sla_orchestration.tickets['" + ticketId + "'].is_critical").value(true))
+                .andExpect(jsonPath("$.sla_orchestration.tickets['" + ticketId + "'].escalation_required").value(false));
+
+        Map<String, Object> takenPayload = dialogListReadService.loadListPayload("operator");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> takenMyDialogs = (Map<String, Object>) takenPayload.get("my_dialogs");
+        @SuppressWarnings("unchecked")
+        List<DialogListItem> takenUnanswered = (List<DialogListItem>) takenMyDialogs.get("unanswered");
+        assertThat(takenUnanswered).extracting(DialogListItem::ticketId).containsExactly(ticketId);
+        assertThat((List<?>) takenMyDialogs.get("in_work")).isEmpty();
+
+        assertThat(dialogReplyService.sendReply(ticketId, "Operator triage reply", null, "operator").success()).isTrue();
+
+        mockMvc.perform(get("/api/dialogs").with(user("operator")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value(ticketId))
+                .andExpect(jsonPath("$.dialogs[0].statusKey").value("waiting_client"))
+                .andExpect(jsonPath("$.dialogs[0].lastMessageSender").value("operator"))
+                .andExpect(jsonPath("$.dialogs[0].rawResponsible").value("operator"))
+                .andExpect(jsonPath("$.sla_orchestration.tickets['" + ticketId + "'].is_critical").value(true))
+                .andExpect(jsonPath("$.sla_orchestration.tickets['" + ticketId + "'].escalation_required").value(false));
+
+        Map<String, Object> repliedPayload = dialogListReadService.loadListPayload("operator");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> repliedMyDialogs = (Map<String, Object>) repliedPayload.get("my_dialogs");
+        @SuppressWarnings("unchecked")
+        List<DialogListItem> repliedInWork = (List<DialogListItem>) repliedMyDialogs.get("in_work");
+        assertThat((List<?>) repliedMyDialogs.get("unanswered")).isEmpty();
+        assertThat(repliedInWork).extracting(DialogListItem::ticketId).containsExactly(ticketId);
+    }
+
+    @Test
+    void publicFormDialogsDetailsAndPreviousHistoryBridgeReflectResolvedCategories() throws Exception {
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at, public_id, questions_cfg)
+                VALUES (56, 'web-dialog-projection', 'Dialog Projection Form', 'vk', 1, CURRENT_TIMESTAMP, 'web-dialog-projection', ?)
+                """,
+                "{\"schemaVersion\":1,\"enabled\":true,\"captchaEnabled\":false,\"disabledStatus\":404,\"fields\":[]}");
+
+        MvcResult firstCreate = mockMvc.perform(post("/api/public/forms/web-dialog-projection/sessions")
+                        .header("X-Forwarded-For", "203.0.113.56")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "message": "Projection request one"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.success").value(true))
+                .andReturn();
+
+        String firstTicketId = objectMapper.readTree(firstCreate.getResponse().getContentAsString()).path("ticketId").asText();
+        assertThat(dialogQuickActionService.takeTicket(firstTicketId, "operator")).contains("operator");
+        assertThat(dialogReplyService.sendReply(firstTicketId, "Projection reply", null, "operator").success()).isTrue();
+        assertThat(dialogQuickActionService.resolveTicket(firstTicketId, "operator", List.of("vip", "billing")).updated()).isTrue();
+
+        mockMvc.perform(get("/api/dialogs/{ticketId}", firstTicketId).with(user("operator")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.ticketId").value(firstTicketId))
+                .andExpect(jsonPath("$.summary.statusKey").value("closed"))
+                .andExpect(jsonPath("$.categories[0]").value("billing"))
+                .andExpect(jsonPath("$.categories[1]").value("vip"))
+                .andExpect(jsonPath("$.history[0].message").value("Projection request one"))
+                .andExpect(jsonPath("$.history[1].sender").value("operator"));
+
+        mockMvc.perform(get("/api/dialogs").with(user("operator")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.totalTickets").value(1))
+                .andExpect(jsonPath("$.summary.pendingTickets").value(0))
+                .andExpect(jsonPath("$.summary.resolvedTickets").value(1))
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value(firstTicketId))
+                .andExpect(jsonPath("$.dialogs[0].statusKey").value("closed"))
+                .andExpect(jsonPath("$.dialogs[0].categories").value("billing, vip"));
+
+        MvcResult secondCreate = mockMvc.perform(post("/api/public/forms/web-dialog-projection/sessions")
+                        .header("X-Forwarded-For", "203.0.113.56")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "message": "Projection request two"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.success").value(true))
+                .andReturn();
+
+        String secondTicketId = objectMapper.readTree(secondCreate.getResponse().getContentAsString()).path("ticketId").asText();
+
+        mockMvc.perform(get("/api/dialogs/{ticketId}/history/previous", secondTicketId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.batch.ticketId").value(firstTicketId))
+                .andExpect(jsonPath("$.batch.status").value("resolved"))
+                .andExpect(jsonPath("$.batch.sourceKey").value("web_form"))
+                .andExpect(jsonPath("$.batch.messages[0].message").value("Projection request one"))
+                .andExpect(jsonPath("$.batch.messages[1].sender").value("operator"))
+                .andExpect(jsonPath("$.has_more").value(false));
+    }
+
+    @Test
     void publicFormHttpIdempotencyReturnsSameSessionAndRejectsPayloadConflict() throws Exception {
         jdbcTemplate.update("""
                 INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id, questions_cfg)
@@ -790,5 +954,18 @@ class PublicFormFlowSmokeIntegrationTest {
                 .andExpect(jsonPath("$.errorCode").value("SESSION_NOT_FOUND"))
                 .andExpect(jsonPath("$.path").value("/api/public/forms/web-ttl/sessions/" + token))
                 .andExpect(jsonPath("$.timestamp").isNotEmpty());
+    }
+
+    private void ageDialogForCriticalSla(String ticketId, int minutesAgo) {
+        String timestamp = OffsetDateTime.now(ZoneOffset.UTC).minusMinutes(minutesAgo).withNano(0).toString();
+        jdbcTemplate.update("UPDATE tickets SET created_at = ? WHERE ticket_id = ?", timestamp, ticketId);
+        jdbcTemplate.update(
+                "UPDATE messages SET created_at = ?, created_date = substr(?, 1, 10), created_time = substr(?, 12, 8) WHERE ticket_id = ?",
+                timestamp,
+                timestamp,
+                timestamp,
+                ticketId
+        );
+        jdbcTemplate.update("UPDATE chat_history SET timestamp = ? WHERE ticket_id = ?", timestamp, ticketId);
     }
 }

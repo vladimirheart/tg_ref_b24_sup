@@ -40,7 +40,8 @@ class SettingsUpdateSharedConfigIntegrationTest {
         settingsDialogConfigUpdateService = mock(SettingsDialogConfigUpdateService.class);
         settingsTopLevelUpdateService = new SettingsTopLevelUpdateService(
                 new LocationsIikoServerSourceSettingsService(),
-                new LocationsIikoSyncSettingsService()
+                new LocationsIikoSyncSettingsService(),
+                mock(NotificationRoutingService.class)
         );
         settingsParameterService = mock(SettingsParameterService.class);
         doNothing().when(settingsParameterService).syncParametersFromLocationsPayload(any());

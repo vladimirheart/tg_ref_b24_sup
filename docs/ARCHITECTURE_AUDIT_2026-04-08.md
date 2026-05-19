@@ -805,6 +805,15 @@ integration-сценария поверх users/settings runtime boundary всё
   `last_read_at` update для ответственного оператора; рядом тем же smoke
   слоем зафиксирован и `/api/dialogs/public-form-metrics` runtime bridge
   на живые `views/submits/sessionLookups/sessionLookupMisses`.
+- Следующим более широким lifecycle/triage-пакетом тот же
+  `PublicFormFlowSmokeIntegrationTest` добран уже до live
+  `public-form -> dialogs` list/details bridge: `/api/dialogs` теперь
+  проверяется на `summary`, `statusKey` переходы `new ->
+  waiting_operator -> waiting_client`, critical SLA escalation signals и
+  operator ownership lifecycle для `web_form` тикета; соседним сценарием
+  закреплены `resolved`/categories projection в `/api/dialogs/{ticketId}`
+  и continuity этого же resolved dialog через
+  `/api/dialogs/{ticketId}/history/previous`.
 - `DialogAiOpsController` теперь прикрыт не только по основным happy/error
   flows, но и по alias/null-body/default-path сценариям, что уменьшает риск
   regressions в transport-layer normalisation.

@@ -9,6 +9,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
 
 class SettingsTopLevelUpdateServiceTest {
 
@@ -17,7 +18,8 @@ class SettingsTopLevelUpdateServiceTest {
         SettingsTopLevelUpdateService service =
                 new SettingsTopLevelUpdateService(
                         new LocationsIikoServerSourceSettingsService(),
-                        new LocationsIikoSyncSettingsService()
+                        new LocationsIikoSyncSettingsService(),
+                        mock(NotificationRoutingService.class)
                 );
         Map<String, Object> settings = new LinkedHashMap<>();
 
@@ -42,7 +44,8 @@ class SettingsTopLevelUpdateServiceTest {
         SettingsTopLevelUpdateService service =
                 new SettingsTopLevelUpdateService(
                         new LocationsIikoServerSourceSettingsService(),
-                        new LocationsIikoSyncSettingsService()
+                        new LocationsIikoSyncSettingsService(),
+                        mock(NotificationRoutingService.class)
                 );
 
         assertFalse(service.applyTopLevelUpdates(Map.of("unknown_key", "value"), new LinkedHashMap<>()));
