@@ -1,0 +1,667 @@
+﻿/* Unified visual system */
+.card,
+.page-header-card,
+.workspace-panel-block {
+    border-radius: 0.95rem;
+    border-color: color-mix(in srgb, var(--color-border) 88%, transparent);
+}
+
+.card {
+    box-shadow: 0 10px 24px -20px rgba(15, 23, 42, 0.35);
+}
+
+.page-title,
+.dialogs-title {
+    letter-spacing: -0.01em;
+    line-height: 1.12;
+}
+
+.table > :not(caption) > * > * {
+    padding-top: 0.7rem;
+    padding-bottom: 0.7rem;
+}
+
+.btn,
+.form-control,
+.form-select {
+    min-height: 2.2rem;
+}
+
+/* Density mode (global) */
+body.density-comfortable {
+    --app-density-space: 1rem;
+    --app-density-control-height: 2.2rem;
+}
+
+body.density-compact {
+    --app-density-space: 0.65rem;
+    --app-density-control-height: 1.95rem;
+}
+
+body.density-compact .card-body,
+body.density-compact .page-header-card,
+body.density-compact .workspace-panel-block {
+    padding: calc(var(--app-density-space) * 0.95) !important;
+}
+
+body.density-compact .table > :not(caption) > * > * {
+    padding-top: 0.45rem;
+    padding-bottom: 0.45rem;
+}
+
+body.density-compact .btn,
+body.density-compact .form-control,
+body.density-compact .form-select {
+    min-height: var(--app-density-control-height);
+    font-size: 0.875rem;
+}
+
+body.density-compact .page-title {
+    font-size: clamp(1.2rem, 1.4vw, 1.6rem);
+}
+
+/* Project-wide unified UI language */
+:root {
+    --ui-surface: var(--card);
+    --ui-border: var(--border);
+    --ui-radius: var(--radius, 0.75rem);
+    --ui-text: var(--foreground);
+    --ui-muted: var(--muted-foreground);
+    --ui-primary: var(--primary);
+    --ui-shadow: 0 0 0 0 color-mix(in srgb, var(--foreground) 8%, transparent);
+}
+
+body {
+    letter-spacing: var(--letter-spacing, normal);
+    background-image: none !important;
+}
+
+.page-header-card {
+    background: var(--ui-surface) !important;
+    border: 1px solid var(--ui-border) !important;
+    border-radius: var(--ui-radius) !important;
+    box-shadow: var(--ui-shadow) !important;
+    animation: none !important;
+}
+
+.card,
+.modal-content,
+.dropdown-menu,
+.accordion-item,
+.workspace-panel-block,
+.sidebar,
+.sidebar-user-card {
+    background: var(--ui-surface) !important;
+    border: 1px solid var(--ui-border) !important;
+    border-radius: var(--ui-radius) !important;
+    box-shadow: var(--ui-shadow) !important;
+    animation: none !important;
+}
+
+.btn,
+.form-control,
+.form-select,
+.form-check-input,
+.input-group-text {
+    border-radius: calc(var(--ui-radius) * 0.6) !important;
+    border-color: var(--ui-border) !important;
+}
+
+.btn-primary {
+    background: var(--ui-primary) !important;
+    border-color: var(--ui-primary) !important;
+    color: var(--primary-foreground) !important;
+}
+
+.btn-outline-primary,
+.btn-outline-secondary,
+.btn-outline-dark,
+.btn-outline-light {
+    color: var(--ui-text) !important;
+    border-color: var(--ui-border) !important;
+}
+
+.btn-outline-primary:hover,
+.btn-outline-secondary:hover,
+.btn-outline-dark:hover,
+.btn-outline-light:hover {
+    background: color-mix(in srgb, var(--ui-primary) 12%, var(--ui-surface)) !important;
+}
+
+.table {
+    --bs-table-bg: var(--ui-surface);
+    --bs-table-color: var(--ui-text);
+    --bs-table-border-color: var(--ui-border);
+}
+
+.table thead th {
+    background: color-mix(in srgb, var(--muted) 75%, var(--ui-surface)) !important;
+    color: var(--ui-muted) !important;
+}
+
+.table-striped > tbody > tr:nth-of-type(odd) > * {
+    background: color-mix(in srgb, var(--muted) 35%, var(--ui-surface)) !important;
+}
+
+.text-muted,
+.form-text,
+.small.text-muted {
+    color: var(--ui-muted) !important;
+}
+
+/* Bootstrap utility harmonization */
+.bg-light,
+.bg-light-subtle,
+.bg-secondary-subtle,
+.bg-body-tertiary {
+    background-color: color-mix(in srgb, var(--muted) 78%, var(--ui-surface)) !important;
+    color: var(--ui-text) !important;
+}
+
+.text-dark,
+.text-body-secondary,
+.text-secondary {
+    color: var(--ui-text) !important;
+}
+
+.border,
+.border-top,
+.border-bottom,
+.border-start,
+.border-end {
+    border-color: var(--ui-border) !important;
+}
+
+.badge.bg-light,
+.badge.bg-light.text-dark,
+.badge.bg-warning.text-dark {
+    background-color: color-mix(in srgb, var(--muted) 72%, var(--ui-surface)) !important;
+    color: var(--ui-text) !important;
+    border: 1px solid var(--ui-border) !important;
+}
+
+.badge.bg-info,
+.badge.bg-primary,
+.badge.bg-secondary,
+.badge.bg-success,
+.badge.bg-danger {
+    border: 1px solid color-mix(in srgb, var(--ui-border) 65%, transparent) !important;
+}
+
+/* Settings page cards unified */
+.settings-tiles .settings-tile {
+    background: var(--ui-surface) !important;
+    border: 1px solid var(--ui-border) !important;
+    border-radius: var(--ui-radius) !important;
+    box-shadow: var(--ui-shadow) !important;
+}
+
+.settings-tiles .settings-tile .tile-icon {
+    background: color-mix(in srgb, var(--ui-primary) 14%, var(--ui-surface)) !important;
+    color: var(--ui-text) !important;
+    border: 1px solid var(--ui-border) !important;
+}
+
+.settings-tiles .settings-tile:hover,
+.settings-tiles .settings-tile.is-active {
+    background: color-mix(in srgb, var(--ui-primary) 8%, var(--ui-surface)) !important;
+    border-color: var(--ui-border) !important;
+    transform: none !important;
+}
+
+/* Navbar, tabs, pagination */
+.nav-tabs .nav-link {
+    color: var(--ui-text);
+    border-color: transparent;
+}
+
+.nav-tabs .nav-link.active,
+.nav-tabs .nav-item.show .nav-link {
+    color: var(--ui-text);
+    background-color: var(--ui-surface);
+    border-color: var(--ui-border) var(--ui-border) transparent !important;
+}
+
+.pagination .page-link {
+    color: var(--ui-text);
+    border-color: var(--ui-border);
+    background-color: var(--ui-surface);
+}
+
+.pagination .page-item.active .page-link {
+    background-color: var(--ui-primary);
+    border-color: var(--ui-primary);
+    color: var(--primary-foreground);
+}
+
+/* Tokenized status and helper colors */
+:root {
+    --state-info-bg: color-mix(in srgb, var(--primary) 14%, var(--ui-surface));
+    --state-info-border: color-mix(in srgb, var(--primary) 35%, var(--ui-border));
+    --state-info-fg: var(--ui-text);
+    --state-warn-bg: color-mix(in srgb, var(--accent) 20%, var(--ui-surface));
+    --state-warn-border: color-mix(in srgb, var(--accent) 45%, var(--ui-border));
+    --state-warn-fg: var(--ui-text);
+    --state-success-bg: color-mix(in srgb, var(--secondary) 18%, var(--ui-surface));
+    --state-success-border: color-mix(in srgb, var(--secondary) 45%, var(--ui-border));
+    --state-success-fg: var(--ui-text);
+    --state-danger-bg: color-mix(in srgb, var(--destructive) 18%, var(--ui-surface));
+    --state-danger-border: color-mix(in srgb, var(--destructive) 45%, var(--ui-border));
+    --state-danger-fg: var(--ui-text);
+    --state-neutral-bg: color-mix(in srgb, var(--muted) 65%, var(--ui-surface));
+    --state-neutral-border: color-mix(in srgb, var(--muted-foreground) 30%, var(--ui-border));
+    --state-neutral-fg: var(--ui-text);
+}
+
+.table-light,
+.table-light > th,
+.table-light > td {
+    --bs-table-bg: color-mix(in srgb, var(--muted) 72%, var(--ui-surface));
+    --bs-table-color: var(--ui-text);
+    --bs-table-border-color: var(--ui-border);
+}
+
+.alert-info {
+    background-color: var(--state-info-bg) !important;
+    border-color: var(--state-info-border) !important;
+    color: var(--state-info-fg) !important;
+}
+
+.alert-warning {
+    background-color: var(--state-warn-bg) !important;
+    border-color: var(--state-warn-border) !important;
+    color: var(--state-warn-fg) !important;
+}
+
+.alert-success {
+    background-color: var(--state-success-bg) !important;
+    border-color: var(--state-success-border) !important;
+    color: var(--state-success-fg) !important;
+}
+
+.alert-danger {
+    background-color: var(--state-danger-bg) !important;
+    border-color: var(--state-danger-border) !important;
+    color: var(--state-danger-fg) !important;
+}
+
+.badge.text-bg-primary,
+.badge.bg-primary {
+    background-color: color-mix(in srgb, var(--primary) 80%, var(--ui-surface)) !important;
+    color: var(--primary-foreground) !important;
+}
+
+.badge.text-bg-success,
+.badge.bg-success {
+    background-color: color-mix(in srgb, var(--secondary) 80%, var(--ui-surface)) !important;
+    color: var(--secondary-foreground) !important;
+}
+
+.badge.text-bg-warning,
+.badge.bg-warning {
+    background-color: color-mix(in srgb, var(--accent) 80%, var(--ui-surface)) !important;
+    color: var(--accent-foreground) !important;
+}
+
+.badge.text-bg-danger,
+.badge.bg-danger {
+    background-color: color-mix(in srgb, var(--destructive) 82%, var(--ui-surface)) !important;
+    color: var(--destructive-foreground) !important;
+}
+
+.badge.text-bg-info,
+.badge.bg-info {
+    background-color: color-mix(in srgb, var(--chart-2) 75%, var(--ui-surface)) !important;
+    color: var(--secondary-foreground) !important;
+}
+
+.badge.text-bg-secondary,
+.badge.bg-secondary {
+    background-color: var(--state-neutral-bg) !important;
+    color: var(--state-neutral-fg) !important;
+}
+
+.dialog-status-badge.status-new {
+    background-color: var(--state-info-bg);
+    border-color: var(--state-info-border);
+    color: var(--state-info-fg);
+}
+
+.dialog-status-badge.status-waiting-operator {
+    background-color: var(--state-warn-bg);
+    border-color: var(--state-warn-border);
+    color: var(--state-warn-fg);
+}
+
+.dialog-status-badge.status-waiting-client {
+    background-color: color-mix(in srgb, var(--chart-2) 16%, var(--ui-surface));
+    border-color: color-mix(in srgb, var(--chart-2) 38%, var(--ui-border));
+    color: var(--ui-text);
+}
+
+.dialog-status-badge.status-closed {
+    background-color: var(--state-success-bg);
+    border-color: var(--state-success-border);
+    color: var(--state-success-fg);
+}
+
+.dialog-status-badge.status-auto-closed {
+    background-color: var(--state-neutral-bg);
+    border-color: var(--state-neutral-border);
+    color: var(--state-neutral-fg);
+}
+
+.dialog-status-badge.status-auto-processing {
+    background-color: color-mix(in srgb, var(--primary) 10%, var(--ui-surface));
+    border-color: color-mix(in srgb, var(--primary) 35%, var(--ui-border));
+    color: var(--ui-text);
+}
+
+.dialog-sla-badge.dialog-sla-safe {
+    background-color: color-mix(in srgb, var(--secondary) 84%, var(--ui-surface));
+    color: var(--secondary-foreground);
+}
+
+.dialog-sla-badge.dialog-sla-risk {
+    background-color: color-mix(in srgb, var(--accent) 84%, var(--ui-surface));
+    color: var(--accent-foreground);
+}
+
+.dialog-sla-badge.dialog-sla-overdue {
+    background-color: color-mix(in srgb, var(--destructive) 86%, var(--ui-surface));
+    color: var(--destructive-foreground);
+}
+
+.dialog-sla-badge.dialog-sla-closed {
+    background-color: var(--state-neutral-bg);
+    color: var(--state-neutral-fg);
+}
+
+.dialog-table tbody tr.dialog-priority-breached {
+    border-left-color: var(--destructive);
+}
+
+.dialog-table tbody tr.dialog-priority-at-risk {
+    border-left-color: var(--accent);
+}
+
+.dialog-table tbody tr.dialog-priority-normal {
+    border-left-color: var(--secondary);
+}
+
+.dialog-table .avatar-circle {
+    background: linear-gradient(135deg, var(--primary), var(--chart-4));
+}
+
+.client-avatar-ring.status-has-color {
+    color: var(--status-color, var(--primary));
+}
+
+/* Clients page extracted styles */
+.sortable {
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+}
+
+.sortable::after {
+    content: " ↕";
+    font-size: 0.8em;
+    opacity: 0.5;
+}
+
+.sort-asc::after {
+    content: " ↑";
+    opacity: 1;
+}
+
+.sort-desc::after {
+    content: " ↓";
+    opacity: 1;
+}
+
+.clients-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 1rem;
+    align-items: end;
+    margin-bottom: 1rem;
+}
+
+.client-status-alert {
+    border-left: 4px solid var(--chart-2);
+    background: color-mix(in srgb, var(--accent) 55%, var(--ui-surface));
+}
+
+.clients-table-card {
+    overflow: hidden;
+}
+
+.client-avatar-ring.status-has-color {
+    display: inline-flex;
+    padding: 2px;
+    border-radius: 999px;
+    background:
+        linear-gradient(var(--card), var(--card)),
+        conic-gradient(from var(--gradient-angle), var(--primary), var(--chart-2), var(--chart-4), var(--primary));
+    background-origin: padding-box, border-box;
+    background-clip: padding-box, border-box;
+    animation: gradient-rotate 9s linear infinite;
+}
+
+.client-avatar-img {
+    border-radius: 999px;
+    display: block;
+}
+
+.client-blacklist-select,
+.unblock-status-select {
+    width: auto;
+    display: inline-block;
+}
+
+/* Analytics / AI Ops extracted inline styles */
+.analytics-control-auto {
+    width: auto;
+}
+
+.analytics-control-sm {
+    max-width: 210px;
+}
+
+.analytics-control-md {
+    max-width: 220px;
+}
+
+.analytics-control-lg {
+    max-width: 230px;
+}
+
+.analytics-scroll-area {
+    max-height: 420px;
+    overflow-y: auto;
+}
+
+.ai-ops-filter-input {
+    max-width: 14rem;
+}
+
+/* Tasks extracted inline styles */
+.tasks-page-size-select {
+    width: auto;
+    min-width: 90px;
+}
+
+.tasks-status-select {
+    max-width: 160px;
+}
+
+/* Dialogs extracted inline styles */
+.dialog-col-question {
+    min-width: 18rem;
+}
+
+.dialog-col-current-answer,
+.dialog-col-proposed-answer {
+    min-width: 16rem;
+}
+
+.dialog-problem-cell {
+    max-width: 260px;
+}
+
+/* Unified UI refresh: softer static borders + consistent buttons */
+:root {
+    --ui-border-soft: color-mix(in srgb, var(--color-border) 78%, transparent);
+    --ui-border-soft-strong: color-mix(in srgb, var(--color-border) 88%, transparent);
+}
+
+.card,
+.modal-content,
+.table,
+.list-group-item,
+.form-control,
+.form-select,
+.input-group-text,
+.dropdown-menu {
+    border-color: var(--ui-border-soft) !important;
+}
+
+.card:hover,
+.modal-content:hover,
+.form-control:hover,
+.form-select:hover,
+.input-group-text:hover,
+.dropdown-menu:hover {
+    border-color: var(--ui-border-soft) !important;
+}
+
+.btn {
+    position: relative;
+    overflow: hidden;
+    border-radius: 0.75rem;
+    border-color: var(--ui-border-soft) !important;
+    transition: transform 0.14s ease, box-shadow 0.14s ease, background-color 0.14s ease;
+}
+
+.btn:hover {
+    border-color: var(--ui-border-soft) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 10px 20px color-mix(in srgb, var(--color-shadow-color) 14%, transparent);
+}
+
+.btn:active {
+    transform: translateY(0);
+    box-shadow: 0 4px 10px color-mix(in srgb, var(--color-shadow-color) 10%, transparent);
+}
+
+.btn.btn-outline-primary,
+.btn.btn-outline-secondary,
+.btn.btn-outline-success,
+.btn.btn-outline-warning,
+.btn.btn-outline-danger {
+    background-color: color-mix(in srgb, var(--card) 90%, var(--background));
+}
+
+.btn.btn-primary {
+    background: linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--primary) 94%, white),
+        color-mix(in srgb, var(--primary) 82%, black)
+    );
+    border-color: color-mix(in srgb, var(--primary) 66%, var(--color-border)) !important;
+}
+
+.btn.btn-success {
+    border-color: color-mix(in srgb, var(--chart-5) 55%, var(--color-border)) !important;
+}
+
+.btn.btn-warning {
+    border-color: color-mix(in srgb, var(--chart-3) 58%, var(--color-border)) !important;
+}
+
+.btn.btn-danger {
+    border-color: color-mix(in srgb, var(--destructive) 60%, var(--color-border)) !important;
+}
+
+.btn-ripple-wave {
+    position: absolute;
+    border-radius: 999px;
+    pointer-events: none;
+    transform: scale(0);
+    opacity: 0.65;
+    animation: btn-ripple-wave 650ms ease-out forwards;
+    background: var(--button-ripple-color, rgba(0, 0, 0, 0.18));
+}
+
+@keyframes btn-ripple-wave {
+    to {
+        transform: scale(1);
+        opacity: 0;
+    }
+}
+
+
+
+
+/* Dialog/theme hover suppression */
+.gradient-border-hover,
+.dialog-summary-value-link,
+.dialog-column-option,
+.workspace-tab-btn,
+.dialog-business-pill {
+  transition: none !important;
+}
+
+@media (hover: hover) {
+  .gradient-border-hover:hover,
+  .dialog-summary-value-link:hover,
+  .dialog-column-option:hover,
+  .workspace-tab-btn:hover,
+  .dialog-business-pill:hover {
+    background: inherit !important;
+    color: inherit !important;
+    border-color: inherit !important;
+    box-shadow: none !important;
+    text-decoration: none !important;
+  }
+}
+
+/* Global hard-disable for hover visual effects */
+@media (hover: hover) {
+  .btn:hover,
+  .btn:active,
+  .card:hover,
+  .modal-content:hover,
+  .form-control:hover,
+  .form-select:hover,
+  .input-group-text:hover,
+  .nav-link:hover,
+  .dropdown-item:hover,
+  .list-group-item:hover,
+  .page-link:hover,
+  .settings-tile:hover,
+  .client-analytics-row:hover,
+  .workspace-tab-btn:hover,
+  .dialog-business-pill:hover,
+  .gradient-border-hover:hover,
+  .gradient-border-stop-hover:hover,
+  a:hover {
+    transform: none !important;
+    box-shadow: none !important;
+    filter: none !important;
+    text-decoration: none !important;
+    transition: none !important;
+    animation: none !important;
+    background-color: inherit !important;
+    border-color: inherit !important;
+    color: inherit !important;
+  }
+
+  .table-hover > tbody > tr:hover > * {
+    --bs-table-accent-bg: transparent !important;
+    background-color: transparent !important;
+    color: inherit !important;
+  }
+}
+

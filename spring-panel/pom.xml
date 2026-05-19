@@ -134,6 +134,33 @@
     <build>
         <plugins>
             <plugin>
+                <groupId>io.github.cleydyr</groupId>
+                <artifactId>dart-sass-maven-plugin</artifactId>
+                <version>1.5.0</version>
+                <configuration>
+                    <version>1.83.0</version>
+                    <inputFolder>src/main/resources/scss</inputFolder>
+                    <outputFolder>src/main/resources/static/css</outputFolder>
+                    <loadPaths>
+                        <loadPath>src/main/resources/scss</loadPath>
+                    </loadPaths>
+                    <errorCss>false</errorCss>
+                    <noCharset>true</noCharset>
+                    <noSourceMap>true</noSourceMap>
+                    <stopOnError>true</stopOnError>
+                    <style>EXPANDED</style>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>compile-scss</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>compile-sass</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>

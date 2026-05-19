@@ -1,4 +1,4 @@
-/* panel/static/sidebar.css */
+/* Generated from scss/sidebar.scss. Edit SCSS sources instead of css/sidebar.css. */
 :root {
   --sidebar-w: 308px;
   --sidebar-w-collapsed: 84px;
@@ -53,10 +53,7 @@ body.with-sidebar.sidebar-hovering {
   gap: 10px;
   overflow: hidden;
   z-index: var(--sidebar-z);
-  background:
-    radial-gradient(circle at 12% 12%, color-mix(in srgb, var(--gradient-secondary) 34%, transparent), transparent 34%),
-    radial-gradient(circle at 88% 16%, color-mix(in srgb, var(--gradient-accent) 26%, transparent), transparent 28%),
-    linear-gradient(180deg, color-mix(in srgb, var(--sidebar-surface) 92%, white), var(--sidebar-surface-strong));
+  background: radial-gradient(circle at 12% 12%, color-mix(in srgb, var(--gradient-secondary) 34%, transparent), transparent 34%), radial-gradient(circle at 88% 16%, color-mix(in srgb, var(--gradient-accent) 26%, transparent), transparent 28%), linear-gradient(180deg, color-mix(in srgb, var(--sidebar-surface) 92%, white), var(--sidebar-surface-strong));
   border-right: 1px solid var(--sidebar-stroke);
   box-shadow: var(--sidebar-shadow);
   backdrop-filter: blur(22px);
@@ -124,9 +121,7 @@ body.with-sidebar.sidebar-hovering {
   gap: 8px;
   padding: 10px 12px;
   border-radius: 22px;
-  background:
-    linear-gradient(145deg, color-mix(in srgb, white 80%, transparent), color-mix(in srgb, var(--gradient-secondary) 10%, white)),
-    linear-gradient(135deg, color-mix(in srgb, var(--color-accent) 6%, transparent), transparent);
+  background: linear-gradient(145deg, color-mix(in srgb, white 80%, transparent), color-mix(in srgb, var(--gradient-secondary) 10%, white)), linear-gradient(135deg, color-mix(in srgb, var(--color-accent) 6%, transparent), transparent);
   border: 1px solid color-mix(in srgb, var(--color-border) 12%, transparent);
   box-shadow: 0 14px 28px rgba(18, 36, 23, 0.1);
 }
@@ -241,7 +236,7 @@ body.with-sidebar.sidebar-hovering {
   padding: 0;
 }
 
-.notify-btn[aria-expanded="true"] {
+.notify-btn[aria-expanded=true] {
   background: color-mix(in srgb, var(--color-accent) 14%, white);
 }
 
@@ -264,8 +259,7 @@ body.with-sidebar.sidebar-hovering {
   z-index: 1;
   padding: 18px;
   border-radius: 28px;
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--color-accent) 20%, white), color-mix(in srgb, var(--gradient-secondary) 24%, white));
+  background: linear-gradient(135deg, color-mix(in srgb, var(--color-accent) 20%, white), color-mix(in srgb, var(--gradient-secondary) 24%, white));
   color: color-mix(in srgb, var(--color-text) 84%, #0b1a10);
   box-shadow: 0 22px 44px rgba(19, 32, 23, 0.12);
 }
@@ -391,8 +385,7 @@ body.with-sidebar.sidebar-hovering {
   align-items: center;
   justify-content: center;
   border-radius: 13px;
-  background:
-    linear-gradient(145deg, color-mix(in srgb, white 86%, transparent), color-mix(in srgb, var(--gradient-secondary) 10%, white));
+  background: linear-gradient(145deg, color-mix(in srgb, white 86%, transparent), color-mix(in srgb, var(--gradient-secondary) 10%, white));
   border: 1px solid color-mix(in srgb, var(--color-border) 10%, transparent);
   color: color-mix(in srgb, var(--color-text) 74%, black);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
@@ -495,8 +488,7 @@ body.with-sidebar.sidebar-hovering {
   margin-top: auto;
   padding: 12px;
   border-radius: 22px;
-  background:
-    linear-gradient(180deg, color-mix(in srgb, white 78%, var(--color-surface)), color-mix(in srgb, var(--color-accent) 6%, white));
+  background: linear-gradient(180deg, color-mix(in srgb, white 78%, var(--color-surface)), color-mix(in srgb, var(--color-accent) 6%, white));
   border: 1px solid color-mix(in srgb, var(--color-border) 12%, transparent);
   box-shadow: 0 20px 38px rgba(18, 33, 23, 0.1);
   display: flex;
@@ -626,12 +618,10 @@ body.with-sidebar.sidebar-hovering {
   .sidebar-footer-actions {
     flex-direction: column;
   }
-
   .sidebar-order-controls {
     justify-content: flex-start;
   }
 }
-
 .sidebar-logout-btn:hover,
 .sidebar-logout-btn:focus-visible {
   transform: translateY(-1px);
@@ -650,7 +640,7 @@ body.with-sidebar.sidebar-hovering {
   position: absolute;
   top: calc(100% + 10px);
   left: 0;
-  width: min(360px, calc(100vw - 32px));
+  width: min(360px, 100vw - 32px);
   max-height: 50vh;
   overflow-y: auto;
   padding: 10px;
@@ -773,26 +763,21 @@ body.sidebar-mobile-open .sidebar-mobile-overlay {
   body.with-sidebar.sidebar-hovering {
     padding-left: 0 !important;
   }
-
   .sidebar-mobile-toggle {
     display: inline-flex;
   }
-
   .sidebar {
     transform: translateX(-104%);
     width: min(90vw, 340px);
     max-width: 340px;
     padding-top: 68px;
   }
-
   body.sidebar-mobile-open .sidebar {
     transform: translateX(0);
   }
-
   .sidebar.collapsed {
     width: min(90vw, 340px);
   }
-
   .sidebar.collapsed .sidebar-brand-description,
   .sidebar.collapsed .sidebar-overview,
   .sidebar.collapsed .sidebar-section-label,
@@ -805,13 +790,11 @@ body.sidebar-mobile-open .sidebar-mobile-overlay {
   .sidebar.collapsed .sidebar-account-btn .label {
     display: initial !important;
   }
-
   .sidebar.collapsed .nav-link {
     grid-template-columns: 48px minmax(0, 1fr);
     justify-items: stretch;
     padding: 12px;
   }
-
   .main-content {
     padding-top: 72px;
   }
