@@ -2,7 +2,7 @@
 **Дата:** 8 апреля 2026  
 **Статус:** Актуально, но в активной фазе исправления  
 **Актуализация:** 9 апреля 2026 (см. `docs/ARCHITECTURE_AUDIT_VALIDATION_2026-04-09.md`)  
-**Последняя актуализация:** 18 мая 2026
+**Последняя актуализация:** 19 мая 2026
 
 ---
 
@@ -780,6 +780,11 @@ integration-сценария поверх users/settings runtime boundary всё
   telegram deep-link generation и rotate-on-read token lifecycle теперь
   проверяются в живом runtime contract через `SpringBootTest` + SQLite +
   temp shared config.
+- Следующим более широким runtime-hardening пакетом тот же
+  `PublicFormFlowSmokeIntegrationTest` добран до anti-abuse/expiry
+  contract: HTTP idempotency reuse, structured `IDEMPOTENCY_CONFLICT`,
+  live `RATE_LIMITED` rejection и `public_form_session_ttl_hours` expiry
+  теперь тоже проверяются в живом `SpringBootTest` + SQLite сценарии.
 - `DialogAiOpsController` теперь прикрыт не только по основным happy/error
   flows, но и по alias/null-body/default-path сценариям, что уменьшает риск
   regressions в transport-layer normalisation.

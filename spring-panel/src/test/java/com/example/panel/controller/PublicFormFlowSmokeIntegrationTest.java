@@ -19,8 +19,11 @@ import org.springframework.test.web.servlet.MvcResult;
 import com.example.panel.service.SharedConfigService;
 
 import java.io.IOException;
+import java.sql.Timestamp;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -315,5 +318,166 @@ class PublicFormFlowSmokeIntegrationTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.session.token").isNotEmpty())
                 .andExpect(jsonPath("$.session.token").value(org.hamcrest.Matchers.not(rotatedToken)));
+    }
+
+    @Test
+    void publicFormHttpIdempotencyReturnsSameSessionAndRejectsPayloadConflict() throws Exception {
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id, questions_cfg)
+                VALUES (47, 'web-idempotent-http', 'Idempotent Form', 1, CURRENT_TIMESTAMP, 'web-idempotent-http', ?)
+                """,
+                "{\"schemaVersion\":1,\"enabled\":true,\"captchaEnabled\":false,\"disabledStatus\":404,\"fields\":[]}");
+
+        String firstPayload = """
+                {
+                  "message": "Нужна помощь по заказу",
+                  "clientName": "Анна",
+                  "clientContact": "+79990000001",
+                  "username": "anna",
+                  "answers": {
+                    "topic": "billing"
+                  },
+                  "requestId": "req-http-1"
+                }
+                """;
+
+        MvcResult firstCreate = mockMvc.perform(post("/api/public/forms/web-idempotent-http/sessions")
+                        .header("X-Forwarded-For", "203.0.113.47")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(firstPayload))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.success").value(true))
+                .andReturn();
+
+        MvcResult duplicateCreate = mockMvc.perform(post("/api/public/forms/web-idempotent-http/sessions")
+                        .header("X-Forwarded-For", "203.0.113.47")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(firstPayload))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.success").value(true))
+                .andReturn();
+
+        JsonNode firstCreatePayload = objectMapper.readTree(firstCreate.getResponse().getContentAsString());
+        JsonNode duplicatePayload = objectMapper.readTree(duplicateCreate.getResponse().getContentAsString());
+        assertThat(duplicatePayload.path("ticketId").asText()).isEqualTo(firstCreatePayload.path("ticketId").asText());
+        assertThat(duplicatePayload.path("token").asText()).isEqualTo(firstCreatePayload.path("token").asText());
+
+        Integer historyCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM chat_history WHERE ticket_id = ?",
+                Integer.class,
+                firstCreatePayload.path("ticketId").asText()
+        );
+        assertThat(historyCount).isEqualTo(1);
+
+        mockMvc.perform(post("/api/public/forms/web-idempotent-http/sessions")
+                        .header("X-Forwarded-For", "203.0.113.47")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "message": "Другой текст",
+                                  "clientName": "Анна",
+                                  "clientContact": "+79990000001",
+                                  "username": "anna",
+                                  "answers": {
+                                    "topic": "billing"
+                                  },
+                                  "requestId": "req-http-1"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("IDEMPOTENCY_CONFLICT"))
+                .andExpect(jsonPath("$.path").value("/api/public/forms/web-idempotent-http/sessions"))
+                .andExpect(jsonPath("$.timestamp").isNotEmpty());
+    }
+
+    @Test
+    void publicFormHttpRateLimitRejectsBurstRequestsWithStructuredError() throws Exception {
+        sharedConfigService.saveSettings(Map.of(
+                "dialog_config", Map.of(
+                        "public_form_rate_limit_max_requests", 2,
+                        "public_form_rate_limit_window_seconds", 3600
+                )
+        ));
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id, questions_cfg)
+                VALUES (48, 'web-rate-http', 'Rate Limit Form', 1, CURRENT_TIMESTAMP, 'web-rate-http', ?)
+                """,
+                "{\"schemaVersion\":1,\"enabled\":true,\"captchaEnabled\":false,\"disabledStatus\":404,\"fields\":[]}");
+
+        String requestPayload = """
+                {
+                  "message": "Нужна помощь"
+                }
+                """;
+
+        mockMvc.perform(post("/api/public/forms/web-rate-http/sessions")
+                        .header("X-Forwarded-For", "203.0.113.48")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestPayload))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.success").value(true));
+
+        mockMvc.perform(post("/api/public/forms/web-rate-http/sessions")
+                        .header("X-Forwarded-For", "203.0.113.48")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestPayload))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.success").value(true));
+
+        mockMvc.perform(post("/api/public/forms/web-rate-http/sessions")
+                        .header("X-Forwarded-For", "203.0.113.48")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestPayload))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("RATE_LIMITED"))
+                .andExpect(jsonPath("$.path").value("/api/public/forms/web-rate-http/sessions"))
+                .andExpect(jsonPath("$.timestamp").isNotEmpty());
+
+        Integer sessionCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM web_form_sessions WHERE channel_id = ?",
+                Integer.class,
+                48L
+        );
+        assertThat(sessionCount).isEqualTo(2);
+    }
+
+    @Test
+    void publicFormExpiredSessionReturnsStructuredNotFoundAfterTtlCutoff() throws Exception {
+        sharedConfigService.saveSettings(Map.of(
+                "dialog_config", Map.of("public_form_session_ttl_hours", 1)
+        ));
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id, questions_cfg)
+                VALUES (49, 'web-ttl', 'TTL Form', 1, CURRENT_TIMESTAMP, 'web-ttl', ?)
+                """,
+                "{\"schemaVersion\":1,\"enabled\":true,\"captchaEnabled\":false,\"disabledStatus\":404,\"fields\":[]}");
+
+        MvcResult createResult = mockMvc.perform(post("/api/public/forms/web-ttl/sessions")
+                        .header("X-Forwarded-For", "203.0.113.49")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "message": "Нужна помощь с TTL"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.success").value(true))
+                .andReturn();
+
+        String token = objectMapper.readTree(createResult.getResponse().getContentAsString()).path("token").asText();
+        jdbcTemplate.update(
+                "UPDATE web_form_sessions SET created_at = ? WHERE token = ?",
+                Timestamp.from(OffsetDateTime.now(ZoneOffset.UTC).minusHours(3).toInstant()),
+                token
+        );
+
+        mockMvc.perform(get("/api/public/forms/web-ttl/sessions/{token}", token))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("SESSION_NOT_FOUND"))
+                .andExpect(jsonPath("$.path").value("/api/public/forms/web-ttl/sessions/" + token))
+                .andExpect(jsonPath("$.timestamp").isNotEmpty());
     }
 }

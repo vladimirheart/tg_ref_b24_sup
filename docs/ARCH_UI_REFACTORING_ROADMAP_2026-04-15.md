@@ -1,7 +1,7 @@
 # Architecture And UI Refactoring Roadmap
 
 Дата старта: `2026-04-15`
-Обновлено: `2026-05-18`
+Обновлено: `2026-05-19`
 
 ## Цель
 
@@ -692,6 +692,11 @@
   telegram deep-link generation и rotate-on-read token lifecycle теперь
   тоже зафиксированы в живом runtime contract через `SpringBootTest` +
   SQLite + temp shared config.
+- следующим более широким runtime-hardening пакетом этот же
+  `PublicFormFlowSmokeIntegrationTest` добран до anti-abuse/expiry
+  contract: HTTP idempotency reuse, structured `IDEMPOTENCY_CONFLICT`,
+  live `RATE_LIMITED` rejection и `public_form_session_ttl_hours` expiry
+  теперь тоже закреплены в живом `SpringBootTest` + SQLite сценарии.
 - этот же smoke-слой расширен на detail/subpage contract:
   `ai-ops`, `unblock requests`, `users/detail` и оба passport editor route
   (`/object-passports/new`, `/object-passports/{id}`) теперь тоже прикрыты
