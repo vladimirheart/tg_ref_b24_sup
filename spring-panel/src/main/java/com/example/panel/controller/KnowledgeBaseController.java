@@ -6,7 +6,7 @@ import com.example.panel.model.knowledge.KnowledgeBaseNotionConfigForm;
 import com.example.panel.service.KnowledgeBaseNotionService;
 import com.example.panel.service.KnowledgeBaseService;
 import com.example.panel.service.NavigationService;
-import com.example.panel.service.NotificationService;
+import com.example.panel.service.NotificationRoutingService;
 import com.example.panel.service.PermissionService;
 import com.example.panel.storage.AttachmentService;
 import org.slf4j.Logger;
@@ -27,6 +27,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 @Controller
 @RequestMapping("/knowledge-base")
@@ -40,20 +41,20 @@ public class KnowledgeBaseController {
     private final KnowledgeBaseNotionService knowledgeBaseNotionService;
     private final AttachmentService attachmentService;
     private final NavigationService navigationService;
-    private final NotificationService notificationService;
+    private final NotificationRoutingService notificationRoutingService;
 
     public KnowledgeBaseController(PermissionService permissionService,
                                    KnowledgeBaseService knowledgeBaseService,
                                    KnowledgeBaseNotionService knowledgeBaseNotionService,
                                    AttachmentService attachmentService,
                                    NavigationService navigationService,
-                                   NotificationService notificationService) {
+                                   NotificationRoutingService notificationRoutingService) {
         this.permissionService = permissionService;
         this.knowledgeBaseService = knowledgeBaseService;
         this.knowledgeBaseNotionService = knowledgeBaseNotionService;
         this.attachmentService = attachmentService;
         this.navigationService = navigationService;
-        this.notificationService = notificationService;
+        this.notificationRoutingService = notificationRoutingService;
     }
 
     @GetMapping
@@ -102,7 +103,7 @@ public class KnowledgeBaseController {
             String message = "Статья обновлена из Notion: создано " + result.created()
                 + ", обновлено " + result.updated()
                 + ", пропущено " + result.skipped() + ".";
-            notificationService.notifyAllOperators(message, "/knowledge-base/" + id, actor);
+            notificationRoutingService.notify("knowledge_base", "notion_sync", Set.of(), message, "/knowledge-base/" + id, actor);
             redirectAttributes.addFlashAttribute("messageType", "success");
             redirectAttributes.addFlashAttribute("message", message);
         } catch (Exception ex) {
@@ -122,7 +123,7 @@ public class KnowledgeBaseController {
         String text = isNew
             ? "Новая статья в базе знаний: " + title
             : "Обновлена статья в базе знаний: " + title;
-        notificationService.notifyAllOperators(text, "/knowledge-base/" + saved.id(), actor);
+        notificationRoutingService.notify("knowledge_base", "article_saved", Set.of(), text, "/knowledge-base/" + saved.id(), actor);
         return "redirect:/knowledge-base/" + saved.id();
     }
 
@@ -206,7 +207,7 @@ public class KnowledgeBaseController {
                 + ", обновлено " + result.updated()
                 + ", пропущено " + result.skipped()
                 + ", всего в источнике " + result.totalPages() + ".";
-            notificationService.notifyAllOperators(message, "/knowledge-base", actor);
+            notificationRoutingService.notify("knowledge_base", "notion_sync", Set.of(), message, "/knowledge-base", actor);
             redirectAttributes.addFlashAttribute("notionMessageType", "success");
             redirectAttributes.addFlashAttribute("notionMessage", message);
         } catch (Exception ex) {
@@ -227,7 +228,7 @@ public class KnowledgeBaseController {
                 + ", обновлено " + result.updated()
                 + ", пропущено " + result.skipped()
                 + ", всего в источнике " + result.totalPages() + ".";
-            notificationService.notifyAllOperators(message, "/knowledge-base", actor);
+            notificationRoutingService.notify("knowledge_base", "notion_import", Set.of(), message, "/knowledge-base", actor);
             redirectAttributes.addFlashAttribute("notionMessageType", "success");
             redirectAttributes.addFlashAttribute("notionMessage", message);
         } catch (Exception ex) {

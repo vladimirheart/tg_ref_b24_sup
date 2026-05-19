@@ -74,7 +74,7 @@ public class OperatorNotificationWatcher {
         long afterId = lastChatHistoryId.get();
         jdbcTemplate.query(
                 """
-                SELECT id, ticket_id, sender, message, message_type, attachment
+                SELECT id, ticket_id, sender, message, message_type, attachment, channel_id
                   FROM chat_history
                  WHERE id > ?
                  ORDER BY id ASC
@@ -91,6 +91,8 @@ public class OperatorNotificationWatcher {
                         String messageType = normalizeSender(rs.getString("message_type"));
                         String message = trimToNull(rs.getString("message"));
                         String attachment = trimToNull(rs.getString("attachment"));
+                        Long channelId = rs.getObject("channel_id") != null ? rs.getLong("channel_id") : null;
+                        Channel channel = channelId != null ? channelRepository.findById(channelId).orElse(null) : null;
 
                         if (!StringUtils.hasText(ticketId)) {
                             continue;
@@ -128,11 +130,13 @@ public class OperatorNotificationWatcher {
                         if (StringUtils.hasText(message)) {
                             text += ": " + truncate(message, 100);
                         }
-                        notificationService.notifyAllOperators(
-                                text,
-                                "/dialogs?ticketId=" + ticketId,
-                                null
-                        );
+                        if (channel == null || !alertQueueService.notifyIncomingClientMessage(channel, ticketId, message)) {
+                            notificationService.notifyAllOperators(
+                                    text,
+                                    "/dialogs?ticketId=" + ticketId,
+                                    null
+                            );
+                        }
                         dialogAiAssistantService.processIncomingClientMessage(ticketId, message, messageType, attachment);
                     }
                     if (maxSeen > afterId) {

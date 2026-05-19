@@ -13,11 +13,14 @@ public class SettingsTopLevelUpdateService {
 
     private final LocationsIikoServerSourceSettingsService locationsIikoServerSourceSettingsService;
     private final LocationsIikoSyncSettingsService locationsIikoSyncSettingsService;
+    private final NotificationRoutingService notificationRoutingService;
 
     public SettingsTopLevelUpdateService(LocationsIikoServerSourceSettingsService locationsIikoServerSourceSettingsService,
-                                         LocationsIikoSyncSettingsService locationsIikoSyncSettingsService) {
+                                         LocationsIikoSyncSettingsService locationsIikoSyncSettingsService,
+                                         NotificationRoutingService notificationRoutingService) {
         this.locationsIikoServerSourceSettingsService = locationsIikoServerSourceSettingsService;
         this.locationsIikoSyncSettingsService = locationsIikoSyncSettingsService;
+        this.notificationRoutingService = notificationRoutingService;
     }
 
     public boolean applyTopLevelUpdates(Map<String, Object> payload,
@@ -56,6 +59,7 @@ public class SettingsTopLevelUpdateService {
         modified |= copyIfPresent(payload, settings, "integration_network_profiles");
         modified |= copyIfPresent(payload, settings, "reporting_config");
         modified |= copyIfPresent(payload, settings, "manager_location_bindings");
+        modified |= notificationRoutingService.applyPayload(payload, settings);
         modified |= locationsIikoServerSourceSettingsService.applyPayload(payload, settings);
         modified |= locationsIikoSyncSettingsService.applyPayload(payload, settings);
 

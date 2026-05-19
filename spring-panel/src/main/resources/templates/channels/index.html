@@ -137,6 +137,48 @@
                                 <option value="online_only_fallback_all">Только онлайн, если никого нет — всем</option>
                             </select>
                         </div>
+                        <hr>
+                        <h3 class="h6 mb-3">Bell-оповещения панели</h3>
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" id="panelNotificationsNewPublicAppeal">
+                            <label class="form-check-label" for="panelNotificationsNewPublicAppeal">Новое обращение из внешней формы</label>
+                        </div>
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" id="panelNotificationsIncomingClientMessage">
+                            <label class="form-check-label" for="panelNotificationsIncomingClientMessage">Новое сообщение клиента в диалоге</label>
+                        </div>
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="panelNotificationsFirstResponseOverdue">
+                            <label class="form-check-label" for="panelNotificationsFirstResponseOverdue">Просрочен первый ответ</label>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="panelNotificationsDepartment">Отдел для bell-оповещений</label>
+                            <input id="panelNotificationsDepartment" class="form-control" placeholder="Например: IT Service Desk">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="panelNotificationsTargetMode">Получатели</label>
+                            <select id="panelNotificationsTargetMode" class="form-select">
+                                <option value="all_operators">Все операторы</option>
+                                <option value="department_all">Весь отдел</option>
+                                <option value="employees_only">Только выбранные сотрудники</option>
+                                <option value="department_except">Весь отдел, кроме указанных сотрудников</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="panelNotificationsEmployees">Сотрудники (логины, через запятую)</label>
+                            <input id="panelNotificationsEmployees" class="form-control" placeholder="user1, user2">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="panelNotificationsExcludeEmployees">Исключить сотрудников (логины, через запятую)</label>
+                            <input id="panelNotificationsExcludeEmployees" class="form-control" placeholder="user3, user4">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="panelNotificationsDeliveryMode">Режим доставки bell-оповещений</label>
+                            <select id="panelNotificationsDeliveryMode" class="form-select">
+                                <option value="all">Одновременно всем</option>
+                                <option value="online_only_fallback_all">Только онлайн, если никого нет - всем</option>
+                            </select>
+                        </div>
                         <div id="publicFormConfigAlert" class="alert d-none mb-0" role="alert"></div>
                     </div>
                     <div class="modal-footer">

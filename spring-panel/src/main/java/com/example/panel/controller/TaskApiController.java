@@ -8,7 +8,7 @@ import com.example.panel.repository.TaskCommentRepository;
 import com.example.panel.repository.TaskHistoryRepository;
 import com.example.panel.repository.TaskPersonRepository;
 import com.example.panel.repository.TaskRepository;
-import com.example.panel.service.NotificationService;
+import com.example.panel.service.NotificationRoutingService;
 import jakarta.transaction.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,18 +53,18 @@ public class TaskApiController {
     private final TaskCommentRepository commentRepository;
     private final TaskHistoryRepository historyRepository;
     private final TaskPersonRepository taskPersonRepository;
-    private final NotificationService notificationService;
+    private final NotificationRoutingService notificationRoutingService;
 
     public TaskApiController(TaskRepository taskRepository,
                              TaskCommentRepository commentRepository,
                              TaskHistoryRepository historyRepository,
                              TaskPersonRepository taskPersonRepository,
-                             NotificationService notificationService) {
+                             NotificationRoutingService notificationRoutingService) {
         this.taskRepository = taskRepository;
         this.commentRepository = commentRepository;
         this.historyRepository = historyRepository;
         this.taskPersonRepository = taskPersonRepository;
-        this.notificationService = notificationService;
+        this.notificationRoutingService = notificationRoutingService;
     }
 
     @GetMapping
@@ -145,7 +145,7 @@ public class TaskApiController {
         String text = isNew
                 ? "Новая задача " + displayNo + ": " + safeTitle
                 : "Обновлена задача " + displayNo + ": " + safeTitle;
-        notificationService.notifyUsersExcluding(recipients, actor, text, "/tasks#task=" + saved.getId());
+        notificationRoutingService.notify("tasks", "task_saved", recipients, text, "/tasks#task=" + saved.getId(), actor);
         log.info("Task {} saved (id={}, creator={}, assignee={}, status={})",
                 saved.getSeq(), saved.getId(), saved.getCreator(), saved.getAssignee(), saved.getStatus());
         return Map.of("ok", true, "id", saved.getId());
@@ -187,11 +187,13 @@ public class TaskApiController {
         Set<String> recipients = resolveTaskRecipients(task, null, null);
         String displayNo = task.getSeq() != null ? "DL_" + task.getSeq() : "DL_" + task.getId();
         String safeAuthor = StringUtils.hasText(saved.getAuthor()) ? saved.getAuthor().trim() : "оператор";
-        notificationService.notifyUsersExcluding(
+        notificationRoutingService.notify(
+                "tasks",
+                "task_comment_added",
                 recipients,
-                actor,
                 "Новый комментарий в задаче " + displayNo + " от " + safeAuthor,
-                "/tasks#task=" + task.getId()
+                "/tasks#task=" + task.getId(),
+                actor
         );
         log.info("Comment {} added to task {} by {}", saved.getId(), id, saved.getAuthor());
         return Map.of("ok", true, "item", dto);

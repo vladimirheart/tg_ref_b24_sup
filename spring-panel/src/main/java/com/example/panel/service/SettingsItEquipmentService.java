@@ -12,12 +12,12 @@ import java.util.Map;
 public class SettingsItEquipmentService {
 
     private final JdbcTemplate jdbcTemplate;
-    private final NotificationService notificationService;
+    private final NotificationRoutingService notificationRoutingService;
 
     public SettingsItEquipmentService(JdbcTemplate jdbcTemplate,
-                                      NotificationService notificationService) {
+                                      NotificationRoutingService notificationRoutingService) {
         this.jdbcTemplate = jdbcTemplate;
-        this.notificationService = notificationService;
+        this.notificationRoutingService = notificationRoutingService;
     }
 
     public Map<String, Object> listItEquipment() {
@@ -46,7 +46,10 @@ public class SettingsItEquipmentService {
                         "VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))",
                 type, vendor, model, photoUrl, serialNumber, accessories
         );
-        notificationService.notifyAllOperators(
+        notificationRoutingService.notify(
+                "passports",
+                "equipment_catalog_changed",
+                java.util.Set.of(),
                 "Создан паспорт оборудования: " + vendor + " " + model,
                 "/object-passports",
                 actor
@@ -101,7 +104,10 @@ public class SettingsItEquipmentService {
         updates.append("updated_at = datetime('now')");
         params.add(itemId);
         jdbcTemplate.update("UPDATE it_equipment_catalog SET " + updates + " WHERE id = ?", params.toArray());
-        notificationService.notifyAllOperators(
+        notificationRoutingService.notify(
+                "passports",
+                "equipment_catalog_changed",
+                java.util.Set.of(),
                 "Обновлен паспорт оборудования #" + itemId,
                 "/object-passports/" + itemId,
                 actor
@@ -114,7 +120,10 @@ public class SettingsItEquipmentService {
         if (removed == 0) {
             return Map.of("success", false, "error", "Оборудование не найдено");
         }
-        notificationService.notifyAllOperators(
+        notificationRoutingService.notify(
+                "passports",
+                "equipment_catalog_changed",
+                java.util.Set.of(),
                 "Удален паспорт оборудования #" + itemId,
                 "/object-passports",
                 actor

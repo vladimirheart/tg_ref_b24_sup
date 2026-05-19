@@ -59,6 +59,17 @@ public class AlertQueueService {
         return notifyChannelEvent(channel, AlertEvent.FIRST_RESPONSE_OVERDUE, text, "/dialogs?ticketId=" + ticketId);
     }
 
+    public boolean notifyIncomingClientMessage(Channel channel, String ticketId, String previewText) {
+        if (channel == null || !StringUtils.hasText(ticketId)) {
+            return false;
+        }
+        String text = "РќРѕРІРѕРµ СЃРѕРѕР±С‰РµРЅРёРµ РІ РѕР±СЂР°С‰РµРЅРёРё " + ticketId;
+        if (StringUtils.hasText(previewText)) {
+            text += ": " + trimPreview(previewText);
+        }
+        return notifyChannelEvent(channel, AlertEvent.INCOMING_CLIENT_MESSAGE, text, "/dialogs?ticketId=" + ticketId);
+    }
+
     private boolean notifyChannelEvent(Channel channel, AlertEvent event, String text, String url) {
         ResolvedAlertConfig config = parseConfig(channel, event);
         if (!config.enabled()) {
@@ -274,7 +285,7 @@ public class AlertQueueService {
 
     private ResolvedAlertConfig defaultConfig(AlertEvent event) {
         return new ResolvedAlertConfig(
-                event == AlertEvent.NEW_PUBLIC_APPEAL,
+                event == AlertEvent.NEW_PUBLIC_APPEAL || event == AlertEvent.INCOMING_CLIENT_MESSAGE,
                 new AlertRouteConfig("", "all_operators", "all", List.of(), List.of())
         );
     }
@@ -324,6 +335,7 @@ public class AlertQueueService {
 
     private enum AlertEvent {
         NEW_PUBLIC_APPEAL("newPublicAppeal"),
+        INCOMING_CLIENT_MESSAGE("incomingClientMessage"),
         FIRST_RESPONSE_OVERDUE("firstResponseOverdue");
 
         private final String key;

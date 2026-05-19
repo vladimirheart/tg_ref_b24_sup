@@ -16,6 +16,14 @@
   const alertQueueEmployeesInput = document.getElementById('alertQueueEmployees');
   const alertQueueExcludeEmployeesInput = document.getElementById('alertQueueExcludeEmployees');
   const alertQueueDeliveryModeInput = document.getElementById('alertQueueDeliveryMode');
+  const panelNotificationsNewPublicAppealInput = document.getElementById('panelNotificationsNewPublicAppeal');
+  const panelNotificationsIncomingClientMessageInput = document.getElementById('panelNotificationsIncomingClientMessage');
+  const panelNotificationsFirstResponseOverdueInput = document.getElementById('panelNotificationsFirstResponseOverdue');
+  const panelNotificationsDepartmentInput = document.getElementById('panelNotificationsDepartment');
+  const panelNotificationsTargetModeInput = document.getElementById('panelNotificationsTargetMode');
+  const panelNotificationsEmployeesInput = document.getElementById('panelNotificationsEmployees');
+  const panelNotificationsExcludeEmployeesInput = document.getElementById('panelNotificationsExcludeEmployees');
+  const panelNotificationsDeliveryModeInput = document.getElementById('panelNotificationsDeliveryMode');
   const configModal = window.bootstrap && configModalEl ? new window.bootstrap.Modal(configModalEl) : null;
 
   if (!table) {
@@ -84,6 +92,26 @@
       .filter(Boolean);
   }
 
+  function normalizePanelNotificationsForEditor(config) {
+    const root = (config && typeof config === 'object') ? config : {};
+    const routing = (root.routing && typeof root.routing === 'object') ? root.routing : root;
+    const events = (root.events && typeof root.events === 'object') ? root.events : {};
+    return {
+      routing: {
+        department: String(routing.department || '').trim(),
+        targetMode: String(routing.targetMode || 'all_operators'),
+        deliveryMode: String(routing.deliveryMode || 'all'),
+        employeeUsernames: Array.isArray(routing.employeeUsernames) ? routing.employeeUsernames : [],
+        excludeUsernames: Array.isArray(routing.excludeUsernames) ? routing.excludeUsernames : [],
+      },
+      events: {
+        newPublicAppeal: events.newPublicAppeal !== false,
+        incomingClientMessage: events.incomingClientMessage !== false,
+        firstResponseOverdue: events.firstResponseOverdue === true,
+      },
+    };
+  }
+
   async function openPublicFormEditor(row) {
     if (!configModal || !configForm) {
       throw new Error('Форма настройки недоступна на этой странице');
@@ -99,6 +127,7 @@
     }
     const cfg = (channel.questions_cfg && typeof channel.questions_cfg === 'object') ? channel.questions_cfg : {};
     const alertQueue = (cfg.alertQueue && typeof cfg.alertQueue === 'object') ? cfg.alertQueue : {};
+    const panelNotifications = normalizePanelNotificationsForEditor(cfg.panelNotifications);
     configChannelIdInput.value = String(channel.id);
     configTitle.textContent = `Настройка внешней формы — ${channel.channel_name || `Канал #${channel.id}`}`;
     configEnabledInput.checked = cfg.enabled === true;
@@ -111,6 +140,14 @@
     alertQueueDeliveryModeInput.value = String(alertQueue.deliveryMode || 'all');
     alertQueueEmployeesInput.value = Array.isArray(alertQueue.employeeUsernames) ? alertQueue.employeeUsernames.join(', ') : '';
     alertQueueExcludeEmployeesInput.value = Array.isArray(alertQueue.excludeUsernames) ? alertQueue.excludeUsernames.join(', ') : '';
+    panelNotificationsNewPublicAppealInput.checked = panelNotifications.events.newPublicAppeal;
+    panelNotificationsIncomingClientMessageInput.checked = panelNotifications.events.incomingClientMessage;
+    panelNotificationsFirstResponseOverdueInput.checked = panelNotifications.events.firstResponseOverdue;
+    panelNotificationsDepartmentInput.value = panelNotifications.routing.department;
+    panelNotificationsTargetModeInput.value = panelNotifications.routing.targetMode;
+    panelNotificationsDeliveryModeInput.value = panelNotifications.routing.deliveryMode;
+    panelNotificationsEmployeesInput.value = panelNotifications.routing.employeeUsernames.join(', ');
+    panelNotificationsExcludeEmployeesInput.value = panelNotifications.routing.excludeUsernames.join(', ');
     configModal.show();
   }
 
@@ -144,6 +181,20 @@
           deliveryMode: String(alertQueueDeliveryModeInput?.value || 'all'),
           employeeUsernames: parseCommaSeparatedUsers(alertQueueEmployeesInput?.value),
           excludeUsernames: parseCommaSeparatedUsers(alertQueueExcludeEmployeesInput?.value),
+        },
+        panelNotifications: {
+          routing: {
+            department: String(panelNotificationsDepartmentInput?.value || '').trim(),
+            targetMode: String(panelNotificationsTargetModeInput?.value || 'all_operators'),
+            deliveryMode: String(panelNotificationsDeliveryModeInput?.value || 'all'),
+            employeeUsernames: parseCommaSeparatedUsers(panelNotificationsEmployeesInput?.value),
+            excludeUsernames: parseCommaSeparatedUsers(panelNotificationsExcludeEmployeesInput?.value),
+          },
+          events: {
+            newPublicAppeal: Boolean(panelNotificationsNewPublicAppealInput?.checked),
+            incomingClientMessage: Boolean(panelNotificationsIncomingClientMessageInput?.checked),
+            firstResponseOverdue: Boolean(panelNotificationsFirstResponseOverdueInput?.checked),
+          },
         },
       },
     };

@@ -827,6 +827,7 @@ public class ChannelApiController {
         normalized.put("routing", normalizeAlertRouting(routingNode, true));
         Map<String, Object> events = new LinkedHashMap<>();
         events.put("newPublicAppeal", eventsNode.path("newPublicAppeal").asBoolean(true));
+        events.put("incomingClientMessage", eventsNode.path("incomingClientMessage").asBoolean(true));
         events.put("firstResponseOverdue", eventsNode.path("firstResponseOverdue").asBoolean(false));
         normalized.put("events", events);
         return normalized;
