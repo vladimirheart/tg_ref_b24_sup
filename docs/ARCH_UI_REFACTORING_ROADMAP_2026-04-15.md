@@ -703,6 +703,12 @@
   conversation history после operator reply и system notifications, а также
   `replyPreview` для threaded ответа теперь тоже закреплены в реальном
   `public-form` session runtime.
+- следующим более широким continuity-пакетом этот же
+  `PublicFormFlowSmokeIntegrationTest` добран до cross-session/history
+  continuity: `previous history` теперь проверяется на двух `web_form`
+  обращениях одного requester, включая `sourceKey/sourceLabel` и resolved
+  status предыдущего тикета, а resolve/reopen lifecycle через
+  `DialogQuickActionService` закреплён и в `public-form` session history.
 - этот же smoke-слой расширен на detail/subpage contract:
   `ai-ops`, `unblock requests`, `users/detail` и оба passport editor route
   (`/object-passports/new`, `/object-passports/{id}`) теперь тоже прикрыты

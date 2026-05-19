@@ -791,6 +791,12 @@ integration-сценария поверх users/settings runtime boundary всё
   conversation history после operator reply и system notifications, а также
   `replyPreview` для threaded ответа теперь тоже закреплены в реальном
   `public-form` session runtime.
+- Следующим более широким continuity-пакетом тот же
+  `PublicFormFlowSmokeIntegrationTest` добран до cross-session/history
+  continuity: `previous history` теперь проверяется на двух `web_form`
+  обращениях одного requester, включая `sourceKey/sourceLabel` и resolved
+  status предыдущего тикета, а resolve/reopen lifecycle через
+  `DialogQuickActionService` закреплён и в `public-form` session history.
 - `DialogAiOpsController` теперь прикрыт не только по основным happy/error
   flows, но и по alias/null-body/default-path сценариям, что уменьшает риск
   regressions в transport-layer normalisation.

@@ -17,6 +17,7 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import com.example.panel.service.DialogNotificationService;
+import com.example.panel.service.DialogQuickActionService;
 import com.example.panel.service.DialogReplyService;
 import com.example.panel.service.SharedConfigService;
 
@@ -73,6 +74,9 @@ class PublicFormFlowSmokeIntegrationTest {
 
     @Autowired
     private DialogNotificationService dialogNotificationService;
+
+    @Autowired
+    private DialogQuickActionService dialogQuickActionService;
 
     @BeforeEach
     void clean() {
@@ -431,6 +435,99 @@ class PublicFormFlowSmokeIntegrationTest {
         assertThat(operatorReply.path("sender").asText()).isEqualTo("operator");
         assertThat(operatorReply.path("replyPreview").asText()).isEqualTo("Please share order number");
         assertThat(systemMessageCount).isEqualTo(2);
+    }
+
+    @Test
+    void publicFormPreviousHistoryBridgesEarlierSessionForSameRequester() throws Exception {
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at, public_id, questions_cfg)
+                VALUES (51, 'web-previous', 'Previous Form', 'vk', 1, CURRENT_TIMESTAMP, 'web-previous', ?)
+                """,
+                "{\"schemaVersion\":1,\"enabled\":true,\"captchaEnabled\":false,\"disabledStatus\":404,\"fields\":[]}");
+
+        MvcResult firstCreate = mockMvc.perform(post("/api/public/forms/web-previous/sessions")
+                        .header("X-Forwarded-For", "203.0.113.51")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "message": "First request"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.success").value(true))
+                .andReturn();
+
+        String firstTicketId = objectMapper.readTree(firstCreate.getResponse().getContentAsString()).path("ticketId").asText();
+        assertThat(dialogQuickActionService.resolveTicket(firstTicketId, "operator", List.of("billing")).updated()).isTrue();
+
+        MvcResult secondCreate = mockMvc.perform(post("/api/public/forms/web-previous/sessions")
+                        .header("X-Forwarded-For", "203.0.113.51")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "message": "Second request"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.success").value(true))
+                .andReturn();
+
+        String secondTicketId = objectMapper.readTree(secondCreate.getResponse().getContentAsString()).path("ticketId").asText();
+
+        mockMvc.perform(get("/api/dialogs/{ticketId}/history/previous", secondTicketId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.batch.ticketId").value(firstTicketId))
+                .andExpect(jsonPath("$.batch.status").value("resolved"))
+                .andExpect(jsonPath("$.batch.sourceKey").value("web_form"))
+                .andExpect(jsonPath("$.batch.sourceLabel").value("Внешняя форма"))
+                .andExpect(jsonPath("$.batch.messages[0].message").value("First request"))
+                .andExpect(jsonPath("$.batch.messages[1].sender").value("system"))
+                .andExpect(jsonPath("$.has_more").value(false));
+    }
+
+    @Test
+    void publicFormSessionHistoryReflectsResolveAndReopenLifecycleNotifications() throws Exception {
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at, public_id, questions_cfg)
+                VALUES (52, 'web-reopen', 'Reopen Form', 'vk', 1, CURRENT_TIMESTAMP, 'web-reopen', ?)
+                """,
+                "{\"schemaVersion\":1,\"enabled\":true,\"captchaEnabled\":false,\"disabledStatus\":404,\"fields\":[]}");
+
+        MvcResult createResult = mockMvc.perform(post("/api/public/forms/web-reopen/sessions")
+                        .header("X-Forwarded-For", "203.0.113.52")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "message": "Need reopen lifecycle"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.success").value(true))
+                .andReturn();
+
+        JsonNode createPayload = objectMapper.readTree(createResult.getResponse().getContentAsString());
+        String ticketId = createPayload.path("ticketId").asText();
+        String token = createPayload.path("token").asText();
+
+        assertThat(dialogQuickActionService.resolveTicket(ticketId, "operator", List.of("support")).updated()).isTrue();
+        assertThat(dialogQuickActionService.reopenTicket(ticketId, "operator").updated()).isTrue();
+
+        mockMvc.perform(get("/api/public/forms/web-reopen/sessions/{token}", token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.messages[*].sender").isArray())
+                .andExpect(jsonPath("$.messages[1].sender").value("system"))
+                .andExpect(jsonPath("$.messages[2].sender").value("system"))
+                .andExpect(jsonPath("$.messages[3].sender").value("system"))
+                .andExpect(jsonPath("$.messages[0].message").value("Need reopen lifecycle"))
+                .andExpect(jsonPath("$.messages[3].message").value("Ваше обращение снова открыто. Мы продолжаем работу."));
+
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT status FROM tickets WHERE ticket_id = ?",
+                String.class,
+                ticketId
+        )).isEqualTo("pending");
     }
 
     @Test
