@@ -22,6 +22,7 @@ import com.example.panel.service.DialogReadService;
 import com.example.panel.service.DialogNotificationService;
 import com.example.panel.service.DialogQuickActionService;
 import com.example.panel.service.DialogReplyService;
+import com.example.panel.service.NotificationService;
 import com.example.panel.service.SharedConfigService;
 
 import java.io.IOException;
@@ -88,9 +89,14 @@ class PublicFormFlowSmokeIntegrationTest {
     @Autowired
     private DialogListReadService dialogListReadService;
 
+    @Autowired
+    private NotificationService notificationService;
+
     @BeforeEach
     void clean() {
         jdbcTemplate.update("DELETE FROM chat_history");
+        jdbcTemplate.update("DELETE FROM ticket_active");
+        jdbcTemplate.update("DELETE FROM ticket_responsibles");
         jdbcTemplate.update("DELETE FROM task_history");
         jdbcTemplate.update("DELETE FROM task_links");
         jdbcTemplate.update("DELETE FROM task_people");
@@ -102,6 +108,9 @@ class PublicFormFlowSmokeIntegrationTest {
         jdbcTemplate.update("DELETE FROM tickets");
         jdbcTemplate.update("DELETE FROM client_statuses");
         jdbcTemplate.update("DELETE FROM channels");
+        jdbcTemplate.update("DELETE FROM notifications");
+        jdbcTemplate.update("DELETE FROM dialog_action_audit");
+        jdbcTemplate.update("DELETE FROM users WHERE username LIKE 'watcher_%'");
         sharedConfigService.saveSettings(new LinkedHashMap<>());
     }
 
@@ -796,6 +805,148 @@ class PublicFormFlowSmokeIntegrationTest {
     }
 
     @Test
+    void publicFormFollowUpBellNotificationsFlowThroughNotificationApi() throws Exception {
+        insertOperatorUser("watcher_followup");
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at, public_id, questions_cfg)
+                VALUES (57, 'web-dialog-transport', 'Dialog Transport Form', 'vk', 1, CURRENT_TIMESTAMP, 'web-dialog-transport', ?)
+                """,
+                "{\"schemaVersion\":1,\"enabled\":true,\"captchaEnabled\":false,\"disabledStatus\":404,\"fields\":[]}");
+
+        MvcResult createResult = mockMvc.perform(post("/api/public/forms/web-dialog-transport/sessions")
+                        .header("X-Forwarded-For", "203.0.113.57")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "message": "Transport lifecycle request"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.success").value(true))
+                .andReturn();
+
+        String ticketId = objectMapper.readTree(createResult.getResponse().getContentAsString()).path("ticketId").asText();
+        Long userId = jdbcTemplate.queryForObject(
+                "SELECT user_id FROM messages WHERE ticket_id = ?",
+                Long.class,
+                ticketId
+        );
+
+        assertThat(dialogQuickActionService.takeTicket(ticketId, "watcher_followup")).contains("watcher_followup");
+        assertThat(dialogReplyService.sendReply(ticketId, "Transport reply from operator", null, "watcher_followup").success()).isTrue();
+        jdbcTemplate.update("DELETE FROM notifications WHERE user_identity = ?", "watcher_followup");
+
+        jdbcTemplate.update(
+                "INSERT INTO chat_history (user_id, sender, message, timestamp, ticket_id, message_type, channel_id) VALUES (?,?,?,?,?,?,?)",
+                userId,
+                "user",
+                "Client follow-up after operator reply via notification bridge",
+                OffsetDateTime.now(ZoneOffset.UTC).withNano(0).toString(),
+                ticketId,
+                "text",
+                57L
+        );
+        notificationService.notifyUser(
+                "watcher_followup",
+                "Новое сообщение в обращении " + ticketId,
+                "/dialogs?ticketId=" + ticketId
+        );
+
+        assertThat(notificationService.summary("watcher_followup").unreadCount()).isEqualTo(1);
+        List<Map<String, Object>> notifications = jdbcTemplate.queryForList(
+                "SELECT id, text, url, is_read FROM notifications WHERE user_identity = ? ORDER BY id DESC",
+                "watcher_followup"
+        );
+        assertThat(notifications).hasSize(1);
+        Long notificationId = ((Number) notifications.get(0).get("id")).longValue();
+        assertThat(((Number) notifications.get(0).get("is_read")).intValue()).isZero();
+        assertThat(String.valueOf(notifications.get(0).get("url"))).isEqualTo("/dialogs?ticketId=" + ticketId);
+        assertThat(String.valueOf(notifications.get(0).get("text"))).contains(ticketId);
+
+        jdbcTemplate.update(
+                "UPDATE notifications SET is_read = 1 WHERE id = ? AND user_identity = ?",
+                notificationId,
+                "watcher_followup"
+        );
+        assertThat(notificationService.summary("watcher_followup").unreadCount()).isZero();
+    }
+
+    @Test
+    void publicFormLifecycleParticipantNotificationsReachPeerThroughNotificationApi() throws Exception {
+        insertOperatorUser("watcher_owner");
+        insertOperatorUser("watcher_peer");
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at, public_id, questions_cfg)
+                VALUES (58, 'web-dialog-peer', 'Dialog Peer Form', 'vk', 1, CURRENT_TIMESTAMP, 'web-dialog-peer', ?)
+                """,
+                "{\"schemaVersion\":1,\"enabled\":true,\"captchaEnabled\":false,\"disabledStatus\":404,\"fields\":[]}");
+
+        MvcResult createResult = mockMvc.perform(post("/api/public/forms/web-dialog-peer/sessions")
+                        .header("X-Forwarded-For", "203.0.113.58")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "message": "Peer notification lifecycle request"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.success").value(true))
+                .andReturn();
+
+        String ticketId = objectMapper.readTree(createResult.getResponse().getContentAsString()).path("ticketId").asText();
+
+        assertThat(dialogReplyService.sendReply(ticketId, "Owner reply before lifecycle notifications", null, "watcher_owner").success()).isTrue();
+        jdbcTemplate.update(
+                "UPDATE ticket_active SET user_identity = ?, last_seen = CURRENT_TIMESTAMP WHERE ticket_id = ?",
+                "watcher_peer",
+                ticketId
+        );
+
+        assertThat(dialogQuickActionService.resolveTicket(ticketId, "watcher_owner", List.of("billing", "vip")).updated()).isTrue();
+        assertThat(dialogQuickActionService.reopenTicket(ticketId, "watcher_owner").updated()).isTrue();
+        jdbcTemplate.update("DELETE FROM notifications WHERE user_identity IN (?, ?)", "watcher_owner", "watcher_peer");
+        notificationService.notifyDialogParticipants(
+                ticketId,
+                "Обращение " + ticketId + " закрыто",
+                "/dialogs?ticketId=" + ticketId,
+                "watcher_owner"
+        );
+        notificationService.notifyDialogParticipants(
+                ticketId,
+                "Обращение " + ticketId + " снова открыто",
+                "/dialogs?ticketId=" + ticketId,
+                "watcher_owner"
+        );
+
+        assertThat(notificationService.summary("watcher_owner").unreadCount()).isZero();
+
+        List<Map<String, Object>> peerNotifications = jdbcTemplate.queryForList(
+                "SELECT id, text, url, is_read FROM notifications WHERE user_identity = ? ORDER BY id DESC",
+                "watcher_peer"
+        );
+        assertThat(peerNotifications).hasSize(2);
+        assertThat(String.valueOf(peerNotifications.get(0).get("text"))).contains("снова открыто");
+        assertThat(String.valueOf(peerNotifications.get(0).get("url"))).isEqualTo("/dialogs?ticketId=" + ticketId);
+        assertThat(String.valueOf(peerNotifications.get(1).get("text"))).contains("закрыто");
+
+        Long reopenNotificationId = ((Number) peerNotifications.get(0).get("id")).longValue();
+
+        jdbcTemplate.update(
+                "UPDATE notifications SET is_read = 1 WHERE id = ? AND user_identity = ?",
+                reopenNotificationId,
+                "watcher_peer"
+        );
+        assertThat(notificationService.summary("watcher_peer").unreadCount()).isEqualTo(1);
+
+        mockMvc.perform(get("/api/dialogs/{ticketId}", ticketId).with(user("watcher_peer")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.ticketId").value(ticketId))
+                .andExpect(jsonPath("$.summary.statusKey").value("waiting_client"))
+                .andExpect(jsonPath("$.categories[0]").value("billing"))
+                .andExpect(jsonPath("$.categories[1]").value("vip"));
+    }
+
+    @Test
     void publicFormHttpIdempotencyReturnsSameSessionAndRejectsPayloadConflict() throws Exception {
         jdbcTemplate.update("""
                 INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id, questions_cfg)
@@ -967,5 +1118,23 @@ class PublicFormFlowSmokeIntegrationTest {
                 ticketId
         );
         jdbcTemplate.update("UPDATE chat_history SET timestamp = ? WHERE ticket_id = ?", timestamp, ticketId);
+    }
+
+    private void insertOperatorUser(String username) {
+        jdbcTemplate.update(
+                "INSERT OR IGNORE INTO users (username, password, enabled, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)",
+                username,
+                "{noop}test",
+                true
+        );
+    }
+
+    @SuppressWarnings("unchecked")
+    private DialogListItem findDialog(Map<String, Object> payload, String ticketId) {
+        List<DialogListItem> dialogs = (List<DialogListItem>) payload.get("dialogs");
+        return dialogs.stream()
+                .filter(dialog -> ticketId.equals(dialog.ticketId()))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Dialog not found in payload: " + ticketId));
     }
 }

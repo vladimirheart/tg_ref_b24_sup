@@ -726,6 +726,12 @@
   закреплены `resolved`/categories projection в `/api/dialogs/{ticketId}`
   и continuity этого же resolved dialog через
   `/api/dialogs/{ticketId}/history/previous`.
+- следующим runtime-пакетом этот же `PublicFormFlowSmokeIntegrationTest`
+  добран до `public-form -> notification routing` continuity: для
+  follow-up обращения закреплены operator bell notification creation и
+  read-reset через live `NotificationService summary`, а peer-notification
+  routing на `resolve/reopen` ветках теперь прикрыт рядом с
+  `resolved/categories` projection самого dialog.
 - этот же smoke-слой расширен на detail/subpage contract:
   `ai-ops`, `unblock requests`, `users/detail` и оба passport editor route
   (`/object-passports/new`, `/object-passports/{id}`) теперь тоже прикрыты

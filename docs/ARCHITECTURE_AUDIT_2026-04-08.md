@@ -814,6 +814,13 @@ integration-сценария поверх users/settings runtime boundary всё
   закреплены `resolved`/categories projection в `/api/dialogs/{ticketId}`
   и continuity этого же resolved dialog через
   `/api/dialogs/{ticketId}/history/previous`.
+- Следующим runtime-пакетом тот же `PublicFormFlowSmokeIntegrationTest`
+  добран до `public-form -> notification routing` continuity: для
+  follow-up обращения теперь зафиксированы operator bell notification
+  creation и read-reset через live `NotificationService summary`, а для
+  dialog participant lifecycle закреплены peer-notifications на
+  `resolve/reopen` ветках вместе с `resolved/categories` состоянием самого
+  `web_form` dialog.
 - `DialogAiOpsController` теперь прикрыт не только по основным happy/error
   flows, но и по alias/null-body/default-path сценариям, что уменьшает риск
   regressions в transport-layer normalisation.
