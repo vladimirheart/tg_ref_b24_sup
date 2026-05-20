@@ -18,6 +18,15 @@
                     </span>
                     <span class="sidebar-brand-badge">ops</span>
                 </div>
+                <div class="sidebar-user-card sidebar-user-card--header" th:if="${#authentication?.name}">
+                    <div class="sidebar-user-avatar">
+                        <img th:src="${sidebarUserAvatarUrl}" alt="Аватар" loading="lazy" decoding="async"/>
+                    </div>
+                    <div class="sidebar-user-meta">
+                        <span class="sidebar-user-name" th:text="${sidebarUserDisplayName}">Пользователь</span>
+                        <span class="sidebar-user-username" th:text="${sidebarUserUsername}"></span>
+                    </div>
+                </div>
             </div>
             <div class="sidebar-actions" id="notify-bell-wrapper">
                 <button id="bellBtn" class="icon-btn notify-btn" type="button" title="Оповещения" aria-expanded="false">
@@ -76,21 +85,6 @@
                     <span class="nav-label-sub">Профили, каналы и история</span>
                 </span>
             </a>
-            <a class="nav-link" data-page-key="unblock-requests" th:if="${canViewClients}"
-               th:classappend="${active}=='unblock-requests' ? ' active'"
-               th:href="@{/unblock-requests}">
-                <span class="icon" aria-hidden="true">🔓</span>
-                <span class="label">
-                    <span class="nav-label-row">
-                        <span class="nav-label-main">Разблокировки</span>
-                        <span class="badge text-bg-warning nav-badge"
-                              data-unblock-count
-                              th:text="${pendingUnblockRequests}"
-                              th:attr="hidden=${pendingUnblockRequests == 0}">0</span>
-                    </span>
-                    <span class="nav-label-sub">Запросы на возврат доступа</span>
-                </span>
-            </a>
             <a class="nav-link" data-page-key="passports" th:if="${canViewPassports}"
                th:classappend="${active}=='passports' ? ' active'"
                th:href="@{/object-passports}">
@@ -98,15 +92,6 @@
                 <span class="label">
                     <span class="nav-label-main">Паспорт объектов</span>
                     <span class="nav-label-sub">Инфраструктура и инвентарь</span>
-                </span>
-            </a>
-            <a class="nav-link" data-page-key="public"
-               th:classappend="${active}=='public' ? ' active'"
-               th:href="@{/channels#public-forms}">
-                <span class="icon" aria-hidden="true">🌐</span>
-                <span class="label">
-                    <span class="nav-label-main">Внешние формы</span>
-                    <span class="nav-label-sub">Ссылки и конфигурация в каналах</span>
                 </span>
             </a>
             <a class="nav-link" data-page-key="knowledge" th:if="${canEditKnowledgeBase}"
@@ -136,7 +121,7 @@
                     <span class="nav-label-sub">Пульсы, cert-monitoring и KPI</span>
                 </span>
             </a>
-            <a class="nav-link" data-page-key="channels" th:if="${canManageChannels}"
+            <a class="nav-link" data-page-key="channels" th:if="${canManageChannels and !canViewSettings}"
                th:classappend="${active}=='channels' ? ' active'"
                th:href="@{/channels}">
                 <span class="icon" aria-hidden="true">📡</span>
@@ -157,7 +142,7 @@
                     <span class="nav-label-sub">Конфигурация системы и UI</span>
                 </span>
             </a>
-            <a class="nav-link" data-page-key="users" th:if="${canManageUsers}"
+            <a class="nav-link" data-page-key="users" th:if="${canManageUsers and !canViewSettings}"
                th:classappend="${active}=='users' ? ' active'"
                th:href="@{/users}">
                 <span class="icon" aria-hidden="true">👥</span>
@@ -169,35 +154,31 @@
         </nav>
 
         <div class="sidebar-footer">
-            <div class="sidebar-user-card" th:if="${#authentication?.name}">
-                <div class="sidebar-user-avatar">
-                    <img th:src="${sidebarUserAvatarUrl}" alt="Аватар" loading="lazy" decoding="async"/>
-                </div>
-                <div class="sidebar-user-meta">
-                    <span class="sidebar-user-name" th:text="${sidebarUserDisplayName}">Пользователь</span>
-                    <span class="sidebar-user-username" th:text="${sidebarUserUsername}"></span>
-                </div>
-            </div>
             <div class="sidebar-footer-actions">
-                <button type="button" class="sidebar-account-btn" data-sidebar-change-password>
+                <button
+                        type="button"
+                        class="sidebar-account-btn sidebar-footer-icon-btn"
+                        data-sidebar-change-password
+                        aria-label="Сменить пароль"
+                        title="Сменить пароль">
                     <span class="icon" aria-hidden="true">🔐</span>
-                    <span class="label">Сменить пароль</span>
                 </button>
-                <div class="sidebar-order-controls">
-                    <button
-                            id="editSidebarOrderBtn"
-                            class="sidebar-order-btn"
-                            type="button"
-                            aria-label="Редактировать порядок"
-                            title="Редактировать порядок">
-                        <span class="icon" aria-hidden="true">⇅</span>
-                    </button>
-                </div>
+                <button
+                        id="editSidebarOrderBtn"
+                        class="sidebar-order-btn sidebar-footer-icon-btn"
+                        type="button"
+                        aria-label="Редактировать порядок"
+                        title="Редактировать порядок">
+                    <span class="icon" aria-hidden="true">⇅</span>
+                </button>
+                <a
+                        class="sidebar-logout-btn sidebar-footer-icon-btn"
+                        th:href="@{/logout}"
+                        aria-label="Выйти"
+                        title="Выйти">
+                    <span class="icon" aria-hidden="true">🚪</span>
+                </a>
             </div>
-            <a class="sidebar-logout-btn" th:href="@{/logout}">
-                <span class="icon" aria-hidden="true">🚪</span>
-                <span class="label">Выйти</span>
-            </a>
         </div>
     </div>
 

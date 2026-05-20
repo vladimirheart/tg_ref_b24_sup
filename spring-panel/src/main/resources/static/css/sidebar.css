@@ -129,7 +129,7 @@ body.with-sidebar.sidebar-hovering {
 .sidebar-brand-shell {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 10px;
 }
 
 .sidebar-brand-row {
@@ -196,6 +196,10 @@ body.with-sidebar.sidebar-hovering {
   color: var(--color-text-muted);
   font-size: 0.86rem;
   line-height: 1.5;
+}
+
+.sidebar-user-card--header {
+  margin-top: 2px;
 }
 
 .sidebar-actions {
@@ -468,25 +472,20 @@ body.with-sidebar.sidebar-hovering {
 
 .sidebar.collapsed:not(.hovering) .sidebar-account-btn,
 .sidebar.collapsed:not(.hovering) .sidebar-logout-btn {
-  grid-template-columns: 1fr;
-  justify-items: center;
-  width: 52px;
-  padding: 10px 0;
+  width: 48px;
+  height: 48px;
 }
 
 .sidebar.collapsed:not(.hovering) .sidebar-footer-actions {
-  justify-content: center;
-}
-
-.sidebar.collapsed:not(.hovering) .sidebar-order-controls {
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
 }
 
 .sidebar-footer {
   position: relative;
   z-index: 1;
   margin-top: auto;
-  padding: 12px;
+  padding: 10px 12px 12px;
   border-radius: 22px;
   background: linear-gradient(180deg, color-mix(in srgb, white 78%, var(--color-surface)), color-mix(in srgb, var(--color-accent) 6%, white));
   border: 1px solid color-mix(in srgb, var(--color-border) 12%, transparent);
@@ -498,23 +497,19 @@ body.with-sidebar.sidebar-hovering {
 
 .sidebar-footer-actions {
   display: flex;
-  align-items: stretch;
-  gap: 8px;
-}
-
-.sidebar-order-controls {
-  display: flex;
-  justify-content: flex-end;
-  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
 }
 
 .sidebar-order-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 12px;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 14px;
   border: 1px dashed color-mix(in srgb, var(--color-accent) 32%, transparent);
   background: color-mix(in srgb, var(--color-accent) 8%, white);
   color: var(--color-accent);
@@ -540,8 +535,8 @@ body.with-sidebar.sidebar-hovering {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px;
-  border-radius: 16px;
+  padding: 9px 10px;
+  border-radius: 18px;
   background: color-mix(in srgb, white 74%, var(--color-surface));
   border: 1px solid color-mix(in srgb, var(--color-border) 10%, transparent);
 }
@@ -583,14 +578,16 @@ body.with-sidebar.sidebar-hovering {
 
 .sidebar-account-btn,
 .sidebar-logout-btn {
-  display: grid;
-  grid-template-columns: 24px minmax(0, 1fr);
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 9px 10px;
-  border-radius: 13px;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 14px;
   text-decoration: none;
   font-weight: 700;
+  flex: 0 0 auto;
   transition: transform 0.18s ease, background-color 0.18s ease, border-color 0.18s ease;
 }
 
@@ -599,7 +596,6 @@ body.with-sidebar.sidebar-hovering {
   background: color-mix(in srgb, white 72%, var(--color-surface));
   color: inherit;
   cursor: pointer;
-  flex: 1 1 auto;
 }
 
 .sidebar-account-btn:hover,
@@ -616,10 +612,7 @@ body.with-sidebar.sidebar-hovering {
 
 @media (max-width: 640px) {
   .sidebar-footer-actions {
-    flex-direction: column;
-  }
-  .sidebar-order-controls {
-    justify-content: flex-start;
+    flex-wrap: wrap;
   }
 }
 .sidebar-logout-btn:hover,
@@ -630,10 +623,11 @@ body.with-sidebar.sidebar-hovering {
 }
 
 .sidebar-account-btn .icon,
-.sidebar-logout-btn .icon {
-  width: 24px;
+.sidebar-logout-btn .icon,
+.sidebar-order-btn .icon {
+  width: auto;
   text-align: center;
-  font-size: 0.95rem;
+  font-size: 1rem;
 }
 
 .notify-dropdown {

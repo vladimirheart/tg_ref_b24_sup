@@ -20,7 +20,17 @@
                 <h1 class="page-title">Клиенты</h1>
                 <p class="page-subtitle">Список пользователей, которые обращались в поддержку.</p>
             </div>
-            <div class="text-muted small" th:text="'Всего клиентов: ' + ${#lists.size(clients)}">Всего клиентов: 0</div>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <a class="btn btn-sm btn-outline-warning d-inline-flex align-items-center gap-2"
+                   th:href="@{/unblock-requests}">
+                    <span>Разблокировки</span>
+                    <span class="badge text-bg-warning"
+                          data-unblock-count
+                          th:text="${pendingUnblockRequests}"
+                          th:attr="hidden=${pendingUnblockRequests == 0}">0</span>
+                </a>
+                <div class="text-muted small" th:text="'Всего клиентов: ' + ${#lists.size(clients)}">Всего клиентов: 0</div>
+            </div>
         </div>
     </div>
 

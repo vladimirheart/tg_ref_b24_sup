@@ -14,7 +14,7 @@ public class LoginRedirectController {
             "PAGE_TASKS:/tasks",
             "PAGE_ANALYTICS:/analytics",
             "PAGE_SETTINGS:/settings",
-            "PAGE_USERS:/settings?tab=users",
+            "PAGE_USERS:/users",
             "PAGE_CHANNELS:/channels",
             "PAGE_KNOWLEDGE_BASE:/knowledge-base",
             "PAGE_OBJECT_PASSPORTS:/passports"

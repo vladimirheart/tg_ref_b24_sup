@@ -1983,7 +1983,7 @@
     </div>
 
     <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3 settings-tiles">
-      <div class="col">
+      <div class="col" th:if="${canManageChannels}">
         <div class="card settings-tile h-100" role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#channelsModal">
           <div class="card-body">
             <div class="settings-tile__head">
@@ -2004,7 +2004,7 @@
         </div>
       </div>
 
-      <div class="col">
+      <div class="col" th:if="${canManageUsers}">
         <div class="card settings-tile h-100" role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#managerBindingsModal">
           <div class="card-body">
             <div class="settings-tile__head">
@@ -20550,10 +20550,18 @@
 
     try {
       const params = new URLSearchParams(window.location.search);
-      if (params.get('open') === 'channels') {
-        const channelsModalEl = document.getElementById('channelsModal');
-        if (channelsModalEl && typeof bootstrap !== 'undefined') {
-          bootstrap.Modal.getOrCreateInstance(channelsModalEl).show();
+      const openTarget = (params.get('open') || '').trim().toLowerCase();
+      const legacyTab = (params.get('tab') || '').trim().toLowerCase();
+      const requestedModal = openTarget || legacyTab;
+      const modalId = requestedModal === 'channels'
+        ? 'channelsModal'
+        : requestedModal === 'users'
+          ? 'usersModal'
+          : '';
+      if (modalId) {
+        const modalEl = document.getElementById(modalId);
+        if (modalEl && typeof bootstrap !== 'undefined') {
+          bootstrap.Modal.getOrCreateInstance(modalEl).show();
         }
       }
     } catch (e) {

@@ -42,4 +42,20 @@ class LoginRedirectControllerTest {
 
         assertThat(redirect).isEqualTo("redirect:/error/403");
     }
+
+    @Test
+    void redirectsToUsersWhenOnlyUsersPermissionExists() {
+        when(permissionService.hasAuthority(authentication, "PAGE_DIALOGS")).thenReturn(false);
+        when(permissionService.hasAuthority(authentication, "PAGE_CLIENTS")).thenReturn(false);
+        when(permissionService.hasAuthority(authentication, "PAGE_TASKS")).thenReturn(false);
+        when(permissionService.hasAuthority(authentication, "PAGE_ANALYTICS")).thenReturn(false);
+        when(permissionService.hasAuthority(authentication, "PAGE_SETTINGS")).thenReturn(false);
+        when(permissionService.hasAuthority(authentication, "PAGE_USERS")).thenReturn(true);
+
+        LoginRedirectController controller = new LoginRedirectController(permissionService);
+
+        String redirect = controller.postLogin(authentication);
+
+        assertThat(redirect).isEqualTo("redirect:/users");
+    }
 }

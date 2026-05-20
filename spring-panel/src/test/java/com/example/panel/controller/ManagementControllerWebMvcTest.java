@@ -1,11 +1,12 @@
 package com.example.panel.controller;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doNothing;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
@@ -15,6 +16,7 @@ import com.example.panel.repository.ItEquipmentCatalogRepository;
 import com.example.panel.repository.PanelUserRepository;
 import com.example.panel.repository.SettingsParameterRepository;
 import com.example.panel.repository.TaskRepository;
+import com.example.panel.entity.PanelUser;
 import com.example.panel.service.NavigationService;
 import com.example.panel.service.PermissionService;
 import com.example.panel.service.IikoDepartmentLocationCatalogService;
@@ -23,6 +25,7 @@ import com.example.panel.service.LocationsIikoSyncSettingsService;
 import com.example.panel.service.SettingsCatalogService;
 import com.example.panel.service.SettingsParameterService;
 import com.example.panel.service.SharedConfigService;
+import com.example.panel.service.UnblockRequestService;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,18 +35,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
-import com.example.panel.entity.PanelUser;
 
 @WebMvcTest(ManagementController.class)
 @AutoConfigureMockMvc
+@Import(NavigationService.class)
 class ManagementControllerWebMvcTest {
 
     @Autowired
     private MockMvc mockMvc;
-
-    @MockBean
-    private NavigationService navigationService;
 
     @MockBean
     private TaskRepository taskRepository;
@@ -84,9 +85,12 @@ class ManagementControllerWebMvcTest {
     @MockBean
     private PermissionService permissionService;
 
+    @MockBean
+    private UnblockRequestService unblockRequestService;
+
     @Test
     void settingsPageIncludesUiHeadBootstrapAndExplicitPagePreset() throws Exception {
-        doNothing().when(navigationService).enrich(any(), any());
+        stubNavigationDefaults();
         when(appSettingRepository.findAll()).thenReturn(List.of());
         when(settingsParameterRepository.findAll()).thenReturn(List.of());
         when(sharedConfigService.loadSettings()).thenReturn(Map.of());
@@ -128,7 +132,7 @@ class ManagementControllerWebMvcTest {
 
     @Test
     void tasksPageIncludesUiHeadBootstrapAndExplicitPagePreset() throws Exception {
-        doNothing().when(navigationService).enrich(any(), any());
+        stubNavigationDefaults();
         when(taskRepository.findTop50ByOrderByCreatedAtDesc()).thenReturn(List.of());
         when(panelUserRepository.findAll()).thenReturn(List.of());
 
@@ -143,8 +147,9 @@ class ManagementControllerWebMvcTest {
 
     @Test
     void channelsPageIncludesUiHeadBootstrapAndExplicitPagePreset() throws Exception {
-        doNothing().when(navigationService).enrich(any(), any());
+        stubNavigationDefaults();
         when(channelRepository.findAll()).thenReturn(List.of());
+        when(permissionService.hasAuthority(any(), eq("PAGE_SETTINGS"))).thenReturn(false);
 
         mockMvc.perform(get("/channels").with(user("operator").authorities(() -> "PAGE_CHANNELS")))
             .andExpect(status().isOk())
@@ -157,8 +162,9 @@ class ManagementControllerWebMvcTest {
 
     @Test
     void usersPageIncludesUiHeadBootstrapAndExplicitPagePreset() throws Exception {
-        doNothing().when(navigationService).enrich(any(), any());
+        stubNavigationDefaults();
         when(panelUserRepository.findAll()).thenReturn(List.of());
+        when(permissionService.hasAuthority(any(), eq("PAGE_SETTINGS"))).thenReturn(false);
 
         mockMvc.perform(get("/users").with(user("operator").authorities(() -> "PAGE_USERS")))
             .andExpect(status().isOk())
@@ -170,8 +176,26 @@ class ManagementControllerWebMvcTest {
     }
 
     @Test
+    void channelsPageRedirectsIntoSettingsWhenSettingsPageIsAvailable() throws Exception {
+        when(permissionService.hasAuthority(any(), eq("PAGE_SETTINGS"))).thenReturn(true);
+
+        mockMvc.perform(get("/channels").with(user("operator").authorities(() -> "PAGE_CHANNELS")))
+            .andExpect(status().is3xxRedirection())
+            .andExpect(redirectedUrl("/settings?open=channels"));
+    }
+
+    @Test
+    void usersPageRedirectsIntoSettingsWhenSettingsPageIsAvailable() throws Exception {
+        when(permissionService.hasAuthority(any(), eq("PAGE_SETTINGS"))).thenReturn(true);
+
+        mockMvc.perform(get("/users").with(user("operator").authorities(() -> "PAGE_USERS")))
+            .andExpect(status().is3xxRedirection())
+            .andExpect(redirectedUrl("/settings?open=users"));
+    }
+
+    @Test
     void userDetailPageIncludesUiHeadBootstrapAndExplicitPagePreset() throws Exception {
-        doNothing().when(navigationService).enrich(any(), any());
+        stubNavigationDefaults();
         PanelUser panelUser = new PanelUser();
         panelUser.setUsername("operator");
         panelUser.setFullName("Оператор");
@@ -188,7 +212,7 @@ class ManagementControllerWebMvcTest {
 
     @Test
     void objectPassportsPageIncludesUiHeadBootstrapAndExplicitPagePreset() throws Exception {
-        doNothing().when(navigationService).enrich(any(), any());
+        stubNavigationDefaults();
         when(equipmentRepository.findAll()).thenReturn(List.of());
 
         mockMvc.perform(get("/object-passports").with(user("operator").authorities(() -> "PAGE_OBJECT_PASSPORTS")))
@@ -202,7 +226,7 @@ class ManagementControllerWebMvcTest {
 
     @Test
     void newObjectPassportEditorIncludesUiHeadBootstrapAndExplicitPagePreset() throws Exception {
-        doNothing().when(navigationService).enrich(any(), any());
+        stubNavigationDefaults();
         stubPassportEditorDependencies();
 
         mockMvc.perform(get("/object-passports/new").with(user("operator").authorities(() -> "PAGE_OBJECT_PASSPORTS")))
@@ -218,7 +242,7 @@ class ManagementControllerWebMvcTest {
 
     @Test
     void newObjectPassportEditorUsesEffectiveLocationsCatalogForLocationFields() throws Exception {
-        doNothing().when(navigationService).enrich(any(), any());
+        stubNavigationDefaults();
         stubPassportEditorDependencies();
 
         mockMvc.perform(get("/object-passports/new").with(user("operator").authorities(() -> "PAGE_OBJECT_PASSPORTS")))
@@ -232,7 +256,7 @@ class ManagementControllerWebMvcTest {
 
     @Test
     void existingObjectPassportEditorIncludesUiHeadBootstrapAndExplicitPagePreset() throws Exception {
-        doNothing().when(navigationService).enrich(any(), any());
+        stubNavigationDefaults();
         stubPassportEditorDependencies();
 
         mockMvc.perform(get("/object-passports/42").with(user("operator").authorities(() -> "PAGE_OBJECT_PASSPORTS")))
@@ -283,5 +307,10 @@ class ManagementControllerWebMvcTest {
         when(locationCatalogService.loadCatalog()).thenReturn(liveCatalog);
         when(locationCatalogService.buildEffectiveLocationsPayload(liveCatalog)).thenReturn(effectiveLocationsPayload);
         when(settingsCatalogService.collectCities(liveCatalog.tree())).thenReturn(List.of("Смоленск"));
+    }
+
+    private void stubNavigationDefaults() {
+        when(permissionService.hasAuthority(any(), any())).thenReturn(false);
+        when(panelUserRepository.findByUsernameIgnoreCase("operator")).thenReturn(Optional.empty());
     }
 }

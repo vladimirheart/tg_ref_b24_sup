@@ -109,6 +109,9 @@ public class ManagementController {
     @GetMapping("/channels")
     @PreAuthorize("hasAuthority('PAGE_CHANNELS')")
     public String channels(Authentication authentication, Model model) {
+        if (permissionService.hasAuthority(authentication, "PAGE_SETTINGS")) {
+            return "redirect:/settings?open=channels";
+        }
         navigationService.enrich(model, authentication);
         try {
             List<Channel> channels = channelRepository.findAll();
@@ -124,6 +127,9 @@ public class ManagementController {
     @GetMapping("/users")
     @PreAuthorize("hasAuthority('PAGE_USERS')")
     public String users(Authentication authentication, Model model) {
+        if (permissionService.hasAuthority(authentication, "PAGE_SETTINGS")) {
+            return "redirect:/settings?open=users";
+        }
         navigationService.enrich(model, authentication);
         try {
             List<PanelUser> users = panelUserRepository.findAll();
