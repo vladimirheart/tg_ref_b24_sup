@@ -738,6 +738,15 @@
   `markAsRead`, так что следующий notification/runtime пакет можно брать уже
   поверх явного controller safety net, а не только через косвенные smoke
   сценарии.
+- следующим более широким notification/runtime шагом добавлен live
+  `NotificationApiIntegrationTest` на `SpringBootTest + SQLite`: он
+  закрепляет реальный `list/unread_count/markAsRead`, identity scope и
+  runtime bridge от `NotificationService.notifyUsersExcluding`, а сам
+  persistence/read path выровнен через `LenientOffsetDateTimeConverter`
+  для `Notification.createdAt`; параллельно снят `JdbcTemplate.query(...)`
+  ambiguous-хвост в `NotificationService`, чтобы `public-form` alert
+  routing и dialog participant notifications снова были стабильны в smoke
+  пакетах.
 - этот же smoke-слой расширен на detail/subpage contract:
   `ai-ops`, `unblock requests`, `users/detail` и оба passport editor route
   (`/object-passports/new`, `/object-passports/{id}`) теперь тоже прикрыты

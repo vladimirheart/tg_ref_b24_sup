@@ -93,20 +93,14 @@ public class NotificationService {
         Set<String> recipients = new LinkedHashSet<>();
         jdbcTemplate.query(
                 "SELECT responsible FROM ticket_responsibles WHERE ticket_id = ?",
-                rs -> {
-                    while (rs.next()) {
-                        recipients.addAll(splitIdentities(rs.getString("responsible")));
-                    }
-                },
+                (org.springframework.jdbc.core.RowCallbackHandler) rs ->
+                        recipients.addAll(splitIdentities(rs.getString("responsible"))),
                 ticketId.trim()
         );
         jdbcTemplate.query(
                 "SELECT user_identity FROM ticket_active WHERE ticket_id = ?",
-                rs -> {
-                    while (rs.next()) {
-                        recipients.addAll(splitIdentities(rs.getString("user_identity")));
-                    }
-                },
+                (org.springframework.jdbc.core.RowCallbackHandler) rs ->
+                        recipients.addAll(splitIdentities(rs.getString("user_identity"))),
                 ticketId.trim()
         );
         return recipients;
@@ -157,12 +151,10 @@ public class NotificationService {
         }
         Set<String> recipients = new LinkedHashSet<>();
         try {
-            source.query(sql.toString(), rs -> {
-                while (rs.next()) {
-                    String username = normalizeRecipient(rs.getString("username"));
-                    if (StringUtils.hasText(username)) {
-                        recipients.add(username);
-                    }
+            source.query(sql.toString(), (org.springframework.jdbc.core.RowCallbackHandler) rs -> {
+                String username = normalizeRecipient(rs.getString("username"));
+                if (StringUtils.hasText(username)) {
+                    recipients.add(username);
                 }
             });
         } catch (Exception ex) {

@@ -827,6 +827,14 @@ integration-сценария поверх users/settings runtime boundary всё
   отдельно закреплены для `list`, `unread_count` и `markAsRead`, что
   уменьшает риск тихих regressions после дальнейших security/runtime
   изменений.
+- следующим более широким runtime-пакетом notification layer добран уже до
+  live `SpringBootTest + SQLite` контракта: отдельный
+  `NotificationApiIntegrationTest` теперь фиксирует real
+  `list/unread_count/markAsRead`, identity scope и runtime bridge от
+  `NotificationService.notifyUsersExcluding`, а по пути закрыт production
+  bug в `Notification.createdAt` SQLite read-path через
+  `LenientOffsetDateTimeConverter` и снята `JdbcTemplate.query(...)`
+  ambiguous-сборка в `NotificationService`.
 - `DialogAiOpsController` теперь прикрыт не только по основным happy/error
   flows, но и по alias/null-body/default-path сценариям, что уменьшает риск
   regressions в transport-layer normalisation.

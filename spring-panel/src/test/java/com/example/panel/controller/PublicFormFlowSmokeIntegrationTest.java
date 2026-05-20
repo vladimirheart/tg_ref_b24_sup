@@ -904,6 +904,11 @@ class PublicFormFlowSmokeIntegrationTest {
 
         assertThat(dialogQuickActionService.resolveTicket(ticketId, "watcher_owner", List.of("billing", "vip")).updated()).isTrue();
         assertThat(dialogQuickActionService.reopenTicket(ticketId, "watcher_owner").updated()).isTrue();
+        jdbcTemplate.update(
+                "UPDATE ticket_active SET user_identity = ?, last_seen = CURRENT_TIMESTAMP WHERE ticket_id = ?",
+                "watcher_peer",
+                ticketId
+        );
         jdbcTemplate.update("DELETE FROM notifications WHERE user_identity IN (?, ?)", "watcher_owner", "watcher_peer");
         notificationService.notifyDialogParticipants(
                 ticketId,
