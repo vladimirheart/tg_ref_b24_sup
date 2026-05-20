@@ -667,6 +667,15 @@
   let lastUnreadCount = 0;
   let hasInitialUnread = false;
   const csrfToken = document.querySelector('meta[name="_csrf"]')?.getAttribute('content') || '';
+  const csrfHeaderName = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content') || 'X-CSRF-TOKEN';
+  const NOTIFICATION_EMPTY_LABEL = '\u041d\u043e\u0432\u044b\u0445 \u0443\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u0439 \u043d\u0435\u0442';
+  const NOTIFICATION_LOADING_LABEL = '\u0417\u0430\u0433\u0440\u0443\u0437\u043a\u0430...';
+  const NOTIFICATION_LOAD_ERROR_LABEL = '\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044c \u0443\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u044f';
+  const NOTIFICATION_UNREAD_LABEL = '\u041d\u0435\u043f\u0440\u043e\u0447\u0438\u0442\u0430\u043d\u043d\u044b\u0435';
+  const NOTIFICATION_READ_LABEL = '\u041f\u0440\u043e\u0447\u0438\u0442\u0430\u043d\u043d\u044b\u0435';
+  const NOTIFICATION_ITEM_FALLBACK = '\u0423\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u0435';
+  const NOTIFICATION_TOAST_ONE = '\u041d\u043e\u0432\u043e\u0435 \u043e\u043f\u043e\u0432\u0435\u0449\u0435\u043d\u0438\u0435';
+  const NOTIFICATION_TOAST_MANY_PREFIX = '\u041d\u043e\u0432\u044b\u0445 \u043e\u043f\u043e\u0432\u0435\u0449\u0435\u043d\u0438\u0439: ';
 
   const HTML_ESCAPE_RE = /[&<>"']/g;
   const HTML_ESCAPE_MAP = {
@@ -697,9 +706,10 @@
 
   function normalizeNotificationPayload(data) {
     if (Array.isArray(data)) {
+      const normalizedItems = data.map(normalizeNotificationItem).filter(Boolean);
       return {
-        unread: data.map(normalizeNotificationItem).filter(Boolean),
-        read: [],
+        unread: normalizedItems.filter((item) => !item.is_read),
+        read: normalizedItems.filter((item) => item.is_read),
       };
     }
 
@@ -840,6 +850,86 @@
     }
   }
 
+  function renderNotificationsSafe(unreadItems, readItems) {
+    if (!bellDropdown) return;
+    const unread = Array.isArray(unreadItems) ? unreadItems.filter(Boolean) : [];
+    const read = Array.isArray(readItems) ? readItems.filter(Boolean) : [];
+
+    if (!unread.length && !read.length) {
+      bellDropdown.innerHTML = `<div class="notif-item text-muted">${NOTIFICATION_EMPTY_LABEL}</div>`;
+      return;
+    }
+
+    const renderSection = (items, title, unreadFlag) => {
+      if (!items.length) return '';
+      const sectionTitle = `<div class="notif-section-title">${escapeHtml(title)}</div>`;
+      const markup = items.map((item) => {
+        const text = escapeHtml(item.text || NOTIFICATION_ITEM_FALLBACK);
+        const url = (item.url || '').trim();
+        const dateStr = formatNotificationTime(item.created_at);
+        const linkStart = url ? `<a class="stretched-link" data-notification-link href="${escapeHtml(url)}" rel="noopener">` : '';
+        const linkEnd = url ? '</a>' : '';
+        const classes = ['notif-item', 'position-relative', unreadFlag ? 'notif-item-unread' : 'notif-item-read'];
+        return `
+          <div class="${classes.join(' ')}" data-id="${item.id ?? ''}">
+            ${linkStart}<div class="notif-text">${text}</div>${linkEnd}
+            ${dateStr ? `<div class="notif-time">${escapeHtml(dateStr)}</div>` : ''}
+          </div>
+        `;
+      }).join('');
+      return sectionTitle + markup;
+    };
+
+    const parts = [];
+    parts.push(renderSection(unread, NOTIFICATION_UNREAD_LABEL, true));
+    parts.push(renderSection(read, NOTIFICATION_READ_LABEL, false));
+    bellDropdown.innerHTML = parts.filter(Boolean).join('');
+  }
+
+  async function loadNotificationsSafe() {
+    if (!bellDropdown) return;
+    bellDropdown.hidden = false;
+    bellDropdown.innerHTML = `<div class="notif-item text-muted">${NOTIFICATION_LOADING_LABEL}</div>`;
+    notificationsOpen = true;
+    if (bellBtn) bellBtn.setAttribute('aria-expanded', 'true');
+    try {
+      const response = await fetch('/api/notifications', {
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json' },
+      });
+      if (!response.ok) throw new Error('Failed to load notifications');
+      const data = await response.json();
+      const payload = normalizeNotificationPayload(data);
+      renderNotificationsSafe(payload.unread, payload.read);
+      hasInitialUnread = true;
+      setBellCount(payload.unread.length);
+      lastUnreadCount = payload.unread.length;
+    } catch (_error) {
+      bellDropdown.innerHTML = `<div class="notif-item text-danger">${NOTIFICATION_LOAD_ERROR_LABEL}</div>`;
+    }
+  }
+
+  async function markNotificationAsRead(notificationId) {
+    if (!notificationId) return false;
+    const headers = {};
+    if (csrfToken) {
+      headers[csrfHeaderName] = csrfToken;
+    }
+    const response = await fetch(`/api/notifications/${notificationId}/read`, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers,
+      keepalive: true,
+    });
+    return response.ok;
+  }
+
+  function applyNotificationReadState(itemEl) {
+    if (!(itemEl instanceof HTMLElement)) return;
+    itemEl.classList.remove('notif-item-unread');
+    itemEl.classList.add('notif-item-read');
+  }
+
   if (bellDropdown) {
     bellDropdown.addEventListener('click', async (event) => {
       const link = event.target.closest('a[data-notification-link]');
@@ -853,17 +943,11 @@
       const notificationId = itemEl?.dataset?.id;
       if (notificationId) {
         try {
-          if (csrfToken) {
-            await fetch(`/api/notifications/${notificationId}/read`, {
-              method: 'POST',
-              credentials: 'same-origin',
-              headers: { 'X-CSRF-TOKEN': csrfToken },
-            });
-          } else {
-            await fetch(`/api/notifications/${notificationId}/read`, {
-              method: 'POST',
-              credentials: 'same-origin',
-            });
+          const marked = await markNotificationAsRead(notificationId);
+          if (marked) {
+            applyNotificationReadState(itemEl);
+            lastUnreadCount = Math.max(0, lastUnreadCount - 1);
+            setBellCount(lastUnreadCount);
           }
         } catch (_error) {
           // ignore read marker errors
@@ -901,15 +985,41 @@
       lastUnreadCount = newCount;
       hasInitialUnread = true;
       if (notificationsOpen && newCount !== previousCount) {
-        await loadNotifications();
+        await loadNotificationsSafe();
       }
     } catch (error) {
       /* ignore */
     }
   }
 
+  async function updateNotificationCountSafe() {
+    try {
+      const response = await fetch('/api/notifications/unread_count', {
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json' },
+      });
+      if (!response.ok) return;
+      const data = await response.json();
+      const newCount = Number(data.unread ?? data.count ?? 0);
+      const previousCount = lastUnreadCount;
+      setBellCount(newCount);
+      if (hasInitialUnread && newCount > lastUnreadCount) {
+        const diff = newCount - lastUnreadCount;
+        const message = diff === 1 ? NOTIFICATION_TOAST_ONE : `${NOTIFICATION_TOAST_MANY_PREFIX}${diff}`;
+        showNotificationToast(message);
+      }
+      lastUnreadCount = newCount;
+      hasInitialUnread = true;
+      if (notificationsOpen && newCount !== previousCount) {
+        await loadNotificationsSafe();
+      }
+    } catch (_error) {
+      /* ignore */
+    }
+  }
+
   function requestNotificationRefresh() {
-    return updateNotificationCount();
+    return updateNotificationCountSafe();
   }
 
   if (bellBtn) {
@@ -918,7 +1028,7 @@
       if (notificationsOpen) {
         closeNotifications();
       } else {
-        await loadNotifications();
+        await loadNotificationsSafe();
       }
     });
   }
@@ -939,8 +1049,8 @@
     }
   });
 
-  updateNotificationCount();
-  setInterval(updateNotificationCount, NOTIFICATIONS_POLL_INTERVAL_MS);
+  updateNotificationCountSafe();
+  setInterval(updateNotificationCountSafe, NOTIFICATIONS_POLL_INTERVAL_MS);
   window.refreshSidebarNotifications = requestNotificationRefresh;
   window.addEventListener('iguana:notifications-refresh', requestNotificationRefresh);
   window.addEventListener('focus', requestNotificationRefresh);

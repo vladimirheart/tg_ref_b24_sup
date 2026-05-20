@@ -50,7 +50,7 @@ body.with-sidebar.sidebar-hovering {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  overflow: hidden;
+  overflow: visible;
   z-index: var(--sidebar-z);
   background:
     radial-gradient(circle at 12% 12%, color-mix(in srgb, var(--gradient-secondary) 34%, transparent), transparent 34%),

@@ -51,7 +51,7 @@ body.with-sidebar.sidebar-hovering {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  overflow: hidden;
+  overflow: visible;
   z-index: var(--sidebar-z);
   background: radial-gradient(circle at 12% 12%, color-mix(in srgb, var(--gradient-secondary) 34%, transparent), transparent 34%), radial-gradient(circle at 88% 16%, color-mix(in srgb, var(--gradient-accent) 26%, transparent), transparent 28%), linear-gradient(180deg, color-mix(in srgb, var(--sidebar-surface) 92%, white), var(--sidebar-surface-strong));
   border-right: 1px solid var(--sidebar-stroke);
@@ -662,6 +662,7 @@ body.with-sidebar.sidebar-hovering {
   position: absolute;
   top: calc(100% + 10px);
   left: 0;
+  right: auto;
   width: min(360px, 100vw - 32px);
   max-height: 50vh;
   overflow-y: auto;
@@ -672,6 +673,11 @@ body.with-sidebar.sidebar-hovering {
   box-shadow: 0 26px 44px rgba(18, 34, 24, 0.16);
   backdrop-filter: blur(18px);
   z-index: calc(var(--sidebar-z) + 2);
+}
+
+.sidebar:not(.collapsed) .notify-dropdown {
+  left: auto;
+  right: 0;
 }
 
 .notify-dropdown .notif-item {

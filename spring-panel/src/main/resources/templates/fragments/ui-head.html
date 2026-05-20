@@ -1,4 +1,6 @@
 <th:block xmlns:th="http://www.thymeleaf.org" th:fragment="uiHead">
+    <meta name="_csrf" th:content="${_csrf != null ? _csrf.token : ''}">
+    <meta name="_csrf_header" th:content="${_csrf != null ? _csrf.headerName : 'X-CSRF-TOKEN'}">
     <script th:inline="javascript">
         window.__IGUANA_UI_PREFS_BOOTSTRAP__ = /*[[${uiPreferencesBootstrap}]]*/ {};
         window.__IGUANA_UI_PREFS_META__ = {

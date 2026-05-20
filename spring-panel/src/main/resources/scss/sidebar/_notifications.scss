@@ -2,6 +2,7 @@
   position: absolute;
   top: calc(100% + 10px);
   left: 0;
+  right: auto;
   width: min(360px, calc(100vw - 32px));
   max-height: 50vh;
   overflow-y: auto;
@@ -12,6 +13,11 @@
   box-shadow: 0 26px 44px rgba(18, 34, 24, 0.16);
   backdrop-filter: blur(18px);
   z-index: calc(var(--sidebar-z) + 2);
+}
+
+.sidebar:not(.collapsed) .notify-dropdown {
+  left: auto;
+  right: 0;
 }
 
 .notify-dropdown .notif-item {
