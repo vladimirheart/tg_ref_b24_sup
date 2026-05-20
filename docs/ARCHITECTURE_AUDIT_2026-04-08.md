@@ -821,6 +821,12 @@ integration-сценария поверх users/settings runtime boundary всё
   dialog participant lifecycle закреплены peer-notifications на
   `resolve/reopen` ветках вместе с `resolved/categories` состоянием самого
   `web_form` dialog.
+- `NotificationApiController` получил первый dedicated WebMvc regression
+  net по identity resolution boundary: `Authentication -> UserDetails`,
+  fallback на `authentication.getName()` и explicit `all`-ветка теперь
+  отдельно закреплены для `list`, `unread_count` и `markAsRead`, что
+  уменьшает риск тихих regressions после дальнейших security/runtime
+  изменений.
 - `DialogAiOpsController` теперь прикрыт не только по основным happy/error
   flows, но и по alias/null-body/default-path сценариям, что уменьшает риск
   regressions в transport-layer normalisation.

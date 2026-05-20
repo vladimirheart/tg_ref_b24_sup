@@ -732,6 +732,12 @@
   read-reset через live `NotificationService summary`, а peer-notification
   routing на `resolve/reopen` ветках теперь прикрыт рядом с
   `resolved/categories` projection самого dialog.
+- отдельным transport hardening шагом добавлен первый dedicated
+  `NotificationApiControllerWebMvcTest`: `UserDetails`, plain-auth-name и
+  `all` fallback ветки теперь зафиксированы для `list`, `unread_count` и
+  `markAsRead`, так что следующий notification/runtime пакет можно брать уже
+  поверх явного controller safety net, а не только через косвенные smoke
+  сценарии.
 - этот же smoke-слой расширен на detail/subpage contract:
   `ai-ops`, `unblock requests`, `users/detail` и оба passport editor route
   (`/object-passports/new`, `/object-passports/{id}`) теперь тоже прикрыты
