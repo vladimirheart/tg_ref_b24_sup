@@ -12,6 +12,8 @@
   const mobileToggleBtn = document.getElementById('sidebarMobileToggle');
   const mobileOverlay = document.getElementById('sidebarMobileOverlay');
   const changePasswordBtn = sidebar.querySelector('[data-sidebar-change-password]');
+  const sidebarUserAvatar = sidebar.querySelector('[data-sidebar-user-avatar]');
+  const sidebarUserAvatarImg = sidebar.querySelector('[data-sidebar-user-avatar-img]');
   const changePasswordModalEl = document.querySelector('[data-sidebar-password-modal]');
   const changePasswordForm = changePasswordModalEl ? changePasswordModalEl.querySelector('[data-change-password-form]') : null;
   const changePasswordError = changePasswordModalEl ? changePasswordModalEl.querySelector('[data-change-password-error]') : null;
@@ -38,7 +40,36 @@
     document.body.appendChild(modalEl);
   }
 
+  function moveDropdownToBody(dropdownEl) {
+    if (!(dropdownEl instanceof HTMLElement) || !document.body) return;
+    if (dropdownEl.parentElement === document.body) return;
+    document.body.appendChild(dropdownEl);
+  }
+
+  function setSidebarAvatarLoaded(loaded) {
+    if (!sidebarUserAvatar) return;
+    sidebarUserAvatar.classList.toggle('is-loaded', Boolean(loaded));
+  }
+
+  function initSidebarUserAvatar() {
+    if (!sidebarUserAvatarImg) {
+      setSidebarAvatarLoaded(false);
+      return;
+    }
+    const applyStateFromImage = () => {
+      setSidebarAvatarLoaded(
+        sidebarUserAvatarImg.complete
+        && typeof sidebarUserAvatarImg.naturalWidth === 'number'
+        && sidebarUserAvatarImg.naturalWidth > 0
+      );
+    };
+    sidebarUserAvatarImg.addEventListener('load', applyStateFromImage);
+    sidebarUserAvatarImg.addEventListener('error', () => setSidebarAvatarLoaded(false));
+    applyStateFromImage();
+  }
+
   moveModalToBody(changePasswordModalEl);
+  initSidebarUserAvatar();
 
   function getPreference(name, fallback = null) {
     if (prefApi) {
@@ -662,6 +693,7 @@
   const bellWrapper = document.getElementById('notify-bell-wrapper');
   const bellDropdown = document.getElementById('notify-dropdown');
   let notificationsOpen = false;
+  let notificationPositionFrame = 0;
   let toastEl = null;
   let toastTimer = null;
   let lastUnreadCount = 0;
@@ -676,6 +708,38 @@
   const NOTIFICATION_ITEM_FALLBACK = '\u0423\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u0435';
   const NOTIFICATION_TOAST_ONE = '\u041d\u043e\u0432\u043e\u0435 \u043e\u043f\u043e\u0432\u0435\u0449\u0435\u043d\u0438\u0435';
   const NOTIFICATION_TOAST_MANY_PREFIX = '\u041d\u043e\u0432\u044b\u0445 \u043e\u043f\u043e\u0432\u0435\u0449\u0435\u043d\u0438\u0439: ';
+
+  moveDropdownToBody(bellDropdown);
+
+  function positionNotificationsDropdown() {
+    if (!bellBtn || !bellDropdown || bellDropdown.hidden) return;
+    const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+    const margin = 16;
+    const preferredWidth = Math.max(180, Math.min(360, viewportWidth - margin * 2));
+    const triggerRect = bellBtn.getBoundingClientRect();
+    const left = Math.max(
+      margin,
+      Math.min(triggerRect.right - preferredWidth, viewportWidth - preferredWidth - margin)
+    );
+    const top = Math.min(triggerRect.bottom + 10, Math.max(margin, viewportHeight - 220));
+    const maxHeight = Math.max(180, viewportHeight - top - margin);
+    bellDropdown.style.left = `${Math.round(left)}px`;
+    bellDropdown.style.top = `${Math.round(top)}px`;
+    bellDropdown.style.width = `${Math.round(preferredWidth)}px`;
+    bellDropdown.style.maxHeight = `${Math.round(maxHeight)}px`;
+    bellDropdown.style.right = 'auto';
+  }
+
+  function requestNotificationsDropdownPosition() {
+    if (notificationPositionFrame) {
+      window.cancelAnimationFrame(notificationPositionFrame);
+    }
+    notificationPositionFrame = window.requestAnimationFrame(() => {
+      notificationPositionFrame = 0;
+      positionNotificationsDropdown();
+    });
+  }
 
   const HTML_ESCAPE_RE = /[&<>"']/g;
   const HTML_ESCAPE_MAP = {
@@ -892,6 +956,7 @@
     bellDropdown.innerHTML = `<div class="notif-item text-muted">${NOTIFICATION_LOADING_LABEL}</div>`;
     notificationsOpen = true;
     if (bellBtn) bellBtn.setAttribute('aria-expanded', 'true');
+    requestNotificationsDropdownPosition();
     try {
       const response = await fetch('/api/notifications', {
         credentials: 'same-origin',
@@ -900,13 +965,45 @@
       if (!response.ok) throw new Error('Failed to load notifications');
       const data = await response.json();
       const payload = normalizeNotificationPayload(data);
-      renderNotificationsSafe(payload.unread, payload.read);
+      let unread = payload.unread;
+      let read = payload.read;
+      if (unread.length) {
+        try {
+          const markedCount = await markAllNotificationsAsRead();
+          if (markedCount >= 0) {
+            read = unread.map((item) => ({ ...item, is_read: true })).concat(read);
+            unread = [];
+          }
+        } catch (_error) {
+          // keep notifications visible even if bulk read update failed
+        }
+      }
+      renderNotificationsSafe(unread, read);
       hasInitialUnread = true;
-      setBellCount(payload.unread.length);
-      lastUnreadCount = payload.unread.length;
+      setBellCount(unread.length);
+      lastUnreadCount = unread.length;
+      requestNotificationsDropdownPosition();
     } catch (_error) {
       bellDropdown.innerHTML = `<div class="notif-item text-danger">${NOTIFICATION_LOAD_ERROR_LABEL}</div>`;
+      requestNotificationsDropdownPosition();
     }
+  }
+
+  async function markAllNotificationsAsRead() {
+    const headers = {};
+    if (csrfToken) {
+      headers[csrfHeaderName] = csrfToken;
+    }
+    const response = await fetch('/api/notifications/read-all', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers,
+    });
+    if (!response.ok) {
+      throw new Error('Failed to mark all notifications as read');
+    }
+    const payload = await response.json().catch(() => ({}));
+    return Number(payload.updated ?? 0);
   }
 
   async function markNotificationAsRead(notificationId) {
@@ -946,8 +1043,6 @@
           const marked = await markNotificationAsRead(notificationId);
           if (marked) {
             applyNotificationReadState(itemEl);
-            lastUnreadCount = Math.max(0, lastUnreadCount - 1);
-            setBellCount(lastUnreadCount);
           }
         } catch (_error) {
           // ignore read marker errors
@@ -964,6 +1059,10 @@
     bellDropdown.hidden = true;
     notificationsOpen = false;
     if (bellBtn) bellBtn.setAttribute('aria-expanded', 'false');
+    if (notificationPositionFrame) {
+      window.cancelAnimationFrame(notificationPositionFrame);
+      notificationPositionFrame = 0;
+    }
   }
 
   async function updateNotificationCount() {
@@ -1036,6 +1135,7 @@
   document.addEventListener('click', (event) => {
     if (!notificationsOpen) return;
     if (bellWrapper && bellWrapper.contains(event.target)) return;
+    if (bellDropdown && bellDropdown.contains(event.target)) return;
     closeNotifications();
   });
 
@@ -1059,6 +1159,8 @@
       requestNotificationRefresh();
     }
   });
+  window.addEventListener('resize', requestNotificationsDropdownPosition);
+  window.addEventListener('scroll', requestNotificationsDropdownPosition, true);
 
   const unblockBadge = document.querySelector('[data-unblock-count]');
 

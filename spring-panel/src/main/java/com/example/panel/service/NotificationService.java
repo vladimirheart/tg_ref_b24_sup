@@ -57,6 +57,17 @@ public class NotificationService {
         });
     }
 
+    public long markAllAsRead(String userIdentity) {
+        String identity = normalizeIdentity(userIdentity);
+        List<Notification> unread = notificationRepository.findByUserIdentityAndIsReadFalseOrderByCreatedAtDesc(identity);
+        if (unread.isEmpty()) {
+            return 0;
+        }
+        unread.forEach(notification -> notification.setIsRead(Boolean.TRUE));
+        notificationRepository.saveAll(unread);
+        return unread.size();
+    }
+
     public void notifyUser(String userIdentity, String text, String url) {
         String identity = normalizeRecipient(userIdentity);
         if (!StringUtils.hasText(identity) || !StringUtils.hasText(text)) {

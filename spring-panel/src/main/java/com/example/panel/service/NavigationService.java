@@ -62,9 +62,11 @@ public class NavigationService {
             }
             avatar = user.getPhoto();
         }
+        String avatarUrl = resolveAvatarUrl(avatar);
         model.addAttribute("sidebarUserDisplayName", displayName);
         model.addAttribute("sidebarUserUsername", resolvedUsername);
-        model.addAttribute("sidebarUserAvatarUrl", resolveAvatarUrl(avatar));
+        model.addAttribute("sidebarUserAvatarUrl", avatarUrl);
+        model.addAttribute("sidebarUserHasAvatar", avatarUrl != null && !"/avatar_default.svg".equals(avatarUrl));
     }
 
     private String resolveAvatarUrl(String photo) {

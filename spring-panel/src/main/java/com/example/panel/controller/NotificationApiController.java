@@ -52,6 +52,14 @@ public class NotificationApiController {
         return Map.of("success", true);
     }
 
+    @PostMapping("/read-all")
+    public Map<String, Object> markAllAsRead(Authentication authentication) {
+        String identity = resolveIdentity(authentication);
+        long updated = notificationService.markAllAsRead(identity);
+        log.info("Marked {} notifications as read for {}", updated, identity);
+        return Map.of("success", true, "updated", updated);
+    }
+
     private String resolveIdentity(Authentication authentication) {
         if (authentication == null) {
             return "all";
