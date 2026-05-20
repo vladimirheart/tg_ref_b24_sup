@@ -61,9 +61,9 @@ public class AttachmentService {
     }
 
     public ResponseEntity<Resource> downloadAvatar(Authentication authentication, String avatarId) throws IOException {
-        requireAuthority(authentication, "PAGE_CLIENTS");
+        requireAuthenticated(authentication);
         Path resolved = resolveAttachment(avatarsRoot, "", avatarId);
-        return buildDownloadResponse(resolved, resolved.getFileName().toString());
+        return buildInlineResponse(resolved);
     }
 
     public AttachmentUploadMetadata storeKnowledgeBaseFile(Authentication authentication, MultipartFile file) throws IOException {
@@ -254,6 +254,12 @@ public class AttachmentService {
 
     private void requireAuthority(Authentication authentication, String authority) {
         if (!permissionService.hasAuthority(authentication, authority)) {
+            throw new SecurityException("Forbidden");
+        }
+    }
+
+    private void requireAuthenticated(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
             throw new SecurityException("Forbidden");
         }
     }

@@ -624,10 +624,22 @@ public class DialogLookupReadService {
         if (trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith("data:")) {
             return trimmed;
         }
+        if (trimmed.startsWith("/static/user_photos/") || trimmed.startsWith("static/user_photos/")
+                || trimmed.startsWith("/user_photos/") || trimmed.startsWith("user_photos/")) {
+            int slashIndex = trimmed.lastIndexOf('/');
+            String filename = slashIndex >= 0 ? trimmed.substring(slashIndex + 1) : trimmed;
+            return "/api/attachments/avatars/" + filename;
+        }
         if (trimmed.startsWith("/")) {
             return trimmed;
         }
-        return "/avatars/" + trimmed;
+        if (trimmed.startsWith("api/attachments/avatars/")) {
+            return "/" + trimmed;
+        }
+        if (trimmed.startsWith("avatars/")) {
+            return "/api/attachments/" + trimmed;
+        }
+        return "/api/attachments/avatars/" + trimmed;
     }
 
     private record ResponsibleProfile(String displayName, String avatarUrl) {

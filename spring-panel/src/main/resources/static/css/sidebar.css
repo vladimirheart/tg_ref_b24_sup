@@ -202,6 +202,25 @@ body.with-sidebar.sidebar-hovering {
   margin-top: 2px;
 }
 
+.sidebar-runtime-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 16px;
+  background: color-mix(in srgb, white 70%, var(--color-surface));
+  border: 1px solid color-mix(in srgb, var(--color-border) 10%, transparent);
+}
+
+.sidebar-runtime-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--color-text-muted);
+}
+
 .sidebar-actions {
   display: flex;
   align-items: center;
@@ -474,6 +493,15 @@ body.with-sidebar.sidebar-hovering {
 .sidebar.collapsed:not(.hovering) .sidebar-logout-btn {
   width: 48px;
   height: 48px;
+}
+
+.sidebar.collapsed:not(.hovering) .sidebar-runtime-strip {
+  justify-content: center;
+  padding-inline: 8px;
+}
+
+.sidebar.collapsed:not(.hovering) .sidebar-runtime-label {
+  display: none;
 }
 
 .sidebar.collapsed:not(.hovering) .sidebar-footer-actions {

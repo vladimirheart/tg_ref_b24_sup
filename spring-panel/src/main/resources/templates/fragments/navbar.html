@@ -20,12 +20,20 @@
                 </div>
                 <div class="sidebar-user-card sidebar-user-card--header" th:if="${#authentication?.name}">
                     <div class="sidebar-user-avatar">
-                        <img th:src="${sidebarUserAvatarUrl}" alt="Аватар" loading="lazy" decoding="async"/>
+                        <img th:src="${sidebarUserAvatarUrl}"
+                             alt="Аватар"
+                             loading="lazy"
+                             decoding="async"
+                             onerror="this.onerror=null;this.src='/avatar_default.svg';"/>
                     </div>
                     <div class="sidebar-user-meta">
                         <span class="sidebar-user-name" th:text="${sidebarUserDisplayName}">Пользователь</span>
                         <span class="sidebar-user-username" th:text="${sidebarUserUsername}"></span>
                     </div>
+                </div>
+                <div class="sidebar-runtime-strip">
+                    <span class="sidebar-runtime-label">Боты</span>
+                    <span class="sidebar-bot-mini-indicators" data-sidebar-bot-mini-indicators hidden aria-label="Статусы ботов"></span>
                 </div>
             </div>
             <div class="sidebar-actions" id="notify-bell-wrapper">
@@ -126,10 +134,7 @@
                th:href="@{/channels}">
                 <span class="icon" aria-hidden="true">📡</span>
                 <span class="label">
-                    <span class="nav-label-row">
-                        <span class="nav-label-main">Каналы</span>
-                        <span class="sidebar-bot-mini-indicators" data-sidebar-bot-mini-indicators hidden aria-label="Статусы ботов"></span>
-                    </span>
+                    <span class="nav-label-main">Каналы</span>
                     <span class="nav-label-sub">Telegram, VK, MAX и маршруты</span>
                 </span>
             </a>
