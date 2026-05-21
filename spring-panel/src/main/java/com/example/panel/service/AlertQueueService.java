@@ -11,8 +11,11 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -24,6 +27,7 @@ import java.util.Set;
 public class AlertQueueService {
 
     private static final Logger log = LoggerFactory.getLogger(AlertQueueService.class);
+    private static final DateTimeFormatter LOCAL_TIMESTAMP_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     private final JdbcTemplate usersJdbcTemplate;
     private final NotificationService notificationService;
@@ -63,7 +67,7 @@ public class AlertQueueService {
         if (channel == null || !StringUtils.hasText(ticketId)) {
             return false;
         }
-        String text = "РќРѕРІРѕРµ СЃРѕРѕР±С‰РµРЅРёРµ РІ РѕР±СЂР°С‰РµРЅРёРё " + ticketId;
+        String text = "Новое сообщение в обращении " + ticketId;
         if (StringUtils.hasText(previewText)) {
             text += ": " + trimPreview(previewText);
         }
@@ -228,7 +232,7 @@ public class AlertQueueService {
         try {
             return new HashSet<>(usersJdbcTemplate.query(
                     "PRAGMA table_info(users)",
-                    (rs, rowNum) -> rs.getString("name")
+                    (rs, rowNum) -> rs.getString("name").toLowerCase(Locale.ROOT)
             ));
         } catch (DataAccessException ex) {
             log.warn("Unable to inspect users schema for alert routing: {}", ex.getMessage());
@@ -243,6 +247,14 @@ public class AlertQueueService {
         try {
             return OffsetDateTime.parse(raw.trim());
         } catch (Exception ignored) {
+        }
+        try {
+            return OffsetDateTime.parse(raw.trim().replace(' ', 'T') + "Z");
+        } catch (DateTimeParseException ignored) {
+        }
+        try {
+            return LocalDateTime.parse(raw.trim().replace('T', ' '), LOCAL_TIMESTAMP_FORMATTER).atOffset(ZoneOffset.UTC);
+        } catch (DateTimeParseException ignored) {
             return null;
         }
     }

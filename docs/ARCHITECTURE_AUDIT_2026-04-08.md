@@ -843,6 +843,14 @@ integration-сценария поверх users/settings runtime boundary всё
   `DialogLookupReadService` (`usersJdbcTemplate.query(...)`), чтобы
   dialog list/details enrichment по responsible profiles снова стабильно
   проходил в live SQLite integration сценариях.
+- следующим alert/routing hardening пакетом добран уже соседний
+  `NotificationRoutingService` / `AlertQueueService` слой: добавлены
+  dedicated service tests на `employees_only`, `department_except`,
+  `online_only_fallback_all` и legacy `alertQueue` routing, исправлен
+  mojibake в incoming-client alert text, а local SQLite timestamps теперь
+  корректно участвуют в online-recipient filtering. По пути снят ещё один
+  `JdbcTemplate.query(...)` ambiguous compile-blocker в
+  `NotificationRoutingService`.
 - `DialogAiOpsController` теперь прикрыт не только по основным happy/error
   flows, но и по alias/null-body/default-path сценариям, что уменьшает риск
   regressions в transport-layer normalisation.

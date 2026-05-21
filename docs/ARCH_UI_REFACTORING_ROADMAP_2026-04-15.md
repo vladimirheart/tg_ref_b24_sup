@@ -758,6 +758,16 @@
   practical focus здесь уже логично смещать не на ещё один recipient
   helper, а на `NotificationRoutingService` / `AlertQueueService`
   continuity и escalation audience hardening.
+- этот следующий practical focus теперь закрыт отдельным hardening пакетом:
+  добавлены `AlertQueueServiceTest` и `NotificationRoutingServiceTest` с
+  живыми SQLite сценариями для `employees_only`, `department_except`,
+  `all_operators`, `online_only_fallback_all` и legacy `alertQueue`
+  routing. Заодно исправлены readable incoming-client alert text,
+  local-timestamp parsing для online filtering и ещё один
+  `JdbcTemplate.query(...)` ambiguous compile-blocker в
+  `NotificationRoutingService`. Следующий logical focus уже смещается на
+  `OperatorNotificationWatcher` / escalation audience continuity в более
+  широком runtime orchestration слое.
 - этот же smoke-слой расширен на detail/subpage contract:
   `ai-ops`, `unblock requests`, `users/detail` и оба passport editor route
   (`/object-passports/new`, `/object-passports/{id}`) теперь тоже прикрыты

@@ -230,19 +230,17 @@ public class NotificationRoutingService {
             params.add(department);
         }
         try {
-            source.query(sql.toString(), rs -> {
-                while (rs.next()) {
-                    String username = normalizeIdentity(rs.getString("username"));
-                    if (!StringUtils.hasText(username)) {
-                        continue;
-                    }
-                    boolean enabled = rs.getBoolean("enabled");
-                    boolean blocked = rs.getBoolean("is_blocked");
-                    if (!enabled || blocked) {
-                        continue;
-                    }
-                    target.putIfAbsent(username, new UserSnapshot(username, parseDate(rs.getString("last_portal_activity_at"))));
+            source.query(sql.toString(), (org.springframework.jdbc.core.RowCallbackHandler) rs -> {
+                String username = normalizeIdentity(rs.getString("username"));
+                if (!StringUtils.hasText(username)) {
+                    return;
                 }
+                boolean enabled = rs.getBoolean("enabled");
+                boolean blocked = rs.getBoolean("is_blocked");
+                if (!enabled || blocked) {
+                    return;
+                }
+                target.putIfAbsent(username, new UserSnapshot(username, parseDate(rs.getString("last_portal_activity_at"))));
             }, params.toArray());
         } catch (DataAccessException ex) {
             log.warn("Unable to load notification-routing users: {}", ex.getMessage());
@@ -251,7 +249,10 @@ public class NotificationRoutingService {
 
     private Set<String> loadUsersTableColumns(JdbcTemplate source) {
         try {
-            return new HashSet<>(source.query("PRAGMA table_info(users)", (rs, rowNum) -> rs.getString("name")));
+            return new HashSet<>(source.query(
+                    "PRAGMA table_info(users)",
+                    (rs, rowNum) -> rs.getString("name").toLowerCase(Locale.ROOT)
+            ));
         } catch (DataAccessException ex) {
             return Set.of();
         }
