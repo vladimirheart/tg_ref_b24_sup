@@ -794,6 +794,13 @@
   URLs и не полагаются на позднюю post-save normalisation. Рядом в корневой
   `.gitignore` добавлен `/logs/`, чтобы локальные sync/runtime прогоны не
   загрязняли рабочее дерево лишним шумом.
+- следующим service-level continuity шагом добран уже сам
+  `DialogQuickActionService`: добавлен dedicated regression net на
+  `sendReply`, `resolveTicket`, `reopenTicket` и `takeTicket`, который
+  фиксирует `clearProcessing`, learning handoff в AI assistant,
+  resolved/reopened notification side-effects и participant-notification
+  continuity. Это снимает ещё один orchestration-risk, который раньше
+  держался в основном на controller-contract и public-form smoke.
 - этот же smoke-слой расширен на detail/subpage contract:
   `ai-ops`, `unblock requests`, `users/detail` и оба passport editor route
   (`/object-passports/new`, `/object-passports/{id}`) теперь тоже прикрыты

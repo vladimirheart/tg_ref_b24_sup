@@ -879,6 +879,13 @@ integration-сценария поверх users/settings runtime boundary всё
   transport contract уже на источнике событий. Параллельно корневой
   `.gitignore` теперь игнорирует `/logs/`, чтобы локальные Maven/runtime
   прогоны меньше шумели при синхронизации рабочего дерева.
+- следующим orchestration follow-up пакетом `DialogQuickActionService`
+  получил dedicated service-level regression net на `sendReply`,
+  `resolveTicket`, `reopenTicket` и `takeTicket`: теперь quick-action
+  lifecycle закреплён не только через controller/WebMvc и
+  `PublicFormFlowSmokeIntegrationTest`, но и на самом orchestration слое с
+  явной проверкой `clearProcessing`, operator-feedback handoff,
+  resolved/reopened notifications и participant notification continuity.
 - `DialogAiOpsController` теперь прикрыт не только по основным happy/error
   flows, но и по alias/null-body/default-path сценариям, что уменьшает риск
   regressions в transport-layer normalisation.
