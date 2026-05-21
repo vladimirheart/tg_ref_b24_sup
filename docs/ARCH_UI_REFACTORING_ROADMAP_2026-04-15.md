@@ -809,6 +809,13 @@
   participant/reassign веток. После этого следующий practical focus здесь уже
   смещён в integration/runtime continuity для `edit/delete` и смежных dialog
   side-effects, а не в базовые unit orchestration branches.
+- следующим bounded follow-up шагом quick-action service-level net добран и
+  по `editReply`/`deleteReply`: success/failure ветки теперь отдельно
+  фиксируют dialog-route notification side-effects для message mutation
+  сценариев. После этого следующий practical focus честно смещён уже в
+  integration/runtime continuity вокруг quick-action side-effects на живой
+  dialog history, participant audience и соседних transport bridges, а не в
+  дальнейшее наращивание unit-level branch coverage.
 - этот же smoke-слой расширен на detail/subpage contract:
   `ai-ops`, `unblock requests`, `users/detail` и оба passport editor route
   (`/object-passports/new`, `/object-passports/{id}`) теперь тоже прикрыты

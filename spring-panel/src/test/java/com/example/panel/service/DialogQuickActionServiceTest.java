@@ -91,6 +91,126 @@ class DialogQuickActionServiceTest {
     }
 
     @Test
+    void editReplyNotifiesParticipantsWhenUpdateSucceeds() {
+        DialogReplyService dialogReplyService = mock(DialogReplyService.class);
+        NotificationService notificationService = mock(NotificationService.class);
+
+        DialogQuickActionService service = new DialogQuickActionService(
+                mock(DialogTicketLifecycleService.class),
+                mock(DialogLookupReadService.class),
+                mock(DialogResponsibilityService.class),
+                mock(DialogParticipantService.class),
+                dialogReplyService,
+                mock(DialogNotificationService.class),
+                mock(DialogAiAssistantService.class),
+                notificationService,
+                mock(AttachmentService.class)
+        );
+
+        when(dialogReplyService.editOperatorMessage( "T-702A", 7001L, "Уточненный ответ", "operator"))
+                .thenReturn(DialogReplyService.DialogReplyResult.success("2026-05-21T12:05:00Z", 7001L, "operator"));
+        when(notificationService.buildDialogUrl("T-702A")).thenReturn("/dialogs/T-702A");
+
+        DialogReplyService.DialogReplyResult result =
+                service.editReply("T-702A", 7001L, "Уточненный ответ", "operator");
+
+        assertThat(result.success()).isTrue();
+        verify(notificationService).notifyDialogParticipants(
+                "T-702A",
+                "Сообщение в обращении T-702A было отредактировано",
+                "/dialogs/T-702A",
+                "operator"
+        );
+    }
+
+    @Test
+    void editReplyDoesNotNotifyParticipantsWhenUpdateFails() {
+        DialogReplyService dialogReplyService = mock(DialogReplyService.class);
+        NotificationService notificationService = mock(NotificationService.class);
+
+        DialogQuickActionService service = new DialogQuickActionService(
+                mock(DialogTicketLifecycleService.class),
+                mock(DialogLookupReadService.class),
+                mock(DialogResponsibilityService.class),
+                mock(DialogParticipantService.class),
+                dialogReplyService,
+                mock(DialogNotificationService.class),
+                mock(DialogAiAssistantService.class),
+                notificationService,
+                mock(AttachmentService.class)
+        );
+
+        when(dialogReplyService.editOperatorMessage("T-702B", 7002L, "Не обновилось", "operator"))
+                .thenReturn(DialogReplyService.DialogReplyResult.error("transport_error"));
+
+        DialogReplyService.DialogReplyResult result =
+                service.editReply("T-702B", 7002L, "Не обновилось", "operator");
+
+        assertThat(result.success()).isFalse();
+        verify(notificationService, never()).notifyDialogParticipants(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void deleteReplyNotifiesParticipantsWhenDeleteSucceeds() {
+        DialogReplyService dialogReplyService = mock(DialogReplyService.class);
+        NotificationService notificationService = mock(NotificationService.class);
+
+        DialogQuickActionService service = new DialogQuickActionService(
+                mock(DialogTicketLifecycleService.class),
+                mock(DialogLookupReadService.class),
+                mock(DialogResponsibilityService.class),
+                mock(DialogParticipantService.class),
+                dialogReplyService,
+                mock(DialogNotificationService.class),
+                mock(DialogAiAssistantService.class),
+                notificationService,
+                mock(AttachmentService.class)
+        );
+
+        when(dialogReplyService.deleteOperatorMessage("T-702C", 7003L, "operator"))
+                .thenReturn(DialogReplyService.DialogReplyResult.success("2026-05-21T12:06:00Z", 7003L, "operator"));
+        when(notificationService.buildDialogUrl("T-702C")).thenReturn("/dialogs/T-702C");
+
+        DialogReplyService.DialogReplyResult result =
+                service.deleteReply("T-702C", 7003L, "operator");
+
+        assertThat(result.success()).isTrue();
+        verify(notificationService).notifyDialogParticipants(
+                "T-702C",
+                "Сообщение в обращении T-702C было удалено",
+                "/dialogs/T-702C",
+                "operator"
+        );
+    }
+
+    @Test
+    void deleteReplyDoesNotNotifyParticipantsWhenDeleteFails() {
+        DialogReplyService dialogReplyService = mock(DialogReplyService.class);
+        NotificationService notificationService = mock(NotificationService.class);
+
+        DialogQuickActionService service = new DialogQuickActionService(
+                mock(DialogTicketLifecycleService.class),
+                mock(DialogLookupReadService.class),
+                mock(DialogResponsibilityService.class),
+                mock(DialogParticipantService.class),
+                dialogReplyService,
+                mock(DialogNotificationService.class),
+                mock(DialogAiAssistantService.class),
+                notificationService,
+                mock(AttachmentService.class)
+        );
+
+        when(dialogReplyService.deleteOperatorMessage("T-702D", 7004L, "operator"))
+                .thenReturn(DialogReplyService.DialogReplyResult.error("transport_error"));
+
+        DialogReplyService.DialogReplyResult result =
+                service.deleteReply("T-702D", 7004L, "operator");
+
+        assertThat(result.success()).isFalse();
+        verify(notificationService, never()).notifyDialogParticipants(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
     void resolveTicketNotifiesResolvedLifecycleWhenUpdated() {
         DialogTicketLifecycleService dialogTicketLifecycleService = mock(DialogTicketLifecycleService.class);
         DialogNotificationService dialogNotificationService = mock(DialogNotificationService.class);

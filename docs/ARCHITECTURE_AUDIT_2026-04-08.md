@@ -894,6 +894,14 @@ integration-сценария поверх users/settings runtime boundary всё
   participant/reassign веток, а remaining practical focus смещён уже не в
   базовые orchestration branches, а в integration/runtime continuity для
   `edit/delete` и соседних dialog-side effects.
+- следующим follow-up шагом этот remaining хвост тоже закрыт на service-level:
+  `DialogQuickActionServiceTest` теперь дополнительно прикрывает
+  `editReply` и `deleteReply` success/failure ветки, так что quick-action
+  orchestration net охватывает уже и message mutation side-effects через
+  dialog-route notifications. После этого следующий practical focus здесь
+  смещён уже не в расширение unit coverage, а в более живой
+  integration/runtime continuity для quick-action side-effects на реальном
+  dialog history и participant audience.
 - `DialogAiOpsController` теперь прикрыт не только по основным happy/error
   flows, но и по alias/null-body/default-path сценариям, что уменьшает риск
   regressions в transport-layer normalisation.
