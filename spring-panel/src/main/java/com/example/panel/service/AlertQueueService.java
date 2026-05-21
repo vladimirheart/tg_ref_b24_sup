@@ -41,14 +41,14 @@ public class AlertQueueService {
         this.objectMapper = objectMapper;
     }
 
-    public void notifyQueueForNewPublicAppeal(Channel channel, String ticketId, String previewText) {
+    public boolean notifyQueueForNewPublicAppeal(Channel channel, String ticketId, String previewText) {
         if (channel == null) {
-            return;
+            return false;
         }
         String channelLabel = StringUtils.hasText(channel.getChannelName()) ? channel.getChannelName() : "Канал";
         String text = "Новое обращение (" + channelLabel + "): " + trimPreview(previewText);
         String url = StringUtils.hasText(ticketId) ? "/dialogs?ticketId=" + ticketId : "/dialogs";
-        notifyChannelEvent(channel, AlertEvent.NEW_PUBLIC_APPEAL, text, url);
+        return notifyChannelEvent(channel, AlertEvent.NEW_PUBLIC_APPEAL, text, url);
     }
 
     public boolean notifyFirstResponseOverdue(Channel channel, String ticketId, long overdueMinutes) {

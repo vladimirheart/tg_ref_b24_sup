@@ -79,7 +79,7 @@ public class OperatorNotificationWatcher {
                  WHERE id > ?
                  ORDER BY id ASC
                 """,
-                rs -> {
+                (org.springframework.jdbc.core.ResultSetExtractor<Void>) rs -> {
                     long maxSeen = afterId;
                     while (rs.next()) {
                         long id = rs.getLong("id");
@@ -113,15 +113,18 @@ public class OperatorNotificationWatcher {
                         boolean initialPublicFormMessage = dialogAuditService.hasSuccessfulDialogAction(ticketId, "public_form_submit")
                                 && isFirstExternalMessage(ticketId, id);
                         if (initialPublicFormMessage) {
-                            String text = "Новое обращение " + ticketId;
-                            if (StringUtils.hasText(message)) {
-                                text += ": " + truncate(message, 100);
+                            boolean alreadyNotified = dialogAuditService.hasSuccessfulDialogAction(ticketId, "public_form_new_appeal_notification");
+                            if (!alreadyNotified) {
+                                String text = "Новое обращение " + ticketId;
+                                if (StringUtils.hasText(message)) {
+                                    text += ": " + truncate(message, 100);
+                                }
+                                notificationService.notifyAllOperators(
+                                        text,
+                                        "/dialogs?ticketId=" + ticketId,
+                                        null
+                                );
                             }
-                            notificationService.notifyAllOperators(
-                                    text,
-                                    "/dialogs?ticketId=" + ticketId,
-                                    null
-                            );
                             dialogAiAssistantService.processIncomingClientMessage(ticketId, message, messageType, attachment);
                             continue;
                         }
@@ -142,6 +145,7 @@ public class OperatorNotificationWatcher {
                     if (maxSeen > afterId) {
                         lastChatHistoryId.set(maxSeen);
                     }
+                    return null;
                 },
                 afterId
         );
@@ -166,7 +170,7 @@ public class OperatorNotificationWatcher {
                 """;
         jdbcTemplate.query(
                 sql,
-                rs -> {
+                (org.springframework.jdbc.core.ResultSetExtractor<Void>) rs -> {
                     long maxSeen = afterId;
                     while (rs.next()) {
                         long id = rs.getLong("id");
@@ -192,6 +196,7 @@ public class OperatorNotificationWatcher {
                     if (maxSeen > afterId) {
                         lastFeedbackId.set(maxSeen);
                     }
+                    return null;
                 },
                 afterId
         );
@@ -252,13 +257,26 @@ public class OperatorNotificationWatcher {
                             continue;
                         }
                         boolean notified = alertQueueService.notifyFirstResponseOverdue(channel, ticketId, overdueMinutes);
+                        String auditDetail = "channel=" + channelId + ", overdue_minutes=" + overdueMinutes + ", threshold_minutes=" + targetMinutes;
+                        if (!notified) {
+                            Set<String> fallbackRecipients = notificationService.findAllOperatorRecipients();
+                            if (!fallbackRecipients.isEmpty()) {
+                                notificationService.notifyUsers(
+                                        fallbackRecipients,
+                                        buildFirstResponseOverdueText(channel, ticketId, overdueMinutes),
+                                        "/dialogs?ticketId=" + ticketId
+                                );
+                                notified = true;
+                                auditDetail += ", route=fallback_all_operators";
+                            }
+                        }
                         if (notified) {
                             dialogAuditService.logDialogActionAudit(
                                     ticketId,
                                     "notification_watcher",
                                     "first_response_overdue_notification",
                                     "success",
-                                    "channel=" + channelId + ", overdue_minutes=" + overdueMinutes + ", threshold_minutes=" + targetMinutes
+                                    auditDetail
                             );
                         }
                     }
@@ -433,5 +451,15 @@ public class OperatorNotificationWatcher {
             return value;
         }
         return value.substring(0, limit) + "...";
+    }
+
+    private String buildFirstResponseOverdueText(Channel channel, String ticketId, long overdueMinutes) {
+        String channelLabel = channel != null && StringUtils.hasText(channel.getChannelName())
+                ? channel.getChannelName()
+                : "Канал";
+        String overdueLabel = overdueMinutes > 0
+                ? " Просрочка: " + overdueMinutes + " мин."
+                : "";
+        return "Первая реакция просрочена (" + channelLabel + ") в обращении " + ticketId + "." + overdueLabel;
     }
 }

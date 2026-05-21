@@ -424,6 +424,49 @@ class SupportPanelIntegrationTests {
     }
 
     @Test
+    void publicFormInitialSubmitDoesNotDuplicateNewAppealNotificationsAfterWatcherPass() {
+        insertOperatorUser("watcher_initial");
+        jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id) VALUES (63, 'web-initial', 'Веб-форма', 1, CURRENT_TIMESTAMP, 'web-initial')");
+
+        PublicFormSessionDto session = publicFormService.createSession(
+                "web-initial",
+                new PublicFormSubmission("Нужно первое уведомление без дубля", "Анна", "+79991234567", "anna", null, Map.of(), null),
+                "watcher-initial-ip"
+        );
+
+        Integer initialNotificationCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM notifications WHERE url = ? AND text LIKE 'Новое обращение%'",
+                Integer.class,
+                "/dialogs?ticketId=" + session.ticketId()
+        );
+        Integer initialAlertAuditCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM dialog_action_audit WHERE ticket_id = ? AND action = ? AND result = 'success'",
+                Integer.class,
+                session.ticketId(),
+                "public_form_new_appeal_notification"
+        );
+
+        operatorNotificationWatcher.watch();
+
+        Integer afterWatcherNotificationCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM notifications WHERE url = ? AND text LIKE 'Новое обращение%'",
+                Integer.class,
+                "/dialogs?ticketId=" + session.ticketId()
+        );
+        Integer watcherStyleDuplicateCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM notifications WHERE url = ? AND text LIKE ?",
+                Integer.class,
+                "/dialogs?ticketId=" + session.ticketId(),
+                "Новое обращение " + session.ticketId() + ":%"
+        );
+
+        assertThat(initialNotificationCount).isGreaterThanOrEqualTo(1);
+        assertThat(initialAlertAuditCount).isEqualTo(1);
+        assertThat(afterWatcherNotificationCount).isEqualTo(initialNotificationCount);
+        assertThat(watcherStyleDuplicateCount).isZero();
+    }
+
+    @Test
     void publicFormDialogSupportsOperatorRepliesThroughSharedLinkHistory() {
         jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, platform, is_active, created_at, public_id) VALUES (52, 'web-shared', 'Внешняя форма', 'vk', 1, CURRENT_TIMESTAMP, 'web-shared')");
         PublicFormSessionDto session = publicFormService.createSession(
