@@ -8198,7 +8198,7 @@
         }
       }
       updateDetailsResponsible(responsibleLabel, {
-        rawResponsible,
+        rawResponsible: responsibleRaw,
         avatarUrl: responsibleAvatarUrl,
       });
       updateSummaryCategories(categoriesLabel || '—');
