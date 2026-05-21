@@ -764,7 +764,7 @@
       text: typeof item.text === 'string' ? item.text : '',
       url: typeof item.url === 'string' ? item.url : '',
       created_at: item.created_at || item.createdAt || '',
-      is_read: item.is_read === true || item.is_read === 1,
+      is_read: item.is_read === true || item.is_read === 1 || item.read === true || item.read === 1,
     };
   }
 
@@ -803,16 +803,35 @@
     const trimmed = url.trim();
     if (!trimmed) return;
     try {
+      const legacyMatch = trimmed.match(/(?:^|\/)dialogs\?[^#]*ticketId=([^&#]+)/i);
+      if (legacyMatch?.[1]) {
+        const ticketId = decodeURIComponent(legacyMatch[1]);
+        const dialogsTarget = `/dialogs/${encodeURIComponent(ticketId)}`;
+        const onDialogsPage = window.location.pathname === '/' || window.location.pathname === '/dialogs' || window.location.pathname.startsWith('/dialogs/');
+        if (onDialogsPage && typeof window.openDialogDetailsByTicketId === 'function') {
+          if (window.history?.pushState) {
+            window.history.pushState({ ticketId }, '', dialogsTarget);
+          }
+          window.openDialogDetailsByTicketId(ticketId);
+          return;
+        }
+        window.location.href = dialogsTarget;
+        return;
+      }
       const absolute = new URL(trimmed, window.location.origin);
       const hash = absolute.hash || '';
       const sameOrigin = absolute.origin === window.location.origin;
       if (hash.startsWith('#open=ticket:')) {
-        const targetPath = absolute.pathname || '/';
-        const destination = `${targetPath}${absolute.search || ''}${hash}`;
-        if (window.location.pathname !== targetPath) {
-          window.location.href = destination;
+        const ticketId = hash.slice('#open=ticket:'.length);
+        const dialogsTarget = `/dialogs/${encodeURIComponent(ticketId)}`;
+        const onDialogsPage = window.location.pathname === '/' || window.location.pathname === '/dialogs' || window.location.pathname.startsWith('/dialogs/');
+        if (onDialogsPage && typeof window.openDialogDetailsByTicketId === 'function') {
+          if (window.history?.pushState) {
+            window.history.pushState({ ticketId }, '', dialogsTarget);
+          }
+          window.openDialogDetailsByTicketId(ticketId);
         } else {
-          window.location.hash = hash;
+          window.location.href = dialogsTarget;
         }
         return;
       }

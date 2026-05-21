@@ -10,17 +10,45 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.net.URLDecoder;
+import java.net.URLEncoder;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 @Transactional
 public class NotificationService {
+
+    private static final Charset WINDOWS_1251 = Charset.forName("windows-1251");
+    private static final Pattern CP1251_UTF8_MOJIBAKE = Pattern.compile("(?:Р.|С.){2,}");
+    private static final Pattern LATIN1_UTF8_MOJIBAKE = Pattern.compile("(?:Ð.|Ñ.){2,}");
+    private static final Pattern ASCII_P_MOJIBAKE = Pattern.compile("(?:P[A-Za-z%0-9]{1,3}){4,}");
+    private static final Map<String, String> LEGACY_NOTIFICATION_REPLACEMENTS = Map.ofEntries(
+            Map.entry("РќРѕРІРѕРµ РѕР±СЂР°С‰РµРЅРёРµ", "Новое обращение"),
+            Map.entry("РќРѕРІРѕРµ СЃРѕРѕР±С‰РµРЅРёРµ РІ РѕР±СЂР°С‰РµРЅРёРё", "Новое сообщение в обращении"),
+            Map.entry("РќРѕРІР°СЏ РѕС†РµРЅРєР° РїРѕ РѕР±СЂР°С‰РµРЅРёСЋ", "Новая оценка по обращению"),
+            Map.entry("Р”РёР°Р»РѕРі", "Диалог"),
+            Map.entry("РџРµСЂРІР°СЏ СЂРµР°РєС†РёСЏ РїСЂРѕСЃСЂРѕС‡РµРЅР°", "Первая реакция просрочена"),
+            Map.entry("РџСЂРѕСЃСЂРѕС‡РєР°", "Просрочка"),
+            Map.entry("РљР°РЅР°Р»", "Канал"),
+            Map.entry("Р±РµР· С‚РµРєСЃС‚Р°", "без текста"),
+            Map.entry("AI-Р°РіРµРЅС‚ СЌСЃРєР°Р»РёСЂРѕРІР°Р» РѕР±СЂР°С‰РµРЅРёРµ", "AI-агент эскалировал обращение"),
+            Map.entry("Р’РѕРїСЂРѕСЃ РєР»РёРµРЅС‚Р°", "Вопрос клиента"),
+            Map.entry("РћР±СЂР°С‰РµРЅРёРµ", "Обращение"),
+            Map.entry("РІР·СЏС‚Рѕ РІ СЂР°Р±РѕС‚Сѓ РѕРїРµСЂР°С‚РѕСЂРѕРј", "взято в работу оператором"),
+            Map.entry("Р°РІС‚РѕРјР°С‚РёС‡РµСЃРєРё Р·Р°РєСЂС‹С‚ РёР·-Р·Р° РѕС‚СЃСѓС‚СЃС‚РІРёСЏ Р°РєС‚РёРІРЅРѕСЃС‚Рё", "автоматически закрыт из-за отсутствия активности"),
+            Map.entry("РјРёРЅ.", "мин.")
+    );
 
     private final NotificationRepository notificationRepository;
     private final JdbcTemplate jdbcTemplate;
@@ -188,8 +216,8 @@ public class NotificationService {
     private NotificationDto toDto(Notification entity) {
         return new NotificationDto(
                 entity.getId(),
-                entity.getText(),
-                entity.getUrl(),
+                normalizeNotificationText(entity.getText()),
+                normalizeUrl(entity.getUrl()),
                 Boolean.TRUE.equals(entity.getIsRead()),
                 entity.getCreatedAt()
         );
@@ -238,16 +266,166 @@ public class NotificationService {
     }
 
     private String normalizeUrl(String url) {
-        return StringUtils.hasText(url) ? url.trim() : null;
+        if (!StringUtils.hasText(url)) {
+            return null;
+        }
+        String trimmed = url.trim();
+        String dialogTicketId = extractDialogTicketId(trimmed);
+        if (dialogTicketId != null) {
+            return "/dialogs/" + URLEncoder.encode(dialogTicketId, StandardCharsets.UTF_8);
+        }
+        return trimmed;
     }
 
     private void saveNotification(String identity, String text, String url) {
         Notification notification = new Notification();
         notification.setUserIdentity(identity);
-        notification.setText(text);
-        notification.setUrl(url);
+        notification.setText(normalizeNotificationText(text));
+        notification.setUrl(normalizeUrl(url));
         notification.setIsRead(Boolean.FALSE);
         notification.setCreatedAt(OffsetDateTime.now(ZoneOffset.UTC));
         notificationRepository.save(notification);
+    }
+
+    private String normalizeNotificationText(String text) {
+        if (!StringUtils.hasText(text)) {
+            return text;
+        }
+        String current = text.trim();
+        for (Map.Entry<String, String> entry : LEGACY_NOTIFICATION_REPLACEMENTS.entrySet()) {
+            current = current.replace(entry.getKey(), entry.getValue());
+        }
+        current = repairMojibakeSegments(current, CP1251_UTF8_MOJIBAKE, WINDOWS_1251);
+        current = repairMojibakeSegments(current, LATIN1_UTF8_MOJIBAKE, StandardCharsets.ISO_8859_1);
+        if (!looksLikeMojibake(current)) {
+            return current;
+        }
+        String repaired = selectBestDecoding(current,
+                decodeWithCharset(current, WINDOWS_1251),
+                decodeWithCharset(current, StandardCharsets.ISO_8859_1));
+        if (looksLikeMojibake(repaired)) {
+            String secondPass = selectBestDecoding(repaired, decodeWithCharset(repaired, WINDOWS_1251));
+            if (qualityScore(secondPass) > qualityScore(repaired)) {
+                repaired = secondPass;
+            }
+        }
+        return repaired;
+    }
+
+    private String repairMojibakeSegments(String value, Pattern pattern, Charset sourceCharset) {
+        if (!StringUtils.hasText(value)) {
+            return value;
+        }
+        Matcher matcher = pattern.matcher(value);
+        StringBuffer buffer = new StringBuffer();
+        boolean replaced = false;
+        while (matcher.find()) {
+            String source = matcher.group();
+            String decoded = decodeWithCharset(source, sourceCharset);
+            if (qualityScore(decoded) > qualityScore(source)) {
+                matcher.appendReplacement(buffer, Matcher.quoteReplacement(decoded));
+                replaced = true;
+            }
+        }
+        if (!replaced) {
+            return value;
+        }
+        matcher.appendTail(buffer);
+        return buffer.toString();
+    }
+
+    private String decodeWithCharset(String value, Charset sourceCharset) {
+        try {
+            return new String(value.getBytes(sourceCharset), StandardCharsets.UTF_8).trim();
+        } catch (Exception ex) {
+            return value;
+        }
+    }
+
+    private String selectBestDecoding(String original, String... candidates) {
+        String best = original;
+        int bestScore = qualityScore(original);
+        for (String candidate : candidates) {
+            int candidateScore = qualityScore(candidate);
+            if (candidateScore > bestScore) {
+                best = candidate;
+                bestScore = candidateScore;
+            }
+        }
+        return best;
+    }
+
+    private int qualityScore(String value) {
+        if (!StringUtils.hasText(value)) {
+            return Integer.MIN_VALUE / 4;
+        }
+        int score = 0;
+        for (char ch : value.toCharArray()) {
+            if (Character.UnicodeBlock.of(ch) == Character.UnicodeBlock.CYRILLIC) {
+                score += 3;
+            } else if (Character.isLetterOrDigit(ch)) {
+                score += 1;
+            } else if (Character.isWhitespace(ch) || ",.:;!?()[]{}-_/\\#".indexOf(ch) >= 0) {
+                score += 1;
+            }
+        }
+        if (CP1251_UTF8_MOJIBAKE.matcher(value).find()) {
+            score -= 30;
+        }
+        if (LATIN1_UTF8_MOJIBAKE.matcher(value).find()) {
+            score -= 30;
+        }
+        if (ASCII_P_MOJIBAKE.matcher(value).find()) {
+            score -= 30;
+        }
+        return score;
+    }
+
+    private boolean looksLikeMojibake(String value) {
+        if (!StringUtils.hasText(value)) {
+            return false;
+        }
+        return CP1251_UTF8_MOJIBAKE.matcher(value).find()
+                || LATIN1_UTF8_MOJIBAKE.matcher(value).find()
+                || ASCII_P_MOJIBAKE.matcher(value).find();
+    }
+
+    private String extractDialogTicketId(String url) {
+        if (!StringUtils.hasText(url)) {
+            return null;
+        }
+        String trimmed = url.trim();
+        if (trimmed.startsWith("#open=ticket:")) {
+            return trimToNull(trimmed.substring("#open=ticket:".length()));
+        }
+        int ticketIdIndex = trimmed.indexOf("ticketId=");
+        boolean dialogsLink = trimmed.startsWith("/dialogs?")
+                || trimmed.startsWith("dialogs?")
+                || trimmed.contains("/dialogs?");
+        if (!dialogsLink || ticketIdIndex < 0) {
+            return null;
+        }
+        String raw = trimmed.substring(ticketIdIndex + "ticketId=".length());
+        int ampIndex = raw.indexOf('&');
+        if (ampIndex >= 0) {
+            raw = raw.substring(0, ampIndex);
+        }
+        int hashIndex = raw.indexOf('#');
+        if (hashIndex >= 0) {
+            raw = raw.substring(0, hashIndex);
+        }
+        try {
+            return trimToNull(URLDecoder.decode(raw, StandardCharsets.UTF_8));
+        } catch (Exception ex) {
+            return trimToNull(raw);
+        }
+    }
+
+    private String trimToNull(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 }

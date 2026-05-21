@@ -13,6 +13,10 @@
         "/^git status --branch --verbose; git merge HEAD --no-commit --no-ff 2>/dev/null ; true; git rebase --show-current-patch 2>/dev/null ; true$/": {
             "approve": true,
             "matchCommandLine": true
+        },
+        "/^git status --short; git remote -v$/": {
+            "approve": true,
+            "matchCommandLine": true
         }
     }
 }
