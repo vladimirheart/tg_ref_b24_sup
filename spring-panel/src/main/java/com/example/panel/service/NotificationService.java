@@ -130,17 +130,24 @@ public class NotificationService {
             return Set.of();
         }
         Set<String> recipients = new LinkedHashSet<>();
-        jdbcTemplate.query(
+        String normalizedTicketId = ticketId.trim();
+        collectDialogRecipients(
                 "SELECT responsible FROM ticket_responsibles WHERE ticket_id = ?",
-                (org.springframework.jdbc.core.RowCallbackHandler) rs ->
-                        recipients.addAll(splitIdentities(rs.getString("responsible"))),
-                ticketId.trim()
+                "responsible",
+                normalizedTicketId,
+                recipients
         );
-        jdbcTemplate.query(
+        collectDialogRecipients(
                 "SELECT user_identity FROM ticket_active WHERE ticket_id = ?",
-                (org.springframework.jdbc.core.RowCallbackHandler) rs ->
-                        recipients.addAll(splitIdentities(rs.getString("user_identity"))),
-                ticketId.trim()
+                "user_identity",
+                normalizedTicketId,
+                recipients
+        );
+        collectDialogRecipients(
+                "SELECT username FROM ticket_participants WHERE ticket_id = ?",
+                "username",
+                normalizedTicketId,
+                recipients
         );
         return recipients;
     }
@@ -271,6 +278,22 @@ public class NotificationService {
             }
         }
         return normalized;
+    }
+
+    private void collectDialogRecipients(String sql,
+                                         String column,
+                                         String ticketId,
+                                         Set<String> recipients) {
+        try {
+            jdbcTemplate.query(
+                    sql,
+                    (org.springframework.jdbc.core.RowCallbackHandler) rs ->
+                            recipients.addAll(splitIdentities(rs.getString(column))),
+                    ticketId
+            );
+        } catch (Exception ex) {
+            // ignore missing optional tables for legacy databases
+        }
     }
 
     private String normalizeUrl(String url) {

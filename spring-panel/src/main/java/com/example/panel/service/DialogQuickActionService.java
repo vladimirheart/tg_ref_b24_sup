@@ -1,6 +1,8 @@
 package com.example.panel.service;
 
 import com.example.panel.model.dialog.DialogListItem;
+import com.example.panel.model.dialog.DialogOperatorOption;
+import com.example.panel.model.dialog.DialogParticipantDto;
 import com.example.panel.storage.AttachmentService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,6 +24,7 @@ public class DialogQuickActionService {
     private final DialogTicketLifecycleService dialogTicketLifecycleService;
     private final DialogLookupReadService dialogLookupReadService;
     private final DialogResponsibilityService dialogResponsibilityService;
+    private final DialogParticipantService dialogParticipantService;
     private final DialogReplyService dialogReplyService;
     private final DialogNotificationService dialogNotificationService;
     private final DialogAiAssistantService dialogAiAssistantService;
@@ -31,6 +34,7 @@ public class DialogQuickActionService {
     public DialogQuickActionService(DialogTicketLifecycleService dialogTicketLifecycleService,
                                     DialogLookupReadService dialogLookupReadService,
                                     DialogResponsibilityService dialogResponsibilityService,
+                                    DialogParticipantService dialogParticipantService,
                                     DialogReplyService dialogReplyService,
                                     DialogNotificationService dialogNotificationService,
                                     DialogAiAssistantService dialogAiAssistantService,
@@ -39,6 +43,7 @@ public class DialogQuickActionService {
         this.dialogTicketLifecycleService = dialogTicketLifecycleService;
         this.dialogLookupReadService = dialogLookupReadService;
         this.dialogResponsibilityService = dialogResponsibilityService;
+        this.dialogParticipantService = dialogParticipantService;
         this.dialogReplyService = dialogReplyService;
         this.dialogNotificationService = dialogNotificationService;
         this.dialogAiAssistantService = dialogAiAssistantService;
@@ -187,6 +192,7 @@ public class DialogQuickActionService {
             return Optional.empty();
         }
         dialogResponsibilityService.assignResponsibleIfMissingOrRedirected(ticketId, operator, operator);
+        dialogParticipantService.removeParticipant(ticketId, operator);
         dialogAiAssistantService.clearProcessing(ticketId, "operator_take", null);
         Optional<DialogListItem> updated = dialogLookupReadService.findDialog(ticketId, operator);
         String responsible = updated.map(DialogListItem::responsible).orElse(dialog.get().responsible());
@@ -199,6 +205,97 @@ public class DialogQuickActionService {
         return Optional.ofNullable(responsible != null && !responsible.isBlank() ? responsible : operator);
     }
 
+    public DialogParticipantMutationResult addParticipant(String ticketId,
+                                                          String username,
+                                                          String operator) {
+        Optional<DialogListItem> dialog = dialogLookupReadService.findDialog(ticketId, operator);
+        if (dialog.isEmpty()) {
+            return new DialogParticipantMutationResult(false, false, "Диалог не найден", List.of());
+        }
+        if (isClosedDialog(dialog.get())) {
+            return new DialogParticipantMutationResult(true, false, "К закрытому диалогу нельзя добавлять новых участников", dialogParticipantService.loadParticipants(ticketId));
+        }
+        Optional<DialogOperatorOption> targetOperator = dialogParticipantService.findOperator(username);
+        if (targetOperator.isEmpty()) {
+            return new DialogParticipantMutationResult(true, false, "Пользователь панели не найден", dialogParticipantService.loadParticipants(ticketId));
+        }
+        String currentResponsible = dialogResponsibilityService.loadResponsible(ticketId);
+        if (sameIdentity(currentResponsible, targetOperator.get().username())) {
+            return new DialogParticipantMutationResult(true, false, "Этот пользователь уже назначен ответственным за диалог", dialogParticipantService.loadParticipants(ticketId));
+        }
+        boolean changed = dialogParticipantService.addParticipant(ticketId, targetOperator.get().username(), operator);
+        List<DialogParticipantDto> participants = dialogParticipantService.loadParticipants(ticketId);
+        if (changed) {
+            notifyDialogParticipantsSafely(
+                    ticketId,
+                    "К обращению " + ticketId + " подключен оператор " + targetOperator.get().displayLabel(),
+                    notificationService.buildDialogUrl(ticketId),
+                    operator
+            );
+        }
+        return new DialogParticipantMutationResult(true, changed, null, participants);
+    }
+
+    public DialogParticipantMutationResult removeParticipant(String ticketId,
+                                                             String username,
+                                                             String operator) {
+        Optional<DialogListItem> dialog = dialogLookupReadService.findDialog(ticketId, operator);
+        if (dialog.isEmpty()) {
+            return new DialogParticipantMutationResult(false, false, "Диалог не найден", List.of());
+        }
+        Optional<DialogOperatorOption> targetOperator = dialogParticipantService.findOperator(username);
+        String targetLabel = targetOperator.map(DialogOperatorOption::displayLabel).orElse(username);
+        boolean changed = dialogParticipantService.removeParticipant(ticketId, username);
+        List<DialogParticipantDto> participants = dialogParticipantService.loadParticipants(ticketId);
+        if (changed) {
+            notifyDialogParticipantsSafely(
+                    ticketId,
+                    "Из обращения " + ticketId + " исключен оператор " + targetLabel,
+                    notificationService.buildDialogUrl(ticketId),
+                    operator
+            );
+        }
+        return new DialogParticipantMutationResult(true, changed, null, participants);
+    }
+
+    public DialogReassignResult reassignTicket(String ticketId,
+                                               String username,
+                                               String operator) {
+        Optional<DialogListItem> dialog = dialogLookupReadService.findDialog(ticketId, operator);
+        if (dialog.isEmpty()) {
+            return new DialogReassignResult(false, "Диалог не найден", null, null, null, List.of());
+        }
+        if (isClosedDialog(dialog.get())) {
+            return new DialogReassignResult(true, "Переадресовать можно только открытый диалог", null, null, null, dialogParticipantService.loadParticipants(ticketId));
+        }
+        Optional<DialogOperatorOption> targetOperator = dialogParticipantService.findOperator(username);
+        if (targetOperator.isEmpty()) {
+            return new DialogReassignResult(true, "Пользователь панели не найден", null, null, null, dialogParticipantService.loadParticipants(ticketId));
+        }
+        String currentResponsible = dialogResponsibilityService.loadResponsible(ticketId);
+        if (sameIdentity(currentResponsible, targetOperator.get().username())) {
+            return new DialogReassignResult(true, "Диалог уже назначен на этого пользователя", currentResponsible, dialog.get().responsible(), dialog.get().responsibleAvatarUrl(), dialogParticipantService.loadParticipants(ticketId));
+        }
+        dialogResponsibilityService.assignResponsibleIfMissingOrRedirected(ticketId, targetOperator.get().username(), operator);
+        dialogParticipantService.removeParticipant(ticketId, targetOperator.get().username());
+        dialogAiAssistantService.clearProcessing(ticketId, "operator_reassign", null);
+        List<DialogParticipantDto> participants = dialogParticipantService.loadParticipants(ticketId);
+        notifyDialogParticipantsSafely(
+                ticketId,
+                "Обращение " + ticketId + " передано оператору " + targetOperator.get().displayLabel(),
+                notificationService.buildDialogUrl(ticketId),
+                operator
+        );
+        return new DialogReassignResult(
+                true,
+                null,
+                targetOperator.get().username(),
+                targetOperator.get().displayLabel(),
+                targetOperator.get().avatarUrl(),
+                participants
+        );
+    }
+
     private void notifyDialogParticipantsSafely(String ticketId,
                                                 String text,
                                                 String url,
@@ -208,5 +305,34 @@ public class DialogQuickActionService {
         } catch (RuntimeException ex) {
             log.warn("Unable to create dialog notifications for ticket {}: {}", ticketId, ex.getMessage());
         }
+    }
+
+    private boolean isClosedDialog(DialogListItem dialog) {
+        if (dialog == null) {
+            return false;
+        }
+        String statusKey = dialog.statusKey();
+        return "closed".equalsIgnoreCase(statusKey) || "auto_closed".equalsIgnoreCase(statusKey);
+    }
+
+    private boolean sameIdentity(String left, String right) {
+        if (left == null || right == null) {
+            return false;
+        }
+        return left.trim().equalsIgnoreCase(right.trim());
+    }
+
+    public record DialogParticipantMutationResult(boolean exists,
+                                                  boolean changed,
+                                                  String error,
+                                                  List<DialogParticipantDto> participants) {
+    }
+
+    public record DialogReassignResult(boolean exists,
+                                       String error,
+                                       String responsible,
+                                       String responsibleDisplayName,
+                                       String responsibleAvatarUrl,
+                                       List<DialogParticipantDto> participants) {
     }
 }

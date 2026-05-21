@@ -207,6 +207,8 @@
   const detailsLocation = document.getElementById('dialogDetailsLocation');
   const detailsOpenClientCard = document.getElementById('dialogDetailsOpenClientCard');
   const detailsTakeBtn = document.getElementById('dialogDetailsTakeBtn');
+  const detailsParticipantsBtn = document.getElementById('dialogDetailsParticipantsBtn');
+  const detailsReassignBtn = document.getElementById('dialogDetailsReassignBtn');
   const detailsCategories = document.getElementById('dialogDetailsCategories');
   const detailsCategoriesBtn = document.getElementById('dialogDetailsCategoriesBtn');
   const detailsUnreadCount = document.getElementById('dialogDetailsUnreadCount');
@@ -221,7 +223,11 @@
   const detailsAiState = document.getElementById('dialogDetailsAiState');
   const detailsAiList = document.getElementById('dialogDetailsAiList');
   const detailsAiRefresh = document.getElementById('dialogDetailsAiRefresh');
+  const detailsParticipantsManageBtn = document.getElementById('dialogDetailsParticipantsManageBtn');
+  const detailsParticipantsState = document.getElementById('dialogDetailsParticipantsState');
+  const detailsParticipantsList = document.getElementById('dialogDetailsParticipantsList');
   const detailsSidebar = document.getElementById('dialogDetailsSidebar');
+  const detailsSidebarScroll = detailsSidebar ? detailsSidebar.querySelector('.dialog-details-sidebar-scroll') : null;
   const detailsResizeHandle = document.getElementById('dialogDetailsResizeHandle');
   const myDialogsPanel = document.getElementById('dialogMyDialogsPanel');
   const myDialogsEmpty = document.getElementById('dialogMyDialogsEmpty');
@@ -244,6 +250,19 @@
   const mediaPreviewZoomOut = document.getElementById('dialogMediaZoomOut');
   const mediaPreviewZoomIn = document.getElementById('dialogMediaZoomIn');
   const mediaPreviewDownloadLink = document.getElementById('dialogMediaDownloadLink');
+  const participantsModalEl = document.getElementById('dialogParticipantsModal');
+  const participantsMeta = document.getElementById('dialogParticipantsMeta');
+  const participantsSelect = document.getElementById('dialogParticipantsSelect');
+  const participantsSelectHint = document.getElementById('dialogParticipantsSelectHint');
+  const participantsAddBtn = document.getElementById('dialogParticipantsAddBtn');
+  const participantsCurrentState = document.getElementById('dialogParticipantsCurrentState');
+  const participantsCurrentList = document.getElementById('dialogParticipantsCurrentList');
+  const reassignModalEl = document.getElementById('dialogReassignModal');
+  const reassignMeta = document.getElementById('dialogReassignMeta');
+  const reassignCurrent = document.getElementById('dialogReassignCurrent');
+  const reassignSelect = document.getElementById('dialogReassignSelect');
+  const reassignHint = document.getElementById('dialogReassignHint');
+  const reassignSubmit = document.getElementById('dialogReassignSubmit');
   const replyTarget = document.getElementById('dialogReplyTarget');
   const replyTargetText = document.getElementById('dialogReplyTargetText');
   const replyTargetClear = document.getElementById('dialogReplyTargetClear');
@@ -288,6 +307,12 @@
     : null;
   const mediaPreviewModal = (typeof bootstrap !== 'undefined' && mediaPreviewModalEl)
     ? new bootstrap.Modal(mediaPreviewModalEl)
+    : null;
+  const participantsModal = (typeof bootstrap !== 'undefined' && participantsModalEl)
+    ? new bootstrap.Modal(participantsModalEl)
+    : null;
+  const reassignModal = (typeof bootstrap !== 'undefined' && reassignModalEl)
+    ? new bootstrap.Modal(reassignModalEl)
     : null;
   let fallbackModalBackdrop = null;
 
@@ -363,6 +388,55 @@
         event.preventDefault();
         hideModalSafe(modalEl, modalInstance);
       });
+    });
+  }
+
+  function shouldContainScroll(container, deltaY) {
+    if (!container || !Number.isFinite(deltaY)) {
+      return false;
+    }
+    if (container.scrollHeight <= container.clientHeight + 1) {
+      return false;
+    }
+    const scrollTop = container.scrollTop;
+    const maxScrollTop = container.scrollHeight - container.clientHeight;
+    if (deltaY < 0 && scrollTop <= 0) {
+      return true;
+    }
+    if (deltaY > 0 && scrollTop >= maxScrollTop - 1) {
+      return true;
+    }
+    return false;
+  }
+
+  function bindModalScrollContainment(container) {
+    if (!container) return;
+    let touchStartY = null;
+    container.addEventListener('wheel', (event) => {
+      if (!detailsModalEl?.classList.contains('show')) return;
+      if (shouldContainScroll(container, event.deltaY)) {
+        event.preventDefault();
+      }
+    }, { passive: false });
+    container.addEventListener('touchstart', (event) => {
+      const touch = event.touches && event.touches[0];
+      touchStartY = touch ? touch.clientY : null;
+    }, { passive: true });
+    container.addEventListener('touchmove', (event) => {
+      if (!detailsModalEl?.classList.contains('show')) return;
+      const touch = event.touches && event.touches[0];
+      if (!touch || touchStartY === null) return;
+      const deltaY = touchStartY - touch.clientY;
+      if (shouldContainScroll(container, deltaY)) {
+        event.preventDefault();
+      } else {
+        touchStartY = touch.clientY;
+      }
+    }, { passive: false });
+    ['touchend', 'touchcancel'].forEach((eventName) => {
+      container.addEventListener(eventName, () => {
+        touchStartY = null;
+      }, { passive: true });
     });
   }
 
@@ -945,6 +1019,8 @@
 
   let activeDialogTicketId = null;
   let activeDialogChannelId = null;
+  let activeDialogResponsibleRaw = '';
+  let activeDialogResponsibleAvatarUrl = '';
   let activeDialogRow = null;
   let historyPollTimer = null;
   let listPollTimer = null;
@@ -983,6 +1059,8 @@
   let activeMacroTemplate = null;
   let activeMacroMeta = null;
   let experimentTelemetryRefreshTimer = null;
+  let dialogAssignableOperators = null;
+  let dialogParticipantsState = [];
   const workspaceOpenTimers = new Map();
   const workspaceFirstInteractionTickets = new Set();
   const workspaceExperimentContext = resolveWorkspaceExperimentContext();
@@ -2252,7 +2330,10 @@
     if (!row) return;
     const value = String(options.displayResponsible ?? responsible ?? '').trim();
     const rawValue = String(options.rawResponsible ?? responsible ?? '').trim();
-    const avatarUrl = String(options.avatarUrl || row.dataset.responsibleAvatarUrl || '').trim();
+    const fallbackAvatar = isOwnedByCurrentOperator(rawValue || value)
+      ? String(OPERATOR_AVATAR_URL || '').trim()
+      : String(row.dataset.responsibleAvatarUrl || '').trim();
+    const avatarUrl = String(options.avatarUrl || fallbackAvatar || '').trim();
     row.dataset.responsible = value;
     row.dataset.responsibleRaw = rawValue || value;
     row.dataset.responsibleAvatarUrl = avatarUrl;
@@ -2283,7 +2364,13 @@
   function updateDetailsResponsible(responsible, options = {}) {
     const safeResponsible = String(responsible || '').trim() || '—';
     const rawResponsible = String(options.rawResponsible || '').trim();
+    const fallbackAvatar = isOwnedByCurrentOperator(rawResponsible || safeResponsible)
+      ? String(OPERATOR_AVATAR_URL || '').trim()
+      : String(activeDialogResponsibleAvatarUrl || '').trim();
+    const avatarUrl = String(options.avatarUrl || fallbackAvatar || '').trim();
     activeDialogContext.operatorName = safeResponsible;
+    activeDialogResponsibleRaw = rawResponsible || (safeResponsible === '—' ? '' : safeResponsible);
+    activeDialogResponsibleAvatarUrl = avatarUrl;
     const responsibleRow = detailsSummary
       ? Array.from(detailsSummary.querySelectorAll('.d-flex.justify-content-between.gap-2'))
         .find((row) => row.firstElementChild?.textContent?.trim() === 'Ответственный')
@@ -2295,6 +2382,250 @@
         : '—';
     }
     updateDetailsTakeButton(rawResponsible || safeResponsible);
+  }
+
+  function buildOperatorOptionLabel(operator) {
+    const displayName = String(operator?.displayName || operator?.display_name || '').trim();
+    const username = String(operator?.username || '').trim();
+    const department = String(operator?.department || '').trim();
+    const role = String(operator?.role || '').trim();
+    const head = displayName && username && normalizeIdentity(displayName) !== normalizeIdentity(username)
+      ? `${displayName} (${username})`
+      : (displayName || username || '—');
+    const tail = [department, role].filter(Boolean).join(' · ');
+    return tail ? `${head} · ${tail}` : head;
+  }
+
+  function renderParticipantCard(participant, options = {}) {
+    const username = String(participant?.username || '').trim();
+    const displayName = String(participant?.displayName || participant?.display_name || '').trim() || username || '—';
+    const avatarUrl = String(participant?.avatarUrl || participant?.avatar_url || '').trim();
+    const department = String(participant?.department || '').trim();
+    const role = String(participant?.role || '').trim();
+    const addedAt = formatTimestamp(participant?.addedAt || participant?.added_at || '', { includeTime: true, fallback: '' });
+    const metaParts = [username && username !== displayName ? `@${username}` : '', department, role, addedAt].filter(Boolean);
+    const spec = buildResponsibleAvatarSpec(displayName, avatarUrl);
+    const avatarMarkup = spec?.avatarUrl
+      ? `<span class="dialog-details-participant-avatar has-image"><img src="${escapeHtml(spec.avatarUrl)}" alt="Аватар участника"></span>`
+      : `<span class="dialog-details-participant-avatar">${escapeHtml(spec?.initial || displayName.substring(0, 1).toUpperCase())}</span>`;
+    const removeButton = options.removable && username
+      ? `<button type="button" class="btn btn-sm btn-outline-danger" data-remove-participant="${escapeHtml(username)}">${escapeHtml(options.removeLabel || 'Убрать')}</button>`
+      : '';
+    return `
+      <div class="dialog-details-participant-card">
+        <div class="dialog-details-participant-main">
+          ${avatarMarkup}
+          <div class="dialog-details-participant-copy">
+            <div class="dialog-details-participant-name">${escapeHtml(displayName)}</div>
+            <div class="dialog-details-participant-meta">${metaParts.map((item) => `<span>${escapeHtml(item)}</span>`).join('')}</div>
+          </div>
+        </div>
+        ${removeButton}
+      </div>
+    `;
+  }
+
+  function getParticipantStateEmptyText() {
+    return 'Дополнительные участники не подключены.';
+  }
+
+  function renderDialogParticipantsState() {
+    const participants = Array.isArray(dialogParticipantsState) ? dialogParticipantsState : [];
+    if (detailsParticipantsState) {
+      detailsParticipantsState.textContent = participants.length
+        ? `Подключено: ${participants.length}`
+        : getParticipantStateEmptyText();
+    }
+    if (detailsParticipantsList) {
+      detailsParticipantsList.innerHTML = participants.map((participant) => renderParticipantCard(participant)).join('');
+      detailsParticipantsList.classList.toggle('d-none', participants.length === 0);
+    }
+    if (participantsCurrentState) {
+      participantsCurrentState.textContent = participants.length
+        ? `Подключено: ${participants.length}`
+        : getParticipantStateEmptyText();
+    }
+    if (participantsCurrentList) {
+      participantsCurrentList.innerHTML = participants.map((participant) => renderParticipantCard(participant, {
+        removable: canRunAction('can_assign'),
+        removeLabel: 'Убрать',
+      })).join('');
+      participantsCurrentList.classList.toggle('d-none', participants.length === 0);
+    }
+  }
+
+  function renderDialogParticipantsLoadingState(message) {
+    const text = String(message || 'Загрузка участников...').trim();
+    if (detailsParticipantsState) detailsParticipantsState.textContent = text;
+    if (detailsParticipantsList) {
+      detailsParticipantsList.innerHTML = '';
+      detailsParticipantsList.classList.add('d-none');
+    }
+    if (participantsCurrentState) participantsCurrentState.textContent = text;
+    if (participantsCurrentList) {
+      participantsCurrentList.innerHTML = '';
+      participantsCurrentList.classList.add('d-none');
+    }
+  }
+
+  function syncParticipantsSelectOptions() {
+    if (!participantsSelect) return;
+    const operators = Array.isArray(dialogAssignableOperators) ? dialogAssignableOperators : [];
+    const participantIds = new Set((Array.isArray(dialogParticipantsState) ? dialogParticipantsState : []).map((item) => normalizeIdentity(item?.username)));
+    const currentResponsible = normalizeIdentity(activeDialogResponsibleRaw);
+    const availableOperators = operators.filter((item) => {
+      const username = normalizeIdentity(item?.username);
+      if (!username) return false;
+      if (username === currentResponsible) return false;
+      return !participantIds.has(username);
+    });
+    participantsSelect.innerHTML = '';
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = availableOperators.length ? 'Выберите пользователя…' : 'Нет доступных пользователей';
+    participantsSelect.appendChild(placeholder);
+    availableOperators.forEach((operator) => {
+      const option = document.createElement('option');
+      option.value = operator.username || '';
+      option.textContent = buildOperatorOptionLabel(operator);
+      participantsSelect.appendChild(option);
+    });
+    participantsSelect.disabled = availableOperators.length === 0 || !canRunAction('can_assign');
+    if (participantsAddBtn) {
+      participantsAddBtn.disabled = availableOperators.length === 0 || !canRunAction('can_assign');
+    }
+    if (participantsSelectHint) {
+      participantsSelectHint.textContent = availableOperators.length
+        ? 'Ответственный не отображается в списке: он уже подключён к диалогу автоматически.'
+        : 'Свободных пользователей для добавления сейчас нет.';
+    }
+  }
+
+  function syncReassignSelectOptions() {
+    if (!reassignSelect) return;
+    const operators = Array.isArray(dialogAssignableOperators) ? dialogAssignableOperators : [];
+    const currentResponsible = normalizeIdentity(activeDialogResponsibleRaw);
+    const availableOperators = operators.filter((item) => {
+      const username = normalizeIdentity(item?.username);
+      return username && username !== currentResponsible;
+    });
+    reassignSelect.innerHTML = '';
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = availableOperators.length ? 'Выберите пользователя…' : 'Некому передать диалог';
+    reassignSelect.appendChild(placeholder);
+    availableOperators.forEach((operator) => {
+      const option = document.createElement('option');
+      option.value = operator.username || '';
+      option.textContent = buildOperatorOptionLabel(operator);
+      reassignSelect.appendChild(option);
+    });
+    reassignSelect.disabled = availableOperators.length === 0 || !canRunAction('can_assign');
+    if (reassignSubmit) {
+      reassignSubmit.disabled = availableOperators.length === 0 || !canRunAction('can_assign');
+    }
+    if (reassignHint) {
+      reassignHint.textContent = availableOperators.length
+        ? 'Если пользователь уже был участником диалога, после передачи он станет только ответственным.'
+        : 'Подходящих пользователей для переадресации не найдено.';
+    }
+  }
+
+  async function ensureAssignableOperatorsLoaded(force = false) {
+    if (!force && Array.isArray(dialogAssignableOperators)) {
+      return dialogAssignableOperators;
+    }
+    const resp = await fetch('/api/dialogs/operators', {
+      credentials: 'same-origin',
+      cache: 'no-store',
+    });
+    const data = await resp.json();
+    if (!resp.ok || !data?.success) {
+      throw new Error(data?.error || `Ошибка ${resp.status}`);
+    }
+    dialogAssignableOperators = Array.isArray(data.operators) ? data.operators : [];
+    syncParticipantsSelectOptions();
+    syncReassignSelectOptions();
+    return dialogAssignableOperators;
+  }
+
+  async function loadDialogParticipants() {
+    if (!activeDialogTicketId) {
+      dialogParticipantsState = [];
+      renderDialogParticipantsState();
+      return [];
+    }
+    renderDialogParticipantsLoadingState('Загрузка участников...');
+    const resp = await fetch(`/api/dialogs/${encodeURIComponent(activeDialogTicketId)}/participants`, {
+      credentials: 'same-origin',
+      cache: 'no-store',
+    });
+    const data = await resp.json();
+    if (!resp.ok || !data?.success) {
+      throw new Error(data?.error || `Ошибка ${resp.status}`);
+    }
+    dialogParticipantsState = Array.isArray(data.participants) ? data.participants : [];
+    renderDialogParticipantsState();
+    syncParticipantsSelectOptions();
+    return dialogParticipantsState;
+  }
+
+  function renderReassignCurrentResponsible() {
+    if (!reassignCurrent) return;
+    const label = String(activeDialogContext.operatorName || '').trim() || '—';
+    reassignCurrent.innerHTML = renderResponsibleCell(label, activeDialogResponsibleAvatarUrl || '');
+  }
+
+  async function openParticipantsManager() {
+    if (!activeDialogTicketId) return;
+    if (!canRunAction('can_assign')) {
+      notifyPermissionDenied('Участники');
+      return;
+    }
+    if (participantsMeta) {
+      participantsMeta.textContent = `Настройте дополнительных участников для обращения ${activeDialogTicketId}.`;
+    }
+    try {
+      await ensureAssignableOperatorsLoaded();
+      await loadDialogParticipants();
+      syncParticipantsSelectOptions();
+      showModalSafe(participantsModalEl, participantsModal);
+    } catch (error) {
+      renderDialogParticipantsLoadingState(error?.message || 'Не удалось загрузить участников.');
+      if (typeof showNotification === 'function') {
+        showNotification(error.message || 'Не удалось открыть список участников', 'error');
+      }
+    }
+  }
+
+  async function openReassignDialog() {
+    if (!activeDialogTicketId) return;
+    if (!canRunAction('can_assign')) {
+      notifyPermissionDenied('Передать');
+      return;
+    }
+    if (reassignMeta) {
+      reassignMeta.textContent = `Передайте обращение ${activeDialogTicketId} другому сотруднику панели.`;
+    }
+    renderReassignCurrentResponsible();
+    try {
+      await ensureAssignableOperatorsLoaded();
+      syncReassignSelectOptions();
+      showModalSafe(reassignModalEl, reassignModal);
+    } catch (error) {
+      if (typeof showNotification === 'function') {
+        showNotification(error.message || 'Не удалось загрузить список пользователей', 'error');
+      }
+    }
+  }
+
+  function syncDialogAssignControls() {
+    const enabled = canRunAction('can_assign');
+    [detailsParticipantsBtn, detailsReassignBtn, detailsParticipantsManageBtn].forEach((button) => {
+      if (!button) return;
+      button.classList.toggle('d-none', !enabled);
+      button.disabled = !enabled;
+    });
   }
 
   function applyCompactMode(enabled) {
@@ -2468,6 +2799,9 @@
         throw new Error(data?.error || `Ошибка ${resp.status}`);
       }
       updateRowResponsible(row, data.responsible || '');
+      if (String(activeDialogTicketId || '').trim() === String(ticketId || '').trim()) {
+        loadDialogParticipants().catch(() => {});
+      }
       emitWorkspaceTelemetry('triage_quick_assign', { ticketId });
       applyFilters();
       if (typeof showNotification === 'function') {
@@ -7740,6 +8074,8 @@
     initMacroVariableCatalog(ticketId, true);
     setActiveDialogRow(fallbackRow || null, { ensureVisible: true });
     activeDialogChannelId = fallbackRow?.dataset?.channelId || null;
+    activeDialogResponsibleRaw = String(fallbackRow?.dataset?.responsibleRaw || fallbackRow?.dataset?.responsible || '').trim();
+    activeDialogResponsibleAvatarUrl = String(fallbackRow?.dataset?.responsibleAvatarUrl || '').trim();
     updateDialogUnreadCount(Number(fallbackRow?.dataset?.unread) || 0);
     if (detailsMeta) {
       const fallbackRequestNumber = fallbackRow?.dataset?.requestNumber || '';
@@ -7762,6 +8098,10 @@
       detailsAiList.innerHTML = '';
       detailsAiList.classList.add('d-none');
     }
+    dialogParticipantsState = [];
+    renderDialogParticipantsLoadingState('Загрузка участников...');
+    syncParticipantsSelectOptions();
+    syncReassignSelectOptions();
     if (detailsReplyText) detailsReplyText.value = '';
     if (detailsOpenClientCard) {
       detailsOpenClientCard.dataset.userId = '';
@@ -7769,7 +8109,7 @@
       detailsOpenClientCard.classList.add('disabled');
       detailsOpenClientCard.setAttribute('aria-disabled', 'true');
     }
-    updateDetailsTakeButton(fallbackRow?.dataset?.responsible || '');
+    updateDetailsTakeButton(fallbackRow?.dataset?.responsibleRaw || fallbackRow?.dataset?.responsible || '');
 
     showModalSafe(detailsModalEl, detailsModal);
     try {
@@ -7805,6 +8145,15 @@
         || '—';
       const createdDisplay = formatTimestamp(createdLabel, { includeTime: true });
       const resolvedDisplay = formatTimestamp(resolvedAt || '', { includeTime: true });
+      const responsibleRaw = summary.rawResponsible
+        || summary.raw_responsible
+        || fallbackRow?.dataset?.responsibleRaw
+        || fallbackRow?.dataset?.responsible
+        || '';
+      const responsibleAvatarUrl = summary.responsibleAvatarUrl
+        || summary.responsible_avatar_url
+        || fallbackRow?.dataset?.responsibleAvatarUrl
+        || '';
       const responsibleLabel = summary.responsible
         || resolvedBy
         || fallbackRow?.dataset.responsible
@@ -7848,7 +8197,10 @@
           detailsOpenClientCard.setAttribute('aria-disabled', 'true');
         }
       }
-      updateDetailsResponsible(responsibleLabel);
+      updateDetailsResponsible(responsibleLabel, {
+        rawResponsible,
+        avatarUrl: responsibleAvatarUrl,
+      });
       updateSummaryCategories(categoriesLabel || '—');
       if (detailsProblem) detailsProblem.textContent = problemLabel;
       if (detailsMeta) detailsMeta.textContent = formatDialogMeta(ticketId, requestNumber);
@@ -7951,6 +8303,11 @@
         `).join('');
       }
       renderHistory(data.history || []);
+      try {
+        await loadDialogParticipants();
+      } catch (participantsError) {
+        renderDialogParticipantsLoadingState(participantsError?.message || 'Не удалось загрузить участников.');
+      }
       loadDetailsAiSuggestions(ticketId);
       updateResolveButton(statusRaw);
       if (statusRaw || statusKey) {
@@ -8164,6 +8521,8 @@
     bulkClearBtn.addEventListener('click', () => clearSelection());
   }
 
+  syncDialogAssignControls();
+
   if (detailsCreateTask) {
     detailsCreateTask.addEventListener('click', (event) => {
       event.preventDefault();
@@ -8196,6 +8555,135 @@
         updateDetailsResponsible(data?.responsible || activeDialogRow.dataset.responsible || '');
       } catch (_error) {
         // notification is already shown inside takeDialog
+      }
+    });
+  }
+
+  if (detailsParticipantsBtn) {
+    detailsParticipantsBtn.addEventListener('click', () => {
+      openParticipantsManager();
+    });
+  }
+
+  if (detailsParticipantsManageBtn) {
+    detailsParticipantsManageBtn.addEventListener('click', () => {
+      openParticipantsManager();
+    });
+  }
+
+  if (participantsAddBtn) {
+    participantsAddBtn.addEventListener('click', async () => {
+      const username = String(participantsSelect?.value || '').trim();
+      if (!activeDialogTicketId || !username) return;
+      participantsAddBtn.disabled = true;
+      try {
+        const resp = await fetch(`/api/dialogs/${encodeURIComponent(activeDialogTicketId)}/participants`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username }),
+        });
+        const data = await resp.json();
+        if (!resp.ok || !data?.success) {
+          throw new Error(data?.error || `Ошибка ${resp.status}`);
+        }
+        dialogParticipantsState = Array.isArray(data.participants) ? data.participants : [];
+        renderDialogParticipantsState();
+        syncParticipantsSelectOptions();
+        if (typeof showNotification === 'function') {
+          showNotification(data.changed ? 'Пользователь подключён к диалогу' : 'Пользователь уже добавлен к диалогу', 'success');
+        }
+      } catch (error) {
+        if (typeof showNotification === 'function') {
+          showNotification(error.message || 'Не удалось добавить участника', 'error');
+        }
+      } finally {
+        syncParticipantsSelectOptions();
+      }
+    });
+  }
+
+  if (participantsCurrentList) {
+    participantsCurrentList.addEventListener('click', async (event) => {
+      const removeButton = event.target instanceof Element
+        ? event.target.closest('[data-remove-participant]')
+        : null;
+      if (!removeButton || !activeDialogTicketId) return;
+      const username = String(removeButton.getAttribute('data-remove-participant') || '').trim();
+      if (!username) return;
+      removeButton.disabled = true;
+      try {
+        const resp = await fetch(`/api/dialogs/${encodeURIComponent(activeDialogTicketId)}/participants/${encodeURIComponent(username)}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        const data = await resp.json();
+        if (!resp.ok || !data?.success) {
+          throw new Error(data?.error || `Ошибка ${resp.status}`);
+        }
+        dialogParticipantsState = Array.isArray(data.participants) ? data.participants : [];
+        renderDialogParticipantsState();
+        syncParticipantsSelectOptions();
+        if (typeof showNotification === 'function') {
+          showNotification(data.changed ? 'Участник убран из диалога' : 'Участник уже отсутствует', 'success');
+        }
+      } catch (error) {
+        removeButton.disabled = false;
+        if (typeof showNotification === 'function') {
+          showNotification(error.message || 'Не удалось убрать участника', 'error');
+        }
+      }
+    });
+  }
+
+  if (detailsReassignBtn) {
+    detailsReassignBtn.addEventListener('click', () => {
+      openReassignDialog();
+    });
+  }
+
+  if (reassignSubmit) {
+    reassignSubmit.addEventListener('click', async () => {
+      const username = String(reassignSelect?.value || '').trim();
+      if (!activeDialogTicketId || !username) return;
+      reassignSubmit.disabled = true;
+      try {
+        const resp = await fetch(`/api/dialogs/${encodeURIComponent(activeDialogTicketId)}/reassign`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username }),
+        });
+        const data = await resp.json();
+        if (!resp.ok || !data?.success) {
+          throw new Error(data?.error || `Ошибка ${resp.status}`);
+        }
+        const displayResponsible = data.displayResponsible || data.display_responsible || data.responsible || username;
+        const row = activeDialogRow || table.querySelector(`tr[data-ticket-id="${escapeSelectorValue(activeDialogTicketId)}"]`);
+        if (row) {
+          updateRowResponsible(row, data.responsible || username, {
+            rawResponsible: data.responsible || username,
+            displayResponsible,
+            avatarUrl: data.avatarUrl || data.avatar_url || '',
+          });
+        }
+        updateDetailsResponsible(displayResponsible, {
+          rawResponsible: data.responsible || username,
+          avatarUrl: data.avatarUrl || data.avatar_url || '',
+        });
+        dialogParticipantsState = Array.isArray(data.participants) ? data.participants : [];
+        renderDialogParticipantsState();
+        syncParticipantsSelectOptions();
+        syncReassignSelectOptions();
+        renderReassignCurrentResponsible();
+        hideModalSafe(reassignModalEl, reassignModal);
+        if (typeof showNotification === 'function') {
+          showNotification('Диалог переадресован новому ответственному', 'success');
+        }
+      } catch (error) {
+        if (typeof showNotification === 'function') {
+          showNotification(error.message || 'Не удалось переадресовать диалог', 'error');
+        }
+      } finally {
+        syncReassignSelectOptions();
       }
     });
   }
@@ -8762,6 +9250,10 @@
   bindFallbackModalDismiss(columnsModalEl, columnsModal);
   bindFallbackModalDismiss(hotkeysModalEl, hotkeysModal);
   bindFallbackModalDismiss(mediaPreviewModalEl, mediaPreviewModal);
+  bindFallbackModalDismiss(participantsModalEl, participantsModal);
+  bindFallbackModalDismiss(reassignModalEl, reassignModal);
+  bindModalScrollContainment(detailsHistory);
+  bindModalScrollContainment(detailsSidebarScroll);
 
   if (filtersBtn && filtersModalEl) {
     filtersBtn.addEventListener('click', () => {
@@ -8861,9 +9353,13 @@
       if (categoriesModal) {
         categoriesModal.hide();
       }
+      hideModalSafe(participantsModalEl, participantsModal);
+      hideModalSafe(reassignModalEl, reassignModal);
       activeDialogTicketId = null;
       initMacroVariableCatalog(null, true);
       activeDialogChannelId = null;
+      activeDialogResponsibleRaw = '';
+      activeDialogResponsibleAvatarUrl = '';
       setActiveDialogRow(null);
       if (detailsReplyText) detailsReplyText.value = '';
       if (detailsReplyMedia) detailsReplyMedia.value = '';
@@ -8881,6 +9377,10 @@
         createdAt: '—',
       };
       selectedCategories = new Set();
+      dialogParticipantsState = [];
+      renderDialogParticipantsLoadingState('Откройте диалог для загрузки списка участников.');
+      syncParticipantsSelectOptions();
+      syncReassignSelectOptions();
       updateDetailsTakeButton('');
       stopHistoryPolling();
       if (WORKSPACE_V1_ENABLED && isWorkspaceDialogPath(window.location.pathname)) {

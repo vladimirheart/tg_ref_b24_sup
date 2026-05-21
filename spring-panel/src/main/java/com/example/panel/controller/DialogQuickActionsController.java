@@ -11,6 +11,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -235,6 +236,121 @@ public class DialogQuickActionsController {
         });
     }
 
+    @PostMapping("/{ticketId}/participants")
+    public ResponseEntity<?> addParticipant(@PathVariable String ticketId,
+                                            @RequestBody DialogParticipantRequest request,
+                                            Authentication authentication) {
+        return withQuickActionTiming("participants_add", ticketId, () -> {
+            ResponseEntity<Map<String, Object>> permissionDenied = dialogAuthorizationService.requirePermission(authentication, "can_assign", "participants_add", ticketId);
+            if (permissionDenied != null) {
+                return permissionDenied;
+            }
+            String operator = authentication != null ? authentication.getName() : null;
+            if (!StringUtils.hasText(operator)) {
+                dialogAuthorizationService.logDialogAction(null, ticketId, "participants_add", "unauthorized", "Требуется авторизация");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("success", false, "error", "Требуется авторизация"));
+            }
+            DialogQuickActionService.DialogParticipantMutationResult result = dialogQuickActionService.addParticipant(
+                    ticketId,
+                    request != null ? request.username() : null,
+                    operator
+            );
+            if (!result.exists()) {
+                dialogAuthorizationService.logDialogAction(operator, ticketId, "participants_add", "not_found", "Диалог не найден");
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("success", false, "error", "Диалог не найден"));
+            }
+            if (result.error() != null) {
+                dialogAuthorizationService.logDialogAction(operator, ticketId, "participants_add", "error", result.error());
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("success", false, "error", result.error()));
+            }
+            dialogAuthorizationService.logDialogAction(operator, ticketId, "participants_add", "success", result.changed() ? "participant_added" : "already_present");
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "changed", result.changed(),
+                    "participants", result.participants()
+            ));
+        });
+    }
+
+    @DeleteMapping("/{ticketId}/participants/{username}")
+    public ResponseEntity<?> removeParticipant(@PathVariable String ticketId,
+                                               @PathVariable String username,
+                                               Authentication authentication) {
+        return withQuickActionTiming("participants_remove", ticketId, () -> {
+            ResponseEntity<Map<String, Object>> permissionDenied = dialogAuthorizationService.requirePermission(authentication, "can_assign", "participants_remove", ticketId);
+            if (permissionDenied != null) {
+                return permissionDenied;
+            }
+            String operator = authentication != null ? authentication.getName() : null;
+            if (!StringUtils.hasText(operator)) {
+                dialogAuthorizationService.logDialogAction(null, ticketId, "participants_remove", "unauthorized", "Требуется авторизация");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("success", false, "error", "Требуется авторизация"));
+            }
+            DialogQuickActionService.DialogParticipantMutationResult result = dialogQuickActionService.removeParticipant(ticketId, username, operator);
+            if (!result.exists()) {
+                dialogAuthorizationService.logDialogAction(operator, ticketId, "participants_remove", "not_found", "Диалог не найден");
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("success", false, "error", "Диалог не найден"));
+            }
+            if (result.error() != null) {
+                dialogAuthorizationService.logDialogAction(operator, ticketId, "participants_remove", "error", result.error());
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("success", false, "error", result.error()));
+            }
+            dialogAuthorizationService.logDialogAction(operator, ticketId, "participants_remove", "success", result.changed() ? "participant_removed" : "participant_missing");
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "changed", result.changed(),
+                    "participants", result.participants()
+            ));
+        });
+    }
+
+    @PostMapping("/{ticketId}/reassign")
+    public ResponseEntity<?> reassign(@PathVariable String ticketId,
+                                      @RequestBody DialogReassignRequest request,
+                                      Authentication authentication) {
+        return withQuickActionTiming("reassign", ticketId, () -> {
+            ResponseEntity<Map<String, Object>> permissionDenied = dialogAuthorizationService.requirePermission(authentication, "can_assign", "reassign", ticketId);
+            if (permissionDenied != null) {
+                return permissionDenied;
+            }
+            String operator = authentication != null ? authentication.getName() : null;
+            if (!StringUtils.hasText(operator)) {
+                dialogAuthorizationService.logDialogAction(null, ticketId, "reassign", "unauthorized", "Требуется авторизация");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("success", false, "error", "Требуется авторизация"));
+            }
+            DialogQuickActionService.DialogReassignResult result = dialogQuickActionService.reassignTicket(
+                    ticketId,
+                    request != null ? request.username() : null,
+                    operator
+            );
+            if (!result.exists()) {
+                dialogAuthorizationService.logDialogAction(operator, ticketId, "reassign", "not_found", "Диалог не найден");
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("success", false, "error", "Диалог не найден"));
+            }
+            if (result.error() != null) {
+                dialogAuthorizationService.logDialogAction(operator, ticketId, "reassign", "error", result.error());
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("success", false, "error", result.error()));
+            }
+            dialogAuthorizationService.logDialogAction(operator, ticketId, "reassign", "success", "responsible_redirected");
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("success", true);
+            payload.put("responsible", result.responsible());
+            payload.put("displayResponsible", result.responsibleDisplayName());
+            payload.put("avatarUrl", result.responsibleAvatarUrl());
+            payload.put("participants", result.participants());
+            return ResponseEntity.ok(payload);
+        });
+    }
+
     private <T> T withQuickActionTiming(String action, String ticketId, Supplier<T> supplier) {
         long startedAtMs = System.currentTimeMillis();
         try {
@@ -260,4 +376,8 @@ public class DialogQuickActionsController {
     public record DialogCategoriesRequest(List<String> categories) {}
 
     public record DialogSnoozeRequest(Integer minutes) {}
+
+    public record DialogParticipantRequest(String username) {}
+
+    public record DialogReassignRequest(String username) {}
 }

@@ -598,6 +598,8 @@
                 </div>
                 <div class="dialog-details-header-actions">
                     <button type="button" class="btn btn-outline-success btn-sm d-none" id="dialogDetailsTakeBtn">Взять себе</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="dialogDetailsParticipantsBtn">Участники</button>
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="dialogDetailsReassignBtn">Передать</button>
                     <a class="btn btn-outline-secondary btn-sm" id="dialogDetailsCreateTask" th:href="@{/tasks(create=1)}">Задача</a>
                     <button type="button" class="btn btn-outline-success btn-sm" id="dialogDetailsResolve">Закрыть</button>
                     <button type="button" class="btn btn-outline-warning btn-sm d-none" id="dialogDetailsReopen">Переоткрыть</button>
@@ -633,6 +635,14 @@
                                     </div>
                                     <div class="small text-muted" id="dialogDetailsAiState">Откройте диалог для загрузки подсказок.</div>
                                     <div class="d-flex flex-column gap-2 mt-2 d-none" id="dialogDetailsAiList"></div>
+                                </div>
+                                <div class="dialog-details-section" id="dialogDetailsParticipantsSection">
+                                    <div class="d-flex align-items-center justify-content-between mb-2">
+                                        <div class="fw-semibold">Участники</div>
+                                        <button class="btn btn-sm btn-outline-secondary" id="dialogDetailsParticipantsManageBtn" type="button">Изменить</button>
+                                    </div>
+                                    <div class="small text-muted" id="dialogDetailsParticipantsState">Откройте диалог для загрузки списка участников.</div>
+                                    <div class="d-flex flex-column gap-2 mt-2 d-none" id="dialogDetailsParticipantsList"></div>
                                 </div>
                                 <div class="dialog-details-section dialog-templates-dropdown" id="dialogCompletionTemplatesSection">
                                     <button class="dialog-templates-toggle" type="button" id="dialogCompletionTemplatesToggle">
@@ -815,6 +825,62 @@
     </div>
 </div>
 
+<div class="modal fade" id="dialogParticipantsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Участники диалога</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-muted mb-3" id="dialogParticipantsMeta">Подключайте к диалогу коллег, которым нужен доступ и уведомления по обращению.</p>
+                <div class="row g-3">
+                    <div class="col-12 col-lg-5">
+                        <label class="form-label form-label-sm" for="dialogParticipantsSelect">Добавить пользователя панели</label>
+                        <select class="form-select form-select-sm" id="dialogParticipantsSelect" aria-label="Выбор пользователя для подключения к диалогу"></select>
+                        <div class="form-text small" id="dialogParticipantsSelectHint">Ответственный не отображается в списке: он уже подключён к диалогу автоматически.</div>
+                        <button type="button" class="btn btn-primary btn-sm mt-3" id="dialogParticipantsAddBtn">Добавить к диалогу</button>
+                    </div>
+                    <div class="col-12 col-lg-7">
+                        <div class="fw-semibold small mb-2">Подключённые пользователи</div>
+                        <div class="small text-muted" id="dialogParticipantsCurrentState">Загрузка участников…</div>
+                        <div class="d-flex flex-column gap-2 mt-2 d-none" id="dialogParticipantsCurrentList"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="dialogReassignModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-md modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Переадресация диалога</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-muted mb-3" id="dialogReassignMeta">Передайте открытый диалог другому сотруднику, если обращение нужно отдать сменщику или профильному оператору.</p>
+                <div class="mb-3">
+                    <div class="small text-muted mb-1">Сейчас ответственный</div>
+                    <div class="dialog-reassign-current" id="dialogReassignCurrent">—</div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label form-label-sm" for="dialogReassignSelect">Новый ответственный</label>
+                    <select class="form-select form-select-sm" id="dialogReassignSelect" aria-label="Выбор нового ответственного"></select>
+                    <div class="form-text small" id="dialogReassignHint">Если пользователь уже был участником диалога, после передачи он станет только ответственным.</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" id="dialogReassignSubmit">Передать диалог</button>
+            </div>
+        </div>
+    </div>
+</div>
 <div class="modal fade" id="dialogMediaPreviewModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">

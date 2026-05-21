@@ -47,4 +47,14 @@ public class DialogReadController {
                                              @RequestParam(value = "offset", required = false, defaultValue = "0") Integer offset) {
         return dialogReadService.loadPreviousHistory(ticketId, offset);
     }
+
+    @GetMapping("/operators")
+    public Map<String, Object> operators() {
+        return dialogReadService.loadAssignableOperators();
+    }
+
+    @GetMapping("/{ticketId}/participants")
+    public Map<String, Object> participants(@PathVariable String ticketId) {
+        return dialogReadService.loadParticipants(ticketId);
+    }
 }

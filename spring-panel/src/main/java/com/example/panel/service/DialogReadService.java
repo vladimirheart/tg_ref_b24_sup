@@ -22,15 +22,18 @@ public class DialogReadService {
     private final DialogDetailsReadService dialogDetailsReadService;
     private final DialogResponsibilityService dialogResponsibilityService;
     private final DialogConversationReadService dialogConversationReadService;
+    private final DialogParticipantService dialogParticipantService;
     private final PublicFormService publicFormService;
 
     public DialogReadService(DialogDetailsReadService dialogDetailsReadService,
                              DialogResponsibilityService dialogResponsibilityService,
                              DialogConversationReadService dialogConversationReadService,
+                             DialogParticipantService dialogParticipantService,
                              PublicFormService publicFormService) {
         this.dialogDetailsReadService = dialogDetailsReadService;
         this.dialogResponsibilityService = dialogResponsibilityService;
         this.dialogConversationReadService = dialogConversationReadService;
+        this.dialogParticipantService = dialogParticipantService;
         this.publicFormService = publicFormService;
     }
 
@@ -79,6 +82,20 @@ public class DialogReadService {
                 "has_more", historyPage.hasMore(),
                 "next_offset", historyPage.nextOffset()
         ));
+    }
+
+    public Map<String, Object> loadParticipants(String ticketId) {
+        return Map.of(
+                "success", true,
+                "participants", dialogParticipantService.loadParticipants(ticketId)
+        );
+    }
+
+    public Map<String, Object> loadAssignableOperators() {
+        return Map.of(
+                "success", true,
+                "operators", dialogParticipantService.loadAssignableOperators()
+        );
     }
 
     private Map<String, Object> mapWithNullableValues(Object... keyValues) {
