@@ -10,7 +10,9 @@ import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import org.springframework.web.util.UriUtils;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -246,7 +248,18 @@ public class DialogConversationReadService {
         if (trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith("/")) {
             return trimmed;
         }
-        return "/api/dialogs/" + ticketId.trim() + "/attachments/" + trimmed;
+        if (trimmed.startsWith("api/")) {
+            return "/" + trimmed;
+        }
+        String normalized = trimmed.replace('\\', '/');
+        if (normalized.startsWith("attachments/") || normalized.contains("/attachments/")) {
+            return "/api/attachments/tickets/by-path?path="
+                    + UriUtils.encodeQueryParam(trimmed, StandardCharsets.UTF_8);
+        }
+        return "/api/attachments/tickets/"
+                + UriUtils.encodePathSegment(ticketId.trim(), StandardCharsets.UTF_8)
+                + "/"
+                + UriUtils.encodePathSegment(trimmed, StandardCharsets.UTF_8);
     }
 
     private static Long parseLong(Object value) {

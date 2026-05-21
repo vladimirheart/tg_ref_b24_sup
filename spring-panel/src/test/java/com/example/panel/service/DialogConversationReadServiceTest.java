@@ -54,9 +54,28 @@ class DialogConversationReadServiceTest {
         assertThat(history).hasSize(2);
         assertThat(history.get(0).message()).isEqualTo("Первое сообщение");
         assertThat(history.get(1).replyPreview()).isEqualTo("Первое сообщение");
-        assertThat(history.get(1).attachment()).isEqualTo("/api/dialogs/T-10/attachments/photo.png");
+        assertThat(history.get(1).attachment()).isEqualTo("/api/attachments/tickets/T-10/photo.png");
         assertThat(history.get(1).editedAt()).isEqualTo("2026-04-21T09:02:00Z");
         assertThat(history.get(1).forwardedFrom()).isEqualTo("manager");
+    }
+
+    @Test
+    void loadHistoryBuildsAttachmentUrlForStoredPath() {
+        jdbcTemplate.update("""
+                INSERT INTO chat_history(
+                    ticket_id, sender, message, timestamp, message_type, attachment,
+                    tg_message_id, reply_to_tg_id, channel_id, original_message, edited_at, deleted_at, forwarded_from
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                "T-11", "client", "", "2026-04-21T09:03:00Z", "photo", "attachments/T-11/client photo.jpg",
+                12L, null, 5L, "", null, null, null
+        );
+
+        List<ChatMessageDto> history = service.loadHistory("T-11", 5L);
+
+        assertThat(history).hasSize(1);
+        assertThat(history.get(0).attachment())
+                .isEqualTo("/api/attachments/tickets/by-path?path=attachments%2FT-11%2Fclient%20photo.jpg");
     }
 
     @Test

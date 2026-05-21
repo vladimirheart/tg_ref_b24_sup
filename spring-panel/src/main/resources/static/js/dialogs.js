@@ -6230,6 +6230,17 @@
     }
   }
 
+  function handleMediaPreviewEscape(event) {
+    if (event.key !== 'Escape') return;
+    if (!mediaPreviewModalEl?.classList.contains('show')) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (typeof event.stopImmediatePropagation === 'function') {
+      event.stopImmediatePropagation();
+    }
+    hideModalSafe(mediaPreviewModalEl, mediaPreviewModal);
+  }
+
   function restoreColumnWidths() {
     try {
       const raw = localStorage.getItem(STORAGE_WIDTHS);
@@ -9429,6 +9440,7 @@
     });
   }
 
+  document.addEventListener('keydown', handleMediaPreviewEscape, true);
   document.addEventListener('keydown', handleGlobalShortcuts);
 
 
