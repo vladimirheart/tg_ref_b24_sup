@@ -851,6 +851,14 @@ integration-сценария поверх users/settings runtime boundary всё
   корректно участвуют в online-recipient filtering. По пути снят ещё один
   `JdbcTemplate.query(...)` ambiguous compile-blocker в
   `NotificationRoutingService`.
+- следующим orchestration continuity пакетом добран уже
+  `OperatorNotificationWatcher`: добавлен dedicated test net на
+  incoming-message alert routing, initial `public_form_submit` branch и
+  first-response-overdue fallback. По пути закрыт production-bug с wrong
+  `JdbcTemplate.query(...)` overload в `watchChatHistoryMessages` /
+  `watchFeedbacks`, из-за которого watcher мог пропускать строки, и
+  добавлен fallback на operator audience для overdue alerts, если
+  `AlertQueueService` не смог отдать notification дальше по route.
 - `DialogAiOpsController` теперь прикрыт не только по основным happy/error
   flows, но и по alias/null-body/default-path сценариям, что уменьшает риск
   regressions в transport-layer normalisation.

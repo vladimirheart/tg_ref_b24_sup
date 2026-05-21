@@ -768,6 +768,16 @@
   `NotificationRoutingService`. Следующий logical focus уже смещается на
   `OperatorNotificationWatcher` / escalation audience continuity в более
   широком runtime orchestration слое.
+- этот следующий watcher/orchestration focus теперь тоже закрыт отдельным
+  пакетом: добавлен `OperatorNotificationWatcherTest` на incoming alert
+  routing, `public_form_submit` initial branch и first-response-overdue
+  fallback. Заодно снят production-bug с wrong `JdbcTemplate.query(...)`
+  overload в `watchChatHistoryMessages` / `watchFeedbacks`, а overdue
+  alert path получил fallback на operator audience, если
+  `AlertQueueService` не смог доставить notification по route. Следующий
+  logical focus теперь уже честно смещается на более широкий
+  `dialog/public-form/notification` runtime duplication and escalation
+  contract hardening.
 - этот же smoke-слой расширен на detail/subpage contract:
   `ai-ops`, `unblock requests`, `users/detail` и оба passport editor route
   (`/object-passports/new`, `/object-passports/{id}`) теперь тоже прикрыты
