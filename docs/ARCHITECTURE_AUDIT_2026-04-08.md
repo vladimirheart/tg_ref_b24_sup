@@ -902,6 +902,14 @@ integration-сценария поверх users/settings runtime boundary всё
   смещён уже не в расширение unit coverage, а в более живой
   integration/runtime continuity для quick-action side-effects на реальном
   dialog history и participant audience.
+- следующим transport-level follow-up пакетом расширен и
+  `DialogQuickActionsControllerWebMvcTest`: кроме уже закрытых
+  `reply/resolve/take/media/categories/snooze` веток он теперь прикрывает
+  `edit`, `delete`, `reopen`, `participants add/remove` и `reassign`
+  payload/status/audit contract. Это снимает ещё один controller-boundary
+  risk вокруг quick actions; remaining practical focus здесь теперь уже
+  честно смещён в live runtime continuity, а не в дальнейшее наращивание
+  WebMvc/unit surface.
 - `DialogAiOpsController` теперь прикрыт не только по основным happy/error
   flows, но и по alias/null-body/default-path сценариям, что уменьшает риск
   regressions в transport-layer normalisation.

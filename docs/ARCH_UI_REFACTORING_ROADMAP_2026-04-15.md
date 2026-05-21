@@ -816,6 +816,13 @@
   integration/runtime continuity вокруг quick-action side-effects на живой
   dialog history, participant audience и соседних transport bridges, а не в
   дальнейшее наращивание unit-level branch coverage.
+- следующим transport-boundary пакетом расширен и
+  `DialogQuickActionsControllerWebMvcTest`: к уже покрытым
+  `reply/resolve/take/media/categories/snooze` добавлены `edit`, `delete`,
+  `reopen`, `participants add/remove` и `reassign` contract scenarios с
+  проверкой status/payload и action-audit logging. После этого следующий
+  practical focus здесь уже смещён из controller/unit слоя в live runtime
+  continuity quick-action side-effects.
 - этот же smoke-слой расширен на detail/subpage contract:
   `ai-ops`, `unblock requests`, `users/detail` и оба passport editor route
   (`/object-passports/new`, `/object-passports/{id}`) теперь тоже прикрыты

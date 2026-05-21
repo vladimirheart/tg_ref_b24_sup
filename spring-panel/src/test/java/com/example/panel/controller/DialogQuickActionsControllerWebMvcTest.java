@@ -6,10 +6,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.example.panel.model.dialog.DialogParticipantDto;
 import com.example.panel.service.DialogAuthorizationService;
 import com.example.panel.service.DialogQuickActionService;
 import com.example.panel.service.DialogResolveResult;
@@ -166,5 +168,142 @@ class DialogQuickActionsControllerWebMvcTest {
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.error").value("file_too_large"));
+    }
+
+    @Test
+    void editReturnsTimestampOnSuccess() throws Exception {
+        when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_reply"), eq("edit"), eq("T-607")))
+            .thenReturn(null);
+        when(dialogQuickActionService.editReply("T-607", 701L, "Уточнили ответ", "operator"))
+            .thenReturn(new DialogReplyService.DialogReplyResult(true, null, "2026-05-21T18:10:00Z", 701L, "operator"));
+
+        mockMvc.perform(post("/api/dialogs/T-607/edit")
+                .with(user("operator"))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "telegramMessageId": 701,
+                      "message": "Уточнили ответ"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.timestamp").value("2026-05-21T18:10:00Z"));
+    }
+
+    @Test
+    void deleteReturnsBadRequestWhenServiceReturnsError() throws Exception {
+        when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_reply"), eq("delete"), eq("T-608")))
+            .thenReturn(null);
+        when(dialogQuickActionService.deleteReply("T-608", 702L, "operator"))
+            .thenReturn(new DialogReplyService.DialogReplyResult(false, "message_not_found", null, null, null));
+
+        mockMvc.perform(post("/api/dialogs/T-608/delete")
+                .with(user("operator"))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "telegramMessageId": 702
+                    }
+                    """))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("message_not_found"));
+    }
+
+    @Test
+    void reopenReturnsUpdatedOnSuccess() throws Exception {
+        when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_close"), eq("reopen"), eq("T-609")))
+            .thenReturn(null);
+        when(dialogQuickActionService.reopenTicket("T-609", "operator"))
+            .thenReturn(new DialogResolveResult(true, true, null));
+
+        mockMvc.perform(post("/api/dialogs/T-609/reopen")
+                .with(user("operator"))
+                .with(csrf()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.updated").value(true));
+    }
+
+    @Test
+    void addParticipantReturnsChangedParticipantsOnSuccess() throws Exception {
+        when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_assign"), eq("participants_add"), eq("T-610")))
+            .thenReturn(null);
+        when(dialogQuickActionService.addParticipant("T-610", "watcher_peer", "operator"))
+            .thenReturn(new DialogQuickActionService.DialogParticipantMutationResult(
+                    true,
+                    true,
+                    null,
+                    List.of(new DialogParticipantDto("watcher_peer", "Watcher Peer", null, "ops", "operator", "2026-05-21T18:11:00Z", "operator"))
+            ));
+
+        mockMvc.perform(post("/api/dialogs/T-610/participants")
+                .with(user("operator"))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "username": "watcher_peer"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.changed").value(true))
+            .andExpect(jsonPath("$.participants[0].username").value("watcher_peer"));
+
+        verify(dialogAuthorizationService).logDialogAction("operator", "T-610", "participants_add", "success", "participant_added");
+    }
+
+    @Test
+    void removeParticipantReturnsNotFoundWhenDialogMissing() throws Exception {
+        when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_assign"), eq("participants_remove"), eq("T-611")))
+            .thenReturn(null);
+        when(dialogQuickActionService.removeParticipant("T-611", "watcher_peer", "operator"))
+            .thenReturn(new DialogQuickActionService.DialogParticipantMutationResult(false, false, null, List.of()));
+
+        mockMvc.perform(delete("/api/dialogs/T-611/participants/watcher_peer")
+                .with(user("operator"))
+                .with(csrf()))
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("Диалог не найден"));
+
+        verify(dialogAuthorizationService).logDialogAction("operator", "T-611", "participants_remove", "not_found", "Диалог не найден");
+    }
+
+    @Test
+    void reassignReturnsResponsibleProjectionOnSuccess() throws Exception {
+        when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_assign"), eq("reassign"), eq("T-612")))
+            .thenReturn(null);
+        when(dialogQuickActionService.reassignTicket("T-612", "watcher_peer", "operator"))
+            .thenReturn(new DialogQuickActionService.DialogReassignResult(
+                    true,
+                    null,
+                    "watcher_peer",
+                    "Watcher Peer",
+                    "/avatars/watcher_peer.png",
+                    List.of(new DialogParticipantDto("watcher_peer", "Watcher Peer", null, "ops", "operator", "2026-05-21T18:12:00Z", "operator"))
+            ));
+
+        mockMvc.perform(post("/api/dialogs/T-612/reassign")
+                .with(user("operator"))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "username": "watcher_peer"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.responsible").value("watcher_peer"))
+            .andExpect(jsonPath("$.displayResponsible").value("Watcher Peer"))
+            .andExpect(jsonPath("$.avatarUrl").value("/avatars/watcher_peer.png"))
+            .andExpect(jsonPath("$.participants[0].username").value("watcher_peer"));
+
+        verify(dialogAuthorizationService).logDialogAction("operator", "T-612", "reassign", "success", "responsible_redirected");
     }
 }
