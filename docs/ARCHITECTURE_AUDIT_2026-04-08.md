@@ -886,6 +886,14 @@ integration-сценария поверх users/settings runtime boundary всё
   `PublicFormFlowSmokeIntegrationTest`, но и на самом orchestration слое с
   явной проверкой `clearProcessing`, operator-feedback handoff,
   resolved/reopened notifications и participant notification continuity.
+- следующим расширением этого же continuity пакета `DialogQuickActionService`
+  добран уже до `sendMediaReply`, `updateCategories`,
+  `addParticipant`, `removeParticipant` и `reassignTicket`: service-level net
+  теперь фиксирует media attachment payload/result contract,
+  category-update notifications и operator-collaboration lifecycle вокруг
+  participant/reassign веток, а remaining practical focus смещён уже не в
+  базовые orchestration branches, а в integration/runtime continuity для
+  `edit/delete` и соседних dialog-side effects.
 - `DialogAiOpsController` теперь прикрыт не только по основным happy/error
   flows, но и по alias/null-body/default-path сценариям, что уменьшает риск
   regressions в transport-layer normalisation.

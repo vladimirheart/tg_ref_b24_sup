@@ -801,6 +801,14 @@
   resolved/reopened notification side-effects и participant-notification
   continuity. Это снимает ещё один orchestration-risk, который раньше
   держался в основном на controller-contract и public-form smoke.
+- следующим расширением этого же regression net `DialogQuickActionService`
+  теперь прикрыт и по `sendMediaReply`, `updateCategories`,
+  `addParticipant`, `removeParticipant` и `reassignTicket`: service-level
+  continuity зафиксировала media reply payload contract, category-update
+  notification side-effects и operator collaboration lifecycle вокруг
+  participant/reassign веток. После этого следующий practical focus здесь уже
+  смещён в integration/runtime continuity для `edit/delete` и смежных dialog
+  side-effects, а не в базовые unit orchestration branches.
 - этот же smoke-слой расширен на detail/subpage contract:
   `ai-ops`, `unblock requests`, `users/detail` и оба passport editor route
   (`/object-passports/new`, `/object-passports/{id}`) теперь тоже прикрыты
