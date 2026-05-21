@@ -104,7 +104,14 @@ public class PublicFormSubmissionPersistenceService {
                 "success",
                 "channel=" + channel.getId() + ", source=web_form"
         );
-        alertQueueService.notifyQueueForNewPublicAppeal(channel, saved.getTicketId(), combinedMessage);
+        boolean newAppealNotified = alertQueueService.notifyQueueForNewPublicAppeal(channel, saved.getTicketId(), combinedMessage);
+        dialogAuditService.logDialogActionAudit(
+                saved.getTicketId(),
+                saved.getUsername(),
+                "public_form_new_appeal_notification",
+                newAppealNotified ? "success" : "skipped",
+                "channel=" + channel.getId() + ", route=" + (newAppealNotified ? "alert_queue" : "no_recipients")
+        );
         return result;
     }
 

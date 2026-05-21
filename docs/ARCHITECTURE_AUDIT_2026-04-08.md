@@ -859,6 +859,15 @@ integration-сценария поверх users/settings runtime boundary всё
   `watchFeedbacks`, из-за которого watcher мог пропускать строки, и
   добавлен fallback на operator audience для overdue alerts, если
   `AlertQueueService` не смог отдать notification дальше по route.
+- следующим runtime consistency пакетом закрыто дублирование initial
+  `public-form` alerts между `PublicFormSubmissionPersistenceService`,
+  `AlertQueueService` и `OperatorNotificationWatcher`: queue-delivery на
+  submit теперь фиксируется отдельным successful audit action
+  `public_form_new_appeal_notification`, а watcher уважает этот маркер и
+  не шлёт второй `notifyAllOperators(...)` для первого client message. При
+  этом legacy fallback сохранён: если queue route не нашёл recipients и
+  persistence записал `skipped`, watcher по-прежнему может поднять initial
+  notification самостоятельно.
 - `DialogAiOpsController` теперь прикрыт не только по основным happy/error
   flows, но и по alias/null-body/default-path сценариям, что уменьшает риск
   regressions в transport-layer normalisation.

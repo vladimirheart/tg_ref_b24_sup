@@ -778,6 +778,13 @@
   logical focus теперь уже честно смещается на более широкий
   `dialog/public-form/notification` runtime duplication and escalation
   contract hardening.
+- этот следующий duplication focus теперь тоже закрыт отдельным пакетом:
+  `PublicFormSubmissionPersistenceService` фиксирует successful/failed
+  queue-delivery в `public_form_new_appeal_notification`, а
+  `OperatorNotificationWatcher` больше не дублирует initial
+  `notifyAllOperators(...)`, если alert уже был доставлен на submit path.
+  При этом legacy fallback сохранён для ветки без recipients, где queue
+  route вернул `false` и watcher всё ещё остаётся последней страховкой.
 - этот же smoke-слой расширен на detail/subpage contract:
   `ai-ops`, `unblock requests`, `users/detail` и оба passport editor route
   (`/object-passports/new`, `/object-passports/{id}`) теперь тоже прикрыты

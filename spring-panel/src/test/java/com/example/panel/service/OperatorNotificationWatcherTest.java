@@ -106,6 +106,7 @@ class OperatorNotificationWatcherTest {
     @Test
     void watchNotifiesAllOperatorsForInitialPublicFormMessage() {
         when(dialogAuditService.hasSuccessfulDialogAction("T-WEB-1", "public_form_submit")).thenReturn(true);
+        when(dialogAuditService.hasSuccessfulDialogAction("T-WEB-1", "public_form_new_appeal_notification")).thenReturn(false);
 
         jdbcTemplate.update("""
                 INSERT INTO chat_history(id, ticket_id, sender, message, message_type, attachment, channel_id, timestamp)
@@ -122,6 +123,27 @@ class OperatorNotificationWatcherTest {
         );
         verify(alertQueueService, never()).notifyIncomingClientMessage(org.mockito.ArgumentMatchers.any(), anyString(), org.mockito.ArgumentMatchers.any());
         verify(dialogAiAssistantService).processIncomingClientMessage("T-WEB-1", "Нужна помощь по форме", "text", null);
+    }
+
+    @Test
+    void watchSkipsDuplicateInitialPublicFormNotificationWhenPersistenceAlreadyAlertedQueue() {
+        when(dialogAuditService.hasSuccessfulDialogAction("T-WEB-2", "public_form_submit")).thenReturn(true);
+        when(dialogAuditService.hasSuccessfulDialogAction("T-WEB-2", "public_form_new_appeal_notification")).thenReturn(true);
+
+        jdbcTemplate.update("""
+                INSERT INTO chat_history(id, ticket_id, sender, message, message_type, attachment, channel_id, timestamp)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                1L, "T-WEB-2", "user", "Сообщение из формы без дубля", "text", null, 11L, OffsetDateTime.now(ZoneOffset.UTC).toString());
+
+        watcher.watch();
+
+        verify(notificationService, never()).notifyAllOperators(
+                eq("Новое обращение T-WEB-2: Сообщение из формы без дубля"),
+                eq("/dialogs?ticketId=T-WEB-2"),
+                isNull()
+        );
+        verify(dialogAiAssistantService).processIncomingClientMessage("T-WEB-2", "Сообщение из формы без дубля", "text", null);
     }
 
     @Test

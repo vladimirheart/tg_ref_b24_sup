@@ -9,6 +9,10 @@
         "/^git status -sb; git rev-list --left-right --count origin/main\\.\\.\\.main; git log --oneline --decorate --graph --left-right --cherry origin/main\\.\\.\\.main$/": {
             "approve": true,
             "matchCommandLine": true
+        },
+        "/^git status --branch --verbose; git merge HEAD --no-commit --no-ff 2>/dev/null ; true; git rebase --show-current-patch 2>/dev/null ; true$/": {
+            "approve": true,
+            "matchCommandLine": true
         }
     }
 }

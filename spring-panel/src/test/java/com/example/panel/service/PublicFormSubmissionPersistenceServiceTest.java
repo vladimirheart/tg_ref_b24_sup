@@ -36,6 +36,7 @@ class PublicFormSubmissionPersistenceServiceTest {
         ObjectMapper objectMapper = mock(ObjectMapper.class);
         DialogAuditService dialogAuditService = mock(DialogAuditService.class);
         AlertQueueService alertQueueService = mock(AlertQueueService.class);
+        when(alertQueueService.notifyQueueForNewPublicAppeal(any(Channel.class), any(String.class), any(String.class))).thenReturn(true);
 
         when(objectMapper.writeValueAsString(Map.of(
                 "business", "БлинБери",
@@ -99,6 +100,13 @@ class PublicFormSubmissionPersistenceServiceTest {
                 eq("public_form_submit"),
                 eq("success"),
                 eq("channel=18, source=web_form")
+        );
+        verify(dialogAuditService).logDialogActionAudit(
+                eq(result.ticketId()),
+                eq("anna"),
+                eq("public_form_new_appeal_notification"),
+                eq("success"),
+                eq("channel=18, route=alert_queue")
         );
         verify(alertQueueService, times(1)).notifyQueueForNewPublicAppeal(
                 eq(channel),

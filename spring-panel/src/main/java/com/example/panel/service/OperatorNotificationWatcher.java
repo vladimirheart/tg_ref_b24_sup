@@ -113,15 +113,18 @@ public class OperatorNotificationWatcher {
                         boolean initialPublicFormMessage = dialogAuditService.hasSuccessfulDialogAction(ticketId, "public_form_submit")
                                 && isFirstExternalMessage(ticketId, id);
                         if (initialPublicFormMessage) {
-                            String text = "Новое обращение " + ticketId;
-                            if (StringUtils.hasText(message)) {
-                                text += ": " + truncate(message, 100);
+                            boolean alreadyNotified = dialogAuditService.hasSuccessfulDialogAction(ticketId, "public_form_new_appeal_notification");
+                            if (!alreadyNotified) {
+                                String text = "Новое обращение " + ticketId;
+                                if (StringUtils.hasText(message)) {
+                                    text += ": " + truncate(message, 100);
+                                }
+                                notificationService.notifyAllOperators(
+                                        text,
+                                        "/dialogs?ticketId=" + ticketId,
+                                        null
+                                );
                             }
-                            notificationService.notifyAllOperators(
-                                    text,
-                                    "/dialogs?ticketId=" + ticketId,
-                                    null
-                            );
                             dialogAiAssistantService.processIncomingClientMessage(ticketId, message, messageType, attachment);
                             continue;
                         }
