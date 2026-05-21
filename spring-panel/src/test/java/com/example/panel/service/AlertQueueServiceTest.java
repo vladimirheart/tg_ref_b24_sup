@@ -18,8 +18,10 @@ import java.time.format.DateTimeFormatter;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class AlertQueueServiceTest {
 
@@ -35,6 +37,10 @@ class AlertQueueServiceTest {
         DataSource usersDataSource = new DriverManagerDataSource("jdbc:sqlite:" + usersDbFile.toAbsolutePath());
         usersJdbcTemplate = new JdbcTemplate(usersDataSource);
         notificationService = mock(NotificationService.class);
+        when(notificationService.buildDialogUrl(any())).thenAnswer(invocation -> {
+            Object raw = invocation.getArgument(0);
+            return raw == null ? "/dialogs" : "/dialogs/" + String.valueOf(raw).trim();
+        });
         service = new AlertQueueService(usersJdbcTemplate, notificationService, new ObjectMapper());
         usersJdbcTemplate.execute("""
                 CREATE TABLE users (
@@ -84,7 +90,7 @@ class AlertQueueServiceTest {
         verify(notificationService).notifyUsers(recipientsCaptor.capture(), textCaptor.capture(), urlCaptor.capture());
         assertThat(recipientsCaptor.getValue()).containsExactly("alice");
         assertThat(textCaptor.getValue()).isEqualTo("Новое сообщение в обращении T-88: Клиент прислал лог ошибки");
-        assertThat(urlCaptor.getValue()).isEqualTo("/dialogs?ticketId=T-88");
+        assertThat(urlCaptor.getValue()).isEqualTo("/dialogs/T-88");
     }
 
     @Test
@@ -118,7 +124,7 @@ class AlertQueueServiceTest {
         ArgumentCaptor<String> textCaptor = ArgumentCaptor.forClass(String.class);
 
         assertThat(notified).isTrue();
-        verify(notificationService).notifyUsers(recipientsCaptor.capture(), textCaptor.capture(), org.mockito.ArgumentMatchers.eq("/dialogs?ticketId=T-99"));
+        verify(notificationService).notifyUsers(recipientsCaptor.capture(), textCaptor.capture(), org.mockito.ArgumentMatchers.eq("/dialogs/T-99"));
         assertThat(recipientsCaptor.getValue()).containsExactlyInAnyOrder("alice", "bob");
         assertThat(textCaptor.getValue()).isEqualTo("Первая реакция просрочена (Support Desk) в обращении T-99. Просрочка: 42 мин.");
     }
@@ -150,7 +156,7 @@ class AlertQueueServiceTest {
         ArgumentCaptor<Set<String>> recipientsCaptor = ArgumentCaptor.forClass(Set.class);
         ArgumentCaptor<String> textCaptor = ArgumentCaptor.forClass(String.class);
 
-        verify(notificationService).notifyUsers(recipientsCaptor.capture(), textCaptor.capture(), org.mockito.ArgumentMatchers.eq("/dialogs?ticketId=T-11"));
+        verify(notificationService).notifyUsers(recipientsCaptor.capture(), textCaptor.capture(), org.mockito.ArgumentMatchers.eq("/dialogs/T-11"));
         assertThat(recipientsCaptor.getValue()).containsExactlyInAnyOrder("mila", "sasha");
         assertThat(textCaptor.getValue())
                 .startsWith("Новое обращение (Веб-форма): ")

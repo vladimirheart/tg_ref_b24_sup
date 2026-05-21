@@ -437,7 +437,7 @@ class SupportPanelIntegrationTests {
         Integer initialNotificationCount = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM notifications WHERE url = ? AND text LIKE 'Новое обращение%'",
                 Integer.class,
-                "/dialogs?ticketId=" + session.ticketId()
+                "/dialogs/" + session.ticketId()
         );
         Integer initialAlertAuditCount = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM dialog_action_audit WHERE ticket_id = ? AND action = ? AND result = 'success'",
@@ -451,12 +451,12 @@ class SupportPanelIntegrationTests {
         Integer afterWatcherNotificationCount = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM notifications WHERE url = ? AND text LIKE 'Новое обращение%'",
                 Integer.class,
-                "/dialogs?ticketId=" + session.ticketId()
+                "/dialogs/" + session.ticketId()
         );
         Integer watcherStyleDuplicateCount = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM notifications WHERE url = ? AND text LIKE ?",
                 Integer.class,
-                "/dialogs?ticketId=" + session.ticketId(),
+                "/dialogs/" + session.ticketId(),
                 "Новое обращение " + session.ticketId() + ":%"
         );
 
@@ -794,7 +794,7 @@ class SupportPanelIntegrationTests {
                 .containsOnly("Новый ответ по пустому диалогу");
         assertThat(notifications)
                 .extracting(row -> String.valueOf(row.get("url")))
-                .containsOnly("/dialogs?ticketId=MISSING-TICKET");
+                .containsOnly("/dialogs/MISSING-TICKET");
         assertThat(notifications)
                 .allSatisfy(row -> assertThat(((Number) row.get("is_read")).intValue()).isZero());
     }
@@ -845,12 +845,12 @@ class SupportPanelIntegrationTests {
         Integer notificationCount = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM notifications WHERE url = ?",
                 Integer.class,
-                "/dialogs?ticketId=WATCHER-WEB-2"
+                "/dialogs/WATCHER-WEB-2"
         );
         String notificationText = jdbcTemplate.queryForObject(
                 "SELECT text FROM notifications WHERE url = ? ORDER BY id DESC LIMIT 1",
                 String.class,
-                "/dialogs?ticketId=WATCHER-WEB-2"
+                "/dialogs/WATCHER-WEB-2"
         );
         assertThat(notificationCount).isGreaterThanOrEqualTo(1);
         assertThat(notificationText).isNotBlank();

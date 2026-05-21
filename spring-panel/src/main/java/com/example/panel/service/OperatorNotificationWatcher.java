@@ -101,9 +101,9 @@ public class OperatorNotificationWatcher {
                             String text = "Диалог " + ticketId + " автоматически закрыт из-за отсутствия активности.";
                             Set<String> recipients = notificationService.findDialogRecipients(ticketId);
                             if (recipients.isEmpty()) {
-                                notificationService.notifyAllOperators(text, "/dialogs?ticketId=" + ticketId, null);
+                                notificationService.notifyAllOperators(text, notificationService.buildDialogUrl(ticketId), null);
                             } else {
-                                notificationService.notifyUsers(recipients, text, "/dialogs?ticketId=" + ticketId);
+                                notificationService.notifyUsers(recipients, text, notificationService.buildDialogUrl(ticketId));
                             }
                             continue;
                         }
@@ -121,7 +121,7 @@ public class OperatorNotificationWatcher {
                                 }
                                 notificationService.notifyAllOperators(
                                         text,
-                                        "/dialogs?ticketId=" + ticketId,
+                                        notificationService.buildDialogUrl(ticketId),
                                         null
                                 );
                             }
@@ -136,7 +136,7 @@ public class OperatorNotificationWatcher {
                         if (channel == null || !alertQueueService.notifyIncomingClientMessage(channel, ticketId, message)) {
                             notificationService.notifyAllOperators(
                                     text,
-                                    "/dialogs?ticketId=" + ticketId,
+                                    notificationService.buildDialogUrl(ticketId),
                                     null
                             );
                         }
@@ -189,7 +189,7 @@ public class OperatorNotificationWatcher {
                         notificationService.notifyDialogParticipants(
                                 ticketId,
                                 "Новая оценка по обращению " + ticketId + ": " + rating + "/5",
-                                "/dialogs?ticketId=" + ticketId,
+                                notificationService.buildDialogUrl(ticketId),
                                 null
                         );
                     }
@@ -264,7 +264,7 @@ public class OperatorNotificationWatcher {
                                 notificationService.notifyUsers(
                                         fallbackRecipients,
                                         buildFirstResponseOverdueText(channel, ticketId, overdueMinutes),
-                                        "/dialogs?ticketId=" + ticketId
+                                        notificationService.buildDialogUrl(ticketId)
                                 );
                                 notified = true;
                                 auditDetail += ", route=fallback_all_operators";

@@ -868,6 +868,17 @@ integration-сценария поверх users/settings runtime boundary всё
   этом legacy fallback сохранён: если queue route не нашёл recipients и
   persistence записал `skipped`, watcher по-прежнему может поднять initial
   notification самостоятельно.
+- следующим operator-facing continuity пакетом source-layer notification
+  links тоже доведены до актуального dialog route прямо в точках генерации:
+  `AlertQueueService`, `OperatorNotificationWatcher`,
+  `DialogAiAssistantEscalationService`,
+  `DialogAiAssistantOperatorFeedbackService` и `DialogQuickActionService`
+  теперь строят URL через общий `NotificationService.buildDialogUrl(...)`,
+  а не через legacy `?ticketId` строки. Это убирает скрытую зависимость от
+  поздней normalize-магии в `NotificationService` и фиксирует единый
+  transport contract уже на источнике событий. Параллельно корневой
+  `.gitignore` теперь игнорирует `/logs/`, чтобы локальные Maven/runtime
+  прогоны меньше шумели при синхронизации рабочего дерева.
 - `DialogAiOpsController` теперь прикрыт не только по основным happy/error
   flows, но и по alias/null-body/default-path сценариям, что уменьшает риск
   regressions в transport-layer normalisation.

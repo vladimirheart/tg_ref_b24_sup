@@ -69,7 +69,7 @@ public class DialogAiAssistantOperatorFeedbackService {
                     "AI suggestion for ticket " + ticket + " differs from operator reply. " +
                             "Please refine learning markup: 1) which client message describes the issue; " +
                             "2) which operator message is the correct solution.",
-                    "/dialogs?ticketId=" + ticket,
+                    notificationService.buildDialogUrl(ticket),
                     null
             );
             stateService.clearProcessing(

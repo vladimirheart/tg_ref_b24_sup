@@ -47,7 +47,7 @@ public class AlertQueueService {
         }
         String channelLabel = StringUtils.hasText(channel.getChannelName()) ? channel.getChannelName() : "Канал";
         String text = "Новое обращение (" + channelLabel + "): " + trimPreview(previewText);
-        String url = StringUtils.hasText(ticketId) ? "/dialogs?ticketId=" + ticketId : "/dialogs";
+        String url = notificationService.buildDialogUrl(ticketId);
         return notifyChannelEvent(channel, AlertEvent.NEW_PUBLIC_APPEAL, text, url);
     }
 
@@ -60,7 +60,7 @@ public class AlertQueueService {
                 ? " Просрочка: " + overdueMinutes + " мин."
                 : "";
         String text = "Первая реакция просрочена (" + channelLabel + ") в обращении " + ticketId + "." + overdueLabel;
-        return notifyChannelEvent(channel, AlertEvent.FIRST_RESPONSE_OVERDUE, text, "/dialogs?ticketId=" + ticketId);
+        return notifyChannelEvent(channel, AlertEvent.FIRST_RESPONSE_OVERDUE, text, notificationService.buildDialogUrl(ticketId));
     }
 
     public boolean notifyIncomingClientMessage(Channel channel, String ticketId, String previewText) {
@@ -71,7 +71,7 @@ public class AlertQueueService {
         if (StringUtils.hasText(previewText)) {
             text += ": " + trimPreview(previewText);
         }
-        return notifyChannelEvent(channel, AlertEvent.INCOMING_CLIENT_MESSAGE, text, "/dialogs?ticketId=" + ticketId);
+        return notifyChannelEvent(channel, AlertEvent.INCOMING_CLIENT_MESSAGE, text, notificationService.buildDialogUrl(ticketId));
     }
 
     private boolean notifyChannelEvent(Channel channel, AlertEvent event, String text, String url) {

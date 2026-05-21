@@ -68,10 +68,11 @@ class DialogAiAssistantOperatorFeedbackServiceTest {
                 stateService,
                 configService
         );
+        when(notificationService.buildDialogUrl("T-1")).thenReturn("/dialogs/T-1");
 
         service.registerOperatorReply("T-1", "new reply", "operator");
 
-        verify(notificationService).notifyDialogParticipants(eq("T-1"), any(), eq("/dialogs?ticketId=T-1"), eq(null));
+        verify(notificationService).notifyDialogParticipants(eq("T-1"), any(), eq("/dialogs/T-1"), eq(null));
         verify(stateService).clearProcessing("T-1", "operator_correction_requested", "operator_reply_differs", "review", "operator_reply_differs", null, "assist_only");
         verify(persistenceService).recordAiEvent(eq("T-1"), eq("ai_agent_correction_requested"), eq("operator"), eq("review"), eq("operator_reply_differs"), eq(null), eq(null), eq("Operator reply differs from AI memory"), any());
         verify(persistenceService).updatePendingSolutionText("key-1", "new reply");

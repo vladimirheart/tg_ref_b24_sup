@@ -57,7 +57,7 @@ public class DialogQuickActionService {
             notifyDialogParticipantsSafely(
                     ticketId,
                     "Новое сообщение в обращении " + ticketId,
-                    "/dialogs?ticketId=" + ticketId,
+                    notificationService.buildDialogUrl(ticketId),
                     operator
             );
         }
@@ -78,7 +78,7 @@ public class DialogQuickActionService {
             notifyDialogParticipantsSafely(
                     ticketId,
                     "Сообщение в обращении " + ticketId + " было отредактировано",
-                    "/dialogs?ticketId=" + ticketId,
+                    notificationService.buildDialogUrl(ticketId),
                     operator
             );
         }
@@ -97,7 +97,7 @@ public class DialogQuickActionService {
             notifyDialogParticipantsSafely(
                     ticketId,
                     "Сообщение в обращении " + ticketId + " было удалено",
-                    "/dialogs?ticketId=" + ticketId,
+                    notificationService.buildDialogUrl(ticketId),
                     operator
             );
         }
@@ -131,7 +131,7 @@ public class DialogQuickActionService {
         notifyDialogParticipantsSafely(
                 ticketId,
                 "Новое медиа-сообщение в обращении " + ticketId,
-                "/dialogs?ticketId=" + ticketId,
+                notificationService.buildDialogUrl(ticketId),
                 operator
         );
         return response;
@@ -147,7 +147,7 @@ public class DialogQuickActionService {
             notifyDialogParticipantsSafely(
                     ticketId,
                     "Обращение " + ticketId + " закрыто",
-                    "/dialogs?ticketId=" + ticketId,
+                    notificationService.buildDialogUrl(ticketId),
                     operator
             );
         }
@@ -162,7 +162,7 @@ public class DialogQuickActionService {
             notifyDialogParticipantsSafely(
                     ticketId,
                     "Обращение " + ticketId + " снова открыто",
-                    "/dialogs?ticketId=" + ticketId,
+                    notificationService.buildDialogUrl(ticketId),
                     operator
             );
         }
@@ -176,7 +176,7 @@ public class DialogQuickActionService {
         notifyDialogParticipantsSafely(
                 ticketId,
                 "В обращении " + ticketId + " обновлены категории",
-                "/dialogs?ticketId=" + ticketId,
+                notificationService.buildDialogUrl(ticketId),
                 operator
         );
     }
@@ -193,7 +193,7 @@ public class DialogQuickActionService {
         notifyDialogParticipantsSafely(
                 ticketId,
                 "Обращение " + ticketId + " взято в работу оператором " + operator,
-                "/dialogs?ticketId=" + ticketId,
+                notificationService.buildDialogUrl(ticketId),
                 operator
         );
         return Optional.ofNullable(responsible != null && !responsible.isBlank() ? responsible : operator);

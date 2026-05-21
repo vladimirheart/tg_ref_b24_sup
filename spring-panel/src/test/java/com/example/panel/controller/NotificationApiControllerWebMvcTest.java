@@ -40,14 +40,14 @@ class NotificationApiControllerWebMvcTest {
                 new NotificationDto(
                         101L,
                         "Новое сообщение в обращении T-101",
-                        "/dialogs?ticketId=T-101",
+                        "/dialogs/T-101",
                         false,
                         OffsetDateTime.parse("2026-05-20T10:15:30+03:00")
                 ),
                 new NotificationDto(
                         102L,
                         "Обращение T-102 закрыто",
-                        "/dialogs?ticketId=T-102",
+                        "/dialogs/T-102",
                         true,
                         OffsetDateTime.parse("2026-05-20T10:16:30+03:00")
                 )
@@ -57,7 +57,7 @@ class NotificationApiControllerWebMvcTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(101))
                 .andExpect(jsonPath("$[0].text").value("Новое сообщение в обращении T-101"))
-                .andExpect(jsonPath("$[0].url").value("/dialogs?ticketId=T-101"))
+                .andExpect(jsonPath("$[0].url").value("/dialogs/T-101"))
                 .andExpect(jsonPath("$[0].read").value(false))
                 .andExpect(jsonPath("$[0].createdAt").isNotEmpty())
                 .andExpect(jsonPath("$[1].id").value(102))

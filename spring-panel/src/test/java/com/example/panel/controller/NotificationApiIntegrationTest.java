@@ -195,7 +195,7 @@ class NotificationApiIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].text").value("Новый ответ в обращении T-NOTIFY-500"))
-                .andExpect(jsonPath("$[0].url").value("/dialogs?ticketId=T-NOTIFY-500"))
+                .andExpect(jsonPath("$[0].url").value("/dialogs/T-NOTIFY-500"))
                 .andExpect(jsonPath("$[0].read").value(false));
 
         mockMvc.perform(get("/api/notifications").principal(namedAuthentication("watcher_active")))

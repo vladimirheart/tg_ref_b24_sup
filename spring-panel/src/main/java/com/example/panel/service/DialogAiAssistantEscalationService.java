@@ -21,7 +21,7 @@ public class DialogAiAssistantEscalationService {
         if (StringUtils.hasText(message)) {
             text += " Вопрос клиента: " + cut(message, 140);
         }
-        notificationService.notifyAllOperators(text, "/dialogs?ticketId=" + normalizedTicketId, null);
+        notificationService.notifyAllOperators(text, notificationService.buildDialogUrl(normalizedTicketId), null);
     }
 
     private String cut(String text, int len) {

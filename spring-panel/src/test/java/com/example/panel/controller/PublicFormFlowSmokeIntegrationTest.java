@@ -860,7 +860,7 @@ class PublicFormFlowSmokeIntegrationTest {
         assertThat(notifications).hasSize(1);
         Long notificationId = ((Number) notifications.get(0).get("id")).longValue();
         assertThat(((Number) notifications.get(0).get("is_read")).intValue()).isZero();
-        assertThat(String.valueOf(notifications.get(0).get("url"))).isEqualTo("/dialogs?ticketId=" + ticketId);
+        assertThat(String.valueOf(notifications.get(0).get("url"))).isEqualTo("/dialogs/" + ticketId);
         assertThat(String.valueOf(notifications.get(0).get("text"))).contains(ticketId);
 
         jdbcTemplate.update(
@@ -931,7 +931,7 @@ class PublicFormFlowSmokeIntegrationTest {
         );
         assertThat(peerNotifications).hasSize(2);
         assertThat(String.valueOf(peerNotifications.get(0).get("text"))).contains("снова открыто");
-        assertThat(String.valueOf(peerNotifications.get(0).get("url"))).isEqualTo("/dialogs?ticketId=" + ticketId);
+        assertThat(String.valueOf(peerNotifications.get(0).get("url"))).isEqualTo("/dialogs/" + ticketId);
         assertThat(String.valueOf(peerNotifications.get(1).get("text"))).contains("закрыто");
 
         Long reopenNotificationId = ((Number) peerNotifications.get(0).get("id")).longValue();

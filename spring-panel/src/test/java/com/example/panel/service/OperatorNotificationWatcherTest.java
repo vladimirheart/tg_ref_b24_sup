@@ -43,6 +43,7 @@ class OperatorNotificationWatcherTest {
         createSchema();
 
         notificationService = mock(NotificationService.class);
+        when(notificationService.buildDialogUrl(anyString())).thenAnswer(invocation -> "/dialogs/" + invocation.getArgument(0, String.class).trim());
         dialogAiAssistantService = mock(DialogAiAssistantService.class);
         alertQueueService = mock(AlertQueueService.class);
         channelRepository = mock(ChannelRepository.class);
@@ -76,7 +77,7 @@ class OperatorNotificationWatcherTest {
         watcher.watch();
 
         verify(alertQueueService).notifyIncomingClientMessage(channel, "T-101", "Клиент прислал лог");
-        verify(notificationService, never()).notifyAllOperators(eq("Новое сообщение в обращении T-101: Клиент прислал лог"), eq("/dialogs?ticketId=T-101"), isNull());
+        verify(notificationService, never()).notifyAllOperators(eq("Новое сообщение в обращении T-101: Клиент прислал лог"), eq("/dialogs/T-101"), isNull());
         verify(dialogAiAssistantService).processIncomingClientMessage("T-101", "Клиент прислал лог", "text", null);
     }
 
@@ -97,7 +98,7 @@ class OperatorNotificationWatcherTest {
         verify(alertQueueService).notifyIncomingClientMessage(channel, "T-102", "Есть уточнение");
         verify(notificationService).notifyAllOperators(
                 "Новое сообщение в обращении T-102: Есть уточнение",
-                "/dialogs?ticketId=T-102",
+                "/dialogs/T-102",
                 null
         );
         verify(dialogAiAssistantService).processIncomingClientMessage("T-102", "Есть уточнение", "text", null);
@@ -118,7 +119,7 @@ class OperatorNotificationWatcherTest {
 
         verify(notificationService).notifyAllOperators(
                 "Новое обращение T-WEB-1: Нужна помощь по форме",
-                "/dialogs?ticketId=T-WEB-1",
+                "/dialogs/T-WEB-1",
                 null
         );
         verify(alertQueueService, never()).notifyIncomingClientMessage(org.mockito.ArgumentMatchers.any(), anyString(), org.mockito.ArgumentMatchers.any());
@@ -140,7 +141,7 @@ class OperatorNotificationWatcherTest {
 
         verify(notificationService, never()).notifyAllOperators(
                 eq("Новое обращение T-WEB-2: Сообщение из формы без дубля"),
-                eq("/dialogs?ticketId=T-WEB-2"),
+                eq("/dialogs/T-WEB-2"),
                 isNull()
         );
         verify(dialogAiAssistantService).processIncomingClientMessage("T-WEB-2", "Сообщение из формы без дубля", "text", null);
@@ -175,7 +176,7 @@ class OperatorNotificationWatcherTest {
         verify(notificationService).notifyUsers(
                 eq(Set.of("alice", "bob")),
                 eq("Первая реакция просрочена (Escalation Queue) в обращении T-OVERDUE-1. Просрочка: 120 мин."),
-                eq("/dialogs?ticketId=T-OVERDUE-1")
+                eq("/dialogs/T-OVERDUE-1")
         );
         verify(dialogAuditService).logDialogActionAudit(
                 eq("T-OVERDUE-1"),

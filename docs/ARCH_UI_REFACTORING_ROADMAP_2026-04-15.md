@@ -785,6 +785,15 @@
   `notifyAllOperators(...)`, если alert уже был доставлен на submit path.
   При этом legacy fallback сохранён для ветки без recipients, где queue
   route вернул `false` и watcher всё ещё остаётся последней страховкой.
+- следующим continuity пакетом добран и source-level dialog-link contract:
+  `AlertQueueService`, `OperatorNotificationWatcher`,
+  `DialogAiAssistantEscalationService`,
+  `DialogAiAssistantOperatorFeedbackService` и `DialogQuickActionService`
+  переведены на общий `NotificationService.buildDialogUrl(...)`, так что
+  operator-facing notifications больше не генерируют legacy `?ticketId`
+  URLs и не полагаются на позднюю post-save normalisation. Рядом в корневой
+  `.gitignore` добавлен `/logs/`, чтобы локальные sync/runtime прогоны не
+  загрязняли рабочее дерево лишним шумом.
 - этот же smoke-слой расширен на detail/subpage contract:
   `ai-ops`, `unblock requests`, `users/detail` и оба passport editor route
   (`/object-passports/new`, `/object-passports/{id}`) теперь тоже прикрыты

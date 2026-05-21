@@ -161,6 +161,14 @@ public class NotificationService {
         notifyUsersExcluding(findAllOperatorRecipients(), excludedIdentity, text, url);
     }
 
+    public String buildDialogUrl(String ticketId) {
+        String normalizedTicketId = trimToNull(ticketId);
+        if (normalizedTicketId == null) {
+            return "/dialogs";
+        }
+        return "/dialogs/" + URLEncoder.encode(normalizedTicketId, StandardCharsets.UTF_8);
+    }
+
     @Transactional(readOnly = true)
     public Set<String> findAllOperatorRecipients() {
         Set<String> recipients = new LinkedHashSet<>();
@@ -272,7 +280,7 @@ public class NotificationService {
         String trimmed = url.trim();
         String dialogTicketId = extractDialogTicketId(trimmed);
         if (dialogTicketId != null) {
-            return "/dialogs/" + URLEncoder.encode(dialogTicketId, StandardCharsets.UTF_8);
+            return buildDialogUrl(dialogTicketId);
         }
         return trimmed;
     }
