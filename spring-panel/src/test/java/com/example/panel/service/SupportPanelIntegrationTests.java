@@ -39,6 +39,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -704,6 +705,74 @@ class SupportPanelIntegrationTests {
         notificationService.markAsRead("operator", notifications.get(0).id());
         NotificationSummary after = notificationService.summary("operator");
         assertThat(after.unreadCount()).isEqualTo(1);
+    }
+
+    @Test
+    void notificationServiceMergesDialogRecipientsFromResponsibleAndActiveSources() {
+        jdbcTemplate.update(
+                "INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by) VALUES (?, ?, ?)",
+                "WATCHER-DIALOG-1",
+                " watcher_peer ; WATCHER_OWNER, watcher_peer ",
+                "dispatcher"
+        );
+        jdbcTemplate.update(
+                "INSERT INTO ticket_active(ticket_id, user_identity, last_seen) VALUES (?, ?, CURRENT_TIMESTAMP)",
+                "WATCHER-DIALOG-1",
+                " watcher_active "
+        );
+
+        assertThat(notificationService.findDialogRecipients(" WATCHER-DIALOG-1 "))
+                .isEqualTo(Set.of("watcher_peer", "watcher_owner", "watcher_active"));
+    }
+
+    @Test
+    void notificationServiceFallsBackToOperatorsWhenDialogRecipientsMissing() {
+        insertOperatorUser("watcher_fallback");
+        insertOperatorUser("watcher_excluded");
+        Set<String> expectedRecipients = notificationService.findAllOperatorRecipients().stream()
+                .filter(identity -> !"watcher_excluded".equals(identity))
+                .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new));
+
+        notificationService.notifyDialogParticipants(
+                "MISSING-TICKET",
+                "  Новый ответ по пустому диалогу  ",
+                " /dialogs?ticketId=MISSING-TICKET ",
+                "WATCHER_excluded"
+        );
+
+        List<Map<String, Object>> notifications = jdbcTemplate.queryForList(
+                "SELECT user_identity, text, url, is_read FROM notifications ORDER BY user_identity ASC"
+        );
+        assertThat(notifications)
+                .extracting(row -> String.valueOf(row.get("user_identity")))
+                .containsExactlyInAnyOrderElementsOf(expectedRecipients);
+        assertThat(notifications)
+                .extracting(row -> String.valueOf(row.get("text")))
+                .containsOnly("Новый ответ по пустому диалогу");
+        assertThat(notifications)
+                .extracting(row -> String.valueOf(row.get("url")))
+                .containsOnly("/dialogs?ticketId=MISSING-TICKET");
+        assertThat(notifications)
+                .allSatisfy(row -> assertThat(((Number) row.get("is_read")).intValue()).isZero());
+    }
+
+    @Test
+    void notificationServiceFindAllOperatorRecipientsFiltersDisabledAndBlockedAcrossDatabases() {
+        insertOperatorUser("watcher_enabled");
+        insertOperatorUser(usersJdbcTemplate, "watcher_users_only", true, false);
+        insertOperatorUser(usersJdbcTemplate, "watcher_disabled", false, false);
+        if (usersTableHasColumn(usersJdbcTemplate, "is_blocked")) {
+            insertOperatorUser(usersJdbcTemplate, "watcher_blocked", true, true);
+        }
+        insertOperatorUser(jdbcTemplate, "watcher_main_disabled", false, false);
+
+        var recipients = notificationService.findAllOperatorRecipients();
+        assertThat(recipients)
+                .contains("watcher_enabled", "watcher_users_only")
+                .doesNotContain("watcher_disabled", "watcher_main_disabled");
+        if (usersTableHasColumn(usersJdbcTemplate, "is_blocked")) {
+            assertThat(recipients).doesNotContain("watcher_blocked");
+        }
     }
 
 
@@ -2682,18 +2751,42 @@ class SupportPanelIntegrationTests {
     }
 
     private void insertOperatorUser(String username) {
-        usersJdbcTemplate.update(
+        insertOperatorUser(usersJdbcTemplate, username, true, false);
+        insertOperatorUser(jdbcTemplate, username, true, false);
+    }
+
+    private void insertOperatorUser(JdbcTemplate template,
+                                    String username,
+                                    boolean enabled,
+                                    boolean blocked) {
+        Set<String> columns = loadTableColumns(template, "users");
+        if (columns.contains("is_blocked")) {
+            template.update(
+                    "INSERT OR IGNORE INTO users (username, password, enabled, is_blocked, created_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)",
+                    username,
+                    "{noop}test",
+                    enabled,
+                    blocked
+            );
+            return;
+        }
+        template.update(
                 "INSERT OR IGNORE INTO users (username, password, enabled, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)",
                 username,
                 "{noop}test",
-                true
+                enabled
         );
-        jdbcTemplate.update(
-                "INSERT OR IGNORE INTO users (username, password, enabled, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)",
-                username,
-                "{noop}test",
-                true
-        );
+    }
+
+    private boolean usersTableHasColumn(JdbcTemplate template, String columnName) {
+        return loadTableColumns(template, "users").contains(columnName);
+    }
+
+    private Set<String> loadTableColumns(JdbcTemplate template, String tableName) {
+        return Set.copyOf(template.query(
+                "PRAGMA table_info(" + tableName + ")",
+                (rs, rowNum) -> rs.getString("name").toLowerCase()
+        ));
     }
 
 }

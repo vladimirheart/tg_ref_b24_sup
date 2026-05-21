@@ -835,6 +835,14 @@ integration-сценария поверх users/settings runtime boundary всё
   bug в `Notification.createdAt` SQLite read-path через
   `LenientOffsetDateTimeConverter` и снята `JdbcTemplate.query(...)`
   ambiguous-сборка в `NotificationService`.
+- следующим service/runtime continuity шагом notification слой добран уже
+  до `SupportPanelIntegrationTests`: там теперь отдельно закреплены
+  recipient merge из `ticket_responsibles + ticket_active`, operator
+  fallback для пустого dialog audience и cross-database filtering для
+  operator recipient pool. Параллельно снят соседний compile-blocker в
+  `DialogLookupReadService` (`usersJdbcTemplate.query(...)`), чтобы
+  dialog list/details enrichment по responsible profiles снова стабильно
+  проходил в live SQLite integration сценариях.
 - `DialogAiOpsController` теперь прикрыт не только по основным happy/error
   flows, но и по alias/null-body/default-path сценариям, что уменьшает риск
   regressions в transport-layer normalisation.

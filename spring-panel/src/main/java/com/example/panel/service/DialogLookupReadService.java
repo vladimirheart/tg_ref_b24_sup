@@ -503,18 +503,16 @@ public class DialogLookupReadService {
                      WHERE lower(username) IN (%s)
                     """.formatted(fullNameSelect, photoSelect, placeholders);
             Map<String, ResponsibleProfile> profiles = new LinkedHashMap<>();
-            usersJdbcTemplate.query(sql, rs -> {
-                while (rs.next()) {
-                    String username = normalizeIdentity(rs.getString("username"));
-                    if (username == null) {
-                        continue;
-                    }
-                    String displayName = trimToNull(rs.getString("full_name"));
-                    if (displayName == null) {
-                        displayName = trimToNull(rs.getString("username"));
-                    }
-                    profiles.put(username, new ResponsibleProfile(displayName, resolveAvatarUrl(rs.getString("photo"))));
+            usersJdbcTemplate.query(sql, (org.springframework.jdbc.core.RowCallbackHandler) rs -> {
+                String username = normalizeIdentity(rs.getString("username"));
+                if (username == null) {
+                    return;
                 }
+                String displayName = trimToNull(rs.getString("full_name"));
+                if (displayName == null) {
+                    displayName = trimToNull(rs.getString("username"));
+                }
+                profiles.put(username, new ResponsibleProfile(displayName, resolveAvatarUrl(rs.getString("photo"))));
             }, identities.toArray());
             return profiles;
         } catch (DataAccessException ex) {

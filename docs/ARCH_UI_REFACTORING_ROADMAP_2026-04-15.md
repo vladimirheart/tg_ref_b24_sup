@@ -747,6 +747,17 @@
   ambiguous-хвост в `NotificationService`, чтобы `public-form` alert
   routing и dialog participant notifications снова были стабильны в smoke
   пакетах.
+- следующим более широким service/runtime continuity пакетом notification
+  слой расширен в `SupportPanelIntegrationTests`: отдельно закреплены
+  recipient merge из `ticket_responsibles + ticket_active`, operator
+  fallback при пустом dialog audience и schema-aware filtering для
+  operator pool across main/users SQLite. Параллельно снят
+  `usersJdbcTemplate.query(...)` ambiguous compile-blocker в
+  `DialogLookupReadService`, так что dialog list/details responsible
+  profile enrichment снова проходит в live integration наборе. Следующий
+  practical focus здесь уже логично смещать не на ещё один recipient
+  helper, а на `NotificationRoutingService` / `AlertQueueService`
+  continuity и escalation audience hardening.
 - этот же smoke-слой расширен на detail/subpage contract:
   `ai-ops`, `unblock requests`, `users/detail` и оба passport editor route
   (`/object-passports/new`, `/object-passports/{id}`) теперь тоже прикрыты
