@@ -594,6 +594,13 @@
                             <div class="small text-muted dialog-details-categories" id="dialogDetailsCategories">Категории: —</div>
                         </div>
                         <div class="small text-muted dialog-details-location" id="dialogDetailsLocation">Локация: —</div>
+                        <div class="dialog-details-participants-inline" id="dialogDetailsParticipantsSection">
+                            <div class="small text-muted dialog-details-participants-caption">
+                                <span>Участники</span>
+                                <span id="dialogDetailsParticipantsState">Дополнительные участники не подключены.</span>
+                            </div>
+                            <div class="dialog-details-participants-list d-none" id="dialogDetailsParticipantsList"></div>
+                        </div>
                     </div>
                 </div>
                 <div class="dialog-details-header-actions">
@@ -635,14 +642,6 @@
                                     </div>
                                     <div class="small text-muted" id="dialogDetailsAiState">Откройте диалог для загрузки подсказок.</div>
                                     <div class="d-flex flex-column gap-2 mt-2 d-none" id="dialogDetailsAiList"></div>
-                                </div>
-                                <div class="dialog-details-section" id="dialogDetailsParticipantsSection">
-                                    <div class="d-flex align-items-center justify-content-between mb-2">
-                                        <div class="fw-semibold">Участники</div>
-                                        <button class="btn btn-sm btn-outline-secondary" id="dialogDetailsParticipantsManageBtn" type="button">Изменить</button>
-                                    </div>
-                                    <div class="small text-muted" id="dialogDetailsParticipantsState">Откройте диалог для загрузки списка участников.</div>
-                                    <div class="d-flex flex-column gap-2 mt-2 d-none" id="dialogDetailsParticipantsList"></div>
                                 </div>
                                 <div class="dialog-details-section dialog-templates-dropdown" id="dialogCompletionTemplatesSection">
                                     <button class="dialog-templates-toggle" type="button" id="dialogCompletionTemplatesToggle">

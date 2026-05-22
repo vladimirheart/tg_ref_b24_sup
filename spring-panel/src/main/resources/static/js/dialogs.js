@@ -2425,6 +2425,26 @@
     `;
   }
 
+  function renderParticipantInlineChip(participant) {
+    const username = String(participant?.username || '').trim();
+    const displayName = String(participant?.displayName || participant?.display_name || '').trim() || username || '—';
+    const avatarUrl = String(participant?.avatarUrl || participant?.avatar_url || '').trim();
+    const spec = buildResponsibleAvatarSpec(displayName, avatarUrl);
+    const avatarMarkup = spec?.avatarUrl
+      ? `<span class="dialog-details-participant-avatar has-image"><img src="${escapeHtml(spec.avatarUrl)}" alt="Аватар участника"></span>`
+      : `<span class="dialog-details-participant-avatar">${escapeHtml(spec?.initial || displayName.substring(0, 1).toUpperCase())}</span>`;
+    const titleParts = [displayName];
+    if (username && username !== displayName) {
+      titleParts.push(`@${username}`);
+    }
+    return `
+      <span class="dialog-details-participant-pill" title="${escapeHtml(titleParts.join(' · '))}">
+        ${avatarMarkup}
+        <span class="dialog-details-participant-pill-name">${escapeHtml(displayName)}</span>
+      </span>
+    `;
+  }
+
   function getParticipantStateEmptyText() {
     return 'Дополнительные участники не подключены.';
   }
@@ -2437,7 +2457,7 @@
         : getParticipantStateEmptyText();
     }
     if (detailsParticipantsList) {
-      detailsParticipantsList.innerHTML = participants.map((participant) => renderParticipantCard(participant)).join('');
+      detailsParticipantsList.innerHTML = participants.map((participant) => renderParticipantInlineChip(participant)).join('');
       detailsParticipantsList.classList.toggle('d-none', participants.length === 0);
     }
     if (participantsCurrentState) {
