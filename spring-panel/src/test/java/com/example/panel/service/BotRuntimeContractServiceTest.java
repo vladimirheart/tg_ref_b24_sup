@@ -348,6 +348,37 @@ class BotRuntimeContractServiceTest {
     }
 
     @Test
+    void buildEnvironmentForTelegramTreatsLegacyProxyMirrorAsBaseUrl() {
+        BotRuntimeContractService service = createService("auto", Map.of());
+        Channel channel = new Channel();
+        channel.setId(37L);
+        channel.setPlatform("telegram");
+        channel.setDeliverySettings("""
+            {
+              "network_route": {
+                "mode": "proxy",
+                "proxy": {
+                  "scheme": "https",
+                  "host": "telegram.ftl-dev.ru",
+                  "port": 443
+                }
+              }
+            }
+            """);
+
+        Map<String, String> env = service.buildEnvironment(
+            channel,
+            new com.example.panel.model.channel.BotCredential(10L, "tg", "telegram", "tg-token", true),
+            tempDir.resolve("telegram-legacy-mirror.log")
+        );
+
+        assertThat(env)
+            .containsEntry("TELEGRAM_BOT_API_BASE_URL", "https://telegram.ftl-dev.ru")
+            .containsEntry("APP_NETWORK_MODE", "direct")
+            .doesNotContainKeys("APP_NETWORK_PROXY_HOST", "HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy");
+    }
+
+    @Test
     void describeResolvesVkBotModule() {
         BotRuntimeContractService service = createService("auto", Map.of());
         Channel channel = new Channel();

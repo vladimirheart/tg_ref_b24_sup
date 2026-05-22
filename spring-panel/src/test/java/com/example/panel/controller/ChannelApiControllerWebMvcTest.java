@@ -852,6 +852,59 @@ class ChannelApiControllerWebMvcTest {
     }
 
     @Test
+    void refreshBotInfoUsesLegacyTelegramMirrorBaseUrlWhenPlatformConfigIsEmpty() throws Exception {
+        Channel channel = new Channel();
+        channel.setId(77L);
+        channel.setPlatform("telegram");
+        channel.setToken("tg-token");
+        channel.setPublicId("public-77");
+        channel.setQuestionsCfg("{}");
+        channel.setDeliverySettings("""
+            {
+              "network_route": {
+                "mode": "proxy",
+                "proxy": {
+                  "scheme": "https",
+                  "host": "telegram.ftl-dev.ru",
+                  "port": 443
+                }
+              }
+            }
+            """);
+
+        @SuppressWarnings("unchecked")
+        HttpResponse<String> response = (HttpResponse<String>) mock(HttpResponse.class);
+        HttpClient httpClient = mock(HttpClient.class);
+        when(response.statusCode()).thenReturn(200);
+        when(response.body()).thenReturn("""
+                {
+                  "ok": true,
+                  "result": {
+                    "username": "support_bot",
+                    "first_name": "Support"
+                  }
+                }
+                """);
+        when(channelRepository.findById(77L)).thenReturn(Optional.of(channel));
+        when(channelRepository.save(any(Channel.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(sharedConfigService.loadBotCredentials()).thenReturn(List.of());
+        when(integrationNetworkService.resolveTelegramLegacyBotApiBaseUrl(any(Channel.class)))
+            .thenReturn("https://telegram.ftl-dev.ru");
+        when(integrationNetworkService.createChannelHttpClient(any(Channel.class), any())).thenReturn(httpClient);
+        when(httpClient.send(any(), any(HttpResponse.BodyHandler.class))).thenReturn(response);
+
+        mockMvc.perform(post("/api/channels/77/bot-info"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.channel.bot_username").value("support_bot"));
+
+        verify(httpClient).send(
+            argThat((HttpRequest request) -> "https://telegram.ftl-dev.ru/bottg-token/getMe".equals(request.uri().toString())),
+            any(HttpResponse.BodyHandler.class)
+        );
+    }
+
+    @Test
     void refreshBotInfoReturnsBadRequestWhenTelegramResultIsEmpty() throws Exception {
         Channel channel = new Channel();
         channel.setId(76L);

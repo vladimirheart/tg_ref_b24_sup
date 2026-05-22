@@ -251,6 +251,47 @@ class IntegrationNetworkServiceTest {
     }
 
     @Test
+    void resolvesTelegramLegacyMirrorBaseUrlFromProxyRoute() {
+        Channel channel = new Channel();
+        channel.setPlatform("telegram");
+        channel.setDeliverySettings("""
+            {
+              "network_route": {
+                "mode": "proxy",
+                "proxy": {
+                  "scheme": "https",
+                  "host": "telegram.ftl-dev.ru",
+                  "port": 443
+                }
+              }
+            }
+            """);
+
+        assertThat(service.resolveTelegramLegacyBotApiBaseUrl(channel))
+            .isEqualTo("https://telegram.ftl-dev.ru");
+    }
+
+    @Test
+    void doesNotResolveTelegramLegacyMirrorBaseUrlForGenericProxyHost() {
+        Channel channel = new Channel();
+        channel.setPlatform("telegram");
+        channel.setDeliverySettings("""
+            {
+              "network_route": {
+                "mode": "proxy",
+                "proxy": {
+                  "scheme": "https",
+                  "host": "proxy.internal",
+                  "port": 443
+                }
+              }
+            }
+            """);
+
+        assertThat(service.resolveTelegramLegacyBotApiBaseUrl(channel)).isBlank();
+    }
+
+    @Test
     void routeSettingsFromMapNormalizesInvalidModeToInheritWhenAllowed() {
         IntegrationNetworkService.RouteSettings route = IntegrationNetworkService.RouteSettings.fromMap(Map.of(
             "mode", "unexpected"

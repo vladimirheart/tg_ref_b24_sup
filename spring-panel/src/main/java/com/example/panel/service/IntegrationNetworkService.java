@@ -112,6 +112,14 @@ public class IntegrationNetworkService {
         HttpClient.Builder builder = HttpClient.newBuilder()
             .connectTimeout(timeout != null ? timeout : Duration.ofSeconds(10));
 
+        String legacyTelegramMirrorBaseUrl = resolveTelegramLegacyBotApiBaseUrl(channel);
+        if (hasText(legacyTelegramMirrorBaseUrl)) {
+            log.info("Bypassing proxy route for Telegram channel {} and using legacy Bot API mirror {}",
+                channel != null ? channel.getId() : null,
+                legacyTelegramMirrorBaseUrl);
+            return builder.build();
+        }
+
         if ("proxy".equals(route.mode()) && route.proxySettings() != null && route.proxySettings().isConfigured()) {
             ProxySettings proxy = route.proxySettings();
             if (!proxy.isSupportedScheme()) {
@@ -134,6 +142,13 @@ public class IntegrationNetworkService {
         }
 
         return builder.build();
+    }
+
+    public String resolveTelegramLegacyBotApiBaseUrl(Channel channel) {
+        if (!isTelegramChannel(channel) || hasText(readTelegramBotApiBaseUrl(channel))) {
+            return "";
+        }
+        return resolveTelegramLegacyBotApiBaseUrl(resolveBotRoute(channel));
     }
 
     public RouteProbeResult probeProfileRoute(Map<String, Object> rawProfile) {
@@ -466,6 +481,74 @@ public class IntegrationNetworkService {
         } catch (Exception ex) {
             return Map.of();
         }
+    }
+
+    private Map<String, Object> extractChannelPlatformConfig(Channel channel) {
+        if (channel == null || !hasText(channel.getPlatformConfig())) {
+            return Map.of();
+        }
+        try {
+            return mapValue(objectMapper.readValue(channel.getPlatformConfig(), LinkedHashMap.class));
+        } catch (Exception ex) {
+            return Map.of();
+        }
+    }
+
+    private String readTelegramBotApiBaseUrl(Channel channel) {
+        Map<String, Object> platformConfig = extractChannelPlatformConfig(channel);
+        return firstString(
+            platformConfig,
+            "base_url",
+            "baseUrl",
+            "api_base_url",
+            "apiBaseUrl",
+            "telegram_api_base_url",
+            "telegramApiBaseUrl"
+        );
+    }
+
+    private String resolveTelegramLegacyBotApiBaseUrl(RouteSettings route) {
+        if (route == null || !"proxy".equals(route.mode()) || route.proxySettings() == null) {
+            return "";
+        }
+        ProxySettings proxy = route.proxySettings();
+        String scheme = stringValue(proxy.scheme()).toLowerCase(Locale.ROOT);
+        if (!proxy.isConfigured()
+            || (!"http".equals(scheme) && !"https".equals(scheme))
+            || hasText(proxy.username())
+            || hasText(proxy.password())
+            || hasText(proxy.token())
+            || !looksLikeTelegramMirrorHost(proxy.host())) {
+            return "";
+        }
+        boolean defaultPort = ("http".equals(scheme) && proxy.port() == 80)
+            || ("https".equals(scheme) && proxy.port() == 443);
+        return defaultPort
+            ? scheme + "://" + proxy.host()
+            : scheme + "://" + proxy.host() + ":" + proxy.port();
+    }
+
+    private boolean isTelegramChannel(Channel channel) {
+        String platform = stringValue(channel != null ? channel.getPlatform() : "");
+        return platform.isBlank() || "telegram".equalsIgnoreCase(platform);
+    }
+
+    private boolean looksLikeTelegramMirrorHost(String host) {
+        String normalized = stringValue(host).toLowerCase(Locale.ROOT);
+        return normalized.contains("telegram") || normalized.contains("botapi");
+    }
+
+    private String firstString(Map<String, Object> raw, String... keys) {
+        if (raw == null || keys == null) {
+            return "";
+        }
+        for (String key : keys) {
+            String value = stringValue(raw.get(key));
+            if (hasText(value)) {
+                return value;
+            }
+        }
+        return "";
     }
 
     private String buildProxyUrl(ProxySettings proxy) {

@@ -592,7 +592,7 @@ public class ChannelApiController {
         Map<String, Object> config = platformConfig != null ? platformConfig : Map.of();
         if ("telegram".equals(platform)) {
             try {
-                normalizeTelegramApiRootUrl(readTelegramApiRootUrl(config));
+                normalizeTelegramApiRootUrl(readTelegramApiRootUrl(null, config));
             } catch (IllegalArgumentException ex) {
                 return ex.getMessage();
             }
@@ -1114,11 +1114,14 @@ public class ChannelApiController {
     }
 
     private String resolveTelegramBotApiPrefix(Channel channel) {
-        return normalizeTelegramApiRootUrl(readTelegramApiRootUrl(parseJsonMap(channel != null ? channel.getPlatformConfig() : null))) + "/bot";
+        return normalizeTelegramApiRootUrl(readTelegramApiRootUrl(
+            channel,
+            parseJsonMap(channel != null ? channel.getPlatformConfig() : null)
+        )) + "/bot";
     }
 
-    private String readTelegramApiRootUrl(Map<String, Object> platformConfig) {
-        return stringValue(firstValue(
+    private String readTelegramApiRootUrl(Channel channel, Map<String, Object> platformConfig) {
+        String explicitBaseUrl = stringValue(firstValue(
             platformConfig != null ? platformConfig : Map.of(),
             "base_url",
             "baseUrl",
@@ -1127,6 +1130,10 @@ public class ChannelApiController {
             "telegram_api_base_url",
             "telegramApiBaseUrl"
         ));
+        if (!isBlank(explicitBaseUrl)) {
+            return explicitBaseUrl;
+        }
+        return stringValue(integrationNetworkService.resolveTelegramLegacyBotApiBaseUrl(channel));
     }
 
     private String normalizeTelegramApiRootUrl(String rawUrl) {

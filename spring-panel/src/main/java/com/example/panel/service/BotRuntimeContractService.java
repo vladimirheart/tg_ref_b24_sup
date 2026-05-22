@@ -124,6 +124,7 @@ public class BotRuntimeContractService {
         env.put("GROUP_CHAT_ID", Objects.toString(channel.getSupportChatId(), "0"));
         String platform = normalizePlatform(channel);
         Map<String, Object> platformConfig = parsePlatformConfig(channel);
+        boolean legacyTelegramMirrorRoute = false;
         if ("telegram".equals(platform)) {
             String telegramApiBaseUrl = normalizeTelegramApiRootUrl(readString(
                 platformConfig,
@@ -134,6 +135,18 @@ public class BotRuntimeContractService {
                 "telegram_api_base_url",
                 "telegramApiBaseUrl"
             ));
+            if (!StringUtils.hasText(telegramApiBaseUrl) || DEFAULT_TELEGRAM_API_ROOT_URL.equals(telegramApiBaseUrl)) {
+                String legacyBaseUrl = normalizeTelegramApiRootUrl(integrationNetworkService.resolveTelegramLegacyBotApiBaseUrl(channel));
+                if (StringUtils.hasText(legacyBaseUrl) && !DEFAULT_TELEGRAM_API_ROOT_URL.equals(legacyBaseUrl)) {
+                    telegramApiBaseUrl = legacyBaseUrl;
+                    legacyTelegramMirrorRoute = true;
+                    log.warn(
+                        "Telegram channel {} uses a legacy proxy route that looks like a Bot API mirror; runtime will use {} as TELEGRAM_BOT_API_BASE_URL and bypass proxy tunneling",
+                        channel != null ? channel.getId() : null,
+                        telegramApiBaseUrl
+                    );
+                }
+            }
             if (StringUtils.hasText(telegramApiBaseUrl)) {
                 env.put("TELEGRAM_BOT_API_BASE_URL", telegramApiBaseUrl);
             }
@@ -176,7 +189,9 @@ public class BotRuntimeContractService {
         appendEnvOption(env, "JAVA_TOOL_OPTIONS", "-Dsun.stdout.encoding=UTF-8");
         appendEnvOption(env, "JAVA_TOOL_OPTIONS", "-Dsun.stderr.encoding=UTF-8");
 
-        IntegrationNetworkService.RouteSettings route = integrationNetworkService.resolveBotRoute(channel);
+        IntegrationNetworkService.RouteSettings route = legacyTelegramMirrorRoute
+            ? IntegrationNetworkService.RouteSettings.direct()
+            : integrationNetworkService.resolveBotRoute(channel);
         if ("proxy".equals(route.mode())
             && route.proxySettings() != null
             && route.proxySettings().isConfigured()

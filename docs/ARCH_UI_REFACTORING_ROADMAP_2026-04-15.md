@@ -840,17 +840,6 @@
   optional-column schema drift. После этого следующий practical focus в
   dialog-read зоне уже смещён с basic transport coverage на
   `details/workspace` runtime continuity.
-- следующим пакетом закрыт уже и базовый `DialogWorkspaceController`
-  runtime continuity: новый `DialogWorkspaceIntegrationTest` плюс
-  расширенный `DialogWorkspaceControllerWebMvcTest` закрепляют
-  `/api/dialogs/{ticketId}/workspace` не только по controller delegation, но
-  и на живом `SpringBootTest + SQLite` contract. Под этим теперь отдельно
-  прикрыты `messages` pagination, `replyPreview`, `last_read_at`,
-  `permissions/composer` parity, inline navigation и default
-  `context/history/related_events` projection. После этого следующий
-  practical focus вокруг dialog read/workspace уже смещён в более глубокие
-  `details` continuity и settings-driven context-contract edge cases, а не в
-  bootstrap/runtime wiring.
 - этот же smoke-слой расширен на detail/subpage contract:
   `ai-ops`, `unblock requests`, `users/detail` и оба passport editor route
   (`/object-passports/new`, `/object-passports/{id}`) теперь тоже прикрыты
