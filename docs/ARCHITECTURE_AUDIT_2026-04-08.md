@@ -918,6 +918,17 @@ integration-сценария поверх users/settings runtime boundary всё
   projection и notification audience side-effects. Параллельно test cleanup
   синхронизирован с `ticket_participants`, `ticket_active` и
   `ticket_responsibles`, чтобы этот слой оставался повторяемым.
+- следующим dialog-read continuity пакетом добавлен dedicated
+  `DialogReadIntegrationTest`, а `DialogReadControllerWebMvcTest`
+  расширен на remaining read endpoints. Теперь `history`,
+  `history/previous`, `participants` и `operators` закреплены не только на
+  unit/WebMvc делегации, но и на живом `SpringBootTest + SQLite` contract:
+  `replyPreview`, `originalMessage`, `editedAt`, `deletedAt`,
+  `forwardedFrom`, `last_read_at` read receipt и users-directory projection
+  проходят через реальный runtime слой даже при schema-drift по optional
+  колонкам. После этого remaining practical focus в dialog-read ветке
+  смещён уже не в transport gaps, а в `details/workspace` runtime
+  continuity и соседние operator-facing projections.
 - `DialogAiOpsController` теперь прикрыт не только по основным happy/error
   flows, но и по alias/null-body/default-path сценариям, что уменьшает риск
   regressions в transport-layer normalisation.

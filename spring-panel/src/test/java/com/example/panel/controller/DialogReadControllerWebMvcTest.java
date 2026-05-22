@@ -55,6 +55,20 @@ class DialogReadControllerWebMvcTest {
     }
 
     @Test
+    void historyDelegatesChannelIdAndOperatorIdentity() throws Exception {
+        when(dialogReadService.loadHistory("T-101B", 81L, "watcher_owner"))
+            .thenReturn(Map.of("success", true, "messages", List.of()));
+
+        mockMvc.perform(get("/api/dialogs/T-101B/history")
+                .param("channelId", "81")
+                .with(user("watcher_owner")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true));
+
+        verify(dialogReadService).loadHistory("T-101B", 81L, "watcher_owner");
+    }
+
+    @Test
     void previousHistorySupportsOffsetParameter() throws Exception {
         doReturn(ResponseEntity.ok(Map.of("success", true, "has_more", false, "next_offset", 20)))
             .when(dialogReadService)
@@ -80,6 +94,36 @@ class DialogReadControllerWebMvcTest {
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.channelId").value(91))
             .andExpect(jsonPath("$.submitted").value(4));
+    }
+
+    @Test
+    void participantsReturnsRuntimeProjectionPayload() throws Exception {
+        when(dialogReadService.loadParticipants("T-105"))
+            .thenReturn(Map.of(
+                    "success", true,
+                    "participants", List.of(Map.of("username", "watcher_peer", "displayName", "Watcher Peer"))
+            ));
+
+        mockMvc.perform(get("/api/dialogs/T-105/participants").with(user("operator")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.participants[0].username").value("watcher_peer"))
+            .andExpect(jsonPath("$.participants[0].displayName").value("Watcher Peer"));
+    }
+
+    @Test
+    void operatorsReturnsAssignableOperatorPayload() throws Exception {
+        when(dialogReadService.loadAssignableOperators())
+            .thenReturn(Map.of(
+                    "success", true,
+                    "operators", List.of(Map.of("username", "watcher_owner", "displayName", "Watcher Owner"))
+            ));
+
+        mockMvc.perform(get("/api/dialogs/operators").with(user("operator")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.operators[0].username").value("watcher_owner"))
+            .andExpect(jsonPath("$.operators[0].displayName").value("Watcher Owner"));
     }
 
     @Test

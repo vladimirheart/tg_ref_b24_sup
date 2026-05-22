@@ -830,6 +830,16 @@
   projection и notification audience side-effects. Заодно cleanup тестового
   слоя синхронизирован с `ticket_participants`, `ticket_active` и
   `ticket_responsibles`, чтобы repeated прогон не тек между сценариями.
+- следующим bounded follow-up пакетом добран уже и `DialogReadController`
+  runtime contract: новый `DialogReadIntegrationTest` плюс расширенный
+  `DialogReadControllerWebMvcTest` фиксируют `history`,
+  `history/previous`, `participants` и `operators` не только по делегации,
+  но и на живом `SpringBootTest + SQLite` слое. Под этим теперь отдельно
+  закреплены `replyPreview/originalMessage/editedAt/deletedAt/forwardedFrom`,
+  `last_read_at` read receipt и users-directory projection даже при
+  optional-column schema drift. После этого следующий practical focus в
+  dialog-read зоне уже смещён с basic transport coverage на
+  `details/workspace` runtime continuity.
 - этот же smoke-слой расширен на detail/subpage contract:
   `ai-ops`, `unblock requests`, `users/detail` и оба passport editor route
   (`/object-passports/new`, `/object-passports/{id}`) теперь тоже прикрыты
