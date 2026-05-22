@@ -929,6 +929,18 @@ integration-сценария поверх users/settings runtime boundary всё
   колонкам. После этого remaining practical focus в dialog-read ветке
   смещён уже не в transport gaps, а в `details/workspace` runtime
   continuity и соседние operator-facing projections.
+- следующим bounded пакетом закрыт уже и live `/workspace` runtime gap:
+  добавлен `DialogWorkspaceIntegrationTest`, а
+  `DialogWorkspaceControllerWebMvcTest` расширен на default envelope path.
+  Теперь `workspace` закреплён не только на service-level assembly и
+  controller delegation, но и на реальном `SpringBootTest + SQLite`
+  contract: `messages` pagination, `replyPreview`, `last_read_at`,
+  `permissions/composer` parity, inline navigation и default
+  `context/history/related_events` projection проходят через настоящий
+  route `/api/dialogs/{ticketId}/workspace`. После этого remaining
+  practical focus вокруг dialog-read/workspace смещён уже не в базовый
+  transport/runtime bootstrap, а в более глубокие `details` continuity и
+  context-contract/settings-driven edge cases.
 - `DialogAiOpsController` теперь прикрыт не только по основным happy/error
   flows, но и по alias/null-body/default-path сценариям, что уменьшает риск
   regressions в transport-layer normalisation.

@@ -51,8 +51,33 @@ class DialogWorkspaceControllerWebMvcTest {
                 .param("cursor", "cursor-1")
                 .with(user("operator")))
             .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.ticketId").value("T-300"))
+                .andExpect(jsonPath("$.workspace.permissions.can_reply").value(true));
+    }
+
+    @Test
+    void workspaceDefaultsOptionalEnvelopeParamsToNull() throws Exception {
+        doReturn(ResponseEntity.ok(Map.of(
+                "success", true,
+                "ticketId", "T-301",
+                "meta", Map.of("limit", 50)
+        )))
+            .when(dialogWorkspaceService)
+            .workspace(
+                eq("T-301"),
+                eq(null),
+                eq(null),
+                eq(null),
+                eq(null),
+                any());
+
+        mockMvc.perform(get("/api/dialogs/T-301/workspace")
+                .with(user("watcher_owner")))
+            .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
-            .andExpect(jsonPath("$.ticketId").value("T-300"))
-            .andExpect(jsonPath("$.workspace.permissions.can_reply").value(true));
+            .andExpect(jsonPath("$.ticketId").value("T-301"))
+            .andExpect(jsonPath("$.meta.limit").value(50));
+
     }
 }
