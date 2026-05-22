@@ -231,6 +231,7 @@
   const detailsSidebarScroll = detailsSidebar ? detailsSidebar.querySelector('.dialog-details-sidebar-scroll') : null;
   const detailsResizeHandle = document.getElementById('dialogDetailsResizeHandle');
   const myDialogsPanel = document.getElementById('dialogMyDialogsPanel');
+  const myDialogsCount = document.getElementById('dialogMyDialogsCount');
   const myDialogsEmpty = document.getElementById('dialogMyDialogsEmpty');
   const myDialogsUnansweredSection = document.getElementById('dialogMyDialogsUnansweredSection');
   const myDialogsUnansweredList = document.getElementById('dialogMyDialogsUnansweredList');
@@ -1997,8 +1998,12 @@
     if (!myDialogsPanel || !myDialogsUnansweredList || !myDialogsInWorkList) return;
     const unanswered = normalizeMyDialogsCollection(myDialogsState.unanswered);
     const inWork = normalizeMyDialogsCollection(myDialogsState.inWork);
+    const totalActive = unanswered.length + inWork.length;
     myDialogsUnansweredList.innerHTML = unanswered.map(renderMyDialogItem).join('');
     myDialogsInWorkList.innerHTML = inWork.map(renderMyDialogItem).join('');
+    if (myDialogsCount) {
+      myDialogsCount.textContent = `(${totalActive})`;
+    }
     if (myDialogsUnansweredSection) {
       myDialogsUnansweredSection.classList.toggle('d-none', unanswered.length === 0);
     }
@@ -2405,6 +2410,16 @@
     return `<span class="dialog-responsible-avatar"><span>${escapeHtml(spec?.initial || displayName.substring(0, 1).toUpperCase())}</span></span>`;
   }
 
+  function buildParticipantProfileHref(participant) {
+    const username = String(participant?.username || '').trim();
+    const displayName = String(participant?.displayName || participant?.display_name || '').trim();
+    const profileId = username || displayName;
+    if (!profileId) {
+      return '';
+    }
+    return `/users/${encodeURIComponent(profileId)}`;
+  }
+
   function renderParticipantCard(participant, options = {}) {
     const username = String(participant?.username || '').trim();
     const displayName = String(participant?.displayName || participant?.display_name || '').trim() || username || '—';
@@ -2414,17 +2429,16 @@
     const addedAt = formatTimestamp(participant?.addedAt || participant?.added_at || '', { includeTime: true, fallback: '' });
     const metaParts = [username && username !== displayName ? `@${username}` : '', department, role, addedAt].filter(Boolean);
     const avatarMarkup = buildParticipantAvatarMarkup(displayName, avatarUrl, 'Аватар участника');
+    const profileHref = buildParticipantProfileHref(participant);
     const removeButton = options.removable && username
       ? `<button type="button" class="btn btn-sm btn-outline-danger" data-remove-participant="${escapeHtml(username)}">${escapeHtml(options.removeLabel || 'Убрать')}</button>`
       : '';
     return `
       <div class="dialog-details-participant-card">
         <div class="dialog-details-participant-main">
-          ${avatarMarkup}
-          <div class="dialog-details-participant-copy">
-            <div class="dialog-details-participant-name">${escapeHtml(displayName)}</div>
-            <div class="dialog-details-participant-meta">${metaParts.map((item) => `<span>${escapeHtml(item)}</span>`).join('')}</div>
-          </div>
+          ${profileHref
+            ? `<a class="dialog-details-participant-link" href="${escapeHtml(profileHref)}" target="_blank" rel="noopener">${avatarMarkup}<div class="dialog-details-participant-copy"><div class="dialog-details-participant-name">${escapeHtml(displayName)}</div><div class="dialog-details-participant-meta">${metaParts.map((item) => `<span>${escapeHtml(item)}</span>`).join('')}</div></div></a>`
+            : `${avatarMarkup}<div class="dialog-details-participant-copy"><div class="dialog-details-participant-name">${escapeHtml(displayName)}</div><div class="dialog-details-participant-meta">${metaParts.map((item) => `<span>${escapeHtml(item)}</span>`).join('')}</div></div>`}
         </div>
         ${removeButton}
       </div>
@@ -2440,11 +2454,12 @@
     if (username && username !== displayName) {
       titleParts.push(`@${username}`);
     }
+    const profileHref = buildParticipantProfileHref(participant);
+    const safeTitle = escapeHtml(titleParts.join(' · '));
     return `
-      <span class="dialog-details-participant-pill" title="${escapeHtml(titleParts.join(' · '))}">
-        ${avatarMarkup}
-        <span class="dialog-details-participant-pill-name">${escapeHtml(displayName)}</span>
-      </span>
+      ${profileHref
+        ? `<a class="dialog-details-participant-pill" href="${escapeHtml(profileHref)}" target="_blank" rel="noopener" title="${safeTitle}">${avatarMarkup}<span class="dialog-details-participant-pill-name">${escapeHtml(displayName)}</span></a>`
+        : `<span class="dialog-details-participant-pill" title="${safeTitle}">${avatarMarkup}<span class="dialog-details-participant-pill-name">${escapeHtml(displayName)}</span></span>`}
     `;
   }
 
