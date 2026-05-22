@@ -5,13 +5,17 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.example.panel.service.ObjectPassportService;
+import com.example.panel.service.NotificationRoutingService;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -19,6 +23,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(ObjectPassportApiController.class)
@@ -30,6 +35,9 @@ class ObjectPassportApiControllerWebMvcTest {
 
     @MockBean
     private ObjectPassportService objectPassportService;
+
+    @MockBean
+    private NotificationRoutingService notificationRoutingService;
 
     @Test
     void createPassportDelegatesToService() throws Exception {
@@ -110,5 +118,67 @@ class ObjectPassportApiControllerWebMvcTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.items").isArray());
+    }
+
+    @Test
+    void uploadPassportPhotoSupportsMultipartRoute() throws Exception {
+        when(objectPassportService.uploadPhoto(eq(8L), org.mockito.ArgumentMatchers.any(), eq("title"), eq("Вход")))
+                .thenReturn(Map.of(
+                        "success", true,
+                        "photos", List.of(Map.of("id", "photo-1", "category", "title", "url", "/api/object_passports/photos/file/photo.png"))
+                ));
+
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "photo.png",
+                "image/png",
+                new byte[] {1, 2, 3}
+        );
+
+        mockMvc.perform(multipart("/api/object_passports/8/photos")
+                        .file(file)
+                        .param("category", "title")
+                        .param("caption", "Вход")
+                        .with(user("operator").authorities(() -> "PAGE_OBJECT_PASSPORTS"))
+                        .with(csrf()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.photos[0].category").value("title"));
+    }
+
+    @Test
+    void updatePassportPhotoSupportsPatchRoute() throws Exception {
+        when(objectPassportService.updatePhoto(eq("photo-1"), anyMap()))
+                .thenReturn(Map.of(
+                        "success", true,
+                        "photos", List.of(Map.of("id", "photo-1", "category", "title", "caption", "Шапка"))
+                ));
+
+        mockMvc.perform(patch("/api/object_passports/photos/photo-1")
+                        .with(user("operator").authorities(() -> "PAGE_OBJECT_PASSPORTS"))
+                        .with(csrf())
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "category": "title",
+                                  "caption": "Шапка"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.photos[0].caption").value("Шапка"));
+    }
+
+    @Test
+    void deletePassportPhotoSupportsDeleteRoute() throws Exception {
+        when(objectPassportService.deletePhoto("photo-1"))
+                .thenReturn(Map.of("success", true, "photos", List.of()));
+
+        mockMvc.perform(delete("/api/object_passports/photos/photo-1")
+                        .with(user("operator").authorities(() -> "PAGE_OBJECT_PASSPORTS"))
+                        .with(csrf()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.photos").isArray());
     }
 }

@@ -1,8 +1,11 @@
 package com.example.panel.service;
 
 import com.example.panel.config.ObjectsSqliteDataSourceProperties;
+import com.example.panel.storage.ObjectPassportPhotoStorageService;
+import com.example.panel.storage.ObjectPassportPhotoStorageService.StoredPhoto;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -10,12 +13,17 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
@@ -25,11 +33,14 @@ public class ObjectPassportService {
 
     private final ObjectsSqliteDataSourceProperties objectsProperties;
     private final ObjectMapper objectMapper;
+    private final ObjectPassportPhotoStorageService photoStorageService;
 
     public ObjectPassportService(ObjectsSqliteDataSourceProperties objectsProperties,
-                                 ObjectMapper objectMapper) {
+                                 ObjectMapper objectMapper,
+                                 ObjectPassportPhotoStorageService photoStorageService) {
         this.objectsProperties = objectsProperties;
         this.objectMapper = objectMapper;
+        this.photoStorageService = photoStorageService;
     }
 
     public Map<String, Object> createPassport(Map<String, Object> payload) {
@@ -107,6 +118,119 @@ public class ObjectPassportService {
                 "items", List.of(),
                 "total_minutes", 0,
                 "total_display", "0 мин");
+    }
+
+    public Map<String, Object> uploadPhoto(long passportId,
+                                           MultipartFile file,
+                                           String category,
+                                           String caption) throws IOException {
+        StoredPhoto storedPhoto = photoStorageService.store(file);
+        try (Connection connection = openConnection()) {
+            connection.setAutoCommit(false);
+            try {
+                StoredPassportRecord existing = loadStoredPassport(connection, passportId);
+                Map<String, Object> normalized = normalizePayload(existing.payload(), Map.of(), passportId);
+                List<Map<String, Object>> photos = mutablePhotoList(normalized.get("photos"));
+                LinkedHashMap<String, Object> photo = new LinkedHashMap<>();
+                photo.put("id", UUID.randomUUID().toString());
+                photo.put("category", normalizePhotoCategory(category));
+                photo.put("caption", stringValue(caption));
+                photo.put("url", storedPhoto.url());
+                photo.put("stored_name", storedPhoto.storedName());
+                photo.put("original_name", storedPhoto.originalName());
+                photo.put("mime_type", storedPhoto.mimeType());
+                photo.put("size", storedPhoto.size());
+                photo.put("created_at", storedPhoto.uploadedAt());
+                photos.add(photo);
+                normalized.put("photos", enforceSingleTitlePhoto(photos, stringValue(photo.get("id"))));
+                updatePassportRow(connection, passportId, existing.objectId(), normalized);
+                connection.commit();
+                return Map.of("success", true, "photos", normalized.get("photos"));
+            } catch (RuntimeException | SQLException ex) {
+                connection.rollback();
+                photoStorageService.deleteQuietly(storedPhoto.storedName());
+                throw ex;
+            }
+        } catch (SQLException ex) {
+            photoStorageService.deleteQuietly(storedPhoto.storedName());
+            throw new IllegalStateException("Не удалось сохранить фото паспорта объекта", ex);
+        }
+    }
+
+    public Map<String, Object> updatePhoto(String photoId, Map<String, Object> payload) {
+        try (Connection connection = openConnection()) {
+            connection.setAutoCommit(false);
+            try {
+                StoredPassportRecord existing = findStoredPassportByPhotoId(connection, photoId);
+                Map<String, Object> normalized = normalizePayload(existing.payload(), Map.of(), existing.passportId());
+                List<Map<String, Object>> photos = mutablePhotoList(normalized.get("photos"));
+                boolean updated = false;
+                for (Map<String, Object> photo : photos) {
+                    if (!stringValue(photo.get("id")).equals(stringValue(photoId))) {
+                        continue;
+                    }
+                    if (payload.containsKey("caption")) {
+                        photo.put("caption", stringValue(payload.get("caption")));
+                    }
+                    if (payload.containsKey("category")) {
+                        photo.put("category", normalizePhotoCategory(payload.get("category")));
+                    }
+                    updated = true;
+                    break;
+                }
+                if (!updated) {
+                    throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Фото паспорта не найдено");
+                }
+                normalized.put("photos", enforceSingleTitlePhoto(photos, stringValue(photoId)));
+                updatePassportRow(connection, existing.passportId(), existing.objectId(), normalized);
+                connection.commit();
+                return Map.of("success", true, "photos", normalized.get("photos"));
+            } catch (RuntimeException | SQLException ex) {
+                connection.rollback();
+                throw ex;
+            }
+        } catch (SQLException ex) {
+            throw new IllegalStateException("Не удалось обновить фото паспорта объекта", ex);
+        }
+    }
+
+    public Map<String, Object> deletePhoto(String photoId) {
+        String storedNameToDelete = null;
+        try (Connection connection = openConnection()) {
+            connection.setAutoCommit(false);
+            try {
+                StoredPassportRecord existing = findStoredPassportByPhotoId(connection, photoId);
+                Map<String, Object> normalized = normalizePayload(existing.payload(), Map.of(), existing.passportId());
+                List<Map<String, Object>> photos = mutablePhotoList(normalized.get("photos"));
+                List<Map<String, Object>> remaining = new ArrayList<>();
+                boolean deleted = false;
+                for (Map<String, Object> photo : photos) {
+                    if (stringValue(photo.get("id")).equals(stringValue(photoId))) {
+                        storedNameToDelete = stringValue(photo.get("stored_name"));
+                        deleted = true;
+                        continue;
+                    }
+                    remaining.add(photo);
+                }
+                if (!deleted) {
+                    throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Фото паспорта не найдено");
+                }
+                normalized.put("photos", enforceSingleTitlePhoto(remaining, null));
+                updatePassportRow(connection, existing.passportId(), existing.objectId(), normalized);
+                connection.commit();
+                photoStorageService.deleteQuietly(storedNameToDelete);
+                return Map.of("success", true, "photos", normalized.get("photos"));
+            } catch (RuntimeException | SQLException ex) {
+                connection.rollback();
+                throw ex;
+            }
+        } catch (SQLException ex) {
+            throw new IllegalStateException("Не удалось удалить фото паспорта объекта", ex);
+        }
+    }
+
+    public ResponseEntity<Resource> downloadPhoto(String storedName) throws IOException {
+        return photoStorageService.download(storedName);
     }
 
     private void ensurePassportExists(long passportId) {
@@ -232,7 +356,7 @@ public class ObjectPassportService {
         ensureList(normalized, "schedule");
         ensureList(normalized, "cases");
         ensureList(normalized, "tasks");
-        ensureList(normalized, "photos");
+        normalized.put("photos", normalizePhotos(normalized.get("photos")));
         ensureList(normalized, "network_files");
         ensureList(normalized, "equipment");
         ensureList(normalized, "status_history");
@@ -244,6 +368,140 @@ public class ObjectPassportService {
         if (!(value instanceof List<?>)) {
             payload.put(key, List.of());
         }
+    }
+
+    private List<Map<String, Object>> normalizePhotos(Object value) {
+        if (!(value instanceof List<?> rawList)) {
+            return List.of();
+        }
+        List<Map<String, Object>> photos = new ArrayList<>();
+        for (Object item : rawList) {
+            if (!(item instanceof Map<?, ?> rawMap)) {
+                continue;
+            }
+            LinkedHashMap<String, Object> photo = new LinkedHashMap<>();
+            String id = stringValue(rawMap.get("id"));
+            if (StringUtils.hasText(id)) {
+                photo.put("id", id);
+            }
+            photo.put("category", normalizePhotoCategory(rawMap.get("category")));
+            photo.put("caption", stringValue(rawMap.get("caption")));
+            String storedName = firstNonBlank(rawMap.get("stored_name"), rawMap.get("storedName"), rawMap.get("filename"));
+            if (StringUtils.hasText(storedName)) {
+                photo.put("stored_name", storedName);
+            }
+            String originalName = firstNonBlank(rawMap.get("original_name"), rawMap.get("originalName"));
+            if (StringUtils.hasText(originalName)) {
+                photo.put("original_name", originalName);
+            }
+            String mimeType = stringValue(rawMap.get("mime_type"));
+            if (StringUtils.hasText(mimeType)) {
+                photo.put("mime_type", mimeType);
+            }
+            Object size = rawMap.get("size");
+            if (size instanceof Number number) {
+                photo.put("size", number.longValue());
+            }
+            String createdAt = firstNonBlank(rawMap.get("created_at"), rawMap.get("createdAt"));
+            if (StringUtils.hasText(createdAt)) {
+                photo.put("created_at", createdAt);
+            }
+            String url = firstNonBlank(rawMap.get("url"), rawMap.get("download_url"));
+            if (!StringUtils.hasText(url) && StringUtils.hasText(storedName)) {
+                url = photoStorageService.buildPhotoUrl(storedName);
+            }
+            if (StringUtils.hasText(url)) {
+                photo.put("url", url);
+            }
+            photos.add(photo);
+        }
+        return enforceSingleTitlePhoto(photos, null);
+    }
+
+    private List<Map<String, Object>> mutablePhotoList(Object value) {
+        List<Map<String, Object>> normalized = normalizePhotos(value);
+        List<Map<String, Object>> mutable = new ArrayList<>();
+        for (Map<String, Object> photo : normalized) {
+            mutable.add(new LinkedHashMap<>(photo));
+        }
+        return mutable;
+    }
+
+    private List<Map<String, Object>> enforceSingleTitlePhoto(List<Map<String, Object>> photos, String preferredTitlePhotoId) {
+        List<Map<String, Object>> normalized = new ArrayList<>();
+        String titleHolderId = null;
+        if (StringUtils.hasText(preferredTitlePhotoId)) {
+            for (Map<String, Object> photo : photos) {
+                if (preferredTitlePhotoId.equals(stringValue(photo.get("id")))
+                        && "title".equals(normalizePhotoCategory(photo.get("category")))) {
+                    titleHolderId = preferredTitlePhotoId;
+                    break;
+                }
+            }
+        }
+        if (!StringUtils.hasText(titleHolderId)) {
+            for (Map<String, Object> photo : photos) {
+                if ("title".equals(normalizePhotoCategory(photo.get("category")))) {
+                    titleHolderId = stringValue(photo.get("id"));
+                    break;
+                }
+            }
+        }
+        for (Map<String, Object> photo : photos) {
+            LinkedHashMap<String, Object> copy = new LinkedHashMap<>(photo);
+            String photoId = stringValue(copy.get("id"));
+            if (StringUtils.hasText(titleHolderId) && titleHolderId.equals(photoId)) {
+                copy.put("category", "title");
+            } else if ("title".equals(normalizePhotoCategory(copy.get("category")))) {
+                copy.put("category", "archive");
+            } else {
+                copy.put("category", normalizePhotoCategory(copy.get("category")));
+            }
+            normalized.add(copy);
+        }
+        return normalized;
+    }
+
+    private String normalizePhotoCategory(Object raw) {
+        String value = stringValue(raw).toLowerCase();
+        return "title".equals(value) ? "title" : "archive";
+    }
+
+    private StoredPassportRecord findStoredPassportByPhotoId(Connection connection, String photoId) throws SQLException {
+        String normalizedPhotoId = stringValue(photoId);
+        if (!StringUtils.hasText(normalizedPhotoId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Фото паспорта не найдено");
+        }
+        String sql = "SELECT id FROM object_passports";
+        try (PreparedStatement statement = connection.prepareStatement(sql);
+             ResultSet rs = statement.executeQuery()) {
+            while (rs.next()) {
+                long passportId = rs.getLong("id");
+                StoredPassportRecord record = loadStoredPassport(connection, passportId);
+                List<Map<String, Object>> photos = normalizePhotos(record.payload().get("photos"));
+                boolean found = photos.stream()
+                        .anyMatch(photo -> normalizedPhotoId.equals(stringValue(photo.get("id"))));
+                if (found) {
+                    Map<String, Object> payload = new LinkedHashMap<>(record.payload());
+                    payload.put("photos", photos);
+                    return new StoredPassportRecord(record.passportId(), record.objectId(), payload);
+                }
+            }
+        }
+        throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Фото паспорта не найдено");
+    }
+
+    private String firstNonBlank(Object... values) {
+        if (values == null) {
+            return "";
+        }
+        for (Object value : values) {
+            String normalized = stringValue(value);
+            if (StringUtils.hasText(normalized)) {
+                return normalized;
+            }
+        }
+        return "";
     }
 
     private Map<String, Object> readJson(String raw) {
