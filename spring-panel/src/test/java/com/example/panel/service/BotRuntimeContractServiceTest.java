@@ -327,6 +327,27 @@ class BotRuntimeContractServiceTest {
     }
 
     @Test
+    void buildEnvironmentForTelegramIncludesCustomBotApiBaseUrl() {
+        BotRuntimeContractService service = createService("auto", Map.of());
+        Channel channel = new Channel();
+        channel.setId(36L);
+        channel.setPlatform("telegram");
+        channel.setPlatformConfig("""
+            {
+              "base_url": "https://telegram.ftl-dev.ru/"
+            }
+            """);
+
+        Map<String, String> env = service.buildEnvironment(
+            channel,
+            new com.example.panel.model.channel.BotCredential(9L, "tg", "telegram", "tg-token", true),
+            tempDir.resolve("telegram-base-url.log")
+        );
+
+        assertThat(env).containsEntry("TELEGRAM_BOT_API_BASE_URL", "https://telegram.ftl-dev.ru");
+    }
+
+    @Test
     void describeResolvesVkBotModule() {
         BotRuntimeContractService service = createService("auto", Map.of());
         Channel channel = new Channel();

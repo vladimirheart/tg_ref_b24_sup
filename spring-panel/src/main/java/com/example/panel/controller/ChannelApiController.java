@@ -45,6 +45,7 @@ public class ChannelApiController {
 
     private static final Logger log = LoggerFactory.getLogger(ChannelApiController.class);
     private static final Set<String> LOCATION_FIELD_IDS = Set.of("business", "location_type", "city", "location_name");
+    private static final String DEFAULT_TELEGRAM_API_ROOT_URL = "https://api.telegram.org";
 
     private final ChannelRepository channelRepository;
     private final ObjectMapper objectMapper;
@@ -577,10 +578,18 @@ public class ChannelApiController {
                 default -> "Для Telegram необходимо указать токен бота.";
             };
         }
+        Map<String, Object> config = platformConfig != null ? platformConfig : Map.of();
+        if ("telegram".equals(platform)) {
+            try {
+                normalizeTelegramApiRootUrl(readTelegramApiRootUrl(config));
+            } catch (IllegalArgumentException ex) {
+                return ex.getMessage();
+            }
+            return "";
+        }
         if (!"vk".equals(platform)) {
             return "";
         }
-        Map<String, Object> config = platformConfig != null ? platformConfig : Map.of();
         Integer groupId = parseInteger(firstValue(config, "group_id", "groupId"));
         String confirmation = stringValue(firstValue(config, "confirmation_token", "confirmationToken"));
         if (groupId == null || groupId <= 0) {
@@ -688,7 +697,7 @@ public class ChannelApiController {
             payload.put("text", message);
 
             HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create("https://api.telegram.org/bot" + token + "/sendMessage"))
+                .uri(URI.create(buildTelegramBotMethodUrl(channel, token, "sendMessage")))
                 .timeout(Duration.ofSeconds(10))
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload)))
@@ -1036,7 +1045,7 @@ public class ChannelApiController {
         if (isBlank(token)) {
             return Optional.empty();
         }
-        String url = "https://api.telegram.org/bot" + token + "/getMe";
+        String url = buildTelegramBotMethodUrl(channel, token, "getMe");
         HttpRequest request = HttpRequest.newBuilder()
             .uri(URI.create(url))
             .timeout(Duration.ofSeconds(8))
@@ -1087,6 +1096,53 @@ public class ChannelApiController {
 
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
+    }
+
+    private String buildTelegramBotMethodUrl(Channel channel, String token, String methodName) {
+        return resolveTelegramBotApiPrefix(channel) + token + "/" + methodName;
+    }
+
+    private String resolveTelegramBotApiPrefix(Channel channel) {
+        return normalizeTelegramApiRootUrl(readTelegramApiRootUrl(parseJsonMap(channel != null ? channel.getPlatformConfig() : null))) + "/bot";
+    }
+
+    private String readTelegramApiRootUrl(Map<String, Object> platformConfig) {
+        return stringValue(firstValue(
+            platformConfig != null ? platformConfig : Map.of(),
+            "base_url",
+            "baseUrl",
+            "api_base_url",
+            "apiBaseUrl",
+            "telegram_api_base_url",
+            "telegramApiBaseUrl"
+        ));
+    }
+
+    private String normalizeTelegramApiRootUrl(String rawUrl) {
+        if (isBlank(rawUrl)) {
+            return DEFAULT_TELEGRAM_API_ROOT_URL;
+        }
+        URI uri;
+        try {
+            uri = URI.create(rawUrl.trim());
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalArgumentException("Telegram Bot API base URL должен быть корректным абсолютным URL.");
+        }
+        String scheme = stringValue(uri.getScheme()).toLowerCase();
+        if (!"http".equals(scheme) && !"https".equals(scheme)) {
+            throw new IllegalArgumentException("Telegram Bot API base URL должен начинаться с http:// или https://.");
+        }
+        if (isBlank(uri.getHost())) {
+            throw new IllegalArgumentException("Telegram Bot API base URL должен содержать host.");
+        }
+        String normalized = rawUrl.trim().replaceAll("/+$", "");
+        if (normalized.equals(DEFAULT_TELEGRAM_API_ROOT_URL + "/bot")) {
+            return DEFAULT_TELEGRAM_API_ROOT_URL;
+        }
+        if (normalized.endsWith("/bot")) {
+            return normalized.substring(0, normalized.length() - 4);
+        }
+        return normalized;
     }
 
     private record TelegramBotInfo(String name, String username) {

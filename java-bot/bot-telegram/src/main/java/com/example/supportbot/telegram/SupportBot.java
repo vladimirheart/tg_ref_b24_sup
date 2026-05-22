@@ -67,6 +67,7 @@ public class SupportBot extends TelegramLongPollingBot {
     private static final Logger log = LoggerFactory.getLogger(SupportBot.class);
     private static final int MAX_LOG_TEXT_LENGTH = 160;
     private static final String BACK_BUTTON = "Назад";
+    private static final String DEFAULT_TELEGRAM_API_ROOT_URL = "https://api.telegram.org";
 
     private final BotProperties properties;
     private final BlacklistService blacklistService;
@@ -128,6 +129,7 @@ public class SupportBot extends TelegramLongPollingBot {
                 usernameConfigured ? username : "(missing)",
                 tokenConfigured ? maskToken(token) : "(missing)",
                 channelId);
+        log.info("Telegram Bot API base URL: {}", resolveTelegramApiRootUrlForLogs());
         String networkMode = env("APP_NETWORK_MODE").toLowerCase(Locale.ROOT);
         String proxyHost = env("APP_NETWORK_PROXY_HOST");
         int proxyPort = parsePositiveInt(env("APP_NETWORK_PROXY_PORT"));
@@ -167,16 +169,31 @@ public class SupportBot extends TelegramLongPollingBot {
                         properties.getUsername(), me.getUserName());
             }
         } catch (TelegramApiException e) {
-            Throwable rootCause = rootCauseOf(e);
-            if (isConnectivityFailure(rootCause)) {
-                log.error("Telegram API connectivity check failed while calling getMe. " +
-                                "The configured token may still be valid, but the application could not establish a stable HTTPS connection to api.telegram.org:443. " +
-                                "Verify outbound network access, firewall/proxy rules, TLS interception, and antivirus filtering.",
-                        e);
-                return;
-            }
-            log.error("Telegram bot credentials verification failed. Check the configured token/username and Telegram API availability.", e);
+            throw new IllegalStateException(describeStartupFailure(
+                    "Telegram bot credentials verification failed. Check the configured token/username and Telegram API availability.",
+                    e
+            ), e);
         }
+    }
+
+    String describeStartupFailure(String fallbackMessage, TelegramApiException exception) {
+        Throwable rootCause = rootCauseOf(exception);
+        String apiRootUrl = resolveTelegramApiRootUrlForLogs();
+        if (isProxyTunnelFailure(rootCause)) {
+            return "Telegram runtime could not establish an HTTPS tunnel through the configured proxy to "
+                    + apiRootUrl
+                    + ". The endpoint behaves like a Bot API mirror/reverse proxy instead of a forward proxy. "
+                    + "If direct requests like " + apiRootUrl + "/bot<TOKEN>/getMe work, configure this endpoint as Telegram Bot API base URL instead of proxy.";
+        }
+        if (isConnectivityFailure(rootCause)) {
+            return "Telegram runtime could not reach Telegram Bot API at "
+                    + apiRootUrl
+                    + ". Verify outbound network access, firewall/proxy rules, TLS interception, and antivirus filtering.";
+        }
+        String rootMessage = rootCause != null && rootCause.getMessage() != null && !rootCause.getMessage().isBlank()
+                ? rootCause.getMessage().trim()
+                : rootCause != null ? rootCause.getClass().getSimpleName() : "unknown";
+        return fallbackMessage + " Root cause: " + rootMessage;
     }
 
     private Throwable rootCauseOf(Throwable throwable) {
@@ -191,6 +208,12 @@ public class SupportBot extends TelegramLongPollingBot {
         return throwable instanceof IOException
                 || throwable instanceof java.net.SocketException
                 || throwable instanceof java.net.SocketTimeoutException;
+    }
+
+    private boolean isProxyTunnelFailure(Throwable throwable) {
+        return throwable instanceof IOException
+                && throwable.getMessage() != null
+                && throwable.getMessage().contains("Unable to tunnel through proxy");
     }
 
     public void deleteWebhookIfAny() {
@@ -2062,6 +2085,7 @@ public class SupportBot extends TelegramLongPollingBot {
 
     private static DefaultBotOptions resolveTelegramBotOptionsFromEnv() {
         DefaultBotOptions options = new DefaultBotOptions();
+        options.setBaseUrl(resolveTelegramBotApiBaseUrlFromEnv());
         String networkMode = env("APP_NETWORK_MODE").toLowerCase(Locale.ROOT);
         if (!"proxy".equals(networkMode)) {
             options.setProxyType(DefaultBotOptions.ProxyType.NO_PROXY);
@@ -2090,6 +2114,33 @@ public class SupportBot extends TelegramLongPollingBot {
             case "socks5", "vless" -> DefaultBotOptions.ProxyType.SOCKS5;
             default -> DefaultBotOptions.ProxyType.HTTP;
         };
+    }
+
+    static String resolveTelegramBotApiBaseUrlFromEnv() {
+        return buildTelegramBotApiBaseUrl(env("TELEGRAM_BOT_API_BASE_URL"));
+    }
+
+    static String buildTelegramBotApiBaseUrl(String rawRootUrl) {
+        return normalizeTelegramApiRootUrl(rawRootUrl) + "/bot";
+    }
+
+    static String normalizeTelegramApiRootUrl(String rawRootUrl) {
+        String value = rawRootUrl == null ? "" : rawRootUrl.trim();
+        if (value.isEmpty()) {
+            return DEFAULT_TELEGRAM_API_ROOT_URL;
+        }
+        String normalized = value.replaceAll("/+$", "");
+        if (normalized.equals(DEFAULT_TELEGRAM_API_ROOT_URL + "/bot")) {
+            return DEFAULT_TELEGRAM_API_ROOT_URL;
+        }
+        if (normalized.endsWith("/bot")) {
+            return normalized.substring(0, normalized.length() - 4);
+        }
+        return normalized;
+    }
+
+    private static String resolveTelegramApiRootUrlForLogs() {
+        return normalizeTelegramApiRootUrl(env("TELEGRAM_BOT_API_BASE_URL"));
     }
 
     private static int parsePositiveInt(String value) {

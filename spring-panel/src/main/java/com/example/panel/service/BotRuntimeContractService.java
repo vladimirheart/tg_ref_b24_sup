@@ -12,6 +12,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.net.URI;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Stream;
@@ -26,6 +27,7 @@ public class BotRuntimeContractService {
     private static final Logger log = LoggerFactory.getLogger(BotRuntimeContractService.class);
     private static final String STARTED_SIGNAL = "Spring Boot started marker";
     private static final String FAILURE_SIGNAL = "APPLICATION FAILED TO START banner";
+    private static final String DEFAULT_TELEGRAM_API_ROOT_URL = "https://api.telegram.org";
 
     private final SqliteDataSourceProperties ticketsDbProperties;
     private final BotProcessProperties botProcessProperties;
@@ -122,6 +124,20 @@ public class BotRuntimeContractService {
         env.put("GROUP_CHAT_ID", Objects.toString(channel.getSupportChatId(), "0"));
         String platform = normalizePlatform(channel);
         Map<String, Object> platformConfig = parsePlatformConfig(channel);
+        if ("telegram".equals(platform)) {
+            String telegramApiBaseUrl = normalizeTelegramApiRootUrl(readString(
+                platformConfig,
+                "base_url",
+                "baseUrl",
+                "api_base_url",
+                "apiBaseUrl",
+                "telegram_api_base_url",
+                "telegramApiBaseUrl"
+            ));
+            if (StringUtils.hasText(telegramApiBaseUrl)) {
+                env.put("TELEGRAM_BOT_API_BASE_URL", telegramApiBaseUrl);
+            }
+        }
         env.put("VK_BOT_ENABLED", "vk".equals(platform) ? "true" : "false");
         if ("vk".equals(platform)) {
             env.put("VK_BOT_TOKEN", credential.token());
@@ -240,6 +256,9 @@ public class BotRuntimeContractService {
         }
         if ("max".equals(platform)) {
             keys.add("MAX_WEBHOOK_SECRET");
+        }
+        if ("telegram".equals(platform)) {
+            keys.add("TELEGRAM_BOT_API_BASE_URL");
         }
 
         keys.addAll(integrationNetworkService.buildProcessEnvironment(integrationNetworkService.resolveBotRoute(channel)).keySet());
@@ -438,6 +457,28 @@ public class BotRuntimeContractService {
         }
         String updated = existing.isBlank() ? option.trim() : existing + " " + option.trim();
         env.put(key, updated);
+    }
+
+    private String normalizeTelegramApiRootUrl(String raw) {
+        if (!StringUtils.hasText(raw)) {
+            return "";
+        }
+        URI uri = URI.create(raw.trim());
+        String scheme = Objects.toString(uri.getScheme(), "").toLowerCase();
+        if (!"http".equals(scheme) && !"https".equals(scheme)) {
+            throw new IllegalArgumentException("Telegram Bot API base URL must use http or https.");
+        }
+        if (!StringUtils.hasText(uri.getHost())) {
+            throw new IllegalArgumentException("Telegram Bot API base URL must include a host.");
+        }
+        String normalized = raw.trim().replaceAll("/+$", "");
+        if (normalized.equals(DEFAULT_TELEGRAM_API_ROOT_URL + "/bot")) {
+            return DEFAULT_TELEGRAM_API_ROOT_URL;
+        }
+        if (normalized.endsWith("/bot")) {
+            return normalized.substring(0, normalized.length() - 4);
+        }
+        return normalized;
     }
 
     private record ResolvedExecutableJar(Path path, String source) {}

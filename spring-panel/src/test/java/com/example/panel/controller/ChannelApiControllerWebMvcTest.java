@@ -21,6 +21,7 @@ import com.example.panel.service.IntegrationNetworkService;
 import com.example.panel.service.SharedConfigService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.ArrayList;
 import java.util.List;
@@ -118,6 +119,11 @@ class ChannelApiControllerWebMvcTest {
         channel.setChannelName("TG Support");
         channel.setPlatform("telegram");
         channel.setToken("tg-token");
+        channel.setPlatformConfig("""
+            {
+              "base_url": "https://telegram.ftl-dev.ru/"
+            }
+            """);
         channel.setPublicId("pub-75");
         channel.setQuestionsCfg("{}");
         channel.setDeliverySettings("{}");
@@ -146,6 +152,11 @@ class ChannelApiControllerWebMvcTest {
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.channels[0].bot_name").value("Support"))
             .andExpect(jsonPath("$.channels[0].bot_username").value("support_bot"));
+
+        verify(httpClient).send(
+            argThat((HttpRequest request) -> "https://telegram.ftl-dev.ru/bottg-token/getMe".equals(request.uri().toString())),
+            any(HttpResponse.BodyHandler.class)
+        );
     }
 
     @Test
@@ -225,6 +236,25 @@ class ChannelApiControllerWebMvcTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error").value("Для Telegram необходимо указать токен бота."));
+    }
+
+    @Test
+    void createChannelRejectsInvalidTelegramBaseUrl() throws Exception {
+        mockMvc.perform(post("/api/channels")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "channel_name": "TG Bad Base URL",
+                                  "platform": "telegram",
+                                  "token": "telegram-token",
+                                  "platform_config": {
+                                    "base_url": "ftp://telegram.ftl-dev.ru"
+                                  }
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error").value("Telegram Bot API base URL должен начинаться с http:// или https://."));
     }
 
     @Test

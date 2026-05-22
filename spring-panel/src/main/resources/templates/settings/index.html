@@ -6150,6 +6150,15 @@
                 <option value="max">MAX</option>
               </select>
             </div>
+            <div class="col-12" id="telegram_base_url_container">
+              <div class="row g-3">
+                <div class="col-12 col-lg-8">
+                  <label class="form-label" for="new_telegram_base_url">Telegram Bot API base URL <span class="text-muted">(опционально)</span></label>
+                  <input id="new_telegram_base_url" class="form-control" placeholder="Например: https://telegram.ftl-dev.ru">
+                  <div class="form-text">Нужно только если используете Bot API mirror или self-hosted endpoint. Это не proxy: панель и бот будут обращаться к указанному `/bot...` URL напрямую.</div>
+                </div>
+              </div>
+            </div>
             <div class="col-12 col-md-4 col-xl-3">
               <label class="form-label" for="new_question_template">Шаблон вопросов</label>
               <select id="new_question_template" class="form-select"></select>
@@ -6608,6 +6617,11 @@
                     <div class="d-flex flex-column flex-lg-row gap-3 align-items-lg-center">
                       <button type="button" class="btn btn-outline-primary d-none" id="channelEditorVkButton">Настроить VK вебхук…</button>
                       <div class="text-muted small ms-lg-auto" data-channel-editor-hint></div>
+                    </div>
+                    <div class="mt-3 d-none" id="channelEditorTelegramBaseUrlBlock">
+                      <label class="form-label" for="channelEditorTelegramBaseUrl">Telegram Bot API base URL <span class="text-muted">(опционально)</span></label>
+                      <input class="form-control" id="channelEditorTelegramBaseUrl" placeholder="Например: https://telegram.ftl-dev.ru" />
+                      <div class="form-text">Используйте для Bot API mirror или self-hosted endpoint. Поле заменяет обращения к `api.telegram.org`, а не настраивает proxy.</div>
                     </div>
                     <div class="mt-3 d-none" id="channelEditorMaxWebhookBlock">
                       <label class="form-label" for="channelEditorMaxWebhookSecret">MAX secret для fallback webhook <span class="text-muted">(опционально)</span></label>
@@ -20624,6 +20638,8 @@
   const channelEditorNewTokenInput = document.getElementById('channelEditorNewToken');
   const channelEditorSupportHint = document.querySelector('[data-channel-editor-support-hint]');
   const channelEditorVkBtn = document.getElementById('channelEditorVkButton');
+  const channelEditorTelegramBaseUrlBlock = document.getElementById('channelEditorTelegramBaseUrlBlock');
+  const channelEditorTelegramBaseUrlInput = document.getElementById('channelEditorTelegramBaseUrl');
   const channelEditorMaxWebhookBlock = document.getElementById('channelEditorMaxWebhookBlock');
   const channelEditorMaxWebhookSecretInput = document.getElementById('channelEditorMaxWebhookSecret');
   const channelEditorMaxWebhookUrlEl = document.querySelector('[data-channel-editor-max-webhook-url]');
@@ -22412,6 +22428,18 @@
       ).trim();
       channelEditorMaxWebhookSecretInput.value = maxSecret;
     }
+    if (channelEditorTelegramBaseUrlInput) {
+      const telegramBaseUrl = String(
+        platformConfig.base_url
+          ?? platformConfig.baseUrl
+          ?? platformConfig.api_base_url
+          ?? platformConfig.apiBaseUrl
+          ?? platformConfig.telegram_api_base_url
+          ?? platformConfig.telegramApiBaseUrl
+          ?? ''
+      ).trim().replace(/\/+$/, '').replace(/\/bot$/, '');
+      channelEditorTelegramBaseUrlInput.value = telegramBaseUrl;
+    }
     applyRouteToInputs('channel', channel.network_route);
     updateSupportChatHint(supportChatValue);
     if (channelEditorTestMessageInput) {
@@ -22425,6 +22453,9 @@
     if (channelEditorVkBtn) {
       channelEditorVkBtn.classList.toggle('d-none', channel.platform !== 'vk');
     }
+    if (channelEditorTelegramBaseUrlBlock) {
+      channelEditorTelegramBaseUrlBlock.classList.toggle('d-none', channel.platform !== 'telegram');
+    }
     if (channelEditorMaxWebhookBlock) {
       channelEditorMaxWebhookBlock.classList.toggle('d-none', channel.platform !== 'max');
     }
@@ -22437,6 +22468,8 @@
         channelEditorHintEl.textContent = `VK Callback URL: ${callbackUrl}`;
       } else if (channel.platform === 'max') {
         channelEditorHintEl.textContent = 'MAX работает через long polling: отдельный webhook endpoint не требуется.';
+      } else if (channel.platform === 'telegram') {
+        channelEditorHintEl.textContent = 'Если используете Bot API mirror или self-hosted endpoint, укажите его base URL ниже. Для обычного Telegram оставьте поле пустым.';
       } else {
         channelEditorHintEl.textContent = 'Изменения вступят в силу сразу после сохранения.';
       }
@@ -23046,6 +23079,7 @@
     const vkGroupInput = document.getElementById('new_vk_group_id');
     const vkConfirmInput = document.getElementById('new_vk_confirmation');
     const vkSecretInput = document.getElementById('new_vk_secret');
+    const telegramBaseUrlInput = document.getElementById('new_telegram_base_url');
     const maxSecretInput = document.getElementById('new_max_secret');
 
     if (tokenInput) tokenInput.value = '';
@@ -23057,6 +23091,7 @@
     if (vkGroupInput) vkGroupInput.value = '';
     if (vkConfirmInput) vkConfirmInput.value = '';
     if (vkSecretInput) vkSecretInput.value = '';
+    if (telegramBaseUrlInput) telegramBaseUrlInput.value = '';
     if (maxSecretInput) maxSecretInput.value = '';
     if (platformSelect) platformSelect.value = 'telegram';
     if (questionSelect && !questionSelect.disabled) {
@@ -23082,6 +23117,7 @@
     const vkGroupInput = document.getElementById('new_vk_group_id');
     const vkConfirmInput = document.getElementById('new_vk_confirmation');
     const vkSecretInput = document.getElementById('new_vk_secret');
+    const telegramBaseUrlInput = document.getElementById('new_telegram_base_url');
     const maxSecretInput = document.getElementById('new_max_secret');
 
     const platform = platformSelect?.value || 'telegram';
@@ -23167,7 +23203,12 @@
     const supportChatId = supportChatInput?.value?.trim() || '';
     if (supportChatId) payload.support_chat_id = supportChatId;
 
-    if (platform === 'vk') {
+    if (platform === 'telegram') {
+      const telegramBaseUrl = telegramBaseUrlInput?.value?.trim() || '';
+      if (telegramBaseUrl) {
+        payload.platform_config = { base_url: telegramBaseUrl };
+      }
+    } else if (platform === 'vk') {
       const groupId = Number.parseInt(vkGroupInput?.value || '0', 10);
       const confirmation = vkConfirmInput?.value?.trim() || '';
       if (!Number.isFinite(groupId) || groupId <= 0) {
@@ -23258,7 +23299,13 @@
     const currentChannel = CHANNELS_REGISTRY.get(String(id));
     const currentPlatform = String(currentChannel?.platform || '').toLowerCase();
     const currentPlatformConfig = parsePlatformConfig(currentChannel?.platform_config);
-    if (currentPlatform === 'max') {
+    if (currentPlatform === 'telegram') {
+      const telegramBaseUrl = channelEditorTelegramBaseUrlInput?.value?.trim() || '';
+      body.platform_config = {
+        ...currentPlatformConfig,
+        base_url: telegramBaseUrl || null,
+      };
+    } else if (currentPlatform === 'max') {
       const maxSecret = channelEditorMaxWebhookSecretInput?.value?.trim() || '';
       body.platform_config = {
         ...currentPlatformConfig,
@@ -23407,11 +23454,15 @@
     const tokenInput = document.getElementById('new_token');
     const tokenLabel = document.getElementById('new_token_label');
     const tokenHelp = document.getElementById('new_token_help');
+    const telegramContainer = document.getElementById('telegram_base_url_container');
     const vkContainer = document.getElementById('vk_group_id_container');
     const maxContainer = document.getElementById('max_webhook_container');
     const platform = platformSelect?.value || 'telegram';
     if (tokenContainer) {
       tokenContainer.classList.remove('d-none');
+    }
+    if (telegramContainer) {
+      telegramContainer.style.display = platform === 'telegram' ? '' : 'none';
     }
     if (vkContainer) {
       vkContainer.style.display = platform === 'vk' ? '' : 'none';
