@@ -1832,6 +1832,13 @@
       syncPassportBeforeUnload();
     }
 
+    function markPassportSavedState() {
+      resetPassportDirty();
+      if (window.EditGuard) {
+        window.EditGuard.markAllSaved();
+      }
+    }
+
     function markPassportDirty() {
       if (!passportDirtyReady || passportDirtyPauseCount > 0 || hasPassportUnsavedChanges) {
         return;
@@ -2718,6 +2725,7 @@
           throw new Error(data.error || 'Не удалось сохранить паспорт');
         }
         if (isNew && data.id) {
+          markPassportSavedState();
           window.location.href = `/object-passports/${data.id}`;
           return true;
         }
@@ -2730,9 +2738,7 @@
         }
         showSaveMessage('success', 'Изменения сохранены.');
         saved = true;
-        if (window.EditGuard) {
-          window.EditGuard.markAllSaved();
-        }
+        markPassportSavedState();
       } catch (error) {
         console.error(error);
         showSaveMessage('error', error.message || 'Произошла ошибка при сохранении.');
