@@ -18,6 +18,7 @@ import com.example.panel.repository.SettingsParameterRepository;
 import com.example.panel.repository.TaskRepository;
 import com.example.panel.entity.PanelUser;
 import com.example.panel.service.NavigationService;
+import com.example.panel.service.ObjectPassportService;
 import com.example.panel.service.PermissionService;
 import com.example.panel.service.IikoDepartmentLocationCatalogService;
 import com.example.panel.service.LocationsIikoServerSourceSettingsService;
@@ -63,6 +64,9 @@ class ManagementControllerWebMvcTest {
 
     @MockBean
     private ItEquipmentCatalogRepository equipmentRepository;
+
+    @MockBean
+    private ObjectPassportService objectPassportService;
 
     @MockBean
     private SharedConfigService sharedConfigService;
@@ -213,7 +217,7 @@ class ManagementControllerWebMvcTest {
     @Test
     void objectPassportsPageIncludesUiHeadBootstrapAndExplicitPagePreset() throws Exception {
         stubNavigationDefaults();
-        when(equipmentRepository.findAll()).thenReturn(List.of());
+        when(objectPassportService.listPassports()).thenReturn(List.of());
 
         mockMvc.perform(get("/object-passports").with(user("operator").authorities(() -> "PAGE_OBJECT_PASSPORTS")))
             .andExpect(status().isOk())

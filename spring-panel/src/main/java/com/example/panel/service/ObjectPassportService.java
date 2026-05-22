@@ -102,6 +102,39 @@ public class ObjectPassportService {
         }
     }
 
+    public List<Map<String, Object>> listPassports() {
+        String sql = """
+                SELECT p.id, p.object_id, p.passport_number, p.details, o.name AS object_name, o.address AS object_address
+                FROM object_passports p
+                LEFT JOIN objects o ON o.id = p.object_id
+                ORDER BY p.id DESC
+                """;
+        try (Connection connection = openConnection();
+             PreparedStatement statement = connection.prepareStatement(sql);
+             ResultSet rs = statement.executeQuery()) {
+            List<Map<String, Object>> items = new ArrayList<>();
+            while (rs.next()) {
+                long passportId = rs.getLong("id");
+                Map<String, Object> payload = readJson(rs.getString("details"));
+                Map<String, Object> normalized = normalizePayload(Map.of(), payload, passportId);
+                LinkedHashMap<String, Object> item = new LinkedHashMap<>();
+                item.put("id", passportId);
+                item.put("department", stringValue(normalized.get("department")));
+                item.put("city", stringValue(normalized.get("city")));
+                item.put("business", stringValue(normalized.get("business")));
+                item.put("status", stringValue(normalized.get("status")));
+                item.put("location_address", firstNonBlank(normalized.get("location_address"), rs.getString("object_address")));
+                item.put("passport_number", firstNonBlank(normalized.get("department"), rs.getString("passport_number")));
+                item.put("object_name", firstNonBlank(rs.getString("object_name"), normalized.get("department")));
+                item.put("photos", normalized.get("photos"));
+                items.add(item);
+            }
+            return items;
+        } catch (SQLException ex) {
+            throw new IllegalStateException("Не удалось загрузить список паспортов объектов", ex);
+        }
+    }
+
     public Map<String, Object> getEmptyCasesPayload(long passportId) {
         ensurePassportExists(passportId);
         return Map.of(

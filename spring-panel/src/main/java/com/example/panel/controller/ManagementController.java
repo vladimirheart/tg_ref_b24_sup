@@ -17,6 +17,7 @@ import com.example.panel.service.PermissionService;
 import com.example.panel.service.IikoDepartmentLocationCatalogService;
 import com.example.panel.service.LocationsIikoServerSourceSettingsService;
 import com.example.panel.service.LocationsIikoSyncSettingsService;
+import com.example.panel.service.ObjectPassportService;
 import com.example.panel.service.SettingsCatalogService;
 import com.example.panel.service.SettingsParameterService;
 import com.example.panel.service.SharedConfigService;
@@ -49,6 +50,7 @@ public class ManagementController {
     private final AppSettingRepository appSettingRepository;
     private final SettingsParameterRepository settingsParameterRepository;
     private final ItEquipmentCatalogRepository equipmentRepository;
+    private final ObjectPassportService objectPassportService;
     private final SharedConfigService sharedConfigService;
     private final SettingsCatalogService settingsCatalogService;
     private final SettingsParameterService settingsParameterService;
@@ -65,6 +67,7 @@ public class ManagementController {
                                 AppSettingRepository appSettingRepository,
                                 SettingsParameterRepository settingsParameterRepository,
                                 ItEquipmentCatalogRepository equipmentRepository,
+                                ObjectPassportService objectPassportService,
                                 SharedConfigService sharedConfigService,
                                 SettingsCatalogService settingsCatalogService,
                                 SettingsParameterService settingsParameterService,
@@ -80,6 +83,7 @@ public class ManagementController {
         this.appSettingRepository = appSettingRepository;
         this.settingsParameterRepository = settingsParameterRepository;
         this.equipmentRepository = equipmentRepository;
+        this.objectPassportService = objectPassportService;
         this.sharedConfigService = sharedConfigService;
         this.settingsCatalogService = settingsCatalogService;
         this.settingsParameterService = settingsParameterService;
@@ -208,7 +212,7 @@ public class ManagementController {
     public String passports(Authentication authentication, Model model) {
         navigationService.enrich(model, authentication);
         try {
-            List<ItEquipmentCatalog> items = equipmentRepository.findAll();
+            List<Map<String, Object>> items = objectPassportService.listPassports();
             model.addAttribute("items", items);
             log.info("Loaded {} object passports for user {}", items.size(), authentication.getName());
         } catch (Exception ex) {

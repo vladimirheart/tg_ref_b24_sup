@@ -16,7 +16,7 @@
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
         <div>
             <h1 class="h3 mb-1">Паспорта объектов</h1>
-            <p class="text-muted mb-0">Каталог оборудования и его характеристики.</p>
+            <p class="text-muted mb-0">Список сохранённых паспортов объектов и их текущих статусов.</p>
         </div>
         <div class="d-flex gap-2" th:if="${canViewSettings}">
             <a class="btn btn-primary" th:href="@{/object-passports/new}">Создать паспорт</a>
@@ -28,22 +28,26 @@
             <table class="table align-middle mb-0">
                 <thead class="table-light">
                 <tr>
-                    <th>Тип</th>
-                    <th>Производитель</th>
-                    <th>Модель</th>
-                    <th>Серийный номер</th>
+                    <th>Департамент</th>
+                    <th>Город</th>
+                    <th>Бизнес</th>
+                    <th>Статус</th>
+                    <th>Адрес</th>
                     <th></th>
                 </tr>
                 </thead>
                 <tbody>
                 <tr th:if="${#lists.isEmpty(items)}">
-                    <td colspan="5" class="text-center text-muted py-4">Каталог пуст</td>
+                    <td colspan="6" class="text-center text-muted py-4">Каталог пуст</td>
                 </tr>
                 <tr th:each="item : ${items}">
-                    <td th:text="${item.equipmentType} ?: '—'"></td>
-                    <td th:text="${item.equipmentVendor} ?: '—'"></td>
-                    <td th:text="${item.equipmentModel} ?: '—'"></td>
-                    <td th:text="${item.serialNumber} ?: '—'"></td>
+                    <td th:text="${item.department} ?: '—'"></td>
+                    <td th:text="${item.city} ?: '—'"></td>
+                    <td th:text="${item.business} ?: '—'"></td>
+                    <td>
+                        <span class="badge text-bg-light border" th:text="${item.status} ?: '—'"></span>
+                    </td>
+                    <td th:text="${item.location_address} ?: '—'"></td>
                     <td class="text-end">
                         <a class="btn btn-outline-primary btn-sm" th:href="@{'/object-passports/' + ${item.id}}">Открыть</a>
                     </td>
