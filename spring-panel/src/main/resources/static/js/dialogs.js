@@ -223,6 +223,7 @@
   const detailsAiState = document.getElementById('dialogDetailsAiState');
   const detailsAiList = document.getElementById('dialogDetailsAiList');
   const detailsAiRefresh = document.getElementById('dialogDetailsAiRefresh');
+  const detailsParticipantsSection = document.getElementById('dialogDetailsParticipantsSection');
   const detailsParticipantsManageBtn = document.getElementById('dialogDetailsParticipantsManageBtn');
   const detailsParticipantsState = document.getElementById('dialogDetailsParticipantsState');
   const detailsParticipantsList = document.getElementById('dialogDetailsParticipantsList');
@@ -2396,6 +2397,14 @@
     return tail ? `${head} · ${tail}` : head;
   }
 
+  function buildParticipantAvatarMarkup(displayName, avatarUrl, alt) {
+    const spec = buildResponsibleAvatarSpec(displayName, avatarUrl);
+    if (spec?.avatarUrl) {
+      return `<span class="dialog-responsible-avatar has-image"><img src="${escapeHtml(spec.avatarUrl)}" alt="${escapeHtml(alt || 'Аватар участника')}"></span>`;
+    }
+    return `<span class="dialog-responsible-avatar"><span>${escapeHtml(spec?.initial || displayName.substring(0, 1).toUpperCase())}</span></span>`;
+  }
+
   function renderParticipantCard(participant, options = {}) {
     const username = String(participant?.username || '').trim();
     const displayName = String(participant?.displayName || participant?.display_name || '').trim() || username || '—';
@@ -2404,10 +2413,7 @@
     const role = String(participant?.role || '').trim();
     const addedAt = formatTimestamp(participant?.addedAt || participant?.added_at || '', { includeTime: true, fallback: '' });
     const metaParts = [username && username !== displayName ? `@${username}` : '', department, role, addedAt].filter(Boolean);
-    const spec = buildResponsibleAvatarSpec(displayName, avatarUrl);
-    const avatarMarkup = spec?.avatarUrl
-      ? `<span class="dialog-details-participant-avatar has-image"><img src="${escapeHtml(spec.avatarUrl)}" alt="Аватар участника"></span>`
-      : `<span class="dialog-details-participant-avatar">${escapeHtml(spec?.initial || displayName.substring(0, 1).toUpperCase())}</span>`;
+    const avatarMarkup = buildParticipantAvatarMarkup(displayName, avatarUrl, 'Аватар участника');
     const removeButton = options.removable && username
       ? `<button type="button" class="btn btn-sm btn-outline-danger" data-remove-participant="${escapeHtml(username)}">${escapeHtml(options.removeLabel || 'Убрать')}</button>`
       : '';
@@ -2429,10 +2435,7 @@
     const username = String(participant?.username || '').trim();
     const displayName = String(participant?.displayName || participant?.display_name || '').trim() || username || '—';
     const avatarUrl = String(participant?.avatarUrl || participant?.avatar_url || '').trim();
-    const spec = buildResponsibleAvatarSpec(displayName, avatarUrl);
-    const avatarMarkup = spec?.avatarUrl
-      ? `<span class="dialog-details-participant-avatar has-image"><img src="${escapeHtml(spec.avatarUrl)}" alt="Аватар участника"></span>`
-      : `<span class="dialog-details-participant-avatar">${escapeHtml(spec?.initial || displayName.substring(0, 1).toUpperCase())}</span>`;
+    const avatarMarkup = buildParticipantAvatarMarkup(displayName, avatarUrl, 'Аватар участника');
     const titleParts = [displayName];
     if (username && username !== displayName) {
       titleParts.push(`@${username}`);
@@ -2451,6 +2454,9 @@
 
   function renderDialogParticipantsState() {
     const participants = Array.isArray(dialogParticipantsState) ? dialogParticipantsState : [];
+    if (detailsParticipantsSection) {
+      detailsParticipantsSection.classList.toggle('d-none', participants.length === 0);
+    }
     if (detailsParticipantsState) {
       detailsParticipantsState.textContent = participants.length
         ? `Подключено: ${participants.length}`
@@ -2476,10 +2482,10 @@
 
   function renderDialogParticipantsLoadingState(message) {
     const text = String(message || 'Загрузка участников...').trim();
+    if (detailsParticipantsSection) detailsParticipantsSection.classList.add('d-none');
     if (detailsParticipantsState) detailsParticipantsState.textContent = text;
     if (detailsParticipantsList) {
       detailsParticipantsList.innerHTML = '';
-      detailsParticipantsList.classList.add('d-none');
     }
     if (participantsCurrentState) participantsCurrentState.textContent = text;
     if (participantsCurrentList) {

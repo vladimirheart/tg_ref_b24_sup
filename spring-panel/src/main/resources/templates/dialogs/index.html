@@ -594,17 +594,14 @@
                             <div class="small text-muted dialog-details-categories" id="dialogDetailsCategories">Категории: —</div>
                         </div>
                         <div class="small text-muted dialog-details-location" id="dialogDetailsLocation">Локация: —</div>
-                        <div class="dialog-details-participants-inline" id="dialogDetailsParticipantsSection">
-                            <div class="small text-muted dialog-details-participants-caption">
-                                <span>Участники</span>
-                                <span id="dialogDetailsParticipantsState">Дополнительные участники не подключены.</span>
-                            </div>
-                            <div class="dialog-details-participants-list d-none" id="dialogDetailsParticipantsList"></div>
-                        </div>
                     </div>
                 </div>
                 <div class="dialog-details-header-actions">
                     <button type="button" class="btn btn-outline-success btn-sm d-none" id="dialogDetailsTakeBtn">Взять себе</button>
+                    <div class="dialog-details-header-participants d-none" id="dialogDetailsParticipantsSection">
+                        <span class="visually-hidden" id="dialogDetailsParticipantsState">Дополнительные участники не подключены.</span>
+                        <div class="dialog-details-participants-list" id="dialogDetailsParticipantsList"></div>
+                    </div>
                     <button type="button" class="btn btn-outline-secondary btn-sm" id="dialogDetailsParticipantsBtn">Участники</button>
                     <button type="button" class="btn btn-outline-primary btn-sm" id="dialogDetailsReassignBtn">Передать</button>
                     <a class="btn btn-outline-secondary btn-sm" id="dialogDetailsCreateTask" th:href="@{/tasks(create=1)}">Задача</a>
