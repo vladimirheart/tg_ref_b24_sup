@@ -492,9 +492,20 @@ public class ChannelApiController {
         return value == null ? "" : value.toString().trim();
     }
 
-    private Object firstValue(Map<String, Object> data, String primaryKey, String fallbackKey) {
-        Object value = data.get(primaryKey);
-        return value != null ? value : data.get(fallbackKey);
+    private Object firstValue(Map<String, Object> data, String... keys) {
+        if (data == null || keys == null) {
+            return null;
+        }
+        for (String key : keys) {
+            if (key == null) {
+                continue;
+            }
+            Object value = data.get(key);
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
     }
 
     private Boolean parseBoolean(Object raw) {
