@@ -823,6 +823,13 @@
   проверкой status/payload и action-audit logging. После этого следующий
   practical focus здесь уже смещён из controller/unit слоя в live runtime
   continuity quick-action side-effects.
+- следующим live runtime пакетом `SupportPanelIntegrationTests` добрали
+  participant/reassign continuity на реальном SQLite слое: add/remove
+  participant и reassign теперь закреплены через `DialogQuickActionService`,
+  `DialogReadService`, реальные `ticket_participants/ticket_responsibles`
+  projection и notification audience side-effects. Заодно cleanup тестового
+  слоя синхронизирован с `ticket_participants`, `ticket_active` и
+  `ticket_responsibles`, чтобы repeated прогон не тек между сценариями.
 - этот же smoke-слой расширен на detail/subpage contract:
   `ai-ops`, `unblock requests`, `users/detail` и оба passport editor route
   (`/object-passports/new`, `/object-passports/{id}`) теперь тоже прикрыты

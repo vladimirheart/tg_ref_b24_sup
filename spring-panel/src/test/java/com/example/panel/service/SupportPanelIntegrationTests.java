@@ -3,6 +3,8 @@ package com.example.panel.service;
 import com.example.panel.controller.SettingsBridgeController;
 import com.example.panel.controller.SettingsItEquipmentController;
 import com.example.panel.model.dialog.DialogDetails;
+import com.example.panel.model.dialog.DialogListItem;
+import com.example.panel.model.dialog.DialogParticipantDto;
 import com.example.panel.model.dialog.DialogSummary;
 import com.example.panel.model.knowledge.KnowledgeArticleCommand;
 import com.example.panel.model.knowledge.KnowledgeArticleDetails;
@@ -145,6 +147,12 @@ class SupportPanelIntegrationTests {
     @Autowired
     private OperatorNotificationWatcher operatorNotificationWatcher;
 
+    @Autowired
+    private DialogQuickActionService dialogQuickActionService;
+
+    @Autowired
+    private DialogReadService dialogReadService;
+
     @BeforeEach
     void clean() {
         SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(
@@ -153,6 +161,9 @@ class SupportPanelIntegrationTests {
                 new ArrayList<>(List.of(new SimpleGrantedAuthority("PAGE_SETTINGS")))
         ));
         jdbcTemplate.update("DELETE FROM chat_history");
+        jdbcTemplate.update("DELETE FROM ticket_participants");
+        jdbcTemplate.update("DELETE FROM ticket_active");
+        jdbcTemplate.update("DELETE FROM ticket_responsibles");
         jdbcTemplate.update("DELETE FROM task_history");
         jdbcTemplate.update("DELETE FROM task_links");
         jdbcTemplate.update("DELETE FROM task_people");
@@ -854,6 +865,132 @@ class SupportPanelIntegrationTests {
         );
         assertThat(notificationCount).isGreaterThanOrEqualTo(1);
         assertThat(notificationText).isNotBlank();
+    }
+
+    @Test
+    void dialogQuickActionServiceManagesParticipantsAndReassignsResponsibleWithRuntimeContinuity() {
+        insertOperatorUser("watcher_owner");
+        insertOperatorUser("watcher_peer");
+        insertOperatorUser("watcher_observer");
+        insertOperatorUser("watcher_new");
+
+        jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, platform, is_active, created_at) VALUES (64, 'token64', 'Ops Telegram', 'telegram', 1, CURRENT_TIMESTAMP)");
+        jdbcTemplate.update("INSERT INTO tickets (user_id, ticket_id, status, channel_id) VALUES (?,?,?,?)",
+                910064L, "WATCHER-QA-1", "open", 64);
+        jdbcTemplate.update("INSERT INTO messages (group_msg_id, user_id, problem, created_at, username, ticket_id, created_date, created_time, client_name, channel_id, updated_at, updated_by) " +
+                        "VALUES (?, ?, ?, CURRENT_TIMESTAMP, ?, ?, DATE('now'), TIME('now'), ?, ?, CURRENT_TIMESTAMP, ?)",
+                910164L, 910064L, "Нужен runtime continuity", "client_qa", "WATCHER-QA-1", "Клиент QA", 64, "seed");
+        jdbcTemplate.update("INSERT INTO chat_history (user_id, sender, message, timestamp, ticket_id, message_type, channel_id, tg_message_id) VALUES (?,?,?,?,?,?,?,?)",
+                910064L, "user", "Первое сообщение runtime dialog", OffsetDateTime.now().toString(), "WATCHER-QA-1", "text", 64, 7001L);
+        jdbcTemplate.update("INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by) VALUES (?,?,?)",
+                "WATCHER-QA-1", "watcher_owner", "dispatcher");
+        jdbcTemplate.update("INSERT INTO ticket_participants(ticket_id, username, added_at, added_by) VALUES (?,?,CURRENT_TIMESTAMP,?)",
+                "WATCHER-QA-1", "watcher_observer", "dispatcher");
+
+        DialogQuickActionService.DialogParticipantMutationResult addResult =
+                dialogQuickActionService.addParticipant("WATCHER-QA-1", "watcher_peer", "watcher_owner");
+
+        assertThat(addResult.exists()).isTrue();
+        assertThat(addResult.changed()).isTrue();
+        assertThat(addResult.error()).isNull();
+        assertThat(addResult.participants()).extracting("username")
+                .containsExactly("watcher_observer", "watcher_peer");
+
+        @SuppressWarnings("unchecked")
+        List<DialogParticipantDto> participantsAfterAdd =
+                (List<DialogParticipantDto>) dialogReadService.loadParticipants("WATCHER-QA-1").get("participants");
+        assertThat(participantsAfterAdd).extracting(DialogParticipantDto::username)
+                .containsExactly("watcher_observer", "watcher_peer");
+
+        List<Map<String, Object>> addNotifications = jdbcTemplate.queryForList(
+                "SELECT user_identity, text, url FROM notifications WHERE text = ? ORDER BY user_identity ASC",
+                "К обращению WATCHER-QA-1 подключен оператор watcher_peer"
+        );
+        assertThat(addNotifications)
+                .extracting(row -> String.valueOf(row.get("user_identity")))
+                .containsExactly("watcher_observer", "watcher_peer");
+        assertThat(addNotifications)
+                .extracting(row -> String.valueOf(row.get("url")))
+                .containsOnly("/dialogs/WATCHER-QA-1");
+
+        DialogQuickActionService.DialogReassignResult reassignResult =
+                dialogQuickActionService.reassignTicket("WATCHER-QA-1", "watcher_new", "watcher_owner");
+
+        assertThat(reassignResult.exists()).isTrue();
+        assertThat(reassignResult.error()).isNull();
+        assertThat(reassignResult.responsible()).isEqualTo("watcher_new");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT responsible FROM ticket_responsibles WHERE ticket_id = ?",
+                String.class,
+                "WATCHER-QA-1"
+        )).isEqualTo("watcher_new");
+        assertThat(dialogService.findDialog("WATCHER-QA-1", "watcher_owner").orElseThrow().responsible())
+                .isEqualTo("watcher_new");
+
+        @SuppressWarnings("unchecked")
+        List<DialogParticipantDto> participantsAfterReassign =
+                (List<DialogParticipantDto>) dialogReadService.loadParticipants("WATCHER-QA-1").get("participants");
+        assertThat(participantsAfterReassign).extracting(DialogParticipantDto::username)
+                .containsExactly("watcher_observer", "watcher_peer");
+
+        List<Map<String, Object>> reassignNotifications = jdbcTemplate.queryForList(
+                "SELECT user_identity, text, url FROM notifications WHERE text = ? ORDER BY user_identity ASC",
+                "Обращение WATCHER-QA-1 передано оператору watcher_new"
+        );
+        assertThat(reassignNotifications)
+                .extracting(row -> String.valueOf(row.get("user_identity")))
+                .containsExactly("watcher_new", "watcher_observer", "watcher_peer");
+        assertThat(reassignNotifications)
+                .extracting(row -> String.valueOf(row.get("url")))
+                .containsOnly("/dialogs/WATCHER-QA-1");
+    }
+
+    @Test
+    void dialogQuickActionServiceRemovesParticipantAndNotifiesRemainingAudience() {
+        insertOperatorUser("watcher_owner");
+        insertOperatorUser("watcher_peer");
+        insertOperatorUser("watcher_observer");
+
+        jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, platform, is_active, created_at) VALUES (65, 'token65', 'Ops Telegram 2', 'telegram', 1, CURRENT_TIMESTAMP)");
+        jdbcTemplate.update("INSERT INTO tickets (user_id, ticket_id, status, channel_id) VALUES (?,?,?,?)",
+                910065L, "WATCHER-QA-2", "open", 65);
+        jdbcTemplate.update("INSERT INTO messages (group_msg_id, user_id, problem, created_at, username, ticket_id, created_date, created_time, client_name, channel_id, updated_at, updated_by) " +
+                        "VALUES (?, ?, ?, CURRENT_TIMESTAMP, ?, ?, DATE('now'), TIME('now'), ?, ?, CURRENT_TIMESTAMP, ?)",
+                910165L, 910065L, "Нужно исключить участника", "client_qa2", "WATCHER-QA-2", "Клиент QA2", 65, "seed");
+        jdbcTemplate.update("INSERT INTO chat_history (user_id, sender, message, timestamp, ticket_id, message_type, channel_id, tg_message_id) VALUES (?,?,?,?,?,?,?,?)",
+                910065L, "user", "Сообщение для participant flow", OffsetDateTime.now().toString(), "WATCHER-QA-2", "text", 65, 7002L);
+        jdbcTemplate.update("INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by) VALUES (?,?,?)",
+                "WATCHER-QA-2", "watcher_owner", "dispatcher");
+        jdbcTemplate.update("INSERT INTO ticket_participants(ticket_id, username, added_at, added_by) VALUES (?,?,CURRENT_TIMESTAMP,?)",
+                "WATCHER-QA-2", "watcher_peer", "dispatcher");
+        jdbcTemplate.update("INSERT INTO ticket_participants(ticket_id, username, added_at, added_by) VALUES (?,?,CURRENT_TIMESTAMP,?)",
+                "WATCHER-QA-2", "watcher_observer", "dispatcher");
+
+        DialogQuickActionService.DialogParticipantMutationResult removeResult =
+                dialogQuickActionService.removeParticipant("WATCHER-QA-2", "watcher_peer", "watcher_owner");
+
+        assertThat(removeResult.exists()).isTrue();
+        assertThat(removeResult.changed()).isTrue();
+        assertThat(removeResult.error()).isNull();
+        assertThat(removeResult.participants()).extracting(DialogParticipantDto::username)
+                .containsExactly("watcher_observer");
+
+        @SuppressWarnings("unchecked")
+        List<DialogParticipantDto> participantsAfterRemove =
+                (List<DialogParticipantDto>) dialogReadService.loadParticipants("WATCHER-QA-2").get("participants");
+        assertThat(participantsAfterRemove).extracting(DialogParticipantDto::username)
+                .containsExactly("watcher_observer");
+
+        List<Map<String, Object>> removeNotifications = jdbcTemplate.queryForList(
+                "SELECT user_identity, text, url FROM notifications WHERE text = ? ORDER BY user_identity ASC",
+                "Из обращения WATCHER-QA-2 исключен оператор watcher_peer"
+        );
+        assertThat(removeNotifications)
+                .extracting(row -> String.valueOf(row.get("user_identity")))
+                .containsExactly("watcher_observer");
+        assertThat(removeNotifications)
+                .extracting(row -> String.valueOf(row.get("url")))
+                .containsOnly("/dialogs/WATCHER-QA-2");
     }
 
     @Test

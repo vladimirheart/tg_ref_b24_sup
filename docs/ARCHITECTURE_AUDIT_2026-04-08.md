@@ -910,6 +910,14 @@ integration-сценария поверх users/settings runtime boundary всё
   risk вокруг quick actions; remaining practical focus здесь теперь уже
   честно смещён в live runtime continuity, а не в дальнейшее наращивание
   WebMvc/unit surface.
+- следующим runtime continuity шагом `SupportPanelIntegrationTests`
+  закрепили уже живой SQLite lifecycle для `DialogQuickActionService`
+  participant/reassign веток: add/remove participant и reassign теперь
+  проверяются не только на service/WebMvc контракте, но и на реальных
+  `ticket_participants`, `ticket_responsibles`, `DialogReadService`
+  projection и notification audience side-effects. Параллельно test cleanup
+  синхронизирован с `ticket_participants`, `ticket_active` и
+  `ticket_responsibles`, чтобы этот слой оставался повторяемым.
 - `DialogAiOpsController` теперь прикрыт не только по основным happy/error
   flows, но и по alias/null-body/default-path сценариям, что уменьшает риск
   regressions в transport-layer normalisation.
