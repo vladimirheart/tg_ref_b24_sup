@@ -941,6 +941,17 @@ integration-сценария поверх users/settings runtime boundary всё
   practical focus вокруг dialog-read/workspace смещён уже не в базовый
   transport/runtime bootstrap, а в более глубокие `details` continuity и
   context-contract/settings-driven edge cases.
+- следующим bounded пакетом закрыт и live `/api/dialogs/{ticketId}`
+  details gap: добавлен `DialogDetailsIntegrationTest`,
+  `DialogReadControllerWebMvcTest` расширен на `404`-ветку, а
+  `DialogDetailsReadServiceTest` добран miss-path short-circuit сценарием.
+  Теперь `details` route закреплён не только через старые service calls, но
+  и на реальном `SpringBootTest + SQLite` contract: summary/history/categories,
+  responsible profile projection, embedded `replyPreview/originalMessage`,
+  `last_read_at` read receipt и explicit not-found payload проходят через
+  настоящий runtime слой. После этого remaining practical focus в
+  dialog-read/workspace зоне смещён уже с basic details continuity на
+  settings-driven context-contract, parity и related projection edge cases.
 - `DialogAiOpsController` теперь прикрыт не только по основным happy/error
   flows, но и по alias/null-body/default-path сценариям, что уменьшает риск
   regressions в transport-layer normalisation.

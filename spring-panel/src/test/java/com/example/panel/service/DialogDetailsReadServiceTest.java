@@ -10,6 +10,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -75,5 +76,20 @@ class DialogDetailsReadServiceTest {
         verify(dialogLookupReadService).findDialog("T-500", "operator");
         verify(dialogConversationReadService).loadHistory("T-500", 7L);
         verify(dialogConversationReadService).loadTicketCategories("T-500");
+    }
+
+    @Test
+    void doesNotLoadHistoryOrCategoriesWhenLookupMisses() {
+        DialogLookupReadService dialogLookupReadService = mock(DialogLookupReadService.class);
+        DialogConversationReadService dialogConversationReadService = mock(DialogConversationReadService.class);
+        DialogDetailsReadService service = new DialogDetailsReadService(dialogLookupReadService, dialogConversationReadService);
+
+        when(dialogLookupReadService.findDialog("T-404", "operator")).thenReturn(Optional.empty());
+
+        Optional<DialogDetails> details = service.loadDialogDetails("T-404", 7L, "operator");
+
+        assertThat(details).isEmpty();
+        verify(dialogLookupReadService).findDialog("T-404", "operator");
+        verifyNoInteractions(dialogConversationReadService);
     }
 }

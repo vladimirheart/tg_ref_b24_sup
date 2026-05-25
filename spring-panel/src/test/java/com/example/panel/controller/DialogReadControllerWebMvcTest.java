@@ -139,6 +139,18 @@ class DialogReadControllerWebMvcTest {
     }
 
     @Test
+    void detailsPropagatesNotFoundPayload() throws Exception {
+        doReturn(ResponseEntity.status(404).body(Map.of("success", false, "error", "Диалог не найден")))
+            .when(dialogReadService)
+            .loadDetails("T-404", null, "operator");
+
+        mockMvc.perform(get("/api/dialogs/T-404").with(user("operator")))
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("Диалог не найден"));
+    }
+
+    @Test
     void previousHistoryDefaultsOffsetToZero() throws Exception {
         doReturn(ResponseEntity.ok(Map.of("success", true, "next_offset", 0)))
             .when(dialogReadService)

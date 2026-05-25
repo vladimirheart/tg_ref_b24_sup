@@ -844,6 +844,16 @@
   `ai-ops`, `unblock requests`, `users/detail` и оба passport editor route
   (`/object-passports/new`, `/object-passports/{id}`) теперь тоже прикрыты
   WebMvc smoke tests на ранний bootstrap и explicit `data-ui-page`.
+- следующим bounded пакетом закрыт и live `details` continuity:
+  добавлен `DialogDetailsIntegrationTest`, а
+  `DialogReadControllerWebMvcTest` и `DialogDetailsReadServiceTest`
+  расширены на `404`/miss-path ветки. Теперь `/api/dialogs/{ticketId}`
+  закреплён на реальном `SpringBootTest + SQLite` contract с
+  summary/history/categories, responsible profile projection,
+  embedded `replyPreview/originalMessage`, `last_read_at` read receipt и
+  explicit not-found payload. После этого practical focus в
+  dialog-read/workspace зоне смещён уже с basic details continuity на
+  settings-driven context-contract, parity и related projection edge cases.
 - следующим пакетом добран public-shell bootstrap contract:
   `login`, `403`, `404` и `500` получили explicit `data-ui-page="public"`,
   `403/500` приведены к общему `fragments/ui-head`, а для public shell
