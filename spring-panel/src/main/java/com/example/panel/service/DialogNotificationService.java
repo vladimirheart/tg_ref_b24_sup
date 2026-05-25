@@ -10,8 +10,10 @@ import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -26,16 +28,20 @@ public class DialogNotificationService {
 
     private static final Logger log = LoggerFactory.getLogger(DialogNotificationService.class);
     private static final HttpClient TELEGRAM_HTTP_CLIENT = HttpClient.newHttpClient();
+    private static final String DEFAULT_TELEGRAM_API_ROOT_URL = "https://api.telegram.org";
 
     private final JdbcTemplate jdbcTemplate;
     private final ChannelRepository channelRepository;
+    private final IntegrationNetworkService integrationNetworkService;
     private final ObjectMapper objectMapper;
 
     public DialogNotificationService(JdbcTemplate jdbcTemplate,
                                      ChannelRepository channelRepository,
+                                     IntegrationNetworkService integrationNetworkService,
                                      ObjectMapper objectMapper) {
         this.jdbcTemplate = jdbcTemplate;
         this.channelRepository = channelRepository;
+        this.integrationNetworkService = integrationNetworkService;
         this.objectMapper = objectMapper;
     }
 
@@ -86,6 +92,44 @@ public class DialogNotificationService {
             logSystemMessage(new DialogTarget(userId, channelId), null, message);
         }
         return true;
+    }
+
+    public boolean notifySupportChat(Channel channel, String message) {
+        if (channel == null || !StringUtils.hasText(message) || !StringUtils.hasText(channel.getSupportChatId())) {
+            return false;
+        }
+        Long chatId = parseTelegramLikeChatId(channel.getSupportChatId());
+        if (chatId == null) {
+            log.warn("Unable to notify support chat for channel {}: invalid support_chat_id '{}'",
+                channel.getId(),
+                channel.getSupportChatId());
+            return false;
+        }
+        return sendPlatformMessage(channel, chatId, message);
+    }
+
+    public int notifyAllSupportChats(String message) {
+        if (!StringUtils.hasText(message)) {
+            return 0;
+        }
+        int delivered = 0;
+        LinkedHashSet<String> destinations = new LinkedHashSet<>();
+        for (Channel channel : channelRepository.findAll()) {
+            if (channel == null || !StringUtils.hasText(channel.getSupportChatId())) {
+                continue;
+            }
+            String destinationKey = String.join("|",
+                Optional.ofNullable(channel.getPlatform()).orElse("telegram").trim().toLowerCase(),
+                Optional.ofNullable(channel.getToken()).orElse("").trim(),
+                channel.getSupportChatId().trim());
+            if (!destinations.add(destinationKey)) {
+                continue;
+            }
+            if (notifySupportChat(channel, message)) {
+                delivered++;
+            }
+        }
+        return delivered;
     }
 
     private void sendNotifications(String ticketId, List<String> messages) {
@@ -173,12 +217,13 @@ public class DialogNotificationService {
         payload.put("chat_id", userId);
         payload.put("text", text);
         try {
+            HttpClient client = integrationNetworkService.createChannelHttpClient(channel, Duration.ofSeconds(10));
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create("https://api.telegram.org/bot" + channel.getToken() + "/sendMessage"))
+                    .uri(URI.create(buildTelegramMethodUrl(channel, "sendMessage")))
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload)))
                     .build();
-            HttpResponse<String> response = TELEGRAM_HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() / 100 != 2) {
                 log.warn("Telegram notification failed: status {}", response.statusCode());
                 return false;
@@ -275,6 +320,83 @@ public class DialogNotificationService {
                 ticketId
         );
         return count != null && count > 0;
+    }
+
+    private Long parseTelegramLikeChatId(String rawValue) {
+        if (!StringUtils.hasText(rawValue)) {
+            return null;
+        }
+        try {
+            return Long.parseLong(rawValue.trim());
+        } catch (NumberFormatException ex) {
+            return null;
+        }
+    }
+
+    private String buildTelegramMethodUrl(Channel channel, String methodName) {
+        return resolveTelegramBotApiPrefix(channel) + channel.getToken() + "/" + methodName;
+    }
+
+    private String resolveTelegramBotApiPrefix(Channel channel) {
+        return normalizeTelegramApiRootUrl(readTelegramApiRootUrl(channel)) + "/bot";
+    }
+
+    private String readTelegramApiRootUrl(Channel channel) {
+        Map<String, Object> config = parseJsonMap(channel != null ? channel.getPlatformConfig() : null);
+        String configured = firstText(
+            config.get("base_url"),
+            config.get("baseUrl"),
+            config.get("api_base_url"),
+            config.get("apiBaseUrl"),
+            config.get("telegram_api_base_url"),
+            config.get("telegramApiBaseUrl")
+        );
+        if (StringUtils.hasText(configured)) {
+            return configured;
+        }
+        String legacy = integrationNetworkService.resolveTelegramLegacyBotApiBaseUrl(channel);
+        return StringUtils.hasText(legacy) ? legacy : DEFAULT_TELEGRAM_API_ROOT_URL;
+    }
+
+    private Map<String, Object> parseJsonMap(String rawJson) {
+        if (!StringUtils.hasText(rawJson)) {
+            return Map.of();
+        }
+        try {
+            JsonNode node = objectMapper.readTree(rawJson);
+            if (!node.isObject()) {
+                return Map.of();
+            }
+            return objectMapper.convertValue(node, new com.fasterxml.jackson.core.type.TypeReference<>() {});
+        } catch (Exception ex) {
+            return Map.of();
+        }
+    }
+
+    private String firstText(Object... candidates) {
+        if (candidates == null) {
+            return "";
+        }
+        for (Object candidate : candidates) {
+            if (candidate instanceof String text && StringUtils.hasText(text)) {
+                return text.trim();
+            }
+        }
+        return "";
+    }
+
+    private String normalizeTelegramApiRootUrl(String rawUrl) {
+        if (!StringUtils.hasText(rawUrl)) {
+            return DEFAULT_TELEGRAM_API_ROOT_URL;
+        }
+        String normalized = rawUrl.trim().replaceAll("/+$", "");
+        if ((DEFAULT_TELEGRAM_API_ROOT_URL + "/bot").equals(normalized)) {
+            return DEFAULT_TELEGRAM_API_ROOT_URL;
+        }
+        if (normalized.endsWith("/bot")) {
+            return normalized.substring(0, normalized.length() - 4);
+        }
+        return normalized;
     }
 
     private record DialogTarget(Long userId, Long channelId) {}

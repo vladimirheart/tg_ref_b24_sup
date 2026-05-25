@@ -873,7 +873,6 @@ public class SupportBot extends TelegramLongPollingBot {
                 messageType,
                 attachmentPath);
         ticketService.registerActivity(ticketId, username != null ? username : (userId != null ? userId.toString() : null));
-        relayActiveMessageToOperators(ticketId, messageType, text, attachmentPath, username, userId);
         return true;
     }
 
@@ -1984,8 +1983,14 @@ public class SupportBot extends TelegramLongPollingBot {
 
         String buildSummary(String ticketId) {
             StringBuilder builder = new StringBuilder();
-            builder.append("Новая заявка #").append(ticketId).append(" от пользователя ").append(userId()).append("\n");
-            builder.append("Создана: ").append(startedAt).append("\n\n");
+            builder.append("Новая заявка #").append(ticketId).append("\n");
+            String requester = buildRequesterLabel();
+            if (!requester.isBlank()) {
+                builder.append("Клиент: ").append(requester).append("\n");
+            }
+            builder.append("Создана: ")
+                    .append(startedAt.format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")))
+                    .append("\n\n");
             for (QuestionFlowItemDto item : flow) {
                 String answerKey = answerKeyFor(item);
                 String answer = answerKey != null ? answers.getOrDefault(answerKey, "") : "";
@@ -1998,6 +2003,23 @@ public class SupportBot extends TelegramLongPollingBot {
                 }
             }
             return builder.toString();
+        }
+
+        private String buildRequesterLabel() {
+            List<String> parts = new ArrayList<>();
+            if (user != null) {
+                String username = Optional.ofNullable(user.getUserName()).orElse("").trim();
+                if (!username.isEmpty()) {
+                    parts.add("@" + username);
+                }
+                String fullName = (Optional.ofNullable(user.getFirstName()).orElse("") + " "
+                        + Optional.ofNullable(user.getLastName()).orElse("")).trim();
+                if (!fullName.isEmpty()) {
+                    parts.add(fullName);
+                }
+            }
+            parts.add(String.valueOf(userId()));
+            return String.join(" | ", parts);
         }
 
         private String answerKeyFor(QuestionFlowItemDto item) {

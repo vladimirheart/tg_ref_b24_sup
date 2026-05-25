@@ -11,7 +11,6 @@ import com.example.supportbot.settings.dto.BotSettingsDto;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -76,37 +75,13 @@ public class EngagementTasks {
     @Scheduled(cron = "30 */2 * * * *")
     @Transactional
     public void dispatchOperatorNotifications() {
-        List<Notification> pending = notificationRepository.findByReadIsNullOrReadFalseOrderByCreatedAtAsc();
-        if (pending.isEmpty()) {
-            return;
-        }
-        List<Channel> supportChannels = channelRepository.findAll().stream()
-                .filter(ch -> ch.getSupportChatId() != null && !ch.getSupportChatId().isBlank())
-                .collect(Collectors.toList());
-        if (supportChannels.isEmpty()) {
-            log.debug("No support chats configured; skipping notifications");
-            return;
-        }
-        for (Notification notification : pending) {
-            String text = buildNotificationText(notification);
-            boolean delivered = false;
-            for (Channel channel : supportChannels) {
-                if (messagingService.sendToSupportChat(channel, text)) {
-                    delivered = true;
-                }
-            }
-            if (delivered) {
-                notification.setRead(true);
-                notificationRepository.save(notification);
-            }
+        if (notificationRepository.count() > 0) {
+            log.debug("Legacy operator-notification bridge to support chats is disabled");
         }
     }
 
     private String buildNotificationText(Notification notification) {
         StringBuilder builder = new StringBuilder();
-        if (notification.getUser() != null && !notification.getUser().isBlank()) {
-            builder.append(notification.getUser()).append(": ");
-        }
         builder.append(Optional.ofNullable(notification.getText()).orElse(""));
         if (notification.getUrl() != null && !notification.getUrl().isBlank()) {
             builder.append("\n").append(notification.getUrl());

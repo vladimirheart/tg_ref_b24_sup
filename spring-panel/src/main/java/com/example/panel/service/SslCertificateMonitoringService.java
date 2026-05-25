@@ -4,6 +4,7 @@ import com.example.panel.entity.SslCertificateMonitor;
 import com.example.panel.repository.SslCertificateMonitorRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -50,6 +51,8 @@ public class SslCertificateMonitoringService {
 
     private final SslCertificateMonitorRepository repository;
     private final NotificationService notificationService;
+    @Autowired
+    private DialogNotificationService dialogNotificationService;
 
     public SslCertificateMonitoringService(SslCertificateMonitorRepository repository,
                                            NotificationService notificationService) {
@@ -272,6 +275,9 @@ public class SslCertificateMonitoringService {
             );
         }
         notificationService.notifyAllOperators(message, MONITORING_PAGE_URL, null);
+        if (dialogNotificationService != null) {
+            dialogNotificationService.notifyAllSupportChats(message);
+        }
     }
 
     private CertificateProbe probeCertificate(String host, int port) throws Exception {

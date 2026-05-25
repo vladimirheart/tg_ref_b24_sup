@@ -17,7 +17,6 @@
   const alertQueueExcludeEmployeesInput = document.getElementById('alertQueueExcludeEmployees');
   const alertQueueDeliveryModeInput = document.getElementById('alertQueueDeliveryMode');
   const panelNotificationsNewPublicAppealInput = document.getElementById('panelNotificationsNewPublicAppeal');
-  const panelNotificationsIncomingClientMessageInput = document.getElementById('panelNotificationsIncomingClientMessage');
   const panelNotificationsFirstResponseOverdueInput = document.getElementById('panelNotificationsFirstResponseOverdue');
   const panelNotificationsDepartmentInput = document.getElementById('panelNotificationsDepartment');
   const panelNotificationsTargetModeInput = document.getElementById('panelNotificationsTargetMode');
@@ -106,7 +105,7 @@
       },
       events: {
         newPublicAppeal: events.newPublicAppeal !== false,
-        incomingClientMessage: events.incomingClientMessage !== false,
+        incomingClientMessage: false,
         firstResponseOverdue: events.firstResponseOverdue === true,
       },
     };
@@ -141,7 +140,6 @@
     alertQueueEmployeesInput.value = Array.isArray(alertQueue.employeeUsernames) ? alertQueue.employeeUsernames.join(', ') : '';
     alertQueueExcludeEmployeesInput.value = Array.isArray(alertQueue.excludeUsernames) ? alertQueue.excludeUsernames.join(', ') : '';
     panelNotificationsNewPublicAppealInput.checked = panelNotifications.events.newPublicAppeal;
-    panelNotificationsIncomingClientMessageInput.checked = panelNotifications.events.incomingClientMessage;
     panelNotificationsFirstResponseOverdueInput.checked = panelNotifications.events.firstResponseOverdue;
     panelNotificationsDepartmentInput.value = panelNotifications.routing.department;
     panelNotificationsTargetModeInput.value = panelNotifications.routing.targetMode;
@@ -192,7 +190,7 @@
           },
           events: {
             newPublicAppeal: Boolean(panelNotificationsNewPublicAppealInput?.checked),
-            incomingClientMessage: Boolean(panelNotificationsIncomingClientMessageInput?.checked),
+            incomingClientMessage: false,
             firstResponseOverdue: Boolean(panelNotificationsFirstResponseOverdueInput?.checked),
           },
         },

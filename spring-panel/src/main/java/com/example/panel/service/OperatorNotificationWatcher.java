@@ -5,6 +5,7 @@ import com.example.panel.repository.ChannelRepository;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -35,6 +36,8 @@ public class OperatorNotificationWatcher {
     private final ChannelRepository channelRepository;
     private final DialogAuditService dialogAuditService;
     private final SharedConfigService sharedConfigService;
+    @Autowired
+    private DialogNotificationService dialogNotificationService;
 
     private final AtomicLong lastChatHistoryId = new AtomicLong(0);
     private final AtomicLong lastFeedbackId = new AtomicLong(0);
@@ -105,6 +108,7 @@ public class OperatorNotificationWatcher {
                             } else {
                                 notificationService.notifyUsers(recipients, text, notificationService.buildDialogUrl(ticketId));
                             }
+                            notifySupportChat(channel, text);
                             continue;
                         }
                         if (!isExternalDialogEvent(sender, messageType)) {
@@ -129,17 +133,6 @@ public class OperatorNotificationWatcher {
                             continue;
                         }
 
-                        String text = "Новое сообщение в обращении " + ticketId;
-                        if (StringUtils.hasText(message)) {
-                            text += ": " + truncate(message, 100);
-                        }
-                        if (channel == null || !alertQueueService.notifyIncomingClientMessage(channel, ticketId, message)) {
-                            notificationService.notifyAllOperators(
-                                    text,
-                                    notificationService.buildDialogUrl(ticketId),
-                                    null
-                            );
-                        }
                         dialogAiAssistantService.processIncomingClientMessage(ticketId, message, messageType, attachment);
                     }
                     if (maxSeen > afterId) {
@@ -256,14 +249,18 @@ public class OperatorNotificationWatcher {
                         if (channel == null) {
                             continue;
                         }
-                        boolean notified = alertQueueService.notifyFirstResponseOverdue(channel, ticketId, overdueMinutes);
+                        String notificationText = buildFirstResponseOverdueText(channel, ticketId, overdueMinutes);
+                        boolean notified = notifySupportChat(channel, notificationText);
+                        if (alertQueueService.notifyFirstResponseOverdue(channel, ticketId, overdueMinutes)) {
+                            notified = true;
+                        }
                         String auditDetail = "channel=" + channelId + ", overdue_minutes=" + overdueMinutes + ", threshold_minutes=" + targetMinutes;
                         if (!notified) {
                             Set<String> fallbackRecipients = notificationService.findAllOperatorRecipients();
                             if (!fallbackRecipients.isEmpty()) {
                                 notificationService.notifyUsers(
                                         fallbackRecipients,
-                                        buildFirstResponseOverdueText(channel, ticketId, overdueMinutes),
+                                        notificationText,
                                         notificationService.buildDialogUrl(ticketId)
                                 );
                                 notified = true;
@@ -451,6 +448,13 @@ public class OperatorNotificationWatcher {
             return value;
         }
         return value.substring(0, limit) + "...";
+    }
+
+    private boolean notifySupportChat(Channel channel, String text) {
+        return dialogNotificationService != null
+                && channel != null
+                && StringUtils.hasText(text)
+                && dialogNotificationService.notifySupportChat(channel, text);
     }
 
     private String buildFirstResponseOverdueText(Channel channel, String ticketId, long overdueMinutes) {

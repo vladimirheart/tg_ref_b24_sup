@@ -8,6 +8,7 @@ import com.example.panel.repository.RmsLicenseMonitorRepository;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -125,6 +126,8 @@ public class RmsLicenseMonitoringService {
     private final AtomicReference<OffsetDateTime> lastNetworkRefreshCompletedAt = new AtomicReference<>();
     private final QueueProgressTracker licenseQueueTracker = new QueueProgressTracker();
     private final QueueProgressTracker networkQueueTracker = new QueueProgressTracker();
+    @Autowired
+    private DialogNotificationService dialogNotificationService;
 
     public RmsLicenseMonitoringService(RmsLicenseMonitorRepository repository,
                                        MonitoringCheckHistoryRepository historyRepository,
@@ -867,6 +870,9 @@ public class RmsLicenseMonitoringService {
             ? String.format("Лицензия RMS \"%s\" (%s) уже истекла. Дата окончания: %s.", serverName, monitor.getRmsAddress(), expiresAt)
             : String.format("Лицензия RMS \"%s\" (%s) истекает через %d дн. Дата окончания: %s.", serverName, monitor.getRmsAddress(), daysLeft, expiresAt);
         notificationService.notifyAllOperators(message, MONITORING_PAGE_URL, null);
+        if (dialogNotificationService != null) {
+            dialogNotificationService.notifyAllSupportChats(message);
+        }
     }
 
     private ServerMetadata fetchServerMetadata(RmsLicenseMonitor monitor) throws Exception {

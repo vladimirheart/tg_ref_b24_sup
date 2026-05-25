@@ -297,7 +297,7 @@ public class AlertQueueService {
 
     private ResolvedAlertConfig defaultConfig(AlertEvent event) {
         return new ResolvedAlertConfig(
-                event == AlertEvent.NEW_PUBLIC_APPEAL || event == AlertEvent.INCOMING_CLIENT_MESSAGE,
+                event == AlertEvent.NEW_PUBLIC_APPEAL,
                 new AlertRouteConfig("", "all_operators", "all", List.of(), List.of())
         );
     }
