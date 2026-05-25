@@ -411,11 +411,6 @@
           "group" : "locations",
           "field" : "location_name"
         }
-      }, {
-        "id" : "q_ml6opixmrq7o5q",
-        "type" : "custom",
-        "text" : "укывеапрр",
-        "order" : 5
       } ]
     } ],
     "active_template_id" : "tpl_ml6opbj83rg3",
@@ -455,11 +450,6 @@
         "group" : "locations",
         "field" : "location_name"
       }
-    }, {
-      "id" : "q_ml6opixmrq7o5q",
-      "type" : "custom",
-      "text" : "укывеапрр",
-      "order" : 5
     } ],
     "rating_templates" : [ {
       "id" : "rating-template-default",

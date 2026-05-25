@@ -2,6 +2,7 @@ package com.example.panel.service;
 
 import com.example.panel.entity.Channel;
 import com.example.panel.repository.ChannelRepository;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
@@ -17,6 +18,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -27,13 +29,18 @@ import java.util.Optional;
 public class DialogReplyTransportService {
 
     private static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
+    private static final String DEFAULT_TELEGRAM_API_ROOT_URL = "https://api.telegram.org";
+    private static final Duration TELEGRAM_REQUEST_TIMEOUT = Duration.ofSeconds(15);
 
     private final ChannelRepository channelRepository;
+    private final IntegrationNetworkService integrationNetworkService;
     private final ObjectMapper objectMapper;
 
     public DialogReplyTransportService(ChannelRepository channelRepository,
+                                       IntegrationNetworkService integrationNetworkService,
                                        ObjectMapper objectMapper) {
         this.channelRepository = channelRepository;
+        this.integrationNetworkService = integrationNetworkService;
         this.objectMapper = objectMapper;
     }
 
@@ -66,12 +73,14 @@ public class DialogReplyTransportService {
             payload.put("chat_id", userId);
             payload.put("message_id", telegramMessageId);
             payload.put("text", message);
+            HttpClient client = integrationNetworkService.createChannelHttpClient(channel, TELEGRAM_REQUEST_TIMEOUT);
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create("https://api.telegram.org/bot" + channel.getToken() + "/editMessageText"))
+                    .uri(URI.create(buildTelegramMethodUrl(channel, "editMessageText")))
+                    .timeout(TELEGRAM_REQUEST_TIMEOUT)
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload)))
                     .build();
-            HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() / 100 != 2) {
                 return "Ошибка редактирования сообщения в Telegram.";
             }
@@ -89,12 +98,14 @@ public class DialogReplyTransportService {
             Map<String, Object> payload = new LinkedHashMap<>();
             payload.put("chat_id", userId);
             payload.put("message_id", telegramMessageId);
+            HttpClient client = integrationNetworkService.createChannelHttpClient(channel, TELEGRAM_REQUEST_TIMEOUT);
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create("https://api.telegram.org/bot" + channel.getToken() + "/deleteMessage"))
+                    .uri(URI.create(buildTelegramMethodUrl(channel, "deleteMessage")))
+                    .timeout(TELEGRAM_REQUEST_TIMEOUT)
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload)))
                     .build();
-            HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() / 100 != 2) {
                 return "Ошибка удаления сообщения в Telegram.";
             }
@@ -134,12 +145,14 @@ public class DialogReplyTransportService {
             if (replyToTelegramId != null) {
                 payload.put("reply_to_message_id", replyToTelegramId);
             }
+            HttpClient client = integrationNetworkService.createChannelHttpClient(channel, TELEGRAM_REQUEST_TIMEOUT);
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create("https://api.telegram.org/bot" + channel.getToken() + "/sendMessage"))
+                    .uri(URI.create(buildTelegramMethodUrl(channel, "sendMessage")))
+                    .timeout(TELEGRAM_REQUEST_TIMEOUT)
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload)))
                     .build();
-            HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() / 100 != 2) {
                 return DialogReplyTransportResult.error("Ошибка отправки сообщения в Telegram.");
             }
@@ -203,8 +216,10 @@ public class DialogReplyTransportService {
         String method = resolveTelegramMethod(file.getContentType(), originalName);
         String fieldName = resolveTelegramField(method);
         try {
+            HttpClient client = integrationNetworkService.createChannelHttpClient(channel, TELEGRAM_REQUEST_TIMEOUT);
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create("https://api.telegram.org/bot" + channel.getToken() + "/" + method))
+                    .uri(URI.create(buildTelegramMethodUrl(channel, method)))
+                    .timeout(TELEGRAM_REQUEST_TIMEOUT)
                     .header("Content-Type", "multipart/form-data; boundary=" + MultipartPayload.BOUNDARY)
                     .POST(HttpRequest.BodyPublishers.ofByteArray(buildTelegramMultipartBody(
                             userId,
@@ -213,7 +228,7 @@ public class DialogReplyTransportService {
                             file
                     )))
                     .build();
-            HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() / 100 != 2) {
                 return DialogReplyTransportResult.error("Ошибка отправки файла в Telegram.");
             }
@@ -315,6 +330,72 @@ public class DialogReplyTransportService {
         } catch (Exception ex) {
             return null;
         }
+    }
+
+    private String buildTelegramMethodUrl(Channel channel, String methodName) {
+        return resolveTelegramBotApiPrefix(channel) + channel.getToken() + "/" + methodName;
+    }
+
+    private String resolveTelegramBotApiPrefix(Channel channel) {
+        return normalizeTelegramApiRootUrl(readTelegramApiRootUrl(channel)) + "/bot";
+    }
+
+    private String readTelegramApiRootUrl(Channel channel) {
+        Map<String, Object> config = parseJsonMap(channel != null ? channel.getPlatformConfig() : null);
+        String configured = firstText(
+                config.get("base_url"),
+                config.get("baseUrl"),
+                config.get("api_base_url"),
+                config.get("apiBaseUrl"),
+                config.get("telegram_api_base_url"),
+                config.get("telegramApiBaseUrl")
+        );
+        if (StringUtils.hasText(configured)) {
+            return configured;
+        }
+        String legacy = integrationNetworkService.resolveTelegramLegacyBotApiBaseUrl(channel);
+        return StringUtils.hasText(legacy) ? legacy : DEFAULT_TELEGRAM_API_ROOT_URL;
+    }
+
+    private Map<String, Object> parseJsonMap(String rawJson) {
+        if (!StringUtils.hasText(rawJson)) {
+            return Map.of();
+        }
+        try {
+            JsonNode node = objectMapper.readTree(rawJson);
+            if (!node.isObject()) {
+                return Map.of();
+            }
+            return objectMapper.convertValue(node, new TypeReference<>() {});
+        } catch (Exception ex) {
+            return Map.of();
+        }
+    }
+
+    private String firstText(Object... candidates) {
+        if (candidates == null) {
+            return "";
+        }
+        for (Object candidate : candidates) {
+            if (candidate instanceof String text && StringUtils.hasText(text)) {
+                return text.trim();
+            }
+        }
+        return "";
+    }
+
+    private String normalizeTelegramApiRootUrl(String rawUrl) {
+        if (!StringUtils.hasText(rawUrl)) {
+            return DEFAULT_TELEGRAM_API_ROOT_URL;
+        }
+        String normalized = rawUrl.trim().replaceAll("/+$", "");
+        if ((DEFAULT_TELEGRAM_API_ROOT_URL + "/bot").equals(normalized)) {
+            return DEFAULT_TELEGRAM_API_ROOT_URL;
+        }
+        if (normalized.endsWith("/bot")) {
+            return normalized.substring(0, normalized.length() - 4);
+        }
+        return normalized;
     }
 
     private Long extractTelegramMessageId(String responseBody) {
