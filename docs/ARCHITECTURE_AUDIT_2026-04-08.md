@@ -952,6 +952,16 @@ integration-сценария поверх users/settings runtime boundary всё
   настоящий runtime слой. После этого remaining practical focus в
   dialog-read/workspace зоне смещён уже с basic details continuity на
   settings-driven context-contract, parity и related projection edge cases.
+- следующим bounded пакетом закрыт и settings-driven `workspace`
+  context-contract runtime edge case: `DialogWorkspaceIntegrationTest`
+  расширен на live contract scenario с rollout-required `billing` config,
+  mandatory/source-of-truth/priority-block violations и playbook projection,
+  а `DialogWorkspaceContextContractServiceTest` добран `invalid_utc`
+  source-of-truth веткой со scoped playbook. Теперь `dialog-read/workspace`
+  зона прикрыта не только по basic runtime continuity, но и по живому
+  settings-driven contract drift вокруг `customer_profile/context_sources`.
+  Следующий practical focus здесь уже смещён дальше в parity/related
+  projections и operator-facing workspace context edges.
 - `DialogAiOpsController` теперь прикрыт не только по основным happy/error
   flows, но и по alias/null-body/default-path сценариям, что уменьшает риск
   regressions в transport-layer normalisation.

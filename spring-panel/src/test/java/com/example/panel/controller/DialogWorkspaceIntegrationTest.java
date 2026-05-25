@@ -1,5 +1,6 @@
 package com.example.panel.controller;
 
+import com.example.panel.service.SharedConfigService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -19,6 +20,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.DriverManager;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasItem;
@@ -92,9 +96,13 @@ class DialogWorkspaceIntegrationTest {
     @Qualifier("usersJdbcTemplate")
     private JdbcTemplate usersJdbcTemplate;
 
+    @Autowired
+    private SharedConfigService sharedConfigService;
+
     @BeforeEach
     void clean() {
         jdbcTemplate.update("DELETE FROM chat_history");
+        jdbcTemplate.update("DELETE FROM ticket_categories");
         jdbcTemplate.update("DELETE FROM ticket_participants");
         jdbcTemplate.update("DELETE FROM ticket_active");
         jdbcTemplate.update("DELETE FROM ticket_responsibles");
@@ -109,6 +117,7 @@ class DialogWorkspaceIntegrationTest {
         jdbcTemplate.update("DELETE FROM channels");
         usersJdbcTemplate.update("DELETE FROM users");
         usersJdbcTemplate.update("DELETE FROM roles");
+        sharedConfigService.saveSettings(new LinkedHashMap<>());
     }
 
     @Test
@@ -208,6 +217,77 @@ class DialogWorkspaceIntegrationTest {
                 .andExpect(jsonPath("$.meta.parity.checks[*].key", hasItem("messages_timeline")))
                 .andExpect(jsonPath("$.permissions.can_reply").value(true))
                 .andExpect(jsonPath("$.composer.media_supported").value(true));
+    }
+
+    @Test
+    void workspaceApiProjectsSettingsDrivenContextContractViolationsAndPlaybooks() throws Exception {
+        sharedConfigService.saveSettings(Map.of(
+                "dialog_config", Map.ofEntries(
+                        Map.entry("workspace_required_client_attributes", List.of("phone")),
+                        Map.entry("workspace_client_attribute_labels", Map.of("phone", "Телефон")),
+                        Map.entry("workspace_client_context_required_sources", List.of("crm")),
+                        Map.entry("workspace_client_context_source_priority", List.of("crm", "local")),
+                        Map.entry("workspace_client_context_source_labels", Map.of("crm", "CRM")),
+                        Map.entry("workspace_client_crm_profile_url_template", "https://crm.example.local/profile/{user_id}"),
+                        Map.entry("workspace_context_block_priority", List.of("customer_profile", "context_sources", "history")),
+                        Map.entry("workspace_context_block_required", List.of("customer_profile", "context_sources")),
+                        Map.entry("workspace_rollout_context_contract_required", true),
+                        Map.entry("workspace_rollout_context_contract_scenarios", List.of("billing")),
+                        Map.entry("workspace_rollout_context_contract_mandatory_fields", List.of("phone")),
+                        Map.entry("workspace_rollout_context_contract_source_of_truth", List.of("phone:crm")),
+                        Map.entry("workspace_rollout_context_contract_priority_blocks", List.of("customer_profile", "context_sources")),
+                        Map.entry("workspace_rollout_context_contract_playbooks", Map.of(
+                                "mandatory_field:phone", Map.of(
+                                        "label", "Phone recovery",
+                                        "url", "https://wiki.example.local/context/phone",
+                                        "summary", "Запросить телефон у клиента и обновить CRM"),
+                                "source_of_truth", Map.of(
+                                        "label", "Source guide",
+                                        "url", "https://wiki.example.local/context/source",
+                                        "summary", "Как проверить source-of-truth"),
+                                "priority_block:customer_profile", Map.of(
+                                        "label", "Profile block guide",
+                                        "url", "https://wiki.example.local/context/profile-block",
+                                        "summary", "Как вернуть блок customer profile")))
+                )));
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
+                VALUES (83, 'token83', 'Workspace Contract', 'telegram', 1, CURRENT_TIMESTAMP)
+                """);
+        insertDialogTicket(910093L, "T-WS-CONTRACT", 83L, "contract_user", "Клиент Contract", "B2B", "Самара", "Офис", "Нужен context contract", "2026-05-25T12:00:00Z", 8301L);
+        jdbcTemplate.update("""
+                INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
+                VALUES (?,?,?,?)
+                """,
+                "T-WS-CONTRACT", "watcher_owner", "dispatcher", "2026-05-25T11:59:00Z");
+        jdbcTemplate.update("INSERT INTO ticket_categories(ticket_id, category) VALUES (?, ?)", "T-WS-CONTRACT", "billing");
+        insertHistoryRow("T-WS-CONTRACT", 910093L, "user", "Клиент просит помощь", "2026-05-25T12:01:00Z", "text", 931L, null, 83L, null);
+
+        mockMvc.perform(get("/api/dialogs/T-WS-CONTRACT/workspace")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.context.contract.enabled").value(true))
+                .andExpect(jsonPath("$.context.contract.ready").value(false))
+                .andExpect(jsonPath("$.context.contract.active_scenarios[0]").value("billing"))
+                .andExpect(jsonPath("$.context.contract.missing_mandatory_fields[0]").value("phone"))
+                .andExpect(jsonPath("$.context.contract.source_of_truth_violations[0]").value("phone:crm:field_not_matched"))
+                .andExpect(jsonPath("$.context.contract.missing_priority_blocks[0]").value("customer_profile"))
+                .andExpect(jsonPath("$.context.contract.operator_summary").value("Сначала заполните обязательные поля клиента."))
+                .andExpect(jsonPath("$.context.contract.next_step_summary").value("Сначала дозаполните поля: phone."))
+                .andExpect(jsonPath("$.context.contract.primary_violation_details.length()").value(2))
+                .andExpect(jsonPath("$.context.contract.deferred_violation_count").value(org.hamcrest.Matchers.greaterThanOrEqualTo(1)))
+                .andExpect(jsonPath("$.context.contract.violation_details[*].code", hasItem("mandatory_field:phone")))
+                .andExpect(jsonPath("$.context.contract.violation_details[*].code", hasItem("source_of_truth:phone:crm:field_not_matched")))
+                .andExpect(jsonPath("$.context.contract.violation_details[*].code", hasItem("priority_block:customer_profile")))
+                .andExpect(jsonPath("$.context.contract.violation_details[0].playbook.label").value("Phone recovery"))
+                .andExpect(jsonPath("$.context.contract.violation_details[1].playbook.label").value("Source guide"))
+                .andExpect(jsonPath("$.context.contract.violation_details[*].playbook.label", hasItem("Profile block guide")))
+                .andExpect(jsonPath("$.context.blocks_health.ready").value(false))
+                .andExpect(jsonPath("$.context.context_sources[*].key", hasItem("crm")))
+                .andExpect(jsonPath("$.context.context_sources[*].status", hasItem("invalid_utc")))
+                .andExpect(jsonPath("$.context.blocks[*].key", hasItem("customer_profile")))
+                .andExpect(jsonPath("$.context.blocks[*].ready", hasItem(false)));
     }
 
     private void insertDialogTicket(long userId,

@@ -854,6 +854,15 @@
   explicit not-found payload. После этого practical focus в
   dialog-read/workspace зоне смещён уже с basic details continuity на
   settings-driven context-contract, parity и related projection edge cases.
+- следующим пакетом добран и live `workspace` settings-driven contract:
+  `DialogWorkspaceIntegrationTest` теперь фиксирует rollout-required
+  `billing` scenario с mandatory/source-of-truth/priority-block violations,
+  playbook projection и runtime `invalid_utc` source status, а
+  `DialogWorkspaceContextContractServiceTest` дополнительно закрепляет
+  scoped playbook для `source_of_truth:phone:crm:invalid_utc`.
+  После этого practical focus в dialog-read/workspace зоне смещён уже с
+  базового context-contract bootstrap на parity/related projections и
+  operator-facing workspace context edge cases.
 - следующим пакетом добран public-shell bootstrap contract:
   `login`, `403`, `404` и `500` получили explicit `data-ui-page="public"`,
   `403/500` приведены к общему `fragments/ui-head`, а для public shell

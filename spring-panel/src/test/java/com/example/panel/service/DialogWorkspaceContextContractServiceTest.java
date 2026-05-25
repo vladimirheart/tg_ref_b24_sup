@@ -87,6 +87,57 @@ class DialogWorkspaceContextContractServiceTest {
         assertThat(((List<?>) payload.get("primary_violation_details"))).hasSize(2);
     }
 
+    @Test
+    void buildContextContractBuildsInvalidUtcSourceViolationWithScopedPlaybook() {
+        Map<String, Object> payload = service.buildContextContract(
+                Map.of("dialog_config", Map.of(
+                        "workspace_rollout_context_contract_required", true,
+                        "workspace_rollout_context_contract_scenarios", List.of("billing"),
+                        "workspace_rollout_context_contract_mandatory_fields", List.of("phone"),
+                        "workspace_rollout_context_contract_source_of_truth", List.of("phone:crm"),
+                        "workspace_rollout_context_contract_priority_blocks", List.of("context_sources"),
+                        "workspace_rollout_context_contract_playbooks", Map.of(
+                                "source_of_truth:phone:crm", Map.of(
+                                        "label", "CRM UTC guide",
+                                        "url", "https://kb.test/playbooks/crm-utc",
+                                        "summary", "How to repair UTC freshness"),
+                                "source_of_truth", Map.of(
+                                        "label", "Fallback source guide",
+                                        "url", "https://kb.test/playbooks/source-fallback",
+                                        "summary", "Fallback source handling"))
+                )),
+                sampleDialog(),
+                Map.of(
+                        "phone", "+79990000000",
+                        "attribute_labels", Map.of("phone", "Телефон")
+                ),
+                List.of(Map.of(
+                        "key", "crm",
+                        "label", "CRM",
+                        "matched_attributes", List.of("phone"),
+                        "ready", false,
+                        "status", "invalid_utc"
+                )),
+                List.of(Map.of(
+                        "key", "context_sources",
+                        "label", "Источники customer context",
+                        "ready", true
+                ))
+        );
+
+        assertThat(payload.get("ready")).isEqualTo(false);
+        assertThat(payload.get("missing_mandatory_fields")).asList().isEmpty();
+        assertThat(payload.get("source_of_truth_violations")).asList().containsExactly("phone:crm:invalid_utc");
+        assertThat(payload.get("missing_priority_blocks")).asList().isEmpty();
+        assertThat(payload.get("operator_summary")).isEqualTo("Проверьте source-of-truth и freshness для customer context.");
+        assertThat(((List<?>) payload.get("violation_details"))).hasSize(1);
+        assertThat(((Map<?, ?>) ((List<?>) payload.get("violation_details")).get(0)).get("code")).isEqualTo("source_of_truth:phone:crm:invalid_utc");
+        assertThat(((Map<?, ?>) ((List<?>) payload.get("violation_details")).get(0)).get("severity")).isEqualTo("high");
+        assertThat(((Map<?, ?>) ((List<?>) payload.get("violation_details")).get(0)).get("short_label")).isEqualTo("Невалидный UTC timestamp для \"CRM\"");
+        assertThat(((Map<?, ?>) ((List<?>) payload.get("violation_details")).get(0)).get("action_label")).isEqualTo("Открыть playbook");
+        assertThat(((Map<?, ?>) ((Map<?, ?>) ((List<?>) payload.get("violation_details")).get(0)).get("playbook")).get("label")).isEqualTo("CRM UTC guide");
+    }
+
     private DialogListItem sampleDialog() {
         return new DialogListItem(
                 "T-501",
