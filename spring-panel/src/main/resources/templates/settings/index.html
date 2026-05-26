@@ -24091,6 +24091,57 @@
     document.body.style.removeProperty('padding-right');
   }
 
+  function getSettingsModalBaseZIndex(modal) {
+    if (!(modal instanceof HTMLElement)) {
+      return 1055;
+    }
+    const cached = Number.parseInt(modal.dataset.settingsModalBaseZIndex || '', 10);
+    if (Number.isFinite(cached) && cached > 0) {
+      return cached;
+    }
+    const computed = Number.parseInt(window.getComputedStyle(modal).zIndex || '', 10);
+    const baseZIndex = Number.isFinite(computed) && computed > 0 ? computed : 1055;
+    modal.dataset.settingsModalBaseZIndex = String(baseZIndex);
+    return baseZIndex;
+  }
+
+  function getSettingsTopModalZIndex(excludeModal) {
+    return Array.from(document.querySelectorAll('.modal.show, .modal-backdrop'))
+      .filter((element) => element instanceof HTMLElement && element !== excludeModal)
+      .reduce((maxZIndex, element) => {
+        const zIndex = Number.parseInt(window.getComputedStyle(element).zIndex || '', 10);
+        return Number.isFinite(zIndex) ? Math.max(maxZIndex, zIndex) : maxZIndex;
+      }, 0);
+  }
+
+  function elevateSettingsModal(modal) {
+    if (!(modal instanceof HTMLElement) || !document.body) {
+      return;
+    }
+    document.body.appendChild(modal);
+    const baseZIndex = getSettingsModalBaseZIndex(modal);
+    const topZIndex = getSettingsTopModalZIndex(modal);
+    const nextZIndex = Math.max(baseZIndex, topZIndex + 10);
+    modal.style.zIndex = String(nextZIndex);
+    window.setTimeout(() => {
+      const backdrops = Array.from(document.querySelectorAll('.modal-backdrop'))
+        .filter((backdrop) => backdrop instanceof HTMLElement && !backdrop.dataset.settingsModalManaged);
+      const backdrop = backdrops[backdrops.length - 1];
+      if (!(backdrop instanceof HTMLElement)) {
+        return;
+      }
+      backdrop.dataset.settingsModalManaged = 'true';
+      backdrop.style.zIndex = String(nextZIndex - 5);
+    }, 0);
+  }
+
+  function resetSettingsModalElevation(modal) {
+    if (!(modal instanceof HTMLElement)) {
+      return;
+    }
+    modal.style.removeProperty('z-index');
+  }
+
   function resolveSettingsTileForModal(modal) {
     if (!(modal instanceof HTMLElement) || !modal.id) {
       return null;
@@ -24158,6 +24209,12 @@
     });
     document.addEventListener('hidden.bs.modal', () => {
       window.requestAnimationFrame(updateSettingsModalBodyLock);
+    });
+    document.addEventListener('show.bs.modal', (event) => {
+      elevateSettingsModal(event.target);
+    });
+    document.addEventListener('hidden.bs.modal', (event) => {
+      resetSettingsModalElevation(event.target);
     });
   }
 

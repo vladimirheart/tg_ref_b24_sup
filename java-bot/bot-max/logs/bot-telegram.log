@@ -1,0 +1,31 @@
+2026-05-26 21:21:39.439+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
+2026-05-26 21:21:39.555+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - Starting MaxBotApplication using Java 25.0.2 with PID 8864 (C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-max\target\classes started by SinicinVV in C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-max)
+2026-05-26 21:21:39.556+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - The following 1 profile is active: "default"
+2026-05-26 21:21:40.396+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-05-26 21:21:40.585+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 176 ms. Found 30 JPA repository interfaces.
+2026-05-26 21:21:42.616+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 18002 (http)
+2026-05-26 21:21:42.645+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Initializing ProtocolHandler ["http-nio-127.0.0.1-18002"]
+2026-05-26 21:21:42.653+03:00 INFO  [main] o.a.catalina.core.StandardService - Starting service [Tomcat]
+2026-05-26 21:21:42.653+03:00 INFO  [main] o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.20]
+2026-05-26 21:21:42.859+03:00 INFO  [main] o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+2026-05-26 21:21:42.860+03:00 INFO  [main] o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 3220 ms
+2026-05-26 21:21:43.742+03:00 INFO  [main] o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-05-26 21:21:43.957+03:00 INFO  [main] org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
+2026-05-26 21:21:44.100+03:00 INFO  [main] o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
+2026-05-26 21:21:44.964+03:00 INFO  [main] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-05-26 21:21:48.754+03:00 INFO  [main] o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-05-26 21:21:48.762+03:00 INFO  [main] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-05-26 21:21:51.372+03:00 WARN  [main] o.s.b.a.o.j.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-05-26 21:21:52.294+03:00 INFO  [main] c.e.s.max.MaxLongPollingLifecycle - MAX long polling started
+2026-05-26 21:21:52.295+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Starting ProtocolHandler ["http-nio-127.0.0.1-18002"]
+2026-05-26 21:21:52.330+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 18002 (http) with context path ''
+2026-05-26 21:21:52.358+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - Started MaxBotApplication in 14.017 seconds (process running for 14.647)
+2026-05-26 21:25:23.097+03:00 INFO  [max-long-polling] c.e.s.max.MaxWebhookController - Blocked message from blacklisted MAX user 214991692 (matched key: 214991692)
+2026-05-26 21:25:33.036+03:00 INFO  [max-long-polling] c.e.s.max.MaxWebhookController - Blocked message from blacklisted MAX user 214991692 (matched key: 214991692)
+2026-05-26 21:25:33.761+03:00 WARN  [max-long-polling] o.h.e.jdbc.spi.SqlExceptionHelper - SQL Error: 5, SQLState: null
+2026-05-26 21:25:33.762+03:00 ERROR [max-long-polling] o.h.e.jdbc.spi.SqlExceptionHelper - [SQLITE_BUSY_SNAPSHOT] Another database connection has already written to the database (database is locked)
+2026-05-26 21:25:33.824+03:00 WARN  [max-long-polling] c.e.s.max.MaxLongPollingLifecycle - Failed to process MAX update: could not execute statement [[SQLITE_BUSY_SNAPSHOT] Another database connection has already written to the database (database is locked)] [insert into client_unblock_requests (channel_id,created_at,decided_at,decided_by,decision_comment,reason,status,user_id) values (?,?,?,?,?,?,?,?)]; SQL [insert into client_unblock_requests (channel_id,created_at,decided_at,decided_by,decision_comment,reason,status,user_id) values (?,?,?,?,?,?,?,?)]
+2026-05-26 21:25:52.954+03:00 INFO  [max-long-polling] c.e.s.max.MaxWebhookController - Blocked message from blacklisted MAX user 214991692 (matched key: 214991692)
+2026-05-26 21:25:58.545+03:00 INFO  [max-long-polling] c.e.s.max.MaxWebhookController - Blocked message from blacklisted MAX user 214991692 (matched key: 214991692)
+2026-05-26 21:26:02.376+03:00 INFO  [max-long-polling] c.e.s.max.MaxWebhookController - Blocked message from blacklisted MAX user 214991692 (matched key: 214991692)
+2026-05-26 21:26:02.428+03:00 INFO  [max-long-polling] c.e.s.service.BlacklistService - Stored unblock request for user 214991692
