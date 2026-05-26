@@ -464,6 +464,15 @@ class DialogWorkspaceIntegrationTest {
         sharedConfigService.saveSettings(Map.of(
                 "dialog_config", Map.ofEntries(
                         Map.entry("workspace_v1", true),
+                        Map.entry("workspace_rollout_governance_packet_required", true),
+                        Map.entry("workspace_rollout_governance_owner_signoff_required", true),
+                        Map.entry("workspace_rollout_governance_review_cadence_days", 7),
+                        Map.entry("workspace_rollout_governance_review_decision_required", true),
+                        Map.entry("workspace_rollout_governance_incident_followup_required", true),
+                        Map.entry("workspace_rollout_governance_followup_for_non_go_required", true),
+                        Map.entry("workspace_rollout_governance_parity_exit_days", 14),
+                        Map.entry("workspace_rollout_governance_parity_critical_reasons", List.of("attachments_edit", "inline_reopen")),
+                        Map.entry("workspace_rollout_governance_legacy_only_scenarios", List.of("attachments_edit")),
                         Map.entry("workspace_ab_enabled", true),
                         Map.entry("workspace_ab_rollout_percent", 35),
                         Map.entry("workspace_ab_experiment_name", "workspace-q2"),
@@ -474,8 +483,18 @@ class DialogWorkspaceIntegrationTest {
                         Map.entry("workspace_rollout_governance_legacy_usage_reviewed_by", "ops.lead"),
                         Map.entry("workspace_rollout_governance_legacy_usage_review_note", "Weekly review"),
                         Map.entry("workspace_rollout_governance_legacy_usage_reviewed_at", "2020-01-01T00:00:00Z"),
+                        Map.entry("workspace_rollout_governance_legacy_usage_decision_required", true),
                         Map.entry("workspace_rollout_legacy_manual_open_reason_catalog_required", true),
-                        Map.entry("workspace_rollout_legacy_manual_open_allowed_reasons", List.of("attachments_edit", "inline_reopen"))
+                        Map.entry("workspace_rollout_legacy_manual_open_allowed_reasons", List.of("attachments_edit", "inline_reopen")),
+                        Map.entry("workspace_rollout_external_kpi_gate_enabled", true),
+                        Map.entry("workspace_rollout_external_kpi_omnichannel_ready", true),
+                        Map.entry("workspace_rollout_external_kpi_finance_ready", false),
+                        Map.entry("workspace_rollout_external_kpi_reviewed_by", "release-oncall"),
+                        Map.entry("workspace_rollout_external_kpi_reviewed_at", "2026-05-26T08:00:00Z"),
+                        Map.entry("workspace_rollout_external_kpi_review_ttl_hours", 72),
+                        Map.entry("workspace_rollout_external_kpi_note", "finance pipeline pending"),
+                        Map.entry("workspace_rollout_external_kpi_datamart_program_status", "blocked"),
+                        Map.entry("workspace_rollout_external_kpi_datamart_program_note", "awaiting contract sync")
                 )));
         jdbcTemplate.update("""
                 INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
@@ -510,6 +529,27 @@ class DialogWorkspaceIntegrationTest {
                 .andExpect(jsonPath("$.meta.rollout.legacy_manual_open_policy.allowed_reasons[0]").value("attachments_edit"))
                 .andExpect(jsonPath("$.meta.rollout.legacy_manual_open_policy.allowed_reasons[1]").value("inline_reopen"))
                 .andExpect(jsonPath("$.meta.rollout.legacy_manual_open_policy.review_age_hours").isNotEmpty())
+                .andExpect(jsonPath("$.meta.rollout.external_kpi_signal.enabled").value(true))
+                .andExpect(jsonPath("$.meta.rollout.external_kpi_signal.ready_for_decision").value(false))
+                .andExpect(jsonPath("$.meta.rollout.external_kpi_signal.reviewed_by").value("release-oncall"))
+                .andExpect(jsonPath("$.meta.rollout.external_kpi_signal.reviewed_at").value("2026-05-26T08:00Z"))
+                .andExpect(jsonPath("$.meta.rollout.external_kpi_signal.note").value("finance pipeline pending"))
+                .andExpect(jsonPath("$.meta.rollout.external_kpi_signal.datamart_program_status").value("blocked"))
+                .andExpect(jsonPath("$.meta.rollout.external_kpi_signal.datamart_risk_level").isNotEmpty())
+                .andExpect(jsonPath("$.meta.rollout.governance.packet_required").value(true))
+                .andExpect(jsonPath("$.meta.rollout.governance.owner_signoff_required").value(true))
+                .andExpect(jsonPath("$.meta.rollout.governance.review_cadence_days").value(7))
+                .andExpect(jsonPath("$.meta.rollout.governance.review_decision_required").value(true))
+                .andExpect(jsonPath("$.meta.rollout.governance.incident_followup_required").value(true))
+                .andExpect(jsonPath("$.meta.rollout.governance.followup_after_non_go_required").value(true))
+                .andExpect(jsonPath("$.meta.rollout.governance.parity_exit_days").value(14))
+                .andExpect(jsonPath("$.meta.rollout.governance.parity_critical_reasons[0]").value("attachments_edit"))
+                .andExpect(jsonPath("$.meta.rollout.governance.parity_critical_reasons[1]").value("inline_reopen"))
+                .andExpect(jsonPath("$.meta.rollout.governance.legacy_only_scenarios[0]").value("attachments_edit"))
+                .andExpect(jsonPath("$.meta.rollout.governance.legacy_manual_allowed_reasons[0]").value("attachments_edit"))
+                .andExpect(jsonPath("$.meta.rollout.governance.legacy_manual_allowed_reasons[1]").value("inline_reopen"))
+                .andExpect(jsonPath("$.meta.rollout.governance.legacy_manual_reason_catalog_required").value(true))
+                .andExpect(jsonPath("$.meta.rollout.governance.legacy_usage_decision_required").value(true))
                 .andExpect(jsonPath("$.meta.parity.status").value("attention"));
     }
 

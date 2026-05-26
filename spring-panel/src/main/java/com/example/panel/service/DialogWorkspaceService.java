@@ -30,6 +30,8 @@ public class DialogWorkspaceService {
     private final DialogWorkspaceHistorySliceService dialogWorkspaceHistorySliceService;
     private final DialogWorkspaceClientContextAssemblerService dialogWorkspaceClientContextAssemblerService;
     private final DialogWorkspaceSlaViewService dialogWorkspaceSlaViewService;
+    private final DialogWorkspaceExternalKpiService dialogWorkspaceExternalKpiService;
+    private final DialogWorkspaceRolloutGovernanceConfigService dialogWorkspaceRolloutGovernanceConfigService;
 
     public DialogWorkspaceService(DialogDetailsReadService dialogDetailsReadService,
                                   SharedConfigService sharedConfigService,
@@ -44,7 +46,9 @@ public class DialogWorkspaceService {
                                   DialogWorkspacePayloadAssemblerService dialogWorkspacePayloadAssemblerService,
                                   DialogWorkspaceHistorySliceService dialogWorkspaceHistorySliceService,
                                   DialogWorkspaceClientContextAssemblerService dialogWorkspaceClientContextAssemblerService,
-                                  DialogWorkspaceSlaViewService dialogWorkspaceSlaViewService) {
+                                  DialogWorkspaceSlaViewService dialogWorkspaceSlaViewService,
+                                  DialogWorkspaceExternalKpiService dialogWorkspaceExternalKpiService,
+                                  DialogWorkspaceRolloutGovernanceConfigService dialogWorkspaceRolloutGovernanceConfigService) {
         this.dialogDetailsReadService = dialogDetailsReadService;
         this.sharedConfigService = sharedConfigService;
         this.dialogAuthorizationService = dialogAuthorizationService;
@@ -59,6 +63,8 @@ public class DialogWorkspaceService {
         this.dialogWorkspaceHistorySliceService = dialogWorkspaceHistorySliceService;
         this.dialogWorkspaceClientContextAssemblerService = dialogWorkspaceClientContextAssemblerService;
         this.dialogWorkspaceSlaViewService = dialogWorkspaceSlaViewService;
+        this.dialogWorkspaceExternalKpiService = dialogWorkspaceExternalKpiService;
+        this.dialogWorkspaceRolloutGovernanceConfigService = dialogWorkspaceRolloutGovernanceConfigService;
     }
 
     public ResponseEntity<?> workspace(String ticketId,
@@ -101,7 +107,7 @@ public class DialogWorkspaceService {
                         profileEnrichment
                 );
 
-        Map<String, Object> workspaceRollout = dialogWorkspaceRolloutService.resolveRolloutMeta(settings);
+        Map<String, Object> workspaceRollout = buildWorkspaceRolloutMeta(settings);
         Map<String, Object> workspaceNavigation = dialogWorkspaceNavigationService.buildNavigationMeta(settings, operator, ticketId);
         Map<String, Object> workspacePermissions = includeSections.contains("permissions")
                 ? dialogAuthorizationService.resolveWorkspacePermissions(authentication)
@@ -160,5 +166,28 @@ public class DialogWorkspaceService {
         );
         payload.put("conversation", summary);
         return ResponseEntity.ok(payload);
+    }
+
+    private Map<String, Object> buildWorkspaceRolloutMeta(Map<String, Object> settings) {
+        Map<String, Object> rollout = new java.util.LinkedHashMap<>(dialogWorkspaceRolloutService.resolveRolloutMeta(settings));
+        rollout.put("external_kpi_signal", dialogWorkspaceExternalKpiService.buildExternalKpiSignal());
+        DialogWorkspaceRolloutGovernanceConfig governanceConfig = dialogWorkspaceRolloutGovernanceConfigService.loadConfig();
+        Map<String, Object> governance = new java.util.LinkedHashMap<>();
+        governance.put("packet_required", governanceConfig.packetRequired());
+        governance.put("owner_signoff_required", governanceConfig.ownerSignoffRequired());
+        governance.put("review_cadence_days", governanceConfig.reviewCadenceDays());
+        governance.put("review_decision_required", governanceConfig.reviewDecisionRequired());
+        governance.put("incident_followup_required", governanceConfig.reviewIncidentFollowupRequired());
+        governance.put("followup_after_non_go_required", governanceConfig.reviewFollowupForNonGoRequired());
+        governance.put("parity_exit_days", governanceConfig.parityExitDays());
+        governance.put("parity_critical_reasons", governanceConfig.parityCriticalReasons());
+        governance.put("legacy_only_scenarios", governanceConfig.legacyOnlyScenarios());
+        governance.put("legacy_manual_allowed_reasons", governanceConfig.legacyManualAllowedReasons());
+        governance.put("legacy_manual_reason_catalog_required", governanceConfig.legacyManualReasonCatalogRequired());
+        governance.put("legacy_usage_decision_required", governanceConfig.legacyUsageDecisionRequired());
+        governance.put("context_contract_required", governanceConfig.contextContractRequired());
+        governance.put("context_contract_scenarios", governanceConfig.contextContractScenarios());
+        rollout.put("governance", governance);
+        return rollout;
     }
 }

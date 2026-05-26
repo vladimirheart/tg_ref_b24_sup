@@ -899,6 +899,14 @@
   practical focus в dialog-read/workspace зоне смещён уже с
   rollout/bootstrap semantics на deeper operator workflow parity и
   adjacent projection drift edge cases.
+- следующим пакетом добран и `workspace` rollout projection drift:
+  `DialogWorkspaceService` теперь добавляет в `meta.rollout`
+  `external_kpi_signal` и compact governance summary, а
+  `DialogWorkspaceIntegrationTest` закрепляет это в live runtime payload
+  вместе с experiment metadata, KPI readiness/risk и governance gates.
+  После этого practical focus в dialog-read/workspace зоне смещён уже с
+  rollout projection plumbing на deeper operator workflow parity и
+  adjacent action/projection drift edge cases.
 - следующим пакетом добран public-shell bootstrap contract:
   `login`, `403`, `404` и `500` получили explicit `data-ui-page="public"`,
   `403/500` приведены к общему `fragments/ui-head`, а для public shell

@@ -1005,6 +1005,17 @@ integration-сценария поверх users/settings runtime boundary всё
   слое, но и на реальном endpoint payload. После этого practical focus в
   dialog-read/workspace зоне смещён уже с rollout/bootstrap semantics на
   deeper operator workflow parity и adjacent projection drift edges.
+- следующим bounded пакетом закрыт и `workspace` rollout projection
+  drift: `DialogWorkspaceService` теперь прокладывает в `meta.rollout`
+  не только base fallback flags, но и `external_kpi_signal` вместе с
+  compact governance summary, а `DialogWorkspaceIntegrationTest`
+  фиксирует это на live `/workspace` route. Это выравнивает
+  operator-facing payload с уже существующими rollout bounded services:
+  experiment metadata, external KPI readiness/risk и governance gates
+  больше не живут только в telemetry/assessment слое. После этого
+  practical focus в dialog-read/workspace зоне смещён уже с rollout
+  projection plumbing на deeper operator workflow parity и соседние
+  action-oriented projection edges.
 - `DialogAiOpsController` теперь прикрыт не только по основным happy/error
   flows, но и по alias/null-body/default-path сценариям, что уменьшает риск
   regressions в transport-layer normalisation.
