@@ -890,6 +890,15 @@
   practical focus в dialog-read/workspace зоне смещён уже с timeline
   payload continuity на deeper operator workflow parity и adjacent
   projection drift edge cases.
+- следующим пакетом добран и `workspace` rollout/governance fallback
+  contract: `DialogWorkspaceRolloutServiceTest` теперь покрывает
+  `cohort_rollout`, stale review и invalid review timestamp semantics для
+  `legacy_manual_open_policy`, а `DialogWorkspaceIntegrationTest`
+  закрепляет live `meta.rollout` projection для experiment metadata,
+  fallback availability и blocked manual-open policy. После этого
+  practical focus в dialog-read/workspace зоне смещён уже с
+  rollout/bootstrap semantics на deeper operator workflow parity и
+  adjacent projection drift edge cases.
 - следующим пакетом добран public-shell bootstrap contract:
   `login`, `403`, `404` и `500` получили explicit `data-ui-page="public"`,
   `403/500` приведены к общему `fragments/ui-head`, а для public shell

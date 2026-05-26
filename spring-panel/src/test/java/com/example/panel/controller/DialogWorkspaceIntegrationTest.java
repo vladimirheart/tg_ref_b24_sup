@@ -459,6 +459,60 @@ class DialogWorkspaceIntegrationTest {
                 .andExpect(jsonPath("$.meta.parity.status").value("ok"));
     }
 
+    @Test
+    void workspaceApiProjectsRolloutGovernanceAndLegacyManualFallbackPolicy() throws Exception {
+        sharedConfigService.saveSettings(Map.of(
+                "dialog_config", Map.ofEntries(
+                        Map.entry("workspace_v1", true),
+                        Map.entry("workspace_ab_enabled", true),
+                        Map.entry("workspace_ab_rollout_percent", 35),
+                        Map.entry("workspace_ab_experiment_name", "workspace-q2"),
+                        Map.entry("workspace_ab_operator_segment", "night_shift"),
+                        Map.entry("workspace_rollout_legacy_manual_open_policy_enabled", true),
+                        Map.entry("workspace_rollout_legacy_manual_open_block_on_stale_review", true),
+                        Map.entry("workspace_rollout_legacy_manual_open_review_ttl_hours", 24),
+                        Map.entry("workspace_rollout_governance_legacy_usage_reviewed_by", "ops.lead"),
+                        Map.entry("workspace_rollout_governance_legacy_usage_review_note", "Weekly review"),
+                        Map.entry("workspace_rollout_governance_legacy_usage_reviewed_at", "2020-01-01T00:00:00Z"),
+                        Map.entry("workspace_rollout_legacy_manual_open_reason_catalog_required", true),
+                        Map.entry("workspace_rollout_legacy_manual_open_allowed_reasons", List.of("attachments_edit", "inline_reopen"))
+                )));
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
+                VALUES (87, 'token87', 'Workspace Rollout', 'telegram', 1, CURRENT_TIMESTAMP)
+                """);
+        insertDialogTicket(910097L, "T-WS-ROLLOUT", 87L, "rollout_user", "Клиент Rollout", "Retail", "Пермь", "Смена", "Нужен rollout contract", "2026-05-26T11:00:00Z", 8701L);
+        jdbcTemplate.update("""
+                INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
+                VALUES (?,?,?,?)
+                """,
+                "T-WS-ROLLOUT", "watcher_owner", "dispatcher", "2026-05-26T10:59:00Z");
+        insertHistoryRow("T-WS-ROLLOUT", 910097L, "user", "Сообщение для rollout", "2026-05-26T11:01:00Z", "text", 971L, null, 87L, null);
+
+        mockMvc.perform(get("/api/dialogs/T-WS-ROLLOUT/workspace")
+                        .param("include", "messages,permissions")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.meta.rollout.mode").value("cohort_rollout"))
+                .andExpect(jsonPath("$.meta.rollout.banner_tone").value("info"))
+                .andExpect(jsonPath("$.meta.rollout.summary").value("Workspace включён в cohort-rollout; legacy modal остаётся fallback-механизмом."))
+                .andExpect(jsonPath("$.meta.rollout.rollout_percent").value(35))
+                .andExpect(jsonPath("$.meta.rollout.experiment_name").value("workspace-q2"))
+                .andExpect(jsonPath("$.meta.rollout.operator_segment").value("night_shift"))
+                .andExpect(jsonPath("$.meta.rollout.legacy_fallback_available").value(true))
+                .andExpect(jsonPath("$.meta.rollout.legacy_manual_open_policy.enabled").value(true))
+                .andExpect(jsonPath("$.meta.rollout.legacy_manual_open_policy.blocked").value(true))
+                .andExpect(jsonPath("$.meta.rollout.legacy_manual_open_policy.block_reason").value("stale_review"))
+                .andExpect(jsonPath("$.meta.rollout.legacy_manual_open_policy.reviewed_by").value("ops.lead"))
+                .andExpect(jsonPath("$.meta.rollout.legacy_manual_open_policy.review_note").value("Weekly review"))
+                .andExpect(jsonPath("$.meta.rollout.legacy_manual_open_policy.reason_catalog_required").value(true))
+                .andExpect(jsonPath("$.meta.rollout.legacy_manual_open_policy.allowed_reasons[0]").value("attachments_edit"))
+                .andExpect(jsonPath("$.meta.rollout.legacy_manual_open_policy.allowed_reasons[1]").value("inline_reopen"))
+                .andExpect(jsonPath("$.meta.rollout.legacy_manual_open_policy.review_age_hours").isNotEmpty())
+                .andExpect(jsonPath("$.meta.parity.status").value("attention"));
+    }
+
     private void insertDialogTicket(long userId,
                                     String ticketId,
                                     long channelId,

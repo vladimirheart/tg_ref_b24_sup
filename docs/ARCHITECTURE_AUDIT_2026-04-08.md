@@ -994,6 +994,17 @@ integration-сценария поверх users/settings runtime boundary всё
   соседних `details/read` route-ах. После этого practical focus в
   dialog-read/workspace зоне смещён уже с timeline payload continuity на
   deeper operator workflow parity и adjacent projection drift.
+- следующим bounded пакетом закрыт и `workspace` rollout/governance
+  fallback contract: `DialogWorkspaceRolloutServiceTest` теперь
+  фиксирует `cohort_rollout`, stale review и invalid review timestamp
+  semantics для `legacy_manual_open_policy`, а
+  `DialogWorkspaceIntegrationTest` добран live `/workspace` scenario с
+  `meta.rollout` projection для experiment metadata, fallback availability
+  и blocked manual-open policy. Это закрепляет operator-facing runtime
+  contract вокруг `legacy modal` fallback уже не только на config-parser
+  слое, но и на реальном endpoint payload. После этого practical focus в
+  dialog-read/workspace зоне смещён уже с rollout/bootstrap semantics на
+  deeper operator workflow parity и adjacent projection drift edges.
 - `DialogAiOpsController` теперь прикрыт не только по основным happy/error
   flows, но и по alias/null-body/default-path сценариям, что уменьшает риск
   regressions в transport-layer normalisation.
