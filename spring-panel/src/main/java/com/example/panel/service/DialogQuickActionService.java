@@ -4,10 +4,14 @@ import com.example.panel.model.dialog.DialogListItem;
 import com.example.panel.model.dialog.DialogOperatorOption;
 import com.example.panel.model.dialog.DialogParticipantDto;
 import com.example.panel.storage.AttachmentService;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -30,7 +34,9 @@ public class DialogQuickActionService {
     private final DialogAiAssistantService dialogAiAssistantService;
     private final NotificationService notificationService;
     private final AttachmentService attachmentService;
+    private final ClientBlacklistService clientBlacklistService;
 
+    @Autowired
     public DialogQuickActionService(DialogTicketLifecycleService dialogTicketLifecycleService,
                                     DialogLookupReadService dialogLookupReadService,
                                     DialogResponsibilityService dialogResponsibilityService,
@@ -39,7 +45,8 @@ public class DialogQuickActionService {
                                     DialogNotificationService dialogNotificationService,
                                     DialogAiAssistantService dialogAiAssistantService,
                                     NotificationService notificationService,
-                                    AttachmentService attachmentService) {
+                                    AttachmentService attachmentService,
+                                    ClientBlacklistService clientBlacklistService) {
         this.dialogTicketLifecycleService = dialogTicketLifecycleService;
         this.dialogLookupReadService = dialogLookupReadService;
         this.dialogResponsibilityService = dialogResponsibilityService;
@@ -49,6 +56,30 @@ public class DialogQuickActionService {
         this.dialogAiAssistantService = dialogAiAssistantService;
         this.notificationService = notificationService;
         this.attachmentService = attachmentService;
+        this.clientBlacklistService = clientBlacklistService;
+    }
+
+    DialogQuickActionService(DialogTicketLifecycleService dialogTicketLifecycleService,
+                             DialogLookupReadService dialogLookupReadService,
+                             DialogResponsibilityService dialogResponsibilityService,
+                             DialogParticipantService dialogParticipantService,
+                             DialogReplyService dialogReplyService,
+                             DialogNotificationService dialogNotificationService,
+                             DialogAiAssistantService dialogAiAssistantService,
+                             NotificationService notificationService,
+                             AttachmentService attachmentService) {
+        this(
+                dialogTicketLifecycleService,
+                dialogLookupReadService,
+                dialogResponsibilityService,
+                dialogParticipantService,
+                dialogReplyService,
+                dialogNotificationService,
+                dialogAiAssistantService,
+                notificationService,
+                attachmentService,
+                null
+        );
     }
 
     public DialogReplyService.DialogReplyResult sendReply(String ticketId,
@@ -184,6 +215,39 @@ public class DialogQuickActionService {
                 notificationService.buildDialogUrl(ticketId),
                 operator
         );
+    }
+
+    public DialogSpamResult markClientAsSpam(String ticketId,
+                                             String operator,
+                                             String reason) {
+        Optional<DialogListItem> dialog = dialogLookupReadService.findDialog(ticketId, operator);
+        if (dialog.isEmpty()) {
+            return new DialogSpamResult(false, false, "Диалог не найден", null, List.of());
+        }
+        String userId = dialog.get().userId() != null ? String.valueOf(dialog.get().userId()) : null;
+        if (!StringUtils.hasText(userId)) {
+            return new DialogSpamResult(true, false, "Не удалось определить клиента для блокировки", null, List.of());
+        }
+        if (clientBlacklistService == null) {
+            return new DialogSpamResult(true, false, "Blacklist service is not configured", userId, List.of());
+        }
+
+        String normalizedReason = StringUtils.hasText(reason)
+                ? reason.trim()
+                : "Спам в диалоге " + ticketId;
+        ClientBlacklistService.BlacklistMutationResult blockResult = clientBlacklistService.blockClient(
+                userId,
+                normalizedReason,
+                operator,
+                false
+        );
+        if (!blockResult.ok()) {
+            return new DialogSpamResult(true, false, blockResult.error(), userId, List.of());
+        }
+
+        List<String> categories = mergeCategoriesWithSpam(dialog.get().categories());
+        dialogTicketLifecycleService.setTicketCategories(ticketId, categories);
+        return new DialogSpamResult(true, true, null, userId, categories);
     }
 
     public Optional<String> takeTicket(String ticketId, String operator) {
@@ -322,6 +386,19 @@ public class DialogQuickActionService {
         return left.trim().equalsIgnoreCase(right.trim());
     }
 
+    private List<String> mergeCategoriesWithSpam(String categoriesRaw) {
+        LinkedHashSet<String> normalized = new LinkedHashSet<>();
+        if (StringUtils.hasText(categoriesRaw)) {
+            for (String part : categoriesRaw.split(",")) {
+                if (StringUtils.hasText(part)) {
+                    normalized.add(part.trim());
+                }
+            }
+        }
+        normalized.add("Спам");
+        return new ArrayList<>(normalized);
+    }
+
     public record DialogParticipantMutationResult(boolean exists,
                                                   boolean changed,
                                                   String error,
@@ -334,5 +411,12 @@ public class DialogQuickActionService {
                                        String responsibleDisplayName,
                                        String responsibleAvatarUrl,
                                        List<DialogParticipantDto> participants) {
+    }
+
+    public record DialogSpamResult(boolean exists,
+                                   boolean updated,
+                                   String error,
+                                   String userId,
+                                   List<String> categories) {
     }
 }

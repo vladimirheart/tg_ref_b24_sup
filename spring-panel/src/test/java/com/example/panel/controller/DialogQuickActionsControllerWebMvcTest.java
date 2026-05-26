@@ -137,6 +137,55 @@ class DialogQuickActionsControllerWebMvcTest {
     }
 
     @Test
+    void spamReturnsBadRequestWhenClientCannotBeResolved() throws Exception {
+        when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_close"), eq("mark_spam"), eq("T-604A")))
+            .thenReturn(null);
+        when(dialogQuickActionService.markClientAsSpam("T-604A", "operator", "Спам в диалоге"))
+            .thenReturn(new DialogQuickActionService.DialogSpamResult(true, false, "Не удалось определить клиента для блокировки", null, List.of()));
+
+        mockMvc.perform(post("/api/dialogs/T-604A/spam")
+                .with(user("operator"))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "reason": "Спам в диалоге"
+                    }
+                    """))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("Не удалось определить клиента для блокировки"));
+
+        verify(dialogAuthorizationService).logDialogAction("operator", "T-604A", "mark_spam", "error", "Не удалось определить клиента для блокировки");
+    }
+
+    @Test
+    void spamReturnsCategoriesAndUserIdOnSuccess() throws Exception {
+        when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_close"), eq("mark_spam"), eq("T-604B")))
+            .thenReturn(null);
+        when(dialogQuickActionService.markClientAsSpam("T-604B", "operator", "Спам"))
+            .thenReturn(new DialogQuickActionService.DialogSpamResult(true, true, null, "77", List.of("billing", "Спам")));
+
+        mockMvc.perform(post("/api/dialogs/T-604B/spam")
+                .with(user("operator"))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "reason": "Спам"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.updated").value(true))
+            .andExpect(jsonPath("$.userId").value("77"))
+            .andExpect(jsonPath("$.categories[0]").value("billing"))
+            .andExpect(jsonPath("$.categories[1]").value("Спам"));
+
+        verify(dialogAuthorizationService).logDialogAction("operator", "T-604B", "mark_spam", "success", "blacklisted_user=77");
+    }
+
+    @Test
     void snoozeRejectsMissingOrInvalidDuration() throws Exception {
         when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_snooze"), eq("snooze"), eq("T-605")))
             .thenReturn(null);

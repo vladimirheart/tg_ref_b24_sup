@@ -178,6 +178,44 @@ public class DialogQuickActionsController {
         return ResponseEntity.ok(Map.of("success", true, "updated", result.updated()));
     }
 
+    @PostMapping("/{ticketId}/spam")
+    public ResponseEntity<?> markSpam(@PathVariable String ticketId,
+                                      @RequestBody(required = false) DialogSpamRequest request,
+                                      Authentication authentication) {
+        return withQuickActionTiming("mark_spam", ticketId, () -> {
+            ResponseEntity<Map<String, Object>> permissionDenied = dialogAuthorizationService.requirePermission(authentication, "can_close", "mark_spam", ticketId);
+            if (permissionDenied != null) {
+                return permissionDenied;
+            }
+            String operator = authentication != null ? authentication.getName() : null;
+            DialogQuickActionService.DialogSpamResult result = dialogQuickActionService.markClientAsSpam(
+                    ticketId,
+                    operator,
+                    request != null ? request.reason() : null
+            );
+            if (!result.exists()) {
+                dialogAuthorizationService.logDialogAction(operator, ticketId, "mark_spam", "not_found", "Диалог не найден");
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("success", false, "error", "Диалог не найден"));
+            }
+            if (result.error() != null) {
+                dialogAuthorizationService.logDialogAction(operator, ticketId, "mark_spam", "error", result.error());
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("success", false, "error", result.error()));
+            }
+            String detail = result.userId() != null
+                    ? "blacklisted_user=" + result.userId()
+                    : "blacklisted";
+            dialogAuthorizationService.logDialogAction(operator, ticketId, "mark_spam", "success", detail);
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "updated", result.updated(),
+                    "userId", result.userId(),
+                    "categories", result.categories()
+            ));
+        });
+    }
+
     @PostMapping("/{ticketId}/categories")
     public ResponseEntity<?> updateCategories(@PathVariable String ticketId,
                                               @RequestBody(required = false) DialogCategoriesRequest request,
@@ -368,6 +406,8 @@ public class DialogQuickActionsController {
     public record DialogReplyRequest(String message, Long replyToTelegramId) {}
 
     public record DialogResolveRequest(List<String> categories) {}
+
+    public record DialogSpamRequest(String reason) {}
 
     public record DialogEditRequest(Long telegramMessageId, String message) {}
 

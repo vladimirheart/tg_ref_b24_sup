@@ -245,6 +245,7 @@
   const dialogFontSizeRange = document.getElementById('dialogFontSizeRange');
   const emojiPanel = document.getElementById('dialogEmojiPanel');
   const emojiList = document.getElementById('dialogEmojiList');
+  const detailsSpam = document.getElementById('dialogDetailsSpam');
   const mediaPreviewModalEl = document.getElementById('dialogMediaPreviewModal');
   const mediaPreviewVideo = document.getElementById('dialogMediaPreviewVideo');
   const mediaPreviewImage = document.getElementById('dialogMediaPreviewImage');
@@ -7992,6 +7993,12 @@
     const resolved = String(statusRaw || '').toLowerCase() === 'resolved';
     detailsResolve.disabled = resolved;
     detailsResolve.textContent = resolved ? 'Обращение закрыто' : 'Закрыть обращение';
+    if (detailsSpam) {
+      const clientUserId = String(detailsSpam.dataset.userId || '').trim();
+      const canMarkSpam = canRunAction('can_close') && !resolved;
+      detailsSpam.disabled = !canMarkSpam || !clientUserId;
+      detailsSpam.classList.toggle('d-none', !canMarkSpam);
+    }
     if (detailsReopen) {
       detailsReopen.disabled = !resolved;
       detailsReopen.classList.toggle('d-none', !resolved);
@@ -8150,6 +8157,10 @@
       detailsOpenClientCard.classList.add('disabled');
       detailsOpenClientCard.setAttribute('aria-disabled', 'true');
     }
+    if (detailsSpam) {
+      detailsSpam.dataset.userId = '';
+      detailsSpam.disabled = true;
+    }
     updateDetailsTakeButton(fallbackRow?.dataset?.responsibleRaw || fallbackRow?.dataset?.responsible || '');
 
     showModalSafe(detailsModalEl, detailsModal);
@@ -8237,6 +8248,9 @@
           detailsOpenClientCard.classList.add('disabled');
           detailsOpenClientCard.setAttribute('aria-disabled', 'true');
         }
+      }
+      if (detailsSpam) {
+        detailsSpam.dataset.userId = clientUserId || '';
       }
       updateDetailsResponsible(responsibleLabel, {
         rawResponsible: responsibleRaw,
@@ -8584,6 +8598,47 @@
       const opened = window.open(clientUrl, '_blank', 'noopener');
       if (!opened) {
         window.location.href = clientUrl;
+      }
+    });
+  }
+
+  if (detailsSpam) {
+    detailsSpam.addEventListener('click', async () => {
+      const ticketId = resolveDetailsTicketId();
+      const userId = String(detailsSpam.dataset.userId || '').trim();
+      if (!ticketId || !userId) {
+        if (typeof showNotification === 'function') {
+          showNotification('Не удалось определить клиента для блокировки', 'error');
+        }
+        return;
+      }
+      const defaultReason = `Спам в диалоге ${ticketId}`;
+      const reasonInput = window.prompt('Причина блокировки клиента как спам:', defaultReason);
+      if (reasonInput === null) {
+        return;
+      }
+      const reason = String(reasonInput || '').trim() || defaultReason;
+      detailsSpam.disabled = true;
+      try {
+        const resp = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/spam`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reason }),
+        });
+        const data = await resp.json();
+        if (!resp.ok || !data?.success) {
+          throw new Error(data?.error || `Ошибка ${resp.status}`);
+        }
+        await openDialogDetails(ticketId, activeDialogRow);
+        if (typeof showNotification === 'function') {
+          showNotification('Клиент заблокирован как спам', 'success');
+        }
+      } catch (error) {
+        if (typeof showNotification === 'function') {
+          showNotification(error.message || 'Не удалось заблокировать клиента', 'error');
+        }
+      } finally {
+        updateResolveButton(String(activeDialogRow?.dataset?.statusRaw || activeDialogRow?.dataset?.status || ''));
       }
     });
   }

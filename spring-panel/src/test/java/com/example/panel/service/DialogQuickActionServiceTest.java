@@ -506,6 +506,69 @@ class DialogQuickActionServiceTest {
     }
 
     @Test
+    void markClientAsSpamBlocksClientAndAddsSpamCategory() {
+        DialogLookupReadService dialogLookupReadService = mock(DialogLookupReadService.class);
+        DialogTicketLifecycleService dialogTicketLifecycleService = mock(DialogTicketLifecycleService.class);
+        ClientBlacklistService clientBlacklistService = mock(ClientBlacklistService.class);
+
+        DialogQuickActionService service = new DialogQuickActionService(
+                dialogTicketLifecycleService,
+                dialogLookupReadService,
+                mock(DialogResponsibilityService.class),
+                mock(DialogParticipantService.class),
+                mock(DialogReplyService.class),
+                mock(DialogNotificationService.class),
+                mock(DialogAiAssistantService.class),
+                mock(NotificationService.class),
+                mock(AttachmentService.class),
+                clientBlacklistService
+        );
+
+        when(dialogLookupReadService.findDialog("T-709S", "operator"))
+                .thenReturn(Optional.of(new DialogListItem(
+                        "T-709S",
+                        1L,
+                        77L,
+                        "client",
+                        "Client",
+                        "Support",
+                        7L,
+                        "Telegram",
+                        "Moscow",
+                        "HQ",
+                        "Spam",
+                        "2026-05-21T12:00:00Z",
+                        "pending",
+                        false,
+                        null,
+                        null,
+                        "operator",
+                        null,
+                        null,
+                        null,
+                        "client",
+                        "2026-05-21T12:00:00Z",
+                        0,
+                        null,
+                        "billing, vip",
+                        null,
+                        null
+                )));
+        when(clientBlacklistService.blockClient("77", "Спам", "operator", false))
+                .thenReturn(new ClientBlacklistService.BlacklistMutationResult(true, "ok", null));
+
+        DialogQuickActionService.DialogSpamResult result = service.markClientAsSpam("T-709S", "operator", "Спам");
+
+        assertThat(result.exists()).isTrue();
+        assertThat(result.updated()).isTrue();
+        assertThat(result.error()).isNull();
+        assertThat(result.userId()).isEqualTo("77");
+        assertThat(result.categories()).containsExactly("billing", "vip", "Спам");
+        verify(dialogTicketLifecycleService).setTicketCategories("T-709S", List.of("billing", "vip", "Спам"));
+        verify(clientBlacklistService).blockClient("77", "Спам", "operator", false);
+    }
+
+    @Test
     void addParticipantAddsOperatorAndNotifiesParticipants() {
         DialogLookupReadService dialogLookupReadService = mock(DialogLookupReadService.class);
         DialogResponsibilityService dialogResponsibilityService = mock(DialogResponsibilityService.class);
