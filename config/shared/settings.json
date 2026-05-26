@@ -372,9 +372,10 @@
   "it_connection_categories" : { },
   "bot_settings" : {
     "question_templates" : [ {
-      "id" : "tpl_ml6opbj83rg3",
+      "id" : "tpl_mpmz3v9anmmm",
       "name" : "Базовый шаблон вопросов",
       "description" : "",
+      "start_message" : "",
       "question_flow" : [ {
         "id" : "business",
         "type" : "preset",
@@ -413,7 +414,7 @@
         }
       } ]
     } ],
-    "active_template_id" : "tpl_ml6opbj83rg3",
+    "active_template_id" : "tpl_mpmz3v9anmmm",
     "question_flow" : [ {
       "id" : "business",
       "type" : "preset",
@@ -471,7 +472,7 @@
         "text" : "Спасибо за вашу оценку 4! Нам важно ваше мнение."
       }, {
         "value" : 5,
-        "text" : "Спасибо за вашу оценку 5! Нам важно ваше мнение."
+        "text" : "Красавчик! Спасибо за вашу оценку 5! Нам важно ваше мнение."
       } ]
     } ],
     "active_rating_template_id" : "rating-template-default",
@@ -492,9 +493,10 @@
         "text" : "Спасибо за вашу оценку 4! Нам важно ваше мнение."
       }, {
         "value" : 5,
-        "text" : "Спасибо за вашу оценку 5! Нам важно ваше мнение."
+        "text" : "Красавчик! Спасибо за вашу оценку 5! Нам важно ваше мнение."
       } ]
-    }
+    },
+    "unblock_request_cooldown_minutes" : 60
   },
   "unblock_request_cooldown_minutes" : 1,
   "knowledge_base_config" : {
