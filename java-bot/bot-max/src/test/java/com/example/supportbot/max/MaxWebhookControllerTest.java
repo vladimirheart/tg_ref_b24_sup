@@ -28,6 +28,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.time.Duration;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -350,6 +351,69 @@ class MaxWebhookControllerTest {
         message.putObject("sender").put("user_id", 1001L);
         message.putObject("recipient").put("chat_id", 2002L);
         message.putObject("body").put("text", "хочу написать в поддержку");
+
+        ResponseEntity<Map<String, Object>> response = controller.handleUpdate(update, "");
+
+        assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
+        assertThat(response.getBody()).containsEntry("blocked", true);
+        verify(messagingService).sendToUser(
+                channel,
+                1001L,
+                "Ваш аккаунт заблокирован. Отправьте /unblock, чтобы подать запрос на разблокировку."
+        );
+        verify(ticketService, never()).findActiveTicketForUser(1001L, "max_1001");
+    }
+
+    @Test
+    void handleUpdateBlocksBlacklistedMaxUserMessagesWhenBlacklistStoredUnderAlias() {
+        MaxBotProperties properties = new MaxBotProperties();
+        properties.setEnabled(true);
+        properties.setChannelId(42L);
+        properties.setToken("token");
+
+        ClientBlacklistRepository blacklistRepository = mock(ClientBlacklistRepository.class);
+        ClientUnblockRequestRepository unblockRequestRepository = mock(ClientUnblockRequestRepository.class);
+        BlacklistService blacklistService = createBlacklistService(blacklistRepository, unblockRequestRepository);
+        ChannelService channelService = mock(ChannelService.class);
+        TicketService ticketService = mock(TicketService.class);
+        ChatHistoryService chatHistoryService = mock(ChatHistoryService.class);
+        MessagingService messagingService = mock(MessagingService.class);
+        FeedbackService feedbackService = mock(FeedbackService.class);
+        PublicFormConversationLinkService linkService = mock(PublicFormConversationLinkService.class);
+        BotSettingsService botSettingsService = mock(BotSettingsService.class);
+        SharedConfigService sharedConfigService = mock(SharedConfigService.class);
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        Channel channel = new Channel();
+        channel.setId(42L);
+        when(channelService.resolveConfiguredChannel(42L, "token", "MAX", "max")).thenReturn(channel);
+        when(blacklistRepository.findById("1001")).thenReturn(Optional.empty());
+        when(blacklistRepository.findByUserIdIn(any()))
+                .thenReturn(List.of(blacklistedClient("max_1001", false)));
+
+        MaxWebhookController controller = new MaxWebhookController(
+                properties,
+                blacklistService,
+                channelService,
+                ticketService,
+                chatHistoryService,
+                messagingService,
+                feedbackService,
+                linkService,
+                botSettingsService,
+                sharedConfigService,
+                objectMapper
+        );
+
+        ObjectNode update = objectMapper.createObjectNode();
+        update.put("update_type", "message_created");
+        ObjectNode message = update.putObject("message");
+        message.putObject("sender").put("user_id", 1001L);
+        message.putObject("recipient").put("chat_id", 2002L);
+        ObjectNode body = message.putObject("body");
+        body.put("text", "хочу написать в поддержку");
+        body.putObject("sender").put("name", "max_1001");
+        body.putObject("recipient").put("name", "Vladimir Sinicin");
 
         ResponseEntity<Map<String, Object>> response = controller.handleUpdate(update, "");
 

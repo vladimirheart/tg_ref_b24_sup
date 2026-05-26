@@ -119,9 +119,17 @@ public class MaxWebhookController {
         }
 
         Channel channel = channelService.resolveConfiguredChannel(properties.getChannelId(), properties.getToken(), "MAX", "max");
-        BlacklistService.BlacklistStatus status = blacklistService.getStatus(userId);
+        BlacklistService.ResolvedBlacklistStatus resolvedBlacklist = blacklistService.resolveStatus(
+                userId,
+                clientProfile.identity(),
+                clientProfile.username(),
+                chatId != null ? String.valueOf(chatId) : null
+        );
+        BlacklistService.BlacklistStatus status = resolvedBlacklist.status();
         if (status.blacklisted()) {
-            log.info("Blocked message from blacklisted MAX user {}", userId);
+            log.info("Blocked message from blacklisted MAX user {} (matched key: {})",
+                    userId,
+                    resolvedBlacklist.matchedUserId());
             if ("/unblock".equalsIgnoreCase(text)) {
                 handleUnblockRequest(channel, userId);
                 return ResponseEntity.ok(Map.of("ok", true, "unblock_requested", true));

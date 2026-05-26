@@ -8,10 +8,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.Duration;
 import java.time.OffsetDateTime;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 @Service
 public class BlacklistService {
@@ -29,9 +33,50 @@ public class BlacklistService {
 
     @Transactional(readOnly = true)
     public BlacklistStatus getStatus(long userId) {
-        return blacklistRepository.findById(String.valueOf(userId))
-                .map(entity -> new BlacklistStatus(entity.isBlacklisted(), entity.isUnblockRequested()))
-                .orElseGet(() -> new BlacklistStatus(false, false));
+        return resolveStatus(userId).status();
+    }
+
+    @Transactional(readOnly = true)
+    public ResolvedBlacklistStatus resolveStatus(long userId, String... aliases) {
+        Set<String> candidateKeys = new LinkedHashSet<>();
+        if (userId > 0) {
+            candidateKeys.add(String.valueOf(userId));
+        }
+        if (aliases != null) {
+            for (String alias : aliases) {
+                if (StringUtils.hasText(alias)) {
+                    candidateKeys.add(alias.trim());
+                }
+            }
+        }
+        if (candidateKeys.isEmpty()) {
+            return new ResolvedBlacklistStatus(null, new BlacklistStatus(false, false));
+        }
+
+        String numericKey = userId > 0 ? String.valueOf(userId) : null;
+        if (numericKey != null) {
+            Optional<ClientBlacklist> exact = blacklistRepository.findById(numericKey);
+            if (exact.isPresent()) {
+                ClientBlacklist entity = exact.get();
+                return new ResolvedBlacklistStatus(
+                        entity.getUserId(),
+                        new BlacklistStatus(entity.isBlacklisted(), entity.isUnblockRequested())
+                );
+            }
+        }
+
+        List<ClientBlacklist> candidates = blacklistRepository.findByUserIdIn(candidateKeys);
+        for (String candidateKey : candidateKeys) {
+            for (ClientBlacklist entity : candidates) {
+                if (entity != null && candidateKey.equals(entity.getUserId())) {
+                    return new ResolvedBlacklistStatus(
+                            entity.getUserId(),
+                            new BlacklistStatus(entity.isBlacklisted(), entity.isUnblockRequested())
+                    );
+                }
+            }
+        }
+        return new ResolvedBlacklistStatus(null, new BlacklistStatus(false, false));
     }
 
     @Transactional
@@ -93,6 +138,8 @@ public class BlacklistService {
     }
 
     public record BlacklistStatus(boolean blacklisted, boolean unblockRequested) {}
+
+    public record ResolvedBlacklistStatus(String matchedUserId, BlacklistStatus status) {}
 
     public record UnblockRequestDecision(ClientUnblockRequest request, boolean created, Duration retryAfter) {}
 }
