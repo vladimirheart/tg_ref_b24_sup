@@ -11,6 +11,8 @@ import com.example.panel.entity.Channel;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
+import java.time.Instant;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -79,6 +81,37 @@ class BotRuntimeContractServiceTest {
         assertThat(contract.warnings()).anyMatch(item -> item.contains("app.bots.executable-jars"));
         assertThat(contract.production().readyForProduction()).isFalse();
         assertThat(contract.production().blockingReasons()).anyMatch(item -> item.contains("target scan"));
+    }
+
+    @Test
+    void describeFallsBackToMavenWhenTargetScanArtifactIsOlderThanSources() throws Exception {
+        Path botWorkingDir = tempDir.resolve("java-bot");
+        Path jar = botWorkingDir.resolve("bot-max").resolve("target").resolve("bot-max-0.0.1-SNAPSHOT.jar");
+        Path moduleSource = botWorkingDir.resolve("bot-max").resolve("src").resolve("main").resolve("java").resolve("demo").resolve("MaxSource.java");
+        Path botCoreSource = botWorkingDir.resolve("bot-core").resolve("src").resolve("main").resolve("java").resolve("demo").resolve("SharedSource.java");
+        Files.createDirectories(jar.getParent());
+        Files.createDirectories(moduleSource.getParent());
+        Files.createDirectories(botCoreSource.getParent());
+        Files.writeString(jar, "fake");
+        Files.writeString(moduleSource, "class MaxSource {}");
+        Files.writeString(botCoreSource, "class SharedSource {}");
+        Files.setLastModifiedTime(jar, FileTime.from(Instant.parse("2026-05-20T10:00:00Z")));
+        Files.setLastModifiedTime(moduleSource, FileTime.from(Instant.parse("2026-05-20T10:05:00Z")));
+        Files.setLastModifiedTime(botCoreSource, FileTime.from(Instant.parse("2026-05-20T10:06:00Z")));
+
+        BotRuntimeContractService service = createService("auto", Map.of());
+        Channel channel = new Channel();
+        channel.setId(38L);
+        channel.setPlatform("max");
+
+        BotRuntimeContractService.BotRuntimeContract contract = service.describe(channel, botWorkingDir);
+
+        assertThat(contract.resolvedLauncherKind()).isEqualTo("maven");
+        assertThat(contract.artifactSource()).isEqualTo("target-scan");
+        assertThat(contract.executableJarPath()).isEqualTo(jar.toAbsolutePath().normalize().toString());
+        assertThat(contract.warnings()).anyMatch(item -> item.contains("Maven fallback"));
+        assertThat(contract.production().readyForProduction()).isFalse();
+        assertThat(contract.production().blockingReasons()).anyMatch(item -> item.contains("Maven launcher"));
     }
 
     @Test

@@ -11,7 +11,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -258,6 +260,31 @@ class BotProcessServiceTest {
         assertThat(plan.launcherKind()).isEqualTo("maven");
         assertThat(plan.artifactSource()).isEqualTo("maven-fallback");
         assertThat(plan.description()).isEqualTo("maven:spring-boot-run:bot-telegram");
+    }
+
+    @Test
+    void resolveLaunchPlanInAutoModeFallsBackToMavenWhenTargetScanArtifactIsStale() throws Exception {
+        Path botWorkingDir = tempDir.resolve("java-bot");
+        Path jar = botWorkingDir.resolve("bot-max").resolve("target").resolve("bot-max-0.0.1-SNAPSHOT.jar");
+        Path moduleSource = botWorkingDir.resolve("bot-max").resolve("src").resolve("main").resolve("java").resolve("demo").resolve("MaxSource.java");
+        Path botCoreSource = botWorkingDir.resolve("bot-core").resolve("src").resolve("main").resolve("java").resolve("demo").resolve("SharedSource.java");
+        Files.createDirectories(jar.getParent());
+        Files.createDirectories(moduleSource.getParent());
+        Files.createDirectories(botCoreSource.getParent());
+        Files.writeString(jar, "fake");
+        Files.writeString(moduleSource, "class MaxSource {}");
+        Files.writeString(botCoreSource, "class SharedSource {}");
+        Files.setLastModifiedTime(jar, FileTime.from(Instant.parse("2026-05-20T10:00:00Z")));
+        Files.setLastModifiedTime(moduleSource, FileTime.from(Instant.parse("2026-05-20T10:05:00Z")));
+        Files.setLastModifiedTime(botCoreSource, FileTime.from(Instant.parse("2026-05-20T10:06:00Z")));
+
+        BotProcessService service = createRuntimeService("auto");
+
+        BotRuntimeContractService.BotLaunchPlan plan = service.resolveLaunchPlan(botWorkingDir, "bot-max");
+
+        assertThat(plan.launcherKind()).isEqualTo("maven");
+        assertThat(plan.artifactSource()).isEqualTo("maven-fallback");
+        assertThat(plan.description()).isEqualTo("maven:spring-boot-run:bot-max");
     }
 
     private Process launchProbe(String mode, Path processLog) throws IOException {

@@ -6,9 +6,11 @@ import com.example.panel.entity.Channel;
 import com.example.panel.model.channel.BotCredential;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.attribute.FileTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -72,6 +74,11 @@ public class BotRuntimeContractService {
         if (executableJar != null && !"explicit-config".equals(executableJar.source())) {
             warnings.add("Для production лучше явно задать app.bots.executable-jars вместо target scan.");
         }
+        if (launchMode == BotProcessProperties.LaunchMode.AUTO
+            && executableJar != null
+            && isAutoFallbackDueToStaleTargetScan(executableJar, launchPlan)) {
+            warnings.add("Найден target jar, но он старее исходников модуля; для запуска будет использован Maven fallback.");
+        }
         BotProductionContract production = productionContract(botWorkingDir, botModule, launchMode, executableJar, launchPlan);
         BotLifecycleContract lifecycle = lifecycleContract();
         return new BotRuntimeContract(
@@ -102,7 +109,7 @@ public class BotRuntimeContractService {
             }
             return jarLaunchPlan(executableJar);
         }
-        if (launchMode == BotProcessProperties.LaunchMode.AUTO && executableJar != null) {
+        if (launchMode == BotProcessProperties.LaunchMode.AUTO && shouldUseJarLaunchInAuto(executableJar)) {
             return jarLaunchPlan(executableJar);
         }
         return mavenLaunchPlan(botWorkingDir, botModule);
@@ -345,7 +352,7 @@ public class BotRuntimeContractService {
             candidate = candidate.toAbsolutePath().normalize();
         }
         if (Files.isRegularFile(candidate)) {
-            return new ResolvedExecutableJar(candidate, "explicit-config");
+            return new ResolvedExecutableJar(candidate, "explicit-config", false, null);
         }
         log.warn("Configured executable jar for module {} not found at {}", botModule, candidate);
         return null;
@@ -372,10 +379,84 @@ public class BotRuntimeContractService {
                 })
                 .findFirst()
                 .orElse(null);
-            return candidate != null ? new ResolvedExecutableJar(candidate, "target-scan") : null;
+            if (candidate == null) {
+                return null;
+            }
+            JarFreshness freshness = evaluateTargetScanJarFreshness(botWorkingDir, botModule, candidate);
+            return new ResolvedExecutableJar(candidate, "target-scan", freshness.stale(), freshness.reason());
         } catch (Exception ex) {
             log.warn("Failed to resolve executable jar for module {}", botModule, ex);
             return null;
+        }
+    }
+
+    private boolean shouldUseJarLaunchInAuto(ResolvedExecutableJar executableJar) {
+        if (executableJar == null) {
+            return false;
+        }
+        return !("target-scan".equals(executableJar.source()) && executableJar.stale());
+    }
+
+    private boolean isAutoFallbackDueToStaleTargetScan(ResolvedExecutableJar executableJar, BotLaunchPlan launchPlan) {
+        return executableJar != null
+            && executableJar.stale()
+            && "target-scan".equals(executableJar.source())
+            && launchPlan != null
+            && "maven".equals(launchPlan.launcherKind());
+    }
+
+    private JarFreshness evaluateTargetScanJarFreshness(Path botWorkingDir, String botModule, Path jarPath) {
+        if (botWorkingDir == null || !StringUtils.hasText(botModule) || jarPath == null || !Files.isRegularFile(jarPath)) {
+            return JarFreshness.fresh();
+        }
+        try {
+            FileTime jarTime = Files.getLastModifiedTime(jarPath);
+            for (Path root : freshnessRoots(botWorkingDir, botModule)) {
+                Path newer = findFirstNewerPath(root, jarTime);
+                if (newer != null) {
+                    return JarFreshness.stale("Found newer source than scanned jar: " + newer);
+                }
+            }
+            return JarFreshness.fresh();
+        } catch (IOException ex) {
+            log.warn("Failed to evaluate freshness for scanned jar {}", jarPath, ex);
+            return JarFreshness.fresh();
+        }
+    }
+
+    private List<Path> freshnessRoots(Path botWorkingDir, String botModule) {
+        List<Path> roots = new ArrayList<>();
+        roots.add(botWorkingDir.resolve("pom.xml").normalize());
+        Path moduleDir = botWorkingDir.resolve(botModule).normalize();
+        roots.add(moduleDir.resolve("pom.xml").normalize());
+        roots.add(moduleDir.resolve("src").normalize());
+        Path botCoreDir = botWorkingDir.resolve("bot-core").normalize();
+        if (!botCoreDir.equals(moduleDir)) {
+            roots.add(botCoreDir.resolve("pom.xml").normalize());
+            roots.add(botCoreDir.resolve("src").normalize());
+        }
+        return roots;
+    }
+
+    private Path findFirstNewerPath(Path root, FileTime jarTime) throws IOException {
+        if (root == null || !Files.exists(root)) {
+            return null;
+        }
+        if (Files.isRegularFile(root)) {
+            return Files.getLastModifiedTime(root).compareTo(jarTime) > 0 ? root : null;
+        }
+        try (Stream<Path> files = Files.walk(root)) {
+            return files
+                .filter(Files::isRegularFile)
+                .filter(path -> {
+                    try {
+                        return Files.getLastModifiedTime(path).compareTo(jarTime) > 0;
+                    } catch (IOException ex) {
+                        return false;
+                    }
+                })
+                .findFirst()
+                .orElse(null);
         }
     }
 
@@ -496,7 +577,17 @@ public class BotRuntimeContractService {
         return normalized;
     }
 
-    private record ResolvedExecutableJar(Path path, String source) {}
+    private record ResolvedExecutableJar(Path path, String source, boolean stale, String staleReason) {}
+
+    private record JarFreshness(boolean stale, String reason) {
+        static JarFreshness fresh() {
+            return new JarFreshness(false, null);
+        }
+
+        static JarFreshness stale(String reason) {
+            return new JarFreshness(true, reason);
+        }
+    }
 
     public record BotLaunchPlan(List<String> command,
                                 String description,
