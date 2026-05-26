@@ -962,6 +962,16 @@ integration-сценария поверх users/settings runtime boundary всё
   settings-driven contract drift вокруг `customer_profile/context_sources`.
   Следующий practical focus здесь уже смещён дальше в parity/related
   projections и operator-facing workspace context edges.
+- следующим bounded пакетом закрыт и live `workspace` degradation/runtime
+  слой: `DialogWorkspaceIntegrationTest` теперь фиксирует partial
+  `include=context,permissions`, settings-driven limits для
+  `history/related_events`, disabled inline navigation и parity attention
+  path без `messages/sla`, а `DialogWorkspaceNavigationServiceTest`
+  дополнительно закрепляет legacy local-datetime normalization для queue
+  items. После этого practical focus в dialog-read/workspace зоне
+  смещён уже глубже в operator-facing composer/permissions parity и
+  adjacent read-model projection edges, а не в базовые related/navigation
+  contracts.
 - `DialogAiOpsController` теперь прикрыт не только по основным happy/error
   flows, но и по alias/null-body/default-path сценариям, что уменьшает риск
   regressions в transport-layer normalisation.

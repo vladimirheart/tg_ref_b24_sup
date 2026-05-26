@@ -863,6 +863,15 @@
   После этого practical focus в dialog-read/workspace зоне смещён уже с
   базового context-contract bootstrap на parity/related projections и
   operator-facing workspace context edge cases.
+- следующим пакетом добран и live `workspace` degradation/runtime contract:
+  `DialogWorkspaceIntegrationTest` теперь покрывает partial
+  `include=context,permissions`, settings-driven limits для
+  `history/related_events`, disabled inline navigation и parity attention
+  path без `messages/sla`, а `DialogWorkspaceNavigationServiceTest`
+  закрепляет legacy local-datetime normalization для queue items.
+  После этого practical focus в dialog-read/workspace зоне смещён уже с
+  базового parity/related bootstrap на более глубокие
+  operator-facing composer/permissions parity и read-model projection edges.
 - следующим пакетом добран public-shell bootstrap contract:
   `login`, `403`, `404` и `500` получили explicit `data-ui-page="public"`,
   `403/500` приведены к общему `fragments/ui-head`, а для public shell

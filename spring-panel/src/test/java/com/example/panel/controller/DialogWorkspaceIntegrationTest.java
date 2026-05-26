@@ -290,6 +290,77 @@ class DialogWorkspaceIntegrationTest {
                 .andExpect(jsonPath("$.context.blocks[*].ready", hasItem(false)));
     }
 
+    @Test
+    void workspaceApiAppliesRelatedProjectionLimitsAndParityDegradationForPartialInclude() throws Exception {
+        sharedConfigService.saveSettings(Map.of(
+                "dialog_config", Map.of(
+                        "workspace_inline_navigation", false,
+                        "workspace_context_history_limit", 1,
+                        "workspace_context_related_events_limit", 2
+                )
+        ));
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
+                VALUES (84, 'token84', 'Workspace Parity', 'telegram', 1, CURRENT_TIMESTAMP)
+                """);
+        insertDialogTicket(910094L, "T-WS-PARITY", 84L, "parity_user", "Клиент Parity", "Retail", "Тула", "Флагман", "Нужен runtime parity", "2026-05-25T13:00:00Z", 8401L);
+        insertDialogTicket(910094L, "T-WS-PREV-2", 84L, "parity_user", "Клиент Parity", "Retail", "Тула", "Архив 2", "Более новый прошлый диалог", "2026-05-24T13:00:00Z", 8402L);
+        insertDialogTicket(910094L, "T-WS-PREV-1", 84L, "parity_user", "Клиент Parity", "Retail", "Тула", "Архив 1", "Старый прошлый диалог", "2026-05-23T13:00:00Z", 8403L);
+        jdbcTemplate.update("""
+                INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
+                VALUES (?,?,?,?)
+                """,
+                "T-WS-PARITY", "watcher_owner", "dispatcher", "2026-05-25T12:59:00Z");
+        insertHistoryRow("T-WS-PARITY", 910094L, "user", "Первое сообщение parity", "2026-05-25T13:01:00Z", "text", 941L, null, 84L, null);
+        insertHistoryRow("T-WS-PARITY", 910094L, "operator", "Ответ для parity", "2026-05-25T13:02:00Z", "text", 942L, 941L, 84L, null);
+        insertHistoryRow("T-WS-PARITY", 910094L, "system", "Системное событие parity", "2026-05-25T13:03:00Z", "event", 943L, null, 84L, null);
+        jdbcTemplate.update("""
+                INSERT INTO dialog_action_audit(ticket_id, actor, action, result, detail, created_at)
+                VALUES (?,?,?,?,?,?)
+                """,
+                "T-WS-PARITY", "watcher_owner", "reply", "success", "audit_tail", "2026-05-25T13:05:00Z");
+        jdbcTemplate.update("""
+                INSERT INTO tasks(id, seq, title, assignee, creator, status, last_activity_at, created_at)
+                VALUES (?,?,?,?,?,?,?,?)
+                """,
+                84001L, 1L, "Parity task", "watcher_owner", "dispatcher", "Новая", "2026-05-25T13:04:00Z", "2026-05-25T13:00:30Z");
+        jdbcTemplate.update("""
+                INSERT INTO task_links(user_id, ticket_id, task_id)
+                VALUES (?,?,?)
+                """,
+                910094L, "T-WS-PARITY", 84001L);
+        jdbcTemplate.update("""
+                INSERT INTO task_history(id, task_id, at, text)
+                VALUES (?,?,?,?)
+                """,
+                84011L, 84001L, "2026-05-25T13:04:00Z", "Workflow escalation note");
+
+        mockMvc.perform(get("/api/dialogs/T-WS-PARITY/workspace")
+                        .param("include", "context,permissions")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.messages.unavailable").value(true))
+                .andExpect(jsonPath("$.messages.items.length()").value(0))
+                .andExpect(jsonPath("$.context.history.length()").value(1))
+                .andExpect(jsonPath("$.context.history[0].ticket_id").value("T-WS-PREV-2"))
+                .andExpect(jsonPath("$.context.related_events.length()").value(2))
+                .andExpect(jsonPath("$.context.related_events[*].type", hasItem("audit")))
+                .andExpect(jsonPath("$.context.related_events[*].type", hasItem("workflow")))
+                .andExpect(jsonPath("$.permissions.can_reply").value(true))
+                .andExpect(jsonPath("$.composer.reply_supported").value(true))
+                .andExpect(jsonPath("$.composer.reply_target_supported").value(true))
+                .andExpect(jsonPath("$.sla.unavailable").value(true))
+                .andExpect(jsonPath("$.sla.state").value("unknown"))
+                .andExpect(jsonPath("$.meta.navigation.enabled").value(false))
+                .andExpect(jsonPath("$.meta.navigation.summary").value("Inline navigation отключена текущей настройкой rollout."))
+                .andExpect(jsonPath("$.meta.parity.status").value("attention"))
+                .andExpect(jsonPath("$.meta.parity.missing_capabilities", hasItem("messages_timeline")))
+                .andExpect(jsonPath("$.meta.parity.missing_capabilities", hasItem("sla_visibility")))
+                .andExpect(jsonPath("$.meta.parity.checks[*].key", hasItem("history_context")))
+                .andExpect(jsonPath("$.meta.parity.checks[*].key", hasItem("related_events")));
+    }
+
     private void insertDialogTicket(long userId,
                                     String ticketId,
                                     long channelId,

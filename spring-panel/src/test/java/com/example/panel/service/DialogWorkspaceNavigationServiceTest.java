@@ -49,6 +49,20 @@ class DialogWorkspaceNavigationServiceTest {
         assertThat(payload.get("summary")).isEqualTo("Inline navigation отключена текущей настройкой rollout.");
     }
 
+    @Test
+    void buildNavigationMetaNormalizesLegacyLocalDateTimeForQueueItems() {
+        when(dialogLookupReadService.loadDialogs("operator")).thenReturn(List.of(
+                sampleDialog("T-100", "Клиент 1", "2026-04-20T10:00:00"),
+                sampleDialog("T-200", "Клиент 2", "2026-04-20T10:05:00"),
+                sampleDialog("T-300", "Клиент 3", "2026-04-20T10:10:00")
+        ));
+
+        Map<String, Object> payload = service.buildNavigationMeta(Map.of(), "operator", "T-200");
+
+        assertThat(((Map<?, ?>) payload.get("previous")).get("last_message_at_utc")).isEqualTo("2026-04-20T10:00Z");
+        assertThat(((Map<?, ?>) payload.get("next")).get("last_message_at_utc")).isEqualTo("2026-04-20T10:10Z");
+    }
+
     private DialogListItem sampleDialog(String ticketId, String clientName, String lastMessageAt) {
         return new DialogListItem(
                 ticketId,
@@ -71,7 +85,7 @@ class DialogWorkspaceNavigationServiceTest {
                 "10:00:00",
                 "vip",
                 "client",
-                "2026-04-20T10:01:00Z",
+                lastMessageAt,
                 1,
                 5,
                 "billing"
