@@ -29,3 +29,4 @@
 2026-05-26 21:25:58.545+03:00 INFO  [max-long-polling] c.e.s.max.MaxWebhookController - Blocked message from blacklisted MAX user 214991692 (matched key: 214991692)
 2026-05-26 21:26:02.376+03:00 INFO  [max-long-polling] c.e.s.max.MaxWebhookController - Blocked message from blacklisted MAX user 214991692 (matched key: 214991692)
 2026-05-26 21:26:02.428+03:00 INFO  [max-long-polling] c.e.s.service.BlacklistService - Stored unblock request for user 214991692
+2026-05-26 21:35:42.144+03:00 INFO  [max-long-polling] c.e.s.max.MaxWebhookController - Processing MAX feedback rating 5 from user 214991692
