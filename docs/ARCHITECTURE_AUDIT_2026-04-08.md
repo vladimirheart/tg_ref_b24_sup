@@ -1539,8 +1539,20 @@ integration-сценария поверх users/settings runtime boundary всё
   `DialogWorkspacePayloadAssemblerServiceTest`,
   `DialogWorkspaceParityServiceTest` и `DialogWorkspaceIntegrationTest`
   остаются зелёными на полном quick-action lifecycle envelope.
+- следующим пакетом этот lifecycle parity расширен уже на соседние
+  read-consumer routes: `DialogDetailsIntegrationTest` теперь фиксирует
+  `reassign -> resolve -> reopen` continuity для `/api/dialogs/{ticketId}`,
+  подтверждая updated `responsible/rawResponsible`, сохранённые categories и
+  runtime-статус `waiting_operator`, а `DialogReadIntegrationTest` закрывает
+  `/participants` projection после `reassign -> removeParticipant`.
+- это выравнивает quick-action read-model уже не только в `workspace`, но и в
+  adjacent consumers: `details` и `participants` routes теперь читают тот же
+  lifecycle без drift по owner/status/participant pool.
+- targeted `DialogWorkspaceIntegrationTest`, `DialogDetailsIntegrationTest` и
+  `DialogReadIntegrationTest` остаются зелёными на общем quick-action
+  cross-consumer runtime contract.
 - следующий practical focus в `dialog-read/workspace` зоне смещён уже с
-  базового lifecycle parity на более глубокие operator action UX edges:
-  optimistic refresh/notification continuity после `reopen/remove participant`,
-  badge/state projection drift вокруг `quick actions` и соседние consumer
-  contracts, которые читают workspace snapshot как source of truth.
+  cross-consumer lifecycle parity на ещё более тонкие UX/runtime edges:
+  audit/related-events continuity после quick actions, notification/read-marker
+  refresh loop и соседние consumer contracts, которые опираются на тот же
+  status/owner lifecycle.

@@ -1,5 +1,6 @@
 package com.example.panel.controller;
 
+import com.example.panel.service.DialogQuickActionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -19,6 +20,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.DriverManager;
+import java.util.List;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
@@ -92,6 +94,9 @@ class DialogDetailsIntegrationTest {
     @Autowired
     @Qualifier("usersJdbcTemplate")
     private JdbcTemplate usersJdbcTemplate;
+
+    @Autowired
+    private DialogQuickActionService dialogQuickActionService;
 
     @BeforeEach
     void clean() {
@@ -197,6 +202,75 @@ class DialogDetailsIntegrationTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error").value("Диалог не найден"));
+    }
+
+    @Test
+    void detailsApiRefreshesResponsibleAndStatusAfterReassignResolveAndReopenLifecycle() throws Exception {
+        insertDirectoryUser("watcher_owner", "Watcher Owner", "/img/watcher-owner.png");
+        insertDirectoryUser("watcher_new", "Watcher New", "/img/watcher-new.png");
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
+                VALUES (92, 'token92', 'Dialog Details Lifecycle', 'telegram', 1, CURRENT_TIMESTAMP)
+                """);
+        jdbcTemplate.update("""
+                INSERT INTO tickets (user_id, ticket_id, status, channel_id)
+                VALUES (?,?,?,?)
+                """,
+                910092L, "T-DETAIL-QA", "open", 92L);
+        jdbcTemplate.update("""
+                INSERT INTO messages (
+                    group_msg_id, user_id, business, city, location_name, problem, created_at,
+                    username, ticket_id, created_date, created_time, client_name, channel_id, updated_at, updated_by
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                9201L,
+                910092L,
+                "Retail",
+                "Тула",
+                "Точка QA",
+                "Проверка lifecycle details",
+                "2026-05-26T18:10:00Z",
+                "details_lifecycle_user",
+                "T-DETAIL-QA",
+                "2026-05-26",
+                "18:10:00",
+                "Клиент Детали QA",
+                92L,
+                "2026-05-26T18:10:00Z",
+                "seed");
+        jdbcTemplate.update("""
+                INSERT INTO client_statuses(user_id, status, updated_at)
+                VALUES (?,?,?)
+                """,
+                910092L, "VIP", "2026-05-26T18:10:00Z");
+        jdbcTemplate.update("""
+                INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
+                VALUES (?,?,?,?)
+                """,
+                "T-DETAIL-QA", "watcher_owner", "dispatcher", "2026-05-26T18:09:00Z");
+        jdbcTemplate.update("INSERT INTO ticket_categories(ticket_id, category) VALUES (?, ?)", "T-DETAIL-QA", "billing");
+        insertHistoryRow("T-DETAIL-QA", 910092L, "user", "Lifecycle first message", "2026-05-26T18:11:00Z", "text", 921L, null, 92L, null, null, null, null, null);
+
+        dialogQuickActionService.reassignTicket("T-DETAIL-QA", "watcher_new", "watcher_owner");
+        dialogQuickActionService.resolveTicket("T-DETAIL-QA", "watcher_new", List.of("billing"));
+        dialogQuickActionService.reopenTicket("T-DETAIL-QA", "watcher_new");
+
+        mockMvc.perform(get("/api/dialogs/T-DETAIL-QA")
+                        .param("channelId", "92")
+                        .principal(new TestingAuthenticationToken("watcher_new", "n/a")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.ticketId").value("T-DETAIL-QA"))
+                .andExpect(jsonPath("$.summary.clientName").value("Клиент Детали QA"))
+                .andExpect(jsonPath("$.summary.clientStatus").value("VIP"))
+                .andExpect(jsonPath("$.summary.channelId").value(92))
+                .andExpect(jsonPath("$.summary.statusKey").value("waiting_operator"))
+                .andExpect(jsonPath("$.summary.unreadCount").value(0))
+                .andExpect(jsonPath("$.summary.responsible").value("Watcher New"))
+                .andExpect(jsonPath("$.summary.rawResponsible").value("watcher_new"))
+                .andExpect(jsonPath("$.categories.length()").value(1))
+                .andExpect(jsonPath("$.categories[0]").value("billing"))
+                .andExpect(jsonPath("$.history.length()").value(1))
+                .andExpect(jsonPath("$.history[0].message").value("Lifecycle first message"));
     }
 
     private void ensureChatHistoryMutationColumns() {

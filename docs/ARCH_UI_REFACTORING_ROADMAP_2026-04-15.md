@@ -1389,7 +1389,17 @@
   `DialogWorkspacePayloadAssemblerServiceTest`,
   `DialogWorkspaceParityServiceTest` и `DialogWorkspaceIntegrationTest`
   остаются зелёными на full quick-action lifecycle envelope.
-- следующий practical focus в `dialog workspace` зоне смещён уже с базовой
-  lifecycle parity на более глубокий operator action UX/runtime contract:
-  optimistic refresh/notification continuity, badge/state drift у quick-action
-  consumers и соседние read-side projection edges.
+- следующим пакетом quick-action lifecycle parity расширен уже beyond
+  `workspace`: `DialogDetailsIntegrationTest` теперь закрепляет
+  `reassign -> resolve -> reopen` continuity для `/api/dialogs/{ticketId}`, а
+  `DialogReadIntegrationTest` — `/participants` projection после
+  `reassign -> removeParticipant`.
+- это даёт уже cross-consumer runtime contract для owner/status/participant
+  lifecycle: `workspace`, `details` и `read` routes подтверждают один и тот же
+  quick-action outcome без явного projection drift.
+- targeted `DialogWorkspaceIntegrationTest`, `DialogDetailsIntegrationTest` и
+  `DialogReadIntegrationTest` остаются зелёными на общем lifecycle наборе.
+- следующий practical focus в `dialog workspace/read/details` зоне смещён уже
+  с cross-consumer lifecycle parity на более тонкий operator UX/runtime
+  contract: audit/related-events continuity, notification/read-marker refresh
+  loop и соседние consumer projections вокруг того же status/owner lifecycle.

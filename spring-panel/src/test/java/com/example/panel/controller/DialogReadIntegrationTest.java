@@ -1,5 +1,6 @@
 package com.example.panel.controller;
 
+import com.example.panel.service.DialogQuickActionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -92,6 +93,9 @@ class DialogReadIntegrationTest {
     @Autowired
     @Qualifier("usersJdbcTemplate")
     private JdbcTemplate usersJdbcTemplate;
+
+    @Autowired
+    private DialogQuickActionService dialogQuickActionService;
 
     @BeforeEach
     void clean() {
@@ -282,6 +286,70 @@ class DialogReadIntegrationTest {
                 .andExpect(jsonPath("$.operators[2].username").value("watcher_peer"))
                 .andExpect(jsonPath("$.operators[*].username").value(org.hamcrest.Matchers.not(org.hamcrest.Matchers.hasItem("watcher_disabled"))))
                 .andExpect(jsonPath("$.operators[*].username").value(org.hamcrest.Matchers.not(org.hamcrest.Matchers.hasItem("watcher_blocked"))));
+    }
+
+    @Test
+    void participantsApiRefreshesAfterReassignAndParticipantRemovalLifecycle() throws Exception {
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        insertDirectoryUser("watcher_owner", true, false, 1L, "Support", "Watcher Owner", "Ops", "/img/owner.png");
+        insertDirectoryUser("watcher_new", true, false, 1L, "Support", "Watcher New", "Ops", "/img/new.png");
+        insertDirectoryUser("watcher_peer", true, false, 1L, "Support", "Watcher Peer", "Ops", "/img/peer.png");
+        insertDirectoryUser("watcher_observer", true, false, 1L, "Support", "Watcher Observer", "Backoffice", "/img/observer.png");
+
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
+                VALUES (73, 'token73c', 'Participants Lifecycle', 'telegram', 1, CURRENT_TIMESTAMP)
+                """);
+        jdbcTemplate.update("""
+                INSERT INTO tickets (user_id, ticket_id, status, channel_id)
+                VALUES (?,?,?,?)
+                """,
+                910081L, "T-READ-QA", "open", 73L);
+        jdbcTemplate.update("""
+                INSERT INTO messages (
+                    group_msg_id, user_id, problem, created_at, username, ticket_id,
+                    created_date, created_time, client_name, channel_id, updated_at, updated_by
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                7301L,
+                910081L,
+                "Нужно обновить участников",
+                "2026-05-26T18:05:00Z",
+                "read_lifecycle_user",
+                "T-READ-QA",
+                "2026-05-26",
+                "18:05:00",
+                "Клиент Read QA",
+                73L,
+                "2026-05-26T18:05:00Z",
+                "seed");
+        jdbcTemplate.update("""
+                INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
+                VALUES (?,?,?,?)
+                """,
+                "T-READ-QA", "watcher_owner", "dispatcher", "2026-05-26T18:04:00Z");
+        jdbcTemplate.update("""
+                INSERT INTO ticket_participants(ticket_id, username, added_at, added_by)
+                VALUES (?,?,CURRENT_TIMESTAMP,?)
+                """,
+                "T-READ-QA", "watcher_peer", "watcher_owner");
+        jdbcTemplate.update("""
+                INSERT INTO ticket_participants(ticket_id, username, added_at, added_by)
+                VALUES (?,?,CURRENT_TIMESTAMP,?)
+                """,
+                "T-READ-QA", "watcher_observer", "watcher_owner");
+
+        dialogQuickActionService.reassignTicket("T-READ-QA", "watcher_new", "watcher_owner");
+        dialogQuickActionService.removeParticipant("T-READ-QA", "watcher_observer", "watcher_new");
+
+        mockMvc.perform(get("/api/dialogs/T-READ-QA/participants"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.participants.length()").value(1))
+                .andExpect(jsonPath("$.participants[0].username").value("watcher_peer"))
+                .andExpect(jsonPath("$.participants[0].displayName").value("Watcher Peer"))
+                .andExpect(jsonPath("$.participants[0].department").value("Ops"))
+                .andExpect(jsonPath("$.participants[0].role").value("Support"));
     }
 
     private void ensureChatHistoryMutationColumns() {
