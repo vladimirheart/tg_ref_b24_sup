@@ -29,7 +29,9 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasItem;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -751,6 +753,73 @@ class DialogWorkspaceIntegrationTest {
                 .andExpect(jsonPath("$.workflow.reassign_candidates[*].username", hasItem("watcher_peer")))
                 .andExpect(jsonPath("$.conversation.statusKey").value("waiting_operator"))
                 .andExpect(jsonPath("$.meta.parity.checks[*].key", hasItem("operator_action_guards")));
+    }
+
+    @Test
+    void workspaceApiProjectsAuditRelatedEventsAfterHttpQuickActionLifecycle() throws Exception {
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        insertDirectoryUser("watcher_owner", true, false, 1L, "Support", "Watcher Owner", "Ops", "/img/owner.png");
+        insertDirectoryUser("watcher_new", true, false, 1L, "Support", "Watcher New", "Ops", "/img/new.png");
+        insertDirectoryUser("watcher_peer", true, false, 1L, "Support", "Watcher Peer", "Ops", "/img/peer.png");
+
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
+                VALUES (90, 'token90', 'Workspace Audit Trail', 'telegram', 1, CURRENT_TIMESTAMP)
+                """);
+        insertDialogTicket(910100L, "T-WS-AUDIT", 90L, "audit_user", "Клиент Audit", "Retail", "Тверь", "Филиал", "Проверка audit trail", "2026-05-26T14:00:00Z", 9001L);
+        jdbcTemplate.update("""
+                INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
+                VALUES (?,?,?,?)
+                """,
+                "T-WS-AUDIT", "watcher_owner", "dispatcher", "2026-05-26T13:59:00Z");
+        jdbcTemplate.update("""
+                INSERT INTO ticket_participants(ticket_id, username, added_at, added_by)
+                VALUES (?,?,CURRENT_TIMESTAMP,?)
+                """,
+                "T-WS-AUDIT", "watcher_peer", "watcher_owner");
+        insertHistoryRow("T-WS-AUDIT", 910100L, "user", "Сообщение для audit continuity", "2026-05-26T14:01:00Z", "text", 1001L, null, 90L, null);
+
+        mockMvc.perform(post("/api/dialogs/T-WS-AUDIT/reassign")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "username": "watcher_new"
+                                }
+                                """)
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.responsible").value("watcher_new"));
+
+        mockMvc.perform(post("/api/dialogs/T-WS-AUDIT/resolve")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "categories": ["billing"]
+                                }
+                                """)
+                        .principal(new TestingAuthenticationToken("watcher_new", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.updated").value(true));
+
+        mockMvc.perform(delete("/api/dialogs/T-WS-AUDIT/participants/watcher_peer")
+                        .principal(new TestingAuthenticationToken("watcher_new", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.changed").value(true));
+
+        mockMvc.perform(get("/api/dialogs/T-WS-AUDIT/workspace")
+                        .principal(new TestingAuthenticationToken("watcher_new", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.conversation.statusKey").value("closed"))
+                .andExpect(jsonPath("$.workflow.responsible.username").value("watcher_new"))
+                .andExpect(jsonPath("$.workflow.participants.length()").value(0))
+                .andExpect(jsonPath("$.context.related_events[*].type", hasItem("audit")))
+                .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("reassign: success (responsible_redirected)")))
+                .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("quick_close: success (updated)")))
+                .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("participants_remove: success (participant_removed)")));
     }
 
     private void insertDialogTicket(long userId,

@@ -1551,8 +1551,20 @@ integration-сценария поверх users/settings runtime boundary всё
 - targeted `DialogWorkspaceIntegrationTest`, `DialogDetailsIntegrationTest` и
   `DialogReadIntegrationTest` остаются зелёными на общем quick-action
   cross-consumer runtime contract.
+- следующим пакетом закрыта и `audit/related_events continuity` после
+  quick actions: live `DialogWorkspaceIntegrationTest` теперь проходит через
+  реальные HTTP quick-action endpoints `reassign -> resolve ->
+  participants_remove` и подтверждает не только updated responsible/status,
+  но и появление audit trail в `workspace.context.related_events`.
+- это выравнивает уже не только read-model lifecycle, но и operator-visible
+  action trail continuity: `reassign: success (responsible_redirected)`,
+  `quick_close: success (updated)` и `participants_remove: success
+  (participant_removed)` остаются доступны в том же runtime workspace payload
+  после controller-level quick actions.
+- targeted `DialogWorkspaceIntegrationTest`, `DialogDetailsIntegrationTest` и
+  `DialogReadIntegrationTest` остаются зелёными уже и на этом audit-trail
+  continuation слое.
 - следующий practical focus в `dialog-read/workspace` зоне смещён уже с
-  cross-consumer lifecycle parity на ещё более тонкие UX/runtime edges:
-  audit/related-events continuity после quick actions, notification/read-marker
-  refresh loop и соседние consumer contracts, которые опираются на тот же
-  status/owner lifecycle.
+  cross-consumer lifecycle parity и basic audit trail на ещё более тонкие
+  UX/runtime edges: notification/read-marker refresh loop и соседние consumer
+  contracts, которые опираются на тот же status/owner/action lifecycle.

@@ -1399,7 +1399,15 @@
   quick-action outcome без явного projection drift.
 - targeted `DialogWorkspaceIntegrationTest`, `DialogDetailsIntegrationTest` и
   `DialogReadIntegrationTest` остаются зелёными на общем lifecycle наборе.
+- следующим пакетом добрана и `audit/related-events continuity` после
+  quick actions: `DialogWorkspaceIntegrationTest` теперь гоняет реальные HTTP
+  quick-action endpoints и подтверждает, что `/workspace` проецирует не только
+  owner/status outcome, но и audit trail в `context.related_events`.
+- это даёт уже не просто cross-consumer parity по lifecycle, а и
+  operator-facing continuity по action trail: `reassign`, `quick_close` и
+  `participants_remove` остаются видимыми в workspace context после тех же
+  controller-level runtime веток, которыми пользуется UI.
 - следующий practical focus в `dialog workspace/read/details` зоне смещён уже
-  с cross-consumer lifecycle parity на более тонкий operator UX/runtime
-  contract: audit/related-events continuity, notification/read-marker refresh
-  loop и соседние consumer projections вокруг того же status/owner lifecycle.
+  с cross-consumer lifecycle parity и basic audit trail на более тонкий
+  operator UX/runtime contract: notification/read-marker refresh loop и
+  соседние consumer projections вокруг того же status/owner/action lifecycle.
