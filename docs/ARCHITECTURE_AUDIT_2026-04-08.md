@@ -972,6 +972,17 @@ integration-сценария поверх users/settings runtime boundary всё
   смещён уже глубже в operator-facing composer/permissions parity и
   adjacent read-model projection edges, а не в базовые related/navigation
   contracts.
+- следующим bounded пакетом закрыт и operator-facing `workspace`
+  permissions/composer parity edge: `DialogWorkspaceIntegrationTest`
+  теперь фиксирует live `/api/dialogs/{ticketId}/workspace` scenario с
+  explicit denied permissions, а `DialogWorkspaceParityServiceTest`
+  добран ветками на composer disable и distinction между `attention` и
+  `blocked`. Это закрепляет реальный runtime contract: incomplete
+  permission envelope остаётся `blocked`, а explicit boolean deny даёт
+  `attention` с missing `reply_threading/media_reply`, но без деградации
+  `operator_actions`. После этого practical focus в dialog-read/workspace
+  зоне смещён уже не в базовое parity semantics, а в deeper
+  operator-facing projection drift и соседние read-model/composer edges.
 - `DialogAiOpsController` теперь прикрыт не только по основным happy/error
   flows, но и по alias/null-body/default-path сценариям, что уменьшает риск
   regressions в transport-layer normalisation.

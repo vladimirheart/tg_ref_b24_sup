@@ -361,6 +361,40 @@ class DialogWorkspaceIntegrationTest {
                 .andExpect(jsonPath("$.meta.parity.checks[*].key", hasItem("related_events")));
     }
 
+    @Test
+    void workspaceApiBlocksOperatorParityWhenDialogPermissionsAreMissing() throws Exception {
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
+                VALUES (85, 'token85', 'Workspace Blocked', 'telegram', 1, CURRENT_TIMESTAMP)
+                """);
+        insertDialogTicket(910095L, "T-WS-BLOCKED", 85L, "blocked_user", "Клиент Blocked", "Retail", "Курск", "Точка", "Нужен blocked parity contract", "2026-05-26T09:00:00Z", 8501L);
+        jdbcTemplate.update("""
+                INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
+                VALUES (?,?,?,?)
+                """,
+                "T-WS-BLOCKED", "viewer_only", "dispatcher", "2026-05-26T08:59:00Z");
+        insertHistoryRow("T-WS-BLOCKED", 910095L, "user", "Сообщение без thread target", "2026-05-26T09:01:00Z", "text", 951L, null, 85L, null);
+        insertHistoryRow("T-WS-BLOCKED", 910095L, "operator", "Ответ без tg target", "2026-05-26T09:02:00Z", "text", 0L, null, 85L, null);
+
+        mockMvc.perform(get("/api/dialogs/T-WS-BLOCKED/workspace")
+                        .param("include", "messages,context,permissions,sla")
+                        .principal(new TestingAuthenticationToken("viewer_only", "n/a", "PAGE_USERS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.permissions.can_reply").value(false))
+                .andExpect(jsonPath("$.permissions.can_assign").value(false))
+                .andExpect(jsonPath("$.permissions.can_close").value(false))
+                .andExpect(jsonPath("$.permissions.can_snooze").value(false))
+                .andExpect(jsonPath("$.composer.reply_supported").value(false))
+                .andExpect(jsonPath("$.composer.media_supported").value(false))
+                .andExpect(jsonPath("$.composer.reply_target_supported").value(false))
+                .andExpect(jsonPath("$.messages.items.length()").value(2))
+                .andExpect(jsonPath("$.meta.parity.status").value("attention"))
+                .andExpect(jsonPath("$.meta.parity.missing_capabilities", hasItem("reply_threading")))
+                .andExpect(jsonPath("$.meta.parity.missing_capabilities", hasItem("media_reply")))
+                .andExpect(jsonPath("$.meta.parity.checks[*].status", hasItem("attention")));
+    }
+
     private void insertDialogTicket(long userId,
                                     String ticketId,
                                     long channelId,

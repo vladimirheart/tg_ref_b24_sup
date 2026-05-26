@@ -30,6 +30,20 @@ class DialogWorkspaceParityServiceTest {
     }
 
     @Test
+    void buildComposerMetaDisablesReplyCapabilitiesWithoutReplyPermission() {
+        DialogListItem summary = sampleDialog();
+        List<ChatMessageDto> history = List.of(
+                new ChatMessageDto("client", "hello", null, "2026-04-20T10:00:00Z", "text", null, 101L, null, null, null, null, null)
+        );
+
+        Map<String, Object> composer = service.buildComposerMeta(summary, history, Map.of("can_reply", false));
+
+        assertThat(composer.get("reply_supported")).isEqualTo(false);
+        assertThat(composer.get("media_supported")).isEqualTo(false);
+        assertThat(composer.get("reply_target_supported")).isEqualTo(false);
+    }
+
+    @Test
     void buildParityMetaReturnsOkWhenCoreWorkspaceCapabilitiesAreReady() {
         Map<String, Object> composer = service.buildComposerMeta(sampleDialog(), List.of(
                 new ChatMessageDto("operator", "ok", null, "2026-04-20T10:01:00Z", "text", null, 200L, null, null, null, null, null)
@@ -82,6 +96,37 @@ class DialogWorkspaceParityServiceTest {
 
         assertThat(parity.get("status")).isEqualTo("blocked");
         assertThat(parity.get("missing_capabilities").toString()).contains("operator_actions");
+    }
+
+    @Test
+    void buildParityMetaReturnsAttentionWhenPermissionsExplicitlyDenyReplyButContractIsPresent() {
+        Map<String, Object> parity = service.buildParityMeta(
+                Set.of("messages", "context", "sla"),
+                Map.of("id", "client-1"),
+                List.of(),
+                List.of(),
+                Map.of("enabled", true, "ready", true),
+                Map.of("enabled", true, "ready", true),
+                Map.of(
+                        "can_reply", false,
+                        "can_assign", false,
+                        "can_close", false,
+                        "can_snooze", false
+                ),
+                Map.of(
+                        "reply_supported", false,
+                        "media_supported", false,
+                        "reply_target_supported", false
+                ),
+                "healthy",
+                sampleDialog(),
+                Map.of("mode", "workspace_primary")
+        );
+
+        assertThat(parity.get("status")).isEqualTo("attention");
+        assertThat(parity.get("missing_capabilities").toString()).contains("reply_threading");
+        assertThat(parity.get("missing_capabilities").toString()).contains("media_reply");
+        assertThat(parity.get("missing_capabilities").toString()).doesNotContain("operator_actions");
     }
 
     private DialogListItem sampleDialog() {

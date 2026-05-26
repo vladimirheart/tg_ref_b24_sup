@@ -872,6 +872,15 @@
   После этого practical focus в dialog-read/workspace зоне смещён уже с
   базового parity/related bootstrap на более глубокие
   operator-facing composer/permissions parity и read-model projection edges.
+- следующим пакетом добран и operator-facing `workspace`
+  permissions/composer parity contract: `DialogWorkspaceIntegrationTest`
+  теперь фиксирует live scenario с explicit denied permissions для
+  `/api/dialogs/{ticketId}/workspace`, а `DialogWorkspaceParityServiceTest`
+  закрепляет `composer` disable и distinction между `blocked`
+  (missing permission envelope) и `attention` (explicit boolean deny).
+  После этого practical focus в dialog-read/workspace зоне смещён уже с
+  базовой parity semantics на deeper operator-facing projection drift и
+  adjacent read-model/composer edge cases.
 - следующим пакетом добран public-shell bootstrap contract:
   `login`, `403`, `404` и `500` получили explicit `data-ui-page="public"`,
   `403/500` приведены к общему `fragments/ui-head`, а для public shell
