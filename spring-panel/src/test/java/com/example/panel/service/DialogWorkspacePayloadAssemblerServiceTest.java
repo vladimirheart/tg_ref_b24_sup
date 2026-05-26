@@ -73,4 +73,77 @@ class DialogWorkspacePayloadAssemblerServiceTest {
 
         assertThat(payload).containsExactlyEntriesOf(expected);
     }
+
+    @Test
+    void buildWorkspacePayloadBuildsRichIncludedSectionsAndEscalationState() {
+        ChatMessageDto message = new ChatMessageDto(
+                "operator",
+                "",
+                "Изначальный ответ",
+                "2026-05-26T10:02:00Z",
+                "image",
+                "/api/attachments/tickets/T-WS-RICH/reply.png",
+                962L,
+                961L,
+                "Изображение",
+                "2026-05-26T10:02:30Z",
+                "2026-05-26T10:03:30Z",
+                "lead"
+        );
+
+        Map<String, Object> payload = service.buildWorkspacePayload(
+                Set.of("messages", "context", "sla"),
+                50,
+                2,
+                List.of(message),
+                null,
+                false,
+                Map.of("id", 910096L, "name", "Клиент Rich"),
+                List.of(Map.of("ticket_id", "T-WS-PREV")),
+                Map.of("matches", List.of("crm")),
+                List.of(Map.of("type", "audit")),
+                Map.of("enabled", true, "ready", true),
+                List.of(Map.of("key", "crm", "status", "ok")),
+                List.of(Map.of("key", "phone", "ready", true)),
+                List.of(Map.of("key", "customer_profile", "ready", true)),
+                Map.of("enabled", true, "ready", true),
+                Map.of("enabled", true, "ready", true),
+                Map.of("can_reply", true, "can_assign", true, "can_close", true, "can_snooze", true),
+                Map.of("reply_supported", true, "media_supported", true, "reply_target_supported", true),
+                1440,
+                240,
+                30,
+                "2026-05-27T08:00:00Z",
+                "critical",
+                15L,
+                Map.of("enabled", true, "owner", "sla-core"),
+                Map.of("mode", "workspace_primary"),
+                Map.of("current_ticket_id", "T-WS-RICH", "enabled", true),
+                Map.of("status", "attention", "missing_capabilities", List.of("media_reply"))
+        );
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> messages = (Map<String, Object>) payload.get("messages");
+        @SuppressWarnings("unchecked")
+        List<ChatMessageDto> items = (List<ChatMessageDto>) messages.get("items");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> context = (Map<String, Object>) payload.get("context");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> sla = (Map<String, Object>) payload.get("sla");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> meta = (Map<String, Object>) payload.get("meta");
+
+        assertThat(payload).containsEntry("contract_version", "workspace.v1");
+        assertThat(payload).containsEntry("success", true);
+        assertThat(items).hasSize(1);
+        assertThat(items.get(0).replyPreview()).isEqualTo("Изображение");
+        assertThat(items.get(0).originalMessage()).isEqualTo("Изначальный ответ");
+        assertThat(items.get(0).deletedAt()).isEqualTo("2026-05-26T10:03:30Z");
+        assertThat(context).containsEntry("client", Map.of("id", 910096L, "name", "Клиент Rich"));
+        assertThat(context).containsEntry("profile_match_candidates", Map.of("matches", List.of("crm")));
+        assertThat(sla).containsEntry("state", "critical");
+        assertThat(sla).containsEntry("escalation_required", true);
+        assertThat(meta).containsEntry("cursor", 2);
+        assertThat(meta).containsEntry("parity", Map.of("status", "attention", "missing_capabilities", List.of("media_reply")));
+    }
 }

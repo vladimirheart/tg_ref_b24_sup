@@ -21,8 +21,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.DriverManager;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasItem;
@@ -101,6 +103,7 @@ class DialogWorkspaceIntegrationTest {
 
     @BeforeEach
     void clean() {
+        ensureChatHistoryMutationColumns();
         jdbcTemplate.update("DELETE FROM chat_history");
         jdbcTemplate.update("DELETE FROM ticket_categories");
         jdbcTemplate.update("DELETE FROM ticket_participants");
@@ -118,6 +121,27 @@ class DialogWorkspaceIntegrationTest {
         usersJdbcTemplate.update("DELETE FROM users");
         usersJdbcTemplate.update("DELETE FROM roles");
         sharedConfigService.saveSettings(new LinkedHashMap<>());
+    }
+
+    private void ensureChatHistoryMutationColumns() {
+        ensureColumn("chat_history", "original_message", "TEXT");
+        ensureColumn("chat_history", "edited_at", "TEXT");
+        ensureColumn("chat_history", "deleted_at", "TEXT");
+        ensureColumn("chat_history", "forwarded_from", "TEXT");
+    }
+
+    private void ensureColumn(String tableName, String columnName, String definition) {
+        if (loadColumns(tableName).contains(columnName)) {
+            return;
+        }
+        jdbcTemplate.execute("ALTER TABLE " + tableName + " ADD COLUMN " + columnName + " " + definition);
+    }
+
+    private Set<String> loadColumns(String tableName) {
+        return new LinkedHashSet<>(jdbcTemplate.query(
+                "PRAGMA table_info(" + tableName + ")",
+                (rs, rowNum) -> rs.getString("name")
+        ));
     }
 
     @Test
@@ -395,6 +419,46 @@ class DialogWorkspaceIntegrationTest {
                 .andExpect(jsonPath("$.meta.parity.checks[*].status", hasItem("attention")));
     }
 
+    @Test
+    void workspaceApiProjectsRichTimelineMutationAndAttachmentFields() throws Exception {
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
+                VALUES (86, 'token86', 'Workspace Rich Timeline', 'telegram', 1, CURRENT_TIMESTAMP)
+                """);
+        insertDialogTicket(910096L, "T-WS-RICH", 86L, "rich_user", "Клиент Rich", "Retail", "Тверь", "Шоурум", "Нужен timeline payload", "2026-05-26T10:00:00Z", 8601L);
+        jdbcTemplate.update("""
+                INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
+                VALUES (?,?,?,?)
+                """,
+                "T-WS-RICH", "watcher_owner", "dispatcher", "2026-05-26T09:59:00Z");
+        insertHistoryRow("T-WS-RICH", 910096L, "user", "", "2026-05-26T10:01:00Z", "image", 961L, null, 86L,
+                "attachments/T-WS-RICH/client photo.jpg", null, null, null, null);
+        insertHistoryRow("T-WS-RICH", 910096L, "operator", "Обновлённый ответ", "2026-05-26T10:02:00Z", "image", 962L, 961L, 86L,
+                "reply.png", "Изначальный ответ", "2026-05-26T10:02:30Z", null, "lead");
+        insertHistoryRow("T-WS-RICH", 910096L, "user", "Скрытое удалённое сообщение", "2026-05-26T10:03:00Z", "text", 963L, 962L, 86L,
+                null, "Скрытое удалённое сообщение", null, "2026-05-26T10:03:30Z", null);
+
+        mockMvc.perform(get("/api/dialogs/T-WS-RICH/workspace")
+                        .param("include", "messages,context,permissions,sla")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.messages.items.length()").value(3))
+                .andExpect(jsonPath("$.messages.items[0].attachment").value("/api/attachments/tickets/by-path?path=attachments/T-WS-RICH/client%20photo.jpg"))
+                .andExpect(jsonPath("$.messages.items[1].replyPreview").value("Изображение"))
+                .andExpect(jsonPath("$.messages.items[1].originalMessage").value("Изначальный ответ"))
+                .andExpect(jsonPath("$.messages.items[1].attachment").value("/api/attachments/tickets/T-WS-RICH/reply.png"))
+                .andExpect(jsonPath("$.messages.items[1].editedAt").value("2026-05-26T10:02:30Z"))
+                .andExpect(jsonPath("$.messages.items[1].forwardedFrom").value("lead"))
+                .andExpect(jsonPath("$.messages.items[2].message").value(""))
+                .andExpect(jsonPath("$.messages.items[2].originalMessage").value("Скрытое удалённое сообщение"))
+                .andExpect(jsonPath("$.messages.items[2].deletedAt").value("2026-05-26T10:03:30Z"))
+                .andExpect(jsonPath("$.messages.items[2].replyPreview").value("Обновлённый ответ"))
+                .andExpect(jsonPath("$.permissions.can_reply").value(true))
+                .andExpect(jsonPath("$.composer.media_supported").value(true))
+                .andExpect(jsonPath("$.meta.parity.status").value("ok"));
+    }
+
     private void insertDialogTicket(long userId,
                                     String ticketId,
                                     long channelId,
@@ -444,11 +508,30 @@ class DialogWorkspaceIntegrationTest {
                                   Long replyToTelegramId,
                                   long channelId,
                                   String attachment) {
+        insertHistoryRow(ticketId, userId, sender, message, timestamp, messageType, telegramMessageId, replyToTelegramId, channelId,
+                attachment, null, null, null, null);
+    }
+
+    private void insertHistoryRow(String ticketId,
+                                  long userId,
+                                  String sender,
+                                  String message,
+                                  String timestamp,
+                                  String messageType,
+                                  long telegramMessageId,
+                                  Long replyToTelegramId,
+                                  long channelId,
+                                  String attachment,
+                                  String originalMessage,
+                                  String editedAt,
+                                  String deletedAt,
+                                  String forwardedFrom) {
         jdbcTemplate.update("""
                 INSERT INTO chat_history (
                     user_id, sender, message, timestamp, ticket_id, message_type,
-                    channel_id, tg_message_id, reply_to_tg_id, attachment
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    channel_id, tg_message_id, reply_to_tg_id, attachment,
+                    original_message, edited_at, deleted_at, forwarded_from
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 userId,
                 sender,
@@ -459,6 +542,10 @@ class DialogWorkspaceIntegrationTest {
                 channelId,
                 telegramMessageId,
                 replyToTelegramId,
-                attachment);
+                attachment,
+                originalMessage,
+                editedAt,
+                deletedAt,
+                forwardedFrom);
     }
 }

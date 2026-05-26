@@ -983,6 +983,17 @@ integration-сценария поверх users/settings runtime boundary всё
   `operator_actions`. После этого practical focus в dialog-read/workspace
   зоне смещён уже не в базовое parity semantics, а в deeper
   operator-facing projection drift и соседние read-model/composer edges.
+- следующим bounded пакетом закрыт и rich `workspace` timeline payload
+  contract: `DialogWorkspaceIntegrationTest` теперь фиксирует live
+  mutation/media scenario для `/api/dialogs/{ticketId}/workspace`, а
+  `DialogWorkspacePayloadAssemblerServiceTest` добран на full included
+  payload с escalation state. Это закрепляет runtime semantics для
+  `replyPreview` у media-only сообщений, `originalMessage/editedAt/
+  deletedAt/forwardedFrom`, ticket attachment URLs и `by-path`
+  attachment routing прямо в `workspace` endpoint, а не только в
+  соседних `details/read` route-ах. После этого practical focus в
+  dialog-read/workspace зоне смещён уже с timeline payload continuity на
+  deeper operator workflow parity и adjacent projection drift.
 - `DialogAiOpsController` теперь прикрыт не только по основным happy/error
   flows, но и по alias/null-body/default-path сценариям, что уменьшает риск
   regressions в transport-layer normalisation.

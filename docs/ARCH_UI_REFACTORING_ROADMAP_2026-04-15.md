@@ -881,6 +881,15 @@
   После этого practical focus в dialog-read/workspace зоне смещён уже с
   базовой parity semantics на deeper operator-facing projection drift и
   adjacent read-model/composer edge cases.
+- следующим пакетом добран и rich `workspace` timeline payload contract:
+  `DialogWorkspaceIntegrationTest` теперь покрывает live mutation/media
+  scenario с `replyPreview`, `originalMessage`, `editedAt`, `deletedAt`,
+  `forwardedFrom` и attachment URL routing, а
+  `DialogWorkspacePayloadAssemblerServiceTest` закрепляет full included
+  payload с escalation state и parity/meta envelope. После этого
+  practical focus в dialog-read/workspace зоне смещён уже с timeline
+  payload continuity на deeper operator workflow parity и adjacent
+  projection drift edge cases.
 - следующим пакетом добран public-shell bootstrap contract:
   `login`, `403`, `404` и `500` получили explicit `data-ui-page="public"`,
   `403/500` приведены к общему `fragments/ui-head`, а для public shell
