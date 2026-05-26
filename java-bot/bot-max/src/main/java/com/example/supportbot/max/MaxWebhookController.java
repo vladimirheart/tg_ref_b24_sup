@@ -4,6 +4,7 @@ import com.example.supportbot.config.MaxBotProperties;
 import com.example.supportbot.entity.Channel;
 import com.example.supportbot.entity.PendingFeedbackRequest;
 import com.example.supportbot.entity.TicketActive;
+import com.example.supportbot.service.BlacklistService;
 import com.example.supportbot.service.ChannelService;
 import com.example.supportbot.service.ChatHistoryService;
 import com.example.supportbot.service.FeedbackService;
@@ -21,6 +22,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -42,8 +44,13 @@ public class MaxWebhookController {
     private static final Logger log = LoggerFactory.getLogger(MaxWebhookController.class);
     private static final List<String> CORE_LOCATION_FIELDS = List.of("business", "location_type", "city", "location_name");
     private static final Duration LOCATION_CACHE_TTL = Duration.ofMinutes(5);
+    private static final String BLACKLISTED_TEXT =
+            "Ваш аккаунт заблокирован. Отправьте /unblock, чтобы подать запрос на разблокировку.";
+    private static final String BLACKLISTED_PENDING_TEXT =
+            "Ваш аккаунт заблокирован. Запрос уже на рассмотрении.";
 
     private final MaxBotProperties properties;
+    private final BlacklistService blacklistService;
     private final ChannelService channelService;
     private final TicketService ticketService;
     private final ChatHistoryService chatHistoryService;
@@ -61,6 +68,7 @@ public class MaxWebhookController {
     private volatile Instant locationCacheUpdatedAt;
 
     public MaxWebhookController(MaxBotProperties properties,
+                                BlacklistService blacklistService,
                                 ChannelService channelService,
                                 TicketService ticketService,
                                 ChatHistoryService chatHistoryService,
@@ -71,6 +79,7 @@ public class MaxWebhookController {
                                 SharedConfigService sharedConfigService,
                                 ObjectMapper objectMapper) {
         this.properties = properties;
+        this.blacklistService = blacklistService;
         this.channelService = channelService;
         this.ticketService = ticketService;
         this.chatHistoryService = chatHistoryService;
@@ -110,6 +119,16 @@ public class MaxWebhookController {
         }
 
         Channel channel = channelService.resolveConfiguredChannel(properties.getChannelId(), properties.getToken(), "MAX", "max");
+        BlacklistService.BlacklistStatus status = blacklistService.getStatus(userId);
+        if (status.blacklisted()) {
+            log.info("Blocked message from blacklisted MAX user {}", userId);
+            if ("/unblock".equalsIgnoreCase(text)) {
+                handleUnblockRequest(channel, userId);
+                return ResponseEntity.ok(Map.of("ok", true, "unblock_requested", true));
+            }
+            handleBlacklistedUser(channel, userId, status);
+            return ResponseEntity.ok(Map.of("ok", true, "blocked", true));
+        }
 
         String publicFormToken = extractPublicFormContinueToken(text);
         if (publicFormToken != null) {
@@ -243,6 +262,96 @@ public class MaxWebhookController {
         String response = botSettingsService.ratingResponseFor(settings, rating).orElse("Спасибо за оценку!");
         messagingService.sendToUser(channel, userId, response);
         return ResponseEntity.ok(Map.of("ok", true, "feedback_saved", true, "rating", rating));
+    }
+
+    private void handleUnblockRequest(Channel channel, Long userId) {
+        if (channel == null || userId == null) {
+            return;
+        }
+        BotSettingsDto settings = botSettingsService.loadFromChannel(channel);
+        int cooldownMinutes = botSettingsService.unblockRequestCooldownMinutes(settings, 60);
+        Duration cooldown = cooldownMinutes > 0 ? Duration.ofMinutes(cooldownMinutes) : Duration.ZERO;
+        Long channelId = channel.getId();
+        BlacklistService.UnblockRequestDecision decision =
+                blacklistService.requestUnblock(userId, "", channelId, cooldown);
+        if (decision.created()) {
+            notifyOperatorsAboutUnblockRequest(channel, decision.request());
+        }
+        messagingService.sendToUser(channel, userId, buildUnblockResponse(decision));
+    }
+
+    private void handleBlacklistedUser(Channel channel, Long userId, BlacklistService.BlacklistStatus status) {
+        if (channel == null || userId == null || status == null) {
+            return;
+        }
+        messagingService.sendToUser(channel, userId,
+                status.unblockRequested() ? BLACKLISTED_PENDING_TEXT : BLACKLISTED_TEXT);
+    }
+
+    private void notifyOperatorsAboutUnblockRequest(Channel channel,
+                                                    com.example.supportbot.entity.ClientUnblockRequest request) {
+        if (channel == null || request == null) {
+            return;
+        }
+        StringBuilder builder = new StringBuilder();
+        builder.append("Новый запрос на разблокировку\n");
+        if (request.getId() != null) {
+            builder.append("Заявка: #").append(request.getId()).append("\n");
+        }
+        builder.append("Клиент: ").append(request.getUserId()).append("\n");
+        if (request.getReason() != null && !request.getReason().isBlank()) {
+            builder.append("Причина: ").append(request.getReason()).append("\n");
+        }
+        if (request.getCreatedAt() != null) {
+            builder.append("Создан: ").append(formatTimestamp(request.getCreatedAt())).append("\n");
+        }
+        builder.append("Статус: ").append(request.getStatus());
+        messagingService.sendToSupportChat(channel, builder.toString());
+    }
+
+    private String buildUnblockResponse(BlacklistService.UnblockRequestDecision decision) {
+        String requestId = decision.request() != null && decision.request().getId() != null
+                ? "#" + decision.request().getId()
+                : null;
+        if (decision.created()) {
+            return requestId == null
+                    ? "Запрос на разблокировку отправлен оператору."
+                    : "Запрос на разблокировку отправлен оператору. Номер заявки: " + requestId + ".";
+        }
+        Duration retryAfter = decision.retryAfter();
+        if (retryAfter != null && !retryAfter.isZero() && !retryAfter.isNegative()) {
+            String retryText = formatRetryAfter(retryAfter);
+            if (requestId != null) {
+                return "Запрос уже зарегистрирован под номером " + requestId
+                        + ". Повторно можно отправить через " + retryText + ".";
+            }
+            return "Запрос уже зарегистрирован. Повторно можно отправить через " + retryText + ".";
+        }
+        return requestId == null
+                ? "Запрос уже на рассмотрении."
+                : "Запрос уже на рассмотрении. Номер заявки: " + requestId + ".";
+    }
+
+    private String formatRetryAfter(Duration retryAfter) {
+        if (retryAfter == null || retryAfter.isZero() || retryAfter.isNegative()) {
+            return "несколько минут";
+        }
+        long seconds = retryAfter.getSeconds();
+        if (seconds < 60) {
+            return "менее минуты";
+        }
+        long minutes = (seconds + 59) / 60;
+        if (minutes <= 1) {
+            return "менее минуты";
+        }
+        return minutes + " мин.";
+    }
+
+    private String formatTimestamp(OffsetDateTime value) {
+        if (value == null) {
+            return "";
+        }
+        return value.format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm"));
     }
 
     private boolean isStaleActiveTicket(String ticketId) {

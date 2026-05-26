@@ -1,6 +1,7 @@
 package com.example.supportbot.max;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -8,7 +9,12 @@ import static org.mockito.Mockito.when;
 
 import com.example.supportbot.config.MaxBotProperties;
 import com.example.supportbot.entity.Channel;
+import com.example.supportbot.entity.ClientBlacklist;
+import com.example.supportbot.entity.ClientUnblockRequest;
 import com.example.supportbot.entity.PendingFeedbackRequest;
+import com.example.supportbot.repository.ClientBlacklistRepository;
+import com.example.supportbot.repository.ClientUnblockRequestRepository;
+import com.example.supportbot.service.BlacklistService;
 import com.example.supportbot.service.ChannelService;
 import com.example.supportbot.service.ChatHistoryService;
 import com.example.supportbot.service.FeedbackService;
@@ -20,6 +26,8 @@ import com.example.supportbot.settings.BotSettingsService;
 import com.example.supportbot.settings.dto.BotSettingsDto;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.time.Duration;
+import java.time.OffsetDateTime;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -35,6 +43,9 @@ class MaxWebhookControllerTest {
         properties.setChannelId(42L);
         properties.setToken("token");
 
+        ClientBlacklistRepository blacklistRepository = mock(ClientBlacklistRepository.class);
+        ClientUnblockRequestRepository unblockRequestRepository = mock(ClientUnblockRequestRepository.class);
+        BlacklistService blacklistService = createBlacklistService(blacklistRepository, unblockRequestRepository);
         ChannelService channelService = mock(ChannelService.class);
         TicketService ticketService = mock(TicketService.class);
         ChatHistoryService chatHistoryService = mock(ChatHistoryService.class);
@@ -47,9 +58,11 @@ class MaxWebhookControllerTest {
 
         Channel channel = new Channel();
         when(channelService.resolveConfiguredChannel(42L, "token", "MAX", "max")).thenReturn(channel);
+        when(blacklistRepository.findById("1001")).thenReturn(Optional.empty());
 
         MaxWebhookController controller = new MaxWebhookController(
                 properties,
+                blacklistService,
                 channelService,
                 ticketService,
                 chatHistoryService,
@@ -82,6 +95,9 @@ class MaxWebhookControllerTest {
         properties.setChannelId(42L);
         properties.setToken("token");
 
+        ClientBlacklistRepository blacklistRepository = mock(ClientBlacklistRepository.class);
+        ClientUnblockRequestRepository unblockRequestRepository = mock(ClientUnblockRequestRepository.class);
+        BlacklistService blacklistService = createBlacklistService(blacklistRepository, unblockRequestRepository);
         ChannelService channelService = mock(ChannelService.class);
         TicketService ticketService = mock(TicketService.class);
         ChatHistoryService chatHistoryService = mock(ChatHistoryService.class);
@@ -95,6 +111,7 @@ class MaxWebhookControllerTest {
         Channel channel = new Channel();
         channel.setId(42L);
         when(channelService.resolveConfiguredChannel(42L, "token", "MAX", "max")).thenReturn(channel);
+        when(blacklistRepository.findById("1001")).thenReturn(Optional.empty());
 
         PendingFeedbackRequest request = new PendingFeedbackRequest();
         request.setUserId(1001L);
@@ -109,6 +126,7 @@ class MaxWebhookControllerTest {
 
         MaxWebhookController controller = new MaxWebhookController(
                 properties,
+                blacklistService,
                 channelService,
                 ticketService,
                 chatHistoryService,
@@ -144,6 +162,9 @@ class MaxWebhookControllerTest {
         properties.setChannelId(42L);
         properties.setToken("token");
 
+        ClientBlacklistRepository blacklistRepository = mock(ClientBlacklistRepository.class);
+        ClientUnblockRequestRepository unblockRequestRepository = mock(ClientUnblockRequestRepository.class);
+        BlacklistService blacklistService = createBlacklistService(blacklistRepository, unblockRequestRepository);
         ChannelService channelService = mock(ChannelService.class);
         TicketService ticketService = mock(TicketService.class);
         ChatHistoryService chatHistoryService = mock(ChatHistoryService.class);
@@ -157,6 +178,7 @@ class MaxWebhookControllerTest {
         Channel channel = new Channel();
         channel.setId(42L);
         when(channelService.resolveConfiguredChannel(42L, "token", "MAX", "max")).thenReturn(channel);
+        when(blacklistRepository.findById("1001")).thenReturn(Optional.empty());
 
         com.example.supportbot.entity.TicketActive active = new com.example.supportbot.entity.TicketActive();
         active.setTicketId("T-100");
@@ -178,6 +200,7 @@ class MaxWebhookControllerTest {
 
         MaxWebhookController controller = new MaxWebhookController(
                 properties,
+                blacklistService,
                 channelService,
                 ticketService,
                 chatHistoryService,
@@ -222,6 +245,9 @@ class MaxWebhookControllerTest {
         properties.setChannelId(42L);
         properties.setToken("token");
 
+        ClientBlacklistRepository blacklistRepository = mock(ClientBlacklistRepository.class);
+        ClientUnblockRequestRepository unblockRequestRepository = mock(ClientUnblockRequestRepository.class);
+        BlacklistService blacklistService = createBlacklistService(blacklistRepository, unblockRequestRepository);
         ChannelService channelService = mock(ChannelService.class);
         TicketService ticketService = mock(TicketService.class);
         ChatHistoryService chatHistoryService = mock(ChatHistoryService.class);
@@ -235,6 +261,7 @@ class MaxWebhookControllerTest {
         Channel channel = new Channel();
         channel.setId(42L);
         when(channelService.resolveConfiguredChannel(42L, "token", "MAX", "max")).thenReturn(channel);
+        when(blacklistRepository.findById("1001")).thenReturn(Optional.empty());
         when(ticketService.findActiveTicketForUser(1001L, "max_1001")).thenReturn(Optional.empty());
 
         BotSettingsDto settings = new BotSettingsDto();
@@ -242,6 +269,7 @@ class MaxWebhookControllerTest {
 
         MaxWebhookController controller = new MaxWebhookController(
                 properties,
+                blacklistService,
                 channelService,
                 ticketService,
                 chatHistoryService,
@@ -275,5 +303,158 @@ class MaxWebhookControllerTest {
         assertThat(numericResponse.getStatusCode().is2xxSuccessful()).isTrue();
         assertThat(numericResponse.getBody()).containsEntry("missing_options", true);
         verify(feedbackService, never()).findActiveRequest(1001L, channel);
+    }
+
+    @Test
+    void handleUpdateBlocksBlacklistedMaxUserMessages() {
+        MaxBotProperties properties = new MaxBotProperties();
+        properties.setEnabled(true);
+        properties.setChannelId(42L);
+        properties.setToken("token");
+
+        ClientBlacklistRepository blacklistRepository = mock(ClientBlacklistRepository.class);
+        ClientUnblockRequestRepository unblockRequestRepository = mock(ClientUnblockRequestRepository.class);
+        BlacklistService blacklistService = createBlacklistService(blacklistRepository, unblockRequestRepository);
+        ChannelService channelService = mock(ChannelService.class);
+        TicketService ticketService = mock(TicketService.class);
+        ChatHistoryService chatHistoryService = mock(ChatHistoryService.class);
+        MessagingService messagingService = mock(MessagingService.class);
+        FeedbackService feedbackService = mock(FeedbackService.class);
+        PublicFormConversationLinkService linkService = mock(PublicFormConversationLinkService.class);
+        BotSettingsService botSettingsService = mock(BotSettingsService.class);
+        SharedConfigService sharedConfigService = mock(SharedConfigService.class);
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        Channel channel = new Channel();
+        channel.setId(42L);
+        when(channelService.resolveConfiguredChannel(42L, "token", "MAX", "max")).thenReturn(channel);
+        when(blacklistRepository.findById("1001")).thenReturn(Optional.of(blacklistedClient("1001", false)));
+
+        MaxWebhookController controller = new MaxWebhookController(
+                properties,
+                blacklistService,
+                channelService,
+                ticketService,
+                chatHistoryService,
+                messagingService,
+                feedbackService,
+                linkService,
+                botSettingsService,
+                sharedConfigService,
+                objectMapper
+        );
+
+        ObjectNode update = objectMapper.createObjectNode();
+        update.put("update_type", "message_created");
+        ObjectNode message = update.putObject("message");
+        message.putObject("sender").put("user_id", 1001L);
+        message.putObject("recipient").put("chat_id", 2002L);
+        message.putObject("body").put("text", "хочу написать в поддержку");
+
+        ResponseEntity<Map<String, Object>> response = controller.handleUpdate(update, "");
+
+        assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
+        assertThat(response.getBody()).containsEntry("blocked", true);
+        verify(messagingService).sendToUser(
+                channel,
+                1001L,
+                "Ваш аккаунт заблокирован. Отправьте /unblock, чтобы подать запрос на разблокировку."
+        );
+        verify(ticketService, never()).findActiveTicketForUser(1001L, "max_1001");
+    }
+
+    @Test
+    void handleUpdateRegistersUnblockRequestForBlacklistedMaxUser() {
+        MaxBotProperties properties = new MaxBotProperties();
+        properties.setEnabled(true);
+        properties.setChannelId(42L);
+        properties.setToken("token");
+
+        ClientBlacklistRepository blacklistRepository = mock(ClientBlacklistRepository.class);
+        ClientUnblockRequestRepository unblockRequestRepository = mock(ClientUnblockRequestRepository.class);
+        BlacklistService blacklistService = createBlacklistService(blacklistRepository, unblockRequestRepository);
+        ChannelService channelService = mock(ChannelService.class);
+        TicketService ticketService = mock(TicketService.class);
+        ChatHistoryService chatHistoryService = mock(ChatHistoryService.class);
+        MessagingService messagingService = mock(MessagingService.class);
+        FeedbackService feedbackService = mock(FeedbackService.class);
+        PublicFormConversationLinkService linkService = mock(PublicFormConversationLinkService.class);
+        BotSettingsService botSettingsService = mock(BotSettingsService.class);
+        SharedConfigService sharedConfigService = mock(SharedConfigService.class);
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        Channel channel = new Channel();
+        channel.setId(42L);
+        when(channelService.resolveConfiguredChannel(42L, "token", "MAX", "max")).thenReturn(channel);
+        when(blacklistRepository.findById("1001")).thenReturn(Optional.of(blacklistedClient("1001", false)));
+
+        BotSettingsDto settings = new BotSettingsDto();
+        settings.setUnblockRequestCooldownMinutes(15);
+        when(botSettingsService.loadFromChannel(channel)).thenReturn(settings);
+
+        when(blacklistRepository.save(any(ClientBlacklist.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(unblockRequestRepository.findFirstByUserIdAndStatusOrderByIdDesc("1001", "pending"))
+                .thenReturn(Optional.empty());
+        when(unblockRequestRepository.save(any(ClientUnblockRequest.class)))
+                .thenAnswer(invocation -> {
+                    ClientUnblockRequest saved = invocation.getArgument(0);
+                    saved.setId(77L);
+                    saved.setCreatedAt(OffsetDateTime.parse("2026-05-26T09:00:00+03:00"));
+                    saved.setStatus("pending");
+                    return saved;
+                });
+
+        MaxWebhookController controller = new MaxWebhookController(
+                properties,
+                blacklistService,
+                channelService,
+                ticketService,
+                chatHistoryService,
+                messagingService,
+                feedbackService,
+                linkService,
+                botSettingsService,
+                sharedConfigService,
+                objectMapper
+        );
+
+        ObjectNode update = objectMapper.createObjectNode();
+        update.put("update_type", "message_created");
+        ObjectNode message = update.putObject("message");
+        message.putObject("sender").put("user_id", 1001L);
+        message.putObject("recipient").put("chat_id", 2002L);
+        message.putObject("body").put("text", "/unblock");
+
+        ResponseEntity<Map<String, Object>> response = controller.handleUpdate(update, "");
+
+        assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
+        assertThat(response.getBody()).containsEntry("unblock_requested", true);
+        verify(messagingService).sendToUser(
+                channel,
+                1001L,
+                "Запрос на разблокировку отправлен оператору. Номер заявки: #77."
+        );
+        verify(messagingService).sendToSupportChat(
+                channel,
+                "Новый запрос на разблокировку\n"
+                        + "Заявка: #77\n"
+                        + "Клиент: 1001\n"
+                        + "Создан: 26.05.2026 09:00\n"
+                        + "Статус: pending"
+        );
+    }
+
+    private static BlacklistService createBlacklistService(ClientBlacklistRepository blacklistRepository,
+                                                           ClientUnblockRequestRepository unblockRequestRepository) {
+        return new BlacklistService(blacklistRepository, unblockRequestRepository);
+    }
+
+    private static ClientBlacklist blacklistedClient(String userId, boolean unblockRequested) {
+        ClientBlacklist blacklist = new ClientBlacklist();
+        blacklist.setUserId(userId);
+        blacklist.setBlacklisted(true);
+        blacklist.setUnblockRequested(unblockRequested);
+        return blacklist;
     }
 }
