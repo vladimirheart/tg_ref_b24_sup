@@ -1361,7 +1361,21 @@
   `DialogWorkspacePayloadAssemblerServiceTest`,
   `DialogWorkspaceParityServiceTest`, `DialogWorkspaceIntegrationTest` и
   `DialogWorkspaceControllerWebMvcTest` остаются зелёными.
-- следующий practical focus в `dialog workspace` зоне смещён уже на
-  action/runtime continuity поверх нового workflow snapshot:
-  quick-action parity, participant/reassign live side-effects и соседний
-  operator-owned projection drift.
+- следующим более широким пакетом закрыт и `dialog workspace action/runtime
+  continuity`: `/workspace` теперь возвращает не только collaboration/triage
+  snapshot, но и explicit `workflow.actions` contract с
+  `enabled/disabled_reason` для `reply/reply_media/take/resolve/reopen/
+  reassign/participants_add/participants_remove`.
+- `DialogWorkspaceParityService` получил `operator_action_guards`, а
+  `DialogWorkspaceIntegrationTest` закрепляет live continuity после
+  `DialogQuickActionService.reassignTicket(...)` и `resolveTicket(...)`,
+  включая updated responsible, closed status и guard reasons в runtime payload.
+- targeted `DialogWorkspaceControllerWebMvcTest`,
+  `DialogWorkspaceWorkflowSnapshotServiceTest`,
+  `DialogWorkspacePayloadAssemblerServiceTest`,
+  `DialogWorkspaceParityServiceTest` и `DialogWorkspaceIntegrationTest`
+  остаются зелёными на новом action/runtime contract.
+- следующий practical focus в `dialog workspace` зоне смещён уже с базовой
+  quick-action continuity на более глубокий operator action UX parity:
+  optimistic refresh/notification edges после `reopen/remove participant`,
+  badge/state projection drift и соседние quick-action consumer contracts.

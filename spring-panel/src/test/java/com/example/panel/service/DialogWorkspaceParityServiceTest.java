@@ -73,7 +73,17 @@ class DialogWorkspaceParityServiceTest {
                         "reassign_candidates", List.of(),
                         "participant_candidates", List.of(),
                         "triage_preferences", Map.of(),
-                        "collaboration", Map.of()
+                        "collaboration", Map.of(),
+                        "actions", Map.of(
+                                "reply", Map.of("enabled", true),
+                                "reply_media", Map.of("enabled", true),
+                                "take", Map.of("enabled", false),
+                                "resolve", Map.of("enabled", true),
+                                "reopen", Map.of("enabled", false),
+                                "reassign", Map.of("enabled", true),
+                                "participants_add", Map.of("enabled", true),
+                                "participants_remove", Map.of("enabled", false)
+                        )
                 ),
                 composer,
                 "healthy",
@@ -96,7 +106,9 @@ class DialogWorkspaceParityServiceTest {
                 Map.of("enabled", true, "ready", true),
                 Map.of("enabled", true, "ready", true),
                 Map.of("can_reply", true),
-                Map.of(),
+                Map.of(
+                        "actions", Map.of()
+                ),
                 Map.of("reply_supported", true, "media_supported", true, "reply_target_supported", false),
                 "unknown",
                 sampleDialog(),
@@ -128,7 +140,17 @@ class DialogWorkspaceParityServiceTest {
                         "reassign_candidates", List.of(),
                         "participant_candidates", List.of(),
                         "triage_preferences", Map.of(),
-                        "collaboration", Map.of()
+                        "collaboration", Map.of(),
+                        "actions", Map.of(
+                                "reply", Map.of("enabled", false),
+                                "reply_media", Map.of("enabled", false),
+                                "take", Map.of("enabled", true),
+                                "resolve", Map.of("enabled", true),
+                                "reopen", Map.of("enabled", false),
+                                "reassign", Map.of("enabled", false),
+                                "participants_add", Map.of("enabled", false),
+                                "participants_remove", Map.of("enabled", false)
+                        )
                 ),
                 Map.of(
                         "reply_supported", false,

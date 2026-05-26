@@ -1503,9 +1503,28 @@ integration-сценария поверх users/settings runtime boundary всё
   `DialogWorkspacePayloadAssemblerServiceTest`,
   `DialogWorkspaceParityServiceTest`, `DialogWorkspaceIntegrationTest` и
   `DialogWorkspaceControllerWebMvcTest` остаются зелёными.
-- следующий practical focus в `dialog-read/workspace` зоне смещён уже не на
-  rollout/bootstrap payload, а на action/runtime continuity поверх нового
-  workflow snapshot: quick-action side-effects parity, workspace-triggered
-  participant/reassign lifecycles и adjacent projection drift around
-  operator-owned actions.
-  и новый persistence-service unit net остаются зелёными.
+- следующим более широким пакетом закрыт и `dialog workspace action/runtime
+  continuity` поверх нового workflow snapshot:
+  `DialogWorkspaceWorkflowSnapshotService` теперь проецирует не только
+  `responsible/participants/candidates`, но и explicit `workflow.actions`
+  guard-contract для `reply/reply_media/take/resolve/reopen/reassign` и
+  `participants_add/participants_remove`, а `DialogWorkspaceParityService`
+  получил отдельный `operator_action_guards` check.
+- `DialogWorkspaceIntegrationTest` добран live
+  `SpringBootTest + SQLite` сценарием после реальных
+  `DialogQuickActionService.reassignTicket(...)` и
+  `DialogQuickActionService.resolveTicket(...)`, поэтому `/workspace` теперь
+  подтверждён не только на static read snapshot, но и на реальном lifecycle:
+  новый responsible, closed status и disabled reasons (`already_closed`,
+  `closed_dialog`, `already_assigned_to_operator`) остаются синхронными с
+  quick-action runtime.
+- targeted `DialogWorkspaceControllerWebMvcTest`,
+  `DialogWorkspaceWorkflowSnapshotServiceTest`,
+  `DialogWorkspacePayloadAssemblerServiceTest`,
+  `DialogWorkspaceParityServiceTest` и `DialogWorkspaceIntegrationTest`
+  остаются зелёными уже с новым action/runtime contract.
+- следующий practical focus в `dialog-read/workspace` зоне смещён уже с
+  базового quick-action continuity на более глубокий operator action UX
+  parity: optimistic refresh/notification edges после `reopen/remove
+  participant`, read-side projection drift вокруг action badges и соседние
+  quick-action consumer contracts.

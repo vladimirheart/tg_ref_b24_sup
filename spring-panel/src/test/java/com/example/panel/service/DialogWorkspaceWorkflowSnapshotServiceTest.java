@@ -61,6 +61,14 @@ class DialogWorkspaceWorkflowSnapshotServiceTest {
         List<DialogOperatorOption> reassignCandidates = (List<DialogOperatorOption>) snapshot.get("reassign_candidates");
         @SuppressWarnings("unchecked")
         List<DialogOperatorOption> participantCandidates = (List<DialogOperatorOption>) snapshot.get("participant_candidates");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> actions = (Map<String, Object>) snapshot.get("actions");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> reassignAction = (Map<String, Object>) actions.get("reassign");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> participantAddAction = (Map<String, Object>) actions.get("participants_add");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> takeAction = (Map<String, Object>) actions.get("take");
 
         assertThat(responsible).containsEntry("assigned", true);
         assertThat(responsible).containsEntry("username", "watcher_owner");
@@ -73,6 +81,12 @@ class DialogWorkspaceWorkflowSnapshotServiceTest {
         assertThat(collaboration).containsEntry("participant_count", 1);
         assertThat(collaboration).containsEntry("reassign_candidate_count", 2);
         assertThat(collaboration).containsEntry("participant_candidate_count", 1);
+        assertThat(collaboration).containsEntry("can_reassign", true);
+        assertThat(collaboration).containsEntry("can_manage_participants", true);
+        assertThat(reassignAction).containsEntry("enabled", true);
+        assertThat(participantAddAction).containsEntry("enabled", true);
+        assertThat(takeAction).containsEntry("enabled", false);
+        assertThat(takeAction).containsEntry("disabled_reason", "already_assigned_to_operator");
     }
 
     @Test
@@ -108,6 +122,12 @@ class DialogWorkspaceWorkflowSnapshotServiceTest {
         List<DialogOperatorOption> reassignCandidates = (List<DialogOperatorOption>) snapshot.get("reassign_candidates");
         @SuppressWarnings("unchecked")
         List<DialogOperatorOption> participantCandidates = (List<DialogOperatorOption>) snapshot.get("participant_candidates");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> actions = (Map<String, Object>) snapshot.get("actions");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> reassignAction = (Map<String, Object>) actions.get("reassign");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> participantAddAction = (Map<String, Object>) actions.get("participants_add");
 
         assertThat(responsible).containsEntry("username", "watcher_owner");
         assertThat(responsible).containsEntry("display_name", "Watcher Owner");
@@ -115,7 +135,53 @@ class DialogWorkspaceWorkflowSnapshotServiceTest {
         assertThat(participantCandidates).isEmpty();
         assertThat(collaboration).containsEntry("can_reassign", false);
         assertThat(collaboration).containsEntry("can_manage_participants", false);
+        assertThat(reassignAction).containsEntry("enabled", false);
+        assertThat(reassignAction).containsEntry("disabled_reason", "permission_denied");
+        assertThat(participantAddAction).containsEntry("enabled", false);
+        assertThat(participantAddAction).containsEntry("disabled_reason", "permission_denied");
         verify(dialogParticipantService, never()).loadAssignableOperators();
+    }
+
+    @Test
+    void buildWorkflowSnapshotProjectsClosedDialogActionGuards() {
+        DialogParticipantService dialogParticipantService = mock(DialogParticipantService.class);
+        DialogResponsibilityService dialogResponsibilityService = mock(DialogResponsibilityService.class);
+        DialogTriagePreferenceService dialogTriagePreferenceService = mock(DialogTriagePreferenceService.class);
+        DialogWorkspaceWorkflowSnapshotService service = new DialogWorkspaceWorkflowSnapshotService(
+                dialogParticipantService,
+                dialogResponsibilityService,
+                dialogTriagePreferenceService
+        );
+
+        when(dialogParticipantService.loadParticipants("T-WF-3")).thenReturn(List.of(
+                new DialogParticipantDto("watcher_peer", "Watcher Peer", "/avatars/peer.png", "Ops", "Support", "2026-05-26T09:00:00Z", "watcher_owner")
+        ));
+        when(dialogParticipantService.findOperator("watcher_owner")).thenReturn(Optional.of(
+                new DialogOperatorOption("watcher_owner", "Watcher Owner", "/avatars/owner.png", "Ops", "Lead")
+        ));
+        when(dialogParticipantService.loadAssignableOperators()).thenReturn(List.of(
+                new DialogOperatorOption("watcher_new", "Watcher New", "/avatars/new.png", "Ops", "Support")
+        ));
+        when(dialogTriagePreferenceService.loadForOperator("watcher_owner")).thenReturn(Map.of());
+
+        Map<String, Object> snapshot = service.buildWorkflowSnapshot(
+                "T-WF-3",
+                "watcher_owner",
+                closedDialog("T-WF-3", "watcher_owner"),
+                Map.of("can_assign", true, "can_close", true, "can_reply", true)
+        );
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> actions = (Map<String, Object>) snapshot.get("actions");
+
+        assertThat(((Map<?, ?>) actions.get("resolve")).get("enabled")).isEqualTo(false);
+        assertThat(((Map<?, ?>) actions.get("resolve")).get("disabled_reason")).isEqualTo("already_closed");
+        assertThat(((Map<?, ?>) actions.get("reopen")).get("enabled")).isEqualTo(true);
+        assertThat(((Map<?, ?>) actions.get("reassign")).get("enabled")).isEqualTo(false);
+        assertThat(((Map<?, ?>) actions.get("reassign")).get("disabled_reason")).isEqualTo("closed_dialog");
+        assertThat(((Map<?, ?>) actions.get("participants_add")).get("enabled")).isEqualTo(false);
+        assertThat(((Map<?, ?>) actions.get("participants_add")).get("disabled_reason")).isEqualTo("closed_dialog");
+        assertThat(((Map<?, ?>) actions.get("participants_remove")).get("enabled")).isEqualTo(true);
     }
 
     private DialogListItem dialogWithResponsible(String ticketId,
@@ -150,6 +216,38 @@ class DialogWorkspaceWorkflowSnapshotServiceTest {
                 "billing",
                 responsibleDisplayName,
                 responsibleAvatarUrl
+        );
+    }
+
+    private DialogListItem closedDialog(String ticketId, String responsible) {
+        return new DialogListItem(
+                ticketId,
+                5002L,
+                9002L,
+                "client_username",
+                "Клиент",
+                "retail",
+                44L,
+                "Telegram",
+                "Москва",
+                "Офис",
+                "problem",
+                "2026-05-26T09:00:00Z",
+                "resolved",
+                false,
+                "operator",
+                "2026-05-26T10:00:00Z",
+                responsible,
+                "26.05.2026",
+                "09:00:00",
+                "vip",
+                "operator",
+                "2026-05-26T10:00:00Z",
+                0,
+                5,
+                "billing",
+                "Watcher Owner",
+                "/avatars/owner.png"
         );
     }
 }

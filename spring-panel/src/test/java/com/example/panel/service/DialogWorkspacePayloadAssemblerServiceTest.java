@@ -116,7 +116,8 @@ class DialogWorkspacePayloadAssemblerServiceTest {
                         "reassign_candidates", List.of(Map.of("username", "watcher_new")),
                         "participant_candidates", List.of(Map.of("username", "watcher_new")),
                         "triage_preferences", Map.of("view", "sla_critical"),
-                        "collaboration", Map.of("participant_count", 1)
+                        "collaboration", Map.of("participant_count", 1),
+                        "actions", Map.of("reassign", Map.of("enabled", true))
                 ),
                 Map.of("reply_supported", true, "media_supported", true, "reply_target_supported", true),
                 1440,
@@ -154,6 +155,7 @@ class DialogWorkspacePayloadAssemblerServiceTest {
         assertThat(context).containsEntry("profile_match_candidates", Map.of("matches", List.of("crm")));
         assertThat(workflow).containsKey("responsible");
         assertThat(workflow).containsEntry("triage_preferences", Map.of("view", "sla_critical"));
+        assertThat(workflow).containsKey("actions");
         assertThat(sla).containsEntry("state", "critical");
         assertThat(sla).containsEntry("escalation_required", true);
         assertThat(meta).containsEntry("cursor", 2);

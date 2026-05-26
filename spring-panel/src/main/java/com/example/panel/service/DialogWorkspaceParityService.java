@@ -122,6 +122,26 @@ public class DialogWorkspaceParityService {
                 checkedAt
         ));
 
+        boolean actionGuardsReady = workflowSnapshot != null
+                && workflowSnapshot.get("actions") instanceof Map<?, ?> actions
+                && actions.containsKey("reply")
+                && actions.containsKey("reply_media")
+                && actions.containsKey("take")
+                && actions.containsKey("resolve")
+                && actions.containsKey("reopen")
+                && actions.containsKey("reassign")
+                && actions.containsKey("participants_add")
+                && actions.containsKey("participants_remove");
+        checks.add(buildParityCheck(
+                "operator_action_guards",
+                "Guard-условия quick actions доступны в workspace",
+                actionGuardsReady ? "ok" : "attention",
+                actionGuardsReady
+                        ? "Workspace заранее показывает, какие quick actions доступны и почему часть из них заблокирована."
+                        : "Guard-условия quick actions неполные — workspace может расходиться с runtime-правилами.",
+                checkedAt
+        ));
+
         boolean slaReady = includeSections.contains("sla") && StringUtils.hasText(slaState) && !"unknown".equalsIgnoreCase(slaState);
         checks.add(buildParityCheck(
                 "sla_visibility",

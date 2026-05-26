@@ -1,6 +1,7 @@
 package com.example.panel.controller;
 
 import com.example.panel.service.SharedConfigService;
+import com.example.panel.service.DialogQuickActionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -100,6 +101,9 @@ class DialogWorkspaceIntegrationTest {
 
     @Autowired
     private SharedConfigService sharedConfigService;
+
+    @Autowired
+    private DialogQuickActionService dialogQuickActionService;
 
     @BeforeEach
     void clean() {
@@ -646,6 +650,16 @@ class DialogWorkspaceIntegrationTest {
                 .andExpect(jsonPath("$.workflow.triage_preferences.sla_window_minutes").value(30))
                 .andExpect(jsonPath("$.workflow.triage_preferences.page_size").value("all"))
                 .andExpect(jsonPath("$.workflow.triage_preferences.updated_at_utc").isNotEmpty())
+                .andExpect(jsonPath("$.workflow.actions.reply.enabled").value(true))
+                .andExpect(jsonPath("$.workflow.actions.reply_media.enabled").value(true))
+                .andExpect(jsonPath("$.workflow.actions.take.enabled").value(false))
+                .andExpect(jsonPath("$.workflow.actions.take.disabled_reason").value("already_assigned_to_operator"))
+                .andExpect(jsonPath("$.workflow.actions.resolve.enabled").value(true))
+                .andExpect(jsonPath("$.workflow.actions.reopen.enabled").value(false))
+                .andExpect(jsonPath("$.workflow.actions.reopen.disabled_reason").value("not_closed"))
+                .andExpect(jsonPath("$.workflow.actions.reassign.enabled").value(true))
+                .andExpect(jsonPath("$.workflow.actions.participants_add.enabled").value(true))
+                .andExpect(jsonPath("$.workflow.actions.participants_remove.enabled").value(true))
                 .andExpect(jsonPath("$.workflow.collaboration.assigned").value(true))
                 .andExpect(jsonPath("$.workflow.collaboration.participant_count").value(2))
                 .andExpect(jsonPath("$.workflow.collaboration.can_reassign").value(true))
@@ -653,7 +667,63 @@ class DialogWorkspaceIntegrationTest {
                 .andExpect(jsonPath("$.workflow.collaboration.reassign_candidate_count").value(3))
                 .andExpect(jsonPath("$.workflow.collaboration.participant_candidate_count").value(1))
                 .andExpect(jsonPath("$.meta.parity.checks[*].key", hasItem("operator_workflow_projection")))
+                .andExpect(jsonPath("$.meta.parity.checks[*].key", hasItem("operator_action_guards")))
                 .andExpect(jsonPath("$.meta.parity.status").value("attention"));
+    }
+
+    @Test
+    void workspaceApiRefreshesWorkflowActionsAfterReassignAndResolveLifecycle() throws Exception {
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        insertDirectoryUser("watcher_owner", true, false, 1L, "Support", "Watcher Owner", "Ops", "/img/owner.png");
+        insertDirectoryUser("watcher_new", true, false, 1L, "Support", "Watcher New", "Ops", "/img/new.png");
+        insertDirectoryUser("watcher_peer", true, false, 1L, "Support", "Watcher Peer", "Ops", "/img/peer.png");
+
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
+                VALUES (89, 'token89', 'Workspace Action Runtime', 'telegram', 1, CURRENT_TIMESTAMP)
+                """);
+        insertDialogTicket(910099L, "T-WS-ACTION", 89L, "action_user", "Клиент Action", "Retail", "Орел", "Офис", "Нужен action continuity", "2026-05-26T13:00:00Z", 8901L);
+        jdbcTemplate.update("""
+                INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
+                VALUES (?,?,?,?)
+                """,
+                "T-WS-ACTION", "watcher_owner", "dispatcher", "2026-05-26T12:59:00Z");
+        jdbcTemplate.update("""
+                INSERT INTO ticket_participants(ticket_id, username, added_at, added_by)
+                VALUES (?,?,CURRENT_TIMESTAMP,?)
+                """,
+                "T-WS-ACTION", "watcher_peer", "watcher_owner");
+        insertHistoryRow("T-WS-ACTION", 910099L, "user", "Сообщение для action continuity", "2026-05-26T13:01:00Z", "text", 991L, null, 89L, null);
+
+        dialogQuickActionService.reassignTicket("T-WS-ACTION", "watcher_new", "watcher_owner");
+        dialogQuickActionService.resolveTicket("T-WS-ACTION", "watcher_new", List.of("billing"));
+
+        mockMvc.perform(get("/api/dialogs/T-WS-ACTION/workspace")
+                        .param("include", "messages,permissions,sla")
+                        .principal(new TestingAuthenticationToken("watcher_new", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.workflow.responsible.username").value("watcher_new"))
+                .andExpect(jsonPath("$.workflow.responsible.display_name").value("Watcher New"))
+                .andExpect(jsonPath("$.workflow.participants.length()").value(1))
+                .andExpect(jsonPath("$.workflow.participants[0].username").value("watcher_peer"))
+                .andExpect(jsonPath("$.workflow.actions.take.enabled").value(false))
+                .andExpect(jsonPath("$.workflow.actions.take.disabled_reason").value("already_assigned_to_operator"))
+                .andExpect(jsonPath("$.workflow.actions.resolve.enabled").value(false))
+                .andExpect(jsonPath("$.workflow.actions.resolve.disabled_reason").value("already_closed"))
+                .andExpect(jsonPath("$.workflow.actions.reopen.enabled").value(true))
+                .andExpect(jsonPath("$.workflow.actions.reopen.disabled_reason").doesNotExist())
+                .andExpect(jsonPath("$.workflow.actions.reassign.enabled").value(false))
+                .andExpect(jsonPath("$.workflow.actions.reassign.disabled_reason").value("closed_dialog"))
+                .andExpect(jsonPath("$.workflow.actions.participants_add.enabled").value(false))
+                .andExpect(jsonPath("$.workflow.actions.participants_add.disabled_reason").value("closed_dialog"))
+                .andExpect(jsonPath("$.workflow.actions.participants_remove.enabled").value(true))
+                .andExpect(jsonPath("$.workflow.collaboration.can_reassign").value(false))
+                .andExpect(jsonPath("$.workflow.collaboration.can_manage_participants").value(false))
+                .andExpect(jsonPath("$.workflow.reassign_candidates[*].username", hasItem("watcher_owner")))
+                .andExpect(jsonPath("$.workflow.participant_candidates[*].username", hasItem("watcher_owner")))
+                .andExpect(jsonPath("$.conversation.statusKey").value("closed"))
+                .andExpect(jsonPath("$.meta.parity.checks[*].key", hasItem("operator_action_guards")));
     }
 
     private void insertDialogTicket(long userId,

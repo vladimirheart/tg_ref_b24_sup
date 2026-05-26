@@ -76,8 +76,8 @@ public class DialogWorkspaceWorkflowSnapshotService {
         Map<String, Object> collaboration = new LinkedHashMap<>();
         collaboration.put("assigned", StringUtils.hasText(responsibleUsername));
         collaboration.put("participant_count", participants.size());
-        collaboration.put("can_reassign", canAssign);
-        collaboration.put("can_manage_participants", canAssign);
+        collaboration.put("can_reassign", canAssign && !isClosedDialog(summary) && !reassignCandidates.isEmpty());
+        collaboration.put("can_manage_participants", canAssign && !isClosedDialog(summary));
         collaboration.put("reassign_candidate_count", reassignCandidates.size());
         collaboration.put("participant_candidate_count", participantCandidates.size());
 
@@ -88,7 +88,73 @@ public class DialogWorkspaceWorkflowSnapshotService {
         workflow.put("participant_candidates", participantCandidates);
         workflow.put("triage_preferences", dialogTriagePreferenceService.loadForOperator(operator));
         workflow.put("collaboration", collaboration);
+        workflow.put("actions", buildActionAvailability(
+                operator,
+                responsibleUsername,
+                summary,
+                participants,
+                reassignCandidates,
+                participantCandidates,
+                workspacePermissions
+        ));
         return workflow;
+    }
+
+    private Map<String, Object> buildActionAvailability(String operator,
+                                                        String responsibleUsername,
+                                                        DialogListItem summary,
+                                                        List<DialogParticipantDto> participants,
+                                                        List<DialogOperatorOption> reassignCandidates,
+                                                        List<DialogOperatorOption> participantCandidates,
+                                                        Map<String, Object> workspacePermissions) {
+        boolean closed = isClosedDialog(summary);
+        boolean canReply = workspacePermissions != null && Boolean.TRUE.equals(workspacePermissions.get("can_reply"));
+        boolean canAssign = workspacePermissions != null && Boolean.TRUE.equals(workspacePermissions.get("can_assign"));
+        boolean canClose = workspacePermissions != null && Boolean.TRUE.equals(workspacePermissions.get("can_close"));
+        boolean assignedToOperator = sameIdentity(responsibleUsername, operator);
+        boolean hasParticipants = participants != null && !participants.isEmpty();
+        boolean hasReassignCandidates = reassignCandidates != null && !reassignCandidates.isEmpty();
+        boolean hasParticipantCandidates = participantCandidates != null && !participantCandidates.isEmpty();
+
+        Map<String, Object> actions = new LinkedHashMap<>();
+        actions.put("reply", actionAvailability(canReply, canReply ? null : "permission_denied"));
+        actions.put("reply_media", actionAvailability(canReply, canReply ? null : "permission_denied"));
+        actions.put("take", actionAvailability(
+                canAssign && !assignedToOperator,
+                !canAssign ? "permission_denied" : (assignedToOperator ? "already_assigned_to_operator" : null)
+        ));
+        actions.put("resolve", actionAvailability(
+                canClose && !closed,
+                !canClose ? "permission_denied" : (closed ? "already_closed" : null)
+        ));
+        actions.put("reopen", actionAvailability(
+                canClose && closed,
+                !canClose ? "permission_denied" : (!closed ? "not_closed" : null)
+        ));
+        actions.put("reassign", actionAvailability(
+                canAssign && !closed && hasReassignCandidates,
+                !canAssign ? "permission_denied"
+                        : (closed ? "closed_dialog"
+                        : (!hasReassignCandidates ? "no_reassign_candidates" : null))
+        ));
+        actions.put("participants_add", actionAvailability(
+                canAssign && !closed && hasParticipantCandidates,
+                !canAssign ? "permission_denied"
+                        : (closed ? "closed_dialog"
+                        : (!hasParticipantCandidates ? "no_participant_candidates" : null))
+        ));
+        actions.put("participants_remove", actionAvailability(
+                canAssign && hasParticipants,
+                !canAssign ? "permission_denied" : (!hasParticipants ? "no_participants" : null)
+        ));
+        return actions;
+    }
+
+    private Map<String, Object> actionAvailability(boolean enabled, String disabledReason) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("enabled", enabled);
+        payload.put("disabled_reason", enabled ? null : disabledReason);
+        return payload;
     }
 
     private String resolveResponsibleUsername(String ticketId, DialogListItem summary) {
@@ -103,6 +169,14 @@ public class DialogWorkspaceWorkflowSnapshotService {
         String normalizedLeft = normalizeIdentity(left);
         String normalizedRight = normalizeIdentity(right);
         return StringUtils.hasText(normalizedLeft) && normalizedLeft.equals(normalizedRight);
+    }
+
+    private boolean isClosedDialog(DialogListItem summary) {
+        if (summary == null) {
+            return false;
+        }
+        String statusKey = firstNonBlank(summary.statusKey());
+        return "closed".equalsIgnoreCase(statusKey) || "auto_closed".equalsIgnoreCase(statusKey);
     }
 
     private String normalizeIdentity(String value) {
