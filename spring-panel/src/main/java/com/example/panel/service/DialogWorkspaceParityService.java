@@ -39,6 +39,7 @@ public class DialogWorkspaceParityService {
                                                Map<String, Object> profileHealth,
                                                Map<String, Object> contextBlocksHealth,
                                                Map<String, Object> permissions,
+                                               Map<String, Object> workflowSnapshot,
                                                Map<String, Object> composer,
                                                String slaState,
                                                DialogListItem summary,
@@ -101,6 +102,23 @@ public class DialogWorkspaceParityService {
                 "Связанные события доступны",
                 relatedEventsReady ? "ok" : "attention",
                 relatedEventsReady ? "Связанные события доступны в правой колонке workspace." : "Связанные события недоступны.",
+                checkedAt
+        ));
+
+        boolean workflowProjectionReady = workflowSnapshot != null
+                && workflowSnapshot.containsKey("responsible")
+                && workflowSnapshot.containsKey("participants")
+                && workflowSnapshot.containsKey("reassign_candidates")
+                && workflowSnapshot.containsKey("participant_candidates")
+                && workflowSnapshot.containsKey("triage_preferences")
+                && workflowSnapshot.containsKey("collaboration");
+        checks.add(buildParityCheck(
+                "operator_workflow_projection",
+                "Операторский workflow snapshot доступен",
+                workflowProjectionReady ? "ok" : "attention",
+                workflowProjectionReady
+                        ? "Workspace сразу показывает responsible, участников, кандидатов и triage-предпочтения."
+                        : "Operator workflow snapshot неполный — для работы нужны дополнительные read-вызовы.",
                 checkedAt
         ));
 

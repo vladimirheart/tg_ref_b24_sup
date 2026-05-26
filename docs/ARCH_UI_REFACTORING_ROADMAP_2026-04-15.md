@@ -1347,3 +1347,21 @@
   `PublicFormSubmissionPersistenceServiceTest`,
   `PublicFormChannelServiceTest` и новый flow-service unit net остаются
   зелёными.
+- следующим более широким пакетом закрыт `dialog workspace operator workflow
+  projection drift`: `/workspace` теперь возвращает отдельный `workflow`
+  snapshot с `responsible`, `participants`, `reassign_candidates`,
+  `participant_candidates`, `triage_preferences` и collaboration summary,
+  так что operator-facing workspace contract меньше зависит от соседних
+  read endpoints.
+- под это добавлен bounded `DialogWorkspaceWorkflowSnapshotService`,
+  расширен `DialogWorkspacePayloadAssemblerService`, а parity-слой получил
+  explicit `operator_workflow_projection` check для collaboration/triage
+  surface.
+- targeted `DialogWorkspaceWorkflowSnapshotServiceTest`,
+  `DialogWorkspacePayloadAssemblerServiceTest`,
+  `DialogWorkspaceParityServiceTest`, `DialogWorkspaceIntegrationTest` и
+  `DialogWorkspaceControllerWebMvcTest` остаются зелёными.
+- следующий practical focus в `dialog workspace` зоне смещён уже на
+  action/runtime continuity поверх нового workflow snapshot:
+  quick-action parity, participant/reassign live side-effects и соседний
+  operator-owned projection drift.

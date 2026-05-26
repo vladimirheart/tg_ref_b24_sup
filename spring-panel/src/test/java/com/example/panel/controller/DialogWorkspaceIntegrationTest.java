@@ -104,6 +104,7 @@ class DialogWorkspaceIntegrationTest {
     @BeforeEach
     void clean() {
         ensureChatHistoryMutationColumns();
+        ensureUsersDirectoryColumns();
         jdbcTemplate.update("DELETE FROM chat_history");
         jdbcTemplate.update("DELETE FROM ticket_categories");
         jdbcTemplate.update("DELETE FROM ticket_participants");
@@ -137,9 +138,34 @@ class DialogWorkspaceIntegrationTest {
         jdbcTemplate.execute("ALTER TABLE " + tableName + " ADD COLUMN " + columnName + " " + definition);
     }
 
+    private void ensureUsersDirectoryColumns() {
+        ensureUsersColumn("enabled", "BOOLEAN NOT NULL DEFAULT 1");
+        ensureUsersColumn("role_id", "INTEGER");
+        ensureUsersColumn("role", "TEXT");
+        ensureUsersColumn("department", "TEXT");
+        ensureUsersColumn("full_name", "TEXT");
+        ensureUsersColumn("photo", "TEXT");
+        ensureUsersColumn("is_blocked", "BOOLEAN NOT NULL DEFAULT 0");
+        ensureUsersColumn("last_portal_activity_at", "TEXT");
+    }
+
+    private void ensureUsersColumn(String columnName, String definition) {
+        if (loadUsersColumns().contains(columnName)) {
+            return;
+        }
+        usersJdbcTemplate.execute("ALTER TABLE users ADD COLUMN " + columnName + " " + definition);
+    }
+
     private Set<String> loadColumns(String tableName) {
         return new LinkedHashSet<>(jdbcTemplate.query(
                 "PRAGMA table_info(" + tableName + ")",
+                (rs, rowNum) -> rs.getString("name")
+        ));
+    }
+
+    private Set<String> loadUsersColumns() {
+        return new LinkedHashSet<>(usersJdbcTemplate.query(
+                "PRAGMA table_info(users)",
                 (rs, rowNum) -> rs.getString("name")
         ));
     }
@@ -553,6 +579,83 @@ class DialogWorkspaceIntegrationTest {
                 .andExpect(jsonPath("$.meta.parity.status").value("attention"));
     }
 
+    @Test
+    void workspaceApiProjectsOperatorWorkflowSnapshotWithCollaborationAndTriagePreferences() throws Exception {
+        sharedConfigService.saveSettings(Map.of(
+                "dialog_config", Map.of(
+                        "workspace_triage_preferences_by_operator", Map.of(
+                                "watcher_owner", Map.of(
+                                        "view", "SLA_CRITICAL",
+                                        "sort_mode", "unknown",
+                                        "sla_window_minutes", 30,
+                                        "page_size", "all",
+                                        "updated_at_utc", "2026-05-26T15:00:00+03:00"
+                                )
+                        )
+                )
+        ));
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        insertDirectoryUser("watcher_owner", true, false, 1L, "Support", "Watcher Owner", "Ops", "/img/owner.png");
+        insertDirectoryUser("watcher_peer", true, false, 1L, "Support", "Watcher Peer", "Ops", "/img/peer.png");
+        insertDirectoryUser("watcher_observer", true, false, 1L, "Support", "Watcher Observer", "Backoffice", "/img/observer.png");
+        insertDirectoryUser("watcher_new", true, false, 1L, "Support", "Watcher New", "Ops", "/img/new.png");
+        insertDirectoryUser("watcher_disabled", false, false, 1L, "Support", "Watcher Disabled", "Ops", "/img/disabled.png");
+        insertDirectoryUser("watcher_blocked", true, true, 1L, "Support", "Watcher Blocked", "Ops", "/img/blocked.png");
+
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
+                VALUES (88, 'token88', 'Workspace Workflow', 'telegram', 1, CURRENT_TIMESTAMP)
+                """);
+        insertDialogTicket(910098L, "T-WS-WORKFLOW", 88L, "workflow_user", "Клиент Workflow", "Retail", "Рязань", "Филиал", "Нужен operator workflow snapshot", "2026-05-26T12:00:00Z", 8801L);
+        jdbcTemplate.update("""
+                INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
+                VALUES (?,?,?,?)
+                """,
+                "T-WS-WORKFLOW", "watcher_owner", "dispatcher", "2026-05-26T11:59:00Z");
+        jdbcTemplate.update("""
+                INSERT INTO ticket_participants(ticket_id, username, added_at, added_by)
+                VALUES (?,?,CURRENT_TIMESTAMP,?)
+                """,
+                "T-WS-WORKFLOW", "watcher_peer", "watcher_owner");
+        jdbcTemplate.update("""
+                INSERT INTO ticket_participants(ticket_id, username, added_at, added_by)
+                VALUES (?,?,CURRENT_TIMESTAMP,?)
+                """,
+                "T-WS-WORKFLOW", "watcher_observer", "watcher_owner");
+        insertHistoryRow("T-WS-WORKFLOW", 910098L, "user", "Сообщение для workflow snapshot", "2026-05-26T12:01:00Z", "text", 981L, null, 88L, null);
+
+        mockMvc.perform(get("/api/dialogs/T-WS-WORKFLOW/workspace")
+                        .param("include", "messages,permissions")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.workflow.responsible.assigned").value(true))
+                .andExpect(jsonPath("$.workflow.responsible.username").value("watcher_owner"))
+                .andExpect(jsonPath("$.workflow.responsible.display_name").value("Watcher Owner"))
+                .andExpect(jsonPath("$.workflow.responsible.avatar_url").value("/img/owner.png"))
+                .andExpect(jsonPath("$.workflow.participants.length()").value(2))
+                .andExpect(jsonPath("$.workflow.participants[*].username", hasItem("watcher_peer")))
+                .andExpect(jsonPath("$.workflow.participants[*].username", hasItem("watcher_observer")))
+                .andExpect(jsonPath("$.workflow.reassign_candidates[*].username", hasItem("watcher_peer")))
+                .andExpect(jsonPath("$.workflow.reassign_candidates[*].username", hasItem("watcher_new")))
+                .andExpect(jsonPath("$.workflow.reassign_candidates[*].username", org.hamcrest.Matchers.not(hasItem("watcher_owner"))))
+                .andExpect(jsonPath("$.workflow.participant_candidates.length()").value(1))
+                .andExpect(jsonPath("$.workflow.participant_candidates[0].username").value("watcher_new"))
+                .andExpect(jsonPath("$.workflow.triage_preferences.view").value("sla_critical"))
+                .andExpect(jsonPath("$.workflow.triage_preferences.sort_mode").value("default"))
+                .andExpect(jsonPath("$.workflow.triage_preferences.sla_window_minutes").value(30))
+                .andExpect(jsonPath("$.workflow.triage_preferences.page_size").value("all"))
+                .andExpect(jsonPath("$.workflow.triage_preferences.updated_at_utc").isNotEmpty())
+                .andExpect(jsonPath("$.workflow.collaboration.assigned").value(true))
+                .andExpect(jsonPath("$.workflow.collaboration.participant_count").value(2))
+                .andExpect(jsonPath("$.workflow.collaboration.can_reassign").value(true))
+                .andExpect(jsonPath("$.workflow.collaboration.can_manage_participants").value(true))
+                .andExpect(jsonPath("$.workflow.collaboration.reassign_candidate_count").value(3))
+                .andExpect(jsonPath("$.workflow.collaboration.participant_candidate_count").value(1))
+                .andExpect(jsonPath("$.meta.parity.checks[*].key", hasItem("operator_workflow_projection")))
+                .andExpect(jsonPath("$.meta.parity.status").value("attention"));
+    }
+
     private void insertDialogTicket(long userId,
                                     String ticketId,
                                     long channelId,
@@ -590,6 +693,30 @@ class DialogWorkspaceIntegrationTest {
                 channelId,
                 createdAt,
                 "seed");
+    }
+
+    private void insertDirectoryUser(String username,
+                                     boolean enabled,
+                                     boolean blocked,
+                                     long roleId,
+                                     String role,
+                                     String fullName,
+                                     String department,
+                                     String photo) {
+        usersJdbcTemplate.update("""
+                INSERT INTO users(username, password, enabled, role_id, role, department, full_name, photo, is_blocked, last_portal_activity_at)
+                VALUES (?,?,?,?,?,?,?,?,?,?)
+                """,
+                username,
+                "{noop}test",
+                enabled ? 1 : 0,
+                roleId,
+                role,
+                department,
+                fullName,
+                photo,
+                blocked ? 1 : 0,
+                "2026-05-26T12:00:00Z");
     }
 
     private void insertHistoryRow(String ticketId,

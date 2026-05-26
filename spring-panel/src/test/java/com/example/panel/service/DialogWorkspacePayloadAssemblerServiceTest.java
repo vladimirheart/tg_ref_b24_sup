@@ -34,6 +34,7 @@ class DialogWorkspacePayloadAssemblerServiceTest {
                 Map.of(),
                 Map.of("enabled", true),
                 Map.of("can_reply", true),
+                Map.of("participants", List.of(), "triage_preferences", Map.of()),
                 Map.of("reply_supported", true),
                 1440,
                 240,
@@ -109,6 +110,14 @@ class DialogWorkspacePayloadAssemblerServiceTest {
                 Map.of("enabled", true, "ready", true),
                 Map.of("enabled", true, "ready", true),
                 Map.of("can_reply", true, "can_assign", true, "can_close", true, "can_snooze", true),
+                Map.of(
+                        "responsible", Map.of("username", "watcher_owner", "assigned", true),
+                        "participants", List.of(Map.of("username", "watcher_peer")),
+                        "reassign_candidates", List.of(Map.of("username", "watcher_new")),
+                        "participant_candidates", List.of(Map.of("username", "watcher_new")),
+                        "triage_preferences", Map.of("view", "sla_critical"),
+                        "collaboration", Map.of("participant_count", 1)
+                ),
                 Map.of("reply_supported", true, "media_supported", true, "reply_target_supported", true),
                 1440,
                 240,
@@ -129,6 +138,8 @@ class DialogWorkspacePayloadAssemblerServiceTest {
         @SuppressWarnings("unchecked")
         Map<String, Object> context = (Map<String, Object>) payload.get("context");
         @SuppressWarnings("unchecked")
+        Map<String, Object> workflow = (Map<String, Object>) payload.get("workflow");
+        @SuppressWarnings("unchecked")
         Map<String, Object> sla = (Map<String, Object>) payload.get("sla");
         @SuppressWarnings("unchecked")
         Map<String, Object> meta = (Map<String, Object>) payload.get("meta");
@@ -141,6 +152,8 @@ class DialogWorkspacePayloadAssemblerServiceTest {
         assertThat(items.get(0).deletedAt()).isEqualTo("2026-05-26T10:03:30Z");
         assertThat(context).containsEntry("client", Map.of("id", 910096L, "name", "Клиент Rich"));
         assertThat(context).containsEntry("profile_match_candidates", Map.of("matches", List.of("crm")));
+        assertThat(workflow).containsKey("responsible");
+        assertThat(workflow).containsEntry("triage_preferences", Map.of("view", "sla_critical"));
         assertThat(sla).containsEntry("state", "critical");
         assertThat(sla).containsEntry("escalation_required", true);
         assertThat(meta).containsEntry("cursor", 2);

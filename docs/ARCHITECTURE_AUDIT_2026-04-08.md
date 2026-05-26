@@ -1489,4 +1489,23 @@ integration-сценария поверх users/settings runtime boundary всё
   `PublicFormSubmissionPersistenceServiceTest`,
   `PublicFormChannelServiceTest` и новый flow-service unit net остаются
   зелёными.
+- следующим более широким пакетом закрыт `dialog workspace operator workflow
+  projection drift`: `/api/dialogs/{ticketId}/workspace` теперь проецирует
+  отдельный `workflow` snapshot с `responsible`, `participants`,
+  `reassign_candidates`, `participant_candidates`, `triage_preferences` и
+  collaboration summary, чтобы workspace меньше зависел от дополнительных
+  `/participants`, `/operators` и `/triage-preferences` read round-trips.
+- под это добавлен новый bounded `DialogWorkspaceWorkflowSnapshotService`,
+  расширен `DialogWorkspacePayloadAssemblerService`, а parity-контракт получил
+  explicit `operator_workflow_projection` check для live operator-facing
+  workflow surface.
+- targeted `DialogWorkspaceWorkflowSnapshotServiceTest`,
+  `DialogWorkspacePayloadAssemblerServiceTest`,
+  `DialogWorkspaceParityServiceTest`, `DialogWorkspaceIntegrationTest` и
+  `DialogWorkspaceControllerWebMvcTest` остаются зелёными.
+- следующий practical focus в `dialog-read/workspace` зоне смещён уже не на
+  rollout/bootstrap payload, а на action/runtime continuity поверх нового
+  workflow snapshot: quick-action side-effects parity, workspace-triggered
+  participant/reassign lifecycles и adjacent projection drift around
+  operator-owned actions.
   и новый persistence-service unit net остаются зелёными.

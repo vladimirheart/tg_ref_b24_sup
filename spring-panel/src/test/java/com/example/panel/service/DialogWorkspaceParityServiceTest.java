@@ -67,6 +67,14 @@ class DialogWorkspaceParityServiceTest {
                         "can_close", true,
                         "can_snooze", true
                 ),
+                Map.of(
+                        "responsible", Map.of("assigned", true),
+                        "participants", List.of(),
+                        "reassign_candidates", List.of(),
+                        "participant_candidates", List.of(),
+                        "triage_preferences", Map.of(),
+                        "collaboration", Map.of()
+                ),
                 composer,
                 "healthy",
                 sampleDialog(),
@@ -88,6 +96,7 @@ class DialogWorkspaceParityServiceTest {
                 Map.of("enabled", true, "ready", true),
                 Map.of("enabled", true, "ready", true),
                 Map.of("can_reply", true),
+                Map.of(),
                 Map.of("reply_supported", true, "media_supported", true, "reply_target_supported", false),
                 "unknown",
                 sampleDialog(),
@@ -112,6 +121,14 @@ class DialogWorkspaceParityServiceTest {
                         "can_assign", false,
                         "can_close", false,
                         "can_snooze", false
+                ),
+                Map.of(
+                        "responsible", Map.of("assigned", true),
+                        "participants", List.of(),
+                        "reassign_candidates", List.of(),
+                        "participant_candidates", List.of(),
+                        "triage_preferences", Map.of(),
+                        "collaboration", Map.of()
                 ),
                 Map.of(
                         "reply_supported", false,

@@ -28,6 +28,7 @@ public class DialogWorkspacePayloadAssemblerService {
                                                      Map<String, Object> contextBlocksHealth,
                                                      Map<String, Object> contextContract,
                                                      Map<String, Object> workspacePermissions,
+                                                     Map<String, Object> workflowSnapshot,
                                                      Map<String, Object> workspaceComposer,
                                                      int slaTargetMinutes,
                                                      int slaWarningMinutes,
@@ -79,6 +80,7 @@ public class DialogWorkspacePayloadAssemblerService {
                 "unavailable", true
         ));
         payload.put("permissions", workspacePermissions);
+        payload.put("workflow", workflowSnapshot != null ? workflowSnapshot : Map.of());
         payload.put("composer", workspaceComposer);
         payload.put("sla", includeSections.contains("sla")
                 ? mapWithNullableValues(

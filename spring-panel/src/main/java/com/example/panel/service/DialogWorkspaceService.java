@@ -32,6 +32,7 @@ public class DialogWorkspaceService {
     private final DialogWorkspaceSlaViewService dialogWorkspaceSlaViewService;
     private final DialogWorkspaceExternalKpiService dialogWorkspaceExternalKpiService;
     private final DialogWorkspaceRolloutGovernanceConfigService dialogWorkspaceRolloutGovernanceConfigService;
+    private final DialogWorkspaceWorkflowSnapshotService dialogWorkspaceWorkflowSnapshotService;
 
     public DialogWorkspaceService(DialogDetailsReadService dialogDetailsReadService,
                                   SharedConfigService sharedConfigService,
@@ -48,7 +49,8 @@ public class DialogWorkspaceService {
                                   DialogWorkspaceClientContextAssemblerService dialogWorkspaceClientContextAssemblerService,
                                   DialogWorkspaceSlaViewService dialogWorkspaceSlaViewService,
                                   DialogWorkspaceExternalKpiService dialogWorkspaceExternalKpiService,
-                                  DialogWorkspaceRolloutGovernanceConfigService dialogWorkspaceRolloutGovernanceConfigService) {
+                                  DialogWorkspaceRolloutGovernanceConfigService dialogWorkspaceRolloutGovernanceConfigService,
+                                  DialogWorkspaceWorkflowSnapshotService dialogWorkspaceWorkflowSnapshotService) {
         this.dialogDetailsReadService = dialogDetailsReadService;
         this.sharedConfigService = sharedConfigService;
         this.dialogAuthorizationService = dialogAuthorizationService;
@@ -65,6 +67,7 @@ public class DialogWorkspaceService {
         this.dialogWorkspaceSlaViewService = dialogWorkspaceSlaViewService;
         this.dialogWorkspaceExternalKpiService = dialogWorkspaceExternalKpiService;
         this.dialogWorkspaceRolloutGovernanceConfigService = dialogWorkspaceRolloutGovernanceConfigService;
+        this.dialogWorkspaceWorkflowSnapshotService = dialogWorkspaceWorkflowSnapshotService;
     }
 
     public ResponseEntity<?> workspace(String ticketId,
@@ -119,6 +122,12 @@ public class DialogWorkspaceService {
                 "can_bulk", false,
                 "unavailable", true
         );
+        Map<String, Object> workflowSnapshot = dialogWorkspaceWorkflowSnapshotService.buildWorkflowSnapshot(
+                ticketId,
+                operator,
+                summary,
+                workspacePermissions
+        );
         Map<String, Object> workspaceComposer = dialogWorkspaceParityService.buildComposerMeta(summary, history, workspacePermissions);
         Map<String, Object> workspaceParity = dialogWorkspaceParityService.buildParityMeta(
                 includeSections,
@@ -128,6 +137,7 @@ public class DialogWorkspaceService {
                 clientContextBundle.profileHealth(),
                 clientContextBundle.contextBlocksHealth(),
                 workspacePermissions,
+                workflowSnapshot,
                 workspaceComposer,
                 slaView.state(),
                 summary,
@@ -152,6 +162,7 @@ public class DialogWorkspaceService {
                 clientContextBundle.contextBlocksHealth(),
                 clientContextBundle.contextContract(),
                 workspacePermissions,
+                workflowSnapshot,
                 workspaceComposer,
                 slaView.targetMinutes(),
                 slaView.warningMinutes(),
