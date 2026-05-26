@@ -538,5 +538,16 @@
       "description" : ""
     } ],
     "active_template_id" : "auto-u97pii-mowx65uu"
+  },
+  "reporting_config" : {
+    "enabled" : true,
+    "period_days" : 7,
+    "frequency" : "weekly",
+    "send_at" : "09:00",
+    "channel_id" : null,
+    "recipient_user" : "-4961108450",
+    "include_appeals" : true,
+    "include_tasks" : true,
+    "include_changes" : true
   }
 }
