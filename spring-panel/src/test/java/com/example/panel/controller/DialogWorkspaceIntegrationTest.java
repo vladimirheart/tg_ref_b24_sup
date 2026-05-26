@@ -672,7 +672,7 @@ class DialogWorkspaceIntegrationTest {
     }
 
     @Test
-    void workspaceApiRefreshesWorkflowActionsAfterReassignAndResolveLifecycle() throws Exception {
+    void workspaceApiRefreshesWorkflowActionsAcrossReassignResolveReopenAndParticipantRemovalLifecycle() throws Exception {
         usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
         insertDirectoryUser("watcher_owner", true, false, 1L, "Support", "Watcher Owner", "Ops", "/img/owner.png");
         insertDirectoryUser("watcher_new", true, false, 1L, "Support", "Watcher New", "Ops", "/img/new.png");
@@ -723,6 +723,33 @@ class DialogWorkspaceIntegrationTest {
                 .andExpect(jsonPath("$.workflow.reassign_candidates[*].username", hasItem("watcher_owner")))
                 .andExpect(jsonPath("$.workflow.participant_candidates[*].username", hasItem("watcher_owner")))
                 .andExpect(jsonPath("$.conversation.statusKey").value("closed"))
+                .andExpect(jsonPath("$.meta.parity.checks[*].key", hasItem("operator_action_guards")));
+
+        dialogQuickActionService.reopenTicket("T-WS-ACTION", "watcher_new");
+        dialogQuickActionService.removeParticipant("T-WS-ACTION", "watcher_peer", "watcher_new");
+
+        mockMvc.perform(get("/api/dialogs/T-WS-ACTION/workspace")
+                        .param("include", "messages,permissions,sla")
+                        .principal(new TestingAuthenticationToken("watcher_new", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.workflow.responsible.username").value("watcher_new"))
+                .andExpect(jsonPath("$.workflow.participants.length()").value(0))
+                .andExpect(jsonPath("$.workflow.actions.resolve.enabled").value(true))
+                .andExpect(jsonPath("$.workflow.actions.reopen.enabled").value(false))
+                .andExpect(jsonPath("$.workflow.actions.reopen.disabled_reason").value("not_closed"))
+                .andExpect(jsonPath("$.workflow.actions.reassign.enabled").value(true))
+                .andExpect(jsonPath("$.workflow.actions.participants_add.enabled").value(true))
+                .andExpect(jsonPath("$.workflow.actions.participants_remove.enabled").value(false))
+                .andExpect(jsonPath("$.workflow.actions.participants_remove.disabled_reason").value("no_participants"))
+                .andExpect(jsonPath("$.workflow.collaboration.participant_count").value(0))
+                .andExpect(jsonPath("$.workflow.collaboration.can_reassign").value(true))
+                .andExpect(jsonPath("$.workflow.collaboration.can_manage_participants").value(true))
+                .andExpect(jsonPath("$.workflow.participant_candidates[*].username", hasItem("watcher_owner")))
+                .andExpect(jsonPath("$.workflow.participant_candidates[*].username", hasItem("watcher_peer")))
+                .andExpect(jsonPath("$.workflow.reassign_candidates[*].username", hasItem("watcher_owner")))
+                .andExpect(jsonPath("$.workflow.reassign_candidates[*].username", hasItem("watcher_peer")))
+                .andExpect(jsonPath("$.conversation.statusKey").value("waiting_operator"))
                 .andExpect(jsonPath("$.meta.parity.checks[*].key", hasItem("operator_action_guards")));
     }
 

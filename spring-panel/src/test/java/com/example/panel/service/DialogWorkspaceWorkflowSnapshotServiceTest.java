@@ -184,6 +184,51 @@ class DialogWorkspaceWorkflowSnapshotServiceTest {
         assertThat(((Map<?, ?>) actions.get("participants_remove")).get("enabled")).isEqualTo(true);
     }
 
+    @Test
+    void buildWorkflowSnapshotProjectsNoParticipantGuardAfterParticipantRemoval() {
+        DialogParticipantService dialogParticipantService = mock(DialogParticipantService.class);
+        DialogResponsibilityService dialogResponsibilityService = mock(DialogResponsibilityService.class);
+        DialogTriagePreferenceService dialogTriagePreferenceService = mock(DialogTriagePreferenceService.class);
+        DialogWorkspaceWorkflowSnapshotService service = new DialogWorkspaceWorkflowSnapshotService(
+                dialogParticipantService,
+                dialogResponsibilityService,
+                dialogTriagePreferenceService
+        );
+
+        when(dialogParticipantService.loadParticipants("T-WF-4")).thenReturn(List.of());
+        when(dialogParticipantService.findOperator("watcher_new")).thenReturn(Optional.of(
+                new DialogOperatorOption("watcher_new", "Watcher New", "/avatars/new.png", "Ops", "Lead")
+        ));
+        when(dialogParticipantService.loadAssignableOperators()).thenReturn(List.of(
+                new DialogOperatorOption("watcher_owner", "Watcher Owner", "/avatars/owner.png", "Ops", "Lead"),
+                new DialogOperatorOption("watcher_peer", "Watcher Peer", "/avatars/peer.png", "Ops", "Support")
+        ));
+        when(dialogTriagePreferenceService.loadForOperator("watcher_new")).thenReturn(Map.of());
+
+        Map<String, Object> snapshot = service.buildWorkflowSnapshot(
+                "T-WF-4",
+                "watcher_new",
+                dialogWithResponsible("T-WF-4", "watcher_new", "Watcher New", "/avatars/new.png"),
+                Map.of("can_assign", true, "can_close", true, "can_reply", true)
+        );
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> actions = (Map<String, Object>) snapshot.get("actions");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> collaboration = (Map<String, Object>) snapshot.get("collaboration");
+
+        assertThat(((Map<?, ?>) actions.get("resolve")).get("enabled")).isEqualTo(true);
+        assertThat(((Map<?, ?>) actions.get("reopen")).get("enabled")).isEqualTo(false);
+        assertThat(((Map<?, ?>) actions.get("reopen")).get("disabled_reason")).isEqualTo("not_closed");
+        assertThat(((Map<?, ?>) actions.get("reassign")).get("enabled")).isEqualTo(true);
+        assertThat(((Map<?, ?>) actions.get("participants_add")).get("enabled")).isEqualTo(true);
+        assertThat(((Map<?, ?>) actions.get("participants_remove")).get("enabled")).isEqualTo(false);
+        assertThat(((Map<?, ?>) actions.get("participants_remove")).get("disabled_reason")).isEqualTo("no_participants");
+        assertThat(collaboration).containsEntry("participant_count", 0);
+        assertThat(collaboration).containsEntry("can_reassign", true);
+        assertThat(collaboration).containsEntry("can_manage_participants", true);
+    }
+
     private DialogListItem dialogWithResponsible(String ticketId,
                                                  String responsible,
                                                  String responsibleDisplayName,

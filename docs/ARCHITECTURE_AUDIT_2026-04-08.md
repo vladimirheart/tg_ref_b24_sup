@@ -1523,8 +1523,24 @@ integration-сценария поверх users/settings runtime boundary всё
   `DialogWorkspacePayloadAssemblerServiceTest`,
   `DialogWorkspaceParityServiceTest` и `DialogWorkspaceIntegrationTest`
   остаются зелёными уже с новым action/runtime contract.
+- следующим пакетом закрыт и обратный `dialog workspace quick-action` lifecycle
+  после `reopen/remove participant`: live `DialogWorkspaceIntegrationTest`
+  теперь подтверждает, что `/api/dialogs/{ticketId}/workspace` возвращает
+  `waiting_operator` после reopen, очищенный participant pool, обновлённые
+  candidate lists и `participants_remove.disabled_reason=no_participants`, а
+  `DialogWorkspaceWorkflowSnapshotServiceTest` дополнительно страхует этот
+  guard на unit-уровне.
+- это закрепляет уже не только direct `resolve/reassign` parity, но и
+  post-reopen contract для operator-owned action badges: `resolve` снова
+  enabled, `reopen` уходит в `not_closed`, `participants_add` возвращается в
+  enabled, а `participants_remove` честно деградирует до `no_participants`.
+- targeted `DialogWorkspaceControllerWebMvcTest`,
+  `DialogWorkspaceWorkflowSnapshotServiceTest`,
+  `DialogWorkspacePayloadAssemblerServiceTest`,
+  `DialogWorkspaceParityServiceTest` и `DialogWorkspaceIntegrationTest`
+  остаются зелёными на полном quick-action lifecycle envelope.
 - следующий practical focus в `dialog-read/workspace` зоне смещён уже с
-  базового quick-action continuity на более глубокий operator action UX
-  parity: optimistic refresh/notification edges после `reopen/remove
-  participant`, read-side projection drift вокруг action badges и соседние
-  quick-action consumer contracts.
+  базового lifecycle parity на более глубокие operator action UX edges:
+  optimistic refresh/notification continuity после `reopen/remove participant`,
+  badge/state projection drift вокруг `quick actions` и соседние consumer
+  contracts, которые читают workspace snapshot как source of truth.
