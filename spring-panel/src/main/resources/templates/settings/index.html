@@ -389,6 +389,31 @@
       box-shadow: 0 0.25rem 0.7rem rgba(15, 23, 42, 0.08);
     }
 
+    .settings-primary-modal .modal-dialog {
+      width: min(1220px, calc(100vw - 1.7rem));
+      max-width: min(1220px, calc(100vw - 1.7rem));
+      height: calc(100vh - 1.7rem);
+      margin: 0.85rem auto;
+    }
+
+    .settings-primary-modal .modal-content {
+      height: 100%;
+      max-height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .settings-primary-modal .modal-header,
+    .settings-primary-modal .modal-footer {
+      flex-shrink: 0;
+    }
+
+    .settings-primary-modal .modal-body {
+      min-height: 0;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+
     .settings-sheet-modal {
       --settings-sheet-gap: 0.9rem;
       --settings-sheet-width: min(1120px, calc(100vw - var(--settings-sheet-sidebar-offset) - 1.1rem));
@@ -2049,6 +2074,12 @@
       .settings-surface::after {
         display: none;
       }
+      .settings-primary-modal .modal-dialog {
+        width: min(100vw - 1rem, 100%);
+        max-width: min(100vw - 1rem, 100%);
+        height: calc(100vh - 1rem);
+        margin: 0.5rem auto;
+      }
       .settings-sheet-modal {
         --settings-sheet-sidebar-offset: 0px;
         background: rgba(11, 23, 16, 0.18);
@@ -2358,7 +2389,7 @@
     </div>
 
     <!-- Настройка вводимых данных -->
-    <div class="modal fade settings-sheet-modal" id="inputFormattingModal" tabindex="-1" aria-labelledby="inputFormattingModalLabel" aria-hidden="true" data-settings-sheet data-bs-backdrop="false" data-bs-focus="false">
+    <div class="modal fade settings-primary-modal" id="inputFormattingModal" tabindex="-1" aria-labelledby="inputFormattingModalLabel" aria-hidden="true" data-settings-primary-modal>
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
@@ -2663,8 +2694,8 @@
     </div>
 
     <!-- Пользователи -->
-    <div class="modal fade settings-sheet-modal" id="usersModal" tabindex="-1" aria-labelledby="usersModalLabel" aria-hidden="true" data-settings-sheet data-bs-backdrop="false" data-bs-focus="false">
-      <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal fade settings-primary-modal" id="usersModal" tabindex="-1" aria-labelledby="usersModalLabel" aria-hidden="true" data-settings-primary-modal>
+      <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="usersModalLabel">Пользователи панели и настройки доступа</h5>
@@ -3031,8 +3062,8 @@
     </div>
 
     <!-- Настройки диалогов -->
-    <div class="modal fade settings-sheet-modal" id="categoriesModal" tabindex="-1" aria-labelledby="categoriesModalLabel" aria-hidden="true" data-settings-sheet data-bs-backdrop="false" data-bs-focus="false">
-      <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal fade settings-primary-modal" id="categoriesModal" tabindex="-1" aria-labelledby="categoriesModalLabel" aria-hidden="true" data-settings-primary-modal>
+      <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="categoriesModalLabel">Настройка диалогов</h5>
@@ -4591,7 +4622,7 @@
     </div>
 
     <!-- Локации -->
-    <div class="modal fade settings-sheet-modal" id="locationsModal" tabindex="-1" aria-labelledby="locationsModalLabel" aria-hidden="true" data-settings-sheet data-bs-backdrop="false" data-bs-focus="false">
+    <div class="modal fade settings-primary-modal" id="locationsModal" tabindex="-1" aria-labelledby="locationsModalLabel" aria-hidden="true" data-settings-primary-modal>
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
@@ -4812,7 +4843,7 @@
     </div>
 
     <!-- Параметры партнёров -->
-    <div class="modal fade settings-sheet-modal" id="parametersModal" tabindex="-1" aria-labelledby="parametersModalLabel" aria-hidden="true" data-settings-sheet data-bs-backdrop="false" data-bs-focus="false">
+    <div class="modal fade settings-primary-modal" id="parametersModal" tabindex="-1" aria-labelledby="parametersModalLabel" aria-hidden="true" data-settings-primary-modal>
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
@@ -4984,7 +5015,7 @@
       </div>
     </div>
 
-    <div class="modal fade settings-sheet-modal" id="legalEntitiesModal" tabindex="-1" aria-labelledby="legalEntitiesModalLabel" aria-hidden="true" data-settings-sheet data-bs-backdrop="false" data-bs-focus="false">
+    <div class="modal fade settings-primary-modal" id="legalEntitiesModal" tabindex="-1" aria-labelledby="legalEntitiesModalLabel" aria-hidden="true" data-settings-primary-modal>
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
@@ -5037,7 +5068,7 @@
     </div>
 
     <!-- Подключения IT-блока и профили провайдеров -->
-    <div class="modal fade settings-sheet-modal" id="itConnectionsModal" tabindex="-1" aria-labelledby="itConnectionsModalLabel" aria-hidden="true" data-settings-sheet data-bs-backdrop="false" data-bs-focus="false">
+    <div class="modal fade settings-primary-modal" id="itConnectionsModal" tabindex="-1" aria-labelledby="itConnectionsModalLabel" aria-hidden="true" data-settings-primary-modal>
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
@@ -5640,8 +5671,8 @@
       </div>
     </div>
 
-    <div class="modal fade" id="panelDesignSettingsModal" tabindex="-1" aria-labelledby="panelDesignSettingsModalLabel" aria-hidden="true">
-      <div class="modal-dialog modal-dialog-centered">
+    <div class="modal fade settings-primary-modal" id="panelDesignSettingsModal" tabindex="-1" aria-labelledby="panelDesignSettingsModalLabel" aria-hidden="true" data-settings-primary-modal>
+      <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="panelDesignSettingsModalLabel">Настройки оформления панели</h5>
@@ -5715,8 +5746,8 @@
       </div>
     </div>
 
-    <div class="modal fade" id="reportingModal" tabindex="-1" aria-labelledby="reportingModalLabel" aria-hidden="true">
-      <div class="modal-dialog modal-dialog-centered">
+    <div class="modal fade settings-primary-modal" id="reportingModal" tabindex="-1" aria-labelledby="reportingModalLabel" aria-hidden="true" data-settings-primary-modal>
+      <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="reportingModalLabel">Конструктор автоотчётов</h5>
@@ -5776,11 +5807,11 @@
     </div>
 
 
-    <div class="modal fade" id="managerBindingsModal" tabindex="-1" aria-hidden="true">
-      <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal fade settings-primary-modal" id="managerBindingsModal" tabindex="-1" aria-labelledby="managerBindingsModalLabel" aria-hidden="true" data-settings-primary-modal>
+      <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title">Привязка управляющих к локациям</h5>
+            <h5 class="modal-title" id="managerBindingsModalLabel">Привязка управляющих к локациям</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
           </div>
           <div class="modal-body">
@@ -5808,7 +5839,7 @@
       </div>
     </div>
 
-    <div class="modal fade" id="channelsModal" tabindex="-1" aria-labelledby="channelsModalLabel" aria-hidden="true">
+    <div class="modal fade settings-primary-modal" id="channelsModal" tabindex="-1" aria-labelledby="channelsModalLabel" aria-hidden="true" data-settings-primary-modal>
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
@@ -24468,7 +24499,25 @@
       : '<i class="bi bi-arrows-angle-expand" aria-hidden="true"></i>';
   }
 
-  function initSettingsSheetModals() {
+  function initSettingsPrimaryModals() {
+    const primaryModals = Array.from(document.querySelectorAll('[data-settings-primary-modal]'));
+    primaryModals.forEach((modal) => {
+      if (!(modal instanceof HTMLElement)) {
+        return;
+      }
+      modal.addEventListener('shown.bs.modal', () => {
+        const tile = resolveSettingsTileForModal(modal);
+        tile?.classList.add('is-active');
+        updateSettingsModalBodyLock();
+      });
+
+      modal.addEventListener('hidden.bs.modal', () => {
+        const tile = resolveSettingsTileForModal(modal);
+        tile?.classList.remove('is-active');
+        updateSettingsModalBodyLock();
+      });
+    });
+
     const sheetModals = Array.from(document.querySelectorAll('[data-settings-sheet]'));
     sheetModals.forEach((modal) => {
       if (!(modal instanceof HTMLElement)) {
@@ -24495,19 +24544,10 @@
         header.appendChild(actions);
       }
 
-      modal.addEventListener('shown.bs.modal', () => {
-        const tile = resolveSettingsTileForModal(modal);
-        tile?.classList.add('is-active');
-        updateSettingsModalBodyLock();
-      });
-
       modal.addEventListener('hidden.bs.modal', () => {
         modal.classList.remove('is-expanded');
-        const tile = resolveSettingsTileForModal(modal);
-        tile?.classList.remove('is-active');
         const toggle = modal.querySelector('[data-settings-sheet-toggle]');
         syncSettingsSheetToggle(modal, toggle);
-        updateSettingsModalBodyLock();
       });
     });
 
@@ -24528,7 +24568,7 @@
   document.addEventListener('DOMContentLoaded', () => {
     initReporting();
     initSettingsTileDescriptions();
-    initSettingsSheetModals();
+    initSettingsPrimaryModals();
   });
 
   </script>
