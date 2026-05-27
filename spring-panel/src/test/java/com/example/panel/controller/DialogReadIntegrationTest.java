@@ -1,6 +1,7 @@
 package com.example.panel.controller;
 
 import com.example.panel.service.DialogQuickActionService;
+import com.example.panel.service.NotificationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -25,6 +26,7 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -97,6 +99,9 @@ class DialogReadIntegrationTest {
     @Autowired
     private DialogQuickActionService dialogQuickActionService;
 
+    @Autowired
+    private NotificationService notificationService;
+
     @BeforeEach
     void clean() {
         ensureChatHistoryMutationColumns();
@@ -104,6 +109,7 @@ class DialogReadIntegrationTest {
         jdbcTemplate.update("DELETE FROM ticket_participants");
         jdbcTemplate.update("DELETE FROM ticket_active");
         jdbcTemplate.update("DELETE FROM ticket_responsibles");
+        jdbcTemplate.update("DELETE FROM notifications");
         jdbcTemplate.update("DELETE FROM web_form_sessions");
         jdbcTemplate.update("DELETE FROM messages");
         jdbcTemplate.update("DELETE FROM tickets");
@@ -350,6 +356,110 @@ class DialogReadIntegrationTest {
                 .andExpect(jsonPath("$.participants[0].displayName").value("Watcher Peer"))
                 .andExpect(jsonPath("$.participants[0].department").value("Ops"))
                 .andExpect(jsonPath("$.participants[0].role").value("Support"));
+    }
+
+    @Test
+    void historyApiRefreshesDialogUnreadLoopWithoutImplicitlyAckingBellNotifications() throws Exception {
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
+                VALUES (74, 'token74d', 'History Notify', 'telegram', 1, CURRENT_TIMESTAMP)
+                """);
+        jdbcTemplate.update("""
+                INSERT INTO tickets (user_id, ticket_id, status, channel_id)
+                VALUES (?,?,?,?)
+                """,
+                910082L, "T-READ-NOTIFY", "open", 74L);
+        jdbcTemplate.update("""
+                INSERT INTO messages (
+                    group_msg_id, user_id, problem, created_at, username, ticket_id,
+                    created_date, created_time, client_name, channel_id, updated_at, updated_by
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                7401L,
+                910082L,
+                "Проверка history notification loop",
+                "2026-05-27T09:20:00Z",
+                "read_notify_user",
+                "T-READ-NOTIFY",
+                "2026-05-27",
+                "09:20:00",
+                "Клиент History Notify",
+                74L,
+                "2026-05-27T09:20:00Z",
+                "seed");
+        jdbcTemplate.update("""
+                INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
+                VALUES (?,?,?,?)
+                """,
+                "T-READ-NOTIFY", "watcher_owner", "dispatcher", "2026-05-27T09:19:00Z");
+        jdbcTemplate.update("""
+                INSERT INTO chat_history(
+                    ticket_id, sender, message, timestamp, message_type, channel_id, tg_message_id
+                ) VALUES (?,?,?,?,?,?,?)
+                """,
+                "T-READ-NOTIFY", "user", "Follow-up для history route", "2026-05-27T09:23:00Z", "text", 74L, 741L);
+
+        notificationService.notifyDialogParticipants(
+                "T-READ-NOTIFY",
+                "Новое сообщение в обращении T-READ-NOTIFY",
+                "/dialogs?ticketId=T-READ-NOTIFY",
+                null
+        );
+
+        mockMvc.perform(get("/api/dialogs")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-READ-NOTIFY"))
+                .andExpect(jsonPath("$.dialogs[0].unreadCount").value(1));
+
+        mockMvc.perform(get("/api/notifications/unread_count")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unread").value(1));
+
+        mockMvc.perform(get("/api/dialogs/T-READ-NOTIFY/history")
+                        .param("channelId", "74")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.messages[0].message").value("Follow-up для history route"));
+
+        String lastReadAt = jdbcTemplate.queryForObject(
+                "SELECT last_read_at FROM ticket_responsibles WHERE ticket_id = ? AND responsible = ?",
+                String.class,
+                "T-READ-NOTIFY",
+                "watcher_owner"
+        );
+        assertThat(lastReadAt).isEqualTo("2026-05-27T09:23:00Z");
+
+        mockMvc.perform(get("/api/dialogs")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-READ-NOTIFY"))
+                .andExpect(jsonPath("$.dialogs[0].unreadCount").value(0));
+
+        mockMvc.perform(get("/api/notifications/unread_count")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unread").value(1));
+
+        Long notificationId = jdbcTemplate.queryForObject(
+                "SELECT id FROM notifications WHERE user_identity = ? ORDER BY id DESC LIMIT 1",
+                Long.class,
+                "watcher_owner"
+        );
+
+        mockMvc.perform(post("/api/notifications/" + notificationId + "/read")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        mockMvc.perform(get("/api/notifications/unread_count")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unread").value(0));
     }
 
     private void ensureChatHistoryMutationColumns() {

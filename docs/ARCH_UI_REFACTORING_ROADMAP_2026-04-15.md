@@ -1415,7 +1415,14 @@
   только dialog unread projection через `last_read_at`, но не снимает bell
   notification автоматически; отдельный unread badge сбрасывается только через
   explicit notification read endpoint.
+- следующим более широким пакетом эта семантика добрана и для соседних
+  consumer routes: `DialogReadIntegrationTest` и
+  `DialogWorkspaceIntegrationTest` теперь закрепляют тот же live loop для
+  `history` и `workspace`, а не только для `details`.
+- это выравнивает operator UX на всём основном read surface: `details`,
+  `history` и `workspace` одинаково гасят dialog unread projection, но не
+  подтверждают bell notification implicitly.
 - следующий practical focus в `dialog workspace/read/details` зоне смещён уже
-  с cross-consumer lifecycle parity, basic audit trail и notification refresh
-  loop на соседние consumer projections вокруг того же
-  status/owner/action lifecycle.
+  с cross-consumer lifecycle parity, basic audit trail и full notification
+  refresh loop на соседние consumer projections вокруг того же
+  status/owner/action lifecycle после ack/follow-up refresh.

@@ -2,6 +2,7 @@ package com.example.panel.controller;
 
 import com.example.panel.service.SharedConfigService;
 import com.example.panel.service.DialogQuickActionService;
+import com.example.panel.service.NotificationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -107,6 +108,9 @@ class DialogWorkspaceIntegrationTest {
     @Autowired
     private DialogQuickActionService dialogQuickActionService;
 
+    @Autowired
+    private NotificationService notificationService;
+
     @BeforeEach
     void clean() {
         ensureChatHistoryMutationColumns();
@@ -117,6 +121,7 @@ class DialogWorkspaceIntegrationTest {
         jdbcTemplate.update("DELETE FROM ticket_active");
         jdbcTemplate.update("DELETE FROM ticket_responsibles");
         jdbcTemplate.update("DELETE FROM web_form_sessions");
+        jdbcTemplate.update("DELETE FROM notifications");
         jdbcTemplate.update("DELETE FROM task_history");
         jdbcTemplate.update("DELETE FROM task_links");
         jdbcTemplate.update("DELETE FROM tasks");
@@ -820,6 +825,87 @@ class DialogWorkspaceIntegrationTest {
                 .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("reassign: success (responsible_redirected)")))
                 .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("quick_close: success (updated)")))
                 .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("participants_remove: success (participant_removed)")));
+    }
+
+    @Test
+    void workspaceApiRefreshesDialogUnreadLoopWithoutImplicitlyAckingBellNotifications() throws Exception {
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        insertDirectoryUser("watcher_owner", true, false, 1L, "Support", "Watcher Owner", "Ops", "/img/owner.png");
+
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
+                VALUES (91, 'token91w', 'Workspace Notify', 'telegram', 1, CURRENT_TIMESTAMP)
+                """);
+        insertDialogTicket(910101L, "T-WS-NOTIFY", 91L, "workspace_notify_user", "Клиент Workspace Notify", "Retail", "Тверь", "Точка", "Проверка workspace notification loop", "2026-05-27T09:40:00Z", 9101L);
+        jdbcTemplate.update("""
+                INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
+                VALUES (?,?,?,?)
+                """,
+                "T-WS-NOTIFY", "watcher_owner", "dispatcher", "2026-05-27T09:39:00Z");
+        insertHistoryRow("T-WS-NOTIFY", 910101L, "user", "Follow-up для workspace route", "2026-05-27T09:43:00Z", "text", 911L, null, 91L, null);
+
+        notificationService.notifyDialogParticipants(
+                "T-WS-NOTIFY",
+                "Новое сообщение в обращении T-WS-NOTIFY",
+                "/dialogs?ticketId=T-WS-NOTIFY",
+                null
+        );
+
+        mockMvc.perform(get("/api/dialogs")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-WS-NOTIFY"))
+                .andExpect(jsonPath("$.dialogs[0].unreadCount").value(1));
+
+        mockMvc.perform(get("/api/notifications/unread_count")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unread").value(1));
+
+        mockMvc.perform(get("/api/dialogs/T-WS-NOTIFY/workspace")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.conversation.ticketId").value("T-WS-NOTIFY"))
+                .andExpect(jsonPath("$.conversation.statusKey").value("waiting_operator"))
+                .andExpect(jsonPath("$.messages.items[0].message").value("Follow-up для workspace route"));
+
+        String lastReadAt = jdbcTemplate.queryForObject(
+                "SELECT last_read_at FROM ticket_responsibles WHERE ticket_id = ? AND responsible = ?",
+                String.class,
+                "T-WS-NOTIFY",
+                "watcher_owner"
+        );
+        assertThat(lastReadAt).isEqualTo("2026-05-27T09:43:00Z");
+
+        mockMvc.perform(get("/api/dialogs")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-WS-NOTIFY"))
+                .andExpect(jsonPath("$.dialogs[0].unreadCount").value(0));
+
+        mockMvc.perform(get("/api/notifications/unread_count")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unread").value(1));
+
+        Long notificationId = jdbcTemplate.queryForObject(
+                "SELECT id FROM notifications WHERE user_identity = ? ORDER BY id DESC LIMIT 1",
+                Long.class,
+                "watcher_owner"
+        );
+
+        mockMvc.perform(post("/api/notifications/" + notificationId + "/read")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        mockMvc.perform(get("/api/notifications/unread_count")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unread").value(0));
     }
 
     private void insertDialogTicket(long userId,
