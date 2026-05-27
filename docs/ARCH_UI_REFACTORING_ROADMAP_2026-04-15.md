@@ -1407,7 +1407,15 @@
   operator-facing continuity по action trail: `reassign`, `quick_close` и
   `participants_remove` остаются видимыми в workspace context после тех же
   controller-level runtime веток, которыми пользуется UI.
+- следующим пакетом добран и `notification/read-marker refresh loop`:
+  `DialogDetailsIntegrationTest` теперь связывает `/api/dialogs` list unread,
+  `/api/dialogs/{ticketId}` read receipt и `/api/notifications` bell badge в
+  одном live runtime сценарии.
+- это подтверждает ожидаемую UI-семантику: открытие dialog details обнуляет
+  только dialog unread projection через `last_read_at`, но не снимает bell
+  notification автоматически; отдельный unread badge сбрасывается только через
+  explicit notification read endpoint.
 - следующий practical focus в `dialog workspace/read/details` зоне смещён уже
-  с cross-consumer lifecycle parity и basic audit trail на более тонкий
-  operator UX/runtime contract: notification/read-marker refresh loop и
-  соседние consumer projections вокруг того же status/owner/action lifecycle.
+  с cross-consumer lifecycle parity, basic audit trail и notification refresh
+  loop на соседние consumer projections вокруг того же
+  status/owner/action lifecycle.

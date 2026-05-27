@@ -1564,7 +1564,20 @@ integration-сценария поверх users/settings runtime boundary всё
 - targeted `DialogWorkspaceIntegrationTest`, `DialogDetailsIntegrationTest` и
   `DialogReadIntegrationTest` остаются зелёными уже и на этом audit-trail
   continuation слое.
+- следующим пакетом закрыт и `notification/read-marker refresh loop`: live
+  `DialogDetailsIntegrationTest` теперь проходит через `/api/dialogs`,
+  `/api/dialogs/{ticketId}` и `/api/notifications/*`, подтверждая, что dialog
+  unread projection и bell-notification unread badge живут в разных, но
+  согласованных контурах.
+- это фиксирует реальный operator UX loop после client follow-up: список
+  диалогов сначала показывает `unreadCount=1`, `details` route двигает
+  `last_read_at` и обнуляет dialog unread state, но не трогает bell badge,
+  который сбрасывается только через explicit `NotificationApiController`
+  `markAsRead`.
+- targeted `DialogDetailsIntegrationTest`, `DialogReadIntegrationTest`,
+  `DialogWorkspaceIntegrationTest` и `NotificationApiIntegrationTest`
+  остаются зелёными уже и на этом notification/read-marker continuity слое.
 - следующий practical focus в `dialog-read/workspace` зоне смещён уже с
   cross-consumer lifecycle parity и basic audit trail на ещё более тонкие
-  UX/runtime edges: notification/read-marker refresh loop и соседние consumer
-  contracts, которые опираются на тот же status/owner/action lifecycle.
+  UX/runtime edges: соседние consumer contracts и projection drift вокруг того
+  же status/owner/action lifecycle после read refresh.
