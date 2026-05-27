@@ -105,4 +105,47 @@ class SettingsUpdateSharedConfigIntegrationTest {
         assertEquals(List.of("vip", "new"), sharedConfigService.loadSettings().get("client_statuses"));
         assertTrue(sharedConfigService.loadSettings().containsKey("dialog_config"));
     }
+
+    @Test
+    void updateSettingsPersistsBotQuestionTemplatesWithRequiredFlags() {
+        when(settingsDialogConfigUpdateService.applyDialogConfigUpdates(anyMap(), anyMap(), any(Authentication.class), anyList()))
+                .thenReturn(false);
+
+        Map<String, Object> payload = Map.of(
+                "bot_settings", Map.of(
+                        "question_templates", List.of(
+                                Map.of(
+                                        "id", "template-1",
+                                        "name", "Template 1",
+                                        "question_flow", List.of(
+                                                Map.of(
+                                                        "id", "question-1",
+                                                        "type", "custom",
+                                                        "text", "Optional question",
+                                                        "required", false
+                                                )
+                                        )
+                                )
+                        ),
+                        "active_template_id", "template-1"
+                )
+        );
+
+        Map<String, Object> result = service.updateSettings(payload, mock(Authentication.class));
+
+        assertEquals(Map.of("success", true), result);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> botSettings = (Map<String, Object>) sharedConfigService.loadSettings().get("bot_settings");
+        assertEquals("template-1", botSettings.get("active_template_id"));
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> templates = (List<Map<String, Object>>) botSettings.get("question_templates");
+        assertEquals(1, templates.size());
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> questionFlow = (List<Map<String, Object>>) templates.get(0).get("question_flow");
+        assertEquals(1, questionFlow.size());
+        assertEquals(false, questionFlow.get(0).get("required"));
+        assertEquals("Optional question", questionFlow.get(0).get("text"));
+    }
 }

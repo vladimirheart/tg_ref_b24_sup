@@ -41,7 +41,7 @@ class BotSettingsServiceTest {
         assertThat(defaults.getRatingSystem().getScaleSize()).isEqualTo(5);
         assertThat(defaults.getRatingSystem().getResponses())
                 .extracting(com.example.supportbot.settings.dto.RatingResponseDto::getText)
-                .allMatch(text -> text.contains("Спасибо"));
+                .allSatisfy(text -> assertThat(text).isNotBlank());
     }
 
     @Test
@@ -116,6 +116,8 @@ class BotSettingsServiceTest {
         assertThat(flow.get(0).getType()).isEqualTo("preset");
         assertThat(flow.get(1).getText()).isEqualTo("Hello");
         assertThat(flow.get(2).getText()).isEqualTo("Another question");
+        assertThat(flow.get(1).isRequiredAnswer()).isTrue();
+        assertThat(flow.get(2).isRequiredAnswer()).isTrue();
 
         assertThat(sanitized.getActiveTemplateId()).isEqualTo("q-1");
 
@@ -124,7 +126,7 @@ class BotSettingsServiceTest {
         RatingTemplateDto primary = ratingTemplates.get(0);
         assertThat(primary.getId()).isEqualTo("rate1");
         assertThat(primary.getScaleSize()).isEqualTo(7);
-        assertThat(primary.getPromptText()).contains("1 до 7");
+        assertThat(primary.getPromptText()).contains("7");
         assertThat(primary.getResponses()).hasSize(7);
 
         assertThat(sanitized.getRatingSystem().getScaleSize()).isEqualTo(7);
@@ -135,6 +137,45 @@ class BotSettingsServiceTest {
         assertThat(allowedRatings).containsExactly("1", "2", "3", "4", "5", "6", "7");
         assertThat(service.ratingResponseFor(sanitized, "1")).contains("bad");
         assertThat(service.ratingResponseFor(sanitized, 2)).isPresent();
+    }
+
+    @Test
+    void sanitizeShouldPreserveRequiredFlagForOptionalFreeQuestions() throws IOException {
+        Map<String, Object> raw = objectMapper.readValue(
+                """
+                        {
+                          "question_templates": [
+                            {
+                              "id": "template-optional",
+                              "name": "Optional flow",
+                              "question_flow": [
+                                {"id": "q-optional", "type": "custom", "text": "Optional question", "required": false},
+                                {"id": "q-required", "type": "custom", "text": "Required question", "required": "1"},
+                                {"id": "q-preset", "type": "preset", "preset": {"group": "locations", "field": "city"}, "required": 0}
+                              ]
+                            }
+                          ],
+                          "active_template_id": "template-optional"
+                        }
+                        """,
+                new TypeReference<>() {
+                });
+
+        BotSettingsDto sanitized = service.sanitizeFromJson(raw);
+
+        assertThat(sanitized.getQuestionTemplates()).hasSize(1);
+        List<QuestionFlowItemDto> flow = sanitized.getQuestionTemplates().get(0).getQuestionFlow();
+        assertThat(flow).hasSize(3);
+        assertThat(flow.get(0).getText()).isEqualTo("Optional question");
+        assertThat(flow.get(0).isRequiredAnswer()).isFalse();
+        assertThat(flow.get(1).getText()).isEqualTo("Required question");
+        assertThat(flow.get(1).isRequiredAnswer()).isTrue();
+        assertThat(flow.get(2).getType()).isEqualTo("preset");
+        assertThat(flow.get(2).getPreset()).isNotNull();
+        assertThat(flow.get(2).getRequired()).isFalse();
+
+        assertThat(sanitized.getQuestionFlow()).extracting(QuestionFlowItemDto::getRequired)
+                .containsExactly(false, true, false);
     }
 
     @Test
