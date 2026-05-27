@@ -73,6 +73,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
 
     private static final Logger log = LoggerFactory.getLogger(VkSupportBot.class);
     private static final int MAX_LOG_TEXT_LENGTH = 160;
+    private static final String SKIP_BUTTON = "Пропустить";
     private static final Duration VK_PROFILE_CACHE_TTL = Duration.ofMinutes(30);
 
     private final VkBotProperties properties;
@@ -298,7 +299,9 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
 
         String resolvedAnswer = text;
         QuestionFlowItemDto current = session.currentQuestion();
-        if (isPresetQuestion(current)) {
+        if (isOptionalFreeQuestion(current) && SKIP_BUTTON.equalsIgnoreCase(String.valueOf(text).trim())) {
+            resolvedAnswer = "";
+        } else if (isPresetQuestion(current)) {
             List<String> options = resolvePresetOptions(current, session.answers());
             if (options.isEmpty()) {
                 sendText(actor, peerId, "Сейчас нет доступных вариантов для выбора. Обратитесь к администратору.");
@@ -311,7 +314,7 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
             }
         }
 
-        if (!resolvedAnswer.isBlank()) {
+        if (!resolvedAnswer.isBlank() || isOptionalFreeQuestion(current)) {
             session.recordAnswer(resolvedAnswer);
         }
         storeAttachments(message, session);
@@ -505,6 +508,10 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         return current.getPreset() != null && current.getPreset().field() != null;
     }
 
+    private boolean isOptionalFreeQuestion(QuestionFlowItemDto current) {
+        return current != null && !isPresetQuestion(current) && !current.isRequiredAnswer();
+    }
+
     private String buildQuestionPromptText(QuestionFlowItemDto current, List<String> options) {
         StringBuilder text = new StringBuilder(Optional.ofNullable(current.getText()).orElse(""));
         if (options != null && !options.isEmpty()) {
@@ -513,6 +520,9 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                 text.append("\n").append(i + 1).append(". ").append(options.get(i));
             }
             text.append("\nМожно ответить номером (1, 2, ...) или текстом варианта.");
+        }
+        if (isOptionalFreeQuestion(current)) {
+            text.append("\n\nМожно пропустить вопрос: отправьте \"").append(SKIP_BUTTON).append("\".");
         }
         return text.toString();
     }

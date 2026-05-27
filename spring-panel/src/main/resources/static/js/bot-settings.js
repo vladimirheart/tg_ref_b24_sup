@@ -115,6 +115,22 @@
       .filter((value) => Boolean(value));
   }
 
+  function normalizeQuestionRequired(raw, fallback = true) {
+    if (typeof raw === 'boolean') {
+      return raw;
+    }
+    if (typeof raw === 'string') {
+      const normalized = raw.trim().toLowerCase();
+      if (normalized === 'true' || normalized === '1') {
+        return true;
+      }
+      if (normalized === 'false' || normalized === '0') {
+        return false;
+      }
+    }
+    return Boolean(fallback);
+  }
+
   function buildDependencyValueHtml(label, values) {
     const normalized = normalizeStringArray(values);
     if (!normalized.length) {
@@ -376,6 +392,9 @@
       preset,
       excludedOptions: excluded,
       filterState,
+      required: question && question.type === 'preset'
+        ? true
+        : normalizeQuestionRequired(question && question.required, true),
     };
   }
 
@@ -479,7 +498,7 @@
 
   function normalizeQuestion(raw, order) {
     const source = raw && typeof raw === 'object' ? raw : {};
-const id = ensureQuestionId(source.id);
+    const id = ensureQuestionId(source.id);
     let type = source.type === 'preset' ? 'preset' : 'custom';
     let text = typeof source.text === 'string' ? source.text.trim() : '';
     let preset = null;
@@ -521,6 +540,7 @@ const id = ensureQuestionId(source.id);
       order,
       preset,
       excludedOptions: Array.from(new Set(excludedOptions)),
+      required: type === 'preset' ? true : normalizeQuestionRequired(source.required, true),
     };
   }
 
@@ -1523,6 +1543,7 @@ const id = ensureQuestionId(source.id);
         : {};
       card.dataset.filterBusiness = filterState.business || '';
       card.dataset.filterLocationType = filterState.location_type || '';
+      const isRequired = question.required !== false;
       card.innerHTML = `
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
@@ -1554,6 +1575,22 @@ const id = ensureQuestionId(source.id);
                 ${presetOptions}
               </select>
               <div class="form-text small text-muted" data-bot-question-preset-hint>${html(hintText)}</div>
+            </div>
+          </div>
+          <div class="row g-3 mt-1${isPreset ? ' d-none' : ''}" data-bot-question-answer-wrapper>
+            <div class="col-lg-8">
+              <div class="border rounded-3 bg-light p-3 h-100">
+                <div class="small text-uppercase text-muted fw-semibold mb-2">Поле ответа</div>
+                <div class="small mb-1">Ответ клиента будет сохранён как свободный текст для этого вопроса.</div>
+                <div class="form-text mb-0">Если выключить обязательность, клиент сможет написать "Пропустить" и перейти дальше.</div>
+              </div>
+            </div>
+            <div class="col-lg-4">
+              <label class="form-label d-block">Обязательность ответа</label>
+              <div class="form-check form-switch border rounded-3 p-3 h-100 d-flex align-items-center">
+                <input class="form-check-input me-2" type="checkbox" data-bot-question-required${isRequired ? ' checked' : ''}>
+                <label class="form-check-label">Ответ обязателен</label>
+              </div>
             </div>
           </div>
           <div class="mt-3${isPreset ? '' : ' d-none'}" data-bot-question-options-wrapper>
@@ -1642,7 +1679,7 @@ const id = ensureQuestionId(source.id);
     templateModal.show();
   }
 
-  function saveTemplateFromEditor() {
+  async function saveTemplateFromEditor() {
     const name = templateNameInput ? templateNameInput.value.trim() : '';
     const description = templateDescriptionInput ? templateDescriptionInput.value.trim() : '';
     const startMessage = templateStartMessageInput ? templateStartMessageInput.value.trim() : '';
@@ -1675,6 +1712,7 @@ const id = ensureQuestionId(source.id);
         type: question.type === 'preset' ? 'preset' : 'custom',
         text: String(question.text || '').trim(),
         order: index + 1,
+        required: question.type === 'preset' ? true : question.required !== false,
       };
       if (entry.type === 'preset' && question.preset && presetExists(question.preset.group, question.preset.field)) {
         entry.preset = { group: question.preset.group, field: question.preset.field };
@@ -1698,6 +1736,7 @@ const id = ensureQuestionId(source.id);
         type: question.type,
         text: question.text,
         order: question.order,
+        required: question.required !== false,
         preset: question.preset ? { group: question.preset.group, field: question.preset.field } : undefined,
         excludedOptions: Array.isArray(question.excluded_options)
           ? question.excluded_options.slice()
@@ -1707,6 +1746,8 @@ const id = ensureQuestionId(source.id);
       })),
     };
 
+    const previousTemplates = state.templates.map((template) => cloneTemplate(template));
+    const previousActiveTemplateId = state.activeTemplateId;
     if (editorState.index >= 0 && editorState.index < state.templates.length) {
       state.templates[editorState.index] = {
         id: templatePayload.id,
@@ -1718,6 +1759,7 @@ const id = ensureQuestionId(source.id);
           type: question.type,
           text: question.text,
           order: question.order,
+          required: question.required !== false,
           preset: question.preset ? { group: question.preset.group, field: question.preset.field } : null,
           excludedOptions: Array.isArray(question.excludedOptions) ? question.excludedOptions : [],
         })),
@@ -1733,6 +1775,7 @@ const id = ensureQuestionId(source.id);
           type: question.type,
           text: question.text,
           order: question.order,
+          required: question.required !== false,
           preset: question.preset ? { group: question.preset.group, field: question.preset.field } : null,
           excludedOptions: Array.isArray(question.excludedOptions) ? question.excludedOptions : [],
         })),
@@ -1742,9 +1785,36 @@ const id = ensureQuestionId(source.id);
       }
     }
 
-    templateModal.hide();
-    renderTemplates();
-    return true;
+    const originalSaveText = templateSaveButton ? templateSaveButton.textContent : '';
+    if (templateSaveButton) {
+      templateSaveButton.disabled = true;
+      templateSaveButton.textContent = 'Сохраняем...';
+    }
+    if (templateCancelButton) {
+      templateCancelButton.disabled = true;
+    }
+    setTemplateStatus('Сохраняем шаблон и общие настройки бота...', false);
+    try {
+      await persistBotSettingsPayload(collectPayload());
+      setTemplateStatus('Шаблон сохранён.', false);
+      templateModal.hide();
+      return true;
+    } catch (error) {
+      state.templates = previousTemplates.map((template) => cloneTemplate(template));
+      state.activeTemplateId = previousActiveTemplateId;
+      renderTemplates();
+      const message = error && error.message ? error.message : String(error);
+      setTemplateStatus(`Ошибка сохранения: ${message}`, true);
+      return false;
+    } finally {
+      if (templateSaveButton) {
+        templateSaveButton.disabled = false;
+        templateSaveButton.textContent = originalSaveText || 'Сохранить шаблон';
+      }
+      if (templateCancelButton) {
+        templateCancelButton.disabled = false;
+      }
+    }
   }
 
   function addQuestion(type) {
@@ -1756,6 +1826,7 @@ const id = ensureQuestionId(source.id);
       preset: null,
       excludedOptions: [],
       filterState: {},
+      required: true,
     };
     if (question.type === 'preset') {
       const [group, field] = firstPreset();
@@ -1765,6 +1836,7 @@ const id = ensureQuestionId(source.id);
         if (meta) {
           question.text = meta.label;
         }
+        question.required = true;
       } else {
         question.type = 'custom';
       }
@@ -1823,16 +1895,19 @@ const id = ensureQuestionId(source.id);
           question.text = meta ? meta.label : question.text;
         }
         question.excludedOptions = Array.isArray(question.excludedOptions) ? question.excludedOptions : [];
+        question.required = true;
       } else {
         setTemplateStatus('Нет доступных готовых полей. Добавьте данные в структуре локаций.', true);
         question.type = 'custom';
         question.preset = null;
         question.excludedOptions = [];
+        question.required = true;
       }
     } else {
       question.type = 'custom';
       question.preset = null;
       question.excludedOptions = [];
+      question.required = normalizeQuestionRequired(question.required, true);
     }
     question.filterState = {};
     renderQuestions();
@@ -1856,6 +1931,7 @@ const id = ensureQuestionId(source.id);
       question.text = meta ? meta.label : question.text;
     }
     question.excludedOptions = Array.isArray(question.excludedOptions) ? question.excludedOptions : [];
+    question.required = true;
     question.filterState = {};
     renderQuestions();
   }
@@ -1902,6 +1978,7 @@ const id = ensureQuestionId(source.id);
       type: question.type === 'preset' ? 'preset' : 'custom',
       text: String(question.text || '').trim(),
       order: index + 1,
+      required: question.type === 'preset' ? true : question.required !== false,
     };
     if (entry.type === 'preset' && question.preset && presetExists(question.preset.group, question.preset.field)) {
       entry.preset = { group: question.preset.group, field: question.preset.field };
@@ -1965,6 +2042,28 @@ const id = ensureQuestionId(source.id);
         : { prompt_text: '', scale_size: 1, responses: [] },
       unblock_request_cooldown_minutes: state.unblockCooldownMinutes,
     };
+  }
+
+  async function persistBotSettingsPayload(payload) {
+    const response = await fetch('/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bot_settings: payload }),
+    });
+    let data = null;
+    let rawText = '';
+    try {
+      data = await response.json();
+    } catch (jsonError) {
+      rawText = await response.text();
+    }
+    if (!response.ok || (data && data.success === false)) {
+      throw new Error((data && data.error) || rawText || `HTTP ${response.status}`);
+    }
+    initialState = normalizeSettings(payload);
+    hydrateStateFrom(initialState);
+    renderTemplates();
+    renderRatingTemplates();
   }
 
   function validatePayload(payload) {
@@ -2042,26 +2141,8 @@ const id = ensureQuestionId(source.id);
     saveButton.textContent = 'Сохранение...';
     setStatus('Сохраняем настройки...', false);
     try {
-      const response = await fetch('/settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bot_settings: payload }),
-      });
-      let data = null;
-      let rawText = '';
-      try {
-        data = await response.json();
-      } catch (jsonError) {
-        rawText = await response.text();
-      }
-      if (!response.ok || (data && data.success === false)) {
-        throw new Error((data && data.error) || rawText || `HTTP ${response.status}`);
-      }
+      await persistBotSettingsPayload(payload);
       setStatus('Настройки сохранены.', false);
-      initialState = normalizeSettings(payload);
-      hydrateStateFrom(initialState);
-      renderTemplates();
-      renderRatingTemplates();
     } catch (error) {
       const message = error && error.message ? error.message : String(error);
       setStatus(`Ошибка сохранения: ${message}`, true);
@@ -2219,6 +2300,16 @@ const id = ensureQuestionId(source.id);
         setQuestionType(index, typeSelect.value === 'preset' ? 'preset' : 'custom');
         return;
       }
+      const requiredToggle = event.target.closest('[data-bot-question-required]');
+      if (requiredToggle) {
+        const question = editorState.questionFlow[index];
+        if (question) {
+          question.required = requiredToggle.checked;
+          const meta = card.__questionMeta || (question.preset ? getPresetMeta(question.preset.group, question.preset.field) : null);
+          renderQuestionPreview(card, question, meta);
+        }
+        return;
+      }
       const presetSelect = event.target.closest('[data-bot-question-preset]');
       if (presetSelect) {
         const [group, field] = decodePresetValue(presetSelect.value);
@@ -2270,8 +2361,8 @@ const id = ensureQuestionId(source.id);
   }
 
   if (templateSaveButton) {
-    templateSaveButton.addEventListener('click', () => {
-      saveTemplateFromEditor();
+    templateSaveButton.addEventListener('click', async () => {
+      await saveTemplateFromEditor();
     });
   }
 

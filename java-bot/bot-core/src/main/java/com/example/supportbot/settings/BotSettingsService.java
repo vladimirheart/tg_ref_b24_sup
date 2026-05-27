@@ -676,10 +676,12 @@ public class BotSettingsService {
                 Object textValue = map.containsKey("text") ? map.get("text") : map.get("label");
                 String text = optionalString(textValue);
                 String id = ensureUuid(map.get("id"));
+                boolean required = resolveRequiredFlag(map.get("required"));
                 entry = new LinkedHashMap<>();
                 entry.put("id", id);
                 entry.put("type", type);
                 entry.put("order", order);
+                entry.put("required", required);
                 if ("preset".equals(type)) {
                     Map<String, Object> presetPayload = map.get("preset") instanceof Map<?, ?> p ? convertToMap(p) : new LinkedHashMap<>();
                     String group = optionalString(presetPayload.getOrDefault("group", map.get("group")));
@@ -717,6 +719,7 @@ public class BotSettingsService {
                 entry.put("type", "custom");
                 entry.put("order", order);
                 entry.put("text", str.trim());
+                entry.put("required", true);
                 sanitized.add(entry);
                 order += 1;
             }
@@ -1165,6 +1168,25 @@ public class BotSettingsService {
             }
         }
         return null;
+    }
+
+    private boolean resolveRequiredFlag(Object value) {
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        if (value instanceof Number number) {
+            return number.intValue() != 0;
+        }
+        if (value instanceof String str && !str.isBlank()) {
+            String normalized = str.trim().toLowerCase(Locale.ROOT);
+            if ("false".equals(normalized) || "0".equals(normalized) || "no".equals(normalized)) {
+                return false;
+            }
+            if ("true".equals(normalized) || "1".equals(normalized) || "yes".equals(normalized)) {
+                return true;
+            }
+        }
+        return true;
     }
 
     private Integer resolveCooldownMinutes(Map<String, Object> raw, Map<String, Object> defaults) {

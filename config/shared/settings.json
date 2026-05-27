@@ -124,8 +124,8 @@
     "macro_variable_defaults" : { },
     "macro_variable_catalog" : [ ],
     "macro_variable_catalog_external_url" : "",
-    "macro_variable_catalog_external_timeout_ms" : 200,
-    "macro_variable_catalog_external_cache_ttl_seconds" : 0,
+    "macro_variable_catalog_external_timeout_ms" : 2000,
+    "macro_variable_catalog_external_cache_ttl_seconds" : 120,
     "macro_variable_catalog_external_auth_header" : "Authorization",
     "macro_variable_catalog_external_auth_token" : "",
     "default_view" : "all",
@@ -162,7 +162,7 @@
     "sla_critical_auto_assign_governance_review_ttl_hours" : 168,
     "sla_critical_auto_assign_governance_dry_run_ticket_required" : false,
     "sla_critical_auto_assign_governance_decision_required" : false,
-    "sla_critical_auto_assign_governance_policy_changed_at" : "2026-05-26T19:22:24.252424400Z",
+    "sla_critical_auto_assign_governance_policy_changed_at" : "2026-05-27T08:06:50.035381100Z",
     "sla_critical_operator_skills" : { },
     "sla_critical_operator_queues" : { },
     "sla_critical_escalation_webhook_enabled" : false,
@@ -372,7 +372,7 @@
   "it_connection_categories" : { },
   "bot_settings" : {
     "question_templates" : [ {
-      "id" : "tpl_mpmz3v9anmmm",
+      "id" : "tpl_mpnp8g3k1qcg",
       "name" : "Базовый шаблон вопросов",
       "description" : "",
       "start_message" : "",
@@ -413,8 +413,24 @@
           "field" : "location_name"
         }
       } ]
+    }, {
+      "id" : "tpl_mpnr09amrzh9",
+      "name" : "Вопросы для офиса",
+      "description" : "",
+      "start_message" : "Внимание! Бот для сотрудников офиса",
+      "question_flow" : [ {
+        "id" : "q_mpnrpxd1ixlzyl",
+        "type" : "custom",
+        "text" : "Выберете направление",
+        "order" : 1
+      }, {
+        "id" : "q_mpnrr3p0emvpw4",
+        "type" : "custom",
+        "text" : "Укажите вопрос",
+        "order" : 2
+      } ]
     } ],
-    "active_template_id" : "tpl_mpmz3v9anmmm",
+    "active_template_id" : "tpl_mpnp8g3k1qcg",
     "question_flow" : [ {
       "id" : "business",
       "type" : "preset",

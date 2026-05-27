@@ -66,6 +66,7 @@ public class SupportBot extends TelegramLongPollingBot {
 
     private static final Logger log = LoggerFactory.getLogger(SupportBot.class);
     private static final int MAX_LOG_TEXT_LENGTH = 160;
+    private static final String SKIP_BUTTON = "Пропустить";
     private static final String BACK_BUTTON = "Назад";
     private static final String DEFAULT_TELEGRAM_API_ROOT_URL = "https://api.telegram.org";
 
@@ -1348,7 +1349,9 @@ public class SupportBot extends TelegramLongPollingBot {
 
         QuestionFlowItemDto current = session.currentQuestion();
         String resolvedAnswer = Optional.ofNullable(message.getText()).orElse("");
-        if (isPresetQuestion(current)) {
+        if (isOptionalFreeQuestion(current) && SKIP_BUTTON.equalsIgnoreCase(resolvedAnswer.trim())) {
+            resolvedAnswer = "";
+        } else if (isPresetQuestion(current)) {
             List<String> options = resolvePresetOptions(current, session.answers());
             if (options.isEmpty()) {
                 SendMessage retry = SendMessage.builder()
@@ -1431,6 +1434,9 @@ public class SupportBot extends TelegramLongPollingBot {
                 text.append("\n").append(i + 1).append(". ").append(options.get(i));
             }
             text.append("\nМожно ответить номером (1, 2, ...) или текстом варианта.");
+        }
+        if (isOptionalFreeQuestion(current)) {
+            text.append("\n\nМожно пропустить вопрос: напишите \"").append(SKIP_BUTTON).append("\".");
         }
         if (includeBack) {
             text.append("\n\nЧтобы вернуться к предыдущему вопросу, напишите \"").append(BACK_BUTTON).append("\".");
@@ -1584,6 +1590,10 @@ public class SupportBot extends TelegramLongPollingBot {
             return true;
         }
         return current.getPreset() != null && current.getPreset().field() != null;
+    }
+
+    private boolean isOptionalFreeQuestion(QuestionFlowItemDto current) {
+        return current != null && !isPresetQuestion(current) && !current.isRequiredAnswer();
     }
 
     private ReplyKeyboardMarkup keyboardMarkup(List<String> options, boolean includeBack) {

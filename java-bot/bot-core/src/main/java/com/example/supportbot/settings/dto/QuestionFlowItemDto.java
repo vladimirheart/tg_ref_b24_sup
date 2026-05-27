@@ -25,16 +25,24 @@ public class QuestionFlowItemDto {
     @JsonProperty("excluded_options")
     private List<String> excludedOptions;
 
+    @JsonProperty("required")
+    private Boolean required;
+
     public QuestionFlowItemDto() {
     }
 
     public QuestionFlowItemDto(String id, String type, String text, int order, PresetReference preset, List<String> excludedOptions) {
+        this(id, type, text, order, preset, excludedOptions, true);
+    }
+
+    public QuestionFlowItemDto(String id, String type, String text, int order, PresetReference preset, List<String> excludedOptions, Boolean required) {
         this.id = id;
         this.type = type;
         this.text = text;
         this.order = order;
         this.preset = preset;
         this.excludedOptions = excludedOptions;
+        this.required = required;
     }
 
     public String getId() {
@@ -83,5 +91,17 @@ public class QuestionFlowItemDto {
 
     public void setExcludedOptions(List<String> excludedOptions) {
         this.excludedOptions = excludedOptions;
+    }
+
+    public Boolean getRequired() {
+        return required;
+    }
+
+    public void setRequired(Boolean required) {
+        this.required = required;
+    }
+
+    public boolean isRequiredAnswer() {
+        return required == null || required;
     }
 }
