@@ -414,6 +414,55 @@
       overscroll-behavior: contain;
     }
 
+    .settings-child-modal .modal-dialog {
+      margin: 0.85rem auto;
+    }
+
+    .settings-child-modal .modal-content {
+      max-height: calc(100vh - 1.7rem);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .settings-child-modal .modal-header,
+    .settings-child-modal .modal-footer {
+      flex-shrink: 0;
+    }
+
+    .settings-child-modal .modal-body {
+      min-height: 0;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+
+    .settings-child-modal--workspace {
+      overscroll-behavior: contain;
+    }
+
+    .settings-child-modal--workspace .modal-dialog {
+      min-height: calc(100vh - 1.7rem);
+      height: calc(100vh - 1.7rem);
+      display: flex;
+      align-items: flex-start;
+    }
+
+    .settings-child-modal--workspace .modal-content {
+      width: 100%;
+      height: 100%;
+      max-height: calc(100vh - 1.7rem);
+    }
+
+    .settings-child-modal--sheet {
+      z-index: 20010;
+      padding-left: var(--settings-child-left-offset, 0px);
+    }
+
+    .settings-child-modal--sheet .modal-dialog {
+      width: auto;
+      margin: 1rem 1rem 1rem auto;
+      max-width: min(var(--settings-child-sheet-max-width, 1140px), calc(100vw - var(--settings-child-left-offset, 0px) - 1rem));
+    }
+
     .settings-sheet-modal {
       --settings-sheet-gap: 0.9rem;
       --settings-sheet-width: min(1120px, calc(100vw - var(--settings-sheet-sidebar-offset) - 1.1rem));
@@ -867,23 +916,21 @@
     }
 
     #authUserDetailsModal {
-      --auth-user-modal-left-offset: calc(var(--settings-sheet-sidebar-offset, var(--sidebar-w, 308px)) + 0.75rem);
-      z-index: 20010;
-      padding-left: var(--auth-user-modal-left-offset);
+      --settings-child-left-offset: calc(var(--settings-sheet-sidebar-offset, var(--sidebar-w, 308px)) + 0.75rem);
+      --settings-child-sheet-max-width: 1280px;
     }
 
     body.sidebar-collapsed #authUserDetailsModal {
-      --auth-user-modal-left-offset: calc(var(--sidebar-w-collapsed, 84px) + 0.75rem);
+      --settings-child-left-offset: calc(var(--sidebar-w-collapsed, 84px) + 0.75rem);
     }
 
     #partnerContactEditorModal {
-      --partner-contact-modal-left-offset: calc(var(--settings-sheet-sidebar-offset, var(--sidebar-w, 308px)) + 0.75rem);
-      z-index: 20010;
-      padding-left: var(--partner-contact-modal-left-offset);
+      --settings-child-left-offset: calc(var(--settings-sheet-sidebar-offset, var(--sidebar-w, 308px)) + 0.75rem);
+      --settings-child-sheet-max-width: 1140px;
     }
 
     body.sidebar-collapsed #partnerContactEditorModal {
-      --partner-contact-modal-left-offset: calc(var(--sidebar-w-collapsed, 84px) + 0.75rem);
+      --settings-child-left-offset: calc(var(--sidebar-w-collapsed, 84px) + 0.75rem);
     }
 
     #usersModal.auth-management-child-open .modal-dialog {
@@ -912,30 +959,6 @@
       opacity: 0.58;
       filter: saturate(0.82);
       transition: opacity 0.18s ease, filter 0.18s ease;
-    }
-
-    #channelEditorModal {
-      overscroll-behavior: contain;
-    }
-
-    #channelEditorModal .modal-dialog {
-      margin: 0.85rem auto;
-      min-height: calc(100vh - 1.7rem);
-      height: calc(100vh - 1.7rem);
-      display: flex;
-      align-items: flex-start;
-    }
-
-    #channelEditorModal .modal-content {
-      width: 100%;
-      max-height: calc(100vh - 1.7rem);
-      height: 100%;
-    }
-
-    #channelEditorModal .modal-body {
-      min-height: 0;
-      overflow-y: auto;
-      overscroll-behavior: contain;
     }
 
     .channel-editor-tabs {
@@ -1212,78 +1235,30 @@
       }
     }
 
-    #botTemplateEditorModal,
-    #botRatingTemplateModal {
-      overscroll-behavior: contain;
-    }
-
-    #botTemplateEditorModal .modal-dialog,
-    #botRatingTemplateModal .modal-dialog {
-      margin: 0.85rem auto;
-      min-height: calc(100vh - 1.7rem);
-      height: calc(100vh - 1.7rem);
-      display: flex;
-      align-items: flex-start;
-    }
-
-    #botTemplateEditorModal .modal-content,
-    #botRatingTemplateModal .modal-content {
-      width: 100%;
-      max-height: calc(100vh - 1.7rem);
-      height: 100%;
-    }
-
-    #botTemplateEditorModal .modal-body,
-    #botRatingTemplateModal .modal-body {
-      min-height: 0;
-      overflow-y: auto;
-      overscroll-behavior: contain;
-    }
-
     @media (max-width: 575.98px) {
-      #channelEditorModal .modal-dialog,
-      #botTemplateEditorModal .modal-dialog,
-      #botRatingTemplateModal .modal-dialog {
+      .settings-child-modal .modal-dialog {
+        margin: 0.5rem auto;
+      }
+
+      .settings-child-modal .modal-content {
+        max-height: calc(100vh - 1rem);
+      }
+
+      .settings-child-modal--workspace .modal-dialog {
         margin: 0.5rem auto;
         min-height: calc(100vh - 1rem);
         height: calc(100vh - 1rem);
       }
 
-      #channelEditorModal .modal-content,
-      #botTemplateEditorModal .modal-content,
-      #botRatingTemplateModal .modal-content {
+      .settings-child-modal--workspace .modal-content {
         max-height: calc(100vh - 1rem);
       }
-    }
 
-    .auth-user-modal-dialog {
-      width: auto;
-      margin: 1rem 1rem 1rem auto;
-      max-width: min(1280px, calc(100vw - var(--auth-user-modal-left-offset) - 1rem));
-    }
-
-    .partner-contact-editor-modal-dialog {
-      width: auto;
-      margin: 1rem 1rem 1rem auto;
-      max-width: min(1140px, calc(100vw - var(--partner-contact-modal-left-offset) - 1rem));
-    }
-
-    @media (max-width: 575.98px) {
-      #authUserDetailsModal {
+      .settings-child-modal--sheet {
         padding-left: 0;
       }
 
-      #partnerContactEditorModal {
-        padding-left: 0;
-      }
-
-      .auth-user-modal-dialog {
-        margin: 0.5rem auto;
-        max-width: calc(100vw - 1rem);
-      }
-
-      .partner-contact-editor-modal-dialog {
-        margin: 0.5rem auto;
+      .settings-child-modal--sheet .modal-dialog {
         max-width: calc(100vw - 1rem);
       }
     }
@@ -2801,8 +2776,8 @@
       </div>
     </div>
 
-    <div class="modal fade" id="authUserDetailsModal" tabindex="-1" aria-hidden="true" data-auth-user-modal>
-      <div class="modal-dialog modal-dialog-scrollable modal-xl auth-user-modal-dialog modal-fullscreen-sm-down">
+    <div class="modal fade settings-child-modal settings-child-modal--workspace settings-child-modal--sheet" id="authUserDetailsModal" tabindex="-1" aria-hidden="true" data-auth-user-modal>
+      <div class="modal-dialog modal-dialog-scrollable modal-xl modal-fullscreen-sm-down">
         <div class="modal-content">
           <form data-auth-user-form action="/api/users" method="post">
             <input type="hidden" name="_csrf" th:value="${_csrf.token}">
@@ -2992,7 +2967,7 @@
       </div>
     </div>
 
-    <div class="modal fade" id="authUserPasswordModal" tabindex="-1" aria-hidden="true" data-auth-user-password-modal>
+    <div class="modal fade settings-child-modal" id="authUserPasswordModal" tabindex="-1" aria-hidden="true" data-auth-user-password-modal>
       <div class="modal-dialog">
         <div class="modal-content">
           <form data-auth-user-password-form>
@@ -3021,7 +2996,7 @@
       </div>
     </div>
 
-    <div class="modal fade" id="authUserPhotoPreviewModal" tabindex="-1" aria-hidden="true" data-auth-user-photo-viewer-modal>
+    <div class="modal fade settings-child-modal" id="authUserPhotoPreviewModal" tabindex="-1" aria-hidden="true" data-auth-user-photo-viewer-modal>
       <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content bg-dark text-white auth-user-photo-preview-modal">
           <div class="modal-header border-0">
@@ -3038,7 +3013,7 @@
       </div>
     </div>
 
-    <div class="modal fade" id="orgMembersModal" tabindex="-1" aria-hidden="true" data-org-members-modal>
+    <div class="modal fade settings-child-modal" id="orgMembersModal" tabindex="-1" aria-hidden="true" data-org-members-modal>
       <div class="modal-dialog modal-dialog-scrollable">
         <div class="modal-content">
           <form data-org-members-form>
@@ -4728,7 +4703,7 @@
     </div>
 
     <!-- Мастер добавления записи локаций -->
-    <div class="modal fade" id="locationWizardModal" tabindex="-1" aria-labelledby="locationWizardLabel" aria-hidden="true">
+    <div class="modal fade settings-child-modal" id="locationWizardModal" tabindex="-1" aria-labelledby="locationWizardLabel" aria-hidden="true">
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
@@ -4780,7 +4755,7 @@
     </div>
 
     <!-- Статусы клиентов -->
-    <div class="modal fade" id="statusesModal" tabindex="-1" aria-labelledby="statusesModalLabel" aria-hidden="true">
+    <div class="modal fade settings-child-modal" id="statusesModal" tabindex="-1" aria-labelledby="statusesModalLabel" aria-hidden="true">
       <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
@@ -4816,7 +4791,7 @@
     </div>
 
     <!-- Цвета и иконки бизнесов -->
-    <div class="modal fade" id="businessStylesModal" tabindex="-1" aria-labelledby="businessStylesModalLabel" aria-hidden="true">
+    <div class="modal fade settings-child-modal" id="businessStylesModal" tabindex="-1" aria-labelledby="businessStylesModalLabel" aria-hidden="true">
       <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
@@ -5003,7 +4978,7 @@
   </div>
 </div>
 
-    <div class="modal fade" id="parameterItemsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal fade settings-child-modal" id="parameterItemsModal" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
@@ -5050,8 +5025,8 @@
       </div>
     </div>
 
-    <div class="modal fade" id="partnerContactEditorModal" tabindex="-1" aria-hidden="true">
-      <div class="modal-dialog modal-xl modal-dialog-scrollable partner-contact-editor-modal-dialog">
+    <div class="modal fade settings-child-modal settings-child-modal--workspace settings-child-modal--sheet" id="partnerContactEditorModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" data-partner-contact-editor-title>Карточка контакта</h5>
@@ -5291,7 +5266,7 @@
       </div>
     </div>
 
-    <div class="modal fade" id="networkProfileEditorModal" tabindex="-1" aria-hidden="true">
+    <div class="modal fade settings-child-modal" id="networkProfileEditorModal" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
           <form data-network-profile-form>
@@ -5363,7 +5338,7 @@
       </div>
     </div>
 
-    <div class="modal fade" id="integrationNetworkProfileEditorModal" tabindex="-1" aria-hidden="true">
+    <div class="modal fade settings-child-modal" id="integrationNetworkProfileEditorModal" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
           <form data-integration-network-profile-form>
@@ -5451,7 +5426,7 @@
       </div>
     </div>
 
-    <div class="modal fade" id="itConnectionAddModal" tabindex="-1" aria-labelledby="itConnectionAddModalLabel" aria-hidden="true">
+    <div class="modal fade settings-child-modal" id="itConnectionAddModal" tabindex="-1" aria-labelledby="itConnectionAddModalLabel" aria-hidden="true">
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
@@ -5501,7 +5476,7 @@
       </div>
     </div>
 
-    <div class="modal fade" id="itEquipmentAddModal" tabindex="-1" aria-labelledby="itEquipmentAddModalLabel" aria-hidden="true">
+    <div class="modal fade settings-child-modal" id="itEquipmentAddModal" tabindex="-1" aria-labelledby="itEquipmentAddModalLabel" aria-hidden="true">
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
@@ -5570,8 +5545,8 @@
       </div>
     </div>
 
-    <div class="modal fade" id="botRatingTemplateModal" tabindex="-1" aria-labelledby="botRatingTemplateLabel" aria-hidden="true">
-      <div class="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered">
+    <div class="modal fade settings-child-modal settings-child-modal--workspace" id="botRatingTemplateModal" tabindex="-1" aria-labelledby="botRatingTemplateLabel" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="botRatingTemplateLabel">Редактирование шаблона оценок</h5>
@@ -5621,8 +5596,8 @@
       </div>
     </div>
 
-    <div class="modal fade" id="botTemplateEditorModal" tabindex="-1" aria-labelledby="botTemplateEditorLabel" aria-hidden="true">
-      <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered">
+    <div class="modal fade settings-child-modal settings-child-modal--workspace" id="botTemplateEditorModal" tabindex="-1" aria-labelledby="botTemplateEditorLabel" aria-hidden="true">
+      <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="botTemplateEditorLabel">Редактирование шаблона вопросов</h5>
@@ -5697,8 +5672,8 @@
     </div>
 
     <!-- Каналы (боты) -->
-    <div class="modal fade" id="appearanceModal" tabindex="-1" aria-hidden="true">
-      <div class="modal-dialog modal-dialog-centered">
+    <div class="modal fade settings-child-modal" id="appearanceModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title">Оформление интерфейса</h5>
@@ -6340,8 +6315,8 @@
     </div>
   </div>
 
-  <div class="modal fade" id="addChannelModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+  <div class="modal fade settings-child-modal settings-child-modal--workspace" id="addChannelModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title">Добавить канал</h5>
@@ -6456,7 +6431,7 @@
     </div>
   </div>
 
-  <div class="modal fade" id="channelEditorModal" tabindex="-1" aria-hidden="true">
+  <div class="modal fade settings-child-modal settings-child-modal--workspace" id="channelEditorModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
       <div class="modal-content">
         <div class="modal-header">
@@ -7016,7 +6991,7 @@
     </div>
   </div>
 
-  <div class="modal fade" id="vkWebhookModal" tabindex="-1" aria-hidden="true">
+  <div class="modal fade settings-child-modal" id="vkWebhookModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content">
         <div class="modal-header">
@@ -24573,7 +24548,7 @@
 
   </script>
 
-    <div class="modal fade" id="passwordResetRequestsModal" tabindex="-1" aria-hidden="true" th:if="${canManagePasswordResetRequests}">
+    <div class="modal fade settings-child-modal" id="passwordResetRequestsModal" tabindex="-1" aria-hidden="true" th:if="${canManagePasswordResetRequests}">
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
