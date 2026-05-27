@@ -395,6 +395,121 @@ class DialogDetailsIntegrationTest {
                 .andExpect(jsonPath("$.unread").value(0));
     }
 
+    @Test
+    void detailsApiRearmsDialogUnreadAndBellBadgeAfterExplicitAckAndNextFollowUp() throws Exception {
+        insertDirectoryUser("watcher_owner", "Watcher Owner", "/img/watcher-owner.png");
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
+                VALUES (94, 'token94', 'Dialog Details Rearm', 'telegram', 1, CURRENT_TIMESTAMP)
+                """);
+        jdbcTemplate.update("""
+                INSERT INTO tickets (user_id, ticket_id, status, channel_id)
+                VALUES (?,?,?,?)
+                """,
+                910094L, "T-DETAIL-REARM", "open", 94L);
+        jdbcTemplate.update("""
+                INSERT INTO messages (
+                    group_msg_id, user_id, business, city, location_name, problem, created_at,
+                    username, ticket_id, created_date, created_time, client_name, channel_id, updated_at, updated_by
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                9401L,
+                910094L,
+                "Retail",
+                "Кострома",
+                "Точка Rearm",
+                "Проверка повторного follow-up после ack",
+                "2026-05-27T10:00:00Z",
+                "details_rearm_user",
+                "T-DETAIL-REARM",
+                "2026-05-27",
+                "10:00:00",
+                "Клиент Rearm",
+                94L,
+                "2026-05-27T10:00:00Z",
+                "seed");
+        jdbcTemplate.update("""
+                INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
+                VALUES (?,?,?,?)
+                """,
+                "T-DETAIL-REARM", "watcher_owner", "dispatcher", "2026-05-27T09:59:00Z");
+        insertHistoryRow("T-DETAIL-REARM", 910094L, "user", "Первый follow-up", "2026-05-27T10:03:00Z", "text", 941L, null, 94L, null, null, null, null, null);
+
+        notificationService.notifyDialogParticipants(
+                "T-DETAIL-REARM",
+                "Новое сообщение в обращении T-DETAIL-REARM",
+                "/dialogs?ticketId=T-DETAIL-REARM",
+                null
+        );
+
+        mockMvc.perform(get("/api/dialogs/T-DETAIL-REARM")
+                        .param("channelId", "94")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.unreadCount").value(0))
+                .andExpect(jsonPath("$.history[0].message").value("Первый follow-up"));
+
+        Long firstNotificationId = jdbcTemplate.queryForObject(
+                "SELECT id FROM notifications WHERE user_identity = ? ORDER BY id DESC LIMIT 1",
+                Long.class,
+                "watcher_owner"
+        );
+
+        mockMvc.perform(post("/api/notifications/" + firstNotificationId + "/read")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        mockMvc.perform(get("/api/notifications/unread_count")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unread").value(0));
+
+        insertHistoryRow("T-DETAIL-REARM", 910094L, "user", "Второй follow-up после ack", "2026-05-27T10:05:00Z", "text", 942L, null, 94L, null, null, null, null, null);
+        notificationService.notifyDialogParticipants(
+                "T-DETAIL-REARM",
+                "Новое сообщение в обращении T-DETAIL-REARM",
+                "/dialogs?ticketId=T-DETAIL-REARM",
+                null
+        );
+
+        mockMvc.perform(get("/api/dialogs")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-DETAIL-REARM"))
+                .andExpect(jsonPath("$.dialogs[0].unreadCount").value(1));
+
+        mockMvc.perform(get("/api/notifications")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].text").value("Новое сообщение в обращении T-DETAIL-REARM"))
+                .andExpect(jsonPath("$[0].read").value(false))
+                .andExpect(jsonPath("$[1].read").value(true));
+
+        mockMvc.perform(get("/api/notifications/unread_count")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unread").value(1));
+
+        mockMvc.perform(get("/api/dialogs/T-DETAIL-REARM")
+                        .param("channelId", "94")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.unreadCount").value(0))
+                .andExpect(jsonPath("$.history.length()").value(2))
+                .andExpect(jsonPath("$.history[1].message").value("Второй follow-up после ack"));
+
+        String lastReadAt = jdbcTemplate.queryForObject(
+                "SELECT last_read_at FROM ticket_responsibles WHERE ticket_id = ? AND responsible = ?",
+                String.class,
+                "T-DETAIL-REARM",
+                "watcher_owner"
+        );
+        assertThat(lastReadAt).isEqualTo("2026-05-27T10:05:00Z");
+    }
+
     private void ensureChatHistoryMutationColumns() {
         ensureColumn(jdbcTemplate, "chat_history", "original_message", "TEXT");
         ensureColumn(jdbcTemplate, "chat_history", "edited_at", "TEXT");

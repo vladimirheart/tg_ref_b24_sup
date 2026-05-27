@@ -1422,7 +1422,15 @@
 - это выравнивает operator UX на всём основном read surface: `details`,
   `history` и `workspace` одинаково гасят dialog unread projection, но не
   подтверждают bell notification implicitly.
+- следующим пакетом добрана и `rearm`-семантика после явного ack:
+  `DialogDetailsIntegrationTest` теперь закрепляет, что после
+  `POST /api/notifications/{id}/read` следующий client follow-up снова
+  поднимает и list unread, и bell unread badge.
+- это подтверждает, что UI loop не “залипает” после первого ack:
+  подтверждённая notification не мешает следующему follow-up создать новый
+  unread state, а `details` route повторно двигает `last_read_at` уже на новом
+  клиентском сообщении.
 - следующий practical focus в `dialog workspace/read/details` зоне смещён уже
   с cross-consumer lifecycle parity, basic audit trail и full notification
   refresh loop на соседние consumer projections вокруг того же
-  status/owner/action lifecycle после ack/follow-up refresh.
+  status/owner/action lifecycle после repeated follow-up refresh.
