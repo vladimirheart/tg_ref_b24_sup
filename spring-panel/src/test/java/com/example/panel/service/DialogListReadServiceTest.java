@@ -60,7 +60,45 @@ class DialogListReadServiceTest {
         assertThat((List<?>) myDialogs.get("in_work")).hasSize(1);
     }
 
+    @Test
+    void loadListPayloadPreservesMyDialogsBucketsForAutoProcessingAndOwnerHandoffSemantics() {
+        when(dialogLookupReadService.loadSummary()).thenReturn(mock(DialogSummary.class));
+        List<DialogListItem> dialogs = List.of(
+                sampleDialog("T-300", "new_owner", Instant.now().minus(5, ChronoUnit.MINUTES).toString(), "open"),
+                autoProcessingDialog("T-301", "new_owner", Instant.now().minus(3, ChronoUnit.MINUTES).toString())
+        );
+        when(dialogLookupReadService.loadDialogs("new_owner")).thenReturn(dialogs);
+        when(dialogLookupReadService.groupMyActiveDialogs(dialogs, "new_owner"))
+                .thenReturn(new DialogMyDialogs(List.of(dialogs.get(0)), List.of(dialogs.get(1))));
+        when(sharedConfigService.loadSettings()).thenReturn(Map.of());
+
+        Map<String, Object> payload = service.loadListPayload("new_owner");
+
+        Map<?, ?> myDialogs = (Map<?, ?>) payload.get("my_dialogs");
+
+        assertThat(payload.get("success")).isEqualTo(true);
+        assertThat((List<?>) payload.get("dialogs")).hasSize(2);
+        assertThat((List<?>) myDialogs.get("unanswered")).hasSize(1);
+        assertThat((List<?>) myDialogs.get("in_work")).hasSize(1);
+        assertThat(((DialogListItem) ((List<?>) myDialogs.get("unanswered")).get(0)).ticketId()).isEqualTo("T-300");
+        assertThat(((DialogListItem) ((List<?>) myDialogs.get("in_work")).get(0)).ticketId()).isEqualTo("T-301");
+    }
+
     private DialogListItem sampleDialog(String ticketId, String responsible, String createdAt, String statusKey) {
+        return dialogItem(ticketId, responsible, createdAt, statusKey, false, "client", 1);
+    }
+
+    private DialogListItem autoProcessingDialog(String ticketId, String responsible, String createdAt) {
+        return dialogItem(ticketId, responsible, createdAt, "open", true, "support", 0);
+    }
+
+    private DialogListItem dialogItem(String ticketId,
+                                      String responsible,
+                                      String createdAt,
+                                      String status,
+                                      boolean aiProcessing,
+                                      String lastSender,
+                                      int unreadCount) {
         return new DialogListItem(
                 ticketId,
                 700L,
@@ -74,16 +112,16 @@ class DialogListReadServiceTest {
                 "Moscow",
                 "message preview",
                 createdAt,
-                statusKey,
-                false,
+                status,
+                aiProcessing,
                 null,
                 responsible,
                 "21.04.2026",
                 "10:00:00",
                 "vip",
-                "client",
+                lastSender,
                 "2026-04-21T10:00:00Z",
-                1,
+                unreadCount,
                 5,
                 "billing"
         );

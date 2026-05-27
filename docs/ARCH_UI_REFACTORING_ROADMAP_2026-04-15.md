@@ -1448,6 +1448,14 @@
   `my_dialogs`, новый owner получает его в правильном bucket, а `resolved`
   ticket исчезает из `my_dialogs` до `reopen`, после которого возвращается в
   `in_work`.
+- следующим пакетом этот list lifecycle добран и на regression net ниже
+  integration-уровня: `DialogLookupReadServiceTest` и
+  `DialogListReadServiceTest` теперь отдельно страхуют `auto_processing`
+  bucket semantics, owner filtering и `my_dialogs` payload assembly.
+- это делает `queue/status-owner` hardening менее хрупким: основная логика
+  `unanswered/in_work` закреплена не только live runtime сценариями, но и
+  быстрыми service-level тестами, которые ловят drift в grouping/assembly
+  слое без полного `SpringBootTest`.
 - следующий practical focus в `dialog workspace/read/details` зоне смещён уже
   с cross-consumer lifecycle parity, basic audit trail, full notification
   refresh loop, `queue/my_dialogs` rearm parity и `queue/status-owner`

@@ -1627,6 +1627,22 @@ integration-сценария поверх users/settings runtime boundary всё
 - targeted `DialogDetailsIntegrationTest`, `DialogReadIntegrationTest`,
   `DialogWorkspaceIntegrationTest` и `NotificationApiIntegrationTest`
   остаются зелёными уже и на этом `queue/status-owner` lifecycle слое.
+- следующим пакетом этот `queue/status-owner` lifecycle добран ещё и на
+  service/controller regression net: `DialogLookupReadServiceTest` теперь
+  страхует `groupMyActiveDialogs(...)` для `auto_processing + unread=0` и
+  owner filtering после handoff, а `DialogListReadServiceTest` закрепляет
+  `my_dialogs` payload contract для `unanswered/in_work` поверх тех же list
+  semantics.
+- это снижает риск тихого drift не только в integration runtime, но и в
+  дешёвом read-model слое: bucket semantics больше не зависят только от
+  тяжёлых `SpringBootTest`, а отдельно прикрыты на уровне list grouping и
+  payload assembly вокруг `auto_processing`, `reassign` и `my_dialogs`
+  ownership boundaries.
+- targeted `DialogLookupReadServiceTest`, `DialogListReadServiceTest`,
+  `DialogListControllerWebMvcTest`, `DialogDetailsIntegrationTest`,
+  `DialogReadIntegrationTest`, `DialogWorkspaceIntegrationTest` и
+  `NotificationApiIntegrationTest` остаются зелёными на общем
+  `queue/status-owner` regression пакете.
 - следующий practical focus в `dialog-read/workspace` зоне смещён уже с
   cross-consumer lifecycle parity, basic audit trail, full read refresh loop
   `queue/my_dialogs` rearm parity и `queue/status-owner` lifecycle на ещё

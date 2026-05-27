@@ -102,9 +102,48 @@ class DialogLookupReadServiceTest {
         assertThat(myDialogs.inWork()).extracting(DialogListItem::ticketId).containsExactly("T-102");
     }
 
+    @Test
+    void groupMyActiveDialogsKeepsAutoProcessingAssignedDialogsInWorkWhenUnreadIsZero() {
+        List<DialogListItem> dialogs = List.of(
+                dialogItem("T-201", "operator", "pending", true, "support", 0),
+                dialogItem("T-202", "operator", "pending", false, "client", 1)
+        );
+
+        var myDialogs = service.groupMyActiveDialogs(dialogs, "operator");
+
+        assertThat(myDialogs.unanswered()).extracting(DialogListItem::ticketId).containsExactly("T-202");
+        assertThat(myDialogs.inWork()).extracting(DialogListItem::ticketId).containsExactly("T-201");
+    }
+
+    @Test
+    void groupMyActiveDialogsFiltersOutTicketsReassignedToDifferentOwnerEvenWhenUnreadExists() {
+        List<DialogListItem> dialogs = List.of(
+                dialogItem("T-301", "operator", "pending", "client", 2),
+                dialogItem("T-302", "new_owner", "pending", "client", 3),
+                dialogItem("T-303", "new_owner", "pending", "support", 0)
+        );
+
+        var oldOwnerDialogs = service.groupMyActiveDialogs(dialogs, "operator");
+        var newOwnerDialogs = service.groupMyActiveDialogs(dialogs, "new_owner");
+
+        assertThat(oldOwnerDialogs.unanswered()).extracting(DialogListItem::ticketId).containsExactly("T-301");
+        assertThat(oldOwnerDialogs.inWork()).isEmpty();
+        assertThat(newOwnerDialogs.unanswered()).extracting(DialogListItem::ticketId).containsExactly("T-302");
+        assertThat(newOwnerDialogs.inWork()).extracting(DialogListItem::ticketId).containsExactly("T-303");
+    }
+
     private DialogListItem dialogItem(String ticketId,
                                       String responsible,
                                       String status,
+                                      String lastMessageSender,
+                                      int unreadCount) {
+        return dialogItem(ticketId, responsible, status, false, lastMessageSender, unreadCount);
+    }
+
+    private DialogListItem dialogItem(String ticketId,
+                                      String responsible,
+                                      String status,
+                                      boolean aiProcessing,
                                       String lastMessageSender,
                                       int unreadCount) {
         return new DialogListItem(
@@ -121,7 +160,7 @@ class DialogLookupReadServiceTest {
                 "Проблема",
                 "2026-04-21T09:00:00Z",
                 status,
-                false,
+                aiProcessing,
                 null,
                 responsible,
                 "2026-04-21",
