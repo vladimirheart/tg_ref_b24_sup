@@ -1601,8 +1601,21 @@ integration-сценария поверх users/settings runtime boundary всё
   notification, но новый follow-up должен повторно зажигать list unread и
   новый unread bell entry; `last_read_at` при этом сдвигается уже до второго
   follow-up только после нового read route.
+- следующим пакетом этот repeated follow-up loop добран уже на
+  `queue/my_dialogs` projection surface: live `DialogDetailsIntegrationTest`
+  теперь фиксирует для одного operator-owned ticket переходы
+  `my_dialogs.unanswered -> in_work -> unanswered` через `details` read,
+  explicit bell ack, operator reply и следующий клиентский follow-up.
+- это закрывает ещё один соседний drift в operator UX: list-level buckets
+  теперь подтверждены на том же runtime contract, что и `details/history/
+  workspace`, то есть `waiting_operator + unreadCount>0` возвращает диалог в
+  `unanswered`, а `waiting_client + unreadCount=0` переносит его в `in_work`
+  без залипания после предыдущего ack.
+- targeted `DialogDetailsIntegrationTest`, `DialogReadIntegrationTest`,
+  `DialogWorkspaceIntegrationTest` и `NotificationApiIntegrationTest`
+  остаются зелёными уже и на этом `queue/my_dialogs` rearm parity слое.
 - следующий practical focus в `dialog-read/workspace` зоне смещён уже с
-  cross-consumer lifecycle parity, basic audit trail и full read refresh loop
-  на ещё более тонкие UX/runtime edges: соседние consumer contracts и
-  projection drift вокруг queue/my-dialogs surfaces того же
-  status/owner/action lifecycle после repeated follow-up refresh.
+  cross-consumer lifecycle parity, basic audit trail, full read refresh loop
+  и `queue/my_dialogs` rearm parity на ещё более тонкие UX/runtime edges:
+  соседние consumer contracts и remaining projection drift вокруг
+  queue/status-owner surfaces после repeated follow-up refresh.

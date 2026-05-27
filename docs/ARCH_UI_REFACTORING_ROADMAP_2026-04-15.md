@@ -1430,7 +1430,17 @@
   подтверждённая notification не мешает следующему follow-up создать новый
   unread state, а `details` route повторно двигает `last_read_at` уже на новом
   клиентском сообщении.
+- следующим пакетом этот runtime loop добран и на `queue/my_dialogs`
+  projection surface: `DialogDetailsIntegrationTest` теперь фиксирует
+  переходы `my_dialogs.unanswered -> in_work -> unanswered` для одного ticket
+  через `details` read, explicit bell ack, operator reply и следующий
+  client follow-up.
+- это выравнивает уже не только unread/bell semantics, но и list bucket UX:
+  repeated follow-up после ack возвращает диалог в `unanswered`, а
+  operator reply при `unreadCount=0` переводит его в `in_work` без drift
+  относительно `statusKey waiting_operator/waiting_client`.
 - следующий practical focus в `dialog workspace/read/details` зоне смещён уже
-  с cross-consumer lifecycle parity, basic audit trail и full notification
-  refresh loop на соседние consumer projections вокруг того же
-  status/owner/action lifecycle после repeated follow-up refresh.
+  с cross-consumer lifecycle parity, basic audit trail, full notification
+  refresh loop и `queue/my_dialogs` rearm parity на соседние consumer
+  projections и remaining drift вокруг того же status/owner/action lifecycle
+  после repeated follow-up refresh.
