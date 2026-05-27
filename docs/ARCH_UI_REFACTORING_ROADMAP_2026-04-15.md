@@ -1439,8 +1439,17 @@
   repeated follow-up после ack возвращает диалог в `unanswered`, а
   operator reply при `unreadCount=0` переводит его в `in_work` без drift
   относительно `statusKey waiting_operator/waiting_client`.
+- следующим более широким пакетом добран и `queue/status-owner` lifecycle:
+  `DialogDetailsIntegrationTest` теперь закрепляет handoff old-owner/new-owner
+  для `my_dialogs` после `reassign`, а также list-level contract для
+  `resolve -> reopen` на том же `/api/dialogs` payload.
+- это даёт уже не только rearm parity в рамках одного operator loop, но и
+  ownership/status continuity на list surface: старый owner теряет dialog из
+  `my_dialogs`, новый owner получает его в правильном bucket, а `resolved`
+  ticket исчезает из `my_dialogs` до `reopen`, после которого возвращается в
+  `in_work`.
 - следующий practical focus в `dialog workspace/read/details` зоне смещён уже
   с cross-consumer lifecycle parity, basic audit trail, full notification
-  refresh loop и `queue/my_dialogs` rearm parity на соседние consumer
-  projections и remaining drift вокруг того же status/owner/action lifecycle
-  после repeated follow-up refresh.
+  refresh loop, `queue/my_dialogs` rearm parity и `queue/status-owner`
+  lifecycle на соседние consumer projections и remaining drift вокруг того же
+  status/owner/action lifecycle после repeated follow-up refresh.

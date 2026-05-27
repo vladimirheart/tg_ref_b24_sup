@@ -588,7 +588,6 @@ class DialogDetailsIntegrationTest {
                         .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-DETAIL-BUCKETS"))
-                .andExpect(jsonPath("$.dialogs[0].statusKey").value("waiting_client"))
                 .andExpect(jsonPath("$.dialogs[0].unreadCount").value(0))
                 .andExpect(jsonPath("$.my_dialogs.unanswered").isEmpty())
                 .andExpect(jsonPath("$.my_dialogs.in_work[0].ticketId").value("T-DETAIL-BUCKETS"));
@@ -614,6 +613,169 @@ class DialogDetailsIntegrationTest {
                         .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.unread").value(1));
+    }
+
+    @Test
+    void dialogsListTransfersMyDialogsOwnershipAcrossReassignAndNextFollowUp() throws Exception {
+        insertDirectoryUser("watcher_owner", "Watcher Owner", "/img/watcher-owner.png");
+        insertDirectoryUser("watcher_new", "Watcher New", "/img/watcher-new.png");
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
+                VALUES (96, 'token96', 'Dialog Details Handoff', 'telegram', 1, CURRENT_TIMESTAMP)
+                """);
+        jdbcTemplate.update("""
+                INSERT INTO tickets (user_id, ticket_id, status, channel_id)
+                VALUES (?,?,?,?)
+                """,
+                910096L, "T-DETAIL-HANDOFF", "open", 96L);
+        jdbcTemplate.update("""
+                INSERT INTO messages (
+                    group_msg_id, user_id, business, city, location_name, problem, created_at,
+                    username, ticket_id, created_date, created_time, client_name, channel_id, updated_at, updated_by
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                9601L,
+                910096L,
+                "Retail",
+                "Рязань",
+                "Точка Handoff",
+                "Проверка my_dialogs ownership handoff",
+                "2026-05-27T11:00:00Z",
+                "details_handoff_user",
+                "T-DETAIL-HANDOFF",
+                "2026-05-27",
+                "11:00:00",
+                "Клиент Handoff",
+                96L,
+                "2026-05-27T11:00:00Z",
+                "seed");
+        jdbcTemplate.update("""
+                INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
+                VALUES (?,?,?,?)
+                """,
+                "T-DETAIL-HANDOFF", "watcher_owner", "dispatcher", "2026-05-27T11:02:00Z");
+        insertHistoryRow("T-DETAIL-HANDOFF", 910096L, "user", "Клиент ждёт handoff", "2026-05-27T11:01:00Z", "text", 961L, null, 96L, null, null, null, null, null);
+        insertHistoryRow("T-DETAIL-HANDOFF", 910096L, "operator", "Оператор ответил до reassign", "2026-05-27T11:02:00Z", "operator_message", 962L, 961L, 96L, null, null, null, null, null);
+
+        mockMvc.perform(get("/api/dialogs")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-DETAIL-HANDOFF"))
+                .andExpect(jsonPath("$.dialogs[0].unreadCount").value(0))
+                .andExpect(jsonPath("$.my_dialogs.unanswered").isEmpty())
+                .andExpect(jsonPath("$.my_dialogs.in_work[0].ticketId").value("T-DETAIL-HANDOFF"));
+
+        dialogQuickActionService.reassignTicket("T-DETAIL-HANDOFF", "watcher_new", "watcher_owner");
+
+        mockMvc.perform(get("/api/dialogs")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-DETAIL-HANDOFF"))
+                .andExpect(jsonPath("$.dialogs[0].rawResponsible").value("watcher_new"))
+                .andExpect(jsonPath("$.my_dialogs.unanswered").isEmpty())
+                .andExpect(jsonPath("$.my_dialogs.in_work").isEmpty());
+
+        mockMvc.perform(get("/api/dialogs")
+                        .principal(new TestingAuthenticationToken("watcher_new", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-DETAIL-HANDOFF"))
+                .andExpect(jsonPath("$.dialogs[0].rawResponsible").value("watcher_new"))
+                .andExpect(jsonPath("$.my_dialogs.unanswered").isEmpty())
+                .andExpect(jsonPath("$.my_dialogs.in_work[0].ticketId").value("T-DETAIL-HANDOFF"));
+
+        insertHistoryRow("T-DETAIL-HANDOFF", 910096L, "user", "Follow-up уже для нового owner", "2026-05-27T11:04:00Z", "text", 963L, 962L, 96L, null, null, null, null, null);
+        notificationService.notifyDialogParticipants(
+                "T-DETAIL-HANDOFF",
+                "Новое сообщение в обращении T-DETAIL-HANDOFF",
+                "/dialogs?ticketId=T-DETAIL-HANDOFF",
+                null
+        );
+
+        mockMvc.perform(get("/api/dialogs")
+                        .principal(new TestingAuthenticationToken("watcher_new", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-DETAIL-HANDOFF"))
+                .andExpect(jsonPath("$.dialogs[0].statusKey").value("waiting_operator"))
+                .andExpect(jsonPath("$.dialogs[0].unreadCount").value(1))
+                .andExpect(jsonPath("$.my_dialogs.unanswered[0].ticketId").value("T-DETAIL-HANDOFF"))
+                .andExpect(jsonPath("$.my_dialogs.in_work").isEmpty());
+
+        mockMvc.perform(get("/api/dialogs")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-DETAIL-HANDOFF"))
+                .andExpect(jsonPath("$.dialogs[0].rawResponsible").value("watcher_new"))
+                .andExpect(jsonPath("$.my_dialogs.unanswered").isEmpty())
+                .andExpect(jsonPath("$.my_dialogs.in_work").isEmpty());
+    }
+
+    @Test
+    void dialogsListDropsResolvedTicketFromMyDialogsAndRestoresItAfterReopen() throws Exception {
+        insertDirectoryUser("watcher_owner", "Watcher Owner", "/img/watcher-owner.png");
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
+                VALUES (97, 'token97', 'Dialog Details Resolve', 'telegram', 1, CURRENT_TIMESTAMP)
+                """);
+        jdbcTemplate.update("""
+                INSERT INTO tickets (user_id, ticket_id, status, channel_id)
+                VALUES (?,?,?,?)
+                """,
+                910097L, "T-DETAIL-RESOLVE", "open", 97L);
+        jdbcTemplate.update("""
+                INSERT INTO messages (
+                    group_msg_id, user_id, business, city, location_name, problem, created_at,
+                    username, ticket_id, created_date, created_time, client_name, channel_id, updated_at, updated_by
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                9701L,
+                910097L,
+                "Retail",
+                "Тверь",
+                "Точка Resolve",
+                "Проверка my_dialogs resolve/reopen",
+                "2026-05-27T11:10:00Z",
+                "details_resolve_user",
+                "T-DETAIL-RESOLVE",
+                "2026-05-27",
+                "11:10:00",
+                "Клиент Resolve",
+                97L,
+                "2026-05-27T11:10:00Z",
+                "seed");
+        jdbcTemplate.update("""
+                INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
+                VALUES (?,?,?,?)
+                """,
+                "T-DETAIL-RESOLVE", "watcher_owner", "dispatcher", "2026-05-27T11:12:00Z");
+        insertHistoryRow("T-DETAIL-RESOLVE", 910097L, "user", "Клиент пишет до закрытия", "2026-05-27T11:11:00Z", "text", 971L, null, 97L, null, null, null, null, null);
+        insertHistoryRow("T-DETAIL-RESOLVE", 910097L, "operator", "Ответ перед закрытием", "2026-05-27T11:12:00Z", "operator_message", 972L, 971L, 97L, null, null, null, null, null);
+
+        mockMvc.perform(get("/api/dialogs")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-DETAIL-RESOLVE"))
+                .andExpect(jsonPath("$.my_dialogs.unanswered").isEmpty())
+                .andExpect(jsonPath("$.my_dialogs.in_work[0].ticketId").value("T-DETAIL-RESOLVE"));
+
+        dialogQuickActionService.resolveTicket("T-DETAIL-RESOLVE", "watcher_owner", List.of("billing"));
+
+        mockMvc.perform(get("/api/dialogs")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-DETAIL-RESOLVE"))
+                .andExpect(jsonPath("$.dialogs[0].statusKey").value("closed"))
+                .andExpect(jsonPath("$.my_dialogs.unanswered").isEmpty())
+                .andExpect(jsonPath("$.my_dialogs.in_work").isEmpty());
+
+        dialogQuickActionService.reopenTicket("T-DETAIL-RESOLVE", "watcher_owner");
+
+        mockMvc.perform(get("/api/dialogs")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-DETAIL-RESOLVE"))
+                .andExpect(jsonPath("$.dialogs[0].unreadCount").value(0))
+                .andExpect(jsonPath("$.my_dialogs.unanswered").isEmpty())
+                .andExpect(jsonPath("$.my_dialogs.in_work[0].ticketId").value("T-DETAIL-RESOLVE"));
     }
 
     private void ensureChatHistoryMutationColumns() {

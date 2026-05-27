@@ -1614,8 +1614,22 @@ integration-сценария поверх users/settings runtime boundary всё
 - targeted `DialogDetailsIntegrationTest`, `DialogReadIntegrationTest`,
   `DialogWorkspaceIntegrationTest` и `NotificationApiIntegrationTest`
   остаются зелёными уже и на этом `queue/my_dialogs` rearm parity слое.
+- следующим более широким пакетом `queue/status-owner` surface добран уже на
+  cross-owner и resolve lifecycle: `DialogDetailsIntegrationTest` теперь
+  фиксирует handoff `old owner -> new owner -> next follow-up` для
+  `my_dialogs`, а также поведение `resolve -> reopen` на том же `/api/dialogs`
+  list payload.
+- это закрывает ещё один operator UX drift вокруг list buckets: после
+  `reassign` старый owner теряет ticket из `my_dialogs`, новый owner получает
+  его в корректном bucket, следующий follow-up поднимает `unanswered` уже
+  только у нового owner, а `resolved` dialog честно исчезает из `my_dialogs`
+  до `reopen`, после которого возвращается в `in_work`.
+- targeted `DialogDetailsIntegrationTest`, `DialogReadIntegrationTest`,
+  `DialogWorkspaceIntegrationTest` и `NotificationApiIntegrationTest`
+  остаются зелёными уже и на этом `queue/status-owner` lifecycle слое.
 - следующий practical focus в `dialog-read/workspace` зоне смещён уже с
   cross-consumer lifecycle parity, basic audit trail, full read refresh loop
-  и `queue/my_dialogs` rearm parity на ещё более тонкие UX/runtime edges:
-  соседние consumer contracts и remaining projection drift вокруг
-  queue/status-owner surfaces после repeated follow-up refresh.
+  `queue/my_dialogs` rearm parity и `queue/status-owner` lifecycle на ещё
+  более тонкие UX/runtime edges: соседние consumer contracts и remaining
+  projection drift вокруг queue/status-owner surfaces после repeated
+  follow-up refresh.
