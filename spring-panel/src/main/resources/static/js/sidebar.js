@@ -448,6 +448,9 @@
   }
 
   function updateEditOrderButton() {
+    if (resetOrderBtn) {
+      resetOrderBtn.hidden = !isEditingOrder;
+    }
     if (editOrderBtn) {
       const icon = editOrderBtn.querySelector('.icon');
       if (icon) {

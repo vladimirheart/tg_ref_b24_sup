@@ -149,13 +149,16 @@ body.sidebar-mobile-open .sidebar-mobile-overlay {
   .sidebar.collapsed .sidebar-brand-description,
   .sidebar.collapsed .sidebar-overview,
   .sidebar.collapsed .sidebar-section-label,
+  .sidebar.collapsed .sidebar-footer-kicker,
   .sidebar.collapsed .nav-label-sub,
   .sidebar.collapsed .nav-label-main,
   .sidebar.collapsed .brand-copy,
   .sidebar.collapsed .sidebar-brand-badge,
   .sidebar.collapsed .sidebar-user-meta,
+  .sidebar.collapsed .sidebar-runtime-meta,
   .sidebar.collapsed .sidebar-logout-btn .label,
-  .sidebar.collapsed .sidebar-account-btn .label {
+  .sidebar.collapsed .sidebar-account-btn .label,
+  .sidebar.collapsed .sidebar-order-btn .label {
     display: initial !important;
   }
 

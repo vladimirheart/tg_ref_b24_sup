@@ -7,31 +7,37 @@
 
     <div class="sidebar" id="app-sidebar">
         <div class="sidebar-header">
-            <div class="sidebar-brand-shell">
-                <div class="sidebar-brand-row">
-                    <span class="brand">
-                        <img th:src="@{/iguana-icon.svg}" alt="Логотип iguana" class="brand-icon" loading="lazy" decoding="async"/>
-                        <span class="brand-copy">
-                            <span class="brand-name">iguana</span>
-                            <span class="brand-caption">support command</span>
+            <div class="sidebar-header-top">
+                <div class="sidebar-brand-shell">
+                    <div class="sidebar-brand-row">
+                        <span class="brand">
+                            <img th:src="@{/iguana-icon.svg}" alt="Логотип iguana" class="brand-icon" loading="lazy" decoding="async"/>
+                            <span class="brand-copy">
+                                <span class="brand-name">iguana</span>
+                                <span class="brand-caption">support command</span>
+                            </span>
                         </span>
-                    </span>
-                    <span class="sidebar-brand-badge">ops</span>
+                        <span class="sidebar-brand-badge">ops</span>
+                    </div>
+                    <p class="sidebar-brand-description">Очереди, уведомления и быстрый доступ к рабочим контурам.</p>
                 </div>
-                <div class="sidebar-runtime-strip">
-                    <span class="sidebar-runtime-label">Боты</span>
-                    <span class="sidebar-bot-mini-indicators" data-sidebar-bot-mini-indicators hidden aria-label="Статусы ботов"></span>
+                <div class="sidebar-actions" id="notify-bell-wrapper">
+                    <button id="bellBtn" class="icon-btn notify-btn" type="button" title="Оповещения" aria-expanded="false">
+                        <span class="icon" aria-hidden="true">🔔</span>
+                        <span id="notify-count" class="notify-count" hidden>0</span>
+                    </button>
+                    <div id="notify-dropdown" class="notify-dropdown" hidden role="listbox" aria-label="Оповещения"></div>
+                    <button id="densityModeBtn" class="icon-btn" type="button" title="Плотность интерфейса: comfortable" aria-pressed="false">◫</button>
+                    <button id="pinSidebarBtn" class="icon-btn" type="button" title="Прикрепить/открепить">📌</button>
+                    <button id="resetSidebarOrderBtn" class="icon-btn" type="button" title="Вернуть порядок по умолчанию" hidden>↺</button>
                 </div>
             </div>
-            <div class="sidebar-actions" id="notify-bell-wrapper">
-                <button id="bellBtn" class="icon-btn notify-btn" type="button" title="Оповещения" aria-expanded="false">
-                    <span class="icon" aria-hidden="true">🔔</span>
-                    <span id="notify-count" class="notify-count" hidden>0</span>
-                </button>
-                <div id="notify-dropdown" class="notify-dropdown" hidden role="listbox" aria-label="Оповещения"></div>
-                <button id="densityModeBtn" class="icon-btn" type="button" title="Плотность интерфейса: comfortable" aria-pressed="false">◫</button>
-                <button id="pinSidebarBtn" class="icon-btn" type="button" title="Прикрепить/открепить">📌</button>
-                <button id="resetSidebarOrderBtn" class="icon-btn" type="button" title="Вернуть порядок по умолчанию">↺</button>
+            <div class="sidebar-runtime-strip">
+                <span class="sidebar-runtime-copy">
+                    <span class="sidebar-runtime-label">Runtime</span>
+                    <span class="sidebar-runtime-meta">Статусы ботов и живые сигналы панели</span>
+                </span>
+                <span class="sidebar-bot-mini-indicators" data-sidebar-bot-mini-indicators hidden aria-label="Статусы ботов"></span>
             </div>
         </div>
 
@@ -43,7 +49,7 @@
         </div>
 
         <nav class="sidebar-nav" aria-label="Основная навигация">
-            <div class="sidebar-section-label">Навигация</div>
+            <div class="sidebar-section-label">Рабочий контур</div>
             <a class="nav-link" data-page-key="dialogs"
                th:classappend="${active}=='dialogs' ? ' active'"
                th:href="@{/}">
@@ -116,6 +122,10 @@
                     <span class="nav-label-sub">Пульсы, cert-monitoring и KPI</span>
                 </span>
             </a>
+            <div class="sidebar-section-label"
+                 th:if="${(canManageChannels and !canViewSettings) or canViewSettings or (canManageUsers and !canViewSettings)}">
+                Администрирование
+            </div>
             <a class="nav-link" data-page-key="channels" th:if="${canManageChannels and !canViewSettings}"
                th:classappend="${active}=='channels' ? ' active'"
                th:href="@{/channels}">
@@ -146,6 +156,7 @@
         </nav>
 
         <div class="sidebar-footer">
+            <div class="sidebar-footer-kicker">Аккаунт</div>
             <div class="sidebar-user-card" th:if="${#authentication?.name}">
                 <div class="sidebar-user-avatar"
                      th:classappend="${sidebarUserHasAvatar} ? ' has-image' : ''"
@@ -175,6 +186,7 @@
                         aria-label="Сменить пароль"
                         title="Сменить пароль">
                     <span class="icon" aria-hidden="true">🔐</span>
+                    <span class="label">Пароль</span>
                 </button>
                 <button
                         id="editSidebarOrderBtn"
@@ -183,6 +195,7 @@
                         aria-label="Редактировать порядок"
                         title="Редактировать порядок">
                     <span class="icon" aria-hidden="true">⇅</span>
+                    <span class="label">Порядок</span>
                 </button>
                 <a
                         class="sidebar-logout-btn sidebar-footer-icon-btn"
@@ -190,6 +203,7 @@
                         aria-label="Выйти"
                         title="Выйти">
                     <span class="icon" aria-hidden="true">🚪</span>
+                    <span class="label">Выход</span>
                 </a>
             </div>
         </div>
