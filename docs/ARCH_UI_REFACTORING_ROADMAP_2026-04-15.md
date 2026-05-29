@@ -1456,6 +1456,14 @@
   `unanswered/in_work` закреплена не только live runtime сценариями, но и
   быстрыми service-level тестами, которые ловят drift в grouping/assembly
   слое без полного `SpringBootTest`.
+- следующим пакетом добран и dedicated list consumer boundary:
+  `DialogListIntegrationTest` теперь отдельно закрепляет `/api/dialogs`
+  runtime contract для null-auth envelope и owner-aware bucket transitions,
+  а `DialogListControllerWebMvcTest` остаётся focused на transport delegation.
+- это убирает зависимость list surface от косвенного coverage через
+  `DialogDetailsIntegrationTest`: у `/api/dialogs` теперь есть собственный
+  live SQLite contract для `my_dialogs` empty envelope и `reassign ->
+  follow-up` list lifecycle.
 - следующий practical focus в `dialog workspace/read/details` зоне смещён уже
   с cross-consumer lifecycle parity, basic audit trail, full notification
   refresh loop, `queue/my_dialogs` rearm parity и `queue/status-owner`

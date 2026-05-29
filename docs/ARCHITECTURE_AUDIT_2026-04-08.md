@@ -1643,6 +1643,18 @@ integration-сценария поверх users/settings runtime boundary всё
   `DialogReadIntegrationTest`, `DialogWorkspaceIntegrationTest` и
   `NotificationApiIntegrationTest` остаются зелёными на общем
   `queue/status-owner` regression пакете.
+- следующим пакетом у `/api/dialogs` появился и dedicated consumer boundary:
+  добавлен отдельный live `DialogListIntegrationTest`, который закрепляет
+  null-auth envelope и owner handoff/runtime bucket semantics прямо на list
+  route, а не только через косвенные `details`-сценарии.
+- это добирает transport/runtime drift именно на list surface:
+  `DialogListControllerWebMvcTest` остаётся focused на controller delegation,
+  а `DialogListIntegrationTest` теперь фиксирует `my_dialogs` empty envelope
+  без authentication и owner-aware `unanswered/in_work` transitions после
+  `reassign` и следующего follow-up.
+- targeted `DialogListControllerWebMvcTest`, `DialogListIntegrationTest`,
+  `DialogLookupReadServiceTest` и `DialogListReadServiceTest` остаются
+  зелёными на новом dedicated list consumer пакете.
 - следующий practical focus в `dialog-read/workspace` зоне смещён уже с
   cross-consumer lifecycle parity, basic audit trail, full read refresh loop
   `queue/my_dialogs` rearm parity и `queue/status-owner` lifecycle на ещё
