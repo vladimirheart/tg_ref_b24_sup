@@ -2,6 +2,7 @@ package com.example.panel.repository;
 
 import com.example.panel.entity.PanelUser;
 import com.example.panel.entity.Role;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
@@ -18,7 +19,7 @@ public class PanelUserRepository {
 
     private final JdbcTemplate usersJdbcTemplate;
 
-    public PanelUserRepository(JdbcTemplate usersJdbcTemplate) {
+    public PanelUserRepository(@Qualifier("usersJdbcTemplate") JdbcTemplate usersJdbcTemplate) {
         this.usersJdbcTemplate = usersJdbcTemplate;
     }
 

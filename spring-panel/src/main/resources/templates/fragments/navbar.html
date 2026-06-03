@@ -154,68 +154,72 @@
         </nav>
 
         <div class="sidebar-footer">
-            <div class="sidebar-footer-kicker">Аккаунт</div>
-            <div class="sidebar-user-card">
-                <div class="sidebar-user-avatar"
-                     th:classappend="${sidebarUserHasAvatar} ? ' has-image' : ''"
-                     data-sidebar-user-avatar>
-                    <img th:if="${sidebarUserHasAvatar}"
-                         th:src="${sidebarUserAvatarUrl}"
-                         alt="Аватар"
-                         loading="lazy"
-                         decoding="async"
-                         data-sidebar-user-avatar-img/>
-                    <span class="sidebar-user-avatar-fallback" aria-hidden="true">
-                        <svg viewBox="0 0 24 24" focusable="false">
-                            <path d="M12 12.75c2.485 0 4.5-2.239 4.5-5s-2.015-5-4.5-5-4.5 2.239-4.5 5 2.015 5 4.5 5Zm0 2.25c-4.142 0-7.5 2.574-7.5 5.75 0 .414.336.75.75.75h13.5a.75.75 0 0 0 .75-.75c0-3.176-3.358-5.75-7.5-5.75Z"/>
-                        </svg>
-                    </span>
-                </div>
-                <div class="sidebar-user-meta">
-                    <span class="sidebar-user-name" th:text="${sidebarUserDisplayName}">Пользователь</span>
-                    <span class="sidebar-user-username" th:text="${sidebarUserUsername}"></span>
-                </div>
-            </div>
-            <div class="sidebar-footer-actions" data-sidebar-action-menu>
-                <div class="sidebar-action-menu-shell">
-                    <div class="sidebar-action-menu-list" id="sidebarActionMenu" hidden>
-                        <button
-                                type="button"
-                                class="sidebar-action-item"
-                                data-sidebar-change-password
-                                aria-label="Сменить пароль"
-                                title="Сменить пароль">
-                            <span class="icon" aria-hidden="true">🔐</span>
-                            <span class="label">Пароль</span>
-                        </button>
-                        <button
-                                id="editSidebarOrderBtn"
-                                class="sidebar-action-item sidebar-action-item--accent"
-                                type="button"
-                                aria-label="Редактировать порядок"
-                                title="Редактировать порядок">
-                            <span class="icon" aria-hidden="true">⇅</span>
-                            <span class="label">Порядок</span>
-                        </button>
-                        <a
-                                class="sidebar-action-item sidebar-action-item--danger"
-                                th:href="@{/logout}"
-                                aria-label="Выйти"
-                                title="Выйти">
-                            <span class="icon" aria-hidden="true">🚪</span>
-                            <span class="label">Выход</span>
-                        </a>
+            <div class="sidebar-footer-main">
+                <div class="sidebar-account-block">
+                    <div class="sidebar-footer-kicker">Аккаунт</div>
+                    <div class="sidebar-user-card">
+                        <div class="sidebar-user-avatar"
+                             th:classappend="${sidebarUserHasAvatar} ? ' has-image' : ''"
+                             data-sidebar-user-avatar>
+                            <img th:if="${sidebarUserHasAvatar}"
+                                 th:src="${sidebarUserAvatarUrl}"
+                                 alt="Аватар"
+                                 loading="lazy"
+                                 decoding="async"
+                                 data-sidebar-user-avatar-img/>
+                            <span class="sidebar-user-avatar-fallback" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" focusable="false">
+                                    <path d="M12 12.75c2.485 0 4.5-2.239 4.5-5s-2.015-5-4.5-5-4.5 2.239-4.5 5 2.015 5 4.5 5Zm0 2.25c-4.142 0-7.5 2.574-7.5 5.75 0 .414.336.75.75.75h13.5a.75.75 0 0 0 .75-.75c0-3.176-3.358-5.75-7.5-5.75Z"/>
+                                </svg>
+                            </span>
+                        </div>
+                        <div class="sidebar-user-meta">
+                            <span class="sidebar-user-name" th:text="${sidebarUserDisplayName}">Пользователь</span>
+                            <span class="sidebar-user-username" th:text="${sidebarUserUsername}"></span>
+                        </div>
                     </div>
-                    <button
-                            type="button"
-                            class="sidebar-action-menu-trigger"
-                            data-sidebar-action-trigger
-                            aria-controls="sidebarActionMenu"
-                            aria-expanded="false"
-                            title="Быстрые действия">
-                        <span class="sidebar-action-menu-orb" aria-hidden="true"></span>
-                        <span class="icon" aria-hidden="true">✦</span>
-                    </button>
+                </div>
+                <div class="sidebar-footer-actions" data-sidebar-action-menu>
+                    <div class="sidebar-action-menu-shell">
+                        <div class="sidebar-action-menu-list" id="sidebarActionMenu" hidden>
+                            <button
+                                    type="button"
+                                    class="sidebar-action-item"
+                                    data-sidebar-change-password
+                                    aria-label="Сменить пароль"
+                                    title="Сменить пароль">
+                                <span class="icon" aria-hidden="true">🔐</span>
+                                <span class="label">Пароль</span>
+                            </button>
+                            <button
+                                    id="editSidebarOrderBtn"
+                                    class="sidebar-action-item sidebar-action-item--accent"
+                                    type="button"
+                                    aria-label="Редактировать порядок"
+                                    title="Редактировать порядок">
+                                <span class="icon" aria-hidden="true">⇅</span>
+                                <span class="label">Порядок</span>
+                            </button>
+                            <a
+                                    class="sidebar-action-item sidebar-action-item--danger"
+                                    th:href="@{/logout}"
+                                    aria-label="Выйти"
+                                    title="Выйти">
+                                <span class="icon" aria-hidden="true">🚪</span>
+                                <span class="label">Выход</span>
+                            </a>
+                        </div>
+                        <button
+                                type="button"
+                                class="sidebar-action-menu-trigger"
+                                data-sidebar-action-trigger
+                                aria-controls="sidebarActionMenu"
+                                aria-expanded="false"
+                                title="Быстрые действия">
+                            <span class="sidebar-action-menu-orb" aria-hidden="true"></span>
+                            <span class="icon" aria-hidden="true">✦</span>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

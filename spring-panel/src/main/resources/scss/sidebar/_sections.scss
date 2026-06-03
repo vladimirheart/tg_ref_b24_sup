@@ -433,6 +433,21 @@
   gap: 10px;
 }
 
+.sidebar-footer-main {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sidebar-account-block {
+  min-width: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .sidebar-footer-kicker {
   font-size: 0.68rem;
   font-weight: 800;
@@ -444,6 +459,7 @@
 .sidebar-footer-actions {
   display: flex;
   justify-content: flex-end;
+  flex: 0 0 auto;
 }
 
 .sidebar-user-card {
@@ -661,6 +677,11 @@
 }
 
 @media (max-width: 640px) {
+  .sidebar-footer-main {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
   .sidebar-action-menu-shell,
   .sidebar-action-menu-list {
     align-items: stretch;
