@@ -1,6 +1,7 @@
 package com.example.panel.controller;
 
 import com.example.panel.service.PermissionService;
+import com.example.panel.service.PanelUserPhotoService;
 import com.example.panel.service.SharedConfigService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -77,6 +78,7 @@ public class AuthManagementApiController {
     private final SharedConfigService sharedConfigService;
     private final PermissionService permissionService;
     private final PasswordEncoder passwordEncoder;
+    private final PanelUserPhotoService panelUserPhotoService;
     private final ObjectMapper objectMapper;
     private final Path avatarsRoot;
 
@@ -84,12 +86,14 @@ public class AuthManagementApiController {
                                        SharedConfigService sharedConfigService,
                                        PermissionService permissionService,
                                        PasswordEncoder passwordEncoder,
+                                       PanelUserPhotoService panelUserPhotoService,
                                        ObjectMapper objectMapper,
                                        @Value("${app.storage.avatars:attachments/avatars}") String avatarsDir) throws IOException {
         this.usersJdbcTemplate = usersJdbcTemplate;
         this.sharedConfigService = sharedConfigService;
         this.permissionService = permissionService;
         this.passwordEncoder = passwordEncoder;
+        this.panelUserPhotoService = panelUserPhotoService;
         this.objectMapper = objectMapper;
         this.avatarsRoot = ensureDirectory(avatarsDir);
     }
@@ -401,9 +405,14 @@ public class AuthManagementApiController {
 
     @PostMapping(value = {"/users/photo-upload", "/users/photo-upload/"}, consumes = "multipart/form-data")
     @PreAuthorize("hasAuthority('PAGE_SETTINGS') or hasAuthority('PAGE_USERS')")
-    public Map<String, Object> uploadUserPhoto(@RequestParam("photo") MultipartFile file) throws IOException {
+    public Map<String, Object> uploadUserPhoto(Authentication authentication,
+                                               @RequestParam("photo") MultipartFile file,
+                                               @RequestParam(value = "userId", required = false) Long userId) throws IOException {
         if (file.isEmpty()) {
             return Map.of("success", false, "error", "Файл не может быть пустым");
+        }
+        if (userId != null && !canEditUserDetails(authentication, userId)) {
+            return Map.of("success", false, "error", "Not enough permissions to update user photo.");
         }
         String extension = extractExtension(file.getOriginalFilename());
         if (!isAllowedImageExtension(extension)) {
@@ -413,7 +422,17 @@ public class AuthManagementApiController {
         Path target = avatarsRoot.resolve(filename).normalize();
         Files.copy(file.getInputStream(), target);
         String url = "/api/attachments/avatars/" + filename;
-        return Map.of("success", true, "url", url, "filename", filename);
+        if (userId != null) {
+            persistUserPhoto(userId, url);
+        }
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("success", true);
+        response.put("url", url);
+        response.put("photo", url);
+        response.put("filename", filename);
+        response.put("userId", userId);
+        response.put("persisted", userId != null);
+        return response;
     }
 
     private List<Map<String, Object>> fetchUsers(Authentication authentication) {
@@ -437,7 +456,7 @@ public class AuthManagementApiController {
             user.put("full_name", row.get("full_name"));
             user.put("role", row.getOrDefault("role_name", row.get("role")));
             user.put("role_id", row.get("role_id"));
-            user.put("photo", row.get("photo"));
+            user.put("photo", panelUserPhotoService.resolveUrl(stringValue(row.get("photo"))));
             user.put("registration_date", row.get("registration_date"));
             user.put("birth_date", row.get("birth_date"));
             user.put("email", row.get("email"));
@@ -491,6 +510,23 @@ public class AuthManagementApiController {
 
     private boolean hasEditPermission(Authentication authentication, String permissionKey) {
         return hasFieldPermission(authentication, permissionKey, "edit");
+    }
+
+    private boolean canEditUserDetails(Authentication authentication, Long userId) {
+        if (userId == null) {
+            return false;
+        }
+        Long currentUserId = resolveCurrentUserId(authentication);
+        boolean isSelf = currentUserId != null && currentUserId.equals(userId);
+        return isSelf || hasEditPermission(authentication, "user.username");
+    }
+
+    private void persistUserPhoto(long userId, String photoUrl) {
+        Set<String> userColumns = loadUserColumns();
+        if (!userColumns.contains("photo")) {
+            return;
+        }
+        usersJdbcTemplate.update("UPDATE users SET photo = ? WHERE id = ?", photoUrl, userId);
     }
 
     private boolean hasFieldPermission(Authentication authentication, String permissionKey, String mode) {

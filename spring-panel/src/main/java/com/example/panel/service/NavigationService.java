@@ -13,13 +13,16 @@ public class NavigationService {
     private final PermissionService permissionService;
     private final PanelUserRepository panelUserRepository;
     private final UnblockRequestService unblockRequestService;
+    private final PanelUserPhotoService panelUserPhotoService;
 
     public NavigationService(PermissionService permissionService,
                              PanelUserRepository panelUserRepository,
-                             UnblockRequestService unblockRequestService) {
+                             UnblockRequestService unblockRequestService,
+                             PanelUserPhotoService panelUserPhotoService) {
         this.permissionService = permissionService;
         this.panelUserRepository = panelUserRepository;
         this.unblockRequestService = unblockRequestService;
+        this.panelUserPhotoService = panelUserPhotoService;
     }
 
     public void enrich(Model model, Authentication authentication) {
@@ -62,36 +65,10 @@ public class NavigationService {
             }
             avatar = user.getPhoto();
         }
-        String avatarUrl = resolveAvatarUrl(avatar);
+        String avatarUrl = panelUserPhotoService.resolveUrl(avatar, "/avatar_default.svg");
         model.addAttribute("sidebarUserDisplayName", displayName);
         model.addAttribute("sidebarUserUsername", resolvedUsername);
         model.addAttribute("sidebarUserAvatarUrl", avatarUrl);
         model.addAttribute("sidebarUserHasAvatar", avatarUrl != null && !"/avatar_default.svg".equals(avatarUrl));
-    }
-
-    private String resolveAvatarUrl(String photo) {
-        if (!StringUtils.hasText(photo)) {
-            return "/avatar_default.svg";
-        }
-        String trimmed = photo.trim();
-        if (trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith("data:")) {
-            return trimmed;
-        }
-        if (trimmed.startsWith("/static/user_photos/") || trimmed.startsWith("static/user_photos/")
-                || trimmed.startsWith("/user_photos/") || trimmed.startsWith("user_photos/")) {
-            int slashIndex = trimmed.lastIndexOf('/');
-            String filename = slashIndex >= 0 ? trimmed.substring(slashIndex + 1) : trimmed;
-            return "/api/attachments/avatars/" + filename;
-        }
-        if (trimmed.startsWith("/")) {
-            return trimmed;
-        }
-        if (trimmed.startsWith("api/attachments/avatars/")) {
-            return "/" + trimmed;
-        }
-        if (trimmed.startsWith("avatars/")) {
-            return "/api/attachments/" + trimmed;
-        }
-        return "/api/attachments/avatars/" + trimmed;
     }
 }

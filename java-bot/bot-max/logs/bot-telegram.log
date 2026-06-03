@@ -100,3 +100,48 @@
 2026-06-03 14:22:51.480+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Starting ProtocolHandler ["http-nio-127.0.0.1-18002"]
 2026-06-03 14:22:51.499+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 18002 (http) with context path ''
 2026-06-03 14:22:51.519+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - Started MaxBotApplication in 4.469 seconds (process running for 4.714)
+2026-06-03 14:42:09.256+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
+2026-06-03 14:42:09.301+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - Starting MaxBotApplication using Java 25.0.2 with PID 22716 (C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-max\target\classes started by SinicinVV in C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-max)
+2026-06-03 14:42:09.301+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - The following 1 profile is active: "default"
+2026-06-03 14:42:09.676+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-06-03 14:42:09.769+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 88 ms. Found 30 JPA repository interfaces.
+2026-06-03 14:42:10.264+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 18002 (http)
+2026-06-03 14:42:10.273+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Initializing ProtocolHandler ["http-nio-127.0.0.1-18002"]
+2026-06-03 14:42:10.274+03:00 INFO  [main] o.a.catalina.core.StandardService - Starting service [Tomcat]
+2026-06-03 14:42:10.274+03:00 INFO  [main] o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.20]
+2026-06-03 14:42:10.315+03:00 INFO  [main] o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+2026-06-03 14:42:10.315+03:00 INFO  [main] o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 976 ms
+2026-06-03 14:42:10.515+03:00 INFO  [main] o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-06-03 14:42:10.547+03:00 INFO  [main] org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
+2026-06-03 14:42:10.571+03:00 INFO  [main] o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
+2026-06-03 14:42:10.725+03:00 INFO  [main] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-06-03 14:42:11.591+03:00 INFO  [main] o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-06-03 14:42:11.593+03:00 INFO  [main] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-06-03 14:42:12.207+03:00 WARN  [main] o.s.b.a.o.j.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-06-03 14:42:12.376+03:00 INFO  [main] c.e.s.max.MaxLongPollingLifecycle - MAX long polling started
+2026-06-03 14:42:12.377+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Starting ProtocolHandler ["http-nio-127.0.0.1-18002"]
+2026-06-03 14:42:12.384+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 18002 (http) with context path ''
+2026-06-03 14:42:12.393+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - Started MaxBotApplication in 3.477 seconds (process running for 3.706)
+2026-06-03 16:31:13.542+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: Connection reset
+2026-06-03 17:06:44.709+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
+2026-06-03 17:06:44.750+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - Starting MaxBotApplication using Java 25.0.2 with PID 3796 (C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-max\target\classes started by SinicinVV in C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-max)
+2026-06-03 17:06:44.750+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - The following 1 profile is active: "default"
+2026-06-03 17:06:45.085+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-06-03 17:06:45.170+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 80 ms. Found 30 JPA repository interfaces.
+2026-06-03 17:06:45.626+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 18002 (http)
+2026-06-03 17:06:45.633+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Initializing ProtocolHandler ["http-nio-127.0.0.1-18002"]
+2026-06-03 17:06:45.635+03:00 INFO  [main] o.a.catalina.core.StandardService - Starting service [Tomcat]
+2026-06-03 17:06:45.635+03:00 INFO  [main] o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.20]
+2026-06-03 17:06:45.672+03:00 INFO  [main] o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+2026-06-03 17:06:45.673+03:00 INFO  [main] o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 890 ms
+2026-06-03 17:06:45.853+03:00 INFO  [main] o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-06-03 17:06:45.881+03:00 INFO  [main] org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
+2026-06-03 17:06:45.899+03:00 INFO  [main] o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
+2026-06-03 17:06:46.040+03:00 INFO  [main] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-06-03 17:06:46.869+03:00 INFO  [main] o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-06-03 17:06:46.871+03:00 INFO  [main] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-06-03 17:06:47.461+03:00 WARN  [main] o.s.b.a.o.j.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-06-03 17:06:47.628+03:00 INFO  [main] c.e.s.max.MaxLongPollingLifecycle - MAX long polling started
+2026-06-03 17:06:47.628+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Starting ProtocolHandler ["http-nio-127.0.0.1-18002"]
+2026-06-03 17:06:47.636+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 18002 (http) with context path ''
+2026-06-03 17:06:47.644+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - Started MaxBotApplication in 3.236 seconds (process running for 3.461)

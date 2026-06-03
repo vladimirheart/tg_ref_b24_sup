@@ -890,6 +890,7 @@
             throw new Error('Сервер не вернул ссылку на фото.');
           }
           this.setPhotoValue(url);
+          this.persistUploadedPhotoState(url);
           this.setPhotoStatus('Фото обновлено.', 'success');
         })
         .catch((error) => {
@@ -936,6 +937,10 @@
       }
       const formData = new FormData();
       formData.append('photo', file);
+      const userId = this.modalState?.mode === 'edit' ? this.modalState?.userId : null;
+      if (userId != null && userId !== '') {
+        formData.append('userId', String(userId));
+      }
       return fetch(this.photoUploadEndpoint, {
         method: 'POST',
         credentials: 'same-origin',
@@ -948,6 +953,52 @@
           }
           return data;
         });
+    }
+
+    persistUploadedPhotoState(url) {
+      const normalizedUrl = String(url || '').trim();
+      if (!normalizedUrl) {
+        return;
+      }
+      const userId = this.modalState?.mode === 'edit' ? this.modalState?.userId : null;
+      if (userId != null) {
+        this.applyUserUpdate({ id: userId, photo: normalizedUrl });
+      }
+      if (this.modalState?.original) {
+        this.modalState.original.photo = normalizedUrl;
+      }
+      if (userId != null && String(this.state.currentUserId) === String(userId)) {
+        this.syncSidebarAvatar(normalizedUrl);
+      }
+    }
+
+    syncSidebarAvatar(url) {
+      const avatar = document.querySelector('[data-sidebar-user-avatar]');
+      if (!(avatar instanceof HTMLElement)) {
+        return;
+      }
+      let avatarImage = avatar.querySelector('[data-sidebar-user-avatar-img]');
+      const normalizedUrl = String(url || '').trim();
+      if (!normalizedUrl) {
+        avatar.classList.remove('has-image', 'is-loaded');
+        if (avatarImage) {
+          avatarImage.remove();
+        }
+        return;
+      }
+      if (!(avatarImage instanceof HTMLImageElement)) {
+        avatarImage = document.createElement('img');
+        avatarImage.alt = 'Аватар';
+        avatarImage.loading = 'lazy';
+        avatarImage.decoding = 'async';
+        avatarImage.dataset.sidebarUserAvatarImg = '';
+        avatar.appendChild(avatarImage);
+      }
+      avatar.classList.add('has-image');
+      avatar.classList.remove('is-loaded');
+      avatarImage.onload = () => avatar.classList.add('is-loaded');
+      avatarImage.onerror = () => avatar.classList.remove('is-loaded');
+      avatarImage.src = normalizedUrl;
     }
 
     handleUsersClick(event) {

@@ -31,11 +31,14 @@ public class DialogLookupReadService {
 
     private final JdbcTemplate jdbcTemplate;
     private final JdbcTemplate usersJdbcTemplate;
+    private final PanelUserPhotoService panelUserPhotoService;
 
     public DialogLookupReadService(JdbcTemplate jdbcTemplate,
-                                   @Qualifier("usersJdbcTemplate") JdbcTemplate usersJdbcTemplate) {
+                                   @Qualifier("usersJdbcTemplate") JdbcTemplate usersJdbcTemplate,
+                                   PanelUserPhotoService panelUserPhotoService) {
         this.jdbcTemplate = jdbcTemplate;
         this.usersJdbcTemplate = usersJdbcTemplate;
+        this.panelUserPhotoService = panelUserPhotoService;
     }
 
     public DialogSummary loadSummary() {
@@ -512,7 +515,7 @@ public class DialogLookupReadService {
                 if (displayName == null) {
                     displayName = trimToNull(rs.getString("username"));
                 }
-                profiles.put(username, new ResponsibleProfile(displayName, resolveAvatarUrl(rs.getString("photo"))));
+                profiles.put(username, new ResponsibleProfile(displayName, panelUserPhotoService.resolveUrl(rs.getString("photo"))));
             }, identities.toArray());
             return profiles;
         } catch (DataAccessException ex) {
@@ -613,33 +616,6 @@ public class DialogLookupReadService {
         String normalized = value.trim();
         return normalized.isEmpty() ? null : normalized;
     }
-
-    private String resolveAvatarUrl(String photo) {
-        if (!StringUtils.hasText(photo)) {
-            return null;
-        }
-        String trimmed = photo.trim();
-        if (trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith("data:")) {
-            return trimmed;
-        }
-        if (trimmed.startsWith("/static/user_photos/") || trimmed.startsWith("static/user_photos/")
-                || trimmed.startsWith("/user_photos/") || trimmed.startsWith("user_photos/")) {
-            int slashIndex = trimmed.lastIndexOf('/');
-            String filename = slashIndex >= 0 ? trimmed.substring(slashIndex + 1) : trimmed;
-            return "/api/attachments/avatars/" + filename;
-        }
-        if (trimmed.startsWith("/")) {
-            return trimmed;
-        }
-        if (trimmed.startsWith("api/attachments/avatars/")) {
-            return "/" + trimmed;
-        }
-        if (trimmed.startsWith("avatars/")) {
-            return "/api/attachments/" + trimmed;
-        }
-        return "/api/attachments/avatars/" + trimmed;
-    }
-
     private record ResponsibleProfile(String displayName, String avatarUrl) {
     }
 }
