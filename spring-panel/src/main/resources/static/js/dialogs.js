@@ -66,6 +66,7 @@
   const pageSizeSelect = document.getElementById('dialogPageSize');
   const pagePrevBtn = document.getElementById('dialogPagePrev');
   const pageNextBtn = document.getElementById('dialogPageNext');
+  const pageNumbers = document.getElementById('dialogPageNumbers');
   const pageState = document.getElementById('dialogPageState');
   const slaWindowSelect = document.getElementById('dialogSlaWindow');
   const sortModeSelect = document.getElementById('dialogSortMode');
@@ -6799,6 +6800,7 @@
 
     pagePrevBtn.disabled = currentPage <= 1;
     pageNextBtn.disabled = currentPage <= 0 || currentPage >= totalPages;
+    renderPaginationPageNumbers(totalPages, currentPage, pagination?.limit);
 
     if (totalItems === 0) {
       pageState.textContent = '0 из 0';
@@ -6811,6 +6813,43 @@
     }
 
     pageState.textContent = `${start}-${end} из ${totalItems} | стр. ${currentPage}/${totalPages}`;
+  }
+
+  function renderPaginationPageNumbers(totalPages, currentPage, limit) {
+    if (!pageNumbers) return;
+    pageNumbers.innerHTML = '';
+
+    if (limit === Infinity || totalPages <= 1 || currentPage <= 0) {
+      return;
+    }
+
+    const windowSize = 5;
+    const safeTotalPages = Math.max(0, Number(totalPages) || 0);
+    const safeCurrentPage = Math.min(Math.max(1, Number(currentPage) || 1), safeTotalPages);
+    let startPage = Math.max(1, safeCurrentPage - Math.floor(windowSize / 2));
+    let endPage = Math.min(safeTotalPages, startPage + windowSize - 1);
+
+    if ((endPage - startPage + 1) < windowSize) {
+      startPage = Math.max(1, endPage - windowSize + 1);
+    }
+
+    for (let page = startPage; page <= endPage; page += 1) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = page === safeCurrentPage ? 'btn btn-primary btn-sm' : 'btn btn-outline-secondary btn-sm';
+      button.textContent = String(page);
+      button.setAttribute('aria-label', `Страница ${page}`);
+      if (page === safeCurrentPage) {
+        button.setAttribute('aria-current', 'page');
+        button.disabled = true;
+      } else {
+        button.addEventListener('click', () => {
+          filterState.page = page;
+          applyFilters();
+        });
+      }
+      pageNumbers.appendChild(button);
+    }
   }
 
   function applyPageSize(matchedRows) {
