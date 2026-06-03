@@ -394,6 +394,12 @@ body.with-sidebar.sidebar-hovering {
   padding: 14px 10px 18px;
 }
 
+.sidebar-nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 .sidebar-section-label {
   padding: 10px 10px 4px;
   font-size: 0.68rem;

@@ -47,110 +47,111 @@
         </div>
 
         <nav class="sidebar-nav" aria-label="Основная навигация">
-            <div class="sidebar-section-label">Рабочий контур</div>
-            <a class="nav-link" data-page-key="dialogs"
-               th:classappend="${active}=='dialogs' ? ' active'"
-               th:href="@{/}">
-                <span class="icon" aria-hidden="true">💬</span>
-                <span class="label">
-                    <span class="nav-label-main">Диалоги</span>
-                    <span class="nav-label-sub">Текущие обращения и ответы</span>
-                </span>
-            </a>
-            <a class="nav-link" data-page-key="ai-ops"
-               th:classappend="${active}=='ai-ops' ? ' active'"
-               th:href="@{/ai-ops}">
-                <span class="icon" aria-hidden="true">🤖</span>
-                <span class="label">
-                    <span class="nav-label-main">AI Ops</span>
-                    <span class="nav-label-sub">Автоматизация и AI-операции</span>
-                </span>
-            </a>
-            <a class="nav-link" data-page-key="tasks" th:if="${canManageTasks}"
-               th:classappend="${active}=='tasks' ? ' active'"
-               th:href="@{/tasks}">
-                <span class="icon" aria-hidden="true">✅</span>
-                <span class="label">
-                    <span class="nav-label-main">Задачи</span>
-                    <span class="nav-label-sub">Операционный backlog команды</span>
-                </span>
-            </a>
-            <a class="nav-link" data-page-key="clients" th:if="${canViewClients}"
-               th:classappend="${active}=='clients' ? ' active'"
-               th:href="@{/clients}">
-                <span class="icon" aria-hidden="true">👥</span>
-                <span class="label">
-                    <span class="nav-label-main">Клиенты</span>
-                    <span class="nav-label-sub">Профили, каналы и история</span>
-                </span>
-            </a>
-            <a class="nav-link" data-page-key="passports" th:if="${canViewPassports}"
-               th:classappend="${active}=='passports' ? ' active'"
-               th:href="@{/object-passports}">
-                <span class="icon" aria-hidden="true">🗃️</span>
-                <span class="label">
-                    <span class="nav-label-main">Паспорт объектов</span>
-                    <span class="nav-label-sub">Инфраструктура и инвентарь</span>
-                </span>
-            </a>
-            <a class="nav-link" data-page-key="knowledge" th:if="${canEditKnowledgeBase}"
-               th:classappend="${active}=='knowledge' ? ' active'"
-               th:href="@{/knowledge-base}">
-                <span class="icon" aria-hidden="true">📚</span>
-                <span class="label">
-                    <span class="nav-label-main">База знаний</span>
-                    <span class="nav-label-sub">Статьи, инструкции и импорт</span>
-                </span>
-            </a>
-            <div class="sidebar-section-label"
-                 th:if="${canViewSettings or canViewAnalytics or (canManageChannels and !canViewSettings) or (canManageUsers and !canViewSettings)}">
-                Администрирование
+            <div class="sidebar-nav-group" data-nav-group="workspace">
+                <div class="sidebar-section-label">Рабочий контур</div>
+                <a class="nav-link" data-page-key="dialogs" data-nav-group="workspace"
+                   th:classappend="${active}=='dialogs' ? ' active'"
+                   th:href="@{/}">
+                    <span class="icon" aria-hidden="true">💬</span>
+                    <span class="label">
+                        <span class="nav-label-main">Диалоги</span>
+                        <span class="nav-label-sub">Текущие обращения и ответы</span>
+                    </span>
+                </a>
+                <a class="nav-link" data-page-key="ai-ops" data-nav-group="workspace"
+                   th:classappend="${active}=='ai-ops' ? ' active'"
+                   th:href="@{/ai-ops}">
+                    <span class="icon" aria-hidden="true">🤖</span>
+                    <span class="label">
+                        <span class="nav-label-main">AI Ops</span>
+                        <span class="nav-label-sub">Автоматизация и AI-операции</span>
+                    </span>
+                </a>
+                <a class="nav-link" data-page-key="tasks" data-nav-group="workspace" th:if="${canManageTasks}"
+                   th:classappend="${active}=='tasks' ? ' active'"
+                   th:href="@{/tasks}">
+                    <span class="icon" aria-hidden="true">✅</span>
+                    <span class="label">
+                        <span class="nav-label-main">Задачи</span>
+                        <span class="nav-label-sub">Операционный backlog команды</span>
+                    </span>
+                </a>
+                <a class="nav-link" data-page-key="clients" data-nav-group="workspace" th:if="${canViewClients}"
+                   th:classappend="${active}=='clients' ? ' active'"
+                   th:href="@{/clients}">
+                    <span class="icon" aria-hidden="true">👥</span>
+                    <span class="label">
+                        <span class="nav-label-main">Клиенты</span>
+                        <span class="nav-label-sub">Профили, каналы и история</span>
+                    </span>
+                </a>
+                <a class="nav-link" data-page-key="passports" data-nav-group="workspace" th:if="${canViewPassports}"
+                   th:classappend="${active}=='passports' ? ' active'"
+                   th:href="@{/object-passports}">
+                    <span class="icon" aria-hidden="true">🗃️</span>
+                    <span class="label">
+                        <span class="nav-label-main">Паспорт объектов</span>
+                        <span class="nav-label-sub">Инфраструктура и инвентарь</span>
+                    </span>
+                </a>
+                <a class="nav-link" data-page-key="knowledge" data-nav-group="workspace" th:if="${canEditKnowledgeBase}"
+                   th:classappend="${active}=='knowledge' ? ' active'"
+                   th:href="@{/knowledge-base}">
+                    <span class="icon" aria-hidden="true">📚</span>
+                    <span class="label">
+                        <span class="nav-label-main">База знаний</span>
+                        <span class="nav-label-sub">Статьи, инструкции и импорт</span>
+                    </span>
+                </a>
             </div>
-            <a class="nav-link" data-page-key="dashboard"
-               th:classappend="${active}=='dashboard' ? ' active'"
-               th:href="@{/dashboard}">
-                <span class="icon" aria-hidden="true">📊</span>
-                <span class="label">
-                    <span class="nav-label-main">Отчёты</span>
-                    <span class="nav-label-sub">KPI, сводки и аналитические срезы</span>
-                </span>
-            </a>
-            <a class="nav-link" data-page-key="analytics" th:if="${canViewAnalytics}"
-               th:classappend="${active}=='analytics' ? ' active'"
-               th:href="@{/analytics}">
-                <span class="icon" aria-hidden="true">📈</span>
-                <span class="label">
-                    <span class="nav-label-main">Аналитика</span>
-                    <span class="nav-label-sub">Пульсы, cert-monitoring и KPI</span>
-                </span>
-            </a>
-            <a class="nav-link" data-page-key="channels" th:if="${canManageChannels and !canViewSettings}"
-               th:classappend="${active}=='channels' ? ' active'"
-               th:href="@{/channels}">
-                <span class="icon" aria-hidden="true">📡</span>
-                <span class="label">
-                    <span class="nav-label-main">Каналы</span>
-                    <span class="nav-label-sub">Telegram, VK, MAX и маршруты</span>
-                </span>
-            </a>
-            <a class="nav-link" data-page-key="settings" th:if="${canViewSettings}"
-               th:classappend="${active}=='settings' ? ' active'"
-               th:href="@{/settings}">
-                <span class="icon" aria-hidden="true">⚙️</span>
-                <span class="label">
-                    <span class="nav-label-main">Настройки</span>
-                    <span class="nav-label-sub">Конфигурация системы и UI</span>
-                </span>
-            </a>
-            <a class="nav-link" data-page-key="users" th:if="${canManageUsers and !canViewSettings}"
-               th:classappend="${active}=='users' ? ' active'"
-               th:href="@{/users}">
-                <span class="icon" aria-hidden="true">👥</span>
-                <span class="label">
-                    <span class="nav-label-main">Пользователи</span>
-                    <span class="nav-label-sub">Роли, доступы и профили</span>
-                </span>
-            </a>
+            <div class="sidebar-nav-group" data-nav-group="admin">
+                <div class="sidebar-section-label">Администрирование</div>
+                <a class="nav-link" data-page-key="dashboard" data-nav-group="admin"
+                   th:classappend="${active}=='dashboard' ? ' active'"
+                   th:href="@{/dashboard}">
+                    <span class="icon" aria-hidden="true">📊</span>
+                    <span class="label">
+                        <span class="nav-label-main">Отчёты</span>
+                        <span class="nav-label-sub">KPI, сводки и аналитические срезы</span>
+                    </span>
+                </a>
+                <a class="nav-link" data-page-key="analytics" data-nav-group="admin" th:if="${canViewAnalytics}"
+                   th:classappend="${active}=='analytics' ? ' active'"
+                   th:href="@{/analytics}">
+                    <span class="icon" aria-hidden="true">📈</span>
+                    <span class="label">
+                        <span class="nav-label-main">Аналитика</span>
+                        <span class="nav-label-sub">Пульсы, cert-monitoring и KPI</span>
+                    </span>
+                </a>
+                <a class="nav-link" data-page-key="channels" data-nav-group="admin" th:if="${canManageChannels and !canViewSettings}"
+                   th:classappend="${active}=='channels' ? ' active'"
+                   th:href="@{/channels}">
+                    <span class="icon" aria-hidden="true">📡</span>
+                    <span class="label">
+                        <span class="nav-label-main">Каналы</span>
+                        <span class="nav-label-sub">Telegram, VK, MAX и маршруты</span>
+                    </span>
+                </a>
+                <a class="nav-link" data-page-key="settings" data-nav-group="admin" th:if="${canViewSettings}"
+                   th:classappend="${active}=='settings' ? ' active'"
+                   th:href="@{/settings}">
+                    <span class="icon" aria-hidden="true">⚙️</span>
+                    <span class="label">
+                        <span class="nav-label-main">Настройки</span>
+                        <span class="nav-label-sub">Конфигурация системы и UI</span>
+                    </span>
+                </a>
+                <a class="nav-link" data-page-key="users" data-nav-group="admin" th:if="${canManageUsers and !canViewSettings}"
+                   th:classappend="${active}=='users' ? ' active'"
+                   th:href="@{/users}">
+                    <span class="icon" aria-hidden="true">👥</span>
+                    <span class="label">
+                        <span class="nav-label-main">Пользователи</span>
+                        <span class="nav-label-sub">Роли, доступы и профили</span>
+                    </span>
+                </a>
+            </div>
         </nav>
 
         <div class="sidebar-footer">

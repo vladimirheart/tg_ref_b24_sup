@@ -231,6 +231,7 @@
   syncSidebarForViewport();
 
   const nav = sidebar.querySelector('.sidebar-nav');
+  const navGroups = nav ? Array.from(nav.querySelectorAll('[data-nav-group]')) : [];
   const DEFAULT_ORDER = [
     'dialogs',
     'ai-ops',
@@ -257,6 +258,18 @@
   function getNavLinks() {
     if (!nav) return [];
     return Array.from(nav.querySelectorAll('.nav-link[data-page-key]'));
+  }
+
+  function getNavGroupContainers() {
+    if (!navGroups.length) return new Map();
+    const containers = new Map();
+    navGroups.forEach((groupEl) => {
+      const key = groupEl.getAttribute('data-nav-group');
+      if (key) {
+        containers.set(key, groupEl);
+      }
+    });
+    return containers;
   }
 
   function sanitizeOrder(order) {
@@ -292,16 +305,33 @@
     getNavLinks().forEach((link) => {
       byKey.set(link.dataset.pageKey, link);
     });
-    const fragment = document.createDocumentFragment();
+    const groupContainers = getNavGroupContainers();
+    const fallbackFragment = document.createDocumentFragment();
     sanitizeOrder(order).forEach((key) => {
       const el = byKey.get(key);
       if (el) {
-        fragment.appendChild(el);
+        const groupKey = (el.dataset.navGroup || '').trim();
+        const groupContainer = groupContainers.get(groupKey);
+        if (groupContainer) {
+          groupContainer.appendChild(el);
+        } else {
+          fallbackFragment.appendChild(el);
+        }
         byKey.delete(key);
       }
     });
-    byKey.forEach((el) => fragment.appendChild(el));
-    nav.appendChild(fragment);
+    byKey.forEach((el) => {
+      const groupKey = (el.dataset.navGroup || '').trim();
+      const groupContainer = groupContainers.get(groupKey);
+      if (groupContainer) {
+        groupContainer.appendChild(el);
+      } else {
+        fallbackFragment.appendChild(el);
+      }
+    });
+    if (fallbackFragment.childNodes.length) {
+      nav.appendChild(fallbackFragment);
+    }
     nav.scrollTop = previousScrollTop;
   }
 
@@ -987,45 +1017,15 @@
       if (!response.ok) throw new Error('Failed to load notifications');
       const data = await response.json();
       const payload = normalizeNotificationPayload(data);
-      let unread = payload.unread;
-      let read = payload.read;
-      if (unread.length) {
-        try {
-          const markedCount = await markAllNotificationsAsRead();
-          if (markedCount >= 0) {
-            read = unread.map((item) => ({ ...item, is_read: true })).concat(read);
-            unread = [];
-          }
-        } catch (_error) {
-          // keep notifications visible even if bulk read update failed
-        }
-      }
-      renderNotificationsSafe(unread, read);
+      renderNotificationsSafe(payload.unread, payload.read);
       hasInitialUnread = true;
-      setBellCount(unread.length);
-      lastUnreadCount = unread.length;
+      setBellCount(payload.unread.length);
+      lastUnreadCount = payload.unread.length;
       requestNotificationsDropdownPosition();
     } catch (_error) {
       bellDropdown.innerHTML = `<div class="notif-item text-danger">${NOTIFICATION_LOAD_ERROR_LABEL}</div>`;
       requestNotificationsDropdownPosition();
     }
-  }
-
-  async function markAllNotificationsAsRead() {
-    const headers = {};
-    if (csrfToken) {
-      headers[csrfHeaderName] = csrfToken;
-    }
-    const response = await fetch('/api/notifications/read-all', {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers,
-    });
-    if (!response.ok) {
-      throw new Error('Failed to mark all notifications as read');
-    }
-    const payload = await response.json().catch(() => ({}));
-    return Number(payload.updated ?? 0);
   }
 
   async function markNotificationAsRead(notificationId) {
