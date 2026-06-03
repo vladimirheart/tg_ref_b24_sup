@@ -1464,8 +1464,19 @@
   `DialogDetailsIntegrationTest`: у `/api/dialogs` теперь есть собственный
   live SQLite contract для `my_dialogs` empty envelope и `reassign ->
   follow-up` list lifecycle.
+- следующим пакетом добран и dedicated quick-action runtime boundary:
+  новый `DialogQuickActionsIntegrationTest` теперь гоняет реальные HTTP
+  `reassign`, `participants add/remove`, `resolve` и `reopen` и закрепляет
+  не только их response contract, но и downstream continuity на
+  `/api/dialogs`, `/participants` и `/workspace`.
+- это выравнивает operator action UX уже не только косвенно через workspace:
+  inherited unread после `reassign`, participant mutation projection,
+  `responsible/displayResponsible/avatarUrl` response envelope и
+  `closed -> waiting_operator` lifecycle после `quick_close -> reopen`
+  подтверждены прямо на live controller/runtime boundary.
 - следующий practical focus в `dialog workspace/read/details` зоне смещён уже
   с cross-consumer lifecycle parity, basic audit trail, full notification
   refresh loop, `queue/my_dialogs` rearm parity и `queue/status-owner`
   lifecycle на соседние consumer projections и remaining drift вокруг того же
-  status/owner/action lifecycle после repeated follow-up refresh.
+  status/owner/action lifecycle, особенно `take/categories/spam` и
+  post-action refresh loops после repeated follow-up refresh.

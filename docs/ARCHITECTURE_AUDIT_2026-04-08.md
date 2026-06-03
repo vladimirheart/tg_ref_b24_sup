@@ -1655,9 +1655,26 @@ integration-сценария поверх users/settings runtime boundary всё
 - targeted `DialogListControllerWebMvcTest`, `DialogListIntegrationTest`,
   `DialogLookupReadServiceTest` и `DialogListReadServiceTest` остаются
   зелёными на новом dedicated list consumer пакете.
+- следующим пакетом у quick actions появился и dedicated live runtime
+  boundary: новый `DialogQuickActionsIntegrationTest` теперь гоняет реальные
+  HTTP `reassign`, `participants add/remove`, `resolve` и `reopen`, а затем
+  подтверждает их effect не только по response payload, но и на
+  `/api/dialogs`, `/participants` и `/workspace`.
+- это снимает ещё один transport/runtime drift вокруг operator action
+  surface: `DialogQuickActionsControllerWebMvcTest` остаётся focused на
+  controller contract, а новый live пакет закрепляет уже реальную
+  `responsible/displayResponsible/avatarUrl/participants` проекцию,
+  inherited unread semantics после `reassign`, participant mutation
+  continuity и `closed -> waiting_operator` lifecycle после
+  `quick_close -> reopen`.
+- targeted `DialogQuickActionsIntegrationTest`,
+  `DialogQuickActionsControllerWebMvcTest`, `DialogListIntegrationTest`,
+  `DialogReadIntegrationTest` и `DialogWorkspaceIntegrationTest` остаются
+  зелёными на новом dedicated quick-action boundary пакете.
 - следующий practical focus в `dialog-read/workspace` зоне смещён уже с
   cross-consumer lifecycle parity, basic audit trail, full read refresh loop
   `queue/my_dialogs` rearm parity и `queue/status-owner` lifecycle на ещё
   более тонкие UX/runtime edges: соседние consumer contracts и remaining
-  projection drift вокруг queue/status-owner surfaces после repeated
-  follow-up refresh.
+  projection drift вокруг operator action surfaces, особенно
+  `take/categories/spam` и более тонких post-action consumer refresh loops
+  после repeated follow-up refresh.
