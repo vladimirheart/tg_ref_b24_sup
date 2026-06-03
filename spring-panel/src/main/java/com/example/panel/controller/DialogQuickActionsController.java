@@ -220,13 +220,29 @@ public class DialogQuickActionsController {
     public ResponseEntity<?> updateCategories(@PathVariable String ticketId,
                                               @RequestBody(required = false) DialogCategoriesRequest request,
                                               Authentication authentication) {
-        ResponseEntity<Map<String, Object>> permissionDenied = dialogAuthorizationService.requirePermission(authentication, "can_close", "categories", ticketId);
-        if (permissionDenied != null) {
-            return permissionDenied;
-        }
-        String operator = authentication != null ? authentication.getName() : null;
-        dialogQuickActionService.updateCategories(ticketId, operator, request != null ? request.categories() : List.of());
-        return ResponseEntity.ok(Map.of("success", true));
+        return withQuickActionTiming("categories", ticketId, () -> {
+            ResponseEntity<Map<String, Object>> permissionDenied = dialogAuthorizationService.requirePermission(authentication, "can_close", "categories", ticketId);
+            if (permissionDenied != null) {
+                return permissionDenied;
+            }
+            String operator = authentication != null ? authentication.getName() : null;
+            DialogQuickActionService.DialogCategoryUpdateResult result = dialogQuickActionService.updateCategories(
+                    ticketId,
+                    operator,
+                    request != null ? request.categories() : List.of()
+            );
+            if (!result.exists()) {
+                dialogAuthorizationService.logDialogAction(operator, ticketId, "categories", "not_found", "Диалог не найден");
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("success", false, "error", "Диалог не найден"));
+            }
+            String detail = result.categories().isEmpty() ? "categories_cleared" : "categories_updated";
+            dialogAuthorizationService.logDialogAction(operator, ticketId, "categories", "success", detail);
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "categories", result.categories()
+            ));
+        });
     }
 
     @PostMapping("/{ticketId}/take")

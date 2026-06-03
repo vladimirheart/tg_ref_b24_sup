@@ -125,15 +125,42 @@ class DialogQuickActionsControllerWebMvcTest {
     void categoriesAcceptsNullRequestBodyAndUsesEmptyList() throws Exception {
         when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_close"), eq("categories"), eq("T-604")))
             .thenReturn(null);
+        when(dialogQuickActionService.updateCategories("T-604", "operator", List.of()))
+            .thenReturn(new DialogQuickActionService.DialogCategoryUpdateResult(true, List.of()));
 
         mockMvc.perform(post("/api/dialogs/T-604/categories")
                 .with(user("operator"))
                 .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.success").value(true));
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.categories").isArray());
 
         verify(dialogQuickActionService).updateCategories("T-604", "operator", List.of());
+        verify(dialogAuthorizationService).logDialogAction("operator", "T-604", "categories", "success", "categories_cleared");
+    }
+
+    @Test
+    void categoriesReturnsNotFoundWhenDialogMissing() throws Exception {
+        when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_close"), eq("categories"), eq("T-604NF")))
+            .thenReturn(null);
+        when(dialogQuickActionService.updateCategories("T-604NF", "operator", List.of("billing")))
+            .thenReturn(new DialogQuickActionService.DialogCategoryUpdateResult(false, List.of()));
+
+        mockMvc.perform(post("/api/dialogs/T-604NF/categories")
+                .with(user("operator"))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "categories": ["billing"]
+                    }
+                    """))
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("Диалог не найден"));
+
+        verify(dialogAuthorizationService).logDialogAction("operator", "T-604NF", "categories", "not_found", "Диалог не найден");
     }
 
     @Test

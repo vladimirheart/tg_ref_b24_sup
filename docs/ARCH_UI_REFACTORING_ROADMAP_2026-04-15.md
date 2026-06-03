@@ -1485,9 +1485,14 @@
   `operator_action_guards`, а live `DialogQuickActionsIntegrationTest`
   отдельно закрепляет `take -> categories -> spam` continuity на
   `/api/dialogs`, `/api/dialogs/{ticketId}` и `/workspace`.
+- следующим contract-пакетом выровнен и сам `/api/dialogs/{ticketId}/categories`:
+  quick action теперь проходит через `withQuickActionTiming`, возвращает
+  normalized `categories`, пишет explicit `categories success`
+  (`categories_updated`/`categories_cleared`) audit trail, а missing dialog
+  фиксируется как `categories not_found` с `404`; service, controller и live
+  integration tests закрывают этот runtime boundary отдельно.
 - следующий practical focus в `dialog workspace/read/details` зоне смещён уже
   с cross-consumer lifecycle parity, basic audit trail, full notification
-  refresh loop, `queue/my_dialogs` rearm parity, `queue/status-owner`
-  lifecycle и уже закрытого `take/categories/spam` contract на более тонкие
-  consumer refresh loops после repeated follow-up refresh и оставшийся drift
-  вокруг соседних operator action surfaces.
+  refresh loop, `queue/my_dialogs` rearm parity и `queue/status-owner`
+  lifecycle на более тонкие consumer refresh loops после repeated follow-up
+  refresh и оставшийся drift вокруг соседних operator action surfaces.

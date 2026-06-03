@@ -365,7 +365,10 @@ class DialogQuickActionsIntegrationTest {
                                 """)
                         .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true));
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.categories.length()").value(2))
+                .andExpect(jsonPath("$.categories", hasItem("vip")))
+                .andExpect(jsonPath("$.categories", hasItem("priority")));
 
         mockMvc.perform(post("/api/dialogs/T-QA-TAKE/spam")
                         .contentType("application/json")
@@ -409,7 +412,10 @@ class DialogQuickActionsIntegrationTest {
                 .andExpect(jsonPath("$.workflow.actions.take.enabled").value(false))
                 .andExpect(jsonPath("$.workflow.actions.take.disabled_reason").value("already_assigned_to_operator"))
                 .andExpect(jsonPath("$.workflow.actions.categories.enabled").value(true))
-                .andExpect(jsonPath("$.workflow.actions.spam.enabled").value(true));
+                .andExpect(jsonPath("$.workflow.actions.spam.enabled").value(true))
+                .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("take: success (responsible_assigned)")))
+                .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("categories: success (categories_updated)")))
+                .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("mark_spam: success (blacklisted_user=920103)")));
 
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT responsible FROM ticket_responsibles WHERE ticket_id = ?",
@@ -427,6 +433,7 @@ class DialogQuickActionsIntegrationTest {
                 "T-QA-TAKE"
         )).containsExactly("priority", "vip", "Спам");
         assertThat(countAuditRows("T-QA-TAKE", "take", "success")).isEqualTo(1);
+        assertThat(countAuditRows("T-QA-TAKE", "categories", "success")).isEqualTo(1);
         assertThat(countAuditRows("T-QA-TAKE", "mark_spam", "success")).isEqualTo(1);
     }
 

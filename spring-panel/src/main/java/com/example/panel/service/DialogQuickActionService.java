@@ -205,16 +205,22 @@ public class DialogQuickActionService {
         return result;
     }
 
-    public void updateCategories(String ticketId,
-                                 String operator,
-                                 List<String> categories) {
-        dialogTicketLifecycleService.setTicketCategories(ticketId, categories);
+    public DialogCategoryUpdateResult updateCategories(String ticketId,
+                                                       String operator,
+                                                       List<String> categories) {
+        Optional<DialogListItem> dialog = dialogLookupReadService.findDialog(ticketId, operator);
+        if (dialog.isEmpty()) {
+            return new DialogCategoryUpdateResult(false, List.of());
+        }
+        List<String> normalizedCategories = normalizeCategories(categories);
+        dialogTicketLifecycleService.setTicketCategories(ticketId, normalizedCategories);
         notifyDialogParticipantsSafely(
                 ticketId,
                 "В обращении " + ticketId + " обновлены категории",
                 notificationService.buildDialogUrl(ticketId),
                 operator
         );
+        return new DialogCategoryUpdateResult(true, normalizedCategories);
     }
 
     public DialogSpamResult markClientAsSpam(String ticketId,
@@ -399,6 +405,19 @@ public class DialogQuickActionService {
         return new ArrayList<>(normalized);
     }
 
+    private List<String> normalizeCategories(List<String> categories) {
+        if (categories == null || categories.isEmpty()) {
+            return List.of();
+        }
+        LinkedHashSet<String> normalized = new LinkedHashSet<>();
+        for (String category : categories) {
+            if (StringUtils.hasText(category)) {
+                normalized.add(category.trim());
+            }
+        }
+        return List.copyOf(normalized);
+    }
+
     public record DialogParticipantMutationResult(boolean exists,
                                                   boolean changed,
                                                   String error,
@@ -418,5 +437,9 @@ public class DialogQuickActionService {
                                    String error,
                                    String userId,
                                    List<String> categories) {
+    }
+
+    public record DialogCategoryUpdateResult(boolean exists,
+                                             List<String> categories) {
     }
 }

@@ -1679,6 +1679,12 @@ integration-сценария поверх users/settings runtime boundary всё
   `DialogQuickActionsIntegrationTest` закрепляет downstream continuity для
   `take -> categories -> spam` поверх `/api/dialogs`, `details` и
   `workspace`.
+- следующим contract-пакетом выровнен и controller/runtime boundary у
+  `/api/dialogs/{ticketId}/categories`: endpoint теперь обёрнут в
+  `withQuickActionTiming`, возвращает normalized `categories`, пишет explicit
+  `categories success` (`categories_updated`/`categories_cleared`) audit и
+  мапит missing dialog в `categories not_found` + `404`; это отдельно
+  закреплено service, WebMvc и live integration tests.
 - следующий practical focus в `dialog-read/workspace` зоне смещён уже с
   cross-consumer lifecycle parity, basic audit trail, full read refresh loop
   `queue/my_dialogs` rearm parity и `queue/status-owner` lifecycle на ещё

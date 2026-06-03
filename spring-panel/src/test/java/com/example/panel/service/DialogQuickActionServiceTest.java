@@ -478,11 +478,12 @@ class DialogQuickActionServiceTest {
     @Test
     void updateCategoriesNotifiesParticipantsThroughDialogRoute() {
         DialogTicketLifecycleService dialogTicketLifecycleService = mock(DialogTicketLifecycleService.class);
+        DialogLookupReadService dialogLookupReadService = mock(DialogLookupReadService.class);
         NotificationService notificationService = mock(NotificationService.class);
 
         DialogQuickActionService service = new DialogQuickActionService(
                 dialogTicketLifecycleService,
-                mock(DialogLookupReadService.class),
+                dialogLookupReadService,
                 mock(DialogResponsibilityService.class),
                 mock(DialogParticipantService.class),
                 mock(DialogReplyService.class),
@@ -493,9 +494,13 @@ class DialogQuickActionServiceTest {
         );
 
         when(notificationService.buildDialogUrl("T-709")).thenReturn("/dialogs/T-709");
+        when(dialogLookupReadService.findDialog("T-709", "operator")).thenReturn(Optional.of(dialog("T-709", "operator")));
 
-        service.updateCategories("T-709", "operator", List.of("billing", "vip"));
+        DialogQuickActionService.DialogCategoryUpdateResult result =
+                service.updateCategories("T-709", "operator", List.of("billing", "vip", "billing", "  vip  "));
 
+        assertThat(result.exists()).isTrue();
+        assertThat(result.categories()).containsExactly("billing", "vip");
         verify(dialogTicketLifecycleService).setTicketCategories("T-709", List.of("billing", "vip"));
         verify(notificationService).notifyDialogParticipants(
                 "T-709",
@@ -503,6 +508,33 @@ class DialogQuickActionServiceTest {
                 "/dialogs/T-709",
                 "operator"
         );
+    }
+
+    @Test
+    void updateCategoriesReturnsNotFoundWhenDialogMissing() {
+        DialogLookupReadService dialogLookupReadService = mock(DialogLookupReadService.class);
+        NotificationService notificationService = mock(NotificationService.class);
+
+        DialogQuickActionService service = new DialogQuickActionService(
+                mock(DialogTicketLifecycleService.class),
+                dialogLookupReadService,
+                mock(DialogResponsibilityService.class),
+                mock(DialogParticipantService.class),
+                mock(DialogReplyService.class),
+                mock(DialogNotificationService.class),
+                mock(DialogAiAssistantService.class),
+                notificationService,
+                mock(AttachmentService.class)
+        );
+
+        when(dialogLookupReadService.findDialog("T-709X", "operator")).thenReturn(Optional.empty());
+
+        DialogQuickActionService.DialogCategoryUpdateResult result =
+                service.updateCategories("T-709X", "operator", List.of("billing"));
+
+        assertThat(result.exists()).isFalse();
+        assertThat(result.categories()).isEmpty();
+        verify(notificationService, never()).notifyDialogParticipants(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
     }
 
     @Test
