@@ -5,7 +5,6 @@
   const prefApi = window.iguanaUiPreferences || null;
 
   const pinBtn = document.getElementById('pinSidebarBtn');
-  const densityModeBtn = document.getElementById('densityModeBtn');
   const bellBtn = document.getElementById('bellBtn');
   const bellBadge = document.getElementById('notify-count');
   const root = document.body;
@@ -20,19 +19,20 @@
   const changePasswordSuccess = changePasswordModalEl ? changePasswordModalEl.querySelector('[data-change-password-success]') : null;
   const changePasswordSpinner = changePasswordModalEl ? changePasswordModalEl.querySelector('[data-change-password-spinner]') : null;
   const changePasswordSubmitText = changePasswordModalEl ? changePasswordModalEl.querySelector('[data-change-password-submit-text]') : null;
+  const actionMenu = sidebar.querySelector('[data-sidebar-action-menu]');
+  const actionMenuTrigger = sidebar.querySelector('[data-sidebar-action-trigger]');
+  const actionMenuList = sidebar.querySelector('#sidebarActionMenu');
   let changePasswordModalInstance = null;
 
   const PREF_KEY_PIN = 'sidebarPinned';
-  const PREF_KEY_DENSITY_MODE = 'uiDensityMode';
   const PREF_KEY_NAV_ORDER = 'sidebarNavOrder';
   const PREF_KEY_NAV_SCROLL = 'sidebarNavScrollTop';
-  const DENSITY_COMFORTABLE = 'comfortable';
-  const DENSITY_COMPACT = 'compact';
   const NOTIFICATIONS_POLL_INTERVAL_MS = 5000;
   let pinned = (prefApi ? prefApi.get(PREF_KEY_PIN) : localStorage.getItem(PREF_KEY_PIN)) === '1';
   const HOVER_LEAVE_DELAY_MS = 1000;
   let hoverLeaveTimer = null;
   const MOBILE_BREAKPOINT = 991.98;
+  let actionMenuOpen = false;
 
   function moveModalToBody(modalEl) {
     if (!(modalEl instanceof HTMLElement) || !document.body) return;
@@ -192,46 +192,27 @@
   }
   applyState();
 
-  function setDensityMode(mode, options = {}) {
-    const nextMode = mode === DENSITY_COMPACT ? DENSITY_COMPACT : DENSITY_COMFORTABLE;
-    root.classList.toggle('density-compact', nextMode === DENSITY_COMPACT);
-    root.classList.toggle('density-comfortable', nextMode !== DENSITY_COMPACT);
-    if (densityModeBtn) {
-      const isCompact = nextMode === DENSITY_COMPACT;
-      densityModeBtn.setAttribute('aria-pressed', isCompact ? 'true' : 'false');
-      densityModeBtn.textContent = isCompact ? '▤' : '◫';
-      densityModeBtn.title = `Плотность интерфейса: ${isCompact ? 'compact' : 'comfortable'}`;
+  function setActionMenuOpen(open) {
+    const nextState = Boolean(open);
+    actionMenuOpen = nextState;
+    if (actionMenu) {
+      actionMenu.classList.toggle('is-open', nextState);
     }
-    if (options.persist !== false) {
-      try {
-        setPreference(PREF_KEY_DENSITY_MODE, nextMode, 'sidebar-density');
-      } catch (_error) {
-        // ignore storage write errors
-      }
+    if (actionMenuTrigger) {
+      actionMenuTrigger.setAttribute('aria-expanded', nextState ? 'true' : 'false');
+      actionMenuTrigger.title = nextState ? 'Скрыть быстрые действия' : 'Быстрые действия';
     }
-  }
-
-  function loadDensityMode() {
-    let stored = DENSITY_COMFORTABLE;
-    try {
-      const raw = String(getPreference(PREF_KEY_DENSITY_MODE, '') || '').trim().toLowerCase();
-      if (raw === DENSITY_COMPACT || raw === DENSITY_COMFORTABLE) {
-        stored = raw;
-      }
-    } catch (_error) {
-      stored = DENSITY_COMFORTABLE;
+    if (actionMenuList) {
+      actionMenuList.hidden = !nextState;
     }
-    setDensityMode(stored, { persist: false });
-  }
-
-  function toggleDensityMode() {
-    const compactEnabled = root.classList.contains('density-compact');
-    setDensityMode(compactEnabled ? DENSITY_COMFORTABLE : DENSITY_COMPACT);
   }
 
   function syncSidebarForViewport() {
     if (!isMobileViewport()) {
       setMobileOpen(false);
+    }
+    if (isMobileViewport()) {
+      setActionMenuOpen(false);
     }
     applyState();
   }
@@ -524,6 +505,7 @@
   if (editOrderBtn) {
     editOrderBtn.addEventListener('click', () => {
       setEditingOrder(!isEditingOrder);
+      setActionMenuOpen(false);
     });
   }
 
@@ -571,6 +553,7 @@
       if (modal) {
         resetChangePasswordState();
         modal.show();
+        setActionMenuOpen(false);
       }
     });
   }
@@ -661,6 +644,34 @@
     }
   });
 
+  if (actionMenuTrigger) {
+    actionMenuTrigger.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      setActionMenuOpen(!actionMenuOpen);
+    });
+  }
+
+  if (actionMenuList) {
+    actionMenuList.addEventListener('click', (event) => {
+      const actionItem = event.target.closest('.sidebar-action-item');
+      if (!actionItem) return;
+      setActionMenuOpen(false);
+    });
+  }
+
+  document.addEventListener('click', (event) => {
+    if (!actionMenuOpen || !actionMenu) return;
+    if (actionMenu.contains(event.target)) return;
+    setActionMenuOpen(false);
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && actionMenuOpen) {
+      setActionMenuOpen(false);
+    }
+  });
+
   // клик по "📌"
   if (pinBtn) {
     pinBtn.addEventListener('click', () => {
@@ -670,19 +681,8 @@
     });
   }
 
-  if (densityModeBtn) {
-    densityModeBtn.addEventListener('click', () => {
-      toggleDensityMode();
-    });
-  }
-  loadDensityMode();
-
   document.addEventListener('ui-preference:change', (event) => {
     const detail = event && event.detail ? event.detail : {};
-    if (detail.name === PREF_KEY_DENSITY_MODE) {
-      setDensityMode(detail.value === DENSITY_COMPACT ? DENSITY_COMPACT : DENSITY_COMFORTABLE, { persist: false });
-      return;
-    }
     if (detail.name === PREF_KEY_PIN) {
       pinned = detail.value === '1';
       applyState();

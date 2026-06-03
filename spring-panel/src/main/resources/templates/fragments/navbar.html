@@ -19,7 +19,6 @@
                         </span>
                         <span class="sidebar-brand-badge">ops</span>
                     </div>
-                    <p class="sidebar-brand-description">Очереди, уведомления и быстрый доступ к рабочим контурам.</p>
                 </div>
                 <div class="sidebar-actions" id="notify-bell-wrapper">
                     <button id="bellBtn" class="icon-btn notify-btn" type="button" title="Оповещения" aria-expanded="false">
@@ -27,7 +26,6 @@
                         <span id="notify-count" class="notify-count" hidden>0</span>
                     </button>
                     <div id="notify-dropdown" class="notify-dropdown" hidden role="listbox" aria-label="Оповещения"></div>
-                    <button id="densityModeBtn" class="icon-btn" type="button" title="Плотность интерфейса: comfortable" aria-pressed="false">◫</button>
                     <button id="pinSidebarBtn" class="icon-btn" type="button" title="Прикрепить/открепить">📌</button>
                     <button id="resetSidebarOrderBtn" class="icon-btn" type="button" title="Вернуть порядок по умолчанию" hidden>↺</button>
                 </div>
@@ -104,6 +102,10 @@
                     <span class="nav-label-sub">Статьи, инструкции и импорт</span>
                 </span>
             </a>
+            <div class="sidebar-section-label"
+                 th:if="${canViewSettings or canViewAnalytics or (canManageChannels and !canViewSettings) or (canManageUsers and !canViewSettings)}">
+                Администрирование
+            </div>
             <a class="nav-link" data-page-key="dashboard"
                th:classappend="${active}=='dashboard' ? ' active'"
                th:href="@{/dashboard}">
@@ -122,10 +124,6 @@
                     <span class="nav-label-sub">Пульсы, cert-monitoring и KPI</span>
                 </span>
             </a>
-            <div class="sidebar-section-label"
-                 th:if="${(canManageChannels and !canViewSettings) or canViewSettings or (canManageUsers and !canViewSettings)}">
-                Администрирование
-            </div>
             <a class="nav-link" data-page-key="channels" th:if="${canManageChannels and !canViewSettings}"
                th:classappend="${active}=='channels' ? ' active'"
                th:href="@{/channels}">
@@ -178,33 +176,47 @@
                     <span class="sidebar-user-username" th:text="${sidebarUserUsername}"></span>
                 </div>
             </div>
-            <div class="sidebar-footer-actions">
-                <button
-                        type="button"
-                        class="sidebar-account-btn sidebar-footer-icon-btn"
-                        data-sidebar-change-password
-                        aria-label="Сменить пароль"
-                        title="Сменить пароль">
-                    <span class="icon" aria-hidden="true">🔐</span>
-                    <span class="label">Пароль</span>
-                </button>
-                <button
-                        id="editSidebarOrderBtn"
-                        class="sidebar-order-btn sidebar-footer-icon-btn"
-                        type="button"
-                        aria-label="Редактировать порядок"
-                        title="Редактировать порядок">
-                    <span class="icon" aria-hidden="true">⇅</span>
-                    <span class="label">Порядок</span>
-                </button>
-                <a
-                        class="sidebar-logout-btn sidebar-footer-icon-btn"
-                        th:href="@{/logout}"
-                        aria-label="Выйти"
-                        title="Выйти">
-                    <span class="icon" aria-hidden="true">🚪</span>
-                    <span class="label">Выход</span>
-                </a>
+            <div class="sidebar-footer-actions" data-sidebar-action-menu>
+                <div class="sidebar-action-menu-shell">
+                    <div class="sidebar-action-menu-list" id="sidebarActionMenu" hidden>
+                        <button
+                                type="button"
+                                class="sidebar-action-item"
+                                data-sidebar-change-password
+                                aria-label="Сменить пароль"
+                                title="Сменить пароль">
+                            <span class="icon" aria-hidden="true">🔐</span>
+                            <span class="label">Пароль</span>
+                        </button>
+                        <button
+                                id="editSidebarOrderBtn"
+                                class="sidebar-action-item sidebar-action-item--accent"
+                                type="button"
+                                aria-label="Редактировать порядок"
+                                title="Редактировать порядок">
+                            <span class="icon" aria-hidden="true">⇅</span>
+                            <span class="label">Порядок</span>
+                        </button>
+                        <a
+                                class="sidebar-action-item sidebar-action-item--danger"
+                                th:href="@{/logout}"
+                                aria-label="Выйти"
+                                title="Выйти">
+                            <span class="icon" aria-hidden="true">🚪</span>
+                            <span class="label">Выход</span>
+                        </a>
+                    </div>
+                    <button
+                            type="button"
+                            class="sidebar-action-menu-trigger"
+                            data-sidebar-action-trigger
+                            aria-controls="sidebarActionMenu"
+                            aria-expanded="false"
+                            title="Быстрые действия">
+                        <span class="sidebar-action-menu-orb" aria-hidden="true"></span>
+                        <span class="icon" aria-hidden="true">✦</span>
+                    </button>
+                </div>
             </div>
         </div>
     </div>

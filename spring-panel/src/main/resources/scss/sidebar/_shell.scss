@@ -76,6 +76,10 @@ body.with-sidebar.sidebar-hovering {
   width: var(--sidebar-w-collapsed);
 }
 
+.sidebar.collapsed.hovering {
+  width: var(--sidebar-w);
+}
+
 .sidebar.collapsed:not(.hovering) .sidebar-brand-description,
 .sidebar.collapsed:not(.hovering) .sidebar-overview,
 .sidebar.collapsed:not(.hovering) .sidebar-section-label,
@@ -86,10 +90,7 @@ body.with-sidebar.sidebar-hovering {
 .sidebar.collapsed:not(.hovering) .brand-copy,
 .sidebar.collapsed:not(.hovering) .sidebar-brand-badge,
 .sidebar.collapsed:not(.hovering) .sidebar-user-meta,
-.sidebar.collapsed:not(.hovering) .sidebar-runtime-meta,
-.sidebar.collapsed:not(.hovering) .sidebar-logout-btn .label,
-.sidebar.collapsed:not(.hovering) .sidebar-account-btn .label,
-.sidebar.collapsed:not(.hovering) .sidebar-order-btn .label {
+.sidebar.collapsed:not(.hovering) .sidebar-runtime-meta {
   display: none !important;
 }
 
