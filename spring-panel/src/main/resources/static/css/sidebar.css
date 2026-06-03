@@ -137,7 +137,7 @@ body.with-sidebar.sidebar-hovering {
 
 .sidebar-header-top {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
 }
@@ -152,7 +152,7 @@ body.with-sidebar.sidebar-hovering {
 .sidebar-brand-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 10px;
 }
 
@@ -190,22 +190,6 @@ body.with-sidebar.sidebar-hovering {
   border-radius: 12px;
   box-shadow: 0 8px 18px rgba(19, 33, 22, 0.12);
   background: color-mix(in srgb, white 90%, var(--color-surface));
-}
-
-.sidebar-brand-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 42px;
-  height: 24px;
-  padding: 0 10px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--color-accent) 10%, white);
-  color: color-mix(in srgb, var(--color-text) 80%, black);
-  font-size: 0.66rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
 }
 
 .sidebar-brand-description {
@@ -258,7 +242,8 @@ body.with-sidebar.sidebar-hovering {
   justify-content: flex-end;
   gap: 6px;
   position: relative;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
 }
 
 .icon-btn {
@@ -589,6 +574,7 @@ body.with-sidebar.sidebar-hovering {
   display: flex;
   align-items: center;
   gap: 10px;
+  min-height: 64px;
   padding: 10px;
   border-radius: 18px;
   background: color-mix(in srgb, white 74%, var(--color-surface));

@@ -17,7 +17,6 @@
                                 <span class="brand-caption">support command</span>
                             </span>
                         </span>
-                        <span class="sidebar-brand-badge">ops</span>
                     </div>
                 </div>
                 <div class="sidebar-actions" id="notify-bell-wrapper">
@@ -156,7 +155,7 @@
 
         <div class="sidebar-footer">
             <div class="sidebar-footer-kicker">Аккаунт</div>
-            <div class="sidebar-user-card" th:if="${#authentication?.name}">
+            <div class="sidebar-user-card">
                 <div class="sidebar-user-avatar"
                      th:classappend="${sidebarUserHasAvatar} ? ' has-image' : ''"
                      data-sidebar-user-avatar>
