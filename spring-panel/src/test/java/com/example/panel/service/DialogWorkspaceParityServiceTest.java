@@ -80,6 +80,8 @@ class DialogWorkspaceParityServiceTest {
                                 "take", Map.of("enabled", false),
                                 "resolve", Map.of("enabled", true),
                                 "reopen", Map.of("enabled", false),
+                                "categories", Map.of("enabled", true),
+                                "spam", Map.of("enabled", true),
                                 "reassign", Map.of("enabled", true),
                                 "participants_add", Map.of("enabled", true),
                                 "participants_remove", Map.of("enabled", false)
@@ -147,6 +149,8 @@ class DialogWorkspaceParityServiceTest {
                                 "take", Map.of("enabled", true),
                                 "resolve", Map.of("enabled", true),
                                 "reopen", Map.of("enabled", false),
+                                "categories", Map.of("enabled", false),
+                                "spam", Map.of("enabled", false),
                                 "reassign", Map.of("enabled", false),
                                 "participants_add", Map.of("enabled", false),
                                 "participants_remove", Map.of("enabled", false)

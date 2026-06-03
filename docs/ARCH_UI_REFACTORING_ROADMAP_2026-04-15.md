@@ -1,7 +1,7 @@
 # Architecture And UI Refactoring Roadmap
 
 Дата старта: `2026-04-15`
-Обновлено: `2026-05-19`
+Обновлено: `2026-06-03`
 
 ## Цель
 
@@ -29,6 +29,10 @@
 - `dialog_config` больше не обновляется через один giant service;
 - runtime boundary для ботов уже начал уходить от жёсткого `spring-boot:run`;
 - появилась минимальная test safety net для наиболее рискованных новых слоёв.
+- `workspace` action-contract больше не ограничен только
+  `reply/take/resolve/reopen/reassign/participants_*`: туда добавлены и
+  explicit guards для `categories` и `spam`, чтобы operator-facing payload
+  меньше расходился с реальными quick-action runtime возможностями.
 
 Что остаётся главными hotspots:
 
@@ -1474,9 +1478,16 @@
   `responsible/displayResponsible/avatarUrl` response envelope и
   `closed -> waiting_operator` lifecycle после `quick_close -> reopen`
   подтверждены прямо на live controller/runtime boundary.
+- следующим hardening-пакетом закрыт и первый remaining operator-action drift
+  вокруг `take/categories/spam`: `DialogWorkspaceWorkflowSnapshotService`
+  теперь проецирует explicit `workflow.actions.categories` и
+  `workflow.actions.spam`, parity-layer требует их как часть
+  `operator_action_guards`, а live `DialogQuickActionsIntegrationTest`
+  отдельно закрепляет `take -> categories -> spam` continuity на
+  `/api/dialogs`, `/api/dialogs/{ticketId}` и `/workspace`.
 - следующий practical focus в `dialog workspace/read/details` зоне смещён уже
   с cross-consumer lifecycle parity, basic audit trail, full notification
-  refresh loop, `queue/my_dialogs` rearm parity и `queue/status-owner`
-  lifecycle на соседние consumer projections и remaining drift вокруг того же
-  status/owner/action lifecycle, особенно `take/categories/spam` и
-  post-action refresh loops после repeated follow-up refresh.
+  refresh loop, `queue/my_dialogs` rearm parity, `queue/status-owner`
+  lifecycle и уже закрытого `take/categories/spam` contract на более тонкие
+  consumer refresh loops после repeated follow-up refresh и оставшийся drift
+  вокруг соседних operator action surfaces.

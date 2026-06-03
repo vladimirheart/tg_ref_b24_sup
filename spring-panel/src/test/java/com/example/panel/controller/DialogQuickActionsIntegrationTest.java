@@ -112,6 +112,8 @@ class DialogQuickActionsIntegrationTest {
         jdbcTemplate.update("DELETE FROM ticket_responsibles");
         jdbcTemplate.update("DELETE FROM notifications");
         jdbcTemplate.update("DELETE FROM dialog_action_audit");
+        jdbcTemplate.update("DELETE FROM client_blacklist_history");
+        jdbcTemplate.update("DELETE FROM client_blacklist");
         jdbcTemplate.update("DELETE FROM messages");
         jdbcTemplate.update("DELETE FROM tickets");
         jdbcTemplate.update("DELETE FROM client_statuses");
@@ -325,6 +327,107 @@ class DialogQuickActionsIntegrationTest {
         );
         assertThat(categories).containsExactly("billing", "support");
         assertThat(countAuditRows("T-QA-CLOSE", "quick_close", "success")).isEqualTo(1);
+    }
+
+    @Test
+    void quickActionsApiTakeCategoriesAndSpamRefreshWorkspaceAndDetailsConsumers() throws Exception {
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        insertDirectoryUser("watcher_owner", true, false, 1L, "Support", "Watcher Owner", "Ops", "/img/owner.png");
+
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
+                VALUES (103, 'token103', 'Quick Actions Take Spam', 'telegram', 1, CURRENT_TIMESTAMP)
+                """);
+        insertDialogTicket(920103L, "T-QA-TAKE", 103L, "quick_take_user", "Клиент Take", "Retail", "Рязань", "Точка Take", "Проверка take/categories/spam", "2026-06-03T11:00:00Z", 10301L);
+        jdbcTemplate.update("INSERT INTO ticket_categories(ticket_id, category) VALUES (?, ?)", "T-QA-TAKE", "billing");
+        insertHistoryRow("T-QA-TAKE", 920103L, "user", "Клиент просит реакции", "2026-06-03T11:01:00Z", "text", 1301L, null, 103L);
+
+        mockMvc.perform(get("/api/dialogs/T-QA-TAKE/workspace")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.conversation.ticketId").value("T-QA-TAKE"))
+                .andExpect(jsonPath("$.workflow.actions.take.enabled").value(true))
+                .andExpect(jsonPath("$.workflow.actions.categories.enabled").value(true))
+                .andExpect(jsonPath("$.workflow.actions.spam.enabled").value(true));
+
+        mockMvc.perform(post("/api/dialogs/T-QA-TAKE/take")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.responsible").value("Watcher Owner"));
+
+        mockMvc.perform(post("/api/dialogs/T-QA-TAKE/categories")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "categories": ["vip", "priority"]
+                                }
+                                """)
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        mockMvc.perform(post("/api/dialogs/T-QA-TAKE/spam")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "reason": "Спам-атака через quick action"
+                                }
+                                """)
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.updated").value(true))
+                .andExpect(jsonPath("$.userId").value("920103"))
+                .andExpect(jsonPath("$.categories", hasItem("vip")))
+                .andExpect(jsonPath("$.categories", hasItem("priority")))
+                .andExpect(jsonPath("$.categories", hasItem("Спам")));
+
+        mockMvc.perform(get("/api/dialogs")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-QA-TAKE"))
+                .andExpect(jsonPath("$.dialogs[0].rawResponsible").value("watcher_owner"))
+                .andExpect(jsonPath("$.my_dialogs.unanswered[0].ticketId").value("T-QA-TAKE"));
+
+        mockMvc.perform(get("/api/dialogs/T-QA-TAKE")
+                        .param("channelId", "103")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.ticketId").value("T-QA-TAKE"))
+                .andExpect(jsonPath("$.summary.rawResponsible").value("watcher_owner"))
+                .andExpect(jsonPath("$.categories.length()").value(3))
+                .andExpect(jsonPath("$.categories", hasItem("vip")))
+                .andExpect(jsonPath("$.categories", hasItem("priority")))
+                .andExpect(jsonPath("$.categories", hasItem("Спам")));
+
+        mockMvc.perform(get("/api/dialogs/T-QA-TAKE/workspace")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.conversation.ticketId").value("T-QA-TAKE"))
+                .andExpect(jsonPath("$.workflow.responsible.username").value("watcher_owner"))
+                .andExpect(jsonPath("$.workflow.actions.take.enabled").value(false))
+                .andExpect(jsonPath("$.workflow.actions.take.disabled_reason").value("already_assigned_to_operator"))
+                .andExpect(jsonPath("$.workflow.actions.categories.enabled").value(true))
+                .andExpect(jsonPath("$.workflow.actions.spam.enabled").value(true));
+
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT responsible FROM ticket_responsibles WHERE ticket_id = ?",
+                String.class,
+                "T-QA-TAKE"
+        )).isEqualTo("watcher_owner");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT is_blacklisted FROM client_blacklist WHERE user_id = ?",
+                Integer.class,
+                "920103"
+        )).isEqualTo(1);
+        assertThat(jdbcTemplate.query(
+                "SELECT category FROM ticket_categories WHERE ticket_id = ? ORDER BY category",
+                (rs, rowNum) -> rs.getString(1),
+                "T-QA-TAKE"
+        )).containsExactly("priority", "vip", "Спам");
+        assertThat(countAuditRows("T-QA-TAKE", "take", "success")).isEqualTo(1);
+        assertThat(countAuditRows("T-QA-TAKE", "mark_spam", "success")).isEqualTo(1);
     }
 
     private long countAuditRows(String ticketId, String action, String result) {

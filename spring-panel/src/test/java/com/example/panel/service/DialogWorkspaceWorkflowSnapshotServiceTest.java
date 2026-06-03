@@ -69,6 +69,10 @@ class DialogWorkspaceWorkflowSnapshotServiceTest {
         Map<String, Object> participantAddAction = (Map<String, Object>) actions.get("participants_add");
         @SuppressWarnings("unchecked")
         Map<String, Object> takeAction = (Map<String, Object>) actions.get("take");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> categoriesAction = (Map<String, Object>) actions.get("categories");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> spamAction = (Map<String, Object>) actions.get("spam");
 
         assertThat(responsible).containsEntry("assigned", true);
         assertThat(responsible).containsEntry("username", "watcher_owner");
@@ -87,6 +91,10 @@ class DialogWorkspaceWorkflowSnapshotServiceTest {
         assertThat(participantAddAction).containsEntry("enabled", true);
         assertThat(takeAction).containsEntry("enabled", false);
         assertThat(takeAction).containsEntry("disabled_reason", "already_assigned_to_operator");
+        assertThat(categoriesAction).containsEntry("enabled", false);
+        assertThat(categoriesAction).containsEntry("disabled_reason", "permission_denied");
+        assertThat(spamAction).containsEntry("enabled", false);
+        assertThat(spamAction).containsEntry("disabled_reason", "permission_denied");
     }
 
     @Test
@@ -128,6 +136,10 @@ class DialogWorkspaceWorkflowSnapshotServiceTest {
         Map<String, Object> reassignAction = (Map<String, Object>) actions.get("reassign");
         @SuppressWarnings("unchecked")
         Map<String, Object> participantAddAction = (Map<String, Object>) actions.get("participants_add");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> categoriesAction = (Map<String, Object>) actions.get("categories");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> spamAction = (Map<String, Object>) actions.get("spam");
 
         assertThat(responsible).containsEntry("username", "watcher_owner");
         assertThat(responsible).containsEntry("display_name", "Watcher Owner");
@@ -139,6 +151,10 @@ class DialogWorkspaceWorkflowSnapshotServiceTest {
         assertThat(reassignAction).containsEntry("disabled_reason", "permission_denied");
         assertThat(participantAddAction).containsEntry("enabled", false);
         assertThat(participantAddAction).containsEntry("disabled_reason", "permission_denied");
+        assertThat(categoriesAction).containsEntry("enabled", false);
+        assertThat(categoriesAction).containsEntry("disabled_reason", "permission_denied");
+        assertThat(spamAction).containsEntry("enabled", false);
+        assertThat(spamAction).containsEntry("disabled_reason", "permission_denied");
         verify(dialogParticipantService, never()).loadAssignableOperators();
     }
 
@@ -177,6 +193,8 @@ class DialogWorkspaceWorkflowSnapshotServiceTest {
         assertThat(((Map<?, ?>) actions.get("resolve")).get("enabled")).isEqualTo(false);
         assertThat(((Map<?, ?>) actions.get("resolve")).get("disabled_reason")).isEqualTo("already_closed");
         assertThat(((Map<?, ?>) actions.get("reopen")).get("enabled")).isEqualTo(true);
+        assertThat(((Map<?, ?>) actions.get("categories")).get("enabled")).isEqualTo(true);
+        assertThat(((Map<?, ?>) actions.get("spam")).get("enabled")).isEqualTo(true);
         assertThat(((Map<?, ?>) actions.get("reassign")).get("enabled")).isEqualTo(false);
         assertThat(((Map<?, ?>) actions.get("reassign")).get("disabled_reason")).isEqualTo("closed_dialog");
         assertThat(((Map<?, ?>) actions.get("participants_add")).get("enabled")).isEqualTo(false);
@@ -220,6 +238,8 @@ class DialogWorkspaceWorkflowSnapshotServiceTest {
         assertThat(((Map<?, ?>) actions.get("resolve")).get("enabled")).isEqualTo(true);
         assertThat(((Map<?, ?>) actions.get("reopen")).get("enabled")).isEqualTo(false);
         assertThat(((Map<?, ?>) actions.get("reopen")).get("disabled_reason")).isEqualTo("not_closed");
+        assertThat(((Map<?, ?>) actions.get("categories")).get("enabled")).isEqualTo(true);
+        assertThat(((Map<?, ?>) actions.get("spam")).get("enabled")).isEqualTo(true);
         assertThat(((Map<?, ?>) actions.get("reassign")).get("enabled")).isEqualTo(true);
         assertThat(((Map<?, ?>) actions.get("participants_add")).get("enabled")).isEqualTo(true);
         assertThat(((Map<?, ?>) actions.get("participants_remove")).get("enabled")).isEqualTo(false);

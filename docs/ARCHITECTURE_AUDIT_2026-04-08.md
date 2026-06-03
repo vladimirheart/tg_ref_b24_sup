@@ -2,7 +2,7 @@
 **Дата:** 8 апреля 2026  
 **Статус:** Актуально, но в активной фазе исправления  
 **Актуализация:** 9 апреля 2026 (см. `docs/ARCHITECTURE_AUDIT_VALIDATION_2026-04-09.md`)  
-**Последняя актуализация:** 19 мая 2026
+**Последняя актуализация:** 3 июня 2026
 
 ---
 
@@ -19,6 +19,7 @@
 ✅ `Phase 4` по giant `settings` transport/update split завершён  
 ✅ Post-phase hardening по notifier/runtime сильно продвинут и больше не выглядит как giant-wrapper проблема  
 ✅ Macro-governance audit slice разрезан на bounded services и стабилизирован по legacy integration contract  
+✅ `workspace` action payload расширен до explicit `categories/spam` guards, а live quick-action boundary теперь отдельно фиксирует `take -> categories -> spam` continuity across `/api/dialogs`, `/api/dialogs/{ticketId}` и `/workspace`  
 
 ---
 
@@ -1671,10 +1672,17 @@ integration-сценария поверх users/settings runtime boundary всё
   `DialogQuickActionsControllerWebMvcTest`, `DialogListIntegrationTest`,
   `DialogReadIntegrationTest` и `DialogWorkspaceIntegrationTest` остаются
   зелёными на новом dedicated quick-action boundary пакете.
+- следующим hardening-пакетом добран и кусок remaining operator action drift:
+  `DialogWorkspaceWorkflowSnapshotService` теперь проецирует explicit guards
+  для `categories` и `spam`, `DialogWorkspaceParityService` считает их частью
+  обязательного `operator_action_guards`, а live
+  `DialogQuickActionsIntegrationTest` закрепляет downstream continuity для
+  `take -> categories -> spam` поверх `/api/dialogs`, `details` и
+  `workspace`.
 - следующий practical focus в `dialog-read/workspace` зоне смещён уже с
   cross-consumer lifecycle parity, basic audit trail, full read refresh loop
   `queue/my_dialogs` rearm parity и `queue/status-owner` lifecycle на ещё
   более тонкие UX/runtime edges: соседние consumer contracts и remaining
-  projection drift вокруг operator action surfaces, особенно
-  `take/categories/spam` и более тонких post-action consumer refresh loops
-  после repeated follow-up refresh.
+  projection drift вокруг operator action surfaces уже без самого
+  `take/categories/spam` хвоста, но всё ещё с более тонкими post-action
+  consumer refresh loops после repeated follow-up refresh.

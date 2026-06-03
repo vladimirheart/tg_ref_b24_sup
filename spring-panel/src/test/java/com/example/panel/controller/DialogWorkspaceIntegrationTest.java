@@ -664,6 +664,8 @@ class DialogWorkspaceIntegrationTest {
                 .andExpect(jsonPath("$.workflow.actions.resolve.enabled").value(true))
                 .andExpect(jsonPath("$.workflow.actions.reopen.enabled").value(false))
                 .andExpect(jsonPath("$.workflow.actions.reopen.disabled_reason").value("not_closed"))
+                .andExpect(jsonPath("$.workflow.actions.categories.enabled").value(true))
+                .andExpect(jsonPath("$.workflow.actions.spam.enabled").value(true))
                 .andExpect(jsonPath("$.workflow.actions.reassign.enabled").value(true))
                 .andExpect(jsonPath("$.workflow.actions.participants_add.enabled").value(true))
                 .andExpect(jsonPath("$.workflow.actions.participants_remove.enabled").value(true))
@@ -720,6 +722,8 @@ class DialogWorkspaceIntegrationTest {
                 .andExpect(jsonPath("$.workflow.actions.resolve.disabled_reason").value("already_closed"))
                 .andExpect(jsonPath("$.workflow.actions.reopen.enabled").value(true))
                 .andExpect(jsonPath("$.workflow.actions.reopen.disabled_reason").doesNotExist())
+                .andExpect(jsonPath("$.workflow.actions.categories.enabled").value(true))
+                .andExpect(jsonPath("$.workflow.actions.spam.enabled").value(true))
                 .andExpect(jsonPath("$.workflow.actions.reassign.enabled").value(false))
                 .andExpect(jsonPath("$.workflow.actions.reassign.disabled_reason").value("closed_dialog"))
                 .andExpect(jsonPath("$.workflow.actions.participants_add.enabled").value(false))
@@ -745,6 +749,8 @@ class DialogWorkspaceIntegrationTest {
                 .andExpect(jsonPath("$.workflow.actions.resolve.enabled").value(true))
                 .andExpect(jsonPath("$.workflow.actions.reopen.enabled").value(false))
                 .andExpect(jsonPath("$.workflow.actions.reopen.disabled_reason").value("not_closed"))
+                .andExpect(jsonPath("$.workflow.actions.categories.enabled").value(true))
+                .andExpect(jsonPath("$.workflow.actions.spam.enabled").value(true))
                 .andExpect(jsonPath("$.workflow.actions.reassign.enabled").value(true))
                 .andExpect(jsonPath("$.workflow.actions.participants_add.enabled").value(true))
                 .andExpect(jsonPath("$.workflow.actions.participants_remove.enabled").value(false))
@@ -829,6 +835,9 @@ class DialogWorkspaceIntegrationTest {
 
     @Test
     void workspaceApiRefreshesDialogUnreadLoopWithoutImplicitlyAckingBellNotifications() throws Exception {
+        sharedConfigService.saveSettings(Map.of(
+                "dialog_config", Map.of("sla_target_minutes", 1000000)
+        ));
         usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
         insertDirectoryUser("watcher_owner", true, false, 1L, "Support", "Watcher Owner", "Ops", "/img/owner.png");
 

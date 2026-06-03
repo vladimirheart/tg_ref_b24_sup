@@ -2,6 +2,7 @@ package com.example.panel.controller;
 
 import com.example.panel.service.DialogQuickActionService;
 import com.example.panel.service.NotificationService;
+import com.example.panel.service.SharedConfigService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -103,6 +104,9 @@ class DialogDetailsIntegrationTest {
     @Autowired
     private NotificationService notificationService;
 
+    @Autowired
+    private SharedConfigService sharedConfigService;
+
     @BeforeEach
     void clean() {
         ensureChatHistoryMutationColumns();
@@ -118,6 +122,7 @@ class DialogDetailsIntegrationTest {
         jdbcTemplate.update("DELETE FROM channels");
         usersJdbcTemplate.update("DELETE FROM users");
         usersJdbcTemplate.update("DELETE FROM roles");
+        sharedConfigService.saveSettings(new java.util.LinkedHashMap<>());
         ensureUsersDirectoryColumns();
     }
 
@@ -281,6 +286,9 @@ class DialogDetailsIntegrationTest {
 
     @Test
     void detailsApiRefreshesDialogUnreadLoopWithoutImplicitlyAckingBellNotifications() throws Exception {
+        sharedConfigService.saveSettings(java.util.Map.of(
+                "dialog_config", java.util.Map.of("sla_target_minutes", 1000000)
+        ));
         insertDirectoryUser("watcher_owner", "Watcher Owner", "/img/watcher-owner.png");
         jdbcTemplate.update("""
                 INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)

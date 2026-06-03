@@ -131,6 +131,14 @@ public class DialogWorkspaceWorkflowSnapshotService {
                 canClose && closed,
                 !canClose ? "permission_denied" : (!closed ? "not_closed" : null)
         ));
+        actions.put("categories", actionAvailability(
+                canClose,
+                canClose ? null : "permission_denied"
+        ));
+        actions.put("spam", actionAvailability(
+                canClose,
+                canClose ? null : "permission_denied"
+        ));
         actions.put("reassign", actionAvailability(
                 canAssign && !closed && hasReassignCandidates,
                 !canAssign ? "permission_denied"

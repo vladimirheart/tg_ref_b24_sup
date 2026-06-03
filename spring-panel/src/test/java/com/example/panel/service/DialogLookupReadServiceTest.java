@@ -25,11 +25,12 @@ class DialogLookupReadServiceTest {
     void setUp() throws Exception {
         Path panelDbFile = Files.createTempFile("dialog-lookup-panel-", ".db");
         Path usersDbFile = Files.createTempFile("dialog-lookup-users-", ".db");
+        Path avatarsDir = Files.createTempDirectory("dialog-lookup-avatars-");
         DataSource panelDataSource = new DriverManagerDataSource("jdbc:sqlite:" + panelDbFile.toAbsolutePath());
         DataSource usersDataSource = new DriverManagerDataSource("jdbc:sqlite:" + usersDbFile.toAbsolutePath());
         jdbcTemplate = new JdbcTemplate(panelDataSource);
         usersJdbcTemplate = new JdbcTemplate(usersDataSource);
-        service = new DialogLookupReadService(jdbcTemplate, usersJdbcTemplate);
+        service = new DialogLookupReadService(jdbcTemplate, usersJdbcTemplate, new PanelUserPhotoService(avatarsDir.toString()));
         createPanelSchema();
         createUsersSchema();
     }
