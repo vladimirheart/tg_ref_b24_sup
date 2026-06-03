@@ -231,7 +231,7 @@
   syncSidebarForViewport();
 
   const nav = sidebar.querySelector('.sidebar-nav');
-  const navGroups = nav ? Array.from(nav.querySelectorAll('[data-nav-group]')) : [];
+  const navGroups = nav ? Array.from(nav.querySelectorAll('.sidebar-nav-group[data-nav-group]')) : [];
   const DEFAULT_ORDER = [
     'dialogs',
     'ai-ops',

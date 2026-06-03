@@ -561,6 +561,7 @@ body.with-sidebar.sidebar-hovering {
   position: relative;
   z-index: 1;
   margin-top: auto;
+  overflow: visible;
   padding: 12px;
   border-radius: 20px;
   background: linear-gradient(180deg, color-mix(in srgb, white 80%, var(--color-surface)), color-mix(in srgb, var(--color-accent) 4%, white));
@@ -660,6 +661,7 @@ body.with-sidebar.sidebar-hovering {
 
 .sidebar-action-menu-shell {
   position: relative;
+  z-index: 8;
   display: inline-flex;
   flex-direction: column;
   align-items: flex-end;
@@ -678,6 +680,7 @@ body.with-sidebar.sidebar-hovering {
   transform: translateY(10px) scale(0.96);
   transform-origin: bottom right;
   pointer-events: none;
+  z-index: 12;
   transition: opacity 0.18s ease, transform 0.18s ease;
 }
 
