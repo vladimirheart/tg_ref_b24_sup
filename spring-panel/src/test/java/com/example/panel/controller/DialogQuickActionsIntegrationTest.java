@@ -323,6 +323,26 @@ class DialogQuickActionsIntegrationTest {
                 .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("quick_close: success (updated)")))
                 .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("reopen: success (updated)")));
 
+        mockMvc.perform(get("/api/dialogs/T-QA-CLOSE")
+                        .param("channelId", "102")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.ticketId").value("T-QA-CLOSE"))
+                .andExpect(jsonPath("$.summary.statusKey").value("waiting_operator"))
+                .andExpect(jsonPath("$.categories.length()").value(2))
+                .andExpect(jsonPath("$.categories[0]").value("billing"))
+                .andExpect(jsonPath("$.categories[1]").value("support"));
+
+        mockMvc.perform(get("/api/dialogs/T-QA-CLOSE/workspace")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.conversation.ticketId").value("T-QA-CLOSE"))
+                .andExpect(jsonPath("$.conversation.statusKey").value("waiting_operator"))
+                .andExpect(jsonPath("$.workflow.actions.resolve.enabled").value(true))
+                .andExpect(jsonPath("$.workflow.actions.reopen.enabled").value(false))
+                .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("quick_close: success (updated)")))
+                .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("reopen: success (updated)")));
+
         List<String> categories = jdbcTemplate.query(
                 "SELECT category FROM ticket_categories WHERE ticket_id = ? ORDER BY category",
                 (rs, rowNum) -> rs.getString(1),

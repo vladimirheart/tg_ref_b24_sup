@@ -1497,7 +1497,9 @@
   `/api/dialogs/{ticketId}/reopen`: endpoint теперь тоже проходит через
   `withQuickActionTiming`, пишет explicit `reopen success/error/not_found`
   audit trail, а live quick-action integration закрепляет, что после
-  `resolve -> reopen` этот audit сразу виден и в `workspace.context.related_events`.
+  `resolve -> reopen` этот audit сразу виден и в `workspace.context.related_events`;
+  repeated `details/workspace` reread теперь тоже прикрыт и не теряет reopened
+  status, categories и action trail.
 - следующим contract-пакетом в тот же explicit quick-action envelope подтянуты
   и `reply/edit/delete/reply_media`: controller теперь оборачивает их в
   timing-guard и пишет explicit `success/error` audit trail, а live

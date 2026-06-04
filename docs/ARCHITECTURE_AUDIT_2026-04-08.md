@@ -1690,7 +1690,9 @@ integration-сценария поверх users/settings runtime boundary всё
   `/api/dialogs/{ticketId}/reopen`: endpoint теперь проходит через
   `withQuickActionTiming`, пишет explicit `reopen success/error/not_found`
   audit, а live integration закрепляет `resolve -> reopen` continuity уже не
-  только по status/actions, но и по `workspace.context.related_events`.
+  только по status/actions, но и по `workspace.context.related_events`; repeated
+  `details/workspace` reread тоже закреплён и подтверждает сохранение reopened
+  status/category/action trail.
 - следующим contract-пакетом в тот же explicit quick-action envelope подтянуты
   и `reply/edit/delete/reply_media`: controller теперь проводит их через
   timing guard и пишет explicit `success/error` audit, а live `web_form`
