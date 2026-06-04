@@ -41,12 +41,14 @@ public class DashboardAnalyticsService {
         List<DialogListItem> filtered = filterDialogs(dialogs, filters);
         StatsBlock stats = buildStats(filtered, filters);
         TimeStats timeStats = buildTimeStats(filtered);
+        ActivityStats activityStats = buildActivityStats(filtered);
         List<StaffTimeStats> staffTimeStats = buildStaffTimeStats(filtered);
         ChartsBlock charts = buildCharts(filtered);
 
         Map<String, Object> payload = new HashMap<>();
         payload.put("stats", stats.toMap());
         payload.put("time_stats", timeStats.toMap());
+        payload.put("activity_stats", activityStats.toMap());
         payload.put("staff_time_stats", staffTimeStats.stream().map(StaffTimeStats::toMap).toList());
         payload.put("charts", charts.toMap());
         return payload;
@@ -138,6 +140,68 @@ public class DashboardAnalyticsService {
                 .map(entry -> StaffTimeStats.from(entry.getKey(), entry.getValue()))
                 .sorted(Comparator.comparing(StaffTimeStats::totalMinutes).reversed())
                 .toList();
+    }
+
+    private ActivityStats buildActivityStats(List<DialogListItem> dialogs) {
+        int[][] matrix = new int[7][24];
+        Map<LocalDateTime, Integer> byHour = new HashMap<>();
+        int peakCount = 0;
+        int peakDayIndex = 0;
+        int peakHour = 0;
+        int total = 0;
+
+        for (DialogListItem dialog : dialogs) {
+            LocalDateTime created = parseDateTime(dialog.createdAt(), dialog.createdDate(), dialog.createdTime());
+            if (created == null) {
+                continue;
+            }
+            int dayIndex = created.getDayOfWeek().getValue() - 1;
+            int hour = created.getHour();
+            matrix[dayIndex][hour] += 1;
+            total += 1;
+            LocalDateTime hourSlot = created.withMinute(0).withSecond(0).withNano(0);
+            byHour.merge(hourSlot, 1, Integer::sum);
+
+            int cellCount = matrix[dayIndex][hour];
+            if (cellCount > peakCount) {
+                peakCount = cellCount;
+                peakDayIndex = dayIndex;
+                peakHour = hour;
+            }
+        }
+
+        int activeHourCount = byHour.size();
+        double avgPerActiveHour = activeHourCount > 0 ? (double) total / activeHourCount : 0d;
+        int maxCount = 0;
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (int dayIndex = 0; dayIndex < 7; dayIndex++) {
+            List<Integer> values = new ArrayList<>(24);
+            for (int hour = 0; hour < 24; hour++) {
+                int count = matrix[dayIndex][hour];
+                values.add(count);
+                if (count > maxCount) {
+                    maxCount = count;
+                }
+            }
+            rows.add(Map.of(
+                    "day_index", dayIndex,
+                    "day_label", dayLabel(dayIndex),
+                    "values", values
+            ));
+        }
+
+        return new ActivityStats(
+                avgPerActiveHour,
+                formatHourlyLoad(avgPerActiveHour),
+                activeHourCount,
+                peakCount,
+                peakCount > 0 ? buildPeakLabel(peakDayIndex, peakHour) : "Нет данных",
+                rows,
+                hourLabels(),
+                maxCount,
+                9,
+                18
+        );
     }
 
     private ChartsBlock buildCharts(List<DialogListItem> dialogs) {
@@ -448,6 +512,35 @@ public class DashboardAnalyticsService {
                 .toLowerCase(Locale.ROOT);
     }
 
+    private List<String> hourLabels() {
+        List<String> labels = new ArrayList<>(24);
+        for (int hour = 0; hour < 24; hour++) {
+            labels.add(String.format(Locale.ROOT, "%02d:00", hour));
+        }
+        return labels;
+    }
+
+    private String buildPeakLabel(int dayIndex, int hour) {
+        return dayLabel(dayIndex) + ", " + hourRangeLabel(hour);
+    }
+
+    private String dayLabel(int dayIndex) {
+        return switch (dayIndex) {
+            case 0 -> "Пн";
+            case 1 -> "Вт";
+            case 2 -> "Ср";
+            case 3 -> "Чт";
+            case 4 -> "Пт";
+            case 5 -> "Сб";
+            case 6 -> "Вс";
+            default -> "—";
+        };
+    }
+
+    private String hourRangeLabel(int hour) {
+        return String.format(Locale.ROOT, "%02d:00 - %02d:00", hour, (hour + 1) % 24);
+    }
+
     private String safeLower(String value) {
         return value == null ? "" : value.toLowerCase(Locale.ROOT);
     }
@@ -475,6 +568,32 @@ public class DashboardAnalyticsService {
                     "avg", avgMinutes,
                     "formatted_avg", formatMinutes(avgMinutes),
                     "resolved_count", resolvedCount
+            );
+        }
+    }
+
+    private record ActivityStats(double avgPerActiveHour,
+                                 String formattedAvgPerActiveHour,
+                                 int activeHours,
+                                 int peakCount,
+                                 String peakLabel,
+                                 List<Map<String, Object>> matrix,
+                                 List<String> hourLabels,
+                                 int maxCount,
+                                 int businessHoursStart,
+                                 int businessHoursEnd) {
+        Map<String, Object> toMap() {
+            return Map.of(
+                    "avg_per_active_hour", avgPerActiveHour,
+                    "formatted_avg_per_active_hour", formattedAvgPerActiveHour,
+                    "active_hours", activeHours,
+                    "peak_count", peakCount,
+                    "peak_label", peakLabel,
+                    "matrix", matrix,
+                    "hour_labels", hourLabels,
+                    "max_count", maxCount,
+                    "business_hours_start", businessHoursStart,
+                    "business_hours_end", businessHoursEnd
             );
         }
     }
@@ -552,5 +671,15 @@ public class DashboardAnalyticsService {
             return formatDuration(minutes);
         }
         return minutes + " мин";
+    }
+
+    private static String formatHourlyLoad(double value) {
+        if (value <= 0d) {
+            return "0";
+        }
+        if (Math.abs(value - Math.rint(value)) < 0.05d) {
+            return String.valueOf((int) Math.rint(value));
+        }
+        return String.format(Locale.ROOT, "%.1f", value);
     }
 }

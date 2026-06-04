@@ -422,6 +422,155 @@
       border: 1px solid color-mix(in srgb, var(--color-border) 10%, transparent);
     }
 
+    .activity-heatmap-shell {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      gap: 0.9rem;
+    }
+
+    .activity-heatmap-summary {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 0.9rem 1rem;
+      border-radius: 1.1rem;
+      background: rgba(255, 255, 255, 0.74);
+      border: 1px solid color-mix(in srgb, var(--color-border) 10%, transparent);
+    }
+
+    .activity-heatmap-summary__eyebrow {
+      display: block;
+      margin-bottom: 0.2rem;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--color-text-muted);
+    }
+
+    .activity-heatmap-summary__value {
+      font-size: 1.08rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .activity-heatmap-summary__count {
+      font-size: 1.45rem;
+      font-weight: 800;
+      color: var(--color-text);
+    }
+
+    .activity-heatmap-board {
+      padding: 1rem;
+      border-radius: 1.35rem;
+      background: rgba(255, 255, 255, 0.66);
+      border: 1px solid color-mix(in srgb, var(--color-border) 10%, transparent);
+      overflow-x: auto;
+    }
+
+    .activity-heatmap-grid {
+      display: grid;
+      grid-template-columns: 44px repeat(24, minmax(26px, 1fr));
+      gap: 0.28rem;
+      min-width: 780px;
+    }
+
+    .activity-heatmap-corner,
+    .activity-heatmap-hour,
+    .activity-heatmap-day,
+    .activity-heatmap-cell {
+      border-radius: 0.5rem;
+    }
+
+    .activity-heatmap-hour,
+    .activity-heatmap-day {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 24px;
+      font-size: 0.72rem;
+      color: var(--color-text-muted);
+    }
+
+    .activity-heatmap-hour--business {
+      color: var(--color-accent);
+      font-weight: 700;
+    }
+
+    .activity-heatmap-day {
+      justify-content: flex-start;
+      padding-left: 0.1rem;
+      font-weight: 700;
+    }
+
+    .activity-heatmap-cell {
+      position: relative;
+      appearance: none;
+      padding: 0;
+      min-height: 34px;
+      border: 1px solid rgba(255, 255, 255, 0.68);
+      background: rgba(224, 239, 242, 0.52);
+      cursor: pointer;
+      transition: transform 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
+    }
+
+    .activity-heatmap-cell:hover,
+    .activity-heatmap-cell.is-active {
+      transform: translateY(-1px);
+      border-color: color-mix(in srgb, var(--chart-2) 40%, transparent);
+      box-shadow: 0 10px 18px rgba(18, 33, 23, 0.08);
+    }
+
+    .activity-heatmap-cell--business::after {
+      content: "";
+      position: absolute;
+      left: 5px;
+      right: 5px;
+      bottom: 3px;
+      height: 2px;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--chart-5) 88%, white);
+      opacity: 0.85;
+    }
+
+    .activity-heatmap-legend {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.9rem;
+      font-size: 0.8rem;
+      color: var(--color-text-muted);
+    }
+
+    .activity-heatmap-legend__scale {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.55rem;
+    }
+
+    .activity-heatmap-legend__swatch {
+      width: 84px;
+      height: 12px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, rgba(224, 239, 242, 0.52), color-mix(in srgb, var(--chart-2) 82%, white));
+      border: 1px solid rgba(255, 255, 255, 0.68);
+    }
+
+    .activity-heatmap-legend__hours {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .activity-heatmap-legend__line {
+      width: 54px;
+      height: 3px;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--chart-5) 88%, white);
+    }
+
     .pie-chart-container {
       display: flex;
       gap: 1rem;
@@ -780,9 +929,9 @@
                 </div>
               </article>
               <article class="metric-card">
-                <span class="metric-label">Ритм обзора</span>
-                <strong class="metric-value">Live</strong>
-                <span class="metric-foot">Объём и скорость читаются на одном экране без переключения между блоками.</span>
+                <span class="metric-label">Нагрузка в час</span>
+                <strong class="metric-value" id="hourlyLoadValue">0</strong>
+                <span class="metric-foot" id="hourlyLoadFoot">Нет данных по активности за выбранный период.</span>
               </article>
               <article class="metric-card metric-card--note">
                 <span class="metric-label">Фокус панели</span>
@@ -803,6 +952,40 @@
             </div>
             <div id="staffTimeStats" class="staff-time-stats">
               <div class="text-center text-muted py-3">Нет данных</div>
+            </div>
+          </article>
+
+          <article class="chart-panel chart-panel--wide data-panel">
+            <div class="chart-panel-head">
+              <div>
+                <span class="section-kicker">Активность</span>
+                <h3 class="chart-panel-title">Нагрузка по дням и часам</h3>
+                <p class="chart-panel-copy">Количество обращений в разрезе дня недели и часа, чтобы быстро видеть пики и рабочие окна нагрузки.</p>
+              </div>
+            </div>
+            <div class="activity-heatmap-shell">
+              <div class="activity-heatmap-summary">
+                <div>
+                  <span class="activity-heatmap-summary__eyebrow">Фокус</span>
+                  <div class="activity-heatmap-summary__value" id="activityHeatmapLabel">Нет данных</div>
+                </div>
+                <div class="activity-heatmap-summary__count" id="activityHeatmapCount">0 обращений</div>
+              </div>
+              <div class="activity-heatmap-board">
+                <div id="activityHeatmap" class="activity-heatmap-grid">
+                  <div class="text-center text-muted py-3" style="grid-column: 1 / -1;">Нет данных</div>
+                </div>
+              </div>
+              <div class="activity-heatmap-legend">
+                <span class="activity-heatmap-legend__scale">
+                  <span class="activity-heatmap-legend__swatch"></span>
+                  Меньше → больше обращений
+                </span>
+                <span class="activity-heatmap-legend__hours">
+                  <span class="activity-heatmap-legend__line"></span>
+                  Рабочее время 09:00 - 18:00
+                </span>
+              </div>
             </div>
           </article>
 
@@ -978,7 +1161,8 @@
     const dashboardRenderCache = {
       channelData: null,
       chartData: null,
-      staffStats: null
+      staffStats: null,
+      activityStats: null
     };
     let themeRedrawTimer = null;
 
@@ -1462,12 +1646,14 @@ async function loadDashboardData() {
     const data = await response.json();
 
     // Обновляем статистику
-    updateStats(data.stats, data.time_stats, data.staff_time_stats);
+    updateStats(data.stats, data.time_stats, data.activity_stats);
 
     // Вызов обновления статистики по сотрудникам
     updateStaffTimeStats(data.staff_time_stats);
     dashboardRenderCache.staffStats = Array.isArray(data.staff_time_stats) ? data.staff_time_stats : [];
+    dashboardRenderCache.activityStats = data.activity_stats || null;
     updateStaffWorkloadChart(data.staff_time_stats);
+    renderActivityHeatmap(data.activity_stats);
 
     // Обновляем графики
     dashboardRenderCache.chartData = data.charts || {};
@@ -1491,6 +1677,9 @@ function rerenderDashboardCharts() {
   }
   if (dashboardRenderCache.staffStats && dashboardRenderCache.staffStats.length) {
     updateStaffWorkloadChart(dashboardRenderCache.staffStats);
+  }
+  if (dashboardRenderCache.activityStats) {
+    renderActivityHeatmap(dashboardRenderCache.activityStats);
   }
   if (dashboardRenderCache.chartData && Object.keys(dashboardRenderCache.chartData).length) {
     updateCharts(dashboardRenderCache.chartData);
@@ -1526,7 +1715,7 @@ function rerenderDashboardCharts() {
     }
 
     // Обновление статистических карточек
-function updateStats(stats, timeStats, staffTimeStats) {
+function updateStats(stats, timeStats, activityStats) {
   // Проверяем наличие всех необходимых данных
   if (!stats || !stats.current) {
     console.error('Некорректные данные статистики:', stats);
@@ -1549,6 +1738,103 @@ function updateStats(stats, timeStats, staffTimeStats) {
     document.getElementById('avgTimePerTicket').textContent = '0 мин';
     document.getElementById('resolvedCount').textContent = '0';
   }
+
+  const hourlyLoadValue = document.getElementById('hourlyLoadValue');
+  const hourlyLoadFoot = document.getElementById('hourlyLoadFoot');
+  if (hourlyLoadValue && hourlyLoadFoot) {
+    if (activityStats && Number(activityStats.active_hours || 0) > 0) {
+      hourlyLoadValue.textContent = `${activityStats.formatted_avg_per_active_hour || '0'} обр./час`;
+      const peakLabel = activityStats.peak_label || 'Нет данных';
+      const peakCount = Number(activityStats.peak_count || 0);
+      hourlyLoadFoot.textContent = peakCount > 0
+        ? `Пик: ${peakLabel} · ${peakCount} обращ.`
+        : 'Нет данных по активности за выбранный период.';
+    } else {
+      hourlyLoadValue.textContent = '0 обр./час';
+      hourlyLoadFoot.textContent = 'Нет данных по активности за выбранный период.';
+    }
+  }
+}
+
+function renderActivityHeatmap(activityStats) {
+  const container = document.getElementById('activityHeatmap');
+  const label = document.getElementById('activityHeatmapLabel');
+  const count = document.getElementById('activityHeatmapCount');
+  if (!container || !label || !count) {
+    return;
+  }
+
+  const matrix = Array.isArray(activityStats?.matrix) ? activityStats.matrix : [];
+  const hourLabels = Array.isArray(activityStats?.hour_labels) ? activityStats.hour_labels : [];
+  const maxCount = Number(activityStats?.max_count || 0);
+  const businessStart = Number(activityStats?.business_hours_start ?? 9);
+  const businessEnd = Number(activityStats?.business_hours_end ?? 18);
+
+  if (!matrix.length || !hourLabels.length) {
+    container.innerHTML = '<div class="text-center text-muted py-3" style="grid-column: 1 / -1;">Нет данных</div>';
+    label.textContent = 'Нет данных';
+    count.textContent = '0 обращений';
+    return;
+  }
+
+  const cellsMarkup = [];
+  cellsMarkup.push('<div class="activity-heatmap-corner"></div>');
+  hourLabels.forEach((hourLabel, hourIndex) => {
+    const businessClass = hourIndex >= businessStart && hourIndex < businessEnd ? ' activity-heatmap-hour--business' : '';
+    const shortLabel = hourLabel.slice(0, 2);
+    cellsMarkup.push(`<div class="activity-heatmap-hour${businessClass}">${shortLabel}</div>`);
+  });
+
+  matrix.forEach((row) => {
+    const dayLabel = row.day_label || '—';
+    cellsMarkup.push(`<div class="activity-heatmap-day">${dayLabel}</div>`);
+    const values = Array.isArray(row.values) ? row.values : [];
+    values.forEach((rawValue, hourIndex) => {
+      const value = Number(rawValue || 0);
+      const intensity = maxCount > 0 ? Math.min(1, value / maxCount) : 0;
+      const alpha = value > 0 ? (0.16 + intensity * 0.72) : 0.08;
+      const businessClass = hourIndex >= businessStart && hourIndex < businessEnd ? ' activity-heatmap-cell--business' : '';
+      const tooltip = `${dayLabel}, ${String(hourLabels[hourIndex] || '').replace(':00', ':00 - ' + String((hourIndex + 1) % 24).padStart(2, '0') + ':00')} · ${value} обращений`;
+      cellsMarkup.push(
+        `<button type="button" class="activity-heatmap-cell${businessClass}" data-day="${dayLabel}" data-hour="${hourIndex}" data-hour-label="${hourLabels[hourIndex] || ''}" data-count="${value}" title="${tooltip}" aria-label="${tooltip}" style="background: rgba(110, 203, 230, ${alpha.toFixed(3)});"></button>`
+      );
+    });
+  });
+
+  container.innerHTML = cellsMarkup.join('');
+
+  const defaultLabel = activityStats?.peak_count > 0 ? String(activityStats.peak_label || 'Пик нагрузки') : 'Нет данных';
+  const defaultCount = Number(activityStats?.peak_count || 0) > 0
+    ? `${activityStats.peak_count} обращений`
+    : '0 обращений';
+  label.textContent = defaultLabel;
+  count.textContent = defaultCount;
+
+  const hourRange = (hourIndex) => `${String(hourIndex).padStart(2, '0')}:00 - ${String((hourIndex + 1) % 24).padStart(2, '0')}:00`;
+  container.querySelectorAll('.activity-heatmap-cell').forEach((cell) => {
+    cell.addEventListener('mouseenter', () => {
+      container.querySelectorAll('.activity-heatmap-cell.is-active').forEach((activeCell) => activeCell.classList.remove('is-active'));
+      cell.classList.add('is-active');
+      const day = cell.dataset.day || '—';
+      const hour = Number(cell.dataset.hour || 0);
+      const value = Number(cell.dataset.count || 0);
+      label.textContent = `${day}, ${hourRange(hour)}`;
+      count.textContent = `${value} ${pluralizeAppeals(value)}`;
+    });
+    cell.addEventListener('mouseleave', () => {
+      cell.classList.remove('is-active');
+      label.textContent = defaultLabel;
+      count.textContent = defaultCount;
+    });
+  });
+}
+
+function pluralizeAppeals(value) {
+  const mod10 = value % 10;
+  const mod100 = value % 100;
+  if (mod10 === 1 && mod100 !== 11) return 'обращение';
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return 'обращения';
+  return 'обращений';
 }
 
 // Обновление статистики по сотрудникам
