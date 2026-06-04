@@ -1708,6 +1708,13 @@ integration-сценария поверх users/settings runtime boundary всё
   `details/history`, а `reply_media` отдельно подтверждает attachment/message
   projection и audit visibility в `workspace.context.related_events`; repeated
   reread для обеих веток тоже остаётся зелёным.
+- следующим follow-up пакетом закрыт и `web_form` parity drift на write-side:
+  `DialogReplyService` теперь назначает локальный synthetic `tg_message_id`
+  для operator reply и больше не требует Telegram transport/token для
+  `web_form edit/delete`; live quick-action integration отдельно подтверждает
+  полный `web_form reply -> edit -> delete` cycle, а shared-link integration
+  фиксирует сохранение synthetic id в `chat_history` как часть нового local
+  mutation contract.
 - следующим follow-up пакетом закрыт и remaining `snooze` drift между runtime
   и workspace: `DialogWorkspaceWorkflowSnapshotService` теперь проецирует
   explicit `workflow.actions.snooze`, parity-layer считает его частью

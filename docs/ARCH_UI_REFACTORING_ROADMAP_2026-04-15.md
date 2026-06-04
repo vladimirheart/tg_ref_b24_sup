@@ -1516,6 +1516,13 @@
   в `details/history`, а `reply_media` отдельно закреплён на attachment/message
   projection и `workspace.context.related_events`; repeated reread для обеих
   веток тоже не теряет audit trail.
+- следующим follow-up пакетом закрыт и `web_form` mutation parity gap:
+  `DialogReplyService` теперь выдаёт локальный synthetic `tg_message_id` для
+  operator reply и использует local fallback для `edit/delete` без Telegram
+  transport/token; live quick-action integration отдельно закрепляет
+  `web_form reply -> edit -> delete` continuity на `details/history` и
+  `workspace.context.related_events`, а shared-link integration подтверждает,
+  что synthetic id действительно сохраняется в `chat_history`.
 - следующим follow-up пакетом закрыт и remaining `snooze` drift между runtime
   и workspace: `DialogWorkspaceWorkflowSnapshotService` теперь проецирует
   explicit `workflow.actions.snooze`, parity-layer считает его частью

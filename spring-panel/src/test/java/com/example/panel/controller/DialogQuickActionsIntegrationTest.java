@@ -35,6 +35,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -440,6 +442,7 @@ class DialogQuickActionsIntegrationTest {
                         .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.telegramMessageId").isNumber())
                 .andExpect(jsonPath("$.responsible").value("watcher_owner"));
 
         mockMvc.perform(get("/api/dialogs/T-QA-REPLY")
@@ -478,6 +481,125 @@ class DialogQuickActionsIntegrationTest {
                 "T-QA-REPLY"
         )).isEqualTo("watcher_owner");
         assertThat(countAuditRows("T-QA-REPLY", "reply", "success")).isEqualTo(1);
+    }
+
+    @Test
+    void quickActionsApiWebFormReplyEditDeleteRefreshesDetailsWorkspaceWithoutTelegramTransport() throws Exception {
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        insertDirectoryUser("watcher_owner", true, false, 1L, "Support", "Watcher Owner", "Ops", "/img/owner.png");
+
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
+                VALUES (108, '', 'Quick Actions Web Form Mutate', 'vk', 1, CURRENT_TIMESTAMP)
+                """);
+        insertDialogTicket(920108L, "T-QA-WEB-MUTATE", 108L, "quick_web_mutate_user", "Клиент Web Mutate", "Retail", "Курск", "Точка Web Mutate", "Проверка web_form reply/edit/delete", "2026-06-04T12:00:00Z", 10801L);
+        jdbcTemplate.update("""
+                INSERT INTO web_form_sessions(
+                    token, ticket_id, channel_id, user_id, answers_json,
+                    client_name, client_contact, username, created_at, last_active_at
+                ) VALUES (?,?,?,?,?,?,?,?,?,?)
+                """,
+                "qa-web-mutate-token",
+                "T-QA-WEB-MUTATE",
+                108L,
+                920108L,
+                "{}",
+                "Клиент Web Mutate",
+                "+79991112233",
+                "quick_web_mutate_user",
+                "2026-06-04T12:00:00Z",
+                "2026-06-04T12:01:00Z");
+        insertHistoryRow("T-QA-WEB-MUTATE", 920108L, "user", "Клиент ждёт ответ в форме", "2026-06-04T12:01:00Z", "text", 1801L, null, 108L);
+
+        mockMvc.perform(post("/api/dialogs/T-QA-WEB-MUTATE/reply")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "message": "Первичный ответ через web_form"
+                                }
+                                """)
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.telegramMessageId").isNumber())
+                .andExpect(jsonPath("$.responsible").value("watcher_owner"));
+
+        Long localTelegramMessageId = jdbcTemplate.queryForObject(
+                "SELECT tg_message_id FROM chat_history WHERE ticket_id = ? AND sender = 'operator' ORDER BY rowid DESC LIMIT 1",
+                Long.class,
+                "T-QA-WEB-MUTATE"
+        );
+        assertThat(localTelegramMessageId).isNotNull();
+
+        mockMvc.perform(post("/api/dialogs/T-QA-WEB-MUTATE/edit")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "telegramMessageId": %d,
+                                  "message": "Уточнённый ответ через web_form"
+                                }
+                                """.formatted(localTelegramMessageId))
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        mockMvc.perform(post("/api/dialogs/T-QA-WEB-MUTATE/delete")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "telegramMessageId": %d
+                                }
+                                """.formatted(localTelegramMessageId))
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        mockMvc.perform(get("/api/dialogs/T-QA-WEB-MUTATE")
+                        .param("channelId", "108")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.ticketId").value("T-QA-WEB-MUTATE"))
+                .andExpect(jsonPath("$.summary.rawResponsible").value("watcher_owner"))
+                .andExpect(jsonPath("$.history.length()").value(2))
+                .andExpect(jsonPath("$.history[1].message").value(""))
+                .andExpect(jsonPath("$.history[1].originalMessage").value("Первичный ответ через web_form"))
+                .andExpect(jsonPath("$.history[1].editedAt").isNotEmpty())
+                .andExpect(jsonPath("$.history[1].deletedAt").isNotEmpty());
+
+        mockMvc.perform(get("/api/dialogs/T-QA-WEB-MUTATE/workspace")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.conversation.ticketId").value("T-QA-WEB-MUTATE"))
+                .andExpect(jsonPath("$.workflow.actions.reply.enabled").value(true))
+                .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("reply: success (message_sent)")))
+                .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("edit: success (message_edited)")))
+                .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("delete: success (message_deleted)")));
+
+        mockMvc.perform(get("/api/dialogs/T-QA-WEB-MUTATE")
+                        .param("channelId", "108")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.ticketId").value("T-QA-WEB-MUTATE"))
+                .andExpect(jsonPath("$.history[1].message").value(""))
+                .andExpect(jsonPath("$.history[1].originalMessage").value("Первичный ответ через web_form"))
+                .andExpect(jsonPath("$.history[1].editedAt").isNotEmpty())
+                .andExpect(jsonPath("$.history[1].deletedAt").isNotEmpty());
+
+        mockMvc.perform(get("/api/dialogs/T-QA-WEB-MUTATE/workspace")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.conversation.ticketId").value("T-QA-WEB-MUTATE"))
+                .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("reply: success (message_sent)")))
+                .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("edit: success (message_edited)")))
+                .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("delete: success (message_deleted)")));
+
+        verify(dialogReplyTransportService, never()).sendText(any(Channel.class), eq(920108L), eq("Первичный ответ через web_form"), isNull());
+        verify(dialogReplyTransportService, never()).editTelegramMessage(any(Channel.class), eq(920108L), eq(localTelegramMessageId), eq("Уточнённый ответ через web_form"));
+        verify(dialogReplyTransportService, never()).deleteTelegramMessage(any(Channel.class), eq(920108L), eq(localTelegramMessageId));
+
+        assertThat(countAuditRows("T-QA-WEB-MUTATE", "reply", "success")).isEqualTo(1);
+        assertThat(countAuditRows("T-QA-WEB-MUTATE", "edit", "success")).isEqualTo(1);
+        assertThat(countAuditRows("T-QA-WEB-MUTATE", "delete", "success")).isEqualTo(1);
     }
 
     @Test

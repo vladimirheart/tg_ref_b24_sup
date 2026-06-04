@@ -90,15 +90,64 @@ class DialogReplyServiceTest {
         when(targetService.loadReplyTarget("T-902")).thenReturn(Optional.of(new DialogReplyTarget(321L, 20L)));
         when(transportService.loadChannel(20L)).thenReturn(Optional.of(channel));
         when(targetService.hasWebFormSession("T-902")).thenReturn(true);
-        when(targetService.logOutgoingMessage(any(), eq("T-902"), eq("Текст"), eq("operator_message"), eq(null), eq(null), eq("operator")))
+        when(targetService.nextLocalTelegramMessageId("T-902")).thenReturn(9901L);
+        when(targetService.logOutgoingMessage(any(), eq("T-902"), eq("Текст"), eq("operator_message"), eq(9901L), eq(null), eq("operator")))
                 .thenReturn("2026-04-30T12:10:00Z");
         when(responsibilityService.assignResponsibleIfMissing("T-902", "operator")).thenReturn("operator");
 
         DialogReplyService.DialogReplyResult result = dialogReplyService.sendReply("T-902", "Текст", null, "operator");
 
         assertThat(result.success()).isTrue();
-        assertThat(result.telegramMessageId()).isNull();
+        assertThat(result.telegramMessageId()).isEqualTo(9901L);
         assertThat(result.responsible()).isEqualTo("operator");
         verify(transportService, never()).sendText(any(), any(), any(), any());
+    }
+
+    @Test
+    void editOperatorMessageUsesWebFormFallbackWithoutTransport() {
+        DialogReplyTargetService targetService = mock(DialogReplyTargetService.class);
+        DialogReplyTransportService transportService = mock(DialogReplyTransportService.class);
+        DialogResponsibilityService responsibilityService = mock(DialogResponsibilityService.class);
+        DialogReplyService dialogReplyService = new DialogReplyService(targetService, transportService, responsibilityService);
+        Channel channel = new Channel();
+        channel.setId(21L);
+
+        when(targetService.loadReplyTarget("T-903")).thenReturn(Optional.of(new DialogReplyTarget(322L, 21L)));
+        when(transportService.loadChannel(21L)).thenReturn(Optional.of(channel));
+        when(targetService.hasWebFormSession("T-903")).thenReturn(true);
+        when(targetService.markOperatorMessageEdited("T-903", 9902L, "Обновлённый текст")).thenReturn(1);
+        when(responsibilityService.assignResponsibleIfMissing("T-903", "operator")).thenReturn("operator");
+
+        DialogReplyService.DialogReplyResult result =
+                dialogReplyService.editOperatorMessage("T-903", 9902L, "Обновлённый текст", "operator");
+
+        assertThat(result.success()).isTrue();
+        assertThat(result.telegramMessageId()).isEqualTo(9902L);
+        assertThat(result.responsible()).isEqualTo("operator");
+        verify(transportService, never()).editTelegramMessage(any(), any(), any(), any());
+    }
+
+    @Test
+    void deleteOperatorMessageUsesWebFormFallbackWithoutTransport() {
+        DialogReplyTargetService targetService = mock(DialogReplyTargetService.class);
+        DialogReplyTransportService transportService = mock(DialogReplyTransportService.class);
+        DialogResponsibilityService responsibilityService = mock(DialogResponsibilityService.class);
+        DialogReplyService dialogReplyService = new DialogReplyService(targetService, transportService, responsibilityService);
+        Channel channel = new Channel();
+        channel.setId(22L);
+
+        when(targetService.loadReplyTarget("T-904")).thenReturn(Optional.of(new DialogReplyTarget(323L, 22L)));
+        when(transportService.loadChannel(22L)).thenReturn(Optional.of(channel));
+        when(targetService.hasWebFormSession("T-904")).thenReturn(true);
+        when(targetService.markOperatorMessageDeleted("T-904", 9903L)).thenReturn(1);
+        when(responsibilityService.assignResponsibleIfMissing("T-904", "operator")).thenReturn("operator");
+
+        DialogReplyService.DialogReplyResult result =
+                dialogReplyService.deleteOperatorMessage("T-904", 9903L, "operator");
+
+        assertThat(result.success()).isTrue();
+        assertThat(result.telegramMessageId()).isEqualTo(9903L);
+        assertThat(result.responsible()).isEqualTo("operator");
+        verify(transportService, never()).deleteTelegramMessage(any(), any(), any());
     }
 }

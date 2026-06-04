@@ -45,18 +45,19 @@ public class DialogReplyService {
             return DialogReplyResult.error("Канал для отправки сообщения не найден.");
         }
         if (dialogReplyTargetService.hasWebFormSession(ticketId)) {
+            Long localTelegramMessageId = dialogReplyTargetService.nextLocalTelegramMessageId(ticketId);
             String timestamp = dialogReplyTargetService.logOutgoingMessage(
                     target,
                     ticketId,
                     message,
                     "operator_message",
-                    null,
+                    localTelegramMessageId,
                     replyToTelegramId,
                     sender
             );
             dialogReplyTargetService.touchTicketActivity(ticketId, operator);
             String responsible = dialogResponsibilityService.assignResponsibleIfMissing(ticketId, operator);
-            return DialogReplyResult.success(timestamp, null, responsible);
+            return DialogReplyResult.success(timestamp, localTelegramMessageId, responsible);
         }
         if (!StringUtils.hasText(channel.getToken())) {
             return DialogReplyResult.error("Не задан токен бота для канала.");
@@ -92,7 +93,18 @@ public class DialogReplyService {
         }
         DialogReplyTarget target = targetOpt.get();
         Channel channel = dialogReplyTransportService.loadChannel(target.channelId()).orElse(null);
-        if (channel == null || !StringUtils.hasText(channel.getToken())) {
+        if (channel == null) {
+            return DialogReplyResult.error("Канал Telegram не найден.");
+        }
+        if (dialogReplyTargetService.hasWebFormSession(ticketId)) {
+            int updated = dialogReplyTargetService.markOperatorMessageEdited(ticketId, telegramMessageId, message);
+            if (updated == 0) {
+                return DialogReplyResult.error("Сообщение оператора не найдено.");
+            }
+            String responsible = dialogResponsibilityService.assignResponsibleIfMissing(ticketId, operator);
+            return DialogReplyResult.success(OffsetDateTime.now().toString(), telegramMessageId, responsible);
+        }
+        if (!StringUtils.hasText(channel.getToken())) {
             return DialogReplyResult.error("Канал Telegram не найден.");
         }
         String transportError = dialogReplyTransportService.editTelegramMessage(channel, target.userId(), telegramMessageId, message);
@@ -117,7 +129,18 @@ public class DialogReplyService {
         }
         DialogReplyTarget target = targetOpt.get();
         Channel channel = dialogReplyTransportService.loadChannel(target.channelId()).orElse(null);
-        if (channel == null || !StringUtils.hasText(channel.getToken())) {
+        if (channel == null) {
+            return DialogReplyResult.error("Канал Telegram не найден.");
+        }
+        if (dialogReplyTargetService.hasWebFormSession(ticketId)) {
+            int updated = dialogReplyTargetService.markOperatorMessageDeleted(ticketId, telegramMessageId);
+            if (updated == 0) {
+                return DialogReplyResult.error("Сообщение оператора не найдено.");
+            }
+            String responsible = dialogResponsibilityService.assignResponsibleIfMissing(ticketId, operator);
+            return DialogReplyResult.success(OffsetDateTime.now().toString(), telegramMessageId, responsible);
+        }
+        if (!StringUtils.hasText(channel.getToken())) {
             return DialogReplyResult.error("Канал Telegram не найден.");
         }
         String transportError = dialogReplyTransportService.deleteTelegramMessage(channel, target.userId(), telegramMessageId);

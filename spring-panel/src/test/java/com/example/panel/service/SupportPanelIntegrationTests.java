@@ -489,12 +489,17 @@ class SupportPanelIntegrationTests {
         DialogReplyService.DialogReplyResult reply = dialogReplyService.sendReply(session.ticketId(), "Подскажите номер заказа, пожалуйста.", null, "operator");
 
         assertThat(reply.success()).isTrue();
-        assertThat(reply.telegramMessageId()).isNull();
+        assertThat(reply.telegramMessageId()).isNotNull();
         assertThat(dialogService.loadHistory(session.ticketId(), null))
                 .anySatisfy(message -> {
                     assertThat(message.sender()).isEqualTo("operator");
                     assertThat(message.message()).contains("Подскажите номер заказа");
                 });
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT tg_message_id FROM chat_history WHERE ticket_id = ? AND sender = 'operator' ORDER BY rowid DESC LIMIT 1",
+                Long.class,
+                session.ticketId()
+        )).isEqualTo(reply.telegramMessageId());
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT user_identity FROM ticket_active WHERE ticket_id = ?",
                 String.class,

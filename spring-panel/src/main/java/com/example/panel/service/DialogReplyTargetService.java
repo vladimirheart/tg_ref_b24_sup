@@ -66,6 +66,18 @@ public class DialogReplyTargetService {
         return timestamp;
     }
 
+    public Long nextLocalTelegramMessageId(String ticketId) {
+        if (!StringUtils.hasText(ticketId)) {
+            return 1L;
+        }
+        Long max = jdbcTemplate.queryForObject("""
+                SELECT COALESCE(MAX(tg_message_id), 0)
+                  FROM chat_history
+                 WHERE ticket_id = ?
+                """, Long.class, ticketId);
+        return (max != null ? max : 0L) + 1L;
+    }
+
     public String logOutgoingMediaMessage(DialogReplyTarget target,
                                           String ticketId,
                                           String caption,
