@@ -1678,7 +1678,8 @@ integration-сценария поверх users/settings runtime boundary всё
   обязательного `operator_action_guards`, а live
   `DialogQuickActionsIntegrationTest` закрепляет downstream continuity для
   `take -> categories -> spam` поверх `/api/dialogs`, `details` и
-  `workspace`.
+  `workspace`; repeated `details/workspace` reread теперь тоже прикрыт и
+  подтверждает сохранение owner/category/event trail после post-action refresh.
 - следующим contract-пакетом выровнен и controller/runtime boundary у
   `/api/dialogs/{ticketId}/categories`: endpoint теперь обёрнут в
   `withQuickActionTiming`, возвращает normalized `categories`, пишет explicit

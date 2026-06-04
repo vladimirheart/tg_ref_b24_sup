@@ -559,6 +559,29 @@ class DialogQuickActionsIntegrationTest {
                 .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("categories: success (categories_updated)")))
                 .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("mark_spam: success (blacklisted_user=920103)")));
 
+        mockMvc.perform(get("/api/dialogs/T-QA-TAKE")
+                        .param("channelId", "103")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.ticketId").value("T-QA-TAKE"))
+                .andExpect(jsonPath("$.summary.rawResponsible").value("watcher_owner"))
+                .andExpect(jsonPath("$.categories.length()").value(3))
+                .andExpect(jsonPath("$.categories", hasItem("vip")))
+                .andExpect(jsonPath("$.categories", hasItem("priority")))
+                .andExpect(jsonPath("$.categories", hasItem("Спам")));
+
+        mockMvc.perform(get("/api/dialogs/T-QA-TAKE/workspace")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.conversation.ticketId").value("T-QA-TAKE"))
+                .andExpect(jsonPath("$.workflow.responsible.username").value("watcher_owner"))
+                .andExpect(jsonPath("$.workflow.actions.take.enabled").value(false))
+                .andExpect(jsonPath("$.workflow.actions.categories.enabled").value(true))
+                .andExpect(jsonPath("$.workflow.actions.spam.enabled").value(true))
+                .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("take: success (responsible_assigned)")))
+                .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("categories: success (categories_updated)")))
+                .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("mark_spam: success (blacklisted_user=920103)")));
+
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT responsible FROM ticket_responsibles WHERE ticket_id = ?",
                 String.class,

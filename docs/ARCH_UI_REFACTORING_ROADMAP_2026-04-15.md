@@ -1484,7 +1484,9 @@
   `workflow.actions.spam`, parity-layer требует их как часть
   `operator_action_guards`, а live `DialogQuickActionsIntegrationTest`
   отдельно закрепляет `take -> categories -> spam` continuity на
-  `/api/dialogs`, `/api/dialogs/{ticketId}` и `/workspace`.
+  `/api/dialogs`, `/api/dialogs/{ticketId}` и `/workspace`; repeated
+  `details/workspace` reread теперь тоже прикрыт и не теряет owner,
+  categories и audit/event trail.
 - следующим contract-пакетом выровнен и сам `/api/dialogs/{ticketId}/categories`:
   quick action теперь проходит через `withQuickActionTiming`, возвращает
   normalized `categories`, пишет explicit `categories success`
