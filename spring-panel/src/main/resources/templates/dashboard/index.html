@@ -981,7 +981,7 @@
                   <span class="activity-heatmap-legend__swatch"></span>
                   Меньше → больше обращений
                 </span>
-                <span class="activity-heatmap-legend__hours">
+                <span class="activity-heatmap-legend__hours" id="activityHeatmapWorkingHours">
                   <span class="activity-heatmap-legend__line"></span>
                   Рабочее время 09:00 - 18:00
                 </span>
@@ -1760,6 +1760,7 @@ function renderActivityHeatmap(activityStats) {
   const container = document.getElementById('activityHeatmap');
   const label = document.getElementById('activityHeatmapLabel');
   const count = document.getElementById('activityHeatmapCount');
+  const workingHoursLegend = document.getElementById('activityHeatmapWorkingHours');
   if (!container || !label || !count) {
     return;
   }
@@ -1769,6 +1770,11 @@ function renderActivityHeatmap(activityStats) {
   const maxCount = Number(activityStats?.max_count || 0);
   const businessStart = Number(activityStats?.business_hours_start ?? 9);
   const businessEnd = Number(activityStats?.business_hours_end ?? 18);
+  const workingHoursLabel = String(activityStats?.business_hours_label || `${String(businessStart).padStart(2, '0')}:00 - ${String(businessEnd).padStart(2, '0')}:00`);
+  const workingHoursSourceLabel = String(activityStats?.business_hours_source_label || '').trim();
+  if (workingHoursLegend) {
+    workingHoursLegend.innerHTML = `<span class="activity-heatmap-legend__line"></span>Рабочее время ${workingHoursLabel}${workingHoursSourceLabel ? ` · ${workingHoursSourceLabel}` : ''}`;
+  }
 
   if (!matrix.length || !hourLabels.length) {
     container.innerHTML = '<div class="text-center text-muted py-3" style="grid-column: 1 / -1;">Нет данных</div>';

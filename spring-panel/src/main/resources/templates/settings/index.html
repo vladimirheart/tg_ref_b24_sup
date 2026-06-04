@@ -6747,6 +6747,30 @@
                     <div class="channel-editor-section__head">
                       <div>
                         <h6 class="channel-editor-section__title">
+                          <i class="bi bi-clock-history" aria-hidden="true"></i>
+                          Рабочее время канала
+                        </h6>
+                        <p class="channel-editor-section__hint">Интервал используется на dashboard для подписи и подсветки рабочего окна в heatmap именно для этого канала.</p>
+                      </div>
+                    </div>
+                    <div class="row g-3">
+                      <div class="col-12 col-md-6">
+                        <label class="form-label" for="channelEditorWorkingHoursStart">Начало рабочего времени</label>
+                        <input class="form-control" type="number" id="channelEditorWorkingHoursStart" min="0" max="23" step="1" />
+                        <div class="form-text small">Час начала в формате `0-23`.</div>
+                      </div>
+                      <div class="col-12 col-md-6">
+                        <label class="form-label" for="channelEditorWorkingHoursEnd">Конец рабочего времени</label>
+                        <input class="form-control" type="number" id="channelEditorWorkingHoursEnd" min="1" max="24" step="1" />
+                        <div class="form-text small">Час окончания в формате `1-24`. Конец должен быть позже начала.</div>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section class="channel-editor-section">
+                    <div class="channel-editor-section__head">
+                      <div>
+                        <h6 class="channel-editor-section__title">
                           <i class="bi bi-diagram-3" aria-hidden="true"></i>
                           Маршрут плановых сообщений
                         </h6>
@@ -20811,6 +20835,8 @@
   const channelEditorPanelNotifDepartmentInput = document.getElementById('channelEditorPanelNotifDepartment');
   const channelEditorPanelNotifEmployeesInput = document.getElementById('channelEditorPanelNotifEmployees');
   const channelEditorPanelNotifExcludeInput = document.getElementById('channelEditorPanelNotifExclude');
+  const channelEditorWorkingHoursStartInput = document.getElementById('channelEditorWorkingHoursStart');
+  const channelEditorWorkingHoursEndInput = document.getElementById('channelEditorWorkingHoursEnd');
   const channelEditorScheduleToGroupInput = document.getElementById('channelEditorScheduleToGroup');
   const channelEditorScheduleToChannelInput = document.getElementById('channelEditorScheduleToChannel');
   const channelEditorScheduleSimultaneousInput = document.getElementById('channelEditorScheduleSimultaneous');
@@ -21141,6 +21167,19 @@
       return Object.assign({}, raw);
     }
     return {};
+  }
+
+  function normalizeChannelWorkingHours(raw) {
+    const source = raw && typeof raw === 'object' ? raw : {};
+    const startRaw = Number.parseInt(source.start_hour ?? source.startHour ?? source.start ?? 9, 10);
+    const endRaw = Number.parseInt(source.end_hour ?? source.endHour ?? source.end ?? 18, 10);
+    const startHour = Number.isFinite(startRaw) ? Math.max(0, Math.min(23, startRaw)) : 9;
+    const endCandidate = Number.isFinite(endRaw) ? Math.max(1, Math.min(24, endRaw)) : 18;
+    const endHour = endCandidate <= startHour ? Math.min(24, startHour + 1) : endCandidate;
+    return {
+      start_hour: startHour,
+      end_hour: endHour,
+    };
   }
 
   function slugifyIntegrationNetworkProfileName(value) {
@@ -22674,6 +22713,7 @@
     const platformConfig = parsePlatformConfig(channel.platform_config);
     const supportChatValue = channel.support_chat_id ?? '';
     const deliverySettings = parseDeliverySettings(channel.delivery_settings);
+    const workingHours = normalizeChannelWorkingHours(deliverySettings.working_hours);
     const panelNotifications = channel.questions_cfg?.panelNotifications || defaultChannelPanelNotifications();
     const panelRouting = panelNotifications.routing || defaultChannelPanelNotifications().routing;
     const panelEvents = panelNotifications.events || defaultChannelPanelNotifications().events;
@@ -22707,6 +22747,12 @@
       channelEditorPanelNotifExcludeInput.value = Array.isArray(panelRouting.excludeUsernames)
         ? panelRouting.excludeUsernames.join(', ')
         : '';
+    }
+    if (channelEditorWorkingHoursStartInput) {
+      channelEditorWorkingHoursStartInput.value = String(workingHours.start_hour);
+    }
+    if (channelEditorWorkingHoursEndInput) {
+      channelEditorWorkingHoursEndInput.value = String(workingHours.end_hour);
     }
     updateChannelPanelNotificationRoutingState();
     if (channelEditorScheduleToGroupInput) {
@@ -23579,7 +23625,10 @@
       body.support_chat_id = supportValue || null;
     }
 
+    const currentChannel = CHANNELS_REGISTRY.get(String(id));
     const channelRoute = collectRouteFromInputs('channel');
+    const workingHoursStart = Number.parseInt(channelEditorWorkingHoursStartInput?.value || '9', 10);
+    const workingHoursEnd = Number.parseInt(channelEditorWorkingHoursEndInput?.value || '18', 10);
     if (channelRoute.mode === 'profile' && !(channelRoute.profile_ids || []).length) {
       showPopup('Для бота в режиме «Профиль» выберите хотя бы один профиль failover.');
       return;
@@ -23588,16 +23637,34 @@
       showPopup('Для VLESS-маршрута бота заполните token.');
       return;
     }
+    if (!Number.isFinite(workingHoursStart) || workingHoursStart < 0 || workingHoursStart > 23) {
+      showPopup('Начало рабочего времени должно быть в диапазоне от 0 до 23.');
+      return;
+    }
+    if (!Number.isFinite(workingHoursEnd) || workingHoursEnd < 1 || workingHoursEnd > 24) {
+      showPopup('Конец рабочего времени должен быть в диапазоне от 1 до 24.');
+      return;
+    }
+    if (workingHoursEnd <= workingHoursStart) {
+      showPopup('Конец рабочего времени должен быть позже начала.');
+      return;
+    }
+    const workingHours = normalizeChannelWorkingHours({
+      start_hour: workingHoursStart,
+      end_hour: workingHoursEnd,
+    });
+    const existingDeliverySettings = parseDeliverySettings(currentChannel?.delivery_settings);
 
     body.delivery_settings = {
+      ...existingDeliverySettings,
       broadcast_channel_id: channelEditorBroadcastChannelInput?.value?.trim() || null,
       schedule_to_group: channelEditorScheduleToGroupInput?.checked ?? true,
       schedule_to_channel: channelEditorScheduleToChannelInput?.checked ?? false,
       schedule_simultaneous: channelEditorScheduleSimultaneousInput?.checked ?? false,
       network_route: channelRoute,
+      working_hours: workingHours,
     };
 
-    const currentChannel = CHANNELS_REGISTRY.get(String(id));
     const currentPlatform = String(currentChannel?.platform || '').toLowerCase();
     const currentPlatformConfig = parsePlatformConfig(currentChannel?.platform_config);
     if (currentPlatform === 'telegram') {

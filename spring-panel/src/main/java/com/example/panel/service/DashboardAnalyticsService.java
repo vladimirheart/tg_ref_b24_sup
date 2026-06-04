@@ -1,7 +1,10 @@
 package com.example.panel.service;
 
+import com.example.panel.entity.Channel;
 import com.example.panel.model.dialog.DialogListItem;
+import com.example.panel.repository.ChannelRepository;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -27,12 +30,20 @@ public class DashboardAnalyticsService {
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss");
     private static final DateTimeFormatter DATE_TIME_FORMATTER_SHORT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private static final ZoneId DEFAULT_ZONE = ZoneId.systemDefault();
+    private static final int DEFAULT_BUSINESS_HOURS_START = 9;
+    private static final int DEFAULT_BUSINESS_HOURS_END = 18;
     private static final String UNKNOWN_NETWORK = "Без типа сети";
 
     private final SharedConfigService sharedConfigService;
+    private final ChannelRepository channelRepository;
+    private final ObjectMapper objectMapper;
 
-    public DashboardAnalyticsService(SharedConfigService sharedConfigService) {
+    public DashboardAnalyticsService(SharedConfigService sharedConfigService,
+                                     ChannelRepository channelRepository,
+                                     ObjectMapper objectMapper) {
         this.sharedConfigService = sharedConfigService;
+        this.channelRepository = channelRepository;
+        this.objectMapper = objectMapper;
     }
 
     public record DashboardFilters(LocalDate startDate, LocalDate endDate, List<String> restaurants) {}
@@ -143,6 +154,7 @@ public class DashboardAnalyticsService {
     }
 
     private ActivityStats buildActivityStats(List<DialogListItem> dialogs) {
+        WorkingHoursSelection workingHours = resolveWorkingHoursSelection(dialogs);
         int[][] matrix = new int[7][24];
         Map<LocalDateTime, Integer> byHour = new HashMap<>();
         int peakCount = 0;
@@ -199,9 +211,122 @@ public class DashboardAnalyticsService {
                 rows,
                 hourLabels(),
                 maxCount,
-                9,
-                18
+                workingHours.startHour(),
+                workingHours.endHour(),
+                workingHours.label(),
+                workingHours.sourceLabel()
         );
+    }
+
+    private WorkingHoursSelection resolveWorkingHoursSelection(List<DialogListItem> dialogs) {
+        if (dialogs == null || dialogs.isEmpty()) {
+            return WorkingHoursSelection.defaultSelection();
+        }
+        Map<Long, Long> countsByChannel = dialogs.stream()
+                .map(DialogListItem::channelId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.groupingBy(channelId -> channelId, Collectors.counting()));
+        if (countsByChannel.isEmpty()) {
+            return WorkingHoursSelection.defaultSelection();
+        }
+
+        Map<Long, Channel> channelsById = channelRepository.findAllById(countsByChannel.keySet()).stream()
+                .filter(channel -> channel.getId() != null)
+                .collect(Collectors.toMap(Channel::getId, channel -> channel));
+        if (channelsById.isEmpty()) {
+            return WorkingHoursSelection.defaultSelection();
+        }
+
+        Map<String, Long> hoursWeights = new HashMap<>();
+        WorkingHoursSelection dominantSelection = null;
+        long dominantCount = -1L;
+        long dominantChannelId = Long.MAX_VALUE;
+        for (Map.Entry<Long, Long> entry : countsByChannel.entrySet()) {
+            Channel channel = channelsById.get(entry.getKey());
+            WorkingHours hours = extractWorkingHours(channel);
+            String key = hours.startHour() + ":" + hours.endHour();
+            hoursWeights.merge(key, entry.getValue(), Long::sum);
+            long channelId = entry.getKey() == null ? Long.MAX_VALUE : entry.getKey();
+            if (entry.getValue() > dominantCount || (entry.getValue() == dominantCount && channelId < dominantChannelId)) {
+                dominantCount = entry.getValue();
+                dominantChannelId = channelId;
+                String sourceLabel = channel != null && StringUtils.hasText(channel.getChannelName())
+                        ? "Основной канал: " + channel.getChannelName().trim()
+                        : "";
+                dominantSelection = new WorkingHoursSelection(
+                        hours.startHour(),
+                        hours.endHour(),
+                        formatWorkingHoursLabel(hours.startHour(), hours.endHour()),
+                        sourceLabel
+                );
+            }
+        }
+
+        if (dominantSelection == null) {
+            return WorkingHoursSelection.defaultSelection();
+        }
+        if (hoursWeights.size() <= 1) {
+            return new WorkingHoursSelection(
+                    dominantSelection.startHour(),
+                    dominantSelection.endHour(),
+                    dominantSelection.label(),
+                    ""
+            );
+        }
+        return dominantSelection;
+    }
+
+    private WorkingHours extractWorkingHours(Channel channel) {
+        if (channel == null || !StringUtils.hasText(channel.getDeliverySettings())) {
+            return WorkingHours.defaultHours();
+        }
+        try {
+            JsonNode deliverySettings = objectMapper.readTree(channel.getDeliverySettings());
+            JsonNode workingHoursNode = deliverySettings.path("working_hours");
+            int startHour = readHourValue(workingHoursNode, DEFAULT_BUSINESS_HOURS_START, 0, 23,
+                    "start_hour", "startHour", "start");
+            int endCandidate = readHourValue(workingHoursNode, DEFAULT_BUSINESS_HOURS_END, 1, 24,
+                    "end_hour", "endHour", "end");
+            int endHour = endCandidate <= startHour ? Math.min(24, startHour + 1) : endCandidate;
+            return new WorkingHours(startHour, endHour);
+        } catch (Exception ignored) {
+            return WorkingHours.defaultHours();
+        }
+    }
+
+    private int readHourValue(JsonNode node, int defaultValue, int min, int max, String... fieldNames) {
+        if (node == null || node.isMissingNode() || node.isNull()) {
+            return defaultValue;
+        }
+        for (String fieldName : fieldNames) {
+            JsonNode valueNode = node.path(fieldName);
+            if (valueNode.isMissingNode() || valueNode.isNull()) {
+                continue;
+            }
+            Integer parsed = parseInteger(valueNode.asText(null));
+            if (parsed == null && valueNode.isNumber()) {
+                parsed = valueNode.asInt();
+            }
+            if (parsed != null) {
+                return Math.max(min, Math.min(max, parsed));
+            }
+        }
+        return defaultValue;
+    }
+
+    private Integer parseInteger(String value) {
+        if (!StringUtils.hasText(value)) {
+            return null;
+        }
+        try {
+            return Integer.parseInt(value.trim());
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
+    }
+
+    private String formatWorkingHoursLabel(int startHour, int endHour) {
+        return String.format(Locale.ROOT, "%02d:00 - %02d:00", startHour, endHour);
     }
 
     private ChartsBlock buildCharts(List<DialogListItem> dialogs) {
@@ -581,7 +706,9 @@ public class DashboardAnalyticsService {
                                  List<String> hourLabels,
                                  int maxCount,
                                  int businessHoursStart,
-                                 int businessHoursEnd) {
+                                 int businessHoursEnd,
+                                 String businessHoursLabel,
+                                 String businessHoursSourceLabel) {
         Map<String, Object> toMap() {
             return Map.of(
                     "avg_per_active_hour", avgPerActiveHour,
@@ -593,7 +720,29 @@ public class DashboardAnalyticsService {
                     "hour_labels", hourLabels,
                     "max_count", maxCount,
                     "business_hours_start", businessHoursStart,
-                    "business_hours_end", businessHoursEnd
+                    "business_hours_end", businessHoursEnd,
+                    "business_hours_label", businessHoursLabel,
+                    "business_hours_source_label", businessHoursSourceLabel
+            );
+        }
+    }
+
+    private record WorkingHours(int startHour, int endHour) {
+        private static WorkingHours defaultHours() {
+            return new WorkingHours(DEFAULT_BUSINESS_HOURS_START, DEFAULT_BUSINESS_HOURS_END);
+        }
+    }
+
+    private record WorkingHoursSelection(int startHour,
+                                         int endHour,
+                                         String label,
+                                         String sourceLabel) {
+        private static WorkingHoursSelection defaultSelection() {
+            return new WorkingHoursSelection(
+                    DEFAULT_BUSINESS_HOURS_START,
+                    DEFAULT_BUSINESS_HOURS_END,
+                    String.format(Locale.ROOT, "%02d:00 - %02d:00", DEFAULT_BUSINESS_HOURS_START, DEFAULT_BUSINESS_HOURS_END),
+                    ""
             );
         }
     }
