@@ -1702,6 +1702,12 @@ integration-сценария поверх users/settings runtime boundary всё
   operator reply появляется в details/history, получает audit row и сразу
   виден в `workspace.context.related_events`; следующий `details/workspace`
   reread тоже отдельно закреплён и не теряет reply-side continuity.
+- следующим более широким runtime-пакетом этот write-side mutation слой
+  добран и на live transport-spy integration: `reply -> edit -> delete`
+  теперь закрепляет `originalMessage/editedAt/deletedAt` continuity в
+  `details/history`, а `reply_media` отдельно подтверждает attachment/message
+  projection и audit visibility в `workspace.context.related_events`; repeated
+  reread для обеих веток тоже остаётся зелёным.
 - следующим follow-up пакетом закрыт и remaining `snooze` drift между runtime
   и workspace: `DialogWorkspaceWorkflowSnapshotService` теперь проецирует
   explicit `workflow.actions.snooze`, parity-layer считает его частью

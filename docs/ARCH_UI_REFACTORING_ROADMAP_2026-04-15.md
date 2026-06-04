@@ -1510,6 +1510,12 @@
   operator message без legacy-only обходов; follow-up reread теперь тоже
   прикрыт live integration и подтверждает, что следующий `details/workspace`
   refresh не теряет reply continuity.
+- следующим более широким runtime-пакетом этот же write-side mutation surface
+  добран уже и на live transport-spy уровне: `reply -> edit -> delete`
+  сценарий теперь подтверждает `originalMessage/editedAt/deletedAt` continuity
+  в `details/history`, а `reply_media` отдельно закреплён на attachment/message
+  projection и `workspace.context.related_events`; repeated reread для обеих
+  веток тоже не теряет audit trail.
 - следующим follow-up пакетом закрыт и remaining `snooze` drift между runtime
   и workspace: `DialogWorkspaceWorkflowSnapshotService` теперь проецирует
   explicit `workflow.actions.snooze`, parity-layer считает его частью

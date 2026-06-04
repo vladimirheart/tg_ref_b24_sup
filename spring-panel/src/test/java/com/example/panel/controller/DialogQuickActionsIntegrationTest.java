@@ -1,5 +1,7 @@
 package com.example.panel.controller;
 
+import com.example.panel.entity.Channel;
+import com.example.panel.service.DialogReplyTransportService;
 import com.example.panel.service.SharedConfigService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -7,8 +9,10 @@ import org.junit.jupiter.api.TestInstance;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -26,6 +30,11 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.startsWith;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doReturn;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -44,16 +53,19 @@ class DialogQuickActionsIntegrationTest {
     private static Path dbFile;
     private static Path usersDbFile;
     private static Path sharedConfigDir;
+    private static Path attachmentsDir;
 
     @DynamicPropertySource
     static void sqlite(DynamicPropertyRegistry registry) throws IOException {
         dbFile = Files.createTempFile("panel-dialog-quick-actions", ".db");
         usersDbFile = Files.createTempFile("panel-dialog-quick-actions-users", ".db");
         sharedConfigDir = Files.createTempDirectory("panel-dialog-quick-actions-shared-config");
+        attachmentsDir = Files.createTempDirectory("panel-dialog-quick-actions-attachments");
         initializeUsersDb(usersDbFile);
         registry.add("app.datasource.sqlite.path", () -> dbFile.toString());
         registry.add("app.datasource.users-sqlite.path", () -> usersDbFile.toString());
         registry.add("shared-config.dir", () -> sharedConfigDir.toString());
+        registry.add("app.storage.attachments", () -> attachmentsDir.toString());
     }
 
     private static void initializeUsersDb(Path path) {
@@ -100,6 +112,9 @@ class DialogQuickActionsIntegrationTest {
 
     @Autowired
     private SharedConfigService sharedConfigService;
+
+    @SpyBean
+    private DialogReplyTransportService dialogReplyTransportService;
 
     @BeforeEach
     void clean() {
@@ -463,6 +478,169 @@ class DialogQuickActionsIntegrationTest {
                 "T-QA-REPLY"
         )).isEqualTo("watcher_owner");
         assertThat(countAuditRows("T-QA-REPLY", "reply", "success")).isEqualTo(1);
+    }
+
+    @Test
+    void quickActionsApiReplyEditDeleteRefreshesDetailsWorkspaceAndAuditTrail() throws Exception {
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        insertDirectoryUser("watcher_owner", true, false, 1L, "Support", "Watcher Owner", "Ops", "/img/owner.png");
+
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
+                VALUES (106, 'token106', 'Quick Actions Edit Delete', 'telegram', 1, CURRENT_TIMESTAMP)
+                """);
+        insertDialogTicket(920106L, "T-QA-MUTATE", 106L, "quick_mutate_user", "Клиент Mutate", "Retail", "Тверь", "Точка Mutate", "Проверка reply/edit/delete", "2026-06-04T10:00:00Z", 10601L);
+        insertHistoryRow("T-QA-MUTATE", 920106L, "user", "Клиент ждёт уточнение", "2026-06-04T10:01:00Z", "text", 1601L, null, 106L);
+
+        doReturn(new DialogReplyTransportService.DialogReplyTransportResult(null, 1602L))
+                .when(dialogReplyTransportService)
+                .sendText(any(Channel.class), eq(920106L), eq("Первичный операторский ответ"), isNull());
+        doReturn(null)
+                .when(dialogReplyTransportService)
+                .editTelegramMessage(any(Channel.class), eq(920106L), eq(1602L), eq("Уточнённый операторский ответ"));
+        doReturn(null)
+                .when(dialogReplyTransportService)
+                .deleteTelegramMessage(any(Channel.class), eq(920106L), eq(1602L));
+
+        mockMvc.perform(post("/api/dialogs/T-QA-MUTATE/reply")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "message": "Первичный операторский ответ"
+                                }
+                                """)
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.telegramMessageId").value(1602))
+                .andExpect(jsonPath("$.responsible").value("watcher_owner"));
+
+        mockMvc.perform(post("/api/dialogs/T-QA-MUTATE/edit")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "telegramMessageId": 1602,
+                                  "message": "Уточнённый операторский ответ"
+                                }
+                                """)
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        mockMvc.perform(post("/api/dialogs/T-QA-MUTATE/delete")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "telegramMessageId": 1602
+                                }
+                                """)
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        mockMvc.perform(get("/api/dialogs/T-QA-MUTATE")
+                        .param("channelId", "106")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.ticketId").value("T-QA-MUTATE"))
+                .andExpect(jsonPath("$.summary.rawResponsible").value("watcher_owner"))
+                .andExpect(jsonPath("$.history.length()").value(2))
+                .andExpect(jsonPath("$.history[1].message").value(""))
+                .andExpect(jsonPath("$.history[1].originalMessage").value("Первичный операторский ответ"))
+                .andExpect(jsonPath("$.history[1].editedAt").isNotEmpty())
+                .andExpect(jsonPath("$.history[1].deletedAt").isNotEmpty());
+
+        mockMvc.perform(get("/api/dialogs/T-QA-MUTATE/workspace")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.conversation.ticketId").value("T-QA-MUTATE"))
+                .andExpect(jsonPath("$.workflow.actions.reply.enabled").value(true))
+                .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("reply: success (message_sent)")))
+                .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("edit: success (message_edited)")))
+                .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("delete: success (message_deleted)")));
+
+        mockMvc.perform(get("/api/dialogs/T-QA-MUTATE")
+                        .param("channelId", "106")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.ticketId").value("T-QA-MUTATE"))
+                .andExpect(jsonPath("$.history[1].message").value(""))
+                .andExpect(jsonPath("$.history[1].originalMessage").value("Первичный операторский ответ"))
+                .andExpect(jsonPath("$.history[1].editedAt").isNotEmpty())
+                .andExpect(jsonPath("$.history[1].deletedAt").isNotEmpty());
+
+        mockMvc.perform(get("/api/dialogs/T-QA-MUTATE/workspace")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.conversation.ticketId").value("T-QA-MUTATE"))
+                .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("reply: success (message_sent)")))
+                .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("edit: success (message_edited)")))
+                .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("delete: success (message_deleted)")));
+
+        assertThat(countAuditRows("T-QA-MUTATE", "reply", "success")).isEqualTo(1);
+        assertThat(countAuditRows("T-QA-MUTATE", "edit", "success")).isEqualTo(1);
+        assertThat(countAuditRows("T-QA-MUTATE", "delete", "success")).isEqualTo(1);
+    }
+
+    @Test
+    void quickActionsApiMediaReplyRefreshesDetailsWorkspaceAndAuditTrail() throws Exception {
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        insertDirectoryUser("watcher_owner", true, false, 1L, "Support", "Watcher Owner", "Ops", "/img/owner.png");
+
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
+                VALUES (107, 'token107', 'Quick Actions Media', 'telegram', 1, CURRENT_TIMESTAMP)
+                """);
+        insertDialogTicket(920107L, "T-QA-MEDIA", 107L, "quick_media_user", "Клиент Media", "Retail", "Кострома", "Точка Media", "Проверка reply media", "2026-06-04T11:00:00Z", 10701L);
+        insertHistoryRow("T-QA-MEDIA", 920107L, "user", "Нужна картинка", "2026-06-04T11:01:00Z", "text", 1701L, null, 107L);
+
+        doReturn(new DialogReplyTransportService.DialogReplyTransportResult(null, 1702L))
+                .when(dialogReplyTransportService)
+                .sendMedia(any(Channel.class), eq(920107L), any(MockMultipartFile.class), eq("Смотрите вложение"), eq("proof.png"));
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart("/api/dialogs/T-QA-MEDIA/media")
+                        .file(new MockMultipartFile("file", "proof.png", "image/png", "png".getBytes()))
+                        .param("message", "Смотрите вложение")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.telegramMessageId").value(1702))
+                .andExpect(jsonPath("$.responsible").value("watcher_owner"))
+                .andExpect(jsonPath("$.messageType").value("image"))
+                .andExpect(jsonPath("$.attachment", startsWith("/api/attachments/tickets/T-QA-MEDIA/")));
+
+        mockMvc.perform(get("/api/dialogs/T-QA-MEDIA")
+                        .param("channelId", "107")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.ticketId").value("T-QA-MEDIA"))
+                .andExpect(jsonPath("$.summary.rawResponsible").value("watcher_owner"))
+                .andExpect(jsonPath("$.history.length()").value(2))
+                .andExpect(jsonPath("$.history[1].message").value("Смотрите вложение"))
+                .andExpect(jsonPath("$.history[1].messageType").value("image"))
+                .andExpect(jsonPath("$.history[1].attachment", startsWith("/api/attachments/tickets/T-QA-MEDIA/")));
+
+        mockMvc.perform(get("/api/dialogs/T-QA-MEDIA/workspace")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.conversation.ticketId").value("T-QA-MEDIA"))
+                .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("reply_media: success (media_sent)")));
+
+        mockMvc.perform(get("/api/dialogs/T-QA-MEDIA")
+                        .param("channelId", "107")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.ticketId").value("T-QA-MEDIA"))
+                .andExpect(jsonPath("$.history[1].messageType").value("image"))
+                .andExpect(jsonPath("$.history[1].attachment", startsWith("/api/attachments/tickets/T-QA-MEDIA/")));
+
+        mockMvc.perform(get("/api/dialogs/T-QA-MEDIA/workspace")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.conversation.ticketId").value("T-QA-MEDIA"))
+                .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("reply_media: success (media_sent)")));
+
+        assertThat(countAuditRows("T-QA-MEDIA", "reply_media", "success")).isEqualTo(1);
     }
 
     @Test
