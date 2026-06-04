@@ -1,6 +1,7 @@
 package com.example.panel.service;
 
 import com.example.panel.model.dialog.DialogListItem;
+import com.fasterxml.jackson.databind.JsonNode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -14,6 +15,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -25,6 +27,13 @@ public class DashboardAnalyticsService {
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss");
     private static final DateTimeFormatter DATE_TIME_FORMATTER_SHORT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private static final ZoneId DEFAULT_ZONE = ZoneId.systemDefault();
+    private static final String UNKNOWN_NETWORK = "Без типа сети";
+
+    private final SharedConfigService sharedConfigService;
+
+    public DashboardAnalyticsService(SharedConfigService sharedConfigService) {
+        this.sharedConfigService = sharedConfigService;
+    }
 
     public record DashboardFilters(LocalDate startDate, LocalDate endDate, List<String> restaurants) {}
 
@@ -132,11 +141,10 @@ public class DashboardAnalyticsService {
     }
 
     private ChartsBlock buildCharts(List<DialogListItem> dialogs) {
-        Map<String, Long> byBusiness = aggregate(dialogs, DialogListItem::businessLabel);
-        Map<String, Long> byNetwork = aggregate(dialogs, dialog -> {
-            String channel = dialog.channelLabel();
-            return StringUtils.hasText(channel) ? channel : "Без канала";
-        });
+        LocationCatalog locationCatalog = loadLocationCatalog();
+        Map<String, Long> byChannel = aggregate(dialogs, DialogListItem::channelLabel);
+        Map<String, Long> byBusiness = aggregate(dialogs, dialog -> resolveBusinessLabel(dialog, locationCatalog));
+        Map<String, Long> byNetwork = aggregate(dialogs, dialog -> resolvePartnerType(dialog, locationCatalog));
         Map<String, Long> byCategory = aggregate(dialogs, dialog -> {
             String categories = dialog.categoriesSafe();
             if (!StringUtils.hasText(categories) || "—".equals(categories)) {
@@ -156,7 +164,7 @@ public class DashboardAnalyticsService {
             return StringUtils.hasText(location) ? location : "Без ресторана";
         });
 
-        return new ChartsBlock(byBusiness, byNetwork, byCategory, byCity, topTen(byRestaurant));
+        return new ChartsBlock(byChannel, byBusiness, byNetwork, byCategory, byCity, topTen(byRestaurant));
     }
 
     private Map<String, Long> aggregate(List<DialogListItem> dialogs, java.util.function.Function<DialogListItem, String> extractor) {
@@ -282,6 +290,164 @@ public class DashboardAnalyticsService {
         return value.trim();
     }
 
+    private LocationCatalog loadLocationCatalog() {
+        JsonNode root = sharedConfigService.loadLocations();
+        if (root == null || root.isMissingNode()) {
+            return LocationCatalog.empty();
+        }
+        JsonNode tree = root.path("tree");
+        if (!tree.isObject()) {
+            return LocationCatalog.empty();
+        }
+
+        Map<String, LocationProfile> exactProfiles = new HashMap<>();
+        Map<String, LocationProfile> businessLocationProfiles = new HashMap<>();
+        Map<String, LocationProfile> businessCityProfiles = new HashMap<>();
+        Map<String, LocationProfile> locationProfiles = new HashMap<>();
+        Map<String, String> businessAliases = new HashMap<>();
+        Set<String> ambiguousBusinessLocations = new java.util.HashSet<>();
+        Set<String> ambiguousLocations = new java.util.HashSet<>();
+
+        tree.fields().forEachRemaining(businessEntry -> {
+            String business = businessEntry.getKey();
+            businessAliases.put(normalizeLookupToken(business), business);
+            JsonNode typeNode = businessEntry.getValue();
+            if (!typeNode.isObject()) {
+                return;
+            }
+            typeNode.fields().forEachRemaining(typeEntry -> {
+                String partnerType = typeEntry.getKey();
+                JsonNode cityNode = typeEntry.getValue();
+                if (!cityNode.isObject()) {
+                    return;
+                }
+                cityNode.fields().forEachRemaining(cityEntry -> {
+                    String city = cityEntry.getKey();
+                    LocationProfile cityProfile = new LocationProfile(business, partnerType);
+                    businessCityProfiles.putIfAbsent(buildLookupKey(business, city), cityProfile);
+                    JsonNode locationsNode = cityEntry.getValue();
+                    if (!locationsNode.isArray()) {
+                        return;
+                    }
+                    locationsNode.forEach(locationNode -> {
+                        String location = locationNode.asText("");
+                        if (!StringUtils.hasText(location)) {
+                            return;
+                        }
+                        LocationProfile profile = new LocationProfile(business, partnerType);
+                        exactProfiles.put(buildLookupKey(business, city, location), profile);
+                        registerUniqueProfile(
+                                businessLocationProfiles,
+                                ambiguousBusinessLocations,
+                                buildLookupKey(business, location),
+                                profile);
+                        registerUniqueProfile(
+                                locationProfiles,
+                                ambiguousLocations,
+                                buildLookupKey(location),
+                                profile);
+                    });
+                });
+            });
+        });
+
+        ambiguousBusinessLocations.forEach(businessLocationProfiles::remove);
+        ambiguousLocations.forEach(locationProfiles::remove);
+
+        return new LocationCatalog(exactProfiles, businessLocationProfiles, businessCityProfiles, locationProfiles, businessAliases);
+    }
+
+    private void registerUniqueProfile(Map<String, LocationProfile> target,
+                                       Set<String> ambiguousKeys,
+                                       String key,
+                                       LocationProfile profile) {
+        if (!StringUtils.hasText(key) || ambiguousKeys.contains(key)) {
+            return;
+        }
+        LocationProfile current = target.get(key);
+        if (current == null) {
+            target.put(key, profile);
+            return;
+        }
+        if (!current.equals(profile)) {
+            ambiguousKeys.add(key);
+        }
+    }
+
+    private String resolveBusinessLabel(DialogListItem dialog, LocationCatalog locationCatalog) {
+        LocationProfile profile = resolveLocationProfile(dialog, locationCatalog);
+        if (profile != null) {
+            return profile.business();
+        }
+        return canonicalBusinessLabel(dialog.businessLabel(), locationCatalog);
+    }
+
+    private String resolvePartnerType(DialogListItem dialog, LocationCatalog locationCatalog) {
+        LocationProfile profile = resolveLocationProfile(dialog, locationCatalog);
+        if (profile != null && StringUtils.hasText(profile.partnerType())) {
+            return profile.partnerType();
+        }
+        return UNKNOWN_NETWORK;
+    }
+
+    private LocationProfile resolveLocationProfile(DialogListItem dialog, LocationCatalog locationCatalog) {
+        if (dialog == null || locationCatalog == null) {
+            return null;
+        }
+        String business = canonicalBusinessLabel(dialog.businessLabel(), locationCatalog);
+        String city = normalizeLookupToken(dialog.city());
+        String location = normalizeLookupToken(dialog.locationName());
+        if (!StringUtils.hasText(location)) {
+            return null;
+        }
+
+        if (StringUtils.hasText(business) && StringUtils.hasText(city)) {
+            LocationProfile exact = locationCatalog.exactProfiles().get(buildLookupKey(business, city, location));
+            if (exact != null) {
+                return exact;
+            }
+        }
+        if (StringUtils.hasText(business)) {
+            LocationProfile businessLocation = locationCatalog.businessLocationProfiles().get(buildLookupKey(business, location));
+            if (businessLocation != null) {
+                return businessLocation;
+            }
+        }
+        if (StringUtils.hasText(business) && StringUtils.hasText(city)) {
+            LocationProfile businessCity = locationCatalog.businessCityProfiles().get(buildLookupKey(business, city));
+            if (businessCity != null) {
+                return businessCity;
+            }
+        }
+        return locationCatalog.locationProfiles().get(buildLookupKey(location));
+    }
+
+    private String canonicalBusinessLabel(String rawBusiness, LocationCatalog locationCatalog) {
+        String normalized = normalizeLookupToken(rawBusiness);
+        if (!StringUtils.hasText(normalized)) {
+            return "Без бизнеса";
+        }
+        return locationCatalog.businessAliases().getOrDefault(normalized, rawBusiness.trim());
+    }
+
+    private String buildLookupKey(String... parts) {
+        return java.util.Arrays.stream(parts)
+                .map(this::normalizeLookupToken)
+                .filter(StringUtils::hasText)
+                .collect(Collectors.joining("::"));
+    }
+
+    private String normalizeLookupToken(String value) {
+        if (!StringUtils.hasText(value)) {
+            return "";
+        }
+        return value.trim()
+                .replace('ё', 'е')
+                .replace('Ё', 'Е')
+                .replaceAll("\\s+", " ")
+                .toLowerCase(Locale.ROOT);
+    }
+
     private String safeLower(String value) {
         return value == null ? "" : value.toLowerCase(Locale.ROOT);
     }
@@ -333,19 +499,33 @@ public class DashboardAnalyticsService {
         }
     }
 
-    private record ChartsBlock(Map<String, Long> business,
+    private record ChartsBlock(Map<String, Long> channel,
+                               Map<String, Long> business,
                                Map<String, Long> network,
                                Map<String, Long> category,
                                Map<String, Long> city,
                                Map<String, Long> restaurant) {
         Map<String, Object> toMap() {
             Map<String, Object> map = new HashMap<>();
+            map.put("channel", channel);
             map.put("business", business);
             map.put("network", network);
             map.put("category", category);
             map.put("city", city);
             map.put("restaurant", restaurant);
             return map;
+        }
+    }
+
+    private record LocationProfile(String business, String partnerType) {}
+
+    private record LocationCatalog(Map<String, LocationProfile> exactProfiles,
+                                   Map<String, LocationProfile> businessLocationProfiles,
+                                   Map<String, LocationProfile> businessCityProfiles,
+                                   Map<String, LocationProfile> locationProfiles,
+                                   Map<String, String> businessAliases) {
+        private static LocationCatalog empty() {
+            return new LocationCatalog(Map.of(), Map.of(), Map.of(), Map.of(), Map.of());
         }
     }
 
