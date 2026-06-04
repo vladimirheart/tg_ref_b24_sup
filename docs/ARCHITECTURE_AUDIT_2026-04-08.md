@@ -1695,13 +1695,15 @@ integration-сценария поверх users/settings runtime boundary всё
   timing guard и пишет explicit `success/error` audit, а live `web_form`
   reply-сценарий закрепляет continuity уже и на write-side message trail:
   operator reply появляется в details/history, получает audit row и сразу
-  виден в `workspace.context.related_events`.
+  виден в `workspace.context.related_events`; следующий `details/workspace`
+  reread тоже отдельно закреплён и не теряет reply-side continuity.
 - следующим follow-up пакетом закрыт и remaining `snooze` drift между runtime
   и workspace: `DialogWorkspaceWorkflowSnapshotService` теперь проецирует
   explicit `workflow.actions.snooze`, parity-layer считает его частью
   `operator_action_guards`, а live integration закрепляет, что `snooze` не
   ломает dialog state, но сразу попадает в `workspace.context.related_events`
-  и audit trail как штатный operator action.
+  и audit trail как штатный operator action; repeated `workspace` reread тоже
+  закреплён и подтверждает сохранение этого event trail.
 - следующий practical focus в `dialog-read/workspace` зоне смещён уже с
   cross-consumer lifecycle parity, basic audit trail, full read refresh loop
   `queue/my_dialogs` rearm parity и `queue/status-owner` lifecycle на ещё

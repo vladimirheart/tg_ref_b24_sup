@@ -389,6 +389,20 @@ class DialogQuickActionsIntegrationTest {
                 .andExpect(jsonPath("$.workflow.actions.reply.enabled").value(true))
                 .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("reply: success (message_sent)")));
 
+        mockMvc.perform(get("/api/dialogs/T-QA-REPLY")
+                        .param("channelId", "104")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.ticketId").value("T-QA-REPLY"))
+                .andExpect(jsonPath("$.history.length()").value(2))
+                .andExpect(jsonPath("$.history[1].message").value("Здравствуйте, уточните номер заказа"));
+
+        mockMvc.perform(get("/api/dialogs/T-QA-REPLY/workspace")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.conversation.ticketId").value("T-QA-REPLY"))
+                .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("reply: success (message_sent)")));
+
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT responsible FROM ticket_responsibles WHERE ticket_id = ?",
                 String.class,
@@ -444,6 +458,13 @@ class DialogQuickActionsIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.conversation.ticketId").value("T-QA-SNOOZE"))
                 .andExpect(jsonPath("$.conversation.statusKey").value("waiting_operator"))
+                .andExpect(jsonPath("$.workflow.actions.snooze.enabled").value(true))
+                .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("snooze: success (minutes=15)")));
+
+        mockMvc.perform(get("/api/dialogs/T-QA-SNOOZE/workspace")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.conversation.ticketId").value("T-QA-SNOOZE"))
                 .andExpect(jsonPath("$.workflow.actions.snooze.enabled").value(true))
                 .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("snooze: success (minutes=15)")));
 
