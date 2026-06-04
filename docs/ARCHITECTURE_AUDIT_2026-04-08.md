@@ -1685,6 +1685,11 @@ integration-сценария поверх users/settings runtime boundary всё
   `categories success` (`categories_updated`/`categories_cleared`) audit и
   мапит missing dialog в `categories not_found` + `404`; это отдельно
   закреплено service, WebMvc и live integration tests.
+- следующим follow-up пакетом в этот же quick-action contract подтянут и
+  `/api/dialogs/{ticketId}/reopen`: endpoint теперь проходит через
+  `withQuickActionTiming`, пишет explicit `reopen success/error/not_found`
+  audit, а live integration закрепляет `resolve -> reopen` continuity уже не
+  только по status/actions, но и по `workspace.context.related_events`.
 - следующий practical focus в `dialog-read/workspace` зоне смещён уже с
   cross-consumer lifecycle parity, basic audit trail, full read refresh loop
   `queue/my_dialogs` rearm parity и `queue/status-owner` lifecycle на ещё

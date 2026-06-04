@@ -161,21 +161,26 @@ public class DialogQuickActionsController {
     @PostMapping("/{ticketId}/reopen")
     public ResponseEntity<?> reopen(@PathVariable String ticketId,
                                     Authentication authentication) {
-        ResponseEntity<Map<String, Object>> permissionDenied = dialogAuthorizationService.requirePermission(authentication, "can_close", "reopen", ticketId);
-        if (permissionDenied != null) {
-            return permissionDenied;
-        }
-        String operator = authentication != null ? authentication.getName() : null;
-        DialogResolveResult result = dialogQuickActionService.reopenTicket(ticketId, operator);
-        if (!result.exists()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(Map.of("success", false, "error", "Диалог не найден"));
-        }
-        if (result.error() != null) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(Map.of("success", false, "error", result.error()));
-        }
-        return ResponseEntity.ok(Map.of("success", true, "updated", result.updated()));
+        return withQuickActionTiming("reopen", ticketId, () -> {
+            ResponseEntity<Map<String, Object>> permissionDenied = dialogAuthorizationService.requirePermission(authentication, "can_close", "reopen", ticketId);
+            if (permissionDenied != null) {
+                return permissionDenied;
+            }
+            String operator = authentication != null ? authentication.getName() : null;
+            DialogResolveResult result = dialogQuickActionService.reopenTicket(ticketId, operator);
+            if (!result.exists()) {
+                dialogAuthorizationService.logDialogAction(operator, ticketId, "reopen", "not_found", "Диалог не найден");
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("success", false, "error", "Диалог не найден"));
+            }
+            if (result.error() != null) {
+                dialogAuthorizationService.logDialogAction(operator, ticketId, "reopen", "error", result.error());
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("success", false, "error", result.error()));
+            }
+            dialogAuthorizationService.logDialogAction(operator, ticketId, "reopen", "success", result.updated() ? "updated" : "noop");
+            return ResponseEntity.ok(Map.of("success", true, "updated", result.updated()));
+        });
     }
 
     @PostMapping("/{ticketId}/spam")

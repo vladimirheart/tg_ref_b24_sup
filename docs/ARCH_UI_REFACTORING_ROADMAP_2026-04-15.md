@@ -1491,6 +1491,11 @@
   (`categories_updated`/`categories_cleared`) audit trail, а missing dialog
   фиксируется как `categories not_found` с `404`; service, controller и live
   integration tests закрывают этот runtime boundary отдельно.
+- следующим follow-up пакетом в тот же controller/runtime contract подтянут и
+  `/api/dialogs/{ticketId}/reopen`: endpoint теперь тоже проходит через
+  `withQuickActionTiming`, пишет explicit `reopen success/error/not_found`
+  audit trail, а live quick-action integration закрепляет, что после
+  `resolve -> reopen` этот audit сразу виден и в `workspace.context.related_events`.
 - следующий practical focus в `dialog workspace/read/details` зоне смещён уже
   с cross-consumer lifecycle parity, basic audit trail, full notification
   refresh loop, `queue/my_dialogs` rearm parity и `queue/status-owner`

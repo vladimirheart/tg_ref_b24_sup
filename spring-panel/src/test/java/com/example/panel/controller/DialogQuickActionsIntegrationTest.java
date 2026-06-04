@@ -318,7 +318,9 @@ class DialogQuickActionsIntegrationTest {
                 .andExpect(jsonPath("$.conversation.statusKey").value("waiting_operator"))
                 .andExpect(jsonPath("$.workflow.actions.resolve.enabled").value(true))
                 .andExpect(jsonPath("$.workflow.actions.reopen.enabled").value(false))
-                .andExpect(jsonPath("$.workflow.actions.reopen.disabled_reason").value("not_closed"));
+                .andExpect(jsonPath("$.workflow.actions.reopen.disabled_reason").value("not_closed"))
+                .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("quick_close: success (updated)")))
+                .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("reopen: success (updated)")));
 
         List<String> categories = jdbcTemplate.query(
                 "SELECT category FROM ticket_categories WHERE ticket_id = ? ORDER BY category",
@@ -327,6 +329,7 @@ class DialogQuickActionsIntegrationTest {
         );
         assertThat(categories).containsExactly("billing", "support");
         assertThat(countAuditRows("T-QA-CLOSE", "quick_close", "success")).isEqualTo(1);
+        assertThat(countAuditRows("T-QA-CLOSE", "reopen", "success")).isEqualTo(1);
     }
 
     @Test

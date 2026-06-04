@@ -302,6 +302,42 @@ class DialogQuickActionsControllerWebMvcTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.updated").value(true));
+
+        verify(dialogAuthorizationService).logDialogAction("operator", "T-609", "reopen", "success", "updated");
+    }
+
+    @Test
+    void reopenReturnsNotFoundWhenDialogMissing() throws Exception {
+        when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_close"), eq("reopen"), eq("T-609NF")))
+            .thenReturn(null);
+        when(dialogQuickActionService.reopenTicket("T-609NF", "operator"))
+            .thenReturn(new DialogResolveResult(false, false, null));
+
+        mockMvc.perform(post("/api/dialogs/T-609NF/reopen")
+                .with(user("operator"))
+                .with(csrf()))
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("Диалог не найден"));
+
+        verify(dialogAuthorizationService).logDialogAction("operator", "T-609NF", "reopen", "not_found", "Диалог не найден");
+    }
+
+    @Test
+    void reopenReturnsBadRequestWhenServiceReturnsDomainError() throws Exception {
+        when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_close"), eq("reopen"), eq("T-609ERR")))
+            .thenReturn(null);
+        when(dialogQuickActionService.reopenTicket("T-609ERR", "operator"))
+            .thenReturn(new DialogResolveResult(false, true, "not_closed"));
+
+        mockMvc.perform(post("/api/dialogs/T-609ERR/reopen")
+                .with(user("operator"))
+                .with(csrf()))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("not_closed"));
+
+        verify(dialogAuthorizationService).logDialogAction("operator", "T-609ERR", "reopen", "error", "not_closed");
     }
 
     @Test
