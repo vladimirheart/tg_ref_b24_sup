@@ -1690,6 +1690,12 @@ integration-сценария поверх users/settings runtime boundary всё
   `withQuickActionTiming`, пишет explicit `reopen success/error/not_found`
   audit, а live integration закрепляет `resolve -> reopen` continuity уже не
   только по status/actions, но и по `workspace.context.related_events`.
+- следующим contract-пакетом в тот же explicit quick-action envelope подтянуты
+  и `reply/edit/delete/reply_media`: controller теперь проводит их через
+  timing guard и пишет explicit `success/error` audit, а live `web_form`
+  reply-сценарий закрепляет continuity уже и на write-side message trail:
+  operator reply появляется в details/history, получает audit row и сразу
+  виден в `workspace.context.related_events`.
 - следующий practical focus в `dialog-read/workspace` зоне смещён уже с
   cross-consumer lifecycle parity, basic audit trail, full read refresh loop
   `queue/my_dialogs` rearm parity и `queue/status-owner` lifecycle на ещё

@@ -63,6 +63,31 @@ class DialogQuickActionsControllerWebMvcTest {
             .andExpect(jsonPath("$.timestamp").value("2026-04-20T08:10:00Z"))
             .andExpect(jsonPath("$.responsible").value("operator"))
             .andExpect(jsonPath("$.telegramMessageId").value(456));
+
+        verify(dialogAuthorizationService).logDialogAction("operator", "T-600", "reply", "success", "message_sent");
+    }
+
+    @Test
+    void replyReturnsBadRequestWhenServiceReturnsDomainError() throws Exception {
+        when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_reply"), eq("reply"), eq("T-600ERR")))
+            .thenReturn(null);
+        when(dialogQuickActionService.sendReply("T-600ERR", "Не отправилось", null, "operator"))
+            .thenReturn(new DialogReplyService.DialogReplyResult(false, "transport_error", null, null, null));
+
+        mockMvc.perform(post("/api/dialogs/T-600ERR/reply")
+                .with(user("operator"))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "message": "Не отправилось"
+                    }
+                    """))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("transport_error"));
+
+        verify(dialogAuthorizationService).logDialogAction("operator", "T-600ERR", "reply", "error", "transport_error");
     }
 
     @Test
@@ -244,6 +269,37 @@ class DialogQuickActionsControllerWebMvcTest {
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.error").value("file_too_large"));
+
+        verify(dialogAuthorizationService).logDialogAction("operator", "T-606", "reply_media", "error", "file_too_large");
+    }
+
+    @Test
+    void mediaReplyReturnsPayloadAndAuditOnSuccess() throws Exception {
+        when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_reply"), eq("reply_media"), eq("T-606OK")))
+            .thenReturn(null);
+        when(dialogQuickActionService.sendMediaReply(eq("T-606OK"), org.mockito.ArgumentMatchers.any(), eq("caption"), eq("operator"), org.mockito.ArgumentMatchers.any()))
+            .thenReturn(Map.of(
+                    "success", true,
+                    "timestamp", "2026-05-21T18:09:00Z",
+                    "telegramMessageId", 812L,
+                    "responsible", "operator",
+                    "attachment", "/api/attachments/tickets/T-606OK/reply.png",
+                    "messageType", "image",
+                    "message", "caption"
+            ));
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart("/api/dialogs/T-606OK/media")
+                .file("file", "hello".getBytes())
+                .param("message", "caption")
+                .with(user("operator"))
+                .with(csrf()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.timestamp").value("2026-05-21T18:09:00Z"))
+            .andExpect(jsonPath("$.responsible").value("operator"))
+            .andExpect(jsonPath("$.messageType").value("image"));
+
+        verify(dialogAuthorizationService).logDialogAction("operator", "T-606OK", "reply_media", "success", "media_sent");
     }
 
     @Test
@@ -266,6 +322,32 @@ class DialogQuickActionsControllerWebMvcTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.timestamp").value("2026-05-21T18:10:00Z"));
+
+        verify(dialogAuthorizationService).logDialogAction("operator", "T-607", "edit", "success", "message_edited");
+    }
+
+    @Test
+    void editReturnsBadRequestWhenServiceReturnsError() throws Exception {
+        when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_reply"), eq("edit"), eq("T-607ERR")))
+            .thenReturn(null);
+        when(dialogQuickActionService.editReply("T-607ERR", 701L, "Не обновилось", "operator"))
+            .thenReturn(new DialogReplyService.DialogReplyResult(false, "message_not_found", null, null, null));
+
+        mockMvc.perform(post("/api/dialogs/T-607ERR/edit")
+                .with(user("operator"))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "telegramMessageId": 701,
+                      "message": "Не обновилось"
+                    }
+                    """))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("message_not_found"));
+
+        verify(dialogAuthorizationService).logDialogAction("operator", "T-607ERR", "edit", "error", "message_not_found");
     }
 
     @Test
@@ -287,6 +369,31 @@ class DialogQuickActionsControllerWebMvcTest {
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.success").value(false))
             .andExpect(jsonPath("$.error").value("message_not_found"));
+
+        verify(dialogAuthorizationService).logDialogAction("operator", "T-608", "delete", "error", "message_not_found");
+    }
+
+    @Test
+    void deleteReturnsTimestampOnSuccess() throws Exception {
+        when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_reply"), eq("delete"), eq("T-608OK")))
+            .thenReturn(null);
+        when(dialogQuickActionService.deleteReply("T-608OK", 702L, "operator"))
+            .thenReturn(new DialogReplyService.DialogReplyResult(true, null, "2026-05-21T18:11:00Z", 702L, "operator"));
+
+        mockMvc.perform(post("/api/dialogs/T-608OK/delete")
+                .with(user("operator"))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "telegramMessageId": 702
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.timestamp").value("2026-05-21T18:11:00Z"));
+
+        verify(dialogAuthorizationService).logDialogAction("operator", "T-608OK", "delete", "success", "message_deleted");
     }
 
     @Test

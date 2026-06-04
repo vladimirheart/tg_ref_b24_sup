@@ -1496,6 +1496,12 @@
   `withQuickActionTiming`, пишет explicit `reopen success/error/not_found`
   audit trail, а live quick-action integration закрепляет, что после
   `resolve -> reopen` этот audit сразу виден и в `workspace.context.related_events`.
+- следующим contract-пакетом в тот же explicit quick-action envelope подтянуты
+  и `reply/edit/delete/reply_media`: controller теперь оборачивает их в
+  timing-guard и пишет explicit `success/error` audit trail, а live
+  `web_form` reply-сценарий закрепляет, что после operator reply audit сразу
+  виден в `workspace.context.related_events`, а details/history получают новое
+  operator message без legacy-only обходов.
 - следующий practical focus в `dialog workspace/read/details` зоне смещён уже
   с cross-consumer lifecycle parity, basic audit trail, full notification
   refresh loop, `queue/my_dialogs` rearm parity и `queue/status-owner`

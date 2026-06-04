@@ -47,70 +47,82 @@ public class DialogQuickActionsController {
     public ResponseEntity<?> reply(@PathVariable String ticketId,
                                    @RequestBody DialogReplyRequest request,
                                    Authentication authentication) {
-        ResponseEntity<Map<String, Object>> permissionDenied = dialogAuthorizationService.requirePermission(authentication, "can_reply", "reply", ticketId);
-        if (permissionDenied != null) {
-            return permissionDenied;
-        }
-        String operator = authentication != null ? authentication.getName() : null;
-        DialogReplyService.DialogReplyResult result = dialogQuickActionService.sendReply(
-                ticketId,
-                request.message(),
-                request.replyToTelegramId(),
-                operator
-        );
-        if (!result.success()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(Map.of("success", false, "error", result.error()));
-        }
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("success", true);
-        payload.put("timestamp", result.timestamp());
-        payload.put("telegramMessageId", result.telegramMessageId());
-        payload.put("responsible", result.responsible());
-        return ResponseEntity.ok(payload);
+        return withQuickActionTiming("reply", ticketId, () -> {
+            ResponseEntity<Map<String, Object>> permissionDenied = dialogAuthorizationService.requirePermission(authentication, "can_reply", "reply", ticketId);
+            if (permissionDenied != null) {
+                return permissionDenied;
+            }
+            String operator = authentication != null ? authentication.getName() : null;
+            DialogReplyService.DialogReplyResult result = dialogQuickActionService.sendReply(
+                    ticketId,
+                    request.message(),
+                    request.replyToTelegramId(),
+                    operator
+            );
+            if (!result.success()) {
+                dialogAuthorizationService.logDialogAction(operator, ticketId, "reply", "error", result.error());
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("success", false, "error", result.error()));
+            }
+            dialogAuthorizationService.logDialogAction(operator, ticketId, "reply", "success", "message_sent");
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("success", true);
+            payload.put("timestamp", result.timestamp());
+            payload.put("telegramMessageId", result.telegramMessageId());
+            payload.put("responsible", result.responsible());
+            return ResponseEntity.ok(payload);
+        });
     }
 
     @PostMapping("/{ticketId}/edit")
     public ResponseEntity<?> editMessage(@PathVariable String ticketId,
                                          @RequestBody DialogEditRequest request,
                                          Authentication authentication) {
-        ResponseEntity<Map<String, Object>> permissionDenied = dialogAuthorizationService.requirePermission(authentication, "can_reply", "edit", ticketId);
-        if (permissionDenied != null) {
-            return permissionDenied;
-        }
-        String operator = authentication != null ? authentication.getName() : null;
-        DialogReplyService.DialogReplyResult result = dialogQuickActionService.editReply(
-                ticketId,
-                request.telegramMessageId(),
-                request.message(),
-                operator
-        );
-        if (!result.success()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(Map.of("success", false, "error", result.error()));
-        }
-        return ResponseEntity.ok(Map.of("success", true, "timestamp", result.timestamp()));
+        return withQuickActionTiming("edit", ticketId, () -> {
+            ResponseEntity<Map<String, Object>> permissionDenied = dialogAuthorizationService.requirePermission(authentication, "can_reply", "edit", ticketId);
+            if (permissionDenied != null) {
+                return permissionDenied;
+            }
+            String operator = authentication != null ? authentication.getName() : null;
+            DialogReplyService.DialogReplyResult result = dialogQuickActionService.editReply(
+                    ticketId,
+                    request.telegramMessageId(),
+                    request.message(),
+                    operator
+            );
+            if (!result.success()) {
+                dialogAuthorizationService.logDialogAction(operator, ticketId, "edit", "error", result.error());
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("success", false, "error", result.error()));
+            }
+            dialogAuthorizationService.logDialogAction(operator, ticketId, "edit", "success", "message_edited");
+            return ResponseEntity.ok(Map.of("success", true, "timestamp", result.timestamp()));
+        });
     }
 
     @PostMapping("/{ticketId}/delete")
     public ResponseEntity<?> deleteMessage(@PathVariable String ticketId,
                                            @RequestBody DialogDeleteRequest request,
                                            Authentication authentication) {
-        ResponseEntity<Map<String, Object>> permissionDenied = dialogAuthorizationService.requirePermission(authentication, "can_reply", "delete", ticketId);
-        if (permissionDenied != null) {
-            return permissionDenied;
-        }
-        String operator = authentication != null ? authentication.getName() : null;
-        DialogReplyService.DialogReplyResult result = dialogQuickActionService.deleteReply(
-                ticketId,
-                request.telegramMessageId(),
-                operator
-        );
-        if (!result.success()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(Map.of("success", false, "error", result.error()));
-        }
-        return ResponseEntity.ok(Map.of("success", true, "timestamp", result.timestamp()));
+        return withQuickActionTiming("delete", ticketId, () -> {
+            ResponseEntity<Map<String, Object>> permissionDenied = dialogAuthorizationService.requirePermission(authentication, "can_reply", "delete", ticketId);
+            if (permissionDenied != null) {
+                return permissionDenied;
+            }
+            String operator = authentication != null ? authentication.getName() : null;
+            DialogReplyService.DialogReplyResult result = dialogQuickActionService.deleteReply(
+                    ticketId,
+                    request.telegramMessageId(),
+                    operator
+            );
+            if (!result.success()) {
+                dialogAuthorizationService.logDialogAction(operator, ticketId, "delete", "error", result.error());
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("success", false, "error", result.error()));
+            }
+            dialogAuthorizationService.logDialogAction(operator, ticketId, "delete", "success", "message_deleted");
+            return ResponseEntity.ok(Map.of("success", true, "timestamp", result.timestamp()));
+        });
     }
 
     @PostMapping(value = "/{ticketId}/media", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -118,17 +130,24 @@ public class DialogQuickActionsController {
                                             @RequestParam("file") MultipartFile file,
                                             @RequestParam(value = "message", required = false) String message,
                                             Authentication authentication) throws IOException {
-        ResponseEntity<Map<String, Object>> permissionDenied = dialogAuthorizationService.requirePermission(authentication, "can_reply", "reply_media", ticketId);
-        if (permissionDenied != null) {
-            return permissionDenied;
-        }
-        String operator = authentication != null ? authentication.getName() : null;
-        Map<String, Object> payload = dialogQuickActionService.sendMediaReply(ticketId, file, message, operator, authentication);
-        if (!Boolean.TRUE.equals(payload.get("success"))) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(Map.of("success", false, "error", payload.get("error")));
-        }
-        return ResponseEntity.ok(payload);
+        return withQuickActionTimingIo("reply_media", ticketId, () -> {
+            ResponseEntity<Map<String, Object>> permissionDenied = dialogAuthorizationService.requirePermission(authentication, "can_reply", "reply_media", ticketId);
+            if (permissionDenied != null) {
+                return permissionDenied;
+            }
+            String operator = authentication != null ? authentication.getName() : null;
+            Map<String, Object> payload = dialogQuickActionService.sendMediaReply(ticketId, file, message, operator, authentication);
+            if (!Boolean.TRUE.equals(payload.get("success"))) {
+                String error = payload.get("error") instanceof String value && StringUtils.hasText(value)
+                        ? value
+                        : "media_reply_failed";
+                dialogAuthorizationService.logDialogAction(operator, ticketId, "reply_media", "error", error);
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("success", false, "error", error));
+            }
+            dialogAuthorizationService.logDialogAction(operator, ticketId, "reply_media", "success", "media_sent");
+            return ResponseEntity.ok(payload);
+        });
     }
 
     @PostMapping("/{ticketId}/resolve")
@@ -422,6 +441,27 @@ public class DialogQuickActionsController {
                 log.debug("Quick action '{}' for ticket '{}' completed in {}ms", action, ticketId, elapsedMs);
             }
         }
+    }
+
+    private <T> T withQuickActionTimingIo(String action,
+                                          String ticketId,
+                                          QuickActionIoSupplier<T> supplier) throws IOException {
+        long startedAtMs = System.currentTimeMillis();
+        try {
+            return supplier.get();
+        } finally {
+            long elapsedMs = System.currentTimeMillis() - startedAtMs;
+            if (elapsedMs > QUICK_ACTION_TARGET_MS) {
+                log.warn("Quick action '{}' for ticket '{}' exceeded target: {}ms > {}ms", action, ticketId, elapsedMs, QUICK_ACTION_TARGET_MS);
+            } else {
+                log.debug("Quick action '{}' for ticket '{}' completed in {}ms", action, ticketId, elapsedMs);
+            }
+        }
+    }
+
+    @FunctionalInterface
+    private interface QuickActionIoSupplier<T> {
+        T get() throws IOException;
     }
 
     public record DialogReplyRequest(String message, Long replyToTelegramId) {}

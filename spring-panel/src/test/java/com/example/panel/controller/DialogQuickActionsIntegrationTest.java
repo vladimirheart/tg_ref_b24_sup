@@ -110,6 +110,7 @@ class DialogQuickActionsIntegrationTest {
         jdbcTemplate.update("DELETE FROM ticket_participants");
         jdbcTemplate.update("DELETE FROM ticket_active");
         jdbcTemplate.update("DELETE FROM ticket_responsibles");
+        jdbcTemplate.update("DELETE FROM web_form_sessions");
         jdbcTemplate.update("DELETE FROM notifications");
         jdbcTemplate.update("DELETE FROM dialog_action_audit");
         jdbcTemplate.update("DELETE FROM client_blacklist_history");
@@ -330,6 +331,70 @@ class DialogQuickActionsIntegrationTest {
         assertThat(categories).containsExactly("billing", "support");
         assertThat(countAuditRows("T-QA-CLOSE", "quick_close", "success")).isEqualTo(1);
         assertThat(countAuditRows("T-QA-CLOSE", "reopen", "success")).isEqualTo(1);
+    }
+
+    @Test
+    void quickActionsApiReplyRefreshesDetailsWorkspaceAndAuditTrailForWebFormDialog() throws Exception {
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        insertDirectoryUser("watcher_owner", true, false, 1L, "Support", "Watcher Owner", "Ops", "/img/owner.png");
+
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
+                VALUES (104, 'token104', 'Quick Actions Reply', 'telegram', 1, CURRENT_TIMESTAMP)
+                """);
+        insertDialogTicket(920104L, "T-QA-REPLY", 104L, "quick_reply_user", "Клиент Reply", "Retail", "Орёл", "Точка Reply", "Проверка operator reply", "2026-06-04T08:00:00Z", 10401L);
+        jdbcTemplate.update("""
+                INSERT INTO web_form_sessions(
+                    token, ticket_id, channel_id, user_id, answers_json,
+                    client_name, client_contact, username, created_at, last_active_at
+                ) VALUES (?,?,?,?,?,?,?,?,?,?)
+                """,
+                "qa-reply-token",
+                "T-QA-REPLY",
+                104L,
+                920104L,
+                "{}",
+                "Клиент Reply",
+                "+79990000000",
+                "quick_reply_user",
+                "2026-06-04T08:00:00Z",
+                "2026-06-04T08:01:00Z");
+        insertHistoryRow("T-QA-REPLY", 920104L, "user", "Клиент написал первым", "2026-06-04T08:01:00Z", "text", 1401L, null, 104L);
+
+        mockMvc.perform(post("/api/dialogs/T-QA-REPLY/reply")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "message": "Здравствуйте, уточните номер заказа"
+                                }
+                                """)
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.responsible").value("watcher_owner"));
+
+        mockMvc.perform(get("/api/dialogs/T-QA-REPLY")
+                        .param("channelId", "104")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.ticketId").value("T-QA-REPLY"))
+                .andExpect(jsonPath("$.summary.rawResponsible").value("watcher_owner"))
+                .andExpect(jsonPath("$.history.length()").value(2))
+                .andExpect(jsonPath("$.history[1].message").value("Здравствуйте, уточните номер заказа"));
+
+        mockMvc.perform(get("/api/dialogs/T-QA-REPLY/workspace")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.conversation.ticketId").value("T-QA-REPLY"))
+                .andExpect(jsonPath("$.workflow.actions.reply.enabled").value(true))
+                .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("reply: success (message_sent)")));
+
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT responsible FROM ticket_responsibles WHERE ticket_id = ?",
+                String.class,
+                "T-QA-REPLY"
+        )).isEqualTo("watcher_owner");
+        assertThat(countAuditRows("T-QA-REPLY", "reply", "success")).isEqualTo(1);
     }
 
     @Test
