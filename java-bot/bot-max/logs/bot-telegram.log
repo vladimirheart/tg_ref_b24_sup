@@ -1,169 +1,49 @@
-2026-06-03 00:29:06.576+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 00:29:07.089+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 00:29:07.411+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 00:29:07.720+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 00:29:08.037+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 00:29:08.341+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 00:29:08.652+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 00:29:08.961+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 00:29:09.272+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 00:29:09.583+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 00:29:09.890+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 00:29:10.202+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 00:29:10.516+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 00:29:10.824+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 00:29:11.137+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 00:29:11.449+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 00:29:11.759+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 00:29:12.168+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 00:29:12.477+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 00:29:12.788+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 00:29:13.097+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 00:29:13.410+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 00:29:13.725+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 00:29:14.039+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 00:29:14.354+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 00:29:14.666+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 00:29:14.979+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 08:28:06.917+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 08:28:07.260+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 08:28:07.577+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 08:28:07.948+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 08:28:08.285+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 08:28:08.646+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 08:28:08.977+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 08:28:09.403+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 08:28:09.738+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 08:28:10.089+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 08:28:10.401+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 08:28:10.718+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 08:28:11.046+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 08:28:11.373+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 08:28:11.710+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 08:28:12.045+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 08:28:12.426+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 08:28:12.744+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 08:28:13.059+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 08:28:13.368+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 08:28:13.671+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 08:28:13.978+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 08:28:14.291+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 08:28:14.608+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 08:28:14.912+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 08:28:15.223+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 08:28:15.540+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 08:28:15.848+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 08:28:16.153+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 08:28:16.462+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 08:28:16.766+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
-2026-06-03 13:55:15.576+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
-2026-06-03 13:55:15.614+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - Starting MaxBotApplication using Java 25.0.2 with PID 2292 (C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-max\target\classes started by SinicinVV in C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-max)
-2026-06-03 13:55:15.614+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - The following 1 profile is active: "default"
-2026-06-03 13:55:16.002+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
-2026-06-03 13:55:16.119+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 112 ms. Found 30 JPA repository interfaces.
-2026-06-03 13:55:16.680+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 18002 (http)
-2026-06-03 13:55:16.687+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Initializing ProtocolHandler ["http-nio-127.0.0.1-18002"]
-2026-06-03 13:55:16.689+03:00 INFO  [main] o.a.catalina.core.StandardService - Starting service [Tomcat]
-2026-06-03 13:55:16.690+03:00 INFO  [main] o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.20]
-2026-06-03 13:55:16.728+03:00 INFO  [main] o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
-2026-06-03 13:55:16.729+03:00 INFO  [main] o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 1073 ms
-2026-06-03 13:55:16.934+03:00 INFO  [main] o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
-2026-06-03 13:55:16.969+03:00 INFO  [main] org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
-2026-06-03 13:55:16.995+03:00 INFO  [main] o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
-2026-06-03 13:55:17.150+03:00 INFO  [main] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
-2026-06-03 13:55:18.353+03:00 INFO  [main] o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
-2026-06-03 13:55:18.359+03:00 INFO  [main] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
-2026-06-03 13:55:20.125+03:00 WARN  [main] o.s.b.a.o.j.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
-2026-06-03 13:55:20.653+03:00 INFO  [main] c.e.s.max.MaxLongPollingLifecycle - MAX long polling started
-2026-06-03 13:55:20.654+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Starting ProtocolHandler ["http-nio-127.0.0.1-18002"]
-2026-06-03 13:55:20.672+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 18002 (http) with context path ''
-2026-06-03 13:55:20.691+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - Started MaxBotApplication in 5.497 seconds (process running for 5.77)
-2026-06-03 14:22:47.379+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
-2026-06-03 14:22:47.421+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - Starting MaxBotApplication using Java 25.0.2 with PID 10936 (C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-max\target\classes started by SinicinVV in C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-max)
-2026-06-03 14:22:47.422+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - The following 1 profile is active: "default"
-2026-06-03 14:22:47.771+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
-2026-06-03 14:22:47.854+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 77 ms. Found 30 JPA repository interfaces.
-2026-06-03 14:22:48.293+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 18002 (http)
-2026-06-03 14:22:48.300+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Initializing ProtocolHandler ["http-nio-127.0.0.1-18002"]
-2026-06-03 14:22:48.301+03:00 INFO  [main] o.a.catalina.core.StandardService - Starting service [Tomcat]
-2026-06-03 14:22:48.301+03:00 INFO  [main] o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.20]
-2026-06-03 14:22:48.343+03:00 INFO  [main] o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
-2026-06-03 14:22:48.343+03:00 INFO  [main] o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 889 ms
-2026-06-03 14:22:48.518+03:00 INFO  [main] o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
-2026-06-03 14:22:48.548+03:00 INFO  [main] org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
-2026-06-03 14:22:48.571+03:00 INFO  [main] o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
-2026-06-03 14:22:48.724+03:00 INFO  [main] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
-2026-06-03 14:22:49.555+03:00 INFO  [main] o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
-2026-06-03 14:22:49.557+03:00 INFO  [main] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
-2026-06-03 14:22:50.949+03:00 WARN  [main] o.s.b.a.o.j.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
-2026-06-03 14:22:51.478+03:00 INFO  [main] c.e.s.max.MaxLongPollingLifecycle - MAX long polling started
-2026-06-03 14:22:51.480+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Starting ProtocolHandler ["http-nio-127.0.0.1-18002"]
-2026-06-03 14:22:51.499+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 18002 (http) with context path ''
-2026-06-03 14:22:51.519+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - Started MaxBotApplication in 4.469 seconds (process running for 4.714)
-2026-06-03 14:42:09.256+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
-2026-06-03 14:42:09.301+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - Starting MaxBotApplication using Java 25.0.2 with PID 22716 (C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-max\target\classes started by SinicinVV in C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-max)
-2026-06-03 14:42:09.301+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - The following 1 profile is active: "default"
-2026-06-03 14:42:09.676+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
-2026-06-03 14:42:09.769+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 88 ms. Found 30 JPA repository interfaces.
-2026-06-03 14:42:10.264+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 18002 (http)
-2026-06-03 14:42:10.273+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Initializing ProtocolHandler ["http-nio-127.0.0.1-18002"]
-2026-06-03 14:42:10.274+03:00 INFO  [main] o.a.catalina.core.StandardService - Starting service [Tomcat]
-2026-06-03 14:42:10.274+03:00 INFO  [main] o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.20]
-2026-06-03 14:42:10.315+03:00 INFO  [main] o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
-2026-06-03 14:42:10.315+03:00 INFO  [main] o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 976 ms
-2026-06-03 14:42:10.515+03:00 INFO  [main] o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
-2026-06-03 14:42:10.547+03:00 INFO  [main] org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
-2026-06-03 14:42:10.571+03:00 INFO  [main] o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
-2026-06-03 14:42:10.725+03:00 INFO  [main] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
-2026-06-03 14:42:11.591+03:00 INFO  [main] o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
-2026-06-03 14:42:11.593+03:00 INFO  [main] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
-2026-06-03 14:42:12.207+03:00 WARN  [main] o.s.b.a.o.j.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
-2026-06-03 14:42:12.376+03:00 INFO  [main] c.e.s.max.MaxLongPollingLifecycle - MAX long polling started
-2026-06-03 14:42:12.377+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Starting ProtocolHandler ["http-nio-127.0.0.1-18002"]
-2026-06-03 14:42:12.384+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 18002 (http) with context path ''
-2026-06-03 14:42:12.393+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - Started MaxBotApplication in 3.477 seconds (process running for 3.706)
-2026-06-03 16:31:13.542+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: Connection reset
-2026-06-03 17:06:44.709+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
-2026-06-03 17:06:44.750+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - Starting MaxBotApplication using Java 25.0.2 with PID 3796 (C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-max\target\classes started by SinicinVV in C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-max)
-2026-06-03 17:06:44.750+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - The following 1 profile is active: "default"
-2026-06-03 17:06:45.085+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
-2026-06-03 17:06:45.170+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 80 ms. Found 30 JPA repository interfaces.
-2026-06-03 17:06:45.626+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 18002 (http)
-2026-06-03 17:06:45.633+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Initializing ProtocolHandler ["http-nio-127.0.0.1-18002"]
-2026-06-03 17:06:45.635+03:00 INFO  [main] o.a.catalina.core.StandardService - Starting service [Tomcat]
-2026-06-03 17:06:45.635+03:00 INFO  [main] o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.20]
-2026-06-03 17:06:45.672+03:00 INFO  [main] o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
-2026-06-03 17:06:45.673+03:00 INFO  [main] o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 890 ms
-2026-06-03 17:06:45.853+03:00 INFO  [main] o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
-2026-06-03 17:06:45.881+03:00 INFO  [main] org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
-2026-06-03 17:06:45.899+03:00 INFO  [main] o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
-2026-06-03 17:06:46.040+03:00 INFO  [main] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
-2026-06-03 17:06:46.869+03:00 INFO  [main] o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
-2026-06-03 17:06:46.871+03:00 INFO  [main] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
-2026-06-03 17:06:47.461+03:00 WARN  [main] o.s.b.a.o.j.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
-2026-06-03 17:06:47.628+03:00 INFO  [main] c.e.s.max.MaxLongPollingLifecycle - MAX long polling started
-2026-06-03 17:06:47.628+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Starting ProtocolHandler ["http-nio-127.0.0.1-18002"]
-2026-06-03 17:06:47.636+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 18002 (http) with context path ''
-2026-06-03 17:06:47.644+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - Started MaxBotApplication in 3.236 seconds (process running for 3.461)
-2026-06-03 17:36:45.275+03:00 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
-2026-06-03 17:36:45.318+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - Starting MaxBotApplication using Java 25.0.2 with PID 4668 (C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-max\target\classes started by SinicinVV in C:\Users\SinicinVV\git_h\tg_ref_b24_sup\java-bot\bot-max)
-2026-06-03 17:36:45.319+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - The following 1 profile is active: "default"
-2026-06-03 17:36:45.673+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
-2026-06-03 17:36:45.764+03:00 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 84 ms. Found 30 JPA repository interfaces.
-2026-06-03 17:36:46.259+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 18002 (http)
-2026-06-03 17:36:46.266+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Initializing ProtocolHandler ["http-nio-127.0.0.1-18002"]
-2026-06-03 17:36:46.267+03:00 INFO  [main] o.a.catalina.core.StandardService - Starting service [Tomcat]
-2026-06-03 17:36:46.267+03:00 INFO  [main] o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.20]
-2026-06-03 17:36:46.306+03:00 INFO  [main] o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
-2026-06-03 17:36:46.306+03:00 INFO  [main] o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 951 ms
-2026-06-03 17:36:46.502+03:00 INFO  [main] o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
-2026-06-03 17:36:46.539+03:00 INFO  [main] org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
-2026-06-03 17:36:46.558+03:00 INFO  [main] o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
-2026-06-03 17:36:46.714+03:00 INFO  [main] o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
-2026-06-03 17:36:47.579+03:00 INFO  [main] o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
-2026-06-03 17:36:47.581+03:00 INFO  [main] o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
-2026-06-03 17:36:49.230+03:00 WARN  [main] o.s.b.a.o.j.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
-2026-06-03 17:36:49.866+03:00 INFO  [main] c.e.s.max.MaxLongPollingLifecycle - MAX long polling started
-2026-06-03 17:36:49.867+03:00 INFO  [main] o.a.coyote.http11.Http11NioProtocol - Starting ProtocolHandler ["http-nio-127.0.0.1-18002"]
-2026-06-03 17:36:49.884+03:00 INFO  [main] o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 18002 (http) with context path ''
-2026-06-03 17:36:49.905+03:00 INFO  [main] c.e.supportbot.max.MaxBotApplication - Started MaxBotApplication in 4.943 seconds (process running for 5.168)
+2026-06-04 00:55:55.200+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: Connection reset
+2026-06-04 00:55:55.877+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-06-04 00:55:56.191+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-06-04 00:55:56.509+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-06-04 00:55:56.825+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-06-04 00:55:57.134+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-06-04 00:55:57.451+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-06-04 00:55:57.766+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-06-04 00:55:58.071+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-06-04 00:55:58.374+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-06-04 00:55:58.682+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-06-04 00:55:58.991+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-06-04 00:55:59.307+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-06-04 00:55:59.615+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-06-04 00:55:59.923+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-06-04 00:56:00.227+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-06-04 06:54:48.619+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-06-04 06:54:48.958+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-06-04 06:54:49.265+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-06-04 06:54:49.588+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-06-04 06:54:49.899+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-06-04 06:54:50.208+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-06-04 06:54:50.557+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-06-04 06:54:50.889+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-06-04 06:54:51.205+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-06-04 06:54:51.522+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-06-04 06:54:51.832+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-06-04 06:54:52.137+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-06-04 06:54:52.442+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-06-04 06:54:52.748+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-06-04 06:54:53.055+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-06-04 06:54:53.362+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-06-04 06:54:53.670+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-06-04 06:54:53.974+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-06-04 06:54:54.283+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-06-04 06:54:54.587+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-06-04 06:54:54.895+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-06-04 06:54:55.201+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-06-04 06:54:55.513+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-06-04 06:54:55.821+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-06-04 06:54:56.127+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-06-04 06:54:56.440+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-06-04 06:54:56.753+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-06-04 06:54:57.065+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-06-04 06:54:57.375+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-06-04 06:54:57.683+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-06-04 06:54:57.987+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-06-04 06:54:58.295+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
+2026-06-04 06:54:58.602+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: null
