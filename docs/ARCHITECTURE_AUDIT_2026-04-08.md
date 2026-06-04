@@ -1660,7 +1660,9 @@ integration-сценария поверх users/settings runtime boundary всё
   boundary: новый `DialogQuickActionsIntegrationTest` теперь гоняет реальные
   HTTP `reassign`, `participants add/remove`, `resolve` и `reopen`, а затем
   подтверждает их effect не только по response payload, но и на
-  `/api/dialogs`, `/participants` и `/workspace`.
+  `/api/dialogs`, `/participants` и `/workspace`; repeated handoff reread тоже
+  закреплён и подтверждает переход нового owner из `unanswered` в `in_work`
+  после первого workspace open без потери participant projection.
 - это снимает ещё один transport/runtime drift вокруг operator action
   surface: `DialogQuickActionsControllerWebMvcTest` остаётся focused на
   controller contract, а новый live пакет закрепляет уже реальную

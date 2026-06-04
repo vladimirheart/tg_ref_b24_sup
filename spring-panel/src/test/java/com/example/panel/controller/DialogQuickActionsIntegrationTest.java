@@ -222,6 +222,40 @@ class DialogQuickActionsIntegrationTest {
                 .andExpect(jsonPath("$.workflow.participants[0].username").value("watcher_observer"))
                 .andExpect(jsonPath("$.workflow.actions.participants_remove.enabled").value(true));
 
+        mockMvc.perform(get("/api/dialogs")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-QA-LIVE"))
+                .andExpect(jsonPath("$.dialogs[0].rawResponsible").value("watcher_new"))
+                .andExpect(jsonPath("$.my_dialogs.unanswered").isEmpty())
+                .andExpect(jsonPath("$.my_dialogs.in_work").isEmpty());
+
+        mockMvc.perform(get("/api/dialogs")
+                        .principal(new TestingAuthenticationToken("watcher_new", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-QA-LIVE"))
+                .andExpect(jsonPath("$.dialogs[0].rawResponsible").value("watcher_new"))
+                .andExpect(jsonPath("$.dialogs[0].unreadCount").value(0))
+                .andExpect(jsonPath("$.my_dialogs.unanswered").isEmpty())
+                .andExpect(jsonPath("$.my_dialogs.in_work[0].ticketId").value("T-QA-LIVE"));
+
+        mockMvc.perform(get("/api/dialogs/T-QA-LIVE/participants"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.participants.length()").value(1))
+                .andExpect(jsonPath("$.participants[0].username").value("watcher_observer"))
+                .andExpect(jsonPath("$.participants[0].displayName").value("Watcher Observer"))
+                .andExpect(jsonPath("$.participants[0].department").value("Backoffice"));
+
+        mockMvc.perform(get("/api/dialogs/T-QA-LIVE/workspace")
+                        .principal(new TestingAuthenticationToken("watcher_new", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.conversation.ticketId").value("T-QA-LIVE"))
+                .andExpect(jsonPath("$.workflow.responsible.username").value("watcher_new"))
+                .andExpect(jsonPath("$.workflow.participants.length()").value(1))
+                .andExpect(jsonPath("$.workflow.participants[0].username").value("watcher_observer"))
+                .andExpect(jsonPath("$.workflow.actions.participants_remove.enabled").value(true));
+
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT responsible FROM ticket_responsibles WHERE ticket_id = ?",
                 String.class,

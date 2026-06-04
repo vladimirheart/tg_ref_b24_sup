@@ -1472,7 +1472,9 @@
   новый `DialogQuickActionsIntegrationTest` теперь гоняет реальные HTTP
   `reassign`, `participants add/remove`, `resolve` и `reopen` и закрепляет
   не только их response contract, но и downstream continuity на
-  `/api/dialogs`, `/participants` и `/workspace`.
+  `/api/dialogs`, `/participants` и `/workspace`; repeated handoff reread
+  теперь тоже прикрыт и подтверждает, что после первого workspace open новый
+  owner переходит из `unanswered` в `in_work`, не теряя participant projection.
 - это выравнивает operator action UX уже не только косвенно через workspace:
   inherited unread после `reassign`, participant mutation projection,
   `responsible/displayResponsible/avatarUrl` response envelope и
