@@ -178,3 +178,4 @@ Action:
 
 Identify and stop the process that's listening on port 18002 or configure this application to listen on another port.
 
+2026-06-04 11:07:28.787+03:00 WARN  [max-long-polling] c.e.supportbot.max.MaxApiClient - Failed to fetch MAX updates: Connection reset
