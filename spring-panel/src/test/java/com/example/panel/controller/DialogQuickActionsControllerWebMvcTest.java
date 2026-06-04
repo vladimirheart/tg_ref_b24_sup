@@ -255,6 +255,26 @@ class DialogQuickActionsControllerWebMvcTest {
     }
 
     @Test
+    void snoozeReturnsSuccessForValidDuration() throws Exception {
+        when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_snooze"), eq("snooze"), eq("T-605OK")))
+            .thenReturn(null);
+
+        mockMvc.perform(post("/api/dialogs/T-605OK/snooze")
+                .with(user("operator"))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "minutes": 15
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true));
+
+        verify(dialogAuthorizationService).logDialogAction("operator", "T-605OK", "snooze", "success", "minutes=15");
+    }
+
+    @Test
     void mediaReplyReturnsBadRequestWhenPayloadSignalsFailure() throws Exception {
         when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_reply"), eq("reply_media"), eq("T-606")))
             .thenReturn(null);

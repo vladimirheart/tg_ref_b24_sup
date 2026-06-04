@@ -74,17 +74,18 @@ class DialogWorkspaceParityServiceTest {
                         "participant_candidates", List.of(),
                         "triage_preferences", Map.of(),
                         "collaboration", Map.of(),
-                        "actions", Map.of(
-                                "reply", Map.of("enabled", true),
-                                "reply_media", Map.of("enabled", true),
-                                "take", Map.of("enabled", false),
-                                "resolve", Map.of("enabled", true),
-                                "reopen", Map.of("enabled", false),
-                                "categories", Map.of("enabled", true),
-                                "spam", Map.of("enabled", true),
-                                "reassign", Map.of("enabled", true),
-                                "participants_add", Map.of("enabled", true),
-                                "participants_remove", Map.of("enabled", false)
+                        "actions", Map.ofEntries(
+                                Map.entry("reply", Map.of("enabled", true)),
+                                Map.entry("reply_media", Map.of("enabled", true)),
+                                Map.entry("take", Map.of("enabled", false)),
+                                Map.entry("resolve", Map.of("enabled", true)),
+                                Map.entry("reopen", Map.of("enabled", false)),
+                                Map.entry("categories", Map.of("enabled", true)),
+                                Map.entry("spam", Map.of("enabled", true)),
+                                Map.entry("snooze", Map.of("enabled", true)),
+                                Map.entry("reassign", Map.of("enabled", true)),
+                                Map.entry("participants_add", Map.of("enabled", true)),
+                                Map.entry("participants_remove", Map.of("enabled", false))
                         )
                 ),
                 composer,
@@ -143,17 +144,18 @@ class DialogWorkspaceParityServiceTest {
                         "participant_candidates", List.of(),
                         "triage_preferences", Map.of(),
                         "collaboration", Map.of(),
-                        "actions", Map.of(
-                                "reply", Map.of("enabled", false),
-                                "reply_media", Map.of("enabled", false),
-                                "take", Map.of("enabled", true),
-                                "resolve", Map.of("enabled", true),
-                                "reopen", Map.of("enabled", false),
-                                "categories", Map.of("enabled", false),
-                                "spam", Map.of("enabled", false),
-                                "reassign", Map.of("enabled", false),
-                                "participants_add", Map.of("enabled", false),
-                                "participants_remove", Map.of("enabled", false)
+                        "actions", Map.ofEntries(
+                                Map.entry("reply", Map.of("enabled", false)),
+                                Map.entry("reply_media", Map.of("enabled", false)),
+                                Map.entry("take", Map.of("enabled", true)),
+                                Map.entry("resolve", Map.of("enabled", true)),
+                                Map.entry("reopen", Map.of("enabled", false)),
+                                Map.entry("categories", Map.of("enabled", false)),
+                                Map.entry("spam", Map.of("enabled", false)),
+                                Map.entry("snooze", Map.of("enabled", false)),
+                                Map.entry("reassign", Map.of("enabled", false)),
+                                Map.entry("participants_add", Map.of("enabled", false)),
+                                Map.entry("participants_remove", Map.of("enabled", false))
                         )
                 ),
                 Map.of(

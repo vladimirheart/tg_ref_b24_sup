@@ -1502,6 +1502,12 @@
   `web_form` reply-сценарий закрепляет, что после operator reply audit сразу
   виден в `workspace.context.related_events`, а details/history получают новое
   operator message без legacy-only обходов.
+- следующим follow-up пакетом закрыт и remaining `snooze` drift между runtime
+  и workspace: `DialogWorkspaceWorkflowSnapshotService` теперь проецирует
+  explicit `workflow.actions.snooze`, parity-layer считает его частью
+  `operator_action_guards`, а live integration закрепляет, что `snooze`
+  оставляет dialog state стабильным, но сразу появляется в
+  `workspace.context.related_events` как normal operator audit trail.
 - следующий practical focus в `dialog workspace/read/details` зоне смещён уже
   с cross-consumer lifecycle parity, basic audit trail, full notification
   refresh loop, `queue/my_dialogs` rearm parity и `queue/status-owner`

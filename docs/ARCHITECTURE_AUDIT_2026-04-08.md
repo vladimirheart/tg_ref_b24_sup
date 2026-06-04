@@ -1696,6 +1696,12 @@ integration-сценария поверх users/settings runtime boundary всё
   reply-сценарий закрепляет continuity уже и на write-side message trail:
   operator reply появляется в details/history, получает audit row и сразу
   виден в `workspace.context.related_events`.
+- следующим follow-up пакетом закрыт и remaining `snooze` drift между runtime
+  и workspace: `DialogWorkspaceWorkflowSnapshotService` теперь проецирует
+  explicit `workflow.actions.snooze`, parity-layer считает его частью
+  `operator_action_guards`, а live integration закрепляет, что `snooze` не
+  ломает dialog state, но сразу попадает в `workspace.context.related_events`
+  и audit trail как штатный operator action.
 - следующий practical focus в `dialog-read/workspace` зоне смещён уже с
   cross-consumer lifecycle parity, basic audit trail, full read refresh loop
   `queue/my_dialogs` rearm parity и `queue/status-owner` lifecycle на ещё

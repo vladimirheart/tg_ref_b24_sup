@@ -111,6 +111,7 @@ public class DialogWorkspaceWorkflowSnapshotService {
         boolean canReply = workspacePermissions != null && Boolean.TRUE.equals(workspacePermissions.get("can_reply"));
         boolean canAssign = workspacePermissions != null && Boolean.TRUE.equals(workspacePermissions.get("can_assign"));
         boolean canClose = workspacePermissions != null && Boolean.TRUE.equals(workspacePermissions.get("can_close"));
+        boolean canSnooze = workspacePermissions != null && Boolean.TRUE.equals(workspacePermissions.get("can_snooze"));
         boolean assignedToOperator = sameIdentity(responsibleUsername, operator);
         boolean hasParticipants = participants != null && !participants.isEmpty();
         boolean hasReassignCandidates = reassignCandidates != null && !reassignCandidates.isEmpty();
@@ -138,6 +139,10 @@ public class DialogWorkspaceWorkflowSnapshotService {
         actions.put("spam", actionAvailability(
                 canClose,
                 canClose ? null : "permission_denied"
+        ));
+        actions.put("snooze", actionAvailability(
+                canSnooze,
+                canSnooze ? null : "permission_denied"
         ));
         actions.put("reassign", actionAvailability(
                 canAssign && !closed && hasReassignCandidates,

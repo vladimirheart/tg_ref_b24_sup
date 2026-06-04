@@ -73,6 +73,8 @@ class DialogWorkspaceWorkflowSnapshotServiceTest {
         Map<String, Object> categoriesAction = (Map<String, Object>) actions.get("categories");
         @SuppressWarnings("unchecked")
         Map<String, Object> spamAction = (Map<String, Object>) actions.get("spam");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> snoozeAction = (Map<String, Object>) actions.get("snooze");
 
         assertThat(responsible).containsEntry("assigned", true);
         assertThat(responsible).containsEntry("username", "watcher_owner");
@@ -95,6 +97,8 @@ class DialogWorkspaceWorkflowSnapshotServiceTest {
         assertThat(categoriesAction).containsEntry("disabled_reason", "permission_denied");
         assertThat(spamAction).containsEntry("enabled", false);
         assertThat(spamAction).containsEntry("disabled_reason", "permission_denied");
+        assertThat(snoozeAction).containsEntry("enabled", false);
+        assertThat(snoozeAction).containsEntry("disabled_reason", "permission_denied");
     }
 
     @Test
@@ -140,6 +144,8 @@ class DialogWorkspaceWorkflowSnapshotServiceTest {
         Map<String, Object> categoriesAction = (Map<String, Object>) actions.get("categories");
         @SuppressWarnings("unchecked")
         Map<String, Object> spamAction = (Map<String, Object>) actions.get("spam");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> snoozeAction = (Map<String, Object>) actions.get("snooze");
 
         assertThat(responsible).containsEntry("username", "watcher_owner");
         assertThat(responsible).containsEntry("display_name", "Watcher Owner");
@@ -155,6 +161,8 @@ class DialogWorkspaceWorkflowSnapshotServiceTest {
         assertThat(categoriesAction).containsEntry("disabled_reason", "permission_denied");
         assertThat(spamAction).containsEntry("enabled", false);
         assertThat(spamAction).containsEntry("disabled_reason", "permission_denied");
+        assertThat(snoozeAction).containsEntry("enabled", false);
+        assertThat(snoozeAction).containsEntry("disabled_reason", "permission_denied");
         verify(dialogParticipantService, never()).loadAssignableOperators();
     }
 
@@ -195,6 +203,8 @@ class DialogWorkspaceWorkflowSnapshotServiceTest {
         assertThat(((Map<?, ?>) actions.get("reopen")).get("enabled")).isEqualTo(true);
         assertThat(((Map<?, ?>) actions.get("categories")).get("enabled")).isEqualTo(true);
         assertThat(((Map<?, ?>) actions.get("spam")).get("enabled")).isEqualTo(true);
+        assertThat(((Map<?, ?>) actions.get("snooze")).get("enabled")).isEqualTo(false);
+        assertThat(((Map<?, ?>) actions.get("snooze")).get("disabled_reason")).isEqualTo("permission_denied");
         assertThat(((Map<?, ?>) actions.get("reassign")).get("enabled")).isEqualTo(false);
         assertThat(((Map<?, ?>) actions.get("reassign")).get("disabled_reason")).isEqualTo("closed_dialog");
         assertThat(((Map<?, ?>) actions.get("participants_add")).get("enabled")).isEqualTo(false);
@@ -240,6 +250,8 @@ class DialogWorkspaceWorkflowSnapshotServiceTest {
         assertThat(((Map<?, ?>) actions.get("reopen")).get("disabled_reason")).isEqualTo("not_closed");
         assertThat(((Map<?, ?>) actions.get("categories")).get("enabled")).isEqualTo(true);
         assertThat(((Map<?, ?>) actions.get("spam")).get("enabled")).isEqualTo(true);
+        assertThat(((Map<?, ?>) actions.get("snooze")).get("enabled")).isEqualTo(false);
+        assertThat(((Map<?, ?>) actions.get("snooze")).get("disabled_reason")).isEqualTo("permission_denied");
         assertThat(((Map<?, ?>) actions.get("reassign")).get("enabled")).isEqualTo(true);
         assertThat(((Map<?, ?>) actions.get("participants_add")).get("enabled")).isEqualTo(true);
         assertThat(((Map<?, ?>) actions.get("participants_remove")).get("enabled")).isEqualTo(false);

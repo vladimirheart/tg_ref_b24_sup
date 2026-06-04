@@ -131,6 +131,7 @@ public class DialogWorkspaceParityService {
                 && actions.containsKey("reopen")
                 && actions.containsKey("categories")
                 && actions.containsKey("spam")
+                && actions.containsKey("snooze")
                 && actions.containsKey("reassign")
                 && actions.containsKey("participants_add")
                 && actions.containsKey("participants_remove");

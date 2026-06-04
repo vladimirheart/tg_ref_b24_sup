@@ -398,6 +398,59 @@ class DialogQuickActionsIntegrationTest {
     }
 
     @Test
+    void quickActionsApiSnoozeKeepsDialogStateAndRefreshesWorkspaceAuditTrail() throws Exception {
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        insertDirectoryUser("watcher_owner", true, false, 1L, "Support", "Watcher Owner", "Ops", "/img/owner.png");
+
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
+                VALUES (105, 'token105', 'Quick Actions Snooze', 'telegram', 1, CURRENT_TIMESTAMP)
+                """);
+        insertDialogTicket(920105L, "T-QA-SNOOZE", 105L, "quick_snooze_user", "Клиент Snooze", "Retail", "Псков", "Точка Snooze", "Проверка snooze audit trail", "2026-06-04T09:00:00Z", 10501L);
+        jdbcTemplate.update("""
+                INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
+                VALUES (?,?,?,?)
+                """,
+                "T-QA-SNOOZE", "watcher_owner", "dispatcher", "2026-06-04T08:59:00Z");
+        insertHistoryRow("T-QA-SNOOZE", 920105L, "user", "Клиент ждёт ответ", "2026-06-04T09:01:00Z", "text", 1501L, null, 105L);
+
+        mockMvc.perform(post("/api/dialogs/T-QA-SNOOZE/snooze")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "minutes": 15
+                                }
+                                """)
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        mockMvc.perform(get("/api/dialogs")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-QA-SNOOZE"))
+                .andExpect(jsonPath("$.my_dialogs.unanswered[0].ticketId").value("T-QA-SNOOZE"));
+
+        mockMvc.perform(get("/api/dialogs/T-QA-SNOOZE")
+                        .param("channelId", "105")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.ticketId").value("T-QA-SNOOZE"))
+                .andExpect(jsonPath("$.summary.statusKey").value("waiting_operator"))
+                .andExpect(jsonPath("$.summary.rawResponsible").value("watcher_owner"));
+
+        mockMvc.perform(get("/api/dialogs/T-QA-SNOOZE/workspace")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.conversation.ticketId").value("T-QA-SNOOZE"))
+                .andExpect(jsonPath("$.conversation.statusKey").value("waiting_operator"))
+                .andExpect(jsonPath("$.workflow.actions.snooze.enabled").value(true))
+                .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("snooze: success (minutes=15)")));
+
+        assertThat(countAuditRows("T-QA-SNOOZE", "snooze", "success")).isEqualTo(1);
+    }
+
+    @Test
     void quickActionsApiTakeCategoriesAndSpamRefreshWorkspaceAndDetailsConsumers() throws Exception {
         usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
         insertDirectoryUser("watcher_owner", true, false, 1L, "Support", "Watcher Owner", "Ops", "/img/owner.png");
