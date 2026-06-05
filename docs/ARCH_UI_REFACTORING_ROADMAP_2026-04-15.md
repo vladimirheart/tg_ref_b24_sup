@@ -1530,6 +1530,12 @@
   без потери responsible projection; заодно test runtime очищает
   `ticket_ai_agent_state`, чтобы AI-processing хвост не маскировал реальные
   regression’ы этого queue/list контракта.
+- следующим соседним consumer-пакетом тот же write-side слой закреплён и на
+  `/history`: `reply`, `web_form reply -> edit -> delete`, transport
+  `reply -> edit -> delete` и `reply_media` теперь live-проверяют прямой
+  `history` read на message/mutation projection, а repeated `history` reread
+  не теряет `originalMessage/editedAt/deletedAt` и attachment continuity после
+  тех же operator actions.
 - следующим follow-up пакетом закрыт и remaining `snooze` drift между runtime
   и workspace: `DialogWorkspaceWorkflowSnapshotService` теперь проецирует
   explicit `workflow.actions.snooze`, parity-layer считает его частью

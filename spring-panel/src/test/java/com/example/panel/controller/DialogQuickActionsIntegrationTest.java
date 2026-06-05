@@ -464,6 +464,14 @@ class DialogQuickActionsIntegrationTest {
                 .andExpect(jsonPath("$.history.length()").value(2))
                 .andExpect(jsonPath("$.history[1].message").value("Здравствуйте, уточните номер заказа"));
 
+        mockMvc.perform(get("/api/dialogs/T-QA-REPLY/history")
+                        .param("channelId", "104")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.messages.length()").value(2))
+                .andExpect(jsonPath("$.messages[1].message").value("Здравствуйте, уточните номер заказа"));
+
         mockMvc.perform(get("/api/dialogs/T-QA-REPLY/workspace")
                         .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
@@ -478,6 +486,14 @@ class DialogQuickActionsIntegrationTest {
                 .andExpect(jsonPath("$.summary.ticketId").value("T-QA-REPLY"))
                 .andExpect(jsonPath("$.history.length()").value(2))
                 .andExpect(jsonPath("$.history[1].message").value("Здравствуйте, уточните номер заказа"));
+
+        mockMvc.perform(get("/api/dialogs/T-QA-REPLY/history")
+                        .param("channelId", "104")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.messages.length()").value(2))
+                .andExpect(jsonPath("$.messages[1].message").value("Здравствуйте, уточните номер заказа"));
 
         mockMvc.perform(get("/api/dialogs/T-QA-REPLY/workspace")
                         .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
@@ -593,6 +609,17 @@ class DialogQuickActionsIntegrationTest {
                 .andExpect(jsonPath("$.history[1].editedAt").isNotEmpty())
                 .andExpect(jsonPath("$.history[1].deletedAt").isNotEmpty());
 
+        mockMvc.perform(get("/api/dialogs/T-QA-WEB-MUTATE/history")
+                        .param("channelId", "108")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.messages.length()").value(2))
+                .andExpect(jsonPath("$.messages[1].message").value(""))
+                .andExpect(jsonPath("$.messages[1].originalMessage").value("Первичный ответ через web_form"))
+                .andExpect(jsonPath("$.messages[1].editedAt").isNotEmpty())
+                .andExpect(jsonPath("$.messages[1].deletedAt").isNotEmpty());
+
         mockMvc.perform(get("/api/dialogs/T-QA-WEB-MUTATE/workspace")
                         .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
@@ -611,6 +638,17 @@ class DialogQuickActionsIntegrationTest {
                 .andExpect(jsonPath("$.history[1].originalMessage").value("Первичный ответ через web_form"))
                 .andExpect(jsonPath("$.history[1].editedAt").isNotEmpty())
                 .andExpect(jsonPath("$.history[1].deletedAt").isNotEmpty());
+
+        mockMvc.perform(get("/api/dialogs/T-QA-WEB-MUTATE/history")
+                        .param("channelId", "108")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.messages.length()").value(2))
+                .andExpect(jsonPath("$.messages[1].message").value(""))
+                .andExpect(jsonPath("$.messages[1].originalMessage").value("Первичный ответ через web_form"))
+                .andExpect(jsonPath("$.messages[1].editedAt").isNotEmpty())
+                .andExpect(jsonPath("$.messages[1].deletedAt").isNotEmpty());
 
         mockMvc.perform(get("/api/dialogs/T-QA-WEB-MUTATE/workspace")
                         .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
@@ -716,6 +754,17 @@ class DialogQuickActionsIntegrationTest {
                 .andExpect(jsonPath("$.history[1].editedAt").isNotEmpty())
                 .andExpect(jsonPath("$.history[1].deletedAt").isNotEmpty());
 
+        mockMvc.perform(get("/api/dialogs/T-QA-MUTATE/history")
+                        .param("channelId", "106")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.messages.length()").value(2))
+                .andExpect(jsonPath("$.messages[1].message").value(""))
+                .andExpect(jsonPath("$.messages[1].originalMessage").value("Первичный операторский ответ"))
+                .andExpect(jsonPath("$.messages[1].editedAt").isNotEmpty())
+                .andExpect(jsonPath("$.messages[1].deletedAt").isNotEmpty());
+
         mockMvc.perform(get("/api/dialogs/T-QA-MUTATE/workspace")
                         .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
@@ -734,6 +783,17 @@ class DialogQuickActionsIntegrationTest {
                 .andExpect(jsonPath("$.history[1].originalMessage").value("Первичный операторский ответ"))
                 .andExpect(jsonPath("$.history[1].editedAt").isNotEmpty())
                 .andExpect(jsonPath("$.history[1].deletedAt").isNotEmpty());
+
+        mockMvc.perform(get("/api/dialogs/T-QA-MUTATE/history")
+                        .param("channelId", "106")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.messages.length()").value(2))
+                .andExpect(jsonPath("$.messages[1].message").value(""))
+                .andExpect(jsonPath("$.messages[1].originalMessage").value("Первичный операторский ответ"))
+                .andExpect(jsonPath("$.messages[1].editedAt").isNotEmpty())
+                .andExpect(jsonPath("$.messages[1].deletedAt").isNotEmpty());
 
         mockMvc.perform(get("/api/dialogs/T-QA-MUTATE/workspace")
                         .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
@@ -803,6 +863,16 @@ class DialogQuickActionsIntegrationTest {
                 .andExpect(jsonPath("$.history[1].messageType").value("image"))
                 .andExpect(jsonPath("$.history[1].attachment", startsWith("/api/attachments/tickets/T-QA-MEDIA/")));
 
+        mockMvc.perform(get("/api/dialogs/T-QA-MEDIA/history")
+                        .param("channelId", "107")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.messages.length()").value(2))
+                .andExpect(jsonPath("$.messages[1].message").value("Смотрите вложение"))
+                .andExpect(jsonPath("$.messages[1].messageType").value("image"))
+                .andExpect(jsonPath("$.messages[1].attachment", startsWith("/api/attachments/tickets/T-QA-MEDIA/")));
+
         mockMvc.perform(get("/api/dialogs/T-QA-MEDIA/workspace")
                         .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
@@ -824,6 +894,15 @@ class DialogQuickActionsIntegrationTest {
                 .andExpect(jsonPath("$.summary.ticketId").value("T-QA-MEDIA"))
                 .andExpect(jsonPath("$.history[1].messageType").value("image"))
                 .andExpect(jsonPath("$.history[1].attachment", startsWith("/api/attachments/tickets/T-QA-MEDIA/")));
+
+        mockMvc.perform(get("/api/dialogs/T-QA-MEDIA/history")
+                        .param("channelId", "107")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.messages.length()").value(2))
+                .andExpect(jsonPath("$.messages[1].messageType").value("image"))
+                .andExpect(jsonPath("$.messages[1].attachment", startsWith("/api/attachments/tickets/T-QA-MEDIA/")));
 
         mockMvc.perform(get("/api/dialogs/T-QA-MEDIA/workspace")
                         .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))

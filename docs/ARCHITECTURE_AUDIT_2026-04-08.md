@@ -1722,6 +1722,11 @@ integration-сценария поверх users/settings runtime boundary всё
   consumer тоже читает тот же post-action state без drift по owner bucket;
   дополнительно runtime integration теперь чистит `ticket_ai_agent_state`,
   чтобы AI-processing residue не создавал ложные list-surface regressions.
+- следующим соседним consumer-пакетом write-side parity добран и на
+  `/history`: те же `reply`, `web_form reply -> edit -> delete`, transport
+  `reply -> edit -> delete` и `reply_media` теперь live-подтверждают прямой
+  history consumer на реальном runtime route, а repeated history reread не
+  теряет mutation markers и attachment projection после operator actions.
 - следующим follow-up пакетом закрыт и remaining `snooze` drift между runtime
   и workspace: `DialogWorkspaceWorkflowSnapshotService` теперь проецирует
   explicit `workflow.actions.snooze`, parity-layer считает его частью
