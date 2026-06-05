@@ -1166,6 +1166,16 @@ class DialogQuickActionsIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.unread").value(3));
 
+        mockMvc.perform(get("/api/notifications")
+                        .principal(new TestingAuthenticationToken("lifecycle_peer", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(4))
+                .andExpect(jsonPath("$[0].id").value(latestLifecycleNotificationId))
+                .andExpect(jsonPath("$[0].read").value(true))
+                .andExpect(jsonPath("$[1].read").value(false))
+                .andExpect(jsonPath("$[2].read").value(false))
+                .andExpect(jsonPath("$[3].read").value(false));
+
         mockMvc.perform(get("/api/notifications/unread_count")
                         .principal(new TestingAuthenticationToken("lifecycle_owner", "n/a", "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
@@ -1263,6 +1273,15 @@ class DialogQuickActionsIntegrationTest {
                         .principal(new TestingAuthenticationToken("collab_peer", "n/a", "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.unread").value(2));
+
+        mockMvc.perform(get("/api/notifications")
+                        .principal(new TestingAuthenticationToken("collab_peer", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(3))
+                .andExpect(jsonPath("$[0].id").value(latestCollabNotificationId))
+                .andExpect(jsonPath("$[0].read").value(true))
+                .andExpect(jsonPath("$[1].read").value(false))
+                .andExpect(jsonPath("$[2].read").value(false));
 
         mockMvc.perform(get("/api/notifications/unread_count")
                         .principal(new TestingAuthenticationToken("collab_owner", "n/a", "PAGE_DIALOGS")))

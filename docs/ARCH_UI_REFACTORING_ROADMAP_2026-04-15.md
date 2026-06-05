@@ -1556,6 +1556,11 @@
   сценарии теперь после `POST /api/notifications/{id}/read` отдельно
   подтверждают уменьшение `unread_count`, так что peer notification parity
   закрыта уже не только на emit/list, но и на read-marker semantics.
+- следующим маленьким follow-up пакетом этот же non-message bell loop добран
+  и на repeated list reread: после `markAsRead` lifecycle/collaboration
+  сценарии теперь повторно читают `/api/notifications` и подтверждают
+  сохранение `read=true` у верхнего события, а не только падение
+  `unread_count`.
 - следующим follow-up пакетом закрыт и remaining `snooze` drift между runtime
   и workspace: `DialogWorkspaceWorkflowSnapshotService` теперь проецирует
   explicit `workflow.actions.snooze`, parity-layer считает его частью
