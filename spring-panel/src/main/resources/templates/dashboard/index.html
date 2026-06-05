@@ -176,9 +176,17 @@
 
     .filter-grid {
       display: grid;
-      grid-template-columns: minmax(0, 1.4fr) minmax(220px, 0.95fr) auto;
+      grid-template-columns: minmax(0, 1fr) auto;
       align-items: end;
       gap: 0.8rem;
+    }
+
+    .filter-block--period {
+      grid-column: 1 / -1;
+    }
+
+    .filter-block--restaurants {
+      min-width: 0;
     }
 
     .filter-block label {
@@ -247,6 +255,57 @@
       font-size: 0.76rem;
       white-space: nowrap;
       box-shadow: 0 10px 18px rgba(18, 33, 23, 0.08);
+    }
+
+    .filter-panel .select2-container {
+      width: 100% !important;
+    }
+
+    .filter-panel .select2-container--default .select2-selection--multiple {
+      display: flex;
+      align-items: center;
+      min-height: 42px;
+      padding: 0.18rem 0.6rem;
+      border-radius: 0.9rem;
+      border-color: color-mix(in srgb, var(--color-border) 16%, transparent);
+      background: rgba(255, 255, 255, 0.78);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+      overflow: hidden;
+    }
+
+    .filter-panel .select2-container--default .select2-selection--multiple .select2-selection__rendered {
+      display: flex;
+      flex-wrap: nowrap;
+      align-items: center;
+      gap: 0.35rem;
+      width: 100%;
+      padding: 0;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+
+    .filter-panel .select2-container--default .select2-selection--multiple .select2-selection__choice {
+      flex: 0 1 auto;
+      max-width: 180px;
+      margin: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .filter-panel .select2-container--default .select2-selection--multiple .select2-search--inline {
+      flex: 1 1 96px;
+      min-width: 96px;
+    }
+
+    .filter-panel .select2-container--default .select2-selection--multiple .select2-search__field {
+      margin-top: 0;
+      min-height: 28px;
+    }
+
+    .filter-panel .select2-container--default.select2-container--focus .select2-selection--multiple {
+      border-color: color-mix(in srgb, var(--primary) 28%, transparent);
+      box-shadow: 0 0 0 0.18rem color-mix(in srgb, var(--primary) 12%, transparent);
     }
 
     .metrics-headline {
@@ -648,6 +707,35 @@
       border: 1px solid color-mix(in srgb, var(--color-border) 10%, transparent);
     }
 
+    .dashboard-team-panel .chart-panel-head {
+      margin-bottom: 0.75rem;
+    }
+
+    .dashboard-team-panel .chart-panel-copy {
+      max-width: 60ch;
+      font-size: 0.82rem;
+      line-height: 1.45;
+    }
+
+    .dashboard-team-panel .staff-time-stats {
+      max-height: 290px;
+      padding: 0.82rem 0.9rem;
+    }
+
+    .dashboard-team-panel .staff-time-item {
+      gap: 0.6rem;
+      padding: 0.78rem 0;
+    }
+
+    .dashboard-team-panel .staff-time-details {
+      gap: 0.55rem;
+    }
+
+    .dashboard-team-panel .staff-time-detail {
+      padding: 0.7rem;
+      border-radius: 0.9rem;
+    }
+
     .staff-time-item {
       display: flex;
       flex-direction: column;
@@ -872,7 +960,7 @@
               <span class="section-chip">Live query</span>
             </div>
             <div class="filter-grid">
-              <div class="filter-block">
+              <div class="filter-block filter-block--period">
                 <label for="dateRange">Период</label>
                 <input type="text" id="dateRange" class="form-control" placeholder="Выберите период">
                 <div class="period-presets">
@@ -883,7 +971,7 @@
                   <button class="period-preset-btn" data-preset="all">За всё время</button>
                 </div>
               </div>
-              <div class="filter-block">
+              <div class="filter-block filter-block--restaurants">
                 <label for="restaurantFilter">Ресторан</label>
                 <select id="restaurantFilter" class="form-control" multiple="multiple">
                   <option th:each="restaurant : ${restaurants}" th:value="${restaurant}" th:text="${restaurant}"></option>
@@ -942,12 +1030,12 @@
         </section>
 
         <section class="dashboard-grid">
-          <article class="chart-panel chart-panel--wide data-panel">
+          <article class="chart-panel chart-panel--wide data-panel dashboard-team-panel">
             <div class="chart-panel-head">
               <div>
                 <span class="section-kicker">Команда</span>
                 <h3 class="chart-panel-title">Время по сотрудникам</h3>
-                <p class="chart-panel-copy">Сколько времени команда реально тратит на закрытие обращений и как выглядит средняя скорость реакции по каждому участнику.</p>
+                <p class="chart-panel-copy">Короткий срез по трудозатратам, средней скорости и объёму закрытых обращений по каждому сотруднику.</p>
               </div>
             </div>
             <div id="staffTimeStats" class="staff-time-stats">
@@ -1395,9 +1483,62 @@
       businessChart: { labels: [], values: [], total: 0 },
       networkChart: { labels: [], values: [], total: 0 }
     };
+    let suppressDateRangePresetReset = false;
+
+    function setActivePeriodPreset(preset) {
+      document.querySelectorAll('.period-preset-btn').forEach((button) => {
+        button.classList.toggle('active', button.dataset.preset === preset);
+      });
+    }
+
+    function clearActivePeriodPreset() {
+      document.querySelectorAll('.period-preset-btn').forEach((button) => {
+        button.classList.remove('active');
+      });
+    }
+
+    function applyRestaurantFilterOptions(restaurants, selectedRestaurants = []) {
+      const select = $('#restaurantFilter');
+      if (!select.length) {
+        return;
+      }
+      const normalizedRestaurants = Array.isArray(restaurants) ? restaurants : [];
+      const selected = Array.isArray(selectedRestaurants)
+        ? selectedRestaurants.filter((value) => normalizedRestaurants.includes(value))
+        : [];
+      select.empty();
+      normalizedRestaurants.forEach((restaurant) => {
+        const option = new Option(restaurant, restaurant, false, selected.includes(restaurant));
+        select.append(option);
+      });
+      select.trigger('change.select2');
+      currentFilters.restaurants = selected;
+    }
+
+    async function refreshRestaurantFilterOptions(preserveSelection = true) {
+      const selectedRestaurants = preserveSelection ? ($('#restaurantFilter').val() || []) : [];
+      try {
+        const response = await fetch('/api/dashboard/restaurant-options', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            startDate: currentFilters.startDate,
+            endDate: currentFilters.endDate,
+            restaurants: []
+          })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.success === false) {
+          throw new Error(data.error || ('HTTP ' + response.status));
+        }
+        applyRestaurantFilterOptions(data.restaurants, selectedRestaurants);
+      } catch (error) {
+        console.error('Ошибка обновления списка ресторанов:', error);
+      }
+    }
 
     // Инициализация фильтров
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', async function() {
       // Установка текущего месяца по умолчанию
       const monthRange = getCurrentMonthRange();
       const firstDay = monthRange.startDate;
@@ -1418,10 +1559,16 @@
           if (selectedDates.length === 2) {
             currentFilters.startDate = selectedDates[0].toISOString().split('T')[0];
             currentFilters.endDate = selectedDates[1].toISOString().split('T')[0];
-            // Сброс активного пресета при ручном выборе дат
-            document.querySelectorAll('.period-preset-btn').forEach(btn => {
-              btn.classList.remove('active');
-            });
+          } else if (selectedDates.length === 0) {
+            currentFilters.startDate = null;
+            currentFilters.endDate = null;
+          }
+          if (suppressDateRangePresetReset) {
+            return;
+          }
+          if (selectedDates.length === 2 || selectedDates.length === 0) {
+            clearActivePeriodPreset();
+            refreshRestaurantFilterOptions(true);
           }
         }
       });
@@ -1430,7 +1577,12 @@
       $('#restaurantFilter').select2({
         placeholder: "Все рестораны",
         allowClear: true,
+        closeOnSelect: false,
         width: '100%'
+      });
+      $('#restaurantFilter').on('change', function() {
+        const selectedRestaurants = $(this).val();
+        currentFilters.restaurants = Array.isArray(selectedRestaurants) ? selectedRestaurants : [];
       });
 
       flatpickr("#managerDateRange", {
@@ -1451,17 +1603,12 @@
         btn.addEventListener('click', function() {
           const preset = this.dataset.preset;
           setPeriodPreset(preset);
-
-          // Активируем выбранный пресет
-          document.querySelectorAll('.period-preset-btn').forEach(b => {
-            b.classList.remove('active');
-          });
-          this.classList.add('active');
         });
       });
 
       // Активируем пресет текущего месяца по умолчанию
-      document.querySelector('[data-preset="month"]').classList.add('active');
+      setActivePeriodPreset('month');
+      await refreshRestaurantFilterOptions(false);
 
       // Загрузка данных
       loadDashboardData();
@@ -1472,10 +1619,10 @@
         loadDashboardData();
         loadManagerReport();
       });
-      document.getElementById('resetFilters').addEventListener('click', function() {
-        $('#restaurantFilter').val(null).trigger('change');
+      document.getElementById('resetFilters').addEventListener('click', async function() {
         setPeriodPreset('month'); // Сброс к текущему месяцу
         currentFilters.restaurants = [];
+        await refreshRestaurantFilterOptions(false);
         loadDashboardData();
         loadManagerReport();
       });
@@ -1494,6 +1641,7 @@
     function setPeriodPreset(preset) {
       const now = new Date();
       let startDate, endDate;
+      const picker = document.querySelector('#dateRange')?._flatpickr;
 
       switch(preset) {
         case 'week':
@@ -1530,15 +1678,19 @@
           break;
       }
 
+      suppressDateRangePresetReset = true;
       if (startDate && endDate) {
         currentFilters.startDate = startDate.toISOString().split('T')[0];
         currentFilters.endDate = endDate.toISOString().split('T')[0];
-        flatpickr("#dateRange").setDate([startDate, endDate], true);
+        picker?.setDate([startDate, endDate], true);
       } else {
         currentFilters.startDate = null;
         currentFilters.endDate = null;
-        flatpickr("#dateRange").clear();
+        picker?.clear();
       }
+      suppressDateRangePresetReset = false;
+      setActivePeriodPreset(preset);
+      refreshRestaurantFilterOptions(true);
     }
 
     // Загрузка данных дашборда
@@ -1644,6 +1796,7 @@ async function loadDashboardData() {
     }
 
     const data = await response.json();
+    applyRestaurantFilterOptions(data.available_restaurants, currentFilters.restaurants);
 
     // Обновляем статистику
     updateStats(data.stats, data.time_stats, data.activity_stats);

@@ -62,7 +62,21 @@ public class DashboardAnalyticsService {
         payload.put("activity_stats", activityStats.toMap());
         payload.put("staff_time_stats", staffTimeStats.stream().map(StaffTimeStats::toMap).toList());
         payload.put("charts", charts.toMap());
+        payload.put("available_restaurants", availableRestaurants(dialogs, filters));
         return payload;
+    }
+
+    public List<String> availableRestaurants(List<DialogListItem> dialogs, DashboardFilters filters) {
+        DashboardFilters dateScopedFilters = filters == null
+                ? new DashboardFilters(null, null, List.of())
+                : new DashboardFilters(filters.startDate(), filters.endDate(), List.of());
+        return filterDialogs(dialogs, dateScopedFilters).stream()
+                .map(DialogListItem::locationName)
+                .filter(StringUtils::hasText)
+                .map(String::trim)
+                .distinct()
+                .sorted()
+                .toList();
     }
 
     public List<DialogListItem> filterDialogs(List<DialogListItem> dialogs, DashboardFilters filters) {

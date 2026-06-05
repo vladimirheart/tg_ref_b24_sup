@@ -50,6 +50,19 @@ public class DashboardApiController {
         return payload;
     }
 
+    @PostMapping("/restaurant-options")
+    @PreAuthorize("hasAuthority('PAGE_DIALOGS')")
+    public Map<String, Object> restaurantOptions(@RequestBody(required = false) DashboardFilterRequest request,
+                                                 Authentication authentication) {
+        String operator = authentication != null ? authentication.getName() : null;
+        List<DialogListItem> dialogs = dialogLookupReadService.loadDialogs(operator);
+        DashboardAnalyticsService.DashboardFilters filters = normalize(request);
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("restaurants", analyticsService.availableRestaurants(dialogs, filters));
+        payload.put("success", true);
+        return payload;
+    }
+
 
     @PostMapping("/manager-report")
     @PreAuthorize("hasAuthority('PAGE_DIALOGS')")
