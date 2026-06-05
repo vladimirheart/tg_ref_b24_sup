@@ -1742,6 +1742,11 @@ integration-сценария поверх users/settings runtime boundary всё
   non-message operator workflow transitions; AI background в этих сценариях
   отдельно приглушён через `ticket_ai_agent_dialog_control.ai_disabled=1`,
   чтобы не смешивать quick-action contract с adjacent escalation noise.
+- следующим маленьким follow-up пакетом этот же bell-consumer contract добран
+  и на explicit read semantics: те же lifecycle/collaboration сценарии теперь
+  после `POST /api/notifications/{id}/read` отдельно подтверждают снижение
+  `unread_count`, то есть peer notification parity закрыта уже не только на
+  emission/list route, но и на read-marker loop.
 - следующим follow-up пакетом закрыт и remaining `snooze` drift между runtime
   и workspace: `DialogWorkspaceWorkflowSnapshotService` теперь проецирует
   explicit `workflow.actions.snooze`, parity-layer считает его частью

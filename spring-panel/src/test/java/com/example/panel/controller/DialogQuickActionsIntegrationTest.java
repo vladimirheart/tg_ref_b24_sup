@@ -1151,6 +1151,21 @@ class DialogQuickActionsIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.unread").value(4));
 
+        Long latestLifecycleNotificationId = jdbcTemplate.queryForObject(
+                "SELECT id FROM notifications WHERE user_identity = ? ORDER BY id DESC LIMIT 1",
+                Long.class,
+                "lifecycle_peer"
+        );
+        mockMvc.perform(post("/api/notifications/" + latestLifecycleNotificationId + "/read")
+                        .principal(new TestingAuthenticationToken("lifecycle_peer", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        mockMvc.perform(get("/api/notifications/unread_count")
+                        .principal(new TestingAuthenticationToken("lifecycle_peer", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unread").value(3));
+
         mockMvc.perform(get("/api/notifications/unread_count")
                         .principal(new TestingAuthenticationToken("lifecycle_owner", "n/a", "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
@@ -1233,6 +1248,21 @@ class DialogQuickActionsIntegrationTest {
                         .principal(new TestingAuthenticationToken("collab_peer", "n/a", "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.unread").value(3));
+
+        Long latestCollabNotificationId = jdbcTemplate.queryForObject(
+                "SELECT id FROM notifications WHERE user_identity = ? ORDER BY id DESC LIMIT 1",
+                Long.class,
+                "collab_peer"
+        );
+        mockMvc.perform(post("/api/notifications/" + latestCollabNotificationId + "/read")
+                        .principal(new TestingAuthenticationToken("collab_peer", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        mockMvc.perform(get("/api/notifications/unread_count")
+                        .principal(new TestingAuthenticationToken("collab_peer", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unread").value(2));
 
         mockMvc.perform(get("/api/notifications/unread_count")
                         .principal(new TestingAuthenticationToken("collab_owner", "n/a", "PAGE_DIALOGS")))
