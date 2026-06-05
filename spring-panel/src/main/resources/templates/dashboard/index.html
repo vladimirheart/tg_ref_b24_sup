@@ -698,9 +698,11 @@
     .staff-time-stats {
       position: relative;
       z-index: 1;
-      max-height: 360px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 0.85rem;
+      max-height: 420px;
       overflow-y: auto;
-      padding-right: 0.2rem;
       padding: 1rem;
       border-radius: 1.35rem;
       background: rgba(255, 255, 255, 0.64);
@@ -718,21 +720,22 @@
     }
 
     .dashboard-team-panel .staff-time-stats {
-      max-height: 290px;
-      padding: 0.82rem 0.9rem;
+      gap: 0.7rem;
+      max-height: 340px;
+      padding: 0.82rem;
     }
 
     .dashboard-team-panel .staff-time-item {
-      gap: 0.6rem;
-      padding: 0.78rem 0;
+      gap: 0.55rem;
+      padding: 0.82rem;
     }
 
     .dashboard-team-panel .staff-time-details {
-      gap: 0.55rem;
+      gap: 0.45rem;
     }
 
     .dashboard-team-panel .staff-time-detail {
-      padding: 0.7rem;
+      padding: 0.62rem;
       border-radius: 0.9rem;
     }
 
@@ -740,31 +743,65 @@
       display: flex;
       flex-direction: column;
       gap: 0.8rem;
-      padding: 1rem 0;
-      border-bottom: 1px solid color-mix(in srgb, var(--color-border) 10%, transparent);
-    }
-
-    .staff-time-item:first-child {
-      padding-top: 0.15rem;
-    }
-
-    .staff-time-item:last-child {
-      border-bottom: none;
-      padding-bottom: 0;
+      min-height: 100%;
+      padding: 1rem;
+      border-radius: 1.1rem;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(246, 250, 247, 0.88));
+      border: 1px solid color-mix(in srgb, var(--color-border) 10%, transparent);
+      box-shadow: 0 14px 24px rgba(18, 33, 23, 0.06);
     }
 
     .staff-time-header {
       display: flex;
       justify-content: space-between;
-      align-items: center;
-      gap: 1rem;
+      align-items: flex-start;
+      gap: 0.85rem;
       width: 100%;
+    }
+
+    .staff-time-identity {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      min-width: 0;
+    }
+
+    .staff-time-avatar {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 38px;
+      height: 38px;
+      border-radius: 1rem;
+      flex-shrink: 0;
+      background: linear-gradient(135deg, color-mix(in srgb, var(--primary) 18%, white), color-mix(in srgb, var(--chart-2) 22%, white));
+      color: var(--color-accent);
+      font-size: 0.88rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+    }
+
+    .staff-time-meta {
+      min-width: 0;
     }
 
     .staff-time-name {
       font-weight: 800;
       font-size: 1rem;
       letter-spacing: -0.01em;
+      line-height: 1.2;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .staff-time-subtitle {
+      margin-top: 0.18rem;
+      font-size: 0.72rem;
+      color: var(--color-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
     }
 
     .staff-time-total {
@@ -780,14 +817,14 @@
 
     .staff-time-details {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 0.75rem;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.65rem;
     }
 
     .staff-time-detail {
       padding: 0.85rem;
       border-radius: 1rem;
-      background: rgba(255, 255, 255, 0.66);
+      background: rgba(255, 255, 255, 0.74);
       border: 1px solid color-mix(in srgb, var(--color-border) 8%, transparent);
     }
 
@@ -801,7 +838,9 @@
     }
 
     .staff-time-value {
+      display: block;
       font-weight: 700;
+      line-height: 1.25;
     }
 
     .staff-time-avg {
@@ -894,6 +933,10 @@
         grid-template-columns: 1fr;
       }
 
+      .staff-time-stats {
+        grid-template-columns: 1fr;
+      }
+
       .chart-panel--wide {
         grid-column: span 1;
       }
@@ -911,6 +954,11 @@
     @media (max-width: 767.98px) {
       .reports-shell {
         padding-top: 1rem;
+      }
+
+      .staff-time-header {
+        flex-direction: column;
+        align-items: stretch;
       }
 
       .filter-buttons .btn,
@@ -2006,37 +2054,47 @@ function updateStaffTimeStats(staffStats) {
         return;
     }
 
-    let html = '';
-    staffStats.forEach(staff => {
-        html += `
-            <div class="staff-time-item">
-                <div class="staff-time-header">
-                    <div class="staff-time-name">${staff.name}</div>
-                    <div class="staff-time-total">${staff.formatted_total}</div>
+    const initials = (value) => {
+        const parts = String(value || '').trim().split(/\s+/).filter(Boolean);
+        if (!parts.length) return '—';
+        if (parts.length === 1) {
+            return parts[0].slice(0, 2).toUpperCase();
+        }
+        return (parts[0][0] + parts[1][0]).toUpperCase();
+    };
+
+    container.innerHTML = staffStats.map((staff) => `
+        <article class="staff-time-item">
+            <div class="staff-time-header">
+                <div class="staff-time-identity">
+                    <div class="staff-time-avatar">${initials(staff.name)}</div>
+                    <div class="staff-time-meta">
+                        <div class="staff-time-name">${staff.name}</div>
+                        <div class="staff-time-subtitle">Сотрудник смены</div>
+                    </div>
                 </div>
-                <div class="staff-time-details">
-                    <div class="staff-time-detail">
-                        <div class="staff-time-label">Обработано заявок</div>
-                        <div class="staff-time-value staff-time-count">${staff.resolved_count}</div>
-                    </div>
-                    <div class="staff-time-detail">
-                        <div class="staff-time-label">Среднее время на заявку</div>
-                        <div class="staff-time-value staff-time-avg">${staff.formatted_avg}</div>
-                    </div>
-                    <div class="staff-time-detail">
-                        <div class="staff-time-label">Среднее время ответа</div>
-                        <div class="staff-time-value staff-time-response">${staff.formatted_avg_response}</div>
-                    </div>
-                    <div class="staff-time-detail">
-                        <div class="staff-time-label">Эффективность</div>
-                        <div class="staff-time-value">${staff.resolved_count > 0 ? Math.round(staff.total_minutes / staff.resolved_count) : 0} мин/заявка</div>
-                    </div>
+                <div class="staff-time-total">${staff.formatted_total}</div>
+            </div>
+            <div class="staff-time-details">
+                <div class="staff-time-detail">
+                    <div class="staff-time-label">Обработано</div>
+                    <div class="staff-time-value staff-time-count">${staff.resolved_count}</div>
+                </div>
+                <div class="staff-time-detail">
+                    <div class="staff-time-label">Среднее на заявку</div>
+                    <div class="staff-time-value staff-time-avg">${staff.formatted_avg}</div>
+                </div>
+                <div class="staff-time-detail">
+                    <div class="staff-time-label">Среднее ответа</div>
+                    <div class="staff-time-value staff-time-response">${staff.formatted_avg_response}</div>
+                </div>
+                <div class="staff-time-detail">
+                    <div class="staff-time-label">Эффективность</div>
+                    <div class="staff-time-value">${staff.resolved_count > 0 ? Math.round(staff.total_minutes / staff.resolved_count) : 0} мин/заявка</div>
                 </div>
             </div>
-        `;
-    });
-
-    container.innerHTML = html;
+        </article>
+    `).join('');
 }
 
     // Обновление сравнения месяц-к-месяцу
