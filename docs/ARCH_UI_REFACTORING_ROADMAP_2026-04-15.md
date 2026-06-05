@@ -1523,6 +1523,13 @@
   `web_form reply -> edit -> delete` continuity на `details/history` и
   `workspace.context.related_events`, а shared-link integration подтверждает,
   что synthetic id действительно сохраняется в `chat_history`.
+- следующим соседним hardening-пакетом write-side quick actions добраны и на
+  list surface: `reply`, `web_form reply -> edit -> delete`, transport
+  `reply -> edit -> delete` и `reply_media` теперь live-проверяют
+  `/api/dialogs` reread на `unreadCount=0` и переход в `my_dialogs.in_work`
+  без потери responsible projection; заодно test runtime очищает
+  `ticket_ai_agent_state`, чтобы AI-processing хвост не маскировал реальные
+  regression’ы этого queue/list контракта.
 - следующим follow-up пакетом закрыт и remaining `snooze` drift между runtime
   и workspace: `DialogWorkspaceWorkflowSnapshotService` теперь проецирует
   explicit `workflow.actions.snooze`, parity-layer считает его частью

@@ -126,6 +126,7 @@ class DialogQuickActionsIntegrationTest {
         jdbcTemplate.update("DELETE FROM ticket_categories");
         jdbcTemplate.update("DELETE FROM ticket_participants");
         jdbcTemplate.update("DELETE FROM ticket_active");
+        jdbcTemplate.update("DELETE FROM ticket_ai_agent_state");
         jdbcTemplate.update("DELETE FROM ticket_responsibles");
         jdbcTemplate.update("DELETE FROM web_form_sessions");
         jdbcTemplate.update("DELETE FROM notifications");
@@ -445,6 +446,15 @@ class DialogQuickActionsIntegrationTest {
                 .andExpect(jsonPath("$.telegramMessageId").isNumber())
                 .andExpect(jsonPath("$.responsible").value("watcher_owner"));
 
+        mockMvc.perform(get("/api/dialogs")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-QA-REPLY"))
+                .andExpect(jsonPath("$.dialogs[0].rawResponsible").value("watcher_owner"))
+                .andExpect(jsonPath("$.dialogs[0].unreadCount").value(0))
+                .andExpect(jsonPath("$.my_dialogs.unanswered").isEmpty())
+                .andExpect(jsonPath("$.my_dialogs.in_work[0].ticketId").value("T-QA-REPLY"));
+
         mockMvc.perform(get("/api/dialogs/T-QA-REPLY")
                         .param("channelId", "104")
                         .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
@@ -474,6 +484,14 @@ class DialogQuickActionsIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.conversation.ticketId").value("T-QA-REPLY"))
                 .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("reply: success (message_sent)")));
+
+        mockMvc.perform(get("/api/dialogs")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-QA-REPLY"))
+                .andExpect(jsonPath("$.dialogs[0].unreadCount").value(0))
+                .andExpect(jsonPath("$.my_dialogs.unanswered").isEmpty())
+                .andExpect(jsonPath("$.my_dialogs.in_work[0].ticketId").value("T-QA-REPLY"));
 
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT responsible FROM ticket_responsibles WHERE ticket_id = ?",
@@ -554,6 +572,15 @@ class DialogQuickActionsIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
 
+        mockMvc.perform(get("/api/dialogs")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-QA-WEB-MUTATE"))
+                .andExpect(jsonPath("$.dialogs[0].rawResponsible").value("watcher_owner"))
+                .andExpect(jsonPath("$.dialogs[0].unreadCount").value(0))
+                .andExpect(jsonPath("$.my_dialogs.unanswered").isEmpty())
+                .andExpect(jsonPath("$.my_dialogs.in_work[0].ticketId").value("T-QA-WEB-MUTATE"));
+
         mockMvc.perform(get("/api/dialogs/T-QA-WEB-MUTATE")
                         .param("channelId", "108")
                         .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
@@ -592,6 +619,14 @@ class DialogQuickActionsIntegrationTest {
                 .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("reply: success (message_sent)")))
                 .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("edit: success (message_edited)")))
                 .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("delete: success (message_deleted)")));
+
+        mockMvc.perform(get("/api/dialogs")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-QA-WEB-MUTATE"))
+                .andExpect(jsonPath("$.dialogs[0].unreadCount").value(0))
+                .andExpect(jsonPath("$.my_dialogs.unanswered").isEmpty())
+                .andExpect(jsonPath("$.my_dialogs.in_work[0].ticketId").value("T-QA-WEB-MUTATE"));
 
         verify(dialogReplyTransportService, never()).sendText(any(Channel.class), eq(920108L), eq("Первичный ответ через web_form"), isNull());
         verify(dialogReplyTransportService, never()).editTelegramMessage(any(Channel.class), eq(920108L), eq(localTelegramMessageId), eq("Уточнённый ответ через web_form"));
@@ -660,6 +695,15 @@ class DialogQuickActionsIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
 
+        mockMvc.perform(get("/api/dialogs")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-QA-MUTATE"))
+                .andExpect(jsonPath("$.dialogs[0].rawResponsible").value("watcher_owner"))
+                .andExpect(jsonPath("$.dialogs[0].unreadCount").value(0))
+                .andExpect(jsonPath("$.my_dialogs.unanswered").isEmpty())
+                .andExpect(jsonPath("$.my_dialogs.in_work[0].ticketId").value("T-QA-MUTATE"));
+
         mockMvc.perform(get("/api/dialogs/T-QA-MUTATE")
                         .param("channelId", "106")
                         .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
@@ -699,6 +743,14 @@ class DialogQuickActionsIntegrationTest {
                 .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("edit: success (message_edited)")))
                 .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("delete: success (message_deleted)")));
 
+        mockMvc.perform(get("/api/dialogs")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-QA-MUTATE"))
+                .andExpect(jsonPath("$.dialogs[0].unreadCount").value(0))
+                .andExpect(jsonPath("$.my_dialogs.unanswered").isEmpty())
+                .andExpect(jsonPath("$.my_dialogs.in_work[0].ticketId").value("T-QA-MUTATE"));
+
         assertThat(countAuditRows("T-QA-MUTATE", "reply", "success")).isEqualTo(1);
         assertThat(countAuditRows("T-QA-MUTATE", "edit", "success")).isEqualTo(1);
         assertThat(countAuditRows("T-QA-MUTATE", "delete", "success")).isEqualTo(1);
@@ -731,6 +783,15 @@ class DialogQuickActionsIntegrationTest {
                 .andExpect(jsonPath("$.messageType").value("image"))
                 .andExpect(jsonPath("$.attachment", startsWith("/api/attachments/tickets/T-QA-MEDIA/")));
 
+        mockMvc.perform(get("/api/dialogs")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-QA-MEDIA"))
+                .andExpect(jsonPath("$.dialogs[0].rawResponsible").value("watcher_owner"))
+                .andExpect(jsonPath("$.dialogs[0].unreadCount").value(0))
+                .andExpect(jsonPath("$.my_dialogs.unanswered").isEmpty())
+                .andExpect(jsonPath("$.my_dialogs.in_work[0].ticketId").value("T-QA-MEDIA"));
+
         mockMvc.perform(get("/api/dialogs/T-QA-MEDIA")
                         .param("channelId", "107")
                         .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
@@ -747,6 +808,14 @@ class DialogQuickActionsIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.conversation.ticketId").value("T-QA-MEDIA"))
                 .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("reply_media: success (media_sent)")));
+
+        mockMvc.perform(get("/api/dialogs")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-QA-MEDIA"))
+                .andExpect(jsonPath("$.dialogs[0].unreadCount").value(0))
+                .andExpect(jsonPath("$.my_dialogs.unanswered").isEmpty())
+                .andExpect(jsonPath("$.my_dialogs.in_work[0].ticketId").value("T-QA-MEDIA"));
 
         mockMvc.perform(get("/api/dialogs/T-QA-MEDIA")
                         .param("channelId", "107")

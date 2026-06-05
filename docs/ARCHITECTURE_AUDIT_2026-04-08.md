@@ -1715,6 +1715,13 @@ integration-сценария поверх users/settings runtime boundary всё
   полный `web_form reply -> edit -> delete` cycle, а shared-link integration
   фиксирует сохранение synthetic id в `chat_history` как часть нового local
   mutation contract.
+- следующим соседним hardening-пакетом этот же write-side слой закреплён и на
+  `/api/dialogs`: `reply`, `web_form reply -> edit -> delete`, transport
+  `reply -> edit -> delete` и `reply_media` теперь проверяют list reread на
+  `unreadCount=0` и перевод диалога в `my_dialogs.in_work`, то есть queue/list
+  consumer тоже читает тот же post-action state без drift по owner bucket;
+  дополнительно runtime integration теперь чистит `ticket_ai_agent_state`,
+  чтобы AI-processing residue не создавал ложные list-surface regressions.
 - следующим follow-up пакетом закрыт и remaining `snooze` drift между runtime
   и workspace: `DialogWorkspaceWorkflowSnapshotService` теперь проецирует
   explicit `workflow.actions.snooze`, parity-layer считает его частью
