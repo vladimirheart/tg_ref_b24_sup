@@ -1075,6 +1075,172 @@ class DialogQuickActionsIntegrationTest {
     }
 
     @Test
+    @DirtiesContext(methodMode = DirtiesContext.MethodMode.AFTER_METHOD)
+    void quickActionsApiLifecycleActionsNotifyPeerParticipantsThroughNotificationApi() throws Exception {
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        insertDirectoryUser("lifecycle_owner", true, false, 1L, "Support", "Lifecycle Owner", "Ops", "/img/owner.png");
+        insertDirectoryUser("lifecycle_peer", true, false, 1L, "Support", "Lifecycle Peer", "Ops", "/img/peer.png");
+
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
+                VALUES (111, 'token111', 'Quick Actions Lifecycle Notify', 'telegram', 1, CURRENT_TIMESTAMP)
+                """);
+        insertDialogTicket(920111L, "T-QA-LIFECYCLE-NOTIFY", 111L, "quick_lifecycle_notify_user", "Клиент Lifecycle Notify", "Retail", "Курск", "Точка Lifecycle Notify", "Проверка lifecycle notifications", "2026-06-05T10:00:00Z", 11101L);
+        jdbcTemplate.update("""
+                INSERT INTO ticket_participants(ticket_id, username, added_at, added_by)
+                VALUES (?,?,CURRENT_TIMESTAMP,?)
+                """,
+                "T-QA-LIFECYCLE-NOTIFY", "lifecycle_peer", "dispatcher");
+        jdbcTemplate.update("""
+                INSERT INTO ticket_ai_agent_dialog_control(ticket_id, ai_disabled, auto_reply_blocked, reason, updated_by)
+                VALUES (?,?,?,?,?)
+                """,
+                "T-QA-LIFECYCLE-NOTIFY", 1, 1, "notification parity test", "test");
+        insertHistoryRow("T-QA-LIFECYCLE-NOTIFY", 920111L, "user", "Клиент ждёт life-cycle update", "2026-06-05T10:01:00Z", "text", 2101L, null, 111L);
+        insertHistoryRow("T-QA-LIFECYCLE-NOTIFY", 920111L, "operator", "Первый операторский ответ уже был", "2026-06-05T10:01:30Z", "operator_message", 2100L, 2101L, 111L);
+
+        mockMvc.perform(post("/api/dialogs/T-QA-LIFECYCLE-NOTIFY/take")
+                        .principal(new TestingAuthenticationToken("lifecycle_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        mockMvc.perform(post("/api/dialogs/T-QA-LIFECYCLE-NOTIFY/categories")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "categories": ["vip", "priority"]
+                                }
+                                """)
+                        .principal(new TestingAuthenticationToken("lifecycle_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        mockMvc.perform(post("/api/dialogs/T-QA-LIFECYCLE-NOTIFY/resolve")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "categories": ["vip", "priority"]
+                                }
+                                """)
+                        .principal(new TestingAuthenticationToken("lifecycle_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.updated").value(true));
+
+        mockMvc.perform(post("/api/dialogs/T-QA-LIFECYCLE-NOTIFY/reopen")
+                        .principal(new TestingAuthenticationToken("lifecycle_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.updated").value(true));
+
+        mockMvc.perform(get("/api/notifications")
+                        .principal(new TestingAuthenticationToken("lifecycle_peer", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(4))
+                .andExpect(jsonPath("$[0].text").value("Обращение T-QA-LIFECYCLE-NOTIFY снова открыто"))
+                .andExpect(jsonPath("$[0].url").value("/dialogs/T-QA-LIFECYCLE-NOTIFY"))
+                .andExpect(jsonPath("$[1].text").value("Обращение T-QA-LIFECYCLE-NOTIFY закрыто"))
+                .andExpect(jsonPath("$[1].url").value("/dialogs/T-QA-LIFECYCLE-NOTIFY"))
+                .andExpect(jsonPath("$[2].text").value("В обращении T-QA-LIFECYCLE-NOTIFY обновлены категории"))
+                .andExpect(jsonPath("$[2].url").value("/dialogs/T-QA-LIFECYCLE-NOTIFY"))
+                .andExpect(jsonPath("$[3].text").value("Обращение T-QA-LIFECYCLE-NOTIFY взято в работу оператором lifecycle_owner"))
+                .andExpect(jsonPath("$[3].url").value("/dialogs/T-QA-LIFECYCLE-NOTIFY"));
+
+        mockMvc.perform(get("/api/notifications/unread_count")
+                        .principal(new TestingAuthenticationToken("lifecycle_peer", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unread").value(4));
+
+        mockMvc.perform(get("/api/notifications/unread_count")
+                        .principal(new TestingAuthenticationToken("lifecycle_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unread").value(0));
+    }
+
+    @Test
+    @DirtiesContext(methodMode = DirtiesContext.MethodMode.AFTER_METHOD)
+    void quickActionsApiCollaborationActionsNotifyPeerParticipantsThroughNotificationApi() throws Exception {
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        insertDirectoryUser("collab_owner", true, false, 1L, "Support", "Collab Owner", "Ops", "/img/owner.png");
+        insertDirectoryUser("collab_new", true, false, 1L, "Support", "Collab New", "Ops", "/img/new.png");
+        insertDirectoryUser("collab_peer", true, false, 1L, "Support", "Collab Peer", "Ops", "/img/peer.png");
+        insertDirectoryUser("collab_observer", true, false, 1L, "Support", "Collab Observer", "Backoffice", "/img/observer.png");
+
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
+                VALUES (112, 'token112', 'Quick Actions Collab Notify', 'telegram', 1, CURRENT_TIMESTAMP)
+                """);
+        insertDialogTicket(920112L, "T-QA-COLLAB-NOTIFY", 112L, "quick_collab_notify_user", "Клиент Collab Notify", "Retail", "Ярославль", "Точка Collab Notify", "Проверка collaboration notifications", "2026-06-05T10:30:00Z", 11201L);
+        jdbcTemplate.update("""
+                INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
+                VALUES (?,?,?,?)
+                """,
+                "T-QA-COLLAB-NOTIFY", "collab_owner", "dispatcher", "2026-06-05T10:29:00Z");
+        jdbcTemplate.update("""
+                INSERT INTO ticket_participants(ticket_id, username, added_at, added_by)
+                VALUES (?,?,CURRENT_TIMESTAMP,?)
+                """,
+                "T-QA-COLLAB-NOTIFY", "collab_peer", "collab_owner");
+        jdbcTemplate.update("""
+                INSERT INTO ticket_ai_agent_dialog_control(ticket_id, ai_disabled, auto_reply_blocked, reason, updated_by)
+                VALUES (?,?,?,?,?)
+                """,
+                "T-QA-COLLAB-NOTIFY", 1, 1, "notification parity test", "test");
+        insertHistoryRow("T-QA-COLLAB-NOTIFY", 920112L, "user", "Клиент ждёт handoff", "2026-06-05T10:31:00Z", "text", 2201L, null, 112L);
+        insertHistoryRow("T-QA-COLLAB-NOTIFY", 920112L, "operator", "Оператор уже отвечал ранее", "2026-06-05T10:31:30Z", "operator_message", 2200L, 2201L, 112L);
+
+        mockMvc.perform(post("/api/dialogs/T-QA-COLLAB-NOTIFY/reassign")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "username": "collab_new"
+                                }
+                                """)
+                        .principal(new TestingAuthenticationToken("collab_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        mockMvc.perform(post("/api/dialogs/T-QA-COLLAB-NOTIFY/participants")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "username": "collab_observer"
+                                }
+                                """)
+                        .principal(new TestingAuthenticationToken("collab_new", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.changed").value(true));
+
+        mockMvc.perform(delete("/api/dialogs/T-QA-COLLAB-NOTIFY/participants/collab_observer")
+                        .principal(new TestingAuthenticationToken("collab_new", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.changed").value(true));
+
+        mockMvc.perform(get("/api/notifications")
+                        .principal(new TestingAuthenticationToken("collab_peer", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(3))
+                .andExpect(jsonPath("$[0].text").value("Из обращения T-QA-COLLAB-NOTIFY исключен оператор Collab Observer"))
+                .andExpect(jsonPath("$[0].url").value("/dialogs/T-QA-COLLAB-NOTIFY"))
+                .andExpect(jsonPath("$[1].text").value("К обращению T-QA-COLLAB-NOTIFY подключен оператор Collab Observer"))
+                .andExpect(jsonPath("$[1].url").value("/dialogs/T-QA-COLLAB-NOTIFY"))
+                .andExpect(jsonPath("$[2].text").value("Обращение T-QA-COLLAB-NOTIFY передано оператору Collab New"))
+                .andExpect(jsonPath("$[2].url").value("/dialogs/T-QA-COLLAB-NOTIFY"));
+
+        mockMvc.perform(get("/api/notifications/unread_count")
+                        .principal(new TestingAuthenticationToken("collab_peer", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unread").value(3));
+
+        mockMvc.perform(get("/api/notifications/unread_count")
+                        .principal(new TestingAuthenticationToken("collab_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unread").value(0));
+    }
+
+    @Test
     void quickActionsApiSnoozeKeepsDialogStateAndRefreshesWorkspaceAuditTrail() throws Exception {
         usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
         insertDirectoryUser("watcher_owner", true, false, 1L, "Support", "Watcher Owner", "Ops", "/img/owner.png");

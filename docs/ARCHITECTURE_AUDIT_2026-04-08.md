@@ -1734,6 +1734,14 @@ integration-сценария поверх users/settings runtime boundary всё
   тоже читает quick-action mutations как отдельный runtime contract; тесты
   при этом изолированы через `@DirtiesContext`, чтобы scheduler/AI background
   не создавал ложный notification drift.
+- следующим пакетом этот bell-consumer слой расширен уже и на соседние
+  collaboration/lifecycle actions: `take -> categories -> resolve -> reopen`
+  и `reassign -> participants_add -> participants_remove` теперь тоже
+  live-подтверждают peer notification list и `unread_count`, так что
+  `/api/notifications` читает уже не только message-side mutations, но и
+  non-message operator workflow transitions; AI background в этих сценариях
+  отдельно приглушён через `ticket_ai_agent_dialog_control.ai_disabled=1`,
+  чтобы не смешивать quick-action contract с adjacent escalation noise.
 - следующим follow-up пакетом закрыт и remaining `snooze` drift между runtime
   и workspace: `DialogWorkspaceWorkflowSnapshotService` теперь проецирует
   explicit `workflow.actions.snooze`, parity-layer считает его частью

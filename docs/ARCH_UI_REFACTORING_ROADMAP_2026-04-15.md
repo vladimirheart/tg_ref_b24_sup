@@ -1543,6 +1543,14 @@
   доходят до bell-consumer как отдельный runtime contract; сами тесты
   изолированы через `@DirtiesContext`, чтобы scheduler/AI background не
   маскировал реальный quick-action notification drift.
+- следующим пакетом bell-consumer coverage расширен уже и на соседние
+  non-message operator actions: `take -> categories -> resolve -> reopen` и
+  `reassign -> participants_add -> participants_remove` теперь тоже
+  live-проверяют peer notification list и `unread_count`, подтверждая, что
+  collaboration/lifecycle mutations доходят до `/api/notifications` тем же
+  runtime путём; для этих сценариев AI background отдельно приглушён через
+  `ticket_ai_agent_dialog_control.ai_disabled=1`, чтобы фиксировать именно
+  operator-action notification contract, а не смежный escalation noise.
 - следующим follow-up пакетом закрыт и remaining `snooze` drift между runtime
   и workspace: `DialogWorkspaceWorkflowSnapshotService` теперь проецирует
   explicit `workflow.actions.snooze`, parity-layer считает его частью
