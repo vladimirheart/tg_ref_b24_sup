@@ -151,6 +151,87 @@
       line-height: 1.42;
     }
 
+    .panel-title-row {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      min-width: 0;
+    }
+
+    .panel-title-row h3,
+    .panel-title-row .chart-panel-title {
+      margin: 0.25rem 0 0;
+    }
+
+    .panel-info-button {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      margin-top: 0.25rem;
+      border: 0;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--color-border) 22%, white);
+      color: var(--color-text-muted);
+      font-size: 0.76rem;
+      font-weight: 800;
+      line-height: 1;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+      cursor: help;
+      transition: background-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
+    }
+
+    .panel-info-button:hover,
+    .panel-info-button:focus-visible {
+      background: color-mix(in srgb, var(--primary) 16%, white);
+      color: var(--color-accent);
+      transform: translateY(-1px);
+      outline: none;
+    }
+
+    .panel-info-tooltip {
+      position: absolute;
+      top: calc(100% + 10px);
+      left: 50%;
+      z-index: 20;
+      width: min(280px, 70vw);
+      padding: 0.72rem 0.82rem;
+      border-radius: 0.95rem;
+      background: rgba(18, 33, 23, 0.94);
+      color: rgba(245, 250, 246, 0.92);
+      font-size: 0.78rem;
+      line-height: 1.45;
+      text-align: left;
+      box-shadow: 0 18px 34px rgba(10, 20, 14, 0.24);
+      opacity: 0;
+      visibility: hidden;
+      transform: translate(-50%, 6px);
+      transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s ease;
+      pointer-events: none;
+    }
+
+    .panel-info-tooltip::before {
+      content: "";
+      position: absolute;
+      left: 50%;
+      bottom: 100%;
+      width: 10px;
+      height: 10px;
+      background: inherit;
+      transform: translateX(-50%) rotate(45deg);
+      border-radius: 2px;
+    }
+
+    .panel-info-button:hover .panel-info-tooltip,
+    .panel-info-button:focus-visible .panel-info-tooltip {
+      opacity: 1;
+      visibility: visible;
+      transform: translate(-50%, 0);
+    }
+
     .section-kicker,
     .section-chip {
       display: inline-flex;
@@ -956,6 +1037,23 @@
         padding-top: 1rem;
       }
 
+      .panel-info-tooltip {
+        left: auto;
+        right: 0;
+        transform: translate(0, 6px);
+      }
+
+      .panel-info-tooltip::before {
+        left: auto;
+        right: 10px;
+        transform: rotate(45deg);
+      }
+
+      .panel-info-button:hover .panel-info-tooltip,
+      .panel-info-button:focus-visible .panel-info-tooltip {
+        transform: translate(0, 0);
+      }
+
       .staff-time-header {
         flex-direction: column;
         align-items: stretch;
@@ -1002,8 +1100,13 @@
             <div class="panel-head">
               <div>
                 <span class="section-kicker">Фильтры</span>
-                <h3>Соберите нужный срез</h3>
-                <p>Период, рестораны и быстрые пресеты собраны в одном компактном control-блоке.</p>
+                <div class="panel-title-row">
+                  <h3>Соберите нужный срез</h3>
+                  <button type="button" class="panel-info-button" aria-label="Описание блока фильтров">
+                    i
+                    <span class="panel-info-tooltip">Период, рестораны и быстрые пресеты собраны в одном компактном control-блоке.</span>
+                  </button>
+                </div>
               </div>
               <span class="section-chip">Live query</span>
             </div>
@@ -1036,8 +1139,13 @@
             <div class="panel-head">
               <div>
                 <span class="section-kicker">Control center</span>
-                <h3>Ключевые метрики смены</h3>
-                <p>Сверху остаются только ключевые сигналы: объём, трудозатраты и темп обработки.</p>
+                <div class="panel-title-row">
+                  <h3>Ключевые метрики смены</h3>
+                  <button type="button" class="panel-info-button" aria-label="Описание блока ключевых метрик">
+                    i
+                    <span class="panel-info-tooltip">Сверху остаются только ключевые сигналы: объём, трудозатраты и темп обработки.</span>
+                  </button>
+                </div>
               </div>
             </div>
             <div class="metrics-headline">
@@ -1082,8 +1190,13 @@
             <div class="chart-panel-head">
               <div>
                 <span class="section-kicker">Команда</span>
-                <h3 class="chart-panel-title">Время по сотрудникам</h3>
-                <p class="chart-panel-copy">Короткий срез по трудозатратам, средней скорости и объёму закрытых обращений по каждому сотруднику.</p>
+                <div class="panel-title-row">
+                  <h3 class="chart-panel-title">Время по сотрудникам</h3>
+                  <button type="button" class="panel-info-button" aria-label="Описание блока времени по сотрудникам">
+                    i
+                    <span class="panel-info-tooltip">Короткий срез по трудозатратам, средней скорости и объёму закрытых обращений по каждому сотруднику.</span>
+                  </button>
+                </div>
               </div>
             </div>
             <div id="staffTimeStats" class="staff-time-stats">
@@ -1095,8 +1208,13 @@
             <div class="chart-panel-head">
               <div>
                 <span class="section-kicker">Активность</span>
-                <h3 class="chart-panel-title">Нагрузка по дням и часам</h3>
-                <p class="chart-panel-copy">Количество обращений в разрезе дня недели и часа, чтобы быстро видеть пики и рабочие окна нагрузки.</p>
+                <div class="panel-title-row">
+                  <h3 class="chart-panel-title">Нагрузка по дням и часам</h3>
+                  <button type="button" class="panel-info-button" aria-label="Описание блока нагрузки по дням и часам">
+                    i
+                    <span class="panel-info-tooltip">Количество обращений в разрезе дня недели и часа, чтобы быстро видеть пики и рабочие окна нагрузки.</span>
+                  </button>
+                </div>
               </div>
             </div>
             <div class="activity-heatmap-shell">
@@ -1129,8 +1247,13 @@
             <div class="chart-panel-head">
               <div>
                 <span class="section-kicker">Каналы</span>
-                <h3 class="chart-panel-title">Заявки по каналам</h3>
-                <p class="chart-panel-copy">Распределение обращений по Telegram, VK, MAX, формам и другим фактическим каналам поступления.</p>
+                <div class="panel-title-row">
+                  <h3 class="chart-panel-title">Заявки по каналам</h3>
+                  <button type="button" class="panel-info-button" aria-label="Описание блока заявок по каналам">
+                    i
+                    <span class="panel-info-tooltip">Распределение обращений по Telegram, VK, MAX, формам и другим фактическим каналам поступления.</span>
+                  </button>
+                </div>
               </div>
             </div>
             <div class="chart-container">
@@ -1142,8 +1265,13 @@
             <div class="chart-panel-head">
               <div>
                 <span class="section-kicker">Команда</span>
-                <h3 class="chart-panel-title">Нагрузка по сотрудникам</h3>
-                <p class="chart-panel-copy">Сравнение трудозатрат и количества закрытых заявок по команде в одном графике.</p>
+                <div class="panel-title-row">
+                  <h3 class="chart-panel-title">Нагрузка по сотрудникам</h3>
+                  <button type="button" class="panel-info-button" aria-label="Описание блока нагрузки по сотрудникам">
+                    i
+                    <span class="panel-info-tooltip">Сравнение трудозатрат и количества закрытых заявок по команде в одном графике.</span>
+                  </button>
+                </div>
               </div>
             </div>
             <div class="chart-container">
@@ -1155,8 +1283,13 @@
             <div class="chart-panel-head">
               <div>
                 <span class="section-kicker">Бизнес</span>
-                <h3 class="chart-panel-title">По бизнесу</h3>
-                <p class="chart-panel-copy">Структура обращений по бизнесам без раздвоения на канальные варианты одной и той же сети.</p>
+                <div class="panel-title-row">
+                  <h3 class="chart-panel-title">По бизнесу</h3>
+                  <button type="button" class="panel-info-button" aria-label="Описание блока по бизнесу">
+                    i
+                    <span class="panel-info-tooltip">Структура обращений по бизнесам без раздвоения на канальные варианты одной и той же сети.</span>
+                  </button>
+                </div>
               </div>
             </div>
             <div class="pie-chart-container">
@@ -1171,8 +1304,13 @@
             <div class="chart-panel-head">
               <div>
                 <span class="section-kicker">Сети</span>
-                <h3 class="chart-panel-title">По сетям</h3>
-                <p class="chart-panel-copy">Разбивка по типу сети: корпоративный контур и партнёры-франчайзи.</p>
+                <div class="panel-title-row">
+                  <h3 class="chart-panel-title">По сетям</h3>
+                  <button type="button" class="panel-info-button" aria-label="Описание блока по сетям">
+                    i
+                    <span class="panel-info-tooltip">Разбивка по типу сети: корпоративный контур и партнёры-франчайзи.</span>
+                  </button>
+                </div>
               </div>
             </div>
             <div class="pie-chart-container">
@@ -1187,8 +1325,13 @@
             <div class="chart-panel-head">
               <div>
                 <span class="section-kicker">Категории</span>
-                <h3 class="chart-panel-title">Категории обращений</h3>
-                <p class="chart-panel-copy">Какие типы запросов формируют повестку периода и где накапливается повторяемая нагрузка.</p>
+                <div class="panel-title-row">
+                  <h3 class="chart-panel-title">Категории обращений</h3>
+                  <button type="button" class="panel-info-button" aria-label="Описание блока категорий обращений">
+                    i
+                    <span class="panel-info-tooltip">Какие типы запросов формируют повестку периода и где накапливается повторяемая нагрузка.</span>
+                  </button>
+                </div>
               </div>
             </div>
             <div class="chart-container">
@@ -1200,8 +1343,13 @@
             <div class="chart-panel-head">
               <div>
                 <span class="section-kicker">География</span>
-                <h3 class="chart-panel-title">По городам</h3>
-                <p class="chart-panel-copy">Быстрый взгляд на территориальное распределение потока и локальные перегревы.</p>
+                <div class="panel-title-row">
+                  <h3 class="chart-panel-title">По городам</h3>
+                  <button type="button" class="panel-info-button" aria-label="Описание блока по городам">
+                    i
+                    <span class="panel-info-tooltip">Быстрый взгляд на территориальное распределение потока и локальные перегревы.</span>
+                  </button>
+                </div>
               </div>
             </div>
             <div class="chart-container">
@@ -1213,8 +1361,13 @@
             <div class="chart-panel-head">
               <div>
                 <span class="section-kicker">Локации</span>
-                <h3 class="chart-panel-title">По ресторанам (топ-10)</h3>
-                <p class="chart-panel-copy">Наиболее нагруженные точки и их вклад в общий объём обращений за выбранный период.</p>
+                <div class="panel-title-row">
+                  <h3 class="chart-panel-title">По ресторанам (топ-10)</h3>
+                  <button type="button" class="panel-info-button" aria-label="Описание блока по ресторанам">
+                    i
+                    <span class="panel-info-tooltip">Наиболее нагруженные точки и их вклад в общий объём обращений за выбранный период.</span>
+                  </button>
+                </div>
               </div>
             </div>
             <div class="chart-container">
