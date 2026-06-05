@@ -1,7 +1,7 @@
 # Architecture And UI Refactoring Roadmap
 
 Дата старта: `2026-04-15`
-Обновлено: `2026-06-03`
+Обновлено: `2026-06-05`
 
 ## Цель
 
@@ -1499,3 +1499,48 @@
   refresh loop, `queue/my_dialogs` rearm parity и `queue/status-owner`
   lifecycle на более тонкие consumer refresh loops после repeated follow-up
   refresh и оставшийся drift вокруг соседних operator action surfaces.
+
+## Audit Checkpoint 2026-06-05
+
+Что подтверждено повторным срезом по текущему дереву:
+
+- исходные giant-hotspots из roadmap действительно удержаны под контролем:
+  `DialogAiAssistantService` уже около `242` строк, `PublicFormService` —
+  около `102`, `DialogWorkspaceService` — около `204`, то есть возвращения к
+  прежнему monolith shape сейчас не видно;
+- remaining AI/runtime риск теперь живёт не в одном giant coordinator, а в
+  bounded паре `DialogAiAssistantMessageFlowService` /
+  `DialogAiAssistantMessageOutcomeService` (`~288` / `~357` строк), что уже
+  больше похоже на локальный hardening-контур, а не на повторный giant split;
+- backend pressure сместился в соседние orchestration/controller слои,
+  которые не были исходным P1 roadmap, но уже выглядят как следующие
+  кандидаты на локальный bounded split:
+  `DialogWorkspaceTelemetryAnalyticsService` (`~1171` строк),
+  `ChannelApiController` (`~1168`),
+  `AnalyticsController` (`~1124`),
+  `BotRuntimeContractService` (`~628`) и
+  `NotificationRoutingService` (`~501`);
+- главный UI debt теперь виден уже не как "несколько inline-блоков", а как
+  два крупных surface-monoliths:
+  `templates/settings/index.html` (`~24659` строк, много inline
+  `onclick/onchange` и встроенных `<style>/<script>`) и
+  `static/js/dialogs.js` (`~10426` строк);
+- это не отменяет того, что `Phase 3` и `Phase 4` закрыты, но меняет
+  practical focus: следующая архитектурная работа уже не про возврат к
+  `DialogService` / `SettingsUpdateService`, а про controlled decomposition
+  вторичных controller/runtime/UI boundaries.
+
+Обновлённый practical focus после этого checkpoint:
+
+1. `Phase 3` и `Phase 4` продолжать считать закрытыми и не открывать заново
+   giant-split программу вокруг уже суженных `dialogs/settings` фасадов.
+2. Отдельным UI-треком брать decomposition `settings/index.html` и
+   `dialogs.js`: выносить inline handlers, fragment-ветки и page-runtime
+   orchestration в статические модули и более узкие template fragments.
+3. `Phase 5/6` вести дальше уже как runtime/integration-quality трек:
+   усиливать explicit contract между panel и bot runtime, notification/read
+   loops и соседние end-to-end consumer refresh сценарии.
+4. В backend идти только по локальным bounded split для вторичных тяжёлых
+   слоёв (`ChannelApiController`, `AnalyticsController`,
+   `DialogWorkspaceTelemetryAnalyticsService`, `NotificationRoutingService`),
+   если они продолжают расти, а не запускать новый общий monolith refactor.
