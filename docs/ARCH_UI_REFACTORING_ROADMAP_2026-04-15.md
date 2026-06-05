@@ -1544,3 +1544,140 @@
    слоёв (`ChannelApiController`, `AnalyticsController`,
    `DialogWorkspaceTelemetryAnalyticsService`, `NotificationRoutingService`),
    если они продолжают расти, а не запускать новый общий monolith refactor.
+
+Следующий проход уже можно декомпозировать не абстрактно, а по трём отдельным
+трекам:
+
+### Track A. Settings Page Shell Decomposition
+
+Наблюдение:
+
+- `settings/index.html` сейчас держит около `24659` строк;
+- внутри него остаются как минимум `37` inline `onclick`, `2` inline
+  `onchange`, один большой inline `<style>` и около `10` `<script>`-включений;
+- practical risk там уже не в одном giant Spring controller, а в том, что
+  page shell, fragment markup, initial bootstrap data и UI event wiring всё ещё
+  смешаны в одном template surface.
+
+Что логично делать:
+
+1. Сначала вынести inline action-handlers в `data-*` + delegated listeners,
+   не меняя визуальный контракт страницы.
+2. Затем разрезать template на bounded fragments минимум вокруг:
+   `locations`, `client statuses`, `dialog templates`, `channels/bots`,
+   `auth/users` и соседних modal/sheet surfaces.
+3. После этого увести page bootstrap из больших inline `<script th:inline>`
+   блоков в отдельные runtime-модули с явным входным payload.
+
+Стоп-условие:
+
+- `settings/index.html` перестаёт быть основной точкой UI-coupling, даже если
+  backend `settings` уже давно разрезан.
+
+Что показал более глубокий срез:
+
+- проблема там уже не только в markup-объёме: значимая часть runtime живёт
+  прямо в самом template как giant inline script, а не во внешних модулях;
+- внешние JS-файлы (`bot-settings.js` `~2493`, `auth-management.js` `~3478`,
+  `input-settings.js` `~415`) не являются главным hotspot'ом сами по себе:
+  основной coupling остаётся во встроенном script-блоке внутри
+  `settings/index.html`;
+- inline entry-points тоже подтверждают page-shell характер проблемы:
+  `saveSettings()` вызывается из нескольких мест, `toggleDialogTemplateEditor()`
+  используется как повторяющийся template runtime-hook, а `addChannel()`,
+  `openAddLocationWizard()`, `runLocationsIikoSyncNow()`,
+  `saveClientStatuses()` и template-add/remove handlers всё ещё приходят в
+  DOM через inline `onclick`.
+
+Внутренние bounded кластеры для следующего split:
+
+1. `parameters / legal entities / partner contacts / IT catalog`
+   как отдельный большой runtime-контур вокруг `/api/settings/parameters`,
+   IT connections и equipment.
+2. `client statuses / business styles`
+   как отдельный visual/reference-data editor.
+3. `locations tree / sync / wizard`
+   как самостоятельный locations-runtime с edit tree, sync status и wizard flow.
+4. `dialog templates / auto-close / SLA / workspace governance`
+   как отдельный dialog-settings runtime cluster.
+5. `channels / network routes / runtime status / editor`
+   как отдельный channel-management cluster поверх `ChannelApiController`.
+6. `reporting / manager bindings / modal shell`
+   как отдельный administrative shell cluster.
+
+Рекомендуемый порядок Track A уже внутри самого трека:
+
+1. Сначала вынести inline handlers и page-level bootstrap в отдельный
+   `settings-page-shell` runtime.
+2. Затем разрезать giant inline script по шести bounded кластерам выше.
+3. Только после этого выносить крупные modal sections в template fragments,
+   чтобы fragment split не оставался завязанным на общий global-script хвост.
+
+### Track B. Dialogs Runtime Module Split
+
+Наблюдение:
+
+- `dialogs.js` сейчас держит около `10426` строк;
+- по содержанию там смешаны list/filter/runtime polling, details/history,
+  workspace contract, quick actions, macro workflow, AI assistant/review,
+  notifications refresh loop и media/reply surface;
+- это уже не giant backend service, а giant browser runtime orchestrator.
+
+Что логично делать:
+
+1. Сначала выделить shared client/state boundary:
+   API helpers, polling timers, route/open-state, refresh bus.
+2. Затем разрезать `dialogs.js` минимум на bounded модули:
+   `list+filters`, `details+history`, `workspace shell`,
+   `quick actions`, `macro templates/workflow`, `AI ops/review`,
+   `notifications refresh`.
+3. Только после этого отдельно дочищать remaining consumer drift между
+   `/api/dialogs`, `details`, `history`, `workspace` и bell loop.
+
+Стоп-условие:
+
+- browser runtime по диалогам перестаёт зависеть от одного page-script файла
+  как от фактического client-side monolith.
+
+### Track C. Secondary Transport/Runtime Bounded Split
+
+Наблюдение:
+
+- следующая backend pressure-зона живёт уже не в `DialogService`, а во
+  вторичных transport/orchestration слоях:
+  `ChannelApiController` (`~1168` строк),
+  `AnalyticsController` (`~1124`),
+  `DialogWorkspaceTelemetryAnalyticsService` (`~1171`),
+  `BotRuntimeContractService` (`~628`) и
+  `NotificationRoutingService` (`~501`);
+- особенно заметно, что `ChannelApiController` смешивает channel CRUD,
+  credential CRUD, Telegram test/runtime diagnostics и channel notifications,
+  а `AnalyticsController` держит и page rendering, и export, и rollout/context,
+  и SLA/macro governance mutations.
+
+Что логично делать:
+
+1. `ChannelApiController` резать по transport responsibility:
+   `channels CRUD`, `bot credentials`, `Telegram diagnostics/test-message`,
+   `channel notifications`.
+2. `AnalyticsController` резать по bounded use-case:
+   `analytics page/export`, `workspace rollout governance`,
+   `workspace context standardization`, `SLA governance`,
+   `macro governance`.
+3. `DialogWorkspaceTelemetryAnalyticsService` и соседний notifier/runtime слой
+   резать только если они продолжают расти после UI/runtime hardening, а не
+   открывать там большой рефакторинг заранее.
+
+Стоп-условие:
+
+- controller-слой снова становится thin transport wrapper'ом, а не новой
+  точкой накопления post-refactor логики.
+
+Рекомендуемый порядок следующего реального прохода:
+
+1. Сначала `Track A`, потому что `settings/index.html` сейчас самый явный
+   UI-coupling hotspot.
+2. Затем `Track B`, потому что `dialogs.js` уже является client-side аналогом
+   giant orchestration file.
+3. Только потом `Track C`, если после UI split эти backend boundaries всё ещё
+   будут оставаться самыми тяжёлыми практическими точками роста.
