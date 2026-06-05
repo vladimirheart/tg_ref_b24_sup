@@ -710,20 +710,20 @@ public class DashboardAnalyticsService {
                                  String businessHoursLabel,
                                  String businessHoursSourceLabel) {
         Map<String, Object> toMap() {
-            return Map.of(
-                    "avg_per_active_hour", avgPerActiveHour,
-                    "formatted_avg_per_active_hour", formattedAvgPerActiveHour,
-                    "active_hours", activeHours,
-                    "peak_count", peakCount,
-                    "peak_label", peakLabel,
-                    "matrix", matrix,
-                    "hour_labels", hourLabels,
-                    "max_count", maxCount,
-                    "business_hours_start", businessHoursStart,
-                    "business_hours_end", businessHoursEnd,
-                    "business_hours_label", businessHoursLabel,
-                    "business_hours_source_label", businessHoursSourceLabel
-            );
+            Map<String, Object> map = new HashMap<>();
+            map.put("avg_per_active_hour", avgPerActiveHour);
+            map.put("formatted_avg_per_active_hour", formattedAvgPerActiveHour);
+            map.put("active_hours", activeHours);
+            map.put("peak_count", peakCount);
+            map.put("peak_label", peakLabel);
+            map.put("matrix", matrix);
+            map.put("hour_labels", hourLabels);
+            map.put("max_count", maxCount);
+            map.put("business_hours_start", businessHoursStart);
+            map.put("business_hours_end", businessHoursEnd);
+            map.put("business_hours_label", businessHoursLabel);
+            map.put("business_hours_source_label", businessHoursSourceLabel);
+            return map;
         }
     }
 
