@@ -15,6 +15,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestPropertySource;
@@ -911,6 +912,166 @@ class DialogQuickActionsIntegrationTest {
                 .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("reply_media: success (media_sent)")));
 
         assertThat(countAuditRows("T-QA-MEDIA", "reply_media", "success")).isEqualTo(1);
+    }
+
+    @Test
+    @DirtiesContext(methodMode = DirtiesContext.MethodMode.AFTER_METHOD)
+    void quickActionsApiReplyEditDeleteNotifiesPeerParticipantsThroughNotificationApi() throws Exception {
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        insertDirectoryUser("notify_owner", true, false, 1L, "Support", "Notify Owner", "Ops", "/img/owner.png");
+        insertDirectoryUser("notify_peer", true, false, 1L, "Support", "Notify Peer", "Ops", "/img/peer.png");
+
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
+                VALUES (109, 'token109', 'Quick Actions Notify', 'telegram', 1, CURRENT_TIMESTAMP)
+                """);
+        insertDialogTicket(920109L, "T-QA-NOTIFY", 109L, "quick_notify_user", "Клиент Notify", "Retail", "Томск", "Точка Notify", "Проверка reply/edit/delete notifications", "2026-06-05T09:00:00Z", 10901L);
+        jdbcTemplate.update("""
+                INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
+                VALUES (?,?,?,?)
+                """,
+                "T-QA-NOTIFY", "notify_owner", "dispatcher", "2026-06-05T08:59:00Z");
+        jdbcTemplate.update("""
+                INSERT INTO ticket_participants(ticket_id, username, added_at, added_by)
+                VALUES (?,?,CURRENT_TIMESTAMP,?)
+                """,
+                "T-QA-NOTIFY", "notify_peer", "notify_owner");
+        insertHistoryRow("T-QA-NOTIFY", 920109L, "user", "Клиент ждёт update", "2026-06-05T09:01:00Z", "text", 1901L, null, 109L);
+        insertHistoryRow("T-QA-NOTIFY", 920109L, "operator", "Старый ответ для стабильности", "2026-06-05T09:01:30Z", "operator_message", 1900L, 1901L, 109L);
+
+        doReturn(new DialogReplyTransportService.DialogReplyTransportResult(null, 1902L))
+                .when(dialogReplyTransportService)
+                .sendText(any(Channel.class), eq(920109L), eq("Первичный ответ для peer"), isNull());
+        doReturn(null)
+                .when(dialogReplyTransportService)
+                .editTelegramMessage(any(Channel.class), eq(920109L), eq(1902L), eq("Уточнённый ответ для peer"));
+        doReturn(null)
+                .when(dialogReplyTransportService)
+                .deleteTelegramMessage(any(Channel.class), eq(920109L), eq(1902L));
+
+        mockMvc.perform(post("/api/dialogs/T-QA-NOTIFY/reply")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "message": "Первичный ответ для peer"
+                                }
+                                """)
+                        .principal(new TestingAuthenticationToken("notify_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        mockMvc.perform(post("/api/dialogs/T-QA-NOTIFY/edit")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "telegramMessageId": 1902,
+                                  "message": "Уточнённый ответ для peer"
+                                }
+                                """)
+                        .principal(new TestingAuthenticationToken("notify_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        mockMvc.perform(post("/api/dialogs/T-QA-NOTIFY/delete")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "telegramMessageId": 1902
+                                }
+                                """)
+                        .principal(new TestingAuthenticationToken("notify_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        mockMvc.perform(get("/api/notifications")
+                        .principal(new TestingAuthenticationToken("notify_peer", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(3))
+                .andExpect(jsonPath("$[0].text").value("Сообщение в обращении T-QA-NOTIFY было удалено"))
+                .andExpect(jsonPath("$[0].url").value("/dialogs/T-QA-NOTIFY"))
+                .andExpect(jsonPath("$[1].text").value("Сообщение в обращении T-QA-NOTIFY было отредактировано"))
+                .andExpect(jsonPath("$[1].url").value("/dialogs/T-QA-NOTIFY"))
+                .andExpect(jsonPath("$[2].text").value("Новое сообщение в обращении T-QA-NOTIFY"))
+                .andExpect(jsonPath("$[2].url").value("/dialogs/T-QA-NOTIFY"));
+
+        mockMvc.perform(get("/api/notifications/unread_count")
+                        .principal(new TestingAuthenticationToken("notify_peer", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unread").value(3));
+
+        Long latestNotificationId = jdbcTemplate.queryForObject(
+                "SELECT id FROM notifications WHERE user_identity = ? ORDER BY id DESC LIMIT 1",
+                Long.class,
+                "notify_peer"
+        );
+        mockMvc.perform(post("/api/notifications/" + latestNotificationId + "/read")
+                        .principal(new TestingAuthenticationToken("notify_peer", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        mockMvc.perform(get("/api/notifications/unread_count")
+                        .principal(new TestingAuthenticationToken("notify_peer", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unread").value(2));
+
+        mockMvc.perform(get("/api/notifications/unread_count")
+                        .principal(new TestingAuthenticationToken("notify_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unread").value(0));
+    }
+
+    @Test
+    @DirtiesContext(methodMode = DirtiesContext.MethodMode.AFTER_METHOD)
+    void quickActionsApiMediaReplyNotifiesPeerParticipantsThroughNotificationApi() throws Exception {
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        insertDirectoryUser("media_notify_owner", true, false, 1L, "Support", "Media Notify Owner", "Ops", "/img/owner.png");
+        insertDirectoryUser("media_notify_peer", true, false, 1L, "Support", "Media Notify Peer", "Ops", "/img/peer.png");
+
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
+                VALUES (110, 'token110', 'Quick Actions Media Notify', 'telegram', 1, CURRENT_TIMESTAMP)
+                """);
+        insertDialogTicket(920110L, "T-QA-MEDIA-NOTIFY", 110L, "quick_media_notify_user", "Клиент Media Notify", "Retail", "Омск", "Точка Media Notify", "Проверка media notifications", "2026-06-05T09:30:00Z", 11001L);
+        jdbcTemplate.update("""
+                INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
+                VALUES (?,?,?,?)
+                """,
+                "T-QA-MEDIA-NOTIFY", "media_notify_owner", "dispatcher", "2026-06-05T09:29:00Z");
+        jdbcTemplate.update("""
+                INSERT INTO ticket_participants(ticket_id, username, added_at, added_by)
+                VALUES (?,?,CURRENT_TIMESTAMP,?)
+                """,
+                "T-QA-MEDIA-NOTIFY", "media_notify_peer", "media_notify_owner");
+        insertHistoryRow("T-QA-MEDIA-NOTIFY", 920110L, "user", "Клиент просит файл", "2026-06-05T09:31:00Z", "text", 2001L, null, 110L);
+        insertHistoryRow("T-QA-MEDIA-NOTIFY", 920110L, "operator", "Ранее уже отвечали клиенту", "2026-06-05T09:31:30Z", "operator_message", 2000L, 2001L, 110L);
+
+        doReturn(new DialogReplyTransportService.DialogReplyTransportResult(null, 2002L))
+                .when(dialogReplyTransportService)
+                .sendMedia(any(Channel.class), eq(920110L), any(MockMultipartFile.class), eq("Файл для peer"), eq("proof.png"));
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart("/api/dialogs/T-QA-MEDIA-NOTIFY/media")
+                        .file(new MockMultipartFile("file", "proof.png", "image/png", "png".getBytes()))
+                        .param("message", "Файл для peer")
+                        .principal(new TestingAuthenticationToken("media_notify_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        mockMvc.perform(get("/api/notifications")
+                        .principal(new TestingAuthenticationToken("media_notify_peer", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].text").value("Новое медиа-сообщение в обращении T-QA-MEDIA-NOTIFY"))
+                .andExpect(jsonPath("$[0].url").value("/dialogs/T-QA-MEDIA-NOTIFY"));
+
+        mockMvc.perform(get("/api/notifications/unread_count")
+                        .principal(new TestingAuthenticationToken("media_notify_peer", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unread").value(1));
+
+        mockMvc.perform(get("/api/notifications/unread_count")
+                        .principal(new TestingAuthenticationToken("media_notify_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unread").value(0));
     }
 
     @Test

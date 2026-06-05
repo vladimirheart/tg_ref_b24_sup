@@ -1536,6 +1536,13 @@
   `history` read на message/mutation projection, а repeated `history` reread
   не теряет `originalMessage/editedAt/deletedAt` и attachment continuity после
   тех же operator actions.
+- следующим пакетом write-side quick actions добраны и на
+  `/api/notifications`: peer-participant сценарии для `reply -> edit -> delete`
+  и `reply_media` теперь live-проверяют notification list, `unread_count` и
+  `POST /api/notifications/{id}/read`, подтверждая, что operator mutations
+  доходят до bell-consumer как отдельный runtime contract; сами тесты
+  изолированы через `@DirtiesContext`, чтобы scheduler/AI background не
+  маскировал реальный quick-action notification drift.
 - следующим follow-up пакетом закрыт и remaining `snooze` drift между runtime
   и workspace: `DialogWorkspaceWorkflowSnapshotService` теперь проецирует
   explicit `workflow.actions.snooze`, parity-layer считает его частью

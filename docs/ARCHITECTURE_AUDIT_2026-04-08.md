@@ -1727,6 +1727,13 @@ integration-сценария поверх users/settings runtime boundary всё
   `reply -> edit -> delete` и `reply_media` теперь live-подтверждают прямой
   history consumer на реальном runtime route, а repeated history reread не
   теряет mutation markers и attachment projection после operator actions.
+- следующим пакетом тот же write-side слой добран и на
+  `/api/notifications`: peer-participant сценарии для `reply -> edit -> delete`
+  и `reply_media` теперь live-подтверждают notification list,
+  `unread_count` и `POST /api/notifications/{id}/read`, то есть bell-consumer
+  тоже читает quick-action mutations как отдельный runtime contract; тесты
+  при этом изолированы через `@DirtiesContext`, чтобы scheduler/AI background
+  не создавал ложный notification drift.
 - следующим follow-up пакетом закрыт и remaining `snooze` drift между runtime
   и workspace: `DialogWorkspaceWorkflowSnapshotService` теперь проецирует
   explicit `workflow.actions.snooze`, parity-layer считает его частью
