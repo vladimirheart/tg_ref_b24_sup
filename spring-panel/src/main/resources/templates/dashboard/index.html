@@ -608,6 +608,10 @@
       transform: scale(0.985);
     }
 
+    .data-panel.is-drag-source {
+      display: none;
+    }
+
     .dashboard-panel-placeholder {
       min-height: 220px;
       border: 1px dashed color-mix(in srgb, var(--primary) 36%, transparent);
@@ -633,6 +637,37 @@
       font-weight: 700;
       letter-spacing: 0.01em;
       text-align: center;
+    }
+
+    .dashboard-layout-toolbar {
+      display: flex;
+      justify-content: flex-end;
+      margin: 0.2rem 0 0.9rem;
+    }
+
+    .dashboard-layout-reset {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      min-height: 36px;
+      padding: 0.38rem 0.82rem;
+      border: 1px solid color-mix(in srgb, var(--color-border) 16%, transparent);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.82);
+      color: var(--color-text-muted);
+      font-size: 0.76rem;
+      font-weight: 700;
+      box-shadow: 0 10px 18px rgba(18, 33, 23, 0.06);
+      transition: transform 0.18s ease, border-color 0.18s ease, background-color 0.18s ease, color 0.18s ease;
+    }
+
+    .dashboard-layout-reset:hover,
+    .dashboard-layout-reset:focus-visible {
+      transform: translateY(-1px);
+      border-color: color-mix(in srgb, var(--primary) 28%, transparent);
+      background: color-mix(in srgb, var(--primary) 10%, white);
+      color: var(--color-accent);
+      outline: none;
     }
 
     .chart-container {
@@ -1268,6 +1303,13 @@
           </div>
         </section>
 
+        <div class="dashboard-layout-toolbar">
+          <button type="button" id="resetDashboardLayout" class="dashboard-layout-reset">
+            <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
+            Вернуть по умолчанию
+          </button>
+        </div>
+
         <section class="dashboard-grid">
           <article class="chart-panel chart-panel--wide data-panel dashboard-team-panel" data-panel-id="staff-time">
             <div class="chart-panel-head">
@@ -1540,7 +1582,8 @@
     const dashboardPanelLayoutState = {};
     const dashboardPanelDragState = {
       activeId: null,
-      placeholder: null
+      placeholder: null,
+      sourceHiddenId: null
     };
     let themeRedrawTimer = null;
 
@@ -1837,7 +1880,7 @@
       if (!grid) {
         return [];
       }
-      return Array.from(grid.children).filter((element) => element.classList.contains('data-panel'));
+      return Array.from(grid.children).filter((element) => element.classList.contains('data-panel') && element.dataset.panelId);
     }
 
     function readDashboardPanelLayout() {
@@ -1927,15 +1970,18 @@
 
     function clearDashboardDragState() {
       const panelId = dashboardPanelDragState.activeId;
-      if (panelId) {
-        const panel = getDashboardPanelElements().find((item) => item.dataset.panelId === panelId);
-        panel?.classList.remove('is-dragging');
+      const sourceHiddenId = dashboardPanelDragState.sourceHiddenId;
+      if (panelId || sourceHiddenId) {
+        const targetId = panelId || sourceHiddenId;
+        const panel = getDashboardPanelElements().find((item) => item.dataset.panelId === targetId);
+        panel?.classList.remove('is-dragging', 'is-drag-source');
       }
       if (dashboardPanelDragState.placeholder?.parentNode) {
         dashboardPanelDragState.placeholder.parentNode.removeChild(dashboardPanelDragState.placeholder);
       }
       dashboardPanelDragState.activeId = null;
       dashboardPanelDragState.placeholder = null;
+      dashboardPanelDragState.sourceHiddenId = null;
     }
 
     function syncDashboardPanelControls() {
@@ -2006,7 +2052,7 @@
         return null;
       }
 
-      const hoveredPanel = document.elementFromPoint(clientX, clientY)?.closest('.data-panel');
+      const hoveredPanel = document.elementFromPoint(clientX, clientY)?.closest('.data-panel:not(.dashboard-panel-placeholder)');
       if (hoveredPanel && grid.contains(hoveredPanel) && hoveredPanel.dataset.panelId !== dashboardPanelDragState.activeId) {
         const hoveredState = getDashboardPanelState(hoveredPanel.dataset.panelId);
         if (hoveredState?.pinned === activeState.pinned) {
@@ -2044,18 +2090,30 @@
         if (activeState?.pinned) {
           const firstRegularPanel = getDashboardPanelElements().find((panel) => !getDashboardPanelState(panel.dataset.panelId)?.pinned);
           if (firstRegularPanel) {
+            if (placeholder.nextElementSibling === firstRegularPanel) {
+              return;
+            }
             grid.insertBefore(placeholder, firstRegularPanel);
             return;
           }
+        }
+        if (placeholder.parentNode === grid && placeholder === grid.lastElementChild) {
+          return;
         }
         grid.appendChild(placeholder);
         return;
       }
 
       if (placement.before) {
+        if (placeholder.nextElementSibling === placement.reference) {
+          return;
+        }
         grid.insertBefore(placeholder, placement.reference);
       } else {
         const nextSibling = placement.reference.nextElementSibling;
+        if (placeholder.previousElementSibling === placement.reference) {
+          return;
+        }
         if (nextSibling) {
           grid.insertBefore(placeholder, nextSibling);
         } else {
@@ -2082,6 +2140,12 @@
       if (event.dataTransfer.setDragImage) {
         event.dataTransfer.setDragImage(panel, 32, 20);
       }
+      window.requestAnimationFrame(() => {
+        if (dashboardPanelDragState.activeId === panelId) {
+          panel.classList.add('is-drag-source');
+          dashboardPanelDragState.sourceHiddenId = panelId;
+        }
+      });
     }
 
     function handleDashboardPanelDragEnd() {
@@ -2112,10 +2176,11 @@
       }
 
       placeholder.parentNode.insertBefore(panel, placeholder);
-      panel.classList.remove('is-dragging');
+      panel.classList.remove('is-dragging', 'is-drag-source');
       placeholder.parentNode.removeChild(placeholder);
       dashboardPanelDragState.placeholder = null;
       dashboardPanelDragState.activeId = null;
+      dashboardPanelDragState.sourceHiddenId = null;
       syncDashboardPanelOrdersFromDom();
       applyDashboardPanelLayout();
     }
@@ -2128,6 +2193,20 @@
       state.pinned = !state.pinned;
       state.order = getNextDashboardPanelOrder(state.pinned);
       applyDashboardPanelLayout();
+    }
+
+    function resetDashboardPanelLayout() {
+      clearDashboardDragState();
+      Object.values(dashboardPanelLayoutState).forEach((state) => {
+        state.pinned = false;
+        state.order = state.defaultOrder;
+      });
+      try {
+        window.localStorage.removeItem(DASHBOARD_PANEL_LAYOUT_KEY);
+      } catch (error) {
+        console.warn('Не удалось очистить layout dashboard:', error);
+      }
+      applyDashboardPanelLayout({ persist: false });
     }
 
     function decorateDashboardPanels() {
@@ -2286,6 +2365,7 @@
         applyManagerMonthDefaults();
         loadManagerReport(true);
       });
+      document.getElementById('resetDashboardLayout')?.addEventListener('click', resetDashboardPanelLayout);
       document.getElementById('buildOlap')?.addEventListener('click', buildOlapReport);
       document.getElementById('tab-managers')?.addEventListener('shown.bs.tab', () => loadManagerReport(true));
       document.getElementById('tab-olap')?.addEventListener('shown.bs.tab', buildOlapReport);
