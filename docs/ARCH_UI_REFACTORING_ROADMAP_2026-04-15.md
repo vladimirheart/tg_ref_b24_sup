@@ -1468,106 +1468,32 @@
   `DialogDetailsIntegrationTest`: у `/api/dialogs` теперь есть собственный
   live SQLite contract для `my_dialogs` empty envelope и `reassign ->
   follow-up` list lifecycle.
-- следующим пакетом добран и dedicated quick-action runtime boundary:
-  новый `DialogQuickActionsIntegrationTest` теперь гоняет реальные HTTP
-  `reassign`, `participants add/remove`, `resolve` и `reopen` и закрепляет
-  не только их response contract, но и downstream continuity на
-  `/api/dialogs`, `/participants` и `/workspace`; repeated handoff reread
-  теперь тоже прикрыт и подтверждает, что после первого workspace open новый
-  owner переходит из `unanswered` в `in_work`, не теряя participant projection.
-- это выравнивает operator action UX уже не только косвенно через workspace:
-  inherited unread после `reassign`, participant mutation projection,
-  `responsible/displayResponsible/avatarUrl` response envelope и
-  `closed -> waiting_operator` lifecycle после `quick_close -> reopen`
-  подтверждены прямо на live controller/runtime boundary.
-- следующим hardening-пакетом закрыт и первый remaining operator-action drift
-  вокруг `take/categories/spam`: `DialogWorkspaceWorkflowSnapshotService`
-  теперь проецирует explicit `workflow.actions.categories` и
-  `workflow.actions.spam`, parity-layer требует их как часть
-  `operator_action_guards`, а live `DialogQuickActionsIntegrationTest`
-  отдельно закрепляет `take -> categories -> spam` continuity на
-  `/api/dialogs`, `/api/dialogs/{ticketId}` и `/workspace`; repeated
-  `details/workspace` reread теперь тоже прикрыт и не теряет owner,
-  categories и audit/event trail.
-- следующим contract-пакетом выровнен и сам `/api/dialogs/{ticketId}/categories`:
-  quick action теперь проходит через `withQuickActionTiming`, возвращает
-  normalized `categories`, пишет explicit `categories success`
-  (`categories_updated`/`categories_cleared`) audit trail, а missing dialog
-  фиксируется как `categories not_found` с `404`; service, controller и live
-  integration tests закрывают этот runtime boundary отдельно.
-- следующим follow-up пакетом в тот же controller/runtime contract подтянут и
-  `/api/dialogs/{ticketId}/reopen`: endpoint теперь тоже проходит через
-  `withQuickActionTiming`, пишет explicit `reopen success/error/not_found`
-  audit trail, а live quick-action integration закрепляет, что после
-  `resolve -> reopen` этот audit сразу виден и в `workspace.context.related_events`;
-  repeated `details/workspace` reread теперь тоже прикрыт и не теряет reopened
-  status, categories и action trail.
-- следующим contract-пакетом в тот же explicit quick-action envelope подтянуты
-  и `reply/edit/delete/reply_media`: controller теперь оборачивает их в
-  timing-guard и пишет explicit `success/error` audit trail, а live
-  `web_form` reply-сценарий закрепляет, что после operator reply audit сразу
-  виден в `workspace.context.related_events`, а details/history получают новое
-  operator message без legacy-only обходов; follow-up reread теперь тоже
-  прикрыт live integration и подтверждает, что следующий `details/workspace`
-  refresh не теряет reply continuity.
-- следующим более широким runtime-пакетом этот же write-side mutation surface
-  добран уже и на live transport-spy уровне: `reply -> edit -> delete`
-  сценарий теперь подтверждает `originalMessage/editedAt/deletedAt` continuity
-  в `details/history`, а `reply_media` отдельно закреплён на attachment/message
-  projection и `workspace.context.related_events`; repeated reread для обеих
-  веток тоже не теряет audit trail.
-- следующим follow-up пакетом закрыт и `web_form` mutation parity gap:
-  `DialogReplyService` теперь выдаёт локальный synthetic `tg_message_id` для
-  operator reply и использует local fallback для `edit/delete` без Telegram
-  transport/token; live quick-action integration отдельно закрепляет
-  `web_form reply -> edit -> delete` continuity на `details/history` и
-  `workspace.context.related_events`, а shared-link integration подтверждает,
-  что synthetic id действительно сохраняется в `chat_history`.
-- следующим соседним hardening-пакетом write-side quick actions добраны и на
-  list surface: `reply`, `web_form reply -> edit -> delete`, transport
-  `reply -> edit -> delete` и `reply_media` теперь live-проверяют
-  `/api/dialogs` reread на `unreadCount=0` и переход в `my_dialogs.in_work`
-  без потери responsible projection; заодно test runtime очищает
-  `ticket_ai_agent_state`, чтобы AI-processing хвост не маскировал реальные
-  regression’ы этого queue/list контракта.
-- следующим соседним consumer-пакетом тот же write-side слой закреплён и на
-  `/history`: `reply`, `web_form reply -> edit -> delete`, transport
-  `reply -> edit -> delete` и `reply_media` теперь live-проверяют прямой
-  `history` read на message/mutation projection, а repeated `history` reread
-  не теряет `originalMessage/editedAt/deletedAt` и attachment continuity после
-  тех же operator actions.
-- следующим пакетом write-side quick actions добраны и на
-  `/api/notifications`: peer-participant сценарии для `reply -> edit -> delete`
-  и `reply_media` теперь live-проверяют notification list, `unread_count` и
-  `POST /api/notifications/{id}/read`, подтверждая, что operator mutations
-  доходят до bell-consumer как отдельный runtime contract; сами тесты
-  изолированы через `@DirtiesContext`, чтобы scheduler/AI background не
-  маскировал реальный quick-action notification drift.
-- следующим пакетом bell-consumer coverage расширен уже и на соседние
-  non-message operator actions: `take -> categories -> resolve -> reopen` и
-  `reassign -> participants_add -> participants_remove` теперь тоже
-  live-проверяют peer notification list и `unread_count`, подтверждая, что
-  collaboration/lifecycle mutations доходят до `/api/notifications` тем же
-  runtime путём; для этих сценариев AI background отдельно приглушён через
-  `ticket_ai_agent_dialog_control.ai_disabled=1`, чтобы фиксировать именно
-  operator-action notification contract, а не смежный escalation noise.
-- следующим маленьким follow-up пакетом тот же bell-consumer loop добран и на
-  explicit ack cycle для этих non-message actions: lifecycle и collaboration
-  сценарии теперь после `POST /api/notifications/{id}/read` отдельно
-  подтверждают уменьшение `unread_count`, так что peer notification parity
-  закрыта уже не только на emit/list, но и на read-marker semantics.
-- следующим маленьким follow-up пакетом этот же non-message bell loop добран
-  и на repeated list reread: после `markAsRead` lifecycle/collaboration
-  сценарии теперь повторно читают `/api/notifications` и подтверждают
-  сохранение `read=true` у верхнего события, а не только падение
-  `unread_count`.
-- следующим follow-up пакетом закрыт и remaining `snooze` drift между runtime
-  и workspace: `DialogWorkspaceWorkflowSnapshotService` теперь проецирует
-  explicit `workflow.actions.snooze`, parity-layer считает его частью
-  `operator_action_guards`, а live integration закрепляет, что `snooze`
-  оставляет dialog state стабильным, но сразу появляется в
-  `workspace.context.related_events` как normal operator audit trail; repeated
-  `workspace` refresh теперь отдельно закреплён и не теряет этот audit event.
+- quick-action runtime boundary для `dialogs` теперь уже закрыт как единый
+  consumer-пакет: live `DialogQuickActionsIntegrationTest` подтверждает
+  response contract и downstream continuity для `reassign`,
+  `participants add/remove`, `resolve -> reopen`, `take/categories/spam` и
+  `snooze` на `/api/dialogs`, `/api/dialogs/{ticketId}`, `/participants` и
+  `/workspace`, включая repeated reread, handoff `unanswered -> in_work`,
+  owner/category projection и `workspace.context.related_events`.
+- controller/runtime envelope для action endpoints выровнен вокруг explicit
+  timing/audit contract: `categories`, `reopen`, `reply`, `edit`, `delete` и
+  `reply_media` теперь проходят через единый quick-action guard, пишут
+  `success/error/not_found` audit trail, а parity-layer требует
+  `categories/spam/snooze` как часть `operator_action_guards`.
+- write-side message mutations собраны в один закрытый runtime block:
+  transport и `web_form` ветки для `reply -> edit -> delete` и `reply_media`
+  подтверждены на `details/history/workspace/list`, включая
+  `originalMessage/editedAt/deletedAt`, attachment projection,
+  `my_dialogs.in_work`, repeated reread и local synthetic `tg_message_id`
+  fallback для `web_form edit/delete`.
+- bell-consumer contract тоже закрыт как единый блок: `/api/notifications`
+  теперь live-прикрыт и для message-side mutations, и для non-message
+  lifecycle/collaboration actions (`take -> categories -> resolve -> reopen`,
+  `reassign -> participants_add -> participants_remove`), включая
+  `unread_count`, `POST /api/notifications/{id}/read`, repeated list reread с
+  `read=true` и AI-muted сценарии через
+  `ticket_ai_agent_dialog_control.ai_disabled=1`, чтобы не смешивать
+  quick-action parity с escalation noise.
 - следующий practical focus в `dialog workspace/read/details` зоне смещён уже
   с cross-consumer lifecycle parity, basic audit trail, full notification
   refresh loop, `queue/my_dialogs` rearm parity и `queue/status-owner`
