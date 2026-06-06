@@ -1477,8 +1477,9 @@
   owner/category projection и `workspace.context.related_events`.
 - controller/runtime envelope для action endpoints выровнен вокруг explicit
   timing/audit contract: `categories`, `reopen`, `reply`, `edit`, `delete` и
-  `reply_media` теперь проходят через единый quick-action guard, пишут
-  `success/error/not_found` audit trail, а parity-layer требует
+  `reply_media`, а также `snooze` на `404/not_found` boundary, теперь проходят
+  через единый quick-action guard, пишут `success/error/not_found` audit
+  trail, а parity-layer требует
   `categories/spam/snooze` как часть `operator_action_guards`.
 - write-side message mutations собраны в один закрытый runtime block:
   transport и `web_form` ветки для `reply -> edit -> delete` и `reply_media`

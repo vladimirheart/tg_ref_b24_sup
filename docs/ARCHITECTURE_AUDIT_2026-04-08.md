@@ -1665,8 +1665,9 @@ integration-сценария поверх users/settings runtime boundary всё
   owner/category projection и `workspace.context.related_events`.
 - controller/runtime envelope для quick actions выровнен вокруг explicit
   timing/audit semantics: `categories`, `reopen`, `reply`, `edit`, `delete` и
-  `reply_media` теперь проходят через единый quick-action guard, пишут
-  `success/error/not_found` audit trail, а parity-layer требует
+  `reply_media`, а также `snooze` на `404/not_found` boundary, теперь проходят
+  через единый quick-action guard, пишут `success/error/not_found` audit
+  trail, а parity-layer требует
   `categories/spam/snooze` как часть `operator_action_guards`.
 - write-side mutation parity собрана в один закрытый runtime блок:
   transport и `web_form` ветки для `reply -> edit -> delete` и `reply_media`

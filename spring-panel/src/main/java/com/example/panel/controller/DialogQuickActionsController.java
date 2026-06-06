@@ -309,6 +309,12 @@ public class DialogQuickActionsController {
                 dialogAuthorizationService.logDialogAction(operator, ticketId, "snooze", "error", "Некорректная длительность snooze");
                 return ResponseEntity.badRequest().body(Map.of("success", false, "error", "Некорректная длительность snooze"));
             }
+            DialogQuickActionService.DialogSnoozeResult result = dialogQuickActionService.snoozeTicket(ticketId, operator, minutes);
+            if (!result.exists()) {
+                dialogAuthorizationService.logDialogAction(operator, ticketId, "snooze", "not_found", "Диалог не найден");
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("success", false, "error", "Диалог не найден"));
+            }
             dialogAuthorizationService.logDialogAction(operator, ticketId, "snooze", "success", "minutes=" + minutes);
             return ResponseEntity.ok(Map.of("success", true));
         });

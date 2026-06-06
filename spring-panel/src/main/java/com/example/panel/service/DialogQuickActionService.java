@@ -262,6 +262,16 @@ public class DialogQuickActionService {
         return new DialogSpamResult(true, true, null, userId, categories);
     }
 
+    public DialogSnoozeResult snoozeTicket(String ticketId,
+                                           String operator,
+                                           Integer minutes) {
+        Optional<DialogListItem> dialog = dialogLookupReadService.findDialog(ticketId, operator);
+        if (dialog.isEmpty()) {
+            return new DialogSnoozeResult(false, minutes);
+        }
+        return new DialogSnoozeResult(true, minutes);
+    }
+
     public Optional<String> takeTicket(String ticketId, String operator) {
         Optional<DialogListItem> dialog = dialogLookupReadService.findDialog(ticketId, operator);
         if (dialog.isEmpty()) {
@@ -443,6 +453,10 @@ public class DialogQuickActionService {
                                    String error,
                                    String userId,
                                    List<String> categories) {
+    }
+
+    public record DialogSnoozeResult(boolean exists,
+                                     Integer minutes) {
     }
 
     public record DialogCategoryUpdateResult(boolean exists,

@@ -671,6 +671,54 @@ class DialogQuickActionServiceTest {
     }
 
     @Test
+    void snoozeTicketReturnsExistsWhenDialogPresent() {
+        DialogLookupReadService dialogLookupReadService = mock(DialogLookupReadService.class);
+
+        DialogQuickActionService service = new DialogQuickActionService(
+                mock(DialogTicketLifecycleService.class),
+                dialogLookupReadService,
+                mock(DialogResponsibilityService.class),
+                mock(DialogParticipantService.class),
+                mock(DialogReplyService.class),
+                mock(DialogNotificationService.class),
+                mock(DialogAiAssistantService.class),
+                mock(NotificationService.class),
+                mock(AttachmentService.class)
+        );
+
+        when(dialogLookupReadService.findDialog("T-709SN", "operator")).thenReturn(Optional.of(dialog("T-709SN", "operator")));
+
+        DialogQuickActionService.DialogSnoozeResult result = service.snoozeTicket("T-709SN", "operator", 15);
+
+        assertThat(result.exists()).isTrue();
+        assertThat(result.minutes()).isEqualTo(15);
+    }
+
+    @Test
+    void snoozeTicketReturnsNotFoundWhenDialogMissing() {
+        DialogLookupReadService dialogLookupReadService = mock(DialogLookupReadService.class);
+
+        DialogQuickActionService service = new DialogQuickActionService(
+                mock(DialogTicketLifecycleService.class),
+                dialogLookupReadService,
+                mock(DialogResponsibilityService.class),
+                mock(DialogParticipantService.class),
+                mock(DialogReplyService.class),
+                mock(DialogNotificationService.class),
+                mock(DialogAiAssistantService.class),
+                mock(NotificationService.class),
+                mock(AttachmentService.class)
+        );
+
+        when(dialogLookupReadService.findDialog("T-709SNF", "operator")).thenReturn(Optional.empty());
+
+        DialogQuickActionService.DialogSnoozeResult result = service.snoozeTicket("T-709SNF", "operator", 15);
+
+        assertThat(result.exists()).isFalse();
+        assertThat(result.minutes()).isEqualTo(15);
+    }
+
+    @Test
     void addParticipantAddsOperatorAndNotifiesParticipants() {
         DialogLookupReadService dialogLookupReadService = mock(DialogLookupReadService.class);
         DialogResponsibilityService dialogResponsibilityService = mock(DialogResponsibilityService.class);

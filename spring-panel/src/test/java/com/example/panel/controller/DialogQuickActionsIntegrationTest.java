@@ -1436,6 +1436,27 @@ class DialogQuickActionsIntegrationTest {
     }
 
     @Test
+    void quickActionsApiSnoozeReturnsNotFoundForMissingDialog() throws Exception {
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        insertDirectoryUser("watcher_owner", true, false, 1L, "Support", "Watcher Owner", "Ops", "/img/owner.png");
+
+        mockMvc.perform(post("/api/dialogs/T-QA-SNOOZE-MISSING/snooze")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "minutes": 15
+                                }
+                                """)
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error").value("Диалог не найден"));
+
+        assertThat(countAuditRows("T-QA-SNOOZE-MISSING", "snooze", "not_found")).isEqualTo(1);
+        assertThat(countAuditRows("T-QA-SNOOZE-MISSING", "snooze", "success")).isEqualTo(0);
+    }
+
+    @Test
     void quickActionsApiTakeCategoriesAndSpamRefreshWorkspaceAndDetailsConsumers() throws Exception {
         usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
         insertDirectoryUser("watcher_owner", true, false, 1L, "Support", "Watcher Owner", "Ops", "/img/owner.png");
