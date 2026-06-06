@@ -233,6 +233,35 @@
     });
   }
 
+  function initAuthManagementModalShell() {
+    const usersModalEl = document.getElementById('usersModal');
+    if (!(usersModalEl instanceof HTMLElement)) {
+      return;
+    }
+
+    usersModalEl.addEventListener('shown.bs.modal', () => {
+      const container = usersModalEl.querySelector('[data-auth-management]');
+      if (!(container instanceof HTMLElement) || !window.AuthManagement) {
+        console.error('Модуль управления доступом недоступен.');
+        return;
+      }
+      if (!container.__authManager) {
+        container.__authManager = window.AuthManagement.mount(container);
+      } else {
+        container.__authManager.refresh();
+      }
+    });
+
+    usersModalEl.addEventListener('hidden.bs.modal', () => {
+      const container = usersModalEl.querySelector('[data-auth-management]');
+      const manager = container && container.__authManager;
+      if (manager) {
+        manager.resetPasswords();
+        manager.clearMessage();
+      }
+    });
+  }
+
   function openRequestedSettingsModalFromUrl() {
     try {
       const params = new URLSearchParams(window.location.search);
@@ -263,6 +292,7 @@
     initThemeFormSync();
     initSettingsTileDescriptions();
     initSettingsPrimaryModals();
+    initAuthManagementModalShell();
     openRequestedSettingsModalFromUrl();
     if (typeof window.initReporting === 'function') {
       window.initReporting();

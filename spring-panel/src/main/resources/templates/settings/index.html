@@ -13679,36 +13679,6 @@
     });
   }
 
-  // === Инициализация управления доступом ===
-  document.addEventListener('DOMContentLoaded', () => {
-    const usersModalEl = document.getElementById('usersModal');
-    if (!usersModalEl) {
-      return;
-    }
-
-    usersModalEl.addEventListener('shown.bs.modal', () => {
-      const container = usersModalEl.querySelector('[data-auth-management]');
-      if (!container || !window.AuthManagement) {
-        console.error('Модуль управления доступом недоступен.');
-        return;
-      }
-      if (!container.__authManager) {
-        container.__authManager = window.AuthManagement.mount(container);
-      } else {
-        container.__authManager.refresh();
-      }
-    });
-
-    usersModalEl.addEventListener('hidden.bs.modal', () => {
-      const container = usersModalEl.querySelector('[data-auth-management]');
-      const manager = container && container.__authManager;
-      if (manager) {
-        manager.resetPasswords();
-        manager.clearMessage();
-      }
-    });
-  });
-
   // === JavaScript для редактирования структуры локаций ===
   const LOCATION_STATUS_OPTIONS = [
     'Активен',
