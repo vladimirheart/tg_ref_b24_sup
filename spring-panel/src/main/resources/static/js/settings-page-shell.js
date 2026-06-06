@@ -312,7 +312,16 @@
       console.warn(`Settings modal callback "${normalizedName}" is not available for ${eventName}.`);
       return;
     }
-    callback(modal);
+    try {
+      const result = callback(modal);
+      if (result && typeof result.then === 'function') {
+        result.catch((error) => {
+          console.error(`Settings modal callback "${normalizedName}" failed for ${eventName}.`, error);
+        });
+      }
+    } catch (error) {
+      console.error(`Settings modal callback "${normalizedName}" failed for ${eventName}.`, error);
+    }
   }
 
   function initSettingsModalLifecycleHooks() {

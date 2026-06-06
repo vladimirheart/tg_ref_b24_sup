@@ -4703,7 +4703,7 @@
     </div>
 
     <!-- Мастер добавления записи локаций -->
-    <div class="modal fade settings-child-modal" id="locationWizardModal" tabindex="-1" aria-labelledby="locationWizardLabel" aria-hidden="true">
+    <div class="modal fade settings-child-modal" id="locationWizardModal" tabindex="-1" aria-labelledby="locationWizardLabel" aria-hidden="true" data-settings-on-hidden="resetLocationWizardSettingsModal">
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
@@ -4978,7 +4978,7 @@
   </div>
 </div>
 
-    <div class="modal fade settings-child-modal" id="parameterItemsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal fade settings-child-modal" id="parameterItemsModal" tabindex="-1" aria-hidden="true" data-settings-on-hidden="resetParameterItemsSettingsModal">
       <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
@@ -5266,7 +5266,7 @@
       </div>
     </div>
 
-    <div class="modal fade settings-child-modal" id="networkProfileEditorModal" tabindex="-1" aria-hidden="true">
+    <div class="modal fade settings-child-modal" id="networkProfileEditorModal" tabindex="-1" aria-hidden="true" data-settings-on-hidden="resetNetworkProfileSettingsModal" data-settings-on-shown="focusNetworkProfileSettingsModal">
       <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
           <form data-network-profile-form>
@@ -5338,7 +5338,7 @@
       </div>
     </div>
 
-    <div class="modal fade settings-child-modal" id="integrationNetworkProfileEditorModal" tabindex="-1" aria-hidden="true">
+    <div class="modal fade settings-child-modal" id="integrationNetworkProfileEditorModal" tabindex="-1" aria-hidden="true" data-settings-on-hidden="resetIntegrationNetworkProfileSettingsModal">
       <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
           <form data-integration-network-profile-form>
@@ -5426,7 +5426,7 @@
       </div>
     </div>
 
-    <div class="modal fade settings-child-modal" id="itConnectionAddModal" tabindex="-1" aria-labelledby="itConnectionAddModalLabel" aria-hidden="true">
+    <div class="modal fade settings-child-modal" id="itConnectionAddModal" tabindex="-1" aria-labelledby="itConnectionAddModalLabel" aria-hidden="true" data-settings-on-show="prepareItConnectionAddSettingsModal" data-settings-on-shown="focusItConnectionAddSettingsModal">
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
@@ -5476,7 +5476,7 @@
       </div>
     </div>
 
-    <div class="modal fade settings-child-modal" id="itEquipmentAddModal" tabindex="-1" aria-labelledby="itEquipmentAddModalLabel" aria-hidden="true">
+    <div class="modal fade settings-child-modal" id="itEquipmentAddModal" tabindex="-1" aria-labelledby="itEquipmentAddModalLabel" aria-hidden="true" data-settings-on-show="prepareItEquipmentAddSettingsModal" data-settings-on-shown="focusItEquipmentAddSettingsModal">
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
@@ -5721,7 +5721,7 @@
       </div>
     </div>
 
-    <div class="modal fade settings-primary-modal" id="reportingModal" tabindex="-1" aria-labelledby="reportingModalLabel" aria-hidden="true" data-settings-primary-modal data-settings-url-modal="reporting">
+    <div class="modal fade settings-primary-modal" id="reportingModal" tabindex="-1" aria-labelledby="reportingModalLabel" aria-hidden="true" data-settings-primary-modal data-settings-url-modal="reporting" data-settings-on-show="prepareReportingSettingsModal">
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
@@ -5782,7 +5782,7 @@
     </div>
 
 
-    <div class="modal fade settings-primary-modal" id="managerBindingsModal" tabindex="-1" aria-labelledby="managerBindingsModalLabel" aria-hidden="true" data-settings-primary-modal data-settings-url-modal="manager-bindings">
+    <div class="modal fade settings-primary-modal" id="managerBindingsModal" tabindex="-1" aria-labelledby="managerBindingsModalLabel" aria-hidden="true" data-settings-primary-modal data-settings-url-modal="manager-bindings" data-settings-on-show="prepareManagerBindingsSettingsModal">
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
@@ -6315,7 +6315,7 @@
     </div>
   </div>
 
-  <div class="modal fade settings-child-modal settings-child-modal--workspace" id="addChannelModal" tabindex="-1" aria-hidden="true">
+  <div class="modal fade settings-child-modal settings-child-modal--workspace" id="addChannelModal" tabindex="-1" aria-hidden="true" data-settings-on-show="prepareAddChannelSettingsModal">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
       <div class="modal-content">
         <div class="modal-header">
@@ -10437,11 +10437,9 @@
 
   renderParameters();
 
-  if (parameterModalEl) {
-    parameterModalEl.addEventListener('hidden.bs.modal', () => {
-      parameterModalType = null;
-    });
-  }
+  window.resetParameterItemsSettingsModal = function resetParameterItemsSettingsModal() {
+    parameterModalType = null;
+  };
 
   function findParameterContainer(element) {
     return element ? element.closest('[data-param-container]') : null;
@@ -11399,23 +11397,22 @@
     networkProfileDeleteButton.addEventListener('click', handleNetworkProfileDelete);
   }
 
-  if (networkProfileModalEl) {
-    networkProfileModalEl.addEventListener('hidden.bs.modal', () => {
-      networkProfileEditingIndex = null;
-      if (networkProfileForm) {
-        networkProfileForm.reset();
-      }
-      if (networkProfileRestaurantIdsContainer) {
-        renderRestaurantIdInputs(['']);
-      }
-    });
-    networkProfileModalEl.addEventListener('shown.bs.modal', () => {
-      if (networkProfileProviderInput) {
-        networkProfileProviderInput.focus();
-        networkProfileProviderInput.select();
-      }
-    });
-  }
+  window.resetNetworkProfileSettingsModal = function resetNetworkProfileSettingsModal() {
+    networkProfileEditingIndex = null;
+    if (networkProfileForm) {
+      networkProfileForm.reset();
+    }
+    if (networkProfileRestaurantIdsContainer) {
+      renderRestaurantIdInputs(['']);
+    }
+  };
+
+  window.focusNetworkProfileSettingsModal = function focusNetworkProfileSettingsModal() {
+    if (networkProfileProviderInput) {
+      networkProfileProviderInput.focus();
+      networkProfileProviderInput.select();
+    }
+  };
 
   renderNetworkProfiles();
 
@@ -12315,31 +12312,33 @@
     return hasType && hasVendor && hasModel;
   }
 
+  window.prepareItEquipmentAddSettingsModal = function prepareItEquipmentAddSettingsModal() {
+    const hasOptions = populateItEquipmentAddOptions();
+    if (itEquipmentSerialNumberInput) {
+      itEquipmentSerialNumberInput.value = '';
+    }
+    if (itEquipmentAccessoriesInput) {
+      itEquipmentAccessoriesInput.value = '';
+    }
+    if (itEquipmentAddLinksContainer) {
+      renderEquipmentLinks(itEquipmentAddLinksContainer, []);
+    }
+    if (itEquipmentAddSubmitButton) {
+      itEquipmentAddSubmitButton.disabled = !hasOptions;
+    }
+  };
+
+  window.focusItEquipmentAddSettingsModal = function focusItEquipmentAddSettingsModal() {
+    if (itEquipmentTypeSelect && !itEquipmentTypeSelect.disabled) {
+      itEquipmentTypeSelect.focus();
+    } else if (itEquipmentVendorSelect && !itEquipmentVendorSelect.disabled) {
+      itEquipmentVendorSelect.focus();
+    } else if (itEquipmentModelSelect && !itEquipmentModelSelect.disabled) {
+      itEquipmentModelSelect.focus();
+    }
+  };
+
   if (itEquipmentAddModalEl) {
-    itEquipmentAddModalEl.addEventListener('show.bs.modal', () => {
-      const hasOptions = populateItEquipmentAddOptions();
-      if (itEquipmentSerialNumberInput) {
-        itEquipmentSerialNumberInput.value = '';
-      }
-      if (itEquipmentAccessoriesInput) {
-        itEquipmentAccessoriesInput.value = '';
-      }
-      if (itEquipmentAddLinksContainer) {
-        renderEquipmentLinks(itEquipmentAddLinksContainer, []);
-      }
-      if (itEquipmentAddSubmitButton) {
-        itEquipmentAddSubmitButton.disabled = !hasOptions;
-      }
-    });
-    itEquipmentAddModalEl.addEventListener('shown.bs.modal', () => {
-      if (itEquipmentTypeSelect && !itEquipmentTypeSelect.disabled) {
-        itEquipmentTypeSelect.focus();
-      } else if (itEquipmentVendorSelect && !itEquipmentVendorSelect.disabled) {
-        itEquipmentVendorSelect.focus();
-      } else if (itEquipmentModelSelect && !itEquipmentModelSelect.disabled) {
-        itEquipmentModelSelect.focus();
-      }
-    });
     itEquipmentAddModalEl.addEventListener('click', (event) => {
       const addLinkButton = event.target.closest('[data-it-equipment-add-link]');
       if (addLinkButton) {
@@ -12464,25 +12463,24 @@
     rebuildItConnectionCategorySelect(itConnectionCategorySelect);
   }
 
-  if (itConnectionAddModalEl) {
-    itConnectionAddModalEl.addEventListener('show.bs.modal', () => {
-      rebuildItConnectionCategorySelect(itConnectionCategorySelect, IT_CONNECTION_DEFAULT_CATEGORY);
-      if (itConnectionCategorySelect) {
-        itConnectionCategorySelect.value = IT_CONNECTION_DEFAULT_CATEGORY;
-      }
-      if (itConnectionValueInput) {
-        itConnectionValueInput.value = '';
-        itConnectionValueInput.classList.remove('is-invalid');
-      }
-    });
-    itConnectionAddModalEl.addEventListener('shown.bs.modal', () => {
-      if (itConnectionValueInput) {
-        itConnectionValueInput.focus();
-      } else if (itConnectionCategorySelect) {
-        itConnectionCategorySelect.focus();
-      }
-    });
-  }
+  window.prepareItConnectionAddSettingsModal = function prepareItConnectionAddSettingsModal() {
+    rebuildItConnectionCategorySelect(itConnectionCategorySelect, IT_CONNECTION_DEFAULT_CATEGORY);
+    if (itConnectionCategorySelect) {
+      itConnectionCategorySelect.value = IT_CONNECTION_DEFAULT_CATEGORY;
+    }
+    if (itConnectionValueInput) {
+      itConnectionValueInput.value = '';
+      itConnectionValueInput.classList.remove('is-invalid');
+    }
+  };
+
+  window.focusItConnectionAddSettingsModal = function focusItConnectionAddSettingsModal() {
+    if (itConnectionValueInput) {
+      itConnectionValueInput.focus();
+    } else if (itConnectionCategorySelect) {
+      itConnectionCategorySelect.focus();
+    }
+  };
 
   if (itConnectionCategoryCreateButton) {
     itConnectionCategoryCreateButton.addEventListener('click', async () => {
@@ -15655,16 +15653,19 @@
       });
     }
 
-    wizardModalEl.addEventListener('hidden.bs.modal', () => {
-      resetLocationWizardState();
-      populateWizardOptions();
-      showLocationWizardStep(0);
-    });
-
     populateWizardOptions();
     showLocationWizardStep(0);
     locationWizardInitialised = true;
   }
+
+  window.resetLocationWizardSettingsModal = function resetLocationWizardSettingsModal() {
+    if (!locationWizardInitialised) {
+      return;
+    }
+    resetLocationWizardState();
+    populateWizardOptions();
+    showLocationWizardStep(0);
+  };
 
   async function openAddLocationWizard() {
     initLocationWizard();
@@ -23274,6 +23275,13 @@
     togglePlatformFields();
   }
 
+  window.prepareAddChannelSettingsModal = function prepareAddChannelSettingsModal() {
+    resetAddChannelForm();
+    updateAddChannelValidationAlert('');
+    populateAddChannelTemplateSelects();
+    togglePlatformFields();
+  };
+
   async function addChannel() {
     const tokenInput = document.getElementById('new_token');
     const nameInput = document.getElementById('new_channel_name');
@@ -23805,21 +23813,15 @@
       resetMissingIntegrationNetworkProfileSelections();
       integrationNetworkProfileEditorModal?.hide();
     });
-    integrationNetworkProfileEditorModalEl?.addEventListener('hidden.bs.modal', () => {
+    window.resetIntegrationNetworkProfileSettingsModal = function resetIntegrationNetworkProfileSettingsModal() {
       integrationNetworkProfileEditingIndex = null;
       integrationNetworkProfileForm?.reset();
       toggleIntegrationNetworkProfileModeFields();
-    });
+    };
     channelsRefreshBotStatusesBtn?.addEventListener('click', () => {
       refreshAllBotRuntimeStatuses(false);
     });
     vkSaveBtn?.addEventListener('click', saveVkWebhookSettings);
-    addChannelModalEl?.addEventListener('show.bs.modal', () => {
-      resetAddChannelForm();
-      updateAddChannelValidationAlert('');
-      populateAddChannelTemplateSelects();
-      togglePlatformFields();
-    });
     addChannelModalEl?.addEventListener('keydown', (event) => {
       if (event.key !== 'Enter') return;
       const target = event.target;
@@ -24219,17 +24221,17 @@
     managerBindingsEls.summary.textContent = `Настроено привязок: ${managerBindingsState.rows.filter((row) => row.location && row.manager).length}`;
   }
   async function saveManagerBindings(){ const cleanRows=managerBindingsState.rows.filter((row)=>row.location&&row.manager); const response=await fetch('/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({manager_location_bindings:cleanRows})}); const data=await response.json(); managerBindingsEls.feedback.classList.remove('d-none'); managerBindingsEls.feedback.textContent=(!response.ok||data.success===false)?(data.error||'Ошибка сохранения'):'Привязки сохранены'; renderManagerBindingsRows(); }
+  window.prepareReportingSettingsModal = function prepareReportingSettingsModal() {
+    hydrateReportingForm(reportingState.config);
+    loadReportingChannels();
+  };
+  window.prepareManagerBindingsSettingsModal = async function prepareManagerBindingsSettingsModal() {
+    await loadManagerBindingOrgOptions();
+    renderManagerBindingsRows();
+  };
   function initReporting() {
     renderReportingSummary(reportingState.config);
-    reportingEls.modal?.addEventListener('show.bs.modal', () => {
-      hydrateReportingForm(reportingState.config);
-      loadReportingChannels();
-    });
     reportingEls.saveBtn?.addEventListener('click', saveReportingConfig);
-    managerBindingsEls.modal?.addEventListener('show.bs.modal', async () => {
-      await loadManagerBindingOrgOptions();
-      renderManagerBindingsRows();
-    });
     managerBindingsEls.add?.addEventListener('click', () => {
       managerBindingsState.rows.push({ location: '', manager: '', supervisor: '', start_date: '', end_date: '' });
       renderManagerBindingsRows();
