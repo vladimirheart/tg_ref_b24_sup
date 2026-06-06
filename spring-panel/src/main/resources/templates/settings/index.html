@@ -4818,7 +4818,7 @@
     </div>
 
     <!-- Параметры партнёров -->
-    <div class="modal fade settings-primary-modal" id="parametersModal" tabindex="-1" aria-labelledby="parametersModalLabel" aria-hidden="true" data-settings-primary-modal data-settings-url-modal="parameters">
+    <div class="modal fade settings-primary-modal" id="parametersModal" tabindex="-1" aria-labelledby="parametersModalLabel" aria-hidden="true" data-settings-primary-modal data-settings-url-modal="parameters" data-settings-on-show="renderPartnerContactsSettingsModal" data-settings-on-hidden="resetPartnerContactsSettingsModal">
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
@@ -4990,7 +4990,7 @@
       </div>
     </div>
 
-    <div class="modal fade settings-primary-modal" id="legalEntitiesModal" tabindex="-1" aria-labelledby="legalEntitiesModalLabel" aria-hidden="true" data-settings-primary-modal data-settings-url-modal="legal-entities">
+    <div class="modal fade settings-primary-modal" id="legalEntitiesModal" tabindex="-1" aria-labelledby="legalEntitiesModalLabel" aria-hidden="true" data-settings-primary-modal data-settings-url-modal="legal-entities" data-settings-on-show="renderLegalEntitiesSettingsModal" data-settings-on-hidden="resetLegalEntitiesSettingsModal">
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
@@ -5025,7 +5025,7 @@
       </div>
     </div>
 
-    <div class="modal fade settings-child-modal settings-child-modal--workspace settings-child-modal--sheet" id="partnerContactEditorModal" tabindex="-1" aria-hidden="true" data-settings-sheet>
+    <div class="modal fade settings-child-modal settings-child-modal--workspace settings-child-modal--sheet" id="partnerContactEditorModal" tabindex="-1" aria-hidden="true" data-settings-sheet data-settings-suspend-parent="parametersModal" data-settings-suspend-class="partner-contact-child-open" data-settings-on-hidden="resetPartnerContactEditorSettingsModal">
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
@@ -6431,7 +6431,7 @@
     </div>
   </div>
 
-  <div class="modal fade settings-child-modal settings-child-modal--workspace" id="channelEditorModal" tabindex="-1" aria-hidden="true">
+  <div class="modal fade settings-child-modal settings-child-modal--workspace" id="channelEditorModal" tabindex="-1" aria-hidden="true" data-settings-suspend-parent="channelsModal" data-settings-suspend-class="channel-editor-child-open" data-settings-reset-tab="channel-editor-general-tab" data-settings-on-hidden="resetChannelEditorSettingsModal">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
       <div class="modal-content">
         <div class="modal-header">
@@ -7453,11 +7453,9 @@
 
   const legalEntitiesContainer = document.querySelector('[data-legal-entities-list]');
   const legalEntitiesEmptyPlaceholder = document.querySelector('[data-legal-entities-empty]');
-  const legalEntitiesModalEl = document.getElementById('legalEntitiesModal');
   let legalEntityDrafts = [];
   let legalEntityDraftCounter = 0;
 
-  const parametersModalEl = document.getElementById('parametersModal');
   const partnerContactSections = new Map();
   document.querySelectorAll('[data-partner-contacts-section]').forEach((section) => {
     if (!section || !(section instanceof HTMLElement)) return;
@@ -7495,20 +7493,6 @@
     ? new bootstrap.Modal(partnerContactEditorModalEl)
     : null;
 
-  function setParametersModalSuspended(suspended) {
-    if (!(parametersModalEl instanceof HTMLElement)) {
-      return;
-    }
-    const nextState = Boolean(suspended);
-    parametersModalEl.classList.toggle('partner-contact-child-open', nextState);
-    if (nextState) {
-      parametersModalEl.setAttribute('aria-hidden', 'true');
-      parametersModalEl.inert = true;
-    } else {
-      parametersModalEl.removeAttribute('aria-hidden');
-      parametersModalEl.inert = false;
-    }
-  }
   let partnerContactEditorState = null;
 
   function cssEscape(value) {
@@ -8861,6 +8845,16 @@
     }
   }
 
+  window.renderLegalEntitiesSettingsModal = function renderLegalEntitiesSettingsModal() {
+    renderLegalEntities();
+  };
+
+  window.resetLegalEntitiesSettingsModal = function resetLegalEntitiesSettingsModal() {
+    legalEntityDrafts = [];
+    legalEntityDraftCounter = 0;
+    renderLegalEntities();
+  };
+
   function addLegalEntityDraft(initial = {}) {
     legalEntityDraftCounter += 1;
     const defaults = {
@@ -9794,6 +9788,43 @@
     }
   }
 
+  window.renderPartnerContactsSettingsModal = function renderPartnerContactsSettingsModal() {
+    renderPartnerContacts();
+  };
+
+  window.resetPartnerContactEditorSettingsModal = function resetPartnerContactEditorSettingsModal() {
+    if (partnerContactEditorState && partnerContactEditorState.key) {
+      const key = partnerContactEditorState.key;
+      if (key.startsWith('draft:')) {
+        const draftId = key.slice('draft:'.length);
+        const exists = partnerContactDrafts.some((draft) => draft.draftId === draftId);
+        if (exists) {
+          removePartnerContactDraft(draftId);
+        }
+      } else {
+        setPartnerContactCardVisibility(key, true);
+      }
+    }
+    if (partnerContactEditorBody) {
+      partnerContactEditorBody.innerHTML =
+        '<div class="text-center text-muted py-5">Выберите контакт из списка для редактирования.</div>';
+    }
+    clearPartnerContactEditorActions();
+    partnerContactEditorState = null;
+    renderPartnerContacts();
+  };
+
+  window.resetPartnerContactsSettingsModal = function resetPartnerContactsSettingsModal() {
+    if (partnerContactEditorModal) {
+      partnerContactEditorModal.hide();
+    }
+    partnerContactDrafts = [];
+    partnerContactDraftCounter = 0;
+    partnerContactEdits.clear();
+    partnerContactDetailsState.clear();
+    renderPartnerContacts();
+  };
+
   function addPartnerContactDraft(initial = {}) {
     partnerContactDraftCounter += 1;
     const servedEntities = Array.isArray(initial.served_legal_entities) && initial.served_legal_entities.length
@@ -10409,62 +10440,6 @@
   if (parameterModalEl) {
     parameterModalEl.addEventListener('hidden.bs.modal', () => {
       parameterModalType = null;
-    });
-  }
-
-  if (legalEntitiesModalEl) {
-    legalEntitiesModalEl.addEventListener('show.bs.modal', () => {
-      renderLegalEntities();
-    });
-    legalEntitiesModalEl.addEventListener('hidden.bs.modal', () => {
-      legalEntityDrafts = [];
-      legalEntityDraftCounter = 0;
-      renderLegalEntities();
-    });
-  }
-
-  if (parametersModalEl) {
-    parametersModalEl.addEventListener('show.bs.modal', () => {
-      renderPartnerContacts();
-    });
-    parametersModalEl.addEventListener('hidden.bs.modal', () => {
-      setParametersModalSuspended(false);
-      if (partnerContactEditorModal) {
-        partnerContactEditorModal.hide();
-      }
-      partnerContactDrafts = [];
-      partnerContactDraftCounter = 0;
-      partnerContactEdits.clear();
-      partnerContactDetailsState.clear();
-      renderPartnerContacts();
-    });
-  }
-
-  if (partnerContactEditorModalEl) {
-    partnerContactEditorModalEl.addEventListener('show.bs.modal', () => {
-      setParametersModalSuspended(true);
-    });
-    partnerContactEditorModalEl.addEventListener('hidden.bs.modal', () => {
-      setParametersModalSuspended(false);
-      if (partnerContactEditorState && partnerContactEditorState.key) {
-        const key = partnerContactEditorState.key;
-        if (key.startsWith('draft:')) {
-          const draftId = key.slice('draft:'.length);
-          const exists = partnerContactDrafts.some((draft) => draft.draftId === draftId);
-          if (exists) {
-            removePartnerContactDraft(draftId);
-          }
-        } else {
-          setPartnerContactCardVisibility(key, true);
-        }
-      }
-      if (partnerContactEditorBody) {
-        partnerContactEditorBody.innerHTML =
-          '<div class="text-center text-muted py-5">Выберите контакт из списка для редактирования.</div>';
-      }
-      clearPartnerContactEditorActions();
-      partnerContactEditorState = null;
-      renderPartnerContacts();
     });
   }
 
@@ -20681,7 +20656,6 @@
   const channelsBotStatusesInfo = document.getElementById('channelsBotStatusesInfo');
   const channelsModalEl = document.getElementById('channelsModal');
   const channelEditorModalEl = document.getElementById('channelEditorModal');
-  const channelEditorGeneralTabBtn = document.getElementById('channel-editor-general-tab');
   const channelEditorNameInput = document.getElementById('channelEditorName');
   const channelEditorActiveInput = document.getElementById('channelEditorIsActive');
   const channelEditorStatusLabel = document.querySelector('[data-channel-editor-status-label]');
@@ -20820,21 +20794,6 @@
     confirmationToken: '',
     secret: '',
   };
-
-  function setChannelsModalSuspended(suspended) {
-    if (!(channelsModalEl instanceof HTMLElement)) {
-      return;
-    }
-    const nextState = Boolean(suspended);
-    channelsModalEl.classList.toggle('channel-editor-child-open', nextState);
-    if (nextState) {
-      channelsModalEl.setAttribute('aria-hidden', 'true');
-      channelsModalEl.inert = true;
-    } else {
-      channelsModalEl.removeAttribute('aria-hidden');
-      channelsModalEl.inert = false;
-    }
-  }
 
   const channelEditorSummaries = {
     question_template_id: document.querySelector('[data-channel-editor-summary="question_template_id"]'),
@@ -23660,6 +23619,11 @@
     }
   }
 
+  window.resetChannelEditorSettingsModal = function resetChannelEditorSettingsModal() {
+    channelEditorState.channelId = null;
+    channelEditorState.tokenVisible = false;
+  };
+
   function populateAddChannelTemplateSelects() {
     const questionSelect = document.getElementById('new_question_template');
     if (questionSelect) {
@@ -24069,17 +24033,6 @@
       if (channelEditorState.channelId !== null) {
         removeChannel(channelEditorState.channelId);
       }
-    });
-    channelEditorModalEl?.addEventListener('show.bs.modal', () => {
-      setChannelsModalSuspended(true);
-      if (channelEditorGeneralTabBtn && typeof bootstrap !== 'undefined' && bootstrap.Tab) {
-        bootstrap.Tab.getOrCreateInstance(channelEditorGeneralTabBtn).show();
-      }
-    });
-    channelEditorModalEl?.addEventListener('hidden.bs.modal', () => {
-      setChannelsModalSuspended(false);
-      channelEditorState.channelId = null;
-      channelEditorState.tokenVisible = false;
     });
   }
 

@@ -260,6 +260,108 @@
     });
   }
 
+  function setSettingsParentModalSuspended(parentModalEl, className, suspended) {
+    if (!(parentModalEl instanceof HTMLElement)) {
+      return;
+    }
+    const nextState = Boolean(suspended);
+    if (className) {
+      parentModalEl.classList.toggle(className, nextState);
+    }
+    if (nextState) {
+      parentModalEl.setAttribute('aria-hidden', 'true');
+      parentModalEl.inert = true;
+    } else {
+      parentModalEl.removeAttribute('aria-hidden');
+      parentModalEl.inert = false;
+    }
+  }
+
+  function initParentChildSuspendShell() {
+    const childModals = Array.from(document.querySelectorAll('[data-settings-suspend-parent]'));
+    childModals.forEach((childModal) => {
+      if (!(childModal instanceof HTMLElement)) {
+        return;
+      }
+      const parentId = String(childModal.dataset.settingsSuspendParent || '').trim();
+      const openClass = String(childModal.dataset.settingsSuspendClass || '').trim();
+      if (!parentId) {
+        return;
+      }
+      const parentModalEl = document.getElementById(parentId);
+      if (!(parentModalEl instanceof HTMLElement)) {
+        return;
+      }
+
+      childModal.addEventListener('show.bs.modal', () => {
+        setSettingsParentModalSuspended(parentModalEl, openClass, true);
+      });
+      childModal.addEventListener('hidden.bs.modal', () => {
+        setSettingsParentModalSuspended(parentModalEl, openClass, false);
+      });
+    });
+  }
+
+  function invokeSettingsLifecycleCallback(callbackName, modal, eventName) {
+    const normalizedName = typeof callbackName === 'string' ? callbackName.trim() : '';
+    if (!normalizedName) {
+      return;
+    }
+    const callback = window[normalizedName];
+    if (typeof callback !== 'function') {
+      console.warn(`Settings modal callback "${normalizedName}" is not available for ${eventName}.`);
+      return;
+    }
+    callback(modal);
+  }
+
+  function initSettingsModalLifecycleHooks() {
+    const lifecycleEvents = [
+      { eventName: 'show.bs.modal', dataKey: 'settingsOnShow' },
+      { eventName: 'shown.bs.modal', dataKey: 'settingsOnShown' },
+      { eventName: 'hide.bs.modal', dataKey: 'settingsOnHide' },
+      { eventName: 'hidden.bs.modal', dataKey: 'settingsOnHidden' },
+    ];
+
+    const modals = Array.from(document.querySelectorAll('.modal'));
+    modals.forEach((modal) => {
+      if (!(modal instanceof HTMLElement)) {
+        return;
+      }
+      lifecycleEvents.forEach(({ eventName, dataKey }) => {
+        const callbackName = modal.dataset[dataKey];
+        if (!callbackName) {
+          return;
+        }
+        modal.addEventListener(eventName, () => {
+          invokeSettingsLifecycleCallback(callbackName, modal, eventName);
+        });
+      });
+    });
+  }
+
+  function initSettingsModalDefaultTabs() {
+    const modals = Array.from(document.querySelectorAll('[data-settings-reset-tab]'));
+    modals.forEach((modal) => {
+      if (!(modal instanceof HTMLElement)) {
+        return;
+      }
+      const tabId = String(modal.dataset.settingsResetTab || '').trim();
+      if (!tabId) {
+        return;
+      }
+      modal.addEventListener('show.bs.modal', () => {
+        if (typeof bootstrap === 'undefined' || !bootstrap.Tab) {
+          return;
+        }
+        const tabButton = document.getElementById(tabId);
+        if (tabButton instanceof HTMLElement) {
+          bootstrap.Tab.getOrCreateInstance(tabButton).show();
+        }
+      });
+    });
+  }
+
   function runSettingsDomainBootstrap() {
     const bootstrapFns = [
       'initClientStatuses',
@@ -351,6 +453,9 @@
     initSettingsTileDescriptions();
     initSettingsPrimaryModals();
     initAuthManagementModalShell();
+    initParentChildSuspendShell();
+    initSettingsModalLifecycleHooks();
+    initSettingsModalDefaultTabs();
     runSettingsDomainBootstrap();
     initLocationsModalShell();
     openRequestedSettingsModalFromUrl();
