@@ -184,9 +184,7 @@
       });
     });
 
-    const sheetModals = Array.from(document.querySelectorAll(
-      '[data-settings-sheet], .settings-child-modal--sheet, .settings-sheet-modal',
-    ));
+    const sheetModals = Array.from(document.querySelectorAll('[data-settings-sheet]'));
     sheetModals.forEach((modal) => {
       if (!(modal instanceof HTMLElement)) {
         return;
@@ -331,15 +329,12 @@
       const openTarget = (params.get('open') || '').trim().toLowerCase();
       const legacyTab = (params.get('tab') || '').trim().toLowerCase();
       const requestedModal = openTarget || legacyTab;
-      const modalId = requestedModal === 'channels'
-        ? 'channelsModal'
-        : requestedModal === 'users'
-          ? 'usersModal'
-          : '';
-      if (!modalId || typeof bootstrap === 'undefined') {
+      if (!requestedModal || typeof bootstrap === 'undefined') {
         return;
       }
-      const modalEl = document.getElementById(modalId);
+      const modalEl = Array.from(document.querySelectorAll('[data-settings-url-modal]'))
+        .find((modal) => modal instanceof HTMLElement
+          && String(modal.dataset.settingsUrlModal || '').trim().toLowerCase() === requestedModal);
       if (modalEl) {
         bootstrap.Modal.getOrCreateInstance(modalEl).show();
       }
