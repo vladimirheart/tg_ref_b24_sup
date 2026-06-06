@@ -4597,7 +4597,7 @@
     </div>
 
     <!-- Локации -->
-    <div class="modal fade settings-primary-modal" id="locationsModal" tabindex="-1" aria-labelledby="locationsModalLabel" aria-hidden="true" data-settings-primary-modal>
+    <div class="modal fade settings-primary-modal" id="locationsModal" tabindex="-1" aria-labelledby="locationsModalLabel" aria-hidden="true" data-settings-primary-modal data-settings-locations-modal>
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
@@ -20674,48 +20674,6 @@
       showPopup('❌ Ошибка сети: ' + error.message);
     }
   }
-
-  // === Запуск при загрузке страницы ===
-  document.addEventListener('DOMContentLoaded', () => {
-    initClientStatuses();
-    initBusinessStylesEditor();
-    initAutoCloseTemplates();
-    initDialogTemplates();
-    initTimeMetricsControls();
-    initDialogSlaControls();
-    initWorkspaceGovernanceUtcTimestampFields();
-    initExternalKpiUtcTimestampFields();
-    initWorkspaceSingleModeControls();
-    initWorkspaceExternalKpiDatamartContractPreview();
-    bindAutoAssignRulesHelpers();
-    initDialogStatusBadges();
-    initLocationWizard();
-    renderLocationsIikoServerSourcesEditor();
-    renderLocationsIikoSyncSettings();
-    loadLocationsSyncStatus();
-    buildLocationsTree();
-    initChannelsManagement();
-    loadParameters();
-    renderNetworkProfiles();
-
-    const locationsModalEl = document.getElementById('locationsModal');
-    if (locationsModalEl) {
-      locationsModalEl.addEventListener('shown.bs.modal', () => {
-        renderLocationsIikoServerSourcesEditor();
-        renderLocationsIikoSyncSettings();
-        loadLocationsSyncStatus().then((status) => {
-          const running = Boolean(status && (status.running || String(status.state || '').toLowerCase() === 'running'));
-          if (running) {
-            startLocationsSyncStatusPolling();
-          }
-        });
-      });
-      locationsModalEl.addEventListener('hidden.bs.modal', () => {
-        stopLocationsSyncStatusPolling();
-      });
-    }
-
-  });
 
   // === КАНАЛЫ (боты) ===
   const channelsBody = document.getElementById('channelsBody');

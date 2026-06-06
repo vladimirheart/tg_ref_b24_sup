@@ -262,6 +262,69 @@
     });
   }
 
+  function runSettingsDomainBootstrap() {
+    const bootstrapFns = [
+      'initClientStatuses',
+      'initBusinessStylesEditor',
+      'initAutoCloseTemplates',
+      'initDialogTemplates',
+      'initTimeMetricsControls',
+      'initDialogSlaControls',
+      'initWorkspaceGovernanceUtcTimestampFields',
+      'initExternalKpiUtcTimestampFields',
+      'initWorkspaceSingleModeControls',
+      'initWorkspaceExternalKpiDatamartContractPreview',
+      'bindAutoAssignRulesHelpers',
+      'initDialogStatusBadges',
+      'initLocationWizard',
+      'renderLocationsIikoServerSourcesEditor',
+      'renderLocationsIikoSyncSettings',
+      'loadLocationsSyncStatus',
+      'buildLocationsTree',
+      'initChannelsManagement',
+      'loadParameters',
+      'renderNetworkProfiles',
+    ];
+
+    bootstrapFns.forEach((fnName) => {
+      const fn = window[fnName];
+      if (typeof fn === 'function') {
+        fn();
+      }
+    });
+  }
+
+  function initLocationsModalShell() {
+    const locationsModalEl = document.querySelector('[data-settings-locations-modal]')
+      || document.getElementById('locationsModal');
+    if (!(locationsModalEl instanceof HTMLElement)) {
+      return;
+    }
+
+    locationsModalEl.addEventListener('shown.bs.modal', () => {
+      if (typeof window.renderLocationsIikoServerSourcesEditor === 'function') {
+        window.renderLocationsIikoServerSourcesEditor();
+      }
+      if (typeof window.renderLocationsIikoSyncSettings === 'function') {
+        window.renderLocationsIikoSyncSettings();
+      }
+      if (typeof window.loadLocationsSyncStatus === 'function') {
+        window.loadLocationsSyncStatus().then((status) => {
+          const running = Boolean(status && (status.running || String(status.state || '').toLowerCase() === 'running'));
+          if (running && typeof window.startLocationsSyncStatusPolling === 'function') {
+            window.startLocationsSyncStatusPolling();
+          }
+        });
+      }
+    });
+
+    locationsModalEl.addEventListener('hidden.bs.modal', () => {
+      if (typeof window.stopLocationsSyncStatusPolling === 'function') {
+        window.stopLocationsSyncStatusPolling();
+      }
+    });
+  }
+
   function openRequestedSettingsModalFromUrl() {
     try {
       const params = new URLSearchParams(window.location.search);
@@ -293,6 +356,8 @@
     initSettingsTileDescriptions();
     initSettingsPrimaryModals();
     initAuthManagementModalShell();
+    runSettingsDomainBootstrap();
+    initLocationsModalShell();
     openRequestedSettingsModalFromUrl();
     if (typeof window.initReporting === 'function') {
       window.initReporting();
