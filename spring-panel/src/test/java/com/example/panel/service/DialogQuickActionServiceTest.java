@@ -796,6 +796,36 @@ class DialogQuickActionServiceTest {
     }
 
     @Test
+    void addParticipantReturnsErrorWhenDialogIsClosed() {
+        DialogLookupReadService dialogLookupReadService = mock(DialogLookupReadService.class);
+        DialogParticipantService dialogParticipantService = mock(DialogParticipantService.class);
+        NotificationService notificationService = mock(NotificationService.class);
+
+        DialogQuickActionService service = new DialogQuickActionService(
+                mock(DialogTicketLifecycleService.class),
+                dialogLookupReadService,
+                mock(DialogResponsibilityService.class),
+                dialogParticipantService,
+                mock(DialogReplyService.class),
+                mock(DialogNotificationService.class),
+                mock(DialogAiAssistantService.class),
+                notificationService,
+                mock(AttachmentService.class)
+        );
+
+        when(dialogLookupReadService.findDialog("T-710C", "operator")).thenReturn(Optional.of(dialog("T-710C", "lead_operator", "closed")));
+        when(dialogParticipantService.loadParticipants("T-710C")).thenReturn(List.of(participant("lead_operator", "Lead Operator")));
+
+        DialogQuickActionService.DialogParticipantMutationResult result =
+                service.addParticipant("T-710C", "alice", "operator");
+
+        assertThat(result.exists()).isTrue();
+        assertThat(result.changed()).isFalse();
+        assertThat(result.error()).isEqualTo("К закрытому диалогу нельзя добавлять новых участников");
+        verify(notificationService, never()).notifyDialogParticipants(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
     void removeParticipantRemovesOperatorAndNotifiesParticipants() {
         DialogLookupReadService dialogLookupReadService = mock(DialogLookupReadService.class);
         DialogParticipantService dialogParticipantService = mock(DialogParticipantService.class);
@@ -954,6 +984,37 @@ class DialogQuickActionServiceTest {
         assertThat(result.error()).isEqualTo("Диалог уже назначен на этого пользователя");
         assertThat(result.responsible()).isEqualTo("lead_operator");
         verify(dialogAiAssistantService, never()).clearProcessing("T-712S", "operator_reassign", null);
+        verify(notificationService, never()).notifyDialogParticipants(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void reassignTicketReturnsErrorWhenDialogIsClosed() {
+        DialogLookupReadService dialogLookupReadService = mock(DialogLookupReadService.class);
+        DialogParticipantService dialogParticipantService = mock(DialogParticipantService.class);
+        DialogAiAssistantService dialogAiAssistantService = mock(DialogAiAssistantService.class);
+        NotificationService notificationService = mock(NotificationService.class);
+
+        DialogQuickActionService service = new DialogQuickActionService(
+                mock(DialogTicketLifecycleService.class),
+                dialogLookupReadService,
+                mock(DialogResponsibilityService.class),
+                dialogParticipantService,
+                mock(DialogReplyService.class),
+                mock(DialogNotificationService.class),
+                dialogAiAssistantService,
+                notificationService,
+                mock(AttachmentService.class)
+        );
+
+        when(dialogLookupReadService.findDialog("T-712C", "operator")).thenReturn(Optional.of(dialog("T-712C", "lead_operator", "closed")));
+        when(dialogParticipantService.loadParticipants("T-712C")).thenReturn(List.of(participant("lead_operator", "Lead Operator")));
+
+        DialogQuickActionService.DialogReassignResult result =
+                service.reassignTicket("T-712C", "alice", "operator");
+
+        assertThat(result.exists()).isTrue();
+        assertThat(result.error()).isEqualTo("Переадресовать можно только открытый диалог");
+        verify(dialogAiAssistantService, never()).clearProcessing("T-712C", "operator_reassign", null);
         verify(notificationService, never()).notifyDialogParticipants(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
     }
 

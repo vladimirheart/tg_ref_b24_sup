@@ -591,6 +591,34 @@ class DialogQuickActionsControllerWebMvcTest {
     }
 
     @Test
+    void addParticipantReturnsBadRequestWhenDialogIsClosed() throws Exception {
+        when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_assign"), eq("participants_add"), eq("T-610CLOSED")))
+            .thenReturn(null);
+        when(dialogQuickActionService.addParticipant("T-610CLOSED", "watcher_peer", "operator"))
+            .thenReturn(new DialogQuickActionService.DialogParticipantMutationResult(
+                    true,
+                    false,
+                    "К закрытому диалогу нельзя добавлять новых участников",
+                    List.of()
+            ));
+
+        mockMvc.perform(post("/api/dialogs/T-610CLOSED/participants")
+                .with(user("operator"))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "username": "watcher_peer"
+                    }
+                    """))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("К закрытому диалогу нельзя добавлять новых участников"));
+
+        verify(dialogAuthorizationService).logDialogAction("operator", "T-610CLOSED", "participants_add", "error", "К закрытому диалогу нельзя добавлять новых участников");
+    }
+
+    @Test
     void addParticipantReturnsNotFoundWhenDialogMissing() throws Exception {
         when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_assign"), eq("participants_add"), eq("T-610NF")))
             .thenReturn(null);
@@ -714,6 +742,36 @@ class DialogQuickActionsControllerWebMvcTest {
             .andExpect(jsonPath("$.error").value("Диалог уже назначен на этого пользователя"));
 
         verify(dialogAuthorizationService).logDialogAction("operator", "T-612SAME", "reassign", "error", "Диалог уже назначен на этого пользователя");
+    }
+
+    @Test
+    void reassignReturnsBadRequestWhenDialogIsClosed() throws Exception {
+        when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_assign"), eq("reassign"), eq("T-612CLOSED")))
+            .thenReturn(null);
+        when(dialogQuickActionService.reassignTicket("T-612CLOSED", "watcher_peer", "operator"))
+            .thenReturn(new DialogQuickActionService.DialogReassignResult(
+                    true,
+                    "Переадресовать можно только открытый диалог",
+                    null,
+                    null,
+                    null,
+                    List.of()
+            ));
+
+        mockMvc.perform(post("/api/dialogs/T-612CLOSED/reassign")
+                .with(user("operator"))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "username": "watcher_peer"
+                    }
+                    """))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("Переадресовать можно только открытый диалог"));
+
+        verify(dialogAuthorizationService).logDialogAction("operator", "T-612CLOSED", "reassign", "error", "Переадресовать можно только открытый диалог");
     }
 
     @Test

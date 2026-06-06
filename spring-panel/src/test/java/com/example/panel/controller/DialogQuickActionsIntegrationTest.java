@@ -1606,6 +1606,90 @@ class DialogQuickActionsIntegrationTest {
     }
 
     @Test
+    void quickActionsApiClosedDialogCollaborationActionsReturnExplicitErrors() throws Exception {
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        insertDirectoryUser("closed_owner", true, false, 1L, "Support", "Closed Owner", "Ops", "/img/owner.png");
+        insertDirectoryUser("closed_peer", true, false, 1L, "Support", "Closed Peer", "Ops", "/img/peer.png");
+        insertDirectoryUser("closed_observer", true, false, 1L, "Support", "Closed Observer", "Backoffice", "/img/observer.png");
+
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
+                VALUES (115, 'token115', 'Quick Actions Closed Collab', 'telegram', 1, CURRENT_TIMESTAMP)
+                """);
+        insertDialogTicket(920115L, "T-QA-CLOSED-COLLAB", 115L, "quick_closed_collab_user", "Клиент Closed Collab", "Retail", "Кострома", "Точка Closed Collab", "Проверка closed collaboration errors", "2026-06-05T12:30:00Z", 11501L);
+        jdbcTemplate.update("""
+                INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
+                VALUES (?,?,?,?)
+                """,
+                "T-QA-CLOSED-COLLAB", "closed_owner", "dispatcher", "2026-06-05T12:29:00Z");
+        jdbcTemplate.update("""
+                INSERT INTO ticket_participants(ticket_id, username, added_at, added_by)
+                VALUES (?,?,CURRENT_TIMESTAMP,?)
+                """,
+                "T-QA-CLOSED-COLLAB", "closed_peer", "closed_owner");
+        insertHistoryRow("T-QA-CLOSED-COLLAB", 920115L, "user", "Клиент ждёт handoff", "2026-06-05T12:31:00Z", "text", 2501L, null, 115L);
+        insertHistoryRow("T-QA-CLOSED-COLLAB", 920115L, "operator", "Оператор уже отвечал ранее", "2026-06-05T12:31:30Z", "operator_message", 2500L, 2501L, 115L);
+
+        mockMvc.perform(post("/api/dialogs/T-QA-CLOSED-COLLAB/resolve")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "categories": ["vip"]
+                                }
+                                """)
+                        .principal(new TestingAuthenticationToken("closed_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.updated").value(true));
+
+        mockMvc.perform(post("/api/dialogs/T-QA-CLOSED-COLLAB/participants")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "username": "closed_observer"
+                                }
+                                """)
+                        .principal(new TestingAuthenticationToken("closed_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error").value("К закрытому диалогу нельзя добавлять новых участников"));
+
+        mockMvc.perform(post("/api/dialogs/T-QA-CLOSED-COLLAB/reassign")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "username": "closed_observer"
+                                }
+                                """)
+                        .principal(new TestingAuthenticationToken("closed_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error").value("Переадресовать можно только открытый диалог"));
+
+        mockMvc.perform(get("/api/dialogs/T-QA-CLOSED-COLLAB/workspace")
+                        .principal(new TestingAuthenticationToken("closed_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.conversation.ticketId").value("T-QA-CLOSED-COLLAB"))
+                .andExpect(jsonPath("$.conversation.statusKey").value("closed"))
+                .andExpect(jsonPath("$.workflow.responsible.username").value("closed_owner"))
+                .andExpect(jsonPath("$.workflow.participants.length()").value(1))
+                .andExpect(jsonPath("$.workflow.participants[0].username").value("closed_peer"))
+                .andExpect(jsonPath("$.workflow.actions.reassign.enabled").value(false))
+                .andExpect(jsonPath("$.workflow.actions.reassign.disabled_reason").value("closed_dialog"))
+                .andExpect(jsonPath("$.workflow.actions.participants_add.enabled").value(false))
+                .andExpect(jsonPath("$.workflow.actions.participants_add.disabled_reason").value("closed_dialog"));
+
+        assertThat(countAuditRows("T-QA-CLOSED-COLLAB", "quick_close", "success")).isEqualTo(1);
+        assertThat(countAuditRows("T-QA-CLOSED-COLLAB", "participants_add", "error")).isEqualTo(1);
+        assertThat(countAuditRows("T-QA-CLOSED-COLLAB", "reassign", "error")).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT responsible FROM ticket_responsibles WHERE ticket_id = ?",
+                String.class,
+                "T-QA-CLOSED-COLLAB"
+        )).isEqualTo("closed_owner");
+    }
+
+    @Test
     void quickActionsApiTakeCategoriesAndSpamRefreshWorkspaceAndDetailsConsumers() throws Exception {
         usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
         insertDirectoryUser("watcher_owner", true, false, 1L, "Support", "Watcher Owner", "Ops", "/img/owner.png");
