@@ -5025,7 +5025,7 @@
       </div>
     </div>
 
-    <div class="modal fade settings-child-modal settings-child-modal--workspace settings-child-modal--sheet" id="partnerContactEditorModal" tabindex="-1" aria-hidden="true" data-settings-sheet data-settings-suspend-parent="parametersModal" data-settings-suspend-class="partner-contact-child-open" data-settings-on-hidden="resetPartnerContactEditorSettingsModal">
+    <div class="modal fade settings-child-modal settings-child-modal--workspace settings-child-modal--sheet" id="partnerContactEditorModal" tabindex="-1" aria-hidden="true" data-settings-sheet data-settings-portal-body data-settings-suspend-parent="parametersModal" data-settings-suspend-class="partner-contact-child-open" data-settings-on-hidden="resetPartnerContactEditorSettingsModal">
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
@@ -5476,7 +5476,7 @@
       </div>
     </div>
 
-    <div class="modal fade settings-child-modal" id="itEquipmentAddModal" tabindex="-1" aria-labelledby="itEquipmentAddModalLabel" aria-hidden="true" data-settings-on-show="prepareItEquipmentAddSettingsModal" data-settings-on-shown="focusItEquipmentAddSettingsModal">
+    <div class="modal fade settings-child-modal" id="itEquipmentAddModal" tabindex="-1" aria-labelledby="itEquipmentAddModalLabel" aria-hidden="true" data-settings-on-show="prepareItEquipmentAddSettingsModal" data-settings-on-shown="focusItEquipmentAddSettingsModal" data-settings-query-open="it-equipment" data-settings-query-clear-param="open">
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
@@ -7477,9 +7477,6 @@
   let partnerContactPersonCounter = 0;
   const partnerContactDetailsState = new Map();
   const partnerContactEditorModalEl = document.getElementById('partnerContactEditorModal');
-  if (partnerContactEditorModalEl && partnerContactEditorModalEl.parentElement !== document.body) {
-    document.body.appendChild(partnerContactEditorModalEl);
-  }
   const partnerContactEditorBody = partnerContactEditorModalEl
     ? partnerContactEditorModalEl.querySelector('[data-partner-contact-editor-body]')
     : null;
@@ -12251,26 +12248,6 @@
   const itEquipmentAddModal = itEquipmentAddModalEl
     ? new bootstrap.Modal(itEquipmentAddModalEl)
     : null;
-  const itConnectionsModalEl = document.getElementById('itConnectionsModal');
-  const itConnectionsModal = itConnectionsModalEl
-    ? new bootstrap.Modal(itConnectionsModalEl)
-    : null;
-
-  function openItEquipmentModalFromQuery() {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('open') !== 'it-equipment') {
-      return;
-    }
-    if (itEquipmentAddModal) {
-      itEquipmentAddModal.show();
-    } else if (itConnectionsModal) {
-      itConnectionsModal.show();
-    }
-    params.delete('open');
-    const search = params.toString();
-    const newUrl = `${window.location.pathname}${search ? `?${search}` : ''}${window.location.hash || ''}`;
-    window.history.replaceState({}, '', newUrl);
-  }
 
   function populateItEquipmentAddOptions(selectedValues = {}) {
     const optionSets = collectEquipmentOptionSets();
@@ -12606,7 +12583,6 @@
   renderNetworkProfiles();
   renderItConnectionsTable();
   loadItEquipment();
-  openItEquipmentModalFromQuery();
 
   const itSectionTilesContainer = document.querySelector('[data-it-section-tiles]');
 

@@ -260,6 +260,19 @@
     });
   }
 
+  function initSettingsBodyPortals() {
+    if (!document.body) {
+      return;
+    }
+    const portaledModals = Array.from(document.querySelectorAll('[data-settings-portal-body]'));
+    portaledModals.forEach((modal) => {
+      if (!(modal instanceof HTMLElement) || modal.parentElement === document.body) {
+        return;
+      }
+      document.body.appendChild(modal);
+    });
+  }
+
   function setSettingsParentModalSuspended(parentModalEl, className, suspended) {
     if (!(parentModalEl instanceof HTMLElement)) {
       return;
@@ -371,6 +384,40 @@
     });
   }
 
+  function replaceSettingsHistorySearch(params) {
+    const search = params.toString();
+    const nextUrl = `${window.location.pathname}${search ? `?${search}` : ''}${window.location.hash || ''}`;
+    window.history.replaceState({}, '', nextUrl);
+  }
+
+  function openSettingsQueryDrivenModals(params) {
+    if (typeof bootstrap === 'undefined') {
+      return false;
+    }
+    let changed = false;
+    const queryDrivenModals = Array.from(document.querySelectorAll('[data-settings-query-open]'));
+    queryDrivenModals.forEach((modal) => {
+      if (!(modal instanceof HTMLElement)) {
+        return;
+      }
+      const queryParam = String(modal.dataset.settingsQueryParam || 'open').trim() || 'open';
+      const expectedValue = String(modal.dataset.settingsQueryOpen || '').trim().toLowerCase();
+      const actualValue = String(params.get(queryParam) || '').trim().toLowerCase();
+      if (!expectedValue || actualValue !== expectedValue) {
+        return;
+      }
+      bootstrap.Modal.getOrCreateInstance(modal).show();
+      if (Object.prototype.hasOwnProperty.call(modal.dataset, 'settingsQueryClearParam')) {
+        const clearParam = String(modal.dataset.settingsQueryClearParam || queryParam).trim() || queryParam;
+        if (params.has(clearParam)) {
+          params.delete(clearParam);
+          changed = true;
+        }
+      }
+    });
+    return changed;
+  }
+
   function runSettingsDomainBootstrap() {
     const bootstrapFns = [
       'initClientStatuses',
@@ -440,14 +487,20 @@
       const openTarget = (params.get('open') || '').trim().toLowerCase();
       const legacyTab = (params.get('tab') || '').trim().toLowerCase();
       const requestedModal = openTarget || legacyTab;
+      let shouldReplaceHistory = false;
       if (!requestedModal || typeof bootstrap === 'undefined') {
-        return;
+        shouldReplaceHistory = openSettingsQueryDrivenModals(params);
+      } else {
+        const modalEl = Array.from(document.querySelectorAll('[data-settings-url-modal]'))
+          .find((modal) => modal instanceof HTMLElement
+            && String(modal.dataset.settingsUrlModal || '').trim().toLowerCase() === requestedModal);
+        if (modalEl) {
+          bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        }
+        shouldReplaceHistory = openSettingsQueryDrivenModals(params) || shouldReplaceHistory;
       }
-      const modalEl = Array.from(document.querySelectorAll('[data-settings-url-modal]'))
-        .find((modal) => modal instanceof HTMLElement
-          && String(modal.dataset.settingsUrlModal || '').trim().toLowerCase() === requestedModal);
-      if (modalEl) {
-        bootstrap.Modal.getOrCreateInstance(modalEl).show();
+      if (shouldReplaceHistory) {
+        replaceSettingsHistorySearch(params);
       }
     } catch (error) {
       console.error('Failed to process URL parameters', error);
@@ -460,6 +513,7 @@
     }
     initThemeFormSync();
     initSettingsTileDescriptions();
+    initSettingsBodyPortals();
     initSettingsPrimaryModals();
     initAuthManagementModalShell();
     initParentChildSuspendShell();
