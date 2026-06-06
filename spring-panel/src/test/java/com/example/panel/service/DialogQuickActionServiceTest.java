@@ -541,6 +541,7 @@ class DialogQuickActionServiceTest {
     void markClientAsSpamBlocksClientAndAddsSpamCategory() {
         DialogLookupReadService dialogLookupReadService = mock(DialogLookupReadService.class);
         DialogTicketLifecycleService dialogTicketLifecycleService = mock(DialogTicketLifecycleService.class);
+        NotificationService notificationService = mock(NotificationService.class);
         ClientBlacklistService clientBlacklistService = mock(ClientBlacklistService.class);
 
         DialogQuickActionService service = new DialogQuickActionService(
@@ -551,7 +552,7 @@ class DialogQuickActionServiceTest {
                 mock(DialogReplyService.class),
                 mock(DialogNotificationService.class),
                 mock(DialogAiAssistantService.class),
-                mock(NotificationService.class),
+                notificationService,
                 mock(AttachmentService.class),
                 clientBlacklistService
         );
@@ -588,6 +589,7 @@ class DialogQuickActionServiceTest {
                 )));
         when(clientBlacklistService.blockClient("77", "Спам", "operator", false))
                 .thenReturn(new ClientBlacklistService.BlacklistMutationResult(true, "ok", null));
+        when(notificationService.buildDialogUrl("T-709S")).thenReturn("/dialogs/T-709S");
 
         DialogQuickActionService.DialogSpamResult result = service.markClientAsSpam("T-709S", "operator", "Спам");
 
@@ -598,6 +600,74 @@ class DialogQuickActionServiceTest {
         assertThat(result.categories()).containsExactly("billing", "vip", "Спам");
         verify(dialogTicketLifecycleService).setTicketCategories("T-709S", List.of("billing", "vip", "Спам"));
         verify(clientBlacklistService).blockClient("77", "Спам", "operator", false);
+        verify(notificationService).notifyDialogParticipants(
+                "T-709S",
+                "Обращение T-709S помечено как спам",
+                "/dialogs/T-709S",
+                "operator"
+        );
+    }
+
+    @Test
+    void markClientAsSpamDoesNotNotifyParticipantsWhenBlacklistFails() {
+        DialogLookupReadService dialogLookupReadService = mock(DialogLookupReadService.class);
+        DialogTicketLifecycleService dialogTicketLifecycleService = mock(DialogTicketLifecycleService.class);
+        NotificationService notificationService = mock(NotificationService.class);
+        ClientBlacklistService clientBlacklistService = mock(ClientBlacklistService.class);
+
+        DialogQuickActionService service = new DialogQuickActionService(
+                dialogTicketLifecycleService,
+                dialogLookupReadService,
+                mock(DialogResponsibilityService.class),
+                mock(DialogParticipantService.class),
+                mock(DialogReplyService.class),
+                mock(DialogNotificationService.class),
+                mock(DialogAiAssistantService.class),
+                notificationService,
+                mock(AttachmentService.class),
+                clientBlacklistService
+        );
+
+        when(dialogLookupReadService.findDialog("T-709SF", "operator"))
+                .thenReturn(Optional.of(new DialogListItem(
+                        "T-709SF",
+                        1L,
+                        77L,
+                        "client",
+                        "Client",
+                        "Support",
+                        7L,
+                        "Telegram",
+                        "Moscow",
+                        "HQ",
+                        "Spam",
+                        "2026-05-21T12:00:00Z",
+                        "pending",
+                        false,
+                        null,
+                        null,
+                        "operator",
+                        null,
+                        null,
+                        null,
+                        "client",
+                        "2026-05-21T12:00:00Z",
+                        0,
+                        null,
+                        "billing, vip",
+                        null,
+                        null
+                )));
+        when(clientBlacklistService.blockClient("77", "Спам", "operator", false))
+                .thenReturn(new ClientBlacklistService.BlacklistMutationResult(false, null, "blacklist_failed"));
+
+        DialogQuickActionService.DialogSpamResult result = service.markClientAsSpam("T-709SF", "operator", "Спам");
+
+        assertThat(result.exists()).isTrue();
+        assertThat(result.updated()).isFalse();
+        assertThat(result.error()).isEqualTo("blacklist_failed");
+        verify(dialogTicketLifecycleService, never()).setTicketCategories("T-709SF", List.of("billing", "vip", "Спам"));
+        verify(notificationService, never()).notifyDialogParticipants(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
     }
 
     @Test

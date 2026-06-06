@@ -253,6 +253,12 @@ public class DialogQuickActionService {
 
         List<String> categories = mergeCategoriesWithSpam(dialog.get().categories());
         dialogTicketLifecycleService.setTicketCategories(ticketId, categories);
+        notifyDialogParticipantsSafely(
+                ticketId,
+                "Обращение " + ticketId + " помечено как спам",
+                notificationService.buildDialogUrl(ticketId),
+                operator
+        );
         return new DialogSpamResult(true, true, null, userId, categories);
     }
 

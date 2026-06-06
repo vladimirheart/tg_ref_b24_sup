@@ -1076,6 +1076,92 @@ class DialogQuickActionsIntegrationTest {
 
     @Test
     @DirtiesContext(methodMode = DirtiesContext.MethodMode.AFTER_METHOD)
+    void quickActionsApiSpamNotifiesPeerParticipantsThroughNotificationApi() throws Exception {
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        insertDirectoryUser("spam_notify_owner", true, false, 1L, "Support", "Spam Notify Owner", "Ops", "/img/owner.png");
+        insertDirectoryUser("spam_notify_peer", true, false, 1L, "Support", "Spam Notify Peer", "Ops", "/img/peer.png");
+
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
+                VALUES (113, 'token113', 'Quick Actions Spam Notify', 'telegram', 1, CURRENT_TIMESTAMP)
+                """);
+        insertDialogTicket(920113L, "T-QA-SPAM-NOTIFY", 113L, "quick_spam_notify_user", "Клиент Spam Notify", "Retail", "Иваново", "Точка Spam Notify", "Проверка spam notifications", "2026-06-05T11:00:00Z", 11301L);
+        jdbcTemplate.update("""
+                INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
+                VALUES (?,?,?,?)
+                """,
+                "T-QA-SPAM-NOTIFY", "spam_notify_owner", "dispatcher", "2026-06-05T10:59:00Z");
+        jdbcTemplate.update("""
+                INSERT INTO ticket_participants(ticket_id, username, added_at, added_by)
+                VALUES (?,?,CURRENT_TIMESTAMP,?)
+                """,
+                "T-QA-SPAM-NOTIFY", "spam_notify_peer", "spam_notify_owner");
+        jdbcTemplate.update("""
+                INSERT INTO ticket_ai_agent_dialog_control(ticket_id, ai_disabled, auto_reply_blocked, reason, updated_by)
+                VALUES (?,?,?,?,?)
+                """,
+                "T-QA-SPAM-NOTIFY", 1, 1, "spam notification parity test", "test");
+        jdbcTemplate.update("INSERT INTO ticket_categories(ticket_id, category) VALUES (?, ?)", "T-QA-SPAM-NOTIFY", "billing");
+        insertHistoryRow("T-QA-SPAM-NOTIFY", 920113L, "user", "Клиент прислал spam", "2026-06-05T11:01:00Z", "text", 2301L, null, 113L);
+
+        mockMvc.perform(post("/api/dialogs/T-QA-SPAM-NOTIFY/spam")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "reason": "Спам-атака через notification parity"
+                                }
+                                """)
+                        .principal(new TestingAuthenticationToken("spam_notify_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.updated").value(true))
+                .andExpect(jsonPath("$.userId").value("920113"))
+                .andExpect(jsonPath("$.categories", hasItem("billing")))
+                .andExpect(jsonPath("$.categories", hasItem("Спам")));
+
+        mockMvc.perform(get("/api/notifications")
+                        .principal(new TestingAuthenticationToken("spam_notify_peer", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].text").value("Обращение T-QA-SPAM-NOTIFY помечено как спам"))
+                .andExpect(jsonPath("$[0].url").value("/dialogs/T-QA-SPAM-NOTIFY"))
+                .andExpect(jsonPath("$[0].read").value(false));
+
+        mockMvc.perform(get("/api/notifications/unread_count")
+                        .principal(new TestingAuthenticationToken("spam_notify_peer", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unread").value(1));
+
+        Long latestSpamNotificationId = jdbcTemplate.queryForObject(
+                "SELECT id FROM notifications WHERE user_identity = ? ORDER BY id DESC LIMIT 1",
+                Long.class,
+                "spam_notify_peer"
+        );
+        mockMvc.perform(post("/api/notifications/" + latestSpamNotificationId + "/read")
+                        .principal(new TestingAuthenticationToken("spam_notify_peer", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        mockMvc.perform(get("/api/notifications/unread_count")
+                        .principal(new TestingAuthenticationToken("spam_notify_peer", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unread").value(0));
+
+        mockMvc.perform(get("/api/notifications")
+                        .principal(new TestingAuthenticationToken("spam_notify_peer", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(latestSpamNotificationId))
+                .andExpect(jsonPath("$[0].read").value(true));
+
+        mockMvc.perform(get("/api/notifications/unread_count")
+                        .principal(new TestingAuthenticationToken("spam_notify_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unread").value(0));
+    }
+
+    @Test
+    @DirtiesContext(methodMode = DirtiesContext.MethodMode.AFTER_METHOD)
     void quickActionsApiLifecycleActionsNotifyPeerParticipantsThroughNotificationApi() throws Exception {
         usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
         insertDirectoryUser("lifecycle_owner", true, false, 1L, "Support", "Lifecycle Owner", "Ops", "/img/owner.png");

@@ -1677,7 +1677,8 @@ integration-сценария поверх users/settings runtime boundary всё
 - bell-consumer contract тоже закрыт как единый блок: `/api/notifications`
   live-прикрыт и для message-side mutations, и для non-message
   lifecycle/collaboration actions (`take -> categories -> resolve -> reopen`,
-  `reassign -> participants_add -> participants_remove`), включая
+  `reassign -> participants_add -> participants_remove`) и shared moderation
+  action `mark_spam`, включая
   `unread_count`, `POST /api/notifications/{id}/read`, repeated list reread с
   `read=true` и AI-muted scenarios через
   `ticket_ai_agent_dialog_control.ai_disabled=1`, чтобы не смешивать
