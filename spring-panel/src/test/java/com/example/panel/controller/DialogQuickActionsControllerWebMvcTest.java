@@ -128,6 +128,23 @@ class DialogQuickActionsControllerWebMvcTest {
     }
 
     @Test
+    void takeReturnsNotFoundWhenDialogMissing() throws Exception {
+        when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_assign"), eq("take"), eq("T-602NF")))
+            .thenReturn(null);
+        when(dialogQuickActionService.takeTicket("T-602NF", "operator"))
+            .thenReturn(java.util.Optional.empty());
+
+        mockMvc.perform(post("/api/dialogs/T-602NF/take")
+                .with(user("operator"))
+                .with(csrf()))
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("Диалог не найден"));
+
+        verify(dialogAuthorizationService).logDialogAction("operator", "T-602NF", "take", "not_found", "Диалог не найден");
+    }
+
+    @Test
     void resolveReturnsBadRequestWhenServiceReturnsDomainError() throws Exception {
         when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_close"), eq("quick_close"), eq("T-603")))
             .thenReturn(null);
@@ -209,6 +226,29 @@ class DialogQuickActionsControllerWebMvcTest {
             .andExpect(jsonPath("$.error").value("Не удалось определить клиента для блокировки"));
 
         verify(dialogAuthorizationService).logDialogAction("operator", "T-604A", "mark_spam", "error", "Не удалось определить клиента для блокировки");
+    }
+
+    @Test
+    void spamReturnsNotFoundWhenDialogMissing() throws Exception {
+        when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_close"), eq("mark_spam"), eq("T-604NF")))
+            .thenReturn(null);
+        when(dialogQuickActionService.markClientAsSpam("T-604NF", "operator", "Спам"))
+            .thenReturn(new DialogQuickActionService.DialogSpamResult(false, false, "Диалог не найден", null, List.of()));
+
+        mockMvc.perform(post("/api/dialogs/T-604NF/spam")
+                .with(user("operator"))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "reason": "Спам"
+                    }
+                    """))
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("Диалог не найден"));
+
+        verify(dialogAuthorizationService).logDialogAction("operator", "T-604NF", "mark_spam", "not_found", "Диалог не найден");
     }
 
     @Test
@@ -522,6 +562,29 @@ class DialogQuickActionsControllerWebMvcTest {
     }
 
     @Test
+    void addParticipantReturnsNotFoundWhenDialogMissing() throws Exception {
+        when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_assign"), eq("participants_add"), eq("T-610NF")))
+            .thenReturn(null);
+        when(dialogQuickActionService.addParticipant("T-610NF", "watcher_peer", "operator"))
+            .thenReturn(new DialogQuickActionService.DialogParticipantMutationResult(false, false, null, List.of()));
+
+        mockMvc.perform(post("/api/dialogs/T-610NF/participants")
+                .with(user("operator"))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "username": "watcher_peer"
+                    }
+                    """))
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("Диалог не найден"));
+
+        verify(dialogAuthorizationService).logDialogAction("operator", "T-610NF", "participants_add", "not_found", "Диалог не найден");
+    }
+
+    @Test
     void removeParticipantReturnsNotFoundWhenDialogMissing() throws Exception {
         when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_assign"), eq("participants_remove"), eq("T-611")))
             .thenReturn(null);
@@ -569,5 +632,28 @@ class DialogQuickActionsControllerWebMvcTest {
             .andExpect(jsonPath("$.participants[0].username").value("watcher_peer"));
 
         verify(dialogAuthorizationService).logDialogAction("operator", "T-612", "reassign", "success", "responsible_redirected");
+    }
+
+    @Test
+    void reassignReturnsNotFoundWhenDialogMissing() throws Exception {
+        when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_assign"), eq("reassign"), eq("T-612NF")))
+            .thenReturn(null);
+        when(dialogQuickActionService.reassignTicket("T-612NF", "watcher_peer", "operator"))
+            .thenReturn(new DialogQuickActionService.DialogReassignResult(false, null, null, null, null, List.of()));
+
+        mockMvc.perform(post("/api/dialogs/T-612NF/reassign")
+                .with(user("operator"))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "username": "watcher_peer"
+                    }
+                    """))
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("Диалог не найден"));
+
+        verify(dialogAuthorizationService).logDialogAction("operator", "T-612NF", "reassign", "not_found", "Диалог не найден");
     }
 }

@@ -1667,7 +1667,8 @@ integration-сценария поверх users/settings runtime boundary всё
   timing/audit semantics: `categories`, `reopen`, `reply`, `edit`, `delete` и
   `reply_media`, а также `snooze` на `404/not_found` boundary, теперь проходят
   через единый quick-action guard, пишут `success/error/not_found` audit
-  trail, а parity-layer требует
+  trail; этот же missing-dialog boundary теперь явно закреплён и для
+  `take`, `mark_spam`, `participants_add` и `reassign`, а parity-layer требует
   `categories/spam/snooze` как часть `operator_action_guards`.
 - write-side mutation parity собрана в один закрытый runtime блок:
   transport и `web_form` ветки для `reply -> edit -> delete` и `reply_media`

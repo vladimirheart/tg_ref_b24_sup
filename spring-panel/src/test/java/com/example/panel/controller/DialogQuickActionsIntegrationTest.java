@@ -1457,6 +1457,60 @@ class DialogQuickActionsIntegrationTest {
     }
 
     @Test
+    void quickActionsApiMissingDialogReturnsNotFoundAcrossRemainingOperatorActions() throws Exception {
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        insertDirectoryUser("watcher_owner", true, false, 1L, "Support", "Watcher Owner", "Ops", "/img/owner.png");
+        insertDirectoryUser("watcher_peer", true, false, 1L, "Support", "Watcher Peer", "Ops", "/img/peer.png");
+
+        mockMvc.perform(post("/api/dialogs/T-QA-MISSING-TAKE/take")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error").value("Диалог не найден"));
+
+        mockMvc.perform(post("/api/dialogs/T-QA-MISSING-SPAM/spam")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "reason": "Спам"
+                                }
+                                """)
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error").value("Диалог не найден"));
+
+        mockMvc.perform(post("/api/dialogs/T-QA-MISSING-PARTICIPANT/participants")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "username": "watcher_peer"
+                                }
+                                """)
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error").value("Диалог не найден"));
+
+        mockMvc.perform(post("/api/dialogs/T-QA-MISSING-REASSIGN/reassign")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "username": "watcher_peer"
+                                }
+                                """)
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error").value("Диалог не найден"));
+
+        assertThat(countAuditRows("T-QA-MISSING-TAKE", "take", "not_found")).isEqualTo(1);
+        assertThat(countAuditRows("T-QA-MISSING-SPAM", "mark_spam", "not_found")).isEqualTo(1);
+        assertThat(countAuditRows("T-QA-MISSING-PARTICIPANT", "participants_add", "not_found")).isEqualTo(1);
+        assertThat(countAuditRows("T-QA-MISSING-REASSIGN", "reassign", "not_found")).isEqualTo(1);
+    }
+
+    @Test
     void quickActionsApiTakeCategoriesAndSpamRefreshWorkspaceAndDetailsConsumers() throws Exception {
         usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
         insertDirectoryUser("watcher_owner", true, false, 1L, "Support", "Watcher Owner", "Ops", "/img/owner.png");
