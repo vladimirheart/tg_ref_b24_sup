@@ -562,6 +562,35 @@ class DialogQuickActionsControllerWebMvcTest {
     }
 
     @Test
+    void addParticipantReturnsAlreadyPresentWhenMutationIsNoop() throws Exception {
+        when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_assign"), eq("participants_add"), eq("T-610AP")))
+            .thenReturn(null);
+        when(dialogQuickActionService.addParticipant("T-610AP", "watcher_peer", "operator"))
+            .thenReturn(new DialogQuickActionService.DialogParticipantMutationResult(
+                    true,
+                    false,
+                    null,
+                    List.of(new DialogParticipantDto("watcher_peer", "Watcher Peer", null, "ops", "operator", "2026-05-21T18:11:00Z", "operator"))
+            ));
+
+        mockMvc.perform(post("/api/dialogs/T-610AP/participants")
+                .with(user("operator"))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "username": "watcher_peer"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.changed").value(false))
+            .andExpect(jsonPath("$.participants[0].username").value("watcher_peer"));
+
+        verify(dialogAuthorizationService).logDialogAction("operator", "T-610AP", "participants_add", "success", "already_present");
+    }
+
+    @Test
     void addParticipantReturnsNotFoundWhenDialogMissing() throws Exception {
         when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_assign"), eq("participants_add"), eq("T-610NF")))
             .thenReturn(null);
@@ -602,6 +631,29 @@ class DialogQuickActionsControllerWebMvcTest {
     }
 
     @Test
+    void removeParticipantReturnsParticipantMissingWhenMutationIsNoop() throws Exception {
+        when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_assign"), eq("participants_remove"), eq("T-611MISS")))
+            .thenReturn(null);
+        when(dialogQuickActionService.removeParticipant("T-611MISS", "ghost", "operator"))
+            .thenReturn(new DialogQuickActionService.DialogParticipantMutationResult(
+                    true,
+                    false,
+                    null,
+                    List.of(new DialogParticipantDto("watcher_peer", "Watcher Peer", null, "ops", "operator", "2026-05-21T18:11:00Z", "operator"))
+            ));
+
+        mockMvc.perform(delete("/api/dialogs/T-611MISS/participants/ghost")
+                .with(user("operator"))
+                .with(csrf()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.changed").value(false))
+            .andExpect(jsonPath("$.participants[0].username").value("watcher_peer"));
+
+        verify(dialogAuthorizationService).logDialogAction("operator", "T-611MISS", "participants_remove", "success", "participant_missing");
+    }
+
+    @Test
     void reassignReturnsResponsibleProjectionOnSuccess() throws Exception {
         when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_assign"), eq("reassign"), eq("T-612")))
             .thenReturn(null);
@@ -632,6 +684,36 @@ class DialogQuickActionsControllerWebMvcTest {
             .andExpect(jsonPath("$.participants[0].username").value("watcher_peer"));
 
         verify(dialogAuthorizationService).logDialogAction("operator", "T-612", "reassign", "success", "responsible_redirected");
+    }
+
+    @Test
+    void reassignReturnsBadRequestWhenDialogAlreadyAssignedToTarget() throws Exception {
+        when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_assign"), eq("reassign"), eq("T-612SAME")))
+            .thenReturn(null);
+        when(dialogQuickActionService.reassignTicket("T-612SAME", "watcher_owner", "operator"))
+            .thenReturn(new DialogQuickActionService.DialogReassignResult(
+                    true,
+                    "Диалог уже назначен на этого пользователя",
+                    "watcher_owner",
+                    "Watcher Owner",
+                    "/avatars/watcher_owner.png",
+                    List.of()
+            ));
+
+        mockMvc.perform(post("/api/dialogs/T-612SAME/reassign")
+                .with(user("operator"))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "username": "watcher_owner"
+                    }
+                    """))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("Диалог уже назначен на этого пользователя"));
+
+        verify(dialogAuthorizationService).logDialogAction("operator", "T-612SAME", "reassign", "error", "Диалог уже назначен на этого пользователя");
     }
 
     @Test

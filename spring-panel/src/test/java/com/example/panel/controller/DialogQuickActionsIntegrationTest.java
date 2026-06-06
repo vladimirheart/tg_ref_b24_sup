@@ -1511,6 +1511,101 @@ class DialogQuickActionsIntegrationTest {
     }
 
     @Test
+    void quickActionsApiCollaborationNoopAndErrorSemanticsStayExplicit() throws Exception {
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        insertDirectoryUser("collab_owner", true, false, 1L, "Support", "Collab Owner", "Ops", "/img/owner.png");
+        insertDirectoryUser("collab_peer", true, false, 1L, "Support", "Collab Peer", "Ops", "/img/peer.png");
+        insertDirectoryUser("collab_observer", true, false, 1L, "Support", "Collab Observer", "Backoffice", "/img/observer.png");
+
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
+                VALUES (114, 'token114', 'Quick Actions Collab Noop', 'telegram', 1, CURRENT_TIMESTAMP)
+                """);
+        insertDialogTicket(920114L, "T-QA-COLLAB-NOOP", 114L, "quick_collab_noop_user", "Клиент Collab Noop", "Retail", "Тверь", "Точка Collab Noop", "Проверка collaboration noop semantics", "2026-06-05T12:00:00Z", 11401L);
+        jdbcTemplate.update("""
+                INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
+                VALUES (?,?,?,?)
+                """,
+                "T-QA-COLLAB-NOOP", "collab_owner", "dispatcher", "2026-06-05T11:59:00Z");
+        jdbcTemplate.update("""
+                INSERT INTO ticket_participants(ticket_id, username, added_at, added_by)
+                VALUES (?,?,CURRENT_TIMESTAMP,?)
+                """,
+                "T-QA-COLLAB-NOOP", "collab_peer", "collab_owner");
+        insertHistoryRow("T-QA-COLLAB-NOOP", 920114L, "user", "Клиент ждёт handoff", "2026-06-05T12:01:00Z", "text", 2401L, null, 114L);
+        insertHistoryRow("T-QA-COLLAB-NOOP", 920114L, "operator", "Оператор уже отвечал ранее", "2026-06-05T12:01:30Z", "operator_message", 2400L, 2401L, 114L);
+
+        mockMvc.perform(post("/api/dialogs/T-QA-COLLAB-NOOP/participants")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "username": "collab_observer"
+                                }
+                                """)
+                        .principal(new TestingAuthenticationToken("collab_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.changed").value(true))
+                .andExpect(jsonPath("$.participants.length()").value(2));
+
+        mockMvc.perform(post("/api/dialogs/T-QA-COLLAB-NOOP/participants")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "username": "collab_observer"
+                                }
+                                """)
+                        .principal(new TestingAuthenticationToken("collab_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.changed").value(false))
+                .andExpect(jsonPath("$.participants.length()").value(2));
+
+        mockMvc.perform(delete("/api/dialogs/T-QA-COLLAB-NOOP/participants/ghost_operator")
+                        .principal(new TestingAuthenticationToken("collab_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.changed").value(false))
+                .andExpect(jsonPath("$.participants.length()").value(2));
+
+        mockMvc.perform(post("/api/dialogs/T-QA-COLLAB-NOOP/reassign")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "username": "collab_owner"
+                                }
+                                """)
+                        .principal(new TestingAuthenticationToken("collab_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error").value("Диалог уже назначен на этого пользователя"));
+
+        mockMvc.perform(get("/api/dialogs/T-QA-COLLAB-NOOP/participants"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.participants.length()").value(2))
+                .andExpect(jsonPath("$.participants[*].username", hasItem("collab_peer")))
+                .andExpect(jsonPath("$.participants[*].username", hasItem("collab_observer")));
+
+        mockMvc.perform(get("/api/dialogs/T-QA-COLLAB-NOOP/workspace")
+                        .principal(new TestingAuthenticationToken("collab_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.conversation.ticketId").value("T-QA-COLLAB-NOOP"))
+                .andExpect(jsonPath("$.workflow.responsible.username").value("collab_owner"))
+                .andExpect(jsonPath("$.workflow.participants.length()").value(2))
+                .andExpect(jsonPath("$.workflow.participants[*].username", hasItem("collab_peer")))
+                .andExpect(jsonPath("$.workflow.participants[*].username", hasItem("collab_observer")));
+
+        assertThat(countAuditRows("T-QA-COLLAB-NOOP", "participants_add", "success")).isEqualTo(2);
+        assertThat(countAuditRows("T-QA-COLLAB-NOOP", "participants_remove", "success")).isEqualTo(1);
+        assertThat(countAuditRows("T-QA-COLLAB-NOOP", "reassign", "error")).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT responsible FROM ticket_responsibles WHERE ticket_id = ?",
+                String.class,
+                "T-QA-COLLAB-NOOP"
+        )).isEqualTo("collab_owner");
+    }
+
+    @Test
     void quickActionsApiTakeCategoriesAndSpamRefreshWorkspaceAndDetailsConsumers() throws Exception {
         usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
         insertDirectoryUser("watcher_owner", true, false, 1L, "Support", "Watcher Owner", "Ops", "/img/owner.png");

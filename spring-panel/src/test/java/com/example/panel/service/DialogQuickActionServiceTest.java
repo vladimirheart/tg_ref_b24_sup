@@ -763,6 +763,39 @@ class DialogQuickActionServiceTest {
     }
 
     @Test
+    void addParticipantReturnsErrorWhenTargetAlreadyResponsible() {
+        DialogLookupReadService dialogLookupReadService = mock(DialogLookupReadService.class);
+        DialogResponsibilityService dialogResponsibilityService = mock(DialogResponsibilityService.class);
+        DialogParticipantService dialogParticipantService = mock(DialogParticipantService.class);
+        NotificationService notificationService = mock(NotificationService.class);
+
+        DialogQuickActionService service = new DialogQuickActionService(
+                mock(DialogTicketLifecycleService.class),
+                dialogLookupReadService,
+                dialogResponsibilityService,
+                dialogParticipantService,
+                mock(DialogReplyService.class),
+                mock(DialogNotificationService.class),
+                mock(DialogAiAssistantService.class),
+                notificationService,
+                mock(AttachmentService.class)
+        );
+
+        when(dialogLookupReadService.findDialog("T-710R", "operator")).thenReturn(Optional.of(dialog("T-710R", "lead_operator")));
+        when(dialogParticipantService.findOperator("lead_operator")).thenReturn(Optional.of(new DialogOperatorOption("lead_operator", "Lead Operator", null, "support", "operator")));
+        when(dialogResponsibilityService.loadResponsible("T-710R")).thenReturn("lead_operator");
+        when(dialogParticipantService.loadParticipants("T-710R")).thenReturn(List.of());
+
+        DialogQuickActionService.DialogParticipantMutationResult result =
+                service.addParticipant("T-710R", "lead_operator", "operator");
+
+        assertThat(result.exists()).isTrue();
+        assertThat(result.changed()).isFalse();
+        assertThat(result.error()).isEqualTo("Этот пользователь уже назначен ответственным за диалог");
+        verify(notificationService, never()).notifyDialogParticipants(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
     void removeParticipantRemovesOperatorAndNotifiesParticipants() {
         DialogLookupReadService dialogLookupReadService = mock(DialogLookupReadService.class);
         DialogParticipantService dialogParticipantService = mock(DialogParticipantService.class);
@@ -801,6 +834,41 @@ class DialogQuickActionServiceTest {
                 "/dialogs/T-711",
                 "operator"
         );
+    }
+
+    @Test
+    void removeParticipantReturnsUnchangedWhenParticipantMissing() {
+        DialogLookupReadService dialogLookupReadService = mock(DialogLookupReadService.class);
+        DialogParticipantService dialogParticipantService = mock(DialogParticipantService.class);
+        NotificationService notificationService = mock(NotificationService.class);
+
+        DialogQuickActionService service = new DialogQuickActionService(
+                mock(DialogTicketLifecycleService.class),
+                dialogLookupReadService,
+                mock(DialogResponsibilityService.class),
+                dialogParticipantService,
+                mock(DialogReplyService.class),
+                mock(DialogNotificationService.class),
+                mock(DialogAiAssistantService.class),
+                notificationService,
+                mock(AttachmentService.class)
+        );
+
+        List<DialogParticipantDto> participants = List.of(participant("lead_operator", "Lead Operator"));
+
+        when(dialogLookupReadService.findDialog("T-711M", "operator")).thenReturn(Optional.of(dialog("T-711M", "lead_operator")));
+        when(dialogParticipantService.findOperator("ghost")).thenReturn(Optional.empty());
+        when(dialogParticipantService.removeParticipant("T-711M", "ghost")).thenReturn(false);
+        when(dialogParticipantService.loadParticipants("T-711M")).thenReturn(participants);
+
+        DialogQuickActionService.DialogParticipantMutationResult result =
+                service.removeParticipant("T-711M", "ghost", "operator");
+
+        assertThat(result.exists()).isTrue();
+        assertThat(result.changed()).isFalse();
+        assertThat(result.error()).isNull();
+        assertThat(result.participants()).containsExactlyElementsOf(participants);
+        verify(notificationService, never()).notifyDialogParticipants(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
     }
 
     @Test
@@ -850,6 +918,43 @@ class DialogQuickActionServiceTest {
                 "/dialogs/T-712",
                 "operator"
         );
+    }
+
+    @Test
+    void reassignTicketReturnsErrorWhenTargetAlreadyResponsible() {
+        DialogLookupReadService dialogLookupReadService = mock(DialogLookupReadService.class);
+        DialogResponsibilityService dialogResponsibilityService = mock(DialogResponsibilityService.class);
+        DialogParticipantService dialogParticipantService = mock(DialogParticipantService.class);
+        DialogAiAssistantService dialogAiAssistantService = mock(DialogAiAssistantService.class);
+        NotificationService notificationService = mock(NotificationService.class);
+
+        DialogQuickActionService service = new DialogQuickActionService(
+                mock(DialogTicketLifecycleService.class),
+                dialogLookupReadService,
+                dialogResponsibilityService,
+                dialogParticipantService,
+                mock(DialogReplyService.class),
+                mock(DialogNotificationService.class),
+                dialogAiAssistantService,
+                notificationService,
+                mock(AttachmentService.class)
+        );
+
+        List<DialogParticipantDto> participants = List.of(participant("lead_operator", "Lead Operator"));
+
+        when(dialogLookupReadService.findDialog("T-712S", "operator")).thenReturn(Optional.of(dialog("T-712S", "lead_operator")));
+        when(dialogParticipantService.findOperator("lead_operator")).thenReturn(Optional.of(new DialogOperatorOption("lead_operator", "Lead Operator", "/avatars/lead.png", "support", "operator")));
+        when(dialogResponsibilityService.loadResponsible("T-712S")).thenReturn("lead_operator");
+        when(dialogParticipantService.loadParticipants("T-712S")).thenReturn(participants);
+
+        DialogQuickActionService.DialogReassignResult result =
+                service.reassignTicket("T-712S", "lead_operator", "operator");
+
+        assertThat(result.exists()).isTrue();
+        assertThat(result.error()).isEqualTo("Диалог уже назначен на этого пользователя");
+        assertThat(result.responsible()).isEqualTo("lead_operator");
+        verify(dialogAiAssistantService, never()).clearProcessing("T-712S", "operator_reassign", null);
+        verify(notificationService, never()).notifyDialogParticipants(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
     }
 
     private DialogListItem dialog(String ticketId, String responsible) {
