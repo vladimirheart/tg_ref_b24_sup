@@ -168,6 +168,40 @@
     return bootstrap.Modal.getOrCreateInstance(modalEl);
   }
 
+  function getSettingsCollapseInstance(target, options = { toggle: false }) {
+    if (typeof bootstrap === 'undefined' || !bootstrap.Collapse) {
+      return null;
+    }
+    const collapseEl = resolveSettingsModalElement(target);
+    if (!(collapseEl instanceof HTMLElement)) {
+      return null;
+    }
+    return bootstrap.Collapse.getOrCreateInstance(collapseEl, options);
+  }
+
+  function showSettingsCollapse(target, options = { toggle: false }) {
+    const collapse = getSettingsCollapseInstance(target, options);
+    collapse?.show();
+    return collapse;
+  }
+
+  function getSettingsTabInstance(target) {
+    if (typeof bootstrap === 'undefined' || !bootstrap.Tab) {
+      return null;
+    }
+    const tabEl = resolveSettingsModalElement(target);
+    if (!(tabEl instanceof HTMLElement)) {
+      return null;
+    }
+    return bootstrap.Tab.getOrCreateInstance(tabEl);
+  }
+
+  function showSettingsTab(target) {
+    const tab = getSettingsTabInstance(target);
+    tab?.show();
+    return tab;
+  }
+
   function showSettingsModal(target) {
     const modal = getSettingsModalInstance(target);
     modal?.show();
@@ -411,13 +445,7 @@
         return;
       }
       modal.addEventListener('show.bs.modal', () => {
-        if (typeof bootstrap === 'undefined' || !bootstrap.Tab) {
-          return;
-        }
-        const tabButton = document.getElementById(tabId);
-        if (tabButton instanceof HTMLElement) {
-          bootstrap.Tab.getOrCreateInstance(tabButton).show();
-        }
+        showSettingsTab(tabId);
       });
     });
   }
@@ -444,7 +472,7 @@
       if (!expectedValue || actualValue !== expectedValue) {
         return;
       }
-      bootstrap.Modal.getOrCreateInstance(modal).show();
+      showSettingsModal(modal);
       if (Object.prototype.hasOwnProperty.call(modal.dataset, 'settingsQueryClearParam')) {
         const clearParam = String(modal.dataset.settingsQueryClearParam || queryParam).trim() || queryParam;
         if (params.has(clearParam)) {
@@ -533,7 +561,7 @@
           .find((modal) => modal instanceof HTMLElement
             && String(modal.dataset.settingsUrlModal || '').trim().toLowerCase() === requestedModal);
         if (modalEl) {
-          bootstrap.Modal.getOrCreateInstance(modalEl).show();
+          showSettingsModal(modalEl);
         }
         shouldReplaceHistory = openSettingsQueryDrivenModals(params) || shouldReplaceHistory;
       }
@@ -573,8 +601,12 @@
   }
 
   window.SettingsPageShell = Object.assign(window.SettingsPageShell || {}, {
+    getCollapseInstance: getSettingsCollapseInstance,
     getModalInstance: getSettingsModalInstance,
+    getTabInstance: getSettingsTabInstance,
+    showCollapse: showSettingsCollapse,
     showModal: showSettingsModal,
+    showTab: showSettingsTab,
     hideModal: hideSettingsModal,
   });
 })();

@@ -12624,8 +12624,7 @@
       if (!targetSelector) return;
       const target = document.querySelector(targetSelector);
       if (!target) return;
-      const collapse = bootstrap.Collapse.getOrCreateInstance(target, { toggle: false });
-      collapse.show();
+      window.SettingsPageShell.showCollapse(target, { toggle: false });
       activateItSectionTile(targetSelector);
       setTimeout(() => {
         target.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -20867,14 +20866,11 @@
   }
 
   function openChannelsManageSection(section) {
-    if (typeof bootstrap === 'undefined' || !bootstrap.Collapse) {
-      return;
-    }
     const collapseEl = section === 'profiles' ? channelsProfilesCollapseEl : channelsRoutesCollapseEl;
     if (!(collapseEl instanceof HTMLElement)) {
       return;
     }
-    bootstrap.Collapse.getOrCreateInstance(collapseEl, { toggle: false }).show();
+    window.SettingsPageShell.showCollapse(collapseEl, { toggle: false });
   }
 
   const PUBLIC_FORM_FIELD_TYPES = [
