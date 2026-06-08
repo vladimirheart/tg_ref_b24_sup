@@ -718,30 +718,40 @@ integration-сценария поверх users/settings runtime boundary всё
 
 ## 📁 Следующие шаги
 
-1. Следующим архитектурным пакетом идти уже не в quick-action parity:
-   dialog runtime contract на `details/history/workspace/list/notifications`
-   уже собран в цельный live-block, поэтому remaining риск сместился в более
-   системные consumer edges: repeated follow-up refresh loops, projection drift
-   после post-action reread и общие правила DTO/error contract.
-2. Отдельно поднять в следующий слой именно cross-module governance:
-   shared config/runtime contract между `spring-panel` и `java-bot`, bot
-   runtime/platform boundary и единое API/error правило всё ещё выглядят
-   более крупным незакрытым architectural risk, чем локальные dialog slices.
-3. Параллельно держать post-split зоны в режиме hardening, а не нового split:
-   `PublicFormService`, `DialogAiAssistantMessageFlowService` и dialog
-   workspace/read consumers уже не должны расти обратно в giant coordinators;
-   здесь следующий смысловой шаг скорее integration/e2e discipline и
-   governance, чем новый раунд mechanical extraction.
-4. Параллельно удержать под контролем `DialogWorkspaceService` и соседние
-   workspace consumers, чтобы orchestration-risk не переехал туда после
-   уже закрытого giant `DialogService`.
-5. `DialogWorkspaceRolloutGovernanceService` держать уже в режиме hardening и
-   compatibility regression, а не как giant-split priority.
-6. notifier/runtime hardening продолжать только адресно:
-   по integration-quality и compatibility, а не через новый giant split.
-7. После этого поднимать уровень cross-module unification:
-   `SharedConfigService`, runtime contract, DTO/error contract и API
-   governance.
+Следующий проход уже лучше вести не как набор параллельных направлений, а как
+явную последовательность пакетов.
+
+1. Шаг 1. Дочистить dialog consumer contract на уровне reread/refresh loops.
+   Брать не новые quick actions, а системные consumer edges между
+   `details/history/workspace/list/notifications`: repeated follow-up refresh,
+   projection drift после post-action reread, единые DTO/error expectations.
+   Стоп-условие: по dialog runtime не остаётся плавающих read-after-write
+   расхождений между основными consumer surfaces.
+2. Шаг 2. Зафиксировать orchestration boundary вокруг workspace runtime.
+   `DialogWorkspaceService`, соседние workspace consumers и
+   `DialogWorkspaceRolloutGovernanceService` держать в режиме hardening:
+   compatibility regression, contract discipline и запрет на возврат к giant
+   coordinator-pattern.
+   Стоп-условие: новый orchestration code не стягивается обратно в один
+   workspace-centric слой.
+3. Шаг 3. Пройтись по post-split transport/runtime зонам только через
+   hardening.
+   `PublicFormService`, `DialogAiAssistantMessageFlowService`,
+   notifier/runtime и dialog read consumers дальше уже не кандидаты на новый
+   mechanical split; здесь нужен integration/e2e контроль, compatibility и
+   адресное снятие boundary drift.
+   Стоп-условие: эти зоны прикрыты regression-сеткой и не требуют нового
+   giant-split раунда ради базовой управляемости.
+4. Шаг 4. Поднять cross-module governance между `spring-panel` и `java-bot`.
+   Здесь главный remaining architectural risk уже не локальный dialog slice, а
+   shared config/runtime contract, bot runtime/platform boundary и единое
+   API/error правило между модулями.
+   Стоп-условие: для shared config, DTO/error contract и runtime boundary
+   появляется явное единое правило, а не дублируемая логика по обе стороны.
+5. Шаг 5. Только после этого решать, нужен ли следующий structural split.
+   Если предыдущие четыре шага закрыты, можно поднимать уровень unification
+   или выбирать новую pressure-зону. Если нет, новый split только замаскирует
+   governance drift вместо того, чтобы его снять.
 
 ### Что ещё заметно улучшилось в текущем проходе
 
