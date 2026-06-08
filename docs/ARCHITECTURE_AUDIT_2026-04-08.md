@@ -718,24 +718,28 @@ integration-сценария поверх users/settings runtime boundary всё
 
 ## 📁 Следующие шаги
 
-1. Следующим крупным пакетом идти уже не в giant split `PublicFormService`:
-   runtime config, metrics, session flow, anti-abuse,
-   submit/captcha/validation, form-definition/config assembly,
-   persistence/projection, channel/config/session lookup и submit
-   entry-flow coordinator уже вынесены, а remaining риск теперь сидит в
-   runtime contract hardening, integration/e2e coverage и API consistency.
-2. Параллельно держать AI assistant уже в post-split hardening:
-   `DialogAiAssistantMessageFlowService` и
-   `DialogAiAssistantMessageOutcomeService` должны оставаться локальными
-   bounded services без повторного роста в giant coordinator.
-3. Параллельно удержать под контролем `DialogWorkspaceService` и соседние
+1. Следующим архитектурным пакетом идти уже не в quick-action parity:
+   dialog runtime contract на `details/history/workspace/list/notifications`
+   уже собран в цельный live-block, поэтому remaining риск сместился в более
+   системные consumer edges: repeated follow-up refresh loops, projection drift
+   после post-action reread и общие правила DTO/error contract.
+2. Отдельно поднять в следующий слой именно cross-module governance:
+   shared config/runtime contract между `spring-panel` и `java-bot`, bot
+   runtime/platform boundary и единое API/error правило всё ещё выглядят
+   более крупным незакрытым architectural risk, чем локальные dialog slices.
+3. Параллельно держать post-split зоны в режиме hardening, а не нового split:
+   `PublicFormService`, `DialogAiAssistantMessageFlowService` и dialog
+   workspace/read consumers уже не должны расти обратно в giant coordinators;
+   здесь следующий смысловой шаг скорее integration/e2e discipline и
+   governance, чем новый раунд mechanical extraction.
+4. Параллельно удержать под контролем `DialogWorkspaceService` и соседние
    workspace consumers, чтобы orchestration-risk не переехал туда после
    уже закрытого giant `DialogService`.
-4. `DialogWorkspaceRolloutGovernanceService` держать уже в режиме hardening и
+5. `DialogWorkspaceRolloutGovernanceService` держать уже в режиме hardening и
    compatibility regression, а не как giant-split priority.
-5. notifier/runtime hardening продолжать только адресно:
+6. notifier/runtime hardening продолжать только адресно:
    по integration-quality и compatibility, а не через новый giant split.
-6. После этого поднимать уровень cross-module unification:
+7. После этого поднимать уровень cross-module unification:
    `SharedConfigService`, runtime contract, DTO/error contract и API
    governance.
 
