@@ -826,6 +826,41 @@ class DialogQuickActionServiceTest {
     }
 
     @Test
+    void addParticipantReturnsErrorWhenTargetOperatorMissing() {
+        DialogLookupReadService dialogLookupReadService = mock(DialogLookupReadService.class);
+        DialogParticipantService dialogParticipantService = mock(DialogParticipantService.class);
+        NotificationService notificationService = mock(NotificationService.class);
+
+        DialogQuickActionService service = new DialogQuickActionService(
+                mock(DialogTicketLifecycleService.class),
+                dialogLookupReadService,
+                mock(DialogResponsibilityService.class),
+                dialogParticipantService,
+                mock(DialogReplyService.class),
+                mock(DialogNotificationService.class),
+                mock(DialogAiAssistantService.class),
+                notificationService,
+                mock(AttachmentService.class)
+        );
+
+        List<DialogParticipantDto> participants = List.of(participant("lead_operator", "Lead Operator"));
+
+        when(dialogLookupReadService.findDialog("T-710U", "operator")).thenReturn(Optional.of(dialog("T-710U", "lead_operator")));
+        when(dialogParticipantService.findOperator("ghost_operator")).thenReturn(Optional.empty());
+        when(dialogParticipantService.loadParticipants("T-710U")).thenReturn(participants);
+
+        DialogQuickActionService.DialogParticipantMutationResult result =
+                service.addParticipant("T-710U", "ghost_operator", "operator");
+
+        assertThat(result.exists()).isTrue();
+        assertThat(result.changed()).isFalse();
+        assertThat(result.error()).isEqualTo("Пользователь панели не найден");
+        assertThat(result.participants()).containsExactlyElementsOf(participants);
+        verify(dialogParticipantService, never()).addParticipant("T-710U", "ghost_operator", "operator");
+        verify(notificationService, never()).notifyDialogParticipants(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
     void removeParticipantRemovesOperatorAndNotifiesParticipants() {
         DialogLookupReadService dialogLookupReadService = mock(DialogLookupReadService.class);
         DialogParticipantService dialogParticipantService = mock(DialogParticipantService.class);
@@ -1015,6 +1050,41 @@ class DialogQuickActionServiceTest {
         assertThat(result.exists()).isTrue();
         assertThat(result.error()).isEqualTo("Переадресовать можно только открытый диалог");
         verify(dialogAiAssistantService, never()).clearProcessing("T-712C", "operator_reassign", null);
+        verify(notificationService, never()).notifyDialogParticipants(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void reassignTicketReturnsErrorWhenTargetOperatorMissing() {
+        DialogLookupReadService dialogLookupReadService = mock(DialogLookupReadService.class);
+        DialogParticipantService dialogParticipantService = mock(DialogParticipantService.class);
+        DialogAiAssistantService dialogAiAssistantService = mock(DialogAiAssistantService.class);
+        NotificationService notificationService = mock(NotificationService.class);
+
+        DialogQuickActionService service = new DialogQuickActionService(
+                mock(DialogTicketLifecycleService.class),
+                dialogLookupReadService,
+                mock(DialogResponsibilityService.class),
+                dialogParticipantService,
+                mock(DialogReplyService.class),
+                mock(DialogNotificationService.class),
+                dialogAiAssistantService,
+                notificationService,
+                mock(AttachmentService.class)
+        );
+
+        List<DialogParticipantDto> participants = List.of(participant("lead_operator", "Lead Operator"));
+
+        when(dialogLookupReadService.findDialog("T-712U", "operator")).thenReturn(Optional.of(dialog("T-712U", "lead_operator")));
+        when(dialogParticipantService.findOperator("ghost_operator")).thenReturn(Optional.empty());
+        when(dialogParticipantService.loadParticipants("T-712U")).thenReturn(participants);
+
+        DialogQuickActionService.DialogReassignResult result =
+                service.reassignTicket("T-712U", "ghost_operator", "operator");
+
+        assertThat(result.exists()).isTrue();
+        assertThat(result.error()).isEqualTo("Пользователь панели не найден");
+        assertThat(result.participants()).containsExactlyElementsOf(participants);
+        verify(dialogAiAssistantService, never()).clearProcessing("T-712U", "operator_reassign", null);
         verify(notificationService, never()).notifyDialogParticipants(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
     }
 

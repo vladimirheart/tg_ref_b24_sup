@@ -1690,6 +1690,91 @@ class DialogQuickActionsIntegrationTest {
     }
 
     @Test
+    void quickActionsApiCollaborationUnknownTargetErrorsStayExplicit() throws Exception {
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        insertDirectoryUser("unknown_owner", true, false, 1L, "Support", "Unknown Owner", "Ops", "/img/owner.png");
+        insertDirectoryUser("unknown_peer", true, false, 1L, "Support", "Unknown Peer", "Ops", "/img/peer.png");
+
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
+                VALUES (116, 'token116', 'Quick Actions Unknown Target', 'telegram', 1, CURRENT_TIMESTAMP)
+                """);
+        insertDialogTicket(920116L, "T-QA-UNKNOWN-COLLAB", 116L, "quick_unknown_collab_user", "Клиент Unknown Collab", "Retail", "Ярославль", "Точка Unknown Collab", "Проверка unknown-target collaboration errors", "2026-06-05T13:00:00Z", 11601L);
+        jdbcTemplate.update("""
+                INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
+                VALUES (?,?,?,?)
+                """,
+                "T-QA-UNKNOWN-COLLAB", "unknown_owner", "dispatcher", "2026-06-05T12:59:00Z");
+        jdbcTemplate.update("""
+                INSERT INTO ticket_participants(ticket_id, username, added_at, added_by)
+                VALUES (?,?,CURRENT_TIMESTAMP,?)
+                """,
+                "T-QA-UNKNOWN-COLLAB", "unknown_peer", "unknown_owner");
+        insertHistoryRow("T-QA-UNKNOWN-COLLAB", 920116L, "user", "Клиент ждёт корректного маршрута", "2026-06-05T13:01:00Z", "text", 2601L, null, 116L);
+        insertHistoryRow("T-QA-UNKNOWN-COLLAB", 920116L, "operator", "Оператор уже отвечает", "2026-06-05T13:01:30Z", "operator_message", 2600L, 2601L, 116L);
+
+        mockMvc.perform(post("/api/dialogs/T-QA-UNKNOWN-COLLAB/participants")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "username": "ghost_operator"
+                                }
+                                """)
+                        .principal(new TestingAuthenticationToken("unknown_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error").value("Пользователь панели не найден"));
+
+        mockMvc.perform(post("/api/dialogs/T-QA-UNKNOWN-COLLAB/reassign")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "username": "ghost_operator"
+                                }
+                                """)
+                        .principal(new TestingAuthenticationToken("unknown_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error").value("Пользователь панели не найден"));
+
+        mockMvc.perform(get("/api/dialogs/T-QA-UNKNOWN-COLLAB/participants"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.participants.length()").value(1))
+                .andExpect(jsonPath("$.participants[0].username").value("unknown_peer"));
+
+        mockMvc.perform(get("/api/dialogs/T-QA-UNKNOWN-COLLAB/workspace")
+                        .principal(new TestingAuthenticationToken("unknown_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.conversation.ticketId").value("T-QA-UNKNOWN-COLLAB"))
+                .andExpect(jsonPath("$.workflow.responsible.username").value("unknown_owner"))
+                .andExpect(jsonPath("$.workflow.participants.length()").value(1))
+                .andExpect(jsonPath("$.workflow.participants[0].username").value("unknown_peer"));
+
+        mockMvc.perform(get("/api/dialogs")
+                        .param("scope", "my_dialogs")
+                        .param("bucket", "in_work")
+                        .principal(new TestingAuthenticationToken("unknown_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dialogs.length()").value(1))
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-QA-UNKNOWN-COLLAB"))
+                .andExpect(jsonPath("$.dialogs[0].rawResponsible").value("unknown_owner"))
+                .andExpect(jsonPath("$.my_dialogs.in_work.length()").value(1))
+                .andExpect(jsonPath("$.my_dialogs.in_work[0].ticketId").value("T-QA-UNKNOWN-COLLAB"));
+
+        assertThat(countAuditRows("T-QA-UNKNOWN-COLLAB", "participants_add", "error")).isEqualTo(1);
+        assertThat(countAuditRows("T-QA-UNKNOWN-COLLAB", "reassign", "error")).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM notifications",
+                Integer.class
+        )).isEqualTo(0);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT responsible FROM ticket_responsibles WHERE ticket_id = ?",
+                String.class,
+                "T-QA-UNKNOWN-COLLAB"
+        )).isEqualTo("unknown_owner");
+    }
+
+    @Test
     void quickActionsApiTakeCategoriesAndSpamRefreshWorkspaceAndDetailsConsumers() throws Exception {
         usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
         insertDirectoryUser("watcher_owner", true, false, 1L, "Support", "Watcher Owner", "Ops", "/img/owner.png");

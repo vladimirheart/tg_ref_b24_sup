@@ -1670,8 +1670,10 @@ integration-сценария поверх users/settings runtime boundary всё
   trail; этот же missing-dialog boundary теперь явно закреплён и для
   `take`, `mark_spam`, `participants_add` и `reassign`, а collaboration
   ветка отдельно прикрыта и на `already_present`, `participant_missing` и
-  same-owner `reassign` error semantics, плюс на `closed_dialog` boundary для
-  `participants_add/reassign`; parity-layer требует
+  same-owner `reassign` error semantics, invalid-target
+  `Пользователь панели не найден`, плюс на `closed_dialog` boundary для
+  `participants_add/reassign` без participant/responsible drift и без лишних
+  notification side-effects; parity-layer требует
   `categories/spam/snooze` как часть `operator_action_guards`.
 - write-side mutation parity собрана в один закрытый runtime блок:
   transport и `web_form` ветки для `reply -> edit -> delete` и `reply_media`

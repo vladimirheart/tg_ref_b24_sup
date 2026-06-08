@@ -619,6 +619,34 @@ class DialogQuickActionsControllerWebMvcTest {
     }
 
     @Test
+    void addParticipantReturnsBadRequestWhenTargetOperatorMissing() throws Exception {
+        when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_assign"), eq("participants_add"), eq("T-610UNKNOWN")))
+            .thenReturn(null);
+        when(dialogQuickActionService.addParticipant("T-610UNKNOWN", "ghost_operator", "operator"))
+            .thenReturn(new DialogQuickActionService.DialogParticipantMutationResult(
+                    true,
+                    false,
+                    "Пользователь панели не найден",
+                    List.of(new DialogParticipantDto("watcher_peer", "Watcher Peer", null, "ops", "operator", "2026-05-21T18:11:00Z", "operator"))
+            ));
+
+        mockMvc.perform(post("/api/dialogs/T-610UNKNOWN/participants")
+                .with(user("operator"))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "username": "ghost_operator"
+                    }
+                    """))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("Пользователь панели не найден"));
+
+        verify(dialogAuthorizationService).logDialogAction("operator", "T-610UNKNOWN", "participants_add", "error", "Пользователь панели не найден");
+    }
+
+    @Test
     void addParticipantReturnsNotFoundWhenDialogMissing() throws Exception {
         when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_assign"), eq("participants_add"), eq("T-610NF")))
             .thenReturn(null);
@@ -772,6 +800,36 @@ class DialogQuickActionsControllerWebMvcTest {
             .andExpect(jsonPath("$.error").value("Переадресовать можно только открытый диалог"));
 
         verify(dialogAuthorizationService).logDialogAction("operator", "T-612CLOSED", "reassign", "error", "Переадресовать можно только открытый диалог");
+    }
+
+    @Test
+    void reassignReturnsBadRequestWhenTargetOperatorMissing() throws Exception {
+        when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_assign"), eq("reassign"), eq("T-612UNKNOWN")))
+            .thenReturn(null);
+        when(dialogQuickActionService.reassignTicket("T-612UNKNOWN", "ghost_operator", "operator"))
+            .thenReturn(new DialogQuickActionService.DialogReassignResult(
+                    true,
+                    "Пользователь панели не найден",
+                    null,
+                    null,
+                    null,
+                    List.of(new DialogParticipantDto("watcher_peer", "Watcher Peer", null, "ops", "operator", "2026-05-21T18:12:00Z", "operator"))
+            ));
+
+        mockMvc.perform(post("/api/dialogs/T-612UNKNOWN/reassign")
+                .with(user("operator"))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "username": "ghost_operator"
+                    }
+                    """))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("Пользователь панели не найден"));
+
+        verify(dialogAuthorizationService).logDialogAction("operator", "T-612UNKNOWN", "reassign", "error", "Пользователь панели не найден");
     }
 
     @Test
