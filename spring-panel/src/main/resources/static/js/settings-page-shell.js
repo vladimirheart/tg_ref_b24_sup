@@ -146,6 +146,44 @@
     modal.style.removeProperty('z-index');
   }
 
+  function resolveSettingsModalElement(target) {
+    if (target instanceof HTMLElement) {
+      return target;
+    }
+    if (typeof target === 'string' && target.trim()) {
+      const modalId = target.trim().startsWith('#') ? target.trim().slice(1) : target.trim();
+      return document.getElementById(modalId);
+    }
+    return null;
+  }
+
+  function getSettingsModalInstance(target) {
+    if (typeof bootstrap === 'undefined' || !bootstrap.Modal) {
+      return null;
+    }
+    const modalEl = resolveSettingsModalElement(target);
+    if (!(modalEl instanceof HTMLElement)) {
+      return null;
+    }
+    return bootstrap.Modal.getOrCreateInstance(modalEl);
+  }
+
+  function showSettingsModal(target) {
+    const modal = getSettingsModalInstance(target);
+    modal?.show();
+    return modal;
+  }
+
+  function hideSettingsModal(target) {
+    const modalEl = resolveSettingsModalElement(target);
+    if (!(modalEl instanceof HTMLElement) || typeof bootstrap === 'undefined' || !bootstrap.Modal) {
+      return null;
+    }
+    const modal = bootstrap.Modal.getInstance(modalEl);
+    modal?.hide();
+    return modal;
+  }
+
   function resolveSettingsTileForModal(modal) {
     if (!(modal instanceof HTMLElement) || !modal.id) {
       return null;
@@ -533,4 +571,10 @@
   } else {
     initSettingsPageShell();
   }
+
+  window.SettingsPageShell = Object.assign(window.SettingsPageShell || {}, {
+    getModalInstance: getSettingsModalInstance,
+    showModal: showSettingsModal,
+    hideModal: hideSettingsModal,
+  });
 })();

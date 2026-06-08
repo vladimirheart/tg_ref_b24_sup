@@ -7059,6 +7059,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="/js/modal-helpers.js"></script>
+    <script src="/js/settings-page-shell.js"></script>
     <script th:inline="javascript">
     const showAppModalMessage = window.showAppModalMessage;
     const showConfirmActionModal = window.showConfirmActionModal;
@@ -7487,7 +7488,7 @@
     ? partnerContactEditorModalEl.querySelector('[data-partner-contact-editor-actions]')
     : null;
   const partnerContactEditorModal = partnerContactEditorModalEl
-    ? new bootstrap.Modal(partnerContactEditorModalEl)
+    ? window.SettingsPageShell.getModalInstance(partnerContactEditorModalEl)
     : null;
 
   let partnerContactEditorState = null;
@@ -8428,7 +8429,7 @@
     parameterData[type] = [];
   });
   const parameterModalEl = document.getElementById('parameterItemsModal');
-  const parameterModal = parameterModalEl ? new bootstrap.Modal(parameterModalEl) : null;
+  const parameterModal = parameterModalEl ? window.SettingsPageShell.getModalInstance(parameterModalEl) : null;
   let parameterModalType = null;
   const cityCardEl = document.querySelector('[data-city-card]');
 
@@ -11055,7 +11056,7 @@
   const networkProfilesSaveButton = document.querySelector('[data-network-profiles-save]');
   const networkProfilesAddButton = document.querySelector('[data-network-profiles-add]');
   const networkProfileModalEl = document.getElementById('networkProfileEditorModal');
-  const networkProfileModal = networkProfileModalEl ? new bootstrap.Modal(networkProfileModalEl) : null;
+  const networkProfileModal = networkProfileModalEl ? window.SettingsPageShell.getModalInstance(networkProfileModalEl) : null;
   const networkProfileForm = networkProfileModalEl ? networkProfileModalEl.querySelector('[data-network-profile-form]') : null;
   const networkProfileTitle = networkProfileModalEl ? networkProfileModalEl.querySelector('[data-network-profile-title]') : null;
   const networkProfileDeleteButton = networkProfileModalEl ? networkProfileModalEl.querySelector('[data-network-profile-delete]') : null;
@@ -12217,7 +12218,7 @@
     ? itConnectionAddModalEl.querySelector('[data-it-connection-value-input]')
     : null;
   const itConnectionAddModal = itConnectionAddModalEl
-    ? new bootstrap.Modal(itConnectionAddModalEl)
+    ? window.SettingsPageShell.getModalInstance(itConnectionAddModalEl)
     : null;
 
   const itEquipmentAddModalEl = document.getElementById('itEquipmentAddModal');
@@ -12246,7 +12247,7 @@
     ? itEquipmentAddForm.querySelector('button[type="submit"]')
     : null;
   const itEquipmentAddModal = itEquipmentAddModalEl
-    ? new bootstrap.Modal(itEquipmentAddModalEl)
+    ? window.SettingsPageShell.getModalInstance(itEquipmentAddModalEl)
     : null;
 
   function populateItEquipmentAddOptions(selectedValues = {}) {
@@ -15531,10 +15532,10 @@
   function initLocationWizard() {
     if (locationWizardInitialised) return;
     const wizardModalEl = document.getElementById('locationWizardModal');
-    if (!wizardModalEl || typeof bootstrap === 'undefined' || !bootstrap.Modal) {
+    if (!wizardModalEl) {
       return;
     }
-    locationWizardModal = bootstrap.Modal.getOrCreateInstance(wizardModalEl);
+    locationWizardModal = window.SettingsPageShell.getModalInstance(wizardModalEl);
     wizardBusinessSelect = document.getElementById('wizardBusinessSelect');
     wizardTypeSelect = document.getElementById('wizardTypeSelect');
     wizardCountrySelect = document.getElementById('wizardCountrySelect');
@@ -20744,7 +20745,7 @@
   const integrationNetworkProfilesProbeAllBtn = document.querySelector('[data-integration-network-profiles-probe-all]');
   const integrationNetworkProfilesStatusEl = document.getElementById('integrationNetworkProfilesStatus');
   const integrationNetworkProfileEditorModalEl = document.getElementById('integrationNetworkProfileEditorModal');
-  const integrationNetworkProfileEditorModal = integrationNetworkProfileEditorModalEl ? new bootstrap.Modal(integrationNetworkProfileEditorModalEl) : null;
+  const integrationNetworkProfileEditorModal = integrationNetworkProfileEditorModalEl ? window.SettingsPageShell.getModalInstance(integrationNetworkProfileEditorModalEl) : null;
   const channelsProfilesCollapseEl = document.getElementById('channelsProfilesCollapse');
   const channelsRoutesCollapseEl = document.getElementById('channelsRoutesCollapse');
   const integrationNetworkProfileForm = integrationNetworkProfileEditorModalEl ? integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-form]') : null;
@@ -22641,9 +22642,7 @@
       return;
     }
     populateChannelEditor(channel);
-    if (channelEditorModalEl && typeof bootstrap !== 'undefined') {
-      bootstrap.Modal.getOrCreateInstance(channelEditorModalEl).show();
-    }
+    window.SettingsPageShell.showModal(channelEditorModalEl);
   }
 
   if (channelsBody) {
@@ -22689,10 +22688,7 @@
     if (confirmationInput) confirmationInput.value = confirmationToken || '';
     if (secretInput) secretInput.value = secret || '';
 
-    const modalEl = document.getElementById('vkWebhookModal');
-    if (modalEl && typeof bootstrap !== 'undefined') {
-      bootstrap.Modal.getOrCreateInstance(modalEl).show();
-    }
+    window.SettingsPageShell.showModal('vkWebhookModal');
   }
 
   async function saveVkWebhookSettings() {
@@ -22733,11 +22729,7 @@
         throw new Error(data.error || ('HTTP ' + resp.status));
       }
 
-      const modalEl = document.getElementById('vkWebhookModal');
-      if (modalEl && typeof bootstrap !== 'undefined') {
-        const modal = bootstrap.Modal.getInstance(modalEl);
-        modal?.hide();
-      }
+      window.SettingsPageShell.hideModal('vkWebhookModal');
       await loadChannels();
       showPopup('Настройки вебхука сохранены.');
     } catch (error) {
@@ -23395,11 +23387,7 @@
       }
       resetAddChannelForm();
       updateAddChannelValidationAlert('');
-      const addChannelModalEl = document.getElementById('addChannelModal');
-      if (addChannelModalEl && typeof bootstrap !== 'undefined') {
-        const modal = bootstrap.Modal.getInstance(addChannelModalEl);
-        modal?.hide();
-      }
+      window.SettingsPageShell.hideModal('addChannelModal');
       notifyChannelStatus(`Канал «${channelName}» успешно добавлен.`, 'success');
       loadChannels();
     } catch (error) {
@@ -23594,9 +23582,8 @@
       const data = await resp.json();
       if (!resp.ok || data.success === false) throw new Error(data.error || ('HTTP ' + resp.status));
       await loadChannels();
-      if (channelEditorModalEl && typeof bootstrap !== 'undefined' && channelEditorState.channelId === id) {
-        const modal = bootstrap.Modal.getInstance(channelEditorModalEl);
-        modal?.hide();
+      if (channelEditorState.channelId === id) {
+        window.SettingsPageShell.hideModal(channelEditorModalEl);
       }
     } catch (error) {
       showPopup('Ошибка удаления: ' + error.message);
@@ -24269,7 +24256,6 @@
   <script src="/js/password-reset-requests.js"></script>
   <script src="/js/sidebar.js"></script>
   <script src="/js/modal-transitions.js"></script>
-  <script src="/js/settings-page-shell.js"></script>
   <script src="/js/bot-settings.js"></script>
 </body>
 </html>
