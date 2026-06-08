@@ -121,8 +121,9 @@ public class DialogWorkspaceWorkflowSnapshotService {
         actions.put("reply", actionAvailability(canReply, canReply ? null : "permission_denied"));
         actions.put("reply_media", actionAvailability(canReply, canReply ? null : "permission_denied"));
         actions.put("take", actionAvailability(
-                canAssign && !assignedToOperator,
-                !canAssign ? "permission_denied" : (assignedToOperator ? "already_assigned_to_operator" : null)
+                canAssign && !closed && !assignedToOperator,
+                !canAssign ? "permission_denied" : (closed ? "closed_dialog"
+                        : (assignedToOperator ? "already_assigned_to_operator" : null))
         ));
         actions.put("resolve", actionAvailability(
                 canClose && !closed,

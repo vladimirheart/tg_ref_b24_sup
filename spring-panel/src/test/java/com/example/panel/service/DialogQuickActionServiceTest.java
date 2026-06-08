@@ -349,8 +349,42 @@ class DialogQuickActionServiceTest {
         assertThat(result.exists()).isTrue();
         assertThat(result.changed()).isFalse();
         assertThat(result.responsible()).isEqualTo("Operator Display");
+        assertThat(result.error()).isNull();
         verify(dialogResponsibilityService, never()).assignResponsibleIfMissingOrRedirected("T-705OWN", "operator", "operator");
         verify(dialogAiAssistantService, never()).clearProcessing("T-705OWN", "operator_take", null);
+        verify(notificationService, never()).notifyDialogParticipants(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void takeTicketReturnsErrorWhenDialogClosed() {
+        DialogLookupReadService dialogLookupReadService = mock(DialogLookupReadService.class);
+        DialogResponsibilityService dialogResponsibilityService = mock(DialogResponsibilityService.class);
+        DialogAiAssistantService dialogAiAssistantService = mock(DialogAiAssistantService.class);
+        NotificationService notificationService = mock(NotificationService.class);
+
+        DialogQuickActionService service = new DialogQuickActionService(
+                mock(DialogTicketLifecycleService.class),
+                dialogLookupReadService,
+                dialogResponsibilityService,
+                mock(DialogParticipantService.class),
+                mock(DialogReplyService.class),
+                mock(DialogNotificationService.class),
+                dialogAiAssistantService,
+                notificationService,
+                mock(AttachmentService.class)
+        );
+
+        when(dialogLookupReadService.findDialog("T-705C", "operator"))
+                .thenReturn(Optional.of(dialog("T-705C", "Closed Owner", "closed")));
+
+        DialogQuickActionService.DialogTakeResult result = service.takeTicket("T-705C", "operator");
+
+        assertThat(result.exists()).isTrue();
+        assertThat(result.changed()).isFalse();
+        assertThat(result.responsible()).isEqualTo("Closed Owner");
+        assertThat(result.error()).isEqualTo("Взять в работу можно только открытый диалог");
+        verify(dialogResponsibilityService, never()).assignResponsibleIfMissingOrRedirected("T-705C", "operator", "operator");
+        verify(dialogAiAssistantService, never()).clearProcessing("T-705C", "operator_take", null);
         verify(notificationService, never()).notifyDialogParticipants(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
     }
 
@@ -380,6 +414,7 @@ class DialogQuickActionServiceTest {
         assertThat(result.exists()).isFalse();
         assertThat(result.changed()).isFalse();
         assertThat(result.responsible()).isNull();
+        assertThat(result.error()).isNull();
         verify(dialogResponsibilityService, never()).assignResponsibleIfMissingOrRedirected("T-706", "operator", "operator");
         verify(dialogAiAssistantService, never()).clearProcessing("T-706", "operator_take", null);
         verify(notificationService, never()).notifyDialogParticipants(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());

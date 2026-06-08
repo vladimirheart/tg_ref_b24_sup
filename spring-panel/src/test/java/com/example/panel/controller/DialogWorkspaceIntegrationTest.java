@@ -717,7 +717,7 @@ class DialogWorkspaceIntegrationTest {
                 .andExpect(jsonPath("$.workflow.participants.length()").value(1))
                 .andExpect(jsonPath("$.workflow.participants[0].username").value("watcher_peer"))
                 .andExpect(jsonPath("$.workflow.actions.take.enabled").value(false))
-                .andExpect(jsonPath("$.workflow.actions.take.disabled_reason").value("already_assigned_to_operator"))
+                .andExpect(jsonPath("$.workflow.actions.take.disabled_reason").value("closed_dialog"))
                 .andExpect(jsonPath("$.workflow.actions.resolve.enabled").value(false))
                 .andExpect(jsonPath("$.workflow.actions.resolve.disabled_reason").value("already_closed"))
                 .andExpect(jsonPath("$.workflow.actions.reopen.enabled").value(true))

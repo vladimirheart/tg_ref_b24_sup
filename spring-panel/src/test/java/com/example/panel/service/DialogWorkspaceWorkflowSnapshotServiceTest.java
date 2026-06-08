@@ -200,6 +200,8 @@ class DialogWorkspaceWorkflowSnapshotServiceTest {
 
         assertThat(((Map<?, ?>) actions.get("resolve")).get("enabled")).isEqualTo(false);
         assertThat(((Map<?, ?>) actions.get("resolve")).get("disabled_reason")).isEqualTo("already_closed");
+        assertThat(((Map<?, ?>) actions.get("take")).get("enabled")).isEqualTo(false);
+        assertThat(((Map<?, ?>) actions.get("take")).get("disabled_reason")).isEqualTo("closed_dialog");
         assertThat(((Map<?, ?>) actions.get("reopen")).get("enabled")).isEqualTo(true);
         assertThat(((Map<?, ?>) actions.get("categories")).get("enabled")).isEqualTo(true);
         assertThat(((Map<?, ?>) actions.get("spam")).get("enabled")).isEqualTo(true);

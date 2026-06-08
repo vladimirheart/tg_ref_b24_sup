@@ -275,7 +275,15 @@ public class DialogQuickActionService {
     public DialogTakeResult takeTicket(String ticketId, String operator) {
         Optional<DialogListItem> dialog = dialogLookupReadService.findDialog(ticketId, operator);
         if (dialog.isEmpty()) {
-            return new DialogTakeResult(false, false, null);
+            return new DialogTakeResult(false, false, null, null);
+        }
+        if (isClosedDialog(dialog.get())) {
+            return new DialogTakeResult(
+                    true,
+                    false,
+                    dialog.get().responsible(),
+                    "Взять в работу можно только открытый диалог"
+            );
         }
         String currentResponsible = firstNonBlank(
                 dialogResponsibilityService.loadResponsible(ticketId),
@@ -285,7 +293,7 @@ public class DialogQuickActionService {
             String responsible = StringUtils.hasText(dialog.get().responsible())
                     ? dialog.get().responsible()
                     : operator;
-            return new DialogTakeResult(true, false, responsible);
+            return new DialogTakeResult(true, false, responsible, null);
         }
         dialogResponsibilityService.assignResponsibleIfMissingOrRedirected(ticketId, operator, operator);
         dialogParticipantService.removeParticipant(ticketId, operator);
@@ -298,7 +306,7 @@ public class DialogQuickActionService {
                 notificationService.buildDialogUrl(ticketId),
                 operator
         );
-        return new DialogTakeResult(true, true, responsible != null && !responsible.isBlank() ? responsible : operator);
+        return new DialogTakeResult(true, true, responsible != null && !responsible.isBlank() ? responsible : operator, null);
     }
 
     public DialogParticipantMutationResult addParticipant(String ticketId,
@@ -483,7 +491,8 @@ public class DialogQuickActionService {
 
     public record DialogTakeResult(boolean exists,
                                    boolean changed,
-                                   String responsible) {
+                                   String responsible,
+                                   String error) {
     }
 
     public record DialogCategoryUpdateResult(boolean exists,

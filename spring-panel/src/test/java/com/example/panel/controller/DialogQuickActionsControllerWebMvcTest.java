@@ -132,7 +132,7 @@ class DialogQuickActionsControllerWebMvcTest {
         when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_assign"), eq("take"), eq("T-602NF")))
             .thenReturn(null);
         when(dialogQuickActionService.takeTicket("T-602NF", "operator"))
-            .thenReturn(new DialogQuickActionService.DialogTakeResult(false, false, null));
+            .thenReturn(new DialogQuickActionService.DialogTakeResult(false, false, null, null));
 
         mockMvc.perform(post("/api/dialogs/T-602NF/take")
                 .with(user("operator"))
@@ -149,7 +149,7 @@ class DialogQuickActionsControllerWebMvcTest {
         when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_assign"), eq("take"), eq("T-602OWN")))
             .thenReturn(null);
         when(dialogQuickActionService.takeTicket("T-602OWN", "operator"))
-            .thenReturn(new DialogQuickActionService.DialogTakeResult(true, false, "Operator Display"));
+            .thenReturn(new DialogQuickActionService.DialogTakeResult(true, false, "Operator Display", null));
 
         mockMvc.perform(post("/api/dialogs/T-602OWN/take")
                 .with(user("operator"))
@@ -160,6 +160,23 @@ class DialogQuickActionsControllerWebMvcTest {
             .andExpect(jsonPath("$.responsible").value("Operator Display"));
 
         verify(dialogAuthorizationService).logDialogAction("operator", "T-602OWN", "take", "success", "already_assigned_to_operator");
+    }
+
+    @Test
+    void takeReturnsBadRequestWhenDialogClosed() throws Exception {
+        when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_assign"), eq("take"), eq("T-602C")))
+            .thenReturn(null);
+        when(dialogQuickActionService.takeTicket("T-602C", "operator"))
+            .thenReturn(new DialogQuickActionService.DialogTakeResult(true, false, "Closed Owner", "Взять в работу можно только открытый диалог"));
+
+        mockMvc.perform(post("/api/dialogs/T-602C/take")
+                .with(user("operator"))
+                .with(csrf()))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("Взять в работу можно только открытый диалог"));
+
+        verify(dialogAuthorizationService).logDialogAction("operator", "T-602C", "take", "error", "Взять в работу можно только открытый диалог");
     }
 
     @Test

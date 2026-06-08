@@ -289,6 +289,11 @@ public class DialogQuickActionsController {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(Map.of("success", false, "error", "Диалог не найден"));
             }
+            if (result.error() != null) {
+                dialogAuthorizationService.logDialogAction(operator, ticketId, "take", "error", result.error());
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("success", false, "error", result.error()));
+            }
             dialogAuthorizationService.logDialogAction(
                     operator,
                     ticketId,

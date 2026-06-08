@@ -1795,6 +1795,12 @@ class DialogQuickActionsIntegrationTest {
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error").value("Переадресовать можно только открытый диалог"));
 
+        mockMvc.perform(post("/api/dialogs/T-QA-CLOSED-COLLAB/take")
+                        .principal(new TestingAuthenticationToken("closed_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error").value("Взять в работу можно только открытый диалог"));
+
         mockMvc.perform(get("/api/dialogs/T-QA-CLOSED-COLLAB/workspace")
                         .principal(new TestingAuthenticationToken("closed_owner", "n/a", "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
@@ -1803,6 +1809,8 @@ class DialogQuickActionsIntegrationTest {
                 .andExpect(jsonPath("$.workflow.responsible.username").value("closed_owner"))
                 .andExpect(jsonPath("$.workflow.participants.length()").value(1))
                 .andExpect(jsonPath("$.workflow.participants[0].username").value("closed_peer"))
+                .andExpect(jsonPath("$.workflow.actions.take.enabled").value(false))
+                .andExpect(jsonPath("$.workflow.actions.take.disabled_reason").value("closed_dialog"))
                 .andExpect(jsonPath("$.workflow.actions.reassign.enabled").value(false))
                 .andExpect(jsonPath("$.workflow.actions.reassign.disabled_reason").value("closed_dialog"))
                 .andExpect(jsonPath("$.workflow.actions.participants_add.enabled").value(false))
@@ -1821,6 +1829,7 @@ class DialogQuickActionsIntegrationTest {
                 .andExpect(jsonPath("$.unread").value(closedPeerUnreadBeforeAck - 1));
 
         assertThat(countAuditRows("T-QA-CLOSED-COLLAB", "quick_close", "success")).isEqualTo(1);
+        assertThat(countAuditRows("T-QA-CLOSED-COLLAB", "take", "error")).isEqualTo(1);
         assertThat(countAuditRows("T-QA-CLOSED-COLLAB", "participants_add", "error")).isEqualTo(1);
         assertThat(countAuditRows("T-QA-CLOSED-COLLAB", "reassign", "error")).isEqualTo(1);
         assertThat(countNotificationRows()).isEqualTo(notificationsAfterResolve);

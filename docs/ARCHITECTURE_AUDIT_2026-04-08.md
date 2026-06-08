@@ -1684,9 +1684,12 @@ integration-сценария поверх users/settings runtime boundary всё
   trail; этот же missing-dialog boundary теперь явно закреплён и для
   `take`, `mark_spam`, `participants_add` и `reassign`; same-owner `take`
   теперь отвечает explicit noop `changed=false` с
-  `already_assigned_to_operator` и не плодит bell side-effects, а collaboration
-  ветка отдельно прикрыта и на `already_present`, `participant_missing` и
-  same-owner `reassign` error semantics, invalid-target
+  `already_assigned_to_operator` и не плодит bell side-effects, а closed-dialog
+  `take` больше не расходится с workspace guard: action выключается с
+  `closed_dialog`, runtime отвечает explicit `400/error` и не меняет
+  responsible/bell trail; collaboration ветка отдельно прикрыта и на
+  `already_present`, `participant_missing` и same-owner `reassign` error
+  semantics, invalid-target
   `Пользователь панели не найден`, плюс на `closed_dialog` boundary для
   `participants_add/reassign` без participant/responsible drift и без лишних
   notification side-effects; live runtime net отдельно фиксирует, что
