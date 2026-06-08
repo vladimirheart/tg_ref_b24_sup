@@ -1548,6 +1548,8 @@ class DialogQuickActionsIntegrationTest {
                 .andExpect(jsonPath("$.changed").value(true))
                 .andExpect(jsonPath("$.participants.length()").value(2));
 
+        long notificationsAfterSuccessfulAdd = countNotificationRows();
+
         mockMvc.perform(post("/api/dialogs/T-QA-COLLAB-NOOP/participants")
                         .contentType("application/json")
                         .content("""
@@ -1598,6 +1600,7 @@ class DialogQuickActionsIntegrationTest {
         assertThat(countAuditRows("T-QA-COLLAB-NOOP", "participants_add", "success")).isEqualTo(2);
         assertThat(countAuditRows("T-QA-COLLAB-NOOP", "participants_remove", "success")).isEqualTo(1);
         assertThat(countAuditRows("T-QA-COLLAB-NOOP", "reassign", "error")).isEqualTo(1);
+        assertThat(countNotificationRows()).isEqualTo(notificationsAfterSuccessfulAdd);
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT responsible FROM ticket_responsibles WHERE ticket_id = ?",
                 String.class,
@@ -1642,6 +1645,8 @@ class DialogQuickActionsIntegrationTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.updated").value(true));
 
+        long notificationsAfterResolve = countNotificationRows();
+
         mockMvc.perform(post("/api/dialogs/T-QA-CLOSED-COLLAB/participants")
                         .contentType("application/json")
                         .content("""
@@ -1682,6 +1687,7 @@ class DialogQuickActionsIntegrationTest {
         assertThat(countAuditRows("T-QA-CLOSED-COLLAB", "quick_close", "success")).isEqualTo(1);
         assertThat(countAuditRows("T-QA-CLOSED-COLLAB", "participants_add", "error")).isEqualTo(1);
         assertThat(countAuditRows("T-QA-CLOSED-COLLAB", "reassign", "error")).isEqualTo(1);
+        assertThat(countNotificationRows()).isEqualTo(notificationsAfterResolve);
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT responsible FROM ticket_responsibles WHERE ticket_id = ?",
                 String.class,
@@ -1912,6 +1918,14 @@ class DialogQuickActionsIntegrationTest {
                 ticketId,
                 action,
                 result
+        );
+        return count != null ? count : 0L;
+    }
+
+    private long countNotificationRows() {
+        Long count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM notifications",
+                Long.class
         );
         return count != null ? count : 0L;
     }

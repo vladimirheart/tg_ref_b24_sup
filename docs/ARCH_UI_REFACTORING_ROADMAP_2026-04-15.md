@@ -1485,7 +1485,9 @@
   same-owner `reassign` error semantics, invalid-target
   `Пользователь панели не найден`, плюс на `closed_dialog` boundary для
   `participants_add/reassign` без participant/responsible drift и без лишних
-  notification side-effects; parity-layer требует
+  notification side-effects; live runtime net отдельно фиксирует, что
+  noop/error collaboration ветки не наращивают bell rows поверх последнего
+  успешного action trail; parity-layer требует
   `categories/spam/snooze` как часть `operator_action_guards`.
 - write-side message mutations собраны в один закрытый runtime block:
   transport и `web_form` ветки для `reply -> edit -> delete` и `reply_media`
