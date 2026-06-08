@@ -1457,6 +1457,59 @@ class DialogQuickActionsIntegrationTest {
     }
 
     @Test
+    void quickActionsApiSnoozeReturnsErrorForClosedDialog() throws Exception {
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        insertDirectoryUser("snooze_closed_owner", true, false, 1L, "Support", "Snooze Closed Owner", "Ops", "/img/owner.png");
+
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
+                VALUES (118, 'token118', 'Quick Actions Snooze Closed', 'telegram', 1, CURRENT_TIMESTAMP)
+                """);
+        insertDialogTicket(920118L, "T-QA-SNOOZE-CLOSED", 118L, "quick_snooze_closed_user", "Клиент Snooze Closed", "Retail", "Липецк", "Точка Snooze Closed", "Проверка snooze closed contract", "2026-06-05T14:00:00Z", 11801L);
+        jdbcTemplate.update("""
+                INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
+                VALUES (?,?,?,?)
+                """,
+                "T-QA-SNOOZE-CLOSED", "snooze_closed_owner", "dispatcher", "2026-06-05T13:59:00Z");
+        insertHistoryRow("T-QA-SNOOZE-CLOSED", 920118L, "user", "Клиент уже закрыт", "2026-06-05T14:01:00Z", "text", 2801L, null, 118L);
+
+        mockMvc.perform(post("/api/dialogs/T-QA-SNOOZE-CLOSED/resolve")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "categories": ["vip"]
+                                }
+                                """)
+                        .principal(new TestingAuthenticationToken("snooze_closed_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.updated").value(true));
+
+        mockMvc.perform(post("/api/dialogs/T-QA-SNOOZE-CLOSED/snooze")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "minutes": 15
+                                }
+                                """)
+                        .principal(new TestingAuthenticationToken("snooze_closed_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error").value("Отложить можно только открытый диалог"));
+
+        mockMvc.perform(get("/api/dialogs/T-QA-SNOOZE-CLOSED/workspace")
+                        .principal(new TestingAuthenticationToken("snooze_closed_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.conversation.statusKey").value("closed"))
+                .andExpect(jsonPath("$.workflow.actions.snooze.enabled").value(false))
+                .andExpect(jsonPath("$.workflow.actions.snooze.disabled_reason").value("closed_dialog"));
+
+        assertThat(countAuditRows("T-QA-SNOOZE-CLOSED", "quick_close", "success")).isEqualTo(1);
+        assertThat(countAuditRows("T-QA-SNOOZE-CLOSED", "snooze", "error")).isEqualTo(1);
+        assertThat(countAuditRows("T-QA-SNOOZE-CLOSED", "snooze", "success")).isEqualTo(0);
+    }
+
+    @Test
     void quickActionsApiMissingDialogReturnsNotFoundAcrossRemainingOperatorActions() throws Exception {
         usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
         insertDirectoryUser("watcher_owner", true, false, 1L, "Support", "Watcher Owner", "Ops", "/img/owner.png");

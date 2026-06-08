@@ -267,9 +267,12 @@ public class DialogQuickActionService {
                                            Integer minutes) {
         Optional<DialogListItem> dialog = dialogLookupReadService.findDialog(ticketId, operator);
         if (dialog.isEmpty()) {
-            return new DialogSnoozeResult(false, minutes);
+            return new DialogSnoozeResult(false, minutes, null);
         }
-        return new DialogSnoozeResult(true, minutes);
+        if (isClosedDialog(dialog.get())) {
+            return new DialogSnoozeResult(true, minutes, "Отложить можно только открытый диалог");
+        }
+        return new DialogSnoozeResult(true, minutes, null);
     }
 
     public DialogTakeResult takeTicket(String ticketId, String operator) {
@@ -486,7 +489,8 @@ public class DialogQuickActionService {
     }
 
     public record DialogSnoozeResult(boolean exists,
-                                     Integer minutes) {
+                                     Integer minutes,
+                                     String error) {
     }
 
     public record DialogTakeResult(boolean exists,

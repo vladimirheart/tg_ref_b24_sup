@@ -142,8 +142,8 @@ public class DialogWorkspaceWorkflowSnapshotService {
                 canClose ? null : "permission_denied"
         ));
         actions.put("snooze", actionAvailability(
-                canSnooze,
-                canSnooze ? null : "permission_denied"
+                canSnooze && !closed,
+                !canSnooze ? "permission_denied" : (closed ? "closed_dialog" : null)
         ));
         actions.put("reassign", actionAvailability(
                 canAssign && !closed && hasReassignCandidates,

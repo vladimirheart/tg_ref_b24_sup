@@ -334,7 +334,7 @@ class DialogQuickActionsControllerWebMvcTest {
         when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_snooze"), eq("snooze"), eq("T-605OK")))
             .thenReturn(null);
         when(dialogQuickActionService.snoozeTicket("T-605OK", "operator", 15))
-            .thenReturn(new DialogQuickActionService.DialogSnoozeResult(true, 15));
+            .thenReturn(new DialogQuickActionService.DialogSnoozeResult(true, 15, null));
 
         mockMvc.perform(post("/api/dialogs/T-605OK/snooze")
                 .with(user("operator"))
@@ -356,7 +356,7 @@ class DialogQuickActionsControllerWebMvcTest {
         when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_snooze"), eq("snooze"), eq("T-605NF")))
             .thenReturn(null);
         when(dialogQuickActionService.snoozeTicket("T-605NF", "operator", 15))
-            .thenReturn(new DialogQuickActionService.DialogSnoozeResult(false, 15));
+            .thenReturn(new DialogQuickActionService.DialogSnoozeResult(false, 15, null));
 
         mockMvc.perform(post("/api/dialogs/T-605NF/snooze")
                 .with(user("operator"))
@@ -372,6 +372,29 @@ class DialogQuickActionsControllerWebMvcTest {
             .andExpect(jsonPath("$.error").value("Диалог не найден"));
 
         verify(dialogAuthorizationService).logDialogAction("operator", "T-605NF", "snooze", "not_found", "Диалог не найден");
+    }
+
+    @Test
+    void snoozeReturnsBadRequestWhenDialogClosed() throws Exception {
+        when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_snooze"), eq("snooze"), eq("T-605C")))
+            .thenReturn(null);
+        when(dialogQuickActionService.snoozeTicket("T-605C", "operator", 15))
+            .thenReturn(new DialogQuickActionService.DialogSnoozeResult(true, 15, "Отложить можно только открытый диалог"));
+
+        mockMvc.perform(post("/api/dialogs/T-605C/snooze")
+                .with(user("operator"))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                      "minutes": 15
+                    }
+                    """))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.error").value("Отложить можно только открытый диалог"));
+
+        verify(dialogAuthorizationService).logDialogAction("operator", "T-605C", "snooze", "error", "Отложить можно только открытый диалог");
     }
 
     @Test

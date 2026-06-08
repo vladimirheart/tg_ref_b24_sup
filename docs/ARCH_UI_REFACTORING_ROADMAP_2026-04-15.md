@@ -1485,7 +1485,10 @@
   `already_assigned_to_operator` и не плодит bell side-effects, а closed-dialog
   `take` больше не расходится с workspace guard: action выключается с
   `closed_dialog`, runtime отвечает explicit `400/error` и не меняет
-  responsible/bell trail; collaboration ветка отдельно прикрыта и на
+  responsible/bell trail; такой же closed-dialog drift снят и у `snooze`:
+  UI уже скрывал action на resolved/closed dialog, а теперь это же правило
+  закреплено в `workspace.actions.snooze` и runtime `400/error` contract без
+  ложного `success` audit; collaboration ветка отдельно прикрыта и на
   `already_present`, `participant_missing` и same-owner `reassign` error
   semantics, invalid-target
   `Пользователь панели не найден`, плюс на `closed_dialog` boundary для

@@ -764,6 +764,33 @@ class DialogQuickActionServiceTest {
 
         assertThat(result.exists()).isTrue();
         assertThat(result.minutes()).isEqualTo(15);
+        assertThat(result.error()).isNull();
+    }
+
+    @Test
+    void snoozeTicketReturnsErrorWhenDialogClosed() {
+        DialogLookupReadService dialogLookupReadService = mock(DialogLookupReadService.class);
+
+        DialogQuickActionService service = new DialogQuickActionService(
+                mock(DialogTicketLifecycleService.class),
+                dialogLookupReadService,
+                mock(DialogResponsibilityService.class),
+                mock(DialogParticipantService.class),
+                mock(DialogReplyService.class),
+                mock(DialogNotificationService.class),
+                mock(DialogAiAssistantService.class),
+                mock(NotificationService.class),
+                mock(AttachmentService.class)
+        );
+
+        when(dialogLookupReadService.findDialog("T-709SNC", "operator"))
+                .thenReturn(Optional.of(dialog("T-709SNC", "operator", "closed")));
+
+        DialogQuickActionService.DialogSnoozeResult result = service.snoozeTicket("T-709SNC", "operator", 15);
+
+        assertThat(result.exists()).isTrue();
+        assertThat(result.minutes()).isEqualTo(15);
+        assertThat(result.error()).isEqualTo("Отложить можно только открытый диалог");
     }
 
     @Test
@@ -788,6 +815,7 @@ class DialogQuickActionServiceTest {
 
         assertThat(result.exists()).isFalse();
         assertThat(result.minutes()).isEqualTo(15);
+        assertThat(result.error()).isNull();
     }
 
     @Test

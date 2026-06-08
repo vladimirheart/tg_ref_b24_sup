@@ -724,6 +724,8 @@ class DialogWorkspaceIntegrationTest {
                 .andExpect(jsonPath("$.workflow.actions.reopen.disabled_reason").doesNotExist())
                 .andExpect(jsonPath("$.workflow.actions.categories.enabled").value(true))
                 .andExpect(jsonPath("$.workflow.actions.spam.enabled").value(true))
+                .andExpect(jsonPath("$.workflow.actions.snooze.enabled").value(false))
+                .andExpect(jsonPath("$.workflow.actions.snooze.disabled_reason").value("closed_dialog"))
                 .andExpect(jsonPath("$.workflow.actions.reassign.enabled").value(false))
                 .andExpect(jsonPath("$.workflow.actions.reassign.disabled_reason").value("closed_dialog"))
                 .andExpect(jsonPath("$.workflow.actions.participants_add.enabled").value(false))

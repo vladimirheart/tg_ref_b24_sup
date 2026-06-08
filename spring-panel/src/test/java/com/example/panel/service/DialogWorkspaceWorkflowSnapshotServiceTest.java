@@ -192,7 +192,7 @@ class DialogWorkspaceWorkflowSnapshotServiceTest {
                 "T-WF-3",
                 "watcher_owner",
                 closedDialog("T-WF-3", "watcher_owner"),
-                Map.of("can_assign", true, "can_close", true, "can_reply", true)
+                Map.of("can_assign", true, "can_close", true, "can_reply", true, "can_snooze", true)
         );
 
         @SuppressWarnings("unchecked")
@@ -206,7 +206,7 @@ class DialogWorkspaceWorkflowSnapshotServiceTest {
         assertThat(((Map<?, ?>) actions.get("categories")).get("enabled")).isEqualTo(true);
         assertThat(((Map<?, ?>) actions.get("spam")).get("enabled")).isEqualTo(true);
         assertThat(((Map<?, ?>) actions.get("snooze")).get("enabled")).isEqualTo(false);
-        assertThat(((Map<?, ?>) actions.get("snooze")).get("disabled_reason")).isEqualTo("permission_denied");
+        assertThat(((Map<?, ?>) actions.get("snooze")).get("disabled_reason")).isEqualTo("closed_dialog");
         assertThat(((Map<?, ?>) actions.get("reassign")).get("enabled")).isEqualTo(false);
         assertThat(((Map<?, ?>) actions.get("reassign")).get("disabled_reason")).isEqualTo("closed_dialog");
         assertThat(((Map<?, ?>) actions.get("participants_add")).get("enabled")).isEqualTo(false);
