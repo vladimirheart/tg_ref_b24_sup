@@ -1549,6 +1549,28 @@ class DialogQuickActionsIntegrationTest {
                 .andExpect(jsonPath("$.participants.length()").value(2));
 
         long notificationsAfterSuccessfulAdd = countNotificationRows();
+        Long latestNoopNotificationId = jdbcTemplate.queryForObject(
+                "SELECT id FROM notifications WHERE user_identity = ? ORDER BY id DESC LIMIT 1",
+                Long.class,
+                "collab_peer"
+        );
+
+        mockMvc.perform(get("/api/notifications")
+                        .principal(new TestingAuthenticationToken("collab_peer", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(latestNoopNotificationId))
+                .andExpect(jsonPath("$[0].read").value(false));
+
+        mockMvc.perform(get("/api/notifications/unread_count")
+                        .principal(new TestingAuthenticationToken("collab_peer", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unread").value(1));
+
+        mockMvc.perform(post("/api/notifications/" + latestNoopNotificationId + "/read")
+                        .principal(new TestingAuthenticationToken("collab_peer", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
 
         mockMvc.perform(post("/api/dialogs/T-QA-COLLAB-NOOP/participants")
                         .contentType("application/json")
@@ -1596,6 +1618,18 @@ class DialogQuickActionsIntegrationTest {
                 .andExpect(jsonPath("$.workflow.participants.length()").value(2))
                 .andExpect(jsonPath("$.workflow.participants[*].username", hasItem("collab_peer")))
                 .andExpect(jsonPath("$.workflow.participants[*].username", hasItem("collab_observer")));
+
+        mockMvc.perform(get("/api/notifications")
+                        .principal(new TestingAuthenticationToken("collab_peer", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(latestNoopNotificationId))
+                .andExpect(jsonPath("$[0].read").value(true));
+
+        mockMvc.perform(get("/api/notifications/unread_count")
+                        .principal(new TestingAuthenticationToken("collab_peer", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unread").value(0));
 
         assertThat(countAuditRows("T-QA-COLLAB-NOOP", "participants_add", "success")).isEqualTo(2);
         assertThat(countAuditRows("T-QA-COLLAB-NOOP", "participants_remove", "success")).isEqualTo(1);
@@ -1646,6 +1680,30 @@ class DialogQuickActionsIntegrationTest {
                 .andExpect(jsonPath("$.updated").value(true));
 
         long notificationsAfterResolve = countNotificationRows();
+        Long latestClosedNotificationId = jdbcTemplate.queryForObject(
+                "SELECT id FROM notifications WHERE user_identity = ? ORDER BY id DESC LIMIT 1",
+                Long.class,
+                "closed_peer"
+        );
+        long closedPeerNotificationCount = countNotificationRows("closed_peer");
+        long closedPeerUnreadBeforeAck = countUnreadNotificationRows("closed_peer");
+
+        mockMvc.perform(get("/api/notifications")
+                        .principal(new TestingAuthenticationToken("closed_peer", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(closedPeerNotificationCount))
+                .andExpect(jsonPath("$[0].id").value(latestClosedNotificationId))
+                .andExpect(jsonPath("$[0].read").value(false));
+
+        mockMvc.perform(get("/api/notifications/unread_count")
+                        .principal(new TestingAuthenticationToken("closed_peer", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unread").value(closedPeerUnreadBeforeAck));
+
+        mockMvc.perform(post("/api/notifications/" + latestClosedNotificationId + "/read")
+                        .principal(new TestingAuthenticationToken("closed_peer", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
 
         mockMvc.perform(post("/api/dialogs/T-QA-CLOSED-COLLAB/participants")
                         .contentType("application/json")
@@ -1683,6 +1741,18 @@ class DialogQuickActionsIntegrationTest {
                 .andExpect(jsonPath("$.workflow.actions.reassign.disabled_reason").value("closed_dialog"))
                 .andExpect(jsonPath("$.workflow.actions.participants_add.enabled").value(false))
                 .andExpect(jsonPath("$.workflow.actions.participants_add.disabled_reason").value("closed_dialog"));
+
+        mockMvc.perform(get("/api/notifications")
+                        .principal(new TestingAuthenticationToken("closed_peer", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(closedPeerNotificationCount))
+                .andExpect(jsonPath("$[0].id").value(latestClosedNotificationId))
+                .andExpect(jsonPath("$[0].read").value(true));
+
+        mockMvc.perform(get("/api/notifications/unread_count")
+                        .principal(new TestingAuthenticationToken("closed_peer", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unread").value(closedPeerUnreadBeforeAck - 1));
 
         assertThat(countAuditRows("T-QA-CLOSED-COLLAB", "quick_close", "success")).isEqualTo(1);
         assertThat(countAuditRows("T-QA-CLOSED-COLLAB", "participants_add", "error")).isEqualTo(1);
@@ -1766,6 +1836,16 @@ class DialogQuickActionsIntegrationTest {
                 .andExpect(jsonPath("$.dialogs[0].rawResponsible").value("unknown_owner"))
                 .andExpect(jsonPath("$.my_dialogs.in_work.length()").value(1))
                 .andExpect(jsonPath("$.my_dialogs.in_work[0].ticketId").value("T-QA-UNKNOWN-COLLAB"));
+
+        mockMvc.perform(get("/api/notifications")
+                        .principal(new TestingAuthenticationToken("unknown_peer", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+
+        mockMvc.perform(get("/api/notifications/unread_count")
+                        .principal(new TestingAuthenticationToken("unknown_peer", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unread").value(0));
 
         assertThat(countAuditRows("T-QA-UNKNOWN-COLLAB", "participants_add", "error")).isEqualTo(1);
         assertThat(countAuditRows("T-QA-UNKNOWN-COLLAB", "reassign", "error")).isEqualTo(1);
@@ -1926,6 +2006,24 @@ class DialogQuickActionsIntegrationTest {
         Long count = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM notifications",
                 Long.class
+        );
+        return count != null ? count : 0L;
+    }
+
+    private long countNotificationRows(String userIdentity) {
+        Long count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM notifications WHERE user_identity = ?",
+                Long.class,
+                userIdentity
+        );
+        return count != null ? count : 0L;
+    }
+
+    private long countUnreadNotificationRows(String userIdentity) {
+        Long count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM notifications WHERE user_identity = ? AND is_read = 0",
+                Long.class,
+                userIdentity
         );
         return count != null ? count : 0L;
     }
