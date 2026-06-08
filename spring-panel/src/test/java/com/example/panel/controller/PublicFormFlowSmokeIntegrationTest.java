@@ -526,7 +526,10 @@ class PublicFormFlowSmokeIntegrationTest {
                 .andReturn();
 
         String ticketId = objectMapper.readTree(createResult.getResponse().getContentAsString()).path("ticketId").asText();
-        assertThat(dialogQuickActionService.takeTicket(ticketId, "operator")).contains("operator");
+        DialogQuickActionService.DialogTakeResult takeResult = dialogQuickActionService.takeTicket(ticketId, "operator");
+        assertThat(takeResult.exists()).isTrue();
+        assertThat(takeResult.changed()).isTrue();
+        assertThat(takeResult.responsible()).contains("operator");
         assertThat(dialogReplyService.sendReply(ticketId, "Bridge reply from operator", null, "operator").success()).isTrue();
 
         mockMvc.perform(get("/api/dialogs/{ticketId}", ticketId).with(user("operator")))
@@ -698,7 +701,10 @@ class PublicFormFlowSmokeIntegrationTest {
         assertThat((List<?>) initialMyDialogs.get("unanswered")).isEmpty();
         assertThat((List<?>) initialMyDialogs.get("in_work")).isEmpty();
 
-        assertThat(dialogQuickActionService.takeTicket(ticketId, "operator")).contains("operator");
+        DialogQuickActionService.DialogTakeResult takeResult = dialogQuickActionService.takeTicket(ticketId, "operator");
+        assertThat(takeResult.exists()).isTrue();
+        assertThat(takeResult.changed()).isTrue();
+        assertThat(takeResult.responsible()).contains("operator");
 
         mockMvc.perform(get("/api/dialogs").with(user("operator")))
                 .andExpect(status().isOk())
@@ -757,7 +763,10 @@ class PublicFormFlowSmokeIntegrationTest {
                 .andReturn();
 
         String firstTicketId = objectMapper.readTree(firstCreate.getResponse().getContentAsString()).path("ticketId").asText();
-        assertThat(dialogQuickActionService.takeTicket(firstTicketId, "operator")).contains("operator");
+        DialogQuickActionService.DialogTakeResult takeResult = dialogQuickActionService.takeTicket(firstTicketId, "operator");
+        assertThat(takeResult.exists()).isTrue();
+        assertThat(takeResult.changed()).isTrue();
+        assertThat(takeResult.responsible()).contains("operator");
         assertThat(dialogReplyService.sendReply(firstTicketId, "Projection reply", null, "operator").success()).isTrue();
         assertThat(dialogQuickActionService.resolveTicket(firstTicketId, "operator", List.of("vip", "billing")).updated()).isTrue();
 
@@ -768,7 +777,9 @@ class PublicFormFlowSmokeIntegrationTest {
                 .andExpect(jsonPath("$.categories[0]").value("billing"))
                 .andExpect(jsonPath("$.categories[1]").value("vip"))
                 .andExpect(jsonPath("$.history[0].message").value("Projection request one"))
-                .andExpect(jsonPath("$.history[1].sender").value("operator"));
+                .andExpect(jsonPath("$.history[1].sender").value("system"))
+                .andExpect(jsonPath("$.history[2].sender").value("system"))
+                .andExpect(jsonPath("$.history[3].sender").value("operator"));
 
         mockMvc.perform(get("/api/dialogs").with(user("operator")))
                 .andExpect(status().isOk())
@@ -800,7 +811,9 @@ class PublicFormFlowSmokeIntegrationTest {
                 .andExpect(jsonPath("$.batch.status").value("resolved"))
                 .andExpect(jsonPath("$.batch.sourceKey").value("web_form"))
                 .andExpect(jsonPath("$.batch.messages[0].message").value("Projection request one"))
-                .andExpect(jsonPath("$.batch.messages[1].sender").value("operator"))
+                .andExpect(jsonPath("$.batch.messages[1].sender").value("system"))
+                .andExpect(jsonPath("$.batch.messages[2].sender").value("system"))
+                .andExpect(jsonPath("$.batch.messages[3].sender").value("operator"))
                 .andExpect(jsonPath("$.has_more").value(false));
     }
 
@@ -832,7 +845,10 @@ class PublicFormFlowSmokeIntegrationTest {
                 ticketId
         );
 
-        assertThat(dialogQuickActionService.takeTicket(ticketId, "watcher_followup")).contains("watcher_followup");
+        DialogQuickActionService.DialogTakeResult takeResult = dialogQuickActionService.takeTicket(ticketId, "watcher_followup");
+        assertThat(takeResult.exists()).isTrue();
+        assertThat(takeResult.changed()).isTrue();
+        assertThat(takeResult.responsible()).contains("watcher_followup");
         assertThat(dialogReplyService.sendReply(ticketId, "Transport reply from operator", null, "watcher_followup").success()).isTrue();
         jdbcTemplate.update("DELETE FROM notifications WHERE user_identity = ?", "watcher_followup");
 

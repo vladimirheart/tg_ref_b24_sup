@@ -1668,7 +1668,9 @@ integration-сценария поверх users/settings runtime boundary всё
   `reply_media`, а также `snooze` на `404/not_found` boundary, теперь проходят
   через единый quick-action guard, пишут `success/error/not_found` audit
   trail; этот же missing-dialog boundary теперь явно закреплён и для
-  `take`, `mark_spam`, `participants_add` и `reassign`, а collaboration
+  `take`, `mark_spam`, `participants_add` и `reassign`; same-owner `take`
+  теперь отвечает explicit noop `changed=false` с
+  `already_assigned_to_operator` и не плодит bell side-effects, а collaboration
   ветка отдельно прикрыта и на `already_present`, `participant_missing` и
   same-owner `reassign` error semantics, invalid-target
   `Пользователь панели не найден`, плюс на `closed_dialog` boundary для

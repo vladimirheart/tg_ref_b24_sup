@@ -132,7 +132,7 @@ class DialogQuickActionsControllerWebMvcTest {
         when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_assign"), eq("take"), eq("T-602NF")))
             .thenReturn(null);
         when(dialogQuickActionService.takeTicket("T-602NF", "operator"))
-            .thenReturn(java.util.Optional.empty());
+            .thenReturn(new DialogQuickActionService.DialogTakeResult(false, false, null));
 
         mockMvc.perform(post("/api/dialogs/T-602NF/take")
                 .with(user("operator"))
@@ -142,6 +142,24 @@ class DialogQuickActionsControllerWebMvcTest {
             .andExpect(jsonPath("$.error").value("Диалог не найден"));
 
         verify(dialogAuthorizationService).logDialogAction("operator", "T-602NF", "take", "not_found", "Диалог не найден");
+    }
+
+    @Test
+    void takeReturnsSuccessNoopWhenDialogAlreadyAssignedToOperator() throws Exception {
+        when(dialogAuthorizationService.requirePermission(org.mockito.ArgumentMatchers.any(), eq("can_assign"), eq("take"), eq("T-602OWN")))
+            .thenReturn(null);
+        when(dialogQuickActionService.takeTicket("T-602OWN", "operator"))
+            .thenReturn(new DialogQuickActionService.DialogTakeResult(true, false, "Operator Display"));
+
+        mockMvc.perform(post("/api/dialogs/T-602OWN/take")
+                .with(user("operator"))
+                .with(csrf()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.changed").value(false))
+            .andExpect(jsonPath("$.responsible").value("Operator Display"));
+
+        verify(dialogAuthorizationService).logDialogAction("operator", "T-602OWN", "take", "success", "already_assigned_to_operator");
     }
 
     @Test

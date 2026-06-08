@@ -283,14 +283,24 @@ public class DialogQuickActionsController {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body(Map.of("success", false, "error", "Требуется авторизация"));
             }
-            Optional<String> responsible = dialogQuickActionService.takeTicket(ticketId, operator);
-            if (responsible.isEmpty()) {
+            DialogQuickActionService.DialogTakeResult result = dialogQuickActionService.takeTicket(ticketId, operator);
+            if (!result.exists()) {
                 dialogAuthorizationService.logDialogAction(operator, ticketId, "take", "not_found", "Диалог не найден");
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(Map.of("success", false, "error", "Диалог не найден"));
             }
-            dialogAuthorizationService.logDialogAction(operator, ticketId, "take", "success", "responsible_assigned");
-            return ResponseEntity.ok(Map.of("success", true, "responsible", responsible.get()));
+            dialogAuthorizationService.logDialogAction(
+                    operator,
+                    ticketId,
+                    "take",
+                    "success",
+                    result.changed() ? "responsible_assigned" : "already_assigned_to_operator"
+            );
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "changed", result.changed(),
+                    "responsible", result.responsible()
+            ));
         });
     }
 

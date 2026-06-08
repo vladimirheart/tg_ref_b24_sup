@@ -272,10 +272,20 @@ public class DialogQuickActionService {
         return new DialogSnoozeResult(true, minutes);
     }
 
-    public Optional<String> takeTicket(String ticketId, String operator) {
+    public DialogTakeResult takeTicket(String ticketId, String operator) {
         Optional<DialogListItem> dialog = dialogLookupReadService.findDialog(ticketId, operator);
         if (dialog.isEmpty()) {
-            return Optional.empty();
+            return new DialogTakeResult(false, false, null);
+        }
+        String currentResponsible = firstNonBlank(
+                dialogResponsibilityService.loadResponsible(ticketId),
+                dialog.get().rawResponsible()
+        );
+        if (sameIdentity(currentResponsible, operator)) {
+            String responsible = StringUtils.hasText(dialog.get().responsible())
+                    ? dialog.get().responsible()
+                    : operator;
+            return new DialogTakeResult(true, false, responsible);
         }
         dialogResponsibilityService.assignResponsibleIfMissingOrRedirected(ticketId, operator, operator);
         dialogParticipantService.removeParticipant(ticketId, operator);
@@ -288,7 +298,7 @@ public class DialogQuickActionService {
                 notificationService.buildDialogUrl(ticketId),
                 operator
         );
-        return Optional.ofNullable(responsible != null && !responsible.isBlank() ? responsible : operator);
+        return new DialogTakeResult(true, true, responsible != null && !responsible.isBlank() ? responsible : operator);
     }
 
     public DialogParticipantMutationResult addParticipant(String ticketId,
@@ -408,6 +418,18 @@ public class DialogQuickActionService {
         return left.trim().equalsIgnoreCase(right.trim());
     }
 
+    private String firstNonBlank(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            if (StringUtils.hasText(value)) {
+                return value.trim();
+            }
+        }
+        return null;
+    }
+
     private List<String> mergeCategoriesWithSpam(String categoriesRaw) {
         LinkedHashSet<String> normalized = new LinkedHashSet<>();
         if (StringUtils.hasText(categoriesRaw)) {
@@ -457,6 +479,11 @@ public class DialogQuickActionService {
 
     public record DialogSnoozeResult(boolean exists,
                                      Integer minutes) {
+    }
+
+    public record DialogTakeResult(boolean exists,
+                                   boolean changed,
+                                   String responsible) {
     }
 
     public record DialogCategoryUpdateResult(boolean exists,

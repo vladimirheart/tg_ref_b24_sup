@@ -306,9 +306,11 @@ class DialogQuickActionServiceTest {
                 .thenReturn(Optional.of(dialog("T-705", "lead_operator")));
         when(notificationService.buildDialogUrl("T-705")).thenReturn("/dialogs/T-705");
 
-        Optional<String> responsible = service.takeTicket("T-705", "operator");
+        DialogQuickActionService.DialogTakeResult result = service.takeTicket("T-705", "operator");
 
-        assertThat(responsible).contains("lead_operator");
+        assertThat(result.exists()).isTrue();
+        assertThat(result.changed()).isTrue();
+        assertThat(result.responsible()).isEqualTo("lead_operator");
         verify(dialogResponsibilityService).assignResponsibleIfMissingOrRedirected("T-705", "operator", "operator");
         verify(dialogAiAssistantService).clearProcessing("T-705", "operator_take", null);
         verify(notificationService).notifyDialogParticipants(
@@ -320,7 +322,40 @@ class DialogQuickActionServiceTest {
     }
 
     @Test
-    void takeTicketReturnsEmptyWhenDialogMissing() {
+    void takeTicketReturnsUnchangedWhenOperatorAlreadyResponsible() {
+        DialogLookupReadService dialogLookupReadService = mock(DialogLookupReadService.class);
+        DialogResponsibilityService dialogResponsibilityService = mock(DialogResponsibilityService.class);
+        DialogAiAssistantService dialogAiAssistantService = mock(DialogAiAssistantService.class);
+        NotificationService notificationService = mock(NotificationService.class);
+
+        DialogQuickActionService service = new DialogQuickActionService(
+                mock(DialogTicketLifecycleService.class),
+                dialogLookupReadService,
+                dialogResponsibilityService,
+                mock(DialogParticipantService.class),
+                mock(DialogReplyService.class),
+                mock(DialogNotificationService.class),
+                dialogAiAssistantService,
+                notificationService,
+                mock(AttachmentService.class)
+        );
+
+        when(dialogLookupReadService.findDialog("T-705OWN", "operator"))
+                .thenReturn(Optional.of(dialog("T-705OWN", "Operator Display")));
+        when(dialogResponsibilityService.loadResponsible("T-705OWN")).thenReturn("operator");
+
+        DialogQuickActionService.DialogTakeResult result = service.takeTicket("T-705OWN", "operator");
+
+        assertThat(result.exists()).isTrue();
+        assertThat(result.changed()).isFalse();
+        assertThat(result.responsible()).isEqualTo("Operator Display");
+        verify(dialogResponsibilityService, never()).assignResponsibleIfMissingOrRedirected("T-705OWN", "operator", "operator");
+        verify(dialogAiAssistantService, never()).clearProcessing("T-705OWN", "operator_take", null);
+        verify(notificationService, never()).notifyDialogParticipants(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void takeTicketReturnsNotFoundWhenDialogMissing() {
         DialogLookupReadService dialogLookupReadService = mock(DialogLookupReadService.class);
         DialogResponsibilityService dialogResponsibilityService = mock(DialogResponsibilityService.class);
         DialogAiAssistantService dialogAiAssistantService = mock(DialogAiAssistantService.class);
@@ -340,9 +375,11 @@ class DialogQuickActionServiceTest {
 
         when(dialogLookupReadService.findDialog("T-706", "operator")).thenReturn(Optional.empty());
 
-        Optional<String> responsible = service.takeTicket("T-706", "operator");
+        DialogQuickActionService.DialogTakeResult result = service.takeTicket("T-706", "operator");
 
-        assertThat(responsible).isEmpty();
+        assertThat(result.exists()).isFalse();
+        assertThat(result.changed()).isFalse();
+        assertThat(result.responsible()).isNull();
         verify(dialogResponsibilityService, never()).assignResponsibleIfMissingOrRedirected("T-706", "operator", "operator");
         verify(dialogAiAssistantService, never()).clearProcessing("T-706", "operator_take", null);
         verify(notificationService, never()).notifyDialogParticipants(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());

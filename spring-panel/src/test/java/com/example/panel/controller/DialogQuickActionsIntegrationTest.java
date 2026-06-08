@@ -1511,6 +1511,72 @@ class DialogQuickActionsIntegrationTest {
     }
 
     @Test
+    void quickActionsApiTakeAlreadyAssignedStaysExplicitNoopWithoutBellSideEffects() throws Exception {
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        insertDirectoryUser("take_owner", true, false, 1L, "Support", "Take Owner", "Ops", "/img/owner.png");
+        insertDirectoryUser("take_peer", true, false, 1L, "Support", "Take Peer", "Ops", "/img/peer.png");
+
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
+                VALUES (117, 'token117', 'Quick Actions Take Noop', 'telegram', 1, CURRENT_TIMESTAMP)
+                """);
+        insertDialogTicket(920117L, "T-QA-TAKE-NOOP", 117L, "quick_take_noop_user", "Клиент Take Noop", "Retail", "Вологда", "Точка Take Noop", "Проверка take same-owner noop", "2026-06-05T13:30:00Z", 11701L);
+        jdbcTemplate.update("""
+                INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
+                VALUES (?,?,?,?)
+                """,
+                "T-QA-TAKE-NOOP", "take_owner", "dispatcher", "2026-06-05T13:29:00Z");
+        jdbcTemplate.update("""
+                INSERT INTO ticket_participants(ticket_id, username, added_at, added_by)
+                VALUES (?,?,CURRENT_TIMESTAMP,?)
+                """,
+                "T-QA-TAKE-NOOP", "take_peer", "take_owner");
+        insertHistoryRow("T-QA-TAKE-NOOP", 920117L, "user", "Клиент уже ждёт owner", "2026-06-05T13:31:00Z", "text", 2701L, null, 117L);
+        insertHistoryRow("T-QA-TAKE-NOOP", 920117L, "operator", "Owner уже отвечает", "2026-06-05T13:31:30Z", "operator_message", 2700L, 2701L, 117L);
+
+        mockMvc.perform(get("/api/dialogs/T-QA-TAKE-NOOP/workspace")
+                        .principal(new TestingAuthenticationToken("take_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.conversation.ticketId").value("T-QA-TAKE-NOOP"))
+                .andExpect(jsonPath("$.workflow.responsible.username").value("take_owner"))
+                .andExpect(jsonPath("$.workflow.actions.take.enabled").value(false))
+                .andExpect(jsonPath("$.workflow.actions.take.disabled_reason").value("already_assigned_to_operator"));
+
+        mockMvc.perform(post("/api/dialogs/T-QA-TAKE-NOOP/take")
+                        .principal(new TestingAuthenticationToken("take_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.changed").value(false))
+                .andExpect(jsonPath("$.responsible").value("Take Owner"));
+
+        mockMvc.perform(get("/api/notifications")
+                        .principal(new TestingAuthenticationToken("take_peer", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+
+        mockMvc.perform(get("/api/notifications/unread_count")
+                        .principal(new TestingAuthenticationToken("take_peer", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unread").value(0));
+
+        mockMvc.perform(get("/api/dialogs/T-QA-TAKE-NOOP/workspace")
+                        .principal(new TestingAuthenticationToken("take_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.workflow.responsible.username").value("take_owner"))
+                .andExpect(jsonPath("$.workflow.actions.take.enabled").value(false))
+                .andExpect(jsonPath("$.workflow.actions.take.disabled_reason").value("already_assigned_to_operator"))
+                .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("take: success (already_assigned_to_operator)")));
+
+        assertThat(countAuditRows("T-QA-TAKE-NOOP", "take", "success")).isEqualTo(1);
+        assertThat(countNotificationRows()).isEqualTo(0);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT responsible FROM ticket_responsibles WHERE ticket_id = ?",
+                String.class,
+                "T-QA-TAKE-NOOP"
+        )).isEqualTo("take_owner");
+    }
+
+    @Test
     void quickActionsApiCollaborationNoopAndErrorSemanticsStayExplicit() throws Exception {
         usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
         insertDirectoryUser("collab_owner", true, false, 1L, "Support", "Collab Owner", "Ops", "/img/owner.png");
