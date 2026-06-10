@@ -286,6 +286,16 @@ CREATE TABLE IF NOT EXISTS ticket_responsibles (
     assigned_by TEXT
 );
 
+CREATE TABLE IF NOT EXISTS ticket_participants (
+    ticket_id TEXT NOT NULL,
+    username TEXT NOT NULL,
+    added_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    added_by TEXT,
+    PRIMARY KEY (ticket_id, username)
+);
+
+CREATE INDEX IF NOT EXISTS idx_ticket_participants_username ON ticket_participants(username);
+
 CREATE TABLE IF NOT EXISTS ticket_active (
     ticket_id TEXT PRIMARY KEY,
     user_identity TEXT NOT NULL,

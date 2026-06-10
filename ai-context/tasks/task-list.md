@@ -152,3 +152,4 @@
 🟠 [01-130] Разделить giant dialogs.js на bounded client-side runtime modules
 🟠 [01-131] Разрезать ChannelApiController по transport responsibility
 🟠 [01-132] Разрезать AnalyticsController по bounded governance и analytics use-cases
+🟣 [01-133] Автосоздавать задачу при auto-close диалога с тем же ответственным, соисполнителями-участниками и ссылкой на диалог

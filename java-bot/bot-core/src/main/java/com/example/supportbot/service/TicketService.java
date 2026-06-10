@@ -47,6 +47,7 @@ public class TicketService {
     private final ChatHistoryRepository chatHistoryRepository;
     private final ChatHistoryService chatHistoryService;
     private final FeedbackRepository feedbackRepository;
+    private final AutoCloseFollowUpTaskService autoCloseFollowUpTaskService;
 
     public TicketService(TicketRepository ticketRepository,
                          TicketMessageRepository messageRepository,
@@ -55,7 +56,8 @@ public class TicketService {
                          TicketActiveRepository ticketActiveRepository,
                          ChatHistoryRepository chatHistoryRepository,
                          ChatHistoryService chatHistoryService,
-                         FeedbackRepository feedbackRepository) {
+                         FeedbackRepository feedbackRepository,
+                         AutoCloseFollowUpTaskService autoCloseFollowUpTaskService) {
         this.ticketRepository = ticketRepository;
         this.messageRepository = messageRepository;
         this.pendingFeedbackRequestRepository = pendingFeedbackRequestRepository;
@@ -64,6 +66,7 @@ public class TicketService {
         this.chatHistoryRepository = chatHistoryRepository;
         this.chatHistoryService = chatHistoryService;
         this.feedbackRepository = feedbackRepository;
+        this.autoCloseFollowUpTaskService = autoCloseFollowUpTaskService;
     }
 
     @Transactional
@@ -282,6 +285,7 @@ public class TicketService {
                     continue;
                 }
                 if (closeTicket(active.getTicketId(), AUTO_CLOSE_RESOLVED_BY, "inactivity")) {
+                    autoCloseFollowUpTaskService.createTaskForAutoClosedDialog(active.getTicketId());
                     closed++;
                 }
             }
