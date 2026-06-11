@@ -1502,6 +1502,11 @@
   успешного action trail и не двигают `unread_count`/notification list после
   explicit read-ack; parity-layer требует
   `categories/spam/snooze` как часть `operator_action_guards`.
+- browser runtime тоже подтянут к тем же guard-правилам: после server-side
+  hardening для closed-dialog `take` `dialogs.js` больше не оставляет action
+  доступным в row menu, details view, workspace header и обходных client-paths
+  вроде macro workflow / shortcut-trigger, то есть UI больше не зовёт action,
+  который runtime уже считает `closed_dialog`.
 - write-side message mutations собраны в один закрытый runtime block:
   transport и `web_form` ветки для `reply -> edit -> delete` и `reply_media`
   подтверждены на `details/history/workspace/list`, включая

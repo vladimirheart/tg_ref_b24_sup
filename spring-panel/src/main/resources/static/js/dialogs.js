@@ -2314,7 +2314,7 @@
             <div class="dialog-actions-dropdown" data-dialog-actions>
               <button type="button" class="btn btn-sm btn-outline-secondary dialog-actions-toggle" data-dialog-actions-toggle aria-expanded="false">Действия</button>
               <div class="dialog-actions-menu" data-dialog-actions-menu>
-              <button type="button" class="btn btn-sm btn-outline-success dialog-take-btn ${!canTakeOwnership || !canRunAction('can_assign') ? 'd-none' : ''}" data-ticket-id="${escapeHtml(ticketId)}">Взять себе</button>
+              <button type="button" class="btn btn-sm btn-outline-success dialog-take-btn ${isResolvedStatusKey(statusKey) || !canTakeOwnership || !canRunAction('can_assign') ? 'd-none' : ''}" data-ticket-id="${escapeHtml(ticketId)}">Взять себе</button>
               <button type="button" class="btn btn-sm btn-outline-warning dialog-snooze-btn ${isResolvedStatusKey(statusKey) || !canRunAction('can_snooze') ? 'd-none' : ''}" data-ticket-id="${escapeHtml(ticketId)}">${formatSnoozeActionLabel(QUICK_SNOOZE_MINUTES)}</button>
               <button type="button" class="btn btn-sm btn-outline-danger dialog-close-btn ${isResolvedStatusKey(statusKey) || !canRunAction('can_close') ? 'd-none' : ''}" data-ticket-id="${escapeHtml(ticketId)}">Закрыть</button>
               <a href="/tasks" class="btn btn-sm btn-outline-secondary dialog-task-btn"
@@ -2352,7 +2352,7 @@
     }
     const takeBtn = row.querySelector('.dialog-take-btn');
     if (takeBtn) {
-      takeBtn.classList.toggle('d-none', isOwnedByCurrentOperator(rawValue || value) || !canRunAction('can_assign'));
+      takeBtn.classList.toggle('d-none', !canTakeDialogOwnership(rawValue || value, isResolved(row)));
     }
     if (row === activeDialogRow || String(row.dataset.ticketId || '').trim() === String(activeDialogTicketId || '').trim()) {
       updateDetailsResponsible(value || '—', { rawResponsible: rawValue || value });
@@ -2364,9 +2364,14 @@
   function updateDetailsTakeButton(responsible) {
     if (!detailsTakeBtn) return;
     const safeResponsible = String(responsible || '').trim();
-    const canTakeOwnership = Boolean(activeDialogTicketId) && canRunAction('can_assign') && !isOwnedByCurrentOperator(safeResponsible);
+    const canTakeOwnership = Boolean(activeDialogTicketId)
+      && canTakeDialogOwnership(safeResponsible, activeDialogRow ? isResolved(activeDialogRow) : false);
     detailsTakeBtn.disabled = !canTakeOwnership;
     detailsTakeBtn.classList.toggle('d-none', !canTakeOwnership);
+  }
+
+  function canTakeDialogOwnership(responsible, isClosed) {
+    return canRunAction('can_assign') && !isClosed && !isOwnedByCurrentOperator(responsible);
   }
 
   function updateDetailsResponsible(responsible, options = {}) {
@@ -2775,7 +2780,7 @@
     const snoozeBtn = row.querySelector('.dialog-snooze-btn');
     const takeBtn = row.querySelector('.dialog-take-btn');
     const responsible = resolveRowResponsibleRaw(row);
-    if (takeBtn) takeBtn.classList.toggle('d-none', isOwnedByCurrentOperator(responsible) || !canRunAction('can_assign'));
+    if (takeBtn) takeBtn.classList.toggle('d-none', !canTakeDialogOwnership(responsible, isClosed));
     if (closeBtn) closeBtn.classList.toggle('d-none', isClosed || !canRunAction('can_close'));
     if (snoozeBtn) {
       snoozeBtn.classList.toggle('d-none', isClosed || !canRunAction('can_snooze'));
@@ -2830,6 +2835,14 @@
 
   async function takeDialog(ticketId, row, triggerButton) {
     if (!ticketId) return;
+    const targetRow = row || (String(activeDialogTicketId || '').trim() === String(ticketId || '').trim() ? activeDialogRow : null);
+    if (targetRow && isResolved(targetRow)) {
+      const error = new Error('Взять в работу можно только открытый диалог');
+      if (typeof showNotification === 'function') {
+        showNotification(error.message, 'error');
+      }
+      throw error;
+    }
     const btn = triggerButton || null;
     if (btn) btn.disabled = true;
     try {
@@ -4560,7 +4573,7 @@
     const statusLabel = conversation?.statusLabel || '';
     const resolved = isResolvedStatus(statusRaw, statusKey, statusLabel);
     const responsible = String(conversation?.responsible || '').trim();
-    const canTakeOwnership = !isOwnedByCurrentOperator(responsible);
+    const canTakeOwnership = canTakeDialogOwnership(responsible, resolved);
     const canAssign = permissions?.can_assign === true && !workspaceReadonlyMode;
     const canClose = permissions?.can_close === true && !workspaceReadonlyMode;
     const canSnooze = permissions?.can_snooze === true && !workspaceReadonlyMode;
