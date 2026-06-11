@@ -572,9 +572,6 @@
     initSettingsModalDefaultTabs();
     runSettingsDomainBootstrap();
     openRequestedSettingsModalFromUrl();
-    if (typeof window.initReporting === 'function') {
-      window.initReporting();
-    }
     updateSettingsModalBodyLock();
   }
 
