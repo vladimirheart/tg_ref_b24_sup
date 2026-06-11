@@ -2674,7 +2674,7 @@
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="usersModalLabel">Пользователи панели и настройки доступа</h5>
-            <button type="button" class="btn btn-outline-warning btn-sm me-2" data-bs-toggle="modal" data-bs-target="#passwordResetRequestsModal" th:if="${canManagePasswordResetRequests}">Заявки на восстановление</button>
+            <button type="button" class="btn btn-outline-warning btn-sm me-2" data-settings-open-modal="passwordResetRequestsModal" th:if="${canManagePasswordResetRequests}">Заявки на восстановление</button>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
           </div>
           <div class="modal-body">
@@ -5136,8 +5136,7 @@
                     <button
                       class="btn btn-sm btn-success mt-3"
                       type="button"
-                      data-bs-toggle="modal"
-                      data-bs-target="#itEquipmentAddModal"
+                      data-settings-open-modal="itEquipmentAddModal"
                     >
                       + Добавить оборудование
                     </button>
@@ -5175,8 +5174,7 @@
                     <button
                       class="btn btn-sm btn-success mt-3"
                       type="button"
-                      data-bs-toggle="modal"
-                      data-bs-target="#itConnectionAddModal"
+                      data-settings-open-modal="itConnectionAddModal"
                     >
                       + Добавить подключение
                     </button>
@@ -5659,9 +5657,9 @@
               <div class="settings-modal-lead__text">Сначала выберите раздел оформления, затем внесите точечные изменения в тему, статусы и бизнес-метки.</div>
             </div>
             <div class="d-grid gap-2">
-              <button type="button" class="btn btn-outline-primary text-start" data-bs-toggle="modal" data-bs-target="#appearanceModal" data-bs-dismiss="modal">Оформление интерфейса</button>
-              <button type="button" class="btn btn-outline-primary text-start" data-bs-toggle="modal" data-bs-target="#statusesModal" data-bs-dismiss="modal">Статусы клиентов</button>
-              <button type="button" class="btn btn-outline-primary text-start" data-bs-toggle="modal" data-bs-target="#businessStylesModal" data-bs-dismiss="modal">Метки бизнесов</button>
+              <button type="button" class="btn btn-outline-primary text-start" data-settings-open-modal="appearanceModal" data-settings-hide-modal="self">Оформление интерфейса</button>
+              <button type="button" class="btn btn-outline-primary text-start" data-settings-open-modal="statusesModal" data-settings-hide-modal="self">Статусы клиентов</button>
+              <button type="button" class="btn btn-outline-primary text-start" data-settings-open-modal="businessStylesModal" data-settings-hide-modal="self">Метки бизнесов</button>
             </div>
           </div>
           <div class="modal-footer">
@@ -5893,7 +5891,7 @@
                         <span class="channels-quick-card__pill" data-channels-manage-stat="active-count">0 активных</span>
                       </div>
                       <div class="channels-quick-card__actions">
-                        <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#addChannelModal">Добавить канал</button>
+                        <button class="btn btn-primary" type="button" data-settings-open-modal="addChannelModal">Добавить канал</button>
                       </div>
                       <div class="channels-quick-card__note">Подробные инструкции и поля платформы уже находятся внутри модалки.</div>
                     </section>

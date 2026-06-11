@@ -238,12 +238,72 @@
     return modal;
   }
 
+  function resolveSettingsModalActionTarget(trigger, actionName) {
+    if (!(trigger instanceof HTMLElement)) {
+      return null;
+    }
+    const rawTarget = actionName === 'open'
+      ? String(trigger.dataset.settingsOpenModal || '').trim()
+      : String(trigger.dataset.settingsHideModal || '').trim();
+    if (!rawTarget) {
+      return null;
+    }
+    if (rawTarget === 'self') {
+      return trigger.closest('.modal');
+    }
+    return rawTarget;
+  }
+
+  function runSettingsModalAction(openTarget, hideTarget) {
+    const openModalEl = resolveSettingsModalElement(openTarget);
+    const hideModalEl = resolveSettingsModalElement(hideTarget);
+
+    if (hideModalEl instanceof HTMLElement && openModalEl instanceof HTMLElement && hideModalEl !== openModalEl) {
+      const hiddenHandler = () => {
+        hideModalEl.removeEventListener('hidden.bs.modal', hiddenHandler);
+        showSettingsModal(openModalEl);
+      };
+      hideModalEl.addEventListener('hidden.bs.modal', hiddenHandler);
+      const hiddenModal = hideSettingsModal(hideModalEl);
+      if (hiddenModal) {
+        return;
+      }
+      hideModalEl.removeEventListener('hidden.bs.modal', hiddenHandler);
+    }
+
+    if (hideModalEl instanceof HTMLElement) {
+      hideSettingsModal(hideModalEl);
+    }
+    if (openModalEl instanceof HTMLElement) {
+      showSettingsModal(openModalEl);
+    }
+  }
+
+  function initSettingsModalActionTriggers() {
+    document.addEventListener('click', (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) {
+        return;
+      }
+      const trigger = target.closest('[data-settings-open-modal], [data-settings-hide-modal]');
+      if (!(trigger instanceof HTMLElement) || trigger.hasAttribute('disabled') || trigger.getAttribute('aria-disabled') === 'true') {
+        return;
+      }
+      const openTarget = resolveSettingsModalActionTarget(trigger, 'open');
+      const hideTarget = resolveSettingsModalActionTarget(trigger, 'hide');
+      if (!openTarget && !hideTarget) {
+        return;
+      }
+      event.preventDefault();
+      runSettingsModalAction(openTarget, hideTarget);
+    });
+  }
+
   function resolveSettingsTileForModal(modal) {
     if (!(modal instanceof HTMLElement) || !modal.id) {
       return null;
     }
-    return document.querySelector(`[data-settings-tile-target="${modal.id}"]`)
-      || document.querySelector(`.settings-tile[data-bs-target="#${modal.id}"]`);
+    return document.querySelector(`[data-settings-tile-target="${modal.id}"]`);
   }
 
   function syncSettingsSheetToggle(modal, toggle) {
@@ -537,6 +597,7 @@
     initSettingsTileDescriptions();
     initSettingsBodyPortals();
     initSettingsPrimaryModals();
+    initSettingsModalActionTriggers();
     initParentChildSuspendShell();
     initSettingsModalLifecycleHooks();
     initSettingsModalDefaultTabs();
