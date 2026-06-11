@@ -460,6 +460,31 @@
       event.preventDefault();
       continueSettingsModalAction(trigger, openTarget, hideTarget);
     });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') {
+        return;
+      }
+      const target = event.target;
+      if (!(target instanceof Element)) {
+        return;
+      }
+      const trigger = target.closest('[data-settings-open-modal], [data-settings-hide-modal]');
+      if (!(trigger instanceof HTMLElement) || trigger instanceof HTMLButtonElement) {
+        return;
+      }
+      if (trigger.hasAttribute('disabled') || trigger.getAttribute('aria-disabled') === 'true') {
+        return;
+      }
+      const openTarget = resolveSettingsModalActionTarget(trigger, 'open');
+      const hideTarget = resolveSettingsModalActionTarget(trigger, 'hide');
+      const hasActionCallback = Boolean(String(trigger.dataset.settingsActionCallback || '').trim());
+      if (!openTarget && !hideTarget && !hasActionCallback) {
+        return;
+      }
+      event.preventDefault();
+      continueSettingsModalAction(trigger, openTarget, hideTarget);
+    });
   }
 
   function resolveSettingsTileForModal(modal) {

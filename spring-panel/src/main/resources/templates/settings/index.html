@@ -4626,7 +4626,7 @@
             <div class="tab-content settings-tab-content mt-3">
               <div class="tab-pane fade show active" id="locations-structure-pane" role="tabpanel" aria-labelledby="locations-structure-tab" tabindex="0">
                 <div class="d-flex flex-wrap gap-2 mb-3">
-                  <button class="btn btn-sm btn-primary" type="button" onclick="openAddLocationWizard()">Добавить запись</button>
+                  <button class="btn btn-sm btn-primary" type="button" data-settings-open-modal="locationWizardModal" data-settings-action-callback="prepareLocationWizardSettingsTrigger">Добавить запись</button>
                   <button class="btn btn-sm btn-success" type="button" onclick="addBusiness()">+ Добавить бизнес</button>
                 </div>
                 <div id="locationsEditor" class="mb-3">
@@ -7636,21 +7636,31 @@
     return true;
   }
 
-  function openPartnerContactEditor(card) {
-    if (!partnerContactEditorModalEl || !card) return;
+  function preparePartnerContactEditor(card) {
+    if (!partnerContactEditorModalEl || !card) return false;
     const key = getPartnerContactCardKey(card);
-    if (!key) return;
+    if (!key) return false;
     partnerContactEditorState = { key };
     setPartnerContactCardVisibility(key, false);
     const rendered = renderPartnerContactModalContentByKey(key);
     if (!rendered) {
       partnerContactEditorState = null;
       setPartnerContactCardVisibility(key, true);
-      return;
+      return false;
     }
     updatePartnerContactEditorTitleByKey(key);
+    return true;
+  }
+
+  function openPartnerContactEditor(card) {
+    if (!preparePartnerContactEditor(card)) return;
     window.SettingsPageShell.showModal(partnerContactEditorModalEl);
   }
+
+  window.preparePartnerContactEditorSettingsTrigger = function preparePartnerContactEditorSettingsTrigger(trigger) {
+    const card = trigger instanceof HTMLElement ? trigger.closest('[data-partner-contact-card]') : null;
+    return preparePartnerContactEditor(card);
+  };
 
   function refreshPartnerContactPersonRow(row) {
     if (!row) return;
@@ -9524,7 +9534,7 @@
       const deletedBadge = isDeleted ? '<span class="badge text-bg-warning">Удалено</span>' : '';
       return `
         <div class="col">
-          <div class="${cardClasses.join(' ')}" ${datasetAttrs} data-partner-contact-open-modal role="button" tabindex="0" aria-label="${escapeHtml(ariaLabel)}">
+          <div class="${cardClasses.join(' ')}" ${datasetAttrs} data-partner-contact-open-modal data-settings-open-modal="partnerContactEditorModal" data-settings-action-callback="preparePartnerContactEditorSettingsTrigger" role="button" tabindex="0" aria-label="${escapeHtml(ariaLabel)}">
             <div class="card-body">
               <div class="partner-contact-summary-head">
                 <div>
@@ -9633,7 +9643,7 @@
             </div>
             <div class="d-flex align-items-start gap-2">
               ${idBadge}
-              <button class="btn btn-outline-primary btn-sm" type="button" data-partner-contact-open-modal title="Открыть в модальном окне">
+              <button class="btn btn-outline-primary btn-sm" type="button" data-partner-contact-open-modal data-settings-open-modal="partnerContactEditorModal" data-settings-action-callback="preparePartnerContactEditorSettingsTrigger" title="Открыть в модальном окне">
                 <i class="bi bi-arrows-fullscreen"></i>
               </button>
             </div>
@@ -10439,14 +10449,6 @@
   }
 
   document.addEventListener('click', (event) => {
-    const partnerContactOpenModalBtn = event.target.closest('[data-partner-contact-open-modal]');
-    if (partnerContactOpenModalBtn) {
-      const card = partnerContactOpenModalBtn.closest('[data-partner-contact-card]');
-      if (!card) return;
-      openPartnerContactEditor(card);
-      event.preventDefault();
-      return;
-    }
     const detailsToggleBtn = event.target.closest('[data-partner-contact-details-toggle]');
     if (detailsToggleBtn) {
       const container = detailsToggleBtn.closest('[data-partner-contact-details]');
@@ -10690,17 +10692,6 @@
     } else if (action === 'restore') {
       restoreParameter(id, type, actionEl);
     }
-  });
-
-  document.addEventListener('keydown', (event) => {
-    if (event.key !== 'Enter' && event.key !== ' ') return;
-    const openTarget = event.target.closest('[data-partner-contact-open-modal]');
-    if (!openTarget) return;
-    if (openTarget.getAttribute('role') !== 'button') return;
-    const card = openTarget.closest('[data-partner-contact-card]');
-    if (!card) return;
-    event.preventDefault();
-    openPartnerContactEditor(card);
   });
 
   document.addEventListener('change', (event) => {
@@ -15580,9 +15571,9 @@
     showLocationWizardStep(0);
   };
 
-  async function openAddLocationWizard() {
+  window.prepareLocationWizardSettingsTrigger = async function prepareLocationWizardSettingsTrigger() {
     initLocationWizard();
-    if (!locationWizardModalEl) return;
+    if (!locationWizardModalEl) return false;
     if (!parametersLoaded) {
       await loadParameters();
       populateWizardOptions();
@@ -15591,6 +15582,14 @@
     populateWizardOptions();
     showLocationWizardStep(0);
     updateWizardSummary();
+    return true;
+  };
+
+  async function openAddLocationWizard() {
+    const prepared = await window.prepareLocationWizardSettingsTrigger();
+    if (prepared === false || !locationWizardModalEl) {
+      return;
+    }
     window.SettingsPageShell.showModal(locationWizardModalEl);
   }
 
