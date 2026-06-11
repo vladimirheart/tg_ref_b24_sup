@@ -4,8 +4,13 @@
   }
   window.__settingsPageShellInitialized = true;
 
+  function getSettingsShellRoot() {
+    const root = document.querySelector('[data-settings-page-shell]');
+    return root instanceof HTMLElement ? root : null;
+  }
+
   function isSettingsPage() {
-    return document.querySelector('[data-settings-page-shell]') instanceof HTMLElement;
+    return getSettingsShellRoot() instanceof HTMLElement;
   }
 
   function initThemeFormSync() {
@@ -485,10 +490,8 @@
   }
 
   function runSettingsDomainBootstrap() {
-    const shellRoot = document.querySelector('[data-settings-page-shell]');
-    const bootstrapAttr = shellRoot instanceof HTMLElement
-      ? String(shellRoot.dataset.settingsBootstrap || '')
-      : '';
+    const shellRoot = getSettingsShellRoot();
+    const bootstrapAttr = shellRoot ? String(shellRoot.dataset.settingsBootstrap || '') : '';
     const bootstrapFns = bootstrapAttr
       .split(',')
       .map((fnName) => fnName.trim())
@@ -533,12 +536,23 @@
     });
   }
 
+  function readSettingsUrlRequest(params) {
+    const shellRoot = getSettingsShellRoot();
+    const openParam = shellRoot
+      ? String(shellRoot.dataset.settingsUrlOpenParam || 'open').trim() || 'open'
+      : 'open';
+    const legacyParam = shellRoot
+      ? String(shellRoot.dataset.settingsUrlLegacyParam || 'tab').trim() || 'tab'
+      : 'tab';
+    const primaryTarget = String(params.get(openParam) || '').trim().toLowerCase();
+    const legacyTarget = String(params.get(legacyParam) || '').trim().toLowerCase();
+    return primaryTarget || legacyTarget;
+  }
+
   function openRequestedSettingsModalFromUrl() {
     try {
       const params = new URLSearchParams(window.location.search);
-      const openTarget = (params.get('open') || '').trim().toLowerCase();
-      const legacyTab = (params.get('tab') || '').trim().toLowerCase();
-      const requestedModal = openTarget || legacyTab;
+      const requestedModal = readSettingsUrlRequest(params);
       let shouldReplaceHistory = false;
       if (!requestedModal || typeof bootstrap === 'undefined') {
         shouldReplaceHistory = openSettingsQueryDrivenModals(params);
