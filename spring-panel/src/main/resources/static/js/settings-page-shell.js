@@ -399,6 +399,48 @@
     }
   }
 
+  function invokeSettingsActionCallback(trigger) {
+    if (!(trigger instanceof HTMLElement)) {
+      return true;
+    }
+    const callbackName = String(trigger.dataset.settingsActionCallback || '').trim();
+    if (!callbackName) {
+      return true;
+    }
+    const callback = window[callbackName];
+    if (typeof callback !== 'function') {
+      console.warn(`Settings action callback "${callbackName}" is not available.`);
+      return false;
+    }
+    try {
+      return callback(trigger);
+    } catch (error) {
+      console.error(`Settings action callback "${callbackName}" failed.`, error);
+      return false;
+    }
+  }
+
+  function continueSettingsModalAction(trigger, openTarget, hideTarget) {
+    const callbackResult = invokeSettingsActionCallback(trigger);
+    if (callbackResult && typeof callbackResult.then === 'function') {
+      callbackResult
+        .then((resolved) => {
+          if (resolved === false) {
+            return;
+          }
+          runSettingsModalAction(openTarget, hideTarget);
+        })
+        .catch((error) => {
+          console.error('Settings action callback promise failed.', error);
+        });
+      return;
+    }
+    if (callbackResult === false) {
+      return;
+    }
+    runSettingsModalAction(openTarget, hideTarget);
+  }
+
   function initSettingsModalActionTriggers() {
     document.addEventListener('click', (event) => {
       const target = event.target;
@@ -411,11 +453,12 @@
       }
       const openTarget = resolveSettingsModalActionTarget(trigger, 'open');
       const hideTarget = resolveSettingsModalActionTarget(trigger, 'hide');
-      if (!openTarget && !hideTarget) {
+      const hasActionCallback = Boolean(String(trigger.dataset.settingsActionCallback || '').trim());
+      if (!openTarget && !hideTarget && !hasActionCallback) {
         return;
       }
       event.preventDefault();
-      runSettingsModalAction(openTarget, hideTarget);
+      continueSettingsModalAction(trigger, openTarget, hideTarget);
     });
   }
 

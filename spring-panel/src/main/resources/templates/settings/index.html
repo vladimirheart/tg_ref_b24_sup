@@ -6844,7 +6844,7 @@
                       </div>
                     </div>
                     <div class="d-flex flex-column flex-lg-row gap-3 align-items-lg-center">
-                      <button type="button" class="btn btn-outline-primary d-none" id="channelEditorVkButton">Настроить VK вебхук…</button>
+                      <button type="button" class="btn btn-outline-primary d-none" id="channelEditorVkButton" data-settings-open-modal="vkWebhookModal" data-settings-action-callback="prepareVkWebhookSettingsTrigger">Настроить VK вебхук…</button>
                       <div class="text-muted small ms-lg-auto" data-channel-editor-hint></div>
                     </div>
                     <div class="mt-3 d-none" id="channelEditorTelegramBaseUrlBlock">
@@ -22569,15 +22569,16 @@
     }
   }
 
-  function openChannelEditor(id) {
-    const channel = CHANNELS_REGISTRY.get(String(id));
+  window.prepareChannelEditorSettingsTrigger = function prepareChannelEditorSettingsTrigger(trigger) {
+    const id = trigger instanceof HTMLElement ? trigger.getAttribute('data-channel-edit') : null;
+    const channel = id ? CHANNELS_REGISTRY.get(String(id)) : null;
     if (!channel) {
       showPopup('Канал не найден.');
-      return;
+      return false;
     }
     populateChannelEditor(channel);
-    window.SettingsPageShell.showModal(channelEditorModalEl);
-  }
+    return true;
+  };
 
   if (channelsBody) {
     channelsBody.addEventListener('click', (event) => {
@@ -22590,21 +22591,15 @@
         }
         return;
       }
-      const editBtn = event.target.closest('[data-channel-edit]');
-      if (!editBtn) return;
-      event.preventDefault();
-      const id = editBtn.getAttribute('data-channel-edit');
-      if (id) {
-        openChannelEditor(id);
-      }
     });
   }
 
-  function openVkSettings(id) {
+  window.prepareVkWebhookSettingsTrigger = function prepareVkWebhookSettingsTrigger() {
+    const id = channelEditorState.channelId;
     const channel = CHANNELS_REGISTRY.get(String(id));
     if (!channel || channel.platform !== 'vk') {
       showPopup('Настройки вебхука доступны только для VK.');
-      return;
+      return false;
     }
     const platformConfig = parsePlatformConfig(channel.platform_config);
     const groupId = platformConfig.group_id ?? platformConfig.groupId ?? null;
@@ -22621,9 +22616,8 @@
     if (groupInput) groupInput.value = groupId || '';
     if (confirmationInput) confirmationInput.value = confirmationToken || '';
     if (secretInput) secretInput.value = secret || '';
-
-    window.SettingsPageShell.showModal('vkWebhookModal');
-  }
+    return true;
+  };
 
   async function saveVkWebhookSettings() {
     if (vkWebhookState.channelId === null) return;
@@ -23079,7 +23073,7 @@
           </div>
           <div class="d-flex justify-content-center gap-2 mt-2">
             <button type="button" class="btn btn-sm btn-outline-success" data-channel-start="${prepared.id}">Запустить</button>
-            <button type="button" class="btn btn-sm btn-outline-primary" data-channel-edit="${prepared.id}">Редактировать</button>
+            <button type="button" class="btn btn-sm btn-outline-primary" data-channel-edit="${prepared.id}" data-settings-open-modal="channelEditorModal" data-settings-action-callback="prepareChannelEditorSettingsTrigger">Редактировать</button>
           </div>
         </td>
       `;
@@ -23887,11 +23881,6 @@
     channelEditorPanelNotifTargetModeInput?.addEventListener('change', updateChannelPanelNotificationRoutingState);
     channelEditorTestTargetSelect?.addEventListener('change', updateTestRecipientState);
     channelEditorSendTestBtn?.addEventListener('click', sendChannelTestMessage);
-    channelEditorVkBtn?.addEventListener('click', () => {
-      if (channelEditorState.channelId !== null) {
-        openVkSettings(channelEditorState.channelId);
-      }
-    });
     channelEditorBotStartBtn?.addEventListener('click', () => {
       if (channelEditorState.channelId !== null) {
         startBotForChannel(channelEditorState.channelId);
