@@ -205,6 +205,126 @@
     return collapse;
   }
 
+  function resolveSettingsCollapseTarget(trigger) {
+    if (!(trigger instanceof HTMLElement)) {
+      return null;
+    }
+    const rawTarget = String(trigger.dataset.settingsOpenCollapse || '').trim();
+    if (!rawTarget) {
+      return null;
+    }
+    return resolveSettingsModalElement(rawTarget);
+  }
+
+  function syncSettingsCollapseNavState(navRoot, activeCollapseEl) {
+    if (!(navRoot instanceof HTMLElement)) {
+      return;
+    }
+    const activeClass = String(navRoot.dataset.settingsCollapseActiveClass || 'is-active').trim() || 'is-active';
+    const triggers = Array.from(navRoot.querySelectorAll('[data-settings-open-collapse]'));
+    triggers.forEach((trigger) => {
+      if (!(trigger instanceof HTMLElement)) {
+        return;
+      }
+      const target = resolveSettingsCollapseTarget(trigger);
+      const isActive = target instanceof HTMLElement && target === activeCollapseEl;
+      trigger.classList.toggle(activeClass, isActive);
+      if (trigger.getAttribute('role') === 'button') {
+        trigger.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+      }
+    });
+  }
+
+  function initSettingsCollapseNavs() {
+    const navRoots = Array.from(document.querySelectorAll('[data-settings-collapse-nav]'));
+    navRoots.forEach((navRoot) => {
+      if (!(navRoot instanceof HTMLElement)) {
+        return;
+      }
+      const triggers = Array.from(navRoot.querySelectorAll('[data-settings-open-collapse]'));
+      const collapseTargets = new Set();
+
+      triggers.forEach((trigger) => {
+        if (!(trigger instanceof HTMLElement)) {
+          return;
+        }
+        if (!(trigger instanceof HTMLButtonElement)) {
+          if (!trigger.hasAttribute('role')) {
+            trigger.setAttribute('role', 'button');
+          }
+          if (!trigger.hasAttribute('tabindex')) {
+            trigger.setAttribute('tabindex', '0');
+          }
+        }
+        if (trigger.getAttribute('role') === 'button' && !trigger.hasAttribute('aria-pressed')) {
+          trigger.setAttribute('aria-pressed', 'false');
+        }
+        const target = resolveSettingsCollapseTarget(trigger);
+        if (target instanceof HTMLElement) {
+          collapseTargets.add(target);
+        }
+      });
+
+      collapseTargets.forEach((collapseEl) => {
+        collapseEl.addEventListener('shown.bs.collapse', () => {
+          syncSettingsCollapseNavState(navRoot, collapseEl);
+        });
+      });
+
+      const initiallyShown = Array.from(collapseTargets).find((collapseEl) => collapseEl.classList.contains('show'));
+      syncSettingsCollapseNavState(navRoot, initiallyShown || null);
+    });
+  }
+
+  function runSettingsCollapseAction(trigger) {
+    const collapseEl = resolveSettingsCollapseTarget(trigger);
+    if (!(collapseEl instanceof HTMLElement)) {
+      return false;
+    }
+    showSettingsCollapse(collapseEl, { toggle: false });
+    if (Object.prototype.hasOwnProperty.call(trigger.dataset, 'settingsCollapseScroll')) {
+      window.setTimeout(() => {
+        collapseEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 50);
+    }
+    return true;
+  }
+
+  function initSettingsCollapseActionTriggers() {
+    document.addEventListener('click', (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) {
+        return;
+      }
+      const trigger = target.closest('[data-settings-open-collapse]');
+      if (!(trigger instanceof HTMLElement) || trigger.hasAttribute('disabled') || trigger.getAttribute('aria-disabled') === 'true') {
+        return;
+      }
+      if (!runSettingsCollapseAction(trigger)) {
+        return;
+      }
+      event.preventDefault();
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') {
+        return;
+      }
+      const target = event.target;
+      if (!(target instanceof Element)) {
+        return;
+      }
+      const trigger = target.closest('[data-settings-open-collapse]');
+      if (!(trigger instanceof HTMLElement) || trigger instanceof HTMLButtonElement) {
+        return;
+      }
+      if (!runSettingsCollapseAction(trigger)) {
+        return;
+      }
+      event.preventDefault();
+    });
+  }
+
   function getSettingsTabInstance(target) {
     if (typeof bootstrap === 'undefined' || !bootstrap.Tab) {
       return null;
@@ -598,6 +718,8 @@
     initSettingsBodyPortals();
     initSettingsPrimaryModals();
     initSettingsModalActionTriggers();
+    initSettingsCollapseNavs();
+    initSettingsCollapseActionTriggers();
     initParentChildSuspendShell();
     initSettingsModalLifecycleHooks();
     initSettingsModalDefaultTabs();

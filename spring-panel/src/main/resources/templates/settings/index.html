@@ -5057,10 +5057,11 @@
             </div>
             <div
               class="row row-cols-1 row-cols-sm-2 row-cols-xl-4 g-3 mb-4 settings-tiles"
-              data-it-section-tiles
+              data-settings-collapse-nav
+              data-settings-collapse-active-class="is-active"
             >
               <div class="col">
-                <div class="card settings-tile h-100" data-it-section-target="#itEquipmentSection" tabindex="0">
+                <div class="card settings-tile h-100" data-settings-open-collapse="itEquipmentSection" data-settings-collapse-scroll>
                   <div class="card-body text-center">
                     <div class="tile-icon">🗃️</div>
                     <h6 class="card-title mb-1">Каталог оборудования</h6>
@@ -5069,7 +5070,7 @@
                 </div>
               </div>
               <div class="col">
-                <div class="card settings-tile h-100" data-it-section-target="#itConnectionsSection" tabindex="0">
+                <div class="card settings-tile h-100" data-settings-open-collapse="itConnectionsSection" data-settings-collapse-scroll>
                   <div class="card-body text-center">
                     <div class="tile-icon">🔌</div>
                     <h6 class="card-title mb-1">Оборудование</h6>
@@ -5078,7 +5079,7 @@
                 </div>
               </div>
               <div class="col">
-                <div class="card settings-tile h-100" data-it-section-target="#networkProfilesSection" tabindex="0">
+                <div class="card settings-tile h-100" data-settings-open-collapse="networkProfilesSection" data-settings-collapse-scroll>
                   <div class="card-body text-center">
                     <div class="tile-icon">📡</div>
                     <h6 class="card-title mb-1">Профили провайдеров</h6>
@@ -5087,7 +5088,7 @@
                 </div>
               </div>
               <div class="col">
-                <div class="card settings-tile h-100" data-it-section-target="#remoteAccessSection" tabindex="0">
+                <div class="card settings-tile h-100" data-settings-open-collapse="remoteAccessSection" data-settings-collapse-scroll>
                   <div class="card-body text-center">
                     <div class="tile-icon">🌐</div>
                     <h6 class="card-title mb-1">Удалённый доступ</h6>
@@ -5908,8 +5909,8 @@
                         <span class="channels-quick-card__pill" data-channels-manage-summary="profiles-count">Профили не созданы</span>
                       </div>
                       <div class="channels-quick-card__actions">
-                        <button type="button" class="btn btn-outline-success" data-channels-network-profile-quick-add>Новый профиль</button>
-                        <button type="button" class="btn btn-outline-secondary" data-channels-manage-open="profiles">Открыть список</button>
+                        <button type="button" class="btn btn-outline-success" data-channels-network-profile-quick-add data-settings-open-collapse="channelsProfilesCollapse">Новый профиль</button>
+                        <button type="button" class="btn btn-outline-secondary" data-settings-open-collapse="channelsProfilesCollapse">Открыть список</button>
                       </div>
                     </section>
 
@@ -5926,7 +5927,7 @@
                         <div class="channels-quick-card__route" data-channels-manage-summary="routes-bots">Боты: наследуют проект</div>
                       </div>
                       <div class="channels-quick-card__actions">
-                        <button type="button" class="btn btn-outline-primary" data-channels-manage-open="routes">Настроить сеть</button>
+                        <button type="button" class="btn btn-outline-primary" data-settings-open-collapse="channelsRoutesCollapse">Настроить сеть</button>
                       </div>
                     </section>
                   </div>
@@ -12582,72 +12583,6 @@
   renderNetworkProfiles();
   renderItConnectionsTable();
   loadItEquipment();
-
-  const itSectionTilesContainer = document.querySelector('[data-it-section-tiles]');
-
-  function activateItSectionTile(targetSelector) {
-    if (!itSectionTilesContainer) return;
-    const tiles = Array.from(
-      itSectionTilesContainer.querySelectorAll('[data-it-section-target]')
-    );
-    tiles.forEach((tile) => {
-      const matches = tile.dataset.itSectionTarget === targetSelector;
-      tile.classList.toggle('is-active', matches);
-      tile.setAttribute('aria-pressed', matches ? 'true' : 'false');
-    });
-  }
-
-  if (itSectionTilesContainer) {
-    const tiles = Array.from(
-      itSectionTilesContainer.querySelectorAll('[data-it-section-target]')
-    );
-    tiles.forEach((tile) => {
-      if (!tile.hasAttribute('role')) {
-        tile.setAttribute('role', 'button');
-      }
-      if (!tile.hasAttribute('tabindex')) {
-        tile.setAttribute('tabindex', '0');
-      }
-      tile.setAttribute('aria-pressed', 'false');
-    });
-
-    const collapses = Array.from(
-      document.querySelectorAll('#itSettingsAccordion .accordion-collapse')
-    );
-
-    itSectionTilesContainer.addEventListener('click', (event) => {
-      const tile = event.target.closest('[data-it-section-target]');
-      if (!tile) return;
-      const targetSelector = tile.dataset.itSectionTarget;
-      if (!targetSelector) return;
-      const target = document.querySelector(targetSelector);
-      if (!target) return;
-      window.SettingsPageShell.showCollapse(target, { toggle: false });
-      activateItSectionTile(targetSelector);
-      setTimeout(() => {
-        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 50);
-    });
-
-    itSectionTilesContainer.addEventListener('keydown', (event) => {
-      if (event.key !== 'Enter' && event.key !== ' ') return;
-      const tile = event.target.closest('[data-it-section-target]');
-      if (!tile) return;
-      event.preventDefault();
-      tile.click();
-    });
-
-    collapses.forEach((collapseEl) => {
-      collapseEl.addEventListener('shown.bs.collapse', () => {
-        activateItSectionTile(`#${collapseEl.id}`);
-      });
-    });
-
-    const initiallyShown = collapses.find((collapseEl) => collapseEl.classList.contains('show'));
-    if (initiallyShown) {
-      activateItSectionTile(`#${initiallyShown.id}`);
-    }
-  }
 
   async function loadParameters() {
     try {
@@ -20758,8 +20693,6 @@
   const integrationNetworkProfilesStatusEl = document.getElementById('integrationNetworkProfilesStatus');
   const integrationNetworkProfileEditorModalEl = document.getElementById('integrationNetworkProfileEditorModal');
   const integrationNetworkProfileEditorModal = integrationNetworkProfileEditorModalEl ? window.SettingsPageShell.getModalInstance(integrationNetworkProfileEditorModalEl) : null;
-  const channelsProfilesCollapseEl = document.getElementById('channelsProfilesCollapse');
-  const channelsRoutesCollapseEl = document.getElementById('channelsRoutesCollapse');
   const integrationNetworkProfileForm = integrationNetworkProfileEditorModalEl ? integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-form]') : null;
   const integrationNetworkProfileTitleEl = integrationNetworkProfileEditorModalEl ? integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-title]') : null;
   const integrationNetworkProfileDeleteBtn = integrationNetworkProfileEditorModalEl ? integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-delete]') : null;
@@ -20876,14 +20809,6 @@
     );
     setChannelsManageText('summary', 'routes-project', describeChannelsManageRoute('project'));
     setChannelsManageText('summary', 'routes-bots', describeChannelsManageRoute('bots'));
-  }
-
-  function openChannelsManageSection(section) {
-    const collapseEl = section === 'profiles' ? channelsProfilesCollapseEl : channelsRoutesCollapseEl;
-    if (!(collapseEl instanceof HTMLElement)) {
-      return;
-    }
-    window.SettingsPageShell.showCollapse(collapseEl, { toggle: false });
   }
 
   const PUBLIC_FORM_FIELD_TYPES = [
@@ -23687,21 +23612,12 @@
     integrationNetworkSaveBtn?.addEventListener('click', saveIntegrationNetworkSettings);
     integrationNetworkProfilesAddBtn?.addEventListener('click', () => openIntegrationNetworkProfileEditor(null));
     integrationNetworkProfilesQuickAddBtn?.addEventListener('click', () => {
-      openChannelsManageSection('profiles');
       openIntegrationNetworkProfileEditor(null);
     });
     integrationNetworkProfilesProbeAllBtn?.addEventListener('click', () => {
       probeIntegrationNetworkProfiles(getIntegrationNetworkProfileOptions(), { bulk: true });
     });
     integrationNetworkProfilesSaveBtn?.addEventListener('click', saveIntegrationNetworkProfiles);
-    channelsModalEl?.querySelectorAll('[data-channels-manage-open]').forEach((button) => {
-      button.addEventListener('click', () => {
-        const section = button.getAttribute('data-channels-manage-open');
-        if (section) {
-          openChannelsManageSection(section);
-        }
-      });
-    });
     integrationNetworkProfileModeInput?.addEventListener('change', toggleIntegrationNetworkProfileModeFields);
     integrationNetworkProfileProxySchemeInput?.addEventListener('change', () => toggleProxyCredentialFields('integration-profile'));
     integrationNetworkProfilesBody?.addEventListener('click', (event) => {
