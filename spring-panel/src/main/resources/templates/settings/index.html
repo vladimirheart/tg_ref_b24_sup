@@ -8428,7 +8428,6 @@
     parameterData[type] = [];
   });
   const parameterModalEl = document.getElementById('parameterItemsModal');
-  const parameterModal = parameterModalEl ? window.SettingsPageShell.getModalInstance(parameterModalEl) : null;
   let parameterModalType = null;
   const cityCardEl = document.querySelector('[data-city-card]');
 
@@ -10420,7 +10419,7 @@
   }
 
   function openParameterModal(type) {
-    if (!parameterModal) return;
+    if (!parameterModalEl) return;
     parameterModalType = type;
     const titleEl = parameterModalEl.querySelector('[data-param-modal-title]');
     if (titleEl) {
@@ -10429,7 +10428,7 @@
       titleEl.textContent = `Параметры партнёров • ${label}`;
     }
     renderParameterModal(type);
-    parameterModal.show();
+    window.SettingsPageShell.showModal(parameterModalEl);
   }
 
   renderParameters();
@@ -11055,7 +11054,6 @@
   const networkProfilesSaveButton = document.querySelector('[data-network-profiles-save]');
   const networkProfilesAddButton = document.querySelector('[data-network-profiles-add]');
   const networkProfileModalEl = document.getElementById('networkProfileEditorModal');
-  const networkProfileModal = networkProfileModalEl ? window.SettingsPageShell.getModalInstance(networkProfileModalEl) : null;
   const networkProfileForm = networkProfileModalEl ? networkProfileModalEl.querySelector('[data-network-profile-form]') : null;
   const networkProfileTitle = networkProfileModalEl ? networkProfileModalEl.querySelector('[data-network-profile-title]') : null;
   const networkProfileDeleteButton = networkProfileModalEl ? networkProfileModalEl.querySelector('[data-network-profile-delete]') : null;
@@ -11224,8 +11222,8 @@
     if (networkProfileDeleteButton) {
       networkProfileDeleteButton.classList.toggle('d-none', !isEdit);
     }
-    if (networkProfileModal) {
-      networkProfileModal.show();
+    if (networkProfileModalEl) {
+      window.SettingsPageShell.showModal(networkProfileModalEl);
     }
   }
 
@@ -11316,8 +11314,8 @@
       networkProfilesData.push(prepared);
     }
     renderNetworkProfiles();
-    if (networkProfileModal) {
-      networkProfileModal.hide();
+    if (networkProfileModalEl) {
+      window.SettingsPageShell.hideModal(networkProfileModalEl);
     }
   }
 
@@ -11333,8 +11331,8 @@
       return;
     }
     removeNetworkProfileRow(networkProfileEditingIndex);
-    if (networkProfileModal) {
-      networkProfileModal.hide();
+    if (networkProfileModalEl) {
+      window.SettingsPageShell.hideModal(networkProfileModalEl);
     }
   }
 
@@ -12054,7 +12052,7 @@
       syncParameterData((data && data.data) || parameterData);
       renderParameters({ forceBodies: true });
       renderItConnectionsTable();
-      if (parameterModal && parameterModalType) {
+      if (parameterModalEl && parameterModalType) {
         renderParameterModal(parameterModalType);
       }
     } catch (error) {
@@ -12091,7 +12089,7 @@
       syncParameterData((data && data.data) || parameterData);
       renderParameters({ forceBodies: true });
       renderItConnectionsTable();
-      if (parameterModal && parameterModalType) {
+      if (parameterModalEl && parameterModalType) {
         renderParameterModal(parameterModalType);
       }
     } catch (error) {
@@ -12121,7 +12119,7 @@
       syncParameterData((data && data.data) || parameterData);
       renderParameters({ forceBodies: true });
       renderItConnectionsTable();
-      if (parameterModal && parameterModalType) {
+      if (parameterModalEl && parameterModalType) {
         renderParameterModal(parameterModalType);
       }
     } catch (error) {
@@ -12548,7 +12546,7 @@
         syncParameterData((data && data.data) || parameterData);
         renderParameters({ forceBodies: true });
         renderItConnectionsTable();
-        if (parameterModal && parameterModalType) {
+        if (parameterModalEl && parameterModalType) {
           renderParameterModal(parameterModalType);
         }
         if (itConnectionAddModal) {
@@ -12596,7 +12594,7 @@
       renderCityCard();
       renderItConnectionsTable();
       buildLocationsTree();
-      if (parameterModal && parameterModalType) {
+      if (parameterModalEl && parameterModalType) {
         renderParameterModal(parameterModalType);
       }
     } catch (error) {
@@ -12672,7 +12670,7 @@
       }
       renderParameters({ forceBodies: true });
       renderItConnectionsTable();
-      if (parameterModal && parameterModalType === type) {
+      if (parameterModalEl && parameterModalType === type) {
         renderParameterModal(type);
       }
     } catch (error) {
@@ -12738,7 +12736,7 @@
       syncParameterData((data && data.data) || parameterData);
       renderParameters({ forceBodies: true });
       renderItConnectionsTable();
-      if (parameterModal && parameterModalType === type) {
+      if (parameterModalEl && parameterModalType === type) {
         renderParameterModal(type);
       }
     } catch (error) {
@@ -12765,8 +12763,8 @@
       }
       syncParameterData((data && data.data) || parameterData);
       renderParameters({ forceBodies: true });
-      if (parameterModal && parameterModalType === type) {
       renderItConnectionsTable();
+      if (parameterModalEl && parameterModalType === type) {
         renderParameterModal(type);
       }
       select.dataset.paramCurrentState = select.value;
@@ -12804,7 +12802,7 @@
       syncParameterData((data && data.data) || parameterData);
       renderParameters({ forceBodies: true });
       renderItConnectionsTable();
-      if (parameterModal && parameterModalType === type) {
+      if (parameterModalEl && parameterModalType === type) {
         renderParameterModal(type);
       }
     } catch (error) {
@@ -12830,7 +12828,7 @@
       syncParameterData((data && data.data) || parameterData);
       renderParameters({ forceBodies: true });
       renderItConnectionsTable();
-      if (parameterModal && parameterModalType === type) {
+      if (parameterModalEl && parameterModalType === type) {
         renderParameterModal(type);
       }
     } catch (error) {
@@ -21592,7 +21590,9 @@
     if (integrationNetworkProfileDeleteBtn) {
       integrationNetworkProfileDeleteBtn.classList.toggle('d-none', !isEdit);
     }
-    integrationNetworkProfileEditorModal?.show();
+    if (integrationNetworkProfileEditorModalEl) {
+      window.SettingsPageShell.showModal(integrationNetworkProfileEditorModalEl);
+    }
   }
 
   function toggleIntegrationNetworkProfileModeFields() {
