@@ -1690,7 +1690,11 @@ integration-сценария поверх users/settings runtime boundary всё
   responsible/bell trail; такой же closed-dialog drift снят и у `snooze`:
   UI уже скрывал action на resolved/closed dialog, а теперь это же правило
   закреплено в `workspace.actions.snooze` и runtime `400/error` contract без
-  ложного `success` audit; collaboration ветка отдельно прикрыта и на
+  ложного `success` audit; lifecycle state-contract тоже выровнен на живом
+  сервисе: `reopen` на открытом dialog больше не проходит как `success/noop`,
+  а `resolve` на уже закрытом состоянии не переходит через молчаливый update;
+  оба action now возвращают explicit `not_closed/already_closed`, включая
+  legacy `status='closed'` ветку; collaboration ветка отдельно прикрыта и на
   `already_present`, `participant_missing` и same-owner `reassign` error
   semantics, invalid-target
   `Пользователь панели не найден`, плюс на `closed_dialog` boundary для

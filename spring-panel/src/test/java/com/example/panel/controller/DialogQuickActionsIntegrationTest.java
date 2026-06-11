@@ -407,6 +407,75 @@ class DialogQuickActionsIntegrationTest {
     }
 
     @Test
+    void quickActionsApiLifecycleStateErrorsStayExplicit() throws Exception {
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        insertDirectoryUser("lifecycle_owner", true, false, 1L, "Support", "Lifecycle Owner", "Ops", "/img/owner.png");
+
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
+                VALUES (119, 'token119', 'Quick Actions Lifecycle Errors', 'telegram', 1, CURRENT_TIMESTAMP)
+                """);
+        insertDialogTicket(920119L, "T-QA-LIFECYCLE-STATE", 119L, "quick_lifecycle_state_user", "Клиент Lifecycle State", "Retail", "Смоленск", "Точка Lifecycle State", "Проверка resolve/reopen state contract", "2026-06-05T14:30:00Z", 11901L);
+        jdbcTemplate.update("""
+                INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
+                VALUES (?,?,?,?)
+                """,
+                "T-QA-LIFECYCLE-STATE", "lifecycle_owner", "dispatcher", "2026-06-05T14:29:00Z");
+        insertHistoryRow("T-QA-LIFECYCLE-STATE", 920119L, "user", "Клиент ждёт решения", "2026-06-05T14:31:00Z", "text", 2901L, null, 119L);
+
+        mockMvc.perform(post("/api/dialogs/T-QA-LIFECYCLE-STATE/reopen")
+                        .principal(new TestingAuthenticationToken("lifecycle_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error").value("not_closed"));
+
+        mockMvc.perform(get("/api/dialogs/T-QA-LIFECYCLE-STATE/workspace")
+                        .principal(new TestingAuthenticationToken("lifecycle_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.conversation.statusKey").value("waiting_operator"))
+                .andExpect(jsonPath("$.workflow.actions.resolve.enabled").value(true))
+                .andExpect(jsonPath("$.workflow.actions.reopen.enabled").value(false))
+                .andExpect(jsonPath("$.workflow.actions.reopen.disabled_reason").value("not_closed"));
+
+        mockMvc.perform(post("/api/dialogs/T-QA-LIFECYCLE-STATE/resolve")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "categories": ["billing"]
+                                }
+                                """)
+                        .principal(new TestingAuthenticationToken("lifecycle_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.updated").value(true));
+
+        mockMvc.perform(post("/api/dialogs/T-QA-LIFECYCLE-STATE/resolve")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "categories": ["billing"]
+                                }
+                                """)
+                        .principal(new TestingAuthenticationToken("lifecycle_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error").value("already_closed"));
+
+        mockMvc.perform(get("/api/dialogs/T-QA-LIFECYCLE-STATE/workspace")
+                        .principal(new TestingAuthenticationToken("lifecycle_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.conversation.statusKey").value("closed"))
+                .andExpect(jsonPath("$.workflow.actions.resolve.enabled").value(false))
+                .andExpect(jsonPath("$.workflow.actions.resolve.disabled_reason").value("already_closed"))
+                .andExpect(jsonPath("$.workflow.actions.reopen.enabled").value(true));
+
+        assertThat(countAuditRows("T-QA-LIFECYCLE-STATE", "reopen", "error")).isEqualTo(1);
+        assertThat(countAuditRows("T-QA-LIFECYCLE-STATE", "reopen", "success")).isEqualTo(0);
+        assertThat(countAuditRows("T-QA-LIFECYCLE-STATE", "quick_close", "success")).isEqualTo(1);
+        assertThat(countAuditRows("T-QA-LIFECYCLE-STATE", "quick_close", "error")).isEqualTo(1);
+    }
+
+    @Test
     void quickActionsApiReplyRefreshesDetailsWorkspaceAndAuditTrailForWebFormDialog() throws Exception {
         usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
         insertDirectoryUser("watcher_owner", true, false, 1L, "Support", "Watcher Owner", "Ops", "/img/owner.png");

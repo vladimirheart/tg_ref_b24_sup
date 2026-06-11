@@ -57,6 +57,14 @@ public class DialogTicketLifecycleService {
             if (count == null || count == 0) {
                 return new DialogResolveResult(false, false, null);
             }
+            String currentStatus = jdbcTemplate.query(
+                    "SELECT status FROM tickets WHERE ticket_id = ?",
+                    rs -> rs.next() ? trimToNull(rs.getString("status")) : null,
+                    ticketId
+            );
+            if (isClosedStatus(currentStatus)) {
+                return new DialogResolveResult(false, true, "already_closed");
+            }
             if (normalizedCategories.isEmpty()) {
                 return new DialogResolveResult(false, true, "Укажите хотя бы одну категорию обращения перед закрытием.");
             }
@@ -64,7 +72,7 @@ public class DialogTicketLifecycleService {
             int updated = jdbcTemplate.update(
                     "UPDATE tickets SET status = 'resolved', resolved_at = CURRENT_TIMESTAMP, "
                             + "resolved_by = ?, closed_count = COALESCE(closed_count, 0) + 1 "
-                            + "WHERE ticket_id = ? AND (status IS NULL OR status != 'resolved')",
+                            + "WHERE ticket_id = ? AND (status IS NULL OR lower(status) NOT IN ('resolved', 'closed'))",
                     resolvedBy,
                     ticketId
             );
@@ -93,11 +101,19 @@ public class DialogTicketLifecycleService {
             if (count == null || count == 0) {
                 return new DialogResolveResult(false, false, null);
             }
+            String currentStatus = jdbcTemplate.query(
+                    "SELECT status FROM tickets WHERE ticket_id = ?",
+                    rs -> rs.next() ? trimToNull(rs.getString("status")) : null,
+                    ticketId
+            );
+            if (!isClosedStatus(currentStatus)) {
+                return new DialogResolveResult(false, true, "not_closed");
+            }
             int updated = jdbcTemplate.update(
                     "UPDATE tickets SET status = 'pending', resolved_at = NULL, resolved_by = NULL, "
                             + "reopen_count = COALESCE(reopen_count, 0) + 1, "
                             + "last_reopen_at = CURRENT_TIMESTAMP "
-                            + "WHERE ticket_id = ? AND status = 'resolved'",
+                            + "WHERE ticket_id = ? AND lower(COALESCE(status, '')) IN ('resolved', 'closed')",
                     ticketId
             );
             if (updated > 0) {
@@ -207,6 +223,14 @@ public class DialogTicketLifecycleService {
         }
         String normalized = resolvedBy.trim().toLowerCase(Locale.ROOT);
         return "авто-система".equals(normalized) || "auto_close".equals(normalized);
+    }
+
+    private boolean isClosedStatus(String status) {
+        if (!StringUtils.hasText(status)) {
+            return false;
+        }
+        String normalized = status.trim().toLowerCase(Locale.ROOT);
+        return "resolved".equals(normalized) || "closed".equals(normalized);
     }
 
     private List<String> normalizeCategories(List<String> categories) {

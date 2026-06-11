@@ -104,6 +104,84 @@ class DialogTicketLifecycleServiceTest {
         assertThat(active.get("user_identity")).isEqualTo("88");
     }
 
+    @Test
+    void resolveReturnsAlreadyClosedWhenTicketAlreadyClosed() {
+        jdbcTemplate.update("""
+                INSERT INTO tickets(ticket_id, status, user_id, channel_id, closed_count, reopen_count)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                "T-300", "closed", 99L, 7L, 1, 0
+        );
+
+        DialogResolveResult result = service.resolveTicket("T-300", "operator", List.of("billing"));
+
+        assertThat(result.updated()).isFalse();
+        assertThat(result.exists()).isTrue();
+        assertThat(result.error()).isEqualTo("already_closed");
+        Map<String, Object> ticket = jdbcTemplate.queryForMap(
+                "SELECT status, closed_count FROM tickets WHERE ticket_id = ?",
+                "T-300"
+        );
+        assertThat(ticket.get("status")).isEqualTo("closed");
+        assertThat(((Number) ticket.get("closed_count")).longValue()).isEqualTo(1L);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM ticket_categories WHERE ticket_id = ?",
+                Integer.class,
+                "T-300"
+        )).isZero();
+    }
+
+    @Test
+    void reopenReturnsNotClosedWhenTicketIsStillOpen() {
+        jdbcTemplate.update("""
+                INSERT INTO tickets(ticket_id, status, user_id, channel_id, closed_count, reopen_count)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                "T-400", "pending", 55L, 8L, 0, 0
+        );
+
+        DialogResolveResult result = service.reopenTicket("T-400", "operator");
+
+        assertThat(result.updated()).isFalse();
+        assertThat(result.exists()).isTrue();
+        assertThat(result.error()).isEqualTo("not_closed");
+        Map<String, Object> ticket = jdbcTemplate.queryForMap(
+                "SELECT status, reopen_count FROM tickets WHERE ticket_id = ?",
+                "T-400"
+        );
+        assertThat(ticket.get("status")).isEqualTo("pending");
+        assertThat(((Number) ticket.get("reopen_count")).longValue()).isEqualTo(0L);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM ticket_responsibles WHERE ticket_id = ?",
+                Integer.class,
+                "T-400"
+        )).isZero();
+    }
+
+    @Test
+    void reopensLegacyClosedTicketAndAssignsResponsible() {
+        jdbcTemplate.update("""
+                INSERT INTO tickets(ticket_id, status, resolved_by, user_id, channel_id, closed_count, reopen_count)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                "T-500", "closed", "Оператор", 66L, 9L, 1, 0
+        );
+
+        DialogResolveResult result = service.reopenTicket("T-500", "operator");
+
+        assertThat(result.updated()).isTrue();
+        assertThat(result.exists()).isTrue();
+        assertThat(result.error()).isNull();
+        Map<String, Object> ticket = jdbcTemplate.queryForMap(
+                "SELECT status, resolved_at, resolved_by, reopen_count FROM tickets WHERE ticket_id = ?",
+                "T-500"
+        );
+        assertThat(ticket.get("status")).isEqualTo("pending");
+        assertThat(ticket.get("resolved_at")).isNull();
+        assertThat(ticket.get("resolved_by")).isNull();
+        assertThat(((Number) ticket.get("reopen_count")).longValue()).isEqualTo(1L);
+    }
+
     private void createSchema() {
         jdbcTemplate.execute("""
                 CREATE TABLE tickets (
