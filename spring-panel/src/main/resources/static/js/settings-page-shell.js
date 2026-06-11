@@ -80,6 +80,21 @@
         event.preventDefault();
         tile.click();
       });
+      tile.addEventListener('click', (event) => {
+        const target = event.target;
+        if (target instanceof Element) {
+          const interactiveTarget = target.closest('a, button, input, select, textarea, [data-bs-dismiss]');
+          if (interactiveTarget && interactiveTarget !== tile) {
+            return;
+          }
+        }
+        const modalId = String(tile.dataset.settingsTileTarget || '').trim();
+        if (!modalId) {
+          return;
+        }
+        event.preventDefault();
+        showSettingsModal(modalId);
+      });
     });
   }
 
