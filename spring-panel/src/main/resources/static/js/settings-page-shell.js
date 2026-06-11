@@ -65,7 +65,7 @@
   }
 
   function initSettingsTileDescriptions() {
-    const tiles = document.querySelectorAll('.settings-tiles > .col .settings-tile[role="button"]');
+    const tiles = document.querySelectorAll('[data-settings-tile]');
     tiles.forEach((tile) => {
       if (!(tile instanceof HTMLElement)) {
         return;
@@ -227,7 +227,8 @@
     if (!(modal instanceof HTMLElement) || !modal.id) {
       return null;
     }
-    return document.querySelector(`.settings-tile[data-bs-target="#${modal.id}"]`);
+    return document.querySelector(`[data-settings-tile-target="${modal.id}"]`)
+      || document.querySelector(`.settings-tile[data-bs-target="#${modal.id}"]`);
   }
 
   function syncSettingsSheetToggle(modal, toggle) {
@@ -305,35 +306,6 @@
     });
     document.addEventListener('hidden.bs.modal', (event) => {
       resetSettingsModalElevation(event.target);
-    });
-  }
-
-  function initAuthManagementModalShell() {
-    const usersModalEl = document.getElementById('usersModal');
-    if (!(usersModalEl instanceof HTMLElement)) {
-      return;
-    }
-
-    usersModalEl.addEventListener('shown.bs.modal', () => {
-      const container = usersModalEl.querySelector('[data-auth-management]');
-      if (!(container instanceof HTMLElement) || !window.AuthManagement) {
-        console.error('Модуль управления доступом недоступен.');
-        return;
-      }
-      if (!container.__authManager) {
-        container.__authManager = window.AuthManagement.mount(container);
-      } else {
-        container.__authManager.refresh();
-      }
-    });
-
-    usersModalEl.addEventListener('hidden.bs.modal', () => {
-      const container = usersModalEl.querySelector('[data-auth-management]');
-      const manager = container && container.__authManager;
-      if (manager) {
-        manager.resetPasswords();
-        manager.clearMessage();
-      }
     });
   }
 
@@ -501,37 +473,6 @@
       const fn = window[fnName];
       if (typeof fn === 'function') {
         fn();
-      }
-    });
-  }
-
-  function initLocationsModalShell() {
-    const locationsModalEl = document.querySelector('[data-settings-locations-modal]')
-      || document.getElementById('locationsModal');
-    if (!(locationsModalEl instanceof HTMLElement)) {
-      return;
-    }
-
-    locationsModalEl.addEventListener('shown.bs.modal', () => {
-      if (typeof window.renderLocationsIikoServerSourcesEditor === 'function') {
-        window.renderLocationsIikoServerSourcesEditor();
-      }
-      if (typeof window.renderLocationsIikoSyncSettings === 'function') {
-        window.renderLocationsIikoSyncSettings();
-      }
-      if (typeof window.loadLocationsSyncStatus === 'function') {
-        window.loadLocationsSyncStatus().then((status) => {
-          const running = Boolean(status && (status.running || String(status.state || '').toLowerCase() === 'running'));
-          if (running && typeof window.startLocationsSyncStatusPolling === 'function') {
-            window.startLocationsSyncStatusPolling();
-          }
-        });
-      }
-    });
-
-    locationsModalEl.addEventListener('hidden.bs.modal', () => {
-      if (typeof window.stopLocationsSyncStatusPolling === 'function') {
-        window.stopLocationsSyncStatusPolling();
       }
     });
   }

@@ -2130,7 +2130,7 @@
 
     <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3 settings-tiles">
       <div class="col" th:if="${canManageChannels}">
-        <div class="card settings-tile h-100" role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#channelsModal">
+        <div class="card settings-tile h-100" role="button" tabindex="0" data-settings-tile data-settings-tile-target="channelsModal" data-bs-toggle="modal" data-bs-target="#channelsModal">
           <div class="card-body">
             <div class="settings-tile__head">
               <div class="settings-tile__lead">
@@ -2151,7 +2151,7 @@
       </div>
 
       <div class="col" th:if="${canManageUsers}">
-        <div class="card settings-tile h-100" role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#managerBindingsModal">
+        <div class="card settings-tile h-100" role="button" tabindex="0" data-settings-tile data-settings-tile-target="managerBindingsModal" data-bs-toggle="modal" data-bs-target="#managerBindingsModal">
           <div class="card-body">
             <div class="settings-tile__head">
               <div class="settings-tile__lead">
@@ -2171,7 +2171,7 @@
       </div>
 
       <div class="col">
-        <div class="card settings-tile h-100" role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#reportingModal">
+        <div class="card settings-tile h-100" role="button" tabindex="0" data-settings-tile data-settings-tile-target="reportingModal" data-bs-toggle="modal" data-bs-target="#reportingModal">
           <div class="card-body">
             <div class="settings-tile__head">
               <div class="settings-tile__lead">
@@ -2191,7 +2191,7 @@
       </div>
 
       <div class="col">
-        <div class="card settings-tile h-100" role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#panelDesignSettingsModal">
+        <div class="card settings-tile h-100" role="button" tabindex="0" data-settings-tile data-settings-tile-target="panelDesignSettingsModal" data-bs-toggle="modal" data-bs-target="#panelDesignSettingsModal">
           <div class="card-body">
             <div class="settings-tile__head">
               <div class="settings-tile__lead">
@@ -2212,7 +2212,7 @@
       </div>
 
       <div class="col">
-        <div class="card settings-tile settings-tile--accent h-100" role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#categoriesModal">
+        <div class="card settings-tile settings-tile--accent h-100" role="button" tabindex="0" data-settings-tile data-settings-tile-target="categoriesModal" data-bs-toggle="modal" data-bs-target="#categoriesModal">
           <div class="card-body">
             <div class="settings-tile__head">
               <div class="settings-tile__lead">
@@ -2232,7 +2232,7 @@
       </div>
 
       <div class="col">
-        <div class="card settings-tile settings-tile--accent h-100" role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#parametersModal">
+        <div class="card settings-tile settings-tile--accent h-100" role="button" tabindex="0" data-settings-tile data-settings-tile-target="parametersModal" data-bs-toggle="modal" data-bs-target="#parametersModal">
           <div class="card-body">
             <div class="settings-tile__head">
               <div class="settings-tile__lead">
@@ -2252,7 +2252,7 @@
       </div>
 
       <div class="col">
-        <div class="card settings-tile settings-tile--accent h-100" role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#itConnectionsModal">
+        <div class="card settings-tile settings-tile--accent h-100" role="button" tabindex="0" data-settings-tile data-settings-tile-target="itConnectionsModal" data-bs-toggle="modal" data-bs-target="#itConnectionsModal">
           <div class="card-body">
             <div class="settings-tile__head">
               <div class="settings-tile__lead">
@@ -2272,7 +2272,7 @@
       </div>
 
       <div class="col">
-        <div class="card settings-tile settings-tile--accent h-100" role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#usersModal">
+        <div class="card settings-tile settings-tile--accent h-100" role="button" tabindex="0" data-settings-tile data-settings-tile-target="usersModal" data-bs-toggle="modal" data-bs-target="#usersModal">
           <div class="card-body">
             <div class="settings-tile__head">
               <div class="settings-tile__lead">
@@ -2293,7 +2293,7 @@
       </div>
 
       <div class="col">
-        <div class="card settings-tile settings-tile--accent h-100" role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#locationsModal">
+        <div class="card settings-tile settings-tile--accent h-100" role="button" tabindex="0" data-settings-tile data-settings-tile-target="locationsModal" data-bs-toggle="modal" data-bs-target="#locationsModal">
           <div class="card-body">
             <div class="settings-tile__head">
               <div class="settings-tile__lead">
@@ -2314,7 +2314,7 @@
       </div>
 
       <div class="col">
-        <div class="card settings-tile settings-tile--accent h-100" role="button" tabindex="0" data-bs-toggle="modal" data-bs-target="#legalEntitiesModal">
+        <div class="card settings-tile settings-tile--accent h-100" role="button" tabindex="0" data-settings-tile data-settings-tile-target="legalEntitiesModal" data-bs-toggle="modal" data-bs-target="#legalEntitiesModal">
           <div class="card-body">
             <div class="settings-tile__head">
               <div class="settings-tile__lead">
@@ -2338,6 +2338,8 @@
           class="card settings-tile settings-tile--accent h-100"
           role="button"
           tabindex="0"
+          data-settings-tile
+          data-settings-tile-target="inputFormattingModal"
           data-bs-toggle="modal"
           data-bs-target="#inputFormattingModal"
         >
