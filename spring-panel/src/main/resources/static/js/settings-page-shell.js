@@ -485,28 +485,14 @@
   }
 
   function runSettingsDomainBootstrap() {
-    const bootstrapFns = [
-      'initClientStatuses',
-      'initBusinessStylesEditor',
-      'initAutoCloseTemplates',
-      'initDialogTemplates',
-      'initTimeMetricsControls',
-      'initDialogSlaControls',
-      'initWorkspaceGovernanceUtcTimestampFields',
-      'initExternalKpiUtcTimestampFields',
-      'initWorkspaceSingleModeControls',
-      'initWorkspaceExternalKpiDatamartContractPreview',
-      'bindAutoAssignRulesHelpers',
-      'initDialogStatusBadges',
-      'initLocationWizard',
-      'renderLocationsIikoServerSourcesEditor',
-      'renderLocationsIikoSyncSettings',
-      'loadLocationsSyncStatus',
-      'buildLocationsTree',
-      'initChannelsManagement',
-      'loadParameters',
-      'renderNetworkProfiles',
-    ];
+    const shellRoot = document.querySelector('[data-settings-page-shell]');
+    const bootstrapAttr = shellRoot instanceof HTMLElement
+      ? String(shellRoot.dataset.settingsBootstrap || '')
+      : '';
+    const bootstrapFns = bootstrapAttr
+      .split(',')
+      .map((fnName) => fnName.trim())
+      .filter(Boolean);
 
     bootstrapFns.forEach((fnName) => {
       const fn = window[fnName];
