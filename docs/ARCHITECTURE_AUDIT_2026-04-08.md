@@ -1737,3 +1737,15 @@ integration-сценария поверх users/settings runtime boundary всё
   projection drift вокруг operator action surfaces уже без самого
   `take/categories/spam` хвоста, но всё ещё с более тонкими post-action
   consumer refresh loops после repeated follow-up refresh.
+- этот хвост теперь тоже live-прикрыт отдельным сценарием в
+  `DialogQuickActionsIntegrationTest`: `take -> categories -> reply ->
+  first follow-up -> /api/dialogs + details + workspace reread ->
+  bell read-ack -> second follow-up`, так что runtime контракт на
+  сохранение `rawResponsible/categories`, повторный bell rearm и audit/event
+  trail больше не держится на косвенных lifecycle тестах.
+- заодно стало явным текущее разделение consumer semantics: reread через
+  `details/workspace` может обнулять row-level `unreadCount`, но не обязан
+  одновременно снимать panel bell unread, а `my_dialogs.unanswered` сейчас
+  может сохранять `waiting_operator` запись даже с `unreadCount=0`; значит
+  следующий узкий focus уже не в самих quick actions, а в осознанной
+  нормализации bucket-vs-bell semantics поверх repeated refresh loops.

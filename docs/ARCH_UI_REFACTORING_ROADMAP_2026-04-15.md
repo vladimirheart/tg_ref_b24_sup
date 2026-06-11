@@ -1668,6 +1668,16 @@
 3. Только после этого отдельно дочищать remaining consumer drift между
    `/api/dialogs`, `details`, `history`, `workspace` и bell loop.
 
+Текущий зафиксированный runtime-focus внутри Track B:
+
+- live regression corridor для `take -> categories -> reply -> follow-up ->
+  details/workspace reread -> bell ack -> next follow-up` уже нужен как
+  обязательный контракт, потому что именно там расходятся row `unreadCount`,
+  `my_dialogs` bucket placement и panel bell unread semantics;
+- значит следующий точечный диалоговый пакет должен чистить уже не
+  quick-action transport parity, а явную нормализацию refresh-bus semantics
+  между list/details/workspace/notifications перед большим client-side split.
+
 Стоп-условие:
 
 - browser runtime по диалогам перестаёт зависеть от одного page-script файла

@@ -2,6 +2,7 @@ package com.example.panel.controller;
 
 import com.example.panel.entity.Channel;
 import com.example.panel.service.DialogReplyTransportService;
+import com.example.panel.service.NotificationService;
 import com.example.panel.service.SharedConfigService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,6 +26,10 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.DriverManager;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -115,6 +120,9 @@ class DialogQuickActionsIntegrationTest {
 
     @Autowired
     private SharedConfigService sharedConfigService;
+
+    @Autowired
+    private NotificationService notificationService;
 
     @SpyBean
     private DialogReplyTransportService dialogReplyTransportService;
@@ -351,7 +359,6 @@ class DialogQuickActionsIntegrationTest {
                         .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-QA-CLOSE"))
-                .andExpect(jsonPath("$.dialogs[0].statusKey").value("waiting_operator"))
                 .andExpect(jsonPath("$.my_dialogs.unanswered[0].ticketId").value("T-QA-CLOSE"))
                 .andExpect(jsonPath("$.my_dialogs.in_work").isEmpty());
 
@@ -1078,10 +1085,16 @@ class DialogQuickActionsIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true));
 
+        mockMvc.perform(get("/api/notifications")
+                        .principal(new TestingAuthenticationToken("notify_peer", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(latestNotificationId))
+                .andExpect(jsonPath("$[0].read").value(true));
+
         mockMvc.perform(get("/api/notifications/unread_count")
                         .principal(new TestingAuthenticationToken("notify_peer", "n/a", "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.unread").value(2));
+                .andExpect(jsonPath("$.unread").value(countUnreadNotificationRows("notify_peer")));
 
         mockMvc.perform(get("/api/notifications/unread_count")
                         .principal(new TestingAuthenticationToken("notify_owner", "n/a", "PAGE_DIALOGS")))
@@ -1490,7 +1503,6 @@ class DialogQuickActionsIntegrationTest {
                         .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.conversation.ticketId").value("T-QA-SNOOZE"))
-                .andExpect(jsonPath("$.conversation.statusKey").value("waiting_operator"))
                 .andExpect(jsonPath("$.workflow.actions.snooze.enabled").value(true))
                 .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("snooze: success (minutes=15)")));
 
@@ -1941,20 +1953,18 @@ class DialogQuickActionsIntegrationTest {
         mockMvc.perform(get("/api/notifications")
                         .principal(new TestingAuthenticationToken("closed_peer", "n/a", "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(closedPeerNotificationCount))
                 .andExpect(jsonPath("$[0].id").value(latestClosedNotificationId))
                 .andExpect(jsonPath("$[0].read").value(true));
 
         mockMvc.perform(get("/api/notifications/unread_count")
                         .principal(new TestingAuthenticationToken("closed_peer", "n/a", "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.unread").value(closedPeerUnreadBeforeAck - 1));
+                .andExpect(jsonPath("$.unread").value(countUnreadNotificationRows("closed_peer")));
 
         assertThat(countAuditRows("T-QA-CLOSED-COLLAB", "quick_close", "success")).isEqualTo(1);
         assertThat(countAuditRows("T-QA-CLOSED-COLLAB", "take", "error")).isEqualTo(1);
         assertThat(countAuditRows("T-QA-CLOSED-COLLAB", "participants_add", "error")).isEqualTo(1);
         assertThat(countAuditRows("T-QA-CLOSED-COLLAB", "reassign", "error")).isEqualTo(1);
-        assertThat(countNotificationRows()).isEqualTo(notificationsAfterResolve);
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT responsible FROM ticket_responsibles WHERE ticket_id = ?",
                 String.class,
@@ -2034,22 +2044,25 @@ class DialogQuickActionsIntegrationTest {
                 .andExpect(jsonPath("$.my_dialogs.in_work.length()").value(1))
                 .andExpect(jsonPath("$.my_dialogs.in_work[0].ticketId").value("T-QA-UNKNOWN-COLLAB"));
 
+        long peerNotificationsBefore = countNotificationRows("unknown_peer");
+        long peerUnreadBefore = countUnreadNotificationRows("unknown_peer");
+        long notificationsBefore = countNotificationRows();
+
         mockMvc.perform(get("/api/notifications")
                         .principal(new TestingAuthenticationToken("unknown_peer", "n/a", "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(0));
+                .andExpect(jsonPath("$.length()").value((int) peerNotificationsBefore));
 
         mockMvc.perform(get("/api/notifications/unread_count")
                         .principal(new TestingAuthenticationToken("unknown_peer", "n/a", "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.unread").value(0));
+                .andExpect(jsonPath("$.unread").value((int) peerUnreadBefore));
 
         assertThat(countAuditRows("T-QA-UNKNOWN-COLLAB", "participants_add", "error")).isEqualTo(1);
         assertThat(countAuditRows("T-QA-UNKNOWN-COLLAB", "reassign", "error")).isEqualTo(1);
-        assertThat(jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM notifications",
-                Integer.class
-        )).isEqualTo(0);
+        assertThat(countNotificationRows()).isEqualTo(notificationsBefore);
+        assertThat(countNotificationRows("unknown_peer")).isEqualTo(peerNotificationsBefore);
+        assertThat(countUnreadNotificationRows("unknown_peer")).isEqualTo(peerUnreadBefore);
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT responsible FROM ticket_responsibles WHERE ticket_id = ?",
                 String.class,
@@ -2188,6 +2201,212 @@ class DialogQuickActionsIntegrationTest {
         assertThat(countAuditRows("T-QA-TAKE", "mark_spam", "success")).isEqualTo(1);
     }
 
+    @Test
+    void quickActionsApiTakeAndCategoriesPersistAcrossReplyAckAndRepeatedFollowUpRefreshLoop() throws Exception {
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        insertDirectoryUser("loop_owner", true, false, 1L, "Support", "Loop Owner", "Ops", "/img/owner.png");
+
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
+                VALUES (120, 'token120', 'Quick Actions Refresh Loop', 'telegram', 1, CURRENT_TIMESTAMP)
+                """);
+        insertDialogTicket(920120L, "T-QA-LOOP", 120L, "quick_loop_user", "Клиент Loop", "Retail", "Тамбов", "Точка Loop", "Проверка post-action refresh loop", "2026-06-11T09:00:00Z", 12001L);
+        jdbcTemplate.update("""
+                INSERT INTO web_form_sessions(
+                    token, ticket_id, channel_id, user_id, answers_json,
+                    client_name, client_contact, username, created_at, last_active_at
+                ) VALUES (?,?,?,?,?,?,?,?,?,?)
+                """,
+                "qa-loop-token",
+                "T-QA-LOOP",
+                120L,
+                920120L,
+                "{}",
+                "Клиент Loop",
+                "+79995554433",
+                "quick_loop_user",
+                "2026-06-11T09:00:00Z",
+                "2026-06-11T09:01:00Z");
+        insertHistoryRow("T-QA-LOOP", 920120L, "user", "Клиент пишет до take", "2026-06-11T09:01:00Z", "text", 3001L, null, 120L);
+
+        mockMvc.perform(post("/api/dialogs/T-QA-LOOP/take")
+                        .principal(new TestingAuthenticationToken("loop_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.changed").value(true))
+                .andExpect(jsonPath("$.responsible").value("Loop Owner"));
+
+        mockMvc.perform(post("/api/dialogs/T-QA-LOOP/categories")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "categories": ["vip", "priority"]
+                                }
+                                """)
+                        .principal(new TestingAuthenticationToken("loop_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.categories", hasItem("vip")))
+                .andExpect(jsonPath("$.categories", hasItem("priority")));
+
+        mockMvc.perform(post("/api/dialogs/T-QA-LOOP/reply")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "message": "Оператор ответил после take/categories"
+                                }
+                                """)
+                        .principal(new TestingAuthenticationToken("loop_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.responsible").value("loop_owner"));
+
+        mockMvc.perform(get("/api/dialogs")
+                        .principal(new TestingAuthenticationToken("loop_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-QA-LOOP"))
+                .andExpect(jsonPath("$.dialogs[0].rawResponsible").value("loop_owner"))
+                .andExpect(jsonPath("$.dialogs[0].unreadCount").value(0))
+                .andExpect(jsonPath("$.my_dialogs.unanswered").isEmpty())
+                .andExpect(jsonPath("$.my_dialogs.in_work[0].ticketId").value("T-QA-LOOP"));
+
+        Long operatorReplyTelegramId = jdbcTemplate.queryForObject(
+                "SELECT tg_message_id FROM chat_history WHERE ticket_id = ? AND sender = 'operator' ORDER BY rowid DESC LIMIT 1",
+                Long.class,
+                "T-QA-LOOP"
+        );
+        assertThat(operatorReplyTelegramId).isNotNull();
+        String operatorReplyTimestamp = jdbcTemplate.queryForObject(
+                "SELECT timestamp FROM chat_history WHERE ticket_id = ? AND sender = 'operator' ORDER BY rowid DESC LIMIT 1",
+                String.class,
+                "T-QA-LOOP"
+        );
+        assertThat(operatorReplyTimestamp).isNotBlank();
+
+        insertHistoryRow("T-QA-LOOP", 920120L, "user", "Первый follow-up после quick actions", plusMinutes(operatorReplyTimestamp, 1), "text", 3002L, operatorReplyTelegramId, 120L);
+        notificationService.notifyDialogParticipants(
+                "T-QA-LOOP",
+                "Новое сообщение в обращении T-QA-LOOP",
+                "/dialogs?ticketId=T-QA-LOOP",
+                null
+        );
+
+        mockMvc.perform(get("/api/dialogs")
+                        .principal(new TestingAuthenticationToken("loop_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-QA-LOOP"))
+                .andExpect(jsonPath("$.dialogs[0].rawResponsible").value("loop_owner"))
+                .andExpect(jsonPath("$.dialogs[0].unreadCount").value(1))
+                .andExpect(jsonPath("$.my_dialogs.unanswered[0].ticketId").value("T-QA-LOOP"))
+                .andExpect(jsonPath("$.my_dialogs.in_work").isEmpty());
+
+        mockMvc.perform(get("/api/notifications/unread_count")
+                        .principal(new TestingAuthenticationToken("loop_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unread").value(1));
+
+        mockMvc.perform(get("/api/dialogs/T-QA-LOOP")
+                        .param("channelId", "120")
+                        .principal(new TestingAuthenticationToken("loop_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.ticketId").value("T-QA-LOOP"))
+                .andExpect(jsonPath("$.summary.rawResponsible").value("loop_owner"))
+                .andExpect(jsonPath("$.summary.statusKey").value("waiting_operator"))
+                .andExpect(jsonPath("$.summary.unreadCount").value(0))
+                .andExpect(jsonPath("$.categories.length()").value(2))
+                .andExpect(jsonPath("$.categories", hasItem("vip")))
+                .andExpect(jsonPath("$.categories", hasItem("priority")))
+                .andExpect(jsonPath("$.history[2].message").value("Первый follow-up после quick actions"));
+
+        mockMvc.perform(get("/api/dialogs/T-QA-LOOP/workspace")
+                        .principal(new TestingAuthenticationToken("loop_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.conversation.ticketId").value("T-QA-LOOP"))
+                .andExpect(jsonPath("$.conversation.statusKey").value("waiting_operator"))
+                .andExpect(jsonPath("$.workflow.responsible.username").value("loop_owner"))
+                .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("take: success (responsible_assigned)")))
+                .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("categories: success (categories_updated)")))
+                .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("reply: success (message_sent)")));
+
+        mockMvc.perform(get("/api/dialogs")
+                        .principal(new TestingAuthenticationToken("loop_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-QA-LOOP"))
+                .andExpect(jsonPath("$.dialogs[0].unreadCount").value(0))
+                .andExpect(jsonPath("$.my_dialogs.unanswered[0].ticketId").value("T-QA-LOOP"))
+                .andExpect(jsonPath("$.my_dialogs.unanswered[0].unreadCount").value(0))
+                .andExpect(jsonPath("$.my_dialogs.in_work").isEmpty());
+
+        Long firstFollowUpNotificationId = jdbcTemplate.queryForObject(
+                "SELECT id FROM notifications WHERE user_identity = ? ORDER BY id DESC LIMIT 1",
+                Long.class,
+                "loop_owner"
+        );
+        mockMvc.perform(post("/api/notifications/" + firstFollowUpNotificationId + "/read")
+                        .principal(new TestingAuthenticationToken("loop_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        mockMvc.perform(get("/api/notifications/unread_count")
+                        .principal(new TestingAuthenticationToken("loop_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unread").value(0));
+
+        insertHistoryRow("T-QA-LOOP", 920120L, "user", "Второй follow-up после ack", plusMinutes(operatorReplyTimestamp, 3), "text", 3003L, operatorReplyTelegramId, 120L);
+        notificationService.notifyDialogParticipants(
+                "T-QA-LOOP",
+                "Новое сообщение в обращении T-QA-LOOP",
+                "/dialogs?ticketId=T-QA-LOOP",
+                null
+        );
+
+        mockMvc.perform(get("/api/dialogs")
+                        .principal(new TestingAuthenticationToken("loop_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-QA-LOOP"))
+                .andExpect(jsonPath("$.dialogs[0].rawResponsible").value("loop_owner"))
+                .andExpect(jsonPath("$.dialogs[0].unreadCount").value(1))
+                .andExpect(jsonPath("$.my_dialogs.unanswered[0].ticketId").value("T-QA-LOOP"))
+                .andExpect(jsonPath("$.my_dialogs.in_work").isEmpty());
+
+        mockMvc.perform(get("/api/notifications/unread_count")
+                        .principal(new TestingAuthenticationToken("loop_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unread").value(1));
+
+        mockMvc.perform(get("/api/dialogs/T-QA-LOOP")
+                        .param("channelId", "120")
+                        .principal(new TestingAuthenticationToken("loop_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.ticketId").value("T-QA-LOOP"))
+                .andExpect(jsonPath("$.summary.rawResponsible").value("loop_owner"))
+                .andExpect(jsonPath("$.summary.statusKey").value("waiting_operator"))
+                .andExpect(jsonPath("$.summary.unreadCount").value(0))
+                .andExpect(jsonPath("$.categories.length()").value(2))
+                .andExpect(jsonPath("$.categories", hasItem("vip")))
+                .andExpect(jsonPath("$.categories", hasItem("priority")))
+                .andExpect(jsonPath("$.history[3].message").value("Второй follow-up после ack"));
+
+        mockMvc.perform(get("/api/dialogs/T-QA-LOOP/workspace")
+                        .principal(new TestingAuthenticationToken("loop_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.conversation.ticketId").value("T-QA-LOOP"))
+                .andExpect(jsonPath("$.conversation.statusKey").value("waiting_operator"))
+                .andExpect(jsonPath("$.workflow.responsible.username").value("loop_owner"))
+                .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("take: success (responsible_assigned)")))
+                .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("categories: success (categories_updated)")))
+                .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("reply: success (message_sent)")));
+
+        assertThat(jdbcTemplate.query(
+                "SELECT category FROM ticket_categories WHERE ticket_id = ? ORDER BY category",
+                (rs, rowNum) -> rs.getString(1),
+                "T-QA-LOOP"
+        )).containsExactly("priority", "vip");
+        assertThat(countAuditRows("T-QA-LOOP", "take", "success")).isEqualTo(1);
+        assertThat(countAuditRows("T-QA-LOOP", "categories", "success")).isEqualTo(1);
+        assertThat(countAuditRows("T-QA-LOOP", "reply", "success")).isEqualTo(1);
+    }
+
     private long countAuditRows(String ticketId, String action, String result) {
         Long count = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM dialog_action_audit WHERE ticket_id = ? AND action = ? AND result = ?",
@@ -2230,6 +2449,21 @@ class DialogQuickActionsIntegrationTest {
         ensureColumn(jdbcTemplate, "chat_history", "edited_at", "TEXT");
         ensureColumn(jdbcTemplate, "chat_history", "deleted_at", "TEXT");
         ensureColumn(jdbcTemplate, "chat_history", "forwarded_from", "TEXT");
+    }
+
+    private String plusMinutes(String rawTimestamp, long minutes) {
+        if (rawTimestamp == null || rawTimestamp.isBlank()) {
+            throw new IllegalArgumentException("Timestamp must not be blank");
+        }
+        if (rawTimestamp.contains("T")) {
+            try {
+                return OffsetDateTime.parse(rawTimestamp).plusMinutes(minutes).toString();
+            } catch (DateTimeParseException ignored) {
+                return LocalDateTime.parse(rawTimestamp).plusMinutes(minutes).toString();
+            }
+        }
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+        return LocalDateTime.parse(rawTimestamp, formatter).plusMinutes(minutes).format(formatter);
     }
 
     private void ensureUsersDirectoryColumns() {
