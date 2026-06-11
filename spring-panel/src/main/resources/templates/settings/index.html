@@ -4887,7 +4887,7 @@
                     <h6 class="mb-1">Контактные данные контрагентов</h6>
                     <p class="small text-muted mb-0">Фиксируйте телефоны, e-mail и связь с юридическими лицами контрагентов.</p>
                   </div>
-                  <button class="btn btn-sm btn-success" type="button" data-partner-contact-add="partner">+ Добавить контакт</button>
+                  <button class="btn btn-sm btn-success" type="button" data-partner-contact-add="partner" data-settings-open-modal="partnerContactEditorModal" data-settings-action-callback="preparePartnerContactDraftSettingsTrigger">+ Добавить контакт</button>
                 </div>
                 <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3" data-partner-contacts-list></div>
                 <div class="card border-0 bg-light text-center py-5 d-none" data-partner-contacts-empty>
@@ -4909,7 +4909,7 @@
                     <h6 class="mb-1">Контакты франчайзи</h6>
                     <p class="small text-muted mb-0">Храните данные о франчайзи: телефоны, почту и ответственных лиц.</p>
                   </div>
-                  <button class="btn btn-sm btn-success" type="button" data-partner-contact-add="ka">+ Добавить контакт</button>
+                  <button class="btn btn-sm btn-success" type="button" data-partner-contact-add="ka" data-settings-open-modal="partnerContactEditorModal" data-settings-action-callback="preparePartnerContactDraftSettingsTrigger">+ Добавить контакт</button>
                 </div>
                 <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3" data-partner-contacts-list></div>
                 <div class="card border-0 bg-light text-center py-5 d-none" data-partner-contacts-empty>
@@ -4931,7 +4931,7 @@
                        th:if="${entry.key} != 'it_connection' and ${entry.key} != 'remote_access' and ${entry.key} != 'legal_entity'">
                     <div class="card shadow-sm parameter-card" th:attr="data-param-type=${entry.key}">
                       <div class="card-header d-flex justify-content-between align-items-center">
-                        <button type="button" class="btn btn-link flex-grow-1 text-start" data-param-toggle>
+                        <button type="button" class="btn btn-link flex-grow-1 text-start" data-param-toggle data-settings-open-modal="parameterItemsModal" data-settings-action-callback="prepareParameterSettingsTrigger">
                           <span th:text="${entry.value}">Параметр</span>
                         </button>
                         <span class="badge bg-secondary" data-param-count>0</span>
@@ -4949,7 +4949,7 @@
                       th:attr="data-city-count=${cities.size()}"
                     >
                       <div class="card-header d-flex justify-content-between align-items-center">
-                        <button type="button" class="btn btn-link flex-grow-1 text-start" data-city-toggle>
+                        <button type="button" class="btn btn-link flex-grow-1 text-start" data-city-toggle data-settings-open-modal="parameterItemsModal" data-settings-action-callback="prepareCityParameterSettingsTrigger">
                           Город
                         </button>
                         <span class="badge bg-secondary" th:text="${cities.size()}">0</span>
@@ -5909,7 +5909,7 @@
                         <span class="channels-quick-card__pill" data-channels-manage-summary="profiles-count">Профили не созданы</span>
                       </div>
                       <div class="channels-quick-card__actions">
-                        <button type="button" class="btn btn-outline-success" data-channels-network-profile-quick-add data-settings-open-collapse="channelsProfilesCollapse">Новый профиль</button>
+                        <button type="button" class="btn btn-outline-success" data-channels-network-profile-quick-add data-settings-open-collapse="channelsProfilesCollapse" data-settings-open-modal="integrationNetworkProfileEditorModal" data-settings-action-callback="prepareIntegrationNetworkProfileSettingsTrigger">Новый профиль</button>
                         <button type="button" class="btn btn-outline-secondary" data-settings-open-collapse="channelsProfilesCollapse">Открыть список</button>
                       </div>
                     </section>
@@ -7655,6 +7655,16 @@
   window.preparePartnerContactEditorSettingsTrigger = function preparePartnerContactEditorSettingsTrigger(trigger) {
     const card = trigger instanceof HTMLElement ? trigger.closest('[data-partner-contact-card]') : null;
     return preparePartnerContactEditor(card);
+  };
+
+  window.preparePartnerContactDraftSettingsTrigger = function preparePartnerContactDraftSettingsTrigger(trigger) {
+    const scope = trigger instanceof HTMLElement ? trigger.dataset.partnerContactAdd : null;
+    const initial = {};
+    if (scope) {
+      initial.contact_type = scope;
+    }
+    addPartnerContactDraft(initial);
+    return false;
   };
 
   function refreshPartnerContactPersonRow(row) {
@@ -10420,8 +10430,8 @@
     }
   }
 
-  function openParameterModal(type) {
-    if (!parameterModalEl) return;
+  function prepareParameterModal(type) {
+    if (!parameterModalEl) return false;
     parameterModalType = type;
     const titleEl = parameterModalEl.querySelector('[data-param-modal-title]');
     if (titleEl) {
@@ -10430,13 +10440,34 @@
       titleEl.textContent = `Параметры партнёров • ${label}`;
     }
     renderParameterModal(type);
-    window.SettingsPageShell.showModal(parameterModalEl);
+    return true;
   }
 
   renderParameters();
 
   window.resetParameterItemsSettingsModal = function resetParameterItemsSettingsModal() {
     parameterModalType = null;
+  };
+
+  window.prepareCityParameterSettingsTrigger = function prepareCityParameterSettingsTrigger() {
+    const cityCount = cityCardEl ? Number.parseInt(cityCardEl.dataset.cityCount || '0', 10) : 0;
+    if (Number.isFinite(cityCount) && cityCount > 10) {
+      return prepareParameterModal(CITY_PARAMETER_TYPE);
+    }
+    return false;
+  };
+
+  window.prepareParameterSettingsTrigger = function prepareParameterSettingsTrigger(trigger) {
+    const card = trigger instanceof HTMLElement ? trigger.closest('.parameter-card') : null;
+    if (!card) return false;
+    const type = card.dataset.paramType;
+    if (!type) return false;
+    if (card.dataset.hasMany === 'true') {
+      return prepareParameterModal(type);
+    }
+    card.classList.toggle('is-expanded');
+    renderParameterCard(type, { forceBody: true });
+    return false;
   };
 
   function findParameterContainer(element) {
@@ -10494,16 +10525,6 @@
           peopleToggleBtn.textContent = collapsedText;
         }
       }
-      return;
-    }
-    const partnerContactAddBtn = event.target.closest('[data-partner-contact-add]');
-    if (partnerContactAddBtn) {
-      const scope = partnerContactAddBtn.dataset.partnerContactAdd;
-      const initial = {};
-      if (scope) {
-        initial.contact_type = scope;
-      }
-      addPartnerContactDraft(initial);
       return;
     }
     const partnerContactActionBtn = event.target.closest('[data-partner-contact-action]');
@@ -10643,27 +10664,6 @@
           removeLegalEntityDraft(draftId);
         }
       }
-      return;
-    }
-    const cityToggle = event.target.closest('[data-city-toggle]');
-    if (cityToggle) {
-      if (Array.isArray(CITY_OPTIONS) && CITY_OPTIONS.length > 10) {
-        openParameterModal(CITY_PARAMETER_TYPE);
-      }
-      return;
-    }
-    const toggleBtn = event.target.closest('[data-param-toggle]');
-    if (toggleBtn) {
-      const card = toggleBtn.closest('.parameter-card');
-      if (!card) return;
-      const type = card.dataset.paramType;
-      if (!type) return;
-      if (card.dataset.hasMany === 'true') {
-        openParameterModal(type);
-        return;
-      }
-      card.classList.toggle('is-expanded');
-      renderParameterCard(type, { forceBody: true });
       return;
     }
     const actionEl = event.target.closest('[data-param-action]');
@@ -20656,7 +20656,6 @@
   const channelEditorNetworkProfileIdInput = document.getElementById('channelEditorNetworkProfileId');
   const integrationNetworkProfilesBody = document.getElementById('integrationNetworkProfilesBody');
   const integrationNetworkProfilesSaveBtn = document.querySelector('[data-integration-network-profiles-save]');
-  const integrationNetworkProfilesQuickAddBtn = document.querySelector('[data-channels-network-profile-quick-add]');
   const integrationNetworkProfilesProbeAllBtn = document.querySelector('[data-integration-network-profiles-probe-all]');
   const integrationNetworkProfilesStatusEl = document.getElementById('integrationNetworkProfilesStatus');
   const integrationNetworkProfileEditorModalEl = document.getElementById('integrationNetworkProfileEditorModal');
@@ -23576,11 +23575,6 @@
     botsNetworkProfileIdInput?.addEventListener('change', () => updateNetworkRouteSummary('bots'));
     channelEditorNetworkProfileIdInput?.addEventListener('change', () => updateNetworkRouteSummary('channel'));
     integrationNetworkSaveBtn?.addEventListener('click', saveIntegrationNetworkSettings);
-    integrationNetworkProfilesQuickAddBtn?.addEventListener('click', () => {
-      if (prepareIntegrationNetworkProfileEditor(null)) {
-        window.SettingsPageShell.showModal(integrationNetworkProfileEditorModalEl);
-      }
-    });
     integrationNetworkProfilesProbeAllBtn?.addEventListener('click', () => {
       probeIntegrationNetworkProfiles(getIntegrationNetworkProfileOptions(), { bulk: true });
     });
