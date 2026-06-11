@@ -7486,9 +7486,6 @@
   const partnerContactEditorActions = partnerContactEditorModalEl
     ? partnerContactEditorModalEl.querySelector('[data-partner-contact-editor-actions]')
     : null;
-  const partnerContactEditorModal = partnerContactEditorModalEl
-    ? window.SettingsPageShell.getModalInstance(partnerContactEditorModalEl)
-    : null;
 
   let partnerContactEditorState = null;
 
@@ -7640,7 +7637,7 @@
   }
 
   function openPartnerContactEditor(card) {
-    if (!partnerContactEditorModal || !card) return;
+    if (!partnerContactEditorModalEl || !card) return;
     const key = getPartnerContactCardKey(card);
     if (!key) return;
     partnerContactEditorState = { key };
@@ -7652,7 +7649,7 @@
       return;
     }
     updatePartnerContactEditorTitleByKey(key);
-    partnerContactEditorModal.show();
+    window.SettingsPageShell.showModal(partnerContactEditorModalEl);
   }
 
   function refreshPartnerContactPersonRow(row) {
@@ -9776,8 +9773,8 @@
       const key = partnerContactEditorState.key;
       setPartnerContactCardVisibility(key, false);
       const rendered = renderPartnerContactModalContentByKey(key);
-      if (!rendered && partnerContactEditorModal) {
-        partnerContactEditorModal.hide();
+      if (!rendered && partnerContactEditorModalEl) {
+        window.SettingsPageShell.hideModal(partnerContactEditorModalEl);
       } else {
         updatePartnerContactEditorTitleByKey(key);
       }
@@ -9811,8 +9808,8 @@
   };
 
   window.resetPartnerContactsSettingsModal = function resetPartnerContactsSettingsModal() {
-    if (partnerContactEditorModal) {
-      partnerContactEditorModal.hide();
+    if (partnerContactEditorModalEl) {
+      window.SettingsPageShell.hideModal(partnerContactEditorModalEl);
     }
     partnerContactDrafts = [];
     partnerContactDraftCounter = 0;
@@ -9874,7 +9871,7 @@
     partnerContactDrafts.push(draft);
     renderPartnerContacts();
     const key = getPartnerContactItemKey(draft);
-    if (partnerContactEditorModal && key) {
+    if (partnerContactEditorModalEl && key) {
       setTimeout(() => {
         const card = findPartnerContactCardByKey(key);
         if (card) {
@@ -10296,8 +10293,8 @@
       }
       syncParameterData((result && result.data) || parameterData);
       renderParameters({ forceBodies: true });
-      if (partnerContactEditorModal && partnerContactEditorModalEl && partnerContactEditorModalEl.contains(card)) {
-        partnerContactEditorModal.hide();
+      if (partnerContactEditorModalEl && partnerContactEditorModalEl.contains(card)) {
+        window.SettingsPageShell.hideModal(partnerContactEditorModalEl);
       }
     } catch (error) {
       const message = error && error.message ? error.message : error;
@@ -12214,9 +12211,6 @@
   const itConnectionValueInput = itConnectionAddModalEl
     ? itConnectionAddModalEl.querySelector('[data-it-connection-value-input]')
     : null;
-  const itConnectionAddModal = itConnectionAddModalEl
-    ? window.SettingsPageShell.getModalInstance(itConnectionAddModalEl)
-    : null;
 
   const itEquipmentAddModalEl = document.getElementById('itEquipmentAddModal');
   const itEquipmentAddForm = itEquipmentAddModalEl
@@ -12242,9 +12236,6 @@
     : null;
   const itEquipmentAddSubmitButton = itEquipmentAddForm
     ? itEquipmentAddForm.querySelector('button[type="submit"]')
-    : null;
-  const itEquipmentAddModal = itEquipmentAddModalEl
-    ? window.SettingsPageShell.getModalInstance(itEquipmentAddModalEl)
     : null;
 
   function populateItEquipmentAddOptions(selectedValues = {}) {
@@ -12420,8 +12411,8 @@
           itEquipmentItems.push(data.item);
         }
         renderItEquipmentTable();
-        if (itEquipmentAddModal) {
-          itEquipmentAddModal.hide();
+        if (itEquipmentAddModalEl) {
+          window.SettingsPageShell.hideModal(itEquipmentAddModalEl);
         }
       } catch (error) {
         showPopup('❌ ' + (error && error.message ? error.message : error));
@@ -12549,8 +12540,8 @@
         if (parameterModalEl && parameterModalType) {
           renderParameterModal(parameterModalType);
         }
-        if (itConnectionAddModal) {
-          itConnectionAddModal.hide();
+        if (itConnectionAddModalEl) {
+          window.SettingsPageShell.hideModal(itConnectionAddModalEl);
         }
         setTimeout(() => {
           if (!itConnectionsContainer) return;
@@ -15181,7 +15172,7 @@
   }
 
   const TYPE_OPTIONS = ['Корпоративная сеть', 'Партнёры-франчайзи'];
-  let locationWizardModal = null;
+  let locationWizardModalEl = null;
   let locationWizardInitialised = false;
   let locationWizardStep = 0;
   const locationWizardState = {
@@ -15469,18 +15460,18 @@
       showPopup('Такая запись уже существует в выбранной структуре.');
       return;
     }
-    if (locationWizardModal) {
-      locationWizardModal.hide();
+    if (locationWizardModalEl) {
+      window.SettingsPageShell.hideModal(locationWizardModalEl);
     }
   }
 
   function initLocationWizard() {
     if (locationWizardInitialised) return;
-    const wizardModalEl = document.getElementById('locationWizardModal');
-    if (!wizardModalEl) {
+    const wizardModal = document.getElementById('locationWizardModal');
+    if (!wizardModal) {
       return;
     }
-    locationWizardModal = window.SettingsPageShell.getModalInstance(wizardModalEl);
+    locationWizardModalEl = wizardModal;
     wizardBusinessSelect = document.getElementById('wizardBusinessSelect');
     wizardTypeSelect = document.getElementById('wizardTypeSelect');
     wizardCountrySelect = document.getElementById('wizardCountrySelect');
@@ -15591,7 +15582,7 @@
 
   async function openAddLocationWizard() {
     initLocationWizard();
-    if (!locationWizardModal) return;
+    if (!locationWizardModalEl) return;
     if (!parametersLoaded) {
       await loadParameters();
       populateWizardOptions();
@@ -15600,7 +15591,7 @@
     populateWizardOptions();
     showLocationWizardStep(0);
     updateWizardSummary();
-    locationWizardModal.show();
+    window.SettingsPageShell.showModal(locationWizardModalEl);
   }
 
   window.openAddLocationWizard = openAddLocationWizard;
