@@ -2669,7 +2669,7 @@
     </div>
 
     <!-- Пользователи -->
-    <div class="modal fade settings-primary-modal" id="usersModal" tabindex="-1" aria-labelledby="usersModalLabel" aria-hidden="true" data-settings-primary-modal data-settings-url-modal="users">
+    <div class="modal fade settings-primary-modal" id="usersModal" tabindex="-1" aria-labelledby="usersModalLabel" aria-hidden="true" data-settings-primary-modal data-settings-url-modal="users" data-settings-on-shown="mountAuthManagementSettingsModal" data-settings-on-hidden="resetAuthManagementSettingsModal">
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
@@ -4597,7 +4597,7 @@
     </div>
 
     <!-- Локации -->
-    <div class="modal fade settings-primary-modal" id="locationsModal" tabindex="-1" aria-labelledby="locationsModalLabel" aria-hidden="true" data-settings-primary-modal data-settings-locations-modal data-settings-url-modal="locations">
+    <div class="modal fade settings-primary-modal" id="locationsModal" tabindex="-1" aria-labelledby="locationsModalLabel" aria-hidden="true" data-settings-primary-modal data-settings-url-modal="locations" data-settings-on-shown="prepareLocationsSettingsModal" data-settings-on-hidden="resetLocationsSettingsModal">
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
@@ -14004,6 +14004,21 @@
     window.clearInterval(locationsSyncStatusPollTimer);
     locationsSyncStatusPollTimer = null;
   }
+
+  window.prepareLocationsSettingsModal = function prepareLocationsSettingsModal() {
+    renderLocationsIikoServerSourcesEditor();
+    renderLocationsIikoSyncSettings();
+    loadLocationsSyncStatus().then((status) => {
+      const running = Boolean(status && (status.running || String(status.state || '').toLowerCase() === 'running'));
+      if (running) {
+        startLocationsSyncStatusPolling();
+      }
+    });
+  };
+
+  window.resetLocationsSettingsModal = function resetLocationsSettingsModal() {
+    stopLocationsSyncStatusPolling();
+  };
 
   async function saveLocationsSyncSettingsOnly() {
     const response = await fetch('/settings', {
@@ -24072,6 +24087,26 @@
     const container = usersModalEl ? usersModalEl.querySelector('[data-auth-management]') : null;
     return container && container.__authManager ? container.__authManager : null;
   }
+  window.mountAuthManagementSettingsModal = function mountAuthManagementSettingsModal(modalEl) {
+    const container = modalEl instanceof HTMLElement ? modalEl.querySelector('[data-auth-management]') : null;
+    if (!(container instanceof HTMLElement) || !window.AuthManagement) {
+      console.error('Модуль управления доступом недоступен.');
+      return;
+    }
+    if (!container.__authManager) {
+      container.__authManager = window.AuthManagement.mount(container);
+    } else {
+      container.__authManager.refresh();
+    }
+  };
+  window.resetAuthManagementSettingsModal = function resetAuthManagementSettingsModal(modalEl) {
+    const container = modalEl instanceof HTMLElement ? modalEl.querySelector('[data-auth-management]') : null;
+    const manager = container && container.__authManager;
+    if (manager) {
+      manager.resetPasswords();
+      manager.clearMessage();
+    }
+  };
   function extractOrgPeopleOptions(state) {
     const users = Array.isArray(state?.users) ? state.users : [];
     const nodes = Array.isArray(state?.orgStructure?.nodes) ? state.orgStructure.nodes : [];

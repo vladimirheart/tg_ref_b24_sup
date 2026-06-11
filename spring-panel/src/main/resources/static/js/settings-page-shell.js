@@ -581,12 +581,10 @@
     initSettingsTileDescriptions();
     initSettingsBodyPortals();
     initSettingsPrimaryModals();
-    initAuthManagementModalShell();
     initParentChildSuspendShell();
     initSettingsModalLifecycleHooks();
     initSettingsModalDefaultTabs();
     runSettingsDomainBootstrap();
-    initLocationsModalShell();
     openRequestedSettingsModalFromUrl();
     if (typeof window.initReporting === 'function') {
       window.initReporting();
