@@ -5222,7 +5222,7 @@
                       </table>
                     </div>
                     <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mt-3">
-                      <button class="btn btn-sm btn-success" type="button" data-network-profiles-add>+ Добавить профиль</button>
+                      <button class="btn btn-sm btn-success" type="button" data-network-profiles-add data-settings-open-modal="networkProfileEditorModal" data-settings-action-callback="prepareNetworkProfileSettingsTrigger">+ Добавить профиль</button>
                       <button class="btn btn-sm btn-primary" type="button" data-network-profiles-save>
                         💾 Сохранить изменения
                       </button>
@@ -5983,7 +5983,7 @@
                               <p class="text-muted mb-0">Создайте именованные профили маршрутизации, чтобы потом выбирать их для проекта, подсистемы ботов и отдельных интеграций.</p>
                             </div>
                             <div class="d-flex gap-2 flex-wrap">
-                              <button type="button" class="btn btn-outline-success btn-sm" data-integration-network-profile-add>+ Добавить профиль</button>
+                              <button type="button" class="btn btn-outline-success btn-sm" data-integration-network-profile-add data-settings-open-modal="integrationNetworkProfileEditorModal" data-settings-action-callback="prepareIntegrationNetworkProfileSettingsTrigger">+ Добавить профиль</button>
                               <button type="button" class="btn btn-outline-secondary btn-sm" data-integration-network-profiles-probe-all>Проверить доступность</button>
                               <button type="button" class="btn btn-outline-primary btn-sm" data-integration-network-profiles-save>Сохранить профили</button>
                             </div>
@@ -11035,7 +11035,6 @@
 
   const networkProfilesBody = document.getElementById('networkProfilesBody');
   const networkProfilesSaveButton = document.querySelector('[data-network-profiles-save]');
-  const networkProfilesAddButton = document.querySelector('[data-network-profiles-add]');
   const networkProfileModalEl = document.getElementById('networkProfileEditorModal');
   const networkProfileForm = networkProfileModalEl ? networkProfileModalEl.querySelector('[data-network-profile-form]') : null;
   const networkProfileTitle = networkProfileModalEl ? networkProfileModalEl.querySelector('[data-network-profile-title]') : null;
@@ -11193,7 +11192,7 @@
     renderRestaurantIdInputs(ids.length ? ids : ['']);
   }
 
-  function openNetworkProfileModal(index) {
+  function prepareNetworkProfileModal(index) {
     const numericIndex = Number.isInteger(index) ? index : Number.parseInt(index, 10);
     const isEdit = Number.isInteger(numericIndex) && numericIndex >= 0 && numericIndex < networkProfilesData.length;
     networkProfileEditingIndex = isEdit ? numericIndex : null;
@@ -11205,10 +11204,13 @@
     if (networkProfileDeleteButton) {
       networkProfileDeleteButton.classList.toggle('d-none', !isEdit);
     }
-    if (networkProfileModalEl) {
-      window.SettingsPageShell.showModal(networkProfileModalEl);
-    }
+    return Boolean(networkProfileModalEl);
   }
+
+  window.prepareNetworkProfileSettingsTrigger = function prepareNetworkProfileSettingsTrigger(trigger) {
+    const indexValue = trigger instanceof HTMLElement ? trigger.dataset.networkProfileIndex : null;
+    return prepareNetworkProfileModal(indexValue);
+  };
 
   function renderNetworkProfiles() {
     if (!networkProfilesBody) return;
@@ -11233,7 +11235,7 @@
         <td data-usage-cell></td>
         <td class="text-nowrap">
           <div class="btn-group btn-group-sm">
-            <button class="btn btn-outline-primary" type="button" data-action="edit-profile">Открыть</button>
+            <button class="btn btn-outline-primary" type="button" data-action="edit-profile" data-network-profile-index="${index}" data-settings-open-modal="networkProfileEditorModal" data-settings-action-callback="prepareNetworkProfileSettingsTrigger">Открыть</button>
             <button class="btn btn-outline-danger" type="button" data-action="remove-profile">Удалить</button>
           </div>
         </td>
@@ -11319,10 +11321,6 @@
     }
   }
 
-  if (networkProfilesAddButton) {
-    networkProfilesAddButton.addEventListener('click', () => openNetworkProfileModal(null));
-  }
-
   if (networkProfilesBody) {
     networkProfilesBody.addEventListener('click', (event) => {
       const actionButton = event.target.closest('[data-action]');
@@ -11332,9 +11330,7 @@
       const index = Number.parseInt(row.dataset.index, 10);
       if (Number.isNaN(index)) return;
       const action = actionButton.dataset.action;
-      if (action === 'edit-profile') {
-        openNetworkProfileModal(index);
-      } else if (action === 'remove-profile') {
+      if (action === 'remove-profile') {
         if (confirm('Удалить профиль провайдера?')) {
           removeNetworkProfileRow(index);
         }
@@ -20660,7 +20656,6 @@
   const channelEditorNetworkProfileIdInput = document.getElementById('channelEditorNetworkProfileId');
   const integrationNetworkProfilesBody = document.getElementById('integrationNetworkProfilesBody');
   const integrationNetworkProfilesSaveBtn = document.querySelector('[data-integration-network-profiles-save]');
-  const integrationNetworkProfilesAddBtn = document.querySelector('[data-integration-network-profile-add]');
   const integrationNetworkProfilesQuickAddBtn = document.querySelector('[data-channels-network-profile-quick-add]');
   const integrationNetworkProfilesProbeAllBtn = document.querySelector('[data-integration-network-profiles-probe-all]');
   const integrationNetworkProfilesStatusEl = document.getElementById('integrationNetworkProfilesStatus');
@@ -21524,7 +21519,7 @@
         <td class="text-end">
           <div class="btn-group btn-group-sm">
             <button type="button" class="btn btn-outline-secondary" data-action="probe-integration-network-profile">Проверить</button>
-            <button type="button" class="btn btn-outline-primary" data-action="edit-integration-network-profile">Открыть</button>
+            <button type="button" class="btn btn-outline-primary" data-action="edit-integration-network-profile" data-integration-network-profile-index="${index}" data-settings-open-modal="integrationNetworkProfileEditorModal" data-settings-action-callback="prepareIntegrationNetworkProfileSettingsTrigger">Открыть</button>
             <button type="button" class="btn btn-outline-danger" data-action="remove-integration-network-profile">Удалить</button>
           </div>
         </td>
@@ -21553,7 +21548,7 @@
     toggleProxyCredentialFields('integration-profile');
   }
 
-  function openIntegrationNetworkProfileEditor(index) {
+  function prepareIntegrationNetworkProfileEditor(index) {
     const numericIndex = Number.isInteger(index) ? index : Number.parseInt(index, 10);
     const isEdit = Number.isInteger(numericIndex) && numericIndex >= 0 && numericIndex < integrationNetworkProfilesData.length;
     integrationNetworkProfileEditingIndex = isEdit ? numericIndex : null;
@@ -21564,10 +21559,13 @@
     if (integrationNetworkProfileDeleteBtn) {
       integrationNetworkProfileDeleteBtn.classList.toggle('d-none', !isEdit);
     }
-    if (integrationNetworkProfileEditorModalEl) {
-      window.SettingsPageShell.showModal(integrationNetworkProfileEditorModalEl);
-    }
+    return Boolean(integrationNetworkProfileEditorModalEl);
   }
+
+  window.prepareIntegrationNetworkProfileSettingsTrigger = function prepareIntegrationNetworkProfileSettingsTrigger(trigger) {
+    const indexValue = trigger instanceof HTMLElement ? trigger.dataset.integrationNetworkProfileIndex : null;
+    return prepareIntegrationNetworkProfileEditor(indexValue);
+  };
 
   function toggleIntegrationNetworkProfileModeFields() {
     const mode = integrationNetworkProfileModeInput?.value === 'vpn' ? 'vpn' : 'proxy';
@@ -23578,9 +23576,10 @@
     botsNetworkProfileIdInput?.addEventListener('change', () => updateNetworkRouteSummary('bots'));
     channelEditorNetworkProfileIdInput?.addEventListener('change', () => updateNetworkRouteSummary('channel'));
     integrationNetworkSaveBtn?.addEventListener('click', saveIntegrationNetworkSettings);
-    integrationNetworkProfilesAddBtn?.addEventListener('click', () => openIntegrationNetworkProfileEditor(null));
     integrationNetworkProfilesQuickAddBtn?.addEventListener('click', () => {
-      openIntegrationNetworkProfileEditor(null);
+      if (prepareIntegrationNetworkProfileEditor(null)) {
+        window.SettingsPageShell.showModal(integrationNetworkProfileEditorModalEl);
+      }
     });
     integrationNetworkProfilesProbeAllBtn?.addEventListener('click', () => {
       probeIntegrationNetworkProfiles(getIntegrationNetworkProfileOptions(), { bulk: true });
@@ -23600,10 +23599,6 @@
         if (profile) {
           probeIntegrationNetworkProfiles([profile], { bulk: false, silent: true });
         }
-        return;
-      }
-      if (actionButton.dataset.action === 'edit-integration-network-profile') {
-        openIntegrationNetworkProfileEditor(index);
         return;
       }
       if (actionButton.dataset.action === 'remove-integration-network-profile') {
