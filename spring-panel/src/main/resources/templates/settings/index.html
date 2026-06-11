@@ -7652,11 +7652,6 @@
     return true;
   }
 
-  function openPartnerContactEditor(card) {
-    if (!preparePartnerContactEditor(card)) return;
-    window.SettingsPageShell.showModal(partnerContactEditorModalEl);
-  }
-
   window.preparePartnerContactEditorSettingsTrigger = function preparePartnerContactEditorSettingsTrigger(trigger) {
     const card = trigger instanceof HTMLElement ? trigger.closest('[data-partner-contact-card]') : null;
     return preparePartnerContactEditor(card);
@@ -9884,8 +9879,8 @@
     if (partnerContactEditorModalEl && key) {
       setTimeout(() => {
         const card = findPartnerContactCardByKey(key);
-        if (card) {
-          openPartnerContactEditor(card);
+        if (card && preparePartnerContactEditor(card)) {
+          window.SettingsPageShell.showModal(partnerContactEditorModalEl);
         }
       }, 0);
     }
@@ -15584,16 +15579,6 @@
     updateWizardSummary();
     return true;
   };
-
-  async function openAddLocationWizard() {
-    const prepared = await window.prepareLocationWizardSettingsTrigger();
-    if (prepared === false || !locationWizardModalEl) {
-      return;
-    }
-    window.SettingsPageShell.showModal(locationWizardModalEl);
-  }
-
-  window.openAddLocationWizard = openAddLocationWizard;
 
   function generateDialogTemplateId(prefix) {
     const randomPart = Math.random().toString(36).slice(2, 8);
