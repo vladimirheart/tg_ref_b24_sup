@@ -20690,7 +20690,6 @@
   const integrationNetworkProfilesProbeAllBtn = document.querySelector('[data-integration-network-profiles-probe-all]');
   const integrationNetworkProfilesStatusEl = document.getElementById('integrationNetworkProfilesStatus');
   const integrationNetworkProfileEditorModalEl = document.getElementById('integrationNetworkProfileEditorModal');
-  const integrationNetworkProfileEditorModal = integrationNetworkProfileEditorModalEl ? window.SettingsPageShell.getModalInstance(integrationNetworkProfileEditorModalEl) : null;
   const integrationNetworkProfileForm = integrationNetworkProfileEditorModalEl ? integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-form]') : null;
   const integrationNetworkProfileTitleEl = integrationNetworkProfileEditorModalEl ? integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-title]') : null;
   const integrationNetworkProfileDeleteBtn = integrationNetworkProfileEditorModalEl ? integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-delete]') : null;
@@ -23686,14 +23685,14 @@
       }
       renderIntegrationNetworkProfilesTable();
       resetMissingIntegrationNetworkProfileSelections();
-      integrationNetworkProfileEditorModal?.hide();
+      window.SettingsPageShell.hideModal(integrationNetworkProfileEditorModalEl);
     });
     integrationNetworkProfileDeleteBtn?.addEventListener('click', () => {
       if (!Number.isInteger(integrationNetworkProfileEditingIndex)) return;
       integrationNetworkProfilesData.splice(integrationNetworkProfileEditingIndex, 1);
       renderIntegrationNetworkProfilesTable();
       resetMissingIntegrationNetworkProfileSelections();
-      integrationNetworkProfileEditorModal?.hide();
+      window.SettingsPageShell.hideModal(integrationNetworkProfileEditorModalEl);
     });
     window.resetIntegrationNetworkProfileSettingsModal = function resetIntegrationNetworkProfileSettingsModal() {
       integrationNetworkProfileEditingIndex = null;
