@@ -1709,6 +1709,12 @@ integration-сценария поверх users/settings runtime boundary всё
   доступным в row menu, details view, workspace header и обходных client-paths
   вроде macro workflow / shortcut-trigger, то есть UI больше не зовёт action,
   который runtime уже считает `closed_dialog`.
+- следующим более широким client-side пакетом `dialogs.js` начал опираться не
+  только на `permissions/status`, но и на `workspace.workflow.actions`:
+  workspace header, details actions, category editor и collaboration modals
+  (`reassign`, `participants_add/remove`) теперь учитывают explicit
+  `enabled/disabled_reason`, candidate lists и closed/open state из runtime
+  контракта, а не пересобирают эти правила локальными эвристиками.
 - write-side mutation parity собрана в один закрытый runtime блок:
   transport и `web_form` ветки для `reply -> edit -> delete` и `reply_media`
   подтверждены на `details/history/workspace/list`, включая

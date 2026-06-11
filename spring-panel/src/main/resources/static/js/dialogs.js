@@ -799,6 +799,82 @@
     return OPERATOR_PERMISSIONS[permissionKey] !== false;
   }
 
+  function resolveWorkspaceContractTicketId(ticketId = null) {
+    const requestedTicketId = String(ticketId || activeDialogTicketId || activeWorkspaceTicketId || '').trim();
+    const payloadTicketId = String(activeWorkspacePayload?.conversation?.ticketId || activeWorkspaceTicketId || '').trim();
+    if (!requestedTicketId || !payloadTicketId || requestedTicketId !== payloadTicketId) {
+      return null;
+    }
+    return payloadTicketId;
+  }
+
+  function getWorkspaceActionGuard(actionKey, ticketId = null) {
+    if (!actionKey) return null;
+    const contractTicketId = resolveWorkspaceContractTicketId(ticketId);
+    if (!contractTicketId) return null;
+    const actions = activeWorkspacePayload?.workflow?.actions;
+    if (!actions || typeof actions !== 'object') return null;
+    const guard = actions[actionKey];
+    return guard && typeof guard === 'object' ? guard : null;
+  }
+
+  function isWorkspaceActionEnabled(actionKey, fallbackEnabled, ticketId = null) {
+    const guard = getWorkspaceActionGuard(actionKey, ticketId);
+    return typeof guard?.enabled === 'boolean' ? guard.enabled === true : Boolean(fallbackEnabled);
+  }
+
+  function getWorkspaceWorkflowCollection(key, ticketId = null) {
+    if (!key) return null;
+    const contractTicketId = resolveWorkspaceContractTicketId(ticketId);
+    if (!contractTicketId) return null;
+    const value = activeWorkspacePayload?.workflow?.[key];
+    return Array.isArray(value) ? value : null;
+  }
+
+  function resolveWorkspaceActionBlockedMessage(actionTitle, disabledReason) {
+    switch (String(disabledReason || '').trim()) {
+      case 'already_assigned_to_operator':
+        return 'Диалог уже назначен на вас.';
+      case 'closed_dialog':
+        return actionTitle === 'Взять себе'
+          ? 'Взять в работу можно только открытый диалог.'
+          : actionTitle === 'Отложить'
+            ? 'Отложить можно только открытый диалог.'
+            : `Действие «${actionTitle}» доступно только для открытого диалога.`;
+      case 'already_closed':
+        return 'Диалог уже закрыт.';
+      case 'not_closed':
+        return 'Диалог ещё не закрыт.';
+      case 'no_reassign_candidates':
+        return 'Подходящих пользователей для передачи сейчас нет.';
+      case 'no_participant_candidates':
+        return 'Свободных пользователей для добавления сейчас нет.';
+      case 'no_participants':
+        return 'В диалоге нет участников для удаления.';
+      default:
+        return '';
+    }
+  }
+
+  function notifyActionBlocked(actionKey, actionTitle, options = {}) {
+    const permissionKey = options.permissionKey || null;
+    if (permissionKey && !canRunAction(permissionKey)) {
+      notifyPermissionDenied(actionTitle);
+      return true;
+    }
+    const guard = getWorkspaceActionGuard(actionKey, options.ticketId);
+    if (guard?.enabled === false) {
+      const message = resolveWorkspaceActionBlockedMessage(actionTitle, guard.disabled_reason);
+      if (message && typeof showNotification === 'function') {
+        showNotification(message, 'warning');
+      } else {
+        notifyPermissionDenied(actionTitle);
+      }
+      return true;
+    }
+    return false;
+  }
+
 
   function resolveWorkspaceRolloutBannerClass(tone) {
     switch (String(tone || '').toLowerCase()) {
@@ -2495,7 +2571,11 @@
     }
     if (participantsCurrentList) {
       participantsCurrentList.innerHTML = participants.map((participant) => renderParticipantCard(participant, {
-        removable: canRunAction('can_assign'),
+        removable: isWorkspaceActionEnabled(
+          'participants_remove',
+          canRunAction('can_assign'),
+          activeDialogTicketId
+        ),
         removeLabel: 'Убрать',
       })).join('');
       participantsCurrentList.classList.toggle('d-none', participants.length === 0);
@@ -2518,7 +2598,8 @@
 
   function syncParticipantsSelectOptions() {
     if (!participantsSelect) return;
-    const operators = Array.isArray(dialogAssignableOperators) ? dialogAssignableOperators : [];
+    const workspaceCandidates = getWorkspaceWorkflowCollection('participant_candidates', activeDialogTicketId);
+    const operators = Array.isArray(workspaceCandidates) ? workspaceCandidates : (Array.isArray(dialogAssignableOperators) ? dialogAssignableOperators : []);
     const participantIds = new Set((Array.isArray(dialogParticipantsState) ? dialogParticipantsState : []).map((item) => normalizeIdentity(item?.username)));
     const currentResponsible = normalizeIdentity(activeDialogResponsibleRaw);
     const availableOperators = operators.filter((item) => {
@@ -2538,20 +2619,33 @@
       option.textContent = buildOperatorOptionLabel(operator);
       participantsSelect.appendChild(option);
     });
-    participantsSelect.disabled = availableOperators.length === 0 || !canRunAction('can_assign');
+    const canAddParticipants = isWorkspaceActionEnabled(
+      'participants_add',
+      availableOperators.length > 0 && canRunAction('can_assign'),
+      activeDialogTicketId
+    );
+    participantsSelect.disabled = availableOperators.length === 0 || !canAddParticipants;
     if (participantsAddBtn) {
-      participantsAddBtn.disabled = availableOperators.length === 0 || !canRunAction('can_assign');
+      participantsAddBtn.disabled = availableOperators.length === 0 || !canAddParticipants;
     }
     if (participantsSelectHint) {
-      participantsSelectHint.textContent = availableOperators.length
-        ? 'Ответственный не отображается в списке: он уже подключён к диалогу автоматически.'
-        : 'Свободных пользователей для добавления сейчас нет.';
+      const guard = getWorkspaceActionGuard('participants_add', activeDialogTicketId);
+      if (!canAddParticipants && guard?.disabled_reason === 'closed_dialog') {
+        participantsSelectHint.textContent = 'К закрытому диалогу нельзя добавлять новых участников.';
+      } else if (!canAddParticipants && guard?.disabled_reason === 'no_participant_candidates') {
+        participantsSelectHint.textContent = 'Свободных пользователей для добавления сейчас нет.';
+      } else {
+        participantsSelectHint.textContent = availableOperators.length
+          ? 'Ответственный не отображается в списке: он уже подключён к диалогу автоматически.'
+          : 'Свободных пользователей для добавления сейчас нет.';
+      }
     }
   }
 
   function syncReassignSelectOptions() {
     if (!reassignSelect) return;
-    const operators = Array.isArray(dialogAssignableOperators) ? dialogAssignableOperators : [];
+    const workspaceCandidates = getWorkspaceWorkflowCollection('reassign_candidates', activeDialogTicketId);
+    const operators = Array.isArray(workspaceCandidates) ? workspaceCandidates : (Array.isArray(dialogAssignableOperators) ? dialogAssignableOperators : []);
     const currentResponsible = normalizeIdentity(activeDialogResponsibleRaw);
     const availableOperators = operators.filter((item) => {
       const username = normalizeIdentity(item?.username);
@@ -2568,14 +2662,26 @@
       option.textContent = buildOperatorOptionLabel(operator);
       reassignSelect.appendChild(option);
     });
-    reassignSelect.disabled = availableOperators.length === 0 || !canRunAction('can_assign');
+    const canReassign = isWorkspaceActionEnabled(
+      'reassign',
+      availableOperators.length > 0 && canRunAction('can_assign'),
+      activeDialogTicketId
+    );
+    reassignSelect.disabled = availableOperators.length === 0 || !canReassign;
     if (reassignSubmit) {
-      reassignSubmit.disabled = availableOperators.length === 0 || !canRunAction('can_assign');
+      reassignSubmit.disabled = availableOperators.length === 0 || !canReassign;
     }
     if (reassignHint) {
-      reassignHint.textContent = availableOperators.length
-        ? 'Если пользователь уже был участником диалога, после передачи он станет только ответственным.'
-        : 'Подходящих пользователей для переадресации не найдено.';
+      const guard = getWorkspaceActionGuard('reassign', activeDialogTicketId);
+      if (!canReassign && guard?.disabled_reason === 'closed_dialog') {
+        reassignHint.textContent = 'Переадресовать можно только открытый диалог.';
+      } else if (!canReassign && guard?.disabled_reason === 'no_reassign_candidates') {
+        reassignHint.textContent = 'Подходящих пользователей для переадресации не найдено.';
+      } else {
+        reassignHint.textContent = availableOperators.length
+          ? 'Если пользователь уже был участником диалога, после передачи он станет только ответственным.'
+          : 'Подходящих пользователей для переадресации не найдено.';
+      }
     }
   }
 
@@ -2626,8 +2732,15 @@
 
   async function openParticipantsManager() {
     if (!activeDialogTicketId) return;
-    if (!canRunAction('can_assign')) {
-      notifyPermissionDenied('Участники');
+    const canAddParticipants = isWorkspaceActionEnabled('participants_add', canRunAction('can_assign'), activeDialogTicketId);
+    const canRemoveParticipants = isWorkspaceActionEnabled('participants_remove', canRunAction('can_assign'), activeDialogTicketId);
+    if (!canAddParticipants && !canRemoveParticipants) {
+      if (notifyActionBlocked('participants_add', 'Участники', { ticketId: activeDialogTicketId, permissionKey: 'can_assign' })) {
+        return;
+      }
+      if (notifyActionBlocked('participants_remove', 'Участники', { ticketId: activeDialogTicketId, permissionKey: 'can_assign' })) {
+        return;
+      }
       return;
     }
     if (participantsMeta) {
@@ -2648,8 +2761,7 @@
 
   async function openReassignDialog() {
     if (!activeDialogTicketId) return;
-    if (!canRunAction('can_assign')) {
-      notifyPermissionDenied('Передать');
+    if (notifyActionBlocked('reassign', 'Передать', { ticketId: activeDialogTicketId, permissionKey: 'can_assign' })) {
       return;
     }
     if (reassignMeta) {
@@ -2668,11 +2780,18 @@
   }
 
   function syncDialogAssignControls() {
-    const enabled = canRunAction('can_assign');
-    [detailsParticipantsBtn, detailsReassignBtn, detailsParticipantsManageBtn].forEach((button) => {
+    const reassignEnabled = isWorkspaceActionEnabled('reassign', canRunAction('can_assign'), activeDialogTicketId);
+    const participantAddEnabled = isWorkspaceActionEnabled('participants_add', canRunAction('can_assign'), activeDialogTicketId);
+    const participantRemoveEnabled = isWorkspaceActionEnabled('participants_remove', canRunAction('can_assign'), activeDialogTicketId);
+    const participantsEnabled = participantAddEnabled || participantRemoveEnabled;
+    if (detailsReassignBtn) {
+      detailsReassignBtn.classList.toggle('d-none', !reassignEnabled);
+      detailsReassignBtn.disabled = !reassignEnabled;
+    }
+    [detailsParticipantsBtn, detailsParticipantsManageBtn].forEach((button) => {
       if (!button) return;
-      button.classList.toggle('d-none', !enabled);
-      button.disabled = !enabled;
+      button.classList.toggle('d-none', !participantsEnabled);
+      button.disabled = !participantsEnabled;
     });
   }
 
@@ -4544,6 +4663,11 @@
 
   function renderWorkspaceCategories() {
     if (!workspaceCategoriesList || !workspaceCategoriesState) return;
+    const categoriesEnabled = isWorkspaceActionEnabled(
+      'categories',
+      canRunAction('can_close'),
+      activeWorkspaceTicketId || activeDialogTicketId
+    );
     const templateCategories = DIALOG_TEMPLATES.categoryTemplates
       .flatMap((template) => Array.isArray(template?.categories) ? template.categories : [])
       .map((item) => String(item || '').trim())
@@ -4557,14 +4681,19 @@
       return;
     }
     workspaceCategoriesState.classList.remove('d-none');
-    workspaceCategoriesState.textContent = selectedCategories.size > 0
-      ? `Выбрано: ${selectedCategories.size}. Изменения сохраняются автоматически.`
-      : 'Выберите хотя бы одну категорию для закрытия диалога.';
+    workspaceCategoriesState.textContent = !categoriesEnabled
+      ? 'Изменение категорий недоступно для текущего диалога.'
+      : (selectedCategories.size > 0
+        ? `Выбрано: ${selectedCategories.size}. Изменения сохраняются автоматически.`
+        : 'Выберите хотя бы одну категорию для закрытия диалога.');
     workspaceCategoriesList.classList.remove('d-none');
     workspaceCategoriesList.innerHTML = ordered.map((category) => {
       const selected = selectedCategories.has(category);
-      return `<button class="badge rounded-pill text-bg-light border dialog-category-badge ${selected ? 'is-selected' : ''}" type="button" data-category-value="${escapeHtml(category)}">${escapeHtml(category)}</button>`;
+      return `<button class="badge rounded-pill text-bg-light border dialog-category-badge ${selected ? 'is-selected' : ''}" type="button" data-category-value="${escapeHtml(category)}" ${categoriesEnabled ? '' : 'disabled'}>${escapeHtml(category)}</button>`;
     }).join('');
+    if (workspaceCategoriesClear) {
+      workspaceCategoriesClear.disabled = !categoriesEnabled;
+    }
   }
 
   function updateWorkspaceActionButtons(conversation, permissions) {
@@ -4573,27 +4702,46 @@
     const statusLabel = conversation?.statusLabel || '';
     const resolved = isResolvedStatus(statusRaw, statusKey, statusLabel);
     const responsible = String(conversation?.responsible || '').trim();
-    const canTakeOwnership = canTakeDialogOwnership(responsible, resolved);
+    const ticketId = conversation?.ticketId || activeWorkspaceTicketId;
+    const takeEnabled = isWorkspaceActionEnabled(
+      'take',
+      canTakeDialogOwnership(responsible, resolved),
+      ticketId
+    );
     const canAssign = permissions?.can_assign === true && !workspaceReadonlyMode;
     const canClose = permissions?.can_close === true && !workspaceReadonlyMode;
-    const canSnooze = permissions?.can_snooze === true && !workspaceReadonlyMode;
+    const canSnooze = isWorkspaceActionEnabled(
+      'snooze',
+      permissions?.can_snooze === true && !workspaceReadonlyMode && !resolved,
+      ticketId
+    );
+    const canResolve = isWorkspaceActionEnabled(
+      'resolve',
+      canClose && !resolved,
+      ticketId
+    );
+    const canReopen = isWorkspaceActionEnabled(
+      'reopen',
+      canClose && resolved,
+      ticketId
+    );
 
     if (workspaceAssignBtn) {
-      workspaceAssignBtn.disabled = !canAssign || !canTakeOwnership;
-      workspaceAssignBtn.classList.toggle('d-none', !canAssign || !canTakeOwnership);
+      workspaceAssignBtn.disabled = !canAssign || !takeEnabled;
+      workspaceAssignBtn.classList.toggle('d-none', !canAssign || !takeEnabled);
     }
     if (workspaceSnoozeBtn) {
-      workspaceSnoozeBtn.disabled = !canSnooze || resolved;
-      workspaceSnoozeBtn.classList.toggle('d-none', !canSnooze || resolved);
+      workspaceSnoozeBtn.disabled = !canSnooze;
+      workspaceSnoozeBtn.classList.toggle('d-none', !canSnooze);
       workspaceSnoozeBtn.textContent = formatSnoozeActionLabel(QUICK_SNOOZE_MINUTES);
     }
     if (workspaceResolveBtn) {
-      workspaceResolveBtn.disabled = !canClose || resolved;
-      workspaceResolveBtn.classList.toggle('d-none', !canClose || resolved);
+      workspaceResolveBtn.disabled = !canResolve;
+      workspaceResolveBtn.classList.toggle('d-none', !canResolve);
     }
     if (workspaceReopenBtn) {
-      workspaceReopenBtn.disabled = !canClose || !resolved;
-      workspaceReopenBtn.classList.toggle('d-none', !resolved);
+      workspaceReopenBtn.disabled = !canReopen;
+      workspaceReopenBtn.classList.toggle('d-none', !canReopen);
     }
     const rollout = payload?.meta?.rollout || {};
     renderWorkspaceRolloutBanner(rollout);
@@ -7360,6 +7508,9 @@
 
   function openCategoryPanel() {
     if (!categoryTemplatesSection || categoryTemplatesSection.classList.contains('d-none')) return;
+    if (notifyActionBlocked('categories', 'Категории', { ticketId: activeDialogTicketId || activeWorkspaceTicketId, permissionKey: 'can_close' })) {
+      return;
+    }
     if (detailsModalEl?.classList.contains('show') && activeDialogTicketId) {
       detailsCategoryModalState.suppressDetailsReset = true;
       detailsCategoryModalState.reopenAfterClose = true;
@@ -8042,18 +8193,43 @@
 
   function updateResolveButton(statusRaw) {
     if (!detailsResolve) return;
-    const resolved = String(statusRaw || '').toLowerCase() === 'resolved';
-    detailsResolve.disabled = resolved;
+    const currentStatus = String(statusRaw || activeDialogRow?.dataset?.statusRaw || activeDialogRow?.dataset?.status || '').trim();
+    const currentStatusKey = String(activeDialogRow?.dataset?.statusKey || '').trim();
+    const resolved = isResolvedStatus(currentStatus, currentStatusKey, '');
+    const canResolve = isWorkspaceActionEnabled(
+      'resolve',
+      canRunAction('can_close') && !resolved,
+      activeDialogTicketId
+    );
+    detailsResolve.disabled = !canResolve;
     detailsResolve.textContent = resolved ? 'Обращение закрыто' : 'Закрыть обращение';
     if (detailsSpam) {
       const clientUserId = String(detailsSpam.dataset.userId || '').trim();
-      const canMarkSpam = canRunAction('can_close') && !resolved;
+      const canMarkSpam = isWorkspaceActionEnabled(
+        'spam',
+        canRunAction('can_close') && !resolved,
+        activeDialogTicketId
+      );
       detailsSpam.disabled = !canMarkSpam || !clientUserId;
       detailsSpam.classList.toggle('d-none', !canMarkSpam);
     }
     if (detailsReopen) {
-      detailsReopen.disabled = !resolved;
-      detailsReopen.classList.toggle('d-none', !resolved);
+      const canReopen = isWorkspaceActionEnabled(
+        'reopen',
+        canRunAction('can_close') && resolved,
+        activeDialogTicketId
+      );
+      detailsReopen.disabled = !canReopen;
+      detailsReopen.classList.toggle('d-none', !canReopen);
+    }
+    if (detailsCategoriesBtn) {
+      const canEditCategories = isWorkspaceActionEnabled(
+        'categories',
+        canRunAction('can_close'),
+        activeDialogTicketId
+      );
+      detailsCategoriesBtn.disabled = !canEditCategories;
+      detailsCategoriesBtn.classList.toggle('d-none', !canEditCategories);
     }
   }
 
@@ -9574,6 +9750,9 @@
 
   if (workspaceCategoriesList) {
     workspaceCategoriesList.addEventListener('click', (event) => {
+      if (notifyActionBlocked('categories', 'Категории', { ticketId: activeWorkspaceTicketId || activeDialogTicketId, permissionKey: 'can_close' })) {
+        return;
+      }
       const badge = event.target.closest('[data-category-value]');
       if (!badge) return;
       const value = badge.dataset.categoryValue || '';
@@ -9592,6 +9771,9 @@
 
   if (workspaceCategoriesClear) {
     workspaceCategoriesClear.addEventListener('click', () => {
+      if (notifyActionBlocked('categories', 'Категории', { ticketId: activeWorkspaceTicketId || activeDialogTicketId, permissionKey: 'can_close' })) {
+        return;
+      }
       selectedCategories = new Set();
       syncCategorySelections();
       renderWorkspaceCategories();
