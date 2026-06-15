@@ -1549,6 +1549,15 @@
   фиксирует и тестовую оговорку: bell mass-ack нужно сверять с
   фактическим unread seed перед действием, иначе runtime contract легко
   замаскировать хрупким `updated=1` ожиданием.
+- следующий practical slice поверх этого же контура уже замыкает и
+  `public form -> operator dialogs` bridge: smoke-сценарии внешней формы
+  переведены на live `POST /take`, `POST /resolve` и `POST /reopen`, так
+  что quick-action boundary теперь проверяется не только внутри
+  `list/read/details/workspace`, но и на внешнем web-form ingress.
+- побочный cleanup этого слоя тоже зафиксирован: `DialogListIntegrationTest`
+  и `DialogReadIntegrationTest` больше не держат неиспользуемый
+  `DialogQuickActionService` wiring после перехода adjacent runtime tests
+  на controller-level round-trips.
 - adjacent action-consumer слой тоже дополнительно выровнен на реальных HTTP
   quick-action round-trips: `list/details/participants` больше не зависят от
   service-level shortcuts в `reassign/resolve/reopen/participants_remove`

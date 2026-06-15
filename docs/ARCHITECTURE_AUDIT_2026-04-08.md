@@ -1756,6 +1756,16 @@ integration-сценария поверх users/settings runtime boundary всё
   сверяется с фактическим unread bell count перед ack, поэтому adjacent
   reread coverage не ломается из-за скрытого drift'а между fixture seed и
   controller-level `updated`.
+- public-form smoke bridge после этого тоже замкнут на тот же live
+  controller boundary: в `PublicFormFlowSmokeIntegrationTest` сценарии
+  `take`, `resolve` и `reopen` больше не проходят через
+  `DialogQuickActionService`, а подтверждают внешний `web_form ->
+  /api/dialogs/* quick action -> dialogs/details/history/notifications`
+  runtime на реальных HTTP round-trips.
+- вместе с этим из `DialogListIntegrationTest` и
+  `DialogReadIntegrationTest` убраны уже мёртвые quick-action service
+  зависимости, чтобы adjacent read-side тесты не держали скрытый fallback
+  к service-level orchestration даже на уровне wiring.
 - заодно стало явным текущее разделение consumer semantics: reread через
   `details/workspace` может обнулять row-level `unreadCount`, но не обязан
   одновременно снимать panel bell unread, а `my_dialogs.unanswered` сейчас

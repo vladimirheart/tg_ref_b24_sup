@@ -11,6 +11,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -20,7 +21,6 @@ import org.springframework.test.web.servlet.MvcResult;
 import com.example.panel.service.DialogListReadService;
 import com.example.panel.service.DialogReadService;
 import com.example.panel.service.DialogNotificationService;
-import com.example.panel.service.DialogQuickActionService;
 import com.example.panel.service.DialogReplyService;
 import com.example.panel.service.NotificationService;
 import com.example.panel.service.SharedConfigService;
@@ -79,9 +79,6 @@ class PublicFormFlowSmokeIntegrationTest {
 
     @Autowired
     private DialogNotificationService dialogNotificationService;
-
-    @Autowired
-    private DialogQuickActionService dialogQuickActionService;
 
     @Autowired
     private DialogReadService dialogReadService;
@@ -477,7 +474,17 @@ class PublicFormFlowSmokeIntegrationTest {
                 .andReturn();
 
         String firstTicketId = objectMapper.readTree(firstCreate.getResponse().getContentAsString()).path("ticketId").asText();
-        assertThat(dialogQuickActionService.resolveTicket(firstTicketId, "operator", List.of("billing")).updated()).isTrue();
+        mockMvc.perform(post("/api/dialogs/{ticketId}/resolve", firstTicketId)
+                        .principal(new TestingAuthenticationToken("operator", "n/a", "PAGE_DIALOGS"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "categories": ["billing"]
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.updated").value(true));
 
         MvcResult secondCreate = mockMvc.perform(post("/api/public/forms/web-previous/sessions")
                         .header("X-Forwarded-For", "203.0.113.51")
@@ -526,10 +533,11 @@ class PublicFormFlowSmokeIntegrationTest {
                 .andReturn();
 
         String ticketId = objectMapper.readTree(createResult.getResponse().getContentAsString()).path("ticketId").asText();
-        DialogQuickActionService.DialogTakeResult takeResult = dialogQuickActionService.takeTicket(ticketId, "operator");
-        assertThat(takeResult.exists()).isTrue();
-        assertThat(takeResult.changed()).isTrue();
-        assertThat(takeResult.responsible()).contains("operator");
+        mockMvc.perform(post("/api/dialogs/{ticketId}/take", ticketId)
+                        .principal(new TestingAuthenticationToken("operator", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.changed").value(true));
         assertThat(dialogReplyService.sendReply(ticketId, "Bridge reply from operator", null, "operator").success()).isTrue();
 
         mockMvc.perform(get("/api/dialogs/{ticketId}", ticketId).with(user("operator")))
@@ -581,8 +589,23 @@ class PublicFormFlowSmokeIntegrationTest {
         String ticketId = createPayload.path("ticketId").asText();
         String token = createPayload.path("token").asText();
 
-        assertThat(dialogQuickActionService.resolveTicket(ticketId, "operator", List.of("support")).updated()).isTrue();
-        assertThat(dialogQuickActionService.reopenTicket(ticketId, "operator").updated()).isTrue();
+        mockMvc.perform(post("/api/dialogs/{ticketId}/resolve", ticketId)
+                        .principal(new TestingAuthenticationToken("operator", "n/a", "PAGE_DIALOGS"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "categories": ["support"]
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.updated").value(true));
+
+        mockMvc.perform(post("/api/dialogs/{ticketId}/reopen", ticketId)
+                        .principal(new TestingAuthenticationToken("operator", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.updated").value(true));
 
         mockMvc.perform(get("/api/public/forms/web-reopen/sessions/{token}", token))
                 .andExpect(status().isOk())
@@ -701,10 +724,11 @@ class PublicFormFlowSmokeIntegrationTest {
         assertThat((List<?>) initialMyDialogs.get("unanswered")).isEmpty();
         assertThat((List<?>) initialMyDialogs.get("in_work")).isEmpty();
 
-        DialogQuickActionService.DialogTakeResult takeResult = dialogQuickActionService.takeTicket(ticketId, "operator");
-        assertThat(takeResult.exists()).isTrue();
-        assertThat(takeResult.changed()).isTrue();
-        assertThat(takeResult.responsible()).contains("operator");
+        mockMvc.perform(post("/api/dialogs/{ticketId}/take", ticketId)
+                        .principal(new TestingAuthenticationToken("operator", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.changed").value(true));
 
         mockMvc.perform(get("/api/dialogs").with(user("operator")))
                 .andExpect(status().isOk())
@@ -763,12 +787,23 @@ class PublicFormFlowSmokeIntegrationTest {
                 .andReturn();
 
         String firstTicketId = objectMapper.readTree(firstCreate.getResponse().getContentAsString()).path("ticketId").asText();
-        DialogQuickActionService.DialogTakeResult takeResult = dialogQuickActionService.takeTicket(firstTicketId, "operator");
-        assertThat(takeResult.exists()).isTrue();
-        assertThat(takeResult.changed()).isTrue();
-        assertThat(takeResult.responsible()).contains("operator");
+        mockMvc.perform(post("/api/dialogs/{ticketId}/take", firstTicketId)
+                        .principal(new TestingAuthenticationToken("operator", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.changed").value(true));
         assertThat(dialogReplyService.sendReply(firstTicketId, "Projection reply", null, "operator").success()).isTrue();
-        assertThat(dialogQuickActionService.resolveTicket(firstTicketId, "operator", List.of("vip", "billing")).updated()).isTrue();
+        mockMvc.perform(post("/api/dialogs/{ticketId}/resolve", firstTicketId)
+                        .principal(new TestingAuthenticationToken("operator", "n/a", "PAGE_DIALOGS"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "categories": ["vip", "billing"]
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.updated").value(true));
 
         mockMvc.perform(get("/api/dialogs/{ticketId}", firstTicketId).with(user("operator")))
                 .andExpect(status().isOk())
@@ -845,10 +880,11 @@ class PublicFormFlowSmokeIntegrationTest {
                 ticketId
         );
 
-        DialogQuickActionService.DialogTakeResult takeResult = dialogQuickActionService.takeTicket(ticketId, "watcher_followup");
-        assertThat(takeResult.exists()).isTrue();
-        assertThat(takeResult.changed()).isTrue();
-        assertThat(takeResult.responsible()).contains("watcher_followup");
+        mockMvc.perform(post("/api/dialogs/{ticketId}/take", ticketId)
+                        .principal(new TestingAuthenticationToken("watcher_followup", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.changed").value(true));
         assertThat(dialogReplyService.sendReply(ticketId, "Transport reply from operator", null, "watcher_followup").success()).isTrue();
         jdbcTemplate.update("DELETE FROM notifications WHERE user_identity = ?", "watcher_followup");
 
@@ -918,8 +954,23 @@ class PublicFormFlowSmokeIntegrationTest {
                 ticketId
         );
 
-        assertThat(dialogQuickActionService.resolveTicket(ticketId, "watcher_owner", List.of("billing", "vip")).updated()).isTrue();
-        assertThat(dialogQuickActionService.reopenTicket(ticketId, "watcher_owner").updated()).isTrue();
+        mockMvc.perform(post("/api/dialogs/{ticketId}/resolve", ticketId)
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "categories": ["billing", "vip"]
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.updated").value(true));
+
+        mockMvc.perform(post("/api/dialogs/{ticketId}/reopen", ticketId)
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.updated").value(true));
         jdbcTemplate.update(
                 "UPDATE ticket_active SET user_identity = ?, last_seen = CURRENT_TIMESTAMP WHERE ticket_id = ?",
                 "watcher_peer",

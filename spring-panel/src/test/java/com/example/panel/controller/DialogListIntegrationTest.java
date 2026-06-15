@@ -1,6 +1,5 @@
 package com.example.panel.controller;
 
-import com.example.panel.service.DialogQuickActionService;
 import com.example.panel.service.NotificationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -93,9 +92,6 @@ class DialogListIntegrationTest {
     @Autowired
     @Qualifier("usersJdbcTemplate")
     private JdbcTemplate usersJdbcTemplate;
-
-    @Autowired
-    private DialogQuickActionService dialogQuickActionService;
 
     @Autowired
     private NotificationService notificationService;
