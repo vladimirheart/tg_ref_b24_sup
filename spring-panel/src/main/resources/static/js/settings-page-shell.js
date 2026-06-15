@@ -126,6 +126,49 @@
     }),
   });
 
+  const DEFAULT_SETTINGS_PARENT_CHILD_RELATIONSHIPS = Object.freeze({
+    locationWizardModal: Object.freeze({
+      parentId: 'locationsModal',
+      className: '',
+    }),
+    parameterItemsModal: Object.freeze({
+      parentId: 'parametersModal',
+      className: '',
+    }),
+    partnerContactEditorModal: Object.freeze({
+      parentId: 'parametersModal',
+      className: 'partner-contact-child-open',
+    }),
+    networkProfileEditorModal: Object.freeze({
+      parentId: 'itConnectionsModal',
+      className: '',
+    }),
+    integrationNetworkProfileEditorModal: Object.freeze({
+      parentId: 'channelsModal',
+      className: '',
+    }),
+    itConnectionAddModal: Object.freeze({
+      parentId: 'itConnectionsModal',
+      className: '',
+    }),
+    itEquipmentAddModal: Object.freeze({
+      parentId: 'itConnectionsModal',
+      className: '',
+    }),
+    addChannelModal: Object.freeze({
+      parentId: 'channelsModal',
+      className: '',
+    }),
+    channelEditorModal: Object.freeze({
+      parentId: 'channelsModal',
+      className: 'channel-editor-child-open',
+    }),
+    vkWebhookModal: Object.freeze({
+      parentId: 'channelEditorModal',
+      className: '',
+    }),
+  });
+
   function getSettingsShellRoot() {
     const root = document.querySelector('[data-settings-page-shell]');
     return root instanceof HTMLElement ? root : null;
@@ -883,14 +926,36 @@
     }
   }
 
+  function resolveSettingsParentChildRelationship(childModal) {
+    if (!(childModal instanceof HTMLElement)) {
+      return null;
+    }
+    const inlineParentId = String(childModal.dataset.settingsSuspendParent || '').trim();
+    const inlineClassName = String(childModal.dataset.settingsSuspendClass || '').trim();
+    if (inlineParentId) {
+      return {
+        parentId: inlineParentId,
+        className: inlineClassName,
+      };
+    }
+    if (!childModal.id) {
+      return null;
+    }
+    return DEFAULT_SETTINGS_PARENT_CHILD_RELATIONSHIPS[childModal.id] || null;
+  }
+
   function initParentChildSuspendShell() {
-    const childModals = Array.from(document.querySelectorAll('[data-settings-suspend-parent]'));
+    const childModals = Array.from(document.querySelectorAll('.modal'));
     childModals.forEach((childModal) => {
       if (!(childModal instanceof HTMLElement)) {
         return;
       }
-      const parentId = String(childModal.dataset.settingsSuspendParent || '').trim();
-      const openClass = String(childModal.dataset.settingsSuspendClass || '').trim();
+      const relationship = resolveSettingsParentChildRelationship(childModal);
+      if (!relationship) {
+        return;
+      }
+      const parentId = String(relationship.parentId || '').trim();
+      const openClass = String(relationship.className || '').trim();
       if (!parentId) {
         return;
       }
