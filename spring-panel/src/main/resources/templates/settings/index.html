@@ -2088,7 +2088,7 @@
   <div th:replace="~{fragments/navbar :: navbar('settings')}"></div>
   <main class="main-content container-fluid">
 
-  <div class="container-fluid mt-4 settings-surface page-shell page-shell--settings page-shell--flush" data-settings-page-shell data-settings-bootstrap="initClientStatuses,initBusinessStylesEditor,initAutoCloseTemplates,initDialogTemplates,initTimeMetricsControls,initDialogSlaControls,initWorkspaceGovernanceUtcTimestampFields,initExternalKpiUtcTimestampFields,initWorkspaceSingleModeControls,initWorkspaceExternalKpiDatamartContractPreview,bindAutoAssignRulesHelpers,initDialogStatusBadges,initLocationWizard,renderLocationsIikoServerSourcesEditor,renderLocationsIikoSyncSettings,loadLocationsSyncStatus,buildLocationsTree,initChannelsManagement,loadParameters,renderNetworkProfiles,initReporting" data-settings-url-open-param="open" data-settings-url-legacy-param="tab">
+  <div class="container-fluid mt-4 settings-surface page-shell page-shell--settings page-shell--flush" data-settings-page-shell data-settings-url-open-param="open" data-settings-url-legacy-param="tab">
     <div class="page-header-card settings-page-hero page-hero">
       <span class="page-kicker">Workspace Control</span>
       <h2 class="page-title">⚙️ Настройки системы</h2>
@@ -7066,6 +7066,17 @@
     <script th:inline="javascript">
     const showAppModalMessage = window.showAppModalMessage;
     const showConfirmActionModal = window.showConfirmActionModal;
+  function requestSettingsModalClose(target) {
+    if (!(target instanceof HTMLElement)) {
+      return false;
+    }
+    const closeEvent = new CustomEvent('settings:close-modal', {
+      bubbles: true,
+      cancelable: true,
+    });
+    target.dispatchEvent(closeEvent);
+    return !closeEvent.defaultPrevented;
+  }
   const RAW_DIALOG_CONFIG = /*[[${settingsPayload['dialog_config']}]]*/ {};
   const DIALOG_CONFIG = RAW_DIALOG_CONFIG && typeof RAW_DIALOG_CONFIG === 'object' ? RAW_DIALOG_CONFIG : {};
   const CAN_PUBLISH_DIALOG_MACROS = /*[[${canPublishDialogMacros}]]*/ false;
@@ -9806,7 +9817,7 @@
       setPartnerContactCardVisibility(key, false);
       const rendered = renderPartnerContactModalContentByKey(key);
       if (!rendered && partnerContactEditorModalEl) {
-        window.SettingsPageShell.requestCloseModal(partnerContactEditorBody);
+        requestSettingsModalClose(partnerContactEditorBody);
       } else {
         updatePartnerContactEditorTitleByKey(key);
       }
@@ -10315,7 +10326,7 @@
       syncParameterData((result && result.data) || parameterData);
       renderParameters({ forceBodies: true });
       if (partnerContactEditorModalEl && partnerContactEditorModalEl.contains(card)) {
-        window.SettingsPageShell.requestCloseModal(card);
+        requestSettingsModalClose(card);
       }
     } catch (error) {
       const message = error && error.message ? error.message : error;
@@ -11306,7 +11317,7 @@
     }
     renderNetworkProfiles();
     if (networkProfileModalEl) {
-      window.SettingsPageShell.requestCloseModal(networkProfileForm);
+      requestSettingsModalClose(networkProfileForm);
     }
   }
 
@@ -11323,7 +11334,7 @@
     }
     removeNetworkProfileRow(networkProfileEditingIndex);
     if (networkProfileModalEl) {
-      window.SettingsPageShell.requestCloseModal(networkProfileDeleteButton);
+      requestSettingsModalClose(networkProfileDeleteButton);
     }
   }
 
@@ -12383,7 +12394,7 @@
         }
         renderItEquipmentTable();
         if (itEquipmentAddModalEl) {
-          window.SettingsPageShell.requestCloseModal(itEquipmentAddForm);
+          requestSettingsModalClose(itEquipmentAddForm);
         }
       } catch (error) {
         showPopup('❌ ' + (error && error.message ? error.message : error));
@@ -12504,7 +12515,7 @@
           renderParameterModal(parameterModalType);
         }
         if (itConnectionAddModalEl) {
-          window.SettingsPageShell.requestCloseModal(itConnectionAddForm);
+          requestSettingsModalClose(itConnectionAddForm);
         }
         setTimeout(() => {
           if (!itConnectionsContainer) return;
@@ -15429,7 +15440,7 @@
       return;
     }
     if (locationWizardModalEl) {
-      window.SettingsPageShell.requestCloseModal(wizardFinishBtn);
+      requestSettingsModalClose(wizardFinishBtn);
     }
   }
 
@@ -22616,7 +22627,7 @@
         throw new Error(data.error || ('HTTP ' + resp.status));
       }
 
-      window.SettingsPageShell.requestCloseModal(vkWebhookFormEl);
+      requestSettingsModalClose(vkWebhookFormEl);
       await loadChannels();
       showPopup('Настройки вебхука сохранены.');
     } catch (error) {
@@ -23274,7 +23285,7 @@
       }
       resetAddChannelForm();
       updateAddChannelValidationAlert('');
-      window.SettingsPageShell.requestCloseModal(addChannelFormEl);
+      requestSettingsModalClose(addChannelFormEl);
       notifyChannelStatus(`Канал «${channelName}» успешно добавлен.`, 'success');
       loadChannels();
     } catch (error) {
@@ -23470,7 +23481,7 @@
       if (!resp.ok || data.success === false) throw new Error(data.error || ('HTTP ' + resp.status));
       await loadChannels();
       if (channelEditorState.channelId === id) {
-        window.SettingsPageShell.requestCloseModal(channelEditorDeleteBtn);
+        requestSettingsModalClose(channelEditorDeleteBtn);
       }
     } catch (error) {
       showPopup('Ошибка удаления: ' + error.message);
@@ -23635,14 +23646,14 @@
       }
       renderIntegrationNetworkProfilesTable();
       resetMissingIntegrationNetworkProfileSelections();
-      window.SettingsPageShell.requestCloseModal(integrationNetworkProfileForm);
+      requestSettingsModalClose(integrationNetworkProfileForm);
     });
     integrationNetworkProfileDeleteBtn?.addEventListener('click', () => {
       if (!Number.isInteger(integrationNetworkProfileEditingIndex)) return;
       integrationNetworkProfilesData.splice(integrationNetworkProfileEditingIndex, 1);
       renderIntegrationNetworkProfilesTable();
       resetMissingIntegrationNetworkProfileSelections();
-      window.SettingsPageShell.requestCloseModal(integrationNetworkProfileDeleteBtn);
+      requestSettingsModalClose(integrationNetworkProfileDeleteBtn);
     });
     window.resetIntegrationNetworkProfileSettingsModal = function resetIntegrationNetworkProfileSettingsModal() {
       integrationNetworkProfileEditingIndex = null;

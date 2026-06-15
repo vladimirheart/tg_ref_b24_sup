@@ -4,6 +4,30 @@
   }
   window.__settingsPageShellInitialized = true;
 
+  const DEFAULT_SETTINGS_BOOTSTRAP_FUNCTIONS = [
+    'initClientStatuses',
+    'initBusinessStylesEditor',
+    'initAutoCloseTemplates',
+    'initDialogTemplates',
+    'initTimeMetricsControls',
+    'initDialogSlaControls',
+    'initWorkspaceGovernanceUtcTimestampFields',
+    'initExternalKpiUtcTimestampFields',
+    'initWorkspaceSingleModeControls',
+    'initWorkspaceExternalKpiDatamartContractPreview',
+    'bindAutoAssignRulesHelpers',
+    'initDialogStatusBadges',
+    'initLocationWizard',
+    'renderLocationsIikoServerSourcesEditor',
+    'renderLocationsIikoSyncSettings',
+    'loadLocationsSyncStatus',
+    'buildLocationsTree',
+    'initChannelsManagement',
+    'loadParameters',
+    'renderNetworkProfiles',
+    'initReporting',
+  ];
+
   function getSettingsShellRoot() {
     const root = document.querySelector('[data-settings-page-shell]');
     return root instanceof HTMLElement ? root : null;
@@ -947,9 +971,11 @@
     const shellRoot = getSettingsShellRoot();
     const bootstrapAttr = shellRoot ? String(shellRoot.dataset.settingsBootstrap || '') : '';
     const bootstrapFns = bootstrapAttr
-      .split(',')
-      .map((fnName) => fnName.trim())
-      .filter(Boolean);
+      ? bootstrapAttr
+        .split(',')
+        .map((fnName) => fnName.trim())
+        .filter(Boolean)
+      : DEFAULT_SETTINGS_BOOTSTRAP_FUNCTIONS;
 
     bootstrapFns.forEach((fnName) => {
       const fn = window[fnName];
