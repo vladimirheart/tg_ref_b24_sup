@@ -183,6 +183,43 @@ class NotificationApiIntegrationTest {
     }
 
     @Test
+    void markAllAsReadDoesNotPreventNextNotificationRearmForSameIdentity() throws Exception {
+        jdbcTemplate.update(
+                "INSERT INTO notifications (user_identity, text, url, is_read, created_at) VALUES (?,?,?,?,?)",
+                "watcher_peer", "Старое unread уведомление", "/dialogs?ticketId=T-311", 0, "2026-05-21 09:00:00.000"
+        );
+
+        mockMvc.perform(post("/api/notifications/read-all")
+                        .principal(namedAuthentication("watcher_peer")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.updated").value(1));
+
+        mockMvc.perform(get("/api/notifications/unread_count").principal(namedAuthentication("watcher_peer")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unread").value(0));
+
+        notificationService.notifyUsersExcluding(
+                java.util.Set.of("watcher_peer"),
+                null,
+                "Новый follow-up после read-all",
+                "/dialogs?ticketId=T-312"
+        );
+
+        mockMvc.perform(get("/api/notifications").principal(namedAuthentication("watcher_peer")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].text").value("Новый follow-up после read-all"))
+                .andExpect(jsonPath("$[0].read").value(false))
+                .andExpect(jsonPath("$[1].text").value("Старое unread уведомление"))
+                .andExpect(jsonPath("$[1].read").value(true));
+
+        mockMvc.perform(get("/api/notifications/unread_count").principal(namedAuthentication("watcher_peer")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unread").value(1));
+    }
+
+    @Test
     void anonymousRequestsOperateOnAllIdentityOnly() throws Exception {
         jdbcTemplate.update(
                 "INSERT INTO notifications (user_identity, text, url, is_read, created_at) VALUES (?,?,?,?,CURRENT_TIMESTAMP)",

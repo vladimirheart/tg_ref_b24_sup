@@ -1767,3 +1767,11 @@ integration-сценария поверх users/settings runtime boundary всё
   подтверждают, что `read-all` очищает только bell unread summary, но не
   трогает `last_read_at`, dialog `unreadCount` и `my_dialogs.unanswered`,
   пока оператор не reread'ит сам dialog/history consumer.
+- этот же mass-ack contract теперь добран и на повторный rearm после reread:
+  `NotificationApiIntegrationTest`, `DialogReadIntegrationTest`,
+  `DialogDetailsIntegrationTest` и `DialogWorkspaceIntegrationTest`
+  подтверждают, что после `POST /api/notifications/read-all` и последующего
+  reread через `history/details/workspace` следующий клиентский follow-up
+  снова поднимает и panel bell unread badge, и dialog `unreadCount`, и
+  `my_dialogs.unanswered`, то есть mass-ack не "гасит" следующий runtime
+  loop и не ломает follow-up rearm semantics.

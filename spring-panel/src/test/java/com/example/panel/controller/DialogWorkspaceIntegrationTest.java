@@ -923,6 +923,151 @@ class DialogWorkspaceIntegrationTest {
                 .andExpect(jsonPath("$.unread").value(0));
     }
 
+    @Test
+    void notificationReadAllDoesNotHideUnreadDialogBeforeWorkspaceReread() throws Exception {
+        sharedConfigService.saveSettings(Map.of(
+                "dialog_config", Map.of("sla_target_minutes", 1000000)
+        ));
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        insertDirectoryUser("watcher_owner", true, false, 1L, "Support", "Watcher Owner", "Ops", "/img/owner.png");
+
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
+                VALUES (98, 'token98w', 'Workspace Read All', 'telegram', 1, CURRENT_TIMESTAMP)
+                """);
+        insertDialogTicket(910108L, "T-WS-READ-ALL", 98L, "workspace_read_all_user", "Клиент Workspace Read All", "Retail", "Ярославль", "Точка", "Проверка workspace read-all separation", "2026-05-27T10:40:00Z", 9801L);
+        jdbcTemplate.update("""
+                INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
+                VALUES (?,?,?,?)
+                """,
+                "T-WS-READ-ALL", "watcher_owner", "dispatcher", "2026-05-27T10:39:00Z");
+        insertHistoryRow("T-WS-READ-ALL", 910108L, "user", "Follow-up до workspace reread", "2026-05-27T10:43:00Z", "text", 981L, null, 98L, null);
+
+        notificationService.notifyDialogParticipants(
+                "T-WS-READ-ALL",
+                "Новое сообщение в обращении T-WS-READ-ALL",
+                "/dialogs?ticketId=T-WS-READ-ALL",
+                null
+        );
+
+        mockMvc.perform(get("/api/dialogs")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-WS-READ-ALL"))
+                .andExpect(jsonPath("$.dialogs[0].unreadCount").value(1))
+                .andExpect(jsonPath("$.my_dialogs.unanswered[0].ticketId").value("T-WS-READ-ALL"))
+                .andExpect(jsonPath("$.my_dialogs.in_work").isEmpty());
+
+        mockMvc.perform(post("/api/notifications/read-all")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.updated").value(1));
+
+        mockMvc.perform(get("/api/notifications/unread_count")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unread").value(0));
+
+        String lastReadAtBeforeWorkspace = jdbcTemplate.queryForObject(
+                "SELECT last_read_at FROM ticket_responsibles WHERE ticket_id = ? AND responsible = ?",
+                String.class,
+                "T-WS-READ-ALL",
+                "watcher_owner"
+        );
+        assertThat(lastReadAtBeforeWorkspace).isEqualTo("2026-05-27T10:39:00Z");
+
+        mockMvc.perform(get("/api/dialogs")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-WS-READ-ALL"))
+                .andExpect(jsonPath("$.dialogs[0].unreadCount").value(1))
+                .andExpect(jsonPath("$.my_dialogs.unanswered[0].ticketId").value("T-WS-READ-ALL"))
+                .andExpect(jsonPath("$.my_dialogs.in_work").isEmpty());
+
+        mockMvc.perform(get("/api/dialogs/T-WS-READ-ALL/workspace")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.conversation.ticketId").value("T-WS-READ-ALL"))
+                .andExpect(jsonPath("$.messages.items[0].message").value("Follow-up до workspace reread"));
+
+        mockMvc.perform(get("/api/dialogs")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-WS-READ-ALL"))
+                .andExpect(jsonPath("$.dialogs[0].unreadCount").value(0))
+                .andExpect(jsonPath("$.my_dialogs.unanswered").isEmpty())
+                .andExpect(jsonPath("$.my_dialogs.in_work[0].ticketId").value("T-WS-READ-ALL"));
+    }
+
+    @Test
+    void notificationReadAllRereadStillAllowsNextWorkspaceFollowUpToRearmUnreadAndBell() throws Exception {
+        sharedConfigService.saveSettings(Map.of(
+                "dialog_config", Map.of("sla_target_minutes", 1000000)
+        ));
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        insertDirectoryUser("watcher_owner", true, false, 1L, "Support", "Watcher Owner", "Ops", "/img/owner.png");
+
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
+                VALUES (99, 'token99w', 'Workspace Read All Rearm', 'telegram', 1, CURRENT_TIMESTAMP)
+                """);
+        insertDialogTicket(910109L, "T-WS-READ-ALL-REARM", 99L, "workspace_read_all_rearm_user", "Клиент Workspace Read All Rearm", "Retail", "Кострома", "Точка", "Проверка workspace read-all rearm", "2026-05-27T10:50:00Z", 9901L);
+        jdbcTemplate.update("""
+                INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
+                VALUES (?,?,?,?)
+                """,
+                "T-WS-READ-ALL-REARM", "watcher_owner", "dispatcher", "2026-05-27T10:49:00Z");
+        insertHistoryRow("T-WS-READ-ALL-REARM", 910109L, "user", "Первый follow-up до mass-ack", "2026-05-27T10:53:00Z", "text", 991L, null, 99L, null);
+
+        notificationService.notifyDialogParticipants(
+                "T-WS-READ-ALL-REARM",
+                "Новое сообщение в обращении T-WS-READ-ALL-REARM",
+                "/dialogs?ticketId=T-WS-READ-ALL-REARM",
+                null
+        );
+
+        mockMvc.perform(post("/api/notifications/read-all")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.updated").value(1));
+
+        mockMvc.perform(get("/api/dialogs/T-WS-READ-ALL-REARM/workspace")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.conversation.ticketId").value("T-WS-READ-ALL-REARM"))
+                .andExpect(jsonPath("$.messages.items[0].message").value("Первый follow-up до mass-ack"));
+
+        mockMvc.perform(get("/api/dialogs")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-WS-READ-ALL-REARM"))
+                .andExpect(jsonPath("$.dialogs[0].unreadCount").value(0))
+                .andExpect(jsonPath("$.my_dialogs.unanswered").isEmpty())
+                .andExpect(jsonPath("$.my_dialogs.in_work[0].ticketId").value("T-WS-READ-ALL-REARM"));
+
+        insertHistoryRow("T-WS-READ-ALL-REARM", 910109L, "user", "Второй follow-up после reread", "2026-05-27T10:55:00Z", "text", 992L, 991L, 99L, null);
+        notificationService.notifyDialogParticipants(
+                "T-WS-READ-ALL-REARM",
+                "Новое сообщение в обращении T-WS-READ-ALL-REARM",
+                "/dialogs?ticketId=T-WS-READ-ALL-REARM",
+                null
+        );
+
+        mockMvc.perform(get("/api/dialogs")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-WS-READ-ALL-REARM"))
+                .andExpect(jsonPath("$.dialogs[0].unreadCount").value(1))
+                .andExpect(jsonPath("$.my_dialogs.unanswered[0].ticketId").value("T-WS-READ-ALL-REARM"))
+                .andExpect(jsonPath("$.my_dialogs.in_work").isEmpty());
+
+        mockMvc.perform(get("/api/notifications/unread_count")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unread").value(1));
+    }
+
     private void insertDialogTicket(long userId,
                                     String ticketId,
                                     long channelId,

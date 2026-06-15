@@ -1533,6 +1533,12 @@
   refresh loop, `queue/my_dialogs` rearm parity и `queue/status-owner`
   lifecycle на более тонкие consumer refresh loops после repeated follow-up
   refresh и оставшийся drift вокруг соседних operator action surfaces.
+- mass-ack ветка в этом runtime слое дополнительно добрана на repeated
+  rearm continuity: `POST /api/notifications/read-all` теперь прикрыт не
+  только на bell-only separation, но и на сценарий
+  `read-all -> history/details/workspace reread -> next follow-up`, чтобы
+  следующий клиентский message loop снова поднимал и bell unread, и
+  `my_dialogs.unanswered`, и row-level `unreadCount`.
 
 ## Audit Checkpoint 2026-06-05
 

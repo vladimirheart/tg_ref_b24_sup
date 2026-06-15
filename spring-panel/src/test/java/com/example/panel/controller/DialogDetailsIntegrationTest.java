@@ -521,6 +521,194 @@ class DialogDetailsIntegrationTest {
     }
 
     @Test
+    void notificationReadAllDoesNotHideUnreadDialogBeforeDetailsReread() throws Exception {
+        insertDirectoryUser("watcher_owner", "Watcher Owner", "/img/watcher-owner.png");
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
+                VALUES (97, 'token97', 'Dialog Details Read All', 'telegram', 1, CURRENT_TIMESTAMP)
+                """);
+        jdbcTemplate.update("""
+                INSERT INTO tickets (user_id, ticket_id, status, channel_id)
+                VALUES (?,?,?,?)
+                """,
+                910097L, "T-DETAIL-READ-ALL", "open", 97L);
+        jdbcTemplate.update("""
+                INSERT INTO messages (
+                    group_msg_id, user_id, business, city, location_name, problem, created_at,
+                    username, ticket_id, created_date, created_time, client_name, channel_id, updated_at, updated_by
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                9701L,
+                910097L,
+                "Retail",
+                "Рязань",
+                "Точка Read All",
+                "Проверка details read-all separation",
+                "2026-05-27T11:00:00Z",
+                "details_read_all_user",
+                "T-DETAIL-READ-ALL",
+                "2026-05-27",
+                "11:00:00",
+                "Клиент Details Read All",
+                97L,
+                "2026-05-27T11:00:00Z",
+                "seed");
+        jdbcTemplate.update("""
+                INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
+                VALUES (?,?,?,?)
+                """,
+                "T-DETAIL-READ-ALL", "watcher_owner", "dispatcher", "2026-05-27T10:59:00Z");
+        insertHistoryRow("T-DETAIL-READ-ALL", 910097L, "user", "Follow-up до details reread", "2026-05-27T11:03:00Z", "text", 971L, null, 97L, null, null, null, null, null);
+
+        notificationService.notifyDialogParticipants(
+                "T-DETAIL-READ-ALL",
+                "Новое сообщение в обращении T-DETAIL-READ-ALL",
+                "/dialogs?ticketId=T-DETAIL-READ-ALL",
+                null
+        );
+
+        mockMvc.perform(get("/api/dialogs")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-DETAIL-READ-ALL"))
+                .andExpect(jsonPath("$.dialogs[0].unreadCount").value(1))
+                .andExpect(jsonPath("$.my_dialogs.unanswered[0].ticketId").value("T-DETAIL-READ-ALL"))
+                .andExpect(jsonPath("$.my_dialogs.in_work").isEmpty());
+
+        mockMvc.perform(post("/api/notifications/read-all")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.updated").value(1));
+
+        mockMvc.perform(get("/api/notifications/unread_count")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unread").value(0));
+
+        String lastReadAtBeforeDetails = jdbcTemplate.queryForObject(
+                "SELECT last_read_at FROM ticket_responsibles WHERE ticket_id = ? AND responsible = ?",
+                String.class,
+                "T-DETAIL-READ-ALL",
+                "watcher_owner"
+        );
+        assertThat(lastReadAtBeforeDetails).isEqualTo("2026-05-27T10:59:00Z");
+
+        mockMvc.perform(get("/api/dialogs")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-DETAIL-READ-ALL"))
+                .andExpect(jsonPath("$.dialogs[0].unreadCount").value(1))
+                .andExpect(jsonPath("$.my_dialogs.unanswered[0].ticketId").value("T-DETAIL-READ-ALL"))
+                .andExpect(jsonPath("$.my_dialogs.in_work").isEmpty());
+
+        mockMvc.perform(get("/api/dialogs/T-DETAIL-READ-ALL")
+                        .param("channelId", "97")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.ticketId").value("T-DETAIL-READ-ALL"))
+                .andExpect(jsonPath("$.summary.unreadCount").value(0))
+                .andExpect(jsonPath("$.history[0].message").value("Follow-up до details reread"));
+
+        mockMvc.perform(get("/api/dialogs")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-DETAIL-READ-ALL"))
+                .andExpect(jsonPath("$.dialogs[0].unreadCount").value(0))
+                .andExpect(jsonPath("$.my_dialogs.unanswered").isEmpty())
+                .andExpect(jsonPath("$.my_dialogs.in_work[0].ticketId").value("T-DETAIL-READ-ALL"));
+    }
+
+    @Test
+    void notificationReadAllRereadStillAllowsNextDetailsFollowUpToRearmUnreadAndBell() throws Exception {
+        insertDirectoryUser("watcher_owner", "Watcher Owner", "/img/watcher-owner.png");
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
+                VALUES (98, 'token98', 'Dialog Details Read All Rearm', 'telegram', 1, CURRENT_TIMESTAMP)
+                """);
+        jdbcTemplate.update("""
+                INSERT INTO tickets (user_id, ticket_id, status, channel_id)
+                VALUES (?,?,?,?)
+                """,
+                910098L, "T-DETAIL-READ-ALL-REARM", "open", 98L);
+        jdbcTemplate.update("""
+                INSERT INTO messages (
+                    group_msg_id, user_id, business, city, location_name, problem, created_at,
+                    username, ticket_id, created_date, created_time, client_name, channel_id, updated_at, updated_by
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                9801L,
+                910098L,
+                "Retail",
+                "Калуга",
+                "Точка Rearm",
+                "Проверка details read-all rearm",
+                "2026-05-27T11:10:00Z",
+                "details_read_all_rearm_user",
+                "T-DETAIL-READ-ALL-REARM",
+                "2026-05-27",
+                "11:10:00",
+                "Клиент Details Read All Rearm",
+                98L,
+                "2026-05-27T11:10:00Z",
+                "seed");
+        jdbcTemplate.update("""
+                INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
+                VALUES (?,?,?,?)
+                """,
+                "T-DETAIL-READ-ALL-REARM", "watcher_owner", "dispatcher", "2026-05-27T11:09:00Z");
+        insertHistoryRow("T-DETAIL-READ-ALL-REARM", 910098L, "user", "Первый follow-up до mass-ack", "2026-05-27T11:13:00Z", "text", 981L, null, 98L, null, null, null, null, null);
+
+        notificationService.notifyDialogParticipants(
+                "T-DETAIL-READ-ALL-REARM",
+                "Новое сообщение в обращении T-DETAIL-READ-ALL-REARM",
+                "/dialogs?ticketId=T-DETAIL-READ-ALL-REARM",
+                null
+        );
+
+        mockMvc.perform(post("/api/notifications/read-all")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.updated").value(1));
+
+        mockMvc.perform(get("/api/dialogs/T-DETAIL-READ-ALL-REARM")
+                        .param("channelId", "98")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.unreadCount").value(0))
+                .andExpect(jsonPath("$.history[0].message").value("Первый follow-up до mass-ack"));
+
+        mockMvc.perform(get("/api/dialogs")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-DETAIL-READ-ALL-REARM"))
+                .andExpect(jsonPath("$.dialogs[0].unreadCount").value(0))
+                .andExpect(jsonPath("$.my_dialogs.unanswered").isEmpty())
+                .andExpect(jsonPath("$.my_dialogs.in_work[0].ticketId").value("T-DETAIL-READ-ALL-REARM"));
+
+        insertHistoryRow("T-DETAIL-READ-ALL-REARM", 910098L, "user", "Второй follow-up после reread", "2026-05-27T11:15:00Z", "text", 982L, 981L, 98L, null, null, null, null, null);
+        notificationService.notifyDialogParticipants(
+                "T-DETAIL-READ-ALL-REARM",
+                "Новое сообщение в обращении T-DETAIL-READ-ALL-REARM",
+                "/dialogs?ticketId=T-DETAIL-READ-ALL-REARM",
+                null
+        );
+
+        mockMvc.perform(get("/api/dialogs")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-DETAIL-READ-ALL-REARM"))
+                .andExpect(jsonPath("$.dialogs[0].unreadCount").value(1))
+                .andExpect(jsonPath("$.my_dialogs.unanswered[0].ticketId").value("T-DETAIL-READ-ALL-REARM"))
+                .andExpect(jsonPath("$.my_dialogs.in_work").isEmpty());
+
+        mockMvc.perform(get("/api/notifications/unread_count")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unread").value(1));
+    }
+
+    @Test
     void dialogsListRearmsMyDialogsBucketsAcrossReplyAckAndNextFollowUp() throws Exception {
         insertDirectoryUser("watcher_owner", "Watcher Owner", "/img/watcher-owner.png");
         jdbcTemplate.update("""
