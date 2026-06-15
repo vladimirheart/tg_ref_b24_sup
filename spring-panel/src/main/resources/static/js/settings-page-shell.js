@@ -697,6 +697,48 @@
     });
   }
 
+  function resolveSettingsFocusTarget(modal) {
+    if (!(modal instanceof HTMLElement)) {
+      return null;
+    }
+    const rawSelector = String(modal.dataset.settingsFocusTarget || '').trim();
+    if (!rawSelector) {
+      return null;
+    }
+    const candidates = Array.from(modal.querySelectorAll(rawSelector));
+    return candidates.find((candidate) => {
+      if (!(candidate instanceof HTMLElement)) {
+        return false;
+      }
+      if ('disabled' in candidate && candidate.disabled) {
+        return false;
+      }
+      if (candidate.getAttribute('aria-hidden') === 'true') {
+        return false;
+      }
+      return true;
+    }) || null;
+  }
+
+  function initSettingsModalFocusTargets() {
+    const modals = Array.from(document.querySelectorAll('[data-settings-focus-target]'));
+    modals.forEach((modal) => {
+      if (!(modal instanceof HTMLElement)) {
+        return;
+      }
+      modal.addEventListener('shown.bs.modal', () => {
+        const target = resolveSettingsFocusTarget(modal);
+        if (!(target instanceof HTMLElement)) {
+          return;
+        }
+        target.focus();
+        if (Object.prototype.hasOwnProperty.call(modal.dataset, 'settingsFocusSelect') && 'select' in target && typeof target.select === 'function') {
+          target.select();
+        }
+      });
+    });
+  }
+
   function replaceSettingsHistorySearch(params) {
     const search = params.toString();
     const nextUrl = `${window.location.pathname}${search ? `?${search}` : ''}${window.location.hash || ''}`;
@@ -798,6 +840,7 @@
     initParentChildSuspendShell();
     initSettingsModalLifecycleHooks();
     initSettingsModalDefaultTabs();
+    initSettingsModalFocusTargets();
     runSettingsDomainBootstrap();
     openRequestedSettingsModalFromUrl();
     updateSettingsModalBodyLock();

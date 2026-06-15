@@ -5265,7 +5265,7 @@
       </div>
     </div>
 
-    <div class="modal fade settings-child-modal" id="networkProfileEditorModal" tabindex="-1" aria-hidden="true" data-settings-suspend-parent="itConnectionsModal" data-settings-on-hidden="resetNetworkProfileSettingsModal" data-settings-on-shown="focusNetworkProfileSettingsModal">
+    <div class="modal fade settings-child-modal" id="networkProfileEditorModal" tabindex="-1" aria-hidden="true" data-settings-suspend-parent="itConnectionsModal" data-settings-on-hidden="resetNetworkProfileSettingsModal" data-settings-focus-target="[data-network-profile-provider]" data-settings-focus-select>
       <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
           <form data-network-profile-form>
@@ -5425,7 +5425,7 @@
       </div>
     </div>
 
-    <div class="modal fade settings-child-modal" id="itConnectionAddModal" tabindex="-1" aria-labelledby="itConnectionAddModalLabel" aria-hidden="true" data-settings-on-show="prepareItConnectionAddSettingsModal" data-settings-on-shown="focusItConnectionAddSettingsModal">
+    <div class="modal fade settings-child-modal" id="itConnectionAddModal" tabindex="-1" aria-labelledby="itConnectionAddModalLabel" aria-hidden="true" data-settings-suspend-parent="itConnectionsModal" data-settings-on-show="prepareItConnectionAddSettingsModal" data-settings-focus-target="[data-it-connection-value-input], [data-it-connection-category-select]">
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
@@ -5475,7 +5475,7 @@
       </div>
     </div>
 
-    <div class="modal fade settings-child-modal" id="itEquipmentAddModal" tabindex="-1" aria-labelledby="itEquipmentAddModalLabel" aria-hidden="true" data-settings-on-show="prepareItEquipmentAddSettingsModal" data-settings-on-shown="focusItEquipmentAddSettingsModal" data-settings-query-open="it-equipment" data-settings-query-clear-param="open">
+    <div class="modal fade settings-child-modal" id="itEquipmentAddModal" tabindex="-1" aria-labelledby="itEquipmentAddModalLabel" aria-hidden="true" data-settings-suspend-parent="itConnectionsModal" data-settings-on-show="prepareItEquipmentAddSettingsModal" data-settings-focus-target="[data-it-equipment-field=\"equipment_type\"], [data-it-equipment-field=\"equipment_vendor\"], [data-it-equipment-field=\"equipment_model\"]" data-settings-query-open="it-equipment" data-settings-query-clear-param="open">
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
@@ -11387,13 +11387,6 @@
     }
   };
 
-  window.focusNetworkProfileSettingsModal = function focusNetworkProfileSettingsModal() {
-    if (networkProfileProviderInput) {
-      networkProfileProviderInput.focus();
-      networkProfileProviderInput.select();
-    }
-  };
-
   renderNetworkProfiles();
 
   function normalizeItConnectionCategory(value) {
@@ -12282,16 +12275,6 @@
     }
   };
 
-  window.focusItEquipmentAddSettingsModal = function focusItEquipmentAddSettingsModal() {
-    if (itEquipmentTypeSelect && !itEquipmentTypeSelect.disabled) {
-      itEquipmentTypeSelect.focus();
-    } else if (itEquipmentVendorSelect && !itEquipmentVendorSelect.disabled) {
-      itEquipmentVendorSelect.focus();
-    } else if (itEquipmentModelSelect && !itEquipmentModelSelect.disabled) {
-      itEquipmentModelSelect.focus();
-    }
-  };
-
   if (itEquipmentAddModalEl) {
     itEquipmentAddModalEl.addEventListener('click', (event) => {
       const addLinkButton = event.target.closest('[data-it-equipment-add-link]');
@@ -12425,14 +12408,6 @@
     if (itConnectionValueInput) {
       itConnectionValueInput.value = '';
       itConnectionValueInput.classList.remove('is-invalid');
-    }
-  };
-
-  window.focusItConnectionAddSettingsModal = function focusItConnectionAddSettingsModal() {
-    if (itConnectionValueInput) {
-      itConnectionValueInput.focus();
-    } else if (itConnectionCategorySelect) {
-      itConnectionCategorySelect.focus();
     }
   };
 
