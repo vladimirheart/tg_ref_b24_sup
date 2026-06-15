@@ -80,6 +80,52 @@
     }),
   });
 
+  const DEFAULT_SETTINGS_URL_PARAMS = Object.freeze({
+    open: 'open',
+    legacy: 'tab',
+  });
+
+  const DEFAULT_SETTINGS_URL_MODAL_NAMES = Object.freeze({
+    inputFormattingModal: 'input-formatting',
+    usersModal: 'users',
+    categoriesModal: 'dialogs',
+    locationsModal: 'locations',
+    parametersModal: 'parameters',
+    legalEntitiesModal: 'legal-entities',
+    itConnectionsModal: 'it-connections',
+    panelDesignSettingsModal: 'appearance',
+    reportingModal: 'reporting',
+    managerBindingsModal: 'manager-bindings',
+    channelsModal: 'channels',
+  });
+
+  const DEFAULT_SETTINGS_MODAL_DEFAULT_TABS = Object.freeze({
+    channelEditorModal: 'channel-editor-general-tab',
+  });
+
+  const DEFAULT_SETTINGS_MODAL_FOCUS_TARGETS = Object.freeze({
+    networkProfileEditorModal: Object.freeze({
+      selector: '[data-network-profile-provider]',
+      select: true,
+    }),
+    itConnectionAddModal: Object.freeze({
+      selector: '[data-it-connection-value-input], [data-it-connection-category-select]',
+      select: false,
+    }),
+    itEquipmentAddModal: Object.freeze({
+      selector: '[data-it-equipment-field="equipment_type"], [data-it-equipment-field="equipment_vendor"], [data-it-equipment-field="equipment_model"]',
+      select: false,
+    }),
+  });
+
+  const DEFAULT_SETTINGS_QUERY_DRIVEN_MODALS = Object.freeze({
+    itEquipmentAddModal: Object.freeze({
+      queryParam: 'open',
+      expectedValue: 'it-equipment',
+      clearParam: 'open',
+    }),
+  });
+
   function getSettingsShellRoot() {
     const root = document.querySelector('[data-settings-page-shell]');
     return root instanceof HTMLElement ? root : null;
@@ -946,12 +992,12 @@
   }
 
   function initSettingsModalDefaultTabs() {
-    const modals = Array.from(document.querySelectorAll('[data-settings-reset-tab]'));
+    const modals = Array.from(document.querySelectorAll('.modal'));
     modals.forEach((modal) => {
       if (!(modal instanceof HTMLElement)) {
         return;
       }
-      const tabId = String(modal.dataset.settingsResetTab || '').trim();
+      const tabId = resolveSettingsModalDefaultTabId(modal);
       if (!tabId) {
         return;
       }
@@ -965,7 +1011,7 @@
     if (!(modal instanceof HTMLElement)) {
       return null;
     }
-    const rawSelector = String(modal.dataset.settingsFocusTarget || '').trim();
+    const rawSelector = resolveSettingsFocusSelector(modal);
     if (!rawSelector) {
       return null;
     }
@@ -985,9 +1031,13 @@
   }
 
   function initSettingsModalFocusTargets() {
-    const modals = Array.from(document.querySelectorAll('[data-settings-focus-target]'));
+    const modals = Array.from(document.querySelectorAll('.modal'));
     modals.forEach((modal) => {
       if (!(modal instanceof HTMLElement)) {
+        return;
+      }
+      const focusSelector = resolveSettingsFocusSelector(modal);
+      if (!focusSelector) {
         return;
       }
       modal.addEventListener('shown.bs.modal', () => {
@@ -996,7 +1046,7 @@
           return;
         }
         target.focus();
-        if (Object.prototype.hasOwnProperty.call(modal.dataset, 'settingsFocusSelect') && 'select' in target && typeof target.select === 'function') {
+        if (shouldSelectSettingsFocusTarget(modal) && 'select' in target && typeof target.select === 'function') {
           target.select();
         }
       });
@@ -1014,24 +1064,26 @@
       return false;
     }
     let changed = false;
-    const queryDrivenModals = Array.from(document.querySelectorAll('[data-settings-query-open]'));
+    const queryDrivenModals = Array.from(document.querySelectorAll('.modal'));
     queryDrivenModals.forEach((modal) => {
       if (!(modal instanceof HTMLElement)) {
         return;
       }
-      const queryParam = String(modal.dataset.settingsQueryParam || 'open').trim() || 'open';
-      const expectedValue = String(modal.dataset.settingsQueryOpen || '').trim().toLowerCase();
+      const queryConfig = resolveSettingsQueryDrivenModalConfig(modal);
+      if (!queryConfig) {
+        return;
+      }
+      const queryParam = queryConfig.queryParam;
+      const expectedValue = queryConfig.expectedValue;
       const actualValue = String(params.get(queryParam) || '').trim().toLowerCase();
       if (!expectedValue || actualValue !== expectedValue) {
         return;
       }
       showSettingsModal(modal);
-      if (Object.prototype.hasOwnProperty.call(modal.dataset, 'settingsQueryClearParam')) {
-        const clearParam = String(modal.dataset.settingsQueryClearParam || queryParam).trim() || queryParam;
-        if (params.has(clearParam)) {
-          params.delete(clearParam);
-          changed = true;
-        }
+      const clearParam = queryConfig.clearParam;
+      if (clearParam && params.has(clearParam)) {
+        params.delete(clearParam);
+        changed = true;
       }
     });
     return changed;
@@ -1058,11 +1110,11 @@
   function readSettingsUrlRequest(params) {
     const shellRoot = getSettingsShellRoot();
     const openParam = shellRoot
-      ? String(shellRoot.dataset.settingsUrlOpenParam || 'open').trim() || 'open'
-      : 'open';
+      ? String(shellRoot.dataset.settingsUrlOpenParam || DEFAULT_SETTINGS_URL_PARAMS.open).trim() || DEFAULT_SETTINGS_URL_PARAMS.open
+      : DEFAULT_SETTINGS_URL_PARAMS.open;
     const legacyParam = shellRoot
-      ? String(shellRoot.dataset.settingsUrlLegacyParam || 'tab').trim() || 'tab'
-      : 'tab';
+      ? String(shellRoot.dataset.settingsUrlLegacyParam || DEFAULT_SETTINGS_URL_PARAMS.legacy).trim() || DEFAULT_SETTINGS_URL_PARAMS.legacy
+      : DEFAULT_SETTINGS_URL_PARAMS.legacy;
     const primaryTarget = String(params.get(openParam) || '').trim().toLowerCase();
     const legacyTarget = String(params.get(legacyParam) || '').trim().toLowerCase();
     return primaryTarget || legacyTarget;
@@ -1076,9 +1128,9 @@
       if (!requestedModal || typeof bootstrap === 'undefined') {
         shouldReplaceHistory = openSettingsQueryDrivenModals(params);
       } else {
-        const modalEl = Array.from(document.querySelectorAll('[data-settings-url-modal]'))
+        const modalEl = Array.from(document.querySelectorAll('.modal'))
           .find((modal) => modal instanceof HTMLElement
-            && String(modal.dataset.settingsUrlModal || '').trim().toLowerCase() === requestedModal);
+            && resolveSettingsUrlModalName(modal) === requestedModal);
         if (modalEl) {
           showSettingsModal(modalEl);
         }
@@ -1112,6 +1164,86 @@
     runSettingsDomainBootstrap();
     openRequestedSettingsModalFromUrl();
     updateSettingsModalBodyLock();
+  }
+
+  function resolveSettingsModalDefaultTabId(modal) {
+    if (!(modal instanceof HTMLElement)) {
+      return '';
+    }
+    const inlineTabId = String(modal.dataset.settingsResetTab || '').trim();
+    if (inlineTabId) {
+      return inlineTabId;
+    }
+    if (!modal.id) {
+      return '';
+    }
+    return String(DEFAULT_SETTINGS_MODAL_DEFAULT_TABS[modal.id] || '').trim();
+  }
+
+  function resolveSettingsFocusConfig(modal) {
+    if (!(modal instanceof HTMLElement)) {
+      return null;
+    }
+    const inlineSelector = String(modal.dataset.settingsFocusTarget || '').trim();
+    if (inlineSelector) {
+      return {
+        selector: inlineSelector,
+        select: Object.prototype.hasOwnProperty.call(modal.dataset, 'settingsFocusSelect'),
+      };
+    }
+    if (!modal.id) {
+      return null;
+    }
+    return DEFAULT_SETTINGS_MODAL_FOCUS_TARGETS[modal.id] || null;
+  }
+
+  function resolveSettingsFocusSelector(modal) {
+    const config = resolveSettingsFocusConfig(modal);
+    if (!config) {
+      return '';
+    }
+    return String(config.selector || '').trim();
+  }
+
+  function shouldSelectSettingsFocusTarget(modal) {
+    const config = resolveSettingsFocusConfig(modal);
+    return Boolean(config && config.select);
+  }
+
+  function resolveSettingsQueryDrivenModalConfig(modal) {
+    if (!(modal instanceof HTMLElement)) {
+      return null;
+    }
+    const inlineExpectedValue = String(modal.dataset.settingsQueryOpen || '').trim().toLowerCase();
+    if (inlineExpectedValue) {
+      const queryParam = String(modal.dataset.settingsQueryParam || DEFAULT_SETTINGS_URL_PARAMS.open).trim() || DEFAULT_SETTINGS_URL_PARAMS.open;
+      const clearParam = Object.prototype.hasOwnProperty.call(modal.dataset, 'settingsQueryClearParam')
+        ? String(modal.dataset.settingsQueryClearParam || queryParam).trim() || queryParam
+        : '';
+      return {
+        queryParam,
+        expectedValue: inlineExpectedValue,
+        clearParam,
+      };
+    }
+    if (!modal.id) {
+      return null;
+    }
+    return DEFAULT_SETTINGS_QUERY_DRIVEN_MODALS[modal.id] || null;
+  }
+
+  function resolveSettingsUrlModalName(modal) {
+    if (!(modal instanceof HTMLElement)) {
+      return '';
+    }
+    const inlineName = String(modal.dataset.settingsUrlModal || '').trim().toLowerCase();
+    if (inlineName) {
+      return inlineName;
+    }
+    if (!modal.id) {
+      return '';
+    }
+    return String(DEFAULT_SETTINGS_URL_MODAL_NAMES[modal.id] || '').trim().toLowerCase();
   }
 
   if (document.readyState === 'loading') {

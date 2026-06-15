@@ -2088,7 +2088,7 @@
   <div th:replace="~{fragments/navbar :: navbar('settings')}"></div>
   <main class="main-content container-fluid">
 
-  <div class="container-fluid mt-4 settings-surface page-shell page-shell--settings page-shell--flush" data-settings-page-shell data-settings-url-open-param="open" data-settings-url-legacy-param="tab">
+  <div class="container-fluid mt-4 settings-surface page-shell page-shell--settings page-shell--flush" data-settings-page-shell>
     <div class="page-header-card settings-page-hero page-hero">
       <span class="page-kicker">Workspace Control</span>
       <h2 class="page-title">⚙️ Настройки системы</h2>
@@ -2364,7 +2364,7 @@
     </div>
 
     <!-- Настройка вводимых данных -->
-    <div class="modal fade settings-primary-modal" id="inputFormattingModal" tabindex="-1" aria-labelledby="inputFormattingModalLabel" aria-hidden="true" data-settings-primary-modal data-settings-url-modal="input-formatting">
+    <div class="modal fade settings-primary-modal" id="inputFormattingModal" tabindex="-1" aria-labelledby="inputFormattingModalLabel" aria-hidden="true" data-settings-primary-modal>
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
@@ -2669,7 +2669,7 @@
     </div>
 
     <!-- Пользователи -->
-    <div class="modal fade settings-primary-modal" id="usersModal" tabindex="-1" aria-labelledby="usersModalLabel" aria-hidden="true" data-settings-primary-modal data-settings-url-modal="users">
+    <div class="modal fade settings-primary-modal" id="usersModal" tabindex="-1" aria-labelledby="usersModalLabel" aria-hidden="true" data-settings-primary-modal>
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
@@ -3037,7 +3037,7 @@
     </div>
 
     <!-- Настройки диалогов -->
-    <div class="modal fade settings-primary-modal" id="categoriesModal" tabindex="-1" aria-labelledby="categoriesModalLabel" aria-hidden="true" data-settings-primary-modal data-settings-url-modal="dialogs">
+    <div class="modal fade settings-primary-modal" id="categoriesModal" tabindex="-1" aria-labelledby="categoriesModalLabel" aria-hidden="true" data-settings-primary-modal>
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
@@ -4597,7 +4597,7 @@
     </div>
 
     <!-- Локации -->
-    <div class="modal fade settings-primary-modal" id="locationsModal" tabindex="-1" aria-labelledby="locationsModalLabel" aria-hidden="true" data-settings-primary-modal data-settings-url-modal="locations">
+    <div class="modal fade settings-primary-modal" id="locationsModal" tabindex="-1" aria-labelledby="locationsModalLabel" aria-hidden="true" data-settings-primary-modal>
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
@@ -4818,7 +4818,7 @@
     </div>
 
     <!-- Параметры партнёров -->
-    <div class="modal fade settings-primary-modal" id="parametersModal" tabindex="-1" aria-labelledby="parametersModalLabel" aria-hidden="true" data-settings-primary-modal data-settings-url-modal="parameters">
+    <div class="modal fade settings-primary-modal" id="parametersModal" tabindex="-1" aria-labelledby="parametersModalLabel" aria-hidden="true" data-settings-primary-modal>
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
@@ -4990,7 +4990,7 @@
       </div>
     </div>
 
-    <div class="modal fade settings-primary-modal" id="legalEntitiesModal" tabindex="-1" aria-labelledby="legalEntitiesModalLabel" aria-hidden="true" data-settings-primary-modal data-settings-url-modal="legal-entities">
+    <div class="modal fade settings-primary-modal" id="legalEntitiesModal" tabindex="-1" aria-labelledby="legalEntitiesModalLabel" aria-hidden="true" data-settings-primary-modal>
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
@@ -5043,7 +5043,7 @@
     </div>
 
     <!-- Подключения IT-блока и профили провайдеров -->
-    <div class="modal fade settings-primary-modal" id="itConnectionsModal" tabindex="-1" aria-labelledby="itConnectionsModalLabel" aria-hidden="true" data-settings-primary-modal data-settings-url-modal="it-connections">
+    <div class="modal fade settings-primary-modal" id="itConnectionsModal" tabindex="-1" aria-labelledby="itConnectionsModalLabel" aria-hidden="true" data-settings-primary-modal>
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
@@ -5265,7 +5265,7 @@
       </div>
     </div>
 
-    <div class="modal fade settings-child-modal" id="networkProfileEditorModal" tabindex="-1" aria-hidden="true" data-settings-suspend-parent="itConnectionsModal" data-settings-focus-target="[data-network-profile-provider]" data-settings-focus-select>
+    <div class="modal fade settings-child-modal" id="networkProfileEditorModal" tabindex="-1" aria-hidden="true" data-settings-suspend-parent="itConnectionsModal">
       <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
           <form data-network-profile-form>
@@ -5425,7 +5425,7 @@
       </div>
     </div>
 
-    <div class="modal fade settings-child-modal" id="itConnectionAddModal" tabindex="-1" aria-labelledby="itConnectionAddModalLabel" aria-hidden="true" data-settings-suspend-parent="itConnectionsModal" data-settings-focus-target="[data-it-connection-value-input], [data-it-connection-category-select]">
+    <div class="modal fade settings-child-modal" id="itConnectionAddModal" tabindex="-1" aria-labelledby="itConnectionAddModalLabel" aria-hidden="true" data-settings-suspend-parent="itConnectionsModal">
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
@@ -5475,7 +5475,7 @@
       </div>
     </div>
 
-    <div class="modal fade settings-child-modal" id="itEquipmentAddModal" tabindex="-1" aria-labelledby="itEquipmentAddModalLabel" aria-hidden="true" data-settings-suspend-parent="itConnectionsModal" data-settings-focus-target="[data-it-equipment-field=\"equipment_type\"], [data-it-equipment-field=\"equipment_vendor\"], [data-it-equipment-field=\"equipment_model\"]" data-settings-query-open="it-equipment" data-settings-query-clear-param="open">
+    <div class="modal fade settings-child-modal" id="itEquipmentAddModal" tabindex="-1" aria-labelledby="itEquipmentAddModalLabel" aria-hidden="true" data-settings-suspend-parent="itConnectionsModal">
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
@@ -5645,7 +5645,7 @@
       </div>
     </div>
 
-    <div class="modal fade settings-primary-modal" id="panelDesignSettingsModal" tabindex="-1" aria-labelledby="panelDesignSettingsModalLabel" aria-hidden="true" data-settings-primary-modal data-settings-url-modal="appearance">
+    <div class="modal fade settings-primary-modal" id="panelDesignSettingsModal" tabindex="-1" aria-labelledby="panelDesignSettingsModalLabel" aria-hidden="true" data-settings-primary-modal>
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
@@ -5720,7 +5720,7 @@
       </div>
     </div>
 
-    <div class="modal fade settings-primary-modal" id="reportingModal" tabindex="-1" aria-labelledby="reportingModalLabel" aria-hidden="true" data-settings-primary-modal data-settings-url-modal="reporting">
+    <div class="modal fade settings-primary-modal" id="reportingModal" tabindex="-1" aria-labelledby="reportingModalLabel" aria-hidden="true" data-settings-primary-modal>
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
@@ -5781,7 +5781,7 @@
     </div>
 
 
-    <div class="modal fade settings-primary-modal" id="managerBindingsModal" tabindex="-1" aria-labelledby="managerBindingsModalLabel" aria-hidden="true" data-settings-primary-modal data-settings-url-modal="manager-bindings">
+    <div class="modal fade settings-primary-modal" id="managerBindingsModal" tabindex="-1" aria-labelledby="managerBindingsModalLabel" aria-hidden="true" data-settings-primary-modal>
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
@@ -5813,7 +5813,7 @@
       </div>
     </div>
 
-    <div class="modal fade settings-primary-modal" id="channelsModal" tabindex="-1" aria-labelledby="channelsModalLabel" aria-hidden="true" data-settings-primary-modal data-settings-url-modal="channels">
+    <div class="modal fade settings-primary-modal" id="channelsModal" tabindex="-1" aria-labelledby="channelsModalLabel" aria-hidden="true" data-settings-primary-modal>
       <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
@@ -6432,7 +6432,7 @@
     </div>
   </div>
 
-  <div class="modal fade settings-child-modal settings-child-modal--workspace" id="channelEditorModal" tabindex="-1" aria-hidden="true" data-settings-suspend-parent="channelsModal" data-settings-suspend-class="channel-editor-child-open" data-settings-reset-tab="channel-editor-general-tab">
+  <div class="modal fade settings-child-modal settings-child-modal--workspace" id="channelEditorModal" tabindex="-1" aria-hidden="true" data-settings-suspend-parent="channelsModal" data-settings-suspend-class="channel-editor-child-open">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
       <div class="modal-content">
         <div class="modal-header">
