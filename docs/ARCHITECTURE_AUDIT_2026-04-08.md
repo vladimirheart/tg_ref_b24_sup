@@ -1756,6 +1756,20 @@ integration-сценария поверх users/settings runtime boundary всё
   сверяется с фактическим unread bell count перед ack, поэтому adjacent
   reread coverage не ломается из-за скрытого drift'а между fixture seed и
   controller-level `updated`.
+- следующий adjacent slice в этом же runtime контуре теперь добирает уже
+  live `take/categories` loops на read-side consumer'ах:
+  `DialogListIntegrationTest`, `DialogDetailsIntegrationTest` и
+  `DialogWorkspaceIntegrationTest` проходят `POST /take` и
+  `POST /categories` перед operator reply/history reread, bell ack и
+  следующим client follow-up, чтобы `rawResponsible/categories` и
+  `my_dialogs`/workspace/detail projections не держались только на
+  isolated quick-action тестах.
+- этот пакет дополнительно зафиксировал важную текущую семантику list-side:
+  сам `POST /take` не гасит уже существующий dialog unread bucket, поэтому
+  после take dialog может оставаться в `my_dialogs.unanswered` до
+  operator reply или explicit reread; следующий operator reply уже
+  переводит projection в `waiting_client`/`in_work`, а новый follow-up
+  снова поднимает unread и bell.
 - public-form smoke bridge после этого тоже замкнут на тот же live
   controller boundary: в `PublicFormFlowSmokeIntegrationTest` сценарии
   `take`, `resolve` и `reopen` больше не проходят через

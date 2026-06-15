@@ -22,6 +22,8 @@ import java.nio.file.Path;
 import java.sql.DriverManager;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.anyOf;
+import static org.hamcrest.Matchers.is;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -347,6 +349,107 @@ class DialogListIntegrationTest {
                 .andExpect(jsonPath("$.dialogs[0].unreadCount").value(0))
                 .andExpect(jsonPath("$.my_dialogs.unanswered").isEmpty())
                 .andExpect(jsonPath("$.my_dialogs.in_work[0].ticketId").value("T-LIST-RESOLVE"));
+    }
+
+    @Test
+    void listApiPreservesTakeCategoriesAndBucketsAcrossReplyAndNextFollowUp() throws Exception {
+        insertDirectoryUser("watcher_owner", "Watcher Owner", "/img/watcher-owner.png");
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
+                VALUES (64, 'token64', 'Dialog List Take Categories', 'telegram', 1, CURRENT_TIMESTAMP)
+                """);
+        jdbcTemplate.update("""
+                INSERT INTO tickets (user_id, ticket_id, status, channel_id, created_at)
+                VALUES (?,?,?,?,?)
+                """,
+                920064L, "T-LIST-TAKE-CATS", "open", 64L, "2026-05-28T09:30:00Z");
+        jdbcTemplate.update("""
+                INSERT INTO messages (
+                    group_msg_id, user_id, business, city, location_name, problem, created_at,
+                    username, ticket_id, created_date, created_time, client_name, channel_id, updated_at, updated_by
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                6401L,
+                920064L,
+                "Retail",
+                "Уфа",
+                "Точка Take",
+                "Проверка take/categories list refresh loop",
+                "2026-05-28T09:30:00Z",
+                "list_take_user",
+                "T-LIST-TAKE-CATS",
+                "2026-05-28",
+                "09:30:00",
+                "Клиент Take",
+                64L,
+                "2026-05-28T09:30:00Z",
+                "seed");
+        insertHistoryRow("T-LIST-TAKE-CATS", 920064L, "user", "Клиент пишет до take", "2026-05-28T09:31:00Z", "text", 641L, null, 64L);
+
+        mockMvc.perform(post("/api/dialogs/T-LIST-TAKE-CATS/take")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.changed").value(true));
+
+        mockMvc.perform(post("/api/dialogs/T-LIST-TAKE-CATS/categories")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "categories": ["vip", "priority"]
+                                }
+                                """)
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        mockMvc.perform(get("/api/dialogs")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-LIST-TAKE-CATS"))
+                .andExpect(jsonPath("$.dialogs[0].statusKey").value("waiting_operator"))
+                .andExpect(jsonPath("$.dialogs[0].rawResponsible").value("watcher_owner"))
+                .andExpect(jsonPath("$.dialogs[0].categories").value(anyOf(is("priority, vip"), is("vip, priority"))))
+                .andExpect(jsonPath("$.dialogs[0].unreadCount").value(1))
+                .andExpect(jsonPath("$.my_dialogs.unanswered[0].ticketId").value("T-LIST-TAKE-CATS"))
+                .andExpect(jsonPath("$.my_dialogs.in_work").isEmpty());
+
+        insertHistoryRow("T-LIST-TAKE-CATS", 920064L, "operator", "Оператор ответил после take/categories", "2026-05-28T09:32:00Z", "operator_message", 642L, 641L, 64L);
+
+        mockMvc.perform(get("/api/dialogs")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-LIST-TAKE-CATS"))
+                .andExpect(jsonPath("$.dialogs[0].statusKey").value("waiting_client"))
+                .andExpect(jsonPath("$.dialogs[0].rawResponsible").value("watcher_owner"))
+                .andExpect(jsonPath("$.dialogs[0].categories").value(anyOf(is("priority, vip"), is("vip, priority"))))
+                .andExpect(jsonPath("$.dialogs[0].unreadCount").value(0))
+                .andExpect(jsonPath("$.my_dialogs.unanswered").isEmpty())
+                .andExpect(jsonPath("$.my_dialogs.in_work[0].ticketId").value("T-LIST-TAKE-CATS"));
+
+        insertHistoryRow("T-LIST-TAKE-CATS", 920064L, "user", "Новый follow-up после reply", "2026-05-28T09:33:00Z", "text", 643L, 642L, 64L);
+        notificationService.notifyDialogParticipants(
+                "T-LIST-TAKE-CATS",
+                "Новое сообщение в обращении T-LIST-TAKE-CATS",
+                "/dialogs?ticketId=T-LIST-TAKE-CATS",
+                null
+        );
+
+        mockMvc.perform(get("/api/dialogs")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-LIST-TAKE-CATS"))
+                .andExpect(jsonPath("$.dialogs[0].statusKey").value("waiting_operator"))
+                .andExpect(jsonPath("$.dialogs[0].rawResponsible").value("watcher_owner"))
+                .andExpect(jsonPath("$.dialogs[0].categories").value(anyOf(is("priority, vip"), is("vip, priority"))))
+                .andExpect(jsonPath("$.dialogs[0].unreadCount").value(1))
+                .andExpect(jsonPath("$.my_dialogs.unanswered[0].ticketId").value("T-LIST-TAKE-CATS"))
+                .andExpect(jsonPath("$.my_dialogs.in_work").isEmpty());
+
+        mockMvc.perform(get("/api/notifications/unread_count")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unread").value(1));
     }
 
     private void insertDirectoryUser(String username, String fullName, String photo) {

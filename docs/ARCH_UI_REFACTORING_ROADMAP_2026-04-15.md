@@ -1549,6 +1549,16 @@
   фиксирует и тестовую оговорку: bell mass-ack нужно сверять с
   фактическим unread seed перед действием, иначе runtime contract легко
   замаскировать хрупким `updated=1` ожиданием.
+- следующий adjacent hardening поверх этого же хвоста теперь добирает
+  `take/categories` continuity на самих read-side consumer'ах:
+  `list/details/workspace` проходят live `POST /take` и `POST /categories`
+  перед operator reply, reread, bell ack и следующим follow-up, так что
+  этот runtime loop уже не держится только на isolated quick-action тесте.
+- roadmap теперь явно фиксирует и текущую list-side семантику:
+  `POST /take` не обязан сам по себе гасить существующий dialog unread,
+  поэтому adjacent projections нужно проверять в связке
+  `take -> reply/reread -> next follow-up`, а не только на самом моменте
+  назначения responsible.
 - следующий practical slice поверх этого же контура уже замыкает и
   `public form -> operator dialogs` bridge: smoke-сценарии внешней формы
   переведены на live `POST /take`, `POST /resolve` и `POST /reopen`, так

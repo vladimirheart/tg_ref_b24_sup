@@ -27,6 +27,7 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.anyOf;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -1027,6 +1028,143 @@ class DialogDetailsIntegrationTest {
                 .andExpect(jsonPath("$.dialogs[0].unreadCount").value(0))
                 .andExpect(jsonPath("$.my_dialogs.unanswered").isEmpty())
                 .andExpect(jsonPath("$.my_dialogs.in_work[0].ticketId").value("T-DETAIL-RESOLVE"));
+    }
+
+    @Test
+    void detailsApiPreservesTakeCategoriesAndBellRearmAcrossReplyAckAndNextFollowUp() throws Exception {
+        insertDirectoryUser("watcher_owner", "Watcher Owner", "/img/watcher-owner.png");
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
+                VALUES (100, 'token100', 'Dialog Details Take Categories', 'telegram', 1, CURRENT_TIMESTAMP)
+                """);
+        jdbcTemplate.update("""
+                INSERT INTO tickets (user_id, ticket_id, status, channel_id)
+                VALUES (?,?,?,?)
+                """,
+                910100L, "T-DETAIL-TAKE-CATS", "open", 100L);
+        jdbcTemplate.update("""
+                INSERT INTO messages (
+                    group_msg_id, user_id, business, city, location_name, problem, created_at,
+                    username, ticket_id, created_date, created_time, client_name, channel_id, updated_at, updated_by
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                10001L,
+                910100L,
+                "Retail",
+                "Тула",
+                "Точка Take",
+                "Проверка details take/categories rearm loop",
+                "2026-05-27T11:20:00Z",
+                "details_take_user",
+                "T-DETAIL-TAKE-CATS",
+                "2026-05-27",
+                "11:20:00",
+                "Клиент Details Take",
+                100L,
+                "2026-05-27T11:20:00Z",
+                "seed");
+        insertHistoryRow("T-DETAIL-TAKE-CATS", 910100L, "user", "Первое сообщение до take", "2026-05-27T11:21:00Z", "text", 1001L, null, 100L, null, null, null, null, null);
+
+        mockMvc.perform(post("/api/dialogs/T-DETAIL-TAKE-CATS/take")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.changed").value(true));
+
+        mockMvc.perform(post("/api/dialogs/T-DETAIL-TAKE-CATS/categories")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "categories": ["vip", "priority"]
+                                }
+                                """)
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.categories", hasItem("vip")))
+                .andExpect(jsonPath("$.categories", hasItem("priority")));
+
+        insertHistoryRow("T-DETAIL-TAKE-CATS", 910100L, "operator", "Ответ после take/categories", "2026-05-27T11:22:00Z", "operator_message", 1002L, 1001L, 100L, null, null, null, null, null);
+
+        mockMvc.perform(get("/api/dialogs/T-DETAIL-TAKE-CATS")
+                        .param("channelId", "100")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.ticketId").value("T-DETAIL-TAKE-CATS"))
+                .andExpect(jsonPath("$.summary.statusKey").value("waiting_client"))
+                .andExpect(jsonPath("$.summary.unreadCount").value(0))
+                .andExpect(jsonPath("$.summary.rawResponsible").value("watcher_owner"))
+                .andExpect(jsonPath("$.categories.length()").value(2))
+                .andExpect(jsonPath("$.categories", hasItem("vip")))
+                .andExpect(jsonPath("$.categories", hasItem("priority")))
+                .andExpect(jsonPath("$.history[1].message").value("Ответ после take/categories"));
+
+        insertHistoryRow("T-DETAIL-TAKE-CATS", 910100L, "user", "Первый follow-up после reply", "2026-05-27T11:23:00Z", "text", 1003L, 1002L, 100L, null, null, null, null, null);
+        notificationService.notifyDialogParticipants(
+                "T-DETAIL-TAKE-CATS",
+                "Новое сообщение в обращении T-DETAIL-TAKE-CATS",
+                "/dialogs?ticketId=T-DETAIL-TAKE-CATS",
+                null
+        );
+
+        mockMvc.perform(get("/api/dialogs")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-DETAIL-TAKE-CATS"))
+                .andExpect(jsonPath("$.dialogs[0].statusKey").value("waiting_operator"))
+                .andExpect(jsonPath("$.dialogs[0].unreadCount").value(1))
+                .andExpect(jsonPath("$.my_dialogs.unanswered[0].ticketId").value("T-DETAIL-TAKE-CATS"))
+                .andExpect(jsonPath("$.my_dialogs.in_work").isEmpty());
+
+        mockMvc.perform(get("/api/dialogs/T-DETAIL-TAKE-CATS")
+                        .param("channelId", "100")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.statusKey").value("waiting_operator"))
+                .andExpect(jsonPath("$.summary.unreadCount").value(0))
+                .andExpect(jsonPath("$.summary.rawResponsible").value("watcher_owner"))
+                .andExpect(jsonPath("$.categories.length()").value(2))
+                .andExpect(jsonPath("$.categories", hasItem("vip")))
+                .andExpect(jsonPath("$.categories", hasItem("priority")))
+                .andExpect(jsonPath("$.history[2].message").value("Первый follow-up после reply"));
+
+        Long firstNotificationId = jdbcTemplate.queryForObject(
+                "SELECT id FROM notifications WHERE user_identity = ? ORDER BY id DESC LIMIT 1",
+                Long.class,
+                "watcher_owner"
+        );
+
+        mockMvc.perform(post("/api/notifications/" + firstNotificationId + "/read")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        mockMvc.perform(get("/api/notifications/unread_count")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unread").value(0));
+
+        insertHistoryRow("T-DETAIL-TAKE-CATS", 910100L, "user", "Второй follow-up после ack", "2026-05-27T11:25:00Z", "text", 1004L, 1002L, 100L, null, null, null, null, null);
+        notificationService.notifyDialogParticipants(
+                "T-DETAIL-TAKE-CATS",
+                "Новое сообщение в обращении T-DETAIL-TAKE-CATS",
+                "/dialogs?ticketId=T-DETAIL-TAKE-CATS",
+                null
+        );
+
+        mockMvc.perform(get("/api/dialogs")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-DETAIL-TAKE-CATS"))
+                .andExpect(jsonPath("$.dialogs[0].statusKey").value("waiting_operator"))
+                .andExpect(jsonPath("$.dialogs[0].unreadCount").value(1))
+                .andExpect(jsonPath("$.my_dialogs.unanswered[0].ticketId").value("T-DETAIL-TAKE-CATS"))
+                .andExpect(jsonPath("$.my_dialogs.in_work").isEmpty());
+
+        mockMvc.perform(get("/api/notifications/unread_count")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unread").value(1));
     }
 
     private void ensureChatHistoryMutationColumns() {

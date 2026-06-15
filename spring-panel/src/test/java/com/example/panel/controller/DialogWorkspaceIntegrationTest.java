@@ -1095,6 +1095,123 @@ class DialogWorkspaceIntegrationTest {
                 .andExpect(jsonPath("$.unread").value(1));
     }
 
+    @Test
+    void workspaceApiPreservesTakeWorkflowAndUnreadRearmAcrossReplyAckAndNextFollowUp() throws Exception {
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        insertDirectoryUser("watcher_owner", true, false, 1L, "Support", "Watcher Owner", "Ops", "/img/owner.png");
+
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
+                VALUES (100, 'token100w', 'Workspace Take Loop', 'telegram', 1, CURRENT_TIMESTAMP)
+                """);
+        insertDialogTicket(910110L, "T-WS-TAKE-LOOP", 100L, "workspace_take_user", "Клиент Workspace Take", "Retail", "Брянск", "Точка", "Проверка workspace take/categories loop", "2026-05-27T11:00:00Z", 10001L);
+        insertHistoryRow("T-WS-TAKE-LOOP", 910110L, "user", "Сообщение до take", "2026-05-27T11:01:00Z", "text", 1001L, null, 100L, null);
+
+        mockMvc.perform(post("/api/dialogs/T-WS-TAKE-LOOP/take")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.changed").value(true));
+
+        mockMvc.perform(post("/api/dialogs/T-WS-TAKE-LOOP/categories")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "categories": ["vip", "priority"]
+                                }
+                                """)
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.categories", hasItem("vip")))
+                .andExpect(jsonPath("$.categories", hasItem("priority")));
+
+        insertHistoryRow("T-WS-TAKE-LOOP", 910110L, "operator", "Ответ после take/categories", "2026-05-27T11:02:00Z", "operator_message", 1002L, 1001L, 100L, null);
+
+        assertThat(jdbcTemplate.queryForList(
+                "SELECT category FROM ticket_categories WHERE ticket_id = ? ORDER BY category",
+                String.class,
+                "T-WS-TAKE-LOOP"
+        )).containsExactly("priority", "vip");
+
+        mockMvc.perform(get("/api/dialogs/T-WS-TAKE-LOOP/workspace")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.conversation.ticketId").value("T-WS-TAKE-LOOP"))
+                .andExpect(jsonPath("$.conversation.statusKey").value("waiting_client"))
+                .andExpect(jsonPath("$.workflow.responsible.username").value("watcher_owner"))
+                .andExpect(jsonPath("$.workflow.actions.take.enabled").value(false))
+                .andExpect(jsonPath("$.workflow.actions.take.disabled_reason").value("already_assigned_to_operator"))
+                .andExpect(jsonPath("$.workflow.actions.resolve.enabled").value(true))
+                .andExpect(jsonPath("$.workflow.actions.categories.enabled").value(true))
+                .andExpect(jsonPath("$.workflow.actions.spam.enabled").value(true))
+                .andExpect(jsonPath("$.messages.items[0].message").value("Сообщение до take"))
+                .andExpect(jsonPath("$.messages.items[1].message").value("Ответ после take/categories"));
+
+        insertHistoryRow("T-WS-TAKE-LOOP", 910110L, "user", "Первый follow-up после reply", "2026-05-27T11:03:00Z", "text", 1003L, 1002L, 100L, null);
+        notificationService.notifyDialogParticipants(
+                "T-WS-TAKE-LOOP",
+                "Новое сообщение в обращении T-WS-TAKE-LOOP",
+                "/dialogs?ticketId=T-WS-TAKE-LOOP",
+                null
+        );
+
+        mockMvc.perform(get("/api/dialogs")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-WS-TAKE-LOOP"))
+                .andExpect(jsonPath("$.dialogs[0].unreadCount").value(1))
+                .andExpect(jsonPath("$.my_dialogs.unanswered[0].ticketId").value("T-WS-TAKE-LOOP"))
+                .andExpect(jsonPath("$.my_dialogs.in_work").isEmpty());
+
+        mockMvc.perform(get("/api/dialogs/T-WS-TAKE-LOOP/workspace")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.conversation.ticketId").value("T-WS-TAKE-LOOP"))
+                .andExpect(jsonPath("$.conversation.statusKey").value("waiting_operator"))
+                .andExpect(jsonPath("$.workflow.responsible.username").value("watcher_owner"))
+                .andExpect(jsonPath("$.workflow.actions.resolve.enabled").value(true))
+                .andExpect(jsonPath("$.workflow.actions.take.enabled").value(false))
+                .andExpect(jsonPath("$.messages.items[2].message").value("Первый follow-up после reply"));
+
+        Long firstNotificationId = jdbcTemplate.queryForObject(
+                "SELECT id FROM notifications WHERE user_identity = ? ORDER BY id DESC LIMIT 1",
+                Long.class,
+                "watcher_owner"
+        );
+
+        mockMvc.perform(post("/api/notifications/" + firstNotificationId + "/read")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+
+        mockMvc.perform(get("/api/notifications/unread_count")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unread").value(0));
+
+        insertHistoryRow("T-WS-TAKE-LOOP", 910110L, "user", "Второй follow-up после ack", "2026-05-27T11:05:00Z", "text", 1004L, 1002L, 100L, null);
+        notificationService.notifyDialogParticipants(
+                "T-WS-TAKE-LOOP",
+                "Новое сообщение в обращении T-WS-TAKE-LOOP",
+                "/dialogs?ticketId=T-WS-TAKE-LOOP",
+                null
+        );
+
+        mockMvc.perform(get("/api/dialogs")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-WS-TAKE-LOOP"))
+                .andExpect(jsonPath("$.dialogs[0].unreadCount").value(1))
+                .andExpect(jsonPath("$.my_dialogs.unanswered[0].ticketId").value("T-WS-TAKE-LOOP"))
+                .andExpect(jsonPath("$.my_dialogs.in_work").isEmpty());
+
+        mockMvc.perform(get("/api/notifications/unread_count")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unread").value(1));
+    }
+
     private void insertDialogTicket(long userId,
                                     String ticketId,
                                     long channelId,
