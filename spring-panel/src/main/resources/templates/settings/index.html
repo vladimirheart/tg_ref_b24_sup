@@ -4626,7 +4626,7 @@
             <div class="tab-content settings-tab-content mt-3">
               <div class="tab-pane fade show active" id="locations-structure-pane" role="tabpanel" aria-labelledby="locations-structure-tab" tabindex="0">
                 <div class="d-flex flex-wrap gap-2 mb-3">
-                  <button class="btn btn-sm btn-primary" type="button" onclick="openAddLocationWizard()">Добавить запись</button>
+                  <button class="btn btn-sm btn-primary" type="button" data-settings-open-modal="locationWizardModal" data-settings-action-callback="prepareLocationWizardSettingsTrigger">Добавить запись</button>
                   <button class="btn btn-sm btn-success" type="button" onclick="addBusiness()">+ Добавить бизнес</button>
                 </div>
                 <div id="locationsEditor" class="mb-3">
@@ -4887,7 +4887,7 @@
                     <h6 class="mb-1">Контактные данные контрагентов</h6>
                     <p class="small text-muted mb-0">Фиксируйте телефоны, e-mail и связь с юридическими лицами контрагентов.</p>
                   </div>
-                  <button class="btn btn-sm btn-success" type="button" data-partner-contact-add="partner">+ Добавить контакт</button>
+                  <button class="btn btn-sm btn-success" type="button" data-partner-contact-add="partner" data-settings-open-modal="partnerContactEditorModal" data-settings-action-callback="preparePartnerContactDraftSettingsTrigger">+ Добавить контакт</button>
                 </div>
                 <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3" data-partner-contacts-list></div>
                 <div class="card border-0 bg-light text-center py-5 d-none" data-partner-contacts-empty>
@@ -4909,7 +4909,7 @@
                     <h6 class="mb-1">Контакты франчайзи</h6>
                     <p class="small text-muted mb-0">Храните данные о франчайзи: телефоны, почту и ответственных лиц.</p>
                   </div>
-                  <button class="btn btn-sm btn-success" type="button" data-partner-contact-add="ka">+ Добавить контакт</button>
+                  <button class="btn btn-sm btn-success" type="button" data-partner-contact-add="ka" data-settings-open-modal="partnerContactEditorModal" data-settings-action-callback="preparePartnerContactDraftSettingsTrigger">+ Добавить контакт</button>
                 </div>
                 <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3" data-partner-contacts-list></div>
                 <div class="card border-0 bg-light text-center py-5 d-none" data-partner-contacts-empty>
@@ -4931,7 +4931,7 @@
                        th:if="${entry.key} != 'it_connection' and ${entry.key} != 'remote_access' and ${entry.key} != 'legal_entity'">
                     <div class="card shadow-sm parameter-card" th:attr="data-param-type=${entry.key}">
                       <div class="card-header d-flex justify-content-between align-items-center">
-                        <button type="button" class="btn btn-link flex-grow-1 text-start" data-param-toggle>
+                        <button type="button" class="btn btn-link flex-grow-1 text-start" data-param-toggle data-settings-open-modal="parameterItemsModal" data-settings-action-callback="prepareParameterSettingsTrigger">
                           <span th:text="${entry.value}">Параметр</span>
                         </button>
                         <span class="badge bg-secondary" data-param-count>0</span>
@@ -4949,7 +4949,7 @@
                       th:attr="data-city-count=${cities.size()}"
                     >
                       <div class="card-header d-flex justify-content-between align-items-center">
-                        <button type="button" class="btn btn-link flex-grow-1 text-start" data-city-toggle>
+                        <button type="button" class="btn btn-link flex-grow-1 text-start" data-city-toggle data-settings-open-modal="parameterItemsModal" data-settings-action-callback="prepareCityParameterSettingsTrigger">
                           Город
                         </button>
                         <span class="badge bg-secondary" th:text="${cities.size()}">0</span>
@@ -5222,7 +5222,7 @@
                       </table>
                     </div>
                     <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mt-3">
-                      <button class="btn btn-sm btn-success" type="button" data-network-profiles-add>+ Добавить профиль</button>
+                      <button class="btn btn-sm btn-success" type="button" data-network-profiles-add data-settings-open-modal="networkProfileEditorModal" data-settings-action-callback="prepareNetworkProfileSettingsTrigger">+ Добавить профиль</button>
                       <button class="btn btn-sm btn-primary" type="button" data-network-profiles-save>
                         💾 Сохранить изменения
                       </button>
@@ -5909,7 +5909,7 @@
                         <span class="channels-quick-card__pill" data-channels-manage-summary="profiles-count">Профили не созданы</span>
                       </div>
                       <div class="channels-quick-card__actions">
-                        <button type="button" class="btn btn-outline-success" data-channels-network-profile-quick-add data-settings-open-collapse="channelsProfilesCollapse">Новый профиль</button>
+                        <button type="button" class="btn btn-outline-success" data-channels-network-profile-quick-add data-settings-open-collapse="channelsProfilesCollapse" data-settings-open-modal="integrationNetworkProfileEditorModal" data-settings-action-callback="prepareIntegrationNetworkProfileSettingsTrigger">Новый профиль</button>
                         <button type="button" class="btn btn-outline-secondary" data-settings-open-collapse="channelsProfilesCollapse">Открыть список</button>
                       </div>
                     </section>
@@ -5983,7 +5983,7 @@
                               <p class="text-muted mb-0">Создайте именованные профили маршрутизации, чтобы потом выбирать их для проекта, подсистемы ботов и отдельных интеграций.</p>
                             </div>
                             <div class="d-flex gap-2 flex-wrap">
-                              <button type="button" class="btn btn-outline-success btn-sm" data-integration-network-profile-add>+ Добавить профиль</button>
+                              <button type="button" class="btn btn-outline-success btn-sm" data-integration-network-profile-add data-settings-open-modal="integrationNetworkProfileEditorModal" data-settings-action-callback="prepareIntegrationNetworkProfileSettingsTrigger">+ Добавить профиль</button>
                               <button type="button" class="btn btn-outline-secondary btn-sm" data-integration-network-profiles-probe-all>Проверить доступность</button>
                               <button type="button" class="btn btn-outline-primary btn-sm" data-integration-network-profiles-save>Сохранить профили</button>
                             </div>
@@ -7486,9 +7486,6 @@
   const partnerContactEditorActions = partnerContactEditorModalEl
     ? partnerContactEditorModalEl.querySelector('[data-partner-contact-editor-actions]')
     : null;
-  const partnerContactEditorModal = partnerContactEditorModalEl
-    ? window.SettingsPageShell.getModalInstance(partnerContactEditorModalEl)
-    : null;
 
   let partnerContactEditorState = null;
 
@@ -7639,21 +7636,36 @@
     return true;
   }
 
-  function openPartnerContactEditor(card) {
-    if (!partnerContactEditorModal || !card) return;
+  function preparePartnerContactEditor(card) {
+    if (!partnerContactEditorModalEl || !card) return false;
     const key = getPartnerContactCardKey(card);
-    if (!key) return;
+    if (!key) return false;
     partnerContactEditorState = { key };
     setPartnerContactCardVisibility(key, false);
     const rendered = renderPartnerContactModalContentByKey(key);
     if (!rendered) {
       partnerContactEditorState = null;
       setPartnerContactCardVisibility(key, true);
-      return;
+      return false;
     }
     updatePartnerContactEditorTitleByKey(key);
-    partnerContactEditorModal.show();
+    return true;
   }
+
+  window.preparePartnerContactEditorSettingsTrigger = function preparePartnerContactEditorSettingsTrigger(trigger) {
+    const card = trigger instanceof HTMLElement ? trigger.closest('[data-partner-contact-card]') : null;
+    return preparePartnerContactEditor(card);
+  };
+
+  window.preparePartnerContactDraftSettingsTrigger = function preparePartnerContactDraftSettingsTrigger(trigger) {
+    const scope = trigger instanceof HTMLElement ? trigger.dataset.partnerContactAdd : null;
+    const initial = {};
+    if (scope) {
+      initial.contact_type = scope;
+    }
+    addPartnerContactDraft(initial);
+    return false;
+  };
 
   function refreshPartnerContactPersonRow(row) {
     if (!row) return;
@@ -9527,7 +9539,7 @@
       const deletedBadge = isDeleted ? '<span class="badge text-bg-warning">Удалено</span>' : '';
       return `
         <div class="col">
-          <div class="${cardClasses.join(' ')}" ${datasetAttrs} data-partner-contact-open-modal role="button" tabindex="0" aria-label="${escapeHtml(ariaLabel)}">
+          <div class="${cardClasses.join(' ')}" ${datasetAttrs} data-partner-contact-open-modal data-settings-open-modal="partnerContactEditorModal" data-settings-action-callback="preparePartnerContactEditorSettingsTrigger" role="button" tabindex="0" aria-label="${escapeHtml(ariaLabel)}">
             <div class="card-body">
               <div class="partner-contact-summary-head">
                 <div>
@@ -9636,7 +9648,7 @@
             </div>
             <div class="d-flex align-items-start gap-2">
               ${idBadge}
-              <button class="btn btn-outline-primary btn-sm" type="button" data-partner-contact-open-modal title="Открыть в модальном окне">
+              <button class="btn btn-outline-primary btn-sm" type="button" data-partner-contact-open-modal data-settings-open-modal="partnerContactEditorModal" data-settings-action-callback="preparePartnerContactEditorSettingsTrigger" title="Открыть в модальном окне">
                 <i class="bi bi-arrows-fullscreen"></i>
               </button>
             </div>
@@ -9776,8 +9788,8 @@
       const key = partnerContactEditorState.key;
       setPartnerContactCardVisibility(key, false);
       const rendered = renderPartnerContactModalContentByKey(key);
-      if (!rendered && partnerContactEditorModal) {
-        partnerContactEditorModal.hide();
+      if (!rendered && partnerContactEditorModalEl) {
+        window.SettingsPageShell.hideModal(partnerContactEditorModalEl);
       } else {
         updatePartnerContactEditorTitleByKey(key);
       }
@@ -9811,8 +9823,8 @@
   };
 
   window.resetPartnerContactsSettingsModal = function resetPartnerContactsSettingsModal() {
-    if (partnerContactEditorModal) {
-      partnerContactEditorModal.hide();
+    if (partnerContactEditorModalEl) {
+      window.SettingsPageShell.hideModal(partnerContactEditorModalEl);
     }
     partnerContactDrafts = [];
     partnerContactDraftCounter = 0;
@@ -9874,11 +9886,11 @@
     partnerContactDrafts.push(draft);
     renderPartnerContacts();
     const key = getPartnerContactItemKey(draft);
-    if (partnerContactEditorModal && key) {
+    if (partnerContactEditorModalEl && key) {
       setTimeout(() => {
         const card = findPartnerContactCardByKey(key);
-        if (card) {
-          openPartnerContactEditor(card);
+        if (card && preparePartnerContactEditor(card)) {
+          window.SettingsPageShell.showModal(partnerContactEditorModalEl);
         }
       }, 0);
     }
@@ -10296,8 +10308,8 @@
       }
       syncParameterData((result && result.data) || parameterData);
       renderParameters({ forceBodies: true });
-      if (partnerContactEditorModal && partnerContactEditorModalEl && partnerContactEditorModalEl.contains(card)) {
-        partnerContactEditorModal.hide();
+      if (partnerContactEditorModalEl && partnerContactEditorModalEl.contains(card)) {
+        window.SettingsPageShell.hideModal(partnerContactEditorModalEl);
       }
     } catch (error) {
       const message = error && error.message ? error.message : error;
@@ -10418,8 +10430,8 @@
     }
   }
 
-  function openParameterModal(type) {
-    if (!parameterModalEl) return;
+  function prepareParameterModal(type) {
+    if (!parameterModalEl) return false;
     parameterModalType = type;
     const titleEl = parameterModalEl.querySelector('[data-param-modal-title]');
     if (titleEl) {
@@ -10428,7 +10440,7 @@
       titleEl.textContent = `Параметры партнёров • ${label}`;
     }
     renderParameterModal(type);
-    window.SettingsPageShell.showModal(parameterModalEl);
+    return true;
   }
 
   renderParameters();
@@ -10437,19 +10449,32 @@
     parameterModalType = null;
   };
 
+  window.prepareCityParameterSettingsTrigger = function prepareCityParameterSettingsTrigger() {
+    const cityCount = cityCardEl ? Number.parseInt(cityCardEl.dataset.cityCount || '0', 10) : 0;
+    if (Number.isFinite(cityCount) && cityCount > 10) {
+      return prepareParameterModal(CITY_PARAMETER_TYPE);
+    }
+    return false;
+  };
+
+  window.prepareParameterSettingsTrigger = function prepareParameterSettingsTrigger(trigger) {
+    const card = trigger instanceof HTMLElement ? trigger.closest('.parameter-card') : null;
+    if (!card) return false;
+    const type = card.dataset.paramType;
+    if (!type) return false;
+    if (card.dataset.hasMany === 'true') {
+      return prepareParameterModal(type);
+    }
+    card.classList.toggle('is-expanded');
+    renderParameterCard(type, { forceBody: true });
+    return false;
+  };
+
   function findParameterContainer(element) {
     return element ? element.closest('[data-param-container]') : null;
   }
 
   document.addEventListener('click', (event) => {
-    const partnerContactOpenModalBtn = event.target.closest('[data-partner-contact-open-modal]');
-    if (partnerContactOpenModalBtn) {
-      const card = partnerContactOpenModalBtn.closest('[data-partner-contact-card]');
-      if (!card) return;
-      openPartnerContactEditor(card);
-      event.preventDefault();
-      return;
-    }
     const detailsToggleBtn = event.target.closest('[data-partner-contact-details-toggle]');
     if (detailsToggleBtn) {
       const container = detailsToggleBtn.closest('[data-partner-contact-details]');
@@ -10500,16 +10525,6 @@
           peopleToggleBtn.textContent = collapsedText;
         }
       }
-      return;
-    }
-    const partnerContactAddBtn = event.target.closest('[data-partner-contact-add]');
-    if (partnerContactAddBtn) {
-      const scope = partnerContactAddBtn.dataset.partnerContactAdd;
-      const initial = {};
-      if (scope) {
-        initial.contact_type = scope;
-      }
-      addPartnerContactDraft(initial);
       return;
     }
     const partnerContactActionBtn = event.target.closest('[data-partner-contact-action]');
@@ -10651,27 +10666,6 @@
       }
       return;
     }
-    const cityToggle = event.target.closest('[data-city-toggle]');
-    if (cityToggle) {
-      if (Array.isArray(CITY_OPTIONS) && CITY_OPTIONS.length > 10) {
-        openParameterModal(CITY_PARAMETER_TYPE);
-      }
-      return;
-    }
-    const toggleBtn = event.target.closest('[data-param-toggle]');
-    if (toggleBtn) {
-      const card = toggleBtn.closest('.parameter-card');
-      if (!card) return;
-      const type = card.dataset.paramType;
-      if (!type) return;
-      if (card.dataset.hasMany === 'true') {
-        openParameterModal(type);
-        return;
-      }
-      card.classList.toggle('is-expanded');
-      renderParameterCard(type, { forceBody: true });
-      return;
-    }
     const actionEl = event.target.closest('[data-param-action]');
     if (!actionEl) return;
     const action = actionEl.dataset.paramAction;
@@ -10693,17 +10687,6 @@
     } else if (action === 'restore') {
       restoreParameter(id, type, actionEl);
     }
-  });
-
-  document.addEventListener('keydown', (event) => {
-    if (event.key !== 'Enter' && event.key !== ' ') return;
-    const openTarget = event.target.closest('[data-partner-contact-open-modal]');
-    if (!openTarget) return;
-    if (openTarget.getAttribute('role') !== 'button') return;
-    const card = openTarget.closest('[data-partner-contact-card]');
-    if (!card) return;
-    event.preventDefault();
-    openPartnerContactEditor(card);
   });
 
   document.addEventListener('change', (event) => {
@@ -11052,7 +11035,6 @@
 
   const networkProfilesBody = document.getElementById('networkProfilesBody');
   const networkProfilesSaveButton = document.querySelector('[data-network-profiles-save]');
-  const networkProfilesAddButton = document.querySelector('[data-network-profiles-add]');
   const networkProfileModalEl = document.getElementById('networkProfileEditorModal');
   const networkProfileForm = networkProfileModalEl ? networkProfileModalEl.querySelector('[data-network-profile-form]') : null;
   const networkProfileTitle = networkProfileModalEl ? networkProfileModalEl.querySelector('[data-network-profile-title]') : null;
@@ -11210,7 +11192,7 @@
     renderRestaurantIdInputs(ids.length ? ids : ['']);
   }
 
-  function openNetworkProfileModal(index) {
+  function prepareNetworkProfileModal(index) {
     const numericIndex = Number.isInteger(index) ? index : Number.parseInt(index, 10);
     const isEdit = Number.isInteger(numericIndex) && numericIndex >= 0 && numericIndex < networkProfilesData.length;
     networkProfileEditingIndex = isEdit ? numericIndex : null;
@@ -11222,10 +11204,13 @@
     if (networkProfileDeleteButton) {
       networkProfileDeleteButton.classList.toggle('d-none', !isEdit);
     }
-    if (networkProfileModalEl) {
-      window.SettingsPageShell.showModal(networkProfileModalEl);
-    }
+    return Boolean(networkProfileModalEl);
   }
+
+  window.prepareNetworkProfileSettingsTrigger = function prepareNetworkProfileSettingsTrigger(trigger) {
+    const indexValue = trigger instanceof HTMLElement ? trigger.dataset.networkProfileIndex : null;
+    return prepareNetworkProfileModal(indexValue);
+  };
 
   function renderNetworkProfiles() {
     if (!networkProfilesBody) return;
@@ -11250,7 +11235,7 @@
         <td data-usage-cell></td>
         <td class="text-nowrap">
           <div class="btn-group btn-group-sm">
-            <button class="btn btn-outline-primary" type="button" data-action="edit-profile">Открыть</button>
+            <button class="btn btn-outline-primary" type="button" data-action="edit-profile" data-network-profile-index="${index}" data-settings-open-modal="networkProfileEditorModal" data-settings-action-callback="prepareNetworkProfileSettingsTrigger">Открыть</button>
             <button class="btn btn-outline-danger" type="button" data-action="remove-profile">Удалить</button>
           </div>
         </td>
@@ -11336,10 +11321,6 @@
     }
   }
 
-  if (networkProfilesAddButton) {
-    networkProfilesAddButton.addEventListener('click', () => openNetworkProfileModal(null));
-  }
-
   if (networkProfilesBody) {
     networkProfilesBody.addEventListener('click', (event) => {
       const actionButton = event.target.closest('[data-action]');
@@ -11349,9 +11330,7 @@
       const index = Number.parseInt(row.dataset.index, 10);
       if (Number.isNaN(index)) return;
       const action = actionButton.dataset.action;
-      if (action === 'edit-profile') {
-        openNetworkProfileModal(index);
-      } else if (action === 'remove-profile') {
+      if (action === 'remove-profile') {
         if (confirm('Удалить профиль провайдера?')) {
           removeNetworkProfileRow(index);
         }
@@ -12214,9 +12193,6 @@
   const itConnectionValueInput = itConnectionAddModalEl
     ? itConnectionAddModalEl.querySelector('[data-it-connection-value-input]')
     : null;
-  const itConnectionAddModal = itConnectionAddModalEl
-    ? window.SettingsPageShell.getModalInstance(itConnectionAddModalEl)
-    : null;
 
   const itEquipmentAddModalEl = document.getElementById('itEquipmentAddModal');
   const itEquipmentAddForm = itEquipmentAddModalEl
@@ -12242,9 +12218,6 @@
     : null;
   const itEquipmentAddSubmitButton = itEquipmentAddForm
     ? itEquipmentAddForm.querySelector('button[type="submit"]')
-    : null;
-  const itEquipmentAddModal = itEquipmentAddModalEl
-    ? window.SettingsPageShell.getModalInstance(itEquipmentAddModalEl)
     : null;
 
   function populateItEquipmentAddOptions(selectedValues = {}) {
@@ -12420,8 +12393,8 @@
           itEquipmentItems.push(data.item);
         }
         renderItEquipmentTable();
-        if (itEquipmentAddModal) {
-          itEquipmentAddModal.hide();
+        if (itEquipmentAddModalEl) {
+          window.SettingsPageShell.hideModal(itEquipmentAddModalEl);
         }
       } catch (error) {
         showPopup('❌ ' + (error && error.message ? error.message : error));
@@ -12549,8 +12522,8 @@
         if (parameterModalEl && parameterModalType) {
           renderParameterModal(parameterModalType);
         }
-        if (itConnectionAddModal) {
-          itConnectionAddModal.hide();
+        if (itConnectionAddModalEl) {
+          window.SettingsPageShell.hideModal(itConnectionAddModalEl);
         }
         setTimeout(() => {
           if (!itConnectionsContainer) return;
@@ -15181,7 +15154,7 @@
   }
 
   const TYPE_OPTIONS = ['Корпоративная сеть', 'Партнёры-франчайзи'];
-  let locationWizardModal = null;
+  let locationWizardModalEl = null;
   let locationWizardInitialised = false;
   let locationWizardStep = 0;
   const locationWizardState = {
@@ -15469,18 +15442,18 @@
       showPopup('Такая запись уже существует в выбранной структуре.');
       return;
     }
-    if (locationWizardModal) {
-      locationWizardModal.hide();
+    if (locationWizardModalEl) {
+      window.SettingsPageShell.hideModal(locationWizardModalEl);
     }
   }
 
   function initLocationWizard() {
     if (locationWizardInitialised) return;
-    const wizardModalEl = document.getElementById('locationWizardModal');
-    if (!wizardModalEl) {
+    const wizardModal = document.getElementById('locationWizardModal');
+    if (!wizardModal) {
       return;
     }
-    locationWizardModal = window.SettingsPageShell.getModalInstance(wizardModalEl);
+    locationWizardModalEl = wizardModal;
     wizardBusinessSelect = document.getElementById('wizardBusinessSelect');
     wizardTypeSelect = document.getElementById('wizardTypeSelect');
     wizardCountrySelect = document.getElementById('wizardCountrySelect');
@@ -15589,9 +15562,9 @@
     showLocationWizardStep(0);
   };
 
-  async function openAddLocationWizard() {
+  window.prepareLocationWizardSettingsTrigger = async function prepareLocationWizardSettingsTrigger() {
     initLocationWizard();
-    if (!locationWizardModal) return;
+    if (!locationWizardModalEl) return false;
     if (!parametersLoaded) {
       await loadParameters();
       populateWizardOptions();
@@ -15600,10 +15573,8 @@
     populateWizardOptions();
     showLocationWizardStep(0);
     updateWizardSummary();
-    locationWizardModal.show();
-  }
-
-  window.openAddLocationWizard = openAddLocationWizard;
+    return true;
+  };
 
   function generateDialogTemplateId(prefix) {
     const randomPart = Math.random().toString(36).slice(2, 8);
@@ -20685,12 +20656,9 @@
   const channelEditorNetworkProfileIdInput = document.getElementById('channelEditorNetworkProfileId');
   const integrationNetworkProfilesBody = document.getElementById('integrationNetworkProfilesBody');
   const integrationNetworkProfilesSaveBtn = document.querySelector('[data-integration-network-profiles-save]');
-  const integrationNetworkProfilesAddBtn = document.querySelector('[data-integration-network-profile-add]');
-  const integrationNetworkProfilesQuickAddBtn = document.querySelector('[data-channels-network-profile-quick-add]');
   const integrationNetworkProfilesProbeAllBtn = document.querySelector('[data-integration-network-profiles-probe-all]');
   const integrationNetworkProfilesStatusEl = document.getElementById('integrationNetworkProfilesStatus');
   const integrationNetworkProfileEditorModalEl = document.getElementById('integrationNetworkProfileEditorModal');
-  const integrationNetworkProfileEditorModal = integrationNetworkProfileEditorModalEl ? window.SettingsPageShell.getModalInstance(integrationNetworkProfileEditorModalEl) : null;
   const integrationNetworkProfileForm = integrationNetworkProfileEditorModalEl ? integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-form]') : null;
   const integrationNetworkProfileTitleEl = integrationNetworkProfileEditorModalEl ? integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-title]') : null;
   const integrationNetworkProfileDeleteBtn = integrationNetworkProfileEditorModalEl ? integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-delete]') : null;
@@ -21550,7 +21518,7 @@
         <td class="text-end">
           <div class="btn-group btn-group-sm">
             <button type="button" class="btn btn-outline-secondary" data-action="probe-integration-network-profile">Проверить</button>
-            <button type="button" class="btn btn-outline-primary" data-action="edit-integration-network-profile">Открыть</button>
+            <button type="button" class="btn btn-outline-primary" data-action="edit-integration-network-profile" data-integration-network-profile-index="${index}" data-settings-open-modal="integrationNetworkProfileEditorModal" data-settings-action-callback="prepareIntegrationNetworkProfileSettingsTrigger">Открыть</button>
             <button type="button" class="btn btn-outline-danger" data-action="remove-integration-network-profile">Удалить</button>
           </div>
         </td>
@@ -21579,7 +21547,7 @@
     toggleProxyCredentialFields('integration-profile');
   }
 
-  function openIntegrationNetworkProfileEditor(index) {
+  function prepareIntegrationNetworkProfileEditor(index) {
     const numericIndex = Number.isInteger(index) ? index : Number.parseInt(index, 10);
     const isEdit = Number.isInteger(numericIndex) && numericIndex >= 0 && numericIndex < integrationNetworkProfilesData.length;
     integrationNetworkProfileEditingIndex = isEdit ? numericIndex : null;
@@ -21590,10 +21558,13 @@
     if (integrationNetworkProfileDeleteBtn) {
       integrationNetworkProfileDeleteBtn.classList.toggle('d-none', !isEdit);
     }
-    if (integrationNetworkProfileEditorModalEl) {
-      window.SettingsPageShell.showModal(integrationNetworkProfileEditorModalEl);
-    }
+    return Boolean(integrationNetworkProfileEditorModalEl);
   }
+
+  window.prepareIntegrationNetworkProfileSettingsTrigger = function prepareIntegrationNetworkProfileSettingsTrigger(trigger) {
+    const indexValue = trigger instanceof HTMLElement ? trigger.dataset.integrationNetworkProfileIndex : null;
+    return prepareIntegrationNetworkProfileEditor(indexValue);
+  };
 
   function toggleIntegrationNetworkProfileModeFields() {
     const mode = integrationNetworkProfileModeInput?.value === 'vpn' ? 'vpn' : 'proxy';
@@ -23604,10 +23575,6 @@
     botsNetworkProfileIdInput?.addEventListener('change', () => updateNetworkRouteSummary('bots'));
     channelEditorNetworkProfileIdInput?.addEventListener('change', () => updateNetworkRouteSummary('channel'));
     integrationNetworkSaveBtn?.addEventListener('click', saveIntegrationNetworkSettings);
-    integrationNetworkProfilesAddBtn?.addEventListener('click', () => openIntegrationNetworkProfileEditor(null));
-    integrationNetworkProfilesQuickAddBtn?.addEventListener('click', () => {
-      openIntegrationNetworkProfileEditor(null);
-    });
     integrationNetworkProfilesProbeAllBtn?.addEventListener('click', () => {
       probeIntegrationNetworkProfiles(getIntegrationNetworkProfileOptions(), { bulk: true });
     });
@@ -23626,10 +23593,6 @@
         if (profile) {
           probeIntegrationNetworkProfiles([profile], { bulk: false, silent: true });
         }
-        return;
-      }
-      if (actionButton.dataset.action === 'edit-integration-network-profile') {
-        openIntegrationNetworkProfileEditor(index);
         return;
       }
       if (actionButton.dataset.action === 'remove-integration-network-profile') {
@@ -23686,14 +23649,14 @@
       }
       renderIntegrationNetworkProfilesTable();
       resetMissingIntegrationNetworkProfileSelections();
-      integrationNetworkProfileEditorModal?.hide();
+      window.SettingsPageShell.hideModal(integrationNetworkProfileEditorModalEl);
     });
     integrationNetworkProfileDeleteBtn?.addEventListener('click', () => {
       if (!Number.isInteger(integrationNetworkProfileEditingIndex)) return;
       integrationNetworkProfilesData.splice(integrationNetworkProfileEditingIndex, 1);
       renderIntegrationNetworkProfilesTable();
       resetMissingIntegrationNetworkProfileSelections();
-      integrationNetworkProfileEditorModal?.hide();
+      window.SettingsPageShell.hideModal(integrationNetworkProfileEditorModalEl);
     });
     window.resetIntegrationNetworkProfileSettingsModal = function resetIntegrationNetworkProfileSettingsModal() {
       integrationNetworkProfileEditingIndex = null;
