@@ -28,6 +28,58 @@
     'initReporting',
   ];
 
+  const DEFAULT_SETTINGS_MODAL_LIFECYCLE_CALLBACKS = Object.freeze({
+    usersModal: Object.freeze({
+      shown: 'mountAuthManagementSettingsModal',
+      hidden: 'resetAuthManagementSettingsModal',
+    }),
+    locationsModal: Object.freeze({
+      shown: 'prepareLocationsSettingsModal',
+      hidden: 'resetLocationsSettingsModal',
+    }),
+    locationWizardModal: Object.freeze({
+      hidden: 'resetLocationWizardSettingsModal',
+    }),
+    parametersModal: Object.freeze({
+      show: 'renderPartnerContactsSettingsModal',
+      hidden: 'resetPartnerContactsSettingsModal',
+    }),
+    parameterItemsModal: Object.freeze({
+      hidden: 'resetParameterItemsSettingsModal',
+    }),
+    legalEntitiesModal: Object.freeze({
+      show: 'renderLegalEntitiesSettingsModal',
+      hidden: 'resetLegalEntitiesSettingsModal',
+    }),
+    partnerContactEditorModal: Object.freeze({
+      hidden: 'resetPartnerContactEditorSettingsModal',
+    }),
+    networkProfileEditorModal: Object.freeze({
+      hidden: 'resetNetworkProfileSettingsModal',
+    }),
+    integrationNetworkProfileEditorModal: Object.freeze({
+      hidden: 'resetIntegrationNetworkProfileSettingsModal',
+    }),
+    itConnectionAddModal: Object.freeze({
+      show: 'prepareItConnectionAddSettingsModal',
+    }),
+    itEquipmentAddModal: Object.freeze({
+      show: 'prepareItEquipmentAddSettingsModal',
+    }),
+    reportingModal: Object.freeze({
+      show: 'prepareReportingSettingsModal',
+    }),
+    managerBindingsModal: Object.freeze({
+      show: 'prepareManagerBindingsSettingsModal',
+    }),
+    addChannelModal: Object.freeze({
+      show: 'prepareAddChannelSettingsModal',
+    }),
+    channelEditorModal: Object.freeze({
+      hidden: 'resetChannelEditorSettingsModal',
+    }),
+  });
+
   function getSettingsShellRoot() {
     const root = document.querySelector('[data-settings-page-shell]');
     return root instanceof HTMLElement ? root : null;
@@ -839,12 +891,30 @@
     }
   }
 
+  function resolveSettingsLifecycleCallbackName(modal, dataKey, eventKey) {
+    if (!(modal instanceof HTMLElement)) {
+      return '';
+    }
+    const inlineCallbackName = String(modal.dataset[dataKey] || '').trim();
+    if (inlineCallbackName) {
+      return inlineCallbackName;
+    }
+    if (!modal.id) {
+      return '';
+    }
+    const modalCallbacks = DEFAULT_SETTINGS_MODAL_LIFECYCLE_CALLBACKS[modal.id];
+    if (!modalCallbacks || typeof modalCallbacks !== 'object') {
+      return '';
+    }
+    return String(modalCallbacks[eventKey] || '').trim();
+  }
+
   function initSettingsModalLifecycleHooks() {
     const lifecycleEvents = [
-      { eventName: 'show.bs.modal', dataKey: 'settingsOnShow' },
-      { eventName: 'shown.bs.modal', dataKey: 'settingsOnShown' },
-      { eventName: 'hide.bs.modal', dataKey: 'settingsOnHide' },
-      { eventName: 'hidden.bs.modal', dataKey: 'settingsOnHidden' },
+      { eventName: 'show.bs.modal', dataKey: 'settingsOnShow', eventKey: 'show' },
+      { eventName: 'shown.bs.modal', dataKey: 'settingsOnShown', eventKey: 'shown' },
+      { eventName: 'hide.bs.modal', dataKey: 'settingsOnHide', eventKey: 'hide' },
+      { eventName: 'hidden.bs.modal', dataKey: 'settingsOnHidden', eventKey: 'hidden' },
     ];
 
     const modals = Array.from(document.querySelectorAll('.modal'));
@@ -852,8 +922,8 @@
       if (!(modal instanceof HTMLElement)) {
         return;
       }
-      lifecycleEvents.forEach(({ eventName, dataKey }) => {
-        const callbackName = modal.dataset[dataKey];
+      lifecycleEvents.forEach(({ eventName, dataKey, eventKey }) => {
+        const callbackName = resolveSettingsLifecycleCallbackName(modal, dataKey, eventKey);
         if (!callbackName) {
           return;
         }
