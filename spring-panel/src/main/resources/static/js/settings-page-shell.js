@@ -177,6 +177,13 @@
     return null;
   }
 
+  function resolveClosestSettingsModalElement(target) {
+    if (!(target instanceof HTMLElement)) {
+      return null;
+    }
+    return target.closest('.modal');
+  }
+
   function getSettingsModalInstance(target) {
     if (typeof bootstrap === 'undefined' || !bootstrap.Modal) {
       return null;
@@ -356,6 +363,14 @@
     const modal = bootstrap.Modal.getInstance(modalEl);
     modal?.hide();
     return modal;
+  }
+
+  function hideClosestSettingsModal(target) {
+    const modalEl = resolveClosestSettingsModalElement(target);
+    if (!(modalEl instanceof HTMLElement)) {
+      return null;
+    }
+    return hideSettingsModal(modalEl);
   }
 
   function resolveSettingsModalActionTarget(trigger, actionName) {
@@ -854,11 +869,13 @@
 
   window.SettingsPageShell = Object.assign(window.SettingsPageShell || {}, {
     getCollapseInstance: getSettingsCollapseInstance,
+    getClosestModalElement: resolveClosestSettingsModalElement,
     getModalInstance: getSettingsModalInstance,
     getTabInstance: getSettingsTabInstance,
     showCollapse: showSettingsCollapse,
     showModal: showSettingsModal,
     showTab: showSettingsTab,
+    hideClosestModal: hideClosestSettingsModal,
     hideModal: hideSettingsModal,
   });
 })();
