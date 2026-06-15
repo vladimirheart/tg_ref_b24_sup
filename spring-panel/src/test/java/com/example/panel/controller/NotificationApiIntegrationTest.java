@@ -142,6 +142,47 @@ class NotificationApiIntegrationTest {
     }
 
     @Test
+    void markAllAsReadTouchesOnlyCurrentIdentityAndReturnsUpdatedCount() throws Exception {
+        jdbcTemplate.update(
+                "INSERT INTO notifications (user_identity, text, url, is_read, created_at) VALUES (?,?,?,?,?)",
+                "watcher_peer", "Первое peer уведомление", "/dialogs?ticketId=T-301", 0, "2026-05-21 08:00:00.000"
+        );
+        jdbcTemplate.update(
+                "INSERT INTO notifications (user_identity, text, url, is_read, created_at) VALUES (?,?,?,?,?)",
+                "watcher_peer", "Второе peer уведомление", "/dialogs?ticketId=T-302", 0, "2026-05-21 08:01:00.000"
+        );
+        jdbcTemplate.update(
+                "INSERT INTO notifications (user_identity, text, url, is_read, created_at) VALUES (?,?,?,?,?)",
+                "watcher_peer", "Уже прочитано", "/dialogs?ticketId=T-303", 1, "2026-05-21 08:02:00.000"
+        );
+        jdbcTemplate.update(
+                "INSERT INTO notifications (user_identity, text, url, is_read, created_at) VALUES (?,?,?,?,?)",
+                "watcher_owner", "Чужое уведомление", "/dialogs?ticketId=T-399", 0, "2026-05-21 08:03:00.000"
+        );
+
+        mockMvc.perform(post("/api/notifications/read-all")
+                        .principal(namedAuthentication("watcher_peer")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.updated").value(2));
+
+        mockMvc.perform(get("/api/notifications/unread_count").principal(namedAuthentication("watcher_peer")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unread").value(0));
+
+        mockMvc.perform(get("/api/notifications/unread_count").principal(namedAuthentication("watcher_owner")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unread").value(1));
+
+        Integer ownerReadFlag = jdbcTemplate.queryForObject(
+                "SELECT is_read FROM notifications WHERE user_identity = ?",
+                Integer.class,
+                "watcher_owner"
+        );
+        assertThat(ownerReadFlag).isZero();
+    }
+
+    @Test
     void anonymousRequestsOperateOnAllIdentityOnly() throws Exception {
         jdbcTemplate.update(
                 "INSERT INTO notifications (user_identity, text, url, is_read, created_at) VALUES (?,?,?,?,CURRENT_TIMESTAMP)",

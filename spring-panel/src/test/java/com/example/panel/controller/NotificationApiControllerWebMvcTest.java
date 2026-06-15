@@ -109,6 +109,30 @@ class NotificationApiControllerWebMvcTest {
         verify(notificationService).markAsRead("all", 77L);
     }
 
+    @Test
+    void markAllAsReadUsesAuthenticatedUsername() throws Exception {
+        when(notificationService.markAllAsRead("watcher_peer")).thenReturn(3L);
+
+        mockMvc.perform(post("/api/notifications/read-all").principal(userDetailsAuthentication("watcher_peer")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.updated").value(3));
+
+        verify(notificationService).markAllAsRead("watcher_peer");
+    }
+
+    @Test
+    void markAllAsReadFallsBackToAllIdentityWhenAuthenticationIsMissing() throws Exception {
+        when(notificationService.markAllAsRead("all")).thenReturn(2L);
+
+        mockMvc.perform(post("/api/notifications/read-all"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.updated").value(2));
+
+        verify(notificationService).markAllAsRead("all");
+    }
+
     private Authentication userDetailsAuthentication(String username) {
         return new TestingAuthenticationToken(
                 new User(username, "n/a", AuthorityUtils.NO_AUTHORITIES),

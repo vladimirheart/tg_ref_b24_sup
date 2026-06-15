@@ -1726,7 +1726,8 @@ integration-сценария поверх users/settings runtime boundary всё
   lifecycle/collaboration actions (`take -> categories -> resolve -> reopen`,
   `reassign -> participants_add -> participants_remove`) и shared moderation
   action `mark_spam`, включая
-  `unread_count`, `POST /api/notifications/{id}/read`, repeated list reread с
+  `unread_count`, `POST /api/notifications/{id}/read`,
+  `POST /api/notifications/read-all`, repeated list reread с
   `read=true` и AI-muted scenarios через
   `ticket_ai_agent_dialog_control.ai_disabled=1`, чтобы не смешивать
   quick-action parity с escalation noise.
@@ -1761,3 +1762,8 @@ integration-сценария поверх users/settings runtime boundary всё
   `unanswered = assigned dialogs with unreadCount > 0`,
   `in_work = assigned dialogs with unreadCount = 0`, а panel bell unread
   остаётся отдельным explicit-ack consumer.
+- этот explicit-ack consumer теперь зафиксирован и для mass-ack ветки:
+  `NotificationApiIntegrationTest` и `DialogReadIntegrationTest` отдельно
+  подтверждают, что `read-all` очищает только bell unread summary, но не
+  трогает `last_read_at`, dialog `unreadCount` и `my_dialogs.unanswered`,
+  пока оператор не reread'ит сам dialog/history consumer.

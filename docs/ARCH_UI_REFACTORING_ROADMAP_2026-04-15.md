@@ -1678,6 +1678,10 @@
   `my_dialogs.unanswered` больше не держится на `waiting_operator` overlay и
   теперь соответствует только `unreadCount > 0`, а reread с
   `unreadCount = 0` стабильно переводит assigned dialog в `in_work`;
+- bell boundary тоже уже расширен до mass-ack semantics:
+  `POST /api/notifications/read-all` теперь live-прикрыт как отдельный
+  consumer, который чистит только bell unread summary и не должен скрывать
+  unread dialog из list/my_dialogs до реального reread dialog consumer'а;
 - значит следующий точечный диалоговый пакет должен чистить уже не сам
   bucket split, а оставшуюся refresh-bus/bell coordination между
   list/details/workspace/notifications перед большим client-side split.
