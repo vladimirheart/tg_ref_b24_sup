@@ -1539,6 +1539,16 @@
   `read-all -> history/details/workspace reread -> next follow-up`, чтобы
   следующий клиентский message loop снова поднимал и bell unread, и
   `my_dialogs.unanswered`, и row-level `unreadCount`.
+- следующий срез этого же хвоста уже закрывает remaining
+  `details/workspace` shortcuts: adjacent consumer scenarios переведены на
+  live `POST /reassign`, `POST /resolve`, `POST /reopen` и
+  `DELETE /participants/{username}`, так что операторские action surfaces
+  в `list/read/details/workspace` больше не подтверждаются через прямой
+  `DialogQuickActionService`.
+- для `POST /api/notifications/read-all` в `details` слое roadmap теперь
+  фиксирует и тестовую оговорку: bell mass-ack нужно сверять с
+  фактическим unread seed перед действием, иначе runtime contract легко
+  замаскировать хрупким `updated=1` ожиданием.
 - adjacent action-consumer слой тоже дополнительно выровнен на реальных HTTP
   quick-action round-trips: `list/details/participants` больше не зависят от
   service-level shortcuts в `reassign/resolve/reopen/participants_remove`

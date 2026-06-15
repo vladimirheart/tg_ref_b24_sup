@@ -1744,6 +1744,18 @@ integration-сценария поверх users/settings runtime boundary всё
   bell read-ack -> second follow-up`, так что runtime контракт на
   сохранение `rawResponsible/categories`, повторный bell rearm и audit/event
   trail больше не держится на косвенных lifecycle тестах.
+- соседний `details/workspace` corridor после этого тоже добран до
+  controller-level parity: оставшиеся lifecycle сценарии в
+  `DialogDetailsIntegrationTest` и `DialogWorkspaceIntegrationTest` больше
+  не используют прямой `DialogQuickActionService`, а проходят через live
+  `POST /reassign`, `POST /resolve`, `POST /reopen` и
+  `DELETE /participants/{username}` round-trips с последующим reread
+  projection на read-side consumer'ах.
+- mass-ack runtime в `details` слое дополнительно стабилизирован против
+  плавающего notification seed: `POST /api/notifications/read-all` теперь
+  сверяется с фактическим unread bell count перед ack, поэтому adjacent
+  reread coverage не ломается из-за скрытого drift'а между fixture seed и
+  controller-level `updated`.
 - заодно стало явным текущее разделение consumer semantics: reread через
   `details/workspace` может обнулять row-level `unreadCount`, но не обязан
   одновременно снимать panel bell unread, а `my_dialogs.unanswered` сейчас

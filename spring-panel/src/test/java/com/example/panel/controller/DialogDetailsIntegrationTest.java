@@ -1,6 +1,5 @@
 package com.example.panel.controller;
 
-import com.example.panel.service.DialogQuickActionService;
 import com.example.panel.service.NotificationService;
 import com.example.panel.service.SharedConfigService;
 import org.junit.jupiter.api.BeforeEach;
@@ -99,9 +98,6 @@ class DialogDetailsIntegrationTest {
     @Autowired
     @Qualifier("usersJdbcTemplate")
     private JdbcTemplate usersJdbcTemplate;
-
-    @Autowired
-    private DialogQuickActionService dialogQuickActionService;
 
     @Autowired
     private NotificationService notificationService;
@@ -601,11 +597,18 @@ class DialogDetailsIntegrationTest {
                 .andExpect(jsonPath("$.my_dialogs.unanswered[0].ticketId").value("T-DETAIL-READ-ALL"))
                 .andExpect(jsonPath("$.my_dialogs.in_work").isEmpty());
 
+        Integer unreadNotificationsBeforeReadAll = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM notifications WHERE user_identity = ? AND is_read = 0",
+                Integer.class,
+                "watcher_owner"
+        );
+        assertThat(unreadNotificationsBeforeReadAll).isNotNull();
+
         mockMvc.perform(post("/api/notifications/read-all")
                         .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.updated").value(1));
+                .andExpect(jsonPath("$.updated").value(unreadNotificationsBeforeReadAll));
 
         mockMvc.perform(get("/api/notifications/unread_count")
                         .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
@@ -889,7 +892,17 @@ class DialogDetailsIntegrationTest {
                 .andExpect(jsonPath("$.my_dialogs.unanswered").isEmpty())
                 .andExpect(jsonPath("$.my_dialogs.in_work[0].ticketId").value("T-DETAIL-HANDOFF"));
 
-        dialogQuickActionService.reassignTicket("T-DETAIL-HANDOFF", "watcher_new", "watcher_owner");
+        mockMvc.perform(post("/api/dialogs/T-DETAIL-HANDOFF/reassign")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "username": "watcher_new"
+                                }
+                                """)
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.responsible").value("watcher_new"));
 
         mockMvc.perform(get("/api/dialogs")
                         .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
@@ -981,7 +994,17 @@ class DialogDetailsIntegrationTest {
                 .andExpect(jsonPath("$.my_dialogs.unanswered").isEmpty())
                 .andExpect(jsonPath("$.my_dialogs.in_work[0].ticketId").value("T-DETAIL-RESOLVE"));
 
-        dialogQuickActionService.resolveTicket("T-DETAIL-RESOLVE", "watcher_owner", List.of("billing"));
+        mockMvc.perform(post("/api/dialogs/T-DETAIL-RESOLVE/resolve")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "categories": ["billing"]
+                                }
+                                """)
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.updated").value(true));
 
         mockMvc.perform(get("/api/dialogs")
                         .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
@@ -991,7 +1014,11 @@ class DialogDetailsIntegrationTest {
                 .andExpect(jsonPath("$.my_dialogs.unanswered").isEmpty())
                 .andExpect(jsonPath("$.my_dialogs.in_work").isEmpty());
 
-        dialogQuickActionService.reopenTicket("T-DETAIL-RESOLVE", "watcher_owner");
+        mockMvc.perform(post("/api/dialogs/T-DETAIL-RESOLVE/reopen")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.updated").value(true));
 
         mockMvc.perform(get("/api/dialogs")
                         .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))

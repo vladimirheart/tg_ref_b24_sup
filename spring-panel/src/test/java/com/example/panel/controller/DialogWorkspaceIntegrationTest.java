@@ -1,7 +1,6 @@
 package com.example.panel.controller;
 
 import com.example.panel.service.SharedConfigService;
-import com.example.panel.service.DialogQuickActionService;
 import com.example.panel.service.NotificationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -104,9 +103,6 @@ class DialogWorkspaceIntegrationTest {
 
     @Autowired
     private SharedConfigService sharedConfigService;
-
-    @Autowired
-    private DialogQuickActionService dialogQuickActionService;
 
     @Autowired
     private NotificationService notificationService;
@@ -704,8 +700,29 @@ class DialogWorkspaceIntegrationTest {
                 "T-WS-ACTION", "watcher_peer", "watcher_owner");
         insertHistoryRow("T-WS-ACTION", 910099L, "user", "Сообщение для action continuity", "2026-05-26T13:01:00Z", "text", 991L, null, 89L, null);
 
-        dialogQuickActionService.reassignTicket("T-WS-ACTION", "watcher_new", "watcher_owner");
-        dialogQuickActionService.resolveTicket("T-WS-ACTION", "watcher_new", List.of("billing"));
+        mockMvc.perform(post("/api/dialogs/T-WS-ACTION/reassign")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "username": "watcher_new"
+                                }
+                                """)
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.responsible").value("watcher_new"));
+
+        mockMvc.perform(post("/api/dialogs/T-WS-ACTION/resolve")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "categories": ["billing"]
+                                }
+                                """)
+                        .principal(new TestingAuthenticationToken("watcher_new", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.updated").value(true));
 
         mockMvc.perform(get("/api/dialogs/T-WS-ACTION/workspace")
                         .param("include", "messages,permissions,sla")
@@ -738,8 +755,18 @@ class DialogWorkspaceIntegrationTest {
                 .andExpect(jsonPath("$.conversation.statusKey").value("closed"))
                 .andExpect(jsonPath("$.meta.parity.checks[*].key", hasItem("operator_action_guards")));
 
-        dialogQuickActionService.reopenTicket("T-WS-ACTION", "watcher_new");
-        dialogQuickActionService.removeParticipant("T-WS-ACTION", "watcher_peer", "watcher_new");
+        mockMvc.perform(post("/api/dialogs/T-WS-ACTION/reopen")
+                        .principal(new TestingAuthenticationToken("watcher_new", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.updated").value(true));
+
+        mockMvc.perform(delete("/api/dialogs/T-WS-ACTION/participants/watcher_peer")
+                        .principal(new TestingAuthenticationToken("watcher_new", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.changed").value(true))
+                .andExpect(jsonPath("$.participants").isEmpty());
 
         mockMvc.perform(get("/api/dialogs/T-WS-ACTION/workspace")
                         .param("include", "messages,permissions,sla")
