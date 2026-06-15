@@ -373,6 +373,18 @@
     return hideSettingsModal(modalEl);
   }
 
+  function requestCloseSettingsModal(target) {
+    if (target instanceof HTMLElement) {
+      const closeEvent = new CustomEvent('settings:close-modal', {
+        bubbles: true,
+        cancelable: true,
+      });
+      target.dispatchEvent(closeEvent);
+      return closeEvent;
+    }
+    return hideSettingsModal(target);
+  }
+
   function resolveSettingsModalActionTarget(trigger, actionName) {
     if (!(trigger instanceof HTMLElement)) {
       return null;
@@ -696,6 +708,17 @@
     });
   }
 
+  function initSettingsModalCloseRequests() {
+    document.addEventListener('settings:close-modal', (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) {
+        return;
+      }
+      event.preventDefault();
+      hideClosestSettingsModal(target);
+    });
+  }
+
   function initSettingsModalDefaultTabs() {
     const modals = Array.from(document.querySelectorAll('[data-settings-reset-tab]'));
     modals.forEach((modal) => {
@@ -854,6 +877,7 @@
     initSettingsCollapseActionTriggers();
     initParentChildSuspendShell();
     initSettingsModalLifecycleHooks();
+    initSettingsModalCloseRequests();
     initSettingsModalDefaultTabs();
     initSettingsModalFocusTargets();
     runSettingsDomainBootstrap();
@@ -875,6 +899,7 @@
     showCollapse: showSettingsCollapse,
     showModal: showSettingsModal,
     showTab: showSettingsTab,
+    requestCloseModal: requestCloseSettingsModal,
     hideClosestModal: hideClosestSettingsModal,
     hideModal: hideSettingsModal,
   });

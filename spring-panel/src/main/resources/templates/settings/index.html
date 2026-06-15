@@ -9806,7 +9806,7 @@
       setPartnerContactCardVisibility(key, false);
       const rendered = renderPartnerContactModalContentByKey(key);
       if (!rendered && partnerContactEditorModalEl) {
-        window.SettingsPageShell.hideClosestModal(partnerContactEditorBody);
+        window.SettingsPageShell.requestCloseModal(partnerContactEditorBody);
       } else {
         updatePartnerContactEditorTitleByKey(key);
       }
@@ -10315,7 +10315,7 @@
       syncParameterData((result && result.data) || parameterData);
       renderParameters({ forceBodies: true });
       if (partnerContactEditorModalEl && partnerContactEditorModalEl.contains(card)) {
-        window.SettingsPageShell.hideClosestModal(card);
+        window.SettingsPageShell.requestCloseModal(card);
       }
     } catch (error) {
       const message = error && error.message ? error.message : error;
@@ -11306,7 +11306,7 @@
     }
     renderNetworkProfiles();
     if (networkProfileModalEl) {
-      window.SettingsPageShell.hideClosestModal(networkProfileForm);
+      window.SettingsPageShell.requestCloseModal(networkProfileForm);
     }
   }
 
@@ -11323,7 +11323,7 @@
     }
     removeNetworkProfileRow(networkProfileEditingIndex);
     if (networkProfileModalEl) {
-      window.SettingsPageShell.hideClosestModal(networkProfileDeleteButton);
+      window.SettingsPageShell.requestCloseModal(networkProfileDeleteButton);
     }
   }
 
@@ -12383,7 +12383,7 @@
         }
         renderItEquipmentTable();
         if (itEquipmentAddModalEl) {
-          window.SettingsPageShell.hideClosestModal(itEquipmentAddForm);
+          window.SettingsPageShell.requestCloseModal(itEquipmentAddForm);
         }
       } catch (error) {
         showPopup('❌ ' + (error && error.message ? error.message : error));
@@ -12504,7 +12504,7 @@
           renderParameterModal(parameterModalType);
         }
         if (itConnectionAddModalEl) {
-          window.SettingsPageShell.hideClosestModal(itConnectionAddForm);
+          window.SettingsPageShell.requestCloseModal(itConnectionAddForm);
         }
         setTimeout(() => {
           if (!itConnectionsContainer) return;
@@ -15424,7 +15424,7 @@
       return;
     }
     if (locationWizardModalEl) {
-      window.SettingsPageShell.hideClosestModal(wizardFinishBtn);
+      window.SettingsPageShell.requestCloseModal(wizardFinishBtn);
     }
   }
 
@@ -22611,7 +22611,7 @@
         throw new Error(data.error || ('HTTP ' + resp.status));
       }
 
-      window.SettingsPageShell.hideClosestModal(vkWebhookFormEl);
+      window.SettingsPageShell.requestCloseModal(vkWebhookFormEl);
       await loadChannels();
       showPopup('Настройки вебхука сохранены.');
     } catch (error) {
@@ -23269,7 +23269,7 @@
       }
       resetAddChannelForm();
       updateAddChannelValidationAlert('');
-      window.SettingsPageShell.hideClosestModal(addChannelFormEl);
+      window.SettingsPageShell.requestCloseModal(addChannelFormEl);
       notifyChannelStatus(`Канал «${channelName}» успешно добавлен.`, 'success');
       loadChannels();
     } catch (error) {
@@ -23465,7 +23465,7 @@
       if (!resp.ok || data.success === false) throw new Error(data.error || ('HTTP ' + resp.status));
       await loadChannels();
       if (channelEditorState.channelId === id) {
-        window.SettingsPageShell.hideClosestModal(channelEditorDeleteBtn);
+        window.SettingsPageShell.requestCloseModal(channelEditorDeleteBtn);
       }
     } catch (error) {
       showPopup('Ошибка удаления: ' + error.message);
@@ -23630,14 +23630,14 @@
       }
       renderIntegrationNetworkProfilesTable();
       resetMissingIntegrationNetworkProfileSelections();
-      window.SettingsPageShell.hideClosestModal(integrationNetworkProfileForm);
+      window.SettingsPageShell.requestCloseModal(integrationNetworkProfileForm);
     });
     integrationNetworkProfileDeleteBtn?.addEventListener('click', () => {
       if (!Number.isInteger(integrationNetworkProfileEditingIndex)) return;
       integrationNetworkProfilesData.splice(integrationNetworkProfileEditingIndex, 1);
       renderIntegrationNetworkProfilesTable();
       resetMissingIntegrationNetworkProfileSelections();
-      window.SettingsPageShell.hideClosestModal(integrationNetworkProfileDeleteBtn);
+      window.SettingsPageShell.requestCloseModal(integrationNetworkProfileDeleteBtn);
     });
     window.resetIntegrationNetworkProfileSettingsModal = function resetIntegrationNetworkProfileSettingsModal() {
       integrationNetworkProfileEditingIndex = null;
