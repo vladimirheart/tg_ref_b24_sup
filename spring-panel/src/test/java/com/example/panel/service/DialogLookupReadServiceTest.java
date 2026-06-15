@@ -117,6 +117,19 @@ class DialogLookupReadServiceTest {
     }
 
     @Test
+    void groupMyActiveDialogsKeepsWaitingOperatorDialogsInWorkWhenUnreadIsAlreadyZero() {
+        List<DialogListItem> dialogs = List.of(
+                dialogItem("T-211", "operator", "pending", false, "client", 0),
+                dialogItem("T-212", "operator", "pending", false, "client", 1)
+        );
+
+        var myDialogs = service.groupMyActiveDialogs(dialogs, "operator");
+
+        assertThat(myDialogs.unanswered()).extracting(DialogListItem::ticketId).containsExactly("T-212");
+        assertThat(myDialogs.inWork()).extracting(DialogListItem::ticketId).containsExactly("T-211");
+    }
+
+    @Test
     void groupMyActiveDialogsFiltersOutTicketsReassignedToDifferentOwnerEvenWhenUnreadExists() {
         List<DialogListItem> dialogs = List.of(
                 dialogItem("T-301", "operator", "pending", "client", 2),

@@ -1674,9 +1674,13 @@
   details/workspace reread -> bell ack -> next follow-up` уже нужен как
   обязательный контракт, потому что именно там расходятся row `unreadCount`,
   `my_dialogs` bucket placement и panel bell unread semantics;
-- значит следующий точечный диалоговый пакет должен чистить уже не
-  quick-action transport parity, а явную нормализацию refresh-bus semantics
-  между list/details/workspace/notifications перед большим client-side split.
+- backend-часть этой нормализации уже зафиксирована:
+  `my_dialogs.unanswered` больше не держится на `waiting_operator` overlay и
+  теперь соответствует только `unreadCount > 0`, а reread с
+  `unreadCount = 0` стабильно переводит assigned dialog в `in_work`;
+- значит следующий точечный диалоговый пакет должен чистить уже не сам
+  bucket split, а оставшуюся refresh-bus/bell coordination между
+  list/details/workspace/notifications перед большим client-side split.
 
 Стоп-условие:
 

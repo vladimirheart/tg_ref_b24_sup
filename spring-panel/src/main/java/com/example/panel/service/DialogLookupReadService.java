@@ -254,8 +254,7 @@ public class DialogLookupReadService {
                 continue;
             }
             int unreadCount = item.unreadCount() != null ? item.unreadCount() : 0;
-            String statusKey = normalizeIdentity(item.statusKey());
-            if (unreadCount > 0 || "waiting_operator".equals(statusKey)) {
+            if (unreadCount > 0) {
                 unanswered.add(item);
                 continue;
             }

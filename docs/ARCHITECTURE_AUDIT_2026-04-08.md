@@ -1749,3 +1749,15 @@ integration-сценария поверх users/settings runtime boundary всё
   может сохранять `waiting_operator` запись даже с `unreadCount=0`; значит
   следующий узкий focus уже не в самих quick actions, а в осознанной
   нормализации bucket-vs-bell semantics поверх repeated refresh loops.
+- этот кусок теперь тоже закрыт на backend стороне: `DialogLookupReadService`
+  больше не держит `waiting_operator` как special-case для
+  `my_dialogs.unanswered`, поэтому после read-side reread диалог с
+  `unreadCount=0` consistently уходит в `in_work`, а не остаётся в
+  `unanswered` только из-за status overlay.
+- новая семантика прикрыта не только unit-level `groupMyActiveDialogs`, но и
+  live `DialogReadIntegrationTest`, `DialogWorkspaceIntegrationTest`,
+  `DialogDetailsIntegrationTest` и обновлённым quick-action loop, так что
+  contract теперь формулируется явно:
+  `unanswered = assigned dialogs with unreadCount > 0`,
+  `in_work = assigned dialogs with unreadCount = 0`, а panel bell unread
+  остаётся отдельным explicit-ack consumer.

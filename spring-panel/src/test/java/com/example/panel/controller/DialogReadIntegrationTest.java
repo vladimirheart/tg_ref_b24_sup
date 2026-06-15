@@ -411,7 +411,9 @@ class DialogReadIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-READ-NOTIFY"))
-                .andExpect(jsonPath("$.dialogs[0].unreadCount").value(1));
+                .andExpect(jsonPath("$.dialogs[0].unreadCount").value(1))
+                .andExpect(jsonPath("$.my_dialogs.unanswered[0].ticketId").value("T-READ-NOTIFY"))
+                .andExpect(jsonPath("$.my_dialogs.in_work").isEmpty());
 
         mockMvc.perform(get("/api/notifications/unread_count")
                         .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
@@ -438,7 +440,9 @@ class DialogReadIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-READ-NOTIFY"))
-                .andExpect(jsonPath("$.dialogs[0].unreadCount").value(0));
+                .andExpect(jsonPath("$.dialogs[0].unreadCount").value(0))
+                .andExpect(jsonPath("$.my_dialogs.unanswered").isEmpty())
+                .andExpect(jsonPath("$.my_dialogs.in_work[0].ticketId").value("T-READ-NOTIFY"));
 
         mockMvc.perform(get("/api/notifications/unread_count")
                         .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))

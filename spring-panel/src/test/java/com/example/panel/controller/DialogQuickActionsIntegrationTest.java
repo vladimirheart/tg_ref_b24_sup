@@ -359,8 +359,8 @@ class DialogQuickActionsIntegrationTest {
                         .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-QA-CLOSE"))
-                .andExpect(jsonPath("$.my_dialogs.unanswered[0].ticketId").value("T-QA-CLOSE"))
-                .andExpect(jsonPath("$.my_dialogs.in_work").isEmpty());
+                .andExpect(jsonPath("$.my_dialogs.unanswered").isEmpty())
+                .andExpect(jsonPath("$.my_dialogs.in_work[0].ticketId").value("T-QA-CLOSE"));
 
         mockMvc.perform(get("/api/dialogs/T-QA-CLOSE")
                         .param("channelId", "102")
@@ -2333,9 +2333,9 @@ class DialogQuickActionsIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-QA-LOOP"))
                 .andExpect(jsonPath("$.dialogs[0].unreadCount").value(0))
-                .andExpect(jsonPath("$.my_dialogs.unanswered[0].ticketId").value("T-QA-LOOP"))
-                .andExpect(jsonPath("$.my_dialogs.unanswered[0].unreadCount").value(0))
-                .andExpect(jsonPath("$.my_dialogs.in_work").isEmpty());
+                .andExpect(jsonPath("$.my_dialogs.unanswered").isEmpty())
+                .andExpect(jsonPath("$.my_dialogs.in_work[0].ticketId").value("T-QA-LOOP"))
+                .andExpect(jsonPath("$.my_dialogs.in_work[0].unreadCount").value(0));
 
         Long firstFollowUpNotificationId = jdbcTemplate.queryForObject(
                 "SELECT id FROM notifications WHERE user_identity = ? ORDER BY id DESC LIMIT 1",
