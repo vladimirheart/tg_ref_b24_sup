@@ -4703,7 +4703,7 @@
     </div>
 
     <!-- Мастер добавления записи локаций -->
-    <div class="modal fade settings-child-modal" id="locationWizardModal" tabindex="-1" aria-labelledby="locationWizardLabel" aria-hidden="true" data-settings-on-hidden="resetLocationWizardSettingsModal">
+    <div class="modal fade settings-child-modal" id="locationWizardModal" tabindex="-1" aria-labelledby="locationWizardLabel" aria-hidden="true" data-settings-suspend-parent="locationsModal" data-settings-on-hidden="resetLocationWizardSettingsModal">
       <div class="modal-dialog">
         <div class="modal-content">
           <div class="modal-header">
@@ -4978,7 +4978,7 @@
   </div>
 </div>
 
-    <div class="modal fade settings-child-modal" id="parameterItemsModal" tabindex="-1" aria-hidden="true" data-settings-on-hidden="resetParameterItemsSettingsModal">
+    <div class="modal fade settings-child-modal" id="parameterItemsModal" tabindex="-1" aria-hidden="true" data-settings-suspend-parent="parametersModal" data-settings-on-hidden="resetParameterItemsSettingsModal">
       <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
@@ -5265,7 +5265,7 @@
       </div>
     </div>
 
-    <div class="modal fade settings-child-modal" id="networkProfileEditorModal" tabindex="-1" aria-hidden="true" data-settings-on-hidden="resetNetworkProfileSettingsModal" data-settings-on-shown="focusNetworkProfileSettingsModal">
+    <div class="modal fade settings-child-modal" id="networkProfileEditorModal" tabindex="-1" aria-hidden="true" data-settings-suspend-parent="itConnectionsModal" data-settings-on-hidden="resetNetworkProfileSettingsModal" data-settings-on-shown="focusNetworkProfileSettingsModal">
       <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
           <form data-network-profile-form>
@@ -5337,7 +5337,7 @@
       </div>
     </div>
 
-    <div class="modal fade settings-child-modal" id="integrationNetworkProfileEditorModal" tabindex="-1" aria-hidden="true" data-settings-on-hidden="resetIntegrationNetworkProfileSettingsModal">
+    <div class="modal fade settings-child-modal" id="integrationNetworkProfileEditorModal" tabindex="-1" aria-hidden="true" data-settings-suspend-parent="channelsModal" data-settings-on-hidden="resetIntegrationNetworkProfileSettingsModal">
       <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
           <form data-integration-network-profile-form>
@@ -6314,7 +6314,7 @@
     </div>
   </div>
 
-  <div class="modal fade settings-child-modal settings-child-modal--workspace" id="addChannelModal" tabindex="-1" aria-hidden="true" data-settings-on-show="prepareAddChannelSettingsModal">
+  <div class="modal fade settings-child-modal settings-child-modal--workspace" id="addChannelModal" tabindex="-1" aria-hidden="true" data-settings-suspend-parent="channelsModal" data-settings-on-show="prepareAddChannelSettingsModal">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
       <div class="modal-content">
         <form id="addChannelForm">
@@ -7016,7 +7016,7 @@
     </div>
   </div>
 
-  <div class="modal fade settings-child-modal" id="vkWebhookModal" tabindex="-1" aria-hidden="true">
+  <div class="modal fade settings-child-modal" id="vkWebhookModal" tabindex="-1" aria-hidden="true" data-settings-suspend-parent="channelEditorModal">
     <div class="modal-dialog">
       <div class="modal-content">
         <form id="vkWebhookForm">
@@ -7640,10 +7640,8 @@
     return true;
   }
 
-  function preparePartnerContactEditor(card) {
-    if (!partnerContactEditorModalEl || !card) return false;
-    const key = getPartnerContactCardKey(card);
-    if (!key) return false;
+  function preparePartnerContactEditorByKey(key) {
+    if (!partnerContactEditorModalEl || !key) return false;
     partnerContactEditorState = { key };
     setPartnerContactCardVisibility(key, false);
     const rendered = renderPartnerContactModalContentByKey(key);
@@ -7654,6 +7652,13 @@
     }
     updatePartnerContactEditorTitleByKey(key);
     return true;
+  }
+
+  function preparePartnerContactEditor(card) {
+    if (!partnerContactEditorModalEl || !card) return false;
+    const key = getPartnerContactCardKey(card);
+    if (!key) return false;
+    return preparePartnerContactEditorByKey(key);
   }
 
   window.preparePartnerContactEditorSettingsTrigger = function preparePartnerContactEditorSettingsTrigger(trigger) {
@@ -7667,8 +7672,16 @@
     if (scope) {
       initial.contact_type = scope;
     }
-    addPartnerContactDraft(initial);
-    return false;
+    const draft = addPartnerContactDraft(initial);
+    const key = draft ? getPartnerContactItemKey(draft) : null;
+    if (!key) {
+      return false;
+    }
+    const prepared = preparePartnerContactEditorByKey(key);
+    if (!prepared && draft && typeof draft.draftId === 'string') {
+      removePartnerContactDraft(draft.draftId);
+    }
+    return prepared;
   };
 
   function refreshPartnerContactPersonRow(row) {
@@ -9827,9 +9840,6 @@
   };
 
   window.resetPartnerContactsSettingsModal = function resetPartnerContactsSettingsModal() {
-    if (partnerContactEditorModalEl) {
-      window.SettingsPageShell.hideModal(partnerContactEditorModalEl);
-    }
     partnerContactDrafts = [];
     partnerContactDraftCounter = 0;
     partnerContactEdits.clear();
@@ -9889,15 +9899,7 @@
     };
     partnerContactDrafts.push(draft);
     renderPartnerContacts();
-    const key = getPartnerContactItemKey(draft);
-    if (partnerContactEditorModalEl && key) {
-      setTimeout(() => {
-        const card = findPartnerContactCardByKey(key);
-        if (card && preparePartnerContactEditor(card)) {
-          window.SettingsPageShell.showModal(partnerContactEditorModalEl);
-        }
-      }, 0);
-    }
+    return draft;
   }
 
   function removePartnerContactDraft(draftId) {

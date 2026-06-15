@@ -618,6 +618,13 @@
         return;
       }
 
+      parentModalEl.addEventListener('hide.bs.modal', () => {
+        hideSettingsModal(childModal);
+        setSettingsParentModalSuspended(parentModalEl, openClass, false);
+      });
+      parentModalEl.addEventListener('hidden.bs.modal', () => {
+        setSettingsParentModalSuspended(parentModalEl, openClass, false);
+      });
       childModal.addEventListener('show.bs.modal', () => {
         setSettingsParentModalSuspended(parentModalEl, openClass, true);
       });
