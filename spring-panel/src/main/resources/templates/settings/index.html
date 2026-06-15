@@ -6317,115 +6317,117 @@
   <div class="modal fade settings-child-modal settings-child-modal--workspace" id="addChannelModal" tabindex="-1" aria-hidden="true" data-settings-on-show="prepareAddChannelSettingsModal">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
       <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">Добавить канал</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
-        </div>
-        <div class="modal-body">
-          <div class="alert alert-light border small" role="alert">
-            <div class="fw-semibold mb-1">Что понадобится</div>
-            <ul class="mb-0 small ps-3 text-body-secondary">
-              <li>Для Telegram — токен из @BotFather и название канала для панели.</li>
-              <li>Для VK — токен сообщества (доступ к сообщениям), ID сообщества, код подтверждения Callback API и при необходимости секретный ключ.</li>
-              <li>Для MAX — bot token, название канала в панели и при необходимости webhook secret.</li>
-            </ul>
+        <form id="addChannelForm">
+          <div class="modal-header">
+            <h5 class="modal-title">Добавить канал</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
           </div>
-          <div id="addChannelValidationAlert" class="alert alert-warning d-none small" role="alert" aria-live="polite"></div>
-          <div class="row g-3 align-items-end">
-            <div class="col-12 col-md-4 col-xl-3" id="token_field_container">
-              <label class="form-label" for="new_token" id="new_token_label">Токен бота</label>
-              <input id="new_token" class="form-control" placeholder="Токен из BotFather">
-              <div class="form-text" id="new_token_help">Проверяется автоматически для Telegram.</div>
+          <div class="modal-body">
+            <div class="alert alert-light border small" role="alert">
+              <div class="fw-semibold mb-1">Что понадобится</div>
+              <ul class="mb-0 small ps-3 text-body-secondary">
+                <li>Для Telegram — токен из @BotFather и название канала для панели.</li>
+                <li>Для VK — токен сообщества (доступ к сообщениям), ID сообщества, код подтверждения Callback API и при необходимости секретный ключ.</li>
+                <li>Для MAX — bot token, название канала в панели и при необходимости webhook secret.</li>
+              </ul>
             </div>
-            <div class="col-12 col-md-4 col-xl-3">
-              <label class="form-label" for="new_channel_name">Название в панели</label>
-              <input id="new_channel_name" class="form-control" placeholder="Например: Доставка">
-              <div class="form-text">Отображается в списке обращений клиентов.</div>
-            </div>
-            <div class="col-12 col-md-4 col-xl-3">
-              <label class="form-label" for="new_support_chat_id">ID группы для уведомлений</label>
-              <input id="new_support_chat_id" class="form-control" placeholder="Например: -1001234567890">
-              <div class="form-text">Опционально. Можно оставить пустым — бот сохранит ID после добавления в чат.</div>
-            </div>
-            <div class="col-12 col-md-4 col-xl-2">
-              <label class="form-label" for="new_platform">Платформа</label>
-              <select id="new_platform" class="form-select">
-                <option value="telegram" selected>Telegram</option>
-                <option value="vk">VK</option>
-                <option value="max">MAX</option>
-              </select>
-            </div>
-            <div class="col-12" id="telegram_base_url_container">
-              <div class="row g-3">
-                <div class="col-12 col-lg-8">
-                  <label class="form-label" for="new_telegram_base_url">Telegram Bot API base URL <span class="text-muted">(опционально)</span></label>
-                  <input id="new_telegram_base_url" class="form-control" placeholder="Например: https://telegram.ftl-dev.ru">
-                  <div class="form-text">Нужно только если используете Bot API mirror или self-hosted endpoint. Это не proxy: панель и бот будут обращаться к указанному `/bot...` URL напрямую.</div>
+            <div id="addChannelValidationAlert" class="alert alert-warning d-none small" role="alert" aria-live="polite"></div>
+            <div class="row g-3 align-items-end">
+              <div class="col-12 col-md-4 col-xl-3" id="token_field_container">
+                <label class="form-label" for="new_token" id="new_token_label">Токен бота</label>
+                <input id="new_token" class="form-control" placeholder="Токен из BotFather">
+                <div class="form-text" id="new_token_help">Проверяется автоматически для Telegram.</div>
+              </div>
+              <div class="col-12 col-md-4 col-xl-3">
+                <label class="form-label" for="new_channel_name">Название в панели</label>
+                <input id="new_channel_name" class="form-control" placeholder="Например: Доставка">
+                <div class="form-text">Отображается в списке обращений клиентов.</div>
+              </div>
+              <div class="col-12 col-md-4 col-xl-3">
+                <label class="form-label" for="new_support_chat_id">ID группы для уведомлений</label>
+                <input id="new_support_chat_id" class="form-control" placeholder="Например: -1001234567890">
+                <div class="form-text">Опционально. Можно оставить пустым — бот сохранит ID после добавления в чат.</div>
+              </div>
+              <div class="col-12 col-md-4 col-xl-2">
+                <label class="form-label" for="new_platform">Платформа</label>
+                <select id="new_platform" class="form-select">
+                  <option value="telegram" selected>Telegram</option>
+                  <option value="vk">VK</option>
+                  <option value="max">MAX</option>
+                </select>
+              </div>
+              <div class="col-12" id="telegram_base_url_container">
+                <div class="row g-3">
+                  <div class="col-12 col-lg-8">
+                    <label class="form-label" for="new_telegram_base_url">Telegram Bot API base URL <span class="text-muted">(опционально)</span></label>
+                    <input id="new_telegram_base_url" class="form-control" placeholder="Например: https://telegram.ftl-dev.ru">
+                    <div class="form-text">Нужно только если используете Bot API mirror или self-hosted endpoint. Это не proxy: панель и бот будут обращаться к указанному `/bot...` URL напрямую.</div>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div class="col-12 col-md-4 col-xl-3">
-              <label class="form-label" for="new_question_template">Шаблон вопросов</label>
-              <select id="new_question_template" class="form-select"></select>
-            </div>
-            <div class="col-12 col-md-4 col-xl-3">
-              <label class="form-label" for="new_rating_template">Система оценок</label>
-              <select id="new_rating_template" class="form-select"></select>
-            </div>
-            <div class="col-12 col-md-4 col-xl-3">
-              <label class="form-label" for="new_auto_action_template">Автоматические действия</label>
-              <select id="new_auto_action_template" class="form-select"></select>
-            </div>
-            <div class="col-12" id="vk_group_id_container" style="display: none;">
-              <div class="row g-3">
-                <div class="col-12 col-md-4 col-xl-3">
-                  <label class="form-label" for="new_vk_group_id">ID сообщества VK</label>
-                  <input id="new_vk_group_id" class="form-control" placeholder="Например: 123456789">
-                  <div class="form-text">Найдите в настройках сообщества → Работа с API.</div>
+              <div class="col-12 col-md-4 col-xl-3">
+                <label class="form-label" for="new_question_template">Шаблон вопросов</label>
+                <select id="new_question_template" class="form-select"></select>
+              </div>
+              <div class="col-12 col-md-4 col-xl-3">
+                <label class="form-label" for="new_rating_template">Система оценок</label>
+                <select id="new_rating_template" class="form-select"></select>
+              </div>
+              <div class="col-12 col-md-4 col-xl-3">
+                <label class="form-label" for="new_auto_action_template">Автоматические действия</label>
+                <select id="new_auto_action_template" class="form-select"></select>
+              </div>
+              <div class="col-12" id="vk_group_id_container" style="display: none;">
+                <div class="row g-3">
+                  <div class="col-12 col-md-4 col-xl-3">
+                    <label class="form-label" for="new_vk_group_id">ID сообщества VK</label>
+                    <input id="new_vk_group_id" class="form-control" placeholder="Например: 123456789">
+                    <div class="form-text">Найдите в настройках сообщества → Работа с API.</div>
+                  </div>
+                  <div class="col-12 col-md-4 col-xl-3">
+                    <label class="form-label" for="new_vk_confirmation">Код подтверждения Callback API</label>
+                    <input id="new_vk_confirmation" class="form-control" placeholder="Строка из настроек Callback API">
+                  </div>
+                  <div class="col-12 col-md-4 col-xl-3">
+                    <label class="form-label" for="new_vk_secret">Секретный ключ (опционально)</label>
+                    <input id="new_vk_secret" class="form-control" placeholder="Если задан в VK">
+                  </div>
                 </div>
-                <div class="col-12 col-md-4 col-xl-3">
-                  <label class="form-label" for="new_vk_confirmation">Код подтверждения Callback API</label>
-                  <input id="new_vk_confirmation" class="form-control" placeholder="Строка из настроек Callback API">
-                </div>
-                <div class="col-12 col-md-4 col-xl-3">
-                  <label class="form-label" for="new_vk_secret">Секретный ключ (опционально)</label>
-                  <input id="new_vk_secret" class="form-control" placeholder="Если задан в VK">
+                <div class="alert alert-info small mt-3 mb-0" role="alert">
+                  <div class="fw-semibold mb-1">Настройка VK Callback API</div>
+                  <ol class="mb-0 ps-3">
+                    <li>Создайте ключ доступа сообщества с правами сообщений: «Работа с API» → «Ключи доступа».</li>
+                    <li>В «Callback API» укажите адрес вида <code>https://ваш-домен/webhooks/vk/&lt;group_id&gt;</code>.</li>
+                    <li>Вставьте код подтверждения и при необходимости секретный ключ, чтобы включить проверку запросов.</li>
+                    <li>Активируйте события сообщений и перед запуском сервиса выполните <code>python vk_webhook_support.py</code>.</li>
+                  </ol>
                 </div>
               </div>
-              <div class="alert alert-info small mt-3 mb-0" role="alert">
-                <div class="fw-semibold mb-1">Настройка VK Callback API</div>
-                <ol class="mb-0 ps-3">
-                  <li>Создайте ключ доступа сообщества с правами сообщений: «Работа с API» → «Ключи доступа».</li>
-                  <li>В «Callback API» укажите адрес вида <code>https://ваш-домен/webhooks/vk/&lt;group_id&gt;</code>.</li>
-                  <li>Вставьте код подтверждения и при необходимости секретный ключ, чтобы включить проверку запросов.</li>
-                  <li>Активируйте события сообщений и перед запуском сервиса выполните <code>python vk_webhook_support.py</code>.</li>
-                </ol>
-              </div>
-            </div>
-            <div class="col-12" id="max_webhook_container" style="display: none;">
-              <div class="row g-3">
-                <div class="col-12 col-md-6 col-xl-4">
-                  <label class="form-label" for="new_max_secret">Webhook secret MAX <span class="text-muted">(опционально)</span></label>
-                  <input id="new_max_secret" class="form-control" placeholder="Будет сверяться с X-Max-Bot-Api-Secret">
-                  <div class="form-text">Поле используется только как запасной параметр для webhook-режима (fallback).</div>
+              <div class="col-12" id="max_webhook_container" style="display: none;">
+                <div class="row g-3">
+                  <div class="col-12 col-md-6 col-xl-4">
+                    <label class="form-label" for="new_max_secret">Webhook secret MAX <span class="text-muted">(опционально)</span></label>
+                    <input id="new_max_secret" class="form-control" placeholder="Будет сверяться с X-Max-Bot-Api-Secret">
+                    <div class="form-text">Поле используется только как запасной параметр для webhook-режима (fallback).</div>
+                  </div>
                 </div>
-              </div>
-              <div class="alert alert-info small mt-3 mb-0" role="alert">
-                <div class="fw-semibold mb-1">Как подключить MAX</div>
-                <ol class="mb-0 ps-3">
-                  <li>Получите bot token в кабинете интеграций MAX и вставьте его в поле «Токен MAX-бота».</li>
-                  <li>Бот работает через <strong>long polling</strong>: отдельный webhook endpoint для MAX настраивать не нужно.</li>
-                  <li>Если позже потребуется вернуться к webhook-режиму, secret можно сохранить заранее в этом блоке.</li>
-                </ol>
+                <div class="alert alert-info small mt-3 mb-0" role="alert">
+                  <div class="fw-semibold mb-1">Как подключить MAX</div>
+                  <ol class="mb-0 ps-3">
+                    <li>Получите bot token в кабинете интеграций MAX и вставьте его в поле «Токен MAX-бота».</li>
+                    <li>Бот работает через <strong>long polling</strong>: отдельный webhook endpoint для MAX настраивать не нужно.</li>
+                    <li>Если позже потребуется вернуться к webhook-режиму, secret можно сохранить заранее в этом блоке.</li>
+                  </ol>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-        <div class="modal-footer">
-          <div class="text-muted small me-auto">Для Telegram токен проверяется через <code>getMe</code>. Для VK и MAX токен обязателен для рабочего запуска бота.</div>
-          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
-          <button type="button" class="btn btn-primary" onclick="addChannel()">Добавить канал</button>
-        </div>
+          <div class="modal-footer">
+            <div class="text-muted small me-auto">Для Telegram токен проверяется через <code>getMe</code>. Для VK и MAX токен обязателен для рабочего запуска бота.</div>
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+            <button type="submit" class="btn btn-primary">Добавить канал</button>
+          </div>
+        </form>
       </div>
     </div>
   </div>
@@ -7017,37 +7019,39 @@
   <div class="modal fade settings-child-modal" id="vkWebhookModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">VK: настройки вебхука</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
-        </div>
-        <div class="modal-body">
-          <div class="mb-3">
-            <label class="form-label">ID сообщества (group_id)</label>
-            <input type="number" min="0" class="form-control" id="vkGroupIdInput">
-            <div class="form-text">Найдите числовой идентификатор в настройках сообщества.</div>
+        <form id="vkWebhookForm">
+          <div class="modal-header">
+            <h5 class="modal-title">VK: настройки вебхука</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
           </div>
-          <div class="mb-3">
-            <label class="form-label">Код подтверждения Callback API</label>
-            <input type="text" class="form-control" id="vkConfirmationInput" placeholder="Например: 123abc">
+          <div class="modal-body">
+            <div class="mb-3">
+              <label class="form-label">ID сообщества (group_id)</label>
+              <input type="number" min="0" class="form-control" id="vkGroupIdInput">
+              <div class="form-text">Найдите числовой идентификатор в настройках сообщества.</div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Код подтверждения Callback API</label>
+              <input type="text" class="form-control" id="vkConfirmationInput" placeholder="Например: 123abc">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Секретный ключ (опционально)</label>
+              <input type="text" class="form-control" id="vkSecretInput" placeholder="Будет сверяться с параметром secret">
+            </div>
+            <div class="alert alert-info small">
+              <div class="fw-semibold mb-1">Как подключить Callback API</div>
+              <ol class="mb-0 ps-3">
+                <li>В разделе «Работа с API» → «Callback API» задайте адрес вида <code>https://ваш-домен/webhooks/vk/&lt;group_id&gt;</code>.</li>
+                <li>Вставьте код подтверждения и при необходимости секретный ключ, чтобы проверять исходящие запросы.</li>
+                <li>Включите события сообщений и запустите Java-бот через панель или команду Spring Boot.</li>
+              </ol>
+            </div>
           </div>
-          <div class="mb-3">
-            <label class="form-label">Секретный ключ (опционально)</label>
-            <input type="text" class="form-control" id="vkSecretInput" placeholder="Будет сверяться с параметром secret">
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+            <button type="submit" class="btn btn-primary" id="vkWebhookSaveBtn">Сохранить</button>
           </div>
-          <div class="alert alert-info small">
-            <div class="fw-semibold mb-1">Как подключить Callback API</div>
-            <ol class="mb-0 ps-3">
-              <li>В разделе «Работа с API» → «Callback API» задайте адрес вида <code>https://ваш-домен/webhooks/vk/&lt;group_id&gt;</code>.</li>
-              <li>Вставьте код подтверждения и при необходимости секретный ключ, чтобы проверять исходящие запросы.</li>
-              <li>Включите события сообщений и запустите Java-бот через панель или команду Spring Boot.</li>
-            </ol>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
-          <button type="button" class="btn btn-primary" id="vkWebhookSaveBtn">Сохранить</button>
-        </div>
+        </form>
       </div>
     </div>
   </div>
@@ -20547,6 +20551,7 @@
   // === КАНАЛЫ (боты) ===
   const channelsBody = document.getElementById('channelsBody');
   const channelsRefreshBotStatusesBtn = document.getElementById('channelsRefreshBotStatusesBtn');
+  const addChannelFormEl = document.getElementById('addChannelForm');
   const channelsBotStatusesInfo = document.getElementById('channelsBotStatusesInfo');
   const channelsModalEl = document.getElementById('channelsModal');
   const channelEditorModalEl = document.getElementById('channelEditorModal');
@@ -20677,6 +20682,7 @@
   const integrationNetworkProfileVpnConfigPathInput = integrationNetworkProfileEditorModalEl ? integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-vpn-config-path]') : null;
   const integrationNetworkProfileVpnNotesInput = integrationNetworkProfileEditorModalEl ? integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-vpn-notes]') : null;
 
+  const vkWebhookFormEl = document.getElementById('vkWebhookForm');
   const vkWebhookState = {
     channelId: null,
     groupId: null,
@@ -23562,8 +23568,6 @@
     loadChannels();
 
     const platformSelect = document.getElementById('new_platform');
-    const vkSaveBtn = document.getElementById('vkWebhookSaveBtn');
-    const addChannelModalEl = document.getElementById('addChannelModal');
     platformSelect?.addEventListener('change', togglePlatformFields);
     projectNetworkModeInput?.addEventListener('change', () => toggleNetworkRouteFields('project'));
     botsNetworkModeInput?.addEventListener('change', () => toggleNetworkRouteFields('bots'));
@@ -23666,12 +23670,11 @@
     channelsRefreshBotStatusesBtn?.addEventListener('click', () => {
       refreshAllBotRuntimeStatuses(false);
     });
-    vkSaveBtn?.addEventListener('click', saveVkWebhookSettings);
-    addChannelModalEl?.addEventListener('keydown', (event) => {
-      if (event.key !== 'Enter') return;
-      const target = event.target;
-      if (target instanceof HTMLTextAreaElement) return;
-      if (target instanceof HTMLButtonElement) return;
+    vkWebhookFormEl?.addEventListener('submit', (event) => {
+      event.preventDefault();
+      saveVkWebhookSettings();
+    });
+    addChannelFormEl?.addEventListener('submit', (event) => {
       event.preventDefault();
       addChannel();
     });
