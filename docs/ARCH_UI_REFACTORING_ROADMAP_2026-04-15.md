@@ -1539,6 +1539,11 @@
   `read-all -> history/details/workspace reread -> next follow-up`, чтобы
   следующий клиентский message loop снова поднимал и bell unread, и
   `my_dialogs.unanswered`, и row-level `unreadCount`.
+- adjacent action-consumer слой тоже дополнительно выровнен на реальных HTTP
+  quick-action round-trips: `list/details/participants` больше не зависят от
+  service-level shortcuts в `reassign/resolve/reopen/participants_remove`
+  сценариях, а list runtime дополнительно зафиксирован на текущем reopen
+  projection (`my_dialogs.in_work` при `statusKey=waiting_client`).
 
 ## Audit Checkpoint 2026-06-05
 

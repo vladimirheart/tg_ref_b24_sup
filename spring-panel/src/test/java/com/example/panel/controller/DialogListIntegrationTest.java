@@ -24,6 +24,7 @@ import java.sql.DriverManager;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -215,7 +216,17 @@ class DialogListIntegrationTest {
                 .andExpect(jsonPath("$.my_dialogs.unanswered").isEmpty())
                 .andExpect(jsonPath("$.my_dialogs.in_work[0].ticketId").value("T-LIST-HANDOFF"));
 
-        dialogQuickActionService.reassignTicket("T-LIST-HANDOFF", "watcher_new", "watcher_owner");
+        mockMvc.perform(post("/api/dialogs/T-LIST-HANDOFF/reassign")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "username": "watcher_new"
+                                }
+                                """)
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.responsible").value("watcher_new"));
 
         mockMvc.perform(get("/api/dialogs")
                         .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
@@ -255,6 +266,91 @@ class DialogListIntegrationTest {
                 String.class,
                 "T-LIST-HANDOFF"
         )).isEqualTo("watcher_new");
+    }
+
+    @Test
+    void listApiRefreshesMyDialogsAcrossHttpResolveAndReopenLifecycle() throws Exception {
+        insertDirectoryUser("watcher_owner", "Watcher Owner", "/img/watcher-owner.png");
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
+                VALUES (63, 'token63', 'Dialog List Close Reopen', 'telegram', 1, CURRENT_TIMESTAMP)
+                """);
+        jdbcTemplate.update("""
+                INSERT INTO tickets (user_id, ticket_id, status, channel_id, created_at)
+                VALUES (?,?,?,?,?)
+                """,
+                920063L, "T-LIST-RESOLVE", "open", 63L, "2026-05-28T09:20:00Z");
+        jdbcTemplate.update("""
+                INSERT INTO messages (
+                    group_msg_id, user_id, business, city, location_name, problem, created_at,
+                    username, ticket_id, created_date, created_time, client_name, channel_id, updated_at, updated_by
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                6301L,
+                920063L,
+                "Retail",
+                "Самара",
+                "Точка Resolve",
+                "Проверка list resolve/reopen через HTTP",
+                "2026-05-28T09:20:00Z",
+                "list_resolve_user",
+                "T-LIST-RESOLVE",
+                "2026-05-28",
+                "09:20:00",
+                "Клиент Resolve",
+                63L,
+                "2026-05-28T09:20:00Z",
+                "seed");
+        jdbcTemplate.update("""
+                INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
+                VALUES (?,?,?,?)
+                """,
+                "T-LIST-RESOLVE", "watcher_owner", "dispatcher", "2026-05-28T09:21:00Z");
+        insertHistoryRow("T-LIST-RESOLVE", 920063L, "user", "Диалог уже в работе", "2026-05-28T09:21:00Z", "text", 631L, null, 63L);
+        insertHistoryRow("T-LIST-RESOLVE", 920063L, "operator", "Оператор ответил перед закрытием", "2026-05-28T09:22:00Z", "operator_message", 632L, 631L, 63L);
+
+        mockMvc.perform(get("/api/dialogs")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-LIST-RESOLVE"))
+                .andExpect(jsonPath("$.dialogs[0].unreadCount").value(0))
+                .andExpect(jsonPath("$.my_dialogs.unanswered").isEmpty())
+                .andExpect(jsonPath("$.my_dialogs.in_work[0].ticketId").value("T-LIST-RESOLVE"));
+
+        mockMvc.perform(post("/api/dialogs/T-LIST-RESOLVE/resolve")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "categories": ["billing"]
+                                }
+                                """)
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.updated").value(true));
+
+        mockMvc.perform(get("/api/dialogs")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-LIST-RESOLVE"))
+                .andExpect(jsonPath("$.dialogs[0].statusKey").value("closed"))
+                .andExpect(jsonPath("$.my_dialogs.unanswered").isEmpty())
+                .andExpect(jsonPath("$.my_dialogs.in_work").isEmpty());
+
+        mockMvc.perform(post("/api/dialogs/T-LIST-RESOLVE/reopen")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.updated").value(true));
+
+        mockMvc.perform(get("/api/dialogs")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-LIST-RESOLVE"))
+                .andExpect(jsonPath("$.dialogs[0].statusKey").value("waiting_client"))
+                .andExpect(jsonPath("$.dialogs[0].unreadCount").value(0))
+                .andExpect(jsonPath("$.my_dialogs.unanswered").isEmpty())
+                .andExpect(jsonPath("$.my_dialogs.in_work[0].ticketId").value("T-LIST-RESOLVE"));
     }
 
     private void insertDirectoryUser(String username, String fullName, String photo) {

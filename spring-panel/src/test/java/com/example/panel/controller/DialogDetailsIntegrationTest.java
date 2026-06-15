@@ -264,9 +264,35 @@ class DialogDetailsIntegrationTest {
         jdbcTemplate.update("INSERT INTO ticket_categories(ticket_id, category) VALUES (?, ?)", "T-DETAIL-QA", "billing");
         insertHistoryRow("T-DETAIL-QA", 910092L, "user", "Lifecycle first message", "2026-05-26T18:11:00Z", "text", 921L, null, 92L, null, null, null, null, null);
 
-        dialogQuickActionService.reassignTicket("T-DETAIL-QA", "watcher_new", "watcher_owner");
-        dialogQuickActionService.resolveTicket("T-DETAIL-QA", "watcher_new", List.of("billing"));
-        dialogQuickActionService.reopenTicket("T-DETAIL-QA", "watcher_new");
+        mockMvc.perform(post("/api/dialogs/T-DETAIL-QA/reassign")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "username": "watcher_new"
+                                }
+                                """)
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.responsible").value("watcher_new"));
+
+        mockMvc.perform(post("/api/dialogs/T-DETAIL-QA/resolve")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "categories": ["billing"]
+                                }
+                                """)
+                        .principal(new TestingAuthenticationToken("watcher_new", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.updated").value(true));
+
+        mockMvc.perform(post("/api/dialogs/T-DETAIL-QA/reopen")
+                        .principal(new TestingAuthenticationToken("watcher_new", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.updated").value(true));
 
         mockMvc.perform(get("/api/dialogs/T-DETAIL-QA")
                         .param("channelId", "92")

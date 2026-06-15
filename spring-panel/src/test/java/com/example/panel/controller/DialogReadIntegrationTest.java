@@ -25,6 +25,7 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -345,8 +346,25 @@ class DialogReadIntegrationTest {
                 """,
                 "T-READ-QA", "watcher_observer", "watcher_owner");
 
-        dialogQuickActionService.reassignTicket("T-READ-QA", "watcher_new", "watcher_owner");
-        dialogQuickActionService.removeParticipant("T-READ-QA", "watcher_observer", "watcher_new");
+        mockMvc.perform(post("/api/dialogs/T-READ-QA/reassign")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "username": "watcher_new"
+                                }
+                                """)
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.responsible").value("watcher_new"));
+
+        mockMvc.perform(delete("/api/dialogs/T-READ-QA/participants/watcher_observer")
+                        .principal(new TestingAuthenticationToken("watcher_new", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.changed").value(true))
+                .andExpect(jsonPath("$.participants.length()").value(1))
+                .andExpect(jsonPath("$.participants[0].username").value("watcher_peer"));
 
         mockMvc.perform(get("/api/dialogs/T-READ-QA/participants"))
                 .andExpect(status().isOk())

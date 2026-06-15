@@ -1775,3 +1775,18 @@ integration-сценария поверх users/settings runtime boundary всё
   снова поднимает и panel bell unread badge, и dialog `unreadCount`, и
   `my_dialogs.unanswered`, то есть mass-ack не "гасит" следующий runtime
   loop и не ломает follow-up rearm semantics.
+- соседние read-consumer contracts тоже дополнительно переведены с
+  service-level shortcuts на реальные quick-action HTTP round-trips:
+  `DialogListIntegrationTest`, `DialogReadIntegrationTest` и
+  `DialogDetailsIntegrationTest` теперь проходят `reassign`,
+  `participants_remove`, `resolve` и `reopen` через
+  `POST/DELETE /api/dialogs/...` endpoints, а затем reread'ят
+  `/api/dialogs`, `/api/dialogs/{ticketId}` и `/participants`.
+- это убирает ещё один слой projection drift между quick-action boundary и
+  adjacent consumers: `list` теперь live-подтверждает `resolve -> reopen`
+  без прямого вызова `DialogQuickActionService`, `details` route читает тот
+  же runtime result после HTTP `reassign -> resolve -> reopen`, а
+  `/participants` закреплён на реальном `reassign -> remove participant`
+  handoff вместо service-only orchestration. Заодно стало явным текущее
+  reopen поведение list consumer: dialog возвращается в `my_dialogs.in_work`,
+  но `statusKey` после reopen сейчас проецируется как `waiting_client`.
