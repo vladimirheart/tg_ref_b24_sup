@@ -447,6 +447,138 @@
     }
   }
 
+  function resolveSettingsCallbackArgument(rawArgument, trigger, event) {
+    const argument = typeof rawArgument === 'string' ? rawArgument.trim() : '';
+    if (!argument) {
+      return '';
+    }
+    if (argument === '$element' || argument === '$trigger') {
+      return trigger;
+    }
+    if (argument === '$event') {
+      return event;
+    }
+    if (argument === '$target') {
+      return event ? event.target : null;
+    }
+    if (argument === '$value') {
+      if (trigger && 'value' in trigger) {
+        return trigger.value;
+      }
+      return '';
+    }
+    if (argument === '$checked') {
+      return Boolean(trigger && 'checked' in trigger && trigger.checked);
+    }
+    if (argument === 'true') {
+      return true;
+    }
+    if (argument === 'false') {
+      return false;
+    }
+    if (argument === 'null') {
+      return null;
+    }
+    if (/^-?\d+$/.test(argument)) {
+      return Number.parseInt(argument, 10);
+    }
+    if (/^-?\d+\.\d+$/.test(argument)) {
+      return Number.parseFloat(argument);
+    }
+    return argument;
+  }
+
+  function invokeSettingsNamedCallback(callbackName, trigger, event, options = {}) {
+    const normalizedName = typeof callbackName === 'string' ? callbackName.trim() : '';
+    if (!normalizedName) {
+      return true;
+    }
+    const callback = window[normalizedName];
+    if (typeof callback !== 'function') {
+      console.warn(`Settings callback "${normalizedName}" is not available.`);
+      return false;
+    }
+    const rawArgs = typeof options.args === 'string' ? options.args.trim() : '';
+    const args = rawArgs
+      ? rawArgs
+        .split(',')
+        .map((argument) => resolveSettingsCallbackArgument(argument, trigger, event))
+      : [];
+    try {
+      return callback(...args);
+    } catch (error) {
+      console.error(`Settings callback "${normalizedName}" failed.`, error);
+      return false;
+    }
+  }
+
+  function continueSettingsNamedCallback(callbackName, trigger, event, options = {}) {
+    const result = invokeSettingsNamedCallback(callbackName, trigger, event, options);
+    if (result && typeof result.then === 'function') {
+      result.catch((error) => {
+        console.error(`Settings callback "${callbackName}" promise failed.`, error);
+      });
+    }
+    return result;
+  }
+
+  function initSettingsDeclarativeCallbacks() {
+    const bindings = [
+      { eventName: 'click', selector: '[data-settings-click-callback]' },
+      { eventName: 'change', selector: '[data-settings-change-callback]' },
+      { eventName: 'input', selector: '[data-settings-input-callback]' },
+    ];
+
+    bindings.forEach(({ eventName, selector }) => {
+      document.addEventListener(eventName, (event) => {
+        const target = event.target;
+        if (!(target instanceof Element)) {
+          return;
+        }
+        const trigger = target.closest(selector);
+        if (!(trigger instanceof HTMLElement)) {
+          return;
+        }
+        if ((eventName === 'click')
+          && (trigger.hasAttribute('disabled') || trigger.getAttribute('aria-disabled') === 'true')) {
+          return;
+        }
+        const callbackName = trigger.dataset[`settings${eventName.charAt(0).toUpperCase()}${eventName.slice(1)}Callback`];
+        if (!callbackName) {
+          return;
+        }
+        continueSettingsNamedCallback(callbackName, trigger, event, {
+          args: trigger.dataset.settingsCallbackArgs,
+        });
+      });
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') {
+        return;
+      }
+      const target = event.target;
+      if (!(target instanceof Element)) {
+        return;
+      }
+      const trigger = target.closest('[data-settings-click-callback]');
+      if (!(trigger instanceof HTMLElement) || trigger instanceof HTMLButtonElement) {
+        return;
+      }
+      if (trigger.hasAttribute('disabled') || trigger.getAttribute('aria-disabled') === 'true') {
+        return;
+      }
+      const callbackName = String(trigger.dataset.settingsClickCallback || '').trim();
+      if (!callbackName) {
+        return;
+      }
+      event.preventDefault();
+      continueSettingsNamedCallback(callbackName, trigger, event, {
+        args: trigger.dataset.settingsCallbackArgs,
+      });
+    });
+  }
+
   function continueSettingsModalAction(trigger, openTarget, hideTarget) {
     const callbackResult = invokeSettingsActionCallback(trigger);
     if (callbackResult && typeof callbackResult.then === 'function') {
@@ -873,6 +1005,7 @@
     initSettingsBodyPortals();
     initSettingsPrimaryModals();
     initSettingsModalActionTriggers();
+    initSettingsDeclarativeCallbacks();
     initSettingsCollapseNavs();
     initSettingsCollapseActionTriggers();
     initParentChildSuspendShell();
