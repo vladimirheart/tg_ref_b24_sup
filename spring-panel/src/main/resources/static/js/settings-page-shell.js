@@ -85,6 +85,29 @@
     legacy: 'tab',
   });
 
+  const DEFAULT_SETTINGS_PRIMARY_MODAL_IDS = Object.freeze([
+    'inputFormattingModal',
+    'usersModal',
+    'categoriesModal',
+    'locationsModal',
+    'parametersModal',
+    'legalEntitiesModal',
+    'itConnectionsModal',
+    'panelDesignSettingsModal',
+    'reportingModal',
+    'managerBindingsModal',
+    'channelsModal',
+  ]);
+
+  const DEFAULT_SETTINGS_SHEET_MODAL_IDS = Object.freeze([
+    'authUserDetailsModal',
+    'partnerContactEditorModal',
+  ]);
+
+  const DEFAULT_SETTINGS_BODY_PORTAL_MODAL_IDS = Object.freeze([
+    'partnerContactEditorModal',
+  ]);
+
   const DEFAULT_SETTINGS_URL_MODAL_NAMES = Object.freeze({
     inputFormattingModal: 'input-formatting',
     usersModal: 'users',
@@ -97,6 +120,20 @@
     reportingModal: 'reporting',
     managerBindingsModal: 'manager-bindings',
     channelsModal: 'channels',
+  });
+
+  const DEFAULT_SETTINGS_TILE_MODAL_TARGETS = Object.freeze({
+    channels: 'channelsModal',
+    managerBindings: 'managerBindingsModal',
+    reporting: 'reportingModal',
+    panelDesign: 'panelDesignSettingsModal',
+    categories: 'categoriesModal',
+    parameters: 'parametersModal',
+    itConnections: 'itConnectionsModal',
+    users: 'usersModal',
+    locations: 'locationsModal',
+    legalEntities: 'legalEntitiesModal',
+    inputFormatting: 'inputFormattingModal',
   });
 
   const DEFAULT_SETTINGS_MODAL_DEFAULT_TABS = Object.freeze({
@@ -389,7 +426,7 @@
             return;
           }
         }
-        const modalId = String(tile.dataset.settingsTileTarget || '').trim();
+        const modalId = resolveSettingsTileModalTarget(tile);
         if (!modalId) {
           return;
         }
@@ -1051,7 +1088,53 @@
     if (!(modal instanceof HTMLElement) || !modal.id) {
       return null;
     }
-    return document.querySelector(`[data-settings-tile-target="${modal.id}"]`);
+    const tiles = Array.from(document.querySelectorAll('[data-settings-tile]'));
+    return tiles.find((tile) => tile instanceof HTMLElement && resolveSettingsTileModalTarget(tile) === modal.id) || null;
+  }
+
+  function resolveSettingsTileModalTarget(tile) {
+    if (!(tile instanceof HTMLElement)) {
+      return '';
+    }
+    const inlineTarget = String(tile.dataset.settingsTileTarget || '').trim();
+    if (inlineTarget) {
+      return inlineTarget;
+    }
+    const tileKey = String(tile.dataset.settingsTile || '').trim();
+    if (!tileKey) {
+      return '';
+    }
+    return String(DEFAULT_SETTINGS_TILE_MODAL_TARGETS[tileKey] || '').trim();
+  }
+
+  function isSettingsPrimaryModal(modal) {
+    if (!(modal instanceof HTMLElement)) {
+      return false;
+    }
+    if (Object.prototype.hasOwnProperty.call(modal.dataset, 'settingsPrimaryModal')) {
+      return true;
+    }
+    return Boolean(modal.id && DEFAULT_SETTINGS_PRIMARY_MODAL_IDS.includes(modal.id));
+  }
+
+  function isSettingsSheetModal(modal) {
+    if (!(modal instanceof HTMLElement)) {
+      return false;
+    }
+    if (Object.prototype.hasOwnProperty.call(modal.dataset, 'settingsSheet')) {
+      return true;
+    }
+    return Boolean(modal.id && DEFAULT_SETTINGS_SHEET_MODAL_IDS.includes(modal.id));
+  }
+
+  function shouldPortalSettingsModalToBody(modal) {
+    if (!(modal instanceof HTMLElement)) {
+      return false;
+    }
+    if (Object.prototype.hasOwnProperty.call(modal.dataset, 'settingsPortalBody')) {
+      return true;
+    }
+    return Boolean(modal.id && DEFAULT_SETTINGS_BODY_PORTAL_MODAL_IDS.includes(modal.id));
   }
 
   function syncSettingsSheetToggle(modal, toggle) {
@@ -1067,7 +1150,8 @@
   }
 
   function initSettingsPrimaryModals() {
-    const primaryModals = Array.from(document.querySelectorAll('[data-settings-primary-modal]'));
+    const primaryModals = Array.from(document.querySelectorAll('.modal'))
+      .filter((modal) => modal instanceof HTMLElement && isSettingsPrimaryModal(modal));
     primaryModals.forEach((modal) => {
       if (!(modal instanceof HTMLElement)) {
         return;
@@ -1085,7 +1169,8 @@
       });
     });
 
-    const sheetModals = Array.from(document.querySelectorAll('[data-settings-sheet]'));
+    const sheetModals = Array.from(document.querySelectorAll('.modal'))
+      .filter((modal) => modal instanceof HTMLElement && isSettingsSheetModal(modal));
     sheetModals.forEach((modal) => {
       if (!(modal instanceof HTMLElement)) {
         return;
@@ -1136,7 +1221,8 @@
     if (!document.body) {
       return;
     }
-    const portaledModals = Array.from(document.querySelectorAll('[data-settings-portal-body]'));
+    const portaledModals = Array.from(document.querySelectorAll('.modal'))
+      .filter((modal) => modal instanceof HTMLElement && shouldPortalSettingsModalToBody(modal));
     portaledModals.forEach((modal) => {
       if (!(modal instanceof HTMLElement) || modal.parentElement === document.body) {
         return;
