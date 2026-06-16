@@ -23,6 +23,8 @@ import java.sql.DriverManager;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.anyOf;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -450,6 +452,74 @@ class DialogListIntegrationTest {
                         .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.unread").value(1));
+    }
+
+    @Test
+    void listApiKeepsSpamMarkedDialogInUnreadBucketWithResponsibleAndMergedCategories() throws Exception {
+        insertDirectoryUser("watcher_owner", "Watcher Owner", "/img/watcher-owner.png");
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
+                VALUES (65, 'token65', 'Dialog List Spam Runtime', 'telegram', 1, CURRENT_TIMESTAMP)
+                """);
+        jdbcTemplate.update("""
+                INSERT INTO tickets (user_id, ticket_id, status, channel_id, created_at)
+                VALUES (?,?,?,?,?)
+                """,
+                920065L, "T-LIST-SPAM", "open", 65L, "2026-05-28T09:40:00Z");
+        jdbcTemplate.update("""
+                INSERT INTO messages (
+                    group_msg_id, user_id, business, city, location_name, problem, created_at,
+                    username, ticket_id, created_date, created_time, client_name, channel_id, updated_at, updated_by
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                6501L,
+                920065L,
+                "Retail",
+                "Пермь",
+                "Точка Spam",
+                "Проверка list spam continuity",
+                "2026-05-28T09:40:00Z",
+                "list_spam_user",
+                "T-LIST-SPAM",
+                "2026-05-28",
+                "09:40:00",
+                "Клиент Spam",
+                65L,
+                "2026-05-28T09:40:00Z",
+                "seed");
+        jdbcTemplate.update("INSERT INTO ticket_categories(ticket_id, category) VALUES (?, ?)", "T-LIST-SPAM", "billing");
+        insertHistoryRow("T-LIST-SPAM", 920065L, "user", "Клиент пишет до spam", "2026-05-28T09:41:00Z", "text", 651L, null, 65L);
+
+        mockMvc.perform(post("/api/dialogs/T-LIST-SPAM/take")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.changed").value(true));
+
+        mockMvc.perform(post("/api/dialogs/T-LIST-SPAM/spam")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "reason": "Спам через list adjacent runtime"
+                                }
+                                """)
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.updated").value(true))
+                .andExpect(jsonPath("$.categories", hasItem("Спам")));
+
+        mockMvc.perform(get("/api/dialogs")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-LIST-SPAM"))
+                .andExpect(jsonPath("$.dialogs[0].statusKey").value("waiting_operator"))
+                .andExpect(jsonPath("$.dialogs[0].rawResponsible").value("watcher_owner"))
+                .andExpect(jsonPath("$.dialogs[0].categories", containsString("billing")))
+                .andExpect(jsonPath("$.dialogs[0].categories", containsString("Спам")))
+                .andExpect(jsonPath("$.dialogs[0].unreadCount").value(1))
+                .andExpect(jsonPath("$.my_dialogs.unanswered[0].ticketId").value("T-LIST-SPAM"))
+                .andExpect(jsonPath("$.my_dialogs.in_work").isEmpty());
     }
 
     private void insertDirectoryUser(String username, String fullName, String photo) {

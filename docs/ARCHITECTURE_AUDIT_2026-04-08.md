@@ -1770,6 +1770,18 @@ integration-сценария поверх users/settings runtime boundary всё
   operator reply или explicit reread; следующий operator reply уже
   переводит projection в `waiting_client`/`in_work`, а новый follow-up
   снова поднимает unread и bell.
+- соседний moderation slice поверх этого же read-side контура теперь тоже
+  live-прикрыт без ухода в `public form`: `DialogListIntegrationTest`,
+  `DialogDetailsIntegrationTest` и `DialogWorkspaceIntegrationTest`
+  проходят `POST /take -> POST /spam -> reread`, чтобы
+  `rawResponsible`, merged categories и action audit не держались только
+  на isolated `DialogQuickActionsIntegrationTest`.
+- этот runtime пакет сделал явной и текущую consumer semantics вокруг
+  `mark_spam`: list-side сохраняет dialog в `waiting_operator` /
+  `my_dialogs.unanswered` с тем же responsible и merged
+  `billing + Спам`, тогда как `details/workspace` reread уже
+  подтверждают объединённые категории, audit trail `take`/`mark_spam`
+  и workspace guard continuity на тех же live HTTP round-trips.
 - public-form smoke bridge после этого тоже замкнут на тот же live
   controller boundary: в `PublicFormFlowSmokeIntegrationTest` сценарии
   `take`, `resolve` и `reopen` больше не проходят через

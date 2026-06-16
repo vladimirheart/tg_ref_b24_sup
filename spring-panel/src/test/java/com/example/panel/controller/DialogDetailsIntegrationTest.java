@@ -1167,6 +1167,76 @@ class DialogDetailsIntegrationTest {
                 .andExpect(jsonPath("$.unread").value(1));
     }
 
+    @Test
+    void detailsApiProjectsSpamCategoryAndResponsibleAfterTakeAndSpam() throws Exception {
+        insertDirectoryUser("watcher_owner", "Watcher Owner", "/img/watcher-owner.png");
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
+                VALUES (101, 'token101', 'Dialog Details Spam Runtime', 'telegram', 1, CURRENT_TIMESTAMP)
+                """);
+        jdbcTemplate.update("""
+                INSERT INTO tickets (user_id, ticket_id, status, channel_id)
+                VALUES (?,?,?,?)
+                """,
+                910101L, "T-DETAIL-SPAM", "open", 101L);
+        jdbcTemplate.update("""
+                INSERT INTO messages (
+                    group_msg_id, user_id, business, city, location_name, problem, created_at,
+                    username, ticket_id, created_date, created_time, client_name, channel_id, updated_at, updated_by
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                10101L,
+                910101L,
+                "Retail",
+                "Курск",
+                "Точка Spam",
+                "Проверка details spam continuity",
+                "2026-05-27T11:30:00Z",
+                "details_spam_user",
+                "T-DETAIL-SPAM",
+                "2026-05-27",
+                "11:30:00",
+                "Клиент Details Spam",
+                101L,
+                "2026-05-27T11:30:00Z",
+                "seed");
+        jdbcTemplate.update("INSERT INTO ticket_categories(ticket_id, category) VALUES (?, ?)", "T-DETAIL-SPAM", "billing");
+        insertHistoryRow("T-DETAIL-SPAM", 910101L, "user", "Клиент пишет до spam", "2026-05-27T11:31:00Z", "text", 1011L, null, 101L, null, null, null, null, null);
+
+        mockMvc.perform(post("/api/dialogs/T-DETAIL-SPAM/take")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.changed").value(true));
+
+        mockMvc.perform(post("/api/dialogs/T-DETAIL-SPAM/spam")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "reason": "Спам через details adjacent runtime"
+                                }
+                                """)
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.updated").value(true))
+                .andExpect(jsonPath("$.categories", hasItem("billing")))
+                .andExpect(jsonPath("$.categories", hasItem("Спам")));
+
+        mockMvc.perform(get("/api/dialogs/T-DETAIL-SPAM")
+                        .param("channelId", "101")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.ticketId").value("T-DETAIL-SPAM"))
+                .andExpect(jsonPath("$.summary.statusKey").value("waiting_operator"))
+                .andExpect(jsonPath("$.summary.unreadCount").value(0))
+                .andExpect(jsonPath("$.summary.rawResponsible").value("watcher_owner"))
+                .andExpect(jsonPath("$.categories.length()").value(2))
+                .andExpect(jsonPath("$.categories", hasItem("billing")))
+                .andExpect(jsonPath("$.categories", hasItem("Спам")))
+                .andExpect(jsonPath("$.history[0].message").value("Клиент пишет до spam"));
+    }
+
     private void ensureChatHistoryMutationColumns() {
         ensureColumn(jdbcTemplate, "chat_history", "original_message", "TEXT");
         ensureColumn(jdbcTemplate, "chat_history", "edited_at", "TEXT");

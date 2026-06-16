@@ -1559,6 +1559,16 @@
   поэтому adjacent projections нужно проверять в связке
   `take -> reply/reread -> next follow-up`, а не только на самом моменте
   назначения responsible.
+- следующий moderation-adjacent slice поверх того же контура теперь тоже
+  закрыт на live read-side consumer'ах: `list/details/workspace` проходят
+  `POST /take -> POST /spam -> reread`, так что continuity вокруг
+  `mark_spam` больше не подтверждается только isolated quick-action
+  boundary.
+- roadmap заодно фиксирует текущую observed semantics для `mark_spam`:
+  list projection сохраняет `waiting_operator` / `my_dialogs.unanswered`
+  и того же responsible, но уже с merged `billing + Спам`, а
+  `details/workspace` reread должны подтверждать ту же категорийную
+  проекцию вместе с audit trail и workspace action guards.
 - следующий practical slice поверх этого же контура уже замыкает и
   `public form -> operator dialogs` bridge: smoke-сценарии внешней формы
   переведены на live `POST /take`, `POST /resolve` и `POST /reopen`, так

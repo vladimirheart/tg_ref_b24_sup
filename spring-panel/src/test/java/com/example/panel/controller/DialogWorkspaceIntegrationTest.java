@@ -1212,6 +1212,59 @@ class DialogWorkspaceIntegrationTest {
                 .andExpect(jsonPath("$.unread").value(1));
     }
 
+    @Test
+    void workspaceApiProjectsSpamAuditAndResponsibleAfterTakeAndSpam() throws Exception {
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        insertDirectoryUser("watcher_owner", true, false, 1L, "Support", "Watcher Owner", "Ops", "/img/owner.png");
+
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
+                VALUES (101, 'token101w', 'Workspace Spam Runtime', 'telegram', 1, CURRENT_TIMESTAMP)
+                """);
+        insertDialogTicket(910111L, "T-WS-SPAM", 101L, "workspace_spam_user", "Клиент Workspace Spam", "Retail", "Сочи", "Точка", "Проверка workspace spam continuity", "2026-05-27T11:10:00Z", 10101L);
+        jdbcTemplate.update("INSERT INTO ticket_categories(ticket_id, category) VALUES (?, ?)", "T-WS-SPAM", "billing");
+        insertHistoryRow("T-WS-SPAM", 910111L, "user", "Клиент пишет до spam", "2026-05-27T11:11:00Z", "text", 1011L, null, 101L, null);
+
+        mockMvc.perform(post("/api/dialogs/T-WS-SPAM/take")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.changed").value(true));
+
+        mockMvc.perform(post("/api/dialogs/T-WS-SPAM/spam")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "reason": "Спам через workspace adjacent runtime"
+                                }
+                                """)
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.updated").value(true))
+                .andExpect(jsonPath("$.categories", hasItem("billing")))
+                .andExpect(jsonPath("$.categories", hasItem("Спам")));
+
+        mockMvc.perform(get("/api/dialogs/T-WS-SPAM/workspace")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.conversation.ticketId").value("T-WS-SPAM"))
+                .andExpect(jsonPath("$.conversation.statusKey").value("waiting_operator"))
+                .andExpect(jsonPath("$.workflow.responsible.username").value("watcher_owner"))
+                .andExpect(jsonPath("$.workflow.actions.take.enabled").value(false))
+                .andExpect(jsonPath("$.workflow.actions.take.disabled_reason").value("already_assigned_to_operator"))
+                .andExpect(jsonPath("$.workflow.actions.categories.enabled").value(true))
+                .andExpect(jsonPath("$.workflow.actions.spam.enabled").value(true))
+                .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("take: success (responsible_assigned)")))
+                .andExpect(jsonPath("$.context.related_events[*].detail", hasItem("mark_spam: success (blacklisted_user=910111)")));
+
+        assertThat(jdbcTemplate.queryForList(
+                "SELECT category FROM ticket_categories WHERE ticket_id = ? ORDER BY category",
+                String.class,
+                "T-WS-SPAM"
+        )).containsExactly("billing", "Спам");
+    }
+
     private void insertDialogTicket(long userId,
                                     String ticketId,
                                     long channelId,
