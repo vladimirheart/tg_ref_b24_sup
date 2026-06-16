@@ -522,6 +522,63 @@ class DialogListIntegrationTest {
                 .andExpect(jsonPath("$.my_dialogs.in_work").isEmpty());
     }
 
+    @Test
+    void listApiKeepsAssignedInWorkBucketAfterSameOwnerTakeNoop() throws Exception {
+        insertDirectoryUser("watcher_owner", "Watcher Owner", "/img/watcher-owner.png");
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
+                VALUES (66, 'token66', 'Dialog List Take Noop', 'telegram', 1, CURRENT_TIMESTAMP)
+                """);
+        jdbcTemplate.update("""
+                INSERT INTO tickets (user_id, ticket_id, status, channel_id, created_at)
+                VALUES (?,?,?,?,?)
+                """,
+                920066L, "T-LIST-TAKE-NOOP", "open", 66L, "2026-05-28T10:00:00Z");
+        jdbcTemplate.update("""
+                INSERT INTO messages (
+                    group_msg_id, user_id, business, city, location_name, problem, created_at,
+                    username, ticket_id, created_date, created_time, client_name, channel_id, updated_at, updated_by
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                6601L,
+                920066L,
+                "Retail",
+                "Тверь",
+                "Точка Take Noop",
+                "Проверка list same-owner take noop",
+                "2026-05-28T10:00:00Z",
+                "list_take_noop_user",
+                "T-LIST-TAKE-NOOP",
+                "2026-05-28",
+                "10:00:00",
+                "Клиент Take Noop",
+                66L,
+                "2026-05-28T10:00:00Z",
+                "seed");
+        jdbcTemplate.update("""
+                INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
+                VALUES (?,?,?,?)
+                """,
+                "T-LIST-TAKE-NOOP", "watcher_owner", "dispatcher", "2026-05-28T09:59:00Z");
+        insertHistoryRow("T-LIST-TAKE-NOOP", 920066L, "user", "Клиент уже ждёт owner", "2026-05-28T10:01:00Z", "text", 661L, null, 66L);
+        insertHistoryRow("T-LIST-TAKE-NOOP", 920066L, "operator", "Owner уже отвечает", "2026-05-28T10:02:00Z", "operator_message", 662L, 661L, 66L);
+
+        mockMvc.perform(post("/api/dialogs/T-LIST-TAKE-NOOP/take")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.changed").value(false))
+                .andExpect(jsonPath("$.responsible").value("Watcher Owner"));
+
+        mockMvc.perform(get("/api/dialogs")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-LIST-TAKE-NOOP"))
+                .andExpect(jsonPath("$.dialogs[0].statusKey").value("waiting_client"))
+                .andExpect(jsonPath("$.dialogs[0].rawResponsible").value("watcher_owner"))
+                .andExpect(jsonPath("$.dialogs[0].unreadCount").value(1));
+    }
+
     private void insertDirectoryUser(String username, String fullName, String photo) {
         usersJdbcTemplate.update("""
                 INSERT INTO users(username, password, enabled, full_name, photo, is_blocked)

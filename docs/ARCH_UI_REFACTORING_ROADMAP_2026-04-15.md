@@ -1569,6 +1569,16 @@
   и того же responsible, но уже с merged `billing + Спам`, а
   `details/workspace` reread должны подтверждать ту же категорийную
   проекцию вместе с audit trail и workspace action guards.
+- соседний no-op slice поверх этого же хвоста тоже теперь зафиксирован на
+  live read-side consumer'ах: `DialogListIntegrationTest` и
+  `DialogDetailsIntegrationTest` проходят `POST /take` для уже назначенного
+  owner, так что continuity вокруг `changed=false` больше не опирается
+  только на общий quick-action runtime test.
+- roadmap заодно удерживает и observed semantics для этого no-op:
+  `same-owner take` не должен переприсваивать dialog или молча
+  переписывать read-state, поэтому list reread может сохранять
+  `waiting_client` с тем же responsible и `unreadCount=1`, а
+  details reread должен лишь подтверждать owner/history continuity.
 - следующий practical slice поверх этого же контура уже замыкает и
   `public form -> operator dialogs` bridge: smoke-сценарии внешней формы
   переведены на live `POST /take`, `POST /resolve` и `POST /reopen`, так

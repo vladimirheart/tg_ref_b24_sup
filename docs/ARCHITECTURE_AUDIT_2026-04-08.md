@@ -1782,6 +1782,17 @@ integration-сценария поверх users/settings runtime boundary всё
   `billing + Спам`, тогда как `details/workspace` reread уже
   подтверждают объединённые категории, audit trail `take`/`mark_spam`
   и workspace guard continuity на тех же live HTTP round-trips.
+- отдельный micro-slice рядом с этим же контуром теперь закрепил и
+  `same-owner take` no-op semantics на самих read-side consumer'ах:
+  `DialogListIntegrationTest` и `DialogDetailsIntegrationTest` проходят
+  live `POST /take` для уже назначенного owner, чтобы response
+  `changed=false` и последующий reread не держались только на
+  `DialogQuickActionsIntegrationTest`.
+- этот пакет заодно сделал явной текущую observed semantics для no-op take:
+  reread не переприсваивает dialog и не чинит `last_read_at` задним числом,
+  поэтому list row может оставаться `waiting_client` с тем же
+  responsible и `unreadCount=1`, а `details` подтверждают сохранение
+  owner/history без скрытой write-side мутации.
 - public-form smoke bridge после этого тоже замкнут на тот же live
   controller boundary: в `PublicFormFlowSmokeIntegrationTest` сценарии
   `take`, `resolve` и `reopen` больше не проходят через

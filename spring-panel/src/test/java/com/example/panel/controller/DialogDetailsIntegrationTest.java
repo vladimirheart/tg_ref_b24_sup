@@ -1237,6 +1237,66 @@ class DialogDetailsIntegrationTest {
                 .andExpect(jsonPath("$.history[0].message").value("Клиент пишет до spam"));
     }
 
+    @Test
+    void detailsApiPreservesResponsibleAndHistoryAfterSameOwnerTakeNoop() throws Exception {
+        insertDirectoryUser("watcher_owner", "Watcher Owner", "/img/watcher-owner.png");
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
+                VALUES (102, 'token102', 'Dialog Details Take Noop', 'telegram', 1, CURRENT_TIMESTAMP)
+                """);
+        jdbcTemplate.update("""
+                INSERT INTO tickets (user_id, ticket_id, status, channel_id)
+                VALUES (?,?,?,?)
+                """,
+                910102L, "T-DETAIL-TAKE-NOOP", "open", 102L);
+        jdbcTemplate.update("""
+                INSERT INTO messages (
+                    group_msg_id, user_id, business, city, location_name, problem, created_at,
+                    username, ticket_id, created_date, created_time, client_name, channel_id, updated_at, updated_by
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                10201L,
+                910102L,
+                "Retail",
+                "Тула",
+                "Точка Take Noop",
+                "Проверка details same-owner take noop",
+                "2026-05-27T12:00:00Z",
+                "details_take_noop_user",
+                "T-DETAIL-TAKE-NOOP",
+                "2026-05-27",
+                "12:00:00",
+                "Клиент Details Take Noop",
+                102L,
+                "2026-05-27T12:00:00Z",
+                "seed");
+        jdbcTemplate.update("""
+                INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
+                VALUES (?,?,?,?)
+                """,
+                "T-DETAIL-TAKE-NOOP", "watcher_owner", "dispatcher", "2026-05-27T11:59:00Z");
+        insertHistoryRow("T-DETAIL-TAKE-NOOP", 910102L, "user", "Клиент уже ждёт owner", "2026-05-27T12:01:00Z", "text", 1021L, null, 102L, null, null, null, null, null);
+        insertHistoryRow("T-DETAIL-TAKE-NOOP", 910102L, "operator", "Owner уже ответил", "2026-05-27T12:02:00Z", "operator_message", 1022L, 1021L, 102L, null, null, null, null, null);
+
+        mockMvc.perform(post("/api/dialogs/T-DETAIL-TAKE-NOOP/take")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.changed").value(false))
+                .andExpect(jsonPath("$.responsible").value("Watcher Owner"));
+
+        mockMvc.perform(get("/api/dialogs/T-DETAIL-TAKE-NOOP")
+                        .param("channelId", "102")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.ticketId").value("T-DETAIL-TAKE-NOOP"))
+                .andExpect(jsonPath("$.summary.statusKey").value("waiting_client"))
+                .andExpect(jsonPath("$.summary.unreadCount").value(0))
+                .andExpect(jsonPath("$.summary.rawResponsible").value("watcher_owner"))
+                .andExpect(jsonPath("$.history[0].message").value("Клиент уже ждёт owner"))
+                .andExpect(jsonPath("$.history[1].message").value("Owner уже ответил"));
+    }
+
     private void ensureChatHistoryMutationColumns() {
         ensureColumn(jdbcTemplate, "chat_history", "original_message", "TEXT");
         ensureColumn(jdbcTemplate, "chat_history", "edited_at", "TEXT");
