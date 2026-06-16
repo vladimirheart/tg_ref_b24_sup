@@ -169,6 +169,64 @@
     }),
   });
 
+  const DEFAULT_SETTINGS_MODAL_ACTIONS = Object.freeze([
+    Object.freeze({
+      selector: '[data-partner-contact-add]',
+      openTarget: 'partnerContactEditorModal',
+      callbackName: 'preparePartnerContactDraftSettingsTrigger',
+    }),
+    Object.freeze({
+      selector: '[data-param-toggle]',
+      openTarget: 'parameterItemsModal',
+      callbackName: 'prepareParameterSettingsTrigger',
+    }),
+    Object.freeze({
+      selector: '[data-city-toggle]',
+      openTarget: 'parameterItemsModal',
+      callbackName: 'prepareCityParameterSettingsTrigger',
+    }),
+    Object.freeze({
+      selector: '[data-partner-contact-open-modal]',
+      openTarget: 'partnerContactEditorModal',
+      callbackName: 'preparePartnerContactEditorSettingsTrigger',
+    }),
+    Object.freeze({
+      selector: '[data-network-profiles-add]',
+      openTarget: 'networkProfileEditorModal',
+      callbackName: 'prepareNetworkProfileSettingsTrigger',
+    }),
+    Object.freeze({
+      selector: '[data-action="edit-profile"]',
+      openTarget: 'networkProfileEditorModal',
+      callbackName: 'prepareNetworkProfileSettingsTrigger',
+    }),
+    Object.freeze({
+      selector: '[data-channels-network-profile-quick-add]',
+      openTarget: 'integrationNetworkProfileEditorModal',
+      callbackName: 'prepareIntegrationNetworkProfileSettingsTrigger',
+    }),
+    Object.freeze({
+      selector: '[data-integration-network-profile-add]',
+      openTarget: 'integrationNetworkProfileEditorModal',
+      callbackName: 'prepareIntegrationNetworkProfileSettingsTrigger',
+    }),
+    Object.freeze({
+      selector: '[data-action="edit-integration-network-profile"]',
+      openTarget: 'integrationNetworkProfileEditorModal',
+      callbackName: 'prepareIntegrationNetworkProfileSettingsTrigger',
+    }),
+    Object.freeze({
+      selector: '#channelEditorVkButton',
+      openTarget: 'vkWebhookModal',
+      callbackName: 'prepareVkWebhookSettingsTrigger',
+    }),
+    Object.freeze({
+      selector: '[data-channel-edit]',
+      openTarget: 'channelEditorModal',
+      callbackName: 'prepareChannelEditorSettingsTrigger',
+    }),
+  ]);
+
   function getSettingsShellRoot() {
     const root = document.querySelector('[data-settings-page-shell]');
     return root instanceof HTMLElement ? root : null;
@@ -550,6 +608,41 @@
     return hideSettingsModal(target);
   }
 
+  function resolveDefaultSettingsModalActionConfig(trigger) {
+    if (!(trigger instanceof HTMLElement)) {
+      return null;
+    }
+    return DEFAULT_SETTINGS_MODAL_ACTIONS.find((config) => {
+      if (!config || typeof config.selector !== 'string' || !config.selector) {
+        return false;
+      }
+      try {
+        return trigger.matches(config.selector);
+      } catch (error) {
+        console.error(`Invalid settings modal action selector "${config.selector}".`, error);
+        return false;
+      }
+    }) || null;
+  }
+
+  function findSettingsModalActionTrigger(target) {
+    if (!(target instanceof Element)) {
+      return null;
+    }
+    const inlineTrigger = target.closest('[data-settings-open-modal], [data-settings-hide-modal]');
+    if (inlineTrigger instanceof HTMLElement) {
+      return inlineTrigger;
+    }
+    let current = target instanceof HTMLElement ? target : target.parentElement;
+    while (current instanceof HTMLElement) {
+      if (resolveDefaultSettingsModalActionConfig(current)) {
+        return current;
+      }
+      current = current.parentElement;
+    }
+    return null;
+  }
+
   function resolveSettingsModalActionTarget(trigger, actionName) {
     if (!(trigger instanceof HTMLElement)) {
       return null;
@@ -558,7 +651,17 @@
       ? String(trigger.dataset.settingsOpenModal || '').trim()
       : String(trigger.dataset.settingsHideModal || '').trim();
     if (!rawTarget) {
-      return null;
+      const config = resolveDefaultSettingsModalActionConfig(trigger);
+      if (!config) {
+        return null;
+      }
+      const defaultTarget = actionName === 'open'
+        ? String(config.openTarget || '').trim()
+        : String(config.hideTarget || '').trim();
+      if (!defaultTarget) {
+        return null;
+      }
+      return defaultTarget === 'self' ? trigger.closest('.modal') : defaultTarget;
     }
     if (rawTarget === 'self') {
       return trigger.closest('.modal');
@@ -595,7 +698,8 @@
     if (!(trigger instanceof HTMLElement)) {
       return true;
     }
-    const callbackName = String(trigger.dataset.settingsActionCallback || '').trim();
+    const callbackName = String(trigger.dataset.settingsActionCallback || '').trim()
+      || String(resolveDefaultSettingsModalActionConfig(trigger)?.callbackName || '').trim();
     if (!callbackName) {
       return true;
     }
@@ -771,7 +875,7 @@
       if (!(target instanceof Element)) {
         return;
       }
-      const trigger = target.closest('[data-settings-open-modal], [data-settings-hide-modal]');
+      const trigger = findSettingsModalActionTrigger(target);
       if (!(trigger instanceof HTMLElement) || trigger.hasAttribute('disabled') || trigger.getAttribute('aria-disabled') === 'true') {
         return;
       }
@@ -793,7 +897,7 @@
       if (!(target instanceof Element)) {
         return;
       }
-      const trigger = target.closest('[data-settings-open-modal], [data-settings-hide-modal]');
+      const trigger = findSettingsModalActionTrigger(target);
       if (!(trigger instanceof HTMLElement) || trigger instanceof HTMLButtonElement) {
         return;
       }

@@ -4887,7 +4887,7 @@
                     <h6 class="mb-1">Контактные данные контрагентов</h6>
                     <p class="small text-muted mb-0">Фиксируйте телефоны, e-mail и связь с юридическими лицами контрагентов.</p>
                   </div>
-                  <button class="btn btn-sm btn-success" type="button" data-partner-contact-add="partner" data-settings-open-modal="partnerContactEditorModal" data-settings-action-callback="preparePartnerContactDraftSettingsTrigger">+ Добавить контакт</button>
+                  <button class="btn btn-sm btn-success" type="button" data-partner-contact-add="partner">+ Добавить контакт</button>
                 </div>
                 <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3" data-partner-contacts-list></div>
                 <div class="card border-0 bg-light text-center py-5 d-none" data-partner-contacts-empty>
@@ -4909,7 +4909,7 @@
                     <h6 class="mb-1">Контакты франчайзи</h6>
                     <p class="small text-muted mb-0">Храните данные о франчайзи: телефоны, почту и ответственных лиц.</p>
                   </div>
-                  <button class="btn btn-sm btn-success" type="button" data-partner-contact-add="ka" data-settings-open-modal="partnerContactEditorModal" data-settings-action-callback="preparePartnerContactDraftSettingsTrigger">+ Добавить контакт</button>
+                  <button class="btn btn-sm btn-success" type="button" data-partner-contact-add="ka">+ Добавить контакт</button>
                 </div>
                 <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3" data-partner-contacts-list></div>
                 <div class="card border-0 bg-light text-center py-5 d-none" data-partner-contacts-empty>
@@ -4931,7 +4931,7 @@
                        th:if="${entry.key} != 'it_connection' and ${entry.key} != 'remote_access' and ${entry.key} != 'legal_entity'">
                     <div class="card shadow-sm parameter-card" th:attr="data-param-type=${entry.key}">
                       <div class="card-header d-flex justify-content-between align-items-center">
-                        <button type="button" class="btn btn-link flex-grow-1 text-start" data-param-toggle data-settings-open-modal="parameterItemsModal" data-settings-action-callback="prepareParameterSettingsTrigger">
+                        <button type="button" class="btn btn-link flex-grow-1 text-start" data-param-toggle>
                           <span th:text="${entry.value}">Параметр</span>
                         </button>
                         <span class="badge bg-secondary" data-param-count>0</span>
@@ -4949,7 +4949,7 @@
                       th:attr="data-city-count=${cities.size()}"
                     >
                       <div class="card-header d-flex justify-content-between align-items-center">
-                        <button type="button" class="btn btn-link flex-grow-1 text-start" data-city-toggle data-settings-open-modal="parameterItemsModal" data-settings-action-callback="prepareCityParameterSettingsTrigger">
+                        <button type="button" class="btn btn-link flex-grow-1 text-start" data-city-toggle>
                           Город
                         </button>
                         <span class="badge bg-secondary" th:text="${cities.size()}">0</span>
@@ -5222,7 +5222,7 @@
                       </table>
                     </div>
                     <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mt-3">
-                      <button class="btn btn-sm btn-success" type="button" data-network-profiles-add data-settings-open-modal="networkProfileEditorModal" data-settings-action-callback="prepareNetworkProfileSettingsTrigger">+ Добавить профиль</button>
+                      <button class="btn btn-sm btn-success" type="button" data-network-profiles-add>+ Добавить профиль</button>
                       <button class="btn btn-sm btn-primary" type="button" data-network-profiles-save>
                         💾 Сохранить изменения
                       </button>
@@ -5909,7 +5909,7 @@
                         <span class="channels-quick-card__pill" data-channels-manage-summary="profiles-count">Профили не созданы</span>
                       </div>
                       <div class="channels-quick-card__actions">
-                        <button type="button" class="btn btn-outline-success" data-channels-network-profile-quick-add data-settings-open-collapse="channelsProfilesCollapse" data-settings-open-modal="integrationNetworkProfileEditorModal" data-settings-action-callback="prepareIntegrationNetworkProfileSettingsTrigger">Новый профиль</button>
+                        <button type="button" class="btn btn-outline-success" data-channels-network-profile-quick-add data-settings-open-collapse="channelsProfilesCollapse">Новый профиль</button>
                         <button type="button" class="btn btn-outline-secondary" data-settings-open-collapse="channelsProfilesCollapse">Открыть список</button>
                       </div>
                     </section>
@@ -5983,7 +5983,7 @@
                               <p class="text-muted mb-0">Создайте именованные профили маршрутизации, чтобы потом выбирать их для проекта, подсистемы ботов и отдельных интеграций.</p>
                             </div>
                             <div class="d-flex gap-2 flex-wrap">
-                              <button type="button" class="btn btn-outline-success btn-sm" data-integration-network-profile-add data-settings-open-modal="integrationNetworkProfileEditorModal" data-settings-action-callback="prepareIntegrationNetworkProfileSettingsTrigger">+ Добавить профиль</button>
+                              <button type="button" class="btn btn-outline-success btn-sm" data-integration-network-profile-add>+ Добавить профиль</button>
                               <button type="button" class="btn btn-outline-secondary btn-sm" data-integration-network-profiles-probe-all>Проверить доступность</button>
                               <button type="button" class="btn btn-outline-primary btn-sm" data-integration-network-profiles-save>Сохранить профили</button>
                             </div>
@@ -6846,7 +6846,7 @@
                       </div>
                     </div>
                     <div class="d-flex flex-column flex-lg-row gap-3 align-items-lg-center">
-                      <button type="button" class="btn btn-outline-primary d-none" id="channelEditorVkButton" data-settings-open-modal="vkWebhookModal" data-settings-action-callback="prepareVkWebhookSettingsTrigger">Настроить VK вебхук…</button>
+                      <button type="button" class="btn btn-outline-primary d-none" id="channelEditorVkButton">Настроить VK вебхук…</button>
                       <div class="text-muted small ms-lg-auto" data-channel-editor-hint></div>
                     </div>
                     <div class="mt-3 d-none" id="channelEditorTelegramBaseUrlBlock">
@@ -9556,7 +9556,7 @@
       const deletedBadge = isDeleted ? '<span class="badge text-bg-warning">Удалено</span>' : '';
       return `
         <div class="col">
-          <div class="${cardClasses.join(' ')}" ${datasetAttrs} data-partner-contact-open-modal data-settings-open-modal="partnerContactEditorModal" data-settings-action-callback="preparePartnerContactEditorSettingsTrigger" role="button" tabindex="0" aria-label="${escapeHtml(ariaLabel)}">
+          <div class="${cardClasses.join(' ')}" ${datasetAttrs} data-partner-contact-open-modal role="button" tabindex="0" aria-label="${escapeHtml(ariaLabel)}">
             <div class="card-body">
               <div class="partner-contact-summary-head">
                 <div>
@@ -9665,7 +9665,7 @@
             </div>
             <div class="d-flex align-items-start gap-2">
               ${idBadge}
-              <button class="btn btn-outline-primary btn-sm" type="button" data-partner-contact-open-modal data-settings-open-modal="partnerContactEditorModal" data-settings-action-callback="preparePartnerContactEditorSettingsTrigger" title="Открыть в модальном окне">
+              <button class="btn btn-outline-primary btn-sm" type="button" data-partner-contact-open-modal title="Открыть в модальном окне">
                 <i class="bi bi-arrows-fullscreen"></i>
               </button>
             </div>
@@ -11241,7 +11241,7 @@
         <td data-usage-cell></td>
         <td class="text-nowrap">
           <div class="btn-group btn-group-sm">
-            <button class="btn btn-outline-primary" type="button" data-action="edit-profile" data-network-profile-index="${index}" data-settings-open-modal="networkProfileEditorModal" data-settings-action-callback="prepareNetworkProfileSettingsTrigger">Открыть</button>
+            <button class="btn btn-outline-primary" type="button" data-action="edit-profile" data-network-profile-index="${index}">Открыть</button>
             <button class="btn btn-outline-danger" type="button" data-action="remove-profile">Удалить</button>
           </div>
         </td>
@@ -21506,7 +21506,7 @@
         <td class="text-end">
           <div class="btn-group btn-group-sm">
             <button type="button" class="btn btn-outline-secondary" data-action="probe-integration-network-profile">Проверить</button>
-            <button type="button" class="btn btn-outline-primary" data-action="edit-integration-network-profile" data-integration-network-profile-index="${index}" data-settings-open-modal="integrationNetworkProfileEditorModal" data-settings-action-callback="prepareIntegrationNetworkProfileSettingsTrigger">Открыть</button>
+            <button type="button" class="btn btn-outline-primary" data-action="edit-integration-network-profile" data-integration-network-profile-index="${index}">Открыть</button>
             <button type="button" class="btn btn-outline-danger" data-action="remove-integration-network-profile">Удалить</button>
           </div>
         </td>
@@ -23032,7 +23032,7 @@
           </div>
           <div class="d-flex justify-content-center gap-2 mt-2">
             <button type="button" class="btn btn-sm btn-outline-success" data-channel-start="${prepared.id}">Запустить</button>
-            <button type="button" class="btn btn-sm btn-outline-primary" data-channel-edit="${prepared.id}" data-settings-open-modal="channelEditorModal" data-settings-action-callback="prepareChannelEditorSettingsTrigger">Редактировать</button>
+            <button type="button" class="btn btn-sm btn-outline-primary" data-channel-edit="${prepared.id}">Редактировать</button>
           </div>
         </td>
       `;
