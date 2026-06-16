@@ -308,7 +308,7 @@
   ]);
 
   const DEFAULT_SETTINGS_DECLARATIVE_CALLBACKS = Object.freeze([
-    Object.freeze({ eventName: 'click', selector: '[data-settings-save-trigger]', callbackName: 'saveSettings', args: '' }),
+    Object.freeze({ eventName: 'click', selector: '[data-save-settings]', callbackName: 'saveSettings', args: '' }),
     Object.freeze({ eventName: 'click', selector: '[data-add-business-trigger]', callbackName: 'addBusiness', args: '' }),
     Object.freeze({ eventName: 'click', selector: '[data-locations-source-add-trigger]', callbackName: 'addLocationsIikoServerSource', args: '' }),
     Object.freeze({ eventName: 'change', selector: '#locationsIikoSyncEnabled', callbackName: 'updateLocationsIikoSyncSetting', args: 'enabled,$checked' }),
@@ -340,6 +340,22 @@
     Object.freeze({ eventName: 'click', selector: '[data-locations-source-remove]', callbackName: 'removeLocationsIikoServerSource', args: '$datasetNumber:locationsSourceIndex' }),
     Object.freeze({ eventName: 'input', selector: '[data-locations-source-field]', callbackName: 'updateLocationsIikoServerSource', args: '$datasetNumber:locationsSourceIndex,$dataset:locationsSourceField,$value' }),
     Object.freeze({ eventName: 'change', selector: '[data-locations-source-enabled]', callbackName: 'updateLocationsIikoServerSource', args: '$datasetNumber:locationsSourceIndex,enabled,$checked' }),
+  ]);
+
+  const DEFAULT_SETTINGS_COLLAPSE_NAVS = Object.freeze([
+    Object.freeze({
+      selector: '[data-it-settings-tiles-nav]',
+      activeClass: 'is-active',
+    }),
+  ]);
+
+  const DEFAULT_SETTINGS_COLLAPSE_ACTIONS = Object.freeze([
+    Object.freeze({ selector: '[data-it-collapse-tile="equipment-catalog"]', target: 'itEquipmentSection', scroll: true }),
+    Object.freeze({ selector: '[data-it-collapse-tile="connections"]', target: 'itConnectionsSection', scroll: true }),
+    Object.freeze({ selector: '[data-it-collapse-tile="network-profiles"]', target: 'networkProfilesSection', scroll: true }),
+    Object.freeze({ selector: '[data-it-collapse-tile="remote-access"]', target: 'remoteAccessSection', scroll: true }),
+    Object.freeze({ selector: '[data-channels-open-profiles]', target: 'channelsProfilesCollapse', scroll: false }),
+    Object.freeze({ selector: '[data-channels-open-routes]', target: 'channelsRoutesCollapse', scroll: false }),
   ]);
 
   function getSettingsShellRoot() {
@@ -555,18 +571,109 @@
       return null;
     }
     const rawTarget = String(trigger.dataset.settingsOpenCollapse || '').trim();
-    if (!rawTarget) {
+    if (rawTarget) {
+      return resolveSettingsModalElement(rawTarget);
+    }
+    const defaultConfig = resolveDefaultSettingsCollapseActionConfig(trigger);
+    if (!defaultConfig) {
       return null;
     }
-    return resolveSettingsModalElement(rawTarget);
+    return resolveSettingsModalElement(defaultConfig.target);
+  }
+
+  function resolveDefaultSettingsCollapseActionConfig(trigger) {
+    if (!(trigger instanceof HTMLElement)) {
+      return null;
+    }
+    return DEFAULT_SETTINGS_COLLAPSE_ACTIONS.find((config) => {
+      if (!config || typeof config.selector !== 'string' || !config.selector) {
+        return false;
+      }
+      try {
+        return trigger.matches(config.selector);
+      } catch (error) {
+        console.error(`Invalid settings collapse action selector "${config.selector}".`, error);
+        return false;
+      }
+    }) || null;
+  }
+
+  function findSettingsCollapseActionTrigger(target) {
+    if (!(target instanceof Element)) {
+      return null;
+    }
+    const inlineTrigger = target.closest('[data-settings-open-collapse]');
+    if (inlineTrigger instanceof HTMLElement) {
+      return inlineTrigger;
+    }
+    let current = target instanceof HTMLElement ? target : target.parentElement;
+    while (current instanceof HTMLElement) {
+      if (resolveDefaultSettingsCollapseActionConfig(current)) {
+        return current;
+      }
+      current = current.parentElement;
+    }
+    return null;
+  }
+
+  function resolveSettingsCollapseNavConfig(navRoot) {
+    if (!(navRoot instanceof HTMLElement)) {
+      return null;
+    }
+    const inlineActiveClass = String(navRoot.dataset.settingsCollapseActiveClass || '').trim();
+    if (Object.prototype.hasOwnProperty.call(navRoot.dataset, 'settingsCollapseNav')) {
+      return {
+        activeClass: inlineActiveClass || 'is-active',
+      };
+    }
+    return DEFAULT_SETTINGS_COLLAPSE_NAVS.find((config) => {
+      if (!config || typeof config.selector !== 'string' || !config.selector) {
+        return false;
+      }
+      try {
+        return navRoot.matches(config.selector);
+      } catch (error) {
+        console.error(`Invalid settings collapse nav selector "${config.selector}".`, error);
+        return false;
+      }
+    }) || null;
+  }
+
+  function getSettingsCollapseActiveClass(navRoot) {
+    const config = resolveSettingsCollapseNavConfig(navRoot);
+    return String(config?.activeClass || 'is-active').trim() || 'is-active';
+  }
+
+  function collectSettingsCollapseNavRoots() {
+    const roots = new Set(Array.from(document.querySelectorAll('[data-settings-collapse-nav]'))
+      .filter((element) => element instanceof HTMLElement));
+    DEFAULT_SETTINGS_COLLAPSE_NAVS.forEach((config) => {
+      if (!config || typeof config.selector !== 'string' || !config.selector) {
+        return;
+      }
+      document.querySelectorAll(config.selector).forEach((element) => {
+        if (element instanceof HTMLElement) {
+          roots.add(element);
+        }
+      });
+    });
+    return Array.from(roots);
+  }
+
+  function collectSettingsCollapseNavTriggers(navRoot) {
+    if (!(navRoot instanceof HTMLElement)) {
+      return [];
+    }
+    return Array.from(navRoot.querySelectorAll('*'))
+      .filter((element) => element instanceof HTMLElement && resolveSettingsCollapseTarget(element));
   }
 
   function syncSettingsCollapseNavState(navRoot, activeCollapseEl) {
     if (!(navRoot instanceof HTMLElement)) {
       return;
     }
-    const activeClass = String(navRoot.dataset.settingsCollapseActiveClass || 'is-active').trim() || 'is-active';
-    const triggers = Array.from(navRoot.querySelectorAll('[data-settings-open-collapse]'));
+    const activeClass = getSettingsCollapseActiveClass(navRoot);
+    const triggers = collectSettingsCollapseNavTriggers(navRoot);
     triggers.forEach((trigger) => {
       if (!(trigger instanceof HTMLElement)) {
         return;
@@ -581,12 +688,12 @@
   }
 
   function initSettingsCollapseNavs() {
-    const navRoots = Array.from(document.querySelectorAll('[data-settings-collapse-nav]'));
+    const navRoots = collectSettingsCollapseNavRoots();
     navRoots.forEach((navRoot) => {
       if (!(navRoot instanceof HTMLElement)) {
         return;
       }
-      const triggers = Array.from(navRoot.querySelectorAll('[data-settings-open-collapse]'));
+      const triggers = collectSettingsCollapseNavTriggers(navRoot);
       const collapseTargets = new Set();
 
       triggers.forEach((trigger) => {
@@ -627,7 +734,9 @@
       return false;
     }
     showSettingsCollapse(collapseEl, { toggle: false });
-    if (Object.prototype.hasOwnProperty.call(trigger.dataset, 'settingsCollapseScroll')) {
+    const shouldScroll = Object.prototype.hasOwnProperty.call(trigger.dataset, 'settingsCollapseScroll')
+      || Boolean(resolveDefaultSettingsCollapseActionConfig(trigger)?.scroll);
+    if (shouldScroll) {
       window.setTimeout(() => {
         collapseEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 50);
@@ -641,7 +750,7 @@
       if (!(target instanceof Element)) {
         return;
       }
-      const trigger = target.closest('[data-settings-open-collapse]');
+      const trigger = findSettingsCollapseActionTrigger(target);
       if (!(trigger instanceof HTMLElement) || trigger.hasAttribute('disabled') || trigger.getAttribute('aria-disabled') === 'true') {
         return;
       }
@@ -659,7 +768,7 @@
       if (!(target instanceof Element)) {
         return;
       }
-      const trigger = target.closest('[data-settings-open-collapse]');
+      const trigger = findSettingsCollapseActionTrigger(target);
       if (!(trigger instanceof HTMLElement) || trigger instanceof HTMLButtonElement) {
         return;
       }
