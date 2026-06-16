@@ -225,6 +225,49 @@
       openTarget: 'channelEditorModal',
       callbackName: 'prepareChannelEditorSettingsTrigger',
     }),
+    Object.freeze({
+      selector: '[data-users-open-password-reset]',
+      openTarget: 'passwordResetRequestsModal',
+      callbackName: '',
+    }),
+    Object.freeze({
+      selector: '[data-location-wizard-open]',
+      openTarget: 'locationWizardModal',
+      callbackName: 'prepareLocationWizardSettingsTrigger',
+    }),
+    Object.freeze({
+      selector: '[data-it-equipment-add-open]',
+      openTarget: 'itEquipmentAddModal',
+      callbackName: '',
+    }),
+    Object.freeze({
+      selector: '[data-it-connection-add-open]',
+      openTarget: 'itConnectionAddModal',
+      callbackName: '',
+    }),
+    Object.freeze({
+      selector: '[data-panel-design-open-appearance]',
+      openTarget: 'appearanceModal',
+      hideTarget: 'self',
+      callbackName: '',
+    }),
+    Object.freeze({
+      selector: '[data-panel-design-open-statuses]',
+      openTarget: 'statusesModal',
+      hideTarget: 'self',
+      callbackName: '',
+    }),
+    Object.freeze({
+      selector: '[data-panel-design-open-business-styles]',
+      openTarget: 'businessStylesModal',
+      hideTarget: 'self',
+      callbackName: '',
+    }),
+    Object.freeze({
+      selector: '[data-add-channel-open]',
+      openTarget: 'addChannelModal',
+      callbackName: '',
+    }),
   ]);
 
   function getSettingsShellRoot() {

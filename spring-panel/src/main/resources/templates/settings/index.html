@@ -2674,7 +2674,7 @@
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="usersModalLabel">Пользователи панели и настройки доступа</h5>
-            <button type="button" class="btn btn-outline-warning btn-sm me-2" data-settings-open-modal="passwordResetRequestsModal" th:if="${canManagePasswordResetRequests}">Заявки на восстановление</button>
+            <button type="button" class="btn btn-outline-warning btn-sm me-2" data-users-open-password-reset th:if="${canManagePasswordResetRequests}">Заявки на восстановление</button>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
           </div>
           <div class="modal-body">
@@ -4626,7 +4626,7 @@
             <div class="tab-content settings-tab-content mt-3">
               <div class="tab-pane fade show active" id="locations-structure-pane" role="tabpanel" aria-labelledby="locations-structure-tab" tabindex="0">
                 <div class="d-flex flex-wrap gap-2 mb-3">
-                  <button class="btn btn-sm btn-primary" type="button" data-settings-open-modal="locationWizardModal" data-settings-action-callback="prepareLocationWizardSettingsTrigger">Добавить запись</button>
+                  <button class="btn btn-sm btn-primary" type="button" data-location-wizard-open>Добавить запись</button>
                   <button class="btn btn-sm btn-success" type="button" data-settings-click-callback="addBusiness">+ Добавить бизнес</button>
                 </div>
                 <div id="locationsEditor" class="mb-3">
@@ -5137,7 +5137,7 @@
                     <button
                       class="btn btn-sm btn-success mt-3"
                       type="button"
-                      data-settings-open-modal="itEquipmentAddModal"
+                      data-it-equipment-add-open
                     >
                       + Добавить оборудование
                     </button>
@@ -5175,7 +5175,7 @@
                     <button
                       class="btn btn-sm btn-success mt-3"
                       type="button"
-                      data-settings-open-modal="itConnectionAddModal"
+                      data-it-connection-add-open
                     >
                       + Добавить подключение
                     </button>
@@ -5658,9 +5658,9 @@
               <div class="settings-modal-lead__text">Сначала выберите раздел оформления, затем внесите точечные изменения в тему, статусы и бизнес-метки.</div>
             </div>
             <div class="d-grid gap-2">
-              <button type="button" class="btn btn-outline-primary text-start" data-settings-open-modal="appearanceModal" data-settings-hide-modal="self">Оформление интерфейса</button>
-              <button type="button" class="btn btn-outline-primary text-start" data-settings-open-modal="statusesModal" data-settings-hide-modal="self">Статусы клиентов</button>
-              <button type="button" class="btn btn-outline-primary text-start" data-settings-open-modal="businessStylesModal" data-settings-hide-modal="self">Метки бизнесов</button>
+              <button type="button" class="btn btn-outline-primary text-start" data-panel-design-open-appearance>Оформление интерфейса</button>
+              <button type="button" class="btn btn-outline-primary text-start" data-panel-design-open-statuses>Статусы клиентов</button>
+              <button type="button" class="btn btn-outline-primary text-start" data-panel-design-open-business-styles>Метки бизнесов</button>
             </div>
           </div>
           <div class="modal-footer">
@@ -5892,7 +5892,7 @@
                         <span class="channels-quick-card__pill" data-channels-manage-stat="active-count">0 активных</span>
                       </div>
                       <div class="channels-quick-card__actions">
-                        <button class="btn btn-primary" type="button" data-settings-open-modal="addChannelModal">Добавить канал</button>
+                        <button class="btn btn-primary" type="button" data-add-channel-open>Добавить канал</button>
                       </div>
                       <div class="channels-quick-card__note">Подробные инструкции и поля платформы уже находятся внутри модалки.</div>
                     </section>
