@@ -270,6 +270,41 @@
     }),
   ]);
 
+  const DEFAULT_SETTINGS_DECLARATIVE_CALLBACKS = Object.freeze([
+    Object.freeze({ eventName: 'click', selector: '[data-settings-save-trigger]', callbackName: 'saveSettings', args: '' }),
+    Object.freeze({ eventName: 'click', selector: '[data-add-business-trigger]', callbackName: 'addBusiness', args: '' }),
+    Object.freeze({ eventName: 'click', selector: '[data-locations-source-add-trigger]', callbackName: 'addLocationsIikoServerSource', args: '' }),
+    Object.freeze({ eventName: 'change', selector: '#locationsIikoSyncEnabled', callbackName: 'updateLocationsIikoSyncSetting', args: 'enabled,$checked' }),
+    Object.freeze({ eventName: 'input', selector: '#locationsIikoSyncInterval', callbackName: 'updateLocationsIikoSyncSetting', args: 'interval_minutes,$value' }),
+    Object.freeze({ eventName: 'click', selector: '#locationsSyncRunBtn', callbackName: 'runLocationsIikoSyncNow', args: '' }),
+    Object.freeze({ eventName: 'click', selector: '#editStatusesBtn', callbackName: 'startStatusesEdit', args: '' }),
+    Object.freeze({ eventName: 'click', selector: '#saveStatusesBtn', callbackName: 'saveClientStatuses', args: '' }),
+    Object.freeze({ eventName: 'click', selector: '#cancelStatusesBtn', callbackName: 'cancelStatusesEdit', args: '' }),
+    Object.freeze({ eventName: 'click', selector: '#addStatusBtn', callbackName: 'addStatus', args: '' }),
+    Object.freeze({ eventName: 'click', selector: '[data-auto-close-template-add]', callbackName: 'addAutoCloseTemplate', args: '' }),
+    Object.freeze({ eventName: 'click', selector: '[data-category-template-add]', callbackName: 'addCategoryTemplate', args: '' }),
+    Object.freeze({ eventName: 'click', selector: '[data-question-template-add]', callbackName: 'addQuestionTemplate', args: '' }),
+    Object.freeze({ eventName: 'click', selector: '[data-completion-template-add]', callbackName: 'addCompletionTemplate', args: '' }),
+    Object.freeze({ eventName: 'click', selector: '[data-macro-template-add]', callbackName: 'addMacroTemplate', args: '' }),
+    Object.freeze({ eventName: 'click', selector: '[data-dialog-template-toggle]', callbackName: 'toggleDialogTemplateEditor', args: '$element' }),
+    Object.freeze({ eventName: 'click', selector: '[data-category-template-remove]', callbackName: 'removeCategoryTemplate', args: '$element' }),
+    Object.freeze({ eventName: 'click', selector: '[data-category-row-add]', callbackName: 'addCategoryRow', args: '$element' }),
+    Object.freeze({ eventName: 'click', selector: '[data-category-row-remove]', callbackName: 'removeCategoryRow', args: '$element' }),
+    Object.freeze({ eventName: 'click', selector: '[data-question-template-remove]', callbackName: 'removeQuestionTemplate', args: '$element' }),
+    Object.freeze({ eventName: 'click', selector: '[data-question-row-add]', callbackName: 'addQuestionRow', args: '$element' }),
+    Object.freeze({ eventName: 'click', selector: '[data-question-row-remove]', callbackName: 'removeQuestionRow', args: '$element' }),
+    Object.freeze({ eventName: 'click', selector: '[data-completion-template-remove]', callbackName: 'removeCompletionTemplate', args: '$element' }),
+    Object.freeze({ eventName: 'click', selector: '[data-completion-row-add]', callbackName: 'addCompletionRow', args: '$element' }),
+    Object.freeze({ eventName: 'click', selector: '[data-completion-row-remove]', callbackName: 'removeCompletionRow', args: '$element' }),
+    Object.freeze({ eventName: 'click', selector: '[data-macro-template-remove]', callbackName: 'removeMacroTemplate', args: '$element' }),
+    Object.freeze({ eventName: 'click', selector: '[data-macro-tag-row-add]', callbackName: 'addMacroTagRow', args: '$element' }),
+    Object.freeze({ eventName: 'click', selector: '[data-macro-tag-row-remove]', callbackName: 'removeMacroTagRow', args: '$element' }),
+    Object.freeze({ eventName: 'click', selector: '[data-auto-close-template-remove]', callbackName: 'removeAutoCloseTemplate', args: '$element' }),
+    Object.freeze({ eventName: 'click', selector: '[data-locations-source-remove]', callbackName: 'removeLocationsIikoServerSource', args: '$datasetNumber:locationsSourceIndex' }),
+    Object.freeze({ eventName: 'input', selector: '[data-locations-source-field]', callbackName: 'updateLocationsIikoServerSource', args: '$datasetNumber:locationsSourceIndex,$dataset:locationsSourceField,$value' }),
+    Object.freeze({ eventName: 'change', selector: '[data-locations-source-enabled]', callbackName: 'updateLocationsIikoServerSource', args: '$datasetNumber:locationsSourceIndex,enabled,$checked' }),
+  ]);
+
   function getSettingsShellRoot() {
     const root = document.querySelector('[data-settings-page-shell]');
     return root instanceof HTMLElement ? root : null;
@@ -782,6 +817,16 @@
     if (argument === '$checked') {
       return Boolean(trigger && 'checked' in trigger && trigger.checked);
     }
+    if (argument.startsWith('$datasetNumber:')) {
+      const datasetKey = argument.slice('$datasetNumber:'.length).trim();
+      const rawValue = datasetKey && trigger instanceof HTMLElement ? trigger.dataset[datasetKey] : '';
+      const parsed = Number.parseInt(String(rawValue || '').trim(), 10);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+    if (argument.startsWith('$dataset:')) {
+      const datasetKey = argument.slice('$dataset:'.length).trim();
+      return datasetKey && trigger instanceof HTMLElement ? String(trigger.dataset[datasetKey] || '') : '';
+    }
     if (argument === 'true') {
       return true;
     }
@@ -824,6 +869,46 @@
     }
   }
 
+  function resolveDefaultSettingsDeclarativeCallbackConfig(trigger, eventName) {
+    if (!(trigger instanceof HTMLElement) || !eventName) {
+      return null;
+    }
+    return DEFAULT_SETTINGS_DECLARATIVE_CALLBACKS.find((config) => {
+      if (!config || config.eventName !== eventName || typeof config.selector !== 'string' || !config.selector) {
+        return false;
+      }
+      try {
+        return trigger.matches(config.selector);
+      } catch (error) {
+        console.error(`Invalid settings declarative callback selector "${config.selector}".`, error);
+        return false;
+      }
+    }) || null;
+  }
+
+  function findSettingsDeclarativeCallbackTrigger(target, eventName) {
+    if (!(target instanceof Element)) {
+      return null;
+    }
+    const inlineSelector = eventName === 'click'
+      ? '[data-settings-click-callback]'
+      : eventName === 'change'
+        ? '[data-settings-change-callback]'
+        : '[data-settings-input-callback]';
+    const inlineTrigger = target.closest(inlineSelector);
+    if (inlineTrigger instanceof HTMLElement) {
+      return inlineTrigger;
+    }
+    let current = target instanceof HTMLElement ? target : target.parentElement;
+    while (current instanceof HTMLElement) {
+      if (resolveDefaultSettingsDeclarativeCallbackConfig(current, eventName)) {
+        return current;
+      }
+      current = current.parentElement;
+    }
+    return null;
+  }
+
   function continueSettingsNamedCallback(callbackName, trigger, event, options = {}) {
     const result = invokeSettingsNamedCallback(callbackName, trigger, event, options);
     if (result && typeof result.then === 'function') {
@@ -847,7 +932,7 @@
         if (!(target instanceof Element)) {
           return;
         }
-        const trigger = target.closest(selector);
+        const trigger = findSettingsDeclarativeCallbackTrigger(target, eventName);
         if (!(trigger instanceof HTMLElement)) {
           return;
         }
@@ -855,12 +940,14 @@
           && (trigger.hasAttribute('disabled') || trigger.getAttribute('aria-disabled') === 'true')) {
           return;
         }
-        const callbackName = trigger.dataset[`settings${eventName.charAt(0).toUpperCase()}${eventName.slice(1)}Callback`];
+        const defaultConfig = resolveDefaultSettingsDeclarativeCallbackConfig(trigger, eventName);
+        const callbackName = trigger.dataset[`settings${eventName.charAt(0).toUpperCase()}${eventName.slice(1)}Callback`]
+          || String(defaultConfig?.callbackName || '').trim();
         if (!callbackName) {
           return;
         }
         continueSettingsNamedCallback(callbackName, trigger, event, {
-          args: trigger.dataset.settingsCallbackArgs,
+          args: trigger.dataset.settingsCallbackArgs || String(defaultConfig?.args || ''),
         });
       });
     });
@@ -873,20 +960,22 @@
       if (!(target instanceof Element)) {
         return;
       }
-      const trigger = target.closest('[data-settings-click-callback]');
+      const trigger = findSettingsDeclarativeCallbackTrigger(target, 'click');
       if (!(trigger instanceof HTMLElement) || trigger instanceof HTMLButtonElement) {
         return;
       }
       if (trigger.hasAttribute('disabled') || trigger.getAttribute('aria-disabled') === 'true') {
         return;
       }
-      const callbackName = String(trigger.dataset.settingsClickCallback || '').trim();
+      const defaultConfig = resolveDefaultSettingsDeclarativeCallbackConfig(trigger, 'click');
+      const callbackName = String(trigger.dataset.settingsClickCallback || '').trim()
+        || String(defaultConfig?.callbackName || '').trim();
       if (!callbackName) {
         return;
       }
       event.preventDefault();
       continueSettingsNamedCallback(callbackName, trigger, event, {
-        args: trigger.dataset.settingsCallbackArgs,
+        args: trigger.dataset.settingsCallbackArgs || String(defaultConfig?.args || ''),
       });
     });
   }
