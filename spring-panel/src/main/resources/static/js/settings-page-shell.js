@@ -122,20 +122,6 @@
     channelsModal: 'channels',
   });
 
-  const DEFAULT_SETTINGS_TILE_MODAL_TARGETS = Object.freeze({
-    channels: 'channelsModal',
-    managerBindings: 'managerBindingsModal',
-    reporting: 'reportingModal',
-    panelDesign: 'panelDesignSettingsModal',
-    categories: 'categoriesModal',
-    parameters: 'parametersModal',
-    itConnections: 'itConnectionsModal',
-    users: 'usersModal',
-    locations: 'locationsModal',
-    legalEntities: 'legalEntitiesModal',
-    inputFormatting: 'inputFormattingModal',
-  });
-
   const DEFAULT_SETTINGS_MODAL_DEFAULT_TABS = Object.freeze({
     channelEditorModal: 'channel-editor-general-tab',
   });
@@ -359,7 +345,7 @@
   ]);
 
   function getSettingsShellRoot() {
-    const root = document.querySelector('[data-settings-page-shell]');
+    const root = document.querySelector('.settings-surface.page-shell--settings');
     return root instanceof HTMLElement ? root : null;
   }
 
@@ -419,7 +405,7 @@
   }
 
   function initSettingsTileDescriptions() {
-    const tiles = document.querySelectorAll('[data-settings-tile]');
+    const tiles = document.querySelectorAll('[data-settings-overview-target]');
     tiles.forEach((tile) => {
       if (!(tile instanceof HTMLElement)) {
         return;
@@ -1197,7 +1183,7 @@
     if (!(modal instanceof HTMLElement) || !modal.id) {
       return null;
     }
-    const tiles = Array.from(document.querySelectorAll('[data-settings-tile]'));
+    const tiles = Array.from(document.querySelectorAll('[data-settings-overview-target]'));
     return tiles.find((tile) => tile instanceof HTMLElement && resolveSettingsTileModalTarget(tile) === modal.id) || null;
   }
 
@@ -1205,15 +1191,7 @@
     if (!(tile instanceof HTMLElement)) {
       return '';
     }
-    const inlineTarget = String(tile.dataset.settingsTileTarget || '').trim();
-    if (inlineTarget) {
-      return inlineTarget;
-    }
-    const tileKey = String(tile.dataset.settingsTile || '').trim();
-    if (!tileKey) {
-      return '';
-    }
-    return String(DEFAULT_SETTINGS_TILE_MODAL_TARGETS[tileKey] || '').trim();
+    return String(tile.dataset.settingsOverviewTarget || '').trim();
   }
 
   function isSettingsPrimaryModal(modal) {

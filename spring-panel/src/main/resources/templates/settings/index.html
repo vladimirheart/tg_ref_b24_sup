@@ -2088,7 +2088,7 @@
   <div th:replace="~{fragments/navbar :: navbar('settings')}"></div>
   <main class="main-content container-fluid">
 
-  <div class="container-fluid mt-4 settings-surface page-shell page-shell--settings page-shell--flush" data-settings-page-shell>
+  <div class="container-fluid mt-4 settings-surface page-shell page-shell--settings page-shell--flush">
     <div class="page-header-card settings-page-hero page-hero">
       <span class="page-kicker">Workspace Control</span>
       <h2 class="page-title">⚙️ Настройки системы</h2>
@@ -2130,7 +2130,7 @@
 
     <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3 settings-tiles">
       <div class="col" th:if="${canManageChannels}">
-        <div class="card settings-tile h-100" role="button" tabindex="0" data-settings-tile="channels">
+        <div class="card settings-tile h-100" role="button" tabindex="0" data-settings-overview-target="channelsModal">
           <div class="card-body">
             <div class="settings-tile__head">
               <div class="settings-tile__lead">
@@ -2151,7 +2151,7 @@
       </div>
 
       <div class="col" th:if="${canManageUsers}">
-        <div class="card settings-tile h-100" role="button" tabindex="0" data-settings-tile="managerBindings">
+        <div class="card settings-tile h-100" role="button" tabindex="0" data-settings-overview-target="managerBindingsModal">
           <div class="card-body">
             <div class="settings-tile__head">
               <div class="settings-tile__lead">
@@ -2171,7 +2171,7 @@
       </div>
 
       <div class="col">
-        <div class="card settings-tile h-100" role="button" tabindex="0" data-settings-tile="reporting">
+        <div class="card settings-tile h-100" role="button" tabindex="0" data-settings-overview-target="reportingModal">
           <div class="card-body">
             <div class="settings-tile__head">
               <div class="settings-tile__lead">
@@ -2191,7 +2191,7 @@
       </div>
 
       <div class="col">
-        <div class="card settings-tile h-100" role="button" tabindex="0" data-settings-tile="panelDesign">
+        <div class="card settings-tile h-100" role="button" tabindex="0" data-settings-overview-target="panelDesignSettingsModal">
           <div class="card-body">
             <div class="settings-tile__head">
               <div class="settings-tile__lead">
@@ -2212,7 +2212,7 @@
       </div>
 
       <div class="col">
-        <div class="card settings-tile settings-tile--accent h-100" role="button" tabindex="0" data-settings-tile="categories">
+        <div class="card settings-tile settings-tile--accent h-100" role="button" tabindex="0" data-settings-overview-target="categoriesModal">
           <div class="card-body">
             <div class="settings-tile__head">
               <div class="settings-tile__lead">
@@ -2232,7 +2232,7 @@
       </div>
 
       <div class="col">
-        <div class="card settings-tile settings-tile--accent h-100" role="button" tabindex="0" data-settings-tile="parameters">
+        <div class="card settings-tile settings-tile--accent h-100" role="button" tabindex="0" data-settings-overview-target="parametersModal">
           <div class="card-body">
             <div class="settings-tile__head">
               <div class="settings-tile__lead">
@@ -2252,7 +2252,7 @@
       </div>
 
       <div class="col">
-        <div class="card settings-tile settings-tile--accent h-100" role="button" tabindex="0" data-settings-tile="itConnections">
+        <div class="card settings-tile settings-tile--accent h-100" role="button" tabindex="0" data-settings-overview-target="itConnectionsModal">
           <div class="card-body">
             <div class="settings-tile__head">
               <div class="settings-tile__lead">
@@ -2272,7 +2272,7 @@
       </div>
 
       <div class="col">
-        <div class="card settings-tile settings-tile--accent h-100" role="button" tabindex="0" data-settings-tile="users">
+        <div class="card settings-tile settings-tile--accent h-100" role="button" tabindex="0" data-settings-overview-target="usersModal">
           <div class="card-body">
             <div class="settings-tile__head">
               <div class="settings-tile__lead">
@@ -2293,7 +2293,7 @@
       </div>
 
       <div class="col">
-        <div class="card settings-tile settings-tile--accent h-100" role="button" tabindex="0" data-settings-tile="locations">
+        <div class="card settings-tile settings-tile--accent h-100" role="button" tabindex="0" data-settings-overview-target="locationsModal">
           <div class="card-body">
             <div class="settings-tile__head">
               <div class="settings-tile__lead">
@@ -2314,7 +2314,7 @@
       </div>
 
       <div class="col">
-        <div class="card settings-tile settings-tile--accent h-100" role="button" tabindex="0" data-settings-tile="legalEntities">
+        <div class="card settings-tile settings-tile--accent h-100" role="button" tabindex="0" data-settings-overview-target="legalEntitiesModal">
           <div class="card-body">
             <div class="settings-tile__head">
               <div class="settings-tile__lead">
@@ -2338,7 +2338,7 @@
           class="card settings-tile settings-tile--accent h-100"
           role="button"
           tabindex="0"
-          data-settings-tile="inputFormatting"
+          data-settings-overview-target="inputFormattingModal"
         >
           <div class="card-body">
             <div class="settings-tile__head">
