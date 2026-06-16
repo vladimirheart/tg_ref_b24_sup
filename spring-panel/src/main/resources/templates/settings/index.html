@@ -7066,17 +7066,6 @@
     <script th:inline="javascript">
     const showAppModalMessage = window.showAppModalMessage;
     const showConfirmActionModal = window.showConfirmActionModal;
-  function requestSettingsModalClose(target) {
-    if (!(target instanceof HTMLElement)) {
-      return false;
-    }
-    const closeEvent = new CustomEvent('settings:close-modal', {
-      bubbles: true,
-      cancelable: true,
-    });
-    target.dispatchEvent(closeEvent);
-    return !closeEvent.defaultPrevented;
-  }
   const RAW_DIALOG_CONFIG = /*[[${settingsPayload['dialog_config']}]]*/ {};
   const DIALOG_CONFIG = RAW_DIALOG_CONFIG && typeof RAW_DIALOG_CONFIG === 'object' ? RAW_DIALOG_CONFIG : {};
   const CAN_PUBLISH_DIALOG_MACROS = /*[[${canPublishDialogMacros}]]*/ false;
