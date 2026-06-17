@@ -124,8 +124,8 @@
     "macro_variable_defaults" : { },
     "macro_variable_catalog" : [ ],
     "macro_variable_catalog_external_url" : "",
-    "macro_variable_catalog_external_timeout_ms" : 200,
-    "macro_variable_catalog_external_cache_ttl_seconds" : 0,
+    "macro_variable_catalog_external_timeout_ms" : 2000,
+    "macro_variable_catalog_external_cache_ttl_seconds" : 120,
     "macro_variable_catalog_external_auth_header" : "Authorization",
     "macro_variable_catalog_external_auth_token" : "",
     "default_view" : "all",
@@ -162,7 +162,7 @@
     "sla_critical_auto_assign_governance_review_ttl_hours" : 168,
     "sla_critical_auto_assign_governance_dry_run_ticket_required" : false,
     "sla_critical_auto_assign_governance_decision_required" : false,
-    "sla_critical_auto_assign_governance_policy_changed_at" : "2026-05-27T12:13:11.555413100Z",
+    "sla_critical_auto_assign_governance_policy_changed_at" : "2026-06-17T18:50:03.872746Z",
     "sla_critical_operator_skills" : { },
     "sla_critical_operator_queues" : { },
     "sla_critical_escalation_webhook_enabled" : false,
@@ -553,7 +553,7 @@
       "id" : "auto-u97pii-mowx65uu",
       "name" : "Шаблон автозакрытия 1",
       "hours" : 1,
-      "description" : ""
+      "description" : "диалог закрыт по причине отсутствия активности"
     } ],
     "active_template_id" : "auto-u97pii-mowx65uu"
   },
@@ -567,5 +567,17 @@
     "include_appeals" : true,
     "include_tasks" : true,
     "include_changes" : true
+  },
+  "business_cell_styles" : {
+    "СушиВёсла" : {
+      "background_color" : "#f38d8d",
+      "text_color" : "#0c0909",
+      "icon" : ""
+    },
+    "БлинБери" : {
+      "background_color" : "#fff0c4",
+      "text_color" : "#ff5d5d",
+      "icon" : ""
+    }
   }
 }
