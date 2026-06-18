@@ -116,6 +116,7 @@ class DialogWorkspaceIntegrationTest {
         jdbcTemplate.update("DELETE FROM ticket_participants");
         jdbcTemplate.update("DELETE FROM ticket_active");
         jdbcTemplate.update("DELETE FROM ticket_responsibles");
+        jdbcTemplate.update("DELETE FROM ticket_ai_agent_state");
         jdbcTemplate.update("DELETE FROM web_form_sessions");
         jdbcTemplate.update("DELETE FROM notifications");
         jdbcTemplate.update("DELETE FROM task_history");
@@ -793,6 +794,77 @@ class DialogWorkspaceIntegrationTest {
                 .andExpect(jsonPath("$.workflow.reassign_candidates[*].username", hasItem("watcher_peer")))
                 .andExpect(jsonPath("$.conversation.statusKey").value("waiting_operator"))
                 .andExpect(jsonPath("$.meta.parity.checks[*].key", hasItem("operator_action_guards")));
+    }
+
+    @Test
+    void workspaceApiClearsAutoProcessingOverlayAcrossReassignAndNextFollowUp() throws Exception {
+        usersJdbcTemplate.update("INSERT INTO roles(id, name) VALUES (?, ?)", 1L, "Support");
+        insertDirectoryUser("watcher_owner", true, false, 1L, "Support", "Watcher Owner", "Ops", "/img/owner.png");
+        insertDirectoryUser("watcher_new", true, false, 1L, "Support", "Watcher New", "Ops", "/img/new.png");
+
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
+                VALUES (102, 'token102', 'Workspace Handoff Runtime', 'telegram', 1, CURRENT_TIMESTAMP)
+                """);
+        insertDialogTicket(910112L, "T-WS-HANDOFF", 102L, "workspace_handoff_user", "Клиент Workspace Handoff", "Retail", "Калуга", "Точка", "Проверка workspace handoff auto_processing", "2026-05-28T12:00:00Z", 10201L);
+        jdbcTemplate.update("""
+                INSERT INTO ticket_responsibles(ticket_id, responsible, assigned_by, last_read_at)
+                VALUES (?,?,?,?)
+                """,
+                "T-WS-HANDOFF", "watcher_owner", "dispatcher", "2026-05-28T12:02:00Z");
+        jdbcTemplate.update("""
+                INSERT INTO ticket_ai_agent_state(ticket_id, is_processing, mode, last_action, updated_at)
+                VALUES (?, 1, ?, ?, CURRENT_TIMESTAMP)
+                """,
+                "T-WS-HANDOFF", "assist", "drafting");
+        insertHistoryRow("T-WS-HANDOFF", 910112L, "user", "Сообщение до workspace handoff", "2026-05-28T12:01:00Z", "text", 1021L, null, 102L, null);
+        insertHistoryRow("T-WS-HANDOFF", 910112L, "operator", "Ответ до workspace handoff", "2026-05-28T12:02:00Z", "operator_message", 1022L, 1021L, 102L, null);
+
+        mockMvc.perform(get("/api/dialogs/T-WS-HANDOFF/workspace")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.conversation.aiProcessing").value(true))
+                .andExpect(jsonPath("$.conversation.statusKey").value("auto_processing"))
+                .andExpect(jsonPath("$.workflow.responsible.username").value("watcher_owner"));
+
+        mockMvc.perform(post("/api/dialogs/T-WS-HANDOFF/reassign")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "username": "watcher_new"
+                                }
+                                """)
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.responsible").value("watcher_new"));
+
+        mockMvc.perform(get("/api/dialogs/T-WS-HANDOFF/workspace")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.conversation.aiProcessing").value(false))
+                .andExpect(jsonPath("$.conversation.statusKey").value("waiting_client"))
+                .andExpect(jsonPath("$.workflow.responsible.username").value("watcher_new"));
+
+        mockMvc.perform(get("/api/dialogs/T-WS-HANDOFF/workspace")
+                        .principal(new TestingAuthenticationToken("watcher_new", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.conversation.aiProcessing").value(false))
+                .andExpect(jsonPath("$.conversation.statusKey").value("waiting_client"))
+                .andExpect(jsonPath("$.workflow.responsible.username").value("watcher_new"));
+
+        insertHistoryRow("T-WS-HANDOFF", 910112L, "user", "Follow-up после workspace handoff", "2026-05-28T12:03:00Z", "text", 1023L, 1022L, 102L, null);
+
+        mockMvc.perform(get("/api/dialogs/T-WS-HANDOFF/workspace")
+                        .principal(new TestingAuthenticationToken("watcher_new", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.conversation.aiProcessing").value(false))
+                .andExpect(jsonPath("$.conversation.statusKey").value("waiting_operator"))
+                .andExpect(jsonPath("$.workflow.responsible.username").value("watcher_new"));
     }
 
     @Test

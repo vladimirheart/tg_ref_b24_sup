@@ -1746,6 +1746,15 @@
   dialog с активным `auto_processing` после live `POST /reassign` не должен
   оставаться в AI overlay-состоянии, а reread'ом переходит в
   `waiting_client` / `my_dialogs.in_work` для нового owner;
+- тот же boundary теперь подтверждён и прямо на workspace payload:
+  `conversation/workflow` после `reassign` больше не держат старый
+  AI overlay и reread'ят нового owner уже в `waiting_client`, так что
+  следующий frontend split должен сохранять эту синхронизацию не только
+  для list bucket'ов, но и для workspace conversation-summary;
+- соседний test-contract cleanup тоже уже сделан:
+  в non-AI `details/list` ветках убран размытый fallback
+  `waiting_operator | auto_processing`, чтобы frontend split не продолжал
+  жить с ложным допуском на AI overlay там, где runtime seeded-state нет;
 - значит следующий точечный диалоговый пакет должен чистить уже не сам
   bucket split, а оставшуюся refresh-bus/bell coordination между
   list/details/workspace/notifications перед большим client-side split.

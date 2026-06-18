@@ -299,7 +299,7 @@ class DialogDetailsIntegrationTest {
                 .andExpect(jsonPath("$.summary.clientName").value("Клиент Детали QA"))
                 .andExpect(jsonPath("$.summary.clientStatus").value("VIP"))
                 .andExpect(jsonPath("$.summary.channelId").value(92))
-                .andExpect(jsonPath("$.summary.statusKey").value(anyOf(is("waiting_operator"), is("auto_processing"))))
+                .andExpect(jsonPath("$.summary.statusKey").value("waiting_operator"))
                 .andExpect(jsonPath("$.summary.unreadCount").value(0))
                 .andExpect(jsonPath("$.summary.responsible").value("Watcher New"))
                 .andExpect(jsonPath("$.summary.rawResponsible").value("watcher_new"))
@@ -789,7 +789,7 @@ class DialogDetailsIntegrationTest {
                         .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-DETAIL-BUCKETS"))
-                .andExpect(jsonPath("$.dialogs[0].statusKey").value(anyOf(is("waiting_operator"), is("auto_processing"))))
+                .andExpect(jsonPath("$.dialogs[0].statusKey").value("waiting_operator"))
                 .andExpect(jsonPath("$.dialogs[0].unreadCount").value(1))
                 .andExpect(jsonPath("$.my_dialogs.unanswered[0].ticketId").value("T-DETAIL-BUCKETS"))
                 .andExpect(jsonPath("$.my_dialogs.in_work").isEmpty());
@@ -832,7 +832,7 @@ class DialogDetailsIntegrationTest {
                         .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-DETAIL-BUCKETS"))
-                .andExpect(jsonPath("$.dialogs[0].statusKey").value(anyOf(is("waiting_operator"), is("auto_processing"))))
+                .andExpect(jsonPath("$.dialogs[0].statusKey").value("waiting_operator"))
                 .andExpect(jsonPath("$.dialogs[0].unreadCount").value(1))
                 .andExpect(jsonPath("$.my_dialogs.unanswered[0].ticketId").value("T-DETAIL-BUCKETS"))
                 .andExpect(jsonPath("$.my_dialogs.in_work").isEmpty());

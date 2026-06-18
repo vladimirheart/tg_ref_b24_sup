@@ -1862,3 +1862,22 @@ integration-сценария поверх users/settings runtime boundary всё
   новый owner получает его в `my_dialogs.in_work` уже без
   `auto_processing`, а только следующий клиентский follow-up возвращает
   dialog в `waiting_operator` / `my_dialogs.unanswered`.
+- соседний `workspace` consumer после этого тоже live-прикрыт тем же
+  observed contract: `DialogWorkspaceIntegrationTest` теперь проходит
+  `auto_processing -> POST /reassign -> workspace reread -> next follow-up`
+  и подтверждает тот же переход `auto_processing -> waiting_client ->
+  waiting_operator` уже на `conversation/workflow` payload.
+- это снимает ещё один potential drift между read-side consumer'ами:
+  `workspace` не держит скрытое legacy-состояние AI overlay после handoff,
+  а reread'ит того же нового owner с `aiProcessing=false`; значит
+  list/details/workspace теперь формулируют одну и ту же handoff semantics,
+  различаясь только тем, что bucket continuity остаётся responsibility
+  `/api/dialogs`, а не самого workspace route.
+- рядом с этим же corridor дочищен и non-AI fallback в `details` regression
+  tests: `detailsApiRefreshesResponsibleAndStatusAfterReassignResolveAndReopenLifecycle`
+  и `detailsApiRefreshesDialogUnreadLoopWithoutImplicitlyAckingBellNotifications`
+  больше не держат размытое ожидание `waiting_operator | auto_processing`.
+- это делает contract явнее: в ветках без seeded
+  `ticket_ai_agent_state.is_processing` details/list consumer должны
+  возвращать именно `waiting_operator`, а не сохранять исторический
+  «страховочный» допуск на AI overlay там, где runtime его не поднимает.

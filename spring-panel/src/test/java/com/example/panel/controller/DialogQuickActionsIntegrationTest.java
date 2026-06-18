@@ -207,6 +207,13 @@ class DialogQuickActionsIntegrationTest {
                 .andExpect(jsonPath("$.participants[*].username", hasItem("watcher_peer")))
                 .andExpect(jsonPath("$.participants[*].username", hasItem("watcher_observer")));
 
+        mockMvc.perform(get("/api/dialogs/T-QA-LIVE/participants"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.participants.length()").value(2))
+                .andExpect(jsonPath("$.participants[*].username", hasItem("watcher_peer")))
+                .andExpect(jsonPath("$.participants[*].username", hasItem("watcher_observer")));
+
         mockMvc.perform(delete("/api/dialogs/T-QA-LIVE/participants/watcher_peer")
                         .principal(new TestingAuthenticationToken("watcher_new", "n/a", "PAGE_DIALOGS")))
                 .andExpect(status().isOk())
