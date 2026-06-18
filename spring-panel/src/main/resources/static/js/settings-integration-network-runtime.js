@@ -174,11 +174,17 @@
   function createRuntime(options = {}) {
     const state = {
       integrationNetwork: normalizeIntegrationNetworkConfig(options.initialIntegrationNetwork),
+      profileEditingIndex: null,
+      profileProbeState: new Map(),
     };
 
     const elements = {
       integrationNetworkSaveBtn: document.getElementById('integrationNetworkSaveBtn'),
       integrationNetworkStatusEl: document.getElementById('integrationNetworkStatus'),
+      integrationNetworkProfilesBody: document.getElementById('integrationNetworkProfilesBody'),
+      integrationNetworkProfilesSaveBtn: document.querySelector('[data-integration-network-profiles-save]'),
+      integrationNetworkProfilesProbeAllBtn: document.querySelector('[data-integration-network-profiles-probe-all]'),
+      integrationNetworkProfilesStatusEl: document.getElementById('integrationNetworkProfilesStatus'),
       projectNetworkModeInput: document.getElementById('projectNetworkMode'),
       projectProxySchemeInput: document.getElementById('projectProxyScheme'),
       projectProxyHostInput: document.getElementById('projectProxyHost'),
@@ -219,11 +225,57 @@
       channelEditorFailoverDowntimeSecondsInput: document.getElementById('channelEditorFailoverDowntimeSeconds'),
       channelEditorNetworkProfileIdInput: document.getElementById('channelEditorNetworkProfileId'),
       integrationNetworkProfileEditorModalEl: document.getElementById('integrationNetworkProfileEditorModal'),
+      integrationNetworkProfileForm: null,
+      integrationNetworkProfileTitleEl: null,
+      integrationNetworkProfileDeleteBtn: null,
+      integrationNetworkProfileNameInput: null,
+      integrationNetworkProfileModeInput: null,
+      integrationNetworkProfileProxyFields: null,
+      integrationNetworkProfileVpnFields: null,
+      integrationNetworkProfileProxySchemeInput: null,
+      integrationNetworkProfileProxyHostInput: null,
+      integrationNetworkProfileProxyPortInput: null,
+      integrationNetworkProfileProxyUsernameInput: null,
+      integrationNetworkProfileProxyPasswordInput: null,
+      integrationNetworkProfileProxyTokenInput: null,
+      integrationNetworkProfileVpnNameInput: null,
+      integrationNetworkProfileVpnEndpointInput: null,
+      integrationNetworkProfileVpnConfigPathInput: null,
+      integrationNetworkProfileVpnNotesInput: null,
     };
+
+    if (elements.integrationNetworkProfileEditorModalEl) {
+      elements.integrationNetworkProfileForm = elements.integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-form]');
+      elements.integrationNetworkProfileTitleEl = elements.integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-title]');
+      elements.integrationNetworkProfileDeleteBtn = elements.integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-delete]');
+      elements.integrationNetworkProfileNameInput = elements.integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-name]');
+      elements.integrationNetworkProfileModeInput = elements.integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-mode]');
+      elements.integrationNetworkProfileProxyFields = elements.integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-proxy-fields]');
+      elements.integrationNetworkProfileVpnFields = elements.integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-vpn-fields]');
+      elements.integrationNetworkProfileProxySchemeInput = elements.integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-proxy-scheme]');
+      elements.integrationNetworkProfileProxyHostInput = elements.integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-proxy-host]');
+      elements.integrationNetworkProfileProxyPortInput = elements.integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-proxy-port]');
+      elements.integrationNetworkProfileProxyUsernameInput = elements.integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-proxy-username]');
+      elements.integrationNetworkProfileProxyPasswordInput = elements.integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-proxy-password]');
+      elements.integrationNetworkProfileProxyTokenInput = elements.integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-proxy-token]');
+      elements.integrationNetworkProfileVpnNameInput = elements.integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-vpn-name]');
+      elements.integrationNetworkProfileVpnEndpointInput = elements.integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-vpn-endpoint]');
+      elements.integrationNetworkProfileVpnConfigPathInput = elements.integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-vpn-config-path]');
+      elements.integrationNetworkProfileVpnNotesInput = elements.integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-vpn-notes]');
+    }
 
     function getProfilesData() {
       const source = typeof options.getProfilesData === 'function' ? options.getProfilesData() : [];
       return Array.isArray(source) ? source : [];
+    }
+
+    function setProfilesData(nextProfiles) {
+      const normalized = Array.isArray(nextProfiles) ? nextProfiles : [];
+      if (typeof options.setProfilesData === 'function') {
+        options.setProfilesData(normalized);
+        return;
+      }
+      console.warn('SettingsIntegrationNetworkRuntime: setProfilesData callback is not configured.');
     }
 
     function getChannelsRegistry() {
@@ -232,10 +284,9 @@
     }
 
     function getIntegrationProfileModalElements() {
-      const modalEl = elements.integrationNetworkProfileEditorModalEl;
       return {
-        modalEl,
-        proxySchemeInput: modalEl ? modalEl.querySelector('[data-integration-network-profile-proxy-scheme]') : null,
+        modalEl: elements.integrationNetworkProfileEditorModalEl,
+        proxySchemeInput: elements.integrationNetworkProfileProxySchemeInput,
       };
     }
 
@@ -629,6 +680,244 @@
       updateChannelsManageOverview();
     }
 
+    function describeIntegrationNetworkProfile(profile) {
+      const normalized = normalizeIntegrationNetworkProfile(profile);
+      if (normalized.mode === 'vpn') {
+        const endpoint = normalized.vpn.endpoint || 'endpoint не указан';
+        const configPath = normalized.vpn.config_path || 'конфиг не указан';
+        return `VPN · ${normalized.vpn.name || normalized.name || normalized.id} · ${endpoint} · ${configPath}`;
+      }
+      const host = normalized.proxy.host || 'host не указан';
+      return `Прокси · ${normalized.proxy.scheme.toUpperCase()} · ${host}:${normalized.proxy.port || 8080}`;
+    }
+
+    function updateNetworkRouteProfilePreview(scope) {
+      const previewEl = document.querySelector(`[data-network-route-profile-preview="${scope}"]`);
+      if (!previewEl) {
+        return;
+      }
+      const route = collectRouteFromInputs(scope);
+      if (route.mode !== 'profile') {
+        previewEl.textContent = 'Режим профилей сейчас не активен.';
+        return;
+      }
+      const profileNames = (route.profile_ids || [])
+        .map((id) => findIntegrationNetworkProfile(id))
+        .filter((item) => Boolean(item))
+        .map((item) => item.name || item.id);
+      if (!profileNames.length) {
+        previewEl.textContent = 'Цепочка пока не выбрана.';
+        return;
+      }
+      previewEl.innerHTML = profileNames
+        .map((name, index) => `${index + 1}. ${escapeHtml(name)}`)
+        .join('<br>');
+    }
+
+    function normalizeIntegrationProfileProbeItem(raw) {
+      const source = raw && typeof raw === 'object' ? raw : {};
+      return {
+        id: String(source.id || '').trim(),
+        mode: String(source.mode || '').trim(),
+        reachable: source.reachable === true,
+        message: String(source.message || '').trim(),
+        host: String(source.host || '').trim(),
+        port: Number.parseInt(source.port, 10) || 0,
+        cooldownSeconds: Number.parseInt(source.cooldown_seconds, 10) || 0,
+        checkedAt: Date.now(),
+      };
+    }
+
+    function describeIntegrationProfileProbe(profile) {
+      const probeState = state.profileProbeState.get(profile.id);
+      if (!probeState) {
+        return '<span class="badge bg-secondary-subtle text-secondary">не проверен</span>';
+      }
+      const checkedAtText = probeState.checkedAt ? new Date(probeState.checkedAt).toLocaleTimeString() : '';
+      const endpointText = probeState.host && probeState.port > 0
+        ? `<div class="small text-muted">${escapeHtml(probeState.host)}:${probeState.port}</div>`
+        : '';
+      if (probeState.reachable) {
+        const title = escapeHtml(probeState.message || 'Маршрут доступен');
+        const suffix = checkedAtText ? `<div class="small text-muted">${escapeHtml(checkedAtText)}</div>` : '';
+        return `<span class="badge bg-success-subtle text-success" title="${title}">доступен</span>${suffix}${endpointText}`;
+      }
+      if (probeState.cooldownSeconds > 0) {
+        const title = escapeHtml(probeState.message || 'Маршрут недоступен');
+        return `<span class="badge bg-warning-subtle text-warning-emphasis" title="${title}">cooldown ${probeState.cooldownSeconds} сек</span>${endpointText}`;
+      }
+      const title = escapeHtml(probeState.message || 'Маршрут недоступен');
+      return `<span class="badge bg-danger-subtle text-danger" title="${title}">недоступен</span>${endpointText}`;
+    }
+
+    function cleanupIntegrationNetworkProfileProbeState() {
+      const validIds = new Set(getIntegrationNetworkProfileOptions().map((profile) => profile.id));
+      Array.from(state.profileProbeState.keys()).forEach((id) => {
+        if (!validIds.has(id)) {
+          state.profileProbeState.delete(id);
+        }
+      });
+    }
+
+    function renderIntegrationNetworkProfilesTable() {
+      if (!elements.integrationNetworkProfilesBody) {
+        return;
+      }
+      cleanupIntegrationNetworkProfileProbeState();
+      elements.integrationNetworkProfilesBody.innerHTML = '';
+      if (!getProfilesData().length) {
+        const emptyRow = document.createElement('tr');
+        emptyRow.innerHTML = '<td colspan="5" class="text-center text-muted py-3">Пока нет ни одного профиля маршрутизации.</td>';
+        elements.integrationNetworkProfilesBody.appendChild(emptyRow);
+        renderIntegrationNetworkProfileSelectors();
+        updateChannelsManageOverview();
+        return;
+      }
+      getIntegrationNetworkProfileOptions().forEach((profile, index) => {
+        const row = document.createElement('tr');
+        row.dataset.index = String(index);
+        row.innerHTML = `
+          <td>
+            <div class="fw-semibold">${escapeHtml(profile.name || profile.id)}</div>
+            <div class="small text-muted font-monospace">${escapeHtml(profile.id)}</div>
+          </td>
+          <td>${profile.mode === 'vpn' ? 'VPN' : 'Прокси'}</td>
+          <td>${escapeHtml(describeIntegrationNetworkProfile(profile))}</td>
+          <td>${describeIntegrationProfileProbe(profile)}</td>
+          <td class="text-end">
+            <div class="btn-group btn-group-sm">
+              <button type="button" class="btn btn-outline-secondary" data-action="probe-integration-network-profile">Проверить</button>
+              <button type="button" class="btn btn-outline-primary" data-action="edit-integration-network-profile" data-integration-network-profile-index="${index}">Открыть</button>
+              <button type="button" class="btn btn-outline-danger" data-action="remove-integration-network-profile">Удалить</button>
+            </div>
+          </td>
+        `;
+        elements.integrationNetworkProfilesBody.appendChild(row);
+      });
+      renderIntegrationNetworkProfileSelectors();
+      updateChannelsManageOverview();
+    }
+
+    function fillIntegrationNetworkProfileForm(profile) {
+      const normalized = normalizeIntegrationNetworkProfile(profile);
+      if (elements.integrationNetworkProfileNameInput) elements.integrationNetworkProfileNameInput.value = normalized.name;
+      if (elements.integrationNetworkProfileModeInput) elements.integrationNetworkProfileModeInput.value = normalized.mode;
+      if (elements.integrationNetworkProfileProxySchemeInput) elements.integrationNetworkProfileProxySchemeInput.value = normalized.proxy.scheme;
+      if (elements.integrationNetworkProfileProxyHostInput) elements.integrationNetworkProfileProxyHostInput.value = normalized.proxy.host;
+      if (elements.integrationNetworkProfileProxyPortInput) elements.integrationNetworkProfileProxyPortInput.value = String(normalized.proxy.port || 8080);
+      if (elements.integrationNetworkProfileProxyUsernameInput) elements.integrationNetworkProfileProxyUsernameInput.value = normalized.proxy.username;
+      if (elements.integrationNetworkProfileProxyPasswordInput) elements.integrationNetworkProfileProxyPasswordInput.value = normalized.proxy.password;
+      if (elements.integrationNetworkProfileProxyTokenInput) elements.integrationNetworkProfileProxyTokenInput.value = normalized.proxy.token || '';
+      if (elements.integrationNetworkProfileVpnNameInput) elements.integrationNetworkProfileVpnNameInput.value = normalized.vpn.name;
+      if (elements.integrationNetworkProfileVpnEndpointInput) elements.integrationNetworkProfileVpnEndpointInput.value = normalized.vpn.endpoint;
+      if (elements.integrationNetworkProfileVpnConfigPathInput) elements.integrationNetworkProfileVpnConfigPathInput.value = normalized.vpn.config_path;
+      if (elements.integrationNetworkProfileVpnNotesInput) elements.integrationNetworkProfileVpnNotesInput.value = normalized.vpn.notes;
+      toggleIntegrationNetworkProfileModeFields();
+      toggleProxyCredentialFields('integration-profile');
+    }
+
+    function prepareIntegrationNetworkProfileEditor(index) {
+      const numericIndex = Number.isInteger(index) ? index : Number.parseInt(index, 10);
+      const profiles = getProfilesData();
+      const isEdit = Number.isInteger(numericIndex) && numericIndex >= 0 && numericIndex < profiles.length;
+      state.profileEditingIndex = isEdit ? numericIndex : null;
+      fillIntegrationNetworkProfileForm(isEdit ? profiles[numericIndex] : normalizeIntegrationNetworkProfile({}));
+      if (elements.integrationNetworkProfileTitleEl) {
+        elements.integrationNetworkProfileTitleEl.textContent = isEdit ? 'Редактирование профиля маршрута' : 'Новый профиль маршрута';
+      }
+      if (elements.integrationNetworkProfileDeleteBtn) {
+        elements.integrationNetworkProfileDeleteBtn.classList.toggle('d-none', !isEdit);
+      }
+      return Boolean(elements.integrationNetworkProfileEditorModalEl);
+    }
+
+    function toggleIntegrationNetworkProfileModeFields() {
+      const mode = elements.integrationNetworkProfileModeInput?.value === 'vpn' ? 'vpn' : 'proxy';
+      elements.integrationNetworkProfileProxyFields?.classList.toggle('d-none', mode !== 'proxy');
+      elements.integrationNetworkProfileVpnFields?.classList.toggle('d-none', mode !== 'vpn');
+      if (mode === 'proxy') {
+        toggleProxyCredentialFields('integration-profile');
+      }
+    }
+
+    function collectIntegrationNetworkProfilePayload() {
+      return getIntegrationNetworkProfileOptions().map((profile) => ({
+        id: profile.id,
+        name: profile.name,
+        mode: profile.mode,
+        proxy: profile.proxy,
+        vpn: profile.vpn,
+      })).filter((profile) => profile.name || profile.id);
+    }
+
+    async function probeIntegrationNetworkProfiles(profiles, options = {}) {
+      const normalizedProfiles = Array.isArray(profiles)
+        ? profiles.map((profile) => normalizeIntegrationNetworkProfile(profile)).filter((profile) => Boolean(profile.id))
+        : [];
+      if (!normalizedProfiles.length) {
+        if (!options.silent) {
+          notify('Нет профилей для проверки.');
+        }
+        return;
+      }
+      const defaultProbeAllLabel = 'Проверить доступность';
+      try {
+        if (elements.integrationNetworkProfilesProbeAllBtn && options.bulk) {
+          elements.integrationNetworkProfilesProbeAllBtn.disabled = true;
+          elements.integrationNetworkProfilesProbeAllBtn.textContent = 'Проверяем…';
+        }
+        const xsrfToken = typeof window.getCookieValue === 'function' ? window.getCookieValue('XSRF-TOKEN') : '';
+        const response = await fetch('/api/settings/integration-network/profiles/probe', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-XSRF-TOKEN': xsrfToken,
+          },
+          body: JSON.stringify({
+            profiles: normalizedProfiles.map((profile) => ({
+              id: profile.id,
+              name: profile.name,
+              mode: profile.mode,
+              proxy: profile.proxy,
+              vpn: profile.vpn,
+            })),
+          }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.success === false) {
+          throw new Error(data.error || ('HTTP ' + response.status));
+        }
+        const items = Array.isArray(data.items) ? data.items : [];
+        items.forEach((item) => {
+          const normalizedItem = normalizeIntegrationProfileProbeItem(item);
+          if (normalizedItem.id) {
+            state.profileProbeState.set(normalizedItem.id, normalizedItem);
+          }
+        });
+        renderIntegrationNetworkProfilesTable();
+        if (elements.integrationNetworkProfilesStatusEl) {
+          elements.integrationNetworkProfilesStatusEl.textContent = options.bulk
+            ? `Проверено профилей: ${normalizedProfiles.length}.`
+            : 'Проверка профиля завершена.';
+        }
+        if (!options.silent && options.bulk) {
+          notify(`Проверено профилей: ${normalizedProfiles.length}.`);
+        }
+      } catch (error) {
+        if (elements.integrationNetworkProfilesStatusEl) {
+          elements.integrationNetworkProfilesStatusEl.textContent = 'Не удалось проверить профили: ' + error.message;
+        }
+        if (!options.silent) {
+          notify('Не удалось проверить профили: ' + error.message);
+        }
+      } finally {
+        if (elements.integrationNetworkProfilesProbeAllBtn && options.bulk) {
+          elements.integrationNetworkProfilesProbeAllBtn.disabled = false;
+          elements.integrationNetworkProfilesProbeAllBtn.textContent = defaultProbeAllLabel;
+        }
+      }
+    }
+
     async function saveIntegrationNetworkSettings() {
       const projectRoute = collectRouteFromInputs('project');
       const botsRoute = collectRouteFromInputs('bots');
@@ -698,6 +987,161 @@
       });
     }
 
+    async function saveIntegrationNetworkProfiles() {
+      try {
+        if (elements.integrationNetworkProfilesSaveBtn) {
+          elements.integrationNetworkProfilesSaveBtn.disabled = true;
+        }
+        const payload = collectIntegrationNetworkProfilePayload();
+        const response = await fetch('/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            integration_network_profiles: payload,
+          }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.success === false) {
+          throw new Error(data.error || ('HTTP ' + response.status));
+        }
+        setProfilesData(payload.map((item) => normalizeIntegrationNetworkProfile(item)));
+        renderIntegrationNetworkProfilesTable();
+        resetMissingIntegrationNetworkProfileSelections();
+        if (elements.integrationNetworkProfilesStatusEl) {
+          elements.integrationNetworkProfilesStatusEl.textContent = 'Профили маршрутизации сохранены.';
+        }
+        notify('Профили маршрутизации сохранены.');
+      } catch (error) {
+        if (elements.integrationNetworkProfilesStatusEl) {
+          elements.integrationNetworkProfilesStatusEl.textContent = 'Не удалось сохранить профили: ' + error.message;
+        }
+        notify('Не удалось сохранить профили: ' + error.message);
+      } finally {
+        if (elements.integrationNetworkProfilesSaveBtn) {
+          elements.integrationNetworkProfilesSaveBtn.disabled = false;
+        }
+      }
+    }
+
+    function replaceProfileAtIndex(index, profile) {
+      const profiles = getProfilesData().slice();
+      if (Number.isInteger(index) && index >= 0 && index < profiles.length) {
+        profiles[index] = profile;
+      } else {
+        profiles.push(profile);
+      }
+      setProfilesData(profiles);
+    }
+
+    function removeProfileByIndex(index) {
+      const profiles = getProfilesData().slice();
+      if (!Number.isInteger(index) || index < 0 || index >= profiles.length) {
+        return false;
+      }
+      profiles.splice(index, 1);
+      setProfilesData(profiles);
+      return true;
+    }
+
+    function resetIntegrationNetworkProfileSettingsModal() {
+      state.profileEditingIndex = null;
+      elements.integrationNetworkProfileForm?.reset();
+      toggleIntegrationNetworkProfileModeFields();
+    }
+
+    function handleProfilesTableClick(event) {
+      const actionButton = event.target.closest('[data-action]');
+      if (!actionButton) {
+        return;
+      }
+      const row = actionButton.closest('tr[data-index]');
+      if (!row) {
+        return;
+      }
+      const index = Number.parseInt(row.dataset.index, 10);
+      if (Number.isNaN(index)) {
+        return;
+      }
+      if (actionButton.dataset.action === 'probe-integration-network-profile') {
+        const profile = getIntegrationNetworkProfileOptions()[index];
+        if (profile) {
+          probeIntegrationNetworkProfiles([profile], { bulk: false, silent: true });
+        }
+        return;
+      }
+      if (actionButton.dataset.action === 'remove-integration-network-profile') {
+        if (removeProfileByIndex(index)) {
+          renderIntegrationNetworkProfilesTable();
+          resetMissingIntegrationNetworkProfileSelections();
+        }
+      }
+    }
+
+    function handleProfileFormSubmit(event) {
+      event.preventDefault();
+      const mode = elements.integrationNetworkProfileModeInput?.value === 'vpn' ? 'vpn' : 'proxy';
+      const profiles = getProfilesData();
+      const existingProfile = Number.isInteger(state.profileEditingIndex)
+        ? profiles[state.profileEditingIndex]
+        : null;
+      const draft = normalizeIntegrationNetworkProfile({
+        id: existingProfile?.id || '',
+        name: elements.integrationNetworkProfileNameInput?.value || '',
+        mode,
+        proxy: {
+          scheme: elements.integrationNetworkProfileProxySchemeInput?.value || 'http',
+          host: elements.integrationNetworkProfileProxyHostInput?.value || '',
+          port: elements.integrationNetworkProfileProxyPortInput?.value || 8080,
+          username: elements.integrationNetworkProfileProxyUsernameInput?.value || '',
+          password: elements.integrationNetworkProfileProxyPasswordInput?.value || '',
+          token: elements.integrationNetworkProfileProxyTokenInput?.value || '',
+        },
+        vpn: {
+          name: elements.integrationNetworkProfileVpnNameInput?.value || '',
+          endpoint: elements.integrationNetworkProfileVpnEndpointInput?.value || '',
+          config_path: elements.integrationNetworkProfileVpnConfigPathInput?.value || '',
+          notes: elements.integrationNetworkProfileVpnNotesInput?.value || '',
+        },
+      });
+      if (!draft.name) {
+        notify('Укажите название профиля маршрута.');
+        return;
+      }
+      if (mode === 'proxy' && !draft.proxy.host) {
+        notify('Для прокси-профиля укажите host.');
+        return;
+      }
+      if (mode === 'proxy' && draft.proxy.scheme === 'vless' && !String(draft.proxy.token || '').trim()) {
+        notify('Для VLESS укажите token.');
+        return;
+      }
+      if (mode === 'vpn' && !draft.vpn.name && !draft.vpn.endpoint) {
+        notify('Для VPN-профиля укажите хотя бы название или endpoint.');
+        return;
+      }
+      replaceProfileAtIndex(state.profileEditingIndex, draft);
+      renderIntegrationNetworkProfilesTable();
+      resetMissingIntegrationNetworkProfileSelections();
+      if (typeof options.requestSettingsModalClose === 'function') {
+        options.requestSettingsModalClose(elements.integrationNetworkProfileForm);
+      }
+    }
+
+    function handleProfileDeleteClick() {
+      if (!removeProfileByIndex(state.profileEditingIndex)) {
+        return;
+      }
+      renderIntegrationNetworkProfilesTable();
+      resetMissingIntegrationNetworkProfileSelections();
+      if (typeof options.requestSettingsModalClose === 'function') {
+        options.requestSettingsModalClose(elements.integrationNetworkProfileDeleteBtn);
+      }
+    }
+
+    function handleProbeAllProfilesClick() {
+      probeIntegrationNetworkProfiles(getIntegrationNetworkProfileOptions(), { bulk: true });
+    }
+
     return {
       parsePlatformConfig,
       normalizeChannelWorkingHours,
@@ -714,6 +1158,19 @@
       toggleNetworkRouteFields,
       renderIntegrationNetworkSettings,
       saveIntegrationNetworkSettings,
+      describeIntegrationNetworkProfile,
+      updateNetworkRouteProfilePreview,
+      probeIntegrationNetworkProfiles,
+      renderIntegrationNetworkProfilesTable,
+      prepareIntegrationNetworkProfileEditor,
+      toggleIntegrationNetworkProfileModeFields,
+      collectIntegrationNetworkProfilePayload,
+      saveIntegrationNetworkProfiles,
+      handleProfilesTableClick,
+      handleProfileFormSubmit,
+      handleProfileDeleteClick,
+      handleProbeAllProfilesClick,
+      resetIntegrationNetworkProfileSettingsModal,
       renderIntegrationNetworkProfileSelectors,
       resetMissingIntegrationNetworkProfileSelections,
       updateChannelsManageOverview,
@@ -726,6 +1183,13 @@
         return window.__settingsIntegrationNetworkRuntime;
       }
       const runtime = createRuntime(options);
+      window.prepareIntegrationNetworkProfileSettingsTrigger = function prepareIntegrationNetworkProfileSettingsTrigger(trigger) {
+        const indexValue = trigger instanceof HTMLElement ? trigger.dataset.integrationNetworkProfileIndex : null;
+        return runtime.prepareIntegrationNetworkProfileEditor(indexValue);
+      };
+      window.resetIntegrationNetworkProfileSettingsModal = function resetIntegrationNetworkProfileSettingsModal() {
+        runtime.resetIntegrationNetworkProfileSettingsModal();
+      };
       window.__settingsIntegrationNetworkRuntime = runtime;
       return runtime;
     },
