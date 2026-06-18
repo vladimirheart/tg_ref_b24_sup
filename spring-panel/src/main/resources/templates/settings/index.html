@@ -7062,6 +7062,7 @@
     <script src="/js/modal-helpers.js"></script>
     <script src="/js/settings-page-shell.js"></script>
     <script src="/js/settings-appearance-runtime.js"></script>
+    <script src="/js/settings-channels-bot-runtime.js"></script>
     <script src="/js/settings-channels-catalog-runtime.js"></script>
     <script src="/js/settings-integration-network-runtime.js"></script>
     <script src="/js/settings-locations-iiko-runtime.js"></script>
@@ -17966,8 +17967,6 @@
     { value: 'file', label: 'Файл (имя вложения)' },
   ];
 
-  const channelEditorBotRefreshDefaultLabel = channelEditorBotRefreshBtn?.textContent?.trim() || 'Обновить информацию о боте';
-
   let channelsInitialized = false;
 
   function updateChannelEditorStatusLabel(isActive) {
@@ -18067,14 +18066,22 @@
     formatBotLabel,
     normalizeNetworkRoute: (...args) => settingsIntegrationNetwork.normalizeNetworkRoute(...args),
     updateChannelsManageOverview: (...args) => settingsIntegrationNetwork.updateChannelsManageOverview(...args),
-    refreshAllBotRuntimeStatuses,
+    refreshAllBotRuntimeStatuses: (...args) => settingsChannelsBotRuntime.refreshAllBotRuntimeStatuses(...args),
     refreshChannelEditorIfOpen,
     requestSettingsModalClose: (source) => requestSettingsModalClose(source),
     showPopup: (message) => showPopup(message),
     showNotification: typeof showNotification === 'function'
       ? (message, type) => showNotification(message, type)
       : null,
-    startBot,
+    startBot: (...args) => settingsChannelsBotRuntime.startBot(...args),
+  });
+  const settingsChannelsBotRuntime = window.SettingsChannelsBotRuntime?.mount({
+    getChannelsRegistry: () => CHANNELS_REGISTRY,
+    getChannelEditorState: () => channelEditorState,
+    notifyChannelStatus: (...args) => settingsChannelsCatalog.notifyChannelStatus(...args),
+    loadChannels: (...args) => settingsChannelsCatalog.loadChannels(...args),
+    showPopup: (message) => showPopup(message),
+    getCookieValue: (name) => getCookieValue(name),
   });
   integrationNetworkProfilesData = Array.isArray(INTEGRATION_NETWORK_PROFILES_INITIAL)
     ? INTEGRATION_NETWORK_PROFILES_INITIAL.map((item) => settingsIntegrationNetwork.normalizeIntegrationNetworkProfile(item))
@@ -18107,198 +18114,20 @@
   const togglePlatformFields = (...args) => settingsChannelsCatalog.togglePlatformFields(...args);
   const addChannel = (...args) => settingsChannelsCatalog.addChannel(...args);
   const saveVkWebhookSettings = (...args) => settingsChannelsCatalog.saveVkWebhookSettings(...args);
-
-  function updateTestRecipientState() {
-    if (!channelEditorTestTargetSelect || !channelEditorTestRecipientInput) return;
-    const custom = channelEditorTestTargetSelect.value === 'custom';
-    channelEditorTestRecipientInput.disabled = !custom;
-    if (!custom) {
-      channelEditorTestRecipientInput.value = '';
-    }
-  }
-
-  function setTestStatus(message) {
-    if (channelEditorTestStatusEl) {
-      channelEditorTestStatusEl.textContent = `Статус теста: ${message}`;
-    }
-  }
-
-  function normalizeBotRuntimeStatus(status) {
-    const raw = String(status || '').trim();
-    const normalized = raw.toLowerCase();
-    if (normalized === 'running') {
-      return { code: 'running', label: 'запущен', details: '' };
-    }
-    if (normalized === 'stopped') {
-      return { code: 'stopped', label: 'остановлен', details: '' };
-    }
-    if (!raw) {
-      return { code: 'unknown', label: '—', details: '' };
-    }
-    return { code: 'error', label: 'ошибка', details: raw };
-  }
-
-  function getBotRuntimeBadgeClass(code) {
-    if (code === 'running') return 'badge bg-success-subtle text-success';
-    if (code === 'stopped') return 'badge bg-secondary-subtle text-secondary';
-    if (code === 'error') return 'badge bg-danger-subtle text-danger';
-    return 'badge bg-warning-subtle text-warning-emphasis';
-  }
-
-  function updateBotStatusLabel(status, startedAt) {
-    const normalized = normalizeBotRuntimeStatus(status);
-    if (channelEditorBotStatusBadgeEl) {
-      channelEditorBotStatusBadgeEl.className = getBotRuntimeBadgeClass(normalized.code);
-      channelEditorBotStatusBadgeEl.textContent = normalized.label;
-    }
-    if (channelEditorBotStatusDetailsEl) {
-      if (normalized.code === 'running' && startedAt) {
-        channelEditorBotStatusDetailsEl.textContent = `с ${new Date(startedAt).toLocaleString()}`;
-      } else if (normalized.details) {
-        channelEditorBotStatusDetailsEl.textContent = normalized.details;
-      } else {
-        channelEditorBotStatusDetailsEl.textContent = '';
-      }
-    }
-    if (!channelEditorBotStatusEl) return;
-    channelEditorBotStatusEl.title = normalized.details || '';
-  }
-
-  function setChannelRowBotRuntimeStatus(channelId, status, startedAt) {
-    const badge = document.querySelector(`[data-channel-bot-runtime-status="${channelId}"]`);
-    if (!badge) return;
-    const normalized = normalizeBotRuntimeStatus(status);
-    badge.className = getBotRuntimeBadgeClass(normalized.code);
-    if (normalized.code === 'running' && startedAt) {
-      badge.textContent = `Процесс: запущен с ${new Date(startedAt).toLocaleTimeString()}`;
-      badge.title = new Date(startedAt).toLocaleString();
-      return;
-    }
-    if (normalized.details) {
-      badge.textContent = `Процесс: ${normalized.label}`;
-      badge.title = normalized.details;
-      return;
-    }
-    badge.textContent = `Процесс: ${normalized.label}`;
-    badge.title = '';
-  }
-
-  async function refreshAllBotRuntimeStatuses(silent = false) {
-    const channelIds = Array.from(CHANNELS_REGISTRY.keys())
-      .map((value) => Number.parseInt(value, 10))
-      .filter((value) => Number.isFinite(value));
-    if (!channelIds.length) {
-      if (!silent && channelsBotStatusesInfo) {
-        channelsBotStatusesInfo.textContent = 'Нет каналов для обновления статусов.';
-      }
-      return;
-    }
-    const defaultLabel = 'Обновить статусы всех ботов';
-    if (channelsRefreshBotStatusesBtn) {
-      channelsRefreshBotStatusesBtn.disabled = true;
-      channelsRefreshBotStatusesBtn.textContent = 'Обновляем…';
-    }
-    if (channelsBotStatusesInfo) {
-      channelsBotStatusesInfo.textContent = `Обновление статусов: 0/${channelIds.length}`;
-    }
-    let done = 0;
-    let errors = 0;
-    await Promise.all(channelIds.map(async (channelId) => {
-      try {
-        const response = await fetch(`/api/bots/${channelId}/status`);
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok) {
-          throw new Error(payload?.error || ('HTTP ' + response.status));
-        }
-        setChannelRowBotRuntimeStatus(channelId, payload?.status, payload?.startedAt);
-      } catch (error) {
-        errors += 1;
-        setChannelRowBotRuntimeStatus(channelId, 'ошибка', null);
-      } finally {
-        done += 1;
-        if (channelsBotStatusesInfo) {
-          channelsBotStatusesInfo.textContent = `Обновление статусов: ${done}/${channelIds.length}`;
-        }
-      }
-    }));
-    const refreshedAt = new Date().toLocaleTimeString();
-    if (channelsBotStatusesInfo) {
-      channelsBotStatusesInfo.textContent = errors
-        ? `Обновлено ${channelIds.length - errors}/${channelIds.length}, ошибок: ${errors}. ${refreshedAt}`
-        : `Статусы обновлены: ${channelIds.length}/${channelIds.length}. ${refreshedAt}`;
-    }
-    if (channelsRefreshBotStatusesBtn) {
-      channelsRefreshBotStatusesBtn.disabled = false;
-      channelsRefreshBotStatusesBtn.textContent = defaultLabel;
-    }
-  }
-
-  function updateBotControls(running) {
-    if (channelEditorBotStartBtn) {
-      channelEditorBotStartBtn.disabled = running;
-    }
-    if (channelEditorBotStopBtn) {
-      channelEditorBotStopBtn.disabled = !running;
-    }
-  }
-
-  function updateBotRefreshControl(isTelegram, isLoading = false) {
-    if (!channelEditorBotRefreshBtn) return;
-    channelEditorBotRefreshBtn.disabled = !isTelegram || isLoading;
-    channelEditorBotRefreshBtn.textContent = isLoading ? 'Обновляем…' : channelEditorBotRefreshDefaultLabel;
-    channelEditorBotRefreshBtn.title = isTelegram ? '' : 'Обновление доступно только для Telegram';
-  }
-
-  function getChannelEditorTokenValue() {
-    if (channelEditorState.channelId === null) {
-      return '';
-    }
-    const channel = CHANNELS_REGISTRY.get(String(channelEditorState.channelId));
-    return String(channel?.token || '').trim();
-  }
-
-  function updateChannelEditorToken() {
-    if (!channelEditorTokenEl) return;
-    const token = getChannelEditorTokenValue();
-    channelEditorTokenEl.textContent = channelEditorState.tokenVisible ? (token || '—') : maskToken(token);
-    if (channelEditorToggleTokenBtn) {
-      channelEditorToggleTokenBtn.textContent = channelEditorState.tokenVisible ? 'Скрыть' : 'Показать';
-      channelEditorToggleTokenBtn.disabled = !token;
-    }
-    if (channelEditorCopyTokenBtn) {
-      channelEditorCopyTokenBtn.disabled = !token;
-    }
-  }
-
-  async function copyChannelToken() {
-    const token = getChannelEditorTokenValue();
-    if (!token) {
-      showPopup('Токен канала отсутствует.');
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(token);
-      showPopup('Токен скопирован.');
-    } catch (error) {
-      showPopup('Не удалось скопировать токен: ' + error.message);
-    }
-  }
-
-  async function refreshBotStatus(channelId) {
-    if (!channelId) return;
-    try {
-      const response = await fetch(`/api/bots/${channelId}/status`);
-      const payload = await response.json();
-      updateBotStatusLabel(payload.status, payload.startedAt);
-      updateBotControls(payload.status === 'running');
-      setChannelRowBotRuntimeStatus(channelId, payload.status, payload.startedAt);
-    } catch (error) {
-      console.error('Failed to load bot status', error);
-      updateBotStatusLabel('ошибка');
-      updateBotControls(false);
-      setChannelRowBotRuntimeStatus(channelId, 'ошибка', null);
-    }
-  }
+  const updateTestRecipientState = (...args) => settingsChannelsBotRuntime.updateTestRecipientState(...args);
+  const setTestStatus = (...args) => settingsChannelsBotRuntime.setTestStatus(...args);
+  const updateBotStatusLabel = (...args) => settingsChannelsBotRuntime.updateBotStatusLabel(...args);
+  const refreshAllBotRuntimeStatuses = (...args) => settingsChannelsBotRuntime.refreshAllBotRuntimeStatuses(...args);
+  const updateBotControls = (...args) => settingsChannelsBotRuntime.updateBotControls(...args);
+  const updateBotRefreshControl = (...args) => settingsChannelsBotRuntime.updateBotRefreshControl(...args);
+  const updateChannelEditorToken = (...args) => settingsChannelsBotRuntime.updateChannelEditorToken(...args);
+  const copyChannelToken = (...args) => settingsChannelsBotRuntime.copyChannelToken(...args);
+  const refreshBotStatus = (...args) => settingsChannelsBotRuntime.refreshBotStatus(...args);
+  const refreshChannelBotInfo = (...args) => settingsChannelsBotRuntime.refreshChannelBotInfo(...args);
+  const startBotForChannel = (...args) => settingsChannelsBotRuntime.startBotForChannel(...args);
+  const startBot = (...args) => settingsChannelsBotRuntime.startBot(...args);
+  const stopBotForChannel = (...args) => settingsChannelsBotRuntime.stopBotForChannel(...args);
+  const sendChannelTestMessage = (...args) => settingsChannelsBotRuntime.sendChannelTestMessage(...args);
 
   function buildPublicFormUrl(channel) {
     if (!channel?.public_id) return '';
@@ -19012,41 +18841,6 @@
     return true;
   };
 
-  function maskToken(token) {
-    const str = String(token || '').trim();
-    if (!str) return '—';
-    if (str.length <= 10) return str;
-    return `${str.slice(0, 6)}…${str.slice(-4)}`;
-  }
-
-  async function refreshChannelBotInfo(channelId) {
-    if (!channelId) return;
-    const channel = CHANNELS_REGISTRY.get(String(channelId));
-    if (!channel) {
-      notifyChannelStatus('Канал не найден.', 'error');
-      return;
-    }
-    if (channel.platform !== 'telegram') {
-      notifyChannelStatus('Обновление имени доступно только для Telegram.', 'warning');
-      return;
-    }
-    updateBotRefreshControl(true, true);
-    try {
-      const resp = await fetch(`/api/channels/${channelId}/bot-info`, { method: 'POST' });
-      const data = await resp.json();
-      if (!resp.ok || data.success === false) {
-        throw new Error(data.error || ('HTTP ' + resp.status));
-      }
-      await loadChannels();
-      notifyChannelStatus('Информация о боте обновлена.', 'success');
-    } catch (error) {
-      notifyChannelStatus(`Не удалось обновить информацию о боте: ${error.message}`, 'error');
-    } finally {
-      const updated = CHANNELS_REGISTRY.get(String(channelId));
-      updateBotRefreshControl(updated ? updated.platform === 'telegram' : true);
-    }
-  }
-
   function pluralize(count, forms) {
     const n = Math.abs(count) % 100;
     const n1 = n % 10;
@@ -19566,105 +19360,6 @@
       event.preventDefault();
       addChannel();
     });
-  }
-
-  async function startBotForChannel(channelId) {
-    try {
-      const response = await fetch(`/api/bots/${channelId}/start`, {
-        method: 'POST',
-        headers: { 'X-XSRF-TOKEN': getCookieValue('XSRF-TOKEN') }
-      });
-      const payload = await response.json();
-      if (!response.ok || payload.success === false) {
-        throw new Error(payload.error || payload.status || ('HTTP ' + response.status));
-      }
-      updateBotStatusLabel(payload.status, payload.startedAt);
-      updateBotControls(payload.status === 'running');
-      setChannelRowBotRuntimeStatus(channelId, payload.status, payload.startedAt);
-      return true;
-    } catch (error) {
-      console.error('Failed to start bot', error);
-      updateBotStatusLabel(error.message || 'Ошибка');
-      updateBotControls(false);
-      setChannelRowBotRuntimeStatus(channelId, 'ошибка', null);
-      showPopup('Не удалось запустить бота: ' + error.message);
-      return false;
-    }
-  }
-
-  async function startBot(channelId) {
-    const success = await startBotForChannel(channelId);
-    if (success) {
-      showPopup('Команда запуска отправлена. Проверьте статус бота в настройках канала.');
-      refreshBotStatus(channelId);
-    }
-  }
-
-  async function stopBotForChannel(channelId) {
-    try {
-      const response = await fetch(`/api/bots/${channelId}/stop`, {
-        method: 'POST',
-        headers: { 'X-XSRF-TOKEN': getCookieValue('XSRF-TOKEN') }
-      });
-      const payload = await response.json();
-      if (!response.ok || payload.success === false) {
-        throw new Error(payload.error || payload.status || ('HTTP ' + response.status));
-      }
-      updateBotStatusLabel(payload.status, payload.startedAt);
-      updateBotControls(false);
-      setChannelRowBotRuntimeStatus(channelId, payload.status, payload.startedAt);
-    } catch (error) {
-      console.error('Failed to stop bot', error);
-      updateBotStatusLabel(error.message || 'Ошибка');
-      setChannelRowBotRuntimeStatus(channelId, 'ошибка', null);
-      showPopup('Не удалось остановить бота: ' + error.message);
-    }
-  }
-
-  async function sendChannelTestMessage() {
-    if (channelEditorState.channelId === null) return;
-    const message = channelEditorTestMessageInput?.value?.trim() || '';
-    const targetMode = channelEditorTestTargetSelect?.value || 'group';
-    const recipient = channelEditorTestRecipientInput?.value?.trim() || '';
-    if (!message) {
-      setTestStatus('укажите текст сообщения');
-      return;
-    }
-    if (targetMode === 'custom' && !recipient) {
-      setTestStatus('укажите chat_id');
-      return;
-    }
-    try {
-      if (channelEditorSendTestBtn) {
-        channelEditorSendTestBtn.disabled = true;
-      }
-      setTestStatus('отправка…');
-      const response = await fetch(`/api/channels/${channelEditorState.channelId}/test-message`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-XSRF-TOKEN': getCookieValue('XSRF-TOKEN')
-        },
-        body: JSON.stringify({ message, target_mode: targetMode, recipient }),
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok || payload.success === false) {
-        throw new Error(payload.error || ('HTTP ' + response.status));
-      }
-      const sentCount = Array.isArray(payload.sent) ? payload.sent.length : 0;
-      const failedCount = Array.isArray(payload.failed) ? payload.failed.length : 0;
-      setTestStatus(`успешно: ${sentCount}, ошибок: ${failedCount}`);
-      if (failedCount > 0) {
-        showPopup('Тест отправлен частично. Проверьте chat_id и права бота.');
-      }
-    } catch (error) {
-      setTestStatus(`ошибка: ${error.message}`);
-      showPopup('Не удалось отправить тест: ' + error.message);
-    } finally {
-      if (channelEditorSendTestBtn) {
-        channelEditorSendTestBtn.disabled = false;
-      }
-    }
   }
 
   function initChannelEditorControls() {
