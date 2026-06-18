@@ -7062,6 +7062,7 @@
     <script src="/js/modal-helpers.js"></script>
     <script src="/js/settings-page-shell.js"></script>
     <script src="/js/settings-appearance-runtime.js"></script>
+    <script src="/js/settings-channels-catalog-runtime.js"></script>
     <script src="/js/settings-integration-network-runtime.js"></script>
     <script src="/js/settings-locations-iiko-runtime.js"></script>
     <script src="/js/settings-locations-tree-runtime.js"></script>
@@ -17941,12 +17942,6 @@
   const integrationNetworkProfileVpnNotesInput = integrationNetworkProfileEditorModalEl ? integrationNetworkProfileEditorModalEl.querySelector('[data-integration-network-profile-vpn-notes]') : null;
 
   const vkWebhookFormEl = document.getElementById('vkWebhookForm');
-  const vkWebhookState = {
-    channelId: null,
-    groupId: null,
-    confirmationToken: '',
-    secret: '',
-  };
 
   const channelEditorSummaries = {
     question_template_id: document.querySelector('[data-channel-editor-summary="question_template_id"]'),
@@ -18053,6 +18048,34 @@
     getChannelsRegistry: () => CHANNELS_REGISTRY,
     requestSettingsModalClose: (source) => requestSettingsModalClose(source),
   });
+  const settingsChannelsCatalog = window.SettingsChannelsCatalogRuntime?.mount({
+    getChannelsRegistry: () => CHANNELS_REGISTRY,
+    getChannelEditorState: () => channelEditorState,
+    getQuestionTemplates: () => QUESTION_TEMPLATES,
+    getQuestionTemplateMap: () => QUESTION_TEMPLATE_MAP,
+    getDefaultQuestionTemplateId: () => DEFAULT_QUESTION_TEMPLATE_ID,
+    getRatingTemplates: () => RATING_TEMPLATES,
+    getRatingTemplateMap: () => RATING_TEMPLATE_MAP,
+    getDefaultRatingTemplateId: () => DEFAULT_RATING_TEMPLATE_ID,
+    getAutoActionTemplates: () => AUTO_ACTION_TEMPLATES,
+    getAutoActionTemplateMap: () => AUTO_ACTION_TEMPLATE_MAP,
+    getDefaultAutoActionTemplateId: () => DEFAULT_AUTO_ACTION_TEMPLATE_ID,
+    buildTemplateOptions,
+    parseDeliverySettings,
+    parseQuestionsCfg,
+    sanitizeTemplateId,
+    formatBotLabel,
+    normalizeNetworkRoute: (...args) => settingsIntegrationNetwork.normalizeNetworkRoute(...args),
+    updateChannelsManageOverview: (...args) => settingsIntegrationNetwork.updateChannelsManageOverview(...args),
+    refreshAllBotRuntimeStatuses,
+    refreshChannelEditorIfOpen,
+    requestSettingsModalClose: (source) => requestSettingsModalClose(source),
+    showPopup: (message) => showPopup(message),
+    showNotification: typeof showNotification === 'function'
+      ? (message, type) => showNotification(message, type)
+      : null,
+    startBot,
+  });
   integrationNetworkProfilesData = Array.isArray(INTEGRATION_NETWORK_PROFILES_INITIAL)
     ? INTEGRATION_NETWORK_PROFILES_INITIAL.map((item) => settingsIntegrationNetwork.normalizeIntegrationNetworkProfile(item))
     : [];
@@ -18075,6 +18098,15 @@
   const probeIntegrationNetworkProfiles = (...args) => settingsIntegrationNetwork.probeIntegrationNetworkProfiles(...args);
   const toggleIntegrationNetworkProfileModeFields = (...args) => settingsIntegrationNetwork.toggleIntegrationNetworkProfileModeFields(...args);
   const saveIntegrationNetworkProfiles = (...args) => settingsIntegrationNetwork.saveIntegrationNetworkProfiles(...args);
+  const renderChannels = (...args) => settingsChannelsCatalog.renderChannels(...args);
+  const loadChannels = (...args) => settingsChannelsCatalog.loadChannels(...args);
+  const updateAddChannelValidationAlert = (...args) => settingsChannelsCatalog.updateAddChannelValidationAlert(...args);
+  const notifyChannelStatus = (...args) => settingsChannelsCatalog.notifyChannelStatus(...args);
+  const resetAddChannelForm = (...args) => settingsChannelsCatalog.resetAddChannelForm(...args);
+  const populateAddChannelTemplateSelects = (...args) => settingsChannelsCatalog.populateAddChannelTemplateSelects(...args);
+  const togglePlatformFields = (...args) => settingsChannelsCatalog.togglePlatformFields(...args);
+  const addChannel = (...args) => settingsChannelsCatalog.addChannel(...args);
+  const saveVkWebhookSettings = (...args) => settingsChannelsCatalog.saveVkWebhookSettings(...args);
 
   function updateTestRecipientState() {
     if (!channelEditorTestTargetSelect || !channelEditorTestRecipientInput) return;
@@ -18980,91 +19012,6 @@
     return true;
   };
 
-  if (channelsBody) {
-    channelsBody.addEventListener('click', (event) => {
-      const startBtn = event.target.closest('[data-channel-start]');
-      if (startBtn) {
-        event.preventDefault();
-        const channelId = startBtn.getAttribute('data-channel-start');
-        if (channelId) {
-          startBot(channelId);
-        }
-        return;
-      }
-    });
-  }
-
-  window.prepareVkWebhookSettingsTrigger = function prepareVkWebhookSettingsTrigger() {
-    const id = channelEditorState.channelId;
-    const channel = CHANNELS_REGISTRY.get(String(id));
-    if (!channel || channel.platform !== 'vk') {
-      showPopup('Настройки вебхука доступны только для VK.');
-      return false;
-    }
-    const platformConfig = parsePlatformConfig(channel.platform_config);
-    const groupId = platformConfig.group_id ?? platformConfig.groupId ?? null;
-    const confirmationToken = platformConfig.confirmation_token ?? platformConfig.confirmationToken ?? '';
-    const secret = platformConfig.secret ?? platformConfig.callback_secret ?? '';
-    vkWebhookState.channelId = id;
-    vkWebhookState.groupId = groupId;
-    vkWebhookState.confirmationToken = confirmationToken;
-    vkWebhookState.secret = secret;
-
-    const groupInput = document.getElementById('vkGroupIdInput');
-    const confirmationInput = document.getElementById('vkConfirmationInput');
-    const secretInput = document.getElementById('vkSecretInput');
-    if (groupInput) groupInput.value = groupId || '';
-    if (confirmationInput) confirmationInput.value = confirmationToken || '';
-    if (secretInput) secretInput.value = secret || '';
-    return true;
-  };
-
-  async function saveVkWebhookSettings() {
-    if (vkWebhookState.channelId === null) return;
-    const groupInput = document.getElementById('vkGroupIdInput');
-    const confirmationInput = document.getElementById('vkConfirmationInput');
-    const secretInput = document.getElementById('vkSecretInput');
-    const groupIdVal = groupInput?.value?.trim();
-    const confirmationVal = confirmationInput?.value?.trim();
-    const secretVal = secretInput?.value?.trim();
-
-    let groupId = parseInt(groupIdVal, 10);
-    if (!Number.isFinite(groupId) || groupId <= 0) {
-      showPopup('group_id должен быть положительным числом.');
-      return;
-    }
-    if (!confirmationVal) {
-      showPopup('Укажите код подтверждения Callback API.');
-      return;
-    }
-
-    const payload = {
-      platform_config: {
-        group_id: groupId,
-        confirmation_token: confirmationVal,
-      },
-    };
-    payload.platform_config.secret = secretVal || null;
-
-    try {
-      const resp = await fetch(`/api/channels/${vkWebhookState.channelId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      const data = await resp.json();
-      if (!resp.ok || data.success === false) {
-        throw new Error(data.error || ('HTTP ' + resp.status));
-      }
-
-      requestSettingsModalClose(vkWebhookFormEl);
-      await loadChannels();
-      showPopup('Настройки вебхука сохранены.');
-    } catch (error) {
-      showPopup('Не удалось сохранить настройки вебхука: ' + error.message);
-    }
-  }
-
   function maskToken(token) {
     const str = String(token || '').trim();
     if (!str) return '—';
@@ -19378,351 +19325,6 @@
     return {};
   }
 
-  function renderChannels(rows) {
-    if (!channelsBody) return;
-    channelsBody.innerHTML = '';
-    CHANNELS_REGISTRY.clear();
-    if (!rows.length) {
-      channelsBody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-4">Каналы ещё не добавлены</td></tr>';
-      updateChannelsManageOverview();
-      return;
-    }
-    rows.forEach((row) => {
-      const platform = String(row.platform || 'telegram').toLowerCase();
-      const platformLabel = platform === 'vk' ? 'VK' : (platform === 'max' ? 'MAX' : 'Telegram');
-      const platformConfig = parsePlatformConfig(row.platform_config ?? row.platformConfig);
-      const deliverySettings = parseDeliverySettings(row.delivery_settings ?? row.deliverySettings);
-      const vkGroupId = platform === 'vk' ? (platformConfig.group_id ?? platformConfig.groupId ?? null) : null;
-      const questionTemplateId = sanitizeTemplateId(
-        row.question_template_id ?? row.questionTemplateId,
-        QUESTION_TEMPLATE_MAP,
-        DEFAULT_QUESTION_TEMPLATE_ID
-      );
-      const ratingTemplateId = sanitizeTemplateId(
-        row.rating_template_id ?? row.ratingTemplateId,
-        RATING_TEMPLATE_MAP,
-        DEFAULT_RATING_TEMPLATE_ID
-      );
-      const autoTemplateId = sanitizeTemplateId(
-        row.auto_action_template_id ?? row.autoActionTemplateId,
-        AUTO_ACTION_TEMPLATE_MAP,
-        DEFAULT_AUTO_ACTION_TEMPLATE_ID
-      );
-
-      const prepared = {
-        id: row.id,
-        channel_name: row.channel_name || row.channelName || row.name || '',
-        platform,
-        platformLabel,
-        platform_config: platformConfig,
-        is_active: Boolean(row.is_active ?? row.active ?? row.isActive),
-        question_template_id: questionTemplateId,
-        rating_template_id: ratingTemplateId,
-        auto_action_template_id: autoTemplateId,
-        bot_name: row.bot_name || row.botName || '',
-        bot_username: row.bot_username || row.botUsername || '',
-        token: row.token || '',
-        public_id: row.public_id || row.publicId || '',
-        vk_group_id: vkGroupId,
-        support_chat_id: row.support_chat_id ?? row.supportChatId ?? null,
-        credential: row.credential && typeof row.credential === 'object' ? row.credential : null,
-        delivery_settings: deliverySettings,
-        network_route: normalizeNetworkRoute(row.network_route ?? deliverySettings.network_route, true),
-        questions_cfg: parseQuestionsCfg(row.questions_cfg ?? row.questionsCfg),
-      };
-
-      CHANNELS_REGISTRY.set(String(row.id), prepared);
-
-      const statusBadge = prepared.is_active
-        ? '<span class="badge bg-success-subtle text-success">Активен</span>'
-        : '<span class="badge bg-secondary-subtle text-secondary">Выключен</span>';
-
-      const tr = document.createElement('tr');
-      tr.dataset.id = row.id;
-      const supportChatRaw = prepared.support_chat_id;
-      const hasSupportChat = supportChatRaw !== null && supportChatRaw !== undefined && String(supportChatRaw).trim() !== '';
-      const supportChatInfo = hasSupportChat
-        ? `<div class="small text-muted mt-1">ID группы: ${escapeHtml(String(supportChatRaw))}</div>`
-        : '<div class="small text-muted mt-1">ID группы пока не привязан</div>';
-      const routeLabel = prepared.network_route?.mode === 'proxy'
-        ? 'Маршрут: proxy'
-        : prepared.network_route?.mode === 'vpn'
-          ? 'Маршрут: VPN'
-          : prepared.network_route?.mode === 'profile'
-            ? `Маршрут: профиль ${prepared.network_route?.profile_id || 'не выбран'}`
-          : prepared.network_route?.mode === 'direct'
-            ? 'Маршрут: direct'
-            : 'Маршрут: общий';
-      const botLabel = formatBotLabel(prepared);
-
-      tr.innerHTML = `
-        <td>
-          <div class="fw-medium">${escapeHtml(prepared.channel_name || '—')}</div>
-          <div class="text-muted small">Бот: ${escapeHtml(botLabel)}</div>
-        </td>
-        <td>
-          <div><span class="badge bg-secondary-subtle text-uppercase">${escapeHtml(platformLabel)}</span></div>
-          ${prepared.vk_group_id ? `<div class="small text-muted mt-1">group_id: ${escapeHtml(String(prepared.vk_group_id))}</div>` : ''}
-          ${supportChatInfo}
-          <div class="small text-muted mt-1">${escapeHtml(routeLabel)}</div>
-        </td>
-        <td class="text-center">
-          <div>${statusBadge}</div>
-          <div class="mt-1">
-            <span class="badge bg-light text-secondary border border-secondary-subtle" data-channel-bot-runtime-status="${prepared.id}">Процесс: проверка…</span>
-          </div>
-          <div class="d-flex justify-content-center gap-2 mt-2">
-            <button type="button" class="btn btn-sm btn-outline-success" data-channel-start="${prepared.id}">Запустить</button>
-            <button type="button" class="btn btn-sm btn-outline-primary" data-channel-edit="${prepared.id}">Редактировать</button>
-          </div>
-        </td>
-      `;
-      channelsBody.appendChild(tr);
-    });
-    updateChannelsManageOverview();
-  }
-
-  async function loadChannels() {
-    if (!channelsBody) return;
-    try {
-      const resp = await fetch('/api/channels');
-      if (!resp.ok) throw new Error('HTTP ' + resp.status);
-      const data = await resp.json();
-      const rows = Array.isArray(data)
-        ? data
-        : Array.isArray(data.channels)
-          ? data.channels
-          : [];
-      renderChannels(rows);
-      await refreshAllBotRuntimeStatuses(true);
-      refreshChannelEditorIfOpen();
-    } catch (error) {
-      showPopup('Не удалось загрузить каналы: ' + error.message);
-    }
-  }
-
-  function updateAddChannelValidationAlert(message = '', type = 'warning') {
-    const alertEl = document.getElementById('addChannelValidationAlert');
-    if (!alertEl) return;
-    const normalized = type === 'error'
-      ? 'alert-danger'
-      : type === 'success'
-        ? 'alert-success'
-        : type === 'info'
-          ? 'alert-info'
-          : 'alert-warning';
-    alertEl.classList.remove('d-none', 'alert-danger', 'alert-success', 'alert-info', 'alert-warning');
-    if (!message) {
-      alertEl.textContent = '';
-      alertEl.classList.add('d-none', normalized);
-      return;
-    }
-    alertEl.classList.add(normalized);
-    alertEl.textContent = message;
-  }
-
-  function notifyChannelStatus(message, type = 'info') {
-    updateAddChannelValidationAlert(message, type === 'error' ? 'error' : type);
-    if (typeof showNotification === 'function') {
-      showNotification(message, type);
-      return;
-    }
-    const prefix = type === 'error' ? 'Ошибка: ' : '';
-    showPopup(prefix + message);
-  }
-
-  function resetAddChannelForm() {
-    const tokenInput = document.getElementById('new_token');
-    const tokenLabel = document.getElementById('new_token_label');
-    const tokenHelp = document.getElementById('new_token_help');
-    const nameInput = document.getElementById('new_channel_name');
-    const supportChatInput = document.getElementById('new_support_chat_id');
-    const platformSelect = document.getElementById('new_platform');
-    const questionSelect = document.getElementById('new_question_template');
-    const ratingSelect = document.getElementById('new_rating_template');
-    const autoSelect = document.getElementById('new_auto_action_template');
-    const vkGroupInput = document.getElementById('new_vk_group_id');
-    const vkConfirmInput = document.getElementById('new_vk_confirmation');
-    const vkSecretInput = document.getElementById('new_vk_secret');
-    const telegramBaseUrlInput = document.getElementById('new_telegram_base_url');
-    const maxSecretInput = document.getElementById('new_max_secret');
-
-    if (tokenInput) tokenInput.value = '';
-    if (tokenInput) tokenInput.placeholder = 'Токен из BotFather';
-    if (tokenLabel) tokenLabel.textContent = 'Токен бота';
-    if (tokenHelp) tokenHelp.textContent = 'Проверяется автоматически для Telegram.';
-    if (nameInput) nameInput.value = '';
-    if (supportChatInput) supportChatInput.value = '';
-    if (vkGroupInput) vkGroupInput.value = '';
-    if (vkConfirmInput) vkConfirmInput.value = '';
-    if (vkSecretInput) vkSecretInput.value = '';
-    if (telegramBaseUrlInput) telegramBaseUrlInput.value = '';
-    if (maxSecretInput) maxSecretInput.value = '';
-    if (platformSelect) platformSelect.value = 'telegram';
-    if (questionSelect && !questionSelect.disabled) {
-      questionSelect.value = DEFAULT_QUESTION_TEMPLATE_ID;
-    }
-    if (ratingSelect && !ratingSelect.disabled) {
-      ratingSelect.value = DEFAULT_RATING_TEMPLATE_ID;
-    }
-    if (autoSelect && !autoSelect.disabled) {
-      autoSelect.value = DEFAULT_AUTO_ACTION_TEMPLATE_ID;
-    }
-    togglePlatformFields();
-  }
-
-  window.prepareAddChannelSettingsModal = function prepareAddChannelSettingsModal() {
-    resetAddChannelForm();
-    updateAddChannelValidationAlert('');
-    populateAddChannelTemplateSelects();
-    togglePlatformFields();
-  };
-
-  async function addChannel() {
-    const tokenInput = document.getElementById('new_token');
-    const nameInput = document.getElementById('new_channel_name');
-    const supportChatInput = document.getElementById('new_support_chat_id');
-    const platformSelect = document.getElementById('new_platform');
-    const questionSelect = document.getElementById('new_question_template');
-    const ratingSelect = document.getElementById('new_rating_template');
-    const autoSelect = document.getElementById('new_auto_action_template');
-    const vkGroupInput = document.getElementById('new_vk_group_id');
-    const vkConfirmInput = document.getElementById('new_vk_confirmation');
-    const vkSecretInput = document.getElementById('new_vk_secret');
-    const telegramBaseUrlInput = document.getElementById('new_telegram_base_url');
-    const maxSecretInput = document.getElementById('new_max_secret');
-
-    const platform = platformSelect?.value || 'telegram';
-    const token = tokenInput?.value?.trim() || '';
-    const channelName = nameInput?.value?.trim() || '';
-
-    updateAddChannelValidationAlert('');
-
-    if (platform === 'telegram') {
-      if (!token && !channelName) {
-        notifyChannelStatus('Для Telegram заполните токен бота и название канала в панели.', 'warning');
-        tokenInput?.focus();
-        return;
-      }
-      if (!token) {
-        notifyChannelStatus('Для Telegram необходим токен бота из @BotFather.', 'warning');
-        tokenInput?.focus();
-        return;
-      }
-      if (!channelName) {
-        notifyChannelStatus('Кроме токена, для Telegram нужно указать название канала в панели.', 'warning');
-        nameInput?.focus();
-        return;
-      }
-    } else if (platform === 'vk') {
-      if (!token && !channelName) {
-        notifyChannelStatus('Для VK заполните токен сообщества и название канала в панели.', 'warning');
-        tokenInput?.focus();
-        return;
-      }
-      if (!token) {
-        notifyChannelStatus('Для VK необходим токен сообщества (Работа с API → Ключи доступа).', 'warning');
-        tokenInput?.focus();
-        return;
-      }
-      if (!channelName) {
-        notifyChannelStatus('Для VK укажите название канала в панели.', 'warning');
-        nameInput?.focus();
-        return;
-      }
-    } else if (platform === 'max') {
-      if (!token && !channelName) {
-        notifyChannelStatus('Для MAX заполните токен бота и название канала в панели.', 'warning');
-        tokenInput?.focus();
-        return;
-      }
-      if (!token) {
-        notifyChannelStatus('Для MAX необходим токен бота.', 'warning');
-        tokenInput?.focus();
-        return;
-      }
-      if (!channelName) {
-        notifyChannelStatus('Для MAX укажите название канала в панели.', 'warning');
-        nameInput?.focus();
-        return;
-      }
-    } else {
-      if (!token) {
-        notifyChannelStatus('Укажите токен бота.', 'warning');
-        tokenInput?.focus();
-        return;
-      }
-      if (!channelName) {
-        notifyChannelStatus('Укажите название канала.', 'warning');
-        nameInput?.focus();
-        return;
-      }
-    }
-
-    const payload = {
-      token,
-      channel_name: channelName,
-      platform,
-      is_active: true,
-    };
-
-    const questionTemplateId = questionSelect?.value || '';
-    const ratingTemplateId = ratingSelect?.value || '';
-    const autoTemplateId = autoSelect?.value || '';
-    if (questionTemplateId) payload.question_template_id = questionTemplateId;
-    if (ratingTemplateId) payload.rating_template_id = ratingTemplateId;
-    if (autoTemplateId) payload.auto_action_template_id = autoTemplateId;
-    const supportChatId = supportChatInput?.value?.trim() || '';
-    if (supportChatId) payload.support_chat_id = supportChatId;
-
-    if (platform === 'telegram') {
-      const telegramBaseUrl = telegramBaseUrlInput?.value?.trim() || '';
-      if (telegramBaseUrl) {
-        payload.platform_config = { base_url: telegramBaseUrl };
-      }
-    } else if (platform === 'vk') {
-      const groupId = Number.parseInt(vkGroupInput?.value || '0', 10);
-      const confirmation = vkConfirmInput?.value?.trim() || '';
-      if (!Number.isFinite(groupId) || groupId <= 0) {
-        notifyChannelStatus('Укажите корректный ID сообщества VK.', 'warning');
-        return;
-      }
-      if (!confirmation) {
-        notifyChannelStatus('Укажите код подтверждения Callback API.', 'warning');
-        return;
-      }
-      payload.platform_config = { group_id: groupId, confirmation_token: confirmation };
-      const secret = vkSecretInput?.value?.trim();
-      if (secret) {
-        payload.platform_config.secret = secret;
-      }
-    } else if (platform === 'max') {
-      const secret = maxSecretInput?.value?.trim();
-      if (secret) {
-        payload.platform_config = { secret };
-      }
-    }
-
-    try {
-      const resp = await fetch('/api/channels', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      const data = await resp.json();
-      if (!resp.ok || data.success === false) {
-        throw new Error(data.error || ('HTTP ' + resp.status));
-      }
-      resetAddChannelForm();
-      updateAddChannelValidationAlert('');
-      requestSettingsModalClose(addChannelFormEl);
-      notifyChannelStatus(`Канал «${channelName}» успешно добавлен.`, 'success');
-      loadChannels();
-    } catch (error) {
-      notifyChannelStatus('Ошибка добавления канала: ' + error.message, 'error');
-    }
-  }
-
   async function saveChannel(id) {
     const channelName = channelEditorNameInput?.value?.trim() || '';
     if (!channelName) {
@@ -19923,63 +19525,6 @@
     channelEditorState.tokenVisible = false;
   };
 
-  function populateAddChannelTemplateSelects() {
-    const questionSelect = document.getElementById('new_question_template');
-    if (questionSelect) {
-      questionSelect.innerHTML = buildTemplateOptions(QUESTION_TEMPLATES, DEFAULT_QUESTION_TEMPLATE_ID);
-      questionSelect.disabled = !QUESTION_TEMPLATES.length;
-    }
-    const ratingSelect = document.getElementById('new_rating_template');
-    if (ratingSelect) {
-      ratingSelect.innerHTML = buildTemplateOptions(RATING_TEMPLATES, DEFAULT_RATING_TEMPLATE_ID);
-      ratingSelect.disabled = !RATING_TEMPLATES.length;
-    }
-    const autoSelect = document.getElementById('new_auto_action_template');
-    if (autoSelect) {
-      autoSelect.innerHTML = buildTemplateOptions(AUTO_ACTION_TEMPLATES, DEFAULT_AUTO_ACTION_TEMPLATE_ID);
-      autoSelect.disabled = !AUTO_ACTION_TEMPLATES.length;
-    }
-  }
-
-  function togglePlatformFields() {
-    const platformSelect = document.getElementById('new_platform');
-    const tokenContainer = document.getElementById('token_field_container');
-    const tokenInput = document.getElementById('new_token');
-    const tokenLabel = document.getElementById('new_token_label');
-    const tokenHelp = document.getElementById('new_token_help');
-    const telegramContainer = document.getElementById('telegram_base_url_container');
-    const vkContainer = document.getElementById('vk_group_id_container');
-    const maxContainer = document.getElementById('max_webhook_container');
-    const platform = platformSelect?.value || 'telegram';
-    if (tokenContainer) {
-      tokenContainer.classList.remove('d-none');
-    }
-    if (telegramContainer) {
-      telegramContainer.style.display = platform === 'telegram' ? '' : 'none';
-    }
-    if (vkContainer) {
-      vkContainer.style.display = platform === 'vk' ? '' : 'none';
-    }
-    if (maxContainer) {
-      maxContainer.style.display = platform === 'max' ? '' : 'none';
-    }
-    if (platform === 'vk') {
-      if (tokenLabel) tokenLabel.textContent = 'Токен сообщества VK';
-      if (tokenInput) tokenInput.placeholder = 'Ключ доступа сообщества VK';
-      if (tokenHelp) tokenHelp.textContent = 'Возьмите в VK: Работа с API → Ключи доступа. Нужны права сообщений.';
-      return;
-    }
-    if (platform === 'max') {
-      if (tokenLabel) tokenLabel.textContent = 'Токен MAX-бота';
-      if (tokenInput) tokenInput.placeholder = 'Bot token MAX';
-      if (tokenHelp) tokenHelp.textContent = 'Возьмите в кабинете интеграций MAX. Используется как основной auth-токен.';
-      return;
-    }
-    if (tokenLabel) tokenLabel.textContent = 'Токен бота';
-    if (tokenInput) tokenInput.placeholder = 'Токен из BotFather';
-    if (tokenHelp) tokenHelp.textContent = 'Проверяется автоматически для Telegram.';
-  }
-
   function initChannelsManagement() {
     if (channelsInitialized) return;
     channelsInitialized = true;
@@ -19992,6 +19537,7 @@
 
     const platformSelect = document.getElementById('new_platform');
     platformSelect?.addEventListener('change', togglePlatformFields);
+    channelsBody?.addEventListener('click', (event) => settingsChannelsCatalog.handleChannelsBodyClick(event));
     projectNetworkModeInput?.addEventListener('change', () => toggleNetworkRouteFields('project'));
     botsNetworkModeInput?.addEventListener('change', () => toggleNetworkRouteFields('bots'));
     channelEditorNetworkModeInput?.addEventListener('change', () => toggleNetworkRouteFields('channel'));
