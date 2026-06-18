@@ -1849,3 +1849,16 @@ integration-сценария поверх users/settings runtime boundary всё
   handoff вместо service-only orchestration. Заодно стало явным текущее
   reopen поведение list consumer: dialog возвращается в `my_dialogs.in_work`,
   но `statusKey` после reopen сейчас проецируется как `waiting_client`.
+- следующим соседним micro-slice рядом с тем же owner-handoff runtime
+  отдельно зафиксирована и read-side semantics для `auto_processing`:
+  `DialogListIntegrationTest` и `DialogDetailsIntegrationTest` теперь
+  явно подтверждают, что seeded dialog может стартовать как
+  `statusKey=auto_processing`, но live `POST /reassign` сразу снимает
+  `aiProcessing` overlay на reread и переводит projection в
+  `waiting_client`.
+- это закрывает скрытую двусмысленность между
+  `ticket_ai_agent_state.is_processing` и ownership handoff:
+  сразу после `reassign` старый owner теряет ticket из `my_dialogs`,
+  новый owner получает его в `my_dialogs.in_work` уже без
+  `auto_processing`, а только следующий клиентский follow-up возвращает
+  dialog в `waiting_operator` / `my_dialogs.unanswered`.

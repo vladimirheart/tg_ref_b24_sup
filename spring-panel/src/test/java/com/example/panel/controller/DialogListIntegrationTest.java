@@ -233,6 +233,8 @@ class DialogListIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-LIST-HANDOFF"))
                 .andExpect(jsonPath("$.dialogs[0].rawResponsible").value("watcher_new"))
+                .andExpect(jsonPath("$.dialogs[0].aiProcessing").value(false))
+                .andExpect(jsonPath("$.dialogs[0].statusKey").value("waiting_client"))
                 .andExpect(jsonPath("$.my_dialogs.unanswered").isEmpty())
                 .andExpect(jsonPath("$.my_dialogs.in_work").isEmpty());
 
@@ -241,6 +243,8 @@ class DialogListIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-LIST-HANDOFF"))
                 .andExpect(jsonPath("$.dialogs[0].rawResponsible").value("watcher_new"))
+                .andExpect(jsonPath("$.dialogs[0].aiProcessing").value(false))
+                .andExpect(jsonPath("$.dialogs[0].statusKey").value("waiting_client"))
                 .andExpect(jsonPath("$.my_dialogs.unanswered").isEmpty())
                 .andExpect(jsonPath("$.my_dialogs.in_work[0].ticketId").value("T-LIST-HANDOFF"));
 

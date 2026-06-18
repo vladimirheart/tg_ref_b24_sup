@@ -1742,6 +1742,10 @@
   `POST /api/notifications/read-all` теперь live-прикрыт как отдельный
   consumer, который чистит только bell unread summary и не должен скрывать
   unread dialog из list/my_dialogs до реального reread dialog consumer'а;
+- рядом с этим же corridor уже уточнён и handoff boundary:
+  dialog с активным `auto_processing` после live `POST /reassign` не должен
+  оставаться в AI overlay-состоянии, а reread'ом переходит в
+  `waiting_client` / `my_dialogs.in_work` для нового owner;
 - значит следующий точечный диалоговый пакет должен чистить уже не сам
   bucket split, а оставшуюся refresh-bus/bell coordination между
   list/details/workspace/notifications перед большим client-side split.
