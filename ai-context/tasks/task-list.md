@@ -149,7 +149,7 @@
 🟣 [01-127] Добавить на dashboard drag&drop и pin для аналитических панелей
 🟣 [01-128] Вынести page-shell и inline bootstrap страницы настроек в отдельный settings-page-shell runtime
 🟡 [01-129] Разрезать giant settings runtime на bounded client-side модули
-🟠 [01-130] Разделить giant dialogs.js на bounded client-side runtime modules
+🟡 [01-130] Разделить giant dialogs.js на bounded client-side runtime modules
 🟠 [01-131] Разрезать ChannelApiController по transport responsibility
 🟠 [01-132] Разрезать AnalyticsController по bounded governance и analytics use-cases
 🟣 [01-133] Автосоздавать задачу при auto-close диалога с тем же ответственным, соисполнителями-участниками и ссылкой на диалог

@@ -3013,113 +3013,19 @@
   }
 
   function syncDialogsTable(dialogs) {
-    const tbody = table.tBodies[0];
-    if (!tbody) return;
-    const nextDialogs = Array.isArray(dialogs) ? dialogs : [];
-    const existingByTicketId = new Map(
-      rowsList().map((row) => [String(row.dataset.ticketId || ''), row])
-    );
-    const orderedRows = [];
-    nextDialogs.forEach((item) => {
-      const ticketId = String(item?.ticketId || '');
-      if (!ticketId) return;
-      const nextMarker = buildDialogItemMarker(item);
-      const existingRow = existingByTicketId.get(ticketId);
-      if (existingRow) {
-        existingByTicketId.delete(ticketId);
-        if (String(existingRow.dataset.dialogMarker || '') === nextMarker) {
-          orderedRows.push(existingRow);
-          return;
-        }
-        existingRow.remove();
-      }
-      const nextRow = createDialogRowElement(item);
-      if (nextRow) orderedRows.push(nextRow);
-    });
-
-    existingByTicketId.forEach((row) => {
-      row.remove();
-    });
-
-    orderedRows.forEach((row) => {
-      tbody.appendChild(row);
-    });
-
-    if (!orderedRows.length) {
-      rowsList().forEach((row) => row.remove());
-    }
-
-    applyColumnState();
-    applyBusinessCellStyles();
-    restoreColumnWidths();
-    updateAllSlaBadges();
-    const availableTicketIds = new Set(rowsList().map((row) => String(row.dataset.ticketId || '')));
-    Array.from(selectedTicketIds).forEach((ticketId) => {
-      if (!availableTicketIds.has(ticketId)) {
-        selectedTicketIds.delete(ticketId);
-      }
-    });
-    applyFilters();
-    rowsList().forEach((row) => updateRowQuickActions(row));
-
-    if (activeDialogTicketId) {
-      const selector = `.dialog-open-btn[data-ticket-id="${escapeSelectorValue(activeDialogTicketId)}"]`;
-      const openBtn = table.querySelector(selector);
-      setActiveDialogRow(openBtn ? openBtn.closest('tr') : null);
-    }
+    return dialogsListRuntime?.syncDialogsTable(dialogs);
   }
 
   async function refreshDialogsList() {
-    if (listLoading) return;
-    if (document.visibilityState === 'hidden') return;
-    listLoading = true;
-    try {
-      const resp = await fetch('/api/dialogs', {
-        credentials: 'same-origin',
-        cache: 'no-store',
-      });
-      const data = await resp.json();
-      if (!resp.ok || !data?.success) {
-        throw new Error(data?.error || `Ошибка ${resp.status}`);
-      }
-      const dialogs = data.dialogs || [];
-      syncSlaOrchestrationSignals(data.sla_orchestration || null);
-      applySlaOrchestrationToRows();
-      const marker = buildDialogsMarker(dialogs);
-      const isInitialSync = lastListMarker === null;
-      const hasListChanges = !isInitialSync && marker !== lastListMarker;
-      if (isInitialSync || marker !== lastListMarker) {
-        lastListMarker = marker;
-      }
-      syncDialogsTable(dialogs);
-      if (data.my_dialogs && typeof data.my_dialogs === 'object') {
-        normalizeMyDialogsState(data.my_dialogs);
-      } else {
-        syncMyDialogsStateFromTable();
-      }
-      renderMyDialogsPanel();
-      applySlaOrchestrationToRows();
-      refreshSummaryCounters(data.summary || {});
-      if (hasListChanges) {
-        requestSidebarNotificationRefresh('dialogs-list-change');
-      }
-    } catch (error) {
-      // ignore polling errors
-    } finally {
-      listLoading = false;
-    }
+    return dialogsListRuntime?.refreshDialogsList();
   }
 
   function startDialogsPolling() {
-    if (listPollTimer) return;
-    listPollTimer = setInterval(refreshDialogsList, LIST_POLL_INTERVAL);
+    return dialogsListRuntime?.startDialogsPolling();
   }
 
   function stopDialogsPolling() {
-    if (listPollTimer) {
-      clearInterval(listPollTimer);
-      listPollTimer = null;
-    }
+    return dialogsListRuntime?.stopDialogsPolling();
   }
 
   const emptyRow = document.createElement('tr');
@@ -3145,495 +3051,216 @@
   let lastFilteredRows = [];
   const slaOrchestrationByTicket = new Map();
 
+  const dialogsListRuntime = window.DialogsListRuntime?.createRuntime({
+    table,
+    emptyRow,
+    filterState,
+    selectedTicketIds,
+    slaOrchestrationByTicket,
+    listPollInterval: LIST_POLL_INTERVAL,
+    defaultPageSize: DEFAULT_PAGE_SIZE,
+    quickSnoozeMinutes: QUICK_SNOOZE_MINUTES,
+    overdueThresholdHours: OVERDUE_THRESHOLD_HOURS,
+    slaCriticalMinutes: SLA_CRITICAL_MINUTES,
+    slaWarningMinutes: SLA_WARNING_MINUTES,
+    slaTargetMinutes: SLA_TARGET_MINUTES,
+    slaCriticalPinUnassignedOnly: SLA_CRITICAL_PIN_UNASSIGNED_ONLY,
+    slaCriticalViewUnassignedOnly: SLA_CRITICAL_VIEW_UNASSIGNED_ONLY,
+    autoSlaPriorityForCriticalView: AUTO_SLA_PRIORITY_FOR_CRITICAL_VIEW,
+    elements: {
+      bulkToolbar,
+      bulkCount,
+      bulkTakeBtn,
+      bulkSnoozeBtn,
+      bulkCloseBtn,
+      bulkClearBtn,
+      selectAllCheckbox,
+      statusFilter,
+      viewTabs,
+      sortModeSelect,
+      pagePrevBtn,
+      pageNextBtn,
+      pageNumbers,
+      pageState,
+    },
+    getLastFilteredRows: () => lastFilteredRows,
+    setLastFilteredRows: (rows) => {
+      lastFilteredRows = Array.isArray(rows) ? rows : [];
+    },
+    getActiveDialogState: () => ({
+      row: activeDialogRow,
+      ticketId: activeDialogTicketId,
+    }),
+    setActiveDialogState: (row) => {
+      activeDialogRow = row && row.tagName === 'TR' ? row : null;
+    },
+    getListPollTimer: () => listPollTimer,
+    setListPollTimer: (timerId) => {
+      listPollTimer = timerId || null;
+    },
+    getListLoading: () => listLoading,
+    setListLoading: (nextValue) => {
+      listLoading = nextValue === true;
+    },
+    getLastListMarker: () => lastListMarker,
+    setLastListMarker: (marker) => {
+      lastListMarker = marker;
+    },
+    getLastManualSortMode: () => lastManualSortMode,
+    setLastManualSortMode: (value) => {
+      lastManualSortMode = value || 'default';
+    },
+    rowsList,
+    buildDialogItemMarker,
+    createDialogRowElement,
+    applyColumnState,
+    applyBusinessCellStyles,
+    restoreColumnWidths,
+    updateAllSlaBadges,
+    escapeSelectorValue,
+    buildDialogsMarker,
+    normalizeMyDialogsState,
+    syncMyDialogsStateFromTable,
+    renderMyDialogsPanel,
+    refreshSummaryCounters,
+    requestSidebarNotificationRefresh,
+    parseUtcDateValue,
+    getSnoozeUntil,
+    canRunAction,
+    notifyPermissionDenied,
+    emitWorkspaceTelemetry,
+    showNotification,
+    formatSnoozeActionLabel,
+    formatBulkSnoozeLabel,
+    takeDialog,
+    snoozeDialog,
+    setSnooze,
+    updateRowQuickActions,
+    closeDialogQuick,
+    clearSnooze,
+    collectRowSearchText,
+    persistDialogPreferences,
+    openDialogEntry,
+  }) || null;
+
   function syncSlaOrchestrationSignals(slaOrchestration) {
-    slaOrchestrationByTicket.clear();
-    const tickets = slaOrchestration && typeof slaOrchestration === 'object'
-      ? slaOrchestration.tickets
-      : null;
-    if (!tickets || typeof tickets !== 'object') {
-      return;
-    }
-    Object.entries(tickets).forEach(([ticketId, signal]) => {
-      if (!ticketId || !signal || typeof signal !== 'object') return;
-      slaOrchestrationByTicket.set(String(ticketId), signal);
-    });
+    return dialogsListRuntime?.syncSlaOrchestrationSignals(slaOrchestration);
   }
 
   function applySlaOrchestrationToRows() {
-    rowsList().forEach((row) => {
-      const ticketId = String(row?.dataset?.ticketId || '');
-      const signal = slaOrchestrationByTicket.get(ticketId);
-      if (!signal) {
-        row.dataset.slaServerState = '';
-        row.dataset.slaServerPinned = '';
-        row.dataset.slaMinutesLeft = '';
-        row.dataset.slaEscalationRequired = '';
-        return;
-      }
-      const minutesLeft = Number(signal.minutes_left);
-      row.dataset.slaServerState = String(signal.state || '');
-      row.dataset.slaServerPinned = signal.auto_pin ? 'true' : 'false';
-      row.dataset.slaMinutesLeft = Number.isFinite(minutesLeft) ? String(minutesLeft) : '';
-      row.dataset.slaEscalationRequired = signal.escalation_required ? 'true' : 'false';
-    });
+    return dialogsListRuntime?.applySlaOrchestrationToRows();
   }
 
   function resolveSlaPriority(row) {
-    if (!row || isResolved(row)) {
-      return { bucket: 3, minutesLeft: Number.POSITIVE_INFINITY, state: 'closed' };
-    }
-    const minutesLeft = resolveSlaMinutesLeft(row);
-    if (!Number.isFinite(minutesLeft)) {
-      return { bucket: 3, minutesLeft: Number.POSITIVE_INFINITY, state: 'unknown' };
-    }
-    if (minutesLeft <= 0) {
-      return { bucket: 0, minutesLeft, state: 'breached' };
-    }
-    if (minutesLeft <= SLA_WARNING_MINUTES) {
-      return { bucket: 1, minutesLeft, state: 'at_risk' };
-    }
-    return { bucket: 2, minutesLeft, state: 'normal' };
+    return dialogsListRuntime?.resolveSlaPriority(row) || { bucket: 3, minutesLeft: Number.POSITIVE_INFINITY, state: 'closed' };
   }
 
   function applySlaPriorityClass(row) {
-    if (!row) return;
-    row.classList.remove(
-      'dialog-priority-breached',
-      'dialog-priority-at-risk',
-      'dialog-priority-normal',
-      'dialog-priority-pinned',
-      'dialog-priority-escalation-required',
-    );
-    const priority = resolveSlaPriority(row);
-    const isPinned = isCriticalSlaDialog(row);
-    const escalationRequired = isEscalationRequiredDialog(row);
-    row.dataset.slaPinned = isPinned ? 'true' : 'false';
-    row.classList.toggle('dialog-priority-pinned', isPinned);
-    row.classList.toggle('dialog-priority-escalation-required', escalationRequired);
-    if (priority.state === 'breached') {
-      row.classList.add('dialog-priority-breached');
-    } else if (priority.state === 'at_risk') {
-      row.classList.add('dialog-priority-at-risk');
-    } else if (priority.state === 'normal') {
-      row.classList.add('dialog-priority-normal');
-    }
+    return dialogsListRuntime?.applySlaPriorityClass(row);
   }
 
   function compareRowsBySlaPriority(left, right) {
-    const leftPinned = left?.dataset?.slaPinned === 'true';
-    const rightPinned = right?.dataset?.slaPinned === 'true';
-    if (leftPinned !== rightPinned) {
-      return leftPinned ? -1 : 1;
-    }
-    const leftPriority = resolveSlaPriority(left);
-    const rightPriority = resolveSlaPriority(right);
-    if (leftPriority.bucket !== rightPriority.bucket) {
-      return leftPriority.bucket - rightPriority.bucket;
-    }
-    if (leftPriority.minutesLeft !== rightPriority.minutesLeft) {
-      return leftPriority.minutesLeft - rightPriority.minutesLeft;
-    }
-    const leftCreated = parseUtcDateValue(String(left?.dataset?.createdAt || ''))?.getTime() ?? 0;
-    const rightCreated = parseUtcDateValue(String(right?.dataset?.createdAt || ''))?.getTime() ?? 0;
-    if (Number.isFinite(leftCreated) && Number.isFinite(rightCreated) && leftCreated !== rightCreated) {
-      return leftCreated - rightCreated;
-    }
-    return String(left?.dataset?.ticketId || '').localeCompare(String(right?.dataset?.ticketId || ''), 'ru');
+    return dialogsListRuntime?.compareRowsBySlaPriority(left, right) || 0;
   }
 
   function isNewDialog(row) {
-    const key = String(row.dataset.statusKey || '').toLowerCase();
-    const raw = String(row.dataset.statusRaw || '').toLowerCase();
-    
-    return key === 'new' || raw === 'new';
+    return dialogsListRuntime?.isNewDialog(row) === true;
   }
 
   function isUnassignedDialog(row) {
-    const responsible = String(row.dataset.responsible || '').trim().toLowerCase();
-    return !responsible || responsible === '—' || responsible === '-';
+    return dialogsListRuntime?.isUnassignedDialog(row) === true;
   }
 
   function isOverdueDialog(row) {
-    if (isResolved(row)) return false;
-    const createdAtRaw = String(row.dataset.createdAt || '').trim();
-    if (!createdAtRaw) return false;
-    const createdAt = parseUtcDateValue(createdAtRaw);
-    if (!createdAt) return false;
-    const overdueThresholdMs = OVERDUE_THRESHOLD_HOURS * 60 * 60 * 1000;
-    return Date.now() - createdAt.getTime() > overdueThresholdMs;
+    return dialogsListRuntime?.isOverdueDialog(row) === true;
   }
 
   function isSnoozedDialog(row) {
-    const ticketId = row?.dataset?.ticketId;
-    return Boolean(getSnoozeUntil(ticketId));
+    return dialogsListRuntime?.isSnoozedDialog(row) === true;
   }
 
   function isCriticalSlaDialog(row) {
-    if (row?.dataset?.slaServerPinned === 'true') {
-      return !SLA_CRITICAL_PIN_UNASSIGNED_ONLY || isUnassignedDialog(row);
-    }
-    const minutesLeft = resolveSlaMinutesLeft(row);
-    if (!Number.isFinite(minutesLeft)) return false;
-    if (minutesLeft > SLA_CRITICAL_MINUTES) return false;
-    if (SLA_CRITICAL_PIN_UNASSIGNED_ONLY && !isUnassignedDialog(row)) {
-      return false;
-    }
-    return true;
+    return dialogsListRuntime?.isCriticalSlaDialog(row) === true;
   }
 
   function isEscalationRequiredDialog(row) {
-    return row?.dataset?.slaEscalationRequired === 'true';
+    return dialogsListRuntime?.isEscalationRequiredDialog(row) === true;
   }
 
   function resolveSlaMinutesLeft(row) {
-    if (!row || isResolved(row)) return null;
-    const serverMinutesLeft = Number(row.dataset.slaMinutesLeft);
-    if (Number.isFinite(serverMinutesLeft)) {
-      return serverMinutesLeft;
-    }
-    const createdAtRaw = String(row.dataset.createdAt || '').trim();
-    if (!createdAtRaw) return null;
-    const createdAt = parseUtcDateValue(createdAtRaw);
-    if (!createdAt) return null;
-    return SLA_TARGET_MINUTES - ((Date.now() - createdAt.getTime()) / 60000);
+    return dialogsListRuntime?.resolveSlaMinutesLeft(row) ?? null;
   }
 
   function matchesSlaReactionWindow(row) {
-    if (!Number.isFinite(filterState.slaWindowMinutes) || filterState.slaWindowMinutes <= 0) {
-      return true;
-    }
-    const minutesLeft = resolveSlaMinutesLeft(row);
-    if (!Number.isFinite(minutesLeft)) return false;
-    return minutesLeft <= filterState.slaWindowMinutes;
+    return dialogsListRuntime?.matchesSlaReactionWindow(row) !== false;
   }
 
   function matchesCurrentView(row) {
-    if (isSnoozedDialog(row) && filterState.view !== 'all') {
-      return false;
-    }
-    switch (filterState.view) {
-      case 'active':
-        return !isResolved(row);
-      case 'new':
-        return isNewDialog(row);
-      case 'unassigned':
-        return isUnassignedDialog(row);
-      case 'overdue':
-        return isOverdueDialog(row);
-      case 'sla_critical':
-        return isCriticalSlaDialog(row)
-          && (!SLA_CRITICAL_VIEW_UNASSIGNED_ONLY || isUnassignedDialog(row));
-      case 'escalation_required':
-        return isEscalationRequiredDialog(row);
-      default:
-        return true;
-    }
+    return dialogsListRuntime?.matchesCurrentView(row) !== false;
   }
 
   function isResolved(row) {
-    const raw = (row.dataset.statusRaw || '').toLowerCase();
-    const key = (row.dataset.statusKey || '').toLowerCase();
-    return raw === 'resolved' || raw === 'closed' || key.includes('closed');
+    return dialogsListRuntime?.isResolved(row) === true;
   }
 
   function syncRowSelectionState(row) {
-    if (!row) return;
-    const ticketId = String(row.dataset.ticketId || '');
-    const checkbox = row.querySelector('.dialog-row-select');
-    if (!checkbox || !ticketId) return;
-    checkbox.checked = selectedTicketIds.has(ticketId);
+    return dialogsListRuntime?.syncRowSelectionState(row);
   }
 
   function selectedRows() {
-    return rowsList().filter((row) => selectedTicketIds.has(String(row.dataset.ticketId || '')));
+    return dialogsListRuntime?.selectedRows() || [];
   }
 
   function updateSelectAllState() {
-    if (!selectAllCheckbox) return;
-    const visible = visibleRows().filter((row) => row.querySelector('.dialog-row-select'));
-    if (!visible.length) {
-      selectAllCheckbox.checked = false;
-      selectAllCheckbox.indeterminate = false;
-      selectAllCheckbox.disabled = true;
-      return;
-    }
-    const selectedVisible = visible.filter((row) => selectedTicketIds.has(String(row.dataset.ticketId || ''))).length;
-    selectAllCheckbox.disabled = false;
-    selectAllCheckbox.checked = selectedVisible > 0 && selectedVisible === visible.length;
-    selectAllCheckbox.indeterminate = selectedVisible > 0 && selectedVisible < visible.length;
+    return dialogsListRuntime?.updateSelectAllState();
   }
 
   function updateBulkActionsState() {
-    const count = selectedTicketIds.size;
-    const canShowBulkToolbar = count > 1;
-    if (bulkToolbar) {
-      bulkToolbar.classList.toggle('d-none', !canShowBulkToolbar);
-    }
-    if (bulkCount) {
-      bulkCount.textContent = `Выбрано: ${count}`;
-    }
-    if (bulkTakeBtn) bulkTakeBtn.disabled = !canShowBulkToolbar || !canRunAction('can_bulk') || !canRunAction('can_assign');
-    if (bulkSnoozeBtn) bulkSnoozeBtn.disabled = !canShowBulkToolbar || !canRunAction('can_bulk') || !canRunAction('can_snooze');
-    if (bulkCloseBtn) bulkCloseBtn.disabled = !canShowBulkToolbar || !canRunAction('can_bulk') || !canRunAction('can_close');
-    if (bulkClearBtn) bulkClearBtn.disabled = !canShowBulkToolbar;
-    rowsList().forEach((row) => syncRowSelectionState(row));
-    updateSelectAllState();
+    return dialogsListRuntime?.updateBulkActionsState();
   }
 
   function clearSelection() {
-    selectedTicketIds.clear();
-    updateBulkActionsState();
+    return dialogsListRuntime?.clearSelection();
   }
 
   async function runBulkAction(action) {
-    const permissionMap = {
-      take: ['can_bulk', 'can_assign', 'Назначить выбранные на меня'],
-      snooze: ['can_bulk', 'can_snooze', `Отложить выбранные на ${formatSnoozeActionLabel(QUICK_SNOOZE_MINUTES).replace('Отложить ', '')}`],
-      close: ['can_bulk', 'can_close', 'Закрыть выбранные'],
-    };
-    const [bulkPermission, actionPermission, actionTitle] = permissionMap[action] || [];
-    if (!canRunAction(bulkPermission) || !canRunAction(actionPermission)) {
-      notifyPermissionDenied(actionTitle || 'Групповое действие');
-      emitWorkspaceTelemetry('triage_bulk_action', {
-        reason: `${action || 'unknown'}:permission_denied`,
-      });
-      return;
-    }
-
-    const rows = selectedRows();
-    if (!rows.length) return;
-
-    const eligibilitySelectorMap = {
-      take: '.dialog-take-btn:not(.d-none)',
-      snooze: '.dialog-snooze-btn:not(.d-none)',
-      close: '.dialog-close-btn:not(.d-none)',
-    };
-    const selector = eligibilitySelectorMap[action];
-    const eligibleRows = selector
-      ? rows.filter((row) => Boolean(row.querySelector(selector)))
-      : rows;
-    const skippedRows = rows.filter((row) => !eligibleRows.includes(row));
-    if (!eligibleRows.length) {
-      if (typeof showNotification === 'function') {
-        showNotification('Нет диалогов, подходящих для выбранного группового действия.', 'warning');
-      }
-      emitWorkspaceTelemetry('triage_bulk_action', {
-        reason: `${action || 'unknown'}:nothing_eligible:selected=${rows.length}`,
-      });
-      return;
-    }
-    if (skippedRows.length && typeof showNotification === 'function') {
-      showNotification(`Пропущено ${skippedRows.length} диалог(ов): действие недоступно для текущего статуса/прав.`, 'warning');
-    }
-    let processedCount = 0;
-    const originalDisabled = [bulkTakeBtn, bulkSnoozeBtn, bulkCloseBtn, bulkClearBtn]
-      .filter(Boolean)
-      .map((button) => ({ button, disabled: button.disabled }));
-    originalDisabled.forEach(({ button }) => {
-      button.disabled = true;
-    });
-
-    const errors = [];
-    for (const row of eligibleRows) {
-      const ticketId = String(row.dataset.ticketId || '');
-      if (!ticketId) continue;
-      try {
-        if (action === 'take') {
-          const takeBtn = row.querySelector('.dialog-take-btn:not(.d-none)');
-          if (!takeBtn) continue;
-          await takeDialog(ticketId, row, takeBtn);
-        }
-        if (action === 'snooze') {
-          const snoozeBtn = row.querySelector('.dialog-snooze-btn:not(.d-none)');
-          if (!snoozeBtn) continue;
-          await snoozeDialog(ticketId, QUICK_SNOOZE_MINUTES, snoozeBtn);
-          setSnooze(ticketId, QUICK_SNOOZE_MINUTES);
-          updateRowQuickActions(row);
-        }
-        if (action === 'close') {
-          const closeBtn = row.querySelector('.dialog-close-btn:not(.d-none)');
-          if (!closeBtn) continue;
-          await closeDialogQuick(ticketId, row, closeBtn);
-          clearSnooze(ticketId);
-        }
-        processedCount += 1;
-      } catch (error) {
-        errors.push(`${ticketId}: ${error.message || 'ошибка'}`);
-      }
-    }
-
-    applyFilters();
-    if (errors.length) {
-      if (typeof showNotification === 'function') {
-        showNotification(`Часть операций не выполнена (${errors.length}).`, 'error');
-      }
-      console.warn('Bulk action errors', action, errors);
-    } else if (typeof showNotification === 'function') {
-      const successMap = {
-        take: 'Выбранные диалоги назначены на вас',
-        snooze: formatBulkSnoozeLabel(QUICK_SNOOZE_MINUTES),
-        close: 'Выбранные диалоги закрыты',
-      };
-      showNotification(successMap[action] || 'Групповое действие выполнено', 'success');
-    }
-    emitWorkspaceTelemetry('triage_bulk_action', {
-      reason: `${action || 'unknown'}:${errors.length ? 'partial_failure' : 'success'}:processed=${processedCount}:errors=${errors.length}:skipped=${skippedRows.length}`,
-      ticketId: eligibleRows.length === 1 ? String(eligibleRows[0]?.dataset?.ticketId || '') : null,
-    });
-
-    clearSelection();
-    originalDisabled.forEach(({ button, disabled }) => {
-      button.disabled = disabled;
-    });
-    updateBulkActionsState();
+    return dialogsListRuntime?.runBulkAction(action);
   }
 
   function applyFilters(options = {}) {
-    if (options.resetPage === true) {
-      filterState.page = 1;
-    }
-    updateAllSlaBadges();
-    const search = (filterState.search || '').trim().toLowerCase();
-    const status = (filterState.status || '').trim().toLowerCase();
-    const matchedRows = [];
-    const hiddenRows = [];
-    rowsList().forEach((row) => {
-      const text = collectRowSearchText(row);
-      const statusValue = (row.dataset.status || '').toLowerCase();
-      const matchesSearch = !search || text.includes(search);
-      const matchesStatus = !status || statusValue === status;
-      const matchesView = matchesCurrentView(row);
-      const matchesSlaWindow = matchesSlaReactionWindow(row);
-      const visible = matchesSearch && matchesStatus && matchesView && matchesSlaWindow;
-      row.classList.toggle('d-none', !visible);
-      applySlaPriorityClass(row);
-      if (visible) {
-        matchedRows.push(row);
-      } else {
-        hiddenRows.push(row);
-      }
-    });
-    if (filterState.sortMode === 'sla_priority') {
-      matchedRows.sort(compareRowsBySlaPriority);
-    }
-    lastFilteredRows = matchedRows.slice();
-    const tableBody = table.tBodies[0];
-    matchedRows.forEach((row) => tableBody.appendChild(row));
-    hiddenRows.forEach((row) => tableBody.appendChild(row));
-    const visibleCount = applyPageSize(matchedRows);
-    updateZebraRows(matchedRows);
-    ensureEmptyRow();
-    emptyRow.classList.toggle('d-none', visibleCount !== 0);
-    updateBulkActionsState();
+    return dialogsListRuntime?.applyFilters(options);
   }
 
   function applyQuickSearch(value) {
-    filterState.search = value || '';
-    applyFilters({ resetPage: true });
+    return dialogsListRuntime?.applyQuickSearch(value);
   }
 
   function applyStatusFilter(statusLabel = '') {
-    const normalized = String(statusLabel || '').trim().toLowerCase();
-    filterState.status = normalized;
-    if (statusFilter) {
-      const options = Array.from(statusFilter.options || []);
-      const match = options.find((option) => String(option.value || '').trim().toLowerCase() === normalized);
-      statusFilter.value = match ? match.value : '';
-    }
-    applyFilters({ resetPage: true });
+    return dialogsListRuntime?.applyStatusFilter(statusLabel);
   }
 
   function setViewTab(nextView) {
-    const resolvedView = nextView || 'all';
-    const previousView = filterState.view || 'all';
-    const isEnteringCriticalView = resolvedView === 'sla_critical';
-    const isLeavingCriticalView = filterState.view === 'sla_critical' && resolvedView !== 'sla_critical';
-
-    if (AUTO_SLA_PRIORITY_FOR_CRITICAL_VIEW && isEnteringCriticalView) {
-      if (filterState.sortMode !== 'sla_priority') {
-        lastManualSortMode = filterState.sortMode;
-      }
-      filterState.sortMode = 'sla_priority';
-      if (sortModeSelect) {
-        sortModeSelect.value = 'sla_priority';
-      }
-    } else if (AUTO_SLA_PRIORITY_FOR_CRITICAL_VIEW && isLeavingCriticalView) {
-      filterState.sortMode = lastManualSortMode === 'sla_priority' ? 'default' : lastManualSortMode;
-      if (sortModeSelect) {
-        sortModeSelect.value = filterState.sortMode;
-      }
-    }
-
-    filterState.view = resolvedView;
-    viewTabs.forEach((tab) => {
-      tab.classList.toggle('active', tab.dataset.dialogView === filterState.view);
-    });
-    if (previousView !== resolvedView) {
-      emitWorkspaceTelemetry('triage_view_switch', { reason: `${previousView}->${resolvedView}` });
-    }
-    persistDialogPreferences();
-    applyFilters({ resetPage: true });
+    return dialogsListRuntime?.setViewTab(nextView);
   }
 
   function visibleRows() {
-    return rowsList().filter((row) => !row.classList.contains('d-none'));
+    return dialogsListRuntime?.visibleRows() || [];
   }
 
   function ensureDialogRowPage(row) {
-    if (!row || filterState.pageSize === Infinity || !row.classList.contains('d-none')) {
-      return;
-    }
-    const rowIndex = lastFilteredRows.indexOf(row);
-    if (rowIndex < 0) {
-      return;
-    }
-    const limit = Number.isFinite(filterState.pageSize) && filterState.pageSize > 0
-      ? filterState.pageSize
-      : DEFAULT_PAGE_SIZE;
-    const nextPage = Math.floor(rowIndex / limit) + 1;
-    if (nextPage !== filterState.page) {
-      filterState.page = nextPage;
-      applyFilters();
-    }
+    return dialogsListRuntime?.ensureDialogRowPage(row);
   }
 
   function setActiveDialogRow(row, options = {}) {
-    const nextRow = row && row.tagName === 'TR' ? row : null;
-    if (nextRow && options.ensureVisible) {
-      ensureDialogRowPage(nextRow);
-    }
-    if (activeDialogRow && activeDialogRow !== nextRow) {
-      activeDialogRow.classList.remove('dialog-row-active');
-    }
-    activeDialogRow = nextRow;
-    if (activeDialogRow) {
-      activeDialogRow.classList.add('dialog-row-active');
-      if (options.ensureVisible) {
-        activeDialogRow.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-      }
-    }
+    return dialogsListRuntime?.setActiveDialogRow(row, options);
   }
 
   function getShortcutTargetRow() {
-    if (activeDialogRow && !activeDialogRow.classList.contains('d-none')) {
-      return activeDialogRow;
-    }
-    return visibleRows()[0] || null;
+    return dialogsListRuntime?.getShortcutTargetRow() || null;
   }
 
   function openVisibleDialogByOffset(offset) {
-    const rows = visibleRows();
-    if (!rows.length) return;
-    const currentIndex = activeDialogRow ? rows.indexOf(activeDialogRow) : -1;
-    let nextIndex = currentIndex + offset;
-    if (nextIndex < 0) nextIndex = rows.length - 1;
-    if (nextIndex >= rows.length) nextIndex = 0;
-    const nextRow = rows[nextIndex];
-    const openButton = nextRow?.querySelector('.dialog-open-btn');
-    const ticketId = openButton?.dataset?.ticketId || nextRow?.dataset?.ticketId;
-    if (!ticketId) return;
-    setActiveDialogRow(nextRow, { ensureVisible: true });
-    openDialogEntry(ticketId, nextRow);
+    return dialogsListRuntime?.openVisibleDialogByOffset(offset);
   }
 
   function buildWorkspaceDialogUrl(ticketId, channelId) {
@@ -5047,464 +4674,123 @@
     workspaceComposerText.focus();
   }
 
+  const dialogsAiRuntime = window.DialogsAiRuntime?.createRuntime({
+    elements: {
+      aiReviewQueueSection,
+      aiReviewQueueState,
+      aiReviewQueueBody,
+      aiMonitoringSection,
+      aiMonitoringState,
+      aiMonitoringAlerts,
+      aiMonitoringRunbook,
+      aiMonitoringEvents,
+      aiKpiAutoReplyRate,
+      aiKpiAssistRate,
+      aiKpiEscalationRate,
+      aiKpiCorrectionRate,
+      detailsAiState,
+      detailsAiList,
+      workspaceAiSuggestionsSection,
+      workspaceAiSuggestionsState,
+      workspaceAiSuggestionsList,
+      workspaceAiControlState,
+      workspaceAiDisableForDialog,
+      workspaceAiHandoffNoAutoReply,
+      workspaceAiReviewBox,
+      workspaceAiReviewQuestion,
+      workspaceAiReviewProblemSelect,
+      workspaceAiReviewSolutionSelect,
+      workspaceAiReviewCurrent,
+      workspaceAiReviewPending,
+    },
+    escapeHtml,
+    formatUtcDate,
+    getAiMonitoringFilters: () => aiMonitoringFilters,
+    getWorkspaceAiReviewState: () => ({
+      problemCandidates: workspaceAiReviewProblemCandidates,
+      solutionCandidates: workspaceAiReviewSolutionCandidates,
+    }),
+    setWorkspaceAiReviewState: (problemCandidates, solutionCandidates) => {
+      workspaceAiReviewProblemCandidates = Array.isArray(problemCandidates) ? problemCandidates : [];
+      workspaceAiReviewSolutionCandidates = Array.isArray(solutionCandidates) ? solutionCandidates : [];
+    },
+    showNotification,
+  }) || null;
+
   async function loadWorkspaceAiSuggestions(ticketId) {
-    const normalizedTicketId = String(ticketId || '').trim();
-    if (!workspaceAiSuggestionsSection || !workspaceAiSuggestionsState || !workspaceAiSuggestionsList) return;
-    if (!normalizedTicketId) {
-      workspaceAiSuggestionsState.textContent = 'Open a dialog to load AI suggestions.';
-      workspaceAiSuggestionsList.classList.add('d-none');
-      workspaceAiSuggestionsList.innerHTML = '';
-      return;
-    }
-    workspaceAiSuggestionsState.textContent = 'Loading AI suggestions...';
-    workspaceAiSuggestionsList.classList.add('d-none');
-    workspaceAiSuggestionsList.innerHTML = '';
-    try {
-      const resp = await fetch(`/api/dialogs/${encodeURIComponent(normalizedTicketId)}/ai-suggestions?limit=3`, {
-        credentials: 'same-origin',
-        cache: 'no-store',
-      });
-      const payload = await resp.json().catch(() => ({}));
-      if (!resp.ok || payload.success === false) {
-        throw new Error(payload.error || (`HTTP ${resp.status}`));
-      }
-      const items = Array.isArray(payload.items) ? payload.items : [];
-      if (!items.length) {
-        workspaceAiSuggestionsState.textContent = payload.processing
-          ? 'AI is processing this dialog, suggestions are not ready yet.'
-          : 'No suggestions yet. Reply manually or refresh later.';
-        return;
-      }
-      workspaceAiSuggestionsState.textContent = payload.processing
-        ? 'Dialog is in automatic processing mode. Suggestions:'
-        : 'Suggestions ready:';
-      workspaceAiSuggestionsList.innerHTML = items.map((item, index) => {
-        const scoreLabel = String(item?.score_label || item?.score || '').trim();
-        const source = String(item?.source || '').trim();
-        const title = escapeHtml(String(item?.title || `Suggestion ${index + 1}`));
-        const snippet = escapeHtml(String(item?.snippet || ''));
-        const reply = escapeHtml(String(item?.reply || item?.snippet || ''));
-        const explain = escapeHtml(String(item?.explain || '').trim());
-        const sourceBadge = `${escapeHtml(source || 'source')}${scoreLabel ? ` · ${escapeHtml(scoreLabel)}` : ''}`;
-        const rawSource = escapeHtml(String(item?.source || '').trim());
-        const rawTitle = escapeHtml(String(item?.title || '').trim());
-        const rawSnippet = escapeHtml(String(item?.snippet || '').trim());
-        return `
-          <article class="border rounded p-2">
-            <div class="d-flex justify-content-between align-items-start gap-2">
-              <div class="fw-semibold">${title}</div>
-              <span class="badge text-bg-light border">${sourceBadge}</span>
-            </div>
-            ${snippet ? `<div class="small text-muted mt-1">${snippet}</div>` : ''}
-            ${explain ? `<div class="small mt-1"><strong>Why selected:</strong> ${explain}</div>` : ''}
-            <div class="mt-2">
-              <div class="btn-group btn-group-sm" role="group">
-                <button type="button" class="btn btn-outline-primary" data-ai-suggestion-apply="${index}" data-ai-suggestion-reply="${reply}">Insert as-is</button>
-                <button type="button" class="btn btn-outline-secondary" data-ai-suggestion-apply-edit="${index}" data-ai-suggestion-reply="${reply}">Insert and edit</button>
-                <button type="button" class="btn btn-outline-danger" data-ai-suggestion-reject="${index}" data-ai-suggestion-source="${rawSource}" data-ai-suggestion-title="${rawTitle}" data-ai-suggestion-snippet="${rawSnippet}" data-ai-suggestion-reply="${reply}">Reject</button>
-              </div>
-            </div>
-          </article>
-        `;
-      }).join('');
-      workspaceAiSuggestionsList.classList.remove('d-none');
-    } catch (error) {
-      workspaceAiSuggestionsState.textContent = `Failed to load suggestions: ${error.message || 'unknown_error'}`;
-    }
+    return dialogsAiRuntime?.loadWorkspaceAiSuggestions(ticketId);
   }
 
   async function loadDetailsAiSuggestions(ticketId) {
-    if (!detailsAiState || !detailsAiList) return;
-    const normalizedTicketId = String(ticketId || '').trim();
-    if (!normalizedTicketId) {
-      detailsAiState.textContent = 'Откройте диалог для загрузки подсказок.';
-      detailsAiList.classList.add('d-none');
-      detailsAiList.innerHTML = '';
-      return;
-    }
-    detailsAiState.textContent = 'Загрузка подсказок AI...';
-    detailsAiList.classList.add('d-none');
-    detailsAiList.innerHTML = '';
-    try {
-      const resp = await fetch(`/api/dialogs/${encodeURIComponent(normalizedTicketId)}/ai-suggestions?limit=3`, {
-        credentials: 'same-origin',
-        cache: 'no-store',
-      });
-      const payload = await resp.json().catch(() => ({}));
-      if (!resp.ok || payload.success === false) {
-        throw new Error(payload.error || (`HTTP ${resp.status}`));
-      }
-      const items = Array.isArray(payload.items) ? payload.items : [];
-      if (!items.length) {
-        detailsAiState.textContent = payload.processing
-          ? 'AI обрабатывает диалог, подсказки скоро появятся.'
-          : 'Пока нет подсказок для этого диалога.';
-        return;
-      }
-      detailsAiState.textContent = payload.processing
-        ? 'AI обрабатывает диалог. Подсказки уже доступны:'
-        : 'Подсказки AI для оператора:';
-      detailsAiList.innerHTML = items.map((item, index) => {
-        const title = escapeHtml(String(item?.title || `Вариант ${index + 1}`));
-        const explain = escapeHtml(String(item?.explain || ''));
-        const reply = String(item?.reply || item?.snippet || '').trim();
-        const replyEscaped = escapeHtml(reply);
-        return `
-          <article class="border rounded p-2">
-            <div class="fw-semibold small mb-1">${title}</div>
-            ${explain ? `<div class="small text-muted mb-1">${explain}</div>` : ''}
-            <div class="small mb-2">${replyEscaped || '—'}</div>
-            <button class="btn btn-sm btn-outline-primary" type="button" data-details-ai-insert="${replyEscaped}">Вставить в ответ</button>
-          </article>
-        `;
-      }).join('');
-      detailsAiList.classList.remove('d-none');
-    } catch (error) {
-      detailsAiState.textContent = `Не удалось загрузить подсказки: ${error.message || 'unknown_error'}`;
-    }
+    return dialogsAiRuntime?.loadDetailsAiSuggestions(ticketId);
   }
 
   async function sendAiSuggestionFeedback(ticketId, payload) {
-    const normalizedTicketId = String(ticketId || '').trim();
-    if (!normalizedTicketId) return false;
-    const resp = await fetch(`/api/dialogs/${encodeURIComponent(normalizedTicketId)}/ai-suggestions/feedback`, {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload || {}),
-    });
-    const data = await resp.json().catch(() => ({}));
-    if (!resp.ok || data.success === false) {
-      throw new Error(data.error || `HTTP ${resp.status}`);
-    }
-    return true;
+    return dialogsAiRuntime?.sendAiSuggestionFeedback(ticketId, payload);
   }
 
   async function loadWorkspaceAiControl(ticketId) {
-    const normalizedTicketId = String(ticketId || '').trim();
-    if (!workspaceAiControlState || !workspaceAiDisableForDialog || !workspaceAiHandoffNoAutoReply) return;
-    if (!normalizedTicketId) {
-      workspaceAiControlState.textContent = 'Open a dialog to manage AI.';
-      workspaceAiDisableForDialog.disabled = true;
-      workspaceAiHandoffNoAutoReply.disabled = true;
-      return;
-    }
-    workspaceAiControlState.textContent = 'Loading AI dialog controls...';
-    workspaceAiDisableForDialog.disabled = true;
-    workspaceAiHandoffNoAutoReply.disabled = true;
-    try {
-      const resp = await fetch(`/api/dialogs/${encodeURIComponent(normalizedTicketId)}/ai-control`, {
-        credentials: 'same-origin',
-        cache: 'no-store',
-      });
-      const payload = await resp.json().catch(() => ({}));
-      if (!resp.ok || payload.success === false) {
-        throw new Error(payload.error || `HTTP ${resp.status}`);
-      }
-      const control = payload.control || {};
-      const disabled = control.ai_disabled === true;
-      const blocked = control.auto_reply_blocked === true;
-      workspaceAiDisableForDialog.textContent = disabled ? 'Enable AI for dialog' : 'Disable AI for dialog';
-      workspaceAiControlState.textContent = disabled
-        ? 'AI is fully disabled for this dialog.'
-        : (blocked ? 'AI auto-reply is disabled for this dialog. Suggestions remain available.' : 'AI runs in standard mode.');
-      workspaceAiDisableForDialog.disabled = false;
-      workspaceAiHandoffNoAutoReply.disabled = false;
-    } catch (error) {
-      workspaceAiControlState.textContent = `Failed to load AI control state: ${error.message || 'unknown_error'}`;
-    }
+    return dialogsAiRuntime?.loadWorkspaceAiControl(ticketId);
   }
 
   async function updateWorkspaceAiControl(ticketId, controlPayload, successMessage) {
-    const normalizedTicketId = String(ticketId || '').trim();
-    if (!normalizedTicketId) return;
-    const resp = await fetch(`/api/dialogs/${encodeURIComponent(normalizedTicketId)}/ai-control`, {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(controlPayload || {}),
-    });
-    const payload = await resp.json().catch(() => ({}));
-    if (!resp.ok || payload.success === false) {
-      throw new Error(payload.error || `HTTP ${resp.status}`);
-    }
-    if (typeof showNotification === 'function' && successMessage) {
-      showNotification(successMessage, 'success');
-    }
-    await loadWorkspaceAiControl(normalizedTicketId);
+    return dialogsAiRuntime?.updateWorkspaceAiControl(ticketId, controlPayload, successMessage);
   }
+
   function renderAiReviewQueueRows(items) {
-    if (!aiReviewQueueBody) return;
-    if (!Array.isArray(items) || items.length === 0) {
-      aiReviewQueueBody.innerHTML = '<tr><td colspan="5" class="text-muted text-center py-3">Очередь ревизий пуста.</td></tr>';
-      return;
-    }
-    aiReviewQueueBody.innerHTML = items.map((item) => {
-      const queryKey = String(item?.query_key || '').trim();
-      const ticketId = String(item?.last_ticket_id || '').trim();
-      const question = escapeHtml(String(item?.query_text || '').trim() || '—');
-      const current = escapeHtml(String(item?.solution_text || '').trim() || '—');
-      const pending = escapeHtml(String(item?.pending_solution_text || '').trim() || '—');
-      const dialogLabel = ticketId ? `#${escapeHtml(ticketId)}` : '—';
-      return `
-        <tr data-ai-review-query-key="${escapeHtml(queryKey)}" data-ai-review-ticket-id="${escapeHtml(ticketId)}">
-          <td class="small">${question}</td>
-          <td class="small text-muted">${current}</td>
-          <td class="small">${pending}</td>
-          <td>${dialogLabel}</td>
-          <td class="text-end">
-            <div class="btn-group btn-group-sm" role="group">
-              <button class="btn btn-outline-primary" type="button" data-ai-review-open ${ticketId ? '' : 'disabled'}>Открыть</button>
-              <button class="btn btn-success" type="button" data-ai-review-approve>Принять</button>
-              <button class="btn btn-outline-secondary" type="button" data-ai-review-reject>Отклонить</button>
-            </div>
-          </td>
-        </tr>
-      `;
-    }).join('');
+    return dialogsAiRuntime?.renderAiReviewQueueRows(items);
   }
 
   async function loadAiReviewQueue() {
-    if (!aiReviewQueueSection || !aiReviewQueueState || !aiReviewQueueBody) return;
-    aiReviewQueueState.textContent = 'Загрузка очереди ревизий…';
-    try {
-      const resp = await fetch('/api/dialogs/ai-reviews?limit=30', {
-        credentials: 'same-origin',
-        cache: 'no-store',
-      });
-      const payload = await resp.json().catch(() => ({}));
-      if (!resp.ok || payload.success === false) {
-        throw new Error(payload.error || (`HTTP ${resp.status}`));
-      }
-      const items = Array.isArray(payload.items) ? payload.items : [];
-      aiReviewQueueState.textContent = items.length
-        ? `Найдено ревизий: ${items.length}`
-        : 'Очередь ревизий пуста.';
-      renderAiReviewQueueRows(items);
-    } catch (error) {
-      aiReviewQueueState.textContent = `Не удалось загрузить очередь ревизий: ${error.message || 'unknown_error'}`;
-      aiReviewQueueBody.innerHTML = '<tr><td colspan="5" class="text-danger text-center py-3">Ошибка загрузки очереди ревизий.</td></tr>';
-    }
+    return dialogsAiRuntime?.loadAiReviewQueue();
   }
 
   function formatRatePercent(value) {
-    const numeric = Number(value);
-    if (!Number.isFinite(numeric)) return '—';
-    return `${(numeric * 100).toFixed(1)}%`;
+    return dialogsAiRuntime?.formatRatePercent(value) || '—';
   }
 
   function renderAiMonitoringAlerts(alerts) {
-    if (!aiMonitoringAlerts) return;
-    if (!Array.isArray(alerts) || alerts.length === 0) {
-      aiMonitoringAlerts.innerHTML = '<div class="text-muted">Алертов нет.</div>';
-      return;
-    }
-    aiMonitoringAlerts.innerHTML = alerts.map((alert) => {
-      const severity = String(alert?.severity || 'info').trim().toLowerCase();
-      const cls = severity === 'warning'
-        ? 'alert alert-warning py-2 px-3 mb-2'
-        : (severity === 'ok' ? 'alert alert-success py-2 px-3 mb-2' : 'alert alert-info py-2 px-3 mb-2');
-      const message = escapeHtml(String(alert?.message || 'AI alert'));
-      const value = formatRatePercent(alert?.value);
-      const threshold = formatRatePercent(alert?.threshold);
-      return `<div class="${cls}"><div>${message}</div><div class="small text-muted">value: ${value} / threshold: ${threshold}</div></div>`;
-    }).join('');
+    return dialogsAiRuntime?.renderAiMonitoringAlerts(alerts);
   }
 
   function renderAiMonitoringRunbook(items) {
-    if (!aiMonitoringRunbook) return;
-    if (!Array.isArray(items) || !items.length) {
-      aiMonitoringRunbook.innerHTML = '<li>Runbook недоступен.</li>';
-      return;
-    }
-    aiMonitoringRunbook.innerHTML = items.map((item) => `<li>${escapeHtml(String(item || ''))}</li>`).join('');
+    return dialogsAiRuntime?.renderAiMonitoringRunbook(items);
   }
 
   function renderAiMonitoringEvents(items) {
-    if (!aiMonitoringEvents) return;
-    if (!Array.isArray(items) || !items.length) {
-      aiMonitoringEvents.innerHTML = '<div class="text-muted">Событий нет.</div>';
-      return;
-    }
-    aiMonitoringEvents.innerHTML = items.slice(0, 12).map((item) => {
-      const createdAt = formatUtcDate(item?.created_at, { includeTime: true });
-      const eventType = escapeHtml(String(item?.event_type || 'event'));
-      const ticketId = escapeHtml(String(item?.ticket_id || '-'));
-      const reason = escapeHtml(String(item?.decision_reason || item?.detail || ''));
-      const source = escapeHtml(String(item?.source || ''));
-      const actor = escapeHtml(String(item?.actor || 'system'));
-      return `<div class="border rounded p-2 mb-1">
-        <div class="d-flex flex-wrap justify-content-between gap-2">
-          <span class="fw-semibold">${eventType}</span>
-          <span class="text-muted">${createdAt}</span>
-        </div>
-        <div class="text-muted">ticket: ${ticketId} | actor: ${actor}${source ? ` | source: ${source}` : ''}</div>
-        ${reason ? `<div>${reason}</div>` : ''}
-      </div>`;
-    }).join('');
+    return dialogsAiRuntime?.renderAiMonitoringEvents(items);
   }
 
   function buildAiMonitoringEventsQuery(days = 7, limit = 50) {
-    const params = new URLSearchParams();
-    params.set('days', String(days));
-    params.set('limit', String(limit));
-    if (aiMonitoringFilters.eventType) params.set('eventType', aiMonitoringFilters.eventType);
-    if (aiMonitoringFilters.actor) params.set('actor', aiMonitoringFilters.actor);
-    return params.toString();
+    return dialogsAiRuntime?.buildAiMonitoringEventsQuery(days, limit) || '';
   }
 
   async function loadAiMonitoringEvents(days = 7, limit = 50) {
-    if (!aiMonitoringEvents) return;
-    try {
-      const resp = await fetch(`/api/dialogs/ai-monitoring/events?${buildAiMonitoringEventsQuery(days, limit)}`, {
-        credentials: 'same-origin',
-        cache: 'no-store',
-      });
-      const payload = await resp.json().catch(() => ({}));
-      if (!resp.ok || payload.success === false) {
-        throw new Error(payload.error || `HTTP ${resp.status}`);
-      }
-      renderAiMonitoringEvents(Array.isArray(payload.items) ? payload.items : []);
-    } catch (_error) {
-      renderAiMonitoringEvents([]);
-    }
+    return dialogsAiRuntime?.loadAiMonitoringEvents(days, limit);
   }
 
   function exportAiMonitoringEventsCsv(days = 7, limit = 200) {
-    const query = buildAiMonitoringEventsQuery(days, limit);
-    const href = `/api/dialogs/ai-monitoring/events?${query}&format=csv`;
-    const link = document.createElement('a');
-    link.href = href;
-    link.download = `ai-monitoring-events-${new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+    return dialogsAiRuntime?.exportAiMonitoringEventsCsv(days, limit);
   }
 
   async function loadAiMonitoringSummary(days = 7) {
-    if (!aiMonitoringSection || !aiMonitoringState) return;
-    aiMonitoringState.textContent = 'Загрузка AI-сводки';
-    try {
-      const resp = await fetch(`/api/dialogs/ai-monitoring/summary?days=${encodeURIComponent(days)}`, {
-        credentials: 'same-origin',
-        cache: 'no-store',
-      });
-      const payload = await resp.json().catch(() => ({}));
-      if (!resp.ok || payload.success === false) {
-        throw new Error(payload.error || `HTTP ${resp.status}`);
-      }
-      const summary = payload.summary || {};
-      const kpis = summary.kpis || {};
-      if (aiKpiAutoReplyRate) aiKpiAutoReplyRate.textContent = formatRatePercent(kpis.auto_reply_rate);
-      if (aiKpiAssistRate) aiKpiAssistRate.textContent = formatRatePercent(kpis.assist_usage_rate);
-      if (aiKpiEscalationRate) aiKpiEscalationRate.textContent = formatRatePercent(kpis.escalation_rate);
-      if (aiKpiCorrectionRate) aiKpiCorrectionRate.textContent = formatRatePercent(kpis.correction_rate);
-      renderAiMonitoringAlerts(summary.alerts);
-      renderAiMonitoringRunbook(summary.runbook?.items);
-      await loadAiMonitoringEvents(days, 50);
-      const windowDays = Number(summary.window_days || days);
-      aiMonitoringState.textContent = `Окно: ${Number.isFinite(windowDays) ? windowDays : days} дн / обновлено ${formatUtcDate(summary.generated_at, { includeTime: true })}`;
-    } catch (error) {
-      aiMonitoringState.textContent = `Не удалось загрузить AI-сводку: ${error.message || 'unknown_error'}`;
-      renderAiMonitoringAlerts([]);
-      renderAiMonitoringRunbook([]);
-      renderAiMonitoringEvents([]);
-    }
+    return dialogsAiRuntime?.loadAiMonitoringSummary(days);
   }
 
   function formatAiReviewMessageOption(item) {
-    const text = String(item?.text || '').replace(/\s+/g, ' ').trim();
-    const shortText = text.length > 120 ? `${text.slice(0, 117)}...` : text;
-    const timestamp = formatUtcDate(item?.timestamp, { includeTime: true, fallback: '' });
-    if (timestamp && shortText) return `${timestamp} · ${shortText}`;
-    if (shortText) return shortText;
-    if (timestamp) return timestamp;
-    return 'Сообщение без текста';
+    return dialogsAiRuntime?.formatAiReviewMessageOption(item) || 'Сообщение без текста';
   }
 
   function renderAiReviewMessageSelect(selectEl, candidates, selectedId, emptyLabel) {
-    if (!selectEl) return;
-    const list = Array.isArray(candidates) ? candidates : [];
-    const selected = String(selectedId || '').trim();
-    selectEl.innerHTML = '';
-    if (!list.length) {
-      const emptyOption = document.createElement('option');
-      emptyOption.value = '';
-      emptyOption.textContent = emptyLabel;
-      selectEl.appendChild(emptyOption);
-      selectEl.disabled = true;
-      return;
-    }
-    list.forEach((item, index) => {
-      const option = document.createElement('option');
-      const id = Number(item?.id);
-      option.value = Number.isFinite(id) && id > 0 ? String(id) : '';
-      option.textContent = formatAiReviewMessageOption(item);
-      if (selected && option.value === selected) {
-        option.selected = true;
-      } else if (!selected && index === list.length - 1) {
-        option.selected = true;
-      }
-      selectEl.appendChild(option);
-    });
-    selectEl.disabled = false;
+    return dialogsAiRuntime?.renderAiReviewMessageSelect(selectEl, candidates, selectedId, emptyLabel);
   }
 
   function resolveAiReviewSelectedMessageText(selectEl, candidates) {
-    const selectedValue = String(selectEl?.value || '').trim();
-    if (!selectedValue) return '';
-    const list = Array.isArray(candidates) ? candidates : [];
-    for (const item of list) {
-      const id = Number(item?.id);
-      if (Number.isFinite(id) && String(id) === selectedValue) {
-        return String(item?.text || '').trim();
-      }
-    }
-    return '';
+    return dialogsAiRuntime?.resolveAiReviewSelectedMessageText(selectEl, candidates) || '';
   }
 
   async function loadWorkspaceAiReview(ticketId) {
-    const normalizedTicketId = String(ticketId || '').trim();
-    if (!workspaceAiReviewBox) return;
-    workspaceAiReviewBox.classList.add('d-none');
-    workspaceAiReviewProblemCandidates = [];
-    workspaceAiReviewSolutionCandidates = [];
-    renderAiReviewMessageSelect(workspaceAiReviewProblemSelect, [], null, 'Нет сообщений клиента');
-    renderAiReviewMessageSelect(workspaceAiReviewSolutionSelect, [], null, 'Нет сообщений оператора');
-    if (!normalizedTicketId) return;
-    try {
-      const resp = await fetch(`/api/dialogs/${encodeURIComponent(normalizedTicketId)}/ai-review`, {
-        credentials: 'same-origin',
-        cache: 'no-store',
-      });
-      const payload = await resp.json().catch(() => ({}));
-      if (!resp.ok || payload.success === false) return;
-      const review = payload.review || {};
-      if (review.pending !== true) return;
-      if (workspaceAiReviewQuestion) {
-        const question = String(review.query_text || '').trim();
-        workspaceAiReviewQuestion.textContent = `Для обучения AI подтвердите соответствие: какое сообщение клиента описывает проблему и какое сообщение оператора является решением. ${question}`;
-      }
-      renderAiReviewMessageSelect(
-        workspaceAiReviewProblemSelect,
-        review.problem_message_candidates,
-        review.selected_problem_message_id,
-        'Нет сообщений клиента'
-      );
-      workspaceAiReviewProblemCandidates = Array.isArray(review.problem_message_candidates) ? review.problem_message_candidates : [];
-      renderAiReviewMessageSelect(
-        workspaceAiReviewSolutionSelect,
-        review.solution_message_candidates,
-        review.selected_solution_message_id,
-        'Нет сообщений оператора'
-      );
-      workspaceAiReviewSolutionCandidates = Array.isArray(review.solution_message_candidates) ? review.solution_message_candidates : [];
-      if (workspaceAiReviewCurrent) workspaceAiReviewCurrent.textContent = String(review.current_solution || '').trim();
-      if (workspaceAiReviewPending) workspaceAiReviewPending.textContent = String(review.pending_solution || '').trim();
-      workspaceAiReviewBox.classList.remove('d-none');
-    } catch (_error) {
-      // silent by design
-    }
+    return dialogsAiRuntime?.loadWorkspaceAiReview(ticketId);
   }
 
   function renderWorkspaceShell(payload) {
@@ -6919,120 +6205,31 @@
   }
 
   function resolveListPagination(totalItems) {
-    let limit = filterState.pageSize;
-    if (limit === Infinity) {
-      return {
-        limit: Infinity,
-        totalItems,
-        totalPages: totalItems > 0 ? 1 : 0,
-        currentPage: totalItems > 0 ? 1 : 0,
-        startIndex: 0,
-        endIndex: totalItems,
-        visibleCount: totalItems,
-      };
-    }
-    if (!Number.isFinite(limit) || limit <= 0) {
-      limit = DEFAULT_PAGE_SIZE;
-    }
-    const totalPages = totalItems > 0 ? Math.ceil(totalItems / limit) : 0;
-    const currentPage = totalPages > 0
-      ? Math.min(Math.max(1, Number.parseInt(filterState.page, 10) || 1), totalPages)
-      : 0;
-    const startIndex = currentPage > 0 ? (currentPage - 1) * limit : 0;
-    const endIndex = currentPage > 0 ? Math.min(startIndex + limit, totalItems) : 0;
-    return {
-      limit,
-      totalItems,
-      totalPages,
-      currentPage,
-      startIndex,
-      endIndex,
-      visibleCount: Math.max(0, endIndex - startIndex),
+    return dialogsListRuntime?.resolveListPagination(totalItems) || {
+      limit: Infinity,
+      totalItems: Number(totalItems) || 0,
+      totalPages: 0,
+      currentPage: 0,
+      startIndex: 0,
+      endIndex: 0,
+      visibleCount: 0,
     };
   }
 
   function updatePaginationControls(pagination) {
-    if (!pagePrevBtn || !pageNextBtn || !pageState) return;
-    const totalItems = Number(pagination?.totalItems || 0);
-    const totalPages = Number(pagination?.totalPages || 0);
-    const currentPage = Number(pagination?.currentPage || 0);
-    const start = totalItems > 0 ? Number(pagination?.startIndex || 0) + 1 : 0;
-    const end = totalItems > 0 ? Number(pagination?.endIndex || 0) : 0;
-
-    pagePrevBtn.disabled = currentPage <= 1;
-    pageNextBtn.disabled = currentPage <= 0 || currentPage >= totalPages;
-    renderPaginationPageNumbers(totalPages, currentPage, pagination?.limit);
-
-    if (totalItems === 0) {
-      pageState.textContent = '0 из 0';
-      return;
-    }
-
-    if (pagination?.limit === Infinity || totalPages <= 1) {
-      pageState.textContent = `${totalItems} из ${totalItems}`;
-      return;
-    }
-
-    pageState.textContent = `${start}-${end} из ${totalItems} | стр. ${currentPage}/${totalPages}`;
+    return dialogsListRuntime?.updatePaginationControls(pagination);
   }
 
   function renderPaginationPageNumbers(totalPages, currentPage, limit) {
-    if (!pageNumbers) return;
-    pageNumbers.innerHTML = '';
-
-    if (limit === Infinity || totalPages <= 1 || currentPage <= 0) {
-      return;
-    }
-
-    const windowSize = 5;
-    const safeTotalPages = Math.max(0, Number(totalPages) || 0);
-    const safeCurrentPage = Math.min(Math.max(1, Number(currentPage) || 1), safeTotalPages);
-    let startPage = Math.max(1, safeCurrentPage - Math.floor(windowSize / 2));
-    let endPage = Math.min(safeTotalPages, startPage + windowSize - 1);
-
-    if ((endPage - startPage + 1) < windowSize) {
-      startPage = Math.max(1, endPage - windowSize + 1);
-    }
-
-    for (let page = startPage; page <= endPage; page += 1) {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = page === safeCurrentPage ? 'btn btn-primary btn-sm' : 'btn btn-outline-secondary btn-sm';
-      button.textContent = String(page);
-      button.setAttribute('aria-label', `Страница ${page}`);
-      if (page === safeCurrentPage) {
-        button.setAttribute('aria-current', 'page');
-        button.disabled = true;
-      } else {
-        button.addEventListener('click', () => {
-          filterState.page = page;
-          applyFilters();
-        });
-      }
-      pageNumbers.appendChild(button);
-    }
+    return dialogsListRuntime?.renderPaginationPageNumbers(totalPages, currentPage, limit);
   }
 
   function applyPageSize(matchedRows) {
-    const pagination = resolveListPagination(matchedRows.length);
-    filterState.page = pagination.currentPage || 1;
-    matchedRows.forEach((row, index) => {
-      const visible = pagination.limit === Infinity
-        ? true
-        : index >= pagination.startIndex && index < pagination.endIndex;
-      row.classList.toggle('d-none', !visible);
-    });
-    updatePaginationControls(pagination);
-    return pagination.visibleCount;
+    return dialogsListRuntime?.applyPageSize(matchedRows) || 0;
   }
 
   function updateZebraRows(matchedRows) {
-    rowsList().forEach((row) => {
-      row.classList.remove('dialog-row-even', 'dialog-row-odd');
-    });
-    matchedRows.filter((row) => !row.classList.contains('d-none')).forEach((row, index) => {
-      row.classList.add(index % 2 === 0 ? 'dialog-row-odd' : 'dialog-row-even');
-    });
+    return dialogsListRuntime?.updateZebraRows(matchedRows);
   }
 
   function normalizeDialogTimeMetrics(raw) {

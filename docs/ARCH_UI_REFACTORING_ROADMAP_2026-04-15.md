@@ -1,7 +1,7 @@
 # Architecture And UI Refactoring Roadmap
 
 Дата старта: `2026-04-15`
-Обновлено: `2026-06-05`
+Обновлено: `2026-06-18`
 
 ## Цель
 
@@ -57,8 +57,12 @@
   `spring-panel` и `java-bot`;
 - Phase 6 уже широкая и системная, но ей всё ещё не хватает следующего слоя
   integration/e2e quality;
+- Track A уже существенно выработан: `settings-page-shell` и серия bounded
+  runtime-модулей для `appearance`, `locations`, `integration network`,
+  `channels` и `reporting` вынесены из giant inline runtime;
 - часть inline `style/script` блоков в `settings`, `dashboard`, `dialogs`
-  остаётся техническим долгом UI-слоя, но это уже не главный риск.
+  остаётся техническим долгом UI-слоя, но главный remaining browser-hotspot
+  теперь заметнее сконцентрирован в `dialogs.js`.
 
 ## Фазы
 
@@ -1730,6 +1734,15 @@
 
 Текущий зафиксированный runtime-focus внутри Track B:
 
+- первый client-side split уже начат: `list+filters/pagination/bulk` и
+  `AI ops/review/monitoring` вынесены в отдельные runtime entrypoint'ы
+  `dialogs-list-runtime.js` и `dialogs-ai-runtime.js`, а `dialogs.js`
+  переведён на thin orchestration wrappers вокруг этих bounded модулей;
+- это означает, что следующий проход уже не должен заново разбирать list/AI
+  монолит внутри `dialogs.js`, а должен добирать оставшиеся `details/history`,
+  `workspace shell`, `quick actions`, `macro workflow` и
+  `notifications refresh`;
+
 - live regression corridor для `take -> categories -> reply -> follow-up ->
   details/workspace reread -> bell ack -> next follow-up` уже нужен как
   обязательный контракт, потому что именно там расходятся row `unreadCount`,
@@ -1800,9 +1813,9 @@
 
 Рекомендуемый порядок следующего реального прохода:
 
-1. Сначала `Track A`, потому что `settings/index.html` сейчас самый явный
-   UI-coupling hotspot.
-2. Затем `Track B`, потому что `dialogs.js` уже является client-side аналогом
-   giant orchestration file.
-3. Только потом `Track C`, если после UI split эти backend boundaries всё ещё
-   будут оставаться самыми тяжёлыми практическими точками роста.
+1. Сначала продолжать `Track B`, потому что после settings runtime split
+   главным UI-runtime hotspot остаётся именно `dialogs.js`.
+2. Затем брать `Track C`, если secondary controller/orchestration boundaries
+   продолжают расти после client-side cleanup.
+3. Остаточный cleanup `Track A` вести уже как локальный follow-up, а не как
+   главный следующий архитектурный проход.
