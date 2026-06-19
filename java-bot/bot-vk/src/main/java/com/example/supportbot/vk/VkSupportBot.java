@@ -9,7 +9,6 @@ import com.example.supportbot.service.BlacklistService;
 import com.example.supportbot.service.ChannelService;
 import com.example.supportbot.service.ChatHistoryService;
 import com.example.supportbot.service.FeedbackService;
-import com.example.supportbot.service.PublicFormConversationLinkService;
 import com.example.supportbot.service.SharedConfigService;
 import com.example.supportbot.service.TicketService;
 import com.example.supportbot.service.UnblockRequestService;
@@ -85,7 +84,6 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
     private final TicketService ticketService;
     private final ChatHistoryService chatHistoryService;
     private final FeedbackService feedbackService;
-    private final PublicFormConversationLinkService publicFormConversationLinkService;
     private final SharedConfigService sharedConfigService;
     private final ObjectMapper objectMapper;
     private final Gson gson;
@@ -109,7 +107,6 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
                         TicketService ticketService,
                         ChatHistoryService chatHistoryService,
                         FeedbackService feedbackService,
-                        PublicFormConversationLinkService publicFormConversationLinkService,
                         SharedConfigService sharedConfigService,
                         ObjectMapper objectMapper) {
         this.properties = properties;
@@ -121,7 +118,6 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         this.ticketService = ticketService;
         this.chatHistoryService = chatHistoryService;
         this.feedbackService = feedbackService;
-        this.publicFormConversationLinkService = publicFormConversationLinkService;
         this.sharedConfigService = sharedConfigService;
         this.objectMapper = objectMapper;
         this.gson = new Gson();
@@ -244,11 +240,6 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
 
         String text = Optional.ofNullable(message.getText()).orElse("").trim();
         VkClientProfile clientProfile = resolveVkClientProfile(fromId);
-        String publicFormToken = extractPublicFormContinueToken(text);
-        if (publicFormToken != null) {
-            handlePublicFormContinue(actor, peerId, fromId, clientProfile.username(), channel, publicFormToken);
-            return;
-        }
         if ("/start".equalsIgnoreCase(text)) {
             log.info("Received /start from VK user {}", fromId);
         }
@@ -444,46 +435,6 @@ public class VkSupportBot implements SmartLifecycle, DisposableBean {
         }
         promptCurrentQuestion(actor, session);
         return session;
-    }
-
-    private String extractPublicFormContinueToken(String text) {
-        if (text == null) {
-            return null;
-        }
-        String normalized = text.trim();
-        if (normalized.isEmpty()) {
-            return null;
-        }
-        String[] parts = normalized.split("\\s+", 2);
-        String command = parts[0].toLowerCase();
-        String argument = parts.length > 1 ? parts[1].trim() : "";
-        if ("/continue".equals(command) && !argument.isBlank()) {
-            return argument;
-        }
-        if ("/start".equals(command) && argument.toLowerCase().startsWith("web_")) {
-            String token = argument.substring(4).trim();
-            return token.isBlank() ? null : token;
-        }
-        return null;
-    }
-
-    private void handlePublicFormContinue(GroupActor actor,
-                                          Long peerId,
-                                          Long userId,
-                                          String username,
-                                          Channel channel,
-                                          String token) {
-        PublicFormConversationLinkService.LinkResult result =
-                publicFormConversationLinkService.bindSessionToChannel(token, userId, username, channel);
-        String response;
-        if (!result.success()) {
-            response = result.error();
-        } else if (result.closed()) {
-            response = "Диалог #" + result.ticketId() + " привязан к этому боту. Сейчас он закрыт, но после переоткрытия вы сможете продолжить переписку здесь.";
-        } else {
-            response = "Диалог #" + result.ticketId() + " привязан к этому боту. Продолжайте переписку здесь следующим сообщением.";
-        }
-        sendText(actor, peerId, response);
     }
 
     private void promptCurrentQuestion(GroupActor actor, ConversationSession session) {

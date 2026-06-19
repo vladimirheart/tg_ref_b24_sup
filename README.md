@@ -3,13 +3,13 @@
 ![Логотип Iguana](spring-panel/src/main/resources/static/iguana-icon.svg)
 
 Iguana — support CRM и операторская панель для обработки обращений из
-`Telegram`, `VK`, `MAX` и внешних форм. Проект объединяет многоканальный
+`Telegram`, `VK` и `MAX`. Проект объединяет многоканальный
 приём сообщений, рабочее место операторов, базу знаний, аналитику и управление
 ботами из единого интерфейса.
 
 ## Что есть в проекте
 
-- многоканальные диалоги с клиентами через `Telegram`, `VK`, `MAX` и web-формы;
+- многоканальные диалоги с клиентами через `Telegram`, `VK` и `MAX`;
 - рабочее место оператора со списком диалогов, SLA, историей сообщений,
   аватарами и уведомлениями;
 - карточки клиентов с источником обращения и идентификаторами по каналу;
@@ -186,10 +186,8 @@ export SPRING_OPTS="--server.port=8080"
 - [docs/EXEC_SUMMARY_ARCHITECTURE_AUDIT.md](docs/EXEC_SUMMARY_ARCHITECTURE_AUDIT.md)
 - [docs/REFACTORING_PLAN_2026.md](docs/REFACTORING_PLAN_2026.md)
 
-### Формы, AI и база знаний
+### AI и база знаний
 
-- [docs/public_forms_implementation_plan.md](docs/public_forms_implementation_plan.md)
-- [docs/runbooks/public_forms_incidents.md](docs/runbooks/public_forms_incidents.md)
 - [docs/ai_dialog_agent_plan.md](docs/ai_dialog_agent_plan.md)
 - [docs/ai_solution_memory_editing.md](docs/ai_solution_memory_editing.md)
 

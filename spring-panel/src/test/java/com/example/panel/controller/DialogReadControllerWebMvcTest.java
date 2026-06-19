@@ -83,20 +83,6 @@ class DialogReadControllerWebMvcTest {
     }
 
     @Test
-    void publicFormMetricsDelegatesOptionalChannelId() throws Exception {
-        when(dialogReadService.loadPublicFormMetrics(91L))
-            .thenReturn(Map.of("success", true, "channelId", 91, "submitted", 4));
-
-        mockMvc.perform(get("/api/dialogs/public-form-metrics")
-                .param("channelId", "91")
-                .with(user("operator")))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.success").value(true))
-            .andExpect(jsonPath("$.channelId").value(91))
-            .andExpect(jsonPath("$.submitted").value(4));
-    }
-
-    @Test
     void participantsReturnsRuntimeProjectionPayload() throws Exception {
         when(dialogReadService.loadParticipants("T-105"))
             .thenReturn(Map.of(

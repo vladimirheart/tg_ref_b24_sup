@@ -21,11 +21,6 @@ public class DialogReadController {
         this.dialogReadService = dialogReadService;
     }
 
-    @GetMapping("/public-form-metrics")
-    public Map<String, Object> publicFormMetrics(@RequestParam(value = "channelId", required = false) Long channelId) {
-        return dialogReadService.loadPublicFormMetrics(channelId);
-    }
-
     @GetMapping("/{ticketId}")
     public ResponseEntity<?> details(@PathVariable String ticketId,
                                      @RequestParam(value = "channelId", required = false) Long channelId,

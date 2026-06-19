@@ -31,7 +31,6 @@ public class SettingsDialogConfigRoutingService {
             if (key.startsWith("dialog_sla_")
                     || key.startsWith("dialog_ai_agent_")
                     || key.startsWith("dialog_workspace_")
-                    || key.startsWith("dialog_public_form_")
                     || key.startsWith("dialog_macro_")
                     || key.startsWith("dialog_cross_product_")
                     || DIRECT_DIALOG_CONFIG_KEYS.contains(key)) {

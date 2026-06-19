@@ -27,7 +27,6 @@ class SettingsDialogConfigUpdateServiceTest {
     private SettingsDialogRuntimeConfigService runtimeConfigService;
     private SettingsDialogSlaAiConfigService slaAiConfigService;
     private SettingsDialogWorkspaceConfigService workspaceConfigService;
-    private SettingsDialogPublicFormConfigService publicFormConfigService;
     private SettingsDialogConfigRoutingService routingService;
     private SettingsDialogConfigSupportService supportService;
     private SettingsDialogConfigUpdateService service;
@@ -38,7 +37,6 @@ class SettingsDialogConfigUpdateServiceTest {
         runtimeConfigService = mock(SettingsDialogRuntimeConfigService.class);
         slaAiConfigService = mock(SettingsDialogSlaAiConfigService.class);
         workspaceConfigService = mock(SettingsDialogWorkspaceConfigService.class);
-        publicFormConfigService = mock(SettingsDialogPublicFormConfigService.class);
         routingService = mock(SettingsDialogConfigRoutingService.class);
         supportService = mock(SettingsDialogConfigSupportService.class);
         service = new SettingsDialogConfigUpdateService(
@@ -46,7 +44,6 @@ class SettingsDialogConfigUpdateServiceTest {
                 runtimeConfigService,
                 slaAiConfigService,
                 workspaceConfigService,
-                publicFormConfigService,
                 routingService,
                 supportService
         );
@@ -59,7 +56,6 @@ class SettingsDialogConfigUpdateServiceTest {
         doNothing().when(runtimeConfigService).applySettings(anyMap(), anyMap());
         doNothing().when(slaAiConfigService).applySettings(anyMap(), anyMap());
         doNothing().when(workspaceConfigService).applySettings(anyMap(), anyMap(), anyList());
-        doNothing().when(publicFormConfigService).applySettings(anyMap(), anyMap());
         doNothing().when(supportService).validateExternalKpiDatamartContract(anyMap());
 
         Map<String, Object> payload = Map.of("dialog_workspace_rollout_enabled", true);
@@ -76,7 +72,6 @@ class SettingsDialogConfigUpdateServiceTest {
         verify(runtimeConfigService).applySettings(anyMap(), anyMap());
         verify(slaAiConfigService).applySettings(anyMap(), anyMap());
         verify(workspaceConfigService).applySettings(anyMap(), anyMap(), anyList());
-        verify(publicFormConfigService).applySettings(anyMap(), anyMap());
         verify(supportService).validateExternalKpiDatamartContract(anyMap());
     }
 

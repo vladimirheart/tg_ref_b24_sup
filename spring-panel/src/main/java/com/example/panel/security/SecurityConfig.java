@@ -38,7 +38,6 @@ public class SecurityConfig {
                                 "/favicon.ico", "/*.svg", "/*.png",
                                 "/login",
                                 "/api/password-reset-requests/public",
-                                "/public/forms/**", "/api/public/forms/**",
                                 "/webhooks/max/**",
                                 "/error", "/error/**"
                         ).permitAll()
@@ -58,7 +57,7 @@ public class SecurityConfig {
                 )
                 .csrf(csrf -> csrf
                         .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
-                        .ignoringRequestMatchers("/api/public/forms/**", "/webhooks/max/**")
+                        .ignoringRequestMatchers("/webhooks/max/**")
                 )
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)

@@ -4448,122 +4448,6 @@
                       </div>
                     </div>
                   </div>
-                  <hr class="my-4">
-                  <h6 class="mb-2">Публичные формы: антиспам и ограничения</h6>
-                  <p class="small text-muted">Закрывает пункты roadmap по эксплуатационной защите форм (rate-limit, идемпотентность и лимиты payload) без доработок кода.</p>
-                  <div class="row g-3 align-items-end">
-                    <div class="col-md-4">
-                      <label for="dialogPublicFormMessageMaxLength" class="form-label">Макс. длина сообщения</label>
-                      <input type="number" class="form-control" id="dialogPublicFormMessageMaxLength" min="300" max="20000" step="100">
-                    </div>
-                    <div class="col-md-4">
-                      <label for="dialogPublicFormAnswersTotalMaxLength" class="form-label">Лимит объёма ответов, симв.</label>
-                      <input type="number" class="form-control" id="dialogPublicFormAnswersTotalMaxLength" min="200" max="50000" step="100">
-                    </div>
-                    <div class="col-md-4">
-                      <label for="dialogPublicFormSessionTtlHours" class="form-label">TTL сессии, часов</label>
-                      <input type="number" class="form-control" id="dialogPublicFormSessionTtlHours" min="1" max="720" step="1">
-                    </div>
-                    <div class="col-md-4">
-                      <label for="dialogPublicFormIdempotencyTtlSeconds" class="form-label">TTL идемпотентности, сек</label>
-                      <input type="number" class="form-control" id="dialogPublicFormIdempotencyTtlSeconds" min="30" max="3600" step="10">
-                    </div>
-                    <div class="col-md-4">
-                      <label for="dialogPublicFormRateLimitWindowSeconds" class="form-label">Окно rate-limit, сек</label>
-                      <input type="number" class="form-control" id="dialogPublicFormRateLimitWindowSeconds" min="10" max="3600" step="10">
-                    </div>
-                    <div class="col-md-4">
-                      <label for="dialogPublicFormRateLimitMaxRequests" class="form-label">Лимит запросов в окне</label>
-                      <input type="number" class="form-control" id="dialogPublicFormRateLimitMaxRequests" min="1" max="500" step="1">
-                    </div>
-                    <div class="col-md-4">
-                      <label for="dialogPublicFormSessionPollingIntervalSeconds" class="form-label">Интервал автообновления истории, сек</label>
-                      <input type="number" class="form-control" id="dialogPublicFormSessionPollingIntervalSeconds" min="5" max="300" step="1">
-                    </div>
-                    <div class="col-md-4">
-                      <label for="dialogPublicFormDefaultLocale" class="form-label">Язык публичной формы</label>
-                      <select class="form-select" id="dialogPublicFormDefaultLocale">
-                        <option value="auto">Авто (по браузеру)</option>
-                        <option value="ru">Русский</option>
-                        <option value="en">English</option>
-                      </select>
-                    </div>
-                    <div class="col-md-4">
-                      <label for="dialogPublicFormCaptchaMode" class="form-label">Режим CAPTCHA-проверки</label>
-                      <select class="form-select" id="dialogPublicFormCaptchaMode">
-                        <option value="shared_secret">Shared secret (legacy)</option>
-                        <option value="turnstile">Cloudflare Turnstile</option>
-                      </select>
-                    </div>
-                    <div class="col-md-4">
-                      <label for="dialogPublicFormCaptchaSharedSecret" class="form-label">CAPTCHA shared secret</label>
-                      <input type="text" class="form-control" id="dialogPublicFormCaptchaSharedSecret" placeholder="Секрет для captchaToken">
-                    </div>
-                    <div class="col-md-4">
-                      <label for="dialogPublicFormTurnstileSecretKey" class="form-label">Turnstile secret key</label>
-                      <input type="text" class="form-control" id="dialogPublicFormTurnstileSecretKey" placeholder="0x4AAAA...">
-                    </div>
-                    <div class="col-md-8">
-                      <label for="dialogPublicFormTurnstileVerifyUrl" class="form-label">Turnstile verify URL</label>
-                      <input type="url" class="form-control" id="dialogPublicFormTurnstileVerifyUrl" placeholder="https://challenges.cloudflare.com/turnstile/v0/siteverify">
-                    </div>
-                    <div class="col-md-4">
-                      <label for="dialogPublicFormTurnstileTimeoutMs" class="form-label">Turnstile timeout, мс</label>
-                      <input type="number" class="form-control" id="dialogPublicFormTurnstileTimeoutMs" min="500" max="15000" step="100">
-                    </div>
-                    <div class="col-12">
-                      <div class="form-check form-switch mt-2">
-                        <input class="form-check-input" type="checkbox" id="dialogPublicFormRateLimitEnabled">
-                        <label class="form-check-label" for="dialogPublicFormRateLimitEnabled">Включить server-side rate-limit для публичных форм</label>
-                      </div>
-                      <div class="form-check form-switch mt-2">
-                        <input class="form-check-input" type="checkbox" id="dialogPublicFormRateLimitUseFingerprint">
-                        <label class="form-check-label" for="dialogPublicFormRateLimitUseFingerprint">Учитывать browser fingerprint в bucket rate-limit (IP + fingerprint + канал)</label>
-                      </div>
-                      <div class="form-check form-switch mt-2">
-                        <input class="form-check-input" type="checkbox" id="dialogPublicFormMetricsEnabled">
-                        <label class="form-check-label" for="dialogPublicFormMetricsEnabled">Собирать runtime-метрики публичных форм (views/submits/errors)</label>
-                      </div>
-                      <div class="form-check form-switch mt-2">
-                        <input class="form-check-input" type="checkbox" id="dialogPublicFormAlertsEnabled">
-                        <label class="form-check-label" for="dialogPublicFormAlertsEnabled">Включить alert-эвристику по аномалиям (ошибки/капча/rate-limit/session miss)</label>
-                      </div>
-                      <div class="row g-2 mt-2">
-                        <div class="col-md-4">
-                          <label class="form-label" for="dialogPublicFormAlertMinViews">Мин. просмотров для алертов</label>
-                          <input type="number" class="form-control" id="dialogPublicFormAlertMinViews" min="1" max="10000" step="1">
-                        </div>
-                        <div class="col-md-4">
-                          <label class="form-label" for="dialogPublicFormAlertErrorRateThreshold">Порог submit error rate</label>
-                          <input type="number" class="form-control" id="dialogPublicFormAlertErrorRateThreshold" min="0.01" max="1" step="0.01">
-                        </div>
-                        <div class="col-md-4">
-                          <label class="form-label" for="dialogPublicFormAlertCaptchaFailureRateThreshold">Порог CAPTCHA failure rate</label>
-                          <input type="number" class="form-control" id="dialogPublicFormAlertCaptchaFailureRateThreshold" min="0.01" max="1" step="0.01">
-                        </div>
-                        <div class="col-md-4">
-                          <label class="form-label" for="dialogPublicFormAlertRateLimitRejectionRateThreshold">Порог rate-limit rejection rate</label>
-                          <input type="number" class="form-control" id="dialogPublicFormAlertRateLimitRejectionRateThreshold" min="0.01" max="1" step="0.01">
-                        </div>
-                        <div class="col-md-4">
-                          <label class="form-label" for="dialogPublicFormAlertSessionLookupMissRateThreshold">Порог session miss rate</label>
-                          <input type="number" class="form-control" id="dialogPublicFormAlertSessionLookupMissRateThreshold" min="0.01" max="1" step="0.01">
-                        </div>
-                      </div>
-                      <div class="form-check form-switch mt-2">
-                        <input class="form-check-input" type="checkbox" id="dialogPublicFormStripHtmlTags">
-                        <label class="form-check-label" for="dialogPublicFormStripHtmlTags">Удалять HTML-теги и управляющие символы из ответов публичной формы</label>
-                      </div>
-                      <div class="form-check form-switch mt-2">
-                        <input class="form-check-input" type="checkbox" id="dialogPublicFormSessionPollingEnabled">
-                        <label class="form-check-label" for="dialogPublicFormSessionPollingEnabled">Включить автообновление истории в публичной форме по токену</label>
-                      </div>
-                      <div class="form-check form-switch mt-2">
-                        <input class="form-check-input" type="checkbox" id="dialogPublicFormSessionTokenRotateOnRead">
-                        <label class="form-check-label" for="dialogPublicFormSessionTokenRotateOnRead">Ротировать токен сессии при каждом чтении истории (повышенная безопасность)</label>
-                      </div>
-                    </div>
-                  </div>
                 </section>
               </div>
 
@@ -6458,18 +6342,6 @@
                   <div class="channel-editor-summary__label">Бот</div>
                   <div class="channel-editor-summary__value" data-channel-editor-bot>—</div>
                 </div>
-                <div class="channel-editor-summary__item">
-                  <div class="channel-editor-summary__label">ID для форм</div>
-                  <div class="channel-editor-summary__value font-monospace" data-channel-editor-public-id>—</div>
-                </div>
-              </div>
-              <div class="channel-editor-inline-note mt-3">
-                <div class="d-flex flex-wrap align-items-center gap-2">
-                  <button type="button" class="btn btn-link btn-sm p-0 align-baseline" id="channelEditorRegeneratePublicIdBtn">Регенерировать ID</button>
-                  <button type="button" class="btn btn-link btn-sm p-0 align-baseline" id="channelEditorCopyPublicLinkBtn">Скопировать ссылку формы</button>
-                </div>
-                <div class="small text-muted mt-2" data-channel-editor-public-link>—</div>
-                <div class="small text-muted mt-1" data-channel-editor-meta></div>
               </div>
             </div>
 
@@ -6478,12 +6350,6 @@
                 <button class="nav-link active" id="channel-editor-general-tab" data-bs-toggle="tab" data-bs-target="#channel-editor-general" type="button" role="tab" aria-controls="channel-editor-general" aria-selected="true">
                   <i class="bi bi-sliders2" aria-hidden="true"></i>
                   Общее
-                </button>
-              </li>
-              <li class="nav-item" role="presentation">
-                <button class="nav-link" id="channel-editor-form-tab" data-bs-toggle="tab" data-bs-target="#channel-editor-form" type="button" role="tab" aria-controls="channel-editor-form" aria-selected="false">
-                  <i class="bi bi-ui-checks-grid" aria-hidden="true"></i>
-                  Внешняя форма
                 </button>
               </li>
               <li class="nav-item" role="presentation">
@@ -6557,105 +6423,6 @@
                 </div>
               </div>
 
-              <div class="tab-pane fade" id="channel-editor-form" role="tabpanel" aria-labelledby="channel-editor-form-tab">
-                <div class="channel-editor-pane">
-                  <section class="channel-editor-section channel-editor-section--accent">
-                    <div class="channel-editor-section__head">
-                      <div>
-                        <h6 class="channel-editor-section__title">
-                          <i class="bi bi-window-stack" aria-hidden="true"></i>
-                          Публикация формы
-                        </h6>
-                        <p class="channel-editor-section__hint">Параметры, которые видит внешний пользователь при отправке обращения через форму.</p>
-                      </div>
-                    </div>
-                    <div class="channel-editor-switches mb-3">
-                      <div class="channel-editor-switch">
-                        <div class="form-check form-switch">
-                          <input class="form-check-input" type="checkbox" id="channelEditorPublicFormEnabled" />
-                          <label class="form-check-label" for="channelEditorPublicFormEnabled">Включить внешнюю форму для канала</label>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="row g-3">
-                      <div class="col-12 col-md-7">
-                        <label class="form-label" for="channelEditorPublicFormSuccessInstruction">Инструкция после отправки</label>
-                        <textarea class="form-control" id="channelEditorPublicFormSuccessInstruction" rows="2" maxlength="300" placeholder="Например: Ответим в рабочее время с 09:00 до 18:00"></textarea>
-                        <div class="form-text">Показывается пользователю после успешной отправки формы.</div>
-                      </div>
-                      <div class="col-12 col-md-5">
-                        <label class="form-label" for="channelEditorPublicFormResponseEtaMinutes">Ожидаемое время ответа (мин)</label>
-                        <input class="form-control" type="number" id="channelEditorPublicFormResponseEtaMinutes" min="0" max="10080" step="5" placeholder="0 — скрыть" />
-                        <div class="form-text">Если указано, клиент увидит ориентир по времени ответа.</div>
-                      </div>
-                    </div>
-                  </section>
-
-                  <section class="channel-editor-section">
-                    <div class="channel-editor-section__head">
-                      <div>
-                        <h6 class="channel-editor-section__title">
-                          <i class="bi bi-shield-check" aria-hidden="true"></i>
-                          Защита и лимиты
-                        </h6>
-                        <p class="channel-editor-section__hint">Дополнительные ограничения и защитные механизмы для публичной формы.</p>
-                      </div>
-                    </div>
-                    <div class="channel-editor-switches mb-3">
-                      <div class="channel-editor-switch">
-                        <div class="form-check form-switch">
-                          <input class="form-check-input" type="checkbox" id="channelEditorPublicFormCaptchaEnabled" />
-                          <label class="form-check-label" for="channelEditorPublicFormCaptchaEnabled">Требовать CAPTCHA на публичной форме</label>
-                        </div>
-                        <div class="form-text mt-2">В режиме shared secret токен сверяется с `dialog_config.public_form_captcha_shared_secret`; в режиме Turnstile выполняется server-side проверка по verify URL.</div>
-                      </div>
-                      <div class="channel-editor-switch">
-                        <div class="form-check form-switch">
-                          <input class="form-check-input" type="checkbox" id="channelEditorPublicFormRateLimitEnabled" />
-                          <label class="form-check-label" for="channelEditorPublicFormRateLimitEnabled">Включить rate-limit для канала</label>
-                        </div>
-                        <div class="form-text mt-2">Локально переопределяет глобальную политику ограничений для этого канала.</div>
-                      </div>
-                    </div>
-                    <div class="row g-3">
-                      <div class="col-12 col-md-6">
-                        <label class="form-label" for="channelEditorPublicFormRateLimitWindowSeconds">Окно rate-limit (сек)</label>
-                        <input class="form-control" type="number" id="channelEditorPublicFormRateLimitWindowSeconds" min="10" max="3600" step="10" />
-                      </div>
-                      <div class="col-12 col-md-6">
-                        <label class="form-label" for="channelEditorPublicFormRateLimitMaxRequests">Лимит запросов в окне</label>
-                        <input class="form-control" type="number" id="channelEditorPublicFormRateLimitMaxRequests" min="1" max="500" step="1" />
-                      </div>
-                      <div class="col-12">
-                        <label class="form-label" for="channelEditorPublicFormDisabledStatus">HTTP-статус при отключённой форме</label>
-                        <select class="form-select" id="channelEditorPublicFormDisabledStatus">
-                          <option value="404">404 Not Found (скрыть существование формы)</option>
-                          <option value="410">410 Gone (форма отозвана)</option>
-                        </select>
-                      </div>
-                    </div>
-                  </section>
-
-                  <section class="channel-editor-section">
-                    <div class="channel-editor-section__head">
-                      <div>
-                        <h6 class="channel-editor-section__title">
-                          <i class="bi bi-layout-text-window" aria-hidden="true"></i>
-                          Поля формы
-                        </h6>
-                        <p class="channel-editor-section__hint">Конструктор структуры формы и быстрый предпросмотр результата.</p>
-                      </div>
-                      <button type="button" class="btn btn-sm btn-outline-primary" id="channelEditorPublicFormAddFieldBtn">Добавить поле</button>
-                    </div>
-                    <div class="d-flex flex-column gap-2" data-public-form-fields-list></div>
-                    <div class="channel-editor-inline-note mt-3">
-                      <div class="small text-muted mb-1">Предпросмотр</div>
-                      <div class="border rounded-2 p-2 bg-light" data-public-form-preview>Поля не настроены.</div>
-                    </div>
-                  </section>
-                </div>
-              </div>
-
               <div class="tab-pane fade" id="channel-editor-delivery" role="tabpanel" aria-labelledby="channel-editor-delivery-tab">
                 <div class="channel-editor-pane">
                   <section class="channel-editor-section">
@@ -6691,16 +6458,10 @@
                           <i class="bi bi-bell" aria-hidden="true"></i>
                           Оповещения в панели
                         </h6>
-                        <p class="channel-editor-section__hint">Кому в bell приходят новые обращения из внешней формы и просрочка первой реакции.</p>
+                        <p class="channel-editor-section__hint">Настройки служебных уведомлений для операторов.</p>
                       </div>
                     </div>
                     <div class="channel-editor-switches">
-                      <div class="channel-editor-switch">
-                        <div class="form-check form-switch">
-                          <input class="form-check-input" type="checkbox" id="channelEditorPanelNotifNewPublicAppeal" />
-                          <label class="form-check-label" for="channelEditorPanelNotifNewPublicAppeal">Новые обращения из внешней формы</label>
-                        </div>
-                      </div>
                       <div class="channel-editor-switch">
                         <div class="form-check form-switch">
                           <input class="form-check-input" type="checkbox" id="channelEditorPanelNotifFirstResponseOverdue" />

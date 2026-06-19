@@ -23,25 +23,15 @@ public class DialogReadService {
     private final DialogResponsibilityService dialogResponsibilityService;
     private final DialogConversationReadService dialogConversationReadService;
     private final DialogParticipantService dialogParticipantService;
-    private final PublicFormService publicFormService;
 
     public DialogReadService(DialogDetailsReadService dialogDetailsReadService,
                              DialogResponsibilityService dialogResponsibilityService,
                              DialogConversationReadService dialogConversationReadService,
-                             DialogParticipantService dialogParticipantService,
-                             PublicFormService publicFormService) {
+                             DialogParticipantService dialogParticipantService) {
         this.dialogDetailsReadService = dialogDetailsReadService;
         this.dialogResponsibilityService = dialogResponsibilityService;
         this.dialogConversationReadService = dialogConversationReadService;
         this.dialogParticipantService = dialogParticipantService;
-        this.publicFormService = publicFormService;
-    }
-
-    public Map<String, Object> loadPublicFormMetrics(Long channelId) {
-        return Map.of(
-                "success", true,
-                "metrics", publicFormService.loadMetricsSnapshot(channelId)
-        );
     }
 
     public ResponseEntity<?> loadDetails(String ticketId, Long channelId, String operator) {

@@ -14,7 +14,6 @@ class SettingsDialogConfigRoutingServiceTest {
     void detectsKnownDialogConfigPrefixes() {
         assertTrue(routingService.hasDialogConfigUpdates(Map.of("dialog_workspace_v1", true)));
         assertTrue(routingService.hasDialogConfigUpdates(Map.of("dialog_sla_target_minutes", 15)));
-        assertTrue(routingService.hasDialogConfigUpdates(Map.of("dialog_public_form_message_max_length", 2000)));
         assertTrue(routingService.hasDialogConfigUpdates(Map.of("dialog_macro_templates", "[]")));
     }
 

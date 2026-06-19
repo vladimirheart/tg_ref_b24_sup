@@ -45,7 +45,6 @@ public class AuthManagementApiController {
         Map.of("key", "tasks", "label", "Задачи"),
         Map.of("key", "clients", "label", "Клиенты"),
         Map.of("key", "object_passports", "label", "Паспорта объектов"),
-        Map.of("key", "external_forms", "label", "Внешние формы"),
         Map.of("key", "knowledge_base", "label", "База знаний"),
         Map.of("key", "dashboard", "label", "Отчёты"),
         Map.of("key", "analytics", "label", "Аналитика"),

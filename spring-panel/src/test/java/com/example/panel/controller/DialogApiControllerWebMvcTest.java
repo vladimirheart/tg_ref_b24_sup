@@ -14,7 +14,6 @@ import com.example.panel.service.DialogAiAssistantService;
 import com.example.panel.service.DialogWorkspaceService;
 import com.example.panel.service.NotificationService;
 import com.example.panel.service.PermissionService;
-import com.example.panel.service.PublicFormService;
 import com.example.panel.service.SlaEscalationWebhookNotifier;
 import com.example.panel.service.SharedConfigService;
 import com.example.panel.storage.AttachmentService;
@@ -102,9 +101,6 @@ class DialogApiControllerWebMvcTest {
 
     @MockBean
     private SlaEscalationWebhookNotifier slaEscalationWebhookNotifier;
-
-    @MockBean
-    private PublicFormService publicFormService;
 
     @MockBean
     private DialogAiAssistantService dialogAiAssistantService;
