@@ -484,6 +484,594 @@
         </div>`;
     }
 
+    function normalizeWorkspaceContextViolationDetails(details) {
+      if (!Array.isArray(details)) {
+        return [];
+      }
+      return details
+        .filter((item) => item && typeof item === 'object')
+        .map((item) => {
+          const playbook = item.playbook && typeof item.playbook === 'object' ? item.playbook : null;
+          const playbookUrl = String(playbook?.url || '').trim();
+          return {
+            type: String(item.type || '').trim(),
+            code: String(item.code || '').trim(),
+            severity: String(item.severity || '').trim().toLowerCase(),
+            severityRank: Number(item.severity_rank || 0),
+            shortLabel: String(item.short_label || item.operator_message || item.analytics_message || item.code || '').trim(),
+            operatorMessage: String(item.operator_message || item.analytics_message || item.code || '').trim(),
+            nextStep: String(item.next_step || '').trim(),
+            actionLabel: String(item.action_label || '').trim(),
+            analyticsMessage: String(item.analytics_message || '').trim(),
+            playbookLabel: String(playbook?.label || 'Playbook').trim() || 'Playbook',
+            playbookUrl: /^https?:\/\//i.test(playbookUrl) ? playbookUrl : '',
+            playbookSummary: String(playbook?.summary || '').trim(),
+          };
+        })
+        .sort((left, right) => {
+          const severityDelta = Number(right.severityRank || 0) - Number(left.severityRank || 0);
+          if (severityDelta !== 0) {
+            return severityDelta;
+          }
+          return String(left.shortLabel || '').localeCompare(String(right.shortLabel || ''), 'ru');
+        })
+        .filter((item) => item.operatorMessage);
+    }
+
+    function workspaceContextViolationTypeLabel(type) {
+      switch (String(type || '').trim().toLowerCase()) {
+        case 'mandatory_field':
+          return 'Mandatory field';
+        case 'source_of_truth':
+          return 'Source of truth';
+        case 'priority_block':
+          return 'Priority block';
+        default:
+          return 'Context gap';
+      }
+    }
+
+    function workspaceContextViolationSeverityLabel(severity) {
+      switch (String(severity || '').trim().toLowerCase()) {
+        case 'high':
+          return 'Срочно';
+        case 'medium':
+          return 'Нужно действие';
+        default:
+          return 'К сведению';
+      }
+    }
+
+    function workspaceContextViolationSeverityBadge(severity) {
+      switch (String(severity || '').trim().toLowerCase()) {
+        case 'high':
+          return 'text-bg-danger';
+        case 'medium':
+          return 'text-bg-warning';
+        default:
+          return 'text-bg-secondary';
+      }
+    }
+
+    function isWorkspaceClientExtraValue(value) {
+      if (value === null || value === undefined) return false;
+      if (Array.isArray(value)) return value.length > 0;
+      if (typeof value === 'object') return Object.keys(value).length > 0;
+      return String(value).trim() !== '';
+    }
+
+    function formatWorkspaceClientExtraValue(value) {
+      if (Array.isArray(value)) {
+        return value.map((item) => formatWorkspaceClientExtraValue(item)).filter(Boolean).join(', ');
+      }
+      if (value && typeof value === 'object') {
+        return Object.entries(value)
+          .map(([key, nested]) => `${prettifyWorkspaceClientExtraKey(key)}: ${formatWorkspaceClientExtraValue(nested)}`)
+          .join('; ');
+      }
+      return String(value);
+    }
+
+    function prettifyWorkspaceClientExtraKey(key) {
+      return String(key || '')
+        .replace(/[_-]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .replace(/^./, (char) => char.toUpperCase()) || 'Атрибут';
+    }
+
+    function normalizeWorkspaceClientAttributeKey(key) {
+      return String(key || '')
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9_]+/g, '_')
+        .replace(/^_+|_+$/g, '')
+        .replace(/_+/g, '_');
+    }
+
+    function resolveWorkspaceClientAttributeLabelMap(rawLabels) {
+      const labels = new Map();
+      if (!rawLabels || typeof rawLabels !== 'object') {
+        return labels;
+      }
+      Object.entries(rawLabels).forEach(([key, value]) => {
+        const normalizedKey = normalizeWorkspaceClientAttributeKey(key);
+        const label = String(value || '').trim();
+        if (!normalizedKey || !label) return;
+        labels.set(normalizedKey, label);
+      });
+      return labels;
+    }
+
+    function resolveWorkspaceClientAttributeOrder(rawOrder) {
+      if (!Array.isArray(rawOrder)) {
+        return [];
+      }
+      const order = [];
+      rawOrder.forEach((item) => {
+        const normalizedKey = normalizeWorkspaceClientAttributeKey(item);
+        if (!normalizedKey || order.includes(normalizedKey)) return;
+        order.push(normalizedKey);
+      });
+      return order;
+    }
+
+    function orderWorkspaceClientExtraEntries(entries, order) {
+      if (!Array.isArray(entries) || entries.length === 0 || !Array.isArray(order) || order.length === 0) {
+        return Array.isArray(entries) ? entries : [];
+      }
+      const priority = new Map(order.map((key, index) => [key, index]));
+      return [...entries].sort(([leftKey], [rightKey]) => {
+        const leftPriority = priority.has(normalizeWorkspaceClientAttributeKey(leftKey))
+          ? priority.get(normalizeWorkspaceClientAttributeKey(leftKey))
+          : Number.POSITIVE_INFINITY;
+        const rightPriority = priority.has(normalizeWorkspaceClientAttributeKey(rightKey))
+          ? priority.get(normalizeWorkspaceClientAttributeKey(rightKey))
+          : Number.POSITIVE_INFINITY;
+        if (leftPriority !== rightPriority) {
+          return leftPriority - rightPriority;
+        }
+        return String(leftKey).localeCompare(String(rightKey), 'ru');
+      });
+    }
+
+    function renderWorkspaceClientProfile(client, context = {}) {
+      if (!client || typeof client !== 'object') {
+        return '<div class="small text-muted">Профиль клиента недоступен.</div>';
+      }
+      const fields = [
+        ['ID', client.id],
+        ['Username', client.username],
+        ['Статус', client.status],
+        ['Канал', client.channel],
+        ['Бизнес', client.business],
+        ['Локация', client.location],
+        ['Ответственный', client.responsible],
+        ['Непрочитанные', client.unread_count],
+        ['Оценка', client.rating],
+        ['Последнее сообщение', formatWorkspaceDateTime(client.last_message_at)],
+        ['Всего диалогов', client.total_dialogs],
+        ['Открытых диалогов', client.open_dialogs],
+        ['Закрыто за 30 дней', client.resolved_30d],
+        ['Первое обращение', formatWorkspaceDateTime(client.first_seen_at)],
+        ['Последняя активность тикета', formatWorkspaceDateTime(client.last_ticket_activity_at)],
+        ['Язык', client.language],
+      ];
+      const reservedClientKeys = new Set([
+        'id',
+        'name',
+        'username',
+        'status',
+        'channel',
+        'business',
+        'location',
+        'responsible',
+        'unread_count',
+        'rating',
+        'last_message_at',
+        'total_dialogs',
+        'open_dialogs',
+        'resolved_30d',
+        'first_seen_at',
+        'last_ticket_activity_at',
+        'language',
+        'segments',
+        'context_sources',
+        'context_contract',
+        'external_links',
+        'attribute_labels',
+        'attribute_order',
+      ]);
+      const rows = fields
+        .filter(([, value]) => value !== null && value !== undefined && String(value).trim() !== '')
+        .map(([label, value]) => `<div class="small text-muted">${escapeHtml(label)}: <span class="text-body">${escapeHtml(String(value))}</span></div>`)
+        .join('');
+
+      const profileHealth = client.profile_health && typeof client.profile_health === 'object' ? client.profile_health : null;
+      const missingFields = Array.isArray(profileHealth?.missing_field_labels)
+        ? profileHealth.missing_field_labels.filter(Boolean)
+        : [];
+      const activeProfileSegments = Array.isArray(profileHealth?.active_segments)
+        ? profileHealth.active_segments.filter(Boolean)
+        : [];
+      const totalRequiredProfileFields = Array.isArray(profileHealth?.required_fields)
+        ? profileHealth.required_fields.filter(Boolean).length
+        : 0;
+      const profileRuleSummary = [];
+      if (totalRequiredProfileFields > 0) {
+        profileRuleSummary.push(`Обязательных полей: ${totalRequiredProfileFields}`);
+      }
+      if (activeProfileSegments.length) {
+        profileRuleSummary.push(`Сегменты: ${activeProfileSegments.join(', ')}`);
+      }
+      const healthBanner = profileHealth && profileHealth.enabled === true
+        ? `<div class="alert ${profileHealth.ready ? 'alert-success' : 'alert-warning'} py-2 px-3 small mb-2">${profileHealth.ready ? `Контекст клиента готов (${Number(profileHealth.coverage_pct || 100)}%).` : `Нужно дозаполнить контекст (${Number(profileHealth.coverage_pct || 0)}%): ${escapeHtml(missingFields.join(', ') || 'нет обязательных полей')}.`}${profileRuleSummary.length ? `<div class="text-muted mt-1">${escapeHtml(profileRuleSummary.join(' · '))}</div>` : ''}<div class="text-muted mt-1">Проверено: ${escapeHtml(formatWorkspaceDateTime(profileHealth.checked_at_utc || profileHealth.checked_at))}</div></div>`
+        : '';
+      const profileMatchCandidates = context?.profile_match_candidates && typeof context.profile_match_candidates === 'object'
+        ? context.profile_match_candidates
+        : (client?.profile_match_candidates && typeof client.profile_match_candidates === 'object'
+          ? client.profile_match_candidates
+          : null);
+      const profileMatchFields = Array.isArray(profileMatchCandidates?.fields)
+        ? profileMatchCandidates.fields.filter((item) => item && typeof item === 'object')
+        : [];
+      const profileMatchReviewFields = profileMatchFields.filter((item) => Array.isArray(item.candidates) && item.candidates.length > 0);
+      const clientCardUrl = Number.isFinite(Number(client?.id)) ? `/client/${Number(client.id)}` : null;
+      const profileMatchSection = profileMatchCandidates && profileMatchFields.length
+        ? `<details class="mt-2"${profileMatchReviewFields.length ? ' open' : ''}>
+            <summary class="small fw-semibold">Сопоставление данных <span class="text-muted fw-normal">(${profileMatchReviewFields.length}/${profileMatchFields.length})</span></summary>
+            <div class="small text-muted mt-1">Проверьте предложенные совпадения по бизнесу, локации, городу и стране.</div>
+            <div class="d-flex flex-column gap-2 mt-2">
+              ${profileMatchFields.map((field) => {
+                const incomingValue = String(field?.incoming_value || '').trim();
+                const label = String(field?.label || field?.field || 'field').trim();
+                const candidates = Array.isArray(field?.candidates) ? field.candidates.slice(0, 3) : [];
+                const candidateLine = candidates.length
+                  ? candidates.map((candidate) => {
+                    const value = String(candidate?.value || '').trim();
+                    const matchType = String(candidate?.match_type || '').trim();
+                    const confidence = Number(candidate?.confidence || 0);
+                    const confidenceLabel = Number.isFinite(confidence) ? `${Math.round(confidence * 100)}%` : '';
+                    return `${escapeHtml(value)}${matchType ? ` (${escapeHtml(matchType)})` : ''}${confidenceLabel ? ` · ${escapeHtml(confidenceLabel)}` : ''}`;
+                  }).join('; ')
+                  : 'нет совпадений';
+                return `<div class="border rounded px-2 py-1 bg-white">
+                    <div class="small"><span class="fw-semibold">${escapeHtml(label)}:</span> <span class="text-body">${escapeHtml(incomingValue || '—')}</span></div>
+                    <div class="small text-muted">Кандидаты: ${candidateLine}</div>
+                  </div>`;
+              }).join('')}
+            </div>
+            ${clientCardUrl ? `<a class="btn btn-sm btn-outline-primary mt-2" href="${clientCardUrl}" target="_blank" rel="noopener noreferrer">Открыть карточку клиента для правок</a>` : ''}
+          </details>`
+        : '';
+
+      const contextBlocks = Array.isArray(context?.blocks)
+        ? context.blocks.filter((item) => item && typeof item === 'object')
+        : [];
+      const contextBlocksHealth = context?.blocks_health && typeof context.blocks_health === 'object'
+        ? context.blocks_health
+        : null;
+      const contextBlockBadgeClass = (status) => {
+        switch (String(status || '').toLowerCase()) {
+          case 'ready':
+            return 'text-bg-success';
+          case 'attention':
+          case 'stale':
+            return 'text-bg-warning';
+          case 'missing':
+          case 'invalid_utc':
+          case 'unavailable':
+            return 'text-bg-danger';
+          default:
+            return 'text-bg-secondary';
+        }
+      };
+      const contextBlocksSection = contextBlocksHealth && contextBlocksHealth.enabled === true && contextBlocks.length
+        ? `<div class="alert ${contextBlocksHealth.ready ? 'alert-success' : 'alert-warning'} py-2 px-3 small mb-2">
+            <div class="fw-semibold mb-1">Приоритет customer context</div>
+            <div>${contextBlocksHealth.ready
+              ? `Все обязательные блоки готовы (${Number(contextBlocksHealth.coverage_pct || 100)}%).`
+              : `Покрытие обязательных блоков: ${Number(contextBlocksHealth.coverage_pct || 0)}%. Не хватает: ${escapeHtml((Array.isArray(contextBlocksHealth.missing_required_labels) ? contextBlocksHealth.missing_required_labels : []).join(', ') || '—')}.`}</div>
+            <div class="d-flex flex-column gap-2 mt-2">
+              ${contextBlocks.map((block) => {
+                const meta = [];
+                if (Number.isFinite(Number(block.priority))) {
+                  meta.push(`P${Number(block.priority)}`);
+                }
+                if (block.required === true) {
+                  meta.push('required');
+                }
+                if (block.updated_at_utc) {
+                  meta.push(`UTC ${formatWorkspaceDateTime(block.updated_at_utc)}`);
+                }
+                return `<div class="border rounded px-2 py-1 bg-white">
+                  <div class="d-flex flex-wrap align-items-center gap-2">
+                    <span class="fw-semibold">${escapeHtml(block.label || block.key || 'Блок')}</span>
+                    <span class="badge ${contextBlockBadgeClass(block.status)}">${escapeHtml(String(block.status || 'unavailable'))}</span>
+                  </div>
+                  ${meta.length ? `<div class="small text-muted mt-1">${escapeHtml(meta.join(' · '))}</div>` : ''}
+                  ${block.summary ? `<div class="small text-muted">${escapeHtml(String(block.summary))}</div>` : ''}
+                </div>`;
+              }).join('')}
+            </div>
+          </div>`
+        : '';
+
+      const extraAttributeLabelMap = resolveWorkspaceClientAttributeLabelMap(client.attribute_labels);
+      const extraAttributeOrder = resolveWorkspaceClientAttributeOrder(client.attribute_order);
+      const orderedExtraEntries = orderWorkspaceClientExtraEntries(
+        Object.entries(client)
+          .filter(([key, value]) => !reservedClientKeys.has(key) && isWorkspaceClientExtraValue(value)),
+        extraAttributeOrder,
+      );
+      const hiddenAttributes = options.hiddenAttributes instanceof Set ? options.hiddenAttributes : new Set();
+      const technicalPrefixes = Array.isArray(options.extraAttributesTechnicalPrefixes)
+        ? options.extraAttributesTechnicalPrefixes
+        : [];
+      const filteredExtraEntries = orderedExtraEntries
+        .filter(([key]) => {
+          const normalized = normalizeWorkspaceClientAttributeKey(key);
+          if (!normalized) {
+            return false;
+          }
+          if (hiddenAttributes.has(normalized)) {
+            return false;
+          }
+          if (options.extraAttributesHideTechnical === false) {
+            return true;
+          }
+          return !technicalPrefixes.some((prefix) => prefix && normalized.startsWith(prefix));
+        });
+      const extraAttributesMax = Number(options.extraAttributesMax) || filteredExtraEntries.length;
+      const collapseAfter = Number(options.extraAttributesCollapseAfter) || filteredExtraEntries.length;
+      const limitedExtraEntries = filteredExtraEntries.slice(0, extraAttributesMax);
+      const hiddenByLimitCount = Math.max(0, filteredExtraEntries.length - limitedExtraEntries.length);
+      const extraAttributeTotalCount = filteredExtraEntries.length;
+      const expandedExtraEntries = limitedExtraEntries.slice(0, collapseAfter);
+      const collapsedExtraEntries = limitedExtraEntries.slice(collapseAfter);
+
+      const renderExtraRow = ([key, value]) => {
+        const label = extraAttributeLabelMap.get(normalizeWorkspaceClientAttributeKey(key)) || prettifyWorkspaceClientExtraKey(key);
+        return `<div class="small text-muted">${escapeHtml(label)}: <span class="text-body">${escapeHtml(formatWorkspaceClientExtraValue(value))}</span></div>`;
+      };
+
+      const expandedRows = expandedExtraEntries.map((entry) => renderExtraRow(entry)).join('');
+      const collapsedRows = collapsedExtraEntries.map(([key, value]) => renderExtraRow([key, value])).join('');
+
+      const segments = Array.isArray(client.segments) ? client.segments.filter(Boolean) : [];
+      const segmentBadges = segments.length
+        ? `<div class="d-flex flex-wrap gap-1 mt-2">${segments.map((segment) => `<span class="badge text-bg-light border">${escapeHtml(segment)}</span>`).join('')}</div>`
+        : '';
+
+      const contextSources = Array.isArray(client.context_sources)
+        ? client.context_sources.filter((item) => item && typeof item === 'object')
+        : [];
+      const sourceBadgeClass = (status) => {
+        switch (String(status || '').toLowerCase()) {
+          case 'ready':
+            return 'text-bg-success';
+          case 'stale':
+            return 'text-bg-warning';
+          case 'invalid_utc':
+          case 'missing':
+            return 'text-bg-danger';
+          default:
+            return 'text-bg-secondary';
+        }
+      };
+      const sourceStatusLabel = (status) => {
+        switch (String(status || '').toLowerCase()) {
+          case 'ready':
+            return 'ready';
+          case 'stale':
+            return 'stale';
+          case 'invalid_utc':
+            return 'invalid UTC';
+          case 'missing':
+            return 'missing';
+          default:
+            return 'optional';
+        }
+      };
+      const contextSourceIssueCount = contextSources.filter((source) => {
+        const status = String(source?.status || '').toLowerCase();
+        return ['missing', 'stale', 'invalid_utc'].includes(status);
+      }).length;
+      const contextSourceRequiredCount = contextSources.filter((source) => source?.required === true).length;
+      const contextSourcesSection = contextSources.length
+        ? `<details class="mt-2" data-workspace-telemetry-section="context_sources" data-workspace-telemetry-items="${contextSources.length}" data-workspace-telemetry-required="${contextSourceRequiredCount}" data-workspace-telemetry-gaps="${contextSourceIssueCount}" data-workspace-telemetry-hidden="0"${contextSourceIssueCount > 0 ? ' open' : ''}>
+            <summary class="small fw-semibold">Источники контекста <span class="text-muted fw-normal">(${contextSources.length}; required ${contextSourceRequiredCount}; gaps ${contextSourceIssueCount})</span></summary>
+            <div class="small text-muted mt-1">Свернуто по умолчанию, чтобы primary customer-context оставался выше policy-шума.</div>
+            <div class="d-flex flex-column gap-2 mt-2">
+              ${contextSources.map((source) => {
+                const meta = [];
+                if (Number.isFinite(Number(source.matched_attribute_count)) && Number(source.matched_attribute_count) > 0) {
+                  meta.push(`${Number(source.matched_attribute_count)} атр.`);
+                }
+                if (source.updated_at_utc) {
+                  meta.push(`UTC ${formatWorkspaceDateTime(source.updated_at_utc)}`);
+                } else if (source.updated_at_raw && String(source.status || '').toLowerCase() === 'invalid_utc') {
+                  meta.push(`invalid: ${String(source.updated_at_raw).trim()}`);
+                }
+                if (source.linked === true) {
+                  meta.push('есть ссылка');
+                }
+                return `<div class="border rounded px-2 py-1">
+                  <div class="d-flex flex-wrap align-items-center gap-2">
+                    <span class="fw-semibold">${escapeHtml(source.label || source.key || 'Источник')}</span>
+                    <span class="badge ${sourceBadgeClass(source.status)}">${escapeHtml(sourceStatusLabel(source.status))}</span>
+                    ${source.required === true ? '<span class="badge text-bg-light border">required</span>' : ''}
+                  </div>
+                  ${meta.length ? `<div class="small text-muted mt-1">${escapeHtml(meta.join(' · '))}</div>` : ''}
+                  ${source.summary ? `<div class="small text-muted">${escapeHtml(String(source.summary))}</div>` : ''}
+                </div>`;
+              }).join('')}
+            </div></details>`
+        : '';
+
+      const attributePolicies = Array.isArray(client.attribute_policies)
+        ? client.attribute_policies.filter((item) => item && typeof item === 'object')
+        : [];
+      const attributePolicyBadgeClass = (status) => {
+        switch (String(status || '').toLowerCase()) {
+          case 'ready':
+            return 'text-bg-success';
+          case 'stale':
+            return 'text-bg-warning';
+          case 'missing':
+          case 'invalid_utc':
+          case 'unavailable':
+            return 'text-bg-danger';
+          default:
+            return 'text-bg-secondary';
+        }
+      };
+      const attributePolicyStatusLabel = (status) => {
+        switch (String(status || '').toLowerCase()) {
+          case 'ready':
+            return 'ready';
+          case 'stale':
+            return 'stale';
+          case 'missing':
+            return 'missing';
+          case 'invalid_utc':
+            return 'invalid UTC';
+          case 'unavailable':
+            return 'unavailable';
+          default:
+            return 'untracked';
+        }
+      };
+      const attributePolicyIssueCount = attributePolicies.filter((policy) => {
+        const status = String(policy?.status || '').toLowerCase();
+        return ['missing', 'stale', 'invalid_utc', 'unavailable'].includes(status);
+      }).length;
+      const attributePolicyRequiredCount = attributePolicies.filter((policy) => policy?.required === true).length;
+      const attributePoliciesSection = attributePolicies.length
+        ? `<details class="mt-2" data-workspace-telemetry-section="attribute_policy" data-workspace-telemetry-items="${attributePolicies.length}" data-workspace-telemetry-required="${attributePolicyRequiredCount}" data-workspace-telemetry-gaps="${attributePolicyIssueCount}" data-workspace-telemetry-hidden="0"${attributePolicyIssueCount > 0 ? ' open' : ''}>
+            <summary class="small fw-semibold">Source / freshness policy <span class="text-muted fw-normal">(${attributePolicies.length}; required ${attributePolicyRequiredCount}; gaps ${attributePolicyIssueCount})</span></summary>
+            <div class="small text-muted mt-1">Вторичные policy-детали раскрываются отдельно, чтобы не конкурировать с action-oriented contract summary.</div>
+            <div class="d-flex flex-column gap-2 mt-2">
+              ${attributePolicies.map((policy) => {
+                const meta = [];
+                if (policy.source_label || policy.source_key) {
+                  meta.push(`source: ${String(policy.source_label || policy.source_key).trim()}`);
+                }
+                if (Number.isFinite(Number(policy.freshness_ttl_hours)) && Number(policy.freshness_ttl_hours) > 0) {
+                  meta.push(`TTL ${Number(policy.freshness_ttl_hours)}h`);
+                } else if (policy.freshness_required === true) {
+                  meta.push('freshness required');
+                }
+                if (policy.updated_at_utc) {
+                  meta.push(`UTC ${formatWorkspaceDateTime(policy.updated_at_utc)}`);
+                } else if (policy.updated_at_raw && String(policy.status || '').toLowerCase() === 'invalid_utc') {
+                  meta.push(`invalid: ${String(policy.updated_at_raw).trim()}`);
+                }
+                return `<div class="border rounded px-2 py-1">
+                  <div class="d-flex flex-wrap align-items-center gap-2">
+                    <span class="fw-semibold">${escapeHtml(policy.label || policy.key || 'Attribute')}</span>
+                    <span class="badge ${attributePolicyBadgeClass(policy.status)}">${escapeHtml(attributePolicyStatusLabel(policy.status))}</span>
+                    ${policy.required === true ? '<span class="badge text-bg-light border">required</span>' : ''}
+                  </div>
+                  ${meta.length ? `<div class="small text-muted mt-1">${escapeHtml(meta.join(' · '))}</div>` : ''}
+                  ${policy.summary ? `<div class="small text-muted">${escapeHtml(String(policy.summary))}</div>` : ''}
+                </div>`;
+              }).join('')}
+            </div></details>`
+        : '';
+
+      const contract = context?.contract && typeof context.contract === 'object'
+        ? context.contract
+        : (client.context_contract && typeof client.context_contract === 'object' ? client.context_contract : null);
+      const contractViolations = Array.isArray(contract?.violations) ? contract.violations.filter(Boolean) : [];
+      const contractViolationDetails = normalizeWorkspaceContextViolationDetails(contract?.violation_details);
+      const primaryViolationPayload = Array.isArray(contract?.primary_violation_details)
+        ? normalizeWorkspaceContextViolationDetails(contract.primary_violation_details)
+        : [];
+      const primaryViolationCards = primaryViolationPayload.length
+        ? primaryViolationPayload
+        : contractViolationDetails.slice(0, 2);
+      const extraViolationCards = contractViolationDetails.slice(primaryViolationCards.length);
+      const deferredViolationCount = Number(contract?.deferred_violation_count || extraViolationCards.length || 0);
+      const contractOperatorSummary = String(contract?.operator_summary || '').trim();
+      const contractNextStepSummary = String(contract?.next_step_summary || '').trim();
+      const focusBlocks = Array.isArray(contract?.operator_focus_blocks) ? contract.operator_focus_blocks : [];
+      const progressiveDisclosureReady = contract?.progressive_disclosure_ready === true;
+      const renderViolationCard = (detail) => `<div class="border rounded px-2 py-2 bg-white">
+          <div class="d-flex flex-wrap align-items-center gap-2">
+            <span class="badge ${workspaceContextViolationSeverityBadge(detail.severity)}">${escapeHtml(workspaceContextViolationSeverityLabel(detail.severity))}</span>
+            <span class="badge text-bg-light border">${escapeHtml(workspaceContextViolationTypeLabel(detail.type))}</span>
+            ${detail.code ? `<span class="small text-muted">${escapeHtml(detail.code)}</span>` : ''}
+          </div>
+          <div class="mt-1 fw-semibold">${escapeHtml(detail.shortLabel || detail.operatorMessage)}</div>
+          <div class="small text-muted mt-1">${escapeHtml(detail.operatorMessage)}</div>
+          ${detail.nextStep ? `<div class="small mt-1"><span class="text-muted">Следующий шаг:</span> ${escapeHtml(detail.nextStep)}</div>` : ''}
+          ${detail.playbookUrl
+            ? `<div class="small mt-1"><a href="${escapeHtml(detail.playbookUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(detail.actionLabel || detail.playbookLabel)}</a>${detail.playbookSummary ? ` <span class="text-muted">· ${escapeHtml(detail.playbookSummary)}</span>` : ''}</div>`
+            : ''}
+        </div>`;
+      const violationActionsSection = contract.ready === true || contractViolationDetails.length === 0
+        ? ''
+        : `<div class="d-flex flex-column gap-2 mt-2">
+            ${primaryViolationCards.map((detail) => renderViolationCard(detail)).join('')}
+            ${extraViolationCards.length
+              ? `<details${progressiveDisclosureReady ? '' : ' open'}><summary class="small text-muted">Показать ещё ${deferredViolationCount}</summary><div class="d-flex flex-column gap-2 mt-2">${extraViolationCards.map((detail) => renderViolationCard(detail)).join('')}</div></details>`
+              : ''}
+          </div>`;
+      const contextContractSection = contract && contract.enabled === true
+        ? `<div class="alert ${contract.ready === true ? 'alert-success' : 'alert-warning'} py-2 px-3 small mt-2 mb-2">
+            <div class="fw-semibold mb-1">Context contract</div>
+            <div>${contractOperatorSummary || (contract.ready === true
+              ? 'Minimum profile complete.'
+              : contractViolationDetails.length
+                ? `Need to close ${contractViolationDetails.length} context-gap item(s).`
+                : `Deviations found: ${escapeHtml(contractViolations.join(', ') || 'contract_not_ready')}.`)}</div>
+            ${focusBlocks.length
+              ? `<div class="mt-1"><span class="text-muted">Operator first:</span> ${escapeHtml(focusBlocks.join(', '))}</div>`
+              : ''}
+            ${contractNextStepSummary
+              ? `<div class="mt-1"><span class="text-muted">Что сделать:</span> ${escapeHtml(contractNextStepSummary)}</div>`
+              : (Array.isArray(contract.action_items) && contract.action_items.length
+                ? `<div class="mt-1"><span class="text-muted">Что сделать:</span> ${escapeHtml(contract.action_items[0])}</div>`
+                : '')}
+            ${deferredViolationCount > 0
+              ? `<div class="mt-1 text-muted">Остальные детали скрыты до раскрытия: ${deferredViolationCount}.</div>`
+              : ''}
+            ${violationActionsSection}
+            <div class="text-muted mt-1">Проверено: ${escapeHtml(formatWorkspaceDateTime(contract.checked_at_utc || contract.checked_at))}</div>
+          </div>`
+        : '';
+
+      const extraSection = expandedRows || collapsedRows
+        ? `<details class="mt-2" data-workspace-telemetry-section="extra_attributes" data-workspace-telemetry-items="${limitedExtraEntries.length}" data-workspace-telemetry-required="0" data-workspace-telemetry-gaps="0" data-workspace-telemetry-hidden="${hiddenByLimitCount}">
+            <summary class="small fw-semibold">Доп. атрибуты <span class="text-muted fw-normal">(${extraAttributeTotalCount}; visible ${limitedExtraEntries.length}${hiddenByLimitCount > 0 ? `; hidden ${hiddenByLimitCount}` : ''})</span></summary>
+            <div class="small text-muted mt-1">Второстепенные поля скрыты до раскрытия, чтобы не конкурировать с customer-context contract.</div>
+            <div class="mt-2">${expandedRows}</div>
+            ${collapsedRows ? `<details class="mt-1"><summary class="small text-muted">Показать ещё ${collapsedExtraEntries.length}</summary><div class="mt-1">${collapsedRows}</div></details>` : ''}
+            ${hiddenByLimitCount > 0 ? `<div class="small text-muted mt-1">Скрыто по лимиту: ${hiddenByLimitCount}.</div>` : ''}
+          </details>`
+        : '';
+
+      const externalLinks = (client.external_links && typeof client.external_links === 'object')
+        ? Object.values(client.external_links)
+          .filter((item) => item && typeof item === 'object')
+          .map((item) => {
+            const url = String(item.url || '').trim();
+            if (!url || !(url.startsWith('http://') || url.startsWith('https://'))) {
+              return '';
+            }
+            const label = String(item.label || 'Профиль').trim() || 'Профиль';
+            return `<a class="btn btn-sm btn-outline-secondary" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a>`;
+          })
+          .filter(Boolean)
+        : [];
+      const linksSection = externalLinks.length > 0
+        ? `<div class="d-flex flex-wrap gap-2 mt-2">${externalLinks.join('')}</div>`
+        : '';
+
+      return `<div class="small"><strong>${escapeHtml(client.name || '—')}</strong></div>${profileMatchSection}${healthBanner}${contextBlocksSection}${contextContractSection}${rows || '<div class="small text-muted">Дополнительные атрибуты отсутствуют.</div>'}${contextSourcesSection}${attributePoliciesSection}${extraSection}${segmentBadges}${linksSection}`;
+    }
+
     function renderWorkspaceClientSection(context) {
       const client = context?.client;
       if (client && Object.keys(client).length) {
@@ -491,8 +1079,7 @@
         if (elements.workspaceClientError) elements.workspaceClientError.classList.add('d-none');
         if (elements.workspaceClientContent) {
           elements.workspaceClientContent.classList.remove('d-none');
-          elements.workspaceClientContent.innerHTML = options.renderWorkspaceClientProfile?.(client, context)
-            || '<div class="small text-muted">Профиль клиента недоступен.</div>';
+          elements.workspaceClientContent.innerHTML = renderWorkspaceClientProfile(client, context);
           options.bindWorkspaceContextDisclosureTelemetry?.(elements.workspaceClientContent);
         }
       } else {
@@ -691,6 +1278,18 @@
       refreshActiveWorkspaceContract,
       appendToWorkspaceComposer,
       renderWorkspaceShell,
+      normalizeWorkspaceContextViolationDetails,
+      workspaceContextViolationTypeLabel,
+      workspaceContextViolationSeverityLabel,
+      workspaceContextViolationSeverityBadge,
+      renderWorkspaceClientProfile,
+      isWorkspaceClientExtraValue,
+      formatWorkspaceClientExtraValue,
+      prettifyWorkspaceClientExtraKey,
+      resolveWorkspaceClientAttributeLabelMap,
+      resolveWorkspaceClientAttributeOrder,
+      orderWorkspaceClientExtraEntries,
+      normalizeWorkspaceClientAttributeKey,
     };
   }
 
