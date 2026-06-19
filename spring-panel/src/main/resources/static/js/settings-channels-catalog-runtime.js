@@ -243,7 +243,6 @@
           bot_name: row.bot_name || row.botName || '',
           bot_username: row.bot_username || row.botUsername || '',
           token: row.token || '',
-          public_id: row.public_id || row.publicId || '',
           vk_group_id: vkGroupId,
           support_chat_id: row.support_chat_id ?? row.supportChatId ?? null,
           credential: row.credential && typeof row.credential === 'object' ? row.credential : null,

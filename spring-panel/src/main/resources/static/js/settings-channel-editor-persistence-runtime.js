@@ -33,7 +33,7 @@
       const state = typeof options.getChannelEditorState === 'function' ? options.getChannelEditorState() : null;
       return state && typeof state === 'object'
         ? state
-        : { channelId: null, tokenVisible: false, publicFormFields: [] };
+        : { channelId: null, tokenVisible: false };
     }
 
     function popup(message) {

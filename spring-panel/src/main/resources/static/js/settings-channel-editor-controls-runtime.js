@@ -20,8 +20,6 @@
       channelEditorCopyTokenBtn: document.getElementById('channelEditorCopyTokenBtn'),
       channelEditorSaveBtn: document.getElementById('channelEditorSaveBtn'),
       channelEditorDeleteBtn: document.getElementById('channelEditorDeleteBtn'),
-      channelEditorRegeneratePublicIdBtn: document.getElementById('channelEditorRegeneratePublicIdBtn'),
-      channelEditorCopyPublicLinkBtn: document.getElementById('channelEditorCopyPublicLinkBtn'),
     };
 
     let controlsBound = false;
@@ -30,7 +28,7 @@
       const state = typeof options.getChannelEditorState === 'function' ? options.getChannelEditorState() : null;
       return state && typeof state === 'object'
         ? state
-        : { channelId: null, tokenVisible: false, publicFormFields: [] };
+        : { channelId: null, tokenVisible: false };
     }
 
     function bindControls() {
@@ -39,8 +37,6 @@
       }
       controlsBound = true;
 
-      elements.channelEditorRegeneratePublicIdBtn?.addEventListener('click', () => options.channelEditorShell?.handleRegeneratePublicIdClick?.());
-      elements.channelEditorCopyPublicLinkBtn?.addEventListener('click', () => options.channelEditorShell?.handleCopyPublicLinkClick?.());
       elements.channelEditorActiveInput?.addEventListener('change', () => options.channelEditorShell?.handleActiveInputChange?.());
       elements.channelEditorQuestionSelect?.addEventListener('change', () => options.channelEditorShell?.handleQuestionTemplateChange?.());
       elements.channelEditorRatingSelect?.addEventListener('change', () => options.channelEditorShell?.handleRatingTemplateChange?.());

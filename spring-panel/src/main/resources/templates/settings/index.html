@@ -6330,7 +6330,7 @@
                     <i class="bi bi-grid-1x2-fill" aria-hidden="true"></i>
                     Краткая сводка
                   </h6>
-                  <p class="channel-editor-section__hint">Сначала видно платформу, бота и публичную ссылку, а детали уже разложены по вкладкам ниже.</p>
+                  <p class="channel-editor-section__hint">Сначала видно платформу, бота и ключевые параметры канала, а детали уже разложены по вкладкам ниже.</p>
                 </div>
               </div>
               <div class="channel-editor-summary">
@@ -17589,7 +17589,6 @@
   const channelEditorAutoSelect = document.getElementById('channelEditorAutoTemplate');
   const channelEditorSupportChatInput = document.getElementById('channelEditorSupportChatId');
   const channelEditorBroadcastChannelInput = document.getElementById('channelEditorBroadcastChannelId');
-  const channelEditorPanelNotifNewPublicAppealInput = document.getElementById('channelEditorPanelNotifNewPublicAppeal');
   const channelEditorPanelNotifFirstResponseOverdueInput = document.getElementById('channelEditorPanelNotifFirstResponseOverdue');
   const channelEditorPanelNotifTargetModeInput = document.getElementById('channelEditorPanelNotifTargetMode');
   const channelEditorPanelNotifDeliveryModeInput = document.getElementById('channelEditorPanelNotifDeliveryMode');
@@ -17611,21 +17610,6 @@
   const channelEditorTokenEl = document.querySelector('[data-channel-editor-token]');
   const channelEditorToggleTokenBtn = document.getElementById('channelEditorToggleTokenBtn');
   const channelEditorCopyTokenBtn = document.getElementById('channelEditorCopyTokenBtn');
-  const channelEditorPublicIdEl = document.querySelector('[data-channel-editor-public-id]');
-  const channelEditorRegeneratePublicIdBtn = document.getElementById('channelEditorRegeneratePublicIdBtn');
-  const channelEditorCopyPublicLinkBtn = document.getElementById('channelEditorCopyPublicLinkBtn');
-  const channelEditorPublicFormEnabledInput = document.getElementById('channelEditorPublicFormEnabled');
-  const channelEditorPublicFormCaptchaEnabledInput = document.getElementById('channelEditorPublicFormCaptchaEnabled');
-  const channelEditorPublicFormRateLimitEnabledInput = document.getElementById('channelEditorPublicFormRateLimitEnabled');
-  const channelEditorPublicFormRateLimitWindowSecondsInput = document.getElementById('channelEditorPublicFormRateLimitWindowSeconds');
-  const channelEditorPublicFormRateLimitMaxRequestsInput = document.getElementById('channelEditorPublicFormRateLimitMaxRequests');
-  const channelEditorPublicFormDisabledStatusInput = document.getElementById('channelEditorPublicFormDisabledStatus');
-  const channelEditorPublicFormSuccessInstructionInput = document.getElementById('channelEditorPublicFormSuccessInstruction');
-  const channelEditorPublicFormResponseEtaMinutesInput = document.getElementById('channelEditorPublicFormResponseEtaMinutes');
-  const channelEditorPublicFormFieldsList = document.querySelector('[data-public-form-fields-list]');
-  const channelEditorPublicFormPreview = document.querySelector('[data-public-form-preview]');
-  const channelEditorPublicFormAddFieldBtn = document.getElementById('channelEditorPublicFormAddFieldBtn');
-  const channelEditorPublicLinkEl = document.querySelector('[data-channel-editor-public-link]');
   const channelEditorMetaEl = document.querySelector('[data-channel-editor-meta]');
   const channelEditorHintEl = document.querySelector('[data-channel-editor-hint]');
   const channelEditorNewTokenInput = document.getElementById('channelEditorNewToken');
@@ -17719,19 +17703,8 @@
   const CHANNELS_REGISTRY = new Map();
   const channelEditorState = {
     channelId: null,
-    publicFormFields: [],
     tokenVisible: false,
   };
-
-  const PUBLIC_FORM_FIELD_TYPES = [
-    { value: 'text', label: 'Короткий текст' },
-    { value: 'textarea', label: 'Длинный текст' },
-    { value: 'select', label: 'Список (select)' },
-    { value: 'checkbox', label: 'Чекбокс' },
-    { value: 'phone', label: 'Телефон' },
-    { value: 'email', label: 'Email' },
-    { value: 'file', label: 'Файл (имя вложения)' },
-  ];
 
   let channelsInitialized = false;
 
@@ -18174,209 +18147,6 @@
     }
   }
 
-  function slugifyPublicFieldId(value, fallbackIndex = 1) {
-    const raw = String(value || '').trim().toLowerCase();
-    const slug = raw
-      .replace(/[^a-z0-9_\-\s]+/g, '')
-      .replace(/\s+/g, '_')
-      .replace(/_+/g, '_')
-      .replace(/^_+|_+$/g, '');
-    return slug || `field_${fallbackIndex}`;
-  }
-
-  function normalizePublicFormField(field, index = 1) {
-    const type = String(field?.type || 'text').trim().toLowerCase();
-    const allowedType = PUBLIC_FORM_FIELD_TYPES.some((item) => item.value === type) ? type : 'text';
-    const id = slugifyPublicFieldId(field?.id || field?.text || `field_${index}`, index);
-    const textValue = String(field?.text || `Поле ${index}`).trim();
-    const options = Array.isArray(field?.options)
-      ? field.options.map((item) => String(item || '').trim()).filter(Boolean)
-      : [];
-    return {
-      id,
-      text: textValue,
-      type: allowedType,
-      order: index,
-      required: Boolean(field?.required),
-      placeholder: String(field?.placeholder || '').trim(),
-      helpText: String(field?.helpText || field?.help_text || '').trim(),
-      minLength: Math.max(0, Number.parseInt(field?.minLength, 10) || 0),
-      maxLength: Math.max(1, Number.parseInt(field?.maxLength, 10) || 500),
-      options,
-    };
-  }
-
-  function renderPublicFormPreview() {
-    if (!channelEditorPublicFormPreview) return;
-    const fields = channelEditorState.publicFormFields || [];
-    if (!fields.length) {
-      channelEditorPublicFormPreview.textContent = 'Поля не настроены.';
-      return;
-    }
-    channelEditorPublicFormPreview.innerHTML = fields
-      .map((field, index) => {
-        const requiredBadge = field.required ? '<span class="badge text-bg-primary ms-2">обязательное</span>' : '';
-        const optionHint = field.type === 'select' && field.options.length
-          ? `<div class="small text-muted">Варианты: ${escapeHtml(field.options.join(', '))}</div>`
-          : '';
-        return `<div class="small mb-2"><span class="text-muted me-1">${index + 1}.</span><strong>${escapeHtml(field.text)}</strong> <code>${escapeHtml(field.type)}</code>${requiredBadge}${optionHint}</div>`;
-      })
-      .join('');
-  }
-
-  function collectPublicFormFieldsFromEditor() {
-    if (!channelEditorPublicFormFieldsList) {
-      return channelEditorState.publicFormFields || [];
-    }
-    const rows = Array.from(channelEditorPublicFormFieldsList.querySelectorAll('[data-public-form-field-row]'));
-    return rows.map((row, index) => {
-      const id = row.querySelector('[data-public-field-id]')?.value;
-      const textValue = row.querySelector('[data-public-field-text]')?.value;
-      const type = row.querySelector('[data-public-field-type]')?.value;
-      const required = Boolean(row.querySelector('[data-public-field-required]')?.checked);
-      const placeholder = row.querySelector('[data-public-field-placeholder]')?.value;
-      const helpText = row.querySelector('[data-public-field-help]')?.value;
-      const minLength = row.querySelector('[data-public-field-min]')?.value;
-      const maxLength = row.querySelector('[data-public-field-max]')?.value;
-      const optionsRaw = row.querySelector('[data-public-field-options]')?.value;
-      const options = String(optionsRaw || '')
-        .split(',')
-        .map((item) => item.trim())
-        .filter(Boolean);
-      return normalizePublicFormField({
-        id,
-        text: textValue,
-        type,
-        required,
-        placeholder,
-        helpText,
-        minLength,
-        maxLength,
-        options,
-      }, index + 1);
-    });
-  }
-
-  function renderPublicFormFieldsEditor() {
-    if (!channelEditorPublicFormFieldsList) return;
-    channelEditorPublicFormFieldsList.innerHTML = '';
-    const fields = channelEditorState.publicFormFields || [];
-    const reorderFields = (fromIndex, toIndex) => {
-      if (!Number.isInteger(fromIndex) || !Number.isInteger(toIndex)) return;
-      if (fromIndex < 0 || toIndex < 0) return;
-      if (fromIndex >= fields.length || toIndex >= fields.length || fromIndex === toIndex) return;
-      const [movedField] = fields.splice(fromIndex, 1);
-      fields.splice(toIndex, 0, movedField);
-      channelEditorState.publicFormFields = fields.map((entry, idx) => normalizePublicFormField(entry, idx + 1));
-      renderPublicFormFieldsEditor();
-      renderPublicFormPreview();
-    };
-
-    fields.forEach((field, index) => {
-      const row = document.createElement('div');
-      row.className = 'border rounded-2 p-2';
-      row.dataset.publicFormFieldRow = 'true';
-      row.dataset.publicFieldIndex = String(index);
-      row.draggable = true;
-      row.innerHTML = `
-        <div class="row g-2 align-items-end">
-          <div class="col-12 col-md-1">
-            <label class="form-label small d-block">Порядок</label>
-            <button type="button" class="btn btn-sm btn-outline-secondary w-100" data-public-field-drag-handle title="Перетащите поле для изменения порядка">↕</button>
-          </div>
-          <div class="col-12 col-md-3">
-            <label class="form-label small">ID</label>
-            <input class="form-control form-control-sm" data-public-field-id value="${escapeHtml(field.id)}">
-          </div>
-          <div class="col-12 col-md-4">
-            <label class="form-label small">Название</label>
-            <input class="form-control form-control-sm" data-public-field-text value="${escapeHtml(field.text)}">
-          </div>
-          <div class="col-8 col-md-3">
-            <label class="form-label small">Тип</label>
-            <select class="form-select form-select-sm" data-public-field-type>
-              ${PUBLIC_FORM_FIELD_TYPES.map((item) => `<option value="${item.value}" ${item.value === field.type ? 'selected' : ''}>${item.label}</option>`).join('')}
-            </select>
-          </div>
-          <div class="col-4 col-md-1 text-end">
-            <label class="form-label small d-block">Req.</label>
-            <input class="form-check-input" type="checkbox" data-public-field-required ${field.required ? 'checked' : ''}>
-          </div>
-          <div class="col-12 col-md-4">
-            <label class="form-label small">Placeholder</label>
-            <input class="form-control form-control-sm" data-public-field-placeholder value="${escapeHtml(field.placeholder || '')}">
-          </div>
-          <div class="col-12 col-md-4">
-            <label class="form-label small">Подсказка</label>
-            <input class="form-control form-control-sm" data-public-field-help value="${escapeHtml(field.helpText || '')}">
-          </div>
-          <div class="col-6 col-md-2">
-            <label class="form-label small">Min</label>
-            <input class="form-control form-control-sm" type="number" min="0" data-public-field-min value="${Number(field.minLength || 0)}">
-          </div>
-          <div class="col-6 col-md-2">
-            <label class="form-label small">Max</label>
-            <input class="form-control form-control-sm" type="number" min="1" data-public-field-max value="${Number(field.maxLength || 500)}">
-          </div>
-          <div class="col-12">
-            <label class="form-label small">Опции для select (через запятую)</label>
-            <input class="form-control form-control-sm" data-public-field-options value="${escapeHtml((field.options || []).join(', '))}">
-          </div>
-        </div>
-        <div class="d-flex justify-content-end gap-2 mt-2">
-          <button type="button" class="btn btn-sm btn-outline-secondary" data-public-field-up ${index === 0 ? 'disabled' : ''}>↑</button>
-          <button type="button" class="btn btn-sm btn-outline-secondary" data-public-field-down ${index === fields.length - 1 ? 'disabled' : ''}>↓</button>
-          <button type="button" class="btn btn-sm btn-outline-danger" data-public-field-remove>Удалить</button>
-        </div>
-      `;
-      row.querySelectorAll('input,select').forEach((control) => {
-        control.addEventListener('input', () => {
-          channelEditorState.publicFormFields = collectPublicFormFieldsFromEditor();
-          renderPublicFormPreview();
-        });
-        control.addEventListener('change', () => {
-          channelEditorState.publicFormFields = collectPublicFormFieldsFromEditor();
-          renderPublicFormFieldsEditor();
-          renderPublicFormPreview();
-        });
-      });
-      row.querySelector('[data-public-field-remove]')?.addEventListener('click', () => {
-        fields.splice(index, 1);
-        channelEditorState.publicFormFields = fields.map((entry, idx) => normalizePublicFormField(entry, idx + 1));
-        renderPublicFormFieldsEditor();
-        renderPublicFormPreview();
-      });
-      row.querySelector('[data-public-field-up]')?.addEventListener('click', () => reorderFields(index, index - 1));
-      row.querySelector('[data-public-field-down]')?.addEventListener('click', () => reorderFields(index, index + 1));
-      row.addEventListener('dragstart', (event) => {
-        const target = event.target;
-        if (!(target instanceof Element)) return;
-        if (!target.closest('[data-public-field-drag-handle]')) {
-          event.preventDefault();
-          return;
-        }
-        event.dataTransfer?.setData('text/plain', String(index));
-        event.dataTransfer?.setDragImage(row, 24, 24);
-        row.classList.add('opacity-50');
-      });
-      row.addEventListener('dragend', () => {
-        row.classList.remove('opacity-50');
-      });
-      row.addEventListener('dragover', (event) => {
-        event.preventDefault();
-      });
-      row.addEventListener('drop', (event) => {
-        event.preventDefault();
-        const fromRaw = event.dataTransfer?.getData('text/plain');
-        const fromIndex = Number.parseInt(String(fromRaw || ''), 10);
-        const toIndex = Number.parseInt(String(row.dataset.publicFieldIndex || ''), 10);
-        reorderFields(fromIndex, toIndex);
-      });
-      channelEditorPublicFormFieldsList.appendChild(row);
-    });
-    renderPublicFormPreview();
-  }
-
   function formatBotLabel(channel) {
     const parts = [];
     const botName = channel.bot_name || channel.botName;
@@ -18397,39 +18167,6 @@
 
   function populateChannelEditor(channel) {
     channelEditorState.channelId = channel.id;
-    if (channelEditorPublicFormEnabledInput) {
-      channelEditorPublicFormEnabledInput.checked = channel.questions_cfg?.enabled !== false;
-    }
-    if (channelEditorPublicFormCaptchaEnabledInput) {
-      channelEditorPublicFormCaptchaEnabledInput.checked = Boolean(channel.questions_cfg?.captchaEnabled);
-    }
-    if (channelEditorPublicFormRateLimitEnabledInput) {
-      channelEditorPublicFormRateLimitEnabledInput.checked = channel.questions_cfg?.rateLimitEnabled !== false;
-    }
-    if (channelEditorPublicFormRateLimitWindowSecondsInput) {
-      const value = Number.parseInt(channel.questions_cfg?.rateLimitWindowSeconds, 10);
-      channelEditorPublicFormRateLimitWindowSecondsInput.value = Number.isFinite(value) ? String(Math.max(10, Math.min(3600, value))) : '60';
-    }
-    if (channelEditorPublicFormRateLimitMaxRequestsInput) {
-      const value = Number.parseInt(channel.questions_cfg?.rateLimitMaxRequests, 10);
-      channelEditorPublicFormRateLimitMaxRequestsInput.value = Number.isFinite(value) ? String(Math.max(1, Math.min(500, value))) : '5';
-    }
-    if (channelEditorPublicFormDisabledStatusInput) {
-      const status = Number.parseInt(channel.questions_cfg?.disabledStatus || 404, 10);
-      channelEditorPublicFormDisabledStatusInput.value = status === 410 ? '410' : '404';
-    }
-    if (channelEditorPublicFormSuccessInstructionInput) {
-      channelEditorPublicFormSuccessInstructionInput.value = String(channel.questions_cfg?.successInstruction || '').trim();
-    }
-    if (channelEditorPublicFormResponseEtaMinutesInput) {
-      const etaValue = Number.parseInt(channel.questions_cfg?.responseEtaMinutes, 10);
-      channelEditorPublicFormResponseEtaMinutesInput.value = Number.isFinite(etaValue) && etaValue > 0
-        ? String(Math.max(0, Math.min(10080, etaValue)))
-        : '';
-    }
-    const cfgFields = Array.isArray(channel.questions_cfg?.fields) ? channel.questions_cfg.fields : [];
-    channelEditorState.publicFormFields = cfgFields.map((field, index) => normalizePublicFormField(field, index + 1));
-    renderPublicFormFieldsEditor();
     populateChannelEditorShell(channel);
   }
 
@@ -18462,11 +18199,15 @@
   const TEMPLATE_SUMMARY_BUILDERS = settingsChannelTemplates.getTemplateSummaryBuilders();
 
   function buildChannelQuestionsCfgPayload(existingQuestionsCfg) {
-    const disabledStatus = Number.parseInt(channelEditorPublicFormDisabledStatusInput?.value || existingQuestionsCfg.disabledStatus || 404, 10);
-    const rateLimitWindowRaw = Number.parseInt(channelEditorPublicFormRateLimitWindowSecondsInput?.value || existingQuestionsCfg.rateLimitWindowSeconds || 60, 10);
-    const rateLimitMaxRaw = Number.parseInt(channelEditorPublicFormRateLimitMaxRequestsInput?.value || existingQuestionsCfg.rateLimitMaxRequests || 5, 10);
-    const rateLimitWindowSeconds = Number.isFinite(rateLimitWindowRaw) ? Math.max(10, Math.min(3600, rateLimitWindowRaw)) : 60;
-    const rateLimitMaxRequests = Number.isFinite(rateLimitMaxRaw) ? Math.max(1, Math.min(500, rateLimitMaxRaw)) : 5;
+    const existingPanelNotifications = existingQuestionsCfg?.panelNotifications && typeof existingQuestionsCfg.panelNotifications === 'object'
+      ? existingQuestionsCfg.panelNotifications
+      : defaultChannelPanelNotifications();
+    const existingRouting = existingPanelNotifications.routing && typeof existingPanelNotifications.routing === 'object'
+      ? existingPanelNotifications.routing
+      : defaultChannelPanelNotifications().routing;
+    const existingEvents = existingPanelNotifications.events && typeof existingPanelNotifications.events === 'object'
+      ? existingPanelNotifications.events
+      : defaultChannelPanelNotifications().events;
     const notificationTargetModeRaw = String(channelEditorPanelNotifTargetModeInput?.value || existingQuestionsCfg.panelNotifications?.routing?.targetMode || 'all_operators').trim().toLowerCase();
     const notificationTargetMode = ['all_operators', 'department_all', 'employees_only', 'department_except'].includes(notificationTargetModeRaw)
       ? notificationTargetModeRaw
@@ -18479,39 +18220,25 @@
     const notificationDeliveryMode = notificationDeliveryModeRaw === 'online_only_fallback_all'
       ? 'online_only_fallback_all'
       : 'all';
-    channelEditorState.publicFormFields = collectPublicFormFieldsFromEditor();
     return {
       ...existingQuestionsCfg,
       schemaVersion: Math.max(1, Number.parseInt(existingQuestionsCfg.schemaVersion || 1, 10) || 1),
-      enabled: channelEditorPublicFormEnabledInput?.checked !== false,
-      captchaEnabled: Boolean(channelEditorPublicFormCaptchaEnabledInput?.checked),
-      rateLimitEnabled: Boolean(channelEditorPublicFormRateLimitEnabledInput?.checked),
-      rateLimitWindowSeconds,
-      rateLimitMaxRequests,
-      disabledStatus: disabledStatus === 410 ? 410 : 404,
-      successInstruction: String(channelEditorPublicFormSuccessInstructionInput?.value || '').trim(),
-      responseEtaMinutes: (() => {
-        const etaRaw = Number.parseInt(channelEditorPublicFormResponseEtaMinutesInput?.value || existingQuestionsCfg.responseEtaMinutes || 0, 10);
-        if (!Number.isFinite(etaRaw) || etaRaw <= 0) return null;
-        return Math.max(0, Math.min(10080, etaRaw));
-      })(),
       panelNotifications: {
         routing: {
           department: notificationDepartmentValue,
           targetMode: normalizedNotificationTargetMode,
           deliveryMode: notificationDeliveryMode,
-          employeeUsernames: serializeChannelNotificationList(channelEditorPanelNotifEmployeesInput?.value || existingQuestionsCfg.panelNotifications?.routing?.employeeUsernames),
-          excludeUsernames: serializeChannelNotificationList(channelEditorPanelNotifExcludeInput?.value || existingQuestionsCfg.panelNotifications?.routing?.excludeUsernames),
+          employeeUsernames: serializeChannelNotificationList(channelEditorPanelNotifEmployeesInput?.value || existingRouting.employeeUsernames),
+          excludeUsernames: serializeChannelNotificationList(channelEditorPanelNotifExcludeInput?.value || existingRouting.excludeUsernames),
         },
         events: {
-          newPublicAppeal: channelEditorPanelNotifNewPublicAppealInput?.checked !== false,
+          newPublicAppeal: typeof existingEvents.newPublicAppeal === 'boolean'
+            ? existingEvents.newPublicAppeal
+            : true,
           firstResponseOverdue: Boolean(channelEditorPanelNotifFirstResponseOverdueInput?.checked),
         },
       },
-      fields: channelEditorState.publicFormFields.map((field, index) => ({
-        ...field,
-        order: index + 1,
-      })),
+      fields: [],
     };
   }
 
@@ -18560,14 +18287,6 @@
 
   function initChannelEditorControls() {
     settingsChannelEditorControls.bindControls();
-    channelEditorPublicFormAddFieldBtn?.addEventListener('click', () => {
-      const nextIndex = (channelEditorState.publicFormFields?.length || 0) + 1;
-      channelEditorState.publicFormFields = [
-        ...(channelEditorState.publicFormFields || []),
-        normalizePublicFormField({ text: `Поле ${nextIndex}`, id: `field_${nextIndex}`, type: 'text' }, nextIndex),
-      ];
-      renderPublicFormFieldsEditor();
-    });
   }
 
   window.addChannel = addChannel;

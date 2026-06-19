@@ -14,7 +14,6 @@
       channelEditorAutoSelect: document.getElementById('channelEditorAutoTemplate'),
       channelEditorSupportChatInput: document.getElementById('channelEditorSupportChatId'),
       channelEditorBroadcastChannelInput: document.getElementById('channelEditorBroadcastChannelId'),
-      channelEditorPanelNotifNewPublicAppealInput: document.getElementById('channelEditorPanelNotifNewPublicAppeal'),
       channelEditorPanelNotifFirstResponseOverdueInput: document.getElementById('channelEditorPanelNotifFirstResponseOverdue'),
       channelEditorPanelNotifTargetModeInput: document.getElementById('channelEditorPanelNotifTargetMode'),
       channelEditorPanelNotifDeliveryModeInput: document.getElementById('channelEditorPanelNotifDeliveryMode'),
@@ -26,10 +25,6 @@
       channelEditorScheduleToGroupInput: document.getElementById('channelEditorScheduleToGroup'),
       channelEditorScheduleToChannelInput: document.getElementById('channelEditorScheduleToChannel'),
       channelEditorScheduleSimultaneousInput: document.getElementById('channelEditorScheduleSimultaneous'),
-      channelEditorRegeneratePublicIdBtn: document.getElementById('channelEditorRegeneratePublicIdBtn'),
-      channelEditorCopyPublicLinkBtn: document.getElementById('channelEditorCopyPublicLinkBtn'),
-      channelEditorPublicIdEl: document.querySelector('[data-channel-editor-public-id]'),
-      channelEditorPublicLinkEl: document.querySelector('[data-channel-editor-public-link]'),
       channelEditorPlatformEl: document.querySelector('[data-channel-editor-platform]'),
       channelEditorBotEl: document.querySelector('[data-channel-editor-bot]'),
       channelEditorMetaEl: document.querySelector('[data-channel-editor-meta]'),
@@ -54,7 +49,7 @@
       const state = typeof options.getChannelEditorState === 'function' ? options.getChannelEditorState() : null;
       return state && typeof state === 'object'
         ? state
-        : { channelId: null, tokenVisible: false, publicFormFields: [] };
+        : { channelId: null, tokenVisible: false };
     }
 
     function getQuestionTemplates() {
@@ -165,13 +160,6 @@
       }
     }
 
-    function buildPublicFormUrl(channel) {
-      if (!channel?.public_id) {
-        return '';
-      }
-      return `${window.location.origin}/public/forms/${encodeURIComponent(channel.public_id)}`;
-    }
-
     function updateChannelEditorStatusLabel(isActive) {
       if (elements.channelEditorStatusLabel) {
         elements.channelEditorStatusLabel.textContent = isActive ? 'Канал активен' : 'Канал выключен';
@@ -248,15 +236,8 @@
       if (elements.channelEditorNewTokenInput) {
         elements.channelEditorNewTokenInput.value = '';
       }
-      if (elements.channelEditorPublicIdEl) {
-        elements.channelEditorPublicIdEl.textContent = channel.public_id || '—';
-      }
       if (elements.channelEditorMetaEl) {
         elements.channelEditorMetaEl.textContent = `ID канала: #${channel.id}`;
-      }
-      if (elements.channelEditorPublicLinkEl) {
-        const link = buildPublicFormUrl(channel);
-        elements.channelEditorPublicLinkEl.textContent = link || 'Публичная ссылка появится после сохранения.';
       }
       configureChannelEditorSelect(
         elements.channelEditorQuestionSelect,
@@ -291,9 +272,6 @@
       }
       if (elements.channelEditorBroadcastChannelInput) {
         elements.channelEditorBroadcastChannelInput.value = deliverySettings.broadcast_channel_id || '';
-      }
-      if (elements.channelEditorPanelNotifNewPublicAppealInput) {
-        elements.channelEditorPanelNotifNewPublicAppealInput.checked = panelEvents.newPublicAppeal !== false;
       }
       if (elements.channelEditorPanelNotifFirstResponseOverdueInput) {
         elements.channelEditorPanelNotifFirstResponseOverdueInput.checked = Boolean(panelEvents.firstResponseOverdue);
@@ -429,44 +407,6 @@
       editorState.tokenVisible = false;
     }
 
-    async function handleRegeneratePublicIdClick() {
-      const editorState = getChannelEditorState();
-      if (editorState.channelId === null) {
-        return;
-      }
-      try {
-        const resp = await fetch(`/api/channels/${editorState.channelId}/public-id/regenerate`, { method: 'POST' });
-        const data = await resp.json();
-        if (!resp.ok || data.success === false) {
-          throw new Error(data.error || ('HTTP ' + resp.status));
-        }
-        popup('Публичная ссылка пересоздана.');
-        if (typeof options.loadChannels === 'function') {
-          await options.loadChannels();
-        }
-      } catch (error) {
-        popup('Ошибка регенерации: ' + error.message);
-      }
-    }
-
-    async function handleCopyPublicLinkClick() {
-      const editorState = getChannelEditorState();
-      const channel = editorState.channelId !== null
-        ? getRegistry().get(String(editorState.channelId))
-        : null;
-      const link = buildPublicFormUrl(channel);
-      if (!link) {
-        popup('Ссылка недоступна: сначала сохраните канал с public_id.');
-        return;
-      }
-      try {
-        await navigator.clipboard.writeText(link);
-        popup('Публичная ссылка скопирована.');
-      } catch (error) {
-        popup('Не удалось скопировать ссылку автоматически: ' + link);
-      }
-    }
-
     function handleActiveInputChange() {
       updateChannelEditorStatusLabel(Boolean(elements.channelEditorActiveInput?.checked));
     }
@@ -503,13 +443,10 @@
       configureChannelEditorSelect,
       updateSupportChatHint,
       updateChannelPanelNotificationRoutingState,
-      buildPublicFormUrl,
       populateChannelEditorShell,
       refreshChannelEditorIfOpen,
       prepareChannelEditorSettingsTrigger,
       resetChannelEditorSettingsModal,
-      handleRegeneratePublicIdClick,
-      handleCopyPublicLinkClick,
       handleActiveInputChange,
       handleQuestionTemplateChange,
       handleRatingTemplateChange,
