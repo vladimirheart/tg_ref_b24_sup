@@ -7062,6 +7062,7 @@
     <script src="/js/modal-helpers.js"></script>
     <script src="/js/settings-page-shell.js"></script>
     <script src="/js/settings-appearance-runtime.js"></script>
+    <script src="/js/settings-channel-templates-runtime.js"></script>
     <script src="/js/settings-channels-bot-runtime.js"></script>
     <script src="/js/settings-channel-editor-shell-runtime.js"></script>
     <script src="/js/settings-channels-catalog-runtime.js"></script>
@@ -18000,19 +18001,19 @@
   const settingsChannelsCatalog = window.SettingsChannelsCatalogRuntime?.mount({
     getChannelsRegistry: () => CHANNELS_REGISTRY,
     getChannelEditorState: () => channelEditorState,
-    getQuestionTemplates: () => QUESTION_TEMPLATES,
-    getQuestionTemplateMap: () => QUESTION_TEMPLATE_MAP,
-    getDefaultQuestionTemplateId: () => DEFAULT_QUESTION_TEMPLATE_ID,
-    getRatingTemplates: () => RATING_TEMPLATES,
-    getRatingTemplateMap: () => RATING_TEMPLATE_MAP,
-    getDefaultRatingTemplateId: () => DEFAULT_RATING_TEMPLATE_ID,
-    getAutoActionTemplates: () => AUTO_ACTION_TEMPLATES,
-    getAutoActionTemplateMap: () => AUTO_ACTION_TEMPLATE_MAP,
-    getDefaultAutoActionTemplateId: () => DEFAULT_AUTO_ACTION_TEMPLATE_ID,
-    buildTemplateOptions,
+    getQuestionTemplates: () => settingsChannelTemplates.getQuestionTemplates(),
+    getQuestionTemplateMap: () => settingsChannelTemplates.getQuestionTemplateMap(),
+    getDefaultQuestionTemplateId: () => settingsChannelTemplates.getDefaultQuestionTemplateId(),
+    getRatingTemplates: () => settingsChannelTemplates.getRatingTemplates(),
+    getRatingTemplateMap: () => settingsChannelTemplates.getRatingTemplateMap(),
+    getDefaultRatingTemplateId: () => settingsChannelTemplates.getDefaultRatingTemplateId(),
+    getAutoActionTemplates: () => settingsChannelTemplates.getAutoActionTemplates(),
+    getAutoActionTemplateMap: () => settingsChannelTemplates.getAutoActionTemplateMap(),
+    getDefaultAutoActionTemplateId: () => settingsChannelTemplates.getDefaultAutoActionTemplateId(),
+    buildTemplateOptions: (...args) => settingsChannelTemplates.buildTemplateOptions(...args),
     parseDeliverySettings,
     parseQuestionsCfg,
-    sanitizeTemplateId,
+    sanitizeTemplateId: (...args) => settingsChannelTemplates.sanitizeTemplateId(...args),
     formatBotLabel,
     normalizeNetworkRoute: (...args) => settingsIntegrationNetwork.normalizeNetworkRoute(...args),
     updateChannelsManageOverview: (...args) => settingsIntegrationNetwork.updateChannelsManageOverview(...args),
@@ -18036,15 +18037,15 @@
   const settingsChannelEditorShell = window.SettingsChannelEditorShellRuntime?.mount({
     getChannelsRegistry: () => CHANNELS_REGISTRY,
     getChannelEditorState: () => channelEditorState,
-    getQuestionTemplates: () => QUESTION_TEMPLATES,
-    getRatingTemplates: () => RATING_TEMPLATES,
-    getAutoActionTemplates: () => AUTO_ACTION_TEMPLATES,
-    getDefaultQuestionTemplateId: () => DEFAULT_QUESTION_TEMPLATE_ID,
-    getDefaultRatingTemplateId: () => DEFAULT_RATING_TEMPLATE_ID,
-    getDefaultAutoActionTemplateId: () => DEFAULT_AUTO_ACTION_TEMPLATE_ID,
-    getTemplateSummaryBuilders: () => TEMPLATE_SUMMARY_BUILDERS,
+    getQuestionTemplates: () => settingsChannelTemplates.getQuestionTemplates(),
+    getRatingTemplates: () => settingsChannelTemplates.getRatingTemplates(),
+    getAutoActionTemplates: () => settingsChannelTemplates.getAutoActionTemplates(),
+    getDefaultQuestionTemplateId: () => settingsChannelTemplates.getDefaultQuestionTemplateId(),
+    getDefaultRatingTemplateId: () => settingsChannelTemplates.getDefaultRatingTemplateId(),
+    getDefaultAutoActionTemplateId: () => settingsChannelTemplates.getDefaultAutoActionTemplateId(),
+    getTemplateSummaryBuilders: () => settingsChannelTemplates.getTemplateSummaryBuilders(),
     getChannelEditorSummaries: () => channelEditorSummaries,
-    buildTemplateOptions,
+    buildTemplateOptions: (...args) => settingsChannelTemplates.buildTemplateOptions(...args),
     formatBotLabel,
     parseDeliverySettings,
     parsePlatformConfig,
@@ -18664,152 +18665,24 @@
     return forms[2];
   }
 
-  const BOT_SETTINGS_DATA = BOT_SETTINGS_INITIAL && typeof BOT_SETTINGS_INITIAL === 'object' ? BOT_SETTINGS_INITIAL : {};
-  const QUESTION_TEMPLATES = Array.isArray(BOT_SETTINGS_DATA.question_templates)
-    ? BOT_SETTINGS_DATA.question_templates.filter((tpl) => tpl && typeof tpl === 'object' && tpl.id)
-    : [];
-  const QUESTION_TEMPLATE_MAP = new Map(
-    QUESTION_TEMPLATES.map((tpl) => [String(tpl.id || '').trim(), tpl])
-  );
-  const DEFAULT_QUESTION_TEMPLATE_ID = (() => {
-    const raw = typeof BOT_SETTINGS_DATA.active_template_id === 'string'
-      ? BOT_SETTINGS_DATA.active_template_id.trim()
-      : '';
-    if (raw && QUESTION_TEMPLATE_MAP.has(raw)) {
-      return raw;
-    }
-    const first = QUESTION_TEMPLATES.find((tpl) => tpl && tpl.id);
-    return first ? String(first.id).trim() : '';
-  })();
-
-  const RATING_TEMPLATES = Array.isArray(BOT_SETTINGS_DATA.rating_templates)
-    ? BOT_SETTINGS_DATA.rating_templates.filter((tpl) => tpl && typeof tpl === 'object' && tpl.id)
-    : [];
-  const RATING_TEMPLATE_MAP = new Map(
-    RATING_TEMPLATES.map((tpl) => [String(tpl.id || '').trim(), tpl])
-  );
-  const DEFAULT_RATING_TEMPLATE_ID = (() => {
-    const raw = typeof BOT_SETTINGS_DATA.active_rating_template_id === 'string'
-      ? BOT_SETTINGS_DATA.active_rating_template_id.trim()
-      : '';
-    if (raw && RATING_TEMPLATE_MAP.has(raw)) {
-      return raw;
-    }
-    const first = RATING_TEMPLATES.find((tpl) => tpl && tpl.id);
-    return first ? String(first.id).trim() : '';
-  })();
-
-  const AUTO_ACTION_TEMPLATES = Array.isArray(AUTO_CLOSE_CONFIG.templates)
-    ? AUTO_CLOSE_CONFIG.templates.filter((tpl) => tpl && typeof tpl === 'object' && tpl.id)
-    : [];
-  const AUTO_ACTION_TEMPLATE_MAP = new Map(
-    AUTO_ACTION_TEMPLATES.map((tpl) => [String(tpl.id || '').trim(), tpl])
-  );
-  const DEFAULT_AUTO_ACTION_TEMPLATE_ID = (() => {
-    const raw = typeof AUTO_CLOSE_CONFIG.active_template_id === 'string'
-      ? AUTO_CLOSE_CONFIG.active_template_id.trim()
-      : '';
-    if (raw && AUTO_ACTION_TEMPLATE_MAP.has(raw)) {
-      return raw;
-    }
-    const first = AUTO_ACTION_TEMPLATES.find((tpl) => tpl && tpl.id);
-    return first ? String(first.id).trim() : '';
-  })();
-
-  function sanitizeTemplateId(raw, map, fallback) {
-    const value = typeof raw === 'string' ? raw.trim() : '';
-    if (value && map.has(value)) {
-      return value;
-    }
-    return fallback || '';
-  }
-
-  function buildTemplateOptions(templates, selectedId) {
-    if (!templates.length) {
-      return '<option value="" selected>Нет доступных шаблонов</option>';
-    }
-    return templates
-      .map((tpl) => {
-        const id = String(tpl.id || '').trim();
-        if (!id) {
-          return '';
-        }
-        const name = tpl.name ? String(tpl.name).trim() : id;
-        const selected = id === selectedId ? ' selected' : '';
-        return `<option value="${escapeHtml(id)}"${selected}>${escapeHtml(name || id)}</option>`;
-      })
-      .filter(Boolean)
-      .join('');
-  }
-
-  function getQuestionTemplateSummary(id) {
-    if (!QUESTION_TEMPLATE_MAP.size) {
-      return 'Нет доступных шаблонов';
-    }
-    const templateId = sanitizeTemplateId(id, QUESTION_TEMPLATE_MAP, DEFAULT_QUESTION_TEMPLATE_ID);
-    const template = QUESTION_TEMPLATE_MAP.get(templateId);
-    if (!template) {
-      return 'Шаблон не выбран';
-    }
-    const flow = Array.isArray(template.question_flow)
-      ? template.question_flow
-      : Array.isArray(template.questions)
-        ? template.questions
-        : [];
-    const count = flow.length;
-    const base = count
-      ? `${count} ${pluralize(count, ['вопрос', 'вопроса', 'вопросов'])}`
-      : 'Без вопросов';
-    const description = typeof template.description === 'string' && template.description.trim()
-      ? template.description.trim()
-      : '';
-    return description ? `${base} • ${description}` : base;
-  }
-
-  function getRatingTemplateSummary(id) {
-    if (!RATING_TEMPLATE_MAP.size) {
-      return 'Нет доступных шаблонов';
-    }
-    const templateId = sanitizeTemplateId(id, RATING_TEMPLATE_MAP, DEFAULT_RATING_TEMPLATE_ID);
-    const template = RATING_TEMPLATE_MAP.get(templateId);
-    if (!template) {
-      return 'Шаблон не выбран';
-    }
-    const scale = Number.parseInt(template.scale_size, 10)
-      || (Array.isArray(template.responses) ? template.responses.length : 0)
-      || 0;
-    const base = scale > 1 ? `Шкала 1–${scale}` : 'Единая оценка';
-    const prompt = typeof template.prompt_text === 'string' && template.prompt_text.trim()
-      ? template.prompt_text.trim()
-      : '';
-    return prompt ? `${base} • ${prompt}` : base;
-  }
-
-  function getAutoActionTemplateSummary(id) {
-    if (!AUTO_ACTION_TEMPLATE_MAP.size) {
-      return 'Нет доступных шаблонов';
-    }
-    const templateId = sanitizeTemplateId(id, AUTO_ACTION_TEMPLATE_MAP, DEFAULT_AUTO_ACTION_TEMPLATE_ID);
-    const template = AUTO_ACTION_TEMPLATE_MAP.get(templateId);
-    if (!template) {
-      return 'Шаблон не выбран';
-    }
-    const hours = Number.parseInt(template.hours, 10);
-    const hasHours = Number.isFinite(hours) && hours > 0;
-    const base = hasHours
-      ? `Автозакрытие через ${hours} ${pluralize(hours, ['час', 'часа', 'часов'])}`
-      : 'Автозакрытие отключено';
-    const description = typeof template.description === 'string' && template.description.trim()
-      ? template.description.trim()
-      : '';
-    return description ? `${base} • ${description}` : base;
-  }
-
-  const TEMPLATE_SUMMARY_BUILDERS = {
-    question_template_id: getQuestionTemplateSummary,
-    rating_template_id: getRatingTemplateSummary,
-    auto_action_template_id: getAutoActionTemplateSummary,
-  };
+  const settingsChannelTemplates = window.SettingsChannelTemplatesRuntime?.mount({
+    botSettingsInitial: BOT_SETTINGS_INITIAL,
+    autoCloseConfig: AUTO_CLOSE_CONFIG,
+    escapeHtml,
+    pluralize,
+  });
+  const QUESTION_TEMPLATES = settingsChannelTemplates.getQuestionTemplates();
+  const QUESTION_TEMPLATE_MAP = settingsChannelTemplates.getQuestionTemplateMap();
+  const DEFAULT_QUESTION_TEMPLATE_ID = settingsChannelTemplates.getDefaultQuestionTemplateId();
+  const RATING_TEMPLATES = settingsChannelTemplates.getRatingTemplates();
+  const RATING_TEMPLATE_MAP = settingsChannelTemplates.getRatingTemplateMap();
+  const DEFAULT_RATING_TEMPLATE_ID = settingsChannelTemplates.getDefaultRatingTemplateId();
+  const AUTO_ACTION_TEMPLATES = settingsChannelTemplates.getAutoActionTemplates();
+  const AUTO_ACTION_TEMPLATE_MAP = settingsChannelTemplates.getAutoActionTemplateMap();
+  const DEFAULT_AUTO_ACTION_TEMPLATE_ID = settingsChannelTemplates.getDefaultAutoActionTemplateId();
+  const sanitizeTemplateId = (...args) => settingsChannelTemplates.sanitizeTemplateId(...args);
+  const buildTemplateOptions = (...args) => settingsChannelTemplates.buildTemplateOptions(...args);
+  const TEMPLATE_SUMMARY_BUILDERS = settingsChannelTemplates.getTemplateSummaryBuilders();
 
   function defaultChannelPanelNotifications() {
     return {
