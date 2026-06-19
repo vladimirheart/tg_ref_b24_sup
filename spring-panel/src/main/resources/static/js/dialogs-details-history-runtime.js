@@ -1,0 +1,779 @@
+(function () {
+  if (window.DialogsDetailsHistoryRuntime) {
+    return;
+  }
+
+  function createRuntime(options = {}) {
+    const elements = options.elements || {};
+    const state = {
+      lastHistoryMarker: null,
+      historyLoading: false,
+      currentMessages: [],
+      previousBatches: [],
+      previousNextOffset: 0,
+      previousHasMore: true,
+      previousLoading: false,
+      activeAudioPlayer: null,
+      activeAudioSource: null,
+      mediaImageScale: 1,
+      historyPollTimer: null,
+    };
+
+    function getActiveDialogState() {
+      const activeState = typeof options.getActiveDialogState === 'function'
+        ? options.getActiveDialogState()
+        : null;
+      return activeState && typeof activeState === 'object'
+        ? activeState
+        : { ticketId: '', channelId: null, row: null, context: {} };
+    }
+
+    function getActiveWorkspaceState() {
+      const workspaceState = typeof options.getActiveWorkspaceState === 'function'
+        ? options.getActiveWorkspaceState()
+        : null;
+      return workspaceState && typeof workspaceState === 'object'
+        ? workspaceState
+        : {
+          ticketId: '',
+          payload: null,
+          composerText: null,
+          composerSend: null,
+          composerMedia: null,
+          composerTicketId: '',
+          messagesState: null,
+          messagesError: null,
+        };
+    }
+
+    function escapeHtml(value) {
+      return typeof options.escapeHtml === 'function'
+        ? options.escapeHtml(value)
+        : String(value ?? '');
+    }
+
+    function formatTimestamp(value, formatOptions = {}) {
+      return typeof options.formatTimestamp === 'function'
+        ? options.formatTimestamp(value, formatOptions)
+        : String(value || '').trim();
+    }
+
+    function withChannelParam(path, channelId) {
+      return typeof options.withChannelParam === 'function'
+        ? options.withChannelParam(path, channelId)
+        : path;
+    }
+
+    function notify(message, type = 'info') {
+      if (typeof options.showNotification === 'function') {
+        options.showNotification(message, type);
+      }
+    }
+
+    function resetMediaPreview() {
+      state.mediaImageScale = 1;
+      if (elements.mediaPreviewImage) {
+        elements.mediaPreviewImage.style.transform = 'scale(1)';
+        elements.mediaPreviewImage.removeAttribute('src');
+        elements.mediaPreviewImage.classList.add('d-none');
+      }
+      if (elements.mediaPreviewVideo) {
+        elements.mediaPreviewVideo.pause();
+        elements.mediaPreviewVideo.removeAttribute('src');
+        elements.mediaPreviewVideo.load();
+        elements.mediaPreviewVideo.classList.add('d-none');
+      }
+      if (elements.mediaPreviewImageControls) {
+        elements.mediaPreviewImageControls.classList.add('d-none');
+      }
+      if (elements.mediaPreviewDownloadLink) {
+        elements.mediaPreviewDownloadLink.classList.add('d-none');
+        elements.mediaPreviewDownloadLink.setAttribute('href', '#');
+      }
+    }
+
+    function showImagePreview(src, name) {
+      if (!src || !elements.mediaPreviewModalEl || !elements.mediaPreviewImage) {
+        return;
+      }
+      resetMediaPreview();
+      elements.mediaPreviewImage.src = src;
+      elements.mediaPreviewImage.alt = name || 'Изображение';
+      elements.mediaPreviewImage.classList.remove('d-none');
+      if (elements.mediaPreviewImageControls) {
+        elements.mediaPreviewImageControls.classList.remove('d-none');
+      }
+      if (elements.mediaPreviewDownloadLink) {
+        elements.mediaPreviewDownloadLink.classList.remove('d-none');
+        elements.mediaPreviewDownloadLink.setAttribute('href', src);
+        elements.mediaPreviewDownloadLink.setAttribute('download', name || 'image');
+      }
+      options.showModalSafe?.(elements.mediaPreviewModalEl, elements.mediaPreviewModal);
+    }
+
+    function showVideoPreview(src) {
+      if (!src || !elements.mediaPreviewModalEl || !elements.mediaPreviewVideo) {
+        return;
+      }
+      resetMediaPreview();
+      elements.mediaPreviewVideo.src = src;
+      elements.mediaPreviewVideo.classList.remove('d-none');
+      elements.mediaPreviewVideo.play().catch(() => {});
+      if (elements.mediaPreviewDownloadLink) {
+        elements.mediaPreviewDownloadLink.classList.remove('d-none');
+        elements.mediaPreviewDownloadLink.setAttribute('href', src);
+        elements.mediaPreviewDownloadLink.setAttribute('download', 'video');
+      }
+      options.showModalSafe?.(elements.mediaPreviewModalEl, elements.mediaPreviewModal);
+    }
+
+    function adjustMediaPreviewZoom(direction) {
+      if (!elements.mediaPreviewImage) {
+        return;
+      }
+      if (direction === 'in') {
+        state.mediaImageScale = Math.min(3, state.mediaImageScale + 0.2);
+      } else {
+        state.mediaImageScale = Math.max(0.4, state.mediaImageScale - 0.2);
+      }
+      elements.mediaPreviewImage.style.transform = `scale(${state.mediaImageScale})`;
+    }
+
+    function handleMediaPreviewEscape(event) {
+      if (event.key !== 'Escape') return;
+      if (!elements.mediaPreviewModalEl?.classList.contains('show')) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (typeof event.stopImmediatePropagation === 'function') {
+        event.stopImmediatePropagation();
+      }
+      options.hideModalSafe?.(elements.mediaPreviewModalEl, elements.mediaPreviewModal);
+    }
+
+    function resolveAttachmentKind(messageType, attachment) {
+      const type = String(messageType || '').toLowerCase();
+      if (type.includes('animation')) return 'animation';
+      if (type.includes('video') || type.includes('videonote') || type.includes('video_note')) return 'video';
+      if (type.includes('audio') || type.includes('voice')) return 'audio';
+      if (type.includes('photo') || type.includes('image')) return 'image';
+      if (attachment) {
+        const lower = attachment.toLowerCase();
+        if (lower.endsWith('.gif')) return 'animation';
+        if (/\.(mp4|webm|mov|m4v)$/i.test(lower)) return 'video';
+        if (/\.(mp3|wav|ogg|m4a)$/i.test(lower)) return 'audio';
+        if (/\.(png|jpe?g|webp|bmp)$/i.test(lower)) return 'image';
+      }
+      return 'file';
+    }
+
+    function resolveAttachmentName(message, attachment) {
+      const extractExtension = (value) => {
+        if (!value) return '';
+        const clean = String(value).split('?')[0].split('#')[0];
+        const lastSegment = clean.split('/').pop()?.split('\\').pop() || clean;
+        const dotIndex = lastSegment.lastIndexOf('.');
+        return dotIndex > 0 ? lastSegment.slice(dotIndex) : '';
+      };
+
+      if (message) {
+        const hasPath = /[\\/]/.test(message) || /^https?:\/\//i.test(message);
+        if (!hasPath) return message;
+        const extension = extractExtension(message);
+        return extension ? `Файл ${extension}` : 'Файл';
+      }
+
+      if (!attachment) return 'Файл';
+      const extension = extractExtension(attachment);
+      return extension ? `Файл ${extension}` : 'Файл';
+    }
+
+    function buildMediaMarkup(message) {
+      if (!message?.attachment) return '';
+      const kind = resolveAttachmentKind(message.messageType, message.attachment);
+      const name = resolveAttachmentName(message.message, message.attachment);
+      const downloadLink = `
+        <a class="btn btn-sm btn-outline-secondary" href="${message.attachment}" download target="_blank" rel="noopener">
+          Скачать
+        </a>
+      `;
+      if (kind === 'audio') {
+        return `
+          <div class="chat-media">
+            <div class="chat-media-actions">
+              <button class="btn btn-sm btn-outline-primary chat-audio-play" type="button"
+                data-audio-src="${message.attachment}">Воспроизвести</button>
+              ${downloadLink}
+              <span class="chat-media-file-name">${name}</span>
+            </div>
+          </div>
+        `;
+      }
+      if (kind === 'video') {
+        return `
+          <div class="chat-media">
+            <video class="chat-media-preview video" src="${message.attachment}" data-video-src="${message.attachment}" data-media-name="${name}" muted playsinline preload="metadata"></video>
+            <div class="chat-media-actions">
+              ${downloadLink}
+              <span class="chat-media-file-name">${name}</span>
+            </div>
+          </div>
+        `;
+      }
+      if (kind === 'animation') {
+        const isGif = /\.gif($|\?)/i.test(message.attachment);
+        const preview = isGif
+          ? `<img class=\"chat-media-preview\" src=\"${message.attachment}\" alt=\"${name}\" data-image-src=\"${message.attachment}\" data-media-name=\"${name}\">`
+          : `<video class=\"chat-media-preview\" src=\"${message.attachment}\" autoplay loop muted playsinline></video>`;
+        return `
+          <div class="chat-media">
+            ${preview}
+            <div class="chat-media-actions">
+              ${downloadLink}
+              <span class="chat-media-file-name">${name}</span>
+            </div>
+          </div>
+        `;
+      }
+      if (kind === 'image') {
+        return `
+          <div class="chat-media">
+            <img class="chat-media-preview" src="${message.attachment}" alt="${name}" data-image-src="${message.attachment}" data-media-name="${name}">
+            <div class="chat-media-actions">
+              ${downloadLink}
+              <span class="chat-media-file-name">${name}</span>
+            </div>
+          </div>
+        `;
+      }
+      return `
+        <div class="chat-media">
+          <div class="chat-media-actions">
+            ${downloadLink}
+            <span class="chat-media-file-name">${name}</span>
+          </div>
+        </div>
+      `;
+    }
+
+    function messageToHtml(message, renderOptions = {}) {
+      const activeDialogState = getActiveDialogState();
+      const senderType = options.normalizeMessageSenderByType?.(message?.messageType, message?.sender) || '';
+      const senderLabel = options.resolveSenderLabel?.(message, activeDialogState.context || {}) || '';
+      const timestamp = formatTimestamp(message?.timestamp, { includeTime: true });
+      const isDeleted = Boolean(message?.deletedAt);
+      const isEdited = Boolean(message?.editedAt);
+      const isSupport = senderType === 'support';
+      const archivedHistory = renderOptions.archivedHistory === true;
+      const replyPreview = message?.replyPreview
+        ? `<div class="small text-muted border-start ps-2 mb-1 chat-message-reply-source">↪ ${escapeHtml(message.replyPreview)}</div>`
+        : '';
+      const forwardedBadge = message?.forwardedFrom
+        ? `<div class="small text-muted mb-1">Переслано от ${escapeHtml(message.forwardedFrom)}</div>`
+        : '';
+      const bodyText = message?.message ? escapeHtml(message.message).replace(/\n/g, '<br>') : '';
+      const fallbackType = message?.messageType && !bodyText ? `[${escapeHtml(message.messageType)}]` : '';
+      const body = isDeleted ? '<span class="text-muted">Сообщение удалено</span>' : (bodyText || fallbackType || '—');
+      const originalBlock = isEdited && message?.originalMessage && message.originalMessage !== message.message
+        ? `<div class="small text-muted mt-1"><div>Было: ${escapeHtml(message.originalMessage)}</div><div>Стало: ${escapeHtml(message.message || '')}</div></div>`
+        : '';
+      const statusBadges = [
+        isEdited ? '<span class="chat-message-meta-badge">✏️ Изменено</span>' : '',
+        isDeleted ? '<span class="chat-message-meta-badge">🗑 Удалено</span>' : '',
+        archivedHistory ? '<span class="chat-message-meta-badge">Архив</span>' : '',
+      ].join(' ');
+      const media = isDeleted ? '' : buildMediaMarkup(message);
+      const canReply = !archivedHistory && senderType !== 'system' && message?.telegramMessageId;
+      const actionButtons = canReply
+        ? `<div class="chat-message-menu">
+            <button class="chat-message-menu-toggle" type="button" data-action-menu aria-label="Действия с сообщением">⋯</button>
+            <div class="chat-message-menu-list">
+              <button class="btn btn-sm btn-outline-secondary" type="button" data-action="reply" data-message-id="${message.telegramMessageId}">Ответить</button>
+              ${isSupport ? `<button class="btn btn-sm btn-outline-secondary" type="button" data-action="edit" data-message-id="${message.telegramMessageId}" ${isDeleted ? 'disabled' : ''}>Редактировать</button>` : ''}
+              ${isSupport ? `<button class="btn btn-sm btn-outline-danger" type="button" data-action="delete" data-message-id="${message.telegramMessageId}" ${isDeleted ? 'disabled' : ''}>Удалить</button>` : ''}
+            </div>
+          </div>`
+        : '';
+      const avatarMarkup = options.renderMessageAvatar?.(
+        options.resolveDialogMessageAvatarSpec?.(message, activeDialogState.context || {}),
+        archivedHistory ? 'is-archived-history' : ''
+      ) || '';
+
+      return `
+        <div class="chat-message-row ${senderType} ${archivedHistory ? 'is-archived-history' : ''}" data-telegram-message-id="${message?.telegramMessageId || ''}">
+          ${avatarMarkup}
+          <div class="chat-message ${senderType} ${isDeleted ? 'is-deleted' : ''} ${archivedHistory ? 'is-archived-history' : ''}">
+            <div class="chat-message-header">
+              <span>${escapeHtml(senderLabel)}</span>
+              <span>${escapeHtml(timestamp)}</span>
+            </div>
+            ${statusBadges ? `<div class="small text-muted mb-1">${statusBadges}</div>` : ''}
+            ${forwardedBadge}
+            ${replyPreview}
+            <div class="chat-message-body">${body}</div>
+            ${originalBlock}
+            ${media}
+            ${actionButtons}
+          </div>
+        </div>
+      `;
+    }
+
+    function isTechnicalHistoryMessage(message) {
+      const type = String(message?.messageType || '').toLowerCase();
+      const senderType = options.normalizeMessageSenderByType?.(message?.messageType, message?.sender) || '';
+      const text = String(message?.message || '').toLowerCase();
+      if (type.includes('feedback') || type.includes('rating')) return true;
+      if (senderType === 'system' && (text.includes('поставьте оценку') || text.includes('оцените') || text.includes('оценк'))) {
+        return true;
+      }
+      return false;
+    }
+
+    function normalizeHistoryComparisonValue(value) {
+      return String(value || '')
+        .toLowerCase()
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    function buildHistoryTechnicalValueSet(context = {}) {
+      const values = new Set();
+      const addValue = (value) => {
+        const normalized = normalizeHistoryComparisonValue(value);
+        if (!normalized) return;
+        values.add(normalized);
+        normalized
+          .split(/[,/|]+/)
+          .map((item) => normalizeHistoryComparisonValue(item))
+          .filter(Boolean)
+          .forEach((item) => values.add(item));
+      };
+      addValue(context?.business);
+      addValue(context?.location);
+      return values;
+    }
+
+    function isLikelyQuestionnaireProblemMessage(text, technicalValues) {
+      const normalized = normalizeHistoryComparisonValue(text);
+      if (!normalized) return false;
+      if (technicalValues.has(normalized)) return false;
+      const words = normalized.split(' ').filter(Boolean);
+      if (normalized.length >= 48) return true;
+      if (words.length >= 4) return true;
+      if (/[,.!?;:()-]/.test(text) && words.length >= 2) return true;
+      return false;
+    }
+
+    function filterDialogHistoryMessages(messages, context = getActiveDialogState().context || {}) {
+      const baseMessages = Array.isArray(messages)
+        ? messages.filter((message) => !isTechnicalHistoryMessage(message))
+        : [];
+      if (baseMessages.length < 2) {
+        return baseMessages;
+      }
+
+      let prefixLength = 0;
+      while (prefixLength < baseMessages.length) {
+        const senderType = options.normalizeMessageSenderByType?.(baseMessages[prefixLength]?.messageType, baseMessages[prefixLength]?.sender) || '';
+        if (senderType !== 'user') {
+          break;
+        }
+        prefixLength += 1;
+      }
+
+      if (prefixLength < 2) {
+        return baseMessages;
+      }
+
+      const technicalValues = buildHistoryTechnicalValueSet(context);
+      const prefix = baseMessages.slice(0, prefixLength);
+      const preservedIndexes = new Set();
+
+      prefix.forEach((message, index) => {
+        if (message?.attachment) {
+          preservedIndexes.add(index);
+        }
+      });
+
+      let informativeIndex = -1;
+      for (let index = prefix.length - 1; index >= 0; index -= 1) {
+        const text = String(prefix[index]?.message || '').trim();
+        if (isLikelyQuestionnaireProblemMessage(text, technicalValues)) {
+          informativeIndex = index;
+          break;
+        }
+      }
+
+      preservedIndexes.add(informativeIndex >= 0 ? informativeIndex : prefix.length - 1);
+
+      return baseMessages.filter((message, index) => index >= prefixLength || preservedIndexes.has(index));
+    }
+
+    function resetPreviousDialogHistoryState() {
+      state.previousBatches = [];
+      state.previousNextOffset = 0;
+      state.previousHasMore = true;
+      state.previousLoading = false;
+    }
+
+    function renderPreviousDialogHistoryControls() {
+      const activeDialogState = getActiveDialogState();
+      const disabled = state.previousLoading || !activeDialogState.ticketId || !state.previousHasMore;
+      const buttonLabel = state.previousLoading
+        ? 'Загружаем предыдущие обращения…'
+        : (state.previousHasMore ? 'Загрузить предыдущие сообщения' : 'Предыдущих обращений больше нет');
+      const helperText = state.previousBatches.length > 0
+        ? `Подгружено обращений: ${state.previousBatches.length}. Архив показан отдельным цветом.`
+        : 'Можно подгрузить переписку из предыдущих обращений этого клиента.';
+      return `
+        <div class="dialog-history-controls">
+          <button class="btn btn-sm btn-outline-secondary" type="button" data-action="load-previous-history" ${disabled ? 'disabled' : ''}>${escapeHtml(buttonLabel)}</button>
+          <div class="small text-muted mt-2">${escapeHtml(helperText)}</div>
+        </div>
+      `;
+    }
+
+    function renderArchivedHistoryBatch(batch) {
+      const messages = filterDialogHistoryMessages(batch?.messages || []);
+      const ticketId = String(batch?.ticketId || '—').trim() || '—';
+      const createdAt = formatTimestamp(batch?.createdAt || batch?.created_at, { includeTime: true, fallback: '—' });
+      const status = String(batch?.status || '—').trim() || '—';
+      const problem = String(batch?.problem || 'Без описания').trim() || 'Без описания';
+      const sourceLabel = String(batch?.sourceLabel || batch?.source_label || '').trim();
+      const channelName = String(batch?.channelName || batch?.channel_name || '').trim();
+      const meta = [sourceLabel, channelName, createdAt].filter(Boolean).join(' · ');
+      const body = messages.length
+        ? messages.map((message) => messageToHtml(message, { archivedHistory: true })).join('')
+        : '<div class="small text-muted">В обращении не найдено сообщений.</div>';
+      return `
+        <section class="chat-history-archive-section">
+          <div class="chat-history-archive-head">
+            <div class="fw-semibold">Предыдущее обращение #${escapeHtml(ticketId)}</div>
+            <div class="small text-muted">${escapeHtml(meta || 'Архивная переписка')}</div>
+            <div class="small text-muted">Статус: ${escapeHtml(status)}</div>
+            <div class="small mt-1">${escapeHtml(problem)}</div>
+          </div>
+          <div class="d-flex flex-column gap-2 mt-3">
+            ${body}
+          </div>
+        </section>
+      `;
+    }
+
+    function renderDialogHistory(renderOptions = {}) {
+      if (!elements.detailsHistory) return;
+      const currentMessages = filterDialogHistoryMessages(state.currentMessages);
+      const controlsMarkup = renderPreviousDialogHistoryControls();
+      const archivedMarkup = state.previousBatches.map(renderArchivedHistoryBatch).join('');
+      const currentMarkup = currentMessages.length
+        ? currentMessages.map((message) => messageToHtml(message)).join('')
+        : '<div class="text-muted">Сообщения не найдены.</div>';
+      elements.detailsHistory.innerHTML = `${controlsMarkup}${archivedMarkup}${currentMarkup}`;
+      if (renderOptions.scrollToBottom !== false) {
+        elements.detailsHistory.scrollTop = elements.detailsHistory.scrollHeight;
+      }
+    }
+
+    function renderHistory(messages, renderOptions = {}) {
+      state.currentMessages = Array.isArray(messages) ? messages : [];
+      const filteredMessages = filterDialogHistoryMessages(state.currentMessages);
+      state.lastHistoryMarker = historyMarker(filteredMessages);
+      renderDialogHistory(renderOptions);
+    }
+
+    function appendHistoryMessage(message) {
+      if (!elements.detailsHistory) return;
+      if (isTechnicalHistoryMessage(message)) return;
+      state.currentMessages = Array.isArray(state.currentMessages)
+        ? [...state.currentMessages, message]
+        : [message];
+      renderDialogHistory({ scrollToBottom: true });
+      state.lastHistoryMarker = `local:${Date.now()}`;
+    }
+
+    function historyMarker(messages) {
+      if (!Array.isArray(messages) || messages.length === 0) return 'empty';
+      const last = messages[messages.length - 1] || {};
+      return [
+        messages.length,
+        last.telegramMessageId || '',
+        last.timestamp || '',
+        last.sender || '',
+        last.message || '',
+      ].join('|');
+    }
+
+    async function loadPreviousDialogHistory() {
+      const activeDialogState = getActiveDialogState();
+      if (!activeDialogState.ticketId || state.previousLoading || !state.previousHasMore) return;
+      state.previousLoading = true;
+      renderDialogHistory({ scrollToBottom: false });
+      try {
+        const previousHeight = elements.detailsHistory ? elements.detailsHistory.scrollHeight : 0;
+        const previousScrollTop = elements.detailsHistory ? elements.detailsHistory.scrollTop : 0;
+        const resp = await fetch(`/api/dialogs/${encodeURIComponent(activeDialogState.ticketId)}/history/previous?offset=${encodeURIComponent(state.previousNextOffset)}`, {
+          credentials: 'same-origin',
+          cache: 'no-store',
+        });
+        const data = await resp.json();
+        if (!resp.ok || data?.success === false) {
+          throw new Error(data?.error || `Ошибка ${resp.status}`);
+        }
+        if (data?.batch) {
+          state.previousBatches = [data.batch, ...state.previousBatches];
+          state.previousNextOffset = Number.isInteger(data?.next_offset)
+            ? Number(data.next_offset)
+            : (state.previousNextOffset + 1);
+          state.previousHasMore = data?.has_more === true;
+          renderDialogHistory({ scrollToBottom: false });
+          if (elements.detailsHistory) {
+            const nextHeight = elements.detailsHistory.scrollHeight;
+            elements.detailsHistory.scrollTop = previousScrollTop + Math.max(0, nextHeight - previousHeight);
+          }
+        } else {
+          state.previousHasMore = false;
+          renderDialogHistory({ scrollToBottom: false });
+        }
+      } catch (error) {
+        state.previousHasMore = state.previousHasMore || state.previousBatches.length === 0;
+        renderDialogHistory({ scrollToBottom: false });
+        notify(error.message || 'Не удалось загрузить предыдущие сообщения', 'warning');
+      } finally {
+        state.previousLoading = false;
+        renderDialogHistory({ scrollToBottom: false });
+      }
+    }
+
+    async function refreshHistory() {
+      const activeDialogState = getActiveDialogState();
+      if (!activeDialogState.ticketId || state.historyLoading) return;
+      state.historyLoading = true;
+      try {
+        const url = withChannelParam(`/api/dialogs/${encodeURIComponent(activeDialogState.ticketId)}/history`, activeDialogState.channelId);
+        const resp = await fetch(url, {
+          credentials: 'same-origin',
+          cache: 'no-store',
+        });
+        const data = await resp.json();
+        if (!resp.ok || !data?.success) {
+          throw new Error(data?.error || `Ошибка ${resp.status}`);
+        }
+        const messages = data.messages || [];
+        const marker = historyMarker(messages);
+        const hasHistoryChanges = marker !== state.lastHistoryMarker;
+        if (hasHistoryChanges) {
+          renderHistory(messages);
+        }
+        options.updateDialogUnreadCount?.(0);
+        if (hasHistoryChanges) {
+          options.requestSidebarNotificationRefresh?.('dialogs-history-change');
+        }
+      } catch (_error) {
+        // ignore polling errors
+      } finally {
+        state.historyLoading = false;
+      }
+    }
+
+    function startHistoryPolling() {
+      if (state.historyPollTimer) return;
+      state.historyPollTimer = setInterval(refreshHistory, options.historyPollInterval);
+    }
+
+    function stopHistoryPolling() {
+      if (state.historyPollTimer) {
+        clearInterval(state.historyPollTimer);
+        state.historyPollTimer = null;
+      }
+    }
+
+    async function sendMediaFiles(files, sendOptions = {}) {
+      const activeDialogState = getActiveDialogState();
+      const activeWorkspaceState = getActiveWorkspaceState();
+      const ticketId = String(sendOptions.ticketId || activeDialogState.ticketId || activeWorkspaceState.ticketId || '').trim();
+      if (!ticketId || !files || files.length === 0) return;
+      const captionSource = typeof sendOptions.caption === 'string' ? sendOptions.caption : elements.detailsReplyText?.value || '';
+      const caption = String(captionSource).trim();
+      const sendButton = sendOptions.sendButton || elements.detailsReplySend;
+      const mediaInput = sendOptions.mediaInput || elements.detailsReplyMedia;
+      const appendHistoryFlag = sendOptions.appendHistory !== false;
+      if (sendButton) sendButton.disabled = true;
+      try {
+        for (const file of Array.from(files)) {
+          const formData = new FormData();
+          formData.append('file', file);
+          if (caption) {
+            formData.append('message', caption);
+          }
+          const resp = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/media`, {
+            method: 'POST',
+            body: formData,
+          });
+          const data = await resp.json();
+          if (!resp.ok || !data?.success) {
+            throw new Error(data?.error || `Ошибка ${resp.status}`);
+          }
+          options.updateDetailsResponsible?.(data.responsible || activeDialogState.context?.operatorName || '');
+          if (appendHistoryFlag) {
+            appendHistoryMessage({
+              sender: options.operatorDisplayName || data.responsible || 'Оператор',
+              message: data.message || '',
+              timestamp: data.timestamp || new Date().toISOString(),
+              messageType: data.messageType || 'operator_media',
+              attachment: data.attachment || null,
+            });
+          }
+          if (activeDialogState.row) {
+            options.updateRowStatus?.(activeDialogState.row, 'pending', 'ожидает ответа клиента', 'waiting_client', 0);
+          }
+          options.updateDetailsStatusSummary?.('ожидает ответа клиента', 'waiting_client');
+          if (ticketId === activeWorkspaceState.ticketId) {
+            options.emitWorkspaceTelemetry?.('workspace_media_sent', {
+              ticketId,
+              reason: data.messageType || file.type || 'attachment',
+              contractVersion: activeWorkspaceState.payload?.contract_version || 'workspace.v1',
+            });
+          }
+        }
+        if (typeof sendOptions.afterSuccess === 'function') {
+          sendOptions.afterSuccess();
+        } else if (elements.detailsReplyText) {
+          elements.detailsReplyText.value = '';
+        }
+        notify(sendOptions.successMessage || 'Медиа отправлено', 'success');
+      } catch (error) {
+        notify(error.message || sendOptions.errorMessage || 'Не удалось отправить медиа', 'error');
+      } finally {
+        if (sendButton) sendButton.disabled = false;
+        if (mediaInput) {
+          mediaInput.value = '';
+        }
+      }
+    }
+
+    function extractClipboardImageFiles(event) {
+      const items = Array.from(event?.clipboardData?.items || []);
+      if (!items.length) return [];
+      const files = [];
+      let sequence = 1;
+      const mimeToExtension = (mimeType) => {
+        const normalized = String(mimeType || '').toLowerCase();
+        if (!normalized) return 'png';
+        if (normalized.includes('jpeg') || normalized.includes('jpg')) return 'jpg';
+        if (normalized.includes('webp')) return 'webp';
+        if (normalized.includes('gif')) return 'gif';
+        if (normalized.includes('bmp')) return 'bmp';
+        if (normalized.includes('svg')) return 'svg';
+        if (normalized.includes('png')) return 'png';
+        return 'png';
+      };
+      for (const item of items) {
+        if (item?.kind !== 'file' || !String(item.type || '').startsWith('image/')) continue;
+        const file = item.getAsFile ? item.getAsFile() : null;
+        if (!file) continue;
+        if (file instanceof File && file.name) {
+          files.push(file);
+          continue;
+        }
+        const extension = mimeToExtension(file.type);
+        const generatedName = `clipboard-${Date.now()}-${sequence++}.${extension}`;
+        files.push(new File([file], generatedName, { type: file.type || 'image/png' }));
+      }
+      return files;
+    }
+
+    async function sendWorkspaceMediaFiles(files) {
+      const activeWorkspaceState = getActiveWorkspaceState();
+      await sendMediaFiles(files, {
+        ticketId: activeWorkspaceState.ticketId,
+        caption: activeWorkspaceState.composerText?.value || '',
+        sendButton: activeWorkspaceState.composerSend,
+        mediaInput: activeWorkspaceState.composerMedia,
+        appendHistory: false,
+        afterSuccess: () => {
+          if (activeWorkspaceState.composerText) {
+            activeWorkspaceState.composerText.value = '';
+          }
+          options.saveWorkspaceDraft?.(activeWorkspaceState.composerTicketId, '');
+          options.reloadWorkspaceSection?.('messages', {
+            stateElement: activeWorkspaceState.messagesState,
+            errorElement: activeWorkspaceState.messagesError,
+            statusText: 'Обновление ленты после отправки медиа…',
+            failMessage: 'Медиа отправлено, но лента workspace не обновилась автоматически.',
+          });
+        },
+      });
+    }
+
+    function handleMediaSurfaceClick(event) {
+      const playButton = event.target.closest('.chat-audio-play');
+      if (playButton) {
+        const src = playButton.dataset.audioSrc;
+        if (!src) return true;
+        if (state.activeAudioPlayer && state.activeAudioSource === src && !state.activeAudioPlayer.paused) {
+          state.activeAudioPlayer.pause();
+          playButton.textContent = 'Воспроизвести';
+          return true;
+        }
+        if (state.activeAudioPlayer) {
+          state.activeAudioPlayer.pause();
+        }
+        state.activeAudioPlayer = new Audio(src);
+        state.activeAudioSource = src;
+        playButton.textContent = 'Пауза';
+        state.activeAudioPlayer.addEventListener('ended', () => {
+          playButton.textContent = 'Воспроизвести';
+        });
+        state.activeAudioPlayer.play().catch(() => {
+          playButton.textContent = 'Воспроизвести';
+        });
+        return true;
+      }
+      const imagePreview = event.target.closest('[data-image-src]');
+      if (imagePreview) {
+        const src = imagePreview.dataset.imageSrc;
+        if (!src) return true;
+        showImagePreview(src, imagePreview.dataset.mediaName || 'image');
+        return true;
+      }
+      const videoPreview = event.target.closest('[data-video-src]');
+      if (videoPreview) {
+        const src = videoPreview.dataset.videoSrc;
+        if (!src) return true;
+        showVideoPreview(src);
+        return true;
+      }
+      return false;
+    }
+
+    return {
+      resetMediaPreview,
+      showImagePreview,
+      showVideoPreview,
+      adjustMediaPreviewZoom,
+      handleMediaPreviewEscape,
+      buildMediaMarkup,
+      messageToHtml,
+      filterDialogHistoryMessages,
+      resetPreviousDialogHistoryState,
+      renderPreviousDialogHistoryControls,
+      renderArchivedHistoryBatch,
+      renderDialogHistory,
+      renderHistory,
+      appendHistoryMessage,
+      historyMarker,
+      loadPreviousDialogHistory,
+      refreshHistory,
+      startHistoryPolling,
+      stopHistoryPolling,
+      sendMediaFiles,
+      extractClipboardImageFiles,
+      sendWorkspaceMediaFiles,
+      handleMediaSurfaceClick,
+    };
+  }
+
+  window.DialogsDetailsHistoryRuntime = {
+    createRuntime,
+  };
+})();

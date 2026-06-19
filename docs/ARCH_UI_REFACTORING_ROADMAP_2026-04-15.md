@@ -1,7 +1,7 @@
 # Architecture And UI Refactoring Roadmap
 
 Дата старта: `2026-04-15`
-Обновлено: `2026-06-18`
+Обновлено: `2026-06-19`
 
 ## Цель
 
@@ -1738,9 +1738,13 @@
   `AI ops/review/monitoring` вынесены в отдельные runtime entrypoint'ы
   `dialogs-list-runtime.js` и `dialogs-ai-runtime.js`, а `dialogs.js`
   переведён на thin orchestration wrappers вокруг этих bounded модулей;
-- это означает, что следующий проход уже не должен заново разбирать list/AI
-  монолит внутри `dialogs.js`, а должен добирать оставшиеся `details/history`,
-  `workspace shell`, `quick actions`, `macro workflow` и
+- следующий bounded slice тоже уже начат: `details/history/media` вынесен в
+  `dialogs-details-history-runtime.js`, а `dialogs.js` использует thin
+  wrappers для history polling, archived history batches, media preview/audio
+  и media send helpers;
+- это означает, что следующий проход уже не должен заново разбирать
+  list/AI/details-history монолит внутри `dialogs.js`, а должен добирать
+  оставшиеся `workspace shell`, `quick actions`, `macro workflow` и
   `notifications refresh`;
 
 - live regression corridor для `take -> categories -> reply -> follow-up ->

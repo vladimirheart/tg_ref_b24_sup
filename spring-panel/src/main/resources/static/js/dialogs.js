@@ -1102,11 +1102,8 @@
   let activeDialogResponsibleRaw = '';
   let activeDialogResponsibleAvatarUrl = '';
   let activeDialogRow = null;
-  let historyPollTimer = null;
   let listPollTimer = null;
-  let lastHistoryMarker = null;
   let lastListMarker = null;
-  let historyLoading = false;
   let listLoading = false;
   let activeDialogContext = {
     clientName: '—',
@@ -1118,19 +1115,11 @@
     status: '—',
     createdAt: '—',
   };
-  let activeDialogCurrentMessages = [];
-  let previousDialogHistoryBatches = [];
-  let previousDialogHistoryNextOffset = 0;
-  let previousDialogHistoryHasMore = true;
-  let previousDialogHistoryLoading = false;
   let completionHideTimer = null;
-  let activeAudioPlayer = null;
-  let activeAudioSource = null;
   let selectedCategories = new Set();
   let activeReplyToTelegramId = null;
   let activeWorkspaceReplyToTelegramId = null;
   const selectedTicketIds = new Set();
-  let mediaImageScale = 1;
   let categorySaveTimer = null;
   let detailsCategoryModalState = {
     suppressDetailsReset: false,
@@ -1826,57 +1815,67 @@
     });
   }
 
+  const dialogsDetailsHistoryRuntime = window.DialogsDetailsHistoryRuntime?.createRuntime({
+    elements: {
+      detailsHistory,
+      detailsReplyText,
+      detailsReplySend,
+      detailsReplyMedia,
+      mediaPreviewModalEl,
+      mediaPreviewModal,
+      mediaPreviewVideo,
+      mediaPreviewImage,
+      mediaPreviewImageControls,
+      mediaPreviewDownloadLink,
+    },
+    getActiveDialogState: () => ({
+      ticketId: activeDialogTicketId,
+      channelId: activeDialogChannelId,
+      row: activeDialogRow,
+      context: activeDialogContext,
+    }),
+    getActiveWorkspaceState: () => ({
+      ticketId: activeWorkspaceTicketId,
+      payload: activeWorkspacePayload,
+      composerText: workspaceComposerText,
+      composerSend: workspaceComposerSend,
+      composerMedia: workspaceComposerMedia,
+      composerTicketId: activeWorkspaceTicketId,
+      messagesState: workspaceMessagesState,
+      messagesError: workspaceMessagesError,
+    }),
+    showModalSafe,
+    hideModalSafe,
+    escapeHtml,
+    formatTimestamp,
+    normalizeMessageSenderByType,
+    resolveSenderLabel,
+    renderMessageAvatar,
+    resolveDialogMessageAvatarSpec,
+    withChannelParam,
+    showNotification,
+    updateDialogUnreadCount,
+    requestSidebarNotificationRefresh,
+    updateDetailsResponsible,
+    updateRowStatus,
+    updateDetailsStatusSummary,
+    emitWorkspaceTelemetry,
+    saveWorkspaceDraft,
+    reloadWorkspaceSection,
+    operatorDisplayName: OPERATOR_DISPLAY_NAME,
+    historyPollInterval: HISTORY_POLL_INTERVAL,
+  }) || null;
+
   function resetMediaPreview() {
-    mediaImageScale = 1;
-    if (mediaPreviewImage) {
-      mediaPreviewImage.style.transform = 'scale(1)';
-      mediaPreviewImage.removeAttribute('src');
-      mediaPreviewImage.classList.add('d-none');
-    }
-    if (mediaPreviewVideo) {
-      mediaPreviewVideo.pause();
-      mediaPreviewVideo.removeAttribute('src');
-      mediaPreviewVideo.load();
-      mediaPreviewVideo.classList.add('d-none');
-    }
-    if (mediaPreviewImageControls) {
-      mediaPreviewImageControls.classList.add('d-none');
-    }
-    if (mediaPreviewDownloadLink) {
-      mediaPreviewDownloadLink.classList.add('d-none');
-      mediaPreviewDownloadLink.setAttribute('href', '#');
-    }
+    dialogsDetailsHistoryRuntime?.resetMediaPreview();
   }
 
   function showImagePreview(src, name) {
-    if (!src || !mediaPreviewModalEl || !mediaPreviewImage) return;
-    resetMediaPreview();
-    mediaPreviewImage.src = src;
-    mediaPreviewImage.alt = name || 'Изображение';
-    mediaPreviewImage.classList.remove('d-none');
-    if (mediaPreviewImageControls) {
-      mediaPreviewImageControls.classList.remove('d-none');
-    }
-    if (mediaPreviewDownloadLink) {
-      mediaPreviewDownloadLink.classList.remove('d-none');
-      mediaPreviewDownloadLink.setAttribute('href', src);
-      mediaPreviewDownloadLink.setAttribute('download', name || 'image');
-    }
-    showModalSafe(mediaPreviewModalEl, mediaPreviewModal);
+    dialogsDetailsHistoryRuntime?.showImagePreview(src, name);
   }
 
   function showVideoPreview(src) {
-    if (!src || !mediaPreviewModalEl || !mediaPreviewVideo) return;
-    resetMediaPreview();
-    mediaPreviewVideo.src = src;
-    mediaPreviewVideo.classList.remove('d-none');
-    mediaPreviewVideo.play().catch(() => {});
-    if (mediaPreviewDownloadLink) {
-      mediaPreviewDownloadLink.classList.remove('d-none');
-      mediaPreviewDownloadLink.setAttribute('href', src);
-      mediaPreviewDownloadLink.setAttribute('download', 'video');
-    }
-    showModalSafe(mediaPreviewModalEl, mediaPreviewModal);
+    dialogsDetailsHistoryRuntime?.showVideoPreview(src);
   }
 
   function escapeSelectorValue(value) {
@@ -6055,14 +6054,7 @@
   }
 
   function handleMediaPreviewEscape(event) {
-    if (event.key !== 'Escape') return;
-    if (!mediaPreviewModalEl?.classList.contains('show')) return;
-    event.preventDefault();
-    event.stopPropagation();
-    if (typeof event.stopImmediatePropagation === 'function') {
-      event.stopImmediatePropagation();
-    }
-    hideModalSafe(mediaPreviewModalEl, mediaPreviewModal);
+    dialogsDetailsHistoryRuntime?.handleMediaPreviewEscape(event);
   }
 
   function restoreColumnWidths() {
@@ -6947,355 +6939,44 @@
     return formatUtcDate(parsed, { includeTime: options.includeTime, fallback: options.fallback || '—' });
   }
 
-  function resolveAttachmentKind(messageType, attachment) {
-    const type = String(messageType || '').toLowerCase();
-    if (type.includes('animation')) return 'animation';
-    if (type.includes('video') || type.includes('videonote') || type.includes('video_note')) return 'video';
-    if (type.includes('audio') || type.includes('voice')) return 'audio';
-    if (type.includes('photo') || type.includes('image')) return 'image';
-    if (attachment) {
-      const lower = attachment.toLowerCase();
-      if (lower.endsWith('.gif')) return 'animation';
-      if (/\.(mp4|webm|mov|m4v)$/i.test(lower)) return 'video';
-      if (/\.(mp3|wav|ogg|m4a)$/i.test(lower)) return 'audio';
-      if (/\.(png|jpe?g|webp|bmp)$/i.test(lower)) return 'image';
-    }
-    return 'file';
-  }
-
-  function resolveAttachmentName(message, attachment) {
-    const extractExtension = (value) => {
-      if (!value) return '';
-      const clean = String(value).split('?')[0].split('#')[0];
-      const lastSegment = clean.split('/').pop()?.split('\\').pop() || clean;
-      const dotIndex = lastSegment.lastIndexOf('.');
-      return dotIndex > 0 ? lastSegment.slice(dotIndex) : '';
-    };
-
-    if (message) {
-      const hasPath = /[\\/]/.test(message) || /^https?:\/\//i.test(message);
-      if (!hasPath) return message;
-      const extension = extractExtension(message);
-      return extension ? `Файл ${extension}` : 'Файл';
-    }
-
-    if (!attachment) return 'Файл';
-    const extension = extractExtension(attachment);
-    return extension ? `Файл ${extension}` : 'Файл';
-  }
-
   function buildMediaMarkup(message) {
-    if (!message?.attachment) return '';
-    const kind = resolveAttachmentKind(message.messageType, message.attachment);
-    const name = resolveAttachmentName(message.message, message.attachment);
-    const downloadLink = `
-      <a class="btn btn-sm btn-outline-secondary" href="${message.attachment}" download target="_blank" rel="noopener">
-        Скачать
-      </a>
-    `;
-    if (kind === 'audio') {
-      return `
-        <div class="chat-media">
-          <div class="chat-media-actions">
-            <button class="btn btn-sm btn-outline-primary chat-audio-play" type="button"
-              data-audio-src="${message.attachment}">Воспроизвести</button>
-            ${downloadLink}
-            <span class="chat-media-file-name">${name}</span>
-          </div>
-        </div>
-      `;
-    }
-    if (kind === 'video') {
-      return `
-        <div class="chat-media">
-          <video class="chat-media-preview video" src="${message.attachment}" data-video-src="${message.attachment}" data-media-name="${name}" muted playsinline preload="metadata"></video>
-          <div class="chat-media-actions">
-            ${downloadLink}
-            <span class="chat-media-file-name">${name}</span>
-          </div>
-        </div>
-      `;
-    }
-    if (kind === 'animation') {
-      const isGif = /\.gif($|\?)/i.test(message.attachment);
-      const preview = isGif
-        ? `<img class=\"chat-media-preview\" src=\"${message.attachment}\" alt=\"${name}\" data-image-src=\"${message.attachment}\" data-media-name=\"${name}\">`
-        : `<video class=\"chat-media-preview\" src=\"${message.attachment}\" autoplay loop muted playsinline></video>`;
-      return `
-        <div class="chat-media">
-          ${preview}
-          <div class="chat-media-actions">
-            ${downloadLink}
-            <span class="chat-media-file-name">${name}</span>
-          </div>
-        </div>
-      `;
-    }
-    if (kind === 'image') {
-      return `
-        <div class="chat-media">
-          <img class="chat-media-preview" src="${message.attachment}" alt="${name}" data-image-src="${message.attachment}" data-media-name="${name}">
-          <div class="chat-media-actions">
-            ${downloadLink}
-            <span class="chat-media-file-name">${name}</span>
-          </div>
-        </div>
-      `;
-    }
-    return `
-      <div class="chat-media">
-        <div class="chat-media-actions">
-          ${downloadLink}
-          <span class="chat-media-file-name">${name}</span>
-        </div>
-      </div>
-    `;
+    return dialogsDetailsHistoryRuntime?.buildMediaMarkup(message) || '';
   }
 
   function messageToHtml(message, options = {}) {
-    const senderType = normalizeMessageSenderByType(message?.messageType, message?.sender);
-    const senderLabel = resolveSenderLabel(message, activeDialogContext);
-    const timestamp = formatTimestamp(message?.timestamp, { includeTime: true });
-    const isDeleted = Boolean(message?.deletedAt);
-    const isEdited = Boolean(message?.editedAt);
-    const isSupport = senderType === 'support';
-    const archivedHistory = options.archivedHistory === true;
-    const replyPreview = message?.replyPreview
-      ? `<div class="small text-muted border-start ps-2 mb-1 chat-message-reply-source">↪ ${escapeHtml(message.replyPreview)}</div>`
-      : '';
-    const forwardedBadge = message?.forwardedFrom
-      ? `<div class="small text-muted mb-1">Переслано от ${escapeHtml(message.forwardedFrom)}</div>`
-      : '';
-    const bodyText = message?.message ? escapeHtml(message.message).replace(/\n/g, '<br>') : '';
-    const fallbackType = message?.messageType && !bodyText ? `[${escapeHtml(message.messageType)}]` : '';
-    const body = isDeleted ? '<span class="text-muted">Сообщение удалено</span>' : (bodyText || fallbackType || '—');
-    const originalBlock = isEdited && message?.originalMessage && message.originalMessage !== message.message
-      ? `<div class="small text-muted mt-1"><div>Было: ${escapeHtml(message.originalMessage)}</div><div>Стало: ${escapeHtml(message.message || '')}</div></div>`
-      : '';
-    const statusBadges = [
-      isEdited ? '<span class="chat-message-meta-badge">✏️ Изменено</span>' : '',
-      isDeleted ? '<span class="chat-message-meta-badge">🗑 Удалено</span>' : '',
-      archivedHistory ? '<span class="chat-message-meta-badge">Архив</span>' : '',
-    ].join(' ');
-    const media = isDeleted ? '' : buildMediaMarkup(message);
-    const canReply = !archivedHistory && senderType !== 'system' && message?.telegramMessageId;
-    const actionButtons = canReply
-      ? `<div class="chat-message-menu">
-          <button class="chat-message-menu-toggle" type="button" data-action-menu aria-label="Действия с сообщением">⋯</button>
-          <div class="chat-message-menu-list">
-            <button class="btn btn-sm btn-outline-secondary" type="button" data-action="reply" data-message-id="${message.telegramMessageId}">Ответить</button>
-            ${isSupport ? `<button class="btn btn-sm btn-outline-secondary" type="button" data-action="edit" data-message-id="${message.telegramMessageId}" ${isDeleted ? 'disabled' : ''}>Редактировать</button>` : ''}
-            ${isSupport ? `<button class="btn btn-sm btn-outline-danger" type="button" data-action="delete" data-message-id="${message.telegramMessageId}" ${isDeleted ? 'disabled' : ''}>Удалить</button>` : ''}
-          </div>
-        </div>`
-      : '';
-    const avatarMarkup = renderMessageAvatar(
-      resolveDialogMessageAvatarSpec(message, activeDialogContext),
-      archivedHistory ? 'is-archived-history' : '',
-    );
-
-    return `
-      <div class="chat-message-row ${senderType} ${archivedHistory ? 'is-archived-history' : ''}" data-telegram-message-id="${message?.telegramMessageId || ''}">
-        ${avatarMarkup}
-        <div class="chat-message ${senderType} ${isDeleted ? 'is-deleted' : ''} ${archivedHistory ? 'is-archived-history' : ''}">
-          <div class="chat-message-header">
-            <span>${escapeHtml(senderLabel)}</span>
-            <span>${escapeHtml(timestamp)}</span>
-          </div>
-          ${statusBadges ? `<div class="small text-muted mb-1">${statusBadges}</div>` : ''}
-          ${forwardedBadge}
-          ${replyPreview}
-          <div class="chat-message-body">${body}</div>
-          ${originalBlock}
-          ${media}
-          ${actionButtons}
-        </div>
-      </div>
-    `;
-  }
-
-  function isTechnicalHistoryMessage(message) {
-    const type = String(message?.messageType || '').toLowerCase();
-    const senderType = normalizeMessageSenderByType(message?.messageType, message?.sender);
-    const text = String(message?.message || '').toLowerCase();
-    if (type.includes('feedback') || type.includes('rating')) return true;
-    if (senderType === 'system' && (text.includes('поставьте оценку') || text.includes('оцените') || text.includes('оценк'))) {
-      return true;
-    }
-    return false;
-  }
-
-  function normalizeHistoryComparisonValue(value) {
-    return String(value || '')
-      .toLowerCase()
-      .replace(/\s+/g, ' ')
-      .trim();
-  }
-
-  function buildHistoryTechnicalValueSet(context = {}) {
-    const values = new Set();
-    const addValue = (value) => {
-      const normalized = normalizeHistoryComparisonValue(value);
-      if (!normalized) return;
-      values.add(normalized);
-      normalized
-        .split(/[,/|]+/)
-        .map((item) => normalizeHistoryComparisonValue(item))
-        .filter(Boolean)
-        .forEach((item) => values.add(item));
-    };
-    addValue(context?.business);
-    addValue(context?.location);
-    return values;
-  }
-
-  function isLikelyQuestionnaireProblemMessage(text, technicalValues) {
-    const normalized = normalizeHistoryComparisonValue(text);
-    if (!normalized) return false;
-    if (technicalValues.has(normalized)) return false;
-    const words = normalized.split(' ').filter(Boolean);
-    if (normalized.length >= 48) return true;
-    if (words.length >= 4) return true;
-    if (/[,.!?;:()-]/.test(text) && words.length >= 2) return true;
-    return false;
+    return dialogsDetailsHistoryRuntime?.messageToHtml(message, options) || '';
   }
 
   function filterDialogHistoryMessages(messages, context = activeDialogContext) {
-    const baseMessages = Array.isArray(messages)
-      ? messages.filter((msg) => !isTechnicalHistoryMessage(msg))
-      : [];
-    if (baseMessages.length < 2) {
-      return baseMessages;
-    }
-
-    let prefixLength = 0;
-    while (prefixLength < baseMessages.length) {
-      const senderType = normalizeMessageSenderByType(baseMessages[prefixLength]?.messageType, baseMessages[prefixLength]?.sender);
-      if (senderType !== 'user') {
-        break;
-      }
-      prefixLength += 1;
-    }
-
-    if (prefixLength < 2) {
-      return baseMessages;
-    }
-
-    const technicalValues = buildHistoryTechnicalValueSet(context);
-    const prefix = baseMessages.slice(0, prefixLength);
-    const preservedIndexes = new Set();
-
-    prefix.forEach((message, index) => {
-      if (message?.attachment) {
-        preservedIndexes.add(index);
-      }
-    });
-
-    let informativeIndex = -1;
-    for (let index = prefix.length - 1; index >= 0; index -= 1) {
-      const text = String(prefix[index]?.message || '').trim();
-      if (isLikelyQuestionnaireProblemMessage(text, technicalValues)) {
-        informativeIndex = index;
-        break;
-      }
-    }
-
-    preservedIndexes.add(informativeIndex >= 0 ? informativeIndex : prefix.length - 1);
-
-    return baseMessages.filter((message, index) => index >= prefixLength || preservedIndexes.has(index));
+    return dialogsDetailsHistoryRuntime?.filterDialogHistoryMessages(messages, context) || [];
   }
 
   function resetPreviousDialogHistoryState() {
-    previousDialogHistoryBatches = [];
-    previousDialogHistoryNextOffset = 0;
-    previousDialogHistoryHasMore = true;
-    previousDialogHistoryLoading = false;
+    dialogsDetailsHistoryRuntime?.resetPreviousDialogHistoryState();
   }
 
   function renderPreviousDialogHistoryControls() {
-    const disabled = previousDialogHistoryLoading || !activeDialogTicketId || !previousDialogHistoryHasMore;
-    const buttonLabel = previousDialogHistoryLoading
-      ? 'Загружаем предыдущие обращения…'
-      : (previousDialogHistoryHasMore ? 'Загрузить предыдущие сообщения' : 'Предыдущих обращений больше нет');
-    const helperText = previousDialogHistoryBatches.length > 0
-      ? `Подгружено обращений: ${previousDialogHistoryBatches.length}. Архив показан отдельным цветом.`
-      : 'Можно подгрузить переписку из предыдущих обращений этого клиента.';
-    return `
-      <div class="dialog-history-controls">
-        <button class="btn btn-sm btn-outline-secondary" type="button" data-action="load-previous-history" ${disabled ? 'disabled' : ''}>${escapeHtml(buttonLabel)}</button>
-        <div class="small text-muted mt-2">${escapeHtml(helperText)}</div>
-      </div>
-    `;
+    return dialogsDetailsHistoryRuntime?.renderPreviousDialogHistoryControls() || '';
   }
 
   function renderArchivedHistoryBatch(batch) {
-    const messages = filterDialogHistoryMessages(batch?.messages || []);
-    const ticketId = String(batch?.ticketId || '—').trim() || '—';
-    const createdAt = formatTimestamp(batch?.createdAt || batch?.created_at, { includeTime: true, fallback: '—' });
-    const status = String(batch?.status || '—').trim() || '—';
-    const problem = String(batch?.problem || 'Без описания').trim() || 'Без описания';
-    const sourceLabel = String(batch?.sourceLabel || batch?.source_label || '').trim();
-    const channelName = String(batch?.channelName || batch?.channel_name || '').trim();
-    const meta = [sourceLabel, channelName, createdAt].filter(Boolean).join(' · ');
-    const body = messages.length
-      ? messages.map((msg) => messageToHtml(msg, { archivedHistory: true })).join('')
-      : '<div class="small text-muted">Р’ обращении не найдено сообщений.</div>';
-    return `
-      <section class="chat-history-archive-section">
-        <div class="chat-history-archive-head">
-          <div class="fw-semibold">Предыдущее обращение #${escapeHtml(ticketId)}</div>
-          <div class="small text-muted">${escapeHtml(meta || 'Архивная переписка')}</div>
-          <div class="small text-muted">Статус: ${escapeHtml(status)}</div>
-          <div class="small mt-1">${escapeHtml(problem)}</div>
-        </div>
-        <div class="d-flex flex-column gap-2 mt-3">
-          ${body}
-        </div>
-      </section>
-    `;
+    return dialogsDetailsHistoryRuntime?.renderArchivedHistoryBatch(batch) || '';
   }
 
   function renderDialogHistory(options = {}) {
-    if (!detailsHistory) return;
-    const currentMessages = filterDialogHistoryMessages(activeDialogCurrentMessages);
-    const controlsMarkup = renderPreviousDialogHistoryControls();
-    const archivedMarkup = previousDialogHistoryBatches.map(renderArchivedHistoryBatch).join('');
-    const currentMarkup = currentMessages.length
-      ? currentMessages.map((msg) => messageToHtml(msg)).join('')
-      : '<div class="text-muted">Сообщения не найдены.</div>';
-    detailsHistory.innerHTML = `${controlsMarkup}${archivedMarkup}${currentMarkup}`;
-    if (options.scrollToBottom !== false) {
-      detailsHistory.scrollTop = detailsHistory.scrollHeight;
-    }
+    dialogsDetailsHistoryRuntime?.renderDialogHistory(options);
   }
 
   function renderHistory(messages, options = {}) {
-    activeDialogCurrentMessages = Array.isArray(messages) ? messages : [];
-    const filteredMessages = filterDialogHistoryMessages(activeDialogCurrentMessages);
-    lastHistoryMarker = historyMarker(filteredMessages);
-    renderDialogHistory(options);
+    dialogsDetailsHistoryRuntime?.renderHistory(messages, options);
   }
 
   function appendHistoryMessage(message) {
-    if (!detailsHistory) return;
-    if (isTechnicalHistoryMessage(message)) return;
-    activeDialogCurrentMessages = Array.isArray(activeDialogCurrentMessages)
-      ? [...activeDialogCurrentMessages, message]
-      : [message];
-    renderDialogHistory({ scrollToBottom: true });
-    lastHistoryMarker = `local:${Date.now()}`;
+    dialogsDetailsHistoryRuntime?.appendHistoryMessage(message);
   }
 
   function historyMarker(messages) {
-    if (!Array.isArray(messages) || messages.length === 0) return 'empty';
-    const last = messages[messages.length - 1] || {};
-    return [
-      messages.length,
-      last.telegramMessageId || '',
-      last.timestamp || '',
-      last.sender || '',
-      last.message || '',
-    ].join('|');
+    return dialogsDetailsHistoryRuntime?.historyMarker(messages) || 'empty';
   }
 
   function withChannelParam(path, channelId) {
@@ -7305,87 +6986,19 @@
   }
 
   async function loadPreviousDialogHistory() {
-    if (!activeDialogTicketId || previousDialogHistoryLoading || !previousDialogHistoryHasMore) return;
-    previousDialogHistoryLoading = true;
-    renderDialogHistory({ scrollToBottom: false });
-    try {
-      const previousHeight = detailsHistory ? detailsHistory.scrollHeight : 0;
-      const previousScrollTop = detailsHistory ? detailsHistory.scrollTop : 0;
-      const resp = await fetch(`/api/dialogs/${encodeURIComponent(activeDialogTicketId)}/history/previous?offset=${encodeURIComponent(previousDialogHistoryNextOffset)}`, {
-        credentials: 'same-origin',
-        cache: 'no-store',
-      });
-      const data = await resp.json();
-      if (!resp.ok || data?.success === false) {
-        throw new Error(data?.error || `Ошибка ${resp.status}`);
-      }
-      if (data?.batch) {
-        previousDialogHistoryBatches = [data.batch, ...previousDialogHistoryBatches];
-        previousDialogHistoryNextOffset = Number.isInteger(data?.next_offset)
-          ? Number(data.next_offset)
-          : (previousDialogHistoryNextOffset + 1);
-        previousDialogHistoryHasMore = data?.has_more === true;
-        renderDialogHistory({ scrollToBottom: false });
-        if (detailsHistory) {
-          const nextHeight = detailsHistory.scrollHeight;
-          detailsHistory.scrollTop = previousScrollTop + Math.max(0, nextHeight - previousHeight);
-        }
-      } else {
-        previousDialogHistoryHasMore = false;
-        renderDialogHistory({ scrollToBottom: false });
-      }
-    } catch (error) {
-      previousDialogHistoryHasMore = previousDialogHistoryHasMore || previousDialogHistoryBatches.length === 0;
-      renderDialogHistory({ scrollToBottom: false });
-      if (typeof showNotification === 'function') {
-        showNotification(error.message || 'Не удалось загрузить предыдущие сообщения', 'warning');
-      }
-    } finally {
-      previousDialogHistoryLoading = false;
-      renderDialogHistory({ scrollToBottom: false });
-    }
+    return dialogsDetailsHistoryRuntime?.loadPreviousDialogHistory();
   }
 
   async function refreshHistory() {
-    if (!activeDialogTicketId || historyLoading) return;
-    historyLoading = true;
-    try {
-      const url = withChannelParam(`/api/dialogs/${encodeURIComponent(activeDialogTicketId)}/history`, activeDialogChannelId);
-      const resp = await fetch(url, {
-        credentials: 'same-origin',
-        cache: 'no-store',
-      });
-      const data = await resp.json();
-      if (!resp.ok || !data?.success) {
-        throw new Error(data?.error || `Ошибка ${resp.status}`);
-      }
-      const messages = data.messages || [];
-      const marker = historyMarker(messages);
-      const hasHistoryChanges = marker !== lastHistoryMarker;
-      if (hasHistoryChanges) {
-        renderHistory(messages);
-      }
-      updateDialogUnreadCount(0);
-      if (hasHistoryChanges) {
-        requestSidebarNotificationRefresh('dialogs-history-change');
-      }
-    } catch (error) {
-      // ignore polling errors
-    } finally {
-      historyLoading = false;
-    }
+    return dialogsDetailsHistoryRuntime?.refreshHistory();
   }
 
   function startHistoryPolling() {
-    if (historyPollTimer) return;
-    historyPollTimer = setInterval(refreshHistory, HISTORY_POLL_INTERVAL);
+    dialogsDetailsHistoryRuntime?.startHistoryPolling();
   }
 
   function stopHistoryPolling() {
-    if (historyPollTimer) {
-      clearInterval(historyPollTimer);
-      historyPollTimer = null;
-    }
+    dialogsDetailsHistoryRuntime?.stopHistoryPolling();
   }
 
   function updateResolveButton(statusRaw) {
@@ -7563,8 +7176,7 @@
     if (detailsMetrics) detailsMetrics.innerHTML = '<div class="text-muted">Загрузка метрик...</div>';
     updateDetailsLocationLabel('—');
     if (detailsHistory) {
-      activeDialogCurrentMessages = [];
-      renderDialogHistory({ scrollToBottom: false });
+      renderHistory([], { scrollToBottom: false });
     }
     if (detailsAiState) detailsAiState.textContent = 'Загрузка подсказок AI...';
     if (detailsAiList) {
@@ -8524,122 +8136,15 @@
   }
 
   async function sendMediaFiles(files, options = {}) {
-    const ticketId = String(options.ticketId || activeDialogTicketId || activeWorkspaceTicketId || '').trim();
-    if (!ticketId || !files || files.length === 0) return;
-    const captionSource = typeof options.caption === 'string' ? options.caption : detailsReplyText?.value || '';
-    const caption = String(captionSource).trim();
-    const sendButton = options.sendButton || detailsReplySend;
-    const mediaInput = options.mediaInput || detailsReplyMedia;
-    const appendHistory = options.appendHistory !== false;
-    if (sendButton) sendButton.disabled = true;
-    try {
-      for (const file of Array.from(files)) {
-        const formData = new FormData();
-        formData.append('file', file);
-        if (caption) {
-          formData.append('message', caption);
-        }
-        const resp = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/media`, {
-          method: 'POST',
-          body: formData,
-        });
-        const data = await resp.json();
-        if (!resp.ok || !data?.success) {
-          throw new Error(data?.error || `Ошибка ${resp.status}`);
-        }
-        updateDetailsResponsible(data.responsible || activeDialogContext.operatorName);
-        if (appendHistory) {
-          appendHistoryMessage({
-            sender: OPERATOR_DISPLAY_NAME || data.responsible || 'Оператор',
-            message: data.message || '',
-            timestamp: data.timestamp || new Date().toISOString(),
-            messageType: data.messageType || 'operator_media',
-            attachment: data.attachment || null,
-          });
-        }
-        if (activeDialogRow) {
-          updateRowStatus(activeDialogRow, 'pending', 'ожидает ответа клиента', 'waiting_client', 0);
-        }
-        updateDetailsStatusSummary('ожидает ответа клиента', 'waiting_client');
-        if (ticketId === activeWorkspaceTicketId) {
-          emitWorkspaceTelemetry('workspace_media_sent', {
-            ticketId,
-            reason: data.messageType || file.type || 'attachment',
-            contractVersion: activeWorkspacePayload?.contract_version || 'workspace.v1',
-          });
-        }
-      }
-      if (typeof options.afterSuccess === 'function') {
-        options.afterSuccess();
-      } else if (detailsReplyText) {
-        detailsReplyText.value = '';
-      }
-      if (typeof showNotification === 'function') {
-        showNotification(options.successMessage || 'Медиа отправлено', 'success');
-      }
-    } catch (error) {
-      if (typeof showNotification === 'function') {
-        showNotification(error.message || options.errorMessage || 'Не удалось отправить медиа', 'error');
-      }
-    } finally {
-      if (sendButton) sendButton.disabled = false;
-      if (mediaInput) {
-        mediaInput.value = '';
-      }
-    }
+    return dialogsDetailsHistoryRuntime?.sendMediaFiles(files, options);
   }
 
   function extractClipboardImageFiles(event) {
-    const items = Array.from(event?.clipboardData?.items || []);
-    if (!items.length) return [];
-    const files = [];
-    let sequence = 1;
-    const mimeToExtension = (mimeType) => {
-      const normalized = String(mimeType || '').toLowerCase();
-      if (!normalized) return 'png';
-      if (normalized.includes('jpeg') || normalized.includes('jpg')) return 'jpg';
-      if (normalized.includes('webp')) return 'webp';
-      if (normalized.includes('gif')) return 'gif';
-      if (normalized.includes('bmp')) return 'bmp';
-      if (normalized.includes('svg')) return 'svg';
-      if (normalized.includes('png')) return 'png';
-      return 'png';
-    };
-    for (const item of items) {
-      if (item?.kind !== 'file' || !String(item.type || '').startsWith('image/')) continue;
-      const file = item.getAsFile ? item.getAsFile() : null;
-      if (!file) continue;
-      if (file instanceof File && file.name) {
-        files.push(file);
-        continue;
-      }
-      const extension = mimeToExtension(file.type);
-      const generatedName = `clipboard-${Date.now()}-${sequence++}.${extension}`;
-      files.push(new File([file], generatedName, { type: file.type || 'image/png' }));
-    }
-    return files;
+    return dialogsDetailsHistoryRuntime?.extractClipboardImageFiles(event) || [];
   }
 
   async function sendWorkspaceMediaFiles(files) {
-    await sendMediaFiles(files, {
-      ticketId: activeWorkspaceTicketId,
-      caption: workspaceComposerText?.value || '',
-      sendButton: workspaceComposerSend,
-      mediaInput: workspaceComposerMedia,
-      appendHistory: false,
-      afterSuccess: () => {
-        if (workspaceComposerText) {
-          workspaceComposerText.value = '';
-        }
-        saveWorkspaceDraft(workspaceComposerTicketId, '');
-        reloadWorkspaceSection('messages', {
-          stateElement: workspaceMessagesState,
-          errorElement: workspaceMessagesError,
-          statusText: 'Обновление ленты после отправки медиа…',
-          failMessage: 'Медиа отправлено, но лента workspace не обновилась автоматически.',
-        });
-      },
-    });
+    await dialogsDetailsHistoryRuntime?.sendWorkspaceMediaFiles(files);
   }
 
 
@@ -8648,6 +8153,9 @@
       const loadPreviousButton = event.target.closest('button[data-action="load-previous-history"]');
       if (loadPreviousButton) {
         await loadPreviousDialogHistory();
+        return;
+      }
+      if (dialogsDetailsHistoryRuntime?.handleMediaSurfaceClick(event)) {
         return;
       }
       const menuToggle = event.target.closest('[data-action-menu]');
@@ -8885,7 +8393,7 @@
       if (detailsReplyText) detailsReplyText.value = '';
       if (detailsReplyMedia) detailsReplyMedia.value = '';
       resetReplyTarget();
-      activeDialogCurrentMessages = [];
+      renderHistory([], { scrollToBottom: false });
       resetPreviousDialogHistoryState();
       activeDialogContext = {
         clientName: '—',
@@ -9367,19 +8875,13 @@
 
   if (mediaPreviewZoomIn) {
     mediaPreviewZoomIn.addEventListener('click', () => {
-      mediaImageScale = Math.min(3, mediaImageScale + 0.2);
-      if (mediaPreviewImage) {
-        mediaPreviewImage.style.transform = `scale(${mediaImageScale})`;
-      }
+      dialogsDetailsHistoryRuntime?.adjustMediaPreviewZoom('in');
     });
   }
 
   if (mediaPreviewZoomOut) {
     mediaPreviewZoomOut.addEventListener('click', () => {
-      mediaImageScale = Math.max(0.4, mediaImageScale - 0.2);
-      if (mediaPreviewImage) {
-        mediaPreviewImage.style.transform = `scale(${mediaImageScale})`;
-      }
+      dialogsDetailsHistoryRuntime?.adjustMediaPreviewZoom('out');
     });
   }
 
@@ -9418,47 +8920,6 @@
         completionTemplatesSection.classList.toggle('is-open');
       });
     }
-  }
-
-  if (detailsHistory) {
-    detailsHistory.addEventListener('click', (event) => {
-      const playButton = event.target.closest('.chat-audio-play');
-      if (playButton) {
-        const src = playButton.dataset.audioSrc;
-        if (!src) return;
-        if (activeAudioPlayer && activeAudioSource === src && !activeAudioPlayer.paused) {
-          activeAudioPlayer.pause();
-          playButton.textContent = 'Воспроизвести';
-          return;
-        }
-        if (activeAudioPlayer) {
-          activeAudioPlayer.pause();
-        }
-        activeAudioPlayer = new Audio(src);
-        activeAudioSource = src;
-        playButton.textContent = 'Пауза';
-        activeAudioPlayer.addEventListener('ended', () => {
-          playButton.textContent = 'Воспроизвести';
-        });
-        activeAudioPlayer.play().catch(() => {
-          playButton.textContent = 'Воспроизвести';
-        });
-        return;
-      }
-      const imagePreview = event.target.closest('[data-image-src]');
-      if (imagePreview) {
-        const src = imagePreview.dataset.imageSrc;
-        if (!src) return;
-        showImagePreview(src, imagePreview.dataset.mediaName || 'image');
-        return;
-      }
-      const videoPreview = event.target.closest('[data-video-src]');
-      if (videoPreview) {
-        const src = videoPreview.dataset.videoSrc;
-        if (!src) return;
-        showVideoPreview(src);
-      }
-    });
   }
 
   if (mediaPreviewModalEl) {
@@ -9508,42 +8969,7 @@
         }
         return;
       }
-      const playButton = event.target.closest('.chat-audio-play');
-      if (playButton) {
-        const src = playButton.dataset.audioSrc;
-        if (!src) return;
-        if (activeAudioPlayer && activeAudioSource === src && !activeAudioPlayer.paused) {
-          activeAudioPlayer.pause();
-          playButton.textContent = 'Воспроизвести';
-          return;
-        }
-        if (activeAudioPlayer) {
-          activeAudioPlayer.pause();
-        }
-        activeAudioPlayer = new Audio(src);
-        activeAudioSource = src;
-        playButton.textContent = 'Пауза';
-        activeAudioPlayer.addEventListener('ended', () => {
-          playButton.textContent = 'Воспроизвести';
-        });
-        activeAudioPlayer.play().catch(() => {
-          playButton.textContent = 'Воспроизвести';
-        });
-        return;
-      }
-      const imagePreview = event.target.closest('[data-image-src]');
-      if (imagePreview) {
-        const src = imagePreview.dataset.imageSrc;
-        if (!src) return;
-        showImagePreview(src, imagePreview.dataset.mediaName || 'image');
-        return;
-      }
-      const videoPreview = event.target.closest('[data-video-src]');
-      if (videoPreview) {
-        const src = videoPreview.dataset.videoSrc;
-        if (!src) return;
-        showVideoPreview(src);
-      }
+      dialogsDetailsHistoryRuntime?.handleMediaSurfaceClick(event);
     });
   }
 
