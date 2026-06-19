@@ -49,10 +49,128 @@
         : String(value || '').trim();
     }
 
+    function formatTimestamp(value, formatOptions = {}) {
+      return typeof options.formatTimestamp === 'function'
+        ? options.formatTimestamp(value, formatOptions)
+        : String(value || '').trim();
+    }
+
     function renderWorkspaceSimpleList(items, formatter) {
       return typeof options.renderWorkspaceSimpleList === 'function'
         ? options.renderWorkspaceSimpleList(items, formatter)
         : '';
+    }
+
+    function resolveWorkspaceRolloutBannerClass(tone) {
+      switch (String(tone || '').toLowerCase()) {
+        case 'success':
+          return 'alert alert-success py-2 px-3 small mb-3';
+        case 'warning':
+          return 'alert alert-warning py-2 px-3 small mb-3';
+        case 'danger':
+          return 'alert alert-danger py-2 px-3 small mb-3';
+        default:
+          return 'alert alert-info py-2 px-3 small mb-3';
+      }
+    }
+
+    function renderWorkspaceRolloutBanner(rollout) {
+      if (!elements.workspaceRolloutBanner) return;
+      const summary = String(rollout?.summary || '').trim();
+      const reviewedAt = formatTimestamp(rollout?.reviewed_at_utc || '', { includeTime: true, fallback: '' });
+      const dataUpdatedAt = formatTimestamp(rollout?.data_updated_at_utc || '', { includeTime: true, fallback: '' });
+      const metaParts = [];
+      if (String(rollout?.mode || '').trim()) {
+        metaParts.push(`mode: ${String(rollout.mode).trim()}`);
+      }
+      if (Number.isFinite(Number(rollout?.rollout_percent)) && Number(rollout?.rollout_percent) > 0) {
+        metaParts.push(`rollout: ${Math.max(0, Math.min(100, Number(rollout.rollout_percent)))}%`);
+      }
+      if (reviewedAt && reviewedAt !== '—') {
+        metaParts.push(`reviewed UTC: ${reviewedAt}`);
+      }
+      if (dataUpdatedAt && dataUpdatedAt !== '—') {
+        metaParts.push(`data updated UTC: ${dataUpdatedAt}`);
+      }
+      elements.workspaceRolloutBanner.className = resolveWorkspaceRolloutBannerClass(rollout?.banner_tone);
+      elements.workspaceRolloutBanner.classList.remove('d-none');
+      elements.workspaceRolloutBanner.textContent = [summary || 'Workspace rollout state loaded.', metaParts.join(' · ')].filter(Boolean).join(' ');
+    }
+
+    function resolveWorkspaceParityBannerClass(status) {
+      switch (String(status || '').toLowerCase()) {
+        case 'ok':
+          return 'alert alert-success py-2 px-3 small mb-3';
+        case 'blocked':
+          return 'alert alert-danger py-2 px-3 small mb-3';
+        default:
+          return 'alert alert-warning py-2 px-3 small mb-3';
+      }
+    }
+
+    function renderWorkspaceParityBanner(parity) {
+      if (!elements.workspaceParityBanner) return;
+      const safeParity = parity && typeof parity === 'object' ? parity : null;
+      const summary = String(safeParity?.summary || '').trim();
+      const status = String(safeParity?.status || '').trim().toLowerCase();
+      if (!safeParity || !summary) {
+        elements.workspaceParityBanner.classList.add('d-none');
+        elements.workspaceParityBanner.textContent = '';
+        return;
+      }
+      const checkedAtUtc = formatTimestamp(safeParity?.checked_at, { includeTime: true, fallback: '' });
+      const missingLabels = Array.isArray(safeParity?.missing_labels)
+        ? safeParity.missing_labels.filter(Boolean).map((item) => String(item).trim())
+        : [];
+      const metaParts = [];
+      if (Number.isFinite(Number(safeParity?.score_pct))) {
+        metaParts.push(`parity score: ${Math.max(0, Math.min(100, Number(safeParity.score_pct)))}%`);
+      }
+      if (checkedAtUtc && checkedAtUtc !== '—') {
+        metaParts.push(`checked UTC: ${checkedAtUtc}`);
+      }
+      if (missingLabels.length > 0) {
+        metaParts.push(`gaps: ${missingLabels.join(', ')}`);
+      }
+      elements.workspaceParityBanner.className = resolveWorkspaceParityBannerClass(status);
+      elements.workspaceParityBanner.classList.remove('d-none');
+      elements.workspaceParityBanner.textContent = [summary, metaParts.join(' · ')].filter(Boolean).join(' ');
+    }
+
+    function setWorkspaceReadonlyMode(isReadonly, reasonText) {
+      const nextState = Boolean(isReadonly);
+      const activeState = getActiveWorkspaceState();
+      const stateChanged = Boolean(activeState.readonlyMode) !== nextState;
+      options.setWorkspaceReadonlyState?.(nextState);
+      if (elements.workspaceReadonlyBanner) {
+        elements.workspaceReadonlyBanner.classList.toggle('d-none', !nextState);
+        if (nextState && reasonText) {
+          elements.workspaceReadonlyBanner.textContent = String(reasonText);
+        }
+      }
+      if (stateChanged) {
+        options.updateBulkToolbarState?.();
+        options.renderTableFromRows?.(true);
+      }
+    }
+
+    function resolveWorkspaceReadonlyReason(permissions) {
+      if (!permissions || typeof permissions !== 'object') {
+        return 'Workspace открыт в режиме только чтения: не удалось получить права оператора.';
+      }
+      const mutatingPermissionKeys = Array.isArray(options.workspaceMutatingPermissionKeys)
+        ? options.workspaceMutatingPermissionKeys
+        : [];
+      const requiredFlags = ['can_reply', ...mutatingPermissionKeys];
+      const hasInvalidFlag = requiredFlags.some((flag) => typeof permissions[flag] !== 'boolean');
+      if (hasInvalidFlag) {
+        return 'Workspace открыт в режиме только чтения: права оператора загружены некорректно.';
+      }
+      const hasMutatingPermission = mutatingPermissionKeys.some((flag) => permissions[flag] === true);
+      if (!hasMutatingPermission) {
+        return 'Workspace открыт в режиме только чтения: действия изменения отключены политикой доступа.';
+      }
+      return null;
     }
 
     function getWorkspaceDraftStorageKey(ticketId) {
@@ -1277,6 +1395,10 @@
       navigateWorkspaceInline,
       refreshActiveWorkspaceContract,
       appendToWorkspaceComposer,
+      renderWorkspaceRolloutBanner,
+      renderWorkspaceParityBanner,
+      setWorkspaceReadonlyMode,
+      resolveWorkspaceReadonlyReason,
       renderWorkspaceShell,
       normalizeWorkspaceContextViolationDetails,
       workspaceContextViolationTypeLabel,

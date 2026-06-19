@@ -870,40 +870,8 @@
   }
 
 
-  function resolveWorkspaceRolloutBannerClass(tone) {
-    switch (String(tone || '').toLowerCase()) {
-      case 'success':
-        return 'alert alert-success py-2 px-3 small mb-3';
-      case 'warning':
-        return 'alert alert-warning py-2 px-3 small mb-3';
-      case 'danger':
-        return 'alert alert-danger py-2 px-3 small mb-3';
-      default:
-        return 'alert alert-info py-2 px-3 small mb-3';
-    }
-  }
-
   function renderWorkspaceRolloutBanner(rollout) {
-    if (!workspaceRolloutBanner) return;
-    const summary = String(rollout?.summary || '').trim();
-    const reviewedAt = formatTimestamp(rollout?.reviewed_at_utc || '', { includeTime: true, fallback: '' });
-    const dataUpdatedAt = formatTimestamp(rollout?.data_updated_at_utc || '', { includeTime: true, fallback: '' });
-    const metaParts = [];
-    if (String(rollout?.mode || '').trim()) {
-      metaParts.push(`mode: ${String(rollout.mode).trim()}`);
-    }
-    if (Number.isFinite(Number(rollout?.rollout_percent)) && Number(rollout?.rollout_percent) > 0) {
-      metaParts.push(`rollout: ${Math.max(0, Math.min(100, Number(rollout.rollout_percent)))}%`);
-    }
-    if (reviewedAt && reviewedAt !== '—') {
-      metaParts.push(`reviewed UTC: ${reviewedAt}`);
-    }
-    if (dataUpdatedAt && dataUpdatedAt !== '—') {
-      metaParts.push(`data updated UTC: ${dataUpdatedAt}`);
-    }
-    workspaceRolloutBanner.className = resolveWorkspaceRolloutBannerClass(rollout?.banner_tone);
-    workspaceRolloutBanner.classList.remove('d-none');
-    workspaceRolloutBanner.textContent = [summary || 'Workspace rollout state loaded.', metaParts.join(' · ')].filter(Boolean).join(' ');
+    dialogsWorkspaceRuntime?.renderWorkspaceRolloutBanner(rollout);
   }
 
   function resolveLegacyOpenPolicy(rollout) {
@@ -934,76 +902,16 @@
     }
   }
 
-  function resolveWorkspaceParityBannerClass(status) {
-    switch (String(status || '').toLowerCase()) {
-      case 'ok':
-        return 'alert alert-success py-2 px-3 small mb-3';
-      case 'blocked':
-        return 'alert alert-danger py-2 px-3 small mb-3';
-      default:
-        return 'alert alert-warning py-2 px-3 small mb-3';
-    }
-  }
-
   function renderWorkspaceParityBanner(parity) {
-    if (!workspaceParityBanner) return;
-    const safeParity = parity && typeof parity === 'object' ? parity : null;
-    const summary = String(safeParity?.summary || '').trim();
-    const status = String(safeParity?.status || '').trim().toLowerCase();
-    if (!safeParity || !summary) {
-      workspaceParityBanner.classList.add('d-none');
-      workspaceParityBanner.textContent = '';
-      return;
-    }
-    const checkedAtUtc = formatTimestamp(safeParity?.checked_at, { includeTime: true, fallback: '' });
-    const missingLabels = Array.isArray(safeParity?.missing_labels)
-      ? safeParity.missing_labels.filter(Boolean).map((item) => String(item).trim())
-      : [];
-    const metaParts = [];
-    if (Number.isFinite(Number(safeParity?.score_pct))) {
-      metaParts.push(`parity score: ${Math.max(0, Math.min(100, Number(safeParity.score_pct)))}%`);
-    }
-    if (checkedAtUtc && checkedAtUtc !== '—') {
-      metaParts.push(`checked UTC: ${checkedAtUtc}`);
-    }
-    if (missingLabels.length > 0) {
-      metaParts.push(`gaps: ${missingLabels.join(', ')}`);
-    }
-    workspaceParityBanner.className = resolveWorkspaceParityBannerClass(status);
-    workspaceParityBanner.classList.remove('d-none');
-    workspaceParityBanner.textContent = [summary, metaParts.join(' · ')].filter(Boolean).join(' ');
+    dialogsWorkspaceRuntime?.renderWorkspaceParityBanner(parity);
   }
 
   function setWorkspaceReadonlyMode(isReadonly, reasonText) {
-    const nextState = Boolean(isReadonly);
-    const stateChanged = workspaceReadonlyMode !== nextState;
-    workspaceReadonlyMode = nextState;
-    if (workspaceReadonlyBanner) {
-      workspaceReadonlyBanner.classList.toggle('d-none', !nextState);
-      if (nextState && reasonText) {
-        workspaceReadonlyBanner.textContent = String(reasonText);
-      }
-    }
-    if (stateChanged) {
-      updateBulkToolbarState();
-      renderTableFromRows(true);
-    }
+    dialogsWorkspaceRuntime?.setWorkspaceReadonlyMode(isReadonly, reasonText);
   }
 
   function resolveWorkspaceReadonlyReason(permissions) {
-    if (!permissions || typeof permissions !== 'object') {
-      return 'Workspace открыт в режиме только чтения: не удалось получить права оператора.';
-    }
-    const requiredFlags = ['can_reply', ...WORKSPACE_MUTATING_PERMISSION_KEYS];
-    const hasInvalidFlag = requiredFlags.some((flag) => typeof permissions[flag] !== 'boolean');
-    if (hasInvalidFlag) {
-      return 'Workspace открыт в режиме только чтения: права оператора загружены некорректно.';
-    }
-    const hasMutatingPermission = WORKSPACE_MUTATING_PERMISSION_KEYS.some((flag) => permissions[flag] === true);
-    if (!hasMutatingPermission) {
-      return 'Workspace открыт в режиме только чтения: действия изменения отключены политикой доступа.';
-    }
-    return null;
+    return dialogsWorkspaceRuntime?.resolveWorkspaceReadonlyReason(permissions) || null;
   }
 
   function notifyPermissionDenied(actionTitle) {
@@ -1773,6 +1681,9 @@
 
   const dialogsWorkspaceRuntime = window.DialogsWorkspaceRuntime?.createRuntime({
     elements: {
+      workspaceRolloutBanner,
+      workspaceParityBanner,
+      workspaceReadonlyBanner,
       workspaceShell,
       workspaceConversationTitle,
       workspaceConversationMeta,
@@ -1829,8 +1740,10 @@
     extraAttributesTechnicalPrefixes: WORKSPACE_CLIENT_EXTRA_ATTRIBUTES_TECHNICAL_PREFIXES,
     hiddenAttributes: WORKSPACE_CLIENT_HIDDEN_ATTRIBUTES,
     escapeHtml,
+    formatTimestamp,
     formatWorkspaceDateTime,
     renderWorkspaceSimpleList,
+    workspaceMutatingPermissionKeys: WORKSPACE_MUTATING_PERMISSION_KEYS,
     getActiveDialogContext: () => activeDialogContext,
     setActiveDialogContext: (context) => {
       activeDialogContext = context && typeof context === 'object' ? context : activeDialogContext;
@@ -1845,6 +1758,9 @@
     },
     setWorkspaceComposerTicketId: (ticketId) => {
       workspaceComposerTicketId = String(ticketId || '').trim();
+    },
+    setWorkspaceReadonlyState: (nextState) => {
+      workspaceReadonlyMode = nextState === true;
     },
     getWorkspaceComposerMeta: () => ({
       hasActiveMacroTemplate: Boolean(activeWorkspaceMacroTemplate),
@@ -1879,6 +1795,8 @@
     setActiveDialogRow,
     openVisibleDialogByOffset,
     openDialogWithWorkspaceFallback,
+    updateBulkToolbarState,
+    renderTableFromRows,
     updateRowStatus,
     updateRowResponsible,
     applyFilters,

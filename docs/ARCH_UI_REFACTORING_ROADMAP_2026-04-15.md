@@ -1752,10 +1752,13 @@
 - следующим проходом в `dialogs-workspace-runtime.js` перенесён и
   `workspace client/context render`, включая profile/context contract rendering
   и extra-attribute formatting;
+- вдогонку в тот же runtime перенесены и `workspace banners/readonly`, так что
+  rollout/parity state и readonly-policy helpers тоже больше не живут как
+  primary UI-layer внутри `dialogs.js`;
 - это означает, что следующий проход уже не должен заново разбирать
   list/AI/details-history/workspace-support/shell-render монолит внутри
-  `dialogs.js`, а должен добирать оставшиеся `workspace banners/readonly`,
-  `quick actions`, `macro workflow` и `notifications refresh`;
+  `dialogs.js`, а должен добирать оставшиеся `quick actions`,
+  `macro workflow` и `notifications refresh`;
 
 - live regression corridor для `take -> categories -> reply -> follow-up ->
   details/workspace reread -> bell ack -> next follow-up` уже нужен как
