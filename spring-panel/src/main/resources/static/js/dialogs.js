@@ -1855,6 +1855,67 @@
     historyPollInterval: HISTORY_POLL_INTERVAL,
   }) || null;
 
+  const dialogsActionsRuntime = window.DialogsActionsRuntime?.createRuntime({
+    elements: {
+      table,
+      detailsMeta,
+      detailsResolve,
+      detailsSpam,
+      detailsReopen,
+      detailsCategoriesBtn,
+      detailsTakeBtn,
+      workspaceAssignBtn,
+      workspaceSnoozeBtn,
+      workspaceResolveBtn,
+      workspaceReopenBtn,
+      workspaceLegacyBtn,
+      workspaceCreateTaskBtn,
+    },
+    getActiveDialogState: () => ({
+      ticketId: activeDialogTicketId,
+      row: activeDialogRow,
+    }),
+    setActiveDialogTicketId: (ticketId) => {
+      activeDialogTicketId = String(ticketId || '').trim() || null;
+    },
+    getActiveWorkspaceState: () => ({
+      ticketId: activeWorkspaceTicketId,
+      payload: activeWorkspacePayload,
+      readonlyMode: workspaceReadonlyMode,
+    }),
+    getSelectedCategories: () => selectedCategories,
+    quickSnoozeMinutes: QUICK_SNOOZE_MINUTES,
+    workspaceSingleMode: WORKSPACE_SINGLE_MODE,
+    workspaceDisableLegacyFallback: WORKSPACE_DISABLE_LEGACY_FALLBACK,
+    canRunAction,
+    isWorkspaceActionEnabled,
+    canTakeDialogOwnership,
+    resolveRowResponsibleRaw,
+    getSnoozeUntil,
+    formatUtcDate,
+    formatSnoozeActionLabel,
+    formatSnoozeDurationLabel,
+    isResolvedRow: isResolved,
+    isResolvedStatus,
+    notifyPermissionDenied,
+    updateRowStatus,
+    updateRowResponsible,
+    updateRowSlaBadge,
+    updateDetailsResponsible,
+    emitWorkspaceTelemetry,
+    applyFilters,
+    loadDialogParticipants,
+    openDialogDetails,
+    openCategoryPanel,
+    renderWorkspaceCategories,
+    refreshActiveWorkspaceContract,
+    renderWorkspaceRolloutBanner,
+    setActiveDialogRow,
+    setSnooze,
+    clearSnooze,
+    showNotification,
+  }) || null;
+
   function resetMediaPreview() {
     dialogsDetailsHistoryRuntime?.resetMediaPreview();
   }
@@ -2872,132 +2933,28 @@
     link.remove();
   }
 
-  function parseRowCategories(row) {
-    const categoriesValue = String(row?.dataset?.categories || '').trim();
-    if (!categoriesValue || categoriesValue === '—') {
-      return [];
-    }
-    return categoriesValue.split(',').map((item) => item.trim()).filter(Boolean);
-  }
-
   function updateRowQuickActions(row) {
-    if (!row) return;
-    const isClosed = isResolved(row);
-    const closeBtn = row.querySelector('.dialog-close-btn');
-    const snoozeBtn = row.querySelector('.dialog-snooze-btn');
-    const takeBtn = row.querySelector('.dialog-take-btn');
-    const responsible = resolveRowResponsibleRaw(row);
-    if (takeBtn) takeBtn.classList.toggle('d-none', !canTakeDialogOwnership(responsible, isClosed));
-    if (closeBtn) closeBtn.classList.toggle('d-none', isClosed || !canRunAction('can_close'));
-    if (snoozeBtn) {
-      snoozeBtn.classList.toggle('d-none', isClosed || !canRunAction('can_snooze'));
-      const ticketId = row.dataset.ticketId;
-      const until = getSnoozeUntil(ticketId);
-      snoozeBtn.textContent = until
-        ? `Отложен до ${formatUtcDate(new Date(until), { includeTime: true })}`
-        : formatSnoozeActionLabel(QUICK_SNOOZE_MINUTES);
-    }
+    dialogsActionsRuntime?.updateRowQuickActions(row);
   }
 
   function setDialogActionsMenuOpen(menu, isOpen) {
-    if (!menu) return;
-    menu.classList.toggle('is-open', Boolean(isOpen));
-    const toggle = menu.querySelector('[data-dialog-actions-toggle]');
-    if (toggle) {
-      toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-    }
+    dialogsActionsRuntime?.setDialogActionsMenuOpen(menu, isOpen);
   }
 
   function closeDialogActionsMenus(exceptMenu = null) {
-    table.querySelectorAll('.dialog-actions-dropdown.is-open').forEach((menu) => {
-      if (menu !== exceptMenu) {
-        setDialogActionsMenuOpen(menu, false);
-      }
-    });
+    dialogsActionsRuntime?.closeDialogActionsMenus(exceptMenu);
   }
 
   async function closeDialogQuick(ticketId, row, triggerButton) {
-    if (!ticketId) return;
-    const categories = parseRowCategories(row);
-    if (!categories.length) {
-      throw new Error('Для быстрого закрытия укажите категорию в карточке диалога.');
-    }
-    const btn = triggerButton || null;
-    if (btn) btn.disabled = true;
-    const resp = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/resolve`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ categories }),
-    });
-    const data = await resp.json();
-    if (!resp.ok || !data?.success) {
-      throw new Error(data?.error || `Ошибка ${resp.status}`);
-    }
-    updateRowStatus(row, 'resolved', 'Закрыт', 'closed', 0);
-    emitWorkspaceTelemetry('triage_quick_close', { ticketId });
-    updateRowSlaBadge(row);
-    updateRowQuickActions(row);
-    applyFilters();
+    return dialogsActionsRuntime?.closeDialogQuick(ticketId, row, triggerButton);
   }
 
   async function takeDialog(ticketId, row, triggerButton) {
-    if (!ticketId) return;
-    const targetRow = row || (String(activeDialogTicketId || '').trim() === String(ticketId || '').trim() ? activeDialogRow : null);
-    if (targetRow && isResolved(targetRow)) {
-      const error = new Error('Взять в работу можно только открытый диалог');
-      if (typeof showNotification === 'function') {
-        showNotification(error.message, 'error');
-      }
-      throw error;
-    }
-    const btn = triggerButton || null;
-    if (btn) btn.disabled = true;
-    try {
-      const resp = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/take`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      const data = await resp.json();
-      if (!resp.ok || !data?.success) {
-        throw new Error(data?.error || `Ошибка ${resp.status}`);
-      }
-      updateRowResponsible(row, data.responsible || '');
-      if (String(activeDialogTicketId || '').trim() === String(ticketId || '').trim()) {
-        loadDialogParticipants().catch(() => {});
-      }
-      emitWorkspaceTelemetry('triage_quick_assign', { ticketId });
-      applyFilters();
-      if (typeof showNotification === 'function') {
-        showNotification('Диалог назначен на вас', 'success');
-      }
-      return data;
-    } catch (error) {
-      if (btn) btn.disabled = false;
-      if (typeof showNotification === 'function') {
-        showNotification(error.message || 'Не удалось взять диалог', 'error');
-      }
-      throw error;
-    }
+    return dialogsActionsRuntime?.takeDialog(ticketId, row, triggerButton);
   }
 
   async function snoozeDialog(ticketId, minutes, triggerButton) {
-    if (!ticketId) return;
-    const btn = triggerButton || null;
-    if (btn) btn.disabled = true;
-    try {
-      const resp = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/snooze`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ minutes }),
-      });
-      const data = await resp.json();
-      if (!resp.ok || !data?.success) {
-        throw new Error(data?.error || `Ошибка ${resp.status}`);
-      }
-      emitWorkspaceTelemetry('triage_quick_snooze', { ticketId, reason: `minutes:${minutes}` });
-    } finally {
-      if (btn) btn.disabled = false;
-    }
+    return dialogsActionsRuntime?.snoozeDialog(ticketId, minutes, triggerButton);
   }
 
   function syncDialogsTable(dialogs) {
@@ -4140,63 +4097,7 @@
   }
 
   function updateWorkspaceActionButtons(conversation, permissions, payload = null) {
-    const statusRaw = conversation?.status || '';
-    const statusKey = conversation?.statusKey || '';
-    const statusLabel = conversation?.statusLabel || '';
-    const resolved = isResolvedStatus(statusRaw, statusKey, statusLabel);
-    const responsible = String(conversation?.responsible || '').trim();
-    const ticketId = conversation?.ticketId || activeWorkspaceTicketId;
-    const takeEnabled = isWorkspaceActionEnabled(
-      'take',
-      canTakeDialogOwnership(responsible, resolved),
-      ticketId
-    );
-    const canAssign = permissions?.can_assign === true && !workspaceReadonlyMode;
-    const canClose = permissions?.can_close === true && !workspaceReadonlyMode;
-    const canSnooze = isWorkspaceActionEnabled(
-      'snooze',
-      permissions?.can_snooze === true && !workspaceReadonlyMode && !resolved,
-      ticketId
-    );
-    const canResolve = isWorkspaceActionEnabled(
-      'resolve',
-      canClose && !resolved,
-      ticketId
-    );
-    const canReopen = isWorkspaceActionEnabled(
-      'reopen',
-      canClose && resolved,
-      ticketId
-    );
-
-    if (workspaceAssignBtn) {
-      workspaceAssignBtn.disabled = !canAssign || !takeEnabled;
-      workspaceAssignBtn.classList.toggle('d-none', !canAssign || !takeEnabled);
-    }
-    if (workspaceSnoozeBtn) {
-      workspaceSnoozeBtn.disabled = !canSnooze;
-      workspaceSnoozeBtn.classList.toggle('d-none', !canSnooze);
-      workspaceSnoozeBtn.textContent = formatSnoozeActionLabel(QUICK_SNOOZE_MINUTES);
-    }
-    if (workspaceResolveBtn) {
-      workspaceResolveBtn.disabled = !canResolve;
-      workspaceResolveBtn.classList.toggle('d-none', !canResolve);
-    }
-    if (workspaceReopenBtn) {
-      workspaceReopenBtn.disabled = !canReopen;
-      workspaceReopenBtn.classList.toggle('d-none', !canReopen);
-    }
-    const rollout = payload?.meta?.rollout || {};
-    renderWorkspaceRolloutBanner(rollout);
-    if (workspaceLegacyBtn) {
-      const fallbackAvailable = !WORKSPACE_SINGLE_MODE
-        && (rollout?.legacy_fallback_available === true || (!payload?.meta?.rollout && !WORKSPACE_DISABLE_LEGACY_FALLBACK));
-      workspaceLegacyBtn.disabled = !fallbackAvailable;
-      workspaceLegacyBtn.classList.toggle('d-none', !fallbackAvailable);
-    }
-    if (workspaceCreateTaskBtn) {
-      workspaceCreateTaskBtn.classList.remove('disabled');
-    }
+    dialogsActionsRuntime?.updateWorkspaceActionButtons(conversation, permissions, payload);
   }
 
   function emitWorkspaceProfileGapTelemetry(context, conversation) {
@@ -6008,45 +5909,7 @@
   }
 
   function updateResolveButton(statusRaw) {
-    if (!detailsResolve) return;
-    const currentStatus = String(statusRaw || activeDialogRow?.dataset?.statusRaw || activeDialogRow?.dataset?.status || '').trim();
-    const currentStatusKey = String(activeDialogRow?.dataset?.statusKey || '').trim();
-    const resolved = isResolvedStatus(currentStatus, currentStatusKey, '');
-    const canResolve = isWorkspaceActionEnabled(
-      'resolve',
-      canRunAction('can_close') && !resolved,
-      activeDialogTicketId
-    );
-    detailsResolve.disabled = !canResolve;
-    detailsResolve.textContent = resolved ? 'Обращение закрыто' : 'Закрыть обращение';
-    if (detailsSpam) {
-      const clientUserId = String(detailsSpam.dataset.userId || '').trim();
-      const canMarkSpam = isWorkspaceActionEnabled(
-        'spam',
-        canRunAction('can_close') && !resolved,
-        activeDialogTicketId
-      );
-      detailsSpam.disabled = !canMarkSpam || !clientUserId;
-      detailsSpam.classList.toggle('d-none', !canMarkSpam);
-    }
-    if (detailsReopen) {
-      const canReopen = isWorkspaceActionEnabled(
-        'reopen',
-        canRunAction('can_close') && resolved,
-        activeDialogTicketId
-      );
-      detailsReopen.disabled = !canReopen;
-      detailsReopen.classList.toggle('d-none', !canReopen);
-    }
-    if (detailsCategoriesBtn) {
-      const canEditCategories = isWorkspaceActionEnabled(
-        'categories',
-        canRunAction('can_close'),
-        activeDialogTicketId
-      );
-      detailsCategoriesBtn.disabled = !canEditCategories;
-      detailsCategoriesBtn.classList.toggle('d-none', !canEditCategories);
-    }
+    dialogsActionsRuntime?.updateResolveButton(statusRaw);
   }
 
   function setRowUnreadCount(row, unreadCount) {
@@ -6456,18 +6319,6 @@
       return;
     }
 
-    const actionToggle = target.closest('[data-dialog-actions-toggle]');
-    if (actionToggle) {
-      event.preventDefault();
-      event.stopPropagation();
-      const menu = actionToggle.closest('.dialog-actions-dropdown');
-      if (!menu) return;
-      const nextState = !menu.classList.contains('is-open');
-      closeDialogActionsMenus(menu);
-      setDialogActionsMenuOpen(menu, nextState);
-      return;
-    }
-
     const openBtn = target.closest('.dialog-open-btn');
     if (openBtn) {
       event.preventDefault();
@@ -6498,76 +6349,6 @@
       window.location.href = buildTaskCreateUrl(ticketId, clientName);
       return;
     }
-    const takeBtn = target.closest('.dialog-take-btn');
-    if (takeBtn) {
-      event.preventDefault();
-      const actionMenu = takeBtn.closest('.dialog-actions-dropdown');
-      if (actionMenu) setDialogActionsMenuOpen(actionMenu, false);
-      if (!canRunAction('can_assign')) {
-        notifyPermissionDenied('Назначить мне');
-        return;
-      }
-      const ticketId = takeBtn.dataset.ticketId;
-      const row = takeBtn.closest('tr');
-      setActiveDialogRow(row, { ensureVisible: true });
-      takeDialog(ticketId, row, takeBtn);
-      return;
-    }
-    const snoozeBtn = target.closest('.dialog-snooze-btn');
-    if (snoozeBtn) {
-      event.preventDefault();
-      const actionMenu = snoozeBtn.closest('.dialog-actions-dropdown');
-      if (actionMenu) setDialogActionsMenuOpen(actionMenu, false);
-      if (!canRunAction('can_snooze')) {
-        notifyPermissionDenied(formatSnoozeActionLabel(QUICK_SNOOZE_MINUTES));
-        return;
-      }
-      const ticketId = snoozeBtn.dataset.ticketId;
-      const row = snoozeBtn.closest('tr');
-      setActiveDialogRow(row, { ensureVisible: true });
-      snoozeDialog(ticketId, QUICK_SNOOZE_MINUTES, snoozeBtn)
-        .then(() => {
-          setSnooze(ticketId, QUICK_SNOOZE_MINUTES);
-          updateRowQuickActions(row);
-          applyFilters();
-          if (typeof showNotification === 'function') {
-            showNotification(`Диалог отложен на ${formatSnoozeActionLabel(QUICK_SNOOZE_MINUTES).replace('Отложить ', '')}`, 'success');
-          }
-        })
-        .catch((error) => {
-          if (typeof showNotification === 'function') {
-            showNotification(error.message || 'Не удалось отложить диалог', 'error');
-          }
-        });
-      return;
-    }
-    const closeBtn = target.closest('.dialog-close-btn');
-    if (closeBtn) {
-      event.preventDefault();
-      const actionMenu = closeBtn.closest('.dialog-actions-dropdown');
-      if (actionMenu) setDialogActionsMenuOpen(actionMenu, false);
-      if (!canRunAction('can_close')) {
-        notifyPermissionDenied('Закрыть');
-        return;
-      }
-      const ticketId = closeBtn.dataset.ticketId;
-      const row = closeBtn.closest('tr');
-      setActiveDialogRow(row, { ensureVisible: true });
-      closeBtn.disabled = true;
-      closeDialogQuick(ticketId, row, closeBtn)
-        .then(() => {
-          clearSnooze(ticketId);
-          if (typeof showNotification === 'function') {
-            showNotification('Диалог закрыт', 'success');
-          }
-        })
-        .catch((error) => {
-          if (typeof showNotification === 'function') {
-            showNotification(error.message || 'Не удалось закрыть диалог', 'error');
-          }
-          closeBtn.disabled = false;
-        });
-    }
   });
 
   if (myDialogsPanel) {
@@ -6584,12 +6365,6 @@
       openDialogDetails(ticketId, row);
     });
   }
-
-  document.addEventListener('click', (event) => {
-    const target = event.target instanceof Element ? event.target : null;
-    if (target?.closest('.dialog-actions-dropdown')) return;
-    closeDialogActionsMenus();
-  });
 
   if (selectAllCheckbox) {
     selectAllCheckbox.addEventListener('change', () => {
@@ -6619,6 +6394,11 @@
     bulkClearBtn.addEventListener('click', () => clearSelection());
   }
 
+  dialogsActionsRuntime?.bindDocumentQuickActions();
+  dialogsActionsRuntime?.bindTableQuickActions();
+  dialogsActionsRuntime?.bindDetailsQuickActions();
+  dialogsActionsRuntime?.bindWorkspaceQuickActions();
+
   syncDialogAssignControls();
 
   if (detailsCreateTask) {
@@ -6641,59 +6421,6 @@
       const opened = window.open(clientUrl, '_blank', 'noopener');
       if (!opened) {
         window.location.href = clientUrl;
-      }
-    });
-  }
-
-  if (detailsSpam) {
-    detailsSpam.addEventListener('click', async () => {
-      const ticketId = resolveDetailsTicketId();
-      const userId = String(detailsSpam.dataset.userId || '').trim();
-      if (!ticketId || !userId) {
-        if (typeof showNotification === 'function') {
-          showNotification('Не удалось определить клиента для блокировки', 'error');
-        }
-        return;
-      }
-      const defaultReason = `Спам в диалоге ${ticketId}`;
-      const reasonInput = window.prompt('Причина блокировки клиента как спам:', defaultReason);
-      if (reasonInput === null) {
-        return;
-      }
-      const reason = String(reasonInput || '').trim() || defaultReason;
-      detailsSpam.disabled = true;
-      try {
-        const resp = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/spam`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ reason }),
-        });
-        const data = await resp.json();
-        if (!resp.ok || !data?.success) {
-          throw new Error(data?.error || `Ошибка ${resp.status}`);
-        }
-        await openDialogDetails(ticketId, activeDialogRow);
-        if (typeof showNotification === 'function') {
-          showNotification('Клиент заблокирован как спам', 'success');
-        }
-      } catch (error) {
-        if (typeof showNotification === 'function') {
-          showNotification(error.message || 'Не удалось заблокировать клиента', 'error');
-        }
-      } finally {
-        updateResolveButton(String(activeDialogRow?.dataset?.statusRaw || activeDialogRow?.dataset?.status || ''));
-      }
-    });
-  }
-
-  if (detailsTakeBtn) {
-    detailsTakeBtn.addEventListener('click', async () => {
-      if (!activeDialogTicketId || !activeDialogRow) return;
-      try {
-        const data = await takeDialog(activeDialogTicketId, activeDialogRow, detailsTakeBtn);
-        updateDetailsResponsible(data?.responsible || activeDialogRow.dataset.responsible || '');
-      } catch (_error) {
-        // notification is already shown inside takeDialog
       }
     });
   }
@@ -6852,94 +6579,6 @@
     });
   }
 
-  if (workspaceAssignBtn) {
-    workspaceAssignBtn.addEventListener('click', async () => {
-      if (!activeWorkspaceTicketId || !activeDialogRow) return;
-      try {
-        await takeDialog(activeWorkspaceTicketId, activeDialogRow, workspaceAssignBtn);
-        await refreshActiveWorkspaceContract({ successMessage: 'Диалог назначен на вас.' });
-      } catch (_error) {
-        // notification is already shown inside takeDialog
-      }
-    });
-  }
-
-  if (workspaceSnoozeBtn) {
-    workspaceSnoozeBtn.addEventListener('click', async () => {
-      if (!activeWorkspaceTicketId) return;
-      try {
-        await snoozeDialog(activeWorkspaceTicketId, QUICK_SNOOZE_MINUTES, workspaceSnoozeBtn);
-        setSnooze(activeWorkspaceTicketId, QUICK_SNOOZE_MINUTES);
-        if (activeDialogRow) {
-          updateRowQuickActions(activeDialogRow);
-        }
-        if (typeof showNotification === 'function') {
-          showNotification(`Диалог отложен на ${formatSnoozeDurationLabel(QUICK_SNOOZE_MINUTES)}.`, 'success');
-        }
-      } catch (error) {
-        if (typeof showNotification === 'function') {
-          showNotification(error.message || 'Не удалось отложить диалог', 'error');
-        }
-      }
-    });
-  }
-
-  if (workspaceResolveBtn) {
-    workspaceResolveBtn.addEventListener('click', async () => {
-      if (!activeWorkspaceTicketId) return;
-      workspaceResolveBtn.disabled = true;
-      try {
-        const categories = Array.from(selectedCategories);
-        if (!categories.length) {
-          renderWorkspaceCategories();
-          throw new Error('Выберите хотя бы одну категорию перед закрытием диалога.');
-        }
-        const response = await fetch(`/api/dialogs/${encodeURIComponent(activeWorkspaceTicketId)}/resolve`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ categories }),
-        });
-        const payload = await response.json();
-        if (!response.ok || !payload?.success) {
-          throw new Error(payload?.error || `Ошибка ${response.status}`);
-        }
-        await refreshActiveWorkspaceContract({ successMessage: 'Диалог закрыт.' });
-      } catch (error) {
-        workspaceResolveBtn.disabled = false;
-        if (typeof showNotification === 'function') {
-          showNotification(error.message || 'Не удалось закрыть диалог', 'error');
-        }
-      }
-    });
-  }
-
-  if (workspaceReopenBtn) {
-    workspaceReopenBtn.addEventListener('click', async () => {
-      if (!activeWorkspaceTicketId) return;
-      if (!window.confirm('Переоткрыть закрытое обращение?')) {
-        return;
-      }
-      workspaceReopenBtn.disabled = true;
-      try {
-        const response = await fetch(`/api/dialogs/${encodeURIComponent(activeWorkspaceTicketId)}/reopen`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-        });
-        const payload = await response.json();
-        if (!response.ok || !payload?.success) {
-          throw new Error(payload?.error || `Ошибка ${response.status}`);
-        }
-        await refreshActiveWorkspaceContract({ successMessage: 'Диалог переоткрыт.' });
-      } catch (error) {
-        if (typeof showNotification === 'function') {
-          showNotification(error.message || 'Не удалось переоткрыть диалог', 'error');
-        }
-      } finally {
-        workspaceReopenBtn.disabled = false;
-      }
-    });
-  }
-
   if (workspaceLegacyBtn) {
     workspaceLegacyBtn.addEventListener('click', async () => {
       if (WORKSPACE_SINGLE_MODE) return;
@@ -6983,81 +6622,7 @@
   }
 
   function resolveDetailsTicketId() {
-    const direct = String(activeDialogTicketId || '').trim();
-    if (direct) {
-      return direct;
-    }
-    const metaText = String(detailsMeta?.textContent || '');
-    const match = metaText.match(/#([A-Za-z0-9._:-]+)/);
-    if (!match?.[1]) {
-      return null;
-    }
-    activeDialogTicketId = match[1];
-    return activeDialogTicketId;
-  }
-
-  if (detailsResolve) {
-    detailsResolve.addEventListener('click', async () => {
-      const ticketId = resolveDetailsTicketId();
-      if (!ticketId) return;
-      detailsResolve.disabled = true;
-      try {
-        const categories = Array.from(selectedCategories);
-        if (!categories.length) {
-          openCategoryPanel();
-          throw new Error('Укажите хотя бы одну категорию обращения перед закрытием.');
-        }
-        const resp = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/resolve`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ categories }),
-        });
-        const data = await resp.json();
-        if (!resp.ok || !data?.success) {
-          throw new Error(data?.error || `Ошибка ${resp.status}`);
-        }
-        await openDialogDetails(ticketId, activeDialogRow);
-        if (typeof showNotification === 'function') {
-          showNotification('Диалог закрыт', 'success');
-        }
-      } catch (error) {
-        if (typeof showNotification === 'function') {
-          showNotification(error.message || 'Не удалось закрыть диалог', 'error');
-        }
-        detailsResolve.disabled = false;
-      }
-    });
-  }
-
-  if (detailsReopen) {
-    detailsReopen.addEventListener('click', async () => {
-      const ticketId = resolveDetailsTicketId();
-      if (!ticketId) return;
-      if (!window.confirm('Переоткрыть закрытое обращение?')) {
-        return;
-      }
-      detailsReopen.disabled = true;
-      try {
-        const resp = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/reopen`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-        });
-        const data = await resp.json();
-        if (!resp.ok || !data?.success) {
-          throw new Error(data?.error || `Ошибка ${resp.status}`);
-        }
-        await openDialogDetails(ticketId, activeDialogRow);
-        if (typeof showNotification === 'function') {
-          showNotification('Диалог переоткрыт', 'success');
-        }
-      } catch (error) {
-        if (typeof showNotification === 'function') {
-          showNotification(error.message || 'Не удалось переоткрыть диалог', 'error');
-        }
-      } finally {
-        detailsReopen.disabled = false;
-      }
-    });
+    return dialogsActionsRuntime?.resolveDetailsTicketId() || null;
   }
 
   if (detailsReplySend && detailsReplyText) {

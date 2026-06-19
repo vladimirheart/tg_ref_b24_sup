@@ -1755,9 +1755,13 @@
 - вдогонку в тот же runtime перенесены и `workspace banners/readonly`, так что
   rollout/parity state и readonly-policy helpers тоже больше не живут как
   primary UI-layer внутри `dialogs.js`;
+- следующим bounded slice вынесен и `quick actions` runtime:
+  `dialogs-actions-runtime.js` теперь держит row/details/workspace
+  action handlers, action-menu wiring и button-state sync для
+  `take/snooze/resolve/reopen/spam`;
 - это означает, что следующий проход уже не должен заново разбирать
-  list/AI/details-history/workspace-support/shell-render монолит внутри
-  `dialogs.js`, а должен добирать оставшиеся `quick actions`,
+  list/AI/details-history/workspace-support/shell-render/quick-actions
+  монолит внутри `dialogs.js`, а должен добирать оставшиеся
   `macro workflow` и `notifications refresh`;
 
 - live regression corridor для `take -> categories -> reply -> follow-up ->
