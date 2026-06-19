@@ -6826,6 +6826,7 @@
     <script src="/js/settings-channel-templates-runtime.js"></script>
     <script src="/js/settings-channels-bot-runtime.js"></script>
     <script src="/js/settings-channel-editor-shell-runtime.js"></script>
+    <script src="/js/settings-channel-editor-controls-runtime.js"></script>
     <script src="/js/settings-channel-editor-persistence-runtime.js"></script>
   <script src="/js/settings-channel-config-runtime.js"></script>
   <script src="/js/settings-channels-catalog-runtime.js"></script>
@@ -17833,6 +17834,12 @@
     showPopup: (message) => showPopup(message),
     confirmDialog: (message) => window.confirm(message),
   });
+  const settingsChannelEditorControls = window.SettingsChannelEditorControlsRuntime?.mount({
+    getChannelEditorState: () => channelEditorState,
+    channelEditorShell: settingsChannelEditorShell,
+    channelBotRuntime: settingsChannelsBotRuntime,
+    channelEditorPersistence: settingsChannelEditorPersistence,
+  });
   integrationNetworkProfilesData = Array.isArray(INTEGRATION_NETWORK_PROFILES_INITIAL)
     ? INTEGRATION_NETWORK_PROFILES_INITIAL.map((item) => settingsIntegrationNetwork.normalizeIntegrationNetworkProfile(item))
     : [];
@@ -18552,9 +18559,7 @@
   }
 
   function initChannelEditorControls() {
-    channelEditorRegeneratePublicIdBtn?.addEventListener('click', () => settingsChannelEditorShell.handleRegeneratePublicIdClick());
-    channelEditorCopyPublicLinkBtn?.addEventListener('click', () => settingsChannelEditorShell.handleCopyPublicLinkClick());
-    channelEditorActiveInput?.addEventListener('change', () => settingsChannelEditorShell.handleActiveInputChange());
+    settingsChannelEditorControls.bindControls();
     channelEditorPublicFormAddFieldBtn?.addEventListener('click', () => {
       const nextIndex = (channelEditorState.publicFormFields?.length || 0) + 1;
       channelEditorState.publicFormFields = [
@@ -18563,37 +18568,6 @@
       ];
       renderPublicFormFieldsEditor();
     });
-    channelEditorQuestionSelect?.addEventListener('change', () => settingsChannelEditorShell.handleQuestionTemplateChange());
-    channelEditorRatingSelect?.addEventListener('change', () => settingsChannelEditorShell.handleRatingTemplateChange());
-    channelEditorAutoSelect?.addEventListener('change', () => settingsChannelEditorShell.handleAutoTemplateChange());
-    channelEditorSupportChatInput?.addEventListener('input', () => settingsChannelEditorShell.handleSupportChatInput());
-    channelEditorPanelNotifTargetModeInput?.addEventListener('change', updateChannelPanelNotificationRoutingState);
-    channelEditorTestTargetSelect?.addEventListener('change', updateTestRecipientState);
-    channelEditorSendTestBtn?.addEventListener('click', sendChannelTestMessage);
-    channelEditorBotStartBtn?.addEventListener('click', () => {
-      if (channelEditorState.channelId !== null) {
-        startBotForChannel(channelEditorState.channelId);
-      }
-    });
-    channelEditorBotStopBtn?.addEventListener('click', () => {
-      if (channelEditorState.channelId !== null) {
-        stopBotForChannel(channelEditorState.channelId);
-      }
-    });
-    channelEditorBotRefreshBtn?.addEventListener('click', () => {
-      if (channelEditorState.channelId !== null) {
-        refreshChannelBotInfo(channelEditorState.channelId);
-      }
-    });
-    channelEditorToggleTokenBtn?.addEventListener('click', () => {
-      channelEditorState.tokenVisible = !channelEditorState.tokenVisible;
-      updateChannelEditorToken();
-    });
-    channelEditorCopyTokenBtn?.addEventListener('click', () => {
-      copyChannelToken();
-    });
-    channelEditorSaveBtn?.addEventListener('click', () => settingsChannelEditorPersistence.handleSaveClick());
-    channelEditorDeleteBtn?.addEventListener('click', () => settingsChannelEditorPersistence.handleDeleteClick());
   }
 
   window.addChannel = addChannel;
