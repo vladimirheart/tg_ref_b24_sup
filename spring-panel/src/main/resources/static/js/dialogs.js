@@ -754,12 +754,6 @@
   let activeWorkspaceTicketId = INITIAL_DIALOG_TICKET_ID;
   let activeWorkspaceChannelId = null;
   let activeWorkspacePayload = null;
-  let workspaceMessagesNextCursor = null;
-  let workspaceMessagesHasMore = false;
-  let workspaceMessagesLoadingMore = false;
-  let workspaceDraftAutosaveTimer = null;
-  let workspaceDraftLastSavedValue = '';
-  let workspaceDraftLastTelemetryAt = 0;
   let workspaceAiReviewProblemCandidates = [];
   let workspaceAiReviewSolutionCandidates = [];
   let workspaceLastProfileGapSignature = '';
@@ -1118,7 +1112,6 @@
   let completionHideTimer = null;
   let selectedCategories = new Set();
   let activeReplyToTelegramId = null;
-  let activeWorkspaceReplyToTelegramId = null;
   const selectedTicketIds = new Set();
   let categorySaveTimer = null;
   let detailsCategoryModalState = {
@@ -1771,49 +1764,64 @@
   }
 
   function resetWorkspaceReplyTarget(options = {}) {
-    const hadActiveTarget = Number.isFinite(Number(activeWorkspaceReplyToTelegramId));
-    activeWorkspaceReplyToTelegramId = null;
-    if (workspaceReplyTarget) {
-      workspaceReplyTarget.classList.add('d-none');
-    }
-    if (workspaceReplyTargetText) {
-      workspaceReplyTargetText.textContent = '';
-    }
-    if (workspaceComposerText) {
-      workspaceComposerText.placeholder = 'Введите ответ клиенту…';
-    }
-    if (hadActiveTarget && options.emitTelemetry !== false) {
-      emitWorkspaceTelemetry('workspace_reply_target_cleared', {
-        ticketId: activeWorkspaceTicketId,
-        reason: options.reason || 'manual_clear',
-        contractVersion: activeWorkspacePayload?.contract_version || 'workspace.v1',
-      });
-    }
+    dialogsWorkspaceRuntime?.resetWorkspaceReplyTarget(options);
   }
 
   function setWorkspaceReplyTarget(messageId, preview) {
-    const normalizedMessageId = Number.parseInt(messageId, 10);
-    if (!Number.isFinite(normalizedMessageId)) {
-      resetWorkspaceReplyTarget({ emitTelemetry: false });
-      return;
-    }
-    activeWorkspaceReplyToTelegramId = normalizedMessageId;
-    if (workspaceComposerText) {
-      workspaceComposerText.placeholder = `Ответ на сообщение #${normalizedMessageId}`;
-    }
-    if (workspaceReplyTarget) {
-      workspaceReplyTarget.classList.remove('d-none');
-    }
-    if (workspaceReplyTargetText) {
-      const safePreview = String(preview || '').trim();
-      workspaceReplyTargetText.textContent = safePreview || `Сообщение #${normalizedMessageId}`;
-    }
-    emitWorkspaceTelemetry('workspace_reply_target_selected', {
-      ticketId: activeWorkspaceTicketId,
-      reason: `message:${normalizedMessageId}`,
-      contractVersion: activeWorkspacePayload?.contract_version || 'workspace.v1',
-    });
+    dialogsWorkspaceRuntime?.setWorkspaceReplyTarget(messageId, preview);
   }
+
+  const dialogsWorkspaceRuntime = window.DialogsWorkspaceRuntime?.createRuntime({
+    elements: {
+      workspaceComposerText,
+      workspaceComposerSend,
+      workspaceComposerMedia,
+      workspaceComposerSaveDraft,
+      workspaceComposerDraftState,
+      workspaceReplyTarget,
+      workspaceReplyTargetText,
+      workspaceMessagesState,
+      workspaceMessagesList,
+      workspaceMessagesLoadMoreWrap,
+      workspaceMessagesLoadMore,
+      workspaceMessagesError,
+      workspaceNavPrevBtn,
+      workspaceNavNextBtn,
+      workspaceNavState,
+    },
+    getActiveWorkspaceState: () => ({
+      ticketId: activeWorkspaceTicketId,
+      channelId: activeWorkspaceChannelId,
+      composerTicketId: workspaceComposerTicketId,
+      payload: activeWorkspacePayload,
+      row: activeDialogRow,
+      readonlyMode: workspaceReadonlyMode,
+    }),
+    workspaceEnabled: WORKSPACE_V1_ENABLED,
+    inlineNavigation: WORKSPACE_INLINE_NAVIGATION,
+    messagesPageLimit: WORKSPACE_MESSAGES_PAGE_LIMIT,
+    draftStoragePrefix: STORAGE_WORKSPACE_DRAFT_PREFIX,
+    draftAutosaveDelay: WORKSPACE_DRAFT_AUTOSAVE_DELAY_MS,
+    draftTelemetryMinInterval: WORKSPACE_DRAFT_TELEMETRY_MIN_INTERVAL_MS,
+    emitWorkspaceTelemetry,
+    renderWorkspaceMessageItem,
+    mergeWorkspacePayload,
+    preloadWorkspaceContract,
+    renderWorkspaceShell,
+    setWorkspaceSectionLoading,
+    setActiveWorkspacePayload: (payload) => {
+      activeWorkspacePayload = payload;
+    },
+    rowsList,
+    setActiveDialogRow,
+    openVisibleDialogByOffset,
+    openDialogWithWorkspaceFallback,
+    updateRowStatus,
+    updateRowResponsible,
+    applyFilters,
+    notifyPermissionDenied,
+    showNotification,
+  }) || null;
 
   const dialogsDetailsHistoryRuntime = window.DialogsDetailsHistoryRuntime?.createRuntime({
     elements: {
@@ -3913,118 +3921,32 @@
     return `<ul class="list-unstyled small mb-0">${list.map((item) => `<li class="mb-2">${formatter(item)}</li>`).join('')}</ul>`;
   }
 
-  function getWorkspaceDraftStorageKey(ticketId) {
-    return `${STORAGE_WORKSPACE_DRAFT_PREFIX}${String(ticketId || '').trim()}`;
-  }
-
-  function getStoredWorkspaceDraft(ticketId) {
-    if (!ticketId) return '';
-    try {
-      return localStorage.getItem(getWorkspaceDraftStorageKey(ticketId)) || '';
-    } catch (_error) {
-      return '';
-    }
-  }
-
   function hasUnsavedWorkspaceComposerChanges(nextTicketId) {
-    if (!workspaceComposerText || !workspaceComposerTicketId) return false;
-    if (!workspaceComposerText.value.trim()) return false;
-    if (String(nextTicketId || '').trim() === String(workspaceComposerTicketId || '').trim()) return false;
-    const stored = getStoredWorkspaceDraft(workspaceComposerTicketId).trim();
-    return workspaceComposerText.value.trim() !== stored;
+    return dialogsWorkspaceRuntime?.hasUnsavedWorkspaceComposerChanges(nextTicketId) === true;
   }
 
   function confirmWorkspaceTicketSwitch(nextTicketId) {
-    if (!hasUnsavedWorkspaceComposerChanges(nextTicketId)) return true;
-    const accepted = window.confirm('Есть несохранённые изменения в черновике. Сохранить текущий черновик перед переключением диалога?');
-    if (accepted) {
-      saveWorkspaceDraft(workspaceComposerTicketId, workspaceComposerText?.value || '', { reason: 'manual' });
-    }
-    return accepted;
+    return dialogsWorkspaceRuntime?.confirmWorkspaceTicketSwitch(nextTicketId) !== false;
   }
 
   function updateWorkspaceDraftState(text) {
-    if (!workspaceComposerDraftState) return;
-    workspaceComposerDraftState.textContent = text || 'Черновик не сохранён';
+    dialogsWorkspaceRuntime?.updateWorkspaceDraftState(text);
   }
 
   function saveWorkspaceDraft(ticketId, message, options = {}) {
-    if (!ticketId || !workspaceComposerText) return;
-    const value = String(message || '').trim();
-    const storageKey = getWorkspaceDraftStorageKey(ticketId);
-    try {
-      if (!value) {
-        localStorage.removeItem(storageKey);
-        updateWorkspaceDraftState('Черновик очищен');
-      } else {
-        localStorage.setItem(storageKey, value);
-        workspaceDraftLastSavedValue = value;
-        if (!options.silent) {
-          updateWorkspaceDraftState(`Черновик сохранён · ${new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`);
-        }
-        const now = Date.now();
-        const shouldSendDraftTelemetry = options.reason === 'manual'
-          || (options.reason === 'autosave' && now - workspaceDraftLastTelemetryAt >= WORKSPACE_DRAFT_TELEMETRY_MIN_INTERVAL_MS);
-        if (shouldSendDraftTelemetry) {
-          workspaceDraftLastTelemetryAt = now;
-          emitWorkspaceTelemetry('workspace_draft_saved', {
-            ticketId,
-            reason: options.reason || 'manual',
-            length: value.length,
-          });
-        }
-      }
-    } catch (_error) {
-      updateWorkspaceDraftState('Не удалось сохранить черновик');
-    }
+    dialogsWorkspaceRuntime?.saveWorkspaceDraft(ticketId, message, options);
   }
 
   function restoreWorkspaceDraft(ticketId) {
-    if (!ticketId || !workspaceComposerText) return;
-    const storageKey = getWorkspaceDraftStorageKey(ticketId);
-    try {
-      const stored = localStorage.getItem(storageKey);
-      workspaceComposerText.value = stored || '';
-      workspaceDraftLastSavedValue = workspaceComposerText.value.trim();
-      if (stored) {
-        updateWorkspaceDraftState('Черновик восстановлен');
-        emitWorkspaceTelemetry('workspace_draft_restored', {
-          ticketId,
-          length: stored.length,
-        });
-      } else {
-        updateWorkspaceDraftState('Черновик не сохранён');
-      }
-    } catch (_error) {
-      workspaceComposerText.value = '';
-      workspaceDraftLastSavedValue = '';
-      updateWorkspaceDraftState('Не удалось загрузить черновик');
-    }
+    dialogsWorkspaceRuntime?.restoreWorkspaceDraft(ticketId);
   }
 
   function scheduleWorkspaceDraftAutosave() {
-    if (!workspaceComposerTicketId || !workspaceComposerText) return;
-    const value = workspaceComposerText.value.trim();
-    if (workspaceDraftAutosaveTimer) {
-      window.clearTimeout(workspaceDraftAutosaveTimer);
-    }
-    workspaceDraftAutosaveTimer = window.setTimeout(() => {
-      if (value === workspaceDraftLastSavedValue) return;
-      saveWorkspaceDraft(workspaceComposerTicketId, workspaceComposerText.value, { reason: 'autosave' });
-    }, WORKSPACE_DRAFT_AUTOSAVE_DELAY_MS);
+    dialogsWorkspaceRuntime?.scheduleWorkspaceDraftAutosave();
   }
 
   function appendWorkspaceMessage(message) {
-    if (!workspaceMessagesList) return;
-    workspaceMessagesList.classList.remove('d-none');
-    workspaceMessagesList.insertAdjacentHTML(
-      'beforeend',
-      renderWorkspaceMessageItem(message),
-    );
-    if (workspaceMessagesState) {
-      workspaceMessagesState.classList.add('d-none');
-      workspaceMessagesState.textContent = '';
-    }
+    dialogsWorkspaceRuntime?.appendWorkspaceMessage(message);
   }
 
   function buildMacroGovernanceMeta(template) {
@@ -4121,60 +4043,15 @@
   }
 
   async function sendWorkspaceReply() {
-    if (!workspaceComposerText || !workspaceComposerSend || !workspaceComposerTicketId) return;
-    const message = workspaceComposerText.value.trim();
-    const replyToTelegramId = Number.isFinite(Number(activeWorkspaceReplyToTelegramId))
-      ? Number(activeWorkspaceReplyToTelegramId)
-      : null;
-    const replyPreview = workspaceReplyTargetText ? workspaceReplyTargetText.textContent.trim() : '';
-    if (!message) return;
-    if (workspaceReadonlyMode || workspaceComposerText.disabled) {
-      notifyPermissionDenied('Отправка ответа');
-      return;
-    }
-    workspaceComposerSend.disabled = true;
-    if (workspaceComposerSaveDraft) workspaceComposerSaveDraft.disabled = true;
-    try {
-      const resp = await fetch(`/api/dialogs/${encodeURIComponent(workspaceComposerTicketId)}/reply`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message, replyToTelegramId }),
-      });
-      const data = await resp.json();
-      if (!resp.ok || !data?.success) {
-        throw new Error(data?.error || `Ошибка ${resp.status}`);
-      }
-      workspaceComposerText.value = '';
-      saveWorkspaceDraft(workspaceComposerTicketId, '');
-      resetWorkspaceReplyTarget({ reason: 'message_sent' });
-      appendWorkspaceMessage({
-        senderName: data.responsible || 'Оператор',
-        messageText: message,
-        sentAt: data.timestamp || new Date().toISOString(),
-        telegramMessageId: data.telegramMessageId || null,
-        replyPreview,
-      });
-      if (activeDialogRow) {
-        updateRowStatus(activeDialogRow, activeDialogRow.dataset.statusRaw || '', 'ожидает ответа клиента', 'waiting_client', 0);
-        updateRowResponsible(activeDialogRow, data.responsible || activeDialogRow.dataset.responsible || '');
-        applyFilters();
-      }
-    } catch (error) {
-      if (typeof showNotification === 'function') {
-        showNotification(error.message || 'Не удалось отправить сообщение', 'error');
-      }
-    } finally {
-      workspaceComposerSend.disabled = false;
-      if (workspaceComposerSaveDraft) workspaceComposerSaveDraft.disabled = false;
-    }
+    await dialogsWorkspaceRuntime?.sendWorkspaceReply();
   }
 
   function updateWorkspaceMessagesLoadMoreState() {
-    if (!workspaceMessagesLoadMoreWrap || !workspaceMessagesLoadMore) return;
-    const canLoadMore = Boolean(activeWorkspaceTicketId) && workspaceMessagesHasMore;
-    workspaceMessagesLoadMoreWrap.classList.toggle('d-none', !canLoadMore);
-    workspaceMessagesLoadMore.disabled = workspaceMessagesLoadingMore || !canLoadMore;
-    workspaceMessagesLoadMore.textContent = workspaceMessagesLoadingMore ? 'Загрузка…' : 'Загрузить ещё';
+    dialogsWorkspaceRuntime?.updateWorkspaceMessagesLoadMoreState();
+  }
+
+  function syncWorkspaceMessagesPagination(messages) {
+    dialogsWorkspaceRuntime?.syncWorkspaceMessagesPagination(messages);
   }
 
 
@@ -4239,52 +4116,11 @@
   }
 
   async function reloadWorkspaceSection(include, options = {}) {
-    if (!WORKSPACE_V1_ENABLED || !activeWorkspaceTicketId) return;
-    const channelId = activeWorkspaceChannelId;
-    setWorkspaceSectionLoading(options.stateElement, options.errorElement, options.statusText || 'Повторная загрузка...');
-    try {
-      const partialPayload = await preloadWorkspaceContract(activeWorkspaceTicketId, channelId, { include });
-      activeWorkspacePayload = mergeWorkspacePayload(activeWorkspacePayload, partialPayload, include);
-      renderWorkspaceShell(activeWorkspacePayload);
-    } catch (_error) {
-      if (options.errorElement) options.errorElement.classList.remove('d-none');
-      if (typeof showNotification === 'function') {
-        showNotification(options.failMessage || 'Не удалось обновить секцию workspace.', 'warning');
-      }
-    }
+    await dialogsWorkspaceRuntime?.reloadWorkspaceSection(include, options);
   }
 
   async function loadMoreWorkspaceMessages() {
-    if (!activeWorkspaceTicketId || !workspaceMessagesHasMore || workspaceMessagesLoadingMore) return;
-    workspaceMessagesLoadingMore = true;
-    updateWorkspaceMessagesLoadMoreState();
-    try {
-      const workspacePayload = await preloadWorkspaceContract(activeWorkspaceTicketId, activeWorkspaceChannelId, {
-        include: 'messages',
-        cursor: workspaceMessagesNextCursor,
-        limit: WORKSPACE_MESSAGES_PAGE_LIMIT,
-      });
-      const messages = workspacePayload?.messages || {};
-      const items = Array.isArray(messages.items) ? messages.items : [];
-      if (workspaceMessagesList && items.length > 0) {
-        const markup = items.map(renderWorkspaceMessageItem).join('');
-        workspaceMessagesList.insertAdjacentHTML('beforeend', markup);
-        workspaceMessagesList.classList.remove('d-none');
-      }
-      workspaceMessagesNextCursor = Number.isInteger(messages.next_cursor) ? messages.next_cursor : null;
-      workspaceMessagesHasMore = messages.has_more === true;
-      if (workspaceMessagesState && !workspaceMessagesHasMore) {
-        workspaceMessagesState.classList.remove('d-none');
-        workspaceMessagesState.textContent = 'Показаны все сообщения по диалогу.';
-      }
-    } catch (_error) {
-      if (typeof showNotification === 'function') {
-        showNotification('Не удалось догрузить сообщения workspace.', 'warning');
-      }
-    } finally {
-      workspaceMessagesLoadingMore = false;
-      updateWorkspaceMessagesLoadMoreState();
-    }
+    await dialogsWorkspaceRuntime?.loadMoreWorkspaceMessages();
   }
 
   function renderWorkspaceCategories() {
@@ -4322,7 +4158,7 @@
     }
   }
 
-  function updateWorkspaceActionButtons(conversation, permissions) {
+  function updateWorkspaceActionButtons(conversation, permissions, payload = null) {
     const statusRaw = conversation?.status || '';
     const statusKey = conversation?.statusKey || '';
     const statusLabel = conversation?.statusLabel || '';
@@ -4574,103 +4410,20 @@
     });
   }
 
-  function buildWorkspaceNavigationStateText(navigation) {
-    const safeNavigation = navigation && typeof navigation === 'object' ? navigation : null;
-    if (!safeNavigation) {
-      return 'Очередь не определена';
-    }
-    if (typeof safeNavigation.summary === 'string' && safeNavigation.summary.trim()) {
-      return safeNavigation.summary.trim();
-    }
-    const position = Number(safeNavigation.position || 0);
-    const total = Number(safeNavigation.total || 0);
-    if (position > 0 && total > 0) {
-      return `Позиция ${position} из ${total}.`;
-    }
-    return safeNavigation.enabled === false
-      ? 'Inline navigation отключена.'
-      : 'Текущий диалог открыт вне активной очереди.';
-  }
-
-  function getWorkspaceNavigationTarget(direction, navigation) {
-    const key = direction === 'previous' ? 'previous' : 'next';
-    const candidate = navigation && typeof navigation === 'object' ? navigation[key] : null;
-    const ticketId = String(candidate?.ticket_id || '').trim();
-    if (!ticketId) {
-      return null;
-    }
-    return {
-      ticketId,
-      channelId: candidate?.channel_id ?? null,
-      clientName: String(candidate?.client_name || '').trim(),
-      status: String(candidate?.status || '').trim(),
-    };
-  }
-
   function renderWorkspaceNavigation(navigation) {
-    const previous = getWorkspaceNavigationTarget('previous', navigation);
-    const next = getWorkspaceNavigationTarget('next', navigation);
-    const navigationEnabled = WORKSPACE_INLINE_NAVIGATION && navigation?.enabled !== false;
-
-    if (workspaceNavPrevBtn) {
-      workspaceNavPrevBtn.disabled = !navigationEnabled || !previous;
-      workspaceNavPrevBtn.title = previous
-        ? `${previous.ticketId}${previous.clientName ? ` · ${previous.clientName}` : ''}${previous.status ? ` · ${previous.status}` : ''}`
-        : 'Предыдущий диалог недоступен';
-    }
-    if (workspaceNavNextBtn) {
-      workspaceNavNextBtn.disabled = !navigationEnabled || !next;
-      workspaceNavNextBtn.title = next
-        ? `${next.ticketId}${next.clientName ? ` · ${next.clientName}` : ''}${next.status ? ` · ${next.status}` : ''}`
-        : 'Следующий диалог недоступен';
-    }
-    if (workspaceNavState) {
-      workspaceNavState.textContent = buildWorkspaceNavigationStateText(navigation);
-    }
+    dialogsWorkspaceRuntime?.renderWorkspaceNavigation(navigation);
   }
 
   async function navigateWorkspaceInline(direction) {
-    if (!WORKSPACE_INLINE_NAVIGATION) {
-      return;
-    }
-    const safeDirection = direction === 'previous' ? 'previous' : 'next';
-    const navigation = activeWorkspacePayload?.meta?.navigation || null;
-    const target = getWorkspaceNavigationTarget(safeDirection, navigation);
-    if (!target?.ticketId) {
-      openVisibleDialogByOffset(safeDirection === 'previous' ? -1 : 1);
-      return;
-    }
-    const row = rowsList().find((item) => String(item.dataset.ticketId || '') === target.ticketId) || null;
-    setActiveDialogRow(row, { ensureVisible: true });
-    await emitWorkspaceTelemetry('workspace_inline_navigation', {
-      ticketId: target.ticketId,
-      reason: safeDirection,
-      durationMs: Number.isFinite(Number(navigation?.position)) ? Number(navigation.position) : null,
-      contractVersion: activeWorkspacePayload?.contract_version || 'workspace.v1',
-    });
-    await openDialogWithWorkspaceFallback(target.ticketId, row, {
-      source: `inline_navigation_${safeDirection}`,
-      channelId: target.channelId,
-    });
+    await dialogsWorkspaceRuntime?.navigateWorkspaceInline(direction);
   }
 
   async function refreshActiveWorkspaceContract(options = {}) {
-    if (!activeWorkspaceTicketId) return;
-    const payload = await preloadWorkspaceContract(activeWorkspaceTicketId, activeWorkspaceChannelId, { limit: WORKSPACE_MESSAGES_PAGE_LIMIT });
-    activeWorkspacePayload = payload;
-    renderWorkspaceShell(payload);
-    if (!options.silent && typeof showNotification === 'function' && options.successMessage) {
-      showNotification(options.successMessage, 'success');
-    }
+    await dialogsWorkspaceRuntime?.refreshActiveWorkspaceContract(options);
   }
 
   function appendToWorkspaceComposer(text) {
-    if (!workspaceComposerText || !text) return;
-    const value = String(workspaceComposerText.value || '');
-    const addition = String(text).trim();
-    if (!addition) return;
-    workspaceComposerText.value = value ? `${value}\n\n${addition}` : addition;
-    workspaceComposerText.focus();
+    dialogsWorkspaceRuntime?.appendToWorkspaceComposer(text);
   }
 
   const dialogsAiRuntime = window.DialogsAiRuntime?.createRuntime({
@@ -4845,7 +4598,7 @@
       workspaceConversationMeta.textContent = `Статус: ${status} · Ответственный: ${assignee} · Создан: ${createdAt}`;
     }
     renderWorkspaceNavigation(navigation);
-    updateWorkspaceActionButtons(conversation, permissions || {});
+    updateWorkspaceActionButtons(conversation, permissions || {}, payload);
     renderWorkspaceParityBanner(parity);
 
     if (workspaceMessagesState) {
@@ -4859,10 +4612,7 @@
       workspaceMessagesList.classList.toggle('d-none', items.length === 0);
       workspaceMessagesList.innerHTML = items.map(renderWorkspaceMessageItem).join('');
     }
-    workspaceMessagesNextCursor = Number.isInteger(messages.next_cursor) ? messages.next_cursor : null;
-    workspaceMessagesHasMore = messages.has_more === true;
-    workspaceMessagesLoadingMore = false;
-    updateWorkspaceMessagesLoadMoreState();
+    syncWorkspaceMessagesPagination(messages);
     if (workspaceMessagesError) {
       workspaceMessagesError.classList.add('d-none');
     }

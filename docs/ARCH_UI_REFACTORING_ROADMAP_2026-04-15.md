@@ -1742,10 +1742,14 @@
   `dialogs-details-history-runtime.js`, а `dialogs.js` использует thin
   wrappers для history polling, archived history batches, media preview/audio
   и media send helpers;
+- ещё один support-slice внутри `workspace shell` тоже уже вынесен:
+  `dialogs-workspace-runtime.js` держит draft lifecycle, reply target,
+  messages load-more/pagination, partial section reload, inline navigation и
+  active-contract refresh helpers;
 - это означает, что следующий проход уже не должен заново разбирать
-  list/AI/details-history монолит внутри `dialogs.js`, а должен добирать
-  оставшиеся `workspace shell`, `quick actions`, `macro workflow` и
-  `notifications refresh`;
+  list/AI/details-history/workspace-support монолит внутри `dialogs.js`, а
+  должен добирать оставшиеся `workspace shell render/context`,
+  `quick actions`, `macro workflow` и `notifications refresh`;
 
 - live regression corridor для `take -> categories -> reply -> follow-up ->
   details/workspace reread -> bell ack -> next follow-up` уже нужен как
