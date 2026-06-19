@@ -15,24 +15,6 @@
       .replace(/'/g, '&#39;');
   }
 
-  function parsePlatformConfig(raw) {
-    if (!raw) {
-      return {};
-    }
-    if (typeof raw === 'string') {
-      try {
-        const value = JSON.parse(raw);
-        return value && typeof value === 'object' ? value : {};
-      } catch (error) {
-        return {};
-      }
-    }
-    if (typeof raw === 'object') {
-      return Object.assign({}, raw);
-    }
-    return {};
-  }
-
   function createRuntime(options = {}) {
     const state = {
       vkWebhook: {
@@ -74,6 +56,10 @@
 
     function parseDeliverySettings(raw) {
       return typeof options.parseDeliverySettings === 'function' ? options.parseDeliverySettings(raw) : {};
+    }
+
+    function parsePlatformConfig(raw) {
+      return typeof options.parsePlatformConfig === 'function' ? options.parsePlatformConfig(raw) : {};
     }
 
     function normalizeNetworkRoute(raw, allowDefault) {
