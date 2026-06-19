@@ -1773,13 +1773,20 @@
 
   const dialogsWorkspaceRuntime = window.DialogsWorkspaceRuntime?.createRuntime({
     elements: {
+      workspaceShell,
+      workspaceConversationTitle,
+      workspaceConversationMeta,
       workspaceComposerText,
       workspaceComposerSend,
+      workspaceComposerMediaTrigger,
       workspaceComposerMedia,
       workspaceComposerSaveDraft,
       workspaceComposerDraftState,
+      workspaceComposerMacroApply,
+      workspaceComposerMacroSelect,
       workspaceReplyTarget,
       workspaceReplyTargetText,
+      workspaceReplyTargetClear,
       workspaceMessagesState,
       workspaceMessagesList,
       workspaceMessagesLoadMoreWrap,
@@ -1788,6 +1795,19 @@
       workspaceNavPrevBtn,
       workspaceNavNextBtn,
       workspaceNavState,
+      workspaceClientState,
+      workspaceClientContent,
+      workspaceClientError,
+      workspaceHistoryState,
+      workspaceHistoryContent,
+      workspaceHistoryError,
+      workspaceRelatedEventsState,
+      workspaceRelatedEventsContent,
+      workspaceRelatedEventsError,
+      workspaceSlaState,
+      workspaceSlaContent,
+      workspaceSlaError,
+      workspaceCategoriesError,
     },
     getActiveWorkspaceState: () => ({
       ticketId: activeWorkspaceTicketId,
@@ -1803,6 +1823,45 @@
     draftStoragePrefix: STORAGE_WORKSPACE_DRAFT_PREFIX,
     draftAutosaveDelay: WORKSPACE_DRAFT_AUTOSAVE_DELAY_MS,
     draftTelemetryMinInterval: WORKSPACE_DRAFT_TELEMETRY_MIN_INTERVAL_MS,
+    escapeHtml,
+    formatWorkspaceDateTime,
+    renderWorkspaceSimpleList,
+    getActiveDialogContext: () => activeDialogContext,
+    setActiveDialogContext: (context) => {
+      activeDialogContext = context && typeof context === 'object' ? context : activeDialogContext;
+    },
+    getDialogUserId,
+    operatorDisplayName: OPERATOR_DISPLAY_NAME,
+    setWorkspaceReadonlyMode,
+    resolveWorkspaceReadonlyReason,
+    normalizeCategories,
+    setSelectedCategories: (categories) => {
+      selectedCategories = categories instanceof Set ? categories : new Set();
+    },
+    setWorkspaceComposerTicketId: (ticketId) => {
+      workspaceComposerTicketId = String(ticketId || '').trim();
+    },
+    getWorkspaceComposerMeta: () => ({
+      hasActiveMacroTemplate: Boolean(activeWorkspaceMacroTemplate),
+      macroTemplatesLength: workspaceComposerMacroTemplates.length,
+    }),
+    loadWorkspaceAiSuggestions,
+    loadWorkspaceAiReview,
+    loadWorkspaceAiControl,
+    updateWorkspaceActionButtons,
+    renderWorkspaceParityBanner,
+    renderWorkspaceClientProfile,
+    bindWorkspaceContextDisclosureTelemetry,
+    renderWorkspaceCategories,
+    emitWorkspaceProfileGapTelemetry,
+    emitWorkspaceContextSourceGapTelemetry,
+    emitWorkspaceContextAttributePolicyGapTelemetry,
+    emitWorkspaceContextBlockGapTelemetry,
+    emitWorkspaceContextContractGapTelemetry,
+    emitWorkspaceSlaPolicyGapTelemetry,
+    emitWorkspaceParityGapTelemetry,
+    resolveWorkspaceSlaBadgeClass,
+    formatWorkspaceSlaRemaining,
     emitWorkspaceTelemetry,
     renderWorkspaceMessageItem,
     mergeWorkspacePayload,
@@ -4546,193 +4605,7 @@
   }
 
   function renderWorkspaceShell(payload) {
-    if (!workspaceShell) return;
-    workspaceShell.classList.remove('d-none');
-
-    const conversation = payload?.conversation || {};
-    const messages = payload?.messages || {};
-    const context = payload?.context || {};
-    const sla = payload?.sla || {};
-    const permissions = payload?.permissions;
-    const composer = payload?.composer || {};
-    const parity = payload?.meta?.parity || null;
-    const navigation = payload?.meta?.navigation || null;
-    const workspaceClient = context?.client && typeof context.client === 'object' ? context.client : {};
-
-    activeDialogContext = {
-      clientName: String(workspaceClient?.name || conversation?.clientName || conversation?.username || activeDialogContext.clientName || '—').trim() || '—',
-      clientUserId: String(workspaceClient?.id || getDialogUserId(conversation) || activeDialogContext.clientUserId || '').trim(),
-      operatorName: String(conversation?.responsible || OPERATOR_DISPLAY_NAME || activeDialogContext.operatorName || 'Оператор').trim() || 'Оператор',
-      channelName: String(conversation?.channelName || workspaceClient?.channel || activeDialogContext.channelName || '—').trim() || '—',
-      business: String(conversation?.business || workspaceClient?.business || activeDialogContext.business || '—').trim() || '—',
-      location: String(workspaceClient?.location || conversation?.locationName || conversation?.city || activeDialogContext.location || '—').trim() || '—',
-      status: String(conversation?.statusLabel || conversation?.status || activeDialogContext.status || '—').trim() || '—',
-      createdAt: formatWorkspaceDateTime(conversation?.createdAt || conversation?.created_at || activeDialogContext.createdAt || '—'),
-    };
-
-    const readonlyReason = resolveWorkspaceReadonlyReason(permissions);
-    setWorkspaceReadonlyMode(Boolean(readonlyReason), readonlyReason);
-    selectedCategories = new Set(normalizeCategories(conversation.categoriesSafe || conversation.categories || activeDialogRow?.dataset?.categories || ''));
-    resetWorkspaceReplyTarget({ emitTelemetry: false });
-    workspaceComposerTicketId = String(conversation.ticketId || '').trim();
-    restoreWorkspaceDraft(workspaceComposerTicketId);
-    loadWorkspaceAiSuggestions(workspaceComposerTicketId);
-    loadWorkspaceAiReview(workspaceComposerTicketId);
-    loadWorkspaceAiControl(workspaceComposerTicketId);
-    const canReplyInWorkspace = permissions && permissions.can_reply === true && !workspaceReadonlyMode;
-    if (workspaceComposerText) workspaceComposerText.disabled = !canReplyInWorkspace;
-    if (workspaceComposerSend) workspaceComposerSend.disabled = !canReplyInWorkspace;
-    if (workspaceComposerMediaTrigger) workspaceComposerMediaTrigger.disabled = !canReplyInWorkspace || composer.media_supported === false;
-    if (workspaceComposerSaveDraft) workspaceComposerSaveDraft.disabled = !canReplyInWorkspace;
-    if (workspaceComposerMacroApply) workspaceComposerMacroApply.disabled = !canReplyInWorkspace || !activeWorkspaceMacroTemplate;
-    if (workspaceComposerMacroSelect) workspaceComposerMacroSelect.disabled = !canReplyInWorkspace || workspaceComposerMacroTemplates.length === 0;
-    if (workspaceReplyTargetClear) workspaceReplyTargetClear.disabled = !canReplyInWorkspace || composer.reply_target_supported === false;
-
-    if (workspaceConversationTitle) {
-      workspaceConversationTitle.textContent = `Диалог #${conversation.ticketId || '—'}`;
-    }
-    if (workspaceConversationMeta) {
-      const status = conversation.statusLabel || conversation.status || '—';
-      const assignee = conversation.responsible || 'без ответственного';
-      const createdAt = formatWorkspaceDateTime(conversation.createdAt || conversation.created_at);
-      workspaceConversationMeta.textContent = `Статус: ${status} · Ответственный: ${assignee} · Создан: ${createdAt}`;
-    }
-    renderWorkspaceNavigation(navigation);
-    updateWorkspaceActionButtons(conversation, permissions || {}, payload);
-    renderWorkspaceParityBanner(parity);
-
-    if (workspaceMessagesState) {
-      workspaceMessagesState.classList.toggle('d-none', Array.isArray(messages.items) && messages.items.length > 0);
-      workspaceMessagesState.textContent = Array.isArray(messages.items) && messages.items.length > 0
-        ? ''
-        : 'Сообщения отсутствуют или ещё не загружены.';
-    }
-    if (workspaceMessagesList) {
-      const items = Array.isArray(messages.items) ? messages.items : [];
-      workspaceMessagesList.classList.toggle('d-none', items.length === 0);
-      workspaceMessagesList.innerHTML = items.map(renderWorkspaceMessageItem).join('');
-    }
-    syncWorkspaceMessagesPagination(messages);
-    if (workspaceMessagesError) {
-      workspaceMessagesError.classList.add('d-none');
-    }
-
-    const client = context.client;
-    if (client && Object.keys(client).length) {
-      if (workspaceClientState) workspaceClientState.classList.add('d-none');
-      if (workspaceClientError) workspaceClientError.classList.add('d-none');
-      if (workspaceClientContent) {
-        workspaceClientContent.classList.remove('d-none');
-        workspaceClientContent.innerHTML = renderWorkspaceClientProfile(client, context);
-        bindWorkspaceContextDisclosureTelemetry(workspaceClientContent);
-      }
-    } else {
-      if (workspaceClientState) workspaceClientState.classList.add('d-none');
-      if (workspaceClientContent) workspaceClientContent.classList.add('d-none');
-      if (workspaceClientError) workspaceClientError.classList.remove('d-none');
-    }
-
-    const contextHistory = Array.isArray(context.history) ? context.history : null;
-    if (contextHistory) {
-      if (workspaceHistoryState) workspaceHistoryState.classList.add('d-none');
-      if (workspaceHistoryError) workspaceHistoryError.classList.add('d-none');
-      if (workspaceHistoryContent) {
-        workspaceHistoryContent.classList.remove('d-none');
-        workspaceHistoryContent.innerHTML = renderWorkspaceSimpleList(contextHistory, (item) => {
-          const ticketId = escapeHtml(item.ticket_id || item.ticketId || '—');
-          const status = escapeHtml(item.status || '—');
-          const createdAt = escapeHtml(formatWorkspaceDateTime(item.created_at || item.createdAt));
-          const problem = escapeHtml(item.problem || 'Без описания');
-          return `<div><strong>#${ticketId}</strong> · <span class="text-muted">${status}</span></div><div class="text-muted">${createdAt}</div><div>${problem}</div>`;
-        });
-      }
-    } else {
-      if (workspaceHistoryState) workspaceHistoryState.classList.add('d-none');
-      if (workspaceHistoryContent) workspaceHistoryContent.classList.add('d-none');
-      if (workspaceHistoryError) workspaceHistoryError.classList.remove('d-none');
-    }
-
-    const relatedEvents = Array.isArray(context.related_events) ? context.related_events : null;
-    if (relatedEvents) {
-      if (workspaceRelatedEventsState) workspaceRelatedEventsState.classList.add('d-none');
-      if (workspaceRelatedEventsError) workspaceRelatedEventsError.classList.add('d-none');
-      if (workspaceRelatedEventsContent) {
-        workspaceRelatedEventsContent.classList.remove('d-none');
-        workspaceRelatedEventsContent.innerHTML = renderWorkspaceSimpleList(relatedEvents, (item) => {
-          const actor = escapeHtml(item.actor || 'Система');
-          const type = escapeHtml(item.type || 'event');
-          const timestamp = escapeHtml(formatWorkspaceDateTime(item.timestamp));
-          const detail = escapeHtml(item.detail || '—');
-          return `<div><strong>${actor}</strong> · <span class="text-muted">${type}</span></div><div class="text-muted">${timestamp}</div><div>${detail}</div>`;
-        });
-      }
-    } else {
-      if (workspaceRelatedEventsState) workspaceRelatedEventsState.classList.add('d-none');
-      if (workspaceRelatedEventsContent) workspaceRelatedEventsContent.classList.add('d-none');
-      if (workspaceRelatedEventsError) workspaceRelatedEventsError.classList.remove('d-none');
-    }
-
-    renderWorkspaceCategories();
-    if (workspaceCategoriesError) {
-      workspaceCategoriesError.classList.add('d-none');
-    }
-    emitWorkspaceProfileGapTelemetry(context, conversation);
-    emitWorkspaceContextSourceGapTelemetry(context, conversation);
-    emitWorkspaceContextAttributePolicyGapTelemetry(context, conversation);
-    emitWorkspaceContextBlockGapTelemetry(context, conversation);
-    emitWorkspaceContextContractGapTelemetry(context, conversation);
-    emitWorkspaceSlaPolicyGapTelemetry(sla, conversation);
-    emitWorkspaceParityGapTelemetry(parity, conversation);
-
-    if (sla && sla.state && sla.state !== 'unknown') {
-      if (workspaceSlaState) workspaceSlaState.classList.add('d-none');
-      if (workspaceSlaError) workspaceSlaError.classList.add('d-none');
-      if (workspaceSlaContent) {
-        const badgeClass = resolveWorkspaceSlaBadgeClass(sla.state);
-        const remaining = formatWorkspaceSlaRemaining(sla.minutes_left);
-        const policy = sla.policy && typeof sla.policy === 'object' ? sla.policy : null;
-        const policyIssues = Array.isArray(policy?.issues) ? policy.issues.filter(Boolean) : [];
-        const policyBadgeClass = (() => {
-          switch (String(policy?.status || '').toLowerCase()) {
-            case 'ready':
-              return 'text-bg-success';
-            case 'disabled':
-              return 'text-bg-secondary';
-            case 'invalid_utc':
-            case 'attention':
-              return 'text-bg-warning';
-            default:
-              return 'text-bg-light border';
-          }
-        })();
-        const policyMeta = [];
-        if (policy?.mode) policyMeta.push(`mode: ${String(policy.mode).toLowerCase()}`);
-        if (policy?.route) policyMeta.push(`route: ${String(policy.route)}`);
-        if (policy?.recommended_assignee) policyMeta.push(`owner: ${String(policy.recommended_assignee)}`);
-        if (policy?.evaluated_at_utc) policyMeta.push(`UTC ${formatWorkspaceDateTime(policy.evaluated_at_utc)}`);
-        const policyMarkup = policy
-          ? `<div class="border rounded px-2 py-2 mt-2 bg-light-subtle">
-              <div class="d-flex flex-wrap align-items-center gap-2">
-                <span class="fw-semibold small">SLA policy</span>
-                <span class="badge ${policyBadgeClass}">${escapeHtml(String(policy.status || 'unknown'))}</span>
-                ${policy.action ? `<span class="badge text-bg-light border">${escapeHtml(String(policy.action))}</span>` : ''}
-              </div>
-              ${policyMeta.length ? `<div class="small text-muted mt-1">${escapeHtml(policyMeta.join(' · '))}</div>` : ''}
-              ${policy.summary ? `<div class="small text-muted mt-1">${escapeHtml(String(policy.summary))}</div>` : ''}
-              ${policyIssues.length ? `<div class="small text-warning mt-1">Issues: ${escapeHtml(policyIssues.join(', '))}</div>` : ''}
-            </div>`
-          : '';
-        const escalationHint = sla.escalation_required === true
-          ? '<div class="small text-danger mt-1">Требуется эскалация: окно SLA критичное.</div>'
-          : '';
-        workspaceSlaContent.classList.remove('d-none');
-        workspaceSlaContent.innerHTML = `<div class="small">Состояние: <span class="badge ${badgeClass}">${escapeHtml(sla.state)}</span></div><div class="small text-muted">До дедлайна: ${escapeHtml(remaining)}</div><div class="small text-muted">Дедлайн: ${escapeHtml(formatWorkspaceDateTime(sla.deadline_at))}</div>${escalationHint}${policyMarkup}`;
-      }
-    } else {
-      if (workspaceSlaState) workspaceSlaState.classList.add('d-none');
-      if (workspaceSlaContent) workspaceSlaContent.classList.add('d-none');
-      if (workspaceSlaError) workspaceSlaError.classList.remove('d-none');
-    }
+    dialogsWorkspaceRuntime?.renderWorkspaceShell(payload);
   }
 
   function normalizeWorkspaceContextViolationDetails(details) {

@@ -1746,9 +1746,12 @@
   `dialogs-workspace-runtime.js` держит draft lifecycle, reply target,
   messages load-more/pagination, partial section reload, inline navigation и
   active-contract refresh helpers;
+- поверх этого в тот же runtime уже перенесён и `renderWorkspaceShell`, так
+  что `dialogs.js` больше не является primary owner для workspace shell
+  messages/history/events/SLA rendering;
 - это означает, что следующий проход уже не должен заново разбирать
-  list/AI/details-history/workspace-support монолит внутри `dialogs.js`, а
-  должен добирать оставшиеся `workspace shell render/context`,
+  list/AI/details-history/workspace-support/shell-render монолит внутри
+  `dialogs.js`, а должен добирать оставшиеся `workspace client/context render`,
   `quick actions`, `macro workflow` и `notifications refresh`;
 
 - live regression corridor для `take -> categories -> reply -> follow-up ->
