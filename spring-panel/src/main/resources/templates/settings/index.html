@@ -6826,6 +6826,7 @@
     <script src="/js/settings-channel-templates-runtime.js"></script>
     <script src="/js/settings-channels-bot-runtime.js"></script>
     <script src="/js/settings-channel-editor-shell-runtime.js"></script>
+    <script src="/js/settings-channel-editor-persistence-runtime.js"></script>
   <script src="/js/settings-channel-config-runtime.js"></script>
   <script src="/js/settings-channels-catalog-runtime.js"></script>
     <script src="/js/settings-integration-network-runtime.js"></script>
@@ -17804,9 +17805,9 @@
     formatBotLabel,
     parseDeliverySettings,
     parsePlatformConfig,
-    normalizeChannelWorkingHours,
-    defaultChannelPanelNotifications,
-    applyRouteToInputs,
+    normalizeChannelWorkingHours: (...args) => settingsIntegrationNetwork.normalizeChannelWorkingHours(...args),
+    defaultChannelPanelNotifications: (...args) => settingsChannelConfig.defaultChannelPanelNotifications(...args),
+    applyRouteToInputs: (...args) => settingsIntegrationNetwork.applyRouteToInputs(...args),
     updateBotRefreshControl: (...args) => settingsChannelsBotRuntime.updateBotRefreshControl(...args),
     updateChannelEditorToken: (...args) => settingsChannelsBotRuntime.updateChannelEditorToken(...args),
     updateTestRecipientState: (...args) => settingsChannelsBotRuntime.updateTestRecipientState(...args),
@@ -17817,6 +17818,20 @@
     loadChannels: (...args) => settingsChannelsCatalog.loadChannels(...args),
     showPopup: (message) => showPopup(message),
     populateChannelEditor: (channel) => populateChannelEditor(channel),
+  });
+  const settingsChannelEditorPersistence = window.SettingsChannelEditorPersistenceRuntime?.mount({
+    getChannelsRegistry: () => CHANNELS_REGISTRY,
+    getChannelEditorState: () => channelEditorState,
+    parseDeliverySettings,
+    parsePlatformConfig,
+    parseQuestionsCfg,
+    normalizeChannelWorkingHours: (...args) => settingsIntegrationNetwork.normalizeChannelWorkingHours(...args),
+    collectRouteFromInputs: (...args) => settingsIntegrationNetwork.collectRouteFromInputs(...args),
+    buildQuestionsCfgPayload: (existingQuestionsCfg) => buildChannelQuestionsCfgPayload(existingQuestionsCfg),
+    loadChannels: (...args) => settingsChannelsCatalog.loadChannels(...args),
+    requestSettingsModalClose: (source) => requestSettingsModalClose(source),
+    showPopup: (message) => showPopup(message),
+    confirmDialog: (message) => window.confirm(message),
   });
   integrationNetworkProfilesData = Array.isArray(INTEGRATION_NETWORK_PROFILES_INITIAL)
     ? INTEGRATION_NETWORK_PROFILES_INITIAL.map((item) => settingsIntegrationNetwork.normalizeIntegrationNetworkProfile(item))
@@ -18439,96 +18454,7 @@
   const buildTemplateOptions = (...args) => settingsChannelTemplates.buildTemplateOptions(...args);
   const TEMPLATE_SUMMARY_BUILDERS = settingsChannelTemplates.getTemplateSummaryBuilders();
 
-  async function saveChannel(id) {
-    const channelName = channelEditorNameInput?.value?.trim() || '';
-    if (!channelName) {
-      showPopup('Укажите название для панели.');
-      return;
-    }
-
-    const newToken = channelEditorNewTokenInput?.value?.trim() || '';
-
-    const body = {
-      channel_name: channelName,
-      is_active: channelEditorActiveInput?.checked ? 1 : 0,
-    };
-
-    if (newToken) {
-      body.token = newToken;
-    }
-
-    if (channelEditorSupportChatInput) {
-      const supportValue = channelEditorSupportChatInput.value.trim();
-      body.support_chat_id = supportValue || null;
-    }
-
-    const currentChannel = CHANNELS_REGISTRY.get(String(id));
-    const channelRoute = collectRouteFromInputs('channel');
-    const workingHoursStart = Number.parseInt(channelEditorWorkingHoursStartInput?.value || '9', 10);
-    const workingHoursEnd = Number.parseInt(channelEditorWorkingHoursEndInput?.value || '18', 10);
-    if (channelRoute.mode === 'profile' && !(channelRoute.profile_ids || []).length) {
-      showPopup('Для бота в режиме «Профиль» выберите хотя бы один профиль failover.');
-      return;
-    }
-    if (channelRoute.mode === 'proxy' && channelRoute.proxy.scheme === 'vless' && !String(channelRoute.proxy.token || '').trim()) {
-      showPopup('Для VLESS-маршрута бота заполните token.');
-      return;
-    }
-    if (!Number.isFinite(workingHoursStart) || workingHoursStart < 0 || workingHoursStart > 23) {
-      showPopup('Начало рабочего времени должно быть в диапазоне от 0 до 23.');
-      return;
-    }
-    if (!Number.isFinite(workingHoursEnd) || workingHoursEnd < 1 || workingHoursEnd > 24) {
-      showPopup('Конец рабочего времени должен быть в диапазоне от 1 до 24.');
-      return;
-    }
-    if (workingHoursEnd <= workingHoursStart) {
-      showPopup('Конец рабочего времени должен быть позже начала.');
-      return;
-    }
-    const workingHours = normalizeChannelWorkingHours({
-      start_hour: workingHoursStart,
-      end_hour: workingHoursEnd,
-    });
-    const existingDeliverySettings = parseDeliverySettings(currentChannel?.delivery_settings);
-
-    body.delivery_settings = {
-      ...existingDeliverySettings,
-      broadcast_channel_id: channelEditorBroadcastChannelInput?.value?.trim() || null,
-      schedule_to_group: channelEditorScheduleToGroupInput?.checked ?? true,
-      schedule_to_channel: channelEditorScheduleToChannelInput?.checked ?? false,
-      schedule_simultaneous: channelEditorScheduleSimultaneousInput?.checked ?? false,
-      network_route: channelRoute,
-      working_hours: workingHours,
-    };
-
-    const currentPlatform = String(currentChannel?.platform || '').toLowerCase();
-    const currentPlatformConfig = parsePlatformConfig(currentChannel?.platform_config);
-    if (currentPlatform === 'telegram') {
-      const telegramBaseUrl = channelEditorTelegramBaseUrlInput?.value?.trim() || '';
-      body.platform_config = {
-        ...currentPlatformConfig,
-        base_url: telegramBaseUrl || null,
-      };
-    } else if (currentPlatform === 'max') {
-      const maxSecret = channelEditorMaxWebhookSecretInput?.value?.trim() || '';
-      body.platform_config = {
-        ...currentPlatformConfig,
-        secret: maxSecret || null,
-      };
-    }
-    const existingQuestionsCfg = parseQuestionsCfg(currentChannel?.questions_cfg);
-    if (channelEditorQuestionSelect && !channelEditorQuestionSelect.disabled) {
-      const value = channelEditorQuestionSelect.value || '';
-      body.question_template_id = value;
-    }
-    if (channelEditorRatingSelect && !channelEditorRatingSelect.disabled) {
-      const value = channelEditorRatingSelect.value || '';
-      body.rating_template_id = value;
-    }
-    if (channelEditorAutoSelect && !channelEditorAutoSelect.disabled) {
-      body.auto_action_template_id = channelEditorAutoSelect.value || '';
-    }
+  function buildChannelQuestionsCfgPayload(existingQuestionsCfg) {
     const disabledStatus = Number.parseInt(channelEditorPublicFormDisabledStatusInput?.value || existingQuestionsCfg.disabledStatus || 404, 10);
     const rateLimitWindowRaw = Number.parseInt(channelEditorPublicFormRateLimitWindowSecondsInput?.value || existingQuestionsCfg.rateLimitWindowSeconds || 60, 10);
     const rateLimitMaxRaw = Number.parseInt(channelEditorPublicFormRateLimitMaxRequestsInput?.value || existingQuestionsCfg.rateLimitMaxRequests || 5, 10);
@@ -18547,7 +18473,7 @@
       ? 'online_only_fallback_all'
       : 'all';
     channelEditorState.publicFormFields = collectPublicFormFieldsFromEditor();
-    body.questions_cfg = {
+    return {
       ...existingQuestionsCfg,
       schemaVersion: Math.max(1, Number.parseInt(existingQuestionsCfg.schemaVersion || 1, 10) || 1),
       enabled: channelEditorPublicFormEnabledInput?.checked !== false,
@@ -18580,58 +18506,6 @@
         order: index + 1,
       })),
     };
-
-    async function parseJsonSafe(response) {
-      try {
-        return await response.json();
-      } catch (error) {
-        return {};
-      }
-    }
-
-    async function saveChannelRequest(method) {
-      const resp = await fetch(`/api/channels/${id}`, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      return { resp, data: await parseJsonSafe(resp) };
-    }
-
-    try {
-      let result = await saveChannelRequest('POST');
-      if (result.resp.status === 405) {
-        result = await saveChannelRequest('POST');
-      }
-      if (result.resp.status === 405) {
-        result = await saveChannelRequest('PUT');
-      }
-      if (!result.resp.ok || result.data.success === false) {
-        throw new Error(result.data.error || ('HTTP ' + result.resp.status));
-      }
-      showPopup('Настройки канала сохранены.');
-      if (channelEditorNewTokenInput) {
-        channelEditorNewTokenInput.value = '';
-      }
-      await loadChannels();
-    } catch (error) {
-      showPopup('Ошибка сохранения: ' + error.message);
-    }
-  }
-
-  async function removeChannel(id) {
-    if (!confirm('Удалить канал? Действие необратимо.')) return;
-    try {
-      const resp = await fetch(`/api/channels/${id}`, { method: 'DELETE' });
-      const data = await resp.json();
-      if (!resp.ok || data.success === false) throw new Error(data.error || ('HTTP ' + resp.status));
-      await loadChannels();
-      if (channelEditorState.channelId === id) {
-        requestSettingsModalClose(channelEditorDeleteBtn);
-      }
-    } catch (error) {
-      showPopup('Ошибка удаления: ' + error.message);
-    }
   }
 
   function initChannelsManagement() {
@@ -18718,16 +18592,8 @@
     channelEditorCopyTokenBtn?.addEventListener('click', () => {
       copyChannelToken();
     });
-    channelEditorSaveBtn?.addEventListener('click', () => {
-      if (channelEditorState.channelId !== null) {
-        saveChannel(channelEditorState.channelId);
-      }
-    });
-    channelEditorDeleteBtn?.addEventListener('click', () => {
-      if (channelEditorState.channelId !== null) {
-        removeChannel(channelEditorState.channelId);
-      }
-    });
+    channelEditorSaveBtn?.addEventListener('click', () => settingsChannelEditorPersistence.handleSaveClick());
+    channelEditorDeleteBtn?.addEventListener('click', () => settingsChannelEditorPersistence.handleDeleteClick());
   }
 
   window.addChannel = addChannel;
