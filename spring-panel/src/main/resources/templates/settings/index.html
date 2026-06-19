@@ -7063,6 +7063,7 @@
     <script src="/js/settings-page-shell.js"></script>
     <script src="/js/settings-appearance-runtime.js"></script>
     <script src="/js/settings-channels-bot-runtime.js"></script>
+    <script src="/js/settings-channel-editor-shell-runtime.js"></script>
     <script src="/js/settings-channels-catalog-runtime.js"></script>
     <script src="/js/settings-integration-network-runtime.js"></script>
     <script src="/js/settings-locations-iiko-runtime.js"></script>
@@ -17969,57 +17970,6 @@
 
   let channelsInitialized = false;
 
-  function updateChannelEditorStatusLabel(isActive) {
-    if (channelEditorStatusLabel) {
-      channelEditorStatusLabel.textContent = isActive ? 'Канал активен' : 'Канал выключен';
-    }
-  }
-
-  function updateChannelEditorSummary(field, value) {
-    const builder = TEMPLATE_SUMMARY_BUILDERS[field];
-    const summaryEl = channelEditorSummaries[field];
-    if (typeof builder === 'function' && summaryEl) {
-      summaryEl.textContent = builder(value || '');
-    }
-  }
-
-  function configureChannelEditorSelect(selectEl, templates, selectedId, fallbackId, field) {
-    if (!selectEl) return;
-    selectEl.innerHTML = buildTemplateOptions(templates, selectedId || fallbackId);
-    selectEl.disabled = !templates.length;
-    updateChannelEditorSummary(field, selectEl.value || '');
-  }
-
-  function updateSupportChatHint(value, options = {}) {
-    if (!channelEditorSupportHint) return;
-    const pending = Boolean(options.pending);
-    if (pending && value) {
-      channelEditorSupportHint.textContent = `Будет сохранён ID: ${value}`;
-      return;
-    }
-    if (value) {
-      channelEditorSupportHint.textContent = `Текущее значение: ${value}`;
-    } else {
-      channelEditorSupportHint.textContent = 'ID группы не задан. Добавьте бота в чат или укажите значение вручную.';
-    }
-  }
-
-  function updateChannelPanelNotificationRoutingState() {
-    const targetMode = String(channelEditorPanelNotifTargetModeInput?.value || 'all_operators').trim().toLowerCase();
-    const usesDepartment = targetMode !== 'all_operators';
-    const usesEmployees = targetMode === 'employees_only';
-    const usesExclude = targetMode === 'department_except';
-    if (channelEditorPanelNotifDepartmentInput) {
-      channelEditorPanelNotifDepartmentInput.disabled = !usesDepartment;
-    }
-    if (channelEditorPanelNotifEmployeesInput) {
-      channelEditorPanelNotifEmployeesInput.disabled = !usesEmployees;
-    }
-    if (channelEditorPanelNotifExcludeInput) {
-      channelEditorPanelNotifExcludeInput.disabled = !usesExclude;
-    }
-  }
-
   function parseDeliverySettings(raw) {
     if (!raw) return {};
     if (typeof raw === 'string') {
@@ -18067,7 +18017,7 @@
     normalizeNetworkRoute: (...args) => settingsIntegrationNetwork.normalizeNetworkRoute(...args),
     updateChannelsManageOverview: (...args) => settingsIntegrationNetwork.updateChannelsManageOverview(...args),
     refreshAllBotRuntimeStatuses: (...args) => settingsChannelsBotRuntime.refreshAllBotRuntimeStatuses(...args),
-    refreshChannelEditorIfOpen,
+    refreshChannelEditorIfOpen: (...args) => settingsChannelEditorShell.refreshChannelEditorIfOpen(...args),
     requestSettingsModalClose: (source) => requestSettingsModalClose(source),
     showPopup: (message) => showPopup(message),
     showNotification: typeof showNotification === 'function'
@@ -18082,6 +18032,35 @@
     loadChannels: (...args) => settingsChannelsCatalog.loadChannels(...args),
     showPopup: (message) => showPopup(message),
     getCookieValue: (name) => getCookieValue(name),
+  });
+  const settingsChannelEditorShell = window.SettingsChannelEditorShellRuntime?.mount({
+    getChannelsRegistry: () => CHANNELS_REGISTRY,
+    getChannelEditorState: () => channelEditorState,
+    getQuestionTemplates: () => QUESTION_TEMPLATES,
+    getRatingTemplates: () => RATING_TEMPLATES,
+    getAutoActionTemplates: () => AUTO_ACTION_TEMPLATES,
+    getDefaultQuestionTemplateId: () => DEFAULT_QUESTION_TEMPLATE_ID,
+    getDefaultRatingTemplateId: () => DEFAULT_RATING_TEMPLATE_ID,
+    getDefaultAutoActionTemplateId: () => DEFAULT_AUTO_ACTION_TEMPLATE_ID,
+    getTemplateSummaryBuilders: () => TEMPLATE_SUMMARY_BUILDERS,
+    getChannelEditorSummaries: () => channelEditorSummaries,
+    buildTemplateOptions,
+    formatBotLabel,
+    parseDeliverySettings,
+    parsePlatformConfig,
+    normalizeChannelWorkingHours,
+    defaultChannelPanelNotifications,
+    applyRouteToInputs,
+    updateBotRefreshControl: (...args) => settingsChannelsBotRuntime.updateBotRefreshControl(...args),
+    updateChannelEditorToken: (...args) => settingsChannelsBotRuntime.updateChannelEditorToken(...args),
+    updateTestRecipientState: (...args) => settingsChannelsBotRuntime.updateTestRecipientState(...args),
+    setTestStatus: (...args) => settingsChannelsBotRuntime.setTestStatus(...args),
+    updateBotStatusLabel: (...args) => settingsChannelsBotRuntime.updateBotStatusLabel(...args),
+    updateBotControls: (...args) => settingsChannelsBotRuntime.updateBotControls(...args),
+    refreshBotStatus: (...args) => settingsChannelsBotRuntime.refreshBotStatus(...args),
+    loadChannels: (...args) => settingsChannelsCatalog.loadChannels(...args),
+    showPopup: (message) => showPopup(message),
+    populateChannelEditor: (channel) => populateChannelEditor(channel),
   });
   integrationNetworkProfilesData = Array.isArray(INTEGRATION_NETWORK_PROFILES_INITIAL)
     ? INTEGRATION_NETWORK_PROFILES_INITIAL.map((item) => settingsIntegrationNetwork.normalizeIntegrationNetworkProfile(item))
@@ -18128,12 +18107,13 @@
   const startBot = (...args) => settingsChannelsBotRuntime.startBot(...args);
   const stopBotForChannel = (...args) => settingsChannelsBotRuntime.stopBotForChannel(...args);
   const sendChannelTestMessage = (...args) => settingsChannelsBotRuntime.sendChannelTestMessage(...args);
-
-  function buildPublicFormUrl(channel) {
-    if (!channel?.public_id) return '';
-    return `${window.location.origin}/public/forms/${encodeURIComponent(channel.public_id)}`;
-  }
-
+  const updateChannelEditorStatusLabel = (...args) => settingsChannelEditorShell.updateChannelEditorStatusLabel(...args);
+  const updateChannelEditorSummary = (...args) => settingsChannelEditorShell.updateChannelEditorSummary(...args);
+  const configureChannelEditorSelect = (...args) => settingsChannelEditorShell.configureChannelEditorSelect(...args);
+  const updateSupportChatHint = (...args) => settingsChannelEditorShell.updateSupportChatHint(...args);
+  const updateChannelPanelNotificationRoutingState = (...args) => settingsChannelEditorShell.updateChannelPanelNotificationRoutingState(...args);
+  const populateChannelEditorShell = (...args) => settingsChannelEditorShell.populateChannelEditorShell(...args);
+  const refreshChannelEditorIfOpen = (...args) => settingsChannelEditorShell.refreshChannelEditorIfOpen(...args);
 
   function clampNumber(value, min, max) {
     const numeric = Number(value);
@@ -18639,31 +18619,6 @@
 
   function populateChannelEditor(channel) {
     channelEditorState.channelId = channel.id;
-    if (channelEditorNameInput) {
-      channelEditorNameInput.value = channel.channel_name || '';
-    }
-    if (channelEditorActiveInput) {
-      channelEditorActiveInput.checked = Boolean(channel.is_active);
-      updateChannelEditorStatusLabel(channelEditorActiveInput.checked);
-    }
-    if (channelEditorPlatformEl) {
-      channelEditorPlatformEl.textContent = channel.platformLabel;
-    }
-    if (channelEditorBotEl) {
-      channelEditorBotEl.textContent = formatBotLabel(channel);
-    }
-    updateBotRefreshControl(channel.platform === 'telegram');
-    channelEditorState.tokenVisible = false;
-    updateChannelEditorToken();
-    if (channelEditorNewTokenInput) {
-      channelEditorNewTokenInput.value = '';
-    }
-    if (channelEditorPublicIdEl) {
-      channelEditorPublicIdEl.textContent = channel.public_id || '—';
-    }
-    if (channelEditorMetaEl) {
-      channelEditorMetaEl.textContent = `ID канала: #${channel.id}`;
-    }
     if (channelEditorPublicFormEnabledInput) {
       channelEditorPublicFormEnabledInput.checked = channel.questions_cfg?.enabled !== false;
     }
@@ -18697,149 +18652,8 @@
     const cfgFields = Array.isArray(channel.questions_cfg?.fields) ? channel.questions_cfg.fields : [];
     channelEditorState.publicFormFields = cfgFields.map((field, index) => normalizePublicFormField(field, index + 1));
     renderPublicFormFieldsEditor();
-    if (channelEditorPublicLinkEl) {
-      const link = buildPublicFormUrl(channel);
-      channelEditorPublicLinkEl.textContent = link || 'Публичная ссылка появится после сохранения.';
-    }
-    configureChannelEditorSelect(channelEditorQuestionSelect, QUESTION_TEMPLATES, channel.question_template_id, DEFAULT_QUESTION_TEMPLATE_ID, 'question_template_id');
-    configureChannelEditorSelect(channelEditorRatingSelect, RATING_TEMPLATES, channel.rating_template_id, DEFAULT_RATING_TEMPLATE_ID, 'rating_template_id');
-    configureChannelEditorSelect(channelEditorAutoSelect, AUTO_ACTION_TEMPLATES, channel.auto_action_template_id, DEFAULT_AUTO_ACTION_TEMPLATE_ID, 'auto_action_template_id');
-    const platformConfig = parsePlatformConfig(channel.platform_config);
-    const supportChatValue = channel.support_chat_id ?? '';
-    const deliverySettings = parseDeliverySettings(channel.delivery_settings);
-    const workingHours = normalizeChannelWorkingHours(deliverySettings.working_hours);
-    const panelNotifications = channel.questions_cfg?.panelNotifications || defaultChannelPanelNotifications();
-    const panelRouting = panelNotifications.routing || defaultChannelPanelNotifications().routing;
-    const panelEvents = panelNotifications.events || defaultChannelPanelNotifications().events;
-    if (channelEditorSupportChatInput) {
-      channelEditorSupportChatInput.value = supportChatValue;
-    }
-    if (channelEditorBroadcastChannelInput) {
-      channelEditorBroadcastChannelInput.value = deliverySettings.broadcast_channel_id || '';
-    }
-    if (channelEditorPanelNotifNewPublicAppealInput) {
-      channelEditorPanelNotifNewPublicAppealInput.checked = panelEvents.newPublicAppeal !== false;
-    }
-    if (channelEditorPanelNotifFirstResponseOverdueInput) {
-      channelEditorPanelNotifFirstResponseOverdueInput.checked = Boolean(panelEvents.firstResponseOverdue);
-    }
-    if (channelEditorPanelNotifTargetModeInput) {
-      channelEditorPanelNotifTargetModeInput.value = panelRouting.targetMode || 'all_operators';
-    }
-    if (channelEditorPanelNotifDeliveryModeInput) {
-      channelEditorPanelNotifDeliveryModeInput.value = panelRouting.deliveryMode || 'all';
-    }
-    if (channelEditorPanelNotifDepartmentInput) {
-      channelEditorPanelNotifDepartmentInput.value = panelRouting.department || '';
-    }
-    if (channelEditorPanelNotifEmployeesInput) {
-      channelEditorPanelNotifEmployeesInput.value = Array.isArray(panelRouting.employeeUsernames)
-        ? panelRouting.employeeUsernames.join(', ')
-        : '';
-    }
-    if (channelEditorPanelNotifExcludeInput) {
-      channelEditorPanelNotifExcludeInput.value = Array.isArray(panelRouting.excludeUsernames)
-        ? panelRouting.excludeUsernames.join(', ')
-        : '';
-    }
-    if (channelEditorWorkingHoursStartInput) {
-      channelEditorWorkingHoursStartInput.value = String(workingHours.start_hour);
-    }
-    if (channelEditorWorkingHoursEndInput) {
-      channelEditorWorkingHoursEndInput.value = String(workingHours.end_hour);
-    }
-    updateChannelPanelNotificationRoutingState();
-    if (channelEditorScheduleToGroupInput) {
-      channelEditorScheduleToGroupInput.checked = Boolean(deliverySettings.schedule_to_group ?? true);
-    }
-    if (channelEditorScheduleToChannelInput) {
-      channelEditorScheduleToChannelInput.checked = Boolean(deliverySettings.schedule_to_channel);
-    }
-    if (channelEditorScheduleSimultaneousInput) {
-      channelEditorScheduleSimultaneousInput.checked = Boolean(deliverySettings.schedule_simultaneous);
-    }
-    if (channelEditorMaxWebhookSecretInput) {
-      const maxSecret = String(
-        platformConfig.secret
-          ?? platformConfig.webhook_secret
-          ?? platformConfig.webhookSecret
-          ?? ''
-      ).trim();
-      channelEditorMaxWebhookSecretInput.value = maxSecret;
-    }
-    if (channelEditorTelegramBaseUrlInput) {
-      const telegramBaseUrl = String(
-        platformConfig.base_url
-          ?? platformConfig.baseUrl
-          ?? platformConfig.api_base_url
-          ?? platformConfig.apiBaseUrl
-          ?? platformConfig.telegram_api_base_url
-          ?? platformConfig.telegramApiBaseUrl
-          ?? ''
-      ).trim().replace(/\/+$/, '').replace(/\/bot$/, '');
-      channelEditorTelegramBaseUrlInput.value = telegramBaseUrl;
-    }
-    applyRouteToInputs('channel', channel.network_route);
-    updateSupportChatHint(supportChatValue);
-    if (channelEditorTestMessageInput) {
-      channelEditorTestMessageInput.value = 'Проверка отправки из панели';
-    }
-    if (channelEditorTestTargetSelect) {
-      channelEditorTestTargetSelect.value = 'group';
-    }
-    updateTestRecipientState();
-    setTestStatus('—');
-    if (channelEditorVkBtn) {
-      channelEditorVkBtn.classList.toggle('d-none', channel.platform !== 'vk');
-    }
-    if (channelEditorTelegramBaseUrlBlock) {
-      channelEditorTelegramBaseUrlBlock.classList.toggle('d-none', channel.platform !== 'telegram');
-    }
-    if (channelEditorMaxWebhookBlock) {
-      channelEditorMaxWebhookBlock.classList.toggle('d-none', channel.platform !== 'max');
-    }
-    if (channelEditorHintEl) {
-      if (channel.platform === 'vk') {
-        const groupId = platformConfig.group_id ?? platformConfig.groupId ?? '';
-        const callbackUrl = groupId
-          ? `${window.location.origin}/webhooks/vk/${groupId}`
-          : `${window.location.origin}/webhooks/vk/<group_id>`;
-        channelEditorHintEl.textContent = `VK Callback URL: ${callbackUrl}`;
-      } else if (channel.platform === 'max') {
-        channelEditorHintEl.textContent = 'MAX работает через long polling: отдельный webhook endpoint не требуется.';
-      } else if (channel.platform === 'telegram') {
-        channelEditorHintEl.textContent = 'Если используете Bot API mirror или self-hosted endpoint, укажите его base URL ниже. Для обычного Telegram оставьте поле пустым.';
-      } else {
-        channelEditorHintEl.textContent = 'Изменения вступят в силу сразу после сохранения.';
-      }
-    }
-    updateBotStatusLabel('загрузка');
-    updateBotControls(false);
-    refreshBotStatus(channel.id);
+    populateChannelEditorShell(channel);
   }
-
-  function refreshChannelEditorIfOpen() {
-    if (!channelEditorModalEl) return;
-    const isVisible = channelEditorModalEl.classList.contains('show');
-    if (!isVisible || channelEditorState.channelId === null) {
-      return;
-    }
-    const channel = CHANNELS_REGISTRY.get(String(channelEditorState.channelId));
-    if (channel) {
-      populateChannelEditor(channel);
-    }
-  }
-
-  window.prepareChannelEditorSettingsTrigger = function prepareChannelEditorSettingsTrigger(trigger) {
-    const id = trigger instanceof HTMLElement ? trigger.getAttribute('data-channel-edit') : null;
-    const channel = id ? CHANNELS_REGISTRY.get(String(id)) : null;
-    if (!channel) {
-      showPopup('Канал не найден.');
-      return false;
-    }
-    populateChannelEditor(channel);
-    return true;
-  };
 
   function pluralize(count, forms) {
     const n = Math.abs(count) % 100;
@@ -19314,11 +19128,6 @@
     }
   }
 
-  window.resetChannelEditorSettingsModal = function resetChannelEditorSettingsModal() {
-    channelEditorState.channelId = null;
-    channelEditorState.tokenVisible = false;
-  };
-
   function initChannelsManagement() {
     if (channelsInitialized) return;
     channelsInitialized = true;
@@ -19363,41 +19172,9 @@
   }
 
   function initChannelEditorControls() {
-    channelEditorRegeneratePublicIdBtn?.addEventListener('click', async () => {
-      if (channelEditorState.channelId === null) return;
-      try {
-        const resp = await fetch(`/api/channels/${channelEditorState.channelId}/public-id/regenerate`, { method: "POST" });
-        const data = await resp.json();
-        if (!resp.ok || data.success === false) {
-          throw new Error(data.error || ('HTTP ' + resp.status));
-        }
-        showPopup('Публичная ссылка пересоздана.');
-        await loadChannels();
-      } catch (error) {
-        showPopup('Ошибка регенерации: ' + error.message);
-      }
-    });
-
-    channelEditorCopyPublicLinkBtn?.addEventListener('click', async () => {
-      const channel = channelEditorState.channelId !== null
-        ? CHANNELS_REGISTRY.get(String(channelEditorState.channelId))
-        : null;
-      const link = buildPublicFormUrl(channel);
-      if (!link) {
-        showPopup('Ссылка недоступна: сначала сохраните канал с public_id.');
-        return;
-      }
-      try {
-        await navigator.clipboard.writeText(link);
-        showPopup('Публичная ссылка скопирована.');
-      } catch (error) {
-        showPopup('Не удалось скопировать ссылку автоматически: ' + link);
-      }
-    });
-
-    channelEditorActiveInput?.addEventListener('change', () => {
-      updateChannelEditorStatusLabel(channelEditorActiveInput.checked);
-    });
+    channelEditorRegeneratePublicIdBtn?.addEventListener('click', () => settingsChannelEditorShell.handleRegeneratePublicIdClick());
+    channelEditorCopyPublicLinkBtn?.addEventListener('click', () => settingsChannelEditorShell.handleCopyPublicLinkClick());
+    channelEditorActiveInput?.addEventListener('change', () => settingsChannelEditorShell.handleActiveInputChange());
     channelEditorPublicFormAddFieldBtn?.addEventListener('click', () => {
       const nextIndex = (channelEditorState.publicFormFields?.length || 0) + 1;
       channelEditorState.publicFormFields = [
@@ -19406,27 +19183,10 @@
       ];
       renderPublicFormFieldsEditor();
     });
-    channelEditorQuestionSelect?.addEventListener('change', () => {
-      updateChannelEditorSummary('question_template_id', channelEditorQuestionSelect.value || '');
-    });
-    channelEditorRatingSelect?.addEventListener('change', () => {
-      updateChannelEditorSummary('rating_template_id', channelEditorRatingSelect.value || '');
-    });
-    channelEditorAutoSelect?.addEventListener('change', () => {
-      updateChannelEditorSummary('auto_action_template_id', channelEditorAutoSelect.value || '');
-    });
-    channelEditorSupportChatInput?.addEventListener('input', () => {
-      const value = channelEditorSupportChatInput.value.trim();
-      if (value) {
-        updateSupportChatHint(value, { pending: true });
-      } else {
-        const channel = channelEditorState.channelId !== null
-          ? CHANNELS_REGISTRY.get(String(channelEditorState.channelId))
-          : null;
-        const value = channel && (channel.support_chat_id ?? '');
-        updateSupportChatHint(value || '');
-      }
-    });
+    channelEditorQuestionSelect?.addEventListener('change', () => settingsChannelEditorShell.handleQuestionTemplateChange());
+    channelEditorRatingSelect?.addEventListener('change', () => settingsChannelEditorShell.handleRatingTemplateChange());
+    channelEditorAutoSelect?.addEventListener('change', () => settingsChannelEditorShell.handleAutoTemplateChange());
+    channelEditorSupportChatInput?.addEventListener('input', () => settingsChannelEditorShell.handleSupportChatInput());
     channelEditorPanelNotifTargetModeInput?.addEventListener('change', updateChannelPanelNotificationRoutingState);
     channelEditorTestTargetSelect?.addEventListener('change', updateTestRecipientState);
     channelEditorSendTestBtn?.addEventListener('click', sendChannelTestMessage);
