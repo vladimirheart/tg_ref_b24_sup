@@ -1011,7 +1011,6 @@
     status: '—',
     createdAt: '—',
   };
-  let completionHideTimer = null;
   let selectedCategories = new Set();
   let activeReplyToTelegramId = null;
   const selectedTicketIds = new Set();
@@ -1671,6 +1670,7 @@
     dialogsWorkspaceRuntime?.setWorkspaceReplyTarget(messageId, preview);
   }
 
+  let dialogsTemplatesRuntime = null;
   let dialogsMacroRuntime = null;
   const dialogsNotificationsRuntime = window.DialogsNotificationsRuntime?.createRuntime({
     elements: {
@@ -1916,6 +1916,67 @@
     setSnooze,
     clearSnooze,
     showNotification,
+  }) || null;
+
+  dialogsTemplatesRuntime = window.DialogsTemplatesRuntime?.createRuntime({
+    elements: {
+      detailsReplyText,
+      detailsReplyEmojiTrigger,
+      emojiPanel,
+      emojiList,
+      categoryTemplatesSection,
+      categoryTemplateSelect,
+      categoryTemplateList,
+      categoryTemplateEmpty,
+      questionTemplatesSection,
+      questionTemplateSelect,
+      questionTemplateList,
+      questionTemplateEmpty,
+      completionTemplatesSection,
+      completionTemplateSelect,
+      completionTemplateList,
+      completionTemplateEmpty,
+      completionTemplatesToggle,
+      templateToggleButtons: Array.from(templateToggleButtons || []),
+      macroTemplatesSection,
+      workspaceCategoriesList,
+      workspaceCategoriesClear,
+      detailsCategoriesBtn,
+      categoriesModalEl,
+      categoriesModal,
+      detailsModalEl,
+      detailsModal,
+    },
+    getSelectedCategories: () => selectedCategories,
+    setSelectedCategories: (nextCategories) => {
+      selectedCategories = nextCategories instanceof Set ? nextCategories : new Set();
+    },
+    getTemplateConfig: () => ({
+      categoryTemplates: DIALOG_TEMPLATES.categoryTemplates,
+      questionTemplates: DIALOG_TEMPLATES.questionTemplates,
+      completionTemplates: DIALOG_TEMPLATES.completionTemplates,
+      emoji: DIALOG_EMOJI,
+    }),
+    getDialogState: () => ({
+      activeDialogTicketId,
+      activeWorkspaceTicketId,
+      detailsModalOpen: detailsModalEl?.classList.contains('show') === true,
+    }),
+    getCategoryPanelState: () => detailsCategoryModalState,
+    setCategoryPanelState: (nextState) => {
+      detailsCategoryModalState = {
+        suppressDetailsReset: nextState?.suppressDetailsReset === true,
+        reopenAfterClose: nextState?.reopenAfterClose === true,
+      };
+    },
+    buildTemplateOptions,
+    findTemplateByValue,
+    notifyActionBlocked,
+    showModalSafe,
+    renderWorkspaceCategories,
+    updateSummaryCategories,
+    formatCategoriesLabel,
+    scheduleCategorySave,
   }) || null;
 
   dialogsMacroRuntime = window.DialogsMacroRuntime?.createRuntime({
@@ -5216,62 +5277,15 @@
   }
 
   function renderCategoryTemplate(template) {
-    if (!categoryTemplateList || !categoryTemplateEmpty) return;
-    const categories = Array.isArray(template?.categories) ? template.categories.filter(Boolean) : [];
-    categoryTemplateList.innerHTML = '';
-    categories.forEach((category) => {
-      const badge = document.createElement('button');
-      const normalized = String(category).trim();
-      badge.className = 'badge rounded-pill text-bg-light border dialog-category-badge';
-      badge.type = 'button';
-      badge.dataset.categoryValue = normalized;
-      badge.textContent = normalized;
-      badge.classList.toggle('is-selected', selectedCategories.has(normalized));
-      categoryTemplateList.appendChild(badge);
-    });
-    const hasItems = categories.length > 0;
-    categoryTemplateList.classList.toggle('d-none', !hasItems);
-    categoryTemplateEmpty.classList.toggle('d-none', hasItems);
+    dialogsTemplatesRuntime?.renderCategoryTemplate(template);
   }
 
   function renderQuestionTemplate(template) {
-    if (!questionTemplateList || !questionTemplateEmpty) return;
-    const questions = Array.isArray(template?.questions) ? template.questions.filter(Boolean) : [];
-    questionTemplateList.innerHTML = '';
-    questions.forEach((question) => {
-      const button = document.createElement('button');
-      button.className = 'btn btn-outline-secondary btn-sm text-start';
-      button.type = 'button';
-      button.dataset.questionTemplateItem = '';
-      button.dataset.questionValue = question;
-      button.textContent = question;
-      questionTemplateList.appendChild(button);
-    });
-    const hasItems = questions.length > 0;
-    questionTemplateList.classList.toggle('d-none', !hasItems);
-    questionTemplateEmpty.classList.toggle('d-none', hasItems);
+    dialogsTemplatesRuntime?.renderQuestionTemplate(template);
   }
 
   function renderCompletionTemplate(template) {
-    if (!completionTemplateList || !completionTemplateEmpty) return;
-    const items = Array.isArray(template?.items) ? template.items.filter(Boolean) : [];
-    completionTemplateList.innerHTML = '';
-    items.forEach((item) => {
-      const wrapper = document.createElement('div');
-      wrapper.className = 'border rounded p-2 bg-light';
-      const question = document.createElement('div');
-      question.className = 'fw-semibold';
-      question.textContent = item?.question || 'Контрольный вопрос';
-      const action = document.createElement('div');
-      action.className = 'text-muted';
-      action.textContent = item?.action || 'Действие';
-      wrapper.appendChild(question);
-      wrapper.appendChild(action);
-      completionTemplateList.appendChild(wrapper);
-    });
-    const hasItems = items.length > 0;
-    completionTemplateList.classList.toggle('d-none', !hasItems);
-    completionTemplateEmpty.classList.toggle('d-none', hasItems);
+    dialogsTemplatesRuntime?.renderCompletionTemplate(template);
   }
 
 
@@ -5300,96 +5314,24 @@
   }
 
   function initDialogTemplates() {
-    if (categoryTemplatesSection) {
-      const templates = DIALOG_TEMPLATES.categoryTemplates;
-      const hasTemplates = templates.length > 0;
-      categoryTemplatesSection.classList.toggle('d-none', !hasTemplates);
-      if (hasTemplates && categoryTemplateSelect) {
-        buildTemplateOptions(categoryTemplateSelect, templates, 'Шаблон категорий');
-        renderCategoryTemplate(templates[0]);
-        syncCategorySelections();
-        categoryTemplateSelect.addEventListener('change', () => {
-          const selected = findTemplateByValue(templates, categoryTemplateSelect.value);
-          renderCategoryTemplate(selected);
-          syncCategorySelections();
-        });
-      }
-    }
-
-    if (questionTemplatesSection) {
-      const templates = DIALOG_TEMPLATES.questionTemplates;
-      const hasTemplates = templates.length > 0;
-      questionTemplatesSection.classList.toggle('d-none', !hasTemplates);
-      if (hasTemplates && questionTemplateSelect) {
-        buildTemplateOptions(questionTemplateSelect, templates, 'Шаблон вопросов');
-        renderQuestionTemplate(templates[0]);
-        questionTemplateSelect.addEventListener('change', () => {
-          const selected = findTemplateByValue(templates, questionTemplateSelect.value);
-          renderQuestionTemplate(selected);
-        });
-      }
-    }
-
+    dialogsTemplatesRuntime?.initTemplatePanels();
     dialogsMacroRuntime?.initMacroTemplates();
-
-    if (completionTemplatesSection) {
-      const templates = DIALOG_TEMPLATES.completionTemplates;
-      const hasTemplates = templates.length > 0;
-      completionTemplatesSection.classList.toggle('d-none', !hasTemplates);
-      if (hasTemplates && completionTemplateSelect) {
-        buildTemplateOptions(completionTemplateSelect, templates, 'Шаблон действий');
-        renderCompletionTemplate(templates[0]);
-        completionTemplateSelect.addEventListener('change', () => {
-          const selected = findTemplateByValue(templates, completionTemplateSelect.value);
-          renderCompletionTemplate(selected);
-        });
-      }
-    }
   }
 
   function syncCategorySelections() {
-    if (!categoryTemplateList) return;
-    categoryTemplateList.querySelectorAll('[data-category-value]').forEach((item) => {
-      const value = item.dataset.categoryValue || '';
-      item.classList.toggle('is-selected', selectedCategories.has(value));
-    });
+    dialogsTemplatesRuntime?.syncCategorySelections();
   }
 
   function renderEmojiPanel() {
-    if (!emojiList) return;
-    emojiList.innerHTML = '';
-    DIALOG_EMOJI.forEach((emoji) => {
-      const button = document.createElement('button');
-      button.className = 'btn btn-outline-secondary btn-sm';
-      button.type = 'button';
-      button.dataset.emojiValue = emoji;
-      button.textContent = emoji;
-      emojiList.appendChild(button);
-    });
+    dialogsTemplatesRuntime?.renderEmojiPanel();
   }
 
   function openCategoryPanel() {
-    if (!categoryTemplatesSection || categoryTemplatesSection.classList.contains('d-none')) return;
-    if (notifyActionBlocked('categories', 'Категории', { ticketId: activeDialogTicketId || activeWorkspaceTicketId, permissionKey: 'can_close' })) {
-      return;
-    }
-    if (detailsModalEl?.classList.contains('show') && activeDialogTicketId) {
-      detailsCategoryModalState.suppressDetailsReset = true;
-      detailsCategoryModalState.reopenAfterClose = true;
-    }
-    if (categoriesModalEl) {
-      showModalSafe(categoriesModalEl, categoriesModal);
-      return;
-    }
-    categoryTemplatesSection.classList.add('is-open');
-    categoryTemplatesSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    dialogsTemplatesRuntime?.openCategoryPanel();
   }
 
   function insertReplyText(value) {
-    if (!detailsReplyText || !value) return;
-    const existing = detailsReplyText.value.trim();
-    detailsReplyText.value = existing ? `${existing}\n${value}` : value;
-    detailsReplyText.focus();
+    dialogsTemplatesRuntime?.insertReplyText(value);
   }
 
   function resolveMacroWorkflow(template) {
@@ -6100,6 +6042,7 @@
   dialogsActionsRuntime?.bindTableQuickActions();
   dialogsActionsRuntime?.bindDetailsQuickActions();
   dialogsActionsRuntime?.bindWorkspaceQuickActions();
+  dialogsTemplatesRuntime?.bindTemplateEvents();
   dialogsMacroRuntime?.bindMacroTemplateEvents();
 
   syncDialogAssignControls();
@@ -6697,75 +6640,6 @@
 
   if (categoriesModalEl) {
     bindFallbackModalDismiss(categoriesModalEl, categoriesModal);
-    categoriesModalEl.addEventListener('hidden.bs.modal', () => {
-      const shouldReopenDetails = detailsCategoryModalState.reopenAfterClose;
-      detailsCategoryModalState = {
-        suppressDetailsReset: false,
-        reopenAfterClose: false,
-      };
-      if (shouldReopenDetails && detailsModalEl && activeDialogTicketId) {
-        showModalSafe(detailsModalEl, detailsModal);
-      }
-    });
-  }
-
-  if (categoryTemplateList) {
-    categoryTemplateList.addEventListener('click', (event) => {
-      const badge = event.target.closest('[data-category-value]');
-      if (!badge) return;
-      const value = badge.dataset.categoryValue || '';
-      if (!value) return;
-      if (selectedCategories.has(value)) {
-        selectedCategories.delete(value);
-      } else {
-        selectedCategories.add(value);
-      }
-      syncCategorySelections();
-      renderWorkspaceCategories();
-      updateSummaryCategories(formatCategoriesLabel(Array.from(selectedCategories)));
-      scheduleCategorySave();
-    });
-  }
-
-  if (workspaceCategoriesList) {
-    workspaceCategoriesList.addEventListener('click', (event) => {
-      if (notifyActionBlocked('categories', 'Категории', { ticketId: activeWorkspaceTicketId || activeDialogTicketId, permissionKey: 'can_close' })) {
-        return;
-      }
-      const badge = event.target.closest('[data-category-value]');
-      if (!badge) return;
-      const value = badge.dataset.categoryValue || '';
-      if (!value) return;
-      if (selectedCategories.has(value)) {
-        selectedCategories.delete(value);
-      } else {
-        selectedCategories.add(value);
-      }
-      syncCategorySelections();
-      renderWorkspaceCategories();
-      updateSummaryCategories(formatCategoriesLabel(Array.from(selectedCategories)));
-      scheduleCategorySave();
-    });
-  }
-
-  if (workspaceCategoriesClear) {
-    workspaceCategoriesClear.addEventListener('click', () => {
-      if (notifyActionBlocked('categories', 'Категории', { ticketId: activeWorkspaceTicketId || activeDialogTicketId, permissionKey: 'can_close' })) {
-        return;
-      }
-      selectedCategories = new Set();
-      syncCategorySelections();
-      renderWorkspaceCategories();
-      updateSummaryCategories('—');
-      scheduleCategorySave();
-    });
-  }
-
-  if (detailsCategoriesBtn) {
-    detailsCategoriesBtn.addEventListener('click', (event) => {
-      event.preventDefault();
-      openCategoryPanel();
-    });
   }
 
   if (workspaceAiSuggestionsRefresh) {
@@ -7095,28 +6969,6 @@
     });
   }
 
-  if (detailsReplyEmojiTrigger && emojiPanel) {
-    detailsReplyEmojiTrigger.addEventListener('click', () => {
-      emojiPanel.classList.toggle('is-open');
-    });
-  }
-
-  if (emojiList) {
-    emojiList.addEventListener('click', (event) => {
-      const button = event.target.closest('[data-emoji-value]');
-      if (!button) return;
-      insertReplyText(button.dataset.emojiValue || '');
-    });
-  }
-
-  if (questionTemplateList) {
-    questionTemplateList.addEventListener('click', (event) => {
-      const button = event.target.closest('[data-question-template-item]');
-      if (!button) return;
-      insertReplyText(button.dataset.questionValue || '');
-    });
-  }
-
   if (detailsReplyMediaTrigger && detailsReplyMedia) {
     detailsReplyMediaTrigger.addEventListener('click', () => {
       detailsReplyMedia.click();
@@ -7145,43 +6997,6 @@
     mediaPreviewZoomOut.addEventListener('click', () => {
       dialogsDetailsHistoryRuntime?.adjustMediaPreviewZoom('out');
     });
-  }
-
-  if (templateToggleButtons.length) {
-    templateToggleButtons.forEach((button) => {
-      button.addEventListener('click', () => {
-        const target = button.dataset.templateToggle;
-        const section = target === 'category'
-            ? categoryTemplatesSection
-            : (target === 'macro' ? macroTemplatesSection : questionTemplatesSection);
-        if (!section) return;
-        section.classList.toggle('is-open');
-      });
-    });
-  }
-
-  if (completionTemplatesSection) {
-    const openCompletion = () => {
-      completionTemplatesSection.classList.add('is-open');
-    };
-    const scheduleClose = () => {
-      if (completionHideTimer) {
-        clearTimeout(completionHideTimer);
-      }
-      completionHideTimer = setTimeout(() => {
-        completionTemplatesSection.classList.remove('is-open');
-      }, 2000);
-    };
-    completionTemplatesSection.addEventListener('mouseenter', () => {
-      if (completionHideTimer) clearTimeout(completionHideTimer);
-      openCompletion();
-    });
-    completionTemplatesSection.addEventListener('mouseleave', scheduleClose);
-    if (completionTemplatesToggle) {
-      completionTemplatesToggle.addEventListener('click', () => {
-        completionTemplatesSection.classList.toggle('is-open');
-      });
-    }
   }
 
   if (mediaPreviewModalEl) {
