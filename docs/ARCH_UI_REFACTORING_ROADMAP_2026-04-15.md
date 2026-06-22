@@ -1769,11 +1769,15 @@
 - следующим bounded slice вынесен и `template-adjacent UI` runtime:
   `dialogs-templates-runtime.js` теперь держит category/question/completion
   template UI, emoji panel wiring и category modal reopen/toggle semantics;
+- следующим bounded slice вынесен и `flow orchestration` runtime:
+  `dialogs-flow-runtime.js` теперь держит global hotkeys, dialog entry
+  navigation, details modal lifecycle reset и workspace abandon telemetry
+  wiring;
 - это означает, что следующий проход уже не должен заново разбирать
   list/AI/details-history/workspace-support/shell-render/quick-actions/
-  macro-workflow/notifications-refresh/template-adjacent монолит внутри
-  `dialogs.js`, а должен добирать только remaining orchestration drift вокруг
-  legacy modal flows, keyboard shortcuts и соседнего UI wiring;
+  macro-workflow/notifications-refresh/template-adjacent/flow-orchestration
+  монолит внутри `dialogs.js`, а должен добирать только remaining
+  orchestration drift вокруг legacy modal flows и соседнего UI wiring;
 
 - live regression corridor для `take -> categories -> reply -> follow-up ->
   details/workspace reread -> bell ack -> next follow-up` уже нужен как

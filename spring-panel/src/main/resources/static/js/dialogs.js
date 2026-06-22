@@ -1023,7 +1023,6 @@
   let dialogAssignableOperators = null;
   let dialogParticipantsState = [];
   const workspaceOpenTimers = new Map();
-  const workspaceFirstInteractionTickets = new Set();
   const workspaceExperimentContext = resolveWorkspaceExperimentContext();
   const WORKSPACE_EXPERIENCE_ENABLED = resolveWorkspaceExperienceEnabled();
   const INITIAL_MY_DIALOGS = (window.INITIAL_MY_DIALOGS && typeof window.INITIAL_MY_DIALOGS === 'object')
@@ -1672,6 +1671,91 @@
 
   let dialogsTemplatesRuntime = null;
   let dialogsMacroRuntime = null;
+  const dialogsFlowRuntime = window.DialogsFlowRuntime?.createRuntime({
+    elements: {
+      quickSearch,
+      hotkeysModalEl,
+      hotkeysModal,
+      sortModeSelect,
+      detailsModalEl,
+      detailsResolve,
+      detailsReopen,
+      detailsReplyText,
+      detailsReplyMedia,
+      categoriesModal,
+      participantsModalEl,
+      participantsModal,
+      reassignModalEl,
+      reassignModal,
+    },
+    debugLog,
+    workspaceEnabled: WORKSPACE_V1_ENABLED,
+    workspaceAbandonEventGroup: DIALOGS_TELEMETRY_EVENT_GROUPS.workspace_abandon,
+    workspaceExperimentContext,
+    workspacePrimaryKpis: WORKSPACE_AB_TEST_CONFIG.primaryKpis,
+    workspaceSecondaryKpis: WORKSPACE_AB_TEST_CONFIG.secondaryKpis,
+    quickSnoozeMinutes: QUICK_SNOOZE_MINUTES,
+    getFilterState: () => filterState,
+    setLastManualSortMode: (value) => {
+      lastManualSortMode = value || 'default';
+    },
+    getCategoryPanelState: () => detailsCategoryModalState,
+    confirmWorkspaceTicketSwitch,
+    setWorkspaceReadonlyMode,
+    buildWorkspaceDialogUrl,
+    openDialogDetails,
+    showModalSafe,
+    setViewTab,
+    applyStatusFilter,
+    persistDialogPreferences,
+    applyFilters,
+    canRunAction,
+    notifyPermissionDenied,
+    runBulkAction,
+    formatSnoozeActionLabel,
+    getShortcutTargetRow,
+    setActiveDialogRow,
+    takeDialog,
+    snoozeDialog,
+    setSnooze,
+    updateRowQuickActions,
+    closeDialogQuick,
+    clearSnooze,
+    showNotification,
+    openVisibleDialogByOffset,
+    startHistoryPolling,
+    hideModalSafe,
+    setActiveDialogTicketId: (value) => {
+      activeDialogTicketId = value ? String(value).trim() : null;
+    },
+    initMacroVariableCatalog,
+    setActiveDialogChannelId: (value) => {
+      activeDialogChannelId = value ? String(value).trim() : null;
+    },
+    setActiveDialogResponsibleState: (raw, avatarUrl) => {
+      activeDialogResponsibleRaw = String(raw || '').trim();
+      activeDialogResponsibleAvatarUrl = String(avatarUrl || '').trim();
+    },
+    resetReplyTarget,
+    renderHistory,
+    resetPreviousDialogHistoryState,
+    setActiveDialogContext: (context) => {
+      activeDialogContext = context && typeof context === 'object' ? context : activeDialogContext;
+    },
+    setSelectedCategories: (categories) => {
+      selectedCategories = categories instanceof Set ? categories : new Set();
+    },
+    setDialogParticipantsState: (participants) => {
+      dialogParticipantsState = Array.isArray(participants) ? participants : [];
+    },
+    renderDialogParticipantsLoadingState,
+    syncParticipantsSelectOptions,
+    syncReassignSelectOptions,
+    updateDetailsTakeButton,
+    stopHistoryPolling,
+    isWorkspaceDialogPath,
+    getActiveWorkspaceTicketId: () => activeWorkspaceTicketId,
+  }) || null;
   const dialogsNotificationsRuntime = window.DialogsNotificationsRuntime?.createRuntime({
     elements: {
       detailsUnreadCount,
@@ -4751,246 +4835,11 @@
   }
 
   function openDialogEntry(ticketId, row) {
-    if (!ticketId) return;
-    debugLog('openDialogEntry.called', {
-      ticketId,
-      rowFound: Boolean(row),
-      detailsModalExists: Boolean(detailsModalEl),
-    });
-    if (!confirmWorkspaceTicketSwitch(ticketId)) {
-      debugLog('openDialogEntry.aborted.confirmWorkspaceTicketSwitch=false', { ticketId });
-      return;
-    }
-    setWorkspaceReadonlyMode(false);
-    const channelId = row?.dataset?.channelId ?? null;
-    const nextUrl = buildWorkspaceDialogUrl(ticketId, channelId);
-    const currentPath = `${window.location.pathname || ''}${window.location.search || ''}`;
-    if (currentPath !== nextUrl) {
-      window.history.pushState({ ticketId: String(ticketId || '').trim() }, '', nextUrl);
-      debugLog('openDialogEntry.pushState', { currentPath, nextUrl });
-    }
-    if (!detailsModalEl) {
-      debugLog('openDialogEntry.redirect.noDetailsModal', { ticketId });
-      window.location.href = `/dialogs/${encodeURIComponent(ticketId)}`;
-      return;
-    }
-    Promise.resolve(openDialogDetails(ticketId, row)).catch((error) => {
-      debugLog('openDialogEntry.openDialogDetails.catch', {
-        ticketId,
-        message: error?.message || String(error || ''),
-      });
-      console.error('Failed to open dialog details modal', error);
-      window.location.href = `/dialogs/${encodeURIComponent(ticketId)}`;
-    });
-  }
-
-  function isTypingTarget(target) {
-    if (!target) return false;
-    const tagName = String(target.tagName || '').toLowerCase();
-    if (target.isContentEditable) return true;
-    return tagName === 'input' || tagName === 'textarea' || tagName === 'select';
+    dialogsFlowRuntime?.openDialogEntry(ticketId, row);
   }
 
   function handleGlobalShortcuts(event) {
-    if (event.defaultPrevented || event.repeat) return;
-    if (isTypingTarget(event.target)) return;
-
-    if (event.key === '/') {
-      if (!quickSearch) return;
-      event.preventDefault();
-      quickSearch.focus();
-      quickSearch.select();
-      return;
-    }
-
-    if ((event.key === '?' || (event.shiftKey && event.key === '/')) && hotkeysModalEl) {
-      event.preventDefault();
-      showModalSafe(hotkeysModalEl, hotkeysModal);
-      return;
-    }
-
-    if (!event.altKey) return;
-    const key = String(event.key || '').toLowerCase();
-    const viewMap = {
-      '1': 'all',
-      '2': 'active',
-      '3': 'new',
-      '4': 'unassigned',
-      '5': 'overdue',
-    };
-
-    if (viewMap[key]) {
-      event.preventDefault();
-      setViewTab(viewMap[key]);
-      return;
-    }
-
-    const statusShortcutMap = {
-      '6': 'Новый',
-      '7': 'Ожидает ответа оператора',
-      '8': 'Ожидает ответа клиента',
-      '9': 'Закрыт',
-      '0': '',
-    };
-
-    if (Object.prototype.hasOwnProperty.call(statusShortcutMap, key)) {
-      event.preventDefault();
-      applyStatusFilter(statusShortcutMap[key]);
-      return;
-    }
-
-    if (key === 'l') {
-      event.preventDefault();
-      const nextSortMode = filterState.sortMode === 'sla_priority' ? 'default' : 'sla_priority';
-      filterState.sortMode = nextSortMode;
-      if (sortModeSelect) {
-        sortModeSelect.value = nextSortMode;
-      }
-      if (nextSortMode !== 'sla_priority') {
-        lastManualSortMode = nextSortMode;
-      }
-      persistDialogPreferences();
-      applyFilters();
-      if (typeof showNotification === 'function') {
-        showNotification(nextSortMode === 'sla_priority' ? 'Включена сортировка SLA-first' : 'Включена стандартная сортировка', 'info');
-      }
-      return;
-    }
-
-    if (event.shiftKey && key === 'a') {
-      event.preventDefault();
-      if (!canRunAction('can_bulk') || !canRunAction('can_assign')) {
-        notifyPermissionDenied('Назначить выбранные на меня');
-        return;
-      }
-      runBulkAction('take');
-      return;
-    }
-
-    if (event.shiftKey && key === 's') {
-      event.preventDefault();
-      if (!canRunAction('can_bulk') || !canRunAction('can_snooze')) {
-        notifyPermissionDenied(`Отложить выбранные на ${formatSnoozeActionLabel(QUICK_SNOOZE_MINUTES).replace('Отложить ', '')}`);
-        return;
-      }
-      runBulkAction('snooze');
-      return;
-    }
-
-    if (event.shiftKey && key === 'c') {
-      event.preventDefault();
-      if (!canRunAction('can_bulk') || !canRunAction('can_close')) {
-        notifyPermissionDenied('Закрыть выбранные');
-        return;
-      }
-      runBulkAction('close');
-      return;
-    }
-
-    if (key === 'a') {
-      event.preventDefault();
-      if (!canRunAction('can_assign')) {
-        notifyPermissionDenied('Назначить мне');
-        return;
-      }
-      const row = getShortcutTargetRow();
-      const takeBtn = row?.querySelector('.dialog-take-btn:not(.d-none)');
-      const ticketId = takeBtn?.dataset.ticketId;
-      if (!ticketId || !takeBtn) return;
-      setActiveDialogRow(row, { ensureVisible: true });
-      takeDialog(ticketId, row, takeBtn)
-        .then(() => {
-          if (typeof showNotification === 'function') {
-            showNotification('Диалог назначен на вас', 'success');
-          }
-        })
-        .catch((error) => {
-          if (typeof showNotification === 'function') {
-            showNotification(error.message || 'Не удалось назначить диалог', 'error');
-          }
-        });
-      return;
-    }
-
-    if (key === 's') {
-      event.preventDefault();
-      if (!canRunAction('can_snooze')) {
-        notifyPermissionDenied(formatSnoozeActionLabel(QUICK_SNOOZE_MINUTES));
-        return;
-      }
-      const row = getShortcutTargetRow();
-      const snoozeBtn = row?.querySelector('.dialog-snooze-btn:not(.d-none)');
-      const ticketId = snoozeBtn?.dataset.ticketId;
-      if (!ticketId || !snoozeBtn) return;
-      setActiveDialogRow(row, { ensureVisible: true });
-      snoozeDialog(ticketId, QUICK_SNOOZE_MINUTES, snoozeBtn)
-        .then(() => {
-          setSnooze(ticketId, QUICK_SNOOZE_MINUTES);
-          updateRowQuickActions(row);
-          applyFilters();
-          if (typeof showNotification === 'function') {
-            showNotification(`Диалог отложен на ${formatSnoozeActionLabel(QUICK_SNOOZE_MINUTES).replace('Отложить ', '')}`, 'success');
-          }
-        })
-        .catch((error) => {
-          if (typeof showNotification === 'function') {
-            showNotification(error.message || 'Не удалось отложить диалог', 'error');
-          }
-        });
-      return;
-    }
-
-    if (key === 'c') {
-      event.preventDefault();
-      if (!canRunAction('can_close')) {
-        notifyPermissionDenied('Закрыть');
-        return;
-      }
-      const row = getShortcutTargetRow();
-      const closeBtn = row?.querySelector('.dialog-close-btn:not(.d-none)');
-      const ticketId = closeBtn?.dataset.ticketId;
-      if (!ticketId || !closeBtn) return;
-      setActiveDialogRow(row, { ensureVisible: true });
-      closeBtn.disabled = true;
-      closeDialogQuick(ticketId, row, closeBtn)
-        .then(() => {
-          clearSnooze(ticketId);
-          if (typeof showNotification === 'function') {
-            showNotification('Диалог закрыт', 'success');
-          }
-        })
-        .catch((error) => {
-          closeBtn.disabled = false;
-          if (typeof showNotification === 'function') {
-            showNotification(error.message || 'Не удалось закрыть диалог', 'error');
-          }
-        });
-      return;
-    }
-
-    if (key === 'r') {
-      if (!detailsModalEl?.classList.contains('show')) return;
-      event.preventDefault();
-      if (detailsResolve && !detailsResolve.disabled && !detailsResolve.classList.contains('d-none')) {
-        detailsResolve.click();
-        return;
-      }
-      if (detailsReopen && !detailsReopen.disabled && !detailsReopen.classList.contains('d-none')) {
-        detailsReopen.click();
-      }
-      return;
-    }
-
-    if (event.key === 'ArrowDown') {
-      event.preventDefault();
-      openVisibleDialogByOffset(1);
-      return;
-    }
-
-    if (event.key === 'ArrowUp') {
-      event.preventDefault();
-      openVisibleDialogByOffset(-1);
-    }
+    dialogsFlowRuntime?.handleGlobalShortcuts(event);
   }
 
   function handleMediaPreviewEscape(event) {
@@ -6589,53 +6438,6 @@
 
   if (detailsModalEl) {
     bindFallbackModalDismiss(detailsModalEl, detailsModal);
-    detailsModalEl.addEventListener('shown.bs.modal', () => {
-      startHistoryPolling();
-    });
-    detailsModalEl.addEventListener('hidden.bs.modal', () => {
-      if (detailsCategoryModalState.suppressDetailsReset) {
-        return;
-      }
-      if (categoriesModal) {
-        categoriesModal.hide();
-      }
-      hideModalSafe(participantsModalEl, participantsModal);
-      hideModalSafe(reassignModalEl, reassignModal);
-      activeDialogTicketId = null;
-      initMacroVariableCatalog(null, true);
-      activeDialogChannelId = null;
-      activeDialogResponsibleRaw = '';
-      activeDialogResponsibleAvatarUrl = '';
-      setActiveDialogRow(null);
-      if (detailsReplyText) detailsReplyText.value = '';
-      if (detailsReplyMedia) detailsReplyMedia.value = '';
-      resetReplyTarget();
-      renderHistory([], { scrollToBottom: false });
-      resetPreviousDialogHistoryState();
-      activeDialogContext = {
-        clientName: '—',
-        clientUserId: '',
-        operatorName: '—',
-        channelName: '—',
-        business: '—',
-        location: '—',
-        status: '—',
-        createdAt: '—',
-      };
-      selectedCategories = new Set();
-      dialogParticipantsState = [];
-      renderDialogParticipantsLoadingState('Откройте диалог для загрузки списка участников.');
-      syncParticipantsSelectOptions();
-      syncReassignSelectOptions();
-      updateDetailsTakeButton('');
-      stopHistoryPolling();
-      if (WORKSPACE_V1_ENABLED && isWorkspaceDialogPath(window.location.pathname)) {
-        const nextPath = window.location.pathname === '/'
-          ? '/'
-          : '/dialogs';
-        window.history.replaceState(null, '', nextPath);
-      }
-    });
   }
 
   if (categoriesModalEl) {
@@ -7006,7 +6808,8 @@
   }
 
   document.addEventListener('keydown', handleMediaPreviewEscape, true);
-  document.addEventListener('keydown', handleGlobalShortcuts);
+  dialogsFlowRuntime?.bindGlobalShortcutEvents();
+  dialogsFlowRuntime?.bindDetailsModalLifecycle();
 
 
   function applyOperatorPermissionGuards() {
@@ -7146,34 +6949,7 @@
     });
   }
 
-  function registerWorkspaceFirstInteraction() {
-    if (!WORKSPACE_V1_ENABLED || !activeWorkspaceTicketId) return;
-    if (workspaceFirstInteractionTickets.has(activeWorkspaceTicketId)) return;
-    workspaceFirstInteractionTickets.add(activeWorkspaceTicketId);
-  }
-
-  ['click', 'keydown'].forEach((eventName) => {
-    document.addEventListener(eventName, registerWorkspaceFirstInteraction, { once: true });
-  });
-
-  window.addEventListener('beforeunload', () => {
-    if (!WORKSPACE_V1_ENABLED || !activeWorkspaceTicketId) return;
-    if (workspaceFirstInteractionTickets.has(activeWorkspaceTicketId)) return;
-    if (typeof navigator.sendBeacon !== 'function') return;
-    const payload = new Blob([JSON.stringify({
-      event_type: 'workspace_abandon',
-      event_group: DIALOGS_TELEMETRY_EVENT_GROUPS.workspace_abandon,
-      timestamp: new Date().toISOString(),
-      ticket_id: activeWorkspaceTicketId,
-      reason: 'no_first_interaction',
-      experiment_name: workspaceExperimentContext.experimentName,
-      experiment_cohort: workspaceExperimentContext.cohort,
-      operator_segment: workspaceExperimentContext.operatorSegment,
-      primary_kpis: WORKSPACE_AB_TEST_CONFIG.primaryKpis,
-      secondary_kpis: WORKSPACE_AB_TEST_CONFIG.secondaryKpis,
-    })], { type: 'application/json' });
-    navigator.sendBeacon('/api/dialogs/workspace-telemetry', payload);
-  });
+  dialogsFlowRuntime?.bindWorkspaceAbandonTelemetry();
 
   initDialogTemplates();
   renderEmojiPanel();
