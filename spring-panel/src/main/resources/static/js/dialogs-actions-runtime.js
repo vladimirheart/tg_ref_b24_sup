@@ -148,8 +148,9 @@
           throw new Error(data?.error || `Ошибка ${resp.status}`);
         }
         options.updateRowResponsible?.(row || targetRow, data.responsible || '');
-        if (String(activeDialogState.ticketId || '').trim() === String(ticketId || '').trim()) {
-          options.loadDialogParticipants?.().catch(() => {});
+        if (String(activeDialogState.ticketId || '').trim() === String(ticketId || '').trim()
+            && typeof options.loadDialogParticipants === 'function') {
+          options.loadDialogParticipants().catch(() => {});
         }
         options.emitWorkspaceTelemetry?.('triage_quick_assign', { ticketId });
         options.applyFilters?.();

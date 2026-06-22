@@ -742,15 +742,9 @@
     workspace_rollout_packet_viewed: 'experiment',
   });
   let workspaceReadonlyMode = false;
-  let macroTemplatesCache = [];
-  let macroVariableCatalogInitialized = false;
-  let macroVariableCatalogTicketId = null;
-  let macroVariableDefaults = {};
   let workspaceComposerTicketId = '';
   let workspaceFailureStreak = 0;
   let workspaceTemporarilyDisabledUntil = 0;
-  let workspaceComposerMacroTemplates = [];
-  let activeWorkspaceMacroTemplate = null;
   let activeWorkspaceTicketId = INITIAL_DIALOG_TICKET_ID;
   let activeWorkspaceChannelId = null;
   let activeWorkspacePayload = null;
@@ -1026,8 +1020,6 @@
     suppressDetailsReset: false,
     reopenAfterClose: false,
   };
-  let activeMacroTemplate = null;
-  let activeMacroMeta = null;
   let experimentTelemetryRefreshTimer = null;
   let dialogAssignableOperators = null;
   let dialogParticipantsState = [];
@@ -1679,6 +1671,8 @@
     dialogsWorkspaceRuntime?.setWorkspaceReplyTarget(messageId, preview);
   }
 
+  let dialogsMacroRuntime = null;
+
   const dialogsWorkspaceRuntime = window.DialogsWorkspaceRuntime?.createRuntime({
     elements: {
       workspaceRolloutBanner,
@@ -1762,10 +1756,10 @@
     setWorkspaceReadonlyState: (nextState) => {
       workspaceReadonlyMode = nextState === true;
     },
-    getWorkspaceComposerMeta: () => ({
-      hasActiveMacroTemplate: Boolean(activeWorkspaceMacroTemplate),
-      macroTemplatesLength: workspaceComposerMacroTemplates.length,
-    }),
+    getWorkspaceComposerMeta: () => dialogsMacroRuntime?.getWorkspaceComposerMeta() || {
+      hasActiveMacroTemplate: false,
+      macroTemplatesLength: 0,
+    },
     loadWorkspaceAiSuggestions,
     loadWorkspaceAiReview,
     loadWorkspaceAiControl,
@@ -1913,6 +1907,49 @@
     setActiveDialogRow,
     setSnooze,
     clearSnooze,
+    showNotification,
+  }) || null;
+
+  dialogsMacroRuntime = window.DialogsMacroRuntime?.createRuntime({
+    elements: {
+      macroTemplatesSection,
+      macroTemplateSelect,
+      macroTemplateSearch,
+      macroTemplatePreview,
+      macroTemplateMeta,
+      macroTemplateApply,
+      macroTemplateEmpty,
+      macroVariableCatalog,
+      workspaceComposerMacroSection,
+      workspaceComposerMacroSearch,
+      workspaceComposerMacroSelect,
+      workspaceComposerMacroApply,
+      workspaceComposerMacroPreview,
+      workspaceComposerMacroMeta,
+    },
+    getActiveDialogState: () => ({
+      ticketId: activeDialogTicketId,
+      row: activeDialogRow,
+      context: activeDialogContext,
+    }),
+    getActiveWorkspaceState: () => ({
+      ticketId: activeWorkspaceTicketId,
+      composerTicketId: workspaceComposerTicketId,
+      composerText: workspaceComposerText,
+    }),
+    getMacroTemplates: () => DIALOG_TEMPLATES.macroTemplates,
+    buildTemplateOptions,
+    findTemplateByValue,
+    insertReplyText,
+    takeDialog,
+    snoozeDialog,
+    closeDialogQuick,
+    setSnooze,
+    updateRowQuickActions,
+    applyFilters,
+    rowsList,
+    saveWorkspaceDraft,
+    emitWorkspaceTelemetry,
     showNotification,
   }) || null;
 
@@ -3888,96 +3925,23 @@
   }
 
   function buildMacroGovernanceMeta(template) {
-    if (!template || typeof template !== 'object') return '';
-    const parts = [];
-    const namespace = String(template?.namespace || '').trim();
-    const owner = String(template?.owner || '').trim();
-    const reviewedAt = String(template?.reviewed_at || template?.reviewed_at_utc || '').trim();
-    if (namespace) parts.push(`namespace=${namespace}`);
-    if (owner) parts.push(`owner=${owner}`);
-    if (reviewedAt) parts.push(`review UTC ${reviewedAt.replace('T', ' ').replace('Z', ' UTC')}`);
-    return parts.join(' · ');
+    return dialogsMacroRuntime?.buildMacroGovernanceMeta(template) || '';
   }
 
   function renderWorkspaceMacroPreview(template) {
-    activeWorkspaceMacroTemplate = template || null;
-    if (!workspaceComposerMacroPreview) return;
-    const text = resolveMacroText(template);
-    workspaceComposerMacroPreview.textContent = text || 'Выберите макрос для предпросмотра.';
-    if (workspaceComposerMacroMeta) {
-      workspaceComposerMacroMeta.textContent = buildMacroGovernanceMeta(template);
-    }
-    if (workspaceComposerMacroApply) {
-      workspaceComposerMacroApply.disabled = !text;
-    }
+    dialogsMacroRuntime?.renderWorkspaceMacroPreview(template);
   }
 
   function renderWorkspaceMacroOptions(templates) {
-    if (!workspaceComposerMacroSelect) return;
-    const nextTemplates = Array.isArray(templates) ? templates : [];
-    workspaceComposerMacroSelect.innerHTML = '';
-    nextTemplates.forEach((template, index) => {
-      const option = document.createElement('option');
-      option.value = template?.id
-        ? `id:${template.id}`
-        : `idx:${Number.isFinite(Number(template?.__macroIndex)) ? Number(template.__macroIndex) : index}`;
-      option.textContent = template?.name || `Макрос ${index + 1}`;
-      workspaceComposerMacroSelect.appendChild(option);
-    });
-    const selected = nextTemplates.length > 0
-      ? findMacroTemplateByWorkspaceOptionValue(workspaceComposerMacroSelect.value, nextTemplates) || nextTemplates[0]
-      : null;
-    if (selected) {
-      workspaceComposerMacroSelect.value = selected?.id
-        ? `id:${selected.id}`
-        : `idx:${Number.isFinite(Number(selected?.__macroIndex)) ? Number(selected.__macroIndex) : nextTemplates.indexOf(selected)}`;
-    }
-    workspaceComposerMacroSelect.disabled = nextTemplates.length === 0;
-    renderWorkspaceMacroPreview(selected);
+    dialogsMacroRuntime?.renderWorkspaceMacroOptions(templates);
   }
 
-  function findMacroTemplateByWorkspaceOptionValue(value, templatePool = workspaceComposerMacroTemplates) {
-    const normalized = String(value || '').trim();
-    if (!normalized) return null;
-    if (normalized.startsWith('id:')) {
-      const templateId = normalized.slice(3);
-      return templatePool.find((template) => String(template?.id || '') === templateId) || null;
-    }
-    if (normalized.startsWith('idx:')) {
-      const idx = Number.parseInt(normalized.slice(4), 10);
-      if (!Number.isFinite(idx)) return null;
-      return workspaceComposerMacroTemplates.find((template) => Number(template?.__macroIndex) === idx) || null;
-    }
-    return null;
+  function findMacroTemplateByWorkspaceOptionValue(value, templatePool = null) {
+    return dialogsMacroRuntime?.findMacroTemplateByWorkspaceOptionValue(value, templatePool) || null;
   }
 
   async function applyWorkspaceMacroTemplate() {
-    if (!workspaceComposerText || !activeWorkspaceMacroTemplate) return;
-    const message = resolveMacroText(activeWorkspaceMacroTemplate);
-    const row = workspaceComposerTicketId
-      ? rowsList().find((candidate) => String(candidate.dataset.ticketId || '') === String(workspaceComposerTicketId)) || null
-      : null;
-    const appliedSteps = await executeMacroWorkflow(activeWorkspaceMacroTemplate, {
-      ticketId: workspaceComposerTicketId,
-      row,
-    });
-    if (message) {
-      const existing = workspaceComposerText.value.trim();
-      workspaceComposerText.value = existing ? `${existing}\n${message}` : message;
-      workspaceComposerText.focus();
-      saveWorkspaceDraft(workspaceComposerTicketId, workspaceComposerText.value, { silent: true });
-    }
-    emitWorkspaceTelemetry('macro_apply', {
-      ticketId: workspaceComposerTicketId,
-      templateId: String(activeWorkspaceMacroTemplate?.id || '').trim() || null,
-      templateName: String(activeWorkspaceMacroTemplate?.name || '').trim() || null,
-      source: 'workspace_composer',
-      workflowActions: appliedSteps.length ? appliedSteps.join('|') : null,
-    });
-    if (typeof showNotification === 'function' && (message || appliedSteps.length)) {
-      const workflowSuffix = appliedSteps.length ? `; действия: ${appliedSteps.join(', ')}` : '';
-      showNotification(`Макрос workspace применён${workflowSuffix}.`, 'success');
-    }
+    await dialogsMacroRuntime?.applyWorkspaceMacroTemplate();
   }
 
   async function sendWorkspaceReply() {
@@ -5232,31 +5196,15 @@
   }
 
   function resolveMacroSearchText(template) {
-    const name = String(template?.name || '').trim();
-    const tags = Array.isArray(template?.tags) ? template.tags.join(' ') : '';
-    const message = String(template?.message || template?.text || '').trim();
-    return `${name} ${tags} ${message}`.toLowerCase();
+    return dialogsMacroRuntime?.resolveMacroSearchText(template) || '';
   }
 
   function filterMacroTemplates(templates, query) {
-    const normalizedQuery = String(query || '').trim().toLowerCase();
-    if (!normalizedQuery) return templates;
-    return templates.filter((template) => resolveMacroSearchText(template).includes(normalizedQuery));
+    return dialogsMacroRuntime?.filterMacroTemplates(templates, query) || [];
   }
 
   function renderMacroTemplateOptions(templates) {
-    if (!macroTemplateSelect) return;
-    const nextTemplates = Array.isArray(templates) ? templates : [];
-    buildTemplateOptions(macroTemplateSelect, nextTemplates, 'Макрос');
-    const hasOptions = nextTemplates.length > 0;
-    if (macroTemplateSelect) {
-      macroTemplateSelect.disabled = !hasOptions;
-    }
-    const selected = hasOptions ? findTemplateByValue(nextTemplates, macroTemplateSelect.value) || nextTemplates[0] : null;
-    if (selected && macroTemplateSelect.value !== (selected.id || '')) {
-      macroTemplateSelect.value = selected.id || String(nextTemplates.indexOf(selected));
-    }
-    renderMacroTemplate(selected);
+    dialogsMacroRuntime?.renderMacroTemplateOptions(templates);
   }
 
   function renderCategoryTemplate(template) {
@@ -5320,183 +5268,27 @@
 
 
   function renderMacroVariableCatalog(variables) {
-    if (!macroVariableCatalog) return;
-    if (!Array.isArray(variables) || variables.length === 0) {
-      macroVariableCatalog.textContent = 'Доступны шаблоны вида {{ticket_id}} и {{client_name}}.';
-      return;
-    }
-    macroVariableCatalog.innerHTML = '';
-    const title = document.createElement('span');
-    title.className = 'text-muted';
-    title.textContent = 'Переменные: ';
-    macroVariableCatalog.appendChild(title);
-    variables.forEach((item, index) => {
-      const code = document.createElement('code');
-      const key = String(item?.key || '').trim();
-      const label = String(item?.label || '').trim();
-      const defaultValue = String(item?.default_value || '').trim();
-      const source = String(item?.source || '').trim();
-      code.textContent = `{{${key}}}`;
-      const titleParts = [];
-      if (label || key) titleParts.push(label || key);
-      if (defaultValue) titleParts.push(`default: ${defaultValue}`);
-      if (source) titleParts.push(`source: ${source}`);
-      code.title = titleParts.join(' · ');
-      macroVariableCatalog.appendChild(code);
-      if (index < variables.length - 1) {
-        macroVariableCatalog.appendChild(document.createTextNode(', '));
-      }
-    });
+    dialogsMacroRuntime?.renderMacroVariableCatalog(variables);
   }
 
   function resolveMacroVariableDefaults(variables) {
-    const defaults = {};
-    if (!Array.isArray(variables)) return defaults;
-    variables.forEach((item) => {
-      const key = String(item?.key || '').trim().toLowerCase();
-      const defaultValue = String(item?.default_value || '').trim();
-      if (!key || !defaultValue) return;
-      defaults[key] = defaultValue;
-    });
-    return defaults;
+    return dialogsMacroRuntime?.resolveMacroVariableDefaults(variables) || {};
   }
 
   async function initMacroVariableCatalog(ticketId, forceReload = false) {
-    const normalizedTicketId = ticketId ? String(ticketId).trim() : '';
-    if (!forceReload && macroVariableCatalogInitialized && macroVariableCatalogTicketId === normalizedTicketId) return;
-    macroVariableCatalogInitialized = true;
-    macroVariableCatalogTicketId = normalizedTicketId;
-    const fallbackVariables = [
-      { key: 'client_name', label: 'Имя клиента' },
-      { key: 'ticket_id', label: 'ID обращения' },
-      { key: 'operator_name', label: 'Имя оператора' },
-      { key: 'channel_name', label: 'Канал обращения' },
-      { key: 'business', label: 'Бизнес-направление' },
-      { key: 'location', label: 'Локация клиента' },
-      { key: 'dialog_status', label: 'Статус диалога' },
-      { key: 'created_at', label: 'Дата создания' },
-      { key: 'current_date', label: 'Текущая дата' },
-      { key: 'current_time', label: 'Текущее время' },
-    ];
-    try {
-      const params = new URLSearchParams();
-      if (normalizedTicketId) params.set('ticketId', normalizedTicketId);
-      const endpoint = params.toString() ? `/api/dialogs/macro/variables?${params.toString()}` : '/api/dialogs/macro/variables';
-      const response = await fetch(endpoint, { headers: { Accept: 'application/json' } });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const payload = await response.json();
-      const catalogVariables = Array.isArray(payload?.variables) ? payload.variables : fallbackVariables;
-      macroVariableDefaults = resolveMacroVariableDefaults(catalogVariables);
-      renderMacroVariableCatalog(catalogVariables);
-    } catch (error) {
-      console.warn('Failed to load macro variables catalog', error);
-      macroVariableDefaults = {};
-      renderMacroVariableCatalog(fallbackVariables);
-    }
+    await dialogsMacroRuntime?.initMacroVariableCatalog(ticketId, forceReload);
   }
 
   function resolveMacroVariables() {
-    const now = new Date();
-    const variables = {
-      client_name: activeDialogContext.clientName || 'клиент',
-      ticket_id: activeDialogTicketId || '—',
-      operator_name: activeDialogContext.operatorName || 'оператор',
-      channel_name: activeDialogContext.channelName || '—',
-      business: activeDialogContext.business || '—',
-      location: activeDialogContext.location || '—',
-      dialog_status: activeDialogContext.status || '—',
-      created_at: activeDialogContext.createdAt || '—',
-      current_date: now.toLocaleDateString('ru-RU'),
-      current_time: now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
-    };
-    Object.entries(macroVariableDefaults).forEach(([key, value]) => {
-      if (!Object.prototype.hasOwnProperty.call(variables, key) || !String(variables[key] || '').trim()) {
-        variables[key] = value;
-      }
-    });
-    return variables;
+    return dialogsMacroRuntime?.resolveMacroVariables() || {};
   }
 
   function resolveMacroText(template) {
-    if (!template) return '';
-    const text = String(template?.message || template?.text || '').trim();
-    if (!text) return '';
-    const variables = resolveMacroVariables();
-    return text.replace(/\{\{\s*([a-z0-9_]+)(?:\s*\|\s*([^}]+))?\s*\}\}/gi, (match, key, fallback) => {
-      const normalizedKey = String(key || '').toLowerCase();
-      if (Object.prototype.hasOwnProperty.call(variables, normalizedKey)) {
-        return String(variables[normalizedKey]);
-      }
-      const fallbackText = String(fallback || '').trim();
-      return fallbackText || match;
-    }).trim();
+    return dialogsMacroRuntime?.resolveMacroText(template) || '';
   }
 
   function renderMacroTemplate(template) {
-    if (!macroTemplatePreview || !macroTemplateEmpty || !macroTemplateMeta) return;
-    activeMacroTemplate = template || null;
-    activeMacroMeta = template
-      ? {
-        id: String(template?.id || '').trim() || null,
-        name: String(template?.name || '').trim() || null,
-      }
-      : null;
-    const message = resolveMacroText(template);
-    macroTemplatePreview.textContent = message || 'Выберите макрос для предпросмотра.';
-    macroTemplateMeta.innerHTML = '';
-    const tags = Array.isArray(template?.tags) ? template.tags.filter(Boolean) : [];
-    tags.forEach((tag) => {
-      const badge = document.createElement('span');
-      badge.className = 'badge text-bg-light border';
-      badge.textContent = String(tag);
-      macroTemplateMeta.appendChild(badge);
-    });
-    const workflow = resolveMacroWorkflow(template);
-    if (workflow.assignToMe) {
-      const badge = document.createElement('span');
-      badge.className = 'badge text-bg-info-subtle border';
-      badge.textContent = 'Workflow: назначить мне';
-      macroTemplateMeta.appendChild(badge);
-    }
-    if (workflow.snoozeMinutes > 0) {
-      const badge = document.createElement('span');
-      badge.className = 'badge text-bg-info-subtle border';
-      badge.textContent = `Workflow: snooze ${workflow.snoozeMinutes}м`;
-      macroTemplateMeta.appendChild(badge);
-    }
-    if (workflow.closeTicket) {
-      const badge = document.createElement('span');
-      badge.className = 'badge text-bg-warning-subtle border';
-      badge.textContent = 'Workflow: закрыть тикет';
-      macroTemplateMeta.appendChild(badge);
-    }
-    const namespace = String(template?.namespace || '').trim();
-    if (namespace) {
-      const badge = document.createElement('span');
-      badge.className = 'badge text-bg-light border';
-      badge.textContent = `Namespace: ${namespace}`;
-      macroTemplateMeta.appendChild(badge);
-    }
-    const owner = String(template?.owner || '').trim();
-    if (owner) {
-      const badge = document.createElement('span');
-      badge.className = 'badge text-bg-light border';
-      badge.textContent = `Owner: ${owner}`;
-      macroTemplateMeta.appendChild(badge);
-    }
-    const hasActions = workflow.assignToMe || workflow.snoozeMinutes > 0 || workflow.closeTicket;
-    const hasMessage = Boolean(message);
-    macroTemplateEmpty.classList.toggle('d-none', hasMessage || hasActions);
-    if (macroTemplateApply) {
-      macroTemplateApply.disabled = !(hasMessage || hasActions);
-    }
-    if (activeMacroMeta && (hasMessage || hasActions)) {
-      emitWorkspaceTelemetry('macro_preview', {
-        ticketId: activeDialogTicketId,
-        templateId: activeMacroMeta.id,
-        templateName: activeMacroMeta.name,
-      });
-    }
+    dialogsMacroRuntime?.renderMacroTemplate(template);
   }
 
   function initDialogTemplates() {
@@ -5530,41 +5322,7 @@
       }
     }
 
-
-    if (macroTemplatesSection) {
-      const templates = DIALOG_TEMPLATES.macroTemplates;
-      const hasTemplates = templates.length > 0;
-      macroTemplatesCache = templates;
-      macroTemplatesSection.classList.toggle('d-none', !hasTemplates);
-      if (hasTemplates) {
-        initMacroVariableCatalog(activeDialogTicketId, true);
-      }
-      if (hasTemplates && macroTemplateSelect) {
-        renderMacroTemplateOptions(templates);
-        macroTemplateSelect.addEventListener('change', () => {
-          const selected = findTemplateByValue(templates, macroTemplateSelect.value);
-          renderMacroTemplate(selected);
-        });
-        if (macroTemplateSearch) {
-          macroTemplateSearch.addEventListener('input', () => {
-            const filteredTemplates = filterMacroTemplates(macroTemplatesCache, macroTemplateSearch.value);
-            renderMacroTemplateOptions(filteredTemplates);
-          });
-        }
-      }
-    }
-
-    if (workspaceComposerMacroSection) {
-      workspaceComposerMacroTemplates = DIALOG_TEMPLATES.macroTemplates.map((template, index) => ({
-        ...template,
-        __macroIndex: index,
-      }));
-      const hasTemplates = workspaceComposerMacroTemplates.length > 0;
-      workspaceComposerMacroSection.classList.toggle('d-none', !hasTemplates);
-      if (hasTemplates) {
-        renderWorkspaceMacroOptions(workspaceComposerMacroTemplates);
-      }
-    }
+    dialogsMacroRuntime?.initMacroTemplates();
 
     if (completionTemplatesSection) {
       const templates = DIALOG_TEMPLATES.completionTemplates;
@@ -5627,63 +5385,19 @@
   }
 
   function resolveMacroWorkflow(template) {
-    const workflow = template && typeof template?.workflow === 'object' && template.workflow !== null
-      ? template.workflow
-      : template || {};
-    const snoozeMinutes = Number.parseInt(workflow.snooze_minutes, 10);
-    return {
-      assignToMe: workflow.assign_to_me === true || workflow.assign_to_me === 'true' || workflow.assign_to_me === 1 || workflow.assign_to_me === '1',
-      closeTicket: workflow.close_ticket === true || workflow.close_ticket === 'true' || workflow.close_ticket === 1 || workflow.close_ticket === '1',
-      snoozeMinutes: Number.isFinite(snoozeMinutes) && snoozeMinutes >= 1 ? Math.min(snoozeMinutes, 1440) : 0,
+    return dialogsMacroRuntime?.resolveMacroWorkflow(template) || {
+      assignToMe: false,
+      closeTicket: false,
+      snoozeMinutes: 0,
     };
   }
 
   async function executeMacroWorkflow(template, options = {}) {
-    const ticketId = String(options.ticketId || '').trim();
-    const row = options.row || null;
-    if (!ticketId) return [];
-    const workflow = resolveMacroWorkflow(template);
-    const steps = [];
-
-    if (workflow.assignToMe) {
-      await takeDialog(ticketId, row, null);
-      steps.push('назначить мне');
-    }
-    if (workflow.snoozeMinutes > 0) {
-      await snoozeDialog(ticketId, workflow.snoozeMinutes, null);
-      setSnooze(ticketId, workflow.snoozeMinutes);
-      if (row) updateRowQuickActions(row);
-      applyFilters();
-      steps.push(`отложить на ${workflow.snoozeMinutes} мин`);
-    }
-    if (workflow.closeTicket && row) {
-      await closeDialogQuick(ticketId, row, null);
-      steps.push('закрыть тикет');
-    }
-
-    return steps;
+    return await dialogsMacroRuntime?.executeMacroWorkflow(template, options) || [];
   }
 
   async function applyMacroTemplate() {
-    if (!activeMacroTemplate) return;
-    const message = resolveMacroText(activeMacroTemplate);
-    const appliedSteps = await executeMacroWorkflow(activeMacroTemplate, {
-      ticketId: activeDialogTicketId,
-      row: activeDialogRow,
-    });
-    if (message) {
-      insertReplyText(message);
-    }
-    if (typeof showNotification === 'function' && (message || appliedSteps.length)) {
-      const workflowSuffix = appliedSteps.length ? `; действия: ${appliedSteps.join(', ')}` : '';
-      showNotification(`Макрос применён${workflowSuffix}.`, 'success');
-    }
-    emitWorkspaceTelemetry('macro_apply', {
-      ticketId: activeDialogTicketId,
-      templateId: activeMacroMeta?.id || null,
-      templateName: activeMacroMeta?.name || null,
-      workflowActions: appliedSteps.length ? appliedSteps.join('|') : null,
-    });
+    await dialogsMacroRuntime?.applyMacroTemplate();
   }
 
   function saveColumnWidths() {
@@ -6398,6 +6112,7 @@
   dialogsActionsRuntime?.bindTableQuickActions();
   dialogsActionsRuntime?.bindDetailsQuickActions();
   dialogsActionsRuntime?.bindWorkspaceQuickActions();
+  dialogsMacroRuntime?.bindMacroTemplateEvents();
 
   syncDialogAssignControls();
 
@@ -7414,18 +7129,6 @@
     });
   }
 
-  if (macroTemplateApply) {
-    macroTemplateApply.addEventListener('click', async () => {
-      try {
-        await applyMacroTemplate();
-      } catch (error) {
-        if (typeof showNotification === 'function') {
-          showNotification(error?.message || 'Не удалось применить макрос', 'error');
-        }
-      }
-    });
-  }
-
   if (detailsReplyMediaTrigger && detailsReplyMedia) {
     detailsReplyMediaTrigger.addEventListener('click', () => {
       detailsReplyMedia.click();
@@ -7636,32 +7339,6 @@
       resetWorkspaceReplyTarget({ reason: 'manual_clear' });
       if (workspaceComposerText) {
         workspaceComposerText.focus();
-      }
-    });
-  }
-
-  if (workspaceComposerMacroSearch) {
-    workspaceComposerMacroSearch.addEventListener('input', () => {
-      const filteredTemplates = filterMacroTemplates(workspaceComposerMacroTemplates, workspaceComposerMacroSearch.value);
-      renderWorkspaceMacroOptions(filteredTemplates);
-    });
-  }
-
-  if (workspaceComposerMacroSelect) {
-    workspaceComposerMacroSelect.addEventListener('change', () => {
-      const selected = findMacroTemplateByWorkspaceOptionValue(workspaceComposerMacroSelect.value);
-      renderWorkspaceMacroPreview(selected);
-    });
-  }
-
-  if (workspaceComposerMacroApply) {
-    workspaceComposerMacroApply.addEventListener('click', async () => {
-      try {
-        await applyWorkspaceMacroTemplate();
-      } catch (error) {
-        if (typeof showNotification === 'function') {
-          showNotification(error?.message || 'Не удалось применить macro workflow', 'error');
-        }
       }
     });
   }

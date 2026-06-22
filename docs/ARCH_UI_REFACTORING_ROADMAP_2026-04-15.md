@@ -1759,10 +1759,14 @@
   `dialogs-actions-runtime.js` теперь держит row/details/workspace
   action handlers, action-menu wiring и button-state sync для
   `take/snooze/resolve/reopen/spam`;
+- следующим bounded slice вынесен и `macro workflow` runtime:
+  `dialogs-macro-runtime.js` теперь держит macro search/preview, variable
+  catalog/default resolution и apply/workflow orchestration для
+  details/workspace surfaces;
 - это означает, что следующий проход уже не должен заново разбирать
-  list/AI/details-history/workspace-support/shell-render/quick-actions
-  монолит внутри `dialogs.js`, а должен добирать оставшиеся
-  `macro workflow` и `notifications refresh`;
+  list/AI/details-history/workspace-support/shell-render/quick-actions/
+  macro-workflow монолит внутри `dialogs.js`, а должен добирать оставшийся
+  `notifications refresh`;
 
 - live regression corridor для `take -> categories -> reply -> follow-up ->
   details/workspace reread -> bell ack -> next follow-up` уже нужен как
