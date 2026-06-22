@@ -1763,10 +1763,14 @@
   `dialogs-macro-runtime.js` теперь держит macro search/preview, variable
   catalog/default resolution и apply/workflow orchestration для
   details/workspace surfaces;
+- следующим bounded slice вынесен и `notifications refresh` bridge:
+  `dialogs-notifications-runtime.js` теперь держит unread/bell sync и
+  sidebar refresh dispatch между dialog runtime и `sidebar.js`;
 - это означает, что следующий проход уже не должен заново разбирать
   list/AI/details-history/workspace-support/shell-render/quick-actions/
-  macro-workflow монолит внутри `dialogs.js`, а должен добирать оставшийся
-  `notifications refresh`;
+  macro-workflow/notifications-refresh монолит внутри `dialogs.js`, а должен
+  добирать только remaining orchestration drift вокруг legacy modal flows и
+  соседнего UI wiring;
 
 - live regression corridor для `take -> categories -> reply -> follow-up ->
   details/workspace reread -> bell ack -> next follow-up` уже нужен как

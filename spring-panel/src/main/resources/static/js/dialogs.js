@@ -1672,6 +1672,14 @@
   }
 
   let dialogsMacroRuntime = null;
+  const dialogsNotificationsRuntime = window.DialogsNotificationsRuntime?.createRuntime({
+    elements: {
+      detailsUnreadCount,
+    },
+    getActiveDialogState: () => ({
+      row: activeDialogRow,
+    }),
+  }) || null;
 
   const dialogsWorkspaceRuntime = window.DialogsWorkspaceRuntime?.createRuntime({
     elements: {
@@ -5627,35 +5635,15 @@
   }
 
   function setRowUnreadCount(row, unreadCount) {
-    if (!row) return;
-    const count = Number(unreadCount) || 0;
-    row.dataset.unread = String(count);
-    const unreadBadge = row.querySelector('.dialog-unread-count');
-    if (unreadBadge) {
-      unreadBadge.textContent = count;
-      unreadBadge.classList.toggle('d-none', count <= 0);
-    }
+    dialogsNotificationsRuntime?.setRowUnreadCount(row, unreadCount);
   }
 
   function updateDialogUnreadCount(unreadCount) {
-    const count = Number(unreadCount) || 0;
-    if (detailsUnreadCount) {
-      detailsUnreadCount.textContent = count;
-      detailsUnreadCount.classList.toggle('d-none', count <= 0);
-    }
-    setRowUnreadCount(activeDialogRow, count);
+    dialogsNotificationsRuntime?.updateDialogUnreadCount(unreadCount);
   }
 
   function requestSidebarNotificationRefresh(source = 'dialogs') {
-    if (typeof window.refreshSidebarNotifications === 'function') {
-      window.refreshSidebarNotifications();
-      return;
-    }
-    try {
-      window.dispatchEvent(new CustomEvent('iguana:notifications-refresh', { detail: { source } }));
-    } catch (_error) {
-      // ignore custom event errors
-    }
+    dialogsNotificationsRuntime?.requestSidebarNotificationRefresh(source);
   }
 
   function updateRowStatus(row, statusRaw, statusLabel, statusKey, unreadCount = 0) {
