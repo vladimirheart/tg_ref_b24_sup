@@ -3354,6 +3354,10 @@
     return dialogsListRuntime?.updateBulkActionsState();
   }
 
+  function updateBulkToolbarState() {
+    return updateBulkActionsState();
+  }
+
   function clearSelection() {
     return dialogsListRuntime?.clearSelection();
   }
@@ -3364,6 +3368,10 @@
 
   function applyFilters(options = {}) {
     return dialogsListRuntime?.applyFilters(options);
+  }
+
+  function renderTableFromRows(resetPage = false) {
+    return applyFilters(resetPage === true ? { resetPage: true } : {});
   }
 
   function applyQuickSearch(value) {
