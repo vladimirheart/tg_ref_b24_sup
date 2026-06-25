@@ -30,6 +30,18 @@
         options.debugLog?.('openDialogEntry.aborted.confirmWorkspaceTicketSwitch=false', { ticketId });
         return;
       }
+      if (options.workspaceEnabled && typeof options.openDialogWithWorkspaceFallback === 'function') {
+        Promise.resolve(options.openDialogWithWorkspaceFallback(ticketId, row, { source: 'manual_open' })).catch((error) => {
+          options.debugLog?.('openDialogEntry.openDialogWithWorkspaceFallback.catch', {
+            ticketId,
+            message: error?.message || String(error || ''),
+          });
+          console.error('Failed to open dialog workspace surface', error);
+          window.location.href = options.buildWorkspaceDialogUrl?.(ticketId, row?.dataset?.channelId ?? null)
+            || `/dialogs/${encodeURIComponent(ticketId)}`;
+        });
+        return;
+      }
       options.setWorkspaceReadonlyMode?.(false);
       const channelId = row?.dataset?.channelId ?? null;
       const nextUrl = options.buildWorkspaceDialogUrl?.(ticketId, channelId) || `/dialogs/${encodeURIComponent(ticketId)}`;

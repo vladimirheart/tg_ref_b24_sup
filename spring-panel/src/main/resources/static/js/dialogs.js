@@ -385,6 +385,20 @@
     modalEl.dispatchEvent(new Event('hidden.bs.modal'));
   }
 
+  function runDialogsInitStep(label, callback) {
+    if (typeof callback !== 'function') return null;
+    try {
+      return callback();
+    } catch (error) {
+      debugLog('dialogs.init.step.failed', {
+        label,
+        message: error?.message || String(error || ''),
+      });
+      console.error(`Dialogs init step failed: ${label}`, error);
+      return null;
+    }
+  }
+
   function bindFallbackModalDismiss(modalEl, modalInstance) {
     if (!modalEl || modalInstance) return;
     modalEl.querySelectorAll('[data-bs-dismiss="modal"]').forEach((button) => {
@@ -1703,6 +1717,7 @@
     confirmWorkspaceTicketSwitch,
     setWorkspaceReadonlyMode,
     buildWorkspaceDialogUrl,
+    openDialogWithWorkspaceFallback,
     openDialogDetails,
     showModalSafe,
     setViewTab,
@@ -4370,6 +4385,16 @@
     dialogsFlowRuntime?.openDialogEntry(ticketId, row);
   }
 
+  function openDialogSurface(ticketId, row, options = {}) {
+    if (!ticketId) {
+      return Promise.resolve();
+    }
+    if (WORKSPACE_V1_ENABLED) {
+      return openDialogWithWorkspaceFallback(ticketId, row, options);
+    }
+    return Promise.resolve(openDialogDetails(ticketId, row));
+  }
+
   function handleGlobalShortcuts(event) {
     dialogsFlowRuntime?.handleGlobalShortcuts(event);
   }
@@ -5387,7 +5412,7 @@
       if (!ticketId) return;
       const row = rowsList().find((item) => String(item.dataset.ticketId || '') === ticketId) || null;
       setActiveDialogRow(row, { ensureVisible: true });
-      openDialogDetails(ticketId, row);
+      openDialogSurface(ticketId, row, { source: 'manual_open' });
     });
   }
 
@@ -5419,12 +5444,12 @@
     bulkClearBtn.addEventListener('click', () => clearSelection());
   }
 
-  dialogsActionsRuntime?.bindDocumentQuickActions();
-  dialogsActionsRuntime?.bindTableQuickActions();
-  dialogsActionsRuntime?.bindDetailsQuickActions();
-  dialogsActionsRuntime?.bindWorkspaceQuickActions();
-  dialogsTemplatesRuntime?.bindTemplateEvents();
-  dialogsMacroRuntime?.bindMacroTemplateEvents();
+  runDialogsInitStep('dialogsActionsRuntime.bindDocumentQuickActions', () => dialogsActionsRuntime?.bindDocumentQuickActions());
+  runDialogsInitStep('dialogsActionsRuntime.bindTableQuickActions', () => dialogsActionsRuntime?.bindTableQuickActions());
+  runDialogsInitStep('dialogsActionsRuntime.bindDetailsQuickActions', () => dialogsActionsRuntime?.bindDetailsQuickActions());
+  runDialogsInitStep('dialogsActionsRuntime.bindWorkspaceQuickActions', () => dialogsActionsRuntime?.bindWorkspaceQuickActions());
+  runDialogsInitStep('dialogsTemplatesRuntime.bindTemplateEvents', () => dialogsTemplatesRuntime?.bindTemplateEvents());
+  runDialogsInitStep('dialogsMacroRuntime.bindMacroTemplateEvents', () => dialogsMacroRuntime?.bindMacroTemplateEvents());
 
   syncDialogAssignControls();
 
@@ -5831,15 +5856,17 @@
 
   if (pagePrevBtn) {
     pagePrevBtn.addEventListener('click', () => {
-      if ((filterState.page || 1) <= 1) return;
-      filterState.page = Math.max(1, (filterState.page || 1) - 1);
+      const currentPage = Math.max(1, Number.parseInt(filterState.page, 10) || 1);
+      if (currentPage <= 1) return;
+      filterState.page = currentPage - 1;
       applyFilters();
     });
   }
 
   if (pageNextBtn) {
     pageNextBtn.addEventListener('click', () => {
-      filterState.page = Math.max(1, (filterState.page || 1) + 1);
+      const currentPage = Math.max(1, Number.parseInt(filterState.page, 10) || 1);
+      filterState.page = currentPage + 1;
       applyFilters();
     });
   }
@@ -6545,7 +6572,7 @@
     debugLog('window.openDialogDetailsByTicketId.called', { ticketId: normalizedTicketId });
     const row = rowsList().find((item) => String(item.dataset.ticketId || '') === normalizedTicketId) || null;
     setActiveDialogRow(row, { ensureVisible: true });
-    openDialogDetails(normalizedTicketId, row);
+    openDialogSurface(normalizedTicketId, row, { source: 'manual_open' });
   };
   window.refreshAiReviewQueue = () => {};
 
@@ -6561,7 +6588,7 @@
     if (initialRow) {
       setActiveDialogRow(initialRow, { ensureVisible: true });
     }
-    openDialogDetails(INITIAL_DIALOG_TICKET_ID, initialRow);
+    openDialogSurface(INITIAL_DIALOG_TICKET_ID, initialRow, { source: 'initial_route' });
   }
 
   window.addEventListener('beforeunload', () => {
@@ -6582,7 +6609,7 @@
       }
       const row = rowsList().find((item) => String(item.dataset.ticketId || '') === ticketId) || null;
       setActiveDialogRow(row, { ensureVisible: true });
-      openDialogDetails(ticketId, row);
+      openDialogSurface(ticketId, row, { source: 'initial_route' });
     });
   }
 

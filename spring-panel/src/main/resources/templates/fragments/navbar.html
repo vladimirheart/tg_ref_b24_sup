@@ -159,7 +159,7 @@
                     <div class="sidebar-footer-kicker">Аккаунт</div>
                     <div class="sidebar-user-card">
                         <div class="sidebar-user-avatar"
-                             th:classappend="${sidebarUserHasAvatar} ? ' has-image' : ''"
+                             th:classappend="${sidebarUserHasAvatar} ? ' has-image is-loaded' : ''"
                              data-sidebar-user-avatar>
                             <img th:if="${sidebarUserHasAvatar}"
                                  th:src="${sidebarUserAvatarUrl}"
