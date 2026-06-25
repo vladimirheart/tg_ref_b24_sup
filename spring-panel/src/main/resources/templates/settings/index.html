@@ -6824,6 +6824,7 @@
     <script src="/js/settings-page-shell.js"></script>
     <script src="/js/settings-appearance-runtime.js"></script>
     <script src="/js/settings-dialog-metrics-runtime.js"></script>
+    <script src="/js/settings-dialog-workspace-governance-runtime.js"></script>
     <script src="/js/settings-dialog-templates-runtime.js"></script>
     <script src="/js/settings-channel-templates-runtime.js"></script>
     <script src="/js/settings-parameter-data-runtime.js"></script>
@@ -7186,6 +7187,11 @@
     getDefaultSummaryBadges: () => DEFAULT_SUMMARY_BADGES,
   });
 
+  const settingsDialogWorkspaceGovernanceRuntime = window.SettingsDialogWorkspaceGovernanceRuntime?.mount({
+    getDialogConfig: () => DIALOG_CONFIG,
+    getDefaultDialogSlaConfig: () => DEFAULT_DIALOG_SLA_CONFIG,
+  });
+
   const settingsDialogTemplatesRuntime = window.SettingsDialogTemplatesRuntime?.mount({
     getDialogConfig: () => DIALOG_CONFIG,
     getAutoCloseConfig: () => AUTO_CLOSE_CONFIG,
@@ -7385,28 +7391,6 @@
       workspaceClientContextSourceStaleAfterHoursBySource: document.getElementById('dialogWorkspaceClientContextSourceStaleAfterHoursBySource'),
       workspaceRequiredClientAttributes: document.getElementById('dialogWorkspaceRequiredClientAttributes'),
       workspaceRequiredClientAttributesBySegment: document.getElementById('dialogWorkspaceRequiredClientAttributesBySegment'),
-      workspaceGovernancePacketRequired: document.getElementById('dialogWorkspaceGovernancePacketRequired'),
-      workspaceGovernanceOwnerSignoffRequired: document.getElementById('dialogWorkspaceGovernanceOwnerSignoffRequired'),
-      workspaceGovernanceOwnerSignoffBy: document.getElementById('dialogWorkspaceGovernanceOwnerSignoffBy'),
-      workspaceGovernanceOwnerSignoffAt: document.getElementById('dialogWorkspaceGovernanceOwnerSignoffAt'),
-      workspaceGovernanceOwnerSignoffTtlHours: document.getElementById('dialogWorkspaceGovernanceOwnerSignoffTtlHours'),
-      workspaceGovernanceReviewCadenceDays: document.getElementById('dialogWorkspaceGovernanceReviewCadenceDays'),
-      workspaceGovernanceReviewedBy: document.getElementById('dialogWorkspaceGovernanceReviewedBy'),
-      workspaceGovernanceReviewedAt: document.getElementById('dialogWorkspaceGovernanceReviewedAt'),
-      workspaceGovernanceReviewDecisionRequired: document.getElementById('dialogWorkspaceGovernanceReviewDecisionRequired'),
-      workspaceGovernanceIncidentFollowupRequired: document.getElementById('dialogWorkspaceGovernanceIncidentFollowupRequired'),
-      workspaceGovernanceFollowupForNonGoRequired: document.getElementById('dialogWorkspaceGovernanceFollowupForNonGoRequired'),
-      workspaceGovernanceReviewDecisionAction: document.getElementById('dialogWorkspaceGovernanceReviewDecisionAction'),
-      workspaceGovernanceReviewIncidentFollowup: document.getElementById('dialogWorkspaceGovernanceReviewIncidentFollowup'),
-      workspaceGovernanceParityExitDays: document.getElementById('dialogWorkspaceGovernanceParityExitDays'),
-      workspaceGovernanceParityCriticalReasons: document.getElementById('dialogWorkspaceGovernanceParityCriticalReasons'),
-      workspaceGovernanceLegacyOnlyScenarios: document.getElementById('dialogWorkspaceGovernanceLegacyOnlyScenarios'),
-      workspaceGovernanceLegacyBlockedReasonsReviewRequired: document.getElementById('dialogWorkspaceGovernanceLegacyBlockedReasonsReviewRequired'),
-      workspaceGovernanceLegacyBlockedReasonsTopN: document.getElementById('dialogWorkspaceGovernanceLegacyBlockedReasonsTopN'),
-      workspaceLegacyUsageReviewNote: document.getElementById('dialogWorkspaceLegacyUsageReviewNote'),
-      workspaceLegacyUsageDecision: document.getElementById('dialogWorkspaceLegacyUsageDecision'),
-      workspaceLegacyUsageMaxSharePct: document.getElementById('dialogWorkspaceLegacyUsageMaxSharePct'),
-      workspaceLegacyUsageMinWorkspaceOpens: document.getElementById('dialogWorkspaceLegacyUsageMinWorkspaceOpens'),
       macroGovernanceRequireOwner: document.getElementById('dialogMacroGovernanceRequireOwner'),
       macroGovernanceRequireNamespace: document.getElementById('dialogMacroGovernanceRequireNamespace'),
       macroGovernanceRequireReview: document.getElementById('dialogMacroGovernanceRequireReview'),
@@ -8111,89 +8095,6 @@
         inputs.workspaceRequiredClientAttributesBySegment.value = '{}';
       }
     }
-    if (inputs.workspaceGovernancePacketRequired) {
-      inputs.workspaceGovernancePacketRequired.checked = Boolean(DIALOG_CONFIG.workspace_rollout_governance_packet_required);
-    }
-    if (inputs.workspaceGovernanceOwnerSignoffRequired) {
-      inputs.workspaceGovernanceOwnerSignoffRequired.checked = Boolean(DIALOG_CONFIG.workspace_rollout_governance_owner_signoff_required);
-    }
-    if (inputs.workspaceGovernanceOwnerSignoffBy) {
-      inputs.workspaceGovernanceOwnerSignoffBy.value = String(DIALOG_CONFIG.workspace_rollout_governance_owner_signoff_by || '').trim();
-    }
-    populateWorkspaceGovernanceUtcTimestampField(WORKSPACE_GOVERNANCE_UTC_TIMESTAMP_FIELDS[0]);
-    if (inputs.workspaceGovernanceOwnerSignoffTtlHours) {
-      const value = Number.parseInt(DIALOG_CONFIG.workspace_rollout_governance_owner_signoff_ttl_hours, 10);
-      inputs.workspaceGovernanceOwnerSignoffTtlHours.value = Number.isFinite(value) && value >= 1 && value <= 2160
-        ? value
-        : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_governance_owner_signoff_ttl_hours;
-    }
-    if (inputs.workspaceGovernanceReviewCadenceDays) {
-      const value = Number.parseInt(DIALOG_CONFIG.workspace_rollout_governance_review_cadence_days, 10);
-      inputs.workspaceGovernanceReviewCadenceDays.value = Number.isFinite(value) && value >= 0 && value <= 90
-        ? value
-        : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_governance_review_cadence_days;
-    }
-    if (inputs.workspaceGovernanceReviewedBy) {
-      inputs.workspaceGovernanceReviewedBy.value = String(DIALOG_CONFIG.workspace_rollout_governance_reviewed_by || '').trim();
-    }
-    if (inputs.workspaceGovernanceReviewDecisionRequired) {
-      inputs.workspaceGovernanceReviewDecisionRequired.checked = Boolean(DIALOG_CONFIG.workspace_rollout_governance_review_decision_required);
-    }
-    if (inputs.workspaceGovernanceIncidentFollowupRequired) {
-      inputs.workspaceGovernanceIncidentFollowupRequired.checked = Boolean(DIALOG_CONFIG.workspace_rollout_governance_incident_followup_required);
-    }
-    if (inputs.workspaceGovernanceFollowupForNonGoRequired) {
-      inputs.workspaceGovernanceFollowupForNonGoRequired.checked = Boolean(DIALOG_CONFIG.workspace_rollout_governance_followup_for_non_go_required);
-    }
-    if (inputs.workspaceGovernanceReviewDecisionAction) {
-      const decisionAction = String(DIALOG_CONFIG.workspace_rollout_governance_review_decision_action || '').trim().toLowerCase();
-      inputs.workspaceGovernanceReviewDecisionAction.value = ['go', 'hold', 'rollback'].includes(decisionAction)
-        ? decisionAction
-        : '';
-    }
-    if (inputs.workspaceGovernanceReviewIncidentFollowup) {
-      inputs.workspaceGovernanceReviewIncidentFollowup.value = String(DIALOG_CONFIG.workspace_rollout_governance_review_incident_followup || '').trim();
-    }
-    populateWorkspaceGovernanceUtcTimestampField(WORKSPACE_GOVERNANCE_UTC_TIMESTAMP_FIELDS[1]);
-    if (inputs.workspaceGovernanceParityExitDays) {
-      const value = Number.parseInt(DIALOG_CONFIG.workspace_rollout_governance_parity_exit_days, 10);
-      inputs.workspaceGovernanceParityExitDays.value = Number.isFinite(value) && value >= 0 && value <= 90
-        ? value
-        : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_governance_parity_exit_days;
-    }
-    if (inputs.workspaceGovernanceParityCriticalReasons) {
-      const values = Array.isArray(DIALOG_CONFIG.workspace_rollout_governance_parity_critical_reasons)
-        ? DIALOG_CONFIG.workspace_rollout_governance_parity_critical_reasons
-        : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_governance_parity_critical_reasons;
-      inputs.workspaceGovernanceParityCriticalReasons.value = values
-        .map((value) => String(value || '').trim().toLowerCase())
-        .filter(Boolean)
-        .join(', ');
-    }
-    if (inputs.workspaceGovernanceLegacyOnlyScenarios) {
-      const values = DIALOG_CONFIG.workspace_rollout_governance_legacy_only_scenarios;
-      if (Array.isArray(values)) {
-        inputs.workspaceGovernanceLegacyOnlyScenarios.value = JSON.stringify(values, null, 2);
-      } else if (typeof values === 'string' && values.trim()) {
-        inputs.workspaceGovernanceLegacyOnlyScenarios.value = values.trim();
-      } else {
-        inputs.workspaceGovernanceLegacyOnlyScenarios.value = '[]';
-      }
-    }
-    if (inputs.workspaceGovernanceLegacyBlockedReasonsReviewRequired) {
-      inputs.workspaceGovernanceLegacyBlockedReasonsReviewRequired.checked = Boolean(DIALOG_CONFIG.workspace_rollout_governance_legacy_blocked_reasons_review_required);
-    }
-    if (inputs.workspaceGovernanceLegacyBlockedReasonsTopN) {
-      const value = Number.parseInt(DIALOG_CONFIG.workspace_rollout_governance_legacy_blocked_reasons_top_n, 10);
-      inputs.workspaceGovernanceLegacyBlockedReasonsTopN.value = Number.isFinite(value) && value >= 1 && value <= 10
-        ? value
-        : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_governance_legacy_blocked_reasons_top_n;
-    }
-    if (inputs.workspaceLegacyUsageMinWorkspaceOpens) {
-      const value = Number.parseInt(DIALOG_CONFIG.workspace_rollout_governance_legacy_usage_min_workspace_open_events, 10);
-      inputs.workspaceLegacyUsageMinWorkspaceOpens.value = Number.isFinite(value) && value >= 0 && value <= 100000 ? value : '';
-    }
-    syncAllWorkspaceGovernanceUtcTimestampFields();
     if (inputs.macroGovernanceRequireOwner) {
       inputs.macroGovernanceRequireOwner.checked = Boolean(DIALOG_CONFIG.macro_governance_require_owner);
     }
@@ -8563,7 +8464,6 @@
         ? String(Math.max(0, Math.min(100, value)))
         : String(DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_external_kpi_datamart_contract_optional_min_coverage_pct);
     }
-    syncAllWorkspaceGovernanceUtcTimestampFields();
     syncAllExternalKpiUtcTimestampFields();
     syncWorkspaceSingleModeControls(inputs);
     syncWorkspaceExternalKpiDatamartContractState(inputs);
@@ -10058,112 +9958,12 @@
       }
     }
 
-    const safeWorkspaceGovernancePacketRequired = Boolean(inputs.workspaceGovernancePacketRequired?.checked);
-    const safeWorkspaceGovernanceOwnerSignoffRequired = Boolean(inputs.workspaceGovernanceOwnerSignoffRequired?.checked);
-    const safeWorkspaceGovernanceOwnerSignoffBy = String(inputs.workspaceGovernanceOwnerSignoffBy?.value || '').trim().slice(0, 120);
-    const safeWorkspaceGovernanceOwnerSignoffAtRaw = String(inputs.workspaceGovernanceOwnerSignoffAt?.value || '').trim();
-    const safeWorkspaceGovernanceOwnerSignoffAt = toUtcIsoString(safeWorkspaceGovernanceOwnerSignoffAtRaw);
-    if (safeWorkspaceGovernanceOwnerSignoffAtRaw && !safeWorkspaceGovernanceOwnerSignoffAt) {
-      errors.push('Дата owner sign-off указана в некорректном формате UTC.');
-    }
-    const safeWorkspaceGovernanceOwnerSignoffTtlHoursRaw = Number.parseInt(inputs.workspaceGovernanceOwnerSignoffTtlHours?.value || '', 10);
-    const safeWorkspaceGovernanceOwnerSignoffTtlHours = Number.isFinite(safeWorkspaceGovernanceOwnerSignoffTtlHoursRaw)
-      ? Math.max(1, Math.min(2160, safeWorkspaceGovernanceOwnerSignoffTtlHoursRaw))
-      : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_governance_owner_signoff_ttl_hours;
-    if (safeWorkspaceGovernanceOwnerSignoffRequired && !safeWorkspaceGovernanceOwnerSignoffBy) {
-      errors.push('Для owner sign-off укажите ответственного владельца решения.');
-    }
-    if (safeWorkspaceGovernanceOwnerSignoffRequired && !safeWorkspaceGovernanceOwnerSignoffAt) {
-      errors.push('Для owner sign-off укажите валидную UTC-дату подтверждения.');
-    }
-    const safeWorkspaceGovernanceReviewCadenceDaysRaw = Number.parseInt(inputs.workspaceGovernanceReviewCadenceDays?.value || '', 10);
-    const safeWorkspaceGovernanceReviewCadenceDays = Number.isFinite(safeWorkspaceGovernanceReviewCadenceDaysRaw)
-      ? Math.max(0, Math.min(90, safeWorkspaceGovernanceReviewCadenceDaysRaw))
-      : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_governance_review_cadence_days;
-    const safeWorkspaceGovernanceReviewedBy = String(inputs.workspaceGovernanceReviewedBy?.value || '').trim().slice(0, 120);
-    const safeWorkspaceGovernanceReviewedAtRaw = String(inputs.workspaceGovernanceReviewedAt?.value || '').trim();
-    const safeWorkspaceGovernanceReviewedAt = toUtcIsoString(safeWorkspaceGovernanceReviewedAtRaw);
-    if (safeWorkspaceGovernanceReviewedAtRaw && !safeWorkspaceGovernanceReviewedAt) {
-      errors.push('Дата governance review указана в некорректном формате UTC.');
-    }
-    const safeWorkspaceGovernanceReviewDecisionRequired = Boolean(inputs.workspaceGovernanceReviewDecisionRequired?.checked);
-    const safeWorkspaceGovernanceIncidentFollowupRequired = Boolean(inputs.workspaceGovernanceIncidentFollowupRequired?.checked);
-    const safeWorkspaceGovernanceFollowupForNonGoRequired = Boolean(inputs.workspaceGovernanceFollowupForNonGoRequired?.checked);
-    const safeWorkspaceGovernanceReviewDecisionAction = (() => {
-      const value = String(inputs.workspaceGovernanceReviewDecisionAction?.value || '').trim().toLowerCase();
-      return ['go', 'hold', 'rollback'].includes(value) ? value : '';
-    })();
-    const safeWorkspaceGovernanceReviewIncidentFollowup = String(inputs.workspaceGovernanceReviewIncidentFollowup?.value || '').trim().slice(0, 500);
-    if (safeWorkspaceGovernanceReviewCadenceDays > 0 && !safeWorkspaceGovernanceReviewedBy) {
-      errors.push('Для review cadence укажите последнего reviewer.');
-    }
-    if (safeWorkspaceGovernanceReviewCadenceDays > 0 && !safeWorkspaceGovernanceReviewedAt) {
-      errors.push('Для review cadence укажите валидную UTC-дату последнего review.');
-    }
-    if (safeWorkspaceGovernanceReviewDecisionRequired && !safeWorkspaceGovernanceReviewDecisionAction) {
-      errors.push('При включенном decision action required выберите go / hold / rollback.');
-    }
-    if (safeWorkspaceGovernanceIncidentFollowupRequired && !safeWorkspaceGovernanceReviewIncidentFollowup) {
-      errors.push('При включенном incident follow-up required укажите ссылку или заметку follow-up.');
-    }
-    if (safeWorkspaceGovernanceFollowupForNonGoRequired
-      && safeWorkspaceGovernanceReviewDecisionAction === 'go'
-      && !safeWorkspaceGovernanceReviewIncidentFollowup) {
-      errors.push('Для перехода hold/rollback → go укажите incident follow-up ссылку или заметку.');
-    }
-    const safeWorkspaceGovernanceParityExitDaysRaw = Number.parseInt(inputs.workspaceGovernanceParityExitDays?.value || '', 10);
-    const safeWorkspaceGovernanceParityExitDays = Number.isFinite(safeWorkspaceGovernanceParityExitDaysRaw)
-      ? Math.max(0, Math.min(90, safeWorkspaceGovernanceParityExitDaysRaw))
-      : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_governance_parity_exit_days;
-    const safeWorkspaceGovernanceParityCriticalReasons = Array.from(new Set(
-      String(inputs.workspaceGovernanceParityCriticalReasons?.value || '')
-        .split(/[\n,;]/)
-        .map((value) => String(value || '').trim().toLowerCase())
-        .filter(Boolean),
-    ));
-    const safeWorkspaceGovernanceLegacyBlockedReasonsReviewRequired = Boolean(inputs.workspaceGovernanceLegacyBlockedReasonsReviewRequired?.checked);
-    const safeWorkspaceGovernanceLegacyBlockedReasonsTopNRaw = Number.parseInt(inputs.workspaceGovernanceLegacyBlockedReasonsTopN?.value || '', 10);
-    const safeWorkspaceGovernanceLegacyBlockedReasonsTopN = Number.isFinite(safeWorkspaceGovernanceLegacyBlockedReasonsTopNRaw)
-      ? Math.max(1, Math.min(10, safeWorkspaceGovernanceLegacyBlockedReasonsTopNRaw))
-      : DEFAULT_DIALOG_SLA_CONFIG.workspace_rollout_governance_legacy_blocked_reasons_top_n;
-    if (safeWorkspaceGovernanceLegacyBlockedReasonsReviewRequired
-      && (!Number.isFinite(safeWorkspaceGovernanceLegacyBlockedReasonsTopNRaw)
-        || safeWorkspaceGovernanceLegacyBlockedReasonsTopNRaw < 1
-        || safeWorkspaceGovernanceLegacyBlockedReasonsTopNRaw > 10)) {
-      errors.push('Top blocked reasons для review должен быть целым числом 1..10.');
-    }
-    let safeWorkspaceGovernanceLegacyOnlyScenarios = [];
-    const legacyOnlyScenariosRaw = String(inputs.workspaceGovernanceLegacyOnlyScenarios?.value || '').trim();
-    if (legacyOnlyScenariosRaw) {
-      if (legacyOnlyScenariosRaw.startsWith('[')) {
-        try {
-          const parsed = JSON.parse(legacyOnlyScenariosRaw);
-          if (!Array.isArray(parsed)) {
-            errors.push('Legacy-only scenarios должны быть JSON-массивом или CSV-строкой.');
-          } else {
-            safeWorkspaceGovernanceLegacyOnlyScenarios = Array.from(new Set(parsed
-              .map((value) => String(value || '').trim())
-              .filter(Boolean)));
-          }
-        } catch (err) {
-          errors.push('Legacy-only scenarios: некорректный JSON.');
-        }
-      } else {
-        safeWorkspaceGovernanceLegacyOnlyScenarios = Array.from(new Set(legacyOnlyScenariosRaw
-          .split(/[\n,;]/)
-          .map((value) => String(value || '').trim())
-          .filter(Boolean)));
-      }
-    }
-    const safeWorkspaceLegacyUsageMinWorkspaceOpensRaw = Number.parseInt(inputs.workspaceLegacyUsageMinWorkspaceOpens?.value || '', 10);
-    const safeWorkspaceLegacyUsageMinWorkspaceOpens = Number.isFinite(safeWorkspaceLegacyUsageMinWorkspaceOpensRaw)
-      ? Math.max(0, Math.min(100000, safeWorkspaceLegacyUsageMinWorkspaceOpensRaw))
-      : '';
-    if (String(inputs.workspaceLegacyUsageMinWorkspaceOpens?.value || '').trim()
-      && (!Number.isFinite(safeWorkspaceLegacyUsageMinWorkspaceOpensRaw)
-        || safeWorkspaceLegacyUsageMinWorkspaceOpensRaw < 0
-        || safeWorkspaceLegacyUsageMinWorkspaceOpensRaw > 100000)) {
-      errors.push('Мин. workspace opens в окне должен быть целым числом 0..100000.');
+    const workspaceGovernanceState = settingsDialogWorkspaceGovernanceRuntime?.collectWorkspaceGovernanceConfig() || {
+      config: {},
+      errors: ['Не удалось собрать настройки workspace governance.'],
+    };
+    if (workspaceGovernanceState.errors && workspaceGovernanceState.errors.length) {
+      errors.push(...workspaceGovernanceState.errors);
     }
 
     const hiddenAttributesRaw = (inputs.workspaceClientHiddenAttributes?.value || '').trim();
@@ -10651,25 +10451,7 @@
         dialog_workspace_rollout_kpi_outcome_sla_breach_max_relative_multiplier: safeSlaRelativeMultiplier,
         dialog_workspace_rollout_required_outcome_kpis: safeRequiredOutcomeKpis,
         dialog_workspace_rollout_winner_min_open_improvement: safeWinnerMinOpenImprovement,
-        dialog_workspace_rollout_governance_packet_required: safeWorkspaceGovernancePacketRequired,
-        dialog_workspace_rollout_governance_owner_signoff_required: safeWorkspaceGovernanceOwnerSignoffRequired,
-        dialog_workspace_rollout_governance_owner_signoff_by: safeWorkspaceGovernanceOwnerSignoffBy,
-        dialog_workspace_rollout_governance_owner_signoff_at: safeWorkspaceGovernanceOwnerSignoffAt,
-        dialog_workspace_rollout_governance_owner_signoff_ttl_hours: safeWorkspaceGovernanceOwnerSignoffTtlHours,
-        dialog_workspace_rollout_governance_review_cadence_days: safeWorkspaceGovernanceReviewCadenceDays,
-        dialog_workspace_rollout_governance_reviewed_by: safeWorkspaceGovernanceReviewedBy,
-        dialog_workspace_rollout_governance_reviewed_at: safeWorkspaceGovernanceReviewedAt,
-        dialog_workspace_rollout_governance_review_decision_required: safeWorkspaceGovernanceReviewDecisionRequired,
-        dialog_workspace_rollout_governance_incident_followup_required: safeWorkspaceGovernanceIncidentFollowupRequired,
-        dialog_workspace_rollout_governance_followup_for_non_go_required: safeWorkspaceGovernanceFollowupForNonGoRequired,
-        dialog_workspace_rollout_governance_review_decision_action: safeWorkspaceGovernanceReviewDecisionAction,
-        dialog_workspace_rollout_governance_review_incident_followup: safeWorkspaceGovernanceReviewIncidentFollowup,
-        dialog_workspace_rollout_governance_parity_exit_days: safeWorkspaceGovernanceParityExitDays,
-        dialog_workspace_rollout_governance_parity_critical_reasons: safeWorkspaceGovernanceParityCriticalReasons,
-        dialog_workspace_rollout_governance_legacy_only_scenarios: safeWorkspaceGovernanceLegacyOnlyScenarios,
-        dialog_workspace_rollout_governance_legacy_usage_min_workspace_open_events: safeWorkspaceLegacyUsageMinWorkspaceOpens,
-        dialog_workspace_rollout_governance_legacy_blocked_reasons_review_required: safeWorkspaceGovernanceLegacyBlockedReasonsReviewRequired,
-        dialog_workspace_rollout_governance_legacy_blocked_reasons_top_n: safeWorkspaceGovernanceLegacyBlockedReasonsTopN,
+        ...workspaceGovernanceState.config,
         dialog_macro_variable_defaults: safeMacroVariableDefaults,
         dialog_macro_variable_catalog: safeMacroVariableCatalog,
         dialog_macro_variable_catalog_external_url: safeMacroVariableCatalogExternalUrl,
@@ -11279,23 +11061,6 @@
     return toDateTimeLocalValue(rawValue);
   }
 
-  const WORKSPACE_GOVERNANCE_UTC_TIMESTAMP_FIELDS = [
-    {
-      inputId: 'dialogWorkspaceGovernanceOwnerSignoffAt',
-      statusId: 'dialogWorkspaceGovernanceOwnerSignoffAtStatus',
-      configKey: 'workspace_rollout_governance_owner_signoff_at',
-      label: 'Owner sign-off',
-      summaryId: 'dialogWorkspaceGovernanceUtcSummary',
-    },
-    {
-      inputId: 'dialogWorkspaceGovernanceReviewedAt',
-      statusId: 'dialogWorkspaceGovernanceReviewedAtStatus',
-      configKey: 'workspace_rollout_governance_reviewed_at',
-      label: 'Governance review',
-      summaryId: 'dialogWorkspaceGovernanceUtcSummary',
-    },
-  ];
-
   const EXTERNAL_KPI_UTC_TIMESTAMP_FIELDS = [
     {
       inputId: 'dialogWorkspaceExternalKpiDatamartDependencyTicketUpdatedAt',
@@ -11341,7 +11106,7 @@
     },
   ];
 
-  const UTC_TIMESTAMP_FIELDS = [...WORKSPACE_GOVERNANCE_UTC_TIMESTAMP_FIELDS, ...EXTERNAL_KPI_UTC_TIMESTAMP_FIELDS];
+  const UTC_TIMESTAMP_FIELDS = [...EXTERNAL_KPI_UTC_TIMESTAMP_FIELDS];
 
   function findUtcTimestampFieldMetaByInput(input) {
     const inputId = input instanceof HTMLElement ? input.id : '';
@@ -11419,10 +11184,6 @@
     syncUtcTimestampSummary(EXTERNAL_KPI_UTC_TIMESTAMP_FIELDS, 'dialogWorkspaceExternalKpiUtcSummary');
   }
 
-  function syncWorkspaceGovernanceUtcSummary() {
-    syncUtcTimestampSummary(WORKSPACE_GOVERNANCE_UTC_TIMESTAMP_FIELDS, 'dialogWorkspaceGovernanceUtcSummary');
-  }
-
   function syncAllExternalKpiUtcTimestampFields() {
     EXTERNAL_KPI_UTC_TIMESTAMP_FIELDS.forEach((field) => {
       const input = document.getElementById(field.inputId);
@@ -11431,24 +11192,7 @@
     syncExternalKpiUtcSummary();
   }
 
-  function syncAllWorkspaceGovernanceUtcTimestampFields() {
-    WORKSPACE_GOVERNANCE_UTC_TIMESTAMP_FIELDS.forEach((field) => {
-      const input = document.getElementById(field.inputId);
-      syncUtcTimestampFieldPresentation(input, input?.value || '', { meta: field });
-    });
-    syncWorkspaceGovernanceUtcSummary();
-  }
-
   function populateExternalKpiUtcTimestampField(field) {
-    const input = document.getElementById(field.inputId);
-    if (!(input instanceof HTMLInputElement)) {
-      return;
-    }
-    const raw = String(DIALOG_CONFIG[field.configKey] || '').trim();
-    syncUtcTimestampFieldPresentation(input, raw, { meta: field });
-  }
-
-  function populateWorkspaceGovernanceUtcTimestampField(field) {
     const input = document.getElementById(field.inputId);
     if (!(input instanceof HTMLInputElement)) {
       return;
@@ -11466,22 +11210,6 @@
       const sync = () => {
         syncUtcTimestampFieldPresentation(input, input.value, { meta: field });
         syncExternalKpiUtcSummary();
-      };
-      input.addEventListener('input', sync);
-      input.addEventListener('change', sync);
-      sync();
-    });
-  }
-
-  function initWorkspaceGovernanceUtcTimestampFields() {
-    WORKSPACE_GOVERNANCE_UTC_TIMESTAMP_FIELDS.forEach((field) => {
-      const input = document.getElementById(field.inputId);
-      if (!(input instanceof HTMLInputElement)) {
-        return;
-      }
-      const sync = () => {
-        syncUtcTimestampFieldPresentation(input, input.value, { meta: field });
-        syncWorkspaceGovernanceUtcSummary();
       };
       input.addEventListener('input', sync);
       input.addEventListener('change', sync);
