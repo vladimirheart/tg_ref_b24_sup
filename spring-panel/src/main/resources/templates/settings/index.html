@@ -6831,6 +6831,7 @@
     <script src="/js/settings-network-profiles-runtime.js"></script>
     <script src="/js/settings-it-equipment-runtime.js"></script>
     <script src="/js/settings-it-connections-runtime.js"></script>
+    <script src="/js/settings-parameters-shell-runtime.js"></script>
     <script src="/js/settings-channels-bot-runtime.js"></script>
     <script src="/js/settings-channel-editor-shell-runtime.js"></script>
     <script src="/js/settings-channel-editor-controls-runtime.js"></script>
@@ -7236,185 +7237,6 @@
 
   const IT_CONNECTION_FALLBACK_LABELS = /*[[${itConnectionCategories}]]*/ {} || {};
   const IT_CONNECTION_CATEGORY_FIELDS = /*[[${itConnectionCategoryFields}]]*/ {} || {};
-  let parameterData = {};
-  let parametersLoaded = false;
-
-  function getDependencyChain(...args) {
-    return settingsParameterDataRuntime?.getDependencyChain(...args) || [];
-  }
-
-  function normalizeDependencyValue(...args) {
-    return settingsParameterDataRuntime?.normalizeDependencyValue(...args) || '';
-  }
-
-  function getDependencyLabel(...args) {
-    return settingsParameterDataRuntime?.getDependencyLabel(...args) || '';
-  }
-
-  function buildDependencySelect(...args) {
-    return settingsParameterDataRuntime?.buildDependencySelect(...args) || '';
-  }
-
-  function refreshParameterDependencyControls(...args) {
-    return settingsParameterDataRuntime?.refreshParameterDependencyControls(...args);
-  }
-
-  function collectDependencyValues(...args) {
-    return settingsParameterDataRuntime?.collectDependencyValues(...args) || { values: {} };
-  }
-
-  function setItConnectionCategories(...args) {
-    return settingsParameterDataRuntime?.setItConnectionCategories(...args);
-  }
-
-  function rebuildItConnectionCategorySelect(...args) {
-    return settingsParameterDataRuntime?.rebuildItConnectionCategorySelect(...args);
-  }
-
-  function normalizeItConnectionCategory(...args) {
-    return settingsParameterDataRuntime?.normalizeItConnectionCategory(...args) || 'equipment_type';
-  }
-
-  function getItConnectionCategoryLabel(...args) {
-    return settingsParameterDataRuntime?.getItConnectionCategoryLabel(...args) || '—';
-  }
-
-  function syncParameterData(source) {
-    const result = settingsParameterDataRuntime?.syncParameterData(source);
-    if (result && typeof result === 'object') {
-      parameterData = result;
-    }
-  }
-
-  function renderParameters(...args) {
-    return settingsParametersRuntime?.renderParameters(...args);
-  }
-
-  function renderCityCard(...args) {
-    return settingsParametersRuntime?.renderCityCard(...args);
-  }
-
-  function deleteParameter(...args) {
-    return settingsParametersRuntime?.deleteParameter(...args);
-  }
-
-  function restoreParameter(...args) {
-    return settingsParametersRuntime?.restoreParameter(...args);
-  }
-
-  const settingsParameterDataRuntime = window.SettingsParameterDataRuntime?.mount({
-    getParameterTitles: () => PARAMETER_TITLES,
-    getParameterDependencies: () => PARAMETER_DEPENDENCIES,
-    getParameterStates: () => PARAMETER_STATES,
-    getItConnectionFallbackLabels: () => IT_CONNECTION_FALLBACK_LABELS,
-    normalizePartnerContactExtra: (...args) => settingsPartnerContactsRuntime?.normalizePartnerContactExtra(...args) || Object.assign({}, args[0] || {}),
-    resetPartnerContactEdits: () => settingsPartnerContactsRuntime?.clearPartnerContactEdits(),
-    escapeHtml,
-  });
-  parameterData = settingsParameterDataRuntime?.getParameterData() || parameterData;
-
-  const settingsLegalEntitiesRuntime = window.SettingsLegalEntitiesRuntime?.mount({
-    getParameterData: () => parameterData,
-    getParameterStates: () => PARAMETER_STATES,
-    escapeHtml,
-    showPopup: (message) => showPopup(message),
-    syncParameterData: (data) => syncParameterData(data),
-    renderParameters: (...args) => renderParameters(...args),
-    renderItConnectionsTable: (...args) => window.__settingsItConnectionsRuntime?.renderItConnectionsTable(...args),
-    deleteParameter: (...args) => deleteParameter(...args),
-    restoreParameter: (...args) => restoreParameter(...args),
-  });
-  const settingsItConnectionsRuntime = window.SettingsItConnectionsRuntime?.mount({
-    getParameterData: () => parameterData,
-    getDefaultCategory: () => settingsParameterDataRuntime?.getItConnectionDefaultCategory() || 'equipment_type',
-    getCategoryFieldMap: () => IT_CONNECTION_CATEGORY_FIELDS,
-    getUsageFilterParams: () => IT_CONNECTION_USAGE_FILTER_PARAMS,
-    normalizeItConnectionCategory: (...args) => normalizeItConnectionCategory(...args),
-    getItConnectionCategoryLabel: (...args) => getItConnectionCategoryLabel(...args),
-    rebuildItConnectionCategorySelect: (...args) => rebuildItConnectionCategorySelect(...args),
-    setItConnectionCategories: (...args) => setItConnectionCategories(...args),
-    escapeHtml,
-    showPopup: (message) => showPopup(message),
-    syncParameterData: (data) => syncParameterData(data),
-    renderParameters: (...args) => renderParameters(...args),
-    renderCurrentParameterModal: (...args) => settingsParametersRuntime?.renderCurrentParameterModal(...args),
-    requestSettingsModalClose: (source) => requestSettingsModalClose(source),
-    confirmDialog: (message) => window.confirm(message),
-    renderItEquipmentTable: (...args) => window.__settingsItEquipmentRuntime?.renderItEquipmentTable(...args),
-  });
-  const settingsItEquipmentRuntime = window.SettingsItEquipmentRuntime?.mount({
-    getParameterData: () => parameterData,
-    normalizeItConnectionCategory: (...args) => normalizeItConnectionCategory(...args),
-    escapeHtml,
-    showPopup: (message) => showPopup(message),
-    requestSettingsModalClose: (source) => requestSettingsModalClose(source),
-    confirmDialog: (message) => window.confirm(message),
-  });
-  const settingsPartnerContactsRuntime = window.SettingsPartnerContactsRuntime?.mount({
-    getParameterData: () => parameterData,
-    getParameterStates: () => PARAMETER_STATES,
-    getPartnerContactTypes: () => PARTNER_CONTACT_TYPES,
-    getPartnerContactPhoneTypes: () => PARTNER_CONTACT_PHONE_TYPES,
-    getPartnerContactEmailTypes: () => PARTNER_CONTACT_EMAIL_TYPES,
-    getPartnerContactStateClassMap: () => PARTNER_CONTACT_STATE_CLASS_MAP,
-    escapeHtml,
-    showPopup: (message) => showPopup(message),
-    syncParameterData: (data) => syncParameterData(data),
-    renderParameters: (...args) => renderParameters(...args),
-    requestSettingsModalClose: (source) => requestSettingsModalClose(source),
-    deleteParameter: (...args) => deleteParameter(...args),
-    restoreParameter: (...args) => restoreParameter(...args),
-  });
-  const settingsParametersRuntime = window.SettingsParametersRuntime?.mount({
-    getParameterData: () => parameterData,
-    getParameterTitles: () => PARAMETER_TITLES,
-    getParameterDependencies: () => PARAMETER_DEPENDENCIES,
-    getParameterStateTypes: () => PARAMETER_STATE_TYPES,
-    getParameterStates: () => PARAMETER_STATES,
-    getParameterFilterKeys: () => PARAMETER_FILTER_KEYS,
-    getCityParameterType: () => CITY_PARAMETER_TYPE,
-    getCityParameterLabel: () => CITY_PARAMETER_LABEL,
-    getCityOptions: () => CITY_OPTIONS,
-    escapeHtml,
-    showPopup: (message) => showPopup(message),
-    syncParameterData: (data) => syncParameterData(data),
-    renderPartnerContacts: (...args) => settingsPartnerContactsRuntime?.renderPartnerContacts(...args),
-    renderLegalEntities: (...args) => settingsLegalEntitiesRuntime?.renderLegalEntities(...args),
-    renderItConnectionsTable: (...args) => settingsItConnectionsRuntime?.renderItConnectionsTable(...args),
-    confirmDialog: (message) => window.confirm(message),
-    getDependencyChain: (...args) => getDependencyChain(...args),
-    normalizeDependencyValue: (...args) => normalizeDependencyValue(...args),
-    getDependencyLabel: (...args) => getDependencyLabel(...args),
-    buildDependencySelect: (...args) => buildDependencySelect(...args),
-    refreshParameterDependencyControls: (...args) => refreshParameterDependencyControls(...args),
-    collectDependencyValues: (...args) => collectDependencyValues(...args),
-  });
-
-  settingsParametersRuntime?.renderParameters();
-
-  document.addEventListener('click', (event) => {
-    const legalEntityAddBtn = event.target.closest('[data-legal-entity-add]');
-    if (legalEntityAddBtn) {
-      settingsLegalEntitiesRuntime?.addLegalEntityDraft();
-      return;
-    }
-    const legalEntityAction = event.target.closest('[data-legal-entity-action]');
-    if (legalEntityAction) {
-      settingsLegalEntitiesRuntime?.handleActionClick(legalEntityAction);
-    }
-  });
-
-  const legalEntitiesContainer = document.querySelector('[data-legal-entities-list]');
-  if (legalEntitiesContainer && settingsLegalEntitiesRuntime) {
-    legalEntitiesContainer.addEventListener('input', (event) => {
-      settingsLegalEntitiesRuntime.handleContainerInput(event);
-    });
-    legalEntitiesContainer.addEventListener('change', (event) => {
-      settingsLegalEntitiesRuntime.handleContainerChange(event);
-    });
-  }
-
-
   const CITY_OPTIONS = (() => {
     const values = /*[[${cities}]]*/ [];
     if (!Array.isArray(values)) {
@@ -7425,7 +7247,6 @@
       .filter((value) => value);
     return Array.from(new Set(cleaned)).sort((a, b) => a.localeCompare(b));
   })();
-  renderCityCard();
   const contractUsageData = /*[[${contractUsage}]]*/ {};
   const networkProfilesInitial = /*[[${settingsPayload['network_profiles']}]]*/ [];
 
@@ -7439,6 +7260,29 @@
       .replace(/'/g, '&#039;');
   }
 
+  const settingsParametersShellRuntime = window.SettingsParametersShellRuntime?.mount({
+    getParameterTitles: () => PARAMETER_TITLES,
+    getParameterDependencies: () => PARAMETER_DEPENDENCIES,
+    getParameterStateTypes: () => PARAMETER_STATE_TYPES,
+    getParameterStates: () => PARAMETER_STATES,
+    getParameterFilterKeys: () => PARAMETER_FILTER_KEYS,
+    getCityParameterType: () => CITY_PARAMETER_TYPE,
+    getCityParameterLabel: () => CITY_PARAMETER_LABEL,
+    getCityOptions: () => CITY_OPTIONS,
+    getItConnectionFallbackLabels: () => IT_CONNECTION_FALLBACK_LABELS,
+    getItConnectionCategoryFields: () => IT_CONNECTION_CATEGORY_FIELDS,
+    getItConnectionUsageFilterParams: () => IT_CONNECTION_USAGE_FILTER_PARAMS,
+    getPartnerContactTypes: () => PARTNER_CONTACT_TYPES,
+    getPartnerContactPhoneTypes: () => PARTNER_CONTACT_PHONE_TYPES,
+    getPartnerContactEmailTypes: () => PARTNER_CONTACT_EMAIL_TYPES,
+    getPartnerContactStateClassMap: () => PARTNER_CONTACT_STATE_CLASS_MAP,
+    showPopup: (message) => showPopup(message),
+    escapeHtml,
+    requestSettingsModalClose: (source) => requestSettingsModalClose(source),
+    confirmDialog: (message) => window.confirm(message),
+    buildLocationsTree: () => window.SettingsLocationsTreeRuntime?.buildLocationsTree(),
+  });
+
   const settingsNetworkProfilesRuntime = window.SettingsNetworkProfilesRuntime?.mount({
     getInitialProfiles: () => networkProfilesInitial,
     getContractUsageData: () => contractUsageData,
@@ -7449,29 +7293,6 @@
   });
 
   settingsNetworkProfilesRuntime?.renderNetworkProfiles();
-  settingsItConnectionsRuntime?.renderItConnectionsTable();
-  settingsItEquipmentRuntime?.loadItEquipment();
-
-  async function loadParameters() {
-    try {
-      parametersLoaded = false;
-      const response = await fetch('/api/settings/parameters');
-      if (!response.ok) throw new Error('Ошибка загрузки параметров');
-      const data = await response.json();
-      syncParameterData((data && data.data) || data || parameterData);
-      parametersLoaded = true;
-      renderParameters({ forceBodies: true });
-      renderCityCard();
-      settingsItConnectionsRuntime?.renderItConnectionsTable();
-      buildLocationsTree();
-      settingsParametersRuntime?.renderCurrentParameterModal();
-    } catch (error) {
-      parametersLoaded = false;
-      console.error('Ошибка загрузки параметров:', error);
-      const message = error && error.message ? error.message : error;
-      showPopup('❌ Не удалось загрузить параметры: ' + message);
-    }
-  }
   let CLIENT_STATUS_USAGE = /*[[${statusUsage}]]*/ {} || {};
   const INITIAL_CLIENT_STATUSES = /*[[${settingsPayload['client_statuses']}]]*/ [] || [];
   const INITIAL_CLIENT_STATUS_COLORS = /*[[${settingsPayload['client_status_colors']}]]*/ {} || {};
@@ -7493,15 +7314,15 @@
   });
   window.SettingsLocationsTreeRuntime?.mount({
     initialLocations: LOCATIONS_INITIAL,
-    loadParameters: () => loadParameters(),
+    loadParameters: () => settingsParametersShellRuntime?.loadParameters(),
   });
 
   window.SettingsLocationWizardRuntime?.mount({
-    getParameterData: () => parameterData,
+    getParameterData: () => settingsParametersShellRuntime?.getParameterData() || {},
     getLocationsState: () => window.SettingsLocationsTreeRuntime?.getState(),
     getCityOptionsFallback: () => CITY_OPTIONS,
-    loadParameters: () => loadParameters(),
-    isParametersLoaded: () => parametersLoaded,
+    loadParameters: () => settingsParametersShellRuntime?.loadParameters(),
+    isParametersLoaded: () => settingsParametersShellRuntime?.isParametersLoaded() || false,
     buildLocationsTree: () => window.SettingsLocationsTreeRuntime?.buildLocationsTree(),
     setStatus: (level, parts, status) => window.SettingsLocationsTreeRuntime?.setStatus(level, parts, status),
     writeNodeMeta: (mapName, key, meta) => window.SettingsLocationsTreeRuntime?.writeNodeMeta(mapName, key, meta),
