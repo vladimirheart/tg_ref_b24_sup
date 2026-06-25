@@ -7072,30 +7072,6 @@
     workspace_rollout_external_kpi_datamart_contract_available_fields: '',
     workspace_rollout_external_kpi_datamart_contract_optional_coverage_required: false,
     workspace_rollout_external_kpi_datamart_contract_optional_min_coverage_pct: 80,
-    public_form_message_max_length: 4000,
-    public_form_answers_total_max_length: 6000,
-    public_form_session_ttl_hours: 72,
-    public_form_idempotency_ttl_seconds: 300,
-    public_form_rate_limit_enabled: true,
-    public_form_rate_limit_window_seconds: 60,
-    public_form_rate_limit_max_requests: 5,
-    public_form_rate_limit_use_fingerprint: true,
-    public_form_metrics_enabled: true,
-    public_form_alerts_enabled: true,
-    public_form_alert_min_views: 20,
-    public_form_alert_error_rate_threshold: 0.35,
-    public_form_alert_captcha_failure_rate_threshold: 0.20,
-    public_form_alert_rate_limit_rejection_rate_threshold: 0.20,
-    public_form_alert_session_lookup_miss_rate_threshold: 0.30,
-    public_form_session_polling_enabled: true,
-    public_form_session_polling_interval_seconds: 15,
-    public_form_session_token_rotate_on_read: false,
-    public_form_default_locale: 'auto',
-    public_form_captcha_shared_secret: '',
-    public_form_captcha_mode: 'shared_secret',
-    public_form_turnstile_secret_key: '',
-    public_form_turnstile_verify_url: 'https://challenges.cloudflare.com/turnstile/v0/siteverify',
-    public_form_turnstile_timeout_ms: 4000,
   });
 
   const DEFAULT_SUMMARY_BADGES = Object.freeze({
@@ -7486,31 +7462,6 @@
       workspaceExternalKpiDatamartContractSummaryChips: document.getElementById('dialogWorkspaceExternalKpiDatamartContractSummaryChips'),
       workspaceExternalKpiDatamartContractSummaryFieldGroups: document.getElementById('dialogWorkspaceExternalKpiDatamartContractSummaryFieldGroups'),
       workspaceExternalKpiDatamartContractSummaryMeta: document.getElementById('dialogWorkspaceExternalKpiDatamartContractSummaryMeta'),
-      publicFormMessageMaxLength: document.getElementById('dialogPublicFormMessageMaxLength'),
-      publicFormAnswersTotalMaxLength: document.getElementById('dialogPublicFormAnswersTotalMaxLength'),
-      publicFormSessionTtlHours: document.getElementById('dialogPublicFormSessionTtlHours'),
-      publicFormIdempotencyTtlSeconds: document.getElementById('dialogPublicFormIdempotencyTtlSeconds'),
-      publicFormRateLimitEnabled: document.getElementById('dialogPublicFormRateLimitEnabled'),
-      publicFormRateLimitWindowSeconds: document.getElementById('dialogPublicFormRateLimitWindowSeconds'),
-      publicFormRateLimitMaxRequests: document.getElementById('dialogPublicFormRateLimitMaxRequests'),
-      publicFormRateLimitUseFingerprint: document.getElementById('dialogPublicFormRateLimitUseFingerprint'),
-      publicFormMetricsEnabled: document.getElementById('dialogPublicFormMetricsEnabled'),
-      publicFormAlertsEnabled: document.getElementById('dialogPublicFormAlertsEnabled'),
-      publicFormAlertMinViews: document.getElementById('dialogPublicFormAlertMinViews'),
-      publicFormAlertErrorRateThreshold: document.getElementById('dialogPublicFormAlertErrorRateThreshold'),
-      publicFormAlertCaptchaFailureRateThreshold: document.getElementById('dialogPublicFormAlertCaptchaFailureRateThreshold'),
-      publicFormAlertRateLimitRejectionRateThreshold: document.getElementById('dialogPublicFormAlertRateLimitRejectionRateThreshold'),
-      publicFormAlertSessionLookupMissRateThreshold: document.getElementById('dialogPublicFormAlertSessionLookupMissRateThreshold'),
-      publicFormStripHtmlTags: document.getElementById('dialogPublicFormStripHtmlTags'),
-      publicFormSessionPollingEnabled: document.getElementById('dialogPublicFormSessionPollingEnabled'),
-      publicFormSessionTokenRotateOnRead: document.getElementById('dialogPublicFormSessionTokenRotateOnRead'),
-      publicFormSessionPollingIntervalSeconds: document.getElementById('dialogPublicFormSessionPollingIntervalSeconds'),
-      publicFormDefaultLocale: document.getElementById('dialogPublicFormDefaultLocale'),
-      publicFormCaptchaMode: document.getElementById('dialogPublicFormCaptchaMode'),
-      publicFormCaptchaSharedSecret: document.getElementById('dialogPublicFormCaptchaSharedSecret'),
-      publicFormTurnstileSecretKey: document.getElementById('dialogPublicFormTurnstileSecretKey'),
-      publicFormTurnstileVerifyUrl: document.getElementById('dialogPublicFormTurnstileVerifyUrl'),
-      publicFormTurnstileTimeoutMs: document.getElementById('dialogPublicFormTurnstileTimeoutMs'),
     };
   }
 
@@ -8467,127 +8418,6 @@
     syncAllExternalKpiUtcTimestampFields();
     syncWorkspaceSingleModeControls(inputs);
     syncWorkspaceExternalKpiDatamartContractState(inputs);
-    if (inputs.publicFormMessageMaxLength) {
-      const value = Number.parseInt(DIALOG_CONFIG.public_form_message_max_length, 10);
-      inputs.publicFormMessageMaxLength.value = Number.isFinite(value) && value >= 300
-        ? Math.min(20000, value)
-        : DEFAULT_DIALOG_SLA_CONFIG.public_form_message_max_length;
-    }
-    if (inputs.publicFormAnswersTotalMaxLength) {
-      const value = Number.parseInt(DIALOG_CONFIG.public_form_answers_total_max_length, 10);
-      inputs.publicFormAnswersTotalMaxLength.value = Number.isFinite(value) && value >= 200
-        ? Math.min(50000, value)
-        : DEFAULT_DIALOG_SLA_CONFIG.public_form_answers_total_max_length;
-    }
-    if (inputs.publicFormSessionTtlHours) {
-      const value = Number.parseInt(DIALOG_CONFIG.public_form_session_ttl_hours, 10);
-      inputs.publicFormSessionTtlHours.value = Number.isFinite(value) && value >= 1
-        ? Math.min(720, value)
-        : DEFAULT_DIALOG_SLA_CONFIG.public_form_session_ttl_hours;
-    }
-    if (inputs.publicFormIdempotencyTtlSeconds) {
-      const value = Number.parseInt(DIALOG_CONFIG.public_form_idempotency_ttl_seconds, 10);
-      inputs.publicFormIdempotencyTtlSeconds.value = Number.isFinite(value) && value >= 30
-        ? Math.min(3600, value)
-        : DEFAULT_DIALOG_SLA_CONFIG.public_form_idempotency_ttl_seconds;
-    }
-    if (inputs.publicFormRateLimitEnabled instanceof HTMLInputElement) {
-      inputs.publicFormRateLimitEnabled.checked = DIALOG_CONFIG.public_form_rate_limit_enabled !== false;
-    }
-    if (inputs.publicFormRateLimitUseFingerprint instanceof HTMLInputElement) {
-      inputs.publicFormRateLimitUseFingerprint.checked = DIALOG_CONFIG.public_form_rate_limit_use_fingerprint !== false;
-    }
-    if (inputs.publicFormMetricsEnabled instanceof HTMLInputElement) {
-      inputs.publicFormMetricsEnabled.checked = DIALOG_CONFIG.public_form_metrics_enabled !== false;
-    }
-    if (inputs.publicFormAlertsEnabled instanceof HTMLInputElement) {
-      inputs.publicFormAlertsEnabled.checked = DIALOG_CONFIG.public_form_alerts_enabled !== false;
-    }
-    if (inputs.publicFormAlertMinViews) {
-      const value = Number.parseInt(DIALOG_CONFIG.public_form_alert_min_views, 10);
-      inputs.publicFormAlertMinViews.value = Number.isFinite(value) && value >= 1
-        ? value
-        : DEFAULT_DIALOG_SLA_CONFIG.public_form_alert_min_views;
-    }
-    if (inputs.publicFormAlertErrorRateThreshold) {
-      const value = Number.parseFloat(DIALOG_CONFIG.public_form_alert_error_rate_threshold);
-      inputs.publicFormAlertErrorRateThreshold.value = Number.isFinite(value) && value >= 0.01 && value <= 1
-        ? value
-        : DEFAULT_DIALOG_SLA_CONFIG.public_form_alert_error_rate_threshold;
-    }
-    if (inputs.publicFormAlertCaptchaFailureRateThreshold) {
-      const value = Number.parseFloat(DIALOG_CONFIG.public_form_alert_captcha_failure_rate_threshold);
-      inputs.publicFormAlertCaptchaFailureRateThreshold.value = Number.isFinite(value) && value >= 0.01 && value <= 1
-        ? value
-        : DEFAULT_DIALOG_SLA_CONFIG.public_form_alert_captcha_failure_rate_threshold;
-    }
-    if (inputs.publicFormAlertRateLimitRejectionRateThreshold) {
-      const value = Number.parseFloat(DIALOG_CONFIG.public_form_alert_rate_limit_rejection_rate_threshold);
-      inputs.publicFormAlertRateLimitRejectionRateThreshold.value = Number.isFinite(value) && value >= 0.01 && value <= 1
-        ? value
-        : DEFAULT_DIALOG_SLA_CONFIG.public_form_alert_rate_limit_rejection_rate_threshold;
-    }
-    if (inputs.publicFormAlertSessionLookupMissRateThreshold) {
-      const value = Number.parseFloat(DIALOG_CONFIG.public_form_alert_session_lookup_miss_rate_threshold);
-      inputs.publicFormAlertSessionLookupMissRateThreshold.value = Number.isFinite(value) && value >= 0.01 && value <= 1
-        ? value
-        : DEFAULT_DIALOG_SLA_CONFIG.public_form_alert_session_lookup_miss_rate_threshold;
-    }
-    if (inputs.publicFormStripHtmlTags instanceof HTMLInputElement) {
-      inputs.publicFormStripHtmlTags.checked = DIALOG_CONFIG.public_form_strip_html_tags !== false;
-    }
-    if (inputs.publicFormSessionPollingEnabled instanceof HTMLInputElement) {
-      inputs.publicFormSessionPollingEnabled.checked = DIALOG_CONFIG.public_form_session_polling_enabled !== false;
-    }
-    if (inputs.publicFormSessionTokenRotateOnRead instanceof HTMLInputElement) {
-      inputs.publicFormSessionTokenRotateOnRead.checked = Boolean(DIALOG_CONFIG.public_form_session_token_rotate_on_read);
-    }
-    if (inputs.publicFormRateLimitWindowSeconds) {
-      const value = Number.parseInt(DIALOG_CONFIG.public_form_rate_limit_window_seconds, 10);
-      inputs.publicFormRateLimitWindowSeconds.value = Number.isFinite(value) && value >= 10
-        ? Math.min(3600, value)
-        : DEFAULT_DIALOG_SLA_CONFIG.public_form_rate_limit_window_seconds;
-    }
-    if (inputs.publicFormRateLimitMaxRequests) {
-      const value = Number.parseInt(DIALOG_CONFIG.public_form_rate_limit_max_requests, 10);
-      inputs.publicFormRateLimitMaxRequests.value = Number.isFinite(value) && value >= 1
-        ? Math.min(500, value)
-        : DEFAULT_DIALOG_SLA_CONFIG.public_form_rate_limit_max_requests;
-    }
-    if (inputs.publicFormSessionPollingIntervalSeconds) {
-      const value = Number.parseInt(DIALOG_CONFIG.public_form_session_polling_interval_seconds, 10);
-      inputs.publicFormSessionPollingIntervalSeconds.value = Number.isFinite(value) && value >= 5
-        ? Math.min(300, value)
-        : DEFAULT_DIALOG_SLA_CONFIG.public_form_session_polling_interval_seconds;
-    }
-    if (inputs.publicFormDefaultLocale) {
-      const localeRaw = String(DIALOG_CONFIG.public_form_default_locale || DEFAULT_DIALOG_SLA_CONFIG.public_form_default_locale).trim().toLowerCase();
-      inputs.publicFormDefaultLocale.value = ['auto', 'ru', 'en'].includes(localeRaw)
-        ? localeRaw
-        : DEFAULT_DIALOG_SLA_CONFIG.public_form_default_locale;
-    }
-    if (inputs.publicFormCaptchaMode) {
-      const modeRaw = String(DIALOG_CONFIG.public_form_captcha_mode || DEFAULT_DIALOG_SLA_CONFIG.public_form_captcha_mode).trim().toLowerCase();
-      inputs.publicFormCaptchaMode.value = ['shared_secret', 'turnstile'].includes(modeRaw)
-        ? modeRaw
-        : DEFAULT_DIALOG_SLA_CONFIG.public_form_captcha_mode;
-    }
-    if (inputs.publicFormCaptchaSharedSecret) {
-      inputs.publicFormCaptchaSharedSecret.value = String(DIALOG_CONFIG.public_form_captcha_shared_secret || '').trim();
-    }
-    if (inputs.publicFormTurnstileSecretKey) {
-      inputs.publicFormTurnstileSecretKey.value = String(DIALOG_CONFIG.public_form_turnstile_secret_key || '').trim();
-    }
-    if (inputs.publicFormTurnstileVerifyUrl) {
-      const verifyUrl = String(DIALOG_CONFIG.public_form_turnstile_verify_url || DEFAULT_DIALOG_SLA_CONFIG.public_form_turnstile_verify_url).trim();
-      inputs.publicFormTurnstileVerifyUrl.value = verifyUrl || DEFAULT_DIALOG_SLA_CONFIG.public_form_turnstile_verify_url;
-    }
-    if (inputs.publicFormTurnstileTimeoutMs) {
-      const timeout = Number.parseInt(DIALOG_CONFIG.public_form_turnstile_timeout_ms, 10);
-      inputs.publicFormTurnstileTimeoutMs.value = Number.isFinite(timeout) && timeout >= 500
-        ? Math.min(15000, timeout)
-        : DEFAULT_DIALOG_SLA_CONFIG.public_form_turnstile_timeout_ms;
-    }
   }
 
   function normalizeDataContractFieldList(value) {
@@ -9249,19 +9079,6 @@
     const listPollIntervalRaw = Math.round(Number(inputs.listPollIntervalMs?.value));
     const historyPollIntervalRaw = Math.round(Number(inputs.historyPollIntervalMs?.value));
     const workspaceAbRolloutPercentRaw = Math.round(Number(inputs.workspaceAbRolloutPercent?.value));
-    const publicFormMessageMaxLengthRaw = Math.round(Number(inputs.publicFormMessageMaxLength?.value));
-    const publicFormAnswersTotalMaxLengthRaw = Math.round(Number(inputs.publicFormAnswersTotalMaxLength?.value));
-    const publicFormSessionTtlHoursRaw = Math.round(Number(inputs.publicFormSessionTtlHours?.value));
-    const publicFormIdempotencyTtlSecondsRaw = Math.round(Number(inputs.publicFormIdempotencyTtlSeconds?.value));
-    const publicFormRateLimitWindowSecondsRaw = Math.round(Number(inputs.publicFormRateLimitWindowSeconds?.value));
-    const publicFormRateLimitMaxRequestsRaw = Math.round(Number(inputs.publicFormRateLimitMaxRequests?.value));
-    const publicFormSessionPollingIntervalSecondsRaw = Math.round(Number(inputs.publicFormSessionPollingIntervalSeconds?.value));
-    const publicFormTurnstileTimeoutMsRaw = Math.round(Number(inputs.publicFormTurnstileTimeoutMs?.value));
-    const publicFormAlertMinViewsRaw = Math.round(Number(inputs.publicFormAlertMinViews?.value));
-    const publicFormAlertErrorRateThresholdRaw = Number.parseFloat(inputs.publicFormAlertErrorRateThreshold?.value);
-    const publicFormAlertCaptchaFailureRateThresholdRaw = Number.parseFloat(inputs.publicFormAlertCaptchaFailureRateThreshold?.value);
-    const publicFormAlertRateLimitRejectionRateThresholdRaw = Number.parseFloat(inputs.publicFormAlertRateLimitRejectionRateThreshold?.value);
-    const publicFormAlertSessionLookupMissRateThresholdRaw = Number.parseFloat(inputs.publicFormAlertSessionLookupMissRateThreshold?.value);
 
     const safeWorkspaceContractTimeout = Number.isFinite(workspaceContractTimeoutRaw)
       ? Math.min(30000, Math.max(1000, workspaceContractTimeoutRaw))
@@ -9316,45 +9133,6 @@
     const safeWorkspaceAbRolloutPercent = Number.isFinite(workspaceAbRolloutPercentRaw)
       ? Math.min(100, Math.max(0, workspaceAbRolloutPercentRaw))
       : DEFAULT_DIALOG_SLA_CONFIG.workspace_ab_rollout_percent;
-    const safePublicFormMessageMaxLength = Number.isFinite(publicFormMessageMaxLengthRaw)
-      ? Math.min(20000, Math.max(300, publicFormMessageMaxLengthRaw))
-      : DEFAULT_DIALOG_SLA_CONFIG.public_form_message_max_length;
-    const safePublicFormAnswersTotalMaxLength = Number.isFinite(publicFormAnswersTotalMaxLengthRaw)
-      ? Math.min(50000, Math.max(200, publicFormAnswersTotalMaxLengthRaw))
-      : DEFAULT_DIALOG_SLA_CONFIG.public_form_answers_total_max_length;
-    const safePublicFormSessionTtlHours = Number.isFinite(publicFormSessionTtlHoursRaw)
-      ? Math.min(720, Math.max(1, publicFormSessionTtlHoursRaw))
-      : DEFAULT_DIALOG_SLA_CONFIG.public_form_session_ttl_hours;
-    const safePublicFormIdempotencyTtlSeconds = Number.isFinite(publicFormIdempotencyTtlSecondsRaw)
-      ? Math.min(3600, Math.max(30, publicFormIdempotencyTtlSecondsRaw))
-      : DEFAULT_DIALOG_SLA_CONFIG.public_form_idempotency_ttl_seconds;
-    const safePublicFormRateLimitWindowSeconds = Number.isFinite(publicFormRateLimitWindowSecondsRaw)
-      ? Math.min(3600, Math.max(10, publicFormRateLimitWindowSecondsRaw))
-      : DEFAULT_DIALOG_SLA_CONFIG.public_form_rate_limit_window_seconds;
-    const safePublicFormRateLimitMaxRequests = Number.isFinite(publicFormRateLimitMaxRequestsRaw)
-      ? Math.min(500, Math.max(1, publicFormRateLimitMaxRequestsRaw))
-      : DEFAULT_DIALOG_SLA_CONFIG.public_form_rate_limit_max_requests;
-    const safePublicFormSessionPollingIntervalSeconds = Number.isFinite(publicFormSessionPollingIntervalSecondsRaw)
-      ? Math.min(300, Math.max(5, publicFormSessionPollingIntervalSecondsRaw))
-      : DEFAULT_DIALOG_SLA_CONFIG.public_form_session_polling_interval_seconds;
-    const safePublicFormTurnstileTimeoutMs = Number.isFinite(publicFormTurnstileTimeoutMsRaw)
-      ? Math.min(15000, Math.max(500, publicFormTurnstileTimeoutMsRaw))
-      : DEFAULT_DIALOG_SLA_CONFIG.public_form_turnstile_timeout_ms;
-    const safePublicFormAlertMinViews = Number.isFinite(publicFormAlertMinViewsRaw)
-      ? Math.min(10000, Math.max(1, publicFormAlertMinViewsRaw))
-      : DEFAULT_DIALOG_SLA_CONFIG.public_form_alert_min_views;
-    const safePublicFormAlertErrorRateThreshold = Number.isFinite(publicFormAlertErrorRateThresholdRaw)
-      ? Math.min(1, Math.max(0.01, publicFormAlertErrorRateThresholdRaw))
-      : DEFAULT_DIALOG_SLA_CONFIG.public_form_alert_error_rate_threshold;
-    const safePublicFormAlertCaptchaFailureRateThreshold = Number.isFinite(publicFormAlertCaptchaFailureRateThresholdRaw)
-      ? Math.min(1, Math.max(0.01, publicFormAlertCaptchaFailureRateThresholdRaw))
-      : DEFAULT_DIALOG_SLA_CONFIG.public_form_alert_captcha_failure_rate_threshold;
-    const safePublicFormAlertRateLimitRejectionRateThreshold = Number.isFinite(publicFormAlertRateLimitRejectionRateThresholdRaw)
-      ? Math.min(1, Math.max(0.01, publicFormAlertRateLimitRejectionRateThresholdRaw))
-      : DEFAULT_DIALOG_SLA_CONFIG.public_form_alert_rate_limit_rejection_rate_threshold;
-    const safePublicFormAlertSessionLookupMissRateThreshold = Number.isFinite(publicFormAlertSessionLookupMissRateThresholdRaw)
-      ? Math.min(1, Math.max(0.01, publicFormAlertSessionLookupMissRateThresholdRaw))
-      : DEFAULT_DIALOG_SLA_CONFIG.public_form_alert_session_lookup_miss_rate_threshold;
 
     if (!Number.isFinite(target) || target <= 0) errors.push('SLA-цель должна быть положительным числом.');
     if (!Number.isFinite(warning) || warning <= 0) errors.push('Порог предупреждения SLA должен быть положительным числом.');
@@ -9407,59 +9185,6 @@
     }
     if (!Number.isFinite(workspaceAbRolloutPercentRaw) || workspaceAbRolloutPercentRaw < 0 || workspaceAbRolloutPercentRaw > 100) {
       errors.push('A/B rollout должен быть в диапазоне 0..100%.');
-    }
-    if (!Number.isFinite(publicFormMessageMaxLengthRaw) || publicFormMessageMaxLengthRaw < 300 || publicFormMessageMaxLengthRaw > 20000) {
-      errors.push('Макс. длина сообщения формы должна быть в диапазоне 300..20000.');
-    }
-    if (!Number.isFinite(publicFormAnswersTotalMaxLengthRaw) || publicFormAnswersTotalMaxLengthRaw < 200 || publicFormAnswersTotalMaxLengthRaw > 50000) {
-      errors.push('Лимит объёма ответов формы должен быть в диапазоне 200..50000.');
-    }
-    if (!Number.isFinite(publicFormSessionTtlHoursRaw) || publicFormSessionTtlHoursRaw < 1 || publicFormSessionTtlHoursRaw > 720) {
-      errors.push('TTL сессии формы должен быть в диапазоне 1..720 часов.');
-    }
-    if (!Number.isFinite(publicFormIdempotencyTtlSecondsRaw) || publicFormIdempotencyTtlSecondsRaw < 30 || publicFormIdempotencyTtlSecondsRaw > 3600) {
-      errors.push('TTL идемпотентности формы должен быть в диапазоне 30..3600 секунд.');
-    }
-    if (!Number.isFinite(publicFormRateLimitWindowSecondsRaw) || publicFormRateLimitWindowSecondsRaw < 10 || publicFormRateLimitWindowSecondsRaw > 3600) {
-      errors.push('Окно rate-limit формы должно быть в диапазоне 10..3600 секунд.');
-    }
-    if (!Number.isFinite(publicFormRateLimitMaxRequestsRaw) || publicFormRateLimitMaxRequestsRaw < 1 || publicFormRateLimitMaxRequestsRaw > 500) {
-      errors.push('Лимит запросов формы должен быть в диапазоне 1..500.');
-    }
-    if (!Number.isFinite(publicFormSessionPollingIntervalSecondsRaw)
-      || publicFormSessionPollingIntervalSecondsRaw < 5
-      || publicFormSessionPollingIntervalSecondsRaw > 300) {
-      errors.push('Интервал автообновления истории публичной формы должен быть в диапазоне 5..300 секунд.');
-    }
-    if (!Number.isFinite(publicFormTurnstileTimeoutMsRaw)
-      || publicFormTurnstileTimeoutMsRaw < 500
-      || publicFormTurnstileTimeoutMsRaw > 15000) {
-      errors.push('Turnstile timeout должен быть в диапазоне 500..15000 мс.');
-    }
-    if (!Number.isFinite(publicFormAlertMinViewsRaw)
-      || publicFormAlertMinViewsRaw < 1
-      || publicFormAlertMinViewsRaw > 10000) {
-      errors.push('Мин. просмотров для алертов должен быть в диапазоне 1..10000.');
-    }
-    if (!Number.isFinite(publicFormAlertErrorRateThresholdRaw)
-      || publicFormAlertErrorRateThresholdRaw < 0.01
-      || publicFormAlertErrorRateThresholdRaw > 1) {
-      errors.push('Порог submit error rate должен быть в диапазоне 0.01..1.');
-    }
-    if (!Number.isFinite(publicFormAlertCaptchaFailureRateThresholdRaw)
-      || publicFormAlertCaptchaFailureRateThresholdRaw < 0.01
-      || publicFormAlertCaptchaFailureRateThresholdRaw > 1) {
-      errors.push('Порог CAPTCHA failure rate должен быть в диапазоне 0.01..1.');
-    }
-    if (!Number.isFinite(publicFormAlertRateLimitRejectionRateThresholdRaw)
-      || publicFormAlertRateLimitRejectionRateThresholdRaw < 0.01
-      || publicFormAlertRateLimitRejectionRateThresholdRaw > 1) {
-      errors.push('Порог rate-limit rejection rate должен быть в диапазоне 0.01..1.');
-    }
-    if (!Number.isFinite(publicFormAlertSessionLookupMissRateThresholdRaw)
-      || publicFormAlertSessionLookupMissRateThresholdRaw < 0.01
-      || publicFormAlertSessionLookupMissRateThresholdRaw > 1) {
-      errors.push('Порог session miss rate должен быть в диапазоне 0.01..1.');
     }
 
     const parsePercentThreshold = (rawValue, fallbackValue, label) => {
@@ -10569,36 +10294,6 @@
         dialog_workspace_rollout_external_kpi_datamart_contract_available_fields: safeWorkspaceExternalKpiDatamartContractAvailableFields,
         dialog_workspace_rollout_external_kpi_datamart_contract_optional_coverage_required: safeWorkspaceExternalKpiDatamartContractOptionalCoverageRequired,
         dialog_workspace_rollout_external_kpi_datamart_contract_optional_min_coverage_pct: safeWorkspaceExternalKpiDatamartContractOptionalMinCoveragePct,
-        dialog_public_form_message_max_length: safePublicFormMessageMaxLength,
-        dialog_public_form_answers_total_max_length: safePublicFormAnswersTotalMaxLength,
-        dialog_public_form_session_ttl_hours: safePublicFormSessionTtlHours,
-        dialog_public_form_idempotency_ttl_seconds: safePublicFormIdempotencyTtlSeconds,
-        dialog_public_form_rate_limit_enabled: Boolean(inputs.publicFormRateLimitEnabled?.checked),
-        dialog_public_form_rate_limit_window_seconds: safePublicFormRateLimitWindowSeconds,
-        dialog_public_form_rate_limit_max_requests: safePublicFormRateLimitMaxRequests,
-        dialog_public_form_rate_limit_use_fingerprint: Boolean(inputs.publicFormRateLimitUseFingerprint?.checked),
-        dialog_public_form_metrics_enabled: Boolean(inputs.publicFormMetricsEnabled?.checked),
-        dialog_public_form_alerts_enabled: Boolean(inputs.publicFormAlertsEnabled?.checked),
-        dialog_public_form_alert_min_views: safePublicFormAlertMinViews,
-        dialog_public_form_alert_error_rate_threshold: safePublicFormAlertErrorRateThreshold,
-        dialog_public_form_alert_captcha_failure_rate_threshold: safePublicFormAlertCaptchaFailureRateThreshold,
-        dialog_public_form_alert_rate_limit_rejection_rate_threshold: safePublicFormAlertRateLimitRejectionRateThreshold,
-        dialog_public_form_alert_session_lookup_miss_rate_threshold: safePublicFormAlertSessionLookupMissRateThreshold,
-        dialog_public_form_strip_html_tags: Boolean(inputs.publicFormStripHtmlTags?.checked),
-        dialog_public_form_session_polling_enabled: Boolean(inputs.publicFormSessionPollingEnabled?.checked),
-        dialog_public_form_session_token_rotate_on_read: Boolean(inputs.publicFormSessionTokenRotateOnRead?.checked),
-        dialog_public_form_session_polling_interval_seconds: safePublicFormSessionPollingIntervalSeconds,
-        dialog_public_form_default_locale: ['auto', 'ru', 'en'].includes(String(inputs.publicFormDefaultLocale?.value || '').trim().toLowerCase())
-          ? String(inputs.publicFormDefaultLocale?.value || '').trim().toLowerCase()
-          : DEFAULT_DIALOG_SLA_CONFIG.public_form_default_locale,
-        dialog_public_form_captcha_mode: ['shared_secret', 'turnstile'].includes(String(inputs.publicFormCaptchaMode?.value || '').trim().toLowerCase())
-          ? String(inputs.publicFormCaptchaMode?.value || '').trim().toLowerCase()
-          : DEFAULT_DIALOG_SLA_CONFIG.public_form_captcha_mode,
-        dialog_public_form_captcha_shared_secret: String(inputs.publicFormCaptchaSharedSecret?.value || '').trim(),
-        dialog_public_form_turnstile_secret_key: String(inputs.publicFormTurnstileSecretKey?.value || '').trim(),
-        dialog_public_form_turnstile_verify_url: String(inputs.publicFormTurnstileVerifyUrl?.value || '').trim()
-          || DEFAULT_DIALOG_SLA_CONFIG.public_form_turnstile_verify_url,
-        dialog_public_form_turnstile_timeout_ms: safePublicFormTurnstileTimeoutMs,
       },
     };
   }
