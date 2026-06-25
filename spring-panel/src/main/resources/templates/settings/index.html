@@ -6823,6 +6823,7 @@
     <script src="/js/modal-helpers.js"></script>
     <script src="/js/settings-page-shell.js"></script>
     <script src="/js/settings-appearance-runtime.js"></script>
+    <script src="/js/settings-dialog-metrics-runtime.js"></script>
     <script src="/js/settings-dialog-templates-runtime.js"></script>
     <script src="/js/settings-channel-templates-runtime.js"></script>
     <script src="/js/settings-parameter-data-runtime.js"></script>
@@ -7103,88 +7104,6 @@
     }),
   });
 
-  function sanitizeHexColor(value, fallback) {
-    const raw = typeof value === 'string' ? value.trim() : '';
-    if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(raw)) {
-      return raw;
-    }
-    return fallback;
-  }
-
-  function normalizeDialogTimeMetrics(raw) {
-    const base = {
-      good_limit: DEFAULT_DIALOG_TIME_METRICS.good_limit,
-      warning_limit: DEFAULT_DIALOG_TIME_METRICS.warning_limit,
-      colors: {
-        ...DEFAULT_DIALOG_TIME_METRICS.colors,
-      },
-    };
-
-    if (raw && typeof raw === 'object') {
-      const good = Number.parseInt(raw.good_limit, 10);
-      const warning = Number.parseInt(raw.warning_limit, 10);
-      if (Number.isFinite(good) && good > 0) {
-        base.good_limit = good;
-      }
-      if (Number.isFinite(warning) && warning > 0) {
-        base.warning_limit = warning;
-      }
-      if (raw.colors && typeof raw.colors === 'object') {
-        base.colors.good = sanitizeHexColor(raw.colors.good, base.colors.good);
-        base.colors.warning = sanitizeHexColor(raw.colors.warning, base.colors.warning);
-        base.colors.danger = sanitizeHexColor(raw.colors.danger, base.colors.danger);
-      }
-    }
-
-    if (!Number.isFinite(base.good_limit) || base.good_limit <= 0) {
-      base.good_limit = DEFAULT_DIALOG_TIME_METRICS.good_limit;
-    }
-
-    if (!Number.isFinite(base.warning_limit) || base.warning_limit <= base.good_limit) {
-      base.warning_limit = Math.max(base.good_limit + 1, DEFAULT_DIALOG_TIME_METRICS.warning_limit);
-    }
-
-    return base;
-  }
-
-  function isValidHexColor(value) {
-    if (typeof value !== 'string') {
-      return false;
-    }
-    return /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(value.trim());
-  }
-
-  function normalizeSummaryBadgeStyle(value) {
-    if (!value) return {};
-    if (typeof value === 'string') {
-      return { background: sanitizeHexColor(value, ''), text: '' };
-    }
-    if (typeof value === 'object') {
-      return {
-        background: sanitizeHexColor(value.background || value.bg || value.fill || '', ''),
-        text: sanitizeHexColor(value.text || value.color || value.foreground || '', ''),
-      };
-    }
-    return {};
-  }
-
-  function normalizeSummaryBadgeSettings(raw) {
-    const fallback = normalizeSummaryBadgeStyle(raw?.default) || {};
-    const base = {
-      default: {
-        background: fallback.background || DEFAULT_SUMMARY_BADGES.default.background,
-        text: fallback.text || DEFAULT_SUMMARY_BADGES.default.text,
-      },
-      status: {},
-    };
-    const status = raw?.status && typeof raw.status === 'object' ? raw.status : {};
-    Object.entries(status).forEach(([key, value]) => {
-      if (!key) return;
-      base.status[key.toLowerCase()] = normalizeSummaryBadgeStyle(value);
-    });
-    return base;
-  }
-
   const BOT_SETTINGS_INITIAL = /*[[${settingsPayload['bot_settings']}]]*/ {};
   const INTEGRATION_NETWORK_INITIAL = /*[[${settingsPayload['integration_network']}]]*/ {};
   const INTEGRATION_NETWORK_PROFILES_INITIAL = /*[[${settingsPayload['integration_network_profiles']}]]*/ [];
@@ -7260,6 +7179,12 @@
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#039;');
   }
+
+  const settingsDialogMetricsRuntime = window.SettingsDialogMetricsRuntime?.mount({
+    getDialogConfig: () => DIALOG_CONFIG,
+    getDefaultDialogTimeMetrics: () => DEFAULT_DIALOG_TIME_METRICS,
+    getDefaultSummaryBadges: () => DEFAULT_SUMMARY_BADGES,
+  });
 
   const settingsDialogTemplatesRuntime = window.SettingsDialogTemplatesRuntime?.mount({
     getDialogConfig: () => DIALOG_CONFIG,
@@ -7343,121 +7268,6 @@
     sortArrayAlphabetically: (values) => window.SettingsLocationsTreeRuntime?.sortArrayAlphabetically(values) || [],
     defaultLocationStatus: window.SettingsLocationsTreeRuntime?.getDefaultLocationStatus(),
   });
-
-  function getTimeMetricsInputs() {
-    return {
-      good: document.getElementById('timeMetricGoodLimit'),
-      warning: document.getElementById('timeMetricWarningLimit'),
-      goodColor: document.getElementById('timeMetricColorGood'),
-      warningColor: document.getElementById('timeMetricColorWarning'),
-      dangerColor: document.getElementById('timeMetricColorDanger'),
-      preview: document.getElementById('timeMetricPreview'),
-    };
-  }
-
-  function updateTimeMetricsPreview(metrics) {
-    const inputs = getTimeMetricsInputs();
-    if (!inputs.preview) return;
-    const normalized = normalizeDialogTimeMetrics(metrics);
-    const segments = [
-      { label: `Менее ${normalized.good_limit} мин`, color: normalized.colors.good },
-      { label: `От ${normalized.good_limit} до ${normalized.warning_limit} мин`, color: normalized.colors.warning },
-      { label: `От ${normalized.warning_limit} мин и более`, color: normalized.colors.danger },
-    ];
-    inputs.preview.innerHTML = segments
-      .map(
-        (segment) => `
-          <div class="dialog-time-metrics-preview__chip" style="background-color: ${segment.color};">
-            ${segment.label}
-          </div>
-        `
-      )
-      .join('');
-  }
-
-  function initTimeMetricsControls() {
-    const inputs = getTimeMetricsInputs();
-    if (!inputs.good || !inputs.warning || !inputs.goodColor || !inputs.warningColor || !inputs.dangerColor) {
-      return;
-    }
-    const metrics = normalizeDialogTimeMetrics(DIALOG_CONFIG.time_metrics);
-    inputs.good.value = metrics.good_limit;
-    inputs.warning.value = metrics.warning_limit;
-    inputs.goodColor.value = metrics.colors.good;
-    inputs.warningColor.value = metrics.colors.warning;
-    inputs.dangerColor.value = metrics.colors.danger;
-    updateTimeMetricsPreview(metrics);
-
-    [inputs.good, inputs.warning, inputs.goodColor, inputs.warningColor, inputs.dangerColor].forEach((input) => {
-      if (!input) return;
-      input.addEventListener('input', () => {
-        if (input.classList.contains('is-invalid')) {
-          input.classList.remove('is-invalid');
-        }
-        const snapshot = {
-          good_limit: Number(inputs.good.value),
-          warning_limit: Number(inputs.warning.value),
-          colors: {
-            good: inputs.goodColor.value,
-            warning: inputs.warningColor.value,
-            danger: inputs.dangerColor.value,
-          },
-        };
-        updateTimeMetricsPreview(snapshot);
-      });
-    });
-  }
-
-  function collectTimeMetricsConfig() {
-    const inputs = getTimeMetricsInputs();
-    const errors = [];
-
-    let goodLimit = Math.round(Number(inputs.good?.value));
-    if (!Number.isFinite(goodLimit) || goodLimit <= 0) {
-      errors.push('Укажите положительное значение зелёной зоны (минуты).');
-      if (inputs.good) {
-        inputs.good.classList.add('is-invalid');
-      }
-      goodLimit = DEFAULT_DIALOG_TIME_METRICS.good_limit;
-    } else if (inputs.good) {
-      inputs.good.classList.remove('is-invalid');
-      inputs.good.value = goodLimit;
-    }
-
-    let warningLimit = Math.round(Number(inputs.warning?.value));
-    let warningValid = true;
-    if (!Number.isFinite(warningLimit) || warningLimit <= 0) {
-      errors.push('Укажите корректное значение жёлтой зоны (минуты).');
-      warningValid = false;
-    } else if (warningLimit <= goodLimit) {
-      errors.push('Жёлтая зона должна быть больше зелёной.');
-      warningValid = false;
-    }
-
-    if (!warningValid) {
-      warningLimit = Math.max(goodLimit + 1, DEFAULT_DIALOG_TIME_METRICS.warning_limit);
-      if (inputs.warning) {
-        inputs.warning.classList.add('is-invalid');
-      }
-    } else if (inputs.warning) {
-      inputs.warning.classList.remove('is-invalid');
-      inputs.warning.value = warningLimit;
-    }
-
-    const config = normalizeDialogTimeMetrics({
-      good_limit: goodLimit,
-      warning_limit: warningLimit,
-      colors: {
-        good: inputs.goodColor?.value,
-        warning: inputs.warningColor?.value,
-        danger: inputs.dangerColor?.value,
-      },
-    });
-
-    updateTimeMetricsPreview(config);
-
-    return { config, errors };
-  }
 
   function getDialogSlaInputs() {
     return {
@@ -11011,145 +10821,6 @@
     };
   }
 
-  const dialogStatusBadgesList = document.getElementById('dialogStatusBadgesList');
-  const dialogStatusBadgeAddBtn = document.querySelector('[data-dialog-status-badge-add]');
-
-  function updateDialogStatusBadgePreview(row) {
-    if (!row) return;
-    const nameInput = row.querySelector('[data-dialog-status-label]');
-    const bgInput = row.querySelector('[data-dialog-status-bg]');
-    const textInput = row.querySelector('[data-dialog-status-text]');
-    const preview = row.querySelector('[data-dialog-status-preview]');
-    if (!preview) return;
-    const normalized = normalizeSummaryBadgeSettings(DIALOG_CONFIG.summary_badges);
-    const base = normalized.default || DEFAULT_SUMMARY_BADGES.default;
-    const label = nameInput?.value?.trim() || 'Статус';
-    const background = sanitizeHexColor(bgInput?.value, base.background || '');
-    const text = sanitizeHexColor(textInput?.value, base.text || '');
-    preview.textContent = label;
-    preview.style.backgroundColor = background;
-    preview.style.color = text;
-  }
-
-  function buildDialogStatusBadgeRow(entry) {
-    const row = document.createElement('div');
-    row.className = 'dialog-status-badge-row';
-    row.dataset.dialogStatusBadge = 'true';
-    row.innerHTML = `
-      <div class="row g-2 align-items-end">
-        <div class="col-12 col-lg-4">
-          <label class="form-label mb-1">Статус</label>
-          <input type="text" class="form-control form-control-sm" data-dialog-status-label placeholder="Например, Новый">
-        </div>
-        <div class="col-6 col-lg-3">
-          <label class="form-label mb-1">Фон</label>
-          <input type="text" class="form-control form-control-sm" data-dialog-status-bg placeholder="#e7f1ff">
-          <div class="invalid-feedback">Укажите корректный HEX-цвет.</div>
-        </div>
-        <div class="col-6 col-lg-3">
-          <label class="form-label mb-1">Текст</label>
-          <input type="text" class="form-control form-control-sm" data-dialog-status-text placeholder="#0d6efd">
-          <div class="invalid-feedback">Укажите корректный HEX-цвет.</div>
-        </div>
-        <div class="col-8 col-lg-2">
-          <label class="form-label mb-1">Превью</label>
-          <div class="dialog-status-badge-preview" data-dialog-status-preview>Статус</div>
-        </div>
-        <div class="col-4 col-lg-12 text-end text-lg-start">
-          <button class="btn btn-sm btn-outline-danger" type="button" data-dialog-status-remove>Удалить</button>
-        </div>
-      </div>
-    `;
-    if (entry) {
-      const nameInput = row.querySelector('[data-dialog-status-label]');
-      const bgInput = row.querySelector('[data-dialog-status-bg]');
-      const textInput = row.querySelector('[data-dialog-status-text]');
-      if (nameInput) nameInput.value = entry.label || '';
-      if (bgInput) bgInput.value = entry.background || '';
-      if (textInput) textInput.value = entry.text || '';
-    }
-    row.querySelectorAll('input').forEach((input) => {
-      input.addEventListener('input', () => {
-        if (input.classList.contains('is-invalid')) {
-          input.classList.remove('is-invalid');
-        }
-        updateDialogStatusBadgePreview(row);
-      });
-    });
-    const removeBtn = row.querySelector('[data-dialog-status-remove]');
-    if (removeBtn) {
-      removeBtn.addEventListener('click', () => {
-        row.remove();
-      });
-    }
-    updateDialogStatusBadgePreview(row);
-    return row;
-  }
-
-  function addDialogStatusBadgeRow(entry) {
-    if (!dialogStatusBadgesList) return;
-    dialogStatusBadgesList.appendChild(buildDialogStatusBadgeRow(entry));
-  }
-
-  function initDialogStatusBadges() {
-    if (!dialogStatusBadgesList) return;
-    dialogStatusBadgesList.innerHTML = '';
-    const normalized = normalizeSummaryBadgeSettings(DIALOG_CONFIG.summary_badges);
-    const entries = Object.entries(normalized.status || {});
-    if (entries.length) {
-      entries.forEach(([label, style]) => {
-        addDialogStatusBadgeRow({
-          label,
-          background: style.background || '',
-          text: style.text || '',
-        });
-      });
-    } else {
-      addDialogStatusBadgeRow();
-    }
-    if (dialogStatusBadgeAddBtn) {
-      dialogStatusBadgeAddBtn.addEventListener('click', () => addDialogStatusBadgeRow());
-    }
-  }
-
-  function collectDialogSummaryBadges() {
-    const errors = [];
-    const status = {};
-    if (!dialogStatusBadgesList) {
-      return { status, errors };
-    }
-    dialogStatusBadgesList.querySelectorAll('[data-dialog-status-badge]').forEach((row) => {
-      const labelInput = row.querySelector('[data-dialog-status-label]');
-      const bgInput = row.querySelector('[data-dialog-status-bg]');
-      const textInput = row.querySelector('[data-dialog-status-text]');
-      const label = labelInput?.value?.trim() || '';
-      const bgRaw = bgInput?.value?.trim() || '';
-      const textRaw = textInput?.value?.trim() || '';
-      if (!label) {
-        return;
-      }
-      let hasError = false;
-      if (bgRaw && !isValidHexColor(bgRaw)) {
-        bgInput?.classList.add('is-invalid');
-        errors.push(`Некорректный цвет фона для статуса «${label}».`);
-        hasError = true;
-      }
-      if (textRaw && !isValidHexColor(textRaw)) {
-        textInput?.classList.add('is-invalid');
-        errors.push(`Некорректный цвет текста для статуса «${label}».`);
-        hasError = true;
-      }
-      if (hasError) {
-        return;
-      }
-      status[label.toLowerCase()] = {
-        background: bgRaw,
-        text: textRaw,
-      };
-    });
-    return { status, errors };
-  }
-
   // === Сохранение всех настроек ===
   async function saveSettings() {
     try {
@@ -11174,7 +10845,10 @@
         active_template_id: autoCloseState.active_template_id,
       };
 
-      const timeMetricsState = collectTimeMetricsConfig();
+      const timeMetricsState = settingsDialogMetricsRuntime?.collectTimeMetricsConfig() || {
+        config: DEFAULT_DIALOG_TIME_METRICS,
+        errors: ['Не удалось собрать настройки time metrics.'],
+      };
       if (timeMetricsState.errors && timeMetricsState.errors.length) {
         const uniqueErrors = Array.from(new Set(timeMetricsState.errors));
         showPopup(uniqueErrors.join('\n'));
@@ -11188,7 +10862,10 @@
         return;
       }
 
-      const summaryBadgesState = collectDialogSummaryBadges();
+      const summaryBadgesState = settingsDialogMetricsRuntime?.collectDialogSummaryBadges() || {
+        status: {},
+        errors: ['Не удалось собрать настройки status badges.'],
+      };
       if (summaryBadgesState.errors && summaryBadgesState.errors.length) {
         const uniqueErrors = Array.from(new Set(summaryBadgesState.errors));
         showPopup(uniqueErrors.join('\n'));
