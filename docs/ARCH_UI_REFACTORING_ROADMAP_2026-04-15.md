@@ -1,7 +1,7 @@
 # Architecture And UI Refactoring Roadmap
 
 Дата старта: `2026-04-15`
-Обновлено: `2026-06-19`
+Обновлено: `2026-06-25`
 
 ## Цель
 
@@ -1715,7 +1715,8 @@
 
 Наблюдение:
 
-- `dialogs.js` сейчас держит около `10426` строк;
+- `dialogs.js` после последних runtime split всё ещё остаётся самым тяжёлым
+  dialog browser entrypoint и держит около `6594` строк;
 - по содержанию там смешаны list/filter/runtime polling, details/history,
   workspace contract, quick actions, macro workflow, AI assistant/review,
   notifications refresh loop и media/reply surface;
@@ -1734,55 +1735,36 @@
 
 Текущий зафиксированный runtime-focus внутри Track B:
 
-- первый client-side split уже начат: `list+filters/pagination/bulk` и
-  `AI ops/review/monitoring` вынесены в отдельные runtime entrypoint'ы
-  `dialogs-list-runtime.js` и `dialogs-ai-runtime.js`, а `dialogs.js`
-  переведён на thin orchestration wrappers вокруг этих bounded модулей;
-- следующий bounded slice тоже уже начат: `details/history/media` вынесен в
-  `dialogs-details-history-runtime.js`, а `dialogs.js` использует thin
-  wrappers для history polling, archived history batches, media preview/audio
-  и media send helpers;
-- ещё один support-slice внутри `workspace shell` тоже уже вынесен:
-  `dialogs-workspace-runtime.js` держит draft lifecycle, reply target,
-  messages load-more/pagination, partial section reload, inline navigation и
-  active-contract refresh helpers;
-- поверх этого в тот же runtime уже перенесён и `renderWorkspaceShell`, так
-  что `dialogs.js` больше не является primary owner для workspace shell
-  messages/history/events/SLA rendering;
-- следующим проходом в `dialogs-workspace-runtime.js` перенесён и
-  `workspace client/context render`, включая profile/context contract rendering
-  и extra-attribute formatting;
-- вдогонку в тот же runtime перенесены и `workspace banners/readonly`, так что
-  rollout/parity state и readonly-policy helpers тоже больше не живут как
-  primary UI-layer внутри `dialogs.js`;
-- следующим bounded slice вынесен и `quick actions` runtime:
-  `dialogs-actions-runtime.js` теперь держит row/details/workspace
-  action handlers, action-menu wiring и button-state sync для
-  `take/snooze/resolve/reopen/spam`;
-- следующим bounded slice вынесен и `macro workflow` runtime:
-  `dialogs-macro-runtime.js` теперь держит macro search/preview, variable
-  catalog/default resolution и apply/workflow orchestration для
-  details/workspace surfaces;
-- следующим bounded slice вынесен и `notifications refresh` bridge:
-  `dialogs-notifications-runtime.js` теперь держит unread/bell sync и
-  sidebar refresh dispatch между dialog runtime и `sidebar.js`;
-- следующим bounded slice вынесен и `template-adjacent UI` runtime:
-  `dialogs-templates-runtime.js` теперь держит category/question/completion
-  template UI, emoji panel wiring и category modal reopen/toggle semantics;
-- следующим bounded slice вынесен и `flow orchestration` runtime:
-  `dialogs-flow-runtime.js` теперь держит global hotkeys, dialog entry
-  navigation, details modal lifecycle reset и workspace abandon telemetry
-  wiring;
-- это означает, что следующий проход уже не должен заново разбирать
-  list/AI/details-history/workspace-support/shell-render/quick-actions/
-  macro-workflow/notifications-refresh/template-adjacent/flow-orchestration
-  монолит внутри `dialogs.js`, а должен добирать только remaining
+- client-side split уже покрыл `list+filters/pagination/bulk`,
+  `AI ops/review/monitoring` и `details/history/media` через
+  `dialogs-list-runtime.js`, `dialogs-ai-runtime.js` и
+  `dialogs-details-history-runtime.js`;
+- `dialogs-workspace-runtime.js` уже держит workspace support + shell:
+  draft lifecycle, reply target, messages load-more/pagination, partial reload,
+  inline navigation, active-contract refresh, client/context render и
+  readonly/rollout/parity state;
+- соседние bounded UI/domain кластеры тоже уже вынесены в
+  `dialogs-actions-runtime.js`, `dialogs-macro-runtime.js`,
+  `dialogs-notifications-runtime.js`, `dialogs-templates-runtime.js` и
+  `dialogs-flow-runtime.js`;
+- текущим проходом добавлен и `dialogs-experiment-runtime.js`, который забрал
+  experiment info panel, telemetry summary/guardrails, rollout packet,
+  scorecard/decision и refresh-control wiring для experiment modal;
+- `dialogs/index.html` теперь подключает эти runtime entrypoint'ы отдельно, а
+  `dialogs.js` в основном держит thin orchestration и compatibility delegates
+  между уже вынесенными bounded surface'ами;
+- это означает, что следующий проход не должен заново разбирать уже
+  вынесенные list/AI/details-history/workspace/actions/macro/notifications/
+  templates/flow/experiment кластеры, а должен добирать только remaining
   orchestration drift вокруг legacy modal flows и соседнего UI wiring;
 
 - live regression corridor для `take -> categories -> reply -> follow-up ->
   details/workspace reread -> bell ack -> next follow-up` уже нужен как
   обязательный контракт, потому что именно там расходятся row `unreadCount`,
   `my_dialogs` bucket placement и panel bell unread semantics;
+- рядом с этим таким же базовым smoke-коридором остаются pagination,
+  `openDialogEntry/openDialogDetails` и avatar hydration: именно они первыми
+  показывают, что page-level orchestration drift снова задел dialog shell;
 - backend-часть этой нормализации уже зафиксирована:
   `my_dialogs.unanswered` больше не держится на `waiting_operator` overlay и
   теперь соответствует только `unreadCount > 0`, а reread с
@@ -1805,8 +1787,9 @@
   `waiting_operator | auto_processing`, чтобы frontend split не продолжал
   жить с ложным допуском на AI overlay там, где runtime seeded-state нет;
 - значит следующий точечный диалоговый пакет должен чистить уже не сам
-  bucket split, а оставшуюся refresh-bus/bell coordination между
-  list/details/workspace/notifications перед большим client-side split.
+  bucket split, а оставшуюся modal/page orchestration и refresh-bus/bell
+  coordination между list/details/workspace/notifications, не ломая
+  pagination, dialog-open flow и avatar hydration.
 
 Стоп-условие:
 
