@@ -110,15 +110,25 @@
     }
 
     function getDependencyChain(type) {
+      if (typeof options.getDependencyChain === 'function') {
+        const chain = options.getDependencyChain(type);
+        return Array.isArray(chain) ? chain : [];
+      }
       const chain = getParameterDependencies()[type];
       return Array.isArray(chain) ? chain : [];
     }
 
     function normalizeDependencyValue(value) {
+      if (typeof options.normalizeDependencyValue === 'function') {
+        return options.normalizeDependencyValue(value);
+      }
       return typeof value === 'string' ? value.trim() : '';
     }
 
     function getDependencyLabel(key) {
+      if (typeof options.getDependencyLabel === 'function') {
+        return options.getDependencyLabel(key);
+      }
       return getParameterTitles()[key] || key;
     }
 
@@ -128,6 +138,9 @@
     }
 
     function buildDependencySelect(type, dependencyKey, selectedValue, disabled, context) {
+      if (typeof options.buildDependencySelect === 'function') {
+        return options.buildDependencySelect(type, dependencyKey, selectedValue, disabled, context);
+      }
       const normalized = normalizeDependencyValue(selectedValue);
       const disabledAttr = disabled ? ' disabled' : '';
       const valueAttr = escapeHtml(normalized);
@@ -224,6 +237,10 @@
     }
 
     function refreshParameterDependencyControls(root, fallbackType = null) {
+      if (typeof options.refreshParameterDependencyControls === 'function') {
+        options.refreshParameterDependencyControls(root, fallbackType);
+        return;
+      }
       const scope = root || document;
       scope.querySelectorAll('[data-param-dependency-group]').forEach((group) => {
         const groupType = group.dataset.paramType || fallbackType;
@@ -234,6 +251,9 @@
     }
 
     function collectDependencyValues(container, type) {
+      if (typeof options.collectDependencyValues === 'function') {
+        return options.collectDependencyValues(container, type);
+      }
       const chain = getDependencyChain(type);
       const result = { values: {} };
       if (!chain.length) {
