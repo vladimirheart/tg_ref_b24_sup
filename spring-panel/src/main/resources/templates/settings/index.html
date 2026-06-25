@@ -6824,6 +6824,7 @@
     <script src="/js/settings-page-shell.js"></script>
     <script src="/js/settings-appearance-runtime.js"></script>
     <script src="/js/settings-channel-templates-runtime.js"></script>
+    <script src="/js/settings-parameters-runtime.js"></script>
     <script src="/js/settings-partner-contacts-runtime.js"></script>
     <script src="/js/settings-legal-entities-runtime.js"></script>
     <script src="/js/settings-network-profiles-runtime.js"></script>
@@ -7481,9 +7482,6 @@
   Object.keys(PARAMETER_TITLES).forEach((type) => {
     parameterData[type] = [];
   });
-  const parameterModalEl = document.getElementById('parameterItemsModal');
-  let parameterModalType = null;
-  const cityCardEl = document.querySelector('[data-city-card]');
 
   function syncParameterData(source) {
     const data = source && typeof source === 'object' ? source : {};
@@ -7627,166 +7625,20 @@
     settingsPartnerContactsRuntime?.clearPartnerContactEdits();
   }
 
-  function buildStateSelect(type, selected, disabled, { forInput = false } = {}) {
-    if (!PARAMETER_STATE_TYPES.has(type)) {
-      return '';
-    }
-    const effective = PARAMETER_STATES.includes(selected) ? selected : PARAMETER_STATES[0];
-    const options = PARAMETER_STATES.map((state) => `<option value="${state}"${state === effective ? ' selected' : ''}>${state}</option>`).join('');
-    const roleAttr = forInput ? 'data-param-state-input' : 'data-param-field="state"';
-    const disabledAttr = disabled ? ' disabled' : '';
-    return `<select class="form-select form-select-sm" ${roleAttr} data-param-type="${type}" data-param-current-state="${effective}"${disabledAttr}>${options}</select>`;
+  function renderParameters(...args) {
+    return settingsParametersRuntime?.renderParameters(...args);
   }
 
-  function buildUsageControl(type, item) {
-    if (type === 'department') {
-      return '<span class="input-group-text text-muted">—</span>';
-    }
-    const filterKey = PARAMETER_FILTER_KEYS[type];
-    const value = item && item.value ? String(item.value) : '';
-    const trimmedValue = value.trim();
-    if (!filterKey || !trimmedValue) {
-      return '<span class="input-group-text text-muted">—</span>';
-    }
-    const usage = Number.isFinite(Number(item && item.usage_count)) ? Number(item.usage_count) : 0;
-    const url = `/object_passports?${filterKey}=${encodeURIComponent(trimmedValue)}`;
-    const btnClass = usage > 0 ? 'btn btn-outline-primary' : 'btn btn-outline-secondary';
-    return `<a class="${btnClass}" data-param-role="usage" href="${url}" title="Открыть паспорта с этим значением">${usage}</a>`;
+  function renderCityCard(...args) {
+    return settingsParametersRuntime?.renderCityCard(...args);
   }
 
-  function buildParameterItem(type, item) {
-    const rawId = item && item.id;
-    const idNumber = Number(rawId);
-    const id = Number.isFinite(idNumber) ? idNumber : Number.parseInt(rawId, 10);
-    if (!Number.isFinite(id)) {
-      return '';
-    }
-    const value = item && item.value ? String(item.value) : '';
-    const disabled = Boolean(item && item.is_deleted);
-    const dependencyChain = getDependencyChain(type);
-    const dependencyValues = item && typeof item.dependencies === 'object' ? item.dependencies : {};
-    const dependencySelects = dependencyChain
-      .map((dep) => {
-        const selected = dependencyValues && typeof dependencyValues[dep] === 'string' ? dependencyValues[dep] : '';
-        return buildDependencySelect(type, dep, selected, disabled, 'entry');
-      })
-      .join('');
-    let serverNameInput = '';
-    if (type === 'iiko_server') {
-      let serverNameSource = '';
-      if (item && typeof item.server_name === 'string') {
-        serverNameSource = item.server_name;
-      } else if (item && item.extra && typeof item.extra.server_name === 'string') {
-        serverNameSource = item.extra.server_name;
-      }
-      const serverName = typeof serverNameSource === 'string' ? serverNameSource.trim() : '';
-      serverNameInput = `<input type="text" class="form-control" data-param-field="server_name" placeholder="Имя сервера" value="${escapeHtml(serverName)}"${disabled ? ' disabled' : ''}>`;
-    }
-    const valuePlaceholder = type === 'iiko_server' ? 'Адрес сервера' : '';
-    const valueInput = `<input type="text" class="form-control" data-param-field="value"${valuePlaceholder ? ` placeholder="${valuePlaceholder}"` : ''} value="${escapeHtml(value)}"${disabled ? ' disabled' : ''}>`;
-    const stateSelect = buildStateSelect(type, item ? item.state : undefined, disabled, { forInput: false });
-    const usageControl = buildUsageControl(type, item);
-    const saveButton = `<button class="btn btn-outline-success" type="button" data-param-action="save" data-param-id="${id}" data-param-type="${type}" title="Сохранить"${disabled ? ' disabled' : ''}>💾</button>`;
-    const deleteButton = disabled
-      ? `<button class="btn btn-outline-secondary" type="button" data-param-action="restore" data-param-id="${id}" data-param-type="${type}" title="Восстановить">↩️</button>`
-      : `<button class="btn btn-outline-danger" type="button" data-param-action="delete" data-param-id="${id}" data-param-type="${type}" title="Удалить">🗑</button>`;
-    const deletedHint = disabled ? '<div class="form-text text-danger small">Запись помечена как удалённая</div>' : '';
-    return `
-      <div class="param-entry${disabled ? ' param-entry--deleted' : ''}" data-param-id="${id}" data-param-type="${type}" data-param-dependency-group="entry">
-        <div class="input-group input-group-sm mb-2">
-          ${dependencySelects}
-          ${serverNameInput}
-          ${valueInput}
-          ${stateSelect}
-          ${usageControl}
-          ${saveButton}
-          ${deleteButton}
-        </div>
-        ${deletedHint}
-      </div>
-    `;
+  function deleteParameter(...args) {
+    return settingsParametersRuntime?.deleteParameter(...args);
   }
 
-  function buildParameterContent(type, items, context) {
-    const listHtml = items.length
-      ? items.map((item) => buildParameterItem(type, item)).join('')
-      : '<div class="empty-placeholder">Пока нет значений</div>';
-    const createPlaceholder = type === 'iiko_server' ? 'Адрес сервера' : 'Добавить значение';
-    const extraControls = [];
-    if (type === 'iiko_server') {
-      extraControls.push(
-        '<input type="text" class="form-control" placeholder="Имя сервера" data-param-create-field="server_name">'
-      );
-    }
-    const dependencyChain = getDependencyChain(type);
-    const dependencySelects = dependencyChain
-      .map((dep) => buildDependencySelect(type, dep, '', false, 'create'))
-      .join('');
-    const controls = `
-      <div class="input-group input-group-sm mt-3" data-param-dependency-group="create" data-param-type="${type}">
-        ${dependencySelects}
-        ${buildStateSelect(type, PARAMETER_STATES[0], false, { forInput: true })}
-        ${extraControls.join('')}
-        <input type="text" class="form-control" placeholder="${createPlaceholder}" data-param-input>
-        <button class="btn btn-success" type="button" data-param-action="create" data-param-type="${type}">Добавить</button>
-      </div>
-    `;
-    return `
-      <div data-param-container data-param-type="${type}" data-param-context="${context}">
-        <div class="param-items">${listHtml}</div>
-        ${controls}
-      </div>
-    `;
-  }
-
-  function renderRemoteAccessSection() {
-    const remoteAccessContainer = document.querySelector('[data-remote-access-container]');
-    if (!remoteAccessContainer) return;
-    const items = Array.isArray(parameterData.remote_access) ? parameterData.remote_access : [];
-    remoteAccessContainer.innerHTML = buildParameterContent('remote_access', items, 'it');
-  }
-
-  function renderParameterCard(type, { forceBody = false } = {}) {
-    const card = document.querySelector(`.parameter-card[data-param-type="${type}"]`);
-    if (!card) return;
-    const items = Array.isArray(parameterData[type]) ? parameterData[type] : [];
-    const counter = card.querySelector('[data-param-count]');
-    if (counter) {
-      counter.textContent = items.length;
-    }
-    const hasMany = items.length > 10;
-    card.dataset.hasMany = hasMany ? 'true' : 'false';
-    const hint = card.querySelector('[data-param-hint]');
-    if (hint) {
-      hint.classList.toggle('d-none', !hasMany);
-    }
-    const body = card.querySelector('[data-param-body]');
-    if (!body) return;
-    if (hasMany) {
-      card.classList.remove('is-expanded');
-      body.classList.add('d-none');
-      body.innerHTML = '';
-      return;
-    }
-    if (!card.classList.contains('is-expanded')) {
-      body.classList.add('d-none');
-      body.innerHTML = '';
-      return;
-    }
-    body.classList.remove('d-none');
-    if (forceBody || !body.innerHTML.trim()) {
-      body.innerHTML = buildParameterContent(type, items, 'card');
-    }
-    refreshParameterDependencyControls(body, type);
-  }
-
-  function renderParameters({ forceBodies = false } = {}) {
-    Object.keys(PARAMETER_TITLES).forEach((type) => {
-      renderParameterCard(type, { forceBody: forceBodies });
-    });
-    renderRemoteAccessSection();
-    settingsPartnerContactsRuntime?.renderPartnerContacts();
-    settingsLegalEntitiesRuntime?.renderLegalEntities();
+  function restoreParameter(...args) {
+    return settingsParametersRuntime?.restoreParameter(...args);
   }
 
   const settingsLegalEntitiesRuntime = window.SettingsLegalEntitiesRuntime?.mount({
@@ -7813,11 +7665,7 @@
     showPopup: (message) => showPopup(message),
     syncParameterData: (data) => syncParameterData(data),
     renderParameters: (...args) => renderParameters(...args),
-    renderCurrentParameterModal: () => {
-      if (parameterModalEl && parameterModalType) {
-        renderParameterModal(parameterModalType);
-      }
-    },
+    renderCurrentParameterModal: (...args) => settingsParametersRuntime?.renderCurrentParameterModal(...args),
     requestSettingsModalClose: (source) => requestSettingsModalClose(source),
     confirmDialog: (message) => window.confirm(message),
     renderItEquipmentTable: (...args) => window.__settingsItEquipmentRuntime?.renderItEquipmentTable(...args),
@@ -7845,117 +7693,26 @@
     deleteParameter: (...args) => deleteParameter(...args),
     restoreParameter: (...args) => restoreParameter(...args),
   });
+  const settingsParametersRuntime = window.SettingsParametersRuntime?.mount({
+    getParameterData: () => parameterData,
+    getParameterTitles: () => PARAMETER_TITLES,
+    getParameterDependencies: () => PARAMETER_DEPENDENCIES,
+    getParameterStateTypes: () => PARAMETER_STATE_TYPES,
+    getParameterStates: () => PARAMETER_STATES,
+    getParameterFilterKeys: () => PARAMETER_FILTER_KEYS,
+    getCityParameterType: () => CITY_PARAMETER_TYPE,
+    getCityParameterLabel: () => CITY_PARAMETER_LABEL,
+    getCityOptions: () => CITY_OPTIONS,
+    escapeHtml,
+    showPopup: (message) => showPopup(message),
+    syncParameterData: (data) => syncParameterData(data),
+    renderPartnerContacts: (...args) => settingsPartnerContactsRuntime?.renderPartnerContacts(...args),
+    renderLegalEntities: (...args) => settingsLegalEntitiesRuntime?.renderLegalEntities(...args),
+    renderItConnectionsTable: (...args) => settingsItConnectionsRuntime?.renderItConnectionsTable(...args),
+    confirmDialog: (message) => window.confirm(message),
+  });
 
-  function buildCityModalContent() {
-    const items = Array.isArray(parameterData[CITY_PARAMETER_TYPE]) ? parameterData[CITY_PARAMETER_TYPE] : [];
-    if (items.length) {
-      return buildParameterContent(CITY_PARAMETER_TYPE, items, 'modal');
-    }
-    if (!CITY_OPTIONS.length) {
-      return '<div class="empty-placeholder">Пока нет значений</div>';
-    }
-    const listItems = CITY_OPTIONS.map((city) => `<li class="list-group-item py-1 px-2">${escapeHtml(city)}</li>`).join('');
-    return `
-      <div data-param-container data-param-type="${CITY_PARAMETER_TYPE}">
-        <div class="param-items">
-          <ul class="list-group list-group-flush">${listItems}</ul>
-        </div>
-      </div>
-    `;
-  }
-
-  function renderParameterModal(type) {
-    if (!parameterModalEl) return;
-    const body = parameterModalEl.querySelector('[data-param-modal-body]');
-    if (!body) return;
-    if (type === CITY_PARAMETER_TYPE) {
-      body.innerHTML = buildCityModalContent();
-      refreshParameterDependencyControls(body, type);
-      return;
-    }
-    const items = Array.isArray(parameterData[type]) ? parameterData[type] : [];
-    body.innerHTML = buildParameterContent(type, items, 'modal');
-    refreshParameterDependencyControls(body, type);
-  }
-
-  function renderCityCard() {
-    if (!cityCardEl) return;
-    const parameterCities = Array.isArray(parameterData[CITY_PARAMETER_TYPE])
-      ? parameterData[CITY_PARAMETER_TYPE]
-          .map((item) => (item && typeof item.value === 'string' ? item.value.trim() : ''))
-          .filter((name) => name)
-      : [];
-    const sourceCities = parameterCities.length ? parameterCities : (Array.isArray(CITY_OPTIONS) ? CITY_OPTIONS : []);
-    const uniqueCities = Array.from(new Set(sourceCities.map((city) => city.trim()))).filter((city) => city);
-    uniqueCities.sort((a, b) => a.localeCompare(b));
-    const count = uniqueCities.length;
-    cityCardEl.dataset.cityCount = String(count);
-    const body = cityCardEl.querySelector('[data-city-body]');
-    const hint = cityCardEl.querySelector('[data-city-hint]');
-    const counter = cityCardEl.querySelector('.badge');
-    if (counter) {
-      counter.textContent = String(count);
-    }
-    const listContainer = cityCardEl.querySelector('[data-city-list]');
-    if (listContainer) {
-      if (count) {
-        const items = uniqueCities.map((city) => `<li class="list-group-item py-1 px-2">${escapeHtml(city)}</li>`).join('');
-        listContainer.innerHTML = `<ul class="list-group list-group-flush">${items}</ul>`;
-      } else {
-        listContainer.innerHTML = '<div class="empty-placeholder">Пока нет значений</div>';
-      }
-    }
-    if (body) {
-      body.classList.toggle('d-none', count > 10);
-    }
-    if (hint) {
-      hint.classList.toggle('d-none', !(count > 10));
-    }
-  }
-
-  function prepareParameterModal(type) {
-    if (!parameterModalEl) return false;
-    parameterModalType = type;
-    const titleEl = parameterModalEl.querySelector('[data-param-modal-title]');
-    if (titleEl) {
-      const label =
-        PARAMETER_TITLES[type] || (type === CITY_PARAMETER_TYPE ? CITY_PARAMETER_LABEL : 'Значения параметра');
-      titleEl.textContent = `Параметры партнёров • ${label}`;
-    }
-    renderParameterModal(type);
-    return true;
-  }
-
-  renderParameters();
-
-  window.resetParameterItemsSettingsModal = function resetParameterItemsSettingsModal() {
-    parameterModalType = null;
-  };
-
-  window.prepareCityParameterSettingsTrigger = function prepareCityParameterSettingsTrigger() {
-    const cityCount = cityCardEl ? Number.parseInt(cityCardEl.dataset.cityCount || '0', 10) : 0;
-    if (Number.isFinite(cityCount) && cityCount > 10) {
-      return prepareParameterModal(CITY_PARAMETER_TYPE);
-    }
-    return false;
-  };
-
-  window.prepareParameterSettingsTrigger = function prepareParameterSettingsTrigger(trigger) {
-    const card = trigger instanceof HTMLElement ? trigger.closest('.parameter-card') : null;
-    if (!card) return false;
-    const type = card.dataset.paramType;
-    if (!type) return false;
-    if (card.dataset.hasMany === 'true') {
-      return prepareParameterModal(type);
-    }
-    card.classList.toggle('is-expanded');
-    renderParameterCard(type, { forceBody: true });
-    return false;
-  };
-
-  function findParameterContainer(element) {
-    return element ? element.closest('[data-param-container]') : null;
-  }
+  settingsParametersRuntime?.renderParameters();
 
   document.addEventListener('click', (event) => {
     const legalEntityAddBtn = event.target.closest('[data-legal-entity-add]');
@@ -7966,55 +7723,7 @@
     const legalEntityAction = event.target.closest('[data-legal-entity-action]');
     if (legalEntityAction) {
       settingsLegalEntitiesRuntime?.handleActionClick(legalEntityAction);
-      return;
     }
-    const actionEl = event.target.closest('[data-param-action]');
-    if (!actionEl) return;
-    const action = actionEl.dataset.paramAction;
-    const containerWithType = actionEl.closest('[data-param-type]');
-    const type = actionEl.dataset.paramType || (containerWithType ? containerWithType.dataset.paramType : null);
-    if (!action || !type) return;
-    if (action === 'create') {
-      createParameter(type, actionEl);
-      return;
-    }
-    const entry = actionEl.closest('[data-param-id]');
-    if (!entry) return;
-    const id = Number.parseInt(entry.dataset.paramId, 10);
-    if (!Number.isFinite(id)) return;
-    if (action === 'save') {
-      updateParameterValue(id, type, actionEl);
-    } else if (action === 'delete') {
-      deleteParameter(id, type, actionEl);
-    } else if (action === 'restore') {
-      restoreParameter(id, type, actionEl);
-    }
-  });
-
-  document.addEventListener('change', (event) => {
-    const dependencySelect = event.target.closest('[data-param-dependency-field]');
-    if (dependencySelect) {
-      const group = dependencySelect.closest('[data-param-dependency-group]');
-      const type = group ? group.dataset.paramType || dependencySelect.dataset.paramType : dependencySelect.dataset.paramType;
-      if (type) {
-        dependencySelect.dataset.paramDependencyValue = normalizeDependencyValue(dependencySelect.value);
-        const targetGroup = group
-          || dependencySelect.closest('[data-param-dependency-group]')
-          || dependencySelect.closest('[data-param-type]');
-        if (targetGroup) {
-          refreshDependencySelectGroup(targetGroup, type);
-        }
-      }
-      return;
-    }
-    const stateSelect = event.target.closest('[data-param-field="state"]');
-    if (!stateSelect) return;
-    const entry = stateSelect.closest('[data-param-id]');
-    if (!entry) return;
-    const id = Number.parseInt(entry.dataset.paramId, 10);
-    const type = entry.dataset.paramType;
-    if (!Number.isFinite(id) || !type) return;
-    updateParameterState(id, type, stateSelect);
   });
 
   const legalEntitiesContainer = document.querySelector('[data-legal-entities-list]');
@@ -8101,9 +7810,7 @@
       renderCityCard();
       settingsItConnectionsRuntime?.renderItConnectionsTable();
       buildLocationsTree();
-      if (parameterModalEl && parameterModalType) {
-        renderParameterModal(parameterModalType);
-      }
+      settingsParametersRuntime?.renderCurrentParameterModal();
     } catch (error) {
       parametersLoaded = false;
       console.error('Ошибка загрузки параметров:', error);
@@ -8111,241 +7818,6 @@
       showPopup('❌ Не удалось загрузить параметры: ' + message);
     }
   }
-
-  async function createParameter(type, trigger) {
-    const container = findParameterContainer(trigger);
-    if (!container) return;
-    const input = container.querySelector('[data-param-input]');
-    if (!input) return;
-    const value = input.value.trim();
-    if (!value) {
-      input.focus();
-      return;
-    }
-    const stateSelect = container.querySelector('[data-param-state-input]');
-    let serverNameInput = null;
-    let serverName = '';
-    if (type === 'iiko_server') {
-      serverNameInput = container.querySelector('[data-param-create-field="server_name"]');
-      serverName = serverNameInput ? serverNameInput.value.trim() : '';
-      if (!serverName) {
-        if (serverNameInput) {
-          serverNameInput.focus();
-        }
-        showPopup('Поле «Имя сервера» обязательно');
-        return;
-      }
-    }
-    const dependencyResult = collectDependencyValues(container, type);
-    if (dependencyResult.error) {
-      showPopup('❌ ' + dependencyResult.error);
-      if (dependencyResult.field) {
-        dependencyResult.field.focus();
-      }
-      return;
-    }
-    const payload = { param_type: type, value };
-    if (stateSelect && PARAMETER_STATE_TYPES.has(type)) {
-      payload.state = stateSelect.value;
-    }
-    if (type === 'iiko_server') {
-      payload.server_name = serverName;
-    }
-    Object.assign(payload, dependencyResult.values);
-
-    const originalText = trigger.textContent;
-    trigger.disabled = true;
-    trigger.textContent = '...';
-
-    try {
-      const response = await fetch('/api/settings/parameters', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const data = await response.json();
-      if (!response.ok || data.success === false) {
-        throw new Error(data.error || 'Ошибка создания параметра');
-      }
-      syncParameterData((data && data.data) || parameterData);
-      input.value = '';
-      if (serverNameInput) {
-        serverNameInput.value = '';
-      }
-      if (stateSelect) {
-        stateSelect.value = PARAMETER_STATES[0];
-      }
-      renderParameters({ forceBodies: true });
-      settingsItConnectionsRuntime?.renderItConnectionsTable();
-      if (parameterModalEl && parameterModalType === type) {
-        renderParameterModal(type);
-      }
-    } catch (error) {
-      const message = error && error.message ? error.message : error;
-      showPopup('❌ ' + message);
-    } finally {
-      trigger.disabled = false;
-      trigger.textContent = originalText;
-    }
-  }
-
-  async function updateParameterValue(id, type, trigger) {
-    const entry = trigger.closest('[data-param-id]');
-    if (!entry) return;
-    const input = entry.querySelector('input[data-param-field="value"]');
-    if (!input) return;
-    const value = input.value.trim();
-    if (!value) {
-      showPopup('Значение не может быть пустым');
-      input.focus();
-      return;
-    }
-    let serverNameInput = null;
-    let serverName = '';
-    if (type === 'iiko_server') {
-      serverNameInput = entry.querySelector('input[data-param-field="server_name"]');
-      serverName = serverNameInput ? serverNameInput.value.trim() : '';
-      if (!serverName) {
-        showPopup('Имя сервера обязательно');
-        if (serverNameInput) {
-          serverNameInput.focus();
-        }
-        return;
-      }
-    }
-
-    trigger.disabled = true;
-
-    try {
-      const payload = { value };
-      if (type === 'iiko_server') {
-        payload.server_name = serverName;
-      }
-      const dependencyResult = collectDependencyValues(entry, type);
-      if (dependencyResult.error) {
-        showPopup('❌ ' + dependencyResult.error);
-        if (dependencyResult.field) {
-          dependencyResult.field.focus();
-        }
-        trigger.disabled = false;
-        return;
-      }
-      Object.assign(payload, dependencyResult.values);
-      const response = await fetch(`/api/settings/parameters/${id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const data = await response.json();
-      if (!response.ok || data.success === false) {
-        throw new Error(data.error || 'Ошибка сохранения');
-      }
-      syncParameterData((data && data.data) || parameterData);
-      renderParameters({ forceBodies: true });
-      settingsItConnectionsRuntime?.renderItConnectionsTable();
-      if (parameterModalEl && parameterModalType === type) {
-        renderParameterModal(type);
-      }
-    } catch (error) {
-      const message = error && error.message ? error.message : error;
-      showPopup('❌ ' + message);
-    } finally {
-      trigger.disabled = false;
-    }
-  }
-
-  async function updateParameterState(id, type, select) {
-    const previous = select.dataset.paramCurrentState || select.value;
-    select.disabled = true;
-
-    try {
-      const response = await fetch(`/api/settings/parameters/${id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ state: select.value })
-      });
-      const data = await response.json();
-      if (!response.ok || data.success === false) {
-        throw new Error(data.error || 'Ошибка сохранения состояния');
-      }
-      syncParameterData((data && data.data) || parameterData);
-      renderParameters({ forceBodies: true });
-      settingsItConnectionsRuntime?.renderItConnectionsTable();
-      if (parameterModalEl && parameterModalType === type) {
-        renderParameterModal(type);
-      }
-      select.dataset.paramCurrentState = select.value;
-    } catch (error) {
-      const message = error && error.message ? error.message : error;
-      showPopup('❌ ' + message);
-      select.value = previous;
-    } finally {
-      select.disabled = false;
-    }
-  }
-
-  async function deleteParameter(id, type, trigger) {
-    const confirmations = [
-      'Удалить значение?',
-      'Подтвердите: запись будет помечена как удалённая.',
-      'Последнее подтверждение перед удалением. Продолжить?'
-    ];
-    for (const message of confirmations) {
-      if (!confirm(message)) {
-        return;
-      }
-    }
-
-    trigger.disabled = true;
-
-    try {
-      const response = await fetch(`/api/settings/parameters/${id}`, {
-        method: 'DELETE'
-      });
-      const data = await response.json();
-      if (!response.ok || data.success === false) {
-        throw new Error(data.error || 'Ошибка удаления');
-      }
-      syncParameterData((data && data.data) || parameterData);
-      renderParameters({ forceBodies: true });
-      settingsItConnectionsRuntime?.renderItConnectionsTable();
-      if (parameterModalEl && parameterModalType === type) {
-        renderParameterModal(type);
-      }
-    } catch (error) {
-      const message = error && error.message ? error.message : error;
-      showPopup('❌ ' + message);
-    } finally {
-      trigger.disabled = false;
-    }
-  }
-
-  async function restoreParameter(id, type, trigger) {
-    trigger.disabled = true;
-    try {
-      const response = await fetch(`/api/settings/parameters/${id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_deleted: false })
-      });
-      const data = await response.json();
-      if (!response.ok || data.success === false) {
-        throw new Error(data.error || 'Ошибка восстановления');
-      }
-      syncParameterData((data && data.data) || parameterData);
-      renderParameters({ forceBodies: true });
-      settingsItConnectionsRuntime?.renderItConnectionsTable();
-      if (parameterModalEl && parameterModalType === type) {
-        renderParameterModal(type);
-      }
-    } catch (error) {
-      const message = error && error.message ? error.message : error;
-      showPopup('❌ ' + message);
-    } finally {
-      trigger.disabled = false;
-    }
-  }
-
   let CLIENT_STATUS_USAGE = /*[[${statusUsage}]]*/ {} || {};
   const INITIAL_CLIENT_STATUSES = /*[[${settingsPayload['client_statuses']}]]*/ [] || [];
   const INITIAL_CLIENT_STATUS_COLORS = /*[[${settingsPayload['client_status_colors']}]]*/ {} || {};
