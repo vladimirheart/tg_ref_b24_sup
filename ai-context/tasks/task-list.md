@@ -153,3 +153,4 @@
 🟠 [01-131] Разрезать ChannelApiController по transport responsibility
 🟠 [01-132] Разрезать AnalyticsController по bounded governance и analytics use-cases
 🟣 [01-133] Автосоздавать задачу при auto-close диалога с тем же ответственным, соисполнителями-участниками и ссылкой на диалог
+🟠 [01-134] Выпилить оставшийся backend/test слой PublicForm после удаления публичных форм из проекта
