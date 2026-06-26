@@ -6822,6 +6822,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="/js/modal-helpers.js"></script>
     <script src="/js/settings-page-shell.js"></script>
+    <script src="/js/settings-save-runtime.js"></script>
     <script src="/js/settings-appearance-runtime.js"></script>
     <script src="/js/settings-dialog-shell-runtime.js"></script>
     <script src="/js/settings-dialog-sla-core-runtime.js"></script>
@@ -7197,6 +7198,23 @@
     workspaceExternalKpiRuntime: settingsDialogWorkspaceExternalKpiRuntime,
   });
 
+  const settingsSaveRuntime = window.SettingsSaveRuntime?.mount({
+    templatesRuntime: settingsDialogTemplatesRuntime,
+    metricsRuntime: settingsDialogMetricsRuntime,
+    dialogShellRuntime: settingsDialogShellRuntime,
+    networkProfilesRuntime: settingsNetworkProfilesRuntime,
+    getAutoCloseFallbackHours: () => AUTO_CLOSE_FALLBACK_HOURS,
+    collectStatuses: () => Array.from(document.querySelectorAll('#statusesList .status-input'))
+      .map((input) => input.value.trim())
+      .filter(Boolean),
+    getLocationsState: () => window.SettingsLocationsTreeRuntime?.getState() || {},
+    serializeLocationsIikoServerSources: () => window.serializeLocationsIikoServerSources(),
+    serializeLocationsIikoSyncSettings: () => window.serializeLocationsIikoSyncSettings(),
+    markLocationsIikoServerSourcesSaved: () => window.markLocationsIikoServerSourcesSaved(),
+    showPopup: (message) => showPopup(message),
+    getSaveUrl: () => '/settings',
+  });
+
   const settingsParametersShellRuntime = window.SettingsParametersShellRuntime?.mount({
     getParameterTitles: () => PARAMETER_TITLES,
     getParameterDependencies: () => PARAMETER_DEPENDENCIES,
@@ -7273,113 +7291,7 @@
 
   // === Сохранение всех настроек ===
   async function saveSettings() {
-    try {
-      const autoCloseState = settingsDialogTemplatesRuntime?.collectAutoCloseConfig() || {
-        templates: [],
-        active_template_id: null,
-        errors: ['Не удалось собрать шаблоны автозакрытия.'],
-      };
-      if (autoCloseState.errors && autoCloseState.errors.length) {
-        showPopup(autoCloseState.errors.join('\n'));
-        return;
-      }
-      if (!autoCloseState.templates.length) {
-        showPopup('Добавьте хотя бы один шаблон автозакрытия.');
-        return;
-      }
-      const activeTemplate = autoCloseState.templates.find((tpl) => tpl.id === autoCloseState.active_template_id)
-        || autoCloseState.templates[0];
-      const autoCloseHours = activeTemplate?.hours || AUTO_CLOSE_FALLBACK_HOURS;
-      const autoClosePayload = {
-        templates: autoCloseState.templates,
-        active_template_id: autoCloseState.active_template_id,
-      };
-
-      const timeMetricsState = settingsDialogMetricsRuntime?.collectTimeMetricsConfig() || {
-        config: DEFAULT_DIALOG_TIME_METRICS,
-        errors: ['Не удалось собрать настройки time metrics.'],
-      };
-      if (timeMetricsState.errors && timeMetricsState.errors.length) {
-        const uniqueErrors = Array.from(new Set(timeMetricsState.errors));
-        showPopup(uniqueErrors.join('\n'));
-        return;
-      }
-
-      const dialogSlaState = settingsDialogShellRuntime?.collectDialogSlaConfig() || {
-        config: {},
-        errors: ['Не удалось собрать dialog settings shell config.'],
-      };
-      if (dialogSlaState.errors && dialogSlaState.errors.length) {
-        const uniqueErrors = Array.from(new Set(dialogSlaState.errors));
-        showPopup(uniqueErrors.join('\n'));
-        return;
-      }
-
-      const summaryBadgesState = settingsDialogMetricsRuntime?.collectDialogSummaryBadges() || {
-        status: {},
-        errors: ['Не удалось собрать настройки status badges.'],
-      };
-      if (summaryBadgesState.errors && summaryBadgesState.errors.length) {
-        const uniqueErrors = Array.from(new Set(summaryBadgesState.errors));
-        showPopup(uniqueErrors.join('\n'));
-        return;
-      }
-
-      const dialogTemplatesState = settingsDialogTemplatesRuntime?.collectDialogTemplatesPayload() || {
-        categoryTemplates: [],
-        questionTemplates: [],
-        completionTemplates: [],
-        macroTemplates: [],
-        fallbackCategories: [],
-      };
-      const categoryTemplates = dialogTemplatesState.categoryTemplates || [];
-      const fallbackCategories = dialogTemplatesState.fallbackCategories || [];
-      const questionTemplates = dialogTemplatesState.questionTemplates || [];
-      const completionTemplates = dialogTemplatesState.completionTemplates || [];
-      const macroTemplates = dialogTemplatesState.macroTemplates || [];
-
-      // Собираем статусы
-      const statuses = Array.from(document.querySelectorAll('#statusesList .status-input'))
-        .map(inp => inp.value.trim())
-        .filter(v => v);
-
-      const networkProfilesPayload = settingsNetworkProfilesRuntime?.collectNetworkProfilesPayload() || [];
-
-      const response = await fetch('/settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          categories: fallbackCategories,
-          client_statuses: statuses,
-          locations: window.SettingsLocationsTreeRuntime?.getState() || {},
-          locations_iiko_server_sources: window.serializeLocationsIikoServerSources(),
-          locations_iiko_sync: window.serializeLocationsIikoSyncSettings(),
-          network_profiles: networkProfilesPayload,
-          dialog_category_templates: categoryTemplates,
-          dialog_question_templates: questionTemplates,
-          dialog_completion_templates: completionTemplates,
-          dialog_macro_templates: macroTemplates,
-          dialog_time_metrics: timeMetricsState.config,
-          ...dialogSlaState.config,
-          dialog_summary_badges: { status: summaryBadgesState.status },
-          auto_close_config: autoClosePayload,
-          auto_close_hours: autoCloseHours,
-        })
-      });
-      
-      const data = await response.json();
-      if (data.success) {
-        window.markLocationsIikoServerSourcesSaved();
-        showPopup('✅ Настройки сохранены');
-        if (Array.isArray(data.warnings) && data.warnings.length) {
-          showPopup('⚠️ ' + data.warnings.join('\n'));
-        }
-      } else {
-        showPopup('❌ Ошибка: ' + (data.error || 'неизвестная ошибка'));
-      }
-    } catch (error) {
-      showPopup('❌ Ошибка сети: ' + error.message);
-    }
+    return settingsSaveRuntime?.saveSettings();
   }
 
   // === КАНАЛЫ (боты) ===
