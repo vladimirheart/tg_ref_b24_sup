@@ -6823,6 +6823,7 @@
     <script src="/js/modal-helpers.js"></script>
     <script src="/js/settings-page-shell.js"></script>
     <script src="/js/settings-appearance-runtime.js"></script>
+    <script src="/js/settings-dialog-shell-runtime.js"></script>
     <script src="/js/settings-dialog-sla-core-runtime.js"></script>
     <script src="/js/settings-dialog-metrics-runtime.js"></script>
     <script src="/js/settings-dialog-workspace-governance-runtime.js"></script>
@@ -7190,6 +7191,12 @@
     escapeHtml,
   });
 
+  const settingsDialogShellRuntime = window.SettingsDialogShellRuntime?.mount({
+    slaCoreRuntime: settingsDialogSlaCoreRuntime,
+    workspaceGovernanceRuntime: settingsDialogWorkspaceGovernanceRuntime,
+    workspaceExternalKpiRuntime: settingsDialogWorkspaceExternalKpiRuntime,
+  });
+
   const settingsParametersShellRuntime = window.SettingsParametersShellRuntime?.mount({
     getParameterTitles: () => PARAMETER_TITLES,
     getParameterDependencies: () => PARAMETER_DEPENDENCIES,
@@ -7264,50 +7271,6 @@
     defaultLocationStatus: window.SettingsLocationsTreeRuntime?.getDefaultLocationStatus(),
   });
 
-  function collectDialogSlaConfig() {
-    const errors = [];
-    const slaCoreState = settingsDialogSlaCoreRuntime?.collectSlaCoreConfig() || {
-      config: {},
-      errors: ['Не удалось собрать настройки SLA/workspace core.'],
-    };
-    if (slaCoreState.errors && slaCoreState.errors.length) {
-      errors.push(...slaCoreState.errors);
-    }
-    const macroClientContextState = settingsDialogSlaCoreRuntime?.collectMacroClientContextConfig() || {
-      config: {},
-      errors: ['Не удалось собрать настройки macro/client context.'],
-    };
-    if (macroClientContextState.errors && macroClientContextState.errors.length) {
-      errors.push(...macroClientContextState.errors);
-    }
-
-    const workspaceGovernanceState = settingsDialogWorkspaceGovernanceRuntime?.collectWorkspaceGovernanceConfig() || {
-      config: {},
-      errors: ['Не удалось собрать настройки workspace governance.'],
-    };
-    if (workspaceGovernanceState.errors && workspaceGovernanceState.errors.length) {
-      errors.push(...workspaceGovernanceState.errors);
-    }
-
-    const workspaceExternalKpiState = settingsDialogWorkspaceExternalKpiRuntime?.collectWorkspaceExternalKpiConfig() || {
-      config: {},
-      errors: ['Не удалось собрать настройки workspace external KPI.'],
-    };
-    if (workspaceExternalKpiState.errors && workspaceExternalKpiState.errors.length) {
-      errors.push(...workspaceExternalKpiState.errors);
-    }
-
-    return {
-      errors,
-      config: {
-        ...slaCoreState.config,
-        ...macroClientContextState.config,
-        ...workspaceGovernanceState.config,
-        ...workspaceExternalKpiState.config,
-      },
-    };
-  }
-
   // === Сохранение всех настроек ===
   async function saveSettings() {
     try {
@@ -7342,7 +7305,10 @@
         return;
       }
 
-      const dialogSlaState = collectDialogSlaConfig();
+      const dialogSlaState = settingsDialogShellRuntime?.collectDialogSlaConfig() || {
+        config: {},
+        errors: ['Не удалось собрать dialog settings shell config.'],
+      };
       if (dialogSlaState.errors && dialogSlaState.errors.length) {
         const uniqueErrors = Array.from(new Set(dialogSlaState.errors));
         showPopup(uniqueErrors.join('\n'));
