@@ -1024,8 +1024,12 @@
   let triagePreferencesLoadedFromServer = false;
   let triagePreferencesSaveTimer = null;
   let myDialogsState = {
-    unanswered: normalizeMyDialogsCollection(INITIAL_MY_DIALOGS.unanswered),
-    inWork: normalizeMyDialogsCollection(INITIAL_MY_DIALOGS.in_work || INITIAL_MY_DIALOGS.inWork),
+    unanswered: Array.isArray(INITIAL_MY_DIALOGS.unanswered)
+      ? INITIAL_MY_DIALOGS.unanswered.filter((item) => item && typeof item === 'object')
+      : [],
+    inWork: Array.isArray(INITIAL_MY_DIALOGS.in_work || INITIAL_MY_DIALOGS.inWork)
+      ? (INITIAL_MY_DIALOGS.in_work || INITIAL_MY_DIALOGS.inWork).filter((item) => item && typeof item === 'object')
+      : [],
   };
 
   function loadColumnState() {
@@ -1570,6 +1574,7 @@
   let dialogsExperimentRuntime = null;
   let dialogsParticipantsRuntime = null;
   let dialogsDetailsRuntime = null;
+  let dialogsMyDialogsRuntime = null;
   dialogsShellRuntime = window.DialogsShellRuntime?.createRuntime({
     debugLog,
     workspaceEnabled: WORKSPACE_V1_ENABLED,
@@ -1621,6 +1626,32 @@
     findRowByTicketId: (ticketId) => table.querySelector(`tr[data-ticket-id="${escapeSelectorValue(ticketId)}"]`),
     updateRowResponsible,
     updateDetailsResponsible,
+  }) || null;
+  dialogsMyDialogsRuntime = window.DialogsMyDialogsRuntime?.createRuntime({
+    elements: {
+      panel: myDialogsPanel,
+      count: myDialogsCount,
+      empty: myDialogsEmpty,
+      unansweredSection: myDialogsUnansweredSection,
+      unansweredList: myDialogsUnansweredList,
+      inWorkSection: myDialogsInWorkSection,
+      inWorkList: myDialogsInWorkList,
+    },
+    escapeHtml,
+    formatTimestamp,
+    rowsList,
+    isOwnedByCurrentOperator,
+    isResolvedRow: isResolved,
+    getMyDialogsState: () => myDialogsState,
+    setMyDialogsState: (state) => {
+      myDialogsState = state && typeof state === 'object'
+        ? state
+        : { unanswered: [], inWork: [] };
+    },
+    getActiveDialogTicketId: () => activeDialogTicketId,
+    findRowByTicketId: (ticketId) => table.querySelector(`tr[data-ticket-id="${escapeSelectorValue(ticketId)}"]`),
+    setActiveDialogRow,
+    openDialogSurface,
   }) || null;
   const dialogsFlowRuntime = window.DialogsFlowRuntime?.createRuntime({
     elements: {
@@ -2174,143 +2205,47 @@
   }
 
   function normalizeMyDialogsCollection(items) {
-    return Array.isArray(items) ? items.filter((item) => item && typeof item === 'object') : [];
+    return dialogsMyDialogsRuntime?.normalizeMyDialogsCollection(items) || [];
   }
 
   function resolveResponsibleRawFromItem(item) {
-    return String(
-      item?.rawResponsible
-      || item?.raw_responsible
-      || item?.responsibleRaw
-      || item?.responsible
-      || '',
-    ).trim();
+    return dialogsMyDialogsRuntime?.resolveResponsibleRawFromItem(item) || '';
   }
 
   function resolveRowResponsibleRaw(row) {
-    return String(row?.dataset?.responsibleRaw || row?.dataset?.responsible || '').trim();
+    return dialogsMyDialogsRuntime?.resolveRowResponsibleRaw(row) || '';
   }
 
   function normalizeMyDialogsState(payload) {
-    const source = payload && typeof payload === 'object' ? payload : {};
-    myDialogsState = {
-      unanswered: normalizeMyDialogsCollection(source.unanswered),
-      inWork: normalizeMyDialogsCollection(source.in_work || source.inWork),
-    };
+    dialogsMyDialogsRuntime?.normalizeMyDialogsState(payload);
   }
 
   function isMyDialogItemUnanswered(dialog) {
-    const unreadCount = Number(dialog?.unreadCount ?? dialog?.unread_count ?? 0) || 0;
-    const statusKey = String(dialog?.statusKey || dialog?.status_key || '').trim().toLowerCase();
-    return unreadCount > 0 || statusKey === 'waiting_operator';
+    return dialogsMyDialogsRuntime?.isMyDialogItemUnanswered(dialog) === true;
   }
 
   function isMyDialogItemClosed(dialog) {
-    const statusKey = String(dialog?.statusKey || dialog?.status_key || '').trim().toLowerCase();
-    return statusKey === 'closed' || statusKey === 'auto_closed';
+    return dialogsMyDialogsRuntime?.isMyDialogItemClosed(dialog) === true;
   }
 
   function buildMyDialogStateFromRow(row) {
-    if (!row) return null;
-    const responsibleRaw = resolveRowResponsibleRaw(row);
-    if (!isOwnedByCurrentOperator(responsibleRaw) || isResolved(row)) {
-      return null;
-    }
-    return {
-      ticketId: String(row.dataset.ticketId || '').trim(),
-      requestNumber: String(row.dataset.requestNumber || '').trim(),
-      clientName: String(row.dataset.client || '').trim(),
-      channelName: String(row.dataset.channel || '').trim(),
-      problem: String(row.dataset.problem || '').trim(),
-      statusKey: String(row.dataset.statusKey || '').trim(),
-      unreadCount: Number(row.dataset.unread) || 0,
-      rawResponsible: responsibleRaw,
-      responsible: String(row.dataset.responsible || '').trim(),
-      lastMessageSender: String(row.dataset.lastMessageSender || '').trim(),
-      lastMessageTimestamp: String(row.dataset.lastMessageTimestamp || '').trim(),
-      userId: String(row.dataset.userId || '').trim(),
-    };
+    return dialogsMyDialogsRuntime?.buildMyDialogStateFromRow(row) || null;
   }
 
   function syncMyDialogsStateFromTable() {
-    const nextState = {
-      unanswered: [],
-      inWork: [],
-    };
-    rowsList().forEach((row) => {
-      const dialog = buildMyDialogStateFromRow(row);
-      if (!dialog || !dialog.ticketId) return;
-      if (isMyDialogItemClosed(dialog)) return;
-      if (isMyDialogItemUnanswered(dialog)) {
-        nextState.unanswered.push(dialog);
-      } else {
-        nextState.inWork.push(dialog);
-      }
-    });
-    myDialogsState = nextState;
+    dialogsMyDialogsRuntime?.syncMyDialogsStateFromTable();
   }
 
   function formatMyDialogLastActivity(dialog) {
-    const sender = String(dialog?.lastMessageSender || '').trim();
-    const timestamp = formatTimestamp(dialog?.lastMessageTimestamp || '', { includeTime: true, fallback: '' });
-    if (sender && timestamp && timestamp !== '—') {
-      return `${sender} · ${timestamp}`;
-    }
-    if (timestamp && timestamp !== '—') {
-      return timestamp;
-    }
-    if (sender) {
-      return sender;
-    }
-    return 'Активность пока не зафиксирована';
+    return dialogsMyDialogsRuntime?.formatMyDialogLastActivity(dialog) || 'Активность пока не зафиксирована';
   }
 
   function renderMyDialogItem(dialog) {
-    const ticketId = String(dialog?.ticketId || '').trim();
-    if (!ticketId) return '';
-    const requestNumber = String(dialog?.requestNumber || '').trim();
-    const title = requestNumber || ticketId;
-    const clientName = String(dialog?.clientName || dialog?.username || 'Клиент').trim();
-    const channelName = String(dialog?.channelName || dialog?.channel || 'Без канала').trim();
-    const unreadCount = Number(dialog?.unreadCount ?? dialog?.unread_count ?? 0) || 0;
-    const isActive = String(activeDialogTicketId || '').trim() === ticketId;
-    const lastActivity = formatMyDialogLastActivity(dialog);
-    const problem = String(dialog?.problem || '').trim();
-    const metaParts = [clientName, channelName].filter(Boolean);
-    return `
-      <button type="button"
-              class="dialog-my-dialog-item ${isActive ? 'is-active' : ''}"
-              data-my-dialog-ticket-id="${escapeHtml(ticketId)}">
-        <div class="dialog-my-dialog-item-head">
-          <div class="dialog-my-dialog-item-title">№ ${escapeHtml(title)}</div>
-          <span class="badge dialog-unread-count ${unreadCount > 0 ? '' : 'd-none'}">${unreadCount}</span>
-        </div>
-        <div class="dialog-my-dialog-item-meta">${metaParts.map((part) => `<span>${escapeHtml(part)}</span>`).join('')}</div>
-        <div class="dialog-my-dialog-item-last">${escapeHtml(problem || lastActivity)}</div>
-        ${problem ? `<div class="dialog-my-dialog-item-last">${escapeHtml(lastActivity)}</div>` : ''}
-      </button>
-    `;
+    return dialogsMyDialogsRuntime?.renderMyDialogItem(dialog) || '';
   }
 
   function renderMyDialogsPanel() {
-    if (!myDialogsPanel || !myDialogsUnansweredList || !myDialogsInWorkList) return;
-    const unanswered = normalizeMyDialogsCollection(myDialogsState.unanswered);
-    const inWork = normalizeMyDialogsCollection(myDialogsState.inWork);
-    const totalActive = unanswered.length + inWork.length;
-    myDialogsUnansweredList.innerHTML = unanswered.map(renderMyDialogItem).join('');
-    myDialogsInWorkList.innerHTML = inWork.map(renderMyDialogItem).join('');
-    if (myDialogsCount) {
-      myDialogsCount.textContent = `(${totalActive})`;
-    }
-    if (myDialogsUnansweredSection) {
-      myDialogsUnansweredSection.classList.toggle('d-none', unanswered.length === 0);
-    }
-    if (myDialogsInWorkSection) {
-      myDialogsInWorkSection.classList.toggle('d-none', inWork.length === 0);
-    }
-    if (myDialogsEmpty) {
-      myDialogsEmpty.classList.toggle('d-none', unanswered.length > 0 || inWork.length > 0);
-    }
+    dialogsMyDialogsRuntime?.renderMyDialogsPanel();
   }
 
   function buildAvatarUrl(userId) {
@@ -4663,22 +4598,6 @@
       return;
     }
   });
-
-  if (myDialogsPanel) {
-    myDialogsPanel.addEventListener('click', (event) => {
-      const trigger = event.target instanceof Element
-        ? event.target.closest('[data-my-dialog-ticket-id]')
-        : null;
-      if (!trigger) return;
-      event.preventDefault();
-      const ticketId = String(trigger.getAttribute('data-my-dialog-ticket-id') || '').trim();
-      if (!ticketId) return;
-      const row = rowsList().find((item) => String(item.dataset.ticketId || '') === ticketId) || null;
-      setActiveDialogRow(row, { ensureVisible: true });
-      openDialogSurface(ticketId, row, { source: 'manual_open' });
-    });
-  }
-
   if (selectAllCheckbox) {
     selectAllCheckbox.addEventListener('change', () => {
       visibleRows().forEach((row) => {
@@ -4713,6 +4632,7 @@
   runDialogsInitStep('dialogsActionsRuntime.bindWorkspaceQuickActions', () => dialogsActionsRuntime?.bindWorkspaceQuickActions());
   runDialogsInitStep('dialogsTemplatesRuntime.bindTemplateEvents', () => dialogsTemplatesRuntime?.bindTemplateEvents());
   runDialogsInitStep('dialogsMacroRuntime.bindMacroTemplateEvents', () => dialogsMacroRuntime?.bindMacroTemplateEvents());
+  runDialogsInitStep('dialogsMyDialogsRuntime.bindPanelEvents', () => dialogsMyDialogsRuntime?.bindPanelEvents());
 
   syncDialogAssignControls();
 
