@@ -1716,7 +1716,7 @@
 Наблюдение:
 
 - `dialogs.js` после последних runtime split всё ещё остаётся самым тяжёлым
-  dialog browser entrypoint и держит около `6477` строк;
+  dialog browser entrypoint и держит около `6115` строк;
 - по содержанию там смешаны list/filter/runtime polling, details/history,
   workspace contract, quick actions, macro workflow, AI assistant/review,
   notifications refresh loop и media/reply surface;
@@ -1753,13 +1753,17 @@
 - следующим support-slice добавлен и `dialogs-shell-runtime.js`, который
   держит modal safety helpers, fallback dismiss/scroll containment,
   avatar hydration и единый `openDialogSurface` для page-shell orchestration;
+- следующим support-slice добавлен и `dialogs-participants-runtime.js`,
+  который держит participants/reassign state, rendering, operator loading и
+  event wiring для details/workspace participant-management flows;
 - `dialogs/index.html` теперь подключает эти runtime entrypoint'ы отдельно, а
   `dialogs.js` в основном держит thin orchestration и compatibility delegates
   между уже вынесенными bounded surface'ами;
 - это означает, что следующий проход не должен заново разбирать уже
   вынесенные list/AI/details-history/workspace/actions/macro/notifications/
-  templates/flow/experiment/shell кластеры, а должен добирать только remaining
-  orchestration drift вокруг legacy modal flows и соседнего UI wiring;
+  templates/flow/experiment/shell/participants кластеры, а должен добирать
+  только remaining orchestration drift вокруг legacy modal flows и соседнего
+  UI wiring;
 
 - live regression corridor для `take -> categories -> reply -> follow-up ->
   details/workspace reread -> bell ack -> next follow-up` уже нужен как
@@ -1769,6 +1773,10 @@
   `openDialogEntry/openDialogDetails` и avatar hydration: теперь это уже не
   utility debt, а индикатор remaining details/workspace orchestration drift
   поверх вынесенного dialog shell;
+- participants/reassign orchestration после этого прохода тоже уже не должен
+  быть отдельным giant cluster: если regression снова появится там, это будет
+  сигналом о drift между details/workspace owner-state и новым bounded runtime,
+  а не поводом возвращать participant UI обратно в `dialogs.js`;
 - backend-часть этой нормализации уже зафиксирована:
   `my_dialogs.unanswered` больше не держится на `waiting_operator` overlay и
   теперь соответствует только `unreadCount > 0`, а reread с

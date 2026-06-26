@@ -928,8 +928,6 @@
     suppressDetailsReset: false,
     reopenAfterClose: false,
   };
-  let dialogAssignableOperators = null;
-  let dialogParticipantsState = [];
   const workspaceOpenTimers = new Map();
   const workspaceExperimentContext = resolveWorkspaceExperimentContext();
   const WORKSPACE_EXPERIENCE_ENABLED = resolveWorkspaceExperienceEnabled();
@@ -1580,11 +1578,58 @@
   let dialogsTemplatesRuntime = null;
   let dialogsMacroRuntime = null;
   let dialogsExperimentRuntime = null;
+  let dialogsParticipantsRuntime = null;
   dialogsShellRuntime = window.DialogsShellRuntime?.createRuntime({
     debugLog,
     workspaceEnabled: WORKSPACE_V1_ENABLED,
     openDialogWithWorkspaceFallback,
     openDialogDetails,
+  }) || null;
+  dialogsParticipantsRuntime = window.DialogsParticipantsRuntime?.createRuntime({
+    elements: {
+      detailsParticipantsSection,
+      detailsParticipantsState,
+      detailsParticipantsList,
+      participantsCurrentState,
+      participantsCurrentList,
+      participantsSelect,
+      participantsAddBtn,
+      participantsSelectHint,
+      reassignSelect,
+      reassignSubmit,
+      reassignHint,
+      reassignCurrent,
+      detailsParticipantsBtn,
+      detailsParticipantsManageBtn,
+      detailsReassignBtn,
+      participantsMeta,
+      participantsModalEl,
+      participantsModal,
+      reassignMeta,
+      reassignModalEl,
+      reassignModal,
+    },
+    escapeHtml,
+    formatTimestamp,
+    normalizeIdentity,
+    buildResponsibleAvatarSpec,
+    renderResponsibleCell,
+    canRunAction,
+    isWorkspaceActionEnabled,
+    getWorkspaceActionGuard,
+    getWorkspaceWorkflowCollection,
+    notifyActionBlocked,
+    showNotification,
+    showModalSafe,
+    hideModalSafe,
+    getActiveDialogTicketId: () => activeDialogTicketId,
+    getActiveDialogResponsibleRaw: () => activeDialogResponsibleRaw,
+    getActiveDialogContext: () => activeDialogContext,
+    getActiveDialogResponsibleAvatarUrl: () => activeDialogResponsibleAvatarUrl,
+    getActiveDialogRow: () => activeDialogRow,
+    findRowByTicketId: (ticketId) => table.querySelector(`tr[data-ticket-id="${escapeSelectorValue(ticketId)}"]`),
+    updateRowResponsible,
+    updateDetailsResponsible,
   }) || null;
   const dialogsFlowRuntime = window.DialogsFlowRuntime?.createRuntime({
     elements: {
@@ -1661,9 +1706,7 @@
     setSelectedCategories: (categories) => {
       selectedCategories = categories instanceof Set ? categories : new Set();
     },
-    setDialogParticipantsState: (participants) => {
-      dialogParticipantsState = Array.isArray(participants) ? participants : [];
-    },
+    setDialogParticipantsState,
     renderDialogParticipantsLoadingState,
     syncParticipantsSelectOptions,
     syncReassignSelectOptions,
@@ -2621,326 +2664,48 @@
     updateDetailsTakeButton(rawResponsible || safeResponsible);
   }
 
-  function buildOperatorOptionLabel(operator) {
-    const displayName = String(operator?.displayName || operator?.display_name || '').trim();
-    const username = String(operator?.username || '').trim();
-    const department = String(operator?.department || '').trim();
-    const role = String(operator?.role || '').trim();
-    const head = displayName && username && normalizeIdentity(displayName) !== normalizeIdentity(username)
-      ? `${displayName} (${username})`
-      : (displayName || username || '—');
-    const tail = [department, role].filter(Boolean).join(' · ');
-    return tail ? `${head} · ${tail}` : head;
-  }
-
-  function buildParticipantAvatarMarkup(displayName, avatarUrl, alt) {
-    const spec = buildResponsibleAvatarSpec(displayName, avatarUrl);
-    if (spec?.avatarUrl) {
-      return `<span class="dialog-responsible-avatar has-image"><img src="${escapeHtml(spec.avatarUrl)}" alt="${escapeHtml(alt || 'Аватар участника')}"></span>`;
-    }
-    return `<span class="dialog-responsible-avatar"><span>${escapeHtml(spec?.initial || displayName.substring(0, 1).toUpperCase())}</span></span>`;
-  }
-
-  function buildParticipantProfileHref(participant) {
-    const username = String(participant?.username || '').trim();
-    const displayName = String(participant?.displayName || participant?.display_name || '').trim();
-    const profileId = username || displayName;
-    if (!profileId) {
-      return '';
-    }
-    return `/users/${encodeURIComponent(profileId)}`;
-  }
-
-  function renderParticipantCard(participant, options = {}) {
-    const username = String(participant?.username || '').trim();
-    const displayName = String(participant?.displayName || participant?.display_name || '').trim() || username || '—';
-    const avatarUrl = String(participant?.avatarUrl || participant?.avatar_url || '').trim();
-    const department = String(participant?.department || '').trim();
-    const role = String(participant?.role || '').trim();
-    const addedAt = formatTimestamp(participant?.addedAt || participant?.added_at || '', { includeTime: true, fallback: '' });
-    const metaParts = [username && username !== displayName ? `@${username}` : '', department, role, addedAt].filter(Boolean);
-    const avatarMarkup = buildParticipantAvatarMarkup(displayName, avatarUrl, 'Аватар участника');
-    const profileHref = buildParticipantProfileHref(participant);
-    const removeButton = options.removable && username
-      ? `<button type="button" class="btn btn-sm btn-outline-danger" data-remove-participant="${escapeHtml(username)}">${escapeHtml(options.removeLabel || 'Убрать')}</button>`
-      : '';
-    return `
-      <div class="dialog-details-participant-card">
-        <div class="dialog-details-participant-main">
-          ${profileHref
-            ? `<a class="dialog-details-participant-link" href="${escapeHtml(profileHref)}" target="_blank" rel="noopener">${avatarMarkup}<div class="dialog-details-participant-copy"><div class="dialog-details-participant-name">${escapeHtml(displayName)}</div><div class="dialog-details-participant-meta">${metaParts.map((item) => `<span>${escapeHtml(item)}</span>`).join('')}</div></div></a>`
-            : `${avatarMarkup}<div class="dialog-details-participant-copy"><div class="dialog-details-participant-name">${escapeHtml(displayName)}</div><div class="dialog-details-participant-meta">${metaParts.map((item) => `<span>${escapeHtml(item)}</span>`).join('')}</div></div>`}
-        </div>
-        ${removeButton}
-      </div>
-    `;
-  }
-
-  function renderParticipantInlineChip(participant) {
-    const username = String(participant?.username || '').trim();
-    const displayName = String(participant?.displayName || participant?.display_name || '').trim() || username || '—';
-    const avatarUrl = String(participant?.avatarUrl || participant?.avatar_url || '').trim();
-    const avatarMarkup = buildParticipantAvatarMarkup(displayName, avatarUrl, 'Аватар участника');
-    const titleParts = [displayName];
-    if (username && username !== displayName) {
-      titleParts.push(`@${username}`);
-    }
-    const profileHref = buildParticipantProfileHref(participant);
-    const safeTitle = escapeHtml(titleParts.join(' · '));
-    return `
-      ${profileHref
-        ? `<a class="dialog-details-participant-pill" href="${escapeHtml(profileHref)}" target="_blank" rel="noopener" title="${safeTitle}">${avatarMarkup}<span class="dialog-details-participant-pill-name">${escapeHtml(displayName)}</span></a>`
-        : `<span class="dialog-details-participant-pill" title="${safeTitle}">${avatarMarkup}<span class="dialog-details-participant-pill-name">${escapeHtml(displayName)}</span></span>`}
-    `;
-  }
-
-  function getParticipantStateEmptyText() {
-    return 'Дополнительные участники не подключены.';
+  function setDialogParticipantsState(participants) {
+    return dialogsParticipantsRuntime?.setParticipantsState(participants) || [];
   }
 
   function renderDialogParticipantsState() {
-    const participants = Array.isArray(dialogParticipantsState) ? dialogParticipantsState : [];
-    if (detailsParticipantsSection) {
-      detailsParticipantsSection.classList.toggle('d-none', participants.length === 0);
-    }
-    if (detailsParticipantsState) {
-      detailsParticipantsState.textContent = participants.length
-        ? `Подключено: ${participants.length}`
-        : getParticipantStateEmptyText();
-    }
-    if (detailsParticipantsList) {
-      detailsParticipantsList.innerHTML = participants.map((participant) => renderParticipantInlineChip(participant)).join('');
-      detailsParticipantsList.classList.toggle('d-none', participants.length === 0);
-    }
-    if (participantsCurrentState) {
-      participantsCurrentState.textContent = participants.length
-        ? `Подключено: ${participants.length}`
-        : getParticipantStateEmptyText();
-    }
-    if (participantsCurrentList) {
-      participantsCurrentList.innerHTML = participants.map((participant) => renderParticipantCard(participant, {
-        removable: isWorkspaceActionEnabled(
-          'participants_remove',
-          canRunAction('can_assign'),
-          activeDialogTicketId
-        ),
-        removeLabel: 'Убрать',
-      })).join('');
-      participantsCurrentList.classList.toggle('d-none', participants.length === 0);
-    }
+    dialogsParticipantsRuntime?.renderDialogParticipantsState();
   }
 
   function renderDialogParticipantsLoadingState(message) {
-    const text = String(message || 'Загрузка участников...').trim();
-    if (detailsParticipantsSection) detailsParticipantsSection.classList.add('d-none');
-    if (detailsParticipantsState) detailsParticipantsState.textContent = text;
-    if (detailsParticipantsList) {
-      detailsParticipantsList.innerHTML = '';
-    }
-    if (participantsCurrentState) participantsCurrentState.textContent = text;
-    if (participantsCurrentList) {
-      participantsCurrentList.innerHTML = '';
-      participantsCurrentList.classList.add('d-none');
-    }
+    dialogsParticipantsRuntime?.renderDialogParticipantsLoadingState(message);
   }
 
   function syncParticipantsSelectOptions() {
-    if (!participantsSelect) return;
-    const workspaceCandidates = getWorkspaceWorkflowCollection('participant_candidates', activeDialogTicketId);
-    const operators = Array.isArray(workspaceCandidates) ? workspaceCandidates : (Array.isArray(dialogAssignableOperators) ? dialogAssignableOperators : []);
-    const participantIds = new Set((Array.isArray(dialogParticipantsState) ? dialogParticipantsState : []).map((item) => normalizeIdentity(item?.username)));
-    const currentResponsible = normalizeIdentity(activeDialogResponsibleRaw);
-    const availableOperators = operators.filter((item) => {
-      const username = normalizeIdentity(item?.username);
-      if (!username) return false;
-      if (username === currentResponsible) return false;
-      return !participantIds.has(username);
-    });
-    participantsSelect.innerHTML = '';
-    const placeholder = document.createElement('option');
-    placeholder.value = '';
-    placeholder.textContent = availableOperators.length ? 'Выберите пользователя…' : 'Нет доступных пользователей';
-    participantsSelect.appendChild(placeholder);
-    availableOperators.forEach((operator) => {
-      const option = document.createElement('option');
-      option.value = operator.username || '';
-      option.textContent = buildOperatorOptionLabel(operator);
-      participantsSelect.appendChild(option);
-    });
-    const canAddParticipants = isWorkspaceActionEnabled(
-      'participants_add',
-      availableOperators.length > 0 && canRunAction('can_assign'),
-      activeDialogTicketId
-    );
-    participantsSelect.disabled = availableOperators.length === 0 || !canAddParticipants;
-    if (participantsAddBtn) {
-      participantsAddBtn.disabled = availableOperators.length === 0 || !canAddParticipants;
-    }
-    if (participantsSelectHint) {
-      const guard = getWorkspaceActionGuard('participants_add', activeDialogTicketId);
-      if (!canAddParticipants && guard?.disabled_reason === 'closed_dialog') {
-        participantsSelectHint.textContent = 'К закрытому диалогу нельзя добавлять новых участников.';
-      } else if (!canAddParticipants && guard?.disabled_reason === 'no_participant_candidates') {
-        participantsSelectHint.textContent = 'Свободных пользователей для добавления сейчас нет.';
-      } else {
-        participantsSelectHint.textContent = availableOperators.length
-          ? 'Ответственный не отображается в списке: он уже подключён к диалогу автоматически.'
-          : 'Свободных пользователей для добавления сейчас нет.';
-      }
-    }
+    dialogsParticipantsRuntime?.syncParticipantsSelectOptions();
   }
 
   function syncReassignSelectOptions() {
-    if (!reassignSelect) return;
-    const workspaceCandidates = getWorkspaceWorkflowCollection('reassign_candidates', activeDialogTicketId);
-    const operators = Array.isArray(workspaceCandidates) ? workspaceCandidates : (Array.isArray(dialogAssignableOperators) ? dialogAssignableOperators : []);
-    const currentResponsible = normalizeIdentity(activeDialogResponsibleRaw);
-    const availableOperators = operators.filter((item) => {
-      const username = normalizeIdentity(item?.username);
-      return username && username !== currentResponsible;
-    });
-    reassignSelect.innerHTML = '';
-    const placeholder = document.createElement('option');
-    placeholder.value = '';
-    placeholder.textContent = availableOperators.length ? 'Выберите пользователя…' : 'Некому передать диалог';
-    reassignSelect.appendChild(placeholder);
-    availableOperators.forEach((operator) => {
-      const option = document.createElement('option');
-      option.value = operator.username || '';
-      option.textContent = buildOperatorOptionLabel(operator);
-      reassignSelect.appendChild(option);
-    });
-    const canReassign = isWorkspaceActionEnabled(
-      'reassign',
-      availableOperators.length > 0 && canRunAction('can_assign'),
-      activeDialogTicketId
-    );
-    reassignSelect.disabled = availableOperators.length === 0 || !canReassign;
-    if (reassignSubmit) {
-      reassignSubmit.disabled = availableOperators.length === 0 || !canReassign;
-    }
-    if (reassignHint) {
-      const guard = getWorkspaceActionGuard('reassign', activeDialogTicketId);
-      if (!canReassign && guard?.disabled_reason === 'closed_dialog') {
-        reassignHint.textContent = 'Переадресовать можно только открытый диалог.';
-      } else if (!canReassign && guard?.disabled_reason === 'no_reassign_candidates') {
-        reassignHint.textContent = 'Подходящих пользователей для переадресации не найдено.';
-      } else {
-        reassignHint.textContent = availableOperators.length
-          ? 'Если пользователь уже был участником диалога, после передачи он станет только ответственным.'
-          : 'Подходящих пользователей для переадресации не найдено.';
-      }
-    }
+    dialogsParticipantsRuntime?.syncReassignSelectOptions();
   }
 
   async function ensureAssignableOperatorsLoaded(force = false) {
-    if (!force && Array.isArray(dialogAssignableOperators)) {
-      return dialogAssignableOperators;
-    }
-    const resp = await fetch('/api/dialogs/operators', {
-      credentials: 'same-origin',
-      cache: 'no-store',
-    });
-    const data = await resp.json();
-    if (!resp.ok || !data?.success) {
-      throw new Error(data?.error || `Ошибка ${resp.status}`);
-    }
-    dialogAssignableOperators = Array.isArray(data.operators) ? data.operators : [];
-    syncParticipantsSelectOptions();
-    syncReassignSelectOptions();
-    return dialogAssignableOperators;
+    return dialogsParticipantsRuntime?.ensureAssignableOperatorsLoaded(force) || [];
   }
 
   async function loadDialogParticipants() {
-    if (!activeDialogTicketId) {
-      dialogParticipantsState = [];
-      renderDialogParticipantsState();
-      return [];
-    }
-    renderDialogParticipantsLoadingState('Загрузка участников...');
-    const resp = await fetch(`/api/dialogs/${encodeURIComponent(activeDialogTicketId)}/participants`, {
-      credentials: 'same-origin',
-      cache: 'no-store',
-    });
-    const data = await resp.json();
-    if (!resp.ok || !data?.success) {
-      throw new Error(data?.error || `Ошибка ${resp.status}`);
-    }
-    dialogParticipantsState = Array.isArray(data.participants) ? data.participants : [];
-    renderDialogParticipantsState();
-    syncParticipantsSelectOptions();
-    return dialogParticipantsState;
+    return dialogsParticipantsRuntime?.loadDialogParticipants() || [];
   }
 
   function renderReassignCurrentResponsible() {
-    if (!reassignCurrent) return;
-    const label = String(activeDialogContext.operatorName || '').trim() || '—';
-    reassignCurrent.innerHTML = renderResponsibleCell(label, activeDialogResponsibleAvatarUrl || '');
+    dialogsParticipantsRuntime?.renderReassignCurrentResponsible();
   }
 
   async function openParticipantsManager() {
-    if (!activeDialogTicketId) return;
-    const canAddParticipants = isWorkspaceActionEnabled('participants_add', canRunAction('can_assign'), activeDialogTicketId);
-    const canRemoveParticipants = isWorkspaceActionEnabled('participants_remove', canRunAction('can_assign'), activeDialogTicketId);
-    if (!canAddParticipants && !canRemoveParticipants) {
-      if (notifyActionBlocked('participants_add', 'Участники', { ticketId: activeDialogTicketId, permissionKey: 'can_assign' })) {
-        return;
-      }
-      if (notifyActionBlocked('participants_remove', 'Участники', { ticketId: activeDialogTicketId, permissionKey: 'can_assign' })) {
-        return;
-      }
-      return;
-    }
-    if (participantsMeta) {
-      participantsMeta.textContent = `Настройте дополнительных участников для обращения ${activeDialogTicketId}.`;
-    }
-    try {
-      await ensureAssignableOperatorsLoaded();
-      await loadDialogParticipants();
-      syncParticipantsSelectOptions();
-      showModalSafe(participantsModalEl, participantsModal);
-    } catch (error) {
-      renderDialogParticipantsLoadingState(error?.message || 'Не удалось загрузить участников.');
-      if (typeof showNotification === 'function') {
-        showNotification(error.message || 'Не удалось открыть список участников', 'error');
-      }
-    }
+    await dialogsParticipantsRuntime?.openParticipantsManager();
   }
 
   async function openReassignDialog() {
-    if (!activeDialogTicketId) return;
-    if (notifyActionBlocked('reassign', 'Передать', { ticketId: activeDialogTicketId, permissionKey: 'can_assign' })) {
-      return;
-    }
-    if (reassignMeta) {
-      reassignMeta.textContent = `Передайте обращение ${activeDialogTicketId} другому сотруднику панели.`;
-    }
-    renderReassignCurrentResponsible();
-    try {
-      await ensureAssignableOperatorsLoaded();
-      syncReassignSelectOptions();
-      showModalSafe(reassignModalEl, reassignModal);
-    } catch (error) {
-      if (typeof showNotification === 'function') {
-        showNotification(error.message || 'Не удалось загрузить список пользователей', 'error');
-      }
-    }
+    await dialogsParticipantsRuntime?.openReassignDialog();
   }
 
   function syncDialogAssignControls() {
-    const reassignEnabled = isWorkspaceActionEnabled('reassign', canRunAction('can_assign'), activeDialogTicketId);
-    const participantAddEnabled = isWorkspaceActionEnabled('participants_add', canRunAction('can_assign'), activeDialogTicketId);
-    const participantRemoveEnabled = isWorkspaceActionEnabled('participants_remove', canRunAction('can_assign'), activeDialogTicketId);
-    const participantsEnabled = participantAddEnabled || participantRemoveEnabled;
-    if (detailsReassignBtn) {
-      detailsReassignBtn.classList.toggle('d-none', !reassignEnabled);
-      detailsReassignBtn.disabled = !reassignEnabled;
-    }
-    [detailsParticipantsBtn, detailsParticipantsManageBtn].forEach((button) => {
-      if (!button) return;
-      button.classList.toggle('d-none', !participantsEnabled);
-      button.disabled = !participantsEnabled;
-    });
+    dialogsParticipantsRuntime?.syncDialogAssignControls();
   }
 
   function applyCompactMode(enabled) {
@@ -4958,7 +4723,7 @@
       detailsAiList.innerHTML = '';
       detailsAiList.classList.add('d-none');
     }
-    dialogParticipantsState = [];
+    setDialogParticipantsState([]);
     renderDialogParticipantsLoadingState('Загрузка участников...');
     syncParticipantsSelectOptions();
     syncReassignSelectOptions();
@@ -5333,134 +5098,7 @@
     });
   }
 
-  if (detailsParticipantsBtn) {
-    detailsParticipantsBtn.addEventListener('click', () => {
-      openParticipantsManager();
-    });
-  }
-
-  if (detailsParticipantsManageBtn) {
-    detailsParticipantsManageBtn.addEventListener('click', () => {
-      openParticipantsManager();
-    });
-  }
-
-  if (participantsAddBtn) {
-    participantsAddBtn.addEventListener('click', async () => {
-      const username = String(participantsSelect?.value || '').trim();
-      if (!activeDialogTicketId || !username) return;
-      participantsAddBtn.disabled = true;
-      try {
-        const resp = await fetch(`/api/dialogs/${encodeURIComponent(activeDialogTicketId)}/participants`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username }),
-        });
-        const data = await resp.json();
-        if (!resp.ok || !data?.success) {
-          throw new Error(data?.error || `Ошибка ${resp.status}`);
-        }
-        dialogParticipantsState = Array.isArray(data.participants) ? data.participants : [];
-        renderDialogParticipantsState();
-        syncParticipantsSelectOptions();
-        if (typeof showNotification === 'function') {
-          showNotification(data.changed ? 'Пользователь подключён к диалогу' : 'Пользователь уже добавлен к диалогу', 'success');
-        }
-      } catch (error) {
-        if (typeof showNotification === 'function') {
-          showNotification(error.message || 'Не удалось добавить участника', 'error');
-        }
-      } finally {
-        syncParticipantsSelectOptions();
-      }
-    });
-  }
-
-  if (participantsCurrentList) {
-    participantsCurrentList.addEventListener('click', async (event) => {
-      const removeButton = event.target instanceof Element
-        ? event.target.closest('[data-remove-participant]')
-        : null;
-      if (!removeButton || !activeDialogTicketId) return;
-      const username = String(removeButton.getAttribute('data-remove-participant') || '').trim();
-      if (!username) return;
-      removeButton.disabled = true;
-      try {
-        const resp = await fetch(`/api/dialogs/${encodeURIComponent(activeDialogTicketId)}/participants/${encodeURIComponent(username)}`, {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-        });
-        const data = await resp.json();
-        if (!resp.ok || !data?.success) {
-          throw new Error(data?.error || `Ошибка ${resp.status}`);
-        }
-        dialogParticipantsState = Array.isArray(data.participants) ? data.participants : [];
-        renderDialogParticipantsState();
-        syncParticipantsSelectOptions();
-        if (typeof showNotification === 'function') {
-          showNotification(data.changed ? 'Участник убран из диалога' : 'Участник уже отсутствует', 'success');
-        }
-      } catch (error) {
-        removeButton.disabled = false;
-        if (typeof showNotification === 'function') {
-          showNotification(error.message || 'Не удалось убрать участника', 'error');
-        }
-      }
-    });
-  }
-
-  if (detailsReassignBtn) {
-    detailsReassignBtn.addEventListener('click', () => {
-      openReassignDialog();
-    });
-  }
-
-  if (reassignSubmit) {
-    reassignSubmit.addEventListener('click', async () => {
-      const username = String(reassignSelect?.value || '').trim();
-      if (!activeDialogTicketId || !username) return;
-      reassignSubmit.disabled = true;
-      try {
-        const resp = await fetch(`/api/dialogs/${encodeURIComponent(activeDialogTicketId)}/reassign`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username }),
-        });
-        const data = await resp.json();
-        if (!resp.ok || !data?.success) {
-          throw new Error(data?.error || `Ошибка ${resp.status}`);
-        }
-        const displayResponsible = data.displayResponsible || data.display_responsible || data.responsible || username;
-        const row = activeDialogRow || table.querySelector(`tr[data-ticket-id="${escapeSelectorValue(activeDialogTicketId)}"]`);
-        if (row) {
-          updateRowResponsible(row, data.responsible || username, {
-            rawResponsible: data.responsible || username,
-            displayResponsible,
-            avatarUrl: data.avatarUrl || data.avatar_url || '',
-          });
-        }
-        updateDetailsResponsible(displayResponsible, {
-          rawResponsible: data.responsible || username,
-          avatarUrl: data.avatarUrl || data.avatar_url || '',
-        });
-        dialogParticipantsState = Array.isArray(data.participants) ? data.participants : [];
-        renderDialogParticipantsState();
-        syncParticipantsSelectOptions();
-        syncReassignSelectOptions();
-        renderReassignCurrentResponsible();
-        hideModalSafe(reassignModalEl, reassignModal);
-        if (typeof showNotification === 'function') {
-          showNotification('Диалог переадресован новому ответственному', 'success');
-        }
-      } catch (error) {
-        if (typeof showNotification === 'function') {
-          showNotification(error.message || 'Не удалось переадресовать диалог', 'error');
-        }
-      } finally {
-        syncReassignSelectOptions();
-      }
-    });
-  }
+  runDialogsInitStep('dialogsParticipantsRuntime.bindParticipantEvents', () => dialogsParticipantsRuntime?.bindParticipantEvents());
 
   if (workspaceCreateTaskBtn) {
     workspaceCreateTaskBtn.addEventListener('click', (event) => {
