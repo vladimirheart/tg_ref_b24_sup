@@ -1575,6 +1575,7 @@
   let dialogsParticipantsRuntime = null;
   let dialogsDetailsRuntime = null;
   let dialogsMyDialogsRuntime = null;
+  let dialogsAvatarRuntime = null;
   dialogsShellRuntime = window.DialogsShellRuntime?.createRuntime({
     debugLog,
     workspaceEnabled: WORKSPACE_V1_ENABLED,
@@ -1652,6 +1653,17 @@
     findRowByTicketId: (ticketId) => table.querySelector(`tr[data-ticket-id="${escapeSelectorValue(ticketId)}"]`),
     setActiveDialogRow,
     openDialogSurface,
+  }) || null;
+  dialogsAvatarRuntime = window.DialogsAvatarRuntime?.createRuntime({
+    escapeHtml,
+    avatarInitial,
+    buildAvatarUrl,
+    normalizeIdentity,
+    normalizeMessageSenderByType,
+    operatorIdentity: OPERATOR_IDENTITY,
+    operatorDisplayName: OPERATOR_DISPLAY_NAME,
+    operatorAvatarUrl: OPERATOR_AVATAR_URL,
+    getActiveDialogContext: () => activeDialogContext,
   }) || null;
   const dialogsFlowRuntime = window.DialogsFlowRuntime?.createRuntime({
     elements: {
@@ -2164,34 +2176,12 @@
   }
 
   function buildResponsibleAvatarSpec(responsible, avatarUrl = '') {
-    const safeLabel = String(responsible || '').trim();
-    const safeAvatarUrl = String(avatarUrl || '').trim();
-    if (!safeLabel || safeLabel === '—') {
-      return null;
-    }
-    const currentOperatorOwned = normalizeIdentity(safeLabel) === normalizeIdentity(OPERATOR_IDENTITY)
-      || normalizeIdentity(safeLabel) === normalizeIdentity(OPERATOR_DISPLAY_NAME);
-    return {
-      label: safeLabel,
-      avatarUrl: safeAvatarUrl || (currentOperatorOwned ? String(OPERATOR_AVATAR_URL || '').trim() : ''),
-      initial: avatarInitial(safeLabel),
-    };
+    return dialogsAvatarRuntime?.buildResponsibleAvatarSpec(responsible, avatarUrl) || null;
   }
 
   function renderResponsibleCell(responsible, avatarUrl = '') {
-    const spec = buildResponsibleAvatarSpec(responsible, avatarUrl);
-    if (!spec) {
-      return '<span class="text-muted">—</span>';
-    }
-    const avatarMarkup = spec.avatarUrl
-      ? `<span class="dialog-responsible-avatar has-image"><img src="${escapeHtml(spec.avatarUrl)}" alt="Аватар ответственного"></span>`
-      : `<span class="dialog-responsible-avatar"><span>${escapeHtml(spec.initial)}</span></span>`;
-    return `
-      <div class="dialog-responsible-cell">
-        ${avatarMarkup}
-        <span class="dialog-responsible-name">${escapeHtml(spec.label)}</span>
-      </div>
-    `;
+    return dialogsAvatarRuntime?.renderResponsibleCell(responsible, avatarUrl)
+      || '<span class="text-muted">—</span>';
   }
 
   function normalizeIdentity(value) {
@@ -2253,62 +2243,23 @@
   }
 
   function renderMessageAvatar(spec, extraClassName = '') {
-    const safeInitial = escapeHtml(String(spec?.initial || '—').trim() || '—');
-    const safeLabel = escapeHtml(String(spec?.label || '').trim() || 'Аватар');
-    const safeSrc = String(spec?.src || '').trim();
-    const classes = ['chat-message-avatar'];
-    if (extraClassName) classes.push(extraClassName);
-    if (safeSrc) classes.push('has-image');
-    const classAttr = classes.join(' ');
-    if (safeSrc) {
-      return `<span class="${classAttr}" aria-hidden="true"><img src="${escapeHtml(safeSrc)}" alt="${safeLabel}"></span>`;
-    }
-    return `<span class="${classAttr}" aria-hidden="true"><span>${safeInitial}</span></span>`;
+    return dialogsAvatarRuntime?.renderMessageAvatar(spec, extraClassName)
+      || '<span class="chat-message-avatar" aria-hidden="true"><span>—</span></span>';
   }
 
   function resolveDialogMessageAvatarSpec(message, context) {
-    const senderType = normalizeMessageSenderByType(message?.messageType, message?.sender);
-    if (senderType === 'support') {
-      return {
-        src: OPERATOR_AVATAR_URL,
-        initial: avatarInitial(OPERATOR_DISPLAY_NAME),
-        label: OPERATOR_DISPLAY_NAME || 'Оператор',
-      };
-    }
-    if (senderType === 'system') {
-      return {
-        src: '',
-        initial: 'S',
-        label: 'Система',
-      };
-    }
-    return {
-      src: buildAvatarUrl(context?.clientUserId),
-      initial: avatarInitial(context?.clientName || message?.sender),
-      label: context?.clientName || message?.sender || 'Клиент',
+    return dialogsAvatarRuntime?.resolveDialogMessageAvatarSpec(message, context) || {
+      src: '',
+      initial: '—',
+      label: 'Клиент',
     };
   }
 
   function resolveWorkspaceMessageAvatarSpec(message) {
-    const senderRole = String(message?.senderRole || message?.sender || '').trim().toLowerCase();
-    if (senderRole === 'operator' || senderRole === 'support' || senderRole === 'admin' || senderRole === 'ai_agent') {
-      return {
-        src: OPERATOR_AVATAR_URL,
-        initial: avatarInitial(OPERATOR_DISPLAY_NAME),
-        label: OPERATOR_DISPLAY_NAME || 'Оператор',
-      };
-    }
-    if (senderRole === 'system') {
-      return {
-        src: '',
-        initial: 'S',
-        label: 'Система',
-      };
-    }
-    return {
-      src: buildAvatarUrl(activeDialogContext?.clientUserId),
-      initial: avatarInitial(activeDialogContext?.clientName || message?.senderName || message?.senderRole),
-      label: activeDialogContext?.clientName || message?.senderName || 'Клиент',
+    return dialogsAvatarRuntime?.resolveWorkspaceMessageAvatarSpec(message) || {
+      src: '',
+      initial: '—',
+      label: 'Клиент',
     };
   }
 
