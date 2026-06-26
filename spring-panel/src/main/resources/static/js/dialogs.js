@@ -1577,6 +1577,7 @@
   let dialogsMyDialogsRuntime = null;
   let dialogsAvatarRuntime = null;
   let dialogsSlaRuntime = null;
+  let dialogsPresentationRuntime = null;
   dialogsShellRuntime = window.DialogsShellRuntime?.createRuntime({
     debugLog,
     workspaceEnabled: WORKSPACE_V1_ENABLED,
@@ -1676,6 +1677,14 @@
     isEscalationRequiredDialog,
     rowsList,
     updateRowQuickActions,
+  }) || null;
+  dialogsPresentationRuntime = window.DialogsPresentationRuntime?.createRuntime({
+    escapeHtml,
+    formatWorkspaceDateTime,
+    buildMediaMarkup,
+    renderMessageAvatar,
+    resolveWorkspaceMessageAvatarSpec,
+    getActiveWorkspacePayload: () => activeWorkspacePayload,
   }) || null;
   const dialogsFlowRuntime = window.DialogsFlowRuntime?.createRuntime({
     elements: {
@@ -2167,24 +2176,12 @@
   }
 
   function resolveChannelToneKey(label) {
-    const normalized = String(label || '').trim().toLowerCase();
-    if (!normalized) return 'custom';
-    if (normalized.includes('telegram') || normalized.startsWith('tg') || normalized.includes(' тг')) return 'telegram';
-    if (normalized.includes('vk') || normalized.includes('вк')) return 'vk';
-    if (normalized.includes('max') || normalized.includes('мах')) return 'max';
-    if (normalized.includes('form')
-      || normalized.includes('форма')
-      || normalized.includes('web')
-      || normalized.includes('site')
-      || normalized.includes('external')
-      || normalized.includes('внеш')) return 'form';
-    return 'custom';
+    return dialogsPresentationRuntime?.resolveChannelToneKey(label) || 'custom';
   }
 
   function renderChannelBadge(label) {
-    const safeLabel = String(label || '').trim() || 'Без канала';
-    const tone = resolveChannelToneKey(safeLabel);
-    return `<span class="dialog-channel-pill channel-tone-${escapeHtml(tone)}">${escapeHtml(safeLabel)}</span>`;
+    return dialogsPresentationRuntime?.renderChannelBadge(label)
+      || '<span class="dialog-channel-pill channel-tone-custom">Без канала</span>';
   }
 
   function buildResponsibleAvatarSpec(responsible, avatarUrl = '') {
@@ -2288,22 +2285,11 @@
   }
 
   function formatRatingStars(value) {
-    const numeric = Number(value);
-    if (!Number.isFinite(numeric) || numeric <= 0) return '';
-    const capped = Math.min(5, Math.max(1, Math.round(numeric)));
-    return '★'.repeat(capped);
+    return dialogsPresentationRuntime?.formatRatingStars(value) || '';
   }
 
   function formatDialogMeta(ticketId, requestNumber) {
-    const normalizedTicketId = ticketId ? String(ticketId) : '';
-    const normalizedRequest = requestNumber ? String(requestNumber) : '';
-    if (normalizedRequest) {
-      if (normalizedTicketId && normalizedRequest !== normalizedTicketId) {
-        return `№ обращения: ${normalizedRequest} · ID: ${normalizedTicketId}`;
-      }
-      return `№ обращения: ${normalizedRequest}`;
-    }
-    return normalizedTicketId ? `ID диалога: ${normalizedTicketId}` : '';
+    return dialogsPresentationRuntime?.formatDialogMeta(ticketId, requestNumber) || '';
   }
 
   function formatDurationMinutes(totalMinutes) {
@@ -4699,31 +4685,7 @@
   }
 
   function renderWorkspaceMessageItem(message) {
-    const author = message?.senderName || message?.senderRole || 'Участник';
-    const timestamp = formatWorkspaceDateTime(message?.sentAt || message?.createdAt);
-    const text = String(message?.messageText || message?.message || '').trim();
-    const replyPreviewText = String(message?.replyPreview || message?.reply_preview || '').trim();
-    const telegramMessageId = Number.parseInt(message?.telegramMessageId ?? message?.telegram_message_id, 10);
-    const senderType = String(message?.senderRole || message?.sender || '').trim().toLowerCase();
-    const normalizedMessage = {
-      messageType: message?.messageType || message?.type || '',
-      message: text,
-      attachment: message?.attachment || message?.attachmentUrl || null,
-      attachmentName: message?.attachmentName || message?.fileName || null,
-    };
-    const mediaMarkup = normalizedMessage.attachment ? buildMediaMarkup(normalizedMessage) : '';
-    const textMarkup = text ? `<div class="workspace-message-body">${escapeHtml(text)}</div>` : '';
-    const replyPreviewMarkup = replyPreviewText
-      ? `<div class="small text-muted border-start ps-2 mb-1 workspace-message-reply-source">↪ ${escapeHtml(replyPreviewText)}</div>`
-      : '';
-    const replyTargetSupported = activeWorkspacePayload?.composer?.reply_target_supported !== false;
-    const canReply = replyTargetSupported && Number.isFinite(telegramMessageId) && senderType !== 'system';
-    const actionMarkup = canReply
-      ? `<div class="mt-2"><button class="btn btn-sm btn-outline-secondary" type="button" data-workspace-action="reply" data-message-id="${telegramMessageId}">Ответить</button></div>`
-      : '';
-    const fallbackMarkup = textMarkup || mediaMarkup ? '' : '<div>—</div>';
-    const avatarMarkup = renderMessageAvatar(resolveWorkspaceMessageAvatarSpec(message), 'workspace-message-avatar');
-    return `<article class="workspace-message-item" data-telegram-message-id="${Number.isFinite(telegramMessageId) ? telegramMessageId : ''}">${avatarMarkup}<div class="workspace-message-content"><div class="workspace-message-meta">${escapeHtml(author)} · ${escapeHtml(timestamp)}</div>${replyPreviewMarkup}${textMarkup}${mediaMarkup}${fallbackMarkup}${actionMarkup}</div></article>`;
+    return dialogsPresentationRuntime?.renderWorkspaceMessageItem(message) || '';
   }
 
   async function sendMediaFiles(files, options = {}) {
