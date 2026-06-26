@@ -6852,6 +6852,7 @@
     <script src="/js/settings-location-wizard-runtime.js"></script>
     <script src="/js/settings-reporting-manager-bindings.js"></script>
     <script src="/js/settings-admin-shell-runtime.js"></script>
+    <script src="/js/settings-page-bootstrap-runtime.js"></script>
     <script th:inline="javascript">
     const showAppModalMessage = window.showAppModalMessage;
     const showConfirmActionModal = window.showConfirmActionModal;
@@ -7153,156 +7154,42 @@
   const contractUsageData = /*[[${contractUsage}]]*/ {};
   const networkProfilesInitial = /*[[${settingsPayload['network_profiles']}]]*/ [];
 
-  function escapeHtml(value) {
-    if (value === null || value === undefined) return '';
-    return String(value)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
-  }
-
-  const settingsDialogSlaCoreRuntime = window.SettingsDialogSlaCoreRuntime?.mount({
-    getDialogConfig: () => DIALOG_CONFIG,
-    getDefaultDialogSlaConfig: () => DEFAULT_DIALOG_SLA_CONFIG,
-  });
-
-  const settingsDialogMetricsRuntime = window.SettingsDialogMetricsRuntime?.mount({
-    getDialogConfig: () => DIALOG_CONFIG,
-    getDefaultDialogTimeMetrics: () => DEFAULT_DIALOG_TIME_METRICS,
-    getDefaultSummaryBadges: () => DEFAULT_SUMMARY_BADGES,
-  });
-
-  const settingsDialogWorkspaceGovernanceRuntime = window.SettingsDialogWorkspaceGovernanceRuntime?.mount({
-    getDialogConfig: () => DIALOG_CONFIG,
-    getDefaultDialogSlaConfig: () => DEFAULT_DIALOG_SLA_CONFIG,
-  });
-
-  const settingsDialogWorkspaceExternalKpiRuntime = window.SettingsDialogWorkspaceExternalKpiRuntime?.mount({
-    getDialogConfig: () => DIALOG_CONFIG,
-    getDefaultDialogSlaConfig: () => DEFAULT_DIALOG_SLA_CONFIG,
-    escapeHtml,
-  });
-
-  const settingsDialogTemplatesRuntime = window.SettingsDialogTemplatesRuntime?.mount({
-    getDialogConfig: () => DIALOG_CONFIG,
-    getAutoCloseConfig: () => AUTO_CLOSE_CONFIG,
-    getAutoCloseFallbackHours: () => AUTO_CLOSE_FALLBACK_HOURS,
-    getFallbackDialogCategories: () => FALLBACK_DIALOG_CATEGORIES,
-    canPublishDialogMacros: () => CAN_PUBLISH_DIALOG_MACROS,
-    escapeHtml,
-  });
-
-  const settingsDialogShellRuntime = window.SettingsDialogShellRuntime?.mount({
-    slaCoreRuntime: settingsDialogSlaCoreRuntime,
-    workspaceGovernanceRuntime: settingsDialogWorkspaceGovernanceRuntime,
-    workspaceExternalKpiRuntime: settingsDialogWorkspaceExternalKpiRuntime,
-  });
-
-  const settingsSaveRuntime = window.SettingsSaveRuntime?.mount({
-    templatesRuntime: settingsDialogTemplatesRuntime,
-    metricsRuntime: settingsDialogMetricsRuntime,
-    dialogShellRuntime: settingsDialogShellRuntime,
-    networkProfilesRuntime: settingsNetworkProfilesRuntime,
-    getAutoCloseFallbackHours: () => AUTO_CLOSE_FALLBACK_HOURS,
-    collectStatuses: () => Array.from(document.querySelectorAll('#statusesList .status-input'))
-      .map((input) => input.value.trim())
-      .filter(Boolean),
-    getLocationsState: () => window.SettingsLocationsTreeRuntime?.getState() || {},
-    serializeLocationsIikoServerSources: () => window.serializeLocationsIikoServerSources(),
-    serializeLocationsIikoSyncSettings: () => window.serializeLocationsIikoSyncSettings(),
-    markLocationsIikoServerSourcesSaved: () => window.markLocationsIikoServerSourcesSaved(),
-    showPopup: (message) => showPopup(message),
-    getSaveUrl: () => '/settings',
-  });
-
-  const settingsParametersShellRuntime = window.SettingsParametersShellRuntime?.mount({
-    getParameterTitles: () => PARAMETER_TITLES,
-    getParameterDependencies: () => PARAMETER_DEPENDENCIES,
-    getParameterStateTypes: () => PARAMETER_STATE_TYPES,
-    getParameterStates: () => PARAMETER_STATES,
-    getParameterFilterKeys: () => PARAMETER_FILTER_KEYS,
-    getCityParameterType: () => CITY_PARAMETER_TYPE,
-    getCityParameterLabel: () => CITY_PARAMETER_LABEL,
-    getCityOptions: () => CITY_OPTIONS,
-    getItConnectionFallbackLabels: () => IT_CONNECTION_FALLBACK_LABELS,
-    getItConnectionCategoryFields: () => IT_CONNECTION_CATEGORY_FIELDS,
-    getItConnectionUsageFilterParams: () => IT_CONNECTION_USAGE_FILTER_PARAMS,
-    getPartnerContactTypes: () => PARTNER_CONTACT_TYPES,
-    getPartnerContactPhoneTypes: () => PARTNER_CONTACT_PHONE_TYPES,
-    getPartnerContactEmailTypes: () => PARTNER_CONTACT_EMAIL_TYPES,
-    getPartnerContactStateClassMap: () => PARTNER_CONTACT_STATE_CLASS_MAP,
-    showPopup: (message) => showPopup(message),
-    escapeHtml,
-    requestSettingsModalClose: (source) => requestSettingsModalClose(source),
-    confirmDialog: (message) => window.confirm(message),
-    buildLocationsTree: () => window.SettingsLocationsTreeRuntime?.buildLocationsTree(),
-  });
-
-  const settingsNetworkProfilesRuntime = window.SettingsNetworkProfilesRuntime?.mount({
-    getInitialProfiles: () => networkProfilesInitial,
-    getContractUsageData: () => contractUsageData,
-    escapeHtml,
-    showPopup: (message) => showPopup(message),
-    requestSettingsModalClose: (source) => requestSettingsModalClose(source),
-    confirmDialog: (message) => window.confirm(message),
-  });
-
-  settingsNetworkProfilesRuntime?.renderNetworkProfiles();
-  let CLIENT_STATUS_USAGE = /*[[${statusUsage}]]*/ {} || {};
-  const INITIAL_CLIENT_STATUSES = /*[[${settingsPayload['client_statuses']}]]*/ [] || [];
-  const INITIAL_CLIENT_STATUS_COLORS = /*[[${settingsPayload['client_status_colors']}]]*/ {} || {};
-  const INITIAL_BUSINESS_CELL_STYLES = /*[[${settingsPayload['business_cell_styles']}]]*/ {} || {};
-  window.SettingsAppearanceRuntime?.mount({
-    statusUsage: CLIENT_STATUS_USAGE,
-    initialClientStatuses: INITIAL_CLIENT_STATUSES,
-    initialClientStatusColors: INITIAL_CLIENT_STATUS_COLORS,
-    initialBusinessCellStyles: INITIAL_BUSINESS_CELL_STYLES,
-  });
-
-  // === JavaScript для редактирования структуры локаций ===
-  const LOCATIONS_INITIAL = /*[[${locationsPayload}]]*/ {};
-  const LOCATIONS_IIKO_SERVER_SOURCES_INITIAL = /*[[${locationsIikoServerSources}]]*/ [];
-  const LOCATIONS_IIKO_SYNC_SETTINGS_INITIAL = /*[[${locationsIikoSyncSettings}]]*/ {};
-  window.SettingsLocationsIikoRuntime?.mount({
-    initialServerSources: LOCATIONS_IIKO_SERVER_SOURCES_INITIAL,
-    initialSyncSettings: LOCATIONS_IIKO_SYNC_SETTINGS_INITIAL,
-  });
-  window.SettingsLocationsTreeRuntime?.mount({
-    initialLocations: LOCATIONS_INITIAL,
-    loadParameters: () => settingsParametersShellRuntime?.loadParameters(),
-  });
-
-  window.SettingsLocationWizardRuntime?.mount({
-    getParameterData: () => settingsParametersShellRuntime?.getParameterData() || {},
-    getLocationsState: () => window.SettingsLocationsTreeRuntime?.getState(),
-    getCityOptionsFallback: () => CITY_OPTIONS,
-    loadParameters: () => settingsParametersShellRuntime?.loadParameters(),
-    isParametersLoaded: () => settingsParametersShellRuntime?.isParametersLoaded() || false,
-    buildLocationsTree: () => window.SettingsLocationsTreeRuntime?.buildLocationsTree(),
-    setStatus: (level, parts, status) => window.SettingsLocationsTreeRuntime?.setStatus(level, parts, status),
-    writeNodeMeta: (mapName, key, meta) => window.SettingsLocationsTreeRuntime?.writeNodeMeta(mapName, key, meta),
-    makeCityMetaKey: (business, typeName, cityName) =>
-      window.SettingsLocationsTreeRuntime?.makeCityMetaKey(business, typeName, cityName),
-    makeLocationMetaKey: (business, typeName, cityName, locationName) =>
-      window.SettingsLocationsTreeRuntime?.makeLocationMetaKey(business, typeName, cityName, locationName),
-    sortArrayAlphabetically: (values) => window.SettingsLocationsTreeRuntime?.sortArrayAlphabetically(values) || [],
-    defaultLocationStatus: window.SettingsLocationsTreeRuntime?.getDefaultLocationStatus(),
-  });
-
-  // === Сохранение всех настроек ===
-  async function saveSettings() {
-    return settingsSaveRuntime?.saveSettings();
-  }
-
-  // === КАНАЛЫ (боты) ===
-  const settingsChannelsShellRuntime = window.SettingsChannelsShellRuntime?.mount({
-    botSettingsInitial: BOT_SETTINGS_INITIAL,
+  window.SettingsPageBootstrapRuntime?.mount({
+    dialogConfig: DIALOG_CONFIG,
+    defaultDialogSlaConfig: DEFAULT_DIALOG_SLA_CONFIG,
+    defaultDialogTimeMetrics: DEFAULT_DIALOG_TIME_METRICS,
+    defaultSummaryBadges: DEFAULT_SUMMARY_BADGES,
     autoCloseConfig: AUTO_CLOSE_CONFIG,
+    autoCloseFallbackHours: AUTO_CLOSE_FALLBACK_HOURS,
+    fallbackDialogCategories: FALLBACK_DIALOG_CATEGORIES,
+    canPublishDialogMacros: CAN_PUBLISH_DIALOG_MACROS,
+    parameterTitles: PARAMETER_TITLES,
+    parameterDependencies: PARAMETER_DEPENDENCIES,
+    parameterStateTypes: PARAMETER_STATE_TYPES,
+    parameterStates: PARAMETER_STATES,
+    parameterFilterKeys: PARAMETER_FILTER_KEYS,
+    cityParameterType: CITY_PARAMETER_TYPE,
+    cityParameterLabel: CITY_PARAMETER_LABEL,
+    cityOptions: CITY_OPTIONS,
+    itConnectionFallbackLabels: IT_CONNECTION_FALLBACK_LABELS,
+    itConnectionCategoryFields: IT_CONNECTION_CATEGORY_FIELDS,
+    itConnectionUsageFilterParams: IT_CONNECTION_USAGE_FILTER_PARAMS,
+    partnerContactTypes: PARTNER_CONTACT_TYPES,
+    partnerContactPhoneTypes: PARTNER_CONTACT_PHONE_TYPES,
+    partnerContactEmailTypes: PARTNER_CONTACT_EMAIL_TYPES,
+    partnerContactStateClassMap: PARTNER_CONTACT_STATE_CLASS_MAP,
+    networkProfilesInitial,
+    contractUsageData,
+    statusUsage: /*[[${statusUsage}]]*/ {} || {},
+    initialClientStatuses: /*[[${settingsPayload['client_statuses']}]]*/ [] || [],
+    initialClientStatusColors: /*[[${settingsPayload['client_status_colors']}]]*/ {} || {},
+    initialBusinessCellStyles: /*[[${settingsPayload['business_cell_styles']}]]*/ {} || {},
+    locationsInitial: /*[[${locationsPayload}]]*/ {},
+    locationsIikoServerSourcesInitial: /*[[${locationsIikoServerSources}]]*/ [],
+    locationsIikoSyncSettingsInitial: /*[[${locationsIikoSyncSettings}]]*/ {},
+    botSettingsInitial: BOT_SETTINGS_INITIAL,
     integrationNetworkInitial: INTEGRATION_NETWORK_INITIAL,
     integrationNetworkProfilesInitial: INTEGRATION_NETWORK_PROFILES_INITIAL,
-    escapeHtml,
     getCookieValue: (name) => getCookieValue(name),
     requestSettingsModalClose: (source) => requestSettingsModalClose(source),
     showPopup: (message) => showPopup(message),
@@ -7310,12 +7197,8 @@
       ? (message, type) => showNotification(message, type)
       : null,
     confirmDialog: (message) => window.confirm(message),
-  });
-
-  window.SettingsAdminShellRuntime?.mount({
     reportingConfigInitial: REPORTING_CONFIG_INITIAL,
     managerLocationBindingsInitial: MANAGER_LOCATION_BINDINGS_INITIAL,
-    getLocationsState: () => window.SettingsLocationsTreeRuntime?.getState(),
   });
   </script>
 
