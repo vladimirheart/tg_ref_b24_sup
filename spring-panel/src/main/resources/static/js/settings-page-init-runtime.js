@@ -3,14 +3,39 @@
     return;
   }
 
+  const PAYLOAD_SELECTOR = 'script[data-settings-page-init-payload]';
+
   function resolveFunction(candidate, fallback) {
     return typeof candidate === 'function' ? candidate : fallback;
   }
 
+  function parseRawConfig(source) {
+    if (source && typeof source === 'object' && !(source instanceof HTMLElement)) {
+      return source;
+    }
+
+    const element = typeof source === 'string'
+      ? document.getElementById(source)
+      : source;
+    if (!(element instanceof HTMLScriptElement)) {
+      return {};
+    }
+
+    const rawText = String(element.textContent || '').trim();
+    if (!rawText) {
+      return {};
+    }
+
+    try {
+      return JSON.parse(rawText);
+    } catch (error) {
+      console.error('Не удалось разобрать settings page init payload.', error);
+      return {};
+    }
+  }
+
   function createRuntime(options = {}) {
-    const rawConfig = options.rawConfig && typeof options.rawConfig === 'object'
-      ? options.rawConfig
-      : {};
+    const rawConfig = parseRawConfig(options.rawConfig);
     const settingsPageConfig = window.SettingsPageConfigRuntime?.build(rawConfig) || {};
 
     window.SettingsPageConfigRuntime?.publishLegacyGlobals(settingsPageConfig);
@@ -43,7 +68,34 @@
     return runtime;
   }
 
+  function mountFromPayload(source, options = {}) {
+    return mount({
+      ...options,
+      rawConfig: parseRawConfig(source),
+    });
+  }
+
+  function autoMountFromDocument() {
+    if (window.__settingsPageInitRuntime) {
+      return window.__settingsPageInitRuntime;
+    }
+
+    const payloadEl = document.querySelector(PAYLOAD_SELECTOR);
+    if (!(payloadEl instanceof HTMLScriptElement)) {
+      return null;
+    }
+
+    return mountFromPayload(payloadEl);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', autoMountFromDocument, { once: true });
+  } else {
+    autoMountFromDocument();
+  }
+
   window.SettingsPageInitRuntime = Object.freeze({
     mount,
+    mountFromPayload,
   });
 }());
