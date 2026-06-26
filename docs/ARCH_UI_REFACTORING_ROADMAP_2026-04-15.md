@@ -1716,7 +1716,7 @@
 Наблюдение:
 
 - `dialogs.js` после последних runtime split всё ещё остаётся самым тяжёлым
-  dialog browser entrypoint и держит около `6115` строк;
+  dialog browser entrypoint и держит около `5757` строк;
 - по содержанию там смешаны list/filter/runtime polling, details/history,
   workspace contract, quick actions, macro workflow, AI assistant/review,
   notifications refresh loop и media/reply surface;
@@ -1756,6 +1756,9 @@
 - следующим support-slice добавлен и `dialogs-participants-runtime.js`,
   который держит participants/reassign state, rendering, operator loading и
   event wiring для details/workspace participant-management flows;
+- следующим bounded details-slice добавлен и `dialogs-details-runtime.js`,
+  который держит details open-flow, status/responsible summary rendering и
+  time-metrics orchestration для legacy details modal;
 - `dialogs/index.html` теперь подключает эти runtime entrypoint'ы отдельно, а
   `dialogs.js` в основном держит thin orchestration и compatibility delegates
   между уже вынесенными bounded surface'ами;
@@ -1770,9 +1773,9 @@
   обязательный контракт, потому что именно там расходятся row `unreadCount`,
   `my_dialogs` bucket placement и panel bell unread semantics;
 - рядом с этим таким же базовым smoke-коридором остаются pagination,
-  `openDialogEntry/openDialogDetails` и avatar hydration: теперь это уже не
-  utility debt, а индикатор remaining details/workspace orchestration drift
-  поверх вынесенного dialog shell;
+  avatar hydration и workspace/reply handoff: теперь это уже не utility debt,
+  а индикатор remaining orchestration drift поверх вынесенных details/shell
+  runtime-модулей;
 - participants/reassign orchestration после этого прохода тоже уже не должен
   быть отдельным giant cluster: если regression снова появится там, это будет
   сигналом о drift между details/workspace owner-state и новым bounded runtime,

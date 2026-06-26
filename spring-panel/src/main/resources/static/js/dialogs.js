@@ -676,16 +676,6 @@
     ? window.DIALOG_CONFIG.summary_badges
     : {};
 
-  const DEFAULT_DIALOG_TIME_METRICS = Object.freeze({
-    good_limit: 30,
-    warning_limit: 60,
-    colors: Object.freeze({
-      good: '#d1f7d1',
-      warning: '#fff4d6',
-      danger: '#f8d7da',
-    }),
-  });
-
   const DIALOG_EMOJI = ['😀','😁','😂','😊','😍','🤔','😢','😡','👍','🙏','🔥','🎉','✅','❗','📌'];
 
   function canRunAction(permissionKey) {
@@ -1579,6 +1569,7 @@
   let dialogsMacroRuntime = null;
   let dialogsExperimentRuntime = null;
   let dialogsParticipantsRuntime = null;
+  let dialogsDetailsRuntime = null;
   dialogsShellRuntime = window.DialogsShellRuntime?.createRuntime({
     debugLog,
     workspaceEnabled: WORKSPACE_V1_ENABLED,
@@ -2629,12 +2620,7 @@
   }
 
   function updateDetailsTakeButton(responsible) {
-    if (!detailsTakeBtn) return;
-    const safeResponsible = String(responsible || '').trim();
-    const canTakeOwnership = Boolean(activeDialogTicketId)
-      && canTakeDialogOwnership(safeResponsible, activeDialogRow ? isResolved(activeDialogRow) : false);
-    detailsTakeBtn.disabled = !canTakeOwnership;
-    detailsTakeBtn.classList.toggle('d-none', !canTakeOwnership);
+    dialogsDetailsRuntime?.updateDetailsTakeButton(responsible);
   }
 
   function canTakeDialogOwnership(responsible, isClosed) {
@@ -2642,26 +2628,7 @@
   }
 
   function updateDetailsResponsible(responsible, options = {}) {
-    const safeResponsible = String(responsible || '').trim() || '—';
-    const rawResponsible = String(options.rawResponsible || '').trim();
-    const fallbackAvatar = isOwnedByCurrentOperator(rawResponsible || safeResponsible)
-      ? String(OPERATOR_AVATAR_URL || '').trim()
-      : String(activeDialogResponsibleAvatarUrl || '').trim();
-    const avatarUrl = String(options.avatarUrl || fallbackAvatar || '').trim();
-    activeDialogContext.operatorName = safeResponsible;
-    activeDialogResponsibleRaw = rawResponsible || (safeResponsible === '—' ? '' : safeResponsible);
-    activeDialogResponsibleAvatarUrl = avatarUrl;
-    const responsibleRow = detailsSummary
-      ? Array.from(detailsSummary.querySelectorAll('.d-flex.justify-content-between.gap-2'))
-        .find((row) => row.firstElementChild?.textContent?.trim() === 'Ответственный')
-      : null;
-    const responsibleValue = responsibleRow?.lastElementChild || null;
-    if (responsibleValue) {
-      responsibleValue.innerHTML = safeResponsible !== '—'
-        ? `<a class="dialog-summary-value-link" href="/users/${encodeURIComponent(rawResponsible || safeResponsible)}" target="_blank" rel="noopener">${escapeHtml(safeResponsible)}</a>`
-        : '—';
-    }
-    updateDetailsTakeButton(rawResponsible || safeResponsible);
+    dialogsDetailsRuntime?.updateDetailsResponsible(responsible, options);
   }
 
   function setDialogParticipantsState(participants) {
@@ -4112,6 +4079,89 @@
 
   const BUSINESS_STYLE_MAP = normalizeBusinessStyles(BUSINESS_STYLES);
 
+  dialogsDetailsRuntime = window.DialogsDetailsRuntime?.createRuntime({
+    elements: {
+      detailsModalEl,
+      detailsModal,
+      detailsSummary,
+      detailsMetrics,
+      detailsMeta,
+      detailsRating,
+      detailsHistory,
+      detailsAiState,
+      detailsAiList,
+      detailsReplyText,
+      detailsOpenClientCard,
+      detailsSpam,
+      detailsAvatar,
+      detailsClientName,
+      detailsClientStatus,
+      detailsProblem,
+      detailsTakeBtn,
+    },
+    escapeHtml,
+    debugLog,
+    showModalSafe,
+    withChannelParam,
+    formatDialogMeta,
+    formatRatingStars,
+    formatTimestamp,
+    formatCategoriesLabel,
+    getDialogUserId,
+    bindAvatar,
+    updateDetailsLocationLabel,
+    renderHistory,
+    resetPreviousDialogHistoryState,
+    setDialogParticipantsState,
+    renderDialogParticipantsLoadingState,
+    syncParticipantsSelectOptions,
+    syncReassignSelectOptions,
+    updateSummaryCategories,
+    syncCategorySelections,
+    loadDialogParticipants,
+    loadDetailsAiSuggestions,
+    updateResolveButton,
+    updateRowStatus,
+    updateDialogUnreadCount,
+    startHistoryPolling,
+    renderSummaryBadge,
+    resolveSummaryBadgeStyle,
+    renderCategoryBadges,
+    businessStyleMap: BUSINESS_STYLE_MAP,
+    summaryBadgeStyles: SUMMARY_BADGE_STYLES,
+    canTakeDialogOwnership,
+    isResolvedRow: isResolved,
+    isOwnedByCurrentOperator,
+    operatorAvatarUrl: OPERATOR_AVATAR_URL,
+    getActiveDialogState: () => ({
+      ticketId: activeDialogTicketId,
+      channelId: activeDialogChannelId,
+      responsibleRaw: activeDialogResponsibleRaw,
+      responsibleAvatarUrl: activeDialogResponsibleAvatarUrl,
+      context: activeDialogContext,
+      row: activeDialogRow,
+    }),
+    setActiveDialogTicketId: (ticketId) => {
+      activeDialogTicketId = ticketId || null;
+    },
+    setActiveDialogChannelId: (channelId) => {
+      activeDialogChannelId = channelId || null;
+    },
+    setActiveDialogResponsibleState: (responsibleRaw, avatarUrl) => {
+      activeDialogResponsibleRaw = String(responsibleRaw || '').trim();
+      activeDialogResponsibleAvatarUrl = String(avatarUrl || '').trim();
+    },
+    setActiveDialogContext: (context) => {
+      if (!context || typeof context !== 'object') return;
+      activeDialogContext = context;
+    },
+    setActiveDialogRow,
+    setSelectedCategories: (categories) => {
+      selectedCategories = categories instanceof Set ? new Set(categories) : new Set();
+    },
+    initMacroVariableCatalog,
+  }) || null;
+
   function resolveSummaryBadgeStyle(type, value) {
     const normalized = String(value || '').trim().toLowerCase();
     const base = SUMMARY_BADGE_STYLES.default || {};
@@ -4189,91 +4239,6 @@
 
   function updateZebraRows(matchedRows) {
     return dialogsListRuntime?.updateZebraRows(matchedRows);
-  }
-
-  function normalizeDialogTimeMetrics(raw) {
-    const base = {
-      good_limit: DEFAULT_DIALOG_TIME_METRICS.good_limit,
-      warning_limit: DEFAULT_DIALOG_TIME_METRICS.warning_limit,
-      colors: {
-        ...DEFAULT_DIALOG_TIME_METRICS.colors,
-      },
-    };
-
-    if (raw && typeof raw === 'object') {
-      const good = Number.parseInt(raw.good_limit, 10);
-      const warning = Number.parseInt(raw.warning_limit, 10);
-      if (Number.isFinite(good) && good > 0) {
-        base.good_limit = good;
-      }
-      if (Number.isFinite(warning) && warning > 0) {
-        base.warning_limit = warning;
-      }
-      if (raw.colors && typeof raw.colors === 'object') {
-        base.colors.good = sanitizeHexColor(raw.colors.good, base.colors.good);
-        base.colors.warning = sanitizeHexColor(raw.colors.warning, base.colors.warning);
-        base.colors.danger = sanitizeHexColor(raw.colors.danger, base.colors.danger);
-      }
-    }
-
-    if (!Number.isFinite(base.good_limit) || base.good_limit <= 0) {
-      base.good_limit = DEFAULT_DIALOG_TIME_METRICS.good_limit;
-    }
-
-    if (!Number.isFinite(base.warning_limit) || base.warning_limit <= base.good_limit) {
-      base.warning_limit = Math.max(base.good_limit + 1, DEFAULT_DIALOG_TIME_METRICS.warning_limit);
-    }
-
-    return base;
-  }
-
-  function parseTimestampValue(raw) {
-    if (!raw) return null;
-    const text = String(raw).trim();
-    if (!text) return null;
-    if (/^\d{10,13}$/.test(text)) {
-      const value = text.length === 10 ? Number(text) * 1000 : Number(text);
-      return Number.isFinite(value) ? value : null;
-    }
-    const parsed = Date.parse(text.replace(' ', 'T'));
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-
-  function parseDialogTimestamp(summary, fallbackRow) {
-    const candidates = [
-      summary?.createdAt,
-      summary?.created_at,
-      summary?.createdDate,
-      summary?.created_date,
-      summary?.createdTime,
-      summary?.created_time,
-      fallbackRow?.dataset?.createdAt,
-      fallbackRow?.dataset?.created_at,
-    ];
-    for (const raw of candidates) {
-      const parsed = parseTimestampValue(raw);
-      if (parsed) return parsed;
-    }
-    return null;
-  }
-
-  function formatDuration(totalMinutes) {
-    if (!Number.isFinite(totalMinutes) || totalMinutes < 0) return '—';
-    const minutes = Math.floor(totalMinutes);
-    if (minutes < 60) return `${minutes} мин`;
-    const hours = Math.floor(minutes / 60);
-    const restMinutes = minutes % 60;
-    if (hours < 24) return `${hours} ч ${restMinutes} мин`;
-    const days = Math.floor(hours / 24);
-    const restHours = hours % 24;
-    return `${days} д ${restHours} ч`;
-  }
-
-  function resolveTimeMetricColor(totalMinutes, config) {
-    if (!Number.isFinite(totalMinutes) || !config) return null;
-    if (totalMinutes <= config.good_limit) return config.colors.good;
-    if (totalMinutes <= config.warning_limit) return config.colors.warning;
-    return config.colors.danger;
   }
 
   function buildTemplateOptions(selectEl, templates, labelPrefix) {
@@ -4634,342 +4599,19 @@
   }
 
   function updateDetailsStatusSummary(statusLabel, statusKey = 'waiting_client') {
-    const safeStatus = statusLabel || '—';
-    activeDialogContext.status = safeStatus;
-    const statusRow = detailsSummary
-      ? Array.from(detailsSummary.querySelectorAll('.d-flex.justify-content-between.gap-2'))
-        .find((row) => row.firstElementChild?.textContent?.trim() === 'Статус')
-      : null;
-    const statusValue = statusRow?.lastElementChild || null;
-    if (statusValue) {
-      statusValue.innerHTML = renderSummaryBadge(
-        safeStatus,
-        resolveSummaryBadgeStyle('status', safeStatus)
-      );
-    }
-    updateResolveButton(statusKey === 'closed' || statusKey === 'auto_closed' ? 'resolved' : 'pending');
+    dialogsDetailsRuntime?.updateDetailsStatusSummary(statusLabel, statusKey);
   }
 
   function formatStatusLabel(raw, fallback, statusKey) {
-    if (fallback) return fallback;
-    if (statusKey) {
-      switch (statusKey) {
-        case 'auto_processing':
-          return 'в автоматической обработке';
-        case 'auto_closed':
-          return 'Закрыт автоматически';
-        case 'closed':
-          return 'Закрыт';
-        case 'waiting_operator':
-          return 'ожидает ответа оператора';
-        case 'waiting_client':
-          return 'ожидает ответа клиента';
-        case 'new':
-          return 'новый';
-        default:
-          return '—';
-      }
-    }
-    const normalized = String(raw || '').toLowerCase();
-    if (normalized === 'resolved' || normalized === 'closed') return 'Закрыт';
-    if (normalized === 'pending') return 'ожидает ответа оператора';
-    if (normalized) return 'ожидает ответа клиента';
-    return '—';
+    return dialogsDetailsRuntime?.formatStatusLabel(raw, fallback, statusKey) || '—';
   }
 
   function isResolvedStatus(statusRaw, statusKey, statusLabel) {
-    const raw = String(statusRaw || '').toLowerCase();
-    const key = String(statusKey || '').toLowerCase();
-    return raw === 'resolved' || raw === 'closed' || key === 'closed' || key === 'auto_closed';
+    return dialogsDetailsRuntime?.isResolvedStatus(statusRaw, statusKey, statusLabel) || false;
   }
 
   async function openDialogDetails(ticketId, fallbackRow) {
-    if (!ticketId || !detailsModalEl) {
-      debugLog('openDialogDetails.skipped', {
-        ticketId,
-        hasDetailsModal: Boolean(detailsModalEl),
-      });
-      return;
-    }
-    debugLog('openDialogDetails.start', {
-      ticketId,
-      fallbackRowFound: Boolean(fallbackRow),
-      channelId: fallbackRow?.dataset?.channelId || null,
-    });
-    activeDialogTicketId = ticketId;
-    initMacroVariableCatalog(ticketId, true);
-    setActiveDialogRow(fallbackRow || null, { ensureVisible: true });
-    activeDialogChannelId = fallbackRow?.dataset?.channelId || null;
-    activeDialogResponsibleRaw = String(fallbackRow?.dataset?.responsibleRaw || fallbackRow?.dataset?.responsible || '').trim();
-    activeDialogResponsibleAvatarUrl = String(fallbackRow?.dataset?.responsibleAvatarUrl || '').trim();
-    updateDialogUnreadCount(Number(fallbackRow?.dataset?.unread) || 0);
-    if (detailsMeta) {
-      const fallbackRequestNumber = fallbackRow?.dataset?.requestNumber || '';
-      detailsMeta.textContent = formatDialogMeta(ticketId, fallbackRequestNumber);
-    }
-    if (detailsRating) {
-      detailsRating.textContent = '';
-      detailsRating.classList.add('d-none');
-    }
-    resetPreviousDialogHistoryState();
-    if (detailsSummary) detailsSummary.innerHTML = '<div>Загрузка...</div>';
-    if (detailsMetrics) detailsMetrics.innerHTML = '<div class="text-muted">Загрузка метрик...</div>';
-    updateDetailsLocationLabel('—');
-    if (detailsHistory) {
-      renderHistory([], { scrollToBottom: false });
-    }
-    if (detailsAiState) detailsAiState.textContent = 'Загрузка подсказок AI...';
-    if (detailsAiList) {
-      detailsAiList.innerHTML = '';
-      detailsAiList.classList.add('d-none');
-    }
-    setDialogParticipantsState([]);
-    renderDialogParticipantsLoadingState('Загрузка участников...');
-    syncParticipantsSelectOptions();
-    syncReassignSelectOptions();
-    if (detailsReplyText) detailsReplyText.value = '';
-    if (detailsOpenClientCard) {
-      detailsOpenClientCard.dataset.userId = '';
-      detailsOpenClientCard.disabled = true;
-      detailsOpenClientCard.classList.add('disabled');
-      detailsOpenClientCard.setAttribute('aria-disabled', 'true');
-    }
-    if (detailsSpam) {
-      detailsSpam.dataset.userId = '';
-      detailsSpam.disabled = true;
-    }
-    updateDetailsTakeButton(fallbackRow?.dataset?.responsibleRaw || fallbackRow?.dataset?.responsible || '');
-
-    showModalSafe(detailsModalEl, detailsModal);
-    try {
-      const url = withChannelParam(`/api/dialogs/${encodeURIComponent(ticketId)}`, activeDialogChannelId);
-      debugLog('openDialogDetails.fetch.start', { url });
-      const resp = await fetch(url, {
-        credentials: 'same-origin',
-        cache: 'no-store',
-      });
-      debugLog('openDialogDetails.fetch.response', {
-        status: resp.status,
-        ok: resp.ok,
-      });
-      const data = await resp.json();
-      if (!resp.ok) {
-        throw new Error(data?.error || `Ошибка ${resp.status}`);
-      }
-      const summary = data.summary || {};
-      selectedCategories = new Set(Array.isArray(data.categories) ? data.categories.filter(Boolean).map((item) => String(item).trim()) : []);
-      syncCategorySelections();
-      updateSummaryCategories(formatCategoriesLabel(Array.from(selectedCategories)));
-      if (summary.channelId) {
-        activeDialogChannelId = summary.channelId;
-      }
-
-      const resolvedBy = summary.resolvedBy || summary.resolved_by;
-      const resolvedAt = summary.resolvedAt || summary.resolved_at;
-      const createdDate = summary.createdDate || summary.created_date;
-      const createdTime = summary.createdTime || summary.created_time;
-      const createdAt = summary.createdAt || summary.created_at;
-      const createdLabel = [createdDate, createdTime].filter(Boolean).join(' ')
-        || createdAt
-        || '—';
-      const createdDisplay = formatTimestamp(createdLabel, { includeTime: true });
-      const resolvedDisplay = formatTimestamp(resolvedAt || '', { includeTime: true });
-      const responsibleRaw = summary.rawResponsible
-        || summary.raw_responsible
-        || fallbackRow?.dataset?.responsibleRaw
-        || fallbackRow?.dataset?.responsible
-        || '';
-      const responsibleAvatarUrl = summary.responsibleAvatarUrl
-        || summary.responsible_avatar_url
-        || fallbackRow?.dataset?.responsibleAvatarUrl
-        || '';
-      const responsibleLabel = summary.responsible
-        || resolvedBy
-        || fallbackRow?.dataset.responsible
-        || '—';
-      const clientName = summary.clientName
-        || summary.username
-        || fallbackRow?.dataset.client
-        || '—';
-      const clientStatus = summary.clientStatus || fallbackRow?.dataset.clientStatus || '—';
-      const channelLabel = summary.channelName || fallbackRow?.dataset.channel || '—';
-      const businessLabel = summary.business || fallbackRow?.dataset.business || '—';
-      const statusRaw = summary.status || fallbackRow?.dataset.statusRaw || '';
-      const statusKey = summary.statusKey || fallbackRow?.dataset.statusKey || '';
-      const statusLabel = formatStatusLabel(statusRaw, summary.statusLabel || fallbackRow?.dataset.status, statusKey);
-      const locationLabel = summary.locationName || summary.city || fallbackRow?.dataset.location || '—';
-      const problemLabel = summary.problem || fallbackRow?.dataset.problem || '—';
-      const selectedCategoriesLabel = formatCategoriesLabel(Array.from(selectedCategories));
-      const categoriesLabel = selectedCategoriesLabel !== '—'
-        ? selectedCategoriesLabel
-        : (summary.categoriesSafe || summary.categories || fallbackRow?.dataset.categories || '—');
-      const requestNumber = summary.requestNumber || fallbackRow?.dataset.requestNumber || '';
-      const ratingValue = summary.rating ?? fallbackRow?.dataset.rating;
-      const ratingStars = formatRatingStars(ratingValue);
-      const clientUserId = getDialogUserId(summary) || String(fallbackRow?.dataset?.userId || '').trim();
-      if (detailsAvatar) {
-        bindAvatar(detailsAvatar, clientUserId, clientName);
-      }
-      if (detailsClientName) detailsClientName.textContent = clientName;
-      if (detailsClientStatus) detailsClientStatus.textContent = clientStatus;
-      updateDetailsLocationLabel(locationLabel);
-      if (detailsOpenClientCard) {
-        if (clientUserId) {
-          detailsOpenClientCard.dataset.userId = clientUserId;
-          detailsOpenClientCard.disabled = false;
-          detailsOpenClientCard.classList.remove('disabled');
-          detailsOpenClientCard.setAttribute('aria-disabled', 'false');
-        } else {
-          detailsOpenClientCard.dataset.userId = '';
-          detailsOpenClientCard.disabled = true;
-          detailsOpenClientCard.classList.add('disabled');
-          detailsOpenClientCard.setAttribute('aria-disabled', 'true');
-        }
-      }
-      if (detailsSpam) {
-        detailsSpam.dataset.userId = clientUserId || '';
-      }
-      updateDetailsResponsible(responsibleLabel, {
-        rawResponsible: responsibleRaw,
-        avatarUrl: responsibleAvatarUrl,
-      });
-      updateSummaryCategories(categoriesLabel || '—');
-      if (detailsProblem) detailsProblem.textContent = problemLabel;
-      if (detailsMeta) detailsMeta.textContent = formatDialogMeta(ticketId, requestNumber);
-      if (detailsRating) {
-        if (ratingStars) {
-          detailsRating.textContent = ratingStars;
-          detailsRating.classList.remove('d-none');
-        } else {
-          detailsRating.textContent = '';
-          detailsRating.classList.add('d-none');
-        }
-      }
-      const summaryItems = [
-        ['Клиент', summary.clientName || summary.username || fallbackRow?.dataset.client || '—'],
-        ['Статус клиента', summary.clientStatus || fallbackRow?.dataset.clientStatus || '—'],
-        ['Статус', statusLabel || '—'],
-        ['Канал', summary.channelName || fallbackRow?.dataset.channel || '—'],
-        ['Бизнес', businessLabel],
-        ['Проблема', summary.problem || fallbackRow?.dataset.problem || '—'],
-        ['Категории', categoriesLabel || '—'],
-        ['Ответственный', responsibleLabel],
-        ['Создан', createdDisplay || createdLabel],
-      ];
-      activeDialogContext = {
-        clientName,
-        clientUserId,
-        operatorName: responsibleLabel || 'Оператор',
-        channelName: channelLabel,
-        business: businessLabel,
-        location: locationLabel,
-        status: statusLabel || '—',
-        createdAt: createdDisplay || createdLabel || '—',
-      };
-      if (detailsSummary) {
-        detailsSummary.innerHTML = summaryItems.map(([label, value]) => {
-          const safeValue = value || '—';
-          let renderedValue = `<span class="text-dark">${escapeHtml(safeValue)}</span>`;
-          if (label === 'Статус') {
-            renderedValue = renderSummaryBadge(safeValue, resolveSummaryBadgeStyle('status', safeValue));
-          }
-          if (label === 'Канал') {
-            renderedValue = renderSummaryBadge(safeValue, resolveSummaryBadgeStyle('channel', safeValue));
-          }
-          if (label === 'Бизнес') {
-            const businessKey = String(safeValue || '').trim();
-            const businessStyle = BUSINESS_STYLE_MAP[businessKey] || {};
-            renderedValue = renderSummaryBadge(safeValue, {
-              background: businessStyle.background || SUMMARY_BADGE_STYLES.default.background,
-              text: businessStyle.text || SUMMARY_BADGE_STYLES.default.text,
-            });
-          }
-          if (label === 'Клиент' && safeValue !== '—' && clientUserId) {
-            renderedValue = `<a class="dialog-summary-value-link" href="/client/${encodeURIComponent(clientUserId)}" target="_blank" rel="noopener">${escapeHtml(safeValue)}</a>`;
-          }
-          if (label === 'Ответственный' && safeValue !== '—') {
-            renderedValue = `<a class="dialog-summary-value-link" href="/users/${encodeURIComponent(safeValue)}" target="_blank" rel="noopener">${escapeHtml(safeValue)}</a>`;
-          }
-          const fieldAttr = label === 'Категории'
-            ? ' data-summary-field="categories"'
-            : (label === 'Ответственный' ? ' data-summary-field="responsible"' : '');
-          const valueMarkup = label === 'Категории'
-            ? `<span data-summary-value>${renderCategoryBadges(safeValue)}</span>`
-            : renderedValue;
-          return `
-          <div class="d-flex justify-content-between gap-2"${fieldAttr}>
-            <span>${label}</span>
-            ${valueMarkup}
-          </div>
-        `;
-        }).join('');
-      }
-      if (detailsMetrics) {
-        const timeMetricsConfig = normalizeDialogTimeMetrics(window.DIALOG_CONFIG?.time_metrics);
-        const createdAtTimestamp = parseDialogTimestamp(summary, fallbackRow);
-        const resolvedAtTimestamp = parseTimestampValue(resolvedAt);
-        const shouldUseResolvedTime = isResolvedStatus(statusRaw, statusKey, statusLabel) && Number.isFinite(resolvedAtTimestamp);
-        const endTimestamp = shouldUseResolvedTime ? resolvedAtTimestamp : Date.now();
-        const totalMinutes = Number.isFinite(createdAtTimestamp)
-          ? Math.max(0, Math.floor((endTimestamp - createdAtTimestamp) / 60000))
-          : null;
-        const timeLabel = totalMinutes === null ? '—' : formatDuration(totalMinutes);
-        const timeColor = totalMinutes === null ? null : resolveTimeMetricColor(totalMinutes, timeMetricsConfig);
-        const metrics = [
-          { label: 'Создано', value: createdDisplay },
-          { label: 'Время обращения', value: timeLabel, color: timeColor },
-          { label: 'Закрыто', value: resolvedDisplay || '—' },
-          { label: 'Канал', value: channelLabel },
-          { label: 'Бизнес', value: businessLabel },
-          { label: 'Ответственный', value: responsibleLabel },
-        ];
-        detailsMetrics.innerHTML = metrics.map((item) => `
-          <div class="dialog-metric-item">
-            <span>${item.label}</span>
-            ${
-              item.color
-                ? `<span class="dialog-time-metric-badge" style="background-color: ${item.color};">${item.value || '—'}</span>`
-                : `<span>${item.value || '—'}</span>`
-            }
-          </div>
-        `).join('');
-      }
-      renderHistory(data.history || []);
-      try {
-        await loadDialogParticipants();
-      } catch (participantsError) {
-        renderDialogParticipantsLoadingState(participantsError?.message || 'Не удалось загрузить участников.');
-      }
-      loadDetailsAiSuggestions(ticketId);
-      updateResolveButton(statusRaw);
-      if (statusRaw || statusKey) {
-        updateRowStatus(activeDialogRow, statusRaw, statusLabel, statusKey, summary.unreadCount);
-      }
-      updateDialogUnreadCount(0);
-      debugLog('openDialogDetails.render.done', {
-        ticketId,
-        historyCount: Array.isArray(data?.history) ? data.history.length : null,
-      });
-    } catch (error) {
-      debugLog('openDialogDetails.catch', {
-        ticketId,
-        message: error?.message || String(error || ''),
-      });
-      if (detailsSummary) {
-        detailsSummary.innerHTML = `<div class="text-danger">Не удалось загрузить детали: ${error.message}</div>`;
-      }
-      if (detailsMetrics) {
-        detailsMetrics.innerHTML = '<div class="text-muted">Метрики недоступны.</div>';
-      }
-      updateDetailsLocationLabel('—');
-    }
-
-    startHistoryPolling();
-    debugLog('openDialogDetails.finish', {
-      ticketId,
-      modalVisible: detailsModalEl.classList.contains('show'),
-      modalDisplay: detailsModalEl.style?.display || '',
-    });
+    await dialogsDetailsRuntime?.openDialogDetails(ticketId, fallbackRow);
   }
 
   table.addEventListener('click', (event) => {
