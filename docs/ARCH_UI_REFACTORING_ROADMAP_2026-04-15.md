@@ -1716,7 +1716,7 @@
 Наблюдение:
 
 - `dialogs.js` после последних runtime split всё ещё остаётся самым тяжёлым
-  dialog browser entrypoint и держит около `6594` строк;
+  dialog browser entrypoint и держит около `6477` строк;
 - по содержанию там смешаны list/filter/runtime polling, details/history,
   workspace contract, quick actions, macro workflow, AI assistant/review,
   notifications refresh loop и media/reply surface;
@@ -1750,12 +1750,15 @@
 - текущим проходом добавлен и `dialogs-experiment-runtime.js`, который забрал
   experiment info panel, telemetry summary/guardrails, rollout packet,
   scorecard/decision и refresh-control wiring для experiment modal;
+- следующим support-slice добавлен и `dialogs-shell-runtime.js`, который
+  держит modal safety helpers, fallback dismiss/scroll containment,
+  avatar hydration и единый `openDialogSurface` для page-shell orchestration;
 - `dialogs/index.html` теперь подключает эти runtime entrypoint'ы отдельно, а
   `dialogs.js` в основном держит thin orchestration и compatibility delegates
   между уже вынесенными bounded surface'ами;
 - это означает, что следующий проход не должен заново разбирать уже
   вынесенные list/AI/details-history/workspace/actions/macro/notifications/
-  templates/flow/experiment кластеры, а должен добирать только remaining
+  templates/flow/experiment/shell кластеры, а должен добирать только remaining
   orchestration drift вокруг legacy modal flows и соседнего UI wiring;
 
 - live regression corridor для `take -> categories -> reply -> follow-up ->
@@ -1763,8 +1766,9 @@
   обязательный контракт, потому что именно там расходятся row `unreadCount`,
   `my_dialogs` bucket placement и panel bell unread semantics;
 - рядом с этим таким же базовым smoke-коридором остаются pagination,
-  `openDialogEntry/openDialogDetails` и avatar hydration: именно они первыми
-  показывают, что page-level orchestration drift снова задел dialog shell;
+  `openDialogEntry/openDialogDetails` и avatar hydration: теперь это уже не
+  utility debt, а индикатор remaining details/workspace orchestration drift
+  поверх вынесенного dialog shell;
 - backend-часть этой нормализации уже зафиксирована:
   `my_dialogs.unanswered` больше не держится на `waiting_operator` overlay и
   теперь соответствует только `unreadCount > 0`, а reread с
