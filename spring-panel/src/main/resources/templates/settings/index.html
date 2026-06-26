@@ -6854,45 +6854,36 @@
     <script src="/js/settings-admin-shell-runtime.js"></script>
     <script src="/js/settings-page-config-runtime.js"></script>
     <script src="/js/settings-page-bootstrap-runtime.js"></script>
+    <script src="/js/settings-page-init-runtime.js"></script>
     <script th:inline="javascript">
-  const settingsPageConfig = window.SettingsPageConfigRuntime?.build({
-    dialogConfig: /*[[${settingsPayload['dialog_config']}]]*/ {},
-    canPublishDialogMacros: /*[[${canPublishDialogMacros}]]*/ false,
-    autoCloseConfig: /*[[${settingsPayload['auto_close_config']}]]*/ {},
-    autoCloseFallbackHours: /*[[${settingsPayload['auto_close_hours']}]]*/ 24,
-    fallbackDialogCategories: /*[[${settingsPayload['categories']}]]*/ [],
-    reportingConfigInitial: /*[[${settingsPayload['reporting_config']}]]*/ {},
-    managerLocationBindingsInitial: /*[[${settingsPayload['manager_location_bindings']}]]*/ [],
-    botSettingsInitial: /*[[${settingsPayload['bot_settings']}]]*/ {},
-    botPresetDefinitions: /*[[${botQuestionPresets}]]*/ {},
-    integrationNetworkInitial: /*[[${settingsPayload['integration_network']}]]*/ {},
-    integrationNetworkProfilesInitial: /*[[${settingsPayload['integration_network_profiles']}]]*/ [],
-    parameterTitles: /*[[${parameterTypes}]]*/ {},
-    parameterDependencies: /*[[${parameterDependencies}]]*/ {},
-    itConnectionFallbackLabels: /*[[${itConnectionCategories}]]*/ {},
-    itConnectionCategoryFields: /*[[${itConnectionCategoryFields}]]*/ {},
-    cityOptions: /*[[${cities}]]*/ [],
-    contractUsageData: /*[[${contractUsage}]]*/ {},
-    networkProfilesInitial: /*[[${settingsPayload['network_profiles']}]]*/ [],
-    statusUsage: /*[[${statusUsage}]]*/ {},
-    initialClientStatuses: /*[[${settingsPayload['client_statuses']}]]*/ [],
-    initialClientStatusColors: /*[[${settingsPayload['client_status_colors']}]]*/ {},
-    initialBusinessCellStyles: /*[[${settingsPayload['business_cell_styles']}]]*/ {},
-    locationsInitial: /*[[${locationsPayload}]]*/ {},
-    locationsIikoServerSourcesInitial: /*[[${locationsIikoServerSources}]]*/ [],
-    locationsIikoSyncSettingsInitial: /*[[${locationsIikoSyncSettings}]]*/ {},
-  }) || {};
-  window.SettingsPageConfigRuntime?.publishLegacyGlobals(settingsPageConfig);
-
-  window.SettingsPageBootstrapRuntime?.mount({
-    ...settingsPageConfig,
-    getCookieValue: (name) => getCookieValue(name),
-    requestSettingsModalClose: (source) => requestSettingsModalClose(source),
-    showPopup: (message) => showPopup(message),
-    showNotification: typeof showNotification === 'function'
-      ? (message, type) => showNotification(message, type)
-      : null,
-    confirmDialog: (message) => window.confirm(message),
+  window.SettingsPageInitRuntime?.mount({
+    rawConfig: {
+      dialogConfig: /*[[${settingsPayload['dialog_config']}]]*/ {},
+      canPublishDialogMacros: /*[[${canPublishDialogMacros}]]*/ false,
+      autoCloseConfig: /*[[${settingsPayload['auto_close_config']}]]*/ {},
+      autoCloseFallbackHours: /*[[${settingsPayload['auto_close_hours']}]]*/ 24,
+      fallbackDialogCategories: /*[[${settingsPayload['categories']}]]*/ [],
+      reportingConfigInitial: /*[[${settingsPayload['reporting_config']}]]*/ {},
+      managerLocationBindingsInitial: /*[[${settingsPayload['manager_location_bindings']}]]*/ [],
+      botSettingsInitial: /*[[${settingsPayload['bot_settings']}]]*/ {},
+      botPresetDefinitions: /*[[${botQuestionPresets}]]*/ {},
+      integrationNetworkInitial: /*[[${settingsPayload['integration_network']}]]*/ {},
+      integrationNetworkProfilesInitial: /*[[${settingsPayload['integration_network_profiles']}]]*/ [],
+      parameterTitles: /*[[${parameterTypes}]]*/ {},
+      parameterDependencies: /*[[${parameterDependencies}]]*/ {},
+      itConnectionFallbackLabels: /*[[${itConnectionCategories}]]*/ {},
+      itConnectionCategoryFields: /*[[${itConnectionCategoryFields}]]*/ {},
+      cityOptions: /*[[${cities}]]*/ [],
+      contractUsageData: /*[[${contractUsage}]]*/ {},
+      networkProfilesInitial: /*[[${settingsPayload['network_profiles']}]]*/ [],
+      statusUsage: /*[[${statusUsage}]]*/ {},
+      initialClientStatuses: /*[[${settingsPayload['client_statuses']}]]*/ [],
+      initialClientStatusColors: /*[[${settingsPayload['client_status_colors']}]]*/ {},
+      initialBusinessCellStyles: /*[[${settingsPayload['business_cell_styles']}]]*/ {},
+      locationsInitial: /*[[${locationsPayload}]]*/ {},
+      locationsIikoServerSourcesInitial: /*[[${locationsIikoServerSources}]]*/ [],
+      locationsIikoSyncSettingsInitial: /*[[${locationsIikoSyncSettings}]]*/ {},
+    },
   });
   </script>
 
