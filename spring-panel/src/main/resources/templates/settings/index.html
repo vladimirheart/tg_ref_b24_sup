@@ -6851,6 +6851,7 @@
     <script src="/js/settings-locations-tree-runtime.js"></script>
     <script src="/js/settings-location-wizard-runtime.js"></script>
     <script src="/js/settings-reporting-manager-bindings.js"></script>
+    <script src="/js/settings-admin-shell-runtime.js"></script>
     <script th:inline="javascript">
     const showAppModalMessage = window.showAppModalMessage;
     const showConfirmActionModal = window.showConfirmActionModal;
@@ -7311,27 +7312,7 @@
     confirmDialog: (message) => window.confirm(message),
   });
 
-  window.mountAuthManagementSettingsModal = function mountAuthManagementSettingsModal(modalEl) {
-    const container = modalEl instanceof HTMLElement ? modalEl.querySelector('[data-auth-management]') : null;
-    if (!(container instanceof HTMLElement) || !window.AuthManagement) {
-      console.error('Модуль управления доступом недоступен.');
-      return;
-    }
-    if (!container.__authManager) {
-      container.__authManager = window.AuthManagement.mount(container);
-    } else {
-      container.__authManager.refresh();
-    }
-  };
-  window.resetAuthManagementSettingsModal = function resetAuthManagementSettingsModal(modalEl) {
-    const container = modalEl instanceof HTMLElement ? modalEl.querySelector('[data-auth-management]') : null;
-    const manager = container && container.__authManager;
-    if (manager) {
-      manager.resetPasswords();
-      manager.clearMessage();
-    }
-  };
-  window.SettingsReportingManagerBindings?.mount({
+  window.SettingsAdminShellRuntime?.mount({
     reportingConfigInitial: REPORTING_CONFIG_INITIAL,
     managerLocationBindingsInitial: MANAGER_LOCATION_BINDINGS_INITIAL,
     getLocationsState: () => window.SettingsLocationsTreeRuntime?.getState(),
