@@ -1027,6 +1027,646 @@
       };
     }
 
+    function collectMacroClientContextConfig() {
+      const inputs = getInputs();
+      const defaults = getDefaultDialogSlaConfig();
+      const errors = [];
+
+      const splitUniqueValues = (value) => Array.from(new Set(
+        String(value || '')
+          .split(/[\n,;]/)
+          .map((item) => String(item || '').trim().toLowerCase())
+          .filter(Boolean)
+      ));
+
+      const validateExternalUrlTemplate = (value, title) => {
+        if (!value) {
+          return;
+        }
+        if (!(value.startsWith('https://') || value.startsWith('http://'))) {
+          errors.push(`${title}: URL-шаблон должен начинаться с http:// или https://.`);
+        }
+      };
+
+      let safeMacroVariableDefaults = {};
+      const macroDefaultsRaw = (inputs.macroVariableDefaults?.value || '').trim();
+      if (macroDefaultsRaw) {
+        try {
+          const parsed = JSON.parse(macroDefaultsRaw);
+          if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+            errors.push('Default переменные макросов должны быть JSON-объектом вида {"key":"value"}.');
+          } else {
+            const normalized = {};
+            Object.entries(parsed).forEach(([keyRaw, valueRaw]) => {
+              const key = String(keyRaw || '').trim().toLowerCase();
+              const value = String(valueRaw ?? '').trim();
+              if (key && value) {
+                normalized[key] = value;
+              }
+            });
+            safeMacroVariableDefaults = normalized;
+          }
+        } catch (error) {
+          errors.push('Default переменные макросов: некорректный JSON.');
+        }
+      }
+
+      const safeMacroPublishAllowedRoles = Array.from(new Set(
+        String(inputs.macroPublishAllowedRoles?.value || '')
+          .split(',')
+          .map((item) => item.trim())
+          .filter(Boolean)
+      ));
+
+      let safeMacroVariableCatalog = [];
+      const macroCatalogRaw = (inputs.macroVariableCatalog?.value || '').trim();
+      if (macroCatalogRaw) {
+        try {
+          const parsed = JSON.parse(macroCatalogRaw);
+          if (!Array.isArray(parsed)) {
+            errors.push('Каталог macro-переменных должен быть JSON-массивом.');
+          } else {
+            const normalized = [];
+            const keys = new Set();
+            parsed.forEach((entry) => {
+              if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+                return;
+              }
+              const key = String(entry.key || '').trim().toLowerCase();
+              const label = String(entry.label || '').trim();
+              const defaultValue = String(entry.default_value ?? '').trim();
+              if (!key || !label || keys.has(key)) {
+                return;
+              }
+              keys.add(key);
+              const item = { key, label };
+              if (defaultValue) {
+                item.default_value = defaultValue;
+              }
+              normalized.push(item);
+            });
+            safeMacroVariableCatalog = normalized;
+          }
+        } catch (error) {
+          errors.push('Каталог macro-переменных: некорректный JSON.');
+        }
+      }
+
+      const safeMacroVariableCatalogExternalUrl = String(inputs.macroVariableCatalogExternalUrl?.value || '').trim();
+      if (safeMacroVariableCatalogExternalUrl
+        && !(safeMacroVariableCatalogExternalUrl.startsWith('https://') || safeMacroVariableCatalogExternalUrl.startsWith('http://'))) {
+        errors.push('External catalog URL должен начинаться с http:// или https://.');
+      }
+      const safeMacroVariableCatalogExternalTimeoutMs = sanitizeIntValue(
+        inputs.macroVariableCatalogExternalTimeoutMs?.value,
+        200,
+        10000,
+        defaults.macro_variable_catalog_external_timeout_ms
+      );
+      const safeMacroVariableCatalogExternalCacheTtlSeconds = sanitizeIntValue(
+        inputs.macroVariableCatalogExternalCacheTtlSeconds?.value,
+        0,
+        3600,
+        defaults.macro_variable_catalog_external_cache_ttl_seconds
+      );
+      const safeMacroCatalogExternalAuthHeaderRaw = String(inputs.macroVariableCatalogExternalAuthHeader?.value || '').trim();
+      const safeMacroCatalogExternalAuthHeader = safeMacroCatalogExternalAuthHeaderRaw
+        ? safeMacroCatalogExternalAuthHeaderRaw
+        : defaults.macro_variable_catalog_external_auth_header;
+      if (!/^[A-Za-z0-9-]{1,64}$/.test(safeMacroCatalogExternalAuthHeader)) {
+        errors.push('Auth header для external catalog API должен содержать только латиницу, цифры и дефис (1..64 символа).');
+      }
+      const safeMacroCatalogExternalAuthToken = String(inputs.macroVariableCatalogExternalAuthToken?.value || '').trim();
+
+      const safeCrmProfileTemplate = String(inputs.workspaceClientCrmProfileUrlTemplate?.value || '').trim();
+      const safeCrmProfileLabel = String(inputs.workspaceClientCrmProfileLabel?.value || '').trim();
+      const safeContractProfileTemplate = String(inputs.workspaceClientContractProfileUrlTemplate?.value || '').trim();
+      const safeContractProfileLabel = String(inputs.workspaceClientContractProfileLabel?.value || '').trim();
+
+      validateExternalUrlTemplate(safeCrmProfileTemplate, 'CRM профиль');
+      validateExternalUrlTemplate(safeContractProfileTemplate, 'Contract профиль');
+
+      let safeWorkspaceExternalLinks = [];
+      const externalLinksRaw = (inputs.workspaceClientExternalLinks?.value || '').trim();
+      if (externalLinksRaw) {
+        try {
+          const parsed = JSON.parse(externalLinksRaw);
+          if (!Array.isArray(parsed)) {
+            errors.push('Дополнительные external links должны быть JSON-массивом.');
+          } else {
+            const normalized = [];
+            const keys = new Set();
+            parsed.forEach((entry) => {
+              if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+                return;
+              }
+              const key = String(entry.key || '').trim().toLowerCase();
+              const label = String(entry.label || '').trim();
+              const urlTemplate = String(entry.url_template || '').trim();
+              if (!key || !label || !urlTemplate || keys.has(key)) {
+                return;
+              }
+              if (!(urlTemplate.startsWith('https://') || urlTemplate.startsWith('http://'))) {
+                errors.push(`External link ${key}: url_template должен начинаться с http:// или https://.`);
+                return;
+              }
+              keys.add(key);
+              normalized.push({
+                key,
+                label,
+                url_template: urlTemplate,
+                enabled: entry.enabled !== false,
+              });
+            });
+            safeWorkspaceExternalLinks = normalized;
+          }
+        } catch (error) {
+          errors.push('Дополнительные external links: некорректный JSON.');
+        }
+      }
+
+      const safeWorkspaceExternalProfileUrl = String(inputs.workspaceClientExternalProfileUrl?.value || '').trim();
+      const safeWorkspaceExternalProfileTimeoutMs = sanitizeIntValue(
+        inputs.workspaceClientExternalProfileTimeoutMs?.value,
+        300,
+        10000,
+        defaults.workspace_client_external_profile_timeout_ms
+      );
+      const safeWorkspaceExternalProfileCacheTtlSeconds = sanitizeIntValue(
+        inputs.workspaceClientExternalProfileCacheTtlSeconds?.value,
+        0,
+        3600,
+        defaults.workspace_client_external_profile_cache_ttl_seconds
+      );
+      const safeWorkspaceExternalProfileAuthHeaderRaw = String(inputs.workspaceClientExternalProfileAuthHeader?.value || '').trim();
+      const safeWorkspaceExternalProfileAuthHeader = safeWorkspaceExternalProfileAuthHeaderRaw
+        ? safeWorkspaceExternalProfileAuthHeaderRaw
+        : defaults.workspace_client_external_profile_auth_header;
+      if (!/^[A-Za-z0-9-]{1,64}$/.test(safeWorkspaceExternalProfileAuthHeader)) {
+        errors.push('Auth header для external profile API должен содержать только латиницу, цифры и дефис (1..64 символа).');
+      }
+      const safeWorkspaceExternalProfileAuthToken = String(inputs.workspaceClientExternalProfileAuthToken?.value || '').trim();
+
+      const allowedContextSources = new Set(['local', 'crm', 'contract', 'external']);
+      const safeWorkspaceClientContextRequiredSources = splitUniqueValues(
+        inputs.workspaceClientContextRequiredSources?.value
+      ).filter((value) => allowedContextSources.has(value));
+      const safeWorkspaceClientContextSourcePriority = splitUniqueValues(
+        inputs.workspaceClientContextSourcePriority?.value
+      ).filter((value) => allowedContextSources.has(value));
+      if (!safeWorkspaceClientContextSourcePriority.length) {
+        safeWorkspaceClientContextSourcePriority.push(...defaults.workspace_client_context_source_priority);
+      }
+
+      const safeWorkspaceClientContextSourceStaleAfterHoursRaw = Math.round(
+        Number(inputs.workspaceClientContextSourceStaleAfterHours?.value)
+      );
+      const safeWorkspaceClientContextSourceStaleAfterHours = Number.isFinite(safeWorkspaceClientContextSourceStaleAfterHoursRaw)
+        ? Math.min(8760, Math.max(0, safeWorkspaceClientContextSourceStaleAfterHoursRaw))
+        : defaults.workspace_client_context_source_stale_after_hours;
+      if (!Number.isFinite(safeWorkspaceClientContextSourceStaleAfterHoursRaw)
+        || safeWorkspaceClientContextSourceStaleAfterHoursRaw < 0
+        || safeWorkspaceClientContextSourceStaleAfterHoursRaw > 8760) {
+        errors.push('TTL freshness источников контекста должен быть в диапазоне 0..8760 часов.');
+      }
+
+      let safeWorkspaceClientContextSourceLabels = {};
+      const contextSourceLabelsRaw = (inputs.workspaceClientContextSourceLabels?.value || '').trim();
+      if (contextSourceLabelsRaw) {
+        try {
+          const parsed = JSON.parse(contextSourceLabelsRaw);
+          if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+            errors.push('Подписи источников контекста должны быть JSON-объектом.');
+          } else {
+            const normalized = {};
+            Object.entries(parsed).forEach(([keyRaw, valueRaw]) => {
+              const key = String(keyRaw || '').trim().toLowerCase();
+              const label = String(valueRaw || '').trim();
+              if (allowedContextSources.has(key) && label) {
+                normalized[key] = label;
+              }
+            });
+            safeWorkspaceClientContextSourceLabels = normalized;
+          }
+        } catch (error) {
+          errors.push('Подписи источников контекста: некорректный JSON.');
+        }
+      }
+
+      let safeWorkspaceClientContextSourceUpdatedAtAttributes = {};
+      const contextSourceUpdatedAtRaw = (inputs.workspaceClientContextSourceUpdatedAtAttributes?.value || '').trim();
+      if (contextSourceUpdatedAtRaw) {
+        try {
+          const parsed = JSON.parse(contextSourceUpdatedAtRaw);
+          if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+            errors.push('UTC timestamp-атрибуты источников контекста должны быть JSON-объектом.');
+          } else {
+            const normalized = {};
+            Object.entries(parsed).forEach(([keyRaw, valueRaw]) => {
+              const key = String(keyRaw || '').trim().toLowerCase();
+              if (!allowedContextSources.has(key)) {
+                return;
+              }
+              const values = Array.isArray(valueRaw) ? valueRaw : [valueRaw];
+              const attrs = Array.from(new Set(
+                values
+                  .map((item) => String(item || '').trim().toLowerCase())
+                  .filter(Boolean)
+              ));
+              if (attrs.length) {
+                normalized[key] = attrs;
+              }
+            });
+            safeWorkspaceClientContextSourceUpdatedAtAttributes = normalized;
+          }
+        } catch (error) {
+          errors.push('UTC timestamp-атрибуты источников контекста: некорректный JSON.');
+        }
+      }
+
+      let safeWorkspaceClientContextSourceStaleAfterHoursBySource = {};
+      const contextSourceStaleBySourceRaw = (inputs.workspaceClientContextSourceStaleAfterHoursBySource?.value || '').trim();
+      if (contextSourceStaleBySourceRaw) {
+        try {
+          const parsed = JSON.parse(contextSourceStaleBySourceRaw);
+          if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+            errors.push('TTL freshness по источникам должен быть JSON-объектом.');
+          } else {
+            const normalized = {};
+            Object.entries(parsed).forEach(([keyRaw, valueRaw]) => {
+              const key = String(keyRaw || '').trim().toLowerCase();
+              const ttl = Math.round(Number(valueRaw));
+              if (!allowedContextSources.has(key) || !Number.isFinite(ttl) || ttl < 0 || ttl > 8760) {
+                return;
+              }
+              normalized[key] = ttl;
+            });
+            safeWorkspaceClientContextSourceStaleAfterHoursBySource = normalized;
+          }
+        } catch (error) {
+          errors.push('TTL freshness по источникам: некорректный JSON.');
+        }
+      }
+
+      const safeWorkspaceRequiredClientAttributes = splitUniqueValues(
+        inputs.workspaceRequiredClientAttributes?.value
+      );
+
+      let safeWorkspaceRequiredClientAttributesBySegment = {};
+      const requiredClientAttributesBySegmentRaw = (inputs.workspaceRequiredClientAttributesBySegment?.value || '').trim();
+      if (requiredClientAttributesBySegmentRaw) {
+        try {
+          const parsed = JSON.parse(requiredClientAttributesBySegmentRaw);
+          if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+            errors.push('Обязательные атрибуты профиля по сегментам должны быть JSON-объектом.');
+          } else {
+            const normalized = {};
+            Object.entries(parsed).forEach(([segmentRaw, attributesRaw]) => {
+              const segmentKey = String(segmentRaw || '').trim().toLowerCase();
+              if (!segmentKey) {
+                return;
+              }
+              const values = Array.isArray(attributesRaw) ? attributesRaw : [attributesRaw];
+              const attributes = Array.from(new Set(
+                values
+                  .map((item) => String(item || '').trim().toLowerCase())
+                  .filter(Boolean)
+              ));
+              if (attributes.length) {
+                normalized[segmentKey] = attributes;
+              }
+            });
+            safeWorkspaceRequiredClientAttributesBySegment = normalized;
+          }
+        } catch (error) {
+          errors.push('Обязательные атрибуты профиля по сегментам: некорректный JSON.');
+        }
+      }
+
+      let safeWorkspaceClientHiddenAttributes = [];
+      const hiddenAttributesRaw = (inputs.workspaceClientHiddenAttributes?.value || '').trim();
+      if (hiddenAttributesRaw) {
+        try {
+          const parsed = JSON.parse(hiddenAttributesRaw);
+          if (!Array.isArray(parsed)) {
+            errors.push('Скрытые атрибуты клиента должны быть JSON-массивом.');
+          } else {
+            safeWorkspaceClientHiddenAttributes = Array.from(new Set(
+              parsed
+                .map((item) => String(item || '').trim().toLowerCase())
+                .filter(Boolean)
+            ));
+          }
+        } catch (error) {
+          errors.push('Скрытые атрибуты клиента: некорректный JSON.');
+        }
+      }
+
+      let safeWorkspaceClientAttributeLabels = {};
+      const attributeLabelsRaw = (inputs.workspaceClientAttributeLabels?.value || '').trim();
+      if (attributeLabelsRaw) {
+        try {
+          const parsed = JSON.parse(attributeLabelsRaw);
+          if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+            errors.push('Переименования атрибутов клиента должны быть JSON-объектом вида {"key":"label"}.');
+          } else {
+            const normalized = {};
+            Object.entries(parsed).forEach(([keyRaw, valueRaw]) => {
+              const key = String(keyRaw || '').trim().toLowerCase();
+              const label = String(valueRaw || '').trim();
+              if (key && label) {
+                normalized[key] = label;
+              }
+            });
+            safeWorkspaceClientAttributeLabels = normalized;
+          }
+        } catch (error) {
+          errors.push('Переименования атрибутов клиента: некорректный JSON.');
+        }
+      }
+
+      let safeWorkspaceClientAttributeOrder = [];
+      const attributeOrderRaw = (inputs.workspaceClientAttributeOrder?.value || '').trim();
+      if (attributeOrderRaw) {
+        try {
+          const parsed = JSON.parse(attributeOrderRaw);
+          if (!Array.isArray(parsed)) {
+            errors.push('Порядок атрибутов клиента должен быть JSON-массивом.');
+          } else {
+            safeWorkspaceClientAttributeOrder = Array.from(new Set(
+              parsed
+                .map((item) => String(item || '').trim().toLowerCase())
+                .filter(Boolean)
+            ));
+          }
+        } catch (error) {
+          errors.push('Порядок атрибутов клиента: некорректный JSON.');
+        }
+      }
+
+      const safeWorkspaceClientExtraAttributesMaxRaw = Math.round(Number(inputs.workspaceClientExtraAttributesMax?.value));
+      const safeWorkspaceClientExtraAttributesMax = Number.isFinite(safeWorkspaceClientExtraAttributesMaxRaw)
+        ? Math.min(100, Math.max(1, safeWorkspaceClientExtraAttributesMaxRaw))
+        : defaults.workspace_client_extra_attributes_max;
+      if (!Number.isFinite(safeWorkspaceClientExtraAttributesMaxRaw)
+        || safeWorkspaceClientExtraAttributesMaxRaw < 1
+        || safeWorkspaceClientExtraAttributesMaxRaw > 100) {
+        errors.push('Максимум доп. атрибутов клиента должен быть в диапазоне 1..100.');
+      }
+
+      const safeWorkspaceClientExtraAttributesCollapseAfterRaw = Math.round(Number(inputs.workspaceClientExtraAttributesCollapseAfter?.value));
+      const safeWorkspaceClientExtraAttributesCollapseAfter = Number.isFinite(safeWorkspaceClientExtraAttributesCollapseAfterRaw)
+        ? Math.min(50, Math.max(1, safeWorkspaceClientExtraAttributesCollapseAfterRaw))
+        : defaults.workspace_client_extra_attributes_collapse_after;
+      if (!Number.isFinite(safeWorkspaceClientExtraAttributesCollapseAfterRaw)
+        || safeWorkspaceClientExtraAttributesCollapseAfterRaw < 1
+        || safeWorkspaceClientExtraAttributesCollapseAfterRaw > 50) {
+        errors.push('Порог сворачивания доп. атрибутов клиента должен быть в диапазоне 1..50.');
+      }
+      if (safeWorkspaceClientExtraAttributesCollapseAfter > safeWorkspaceClientExtraAttributesMax) {
+        errors.push('Порог сворачивания не может быть больше лимита доп. атрибутов.');
+      }
+
+      const safeWorkspaceClientExtraAttributesTechnicalPrefixes = splitUniqueValues(
+        inputs.workspaceClientExtraAttributesTechnicalPrefixes?.value
+      );
+
+      const safeMacroGovernanceRequireOwner = Boolean(inputs.macroGovernanceRequireOwner?.checked);
+      const safeMacroGovernanceRequireNamespace = Boolean(inputs.macroGovernanceRequireNamespace?.checked);
+      const safeMacroGovernanceRequireReview = Boolean(inputs.macroGovernanceRequireReview?.checked);
+      const safeMacroGovernanceReviewTtlHours = sanitizeIntValue(
+        inputs.macroGovernanceReviewTtlHours?.value,
+        1,
+        2160,
+        defaults.macro_governance_review_ttl_hours
+      );
+      const safeMacroGovernanceDeprecationRequiresReason = Boolean(inputs.macroGovernanceDeprecationRequiresReason?.checked);
+      const safeMacroGovernanceUnusedDays = sanitizeIntValue(
+        inputs.macroGovernanceUnusedDays?.value,
+        1,
+        365,
+        defaults.macro_governance_unused_days
+      );
+      const safeMacroGovernanceRedListEnabled = Boolean(inputs.macroGovernanceRedListEnabled?.checked);
+      const safeMacroGovernanceRedListUsageMax = sanitizeIntValue(
+        inputs.macroGovernanceRedListUsageMax?.value,
+        0,
+        10000,
+        defaults.macro_governance_red_list_usage_max
+      );
+      const safeMacroGovernanceOwnerActionRequired = Boolean(inputs.macroGovernanceOwnerActionRequired?.checked);
+      const safeMacroGovernanceCleanupCadenceDays = sanitizeIntValue(
+        inputs.macroGovernanceCleanupCadenceDays?.value,
+        0,
+        365,
+        defaults.macro_governance_cleanup_cadence_days
+      );
+      const safeMacroGovernanceAliasCleanupRequired = Boolean(inputs.macroGovernanceAliasCleanupRequired?.checked);
+      const safeMacroGovernanceVariableCleanupRequired = Boolean(inputs.macroGovernanceVariableCleanupRequired?.checked);
+      const safeMacroGovernanceUsageTierSlaRequired = Boolean(inputs.macroGovernanceUsageTierSlaRequired?.checked);
+      const safeMacroGovernanceUsageTierLowMax = sanitizeIntValue(
+        inputs.macroGovernanceUsageTierLowMax?.value,
+        0,
+        10000,
+        defaults.macro_governance_usage_tier_low_max
+      );
+      const safeMacroGovernanceUsageTierMediumMaxRaw = sanitizeIntValue(
+        inputs.macroGovernanceUsageTierMediumMax?.value,
+        0,
+        10000,
+        defaults.macro_governance_usage_tier_medium_max
+      );
+      const safeMacroGovernanceUsageTierMediumMax = Math.max(
+        safeMacroGovernanceUsageTierLowMax,
+        safeMacroGovernanceUsageTierMediumMaxRaw
+      );
+      const safeMacroGovernanceCleanupSlaLowDays = sanitizeIntValue(
+        inputs.macroGovernanceCleanupSlaLowDays?.value,
+        1,
+        365,
+        defaults.macro_governance_cleanup_sla_low_days
+      );
+      const safeMacroGovernanceCleanupSlaMediumDays = sanitizeIntValue(
+        inputs.macroGovernanceCleanupSlaMediumDays?.value,
+        1,
+        365,
+        defaults.macro_governance_cleanup_sla_medium_days
+      );
+      const safeMacroGovernanceCleanupSlaHighDays = sanitizeIntValue(
+        inputs.macroGovernanceCleanupSlaHighDays?.value,
+        1,
+        365,
+        defaults.macro_governance_cleanup_sla_high_days
+      );
+      const safeMacroGovernanceDeprecationSlaLowDays = sanitizeIntValue(
+        inputs.macroGovernanceDeprecationSlaLowDays?.value,
+        1,
+        365,
+        defaults.macro_governance_deprecation_sla_low_days
+      );
+      const safeMacroGovernanceDeprecationSlaMediumDays = sanitizeIntValue(
+        inputs.macroGovernanceDeprecationSlaMediumDays?.value,
+        1,
+        365,
+        defaults.macro_governance_deprecation_sla_medium_days
+      );
+      const safeMacroGovernanceDeprecationSlaHighDays = sanitizeIntValue(
+        inputs.macroGovernanceDeprecationSlaHighDays?.value,
+        1,
+        365,
+        defaults.macro_governance_deprecation_sla_high_days
+      );
+
+      const safeWorkspaceContextHistoryLimitRaw = Math.round(Number(inputs.workspaceContextHistoryLimit?.value));
+      const safeWorkspaceContextHistoryLimit = Number.isFinite(safeWorkspaceContextHistoryLimitRaw)
+        ? Math.min(20, Math.max(1, safeWorkspaceContextHistoryLimitRaw))
+        : defaults.workspace_context_history_limit;
+      if (!Number.isFinite(safeWorkspaceContextHistoryLimitRaw)
+        || safeWorkspaceContextHistoryLimitRaw < 1
+        || safeWorkspaceContextHistoryLimitRaw > 20) {
+        errors.push('Лимит блока «История обращений» должен быть в диапазоне 1..20.');
+      }
+
+      const safeWorkspaceContextRelatedEventsLimitRaw = Math.round(Number(inputs.workspaceContextRelatedEventsLimit?.value));
+      const safeWorkspaceContextRelatedEventsLimit = Number.isFinite(safeWorkspaceContextRelatedEventsLimitRaw)
+        ? Math.min(20, Math.max(1, safeWorkspaceContextRelatedEventsLimitRaw))
+        : defaults.workspace_context_related_events_limit;
+      if (!Number.isFinite(safeWorkspaceContextRelatedEventsLimitRaw)
+        || safeWorkspaceContextRelatedEventsLimitRaw < 1
+        || safeWorkspaceContextRelatedEventsLimitRaw > 20) {
+        errors.push('Лимит блока «Связанные события» должен быть в диапазоне 1..20.');
+      }
+
+      const safeHighLifetimeThresholdRaw = Math.round(Number(inputs.workspaceSegmentHighLifetimeMinDialogs?.value));
+      const safeHighLifetimeThreshold = Number.isFinite(safeHighLifetimeThresholdRaw)
+        ? Math.min(500, Math.max(1, safeHighLifetimeThresholdRaw))
+        : defaults.workspace_segment_high_lifetime_volume_min_dialogs;
+      if (!Number.isFinite(safeHighLifetimeThresholdRaw)
+        || safeHighLifetimeThresholdRaw < 1
+        || safeHighLifetimeThresholdRaw > 500) {
+        errors.push('Порог high_lifetime_volume должен быть в диапазоне 1..500.');
+      }
+
+      const safeMultiOpenThresholdRaw = Math.round(Number(inputs.workspaceSegmentMultiOpenMinDialogs?.value));
+      const safeMultiOpenThreshold = Number.isFinite(safeMultiOpenThresholdRaw)
+        ? Math.min(50, Math.max(1, safeMultiOpenThresholdRaw))
+        : defaults.workspace_segment_multi_open_dialogs_min_open;
+      if (!Number.isFinite(safeMultiOpenThresholdRaw)
+        || safeMultiOpenThresholdRaw < 1
+        || safeMultiOpenThresholdRaw > 50) {
+        errors.push('Порог multi_open_dialogs должен быть в диапазоне 1..50.');
+      }
+
+      const safeReactivationMinDialogsRaw = Math.round(Number(inputs.workspaceSegmentReactivationMinDialogs?.value));
+      const safeReactivationMinDialogs = Number.isFinite(safeReactivationMinDialogsRaw)
+        ? Math.min(500, Math.max(1, safeReactivationMinDialogsRaw))
+        : defaults.workspace_segment_reactivation_risk_min_dialogs;
+      if (!Number.isFinite(safeReactivationMinDialogsRaw)
+        || safeReactivationMinDialogsRaw < 1
+        || safeReactivationMinDialogsRaw > 500) {
+        errors.push('Порог reactivation_risk (минимум диалогов) должен быть в диапазоне 1..500.');
+      }
+
+      const safeReactivationMaxResolvedRaw = Math.round(Number(inputs.workspaceSegmentReactivationMaxResolved30d?.value));
+      const safeReactivationMaxResolved = Number.isFinite(safeReactivationMaxResolvedRaw)
+        ? Math.min(100, Math.max(0, safeReactivationMaxResolvedRaw))
+        : defaults.workspace_segment_reactivation_risk_max_resolved_30d;
+      if (!Number.isFinite(safeReactivationMaxResolvedRaw)
+        || safeReactivationMaxResolvedRaw < 0
+        || safeReactivationMaxResolvedRaw > 100) {
+        errors.push('Порог reactivation_risk (max resolved_30d) должен быть в диапазоне 0..100.');
+      }
+
+      const safeOpenBacklogMinOpenRaw = Math.round(Number(inputs.workspaceSegmentOpenBacklogMinOpen?.value));
+      const safeOpenBacklogMinOpen = Number.isFinite(safeOpenBacklogMinOpenRaw)
+        ? Math.min(100, Math.max(1, safeOpenBacklogMinOpenRaw))
+        : defaults.workspace_segment_open_backlog_min_open;
+      if (!Number.isFinite(safeOpenBacklogMinOpenRaw)
+        || safeOpenBacklogMinOpenRaw < 1
+        || safeOpenBacklogMinOpenRaw > 100) {
+        errors.push('Порог open_backlog_pressure (open-диалогов) должен быть в диапазоне 1..100.');
+      }
+
+      const safeOpenBacklogMinShareRaw = Math.round(Number(inputs.workspaceSegmentOpenBacklogMinSharePercent?.value));
+      const safeOpenBacklogMinShare = Number.isFinite(safeOpenBacklogMinShareRaw)
+        ? Math.min(100, Math.max(1, safeOpenBacklogMinShareRaw))
+        : defaults.workspace_segment_open_backlog_min_share_percent;
+      if (!Number.isFinite(safeOpenBacklogMinShareRaw)
+        || safeOpenBacklogMinShareRaw < 1
+        || safeOpenBacklogMinShareRaw > 100) {
+        errors.push('Порог open_backlog_pressure (доля open, %) должен быть в диапазоне 1..100.');
+      }
+
+      return {
+        errors,
+        config: {
+          dialog_macro_variable_defaults: safeMacroVariableDefaults,
+          dialog_macro_variable_catalog: safeMacroVariableCatalog,
+          dialog_macro_variable_catalog_external_url: safeMacroVariableCatalogExternalUrl,
+          dialog_macro_variable_catalog_external_timeout_ms: safeMacroVariableCatalogExternalTimeoutMs,
+          dialog_macro_variable_catalog_external_cache_ttl_seconds: safeMacroVariableCatalogExternalCacheTtlSeconds,
+          dialog_macro_variable_catalog_external_auth_header: safeMacroCatalogExternalAuthHeader,
+          dialog_macro_variable_catalog_external_auth_token: safeMacroCatalogExternalAuthToken,
+          dialog_macro_publish_allowed_roles: safeMacroPublishAllowedRoles,
+          dialog_macro_require_independent_review: Boolean(inputs.macroRequireIndependentReview?.checked),
+          dialog_macro_governance_require_owner: safeMacroGovernanceRequireOwner,
+          dialog_macro_governance_require_namespace: safeMacroGovernanceRequireNamespace,
+          dialog_macro_governance_require_review: safeMacroGovernanceRequireReview,
+          dialog_macro_governance_review_ttl_hours: safeMacroGovernanceReviewTtlHours,
+          dialog_macro_governance_deprecation_requires_reason: safeMacroGovernanceDeprecationRequiresReason,
+          dialog_macro_governance_unused_days: safeMacroGovernanceUnusedDays,
+          dialog_macro_governance_red_list_enabled: safeMacroGovernanceRedListEnabled,
+          dialog_macro_governance_red_list_usage_max: safeMacroGovernanceRedListUsageMax,
+          dialog_macro_governance_owner_action_required: safeMacroGovernanceOwnerActionRequired,
+          dialog_macro_governance_cleanup_cadence_days: safeMacroGovernanceCleanupCadenceDays,
+          dialog_macro_governance_alias_cleanup_required: safeMacroGovernanceAliasCleanupRequired,
+          dialog_macro_governance_variable_cleanup_required: safeMacroGovernanceVariableCleanupRequired,
+          dialog_macro_governance_usage_tier_sla_required: safeMacroGovernanceUsageTierSlaRequired,
+          dialog_macro_governance_usage_tier_low_max: safeMacroGovernanceUsageTierLowMax,
+          dialog_macro_governance_usage_tier_medium_max: safeMacroGovernanceUsageTierMediumMax,
+          dialog_macro_governance_cleanup_sla_low_days: safeMacroGovernanceCleanupSlaLowDays,
+          dialog_macro_governance_cleanup_sla_medium_days: safeMacroGovernanceCleanupSlaMediumDays,
+          dialog_macro_governance_cleanup_sla_high_days: safeMacroGovernanceCleanupSlaHighDays,
+          dialog_macro_governance_deprecation_sla_low_days: safeMacroGovernanceDeprecationSlaLowDays,
+          dialog_macro_governance_deprecation_sla_medium_days: safeMacroGovernanceDeprecationSlaMediumDays,
+          dialog_macro_governance_deprecation_sla_high_days: safeMacroGovernanceDeprecationSlaHighDays,
+          dialog_workspace_client_crm_profile_url_template: safeCrmProfileTemplate,
+          dialog_workspace_client_crm_profile_label: safeCrmProfileLabel,
+          dialog_workspace_client_contract_profile_url_template: safeContractProfileTemplate,
+          dialog_workspace_client_contract_profile_label: safeContractProfileLabel,
+          dialog_workspace_client_external_links: safeWorkspaceExternalLinks,
+          dialog_workspace_client_external_profile_url: safeWorkspaceExternalProfileUrl,
+          dialog_workspace_client_external_profile_timeout_ms: safeWorkspaceExternalProfileTimeoutMs,
+          dialog_workspace_client_external_profile_cache_ttl_seconds: safeWorkspaceExternalProfileCacheTtlSeconds,
+          dialog_workspace_client_external_profile_auth_header: safeWorkspaceExternalProfileAuthHeader,
+          dialog_workspace_client_external_profile_auth_token: safeWorkspaceExternalProfileAuthToken,
+          dialog_workspace_required_client_attributes: safeWorkspaceRequiredClientAttributes,
+          dialog_workspace_required_client_attributes_by_segment: safeWorkspaceRequiredClientAttributesBySegment,
+          dialog_workspace_client_context_required_sources: safeWorkspaceClientContextRequiredSources,
+          dialog_workspace_client_context_source_priority: safeWorkspaceClientContextSourcePriority,
+          dialog_workspace_client_context_source_stale_after_hours: safeWorkspaceClientContextSourceStaleAfterHours,
+          dialog_workspace_client_context_source_labels: safeWorkspaceClientContextSourceLabels,
+          dialog_workspace_client_context_source_updated_at_attributes: safeWorkspaceClientContextSourceUpdatedAtAttributes,
+          dialog_workspace_client_context_source_stale_after_hours_by_source: safeWorkspaceClientContextSourceStaleAfterHoursBySource,
+          dialog_workspace_client_hidden_attributes: safeWorkspaceClientHiddenAttributes,
+          dialog_workspace_client_attribute_labels: safeWorkspaceClientAttributeLabels,
+          dialog_workspace_client_attribute_order: safeWorkspaceClientAttributeOrder,
+          dialog_workspace_client_extra_attributes_max: safeWorkspaceClientExtraAttributesMax,
+          dialog_workspace_client_extra_attributes_collapse_after: safeWorkspaceClientExtraAttributesCollapseAfter,
+          dialog_workspace_client_extra_attributes_hide_technical: Boolean(inputs.workspaceClientExtraAttributesHideTechnical?.checked),
+          dialog_workspace_client_extra_attributes_technical_prefixes: safeWorkspaceClientExtraAttributesTechnicalPrefixes,
+          dialog_workspace_context_history_limit: safeWorkspaceContextHistoryLimit,
+          dialog_workspace_context_related_events_limit: safeWorkspaceContextRelatedEventsLimit,
+          dialog_workspace_segment_high_lifetime_volume_min_dialogs: safeHighLifetimeThreshold,
+          dialog_workspace_segment_multi_open_dialogs_min_open: safeMultiOpenThreshold,
+          dialog_workspace_segment_reactivation_risk_min_dialogs: safeReactivationMinDialogs,
+          dialog_workspace_segment_reactivation_risk_max_resolved_30d: safeReactivationMaxResolved,
+          dialog_workspace_segment_open_backlog_min_open: safeOpenBacklogMinOpen,
+          dialog_workspace_segment_open_backlog_min_share_percent: safeOpenBacklogMinShare,
+        },
+      };
+    }
+
     function initDialogSlaControls() {
       const inputs = getInputs();
       const dialogConfig = getDialogConfig();
@@ -1817,6 +2457,7 @@
 
     return {
       bindAutoAssignRulesHelpers,
+      collectMacroClientContextConfig,
       collectSlaCoreConfig,
       getInputs,
       initialize,
