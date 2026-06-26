@@ -304,6 +304,7 @@
       reportingConfigInitial: normalizeObject(raw.reportingConfigInitial),
       managerLocationBindingsInitial: normalizeArray(raw.managerLocationBindingsInitial),
       botSettingsInitial: normalizeObject(raw.botSettingsInitial),
+      botPresetDefinitions: normalizeObject(raw.botPresetDefinitions),
       integrationNetworkInitial: normalizeObject(raw.integrationNetworkInitial),
       integrationNetworkProfilesInitial: normalizeArray(raw.integrationNetworkProfilesInitial),
       parameterTitles: normalizeObject(raw.parameterTitles),
@@ -333,7 +334,13 @@
     };
   }
 
+  function publishLegacyGlobals(config = {}) {
+    window.BOT_SETTINGS_INITIAL = normalizeObject(config.botSettingsInitial);
+    window.BOT_PRESET_DEFINITIONS = normalizeObject(config.botPresetDefinitions);
+  }
+
   window.SettingsPageConfigRuntime = Object.freeze({
     build,
+    publishLegacyGlobals,
   });
 }());

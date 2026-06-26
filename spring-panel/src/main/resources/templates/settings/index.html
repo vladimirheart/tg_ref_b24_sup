@@ -6864,6 +6864,7 @@
     reportingConfigInitial: /*[[${settingsPayload['reporting_config']}]]*/ {},
     managerLocationBindingsInitial: /*[[${settingsPayload['manager_location_bindings']}]]*/ [],
     botSettingsInitial: /*[[${settingsPayload['bot_settings']}]]*/ {},
+    botPresetDefinitions: /*[[${botQuestionPresets}]]*/ {},
     integrationNetworkInitial: /*[[${settingsPayload['integration_network']}]]*/ {},
     integrationNetworkProfilesInitial: /*[[${settingsPayload['integration_network_profiles']}]]*/ [],
     parameterTitles: /*[[${parameterTypes}]]*/ {},
@@ -6881,11 +6882,7 @@
     locationsIikoServerSourcesInitial: /*[[${locationsIikoServerSources}]]*/ [],
     locationsIikoSyncSettingsInitial: /*[[${locationsIikoSyncSettings}]]*/ {},
   }) || {};
-
-  const BOT_SETTINGS_INITIAL = settingsPageConfig.botSettingsInitial || {};
-  const INTEGRATION_NETWORK_INITIAL = settingsPageConfig.integrationNetworkInitial || {};
-  const INTEGRATION_NETWORK_PROFILES_INITIAL = settingsPageConfig.integrationNetworkProfilesInitial || [];
-  const BOT_PRESET_DEFINITIONS = /*[[${botQuestionPresets}]]*/ {};
+  window.SettingsPageConfigRuntime?.publishLegacyGlobals(settingsPageConfig);
 
   window.SettingsPageBootstrapRuntime?.mount({
     ...settingsPageConfig,
