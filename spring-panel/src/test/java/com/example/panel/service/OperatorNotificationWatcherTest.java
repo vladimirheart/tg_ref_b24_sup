@@ -105,49 +105,6 @@ class OperatorNotificationWatcherTest {
     }
 
     @Test
-    void watchNotifiesAllOperatorsForInitialPublicFormMessage() {
-        when(dialogAuditService.hasSuccessfulDialogAction("T-WEB-1", "public_form_submit")).thenReturn(true);
-        when(dialogAuditService.hasSuccessfulDialogAction("T-WEB-1", "public_form_new_appeal_notification")).thenReturn(false);
-
-        jdbcTemplate.update("""
-                INSERT INTO chat_history(id, ticket_id, sender, message, message_type, attachment, channel_id, timestamp)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                1L, "T-WEB-1", "user", "Нужна помощь по форме", "text", null, 11L, OffsetDateTime.now(ZoneOffset.UTC).toString());
-
-        watcher.watch();
-
-        verify(notificationService).notifyAllOperators(
-                "Новое обращение T-WEB-1: Нужна помощь по форме",
-                "/dialogs/T-WEB-1",
-                null
-        );
-        verify(alertQueueService, never()).notifyIncomingClientMessage(org.mockito.ArgumentMatchers.any(), anyString(), org.mockito.ArgumentMatchers.any());
-        verify(dialogAiAssistantService).processIncomingClientMessage("T-WEB-1", "Нужна помощь по форме", "text", null);
-    }
-
-    @Test
-    void watchSkipsDuplicateInitialPublicFormNotificationWhenPersistenceAlreadyAlertedQueue() {
-        when(dialogAuditService.hasSuccessfulDialogAction("T-WEB-2", "public_form_submit")).thenReturn(true);
-        when(dialogAuditService.hasSuccessfulDialogAction("T-WEB-2", "public_form_new_appeal_notification")).thenReturn(true);
-
-        jdbcTemplate.update("""
-                INSERT INTO chat_history(id, ticket_id, sender, message, message_type, attachment, channel_id, timestamp)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                1L, "T-WEB-2", "user", "Сообщение из формы без дубля", "text", null, 11L, OffsetDateTime.now(ZoneOffset.UTC).toString());
-
-        watcher.watch();
-
-        verify(notificationService, never()).notifyAllOperators(
-                eq("Новое обращение T-WEB-2: Сообщение из формы без дубля"),
-                eq("/dialogs/T-WEB-2"),
-                isNull()
-        );
-        verify(dialogAiAssistantService).processIncomingClientMessage("T-WEB-2", "Сообщение из формы без дубля", "text", null);
-    }
-
-    @Test
     void watchFallsBackToOperatorAudienceWhenFirstResponseOverdueQueueRoutingDeclines() {
         Channel channel = channel(12L, "Escalation Queue");
         when(sharedConfigService.loadSettings()).thenReturn(Map.of(

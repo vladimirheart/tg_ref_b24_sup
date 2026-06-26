@@ -114,25 +114,7 @@ public class OperatorNotificationWatcher {
                         if (!isExternalDialogEvent(sender, messageType)) {
                             continue;
                         }
-                        boolean initialPublicFormMessage = dialogAuditService.hasSuccessfulDialogAction(ticketId, "public_form_submit")
-                                && isFirstExternalMessage(ticketId, id);
-                        if (initialPublicFormMessage) {
-                            boolean alreadyNotified = dialogAuditService.hasSuccessfulDialogAction(ticketId, "public_form_new_appeal_notification");
-                            if (!alreadyNotified) {
-                                String text = "Новое обращение " + ticketId;
-                                if (StringUtils.hasText(message)) {
-                                    text += ": " + truncate(message, 100);
-                                }
-                                notificationService.notifyAllOperators(
-                                        text,
-                                        notificationService.buildDialogUrl(ticketId),
-                                        null
-                                );
-                            }
-                            dialogAiAssistantService.processIncomingClientMessage(ticketId, message, messageType, attachment);
-                            continue;
-                        }
-
+                        notifyIncomingClientMessage(ticketId, channel, message);
                         dialogAiAssistantService.processIncomingClientMessage(ticketId, message, messageType, attachment);
                     }
                     if (maxSeen > afterId) {
@@ -141,6 +123,26 @@ public class OperatorNotificationWatcher {
                     return null;
                 },
                 afterId
+        );
+    }
+
+    private void notifyIncomingClientMessage(String ticketId, Channel channel, String message) {
+        if (!StringUtils.hasText(ticketId)) {
+            return;
+        }
+        boolean handledByQueue = channel != null
+                && alertQueueService.notifyIncomingClientMessage(channel, ticketId, message);
+        if (handledByQueue) {
+            return;
+        }
+        String text = "Новое сообщение в обращении " + ticketId;
+        if (StringUtils.hasText(message)) {
+            text += ": " + truncate(message, 100);
+        }
+        notificationService.notifyAllOperators(
+                text,
+                notificationService.buildDialogUrl(ticketId),
+                null
         );
     }
 
@@ -302,27 +304,6 @@ public class OperatorNotificationWatcher {
             log.debug("Unable to resolve sla_target_minutes for notification watcher: {}", ex.getMessage());
         }
         return DEFAULT_FIRST_RESPONSE_TARGET_MINUTES;
-    }
-
-    private boolean isFirstExternalMessage(String ticketId, long messageId) {
-        if (!StringUtils.hasText(ticketId) || messageId <= 0) {
-            return false;
-        }
-        try {
-            Long count = jdbcTemplate.queryForObject("""
-                    SELECT COUNT(*)
-                      FROM chat_history
-                     WHERE ticket_id = ?
-                       AND id < ?
-                       AND lower(COALESCE(sender, '')) NOT IN ('operator', 'support', 'admin', 'system', 'ai_agent')
-                    """,
-                    Long.class,
-                    ticketId.trim(),
-                    messageId);
-            return count != null && count == 0L;
-        } catch (Exception ex) {
-            return false;
-        }
     }
 
     private OffsetDateTime parseTimestamp(String raw) {

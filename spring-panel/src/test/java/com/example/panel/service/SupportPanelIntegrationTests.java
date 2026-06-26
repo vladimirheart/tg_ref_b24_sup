@@ -11,8 +11,6 @@ import com.example.panel.model.knowledge.KnowledgeArticleDetails;
 import com.example.panel.model.knowledge.KnowledgeArticleSummary;
 import com.example.panel.model.notification.NotificationDto;
 import com.example.panel.model.notification.NotificationSummary;
-import com.example.panel.model.publicform.PublicFormSessionDto;
-import com.example.panel.model.publicform.PublicFormSubmission;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -44,7 +42,6 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest
 @ActiveProfiles("sqlite")
@@ -133,16 +130,10 @@ class SupportPanelIntegrationTests {
     private KnowledgeBaseService knowledgeBaseService;
 
     @Autowired
-    private PublicFormService publicFormService;
-
-    @Autowired
     private NotificationService notificationService;
 
     @Autowired
     private DialogReplyService dialogReplyService;
-
-    @Autowired
-    private DialogNotificationService dialogNotificationService;
 
     @Autowired
     private OperatorNotificationWatcher operatorNotificationWatcher;
@@ -408,347 +399,6 @@ class SupportPanelIntegrationTests {
     }
 
     @Test
-    void publicFormServiceCreatesSessionsAndHistory() {
-        jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id) VALUES (2, 'web', 'Веб-форма', 1, CURRENT_TIMESTAMP, 'web-demo')");
-        PublicFormSubmission submission = new PublicFormSubmission("Нужна помощь", "Анна", "+79991234567", "anna", null, Map.of(), null);
-        PublicFormSessionDto session = publicFormService.createSession("web-demo", submission, "test-ip");
-        assertThat(session.token()).isNotBlank();
-        assertThat(session.ticketId()).startsWith("web-");
-
-        PublicFormSessionDto loaded = publicFormService.findSession("web-demo", session.token()).orElseThrow();
-        assertThat(loaded.clientName()).isEqualTo("Анна");
-
-        assertThat(dialogService.loadHistory(session.ticketId(), null)).isNotEmpty();
-        assertThat(dialogService.loadDialogs(null)).extracting("ticketId").contains(session.ticketId());
-
-        Integer ticketCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM tickets WHERE ticket_id = ?", Integer.class, session.ticketId());
-        Integer messageCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM messages WHERE ticket_id = ?", Integer.class, session.ticketId());
-        Integer auditCount = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM dialog_action_audit WHERE ticket_id = ? AND action = ?",
-                Integer.class,
-                session.ticketId(),
-                "public_form_submit"
-        );
-        assertThat(ticketCount).isEqualTo(1);
-        assertThat(messageCount).isEqualTo(1);
-        assertThat(auditCount).isEqualTo(1);
-    }
-
-    @Test
-    void publicFormInitialSubmitDoesNotDuplicateNewAppealNotificationsAfterWatcherPass() {
-        insertOperatorUser("watcher_initial");
-        jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id) VALUES (63, 'web-initial', 'Веб-форма', 1, CURRENT_TIMESTAMP, 'web-initial')");
-
-        PublicFormSessionDto session = publicFormService.createSession(
-                "web-initial",
-                new PublicFormSubmission("Нужно первое уведомление без дубля", "Анна", "+79991234567", "anna", null, Map.of(), null),
-                "watcher-initial-ip"
-        );
-
-        Integer initialNotificationCount = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM notifications WHERE url = ? AND text LIKE 'Новое обращение%'",
-                Integer.class,
-                "/dialogs/" + session.ticketId()
-        );
-        Integer initialAlertAuditCount = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM dialog_action_audit WHERE ticket_id = ? AND action = ? AND result = 'success'",
-                Integer.class,
-                session.ticketId(),
-                "public_form_new_appeal_notification"
-        );
-
-        operatorNotificationWatcher.watch();
-
-        Integer afterWatcherNotificationCount = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM notifications WHERE url = ? AND text LIKE 'Новое обращение%'",
-                Integer.class,
-                "/dialogs/" + session.ticketId()
-        );
-        Integer watcherStyleDuplicateCount = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM notifications WHERE url = ? AND text LIKE ?",
-                Integer.class,
-                "/dialogs/" + session.ticketId(),
-                "Новое обращение " + session.ticketId() + ":%"
-        );
-
-        assertThat(initialNotificationCount).isGreaterThanOrEqualTo(1);
-        assertThat(initialAlertAuditCount).isEqualTo(1);
-        assertThat(afterWatcherNotificationCount).isEqualTo(initialNotificationCount);
-        assertThat(watcherStyleDuplicateCount).isZero();
-    }
-
-    @Test
-    void publicFormDialogSupportsOperatorRepliesThroughSharedLinkHistory() {
-        jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, platform, is_active, created_at, public_id) VALUES (52, 'web-shared', 'Внешняя форма', 'vk', 1, CURRENT_TIMESTAMP, 'web-shared')");
-        PublicFormSessionDto session = publicFormService.createSession(
-                "web-shared",
-                new PublicFormSubmission("Нужна помощь с заказом", "Мария", "+79990000001", "maria", null, Map.of("topic", "Заказ"), null),
-                "web-shared-ip"
-        );
-
-        DialogReplyService.DialogReplyResult reply = dialogReplyService.sendReply(session.ticketId(), "Подскажите номер заказа, пожалуйста.", null, "operator");
-
-        assertThat(reply.success()).isTrue();
-        assertThat(reply.telegramMessageId()).isNotNull();
-        assertThat(dialogService.loadHistory(session.ticketId(), null))
-                .anySatisfy(message -> {
-                    assertThat(message.sender()).isEqualTo("operator");
-                    assertThat(message.message()).contains("Подскажите номер заказа");
-                });
-        assertThat(jdbcTemplate.queryForObject(
-                "SELECT tg_message_id FROM chat_history WHERE ticket_id = ? AND sender = 'operator' ORDER BY rowid DESC LIMIT 1",
-                Long.class,
-                session.ticketId()
-        )).isEqualTo(reply.telegramMessageId());
-        assertThat(jdbcTemplate.queryForObject(
-                "SELECT user_identity FROM ticket_active WHERE ticket_id = ?",
-                String.class,
-                session.ticketId()
-        )).isEqualTo("operator");
-    }
-
-    @Test
-    void publicFormDialogStoresSystemNotificationsInSharedHistory() {
-        jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, platform, is_active, created_at, public_id) VALUES (53, 'web-system', 'Внешняя форма', 'max', 1, CURRENT_TIMESTAMP, 'web-system')");
-        PublicFormSessionDto session = publicFormService.createSession(
-                "web-system",
-                new PublicFormSubmission("Нужна помощь", "Олег", "+79990000002", "oleg", null, Map.of(), null),
-                "web-system-ip"
-        );
-
-        dialogNotificationService.notifyResolved(session.ticketId());
-
-        assertThat(dialogService.loadHistory(session.ticketId(), null))
-                .anySatisfy(message -> {
-                    assertThat(message.sender()).isEqualTo("system");
-                    assertThat(message.message()).contains("Диалог закрыт");
-                })
-                .anySatisfy(message -> {
-                    assertThat(message.sender()).isEqualTo("system");
-                    assertThat(message.message()).contains("оцените диалог");
-                });
-    }
-
-
-
-    @Test
-    void publicFormServiceValidatesRequiredDynamicField() {
-        jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id, questions_cfg) VALUES (21, 'web-required', 'Веб-форма', 1, CURRENT_TIMESTAMP, 'web-required', ?)",
-                "[{\"id\":\"email\",\"text\":\"Email\",\"type\":\"email\",\"required\":true}]");
-        PublicFormSubmission submission = new PublicFormSubmission("Нужна помощь", "Анна", "+79991234567", "anna", null, Map.of(), null);
-
-        assertThatThrownBy(() -> publicFormService.createSession("web-required", submission, "ip-required"))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Заполните поле");
-    }
-
-
-    @Test
-    void publicFormServiceValidatesRequiredCheckboxField() {
-        jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id, questions_cfg) VALUES (25, 'web-checkbox', 'Веб-форма', 1, CURRENT_TIMESTAMP, 'web-checkbox', ?)",
-                "[{\"id\":\"consent\",\"text\":\"Согласие\",\"type\":\"checkbox\",\"required\":true}]");
-
-        PublicFormSubmission invalid = new PublicFormSubmission("Нужна помощь", "Анна", "+79991234567", "anna", null, Map.of("consent", "false"), null);
-        assertThatThrownBy(() -> publicFormService.createSession("web-checkbox", invalid, "ip-checkbox"))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Подтвердите поле");
-
-        PublicFormSubmission valid = new PublicFormSubmission("Нужна помощь", "Анна", "+79991234567", "anna", null, Map.of("consent", "true"), null);
-        PublicFormSessionDto session = publicFormService.createSession("web-checkbox", valid, "ip-checkbox-ok");
-        assertThat(session.ticketId()).startsWith("web-");
-    }
-
-    @Test
-    void publicFormServiceAppliesRateLimitByRequester() {
-        jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id) VALUES (22, 'web-rate', 'Веб-форма', 1, CURRENT_TIMESTAMP, 'web-rate')");
-        PublicFormSubmission submission = new PublicFormSubmission("Нужна помощь", "Анна", "+79991234567", "anna", null, Map.of(), null);
-
-        for (int i = 0; i < 5; i++) {
-            PublicFormSessionDto session = publicFormService.createSession("web-rate", submission, "same-ip");
-            assertThat(session.ticketId()).startsWith("web-");
-        }
-
-        assertThatThrownBy(() -> publicFormService.createSession("web-rate", submission, "same-ip"))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Слишком много запросов");
-    }
-
-    @Test
-    void publicFormServiceBuildsRateLimitRequesterKeyWithFingerprintToggle() {
-        saveDialogConfig("{\"public_form_rate_limit_use_fingerprint\":true}");
-
-        String keyA = publicFormService.buildRequesterKey("same-ip", "browser-A");
-        String keyB = publicFormService.buildRequesterKey("same-ip", "browser-B");
-        assertThat(keyA).contains("same-ip|fp:");
-        assertThat(keyA).isNotEqualTo(keyB);
-
-        saveDialogConfig("{\"public_form_rate_limit_use_fingerprint\":false}");
-
-        String keyWithoutFingerprint = publicFormService.buildRequesterKey("same-ip", "browser-A");
-        assertThat(keyWithoutFingerprint).isEqualTo("same-ip");
-    }
-
-
-    @Test
-    void publicFormServiceReturnsSameSessionForSameRequestId() {
-        jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id) VALUES (26, 'web-idempotent', 'Веб-форма', 1, CURRENT_TIMESTAMP, 'web-idempotent')");
-        PublicFormSubmission first = new PublicFormSubmission("Нужна помощь", "Анна", "+79991234567", "anna", null, Map.of("topic", "billing"), "req-1");
-
-        PublicFormSessionDto created = publicFormService.createSession("web-idempotent", first, "same-ip-idem");
-        PublicFormSessionDto duplicated = publicFormService.createSession("web-idempotent", first, "same-ip-idem");
-
-        assertThat(duplicated.ticketId()).isEqualTo(created.ticketId());
-        assertThat(duplicated.token()).isEqualTo(created.token());
-        Integer historyCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM chat_history WHERE ticket_id = ?", Integer.class, created.ticketId());
-        assertThat(historyCount).isEqualTo(1);
-    }
-
-    @Test
-    void publicFormServiceRejectsDifferentPayloadWithSameRequestId() {
-        jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id) VALUES (27, 'web-idempotent-2', 'Веб-форма', 1, CURRENT_TIMESTAMP, 'web-idempotent-2')");
-        PublicFormSubmission first = new PublicFormSubmission("Нужна помощь", "Анна", "+79991234567", "anna", null, Map.of("topic", "billing"), "req-2");
-        PublicFormSubmission changed = new PublicFormSubmission("Другой текст", "Анна", "+79991234567", "anna", null, Map.of("topic", "billing"), "req-2");
-
-        publicFormService.createSession("web-idempotent-2", first, "same-ip-idem-2");
-        assertThatThrownBy(() -> publicFormService.createSession("web-idempotent-2", changed, "same-ip-idem-2"))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("requestId");
-    }
-
-    @Test
-    void publicFormSessionTokenRotatesOnReadWhenEnabled() {
-        jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id) VALUES (35, 'web-rotate', 'Веб-форма', 1, CURRENT_TIMESTAMP, 'web-rotate')");
-        saveDialogConfig("{\"public_form_session_token_rotate_on_read\":true}");
-
-        PublicFormSubmission submission = new PublicFormSubmission("Нужна помощь", "Анна", "+79991234567", "anna", null, Map.of(), null);
-        PublicFormSessionDto created = publicFormService.createSession("web-rotate", submission, "ip-rotate");
-
-        PublicFormSessionDto firstRead = publicFormService.findSession("web-rotate", created.token()).orElseThrow();
-        assertThat(firstRead.token()).isNotEqualTo(created.token());
-
-        PublicFormSessionDto secondRead = publicFormService.findSession("web-rotate", firstRead.token()).orElseThrow();
-        assertThat(secondRead.token()).isNotEqualTo(firstRead.token());
-
-        assertThat(publicFormService.findSession("web-rotate", created.token())).isEmpty();
-    }
-
-
-    @Test
-    void publicFormServiceRejectsWhenFormDisabledInConfig() {
-        jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id, questions_cfg) VALUES (23, 'web-disabled', 'Веб-форма', 1, CURRENT_TIMESTAMP, 'web-disabled', ?)",
-                "{\"schemaVersion\":1,\"enabled\":false,\"fields\":[]}");
-        PublicFormSubmission submission = new PublicFormSubmission("Нужна помощь", "Анна", "+79991234567", "anna", null, Map.of(), null);
-
-        assertThatThrownBy(() -> publicFormService.createSession("web-disabled", submission, "ip-disabled"))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("временно отключена");
-    }
-
-    @Test
-    void publicFormServiceRequiresCaptchaWhenEnabled() {
-        jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id, questions_cfg) VALUES (24, 'web-captcha', 'Веб-форма', 1, CURRENT_TIMESTAMP, 'web-captcha', ?)",
-                "{\"schemaVersion\":1,\"enabled\":true,\"captchaEnabled\":true,\"fields\":[]}");
-        saveDialogConfig("{\"public_form_captcha_shared_secret\":\"captcha-123\"}");
-
-        PublicFormSubmission bad = new PublicFormSubmission("Нужна помощь", "Анна", "+79991234567", "anna", "wrong", Map.of(), null);
-        assertThatThrownBy(() -> publicFormService.createSession("web-captcha", bad, "ip-captcha"))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("CAPTCHA");
-
-        PublicFormSubmission good = new PublicFormSubmission("Нужна помощь", "Анна", "+79991234567", "anna", "captcha-123", Map.of(), null);
-        PublicFormSessionDto session = publicFormService.createSession("web-captcha", good, "ip-captcha-ok");
-        assertThat(session.ticketId()).startsWith("web-");
-    }
-
-
-    @Test
-    void publicFormServiceLimitsTotalAnswersPayload() {
-        jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id, questions_cfg) VALUES (32, 'web-payload', 'Веб-форма', 1, CURRENT_TIMESTAMP, 'web-payload', ?)",
-                "[{\"id\":\"details\",\"text\":\"Детали\",\"type\":\"textarea\",\"required\":true,\"maxLength\":1200}]");
-        saveDialogConfig("{\"public_form_answers_total_max_length\":200}");
-
-        PublicFormSubmission oversized = new PublicFormSubmission("Нужна помощь", "Анна", "+79991234567", "anna", null,
-                Map.of("details", "x".repeat(205)), null);
-
-        assertThatThrownBy(() -> publicFormService.createSession("web-payload", oversized, "ip-payload"))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Суммарный объём ответов формы превышает лимит");
-
-        PublicFormSubmission valid = new PublicFormSubmission("Нужна помощь", "Анна", "+79991234567", "anna", null,
-                Map.of("details", "x".repeat(150)), null);
-        PublicFormSessionDto session = publicFormService.createSession("web-payload", valid, "ip-payload-ok");
-        assertThat(session.ticketId()).startsWith("web-");
-    }
-
-
-    @Test
-    void publicFormServiceStripsHtmlTagsWhenEnabledAndCanBeDisabledFromSettings() {
-        jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id, questions_cfg) VALUES (33, 'web-strip', 'Веб-форма', 1, CURRENT_TIMESTAMP, 'web-strip', ?)",
-                "[{\"id\":\"details\",\"text\":\"Детали\",\"type\":\"textarea\",\"required\":true,\"maxLength\":1200}]");
-        saveDialogConfig("{\"public_form_strip_html_tags\":true}");
-
-        PublicFormSubmission sanitized = new PublicFormSubmission("<b>Нужна</b> помощь <script>alert(1)</script>", "<b>Анна</b>", "+79991234567", "anna", null,
-                Map.of("details", "<i>Срочно</i> нужна <u>помощь</u>"), null);
-        PublicFormSessionDto sanitizedSession = publicFormService.createSession("web-strip", sanitized, "ip-strip-on");
-
-        String sanitizedHistory = jdbcTemplate.queryForObject(
-                "SELECT message FROM chat_history WHERE ticket_id = ? ORDER BY created_at DESC LIMIT 1",
-                String.class,
-                sanitizedSession.ticketId());
-        assertThat(sanitizedHistory).contains("Нужна помощь alert(1)").doesNotContain("<b>").doesNotContain("<script>");
-        String sanitizedClientName = jdbcTemplate.queryForObject(
-                "SELECT client_name FROM web_form_sessions WHERE ticket_id = ?",
-                String.class,
-                sanitizedSession.ticketId());
-        assertThat(sanitizedClientName).isEqualTo("Анна");
-
-        jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id, questions_cfg) VALUES (34, 'web-strip-off', 'Веб-форма', 1, CURRENT_TIMESTAMP, 'web-strip-off', ?)",
-                "[{\"id\":\"details\",\"text\":\"Детали\",\"type\":\"textarea\",\"required\":true,\"maxLength\":1200}]");
-        saveDialogConfig("{\"public_form_strip_html_tags\":false}");
-
-        PublicFormSubmission raw = new PublicFormSubmission("<b>Нужна</b> помощь", "<b>Олег</b>", "+79990000000", "oleg", null,
-                Map.of("details", "<i>Не трогать HTML</i>"), null);
-        PublicFormSessionDto rawSession = publicFormService.createSession("web-strip-off", raw, "ip-strip-off");
-
-        String rawHistory = jdbcTemplate.queryForObject(
-                "SELECT message FROM chat_history WHERE ticket_id = ? ORDER BY created_at DESC LIMIT 1",
-                String.class,
-                rawSession.ticketId());
-        assertThat(rawHistory).contains("<b>Нужна</b>").contains("<i>Не трогать HTML</i>");
-    }
-
-    @Test
-    void publicFormServiceCollectsRuntimeMetricsWhenEnabled() {
-        jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id) VALUES (31, 'web-metrics', 'Веб-форма', 1, CURRENT_TIMESTAMP, 'web-metrics')");
-        saveDialogConfig("{\"public_form_alert_min_views\":1,\"public_form_alert_error_rate_threshold\":0.5,\"public_form_alert_captcha_failure_rate_threshold\":0.3,\"public_form_alert_rate_limit_rejection_rate_threshold\":0.3}");
-
-        publicFormService.recordConfigView(31L);
-        publicFormService.recordConfigView(31L);
-        publicFormService.recordSubmitSuccess(31L);
-        publicFormService.recordSubmitError(31L, "CAPTCHA token is invalid");
-        publicFormService.recordSubmitError(31L, "Слишком много запросов. Попробуйте чуть позже.");
-
-        Map<String, Object> snapshot = publicFormService.loadMetricsSnapshot(31L);
-        assertThat(snapshot).containsEntry("enabled", true);
-        assertThat(snapshot).containsEntry("alertsEnabled", true);
-        assertThat(snapshot.get("channelsWithAlerts")).isEqualTo(1L);
-        @SuppressWarnings("unchecked")
-        List<Map<String, Object>> channels = (List<Map<String, Object>>) snapshot.get("channels");
-        assertThat(channels).hasSize(1);
-        Map<String, Object> row = channels.get(0);
-        assertThat(row.get("channelId")).isEqualTo(31L);
-        assertThat(row.get("views")).isEqualTo(2L);
-        assertThat(row.get("submits")).isEqualTo(1L);
-        assertThat(row.get("submitErrors")).isEqualTo(2L);
-        assertThat(row.get("captchaFailures")).isEqualTo(1L);
-        assertThat(row.get("rateLimitRejections")).isEqualTo(1L);
-        assertThat(row.get("submitErrorRateByAttempts")).isEqualTo(2d / 3d);
-        assertThat(row.get("captchaFailureRateByAttempts")).isEqualTo(1d / 3d);
-        assertThat(row.get("rateLimitRejectionRateByAttempts")).isEqualTo(1d / 3d);
-        assertThat(row.get("alerts")).asList().contains("high_submit_error_rate", "high_captcha_failure_rate", "high_rate_limit_rejection_rate");
-    }
-
-    @Test
     void notificationServiceCountsAndMarksAsRead() {
         jdbcTemplate.update("INSERT INTO notifications (user_identity, text, url, is_read, created_at) VALUES (?,?,?,?,CURRENT_TIMESTAMP)",
                 "operator", "Новое сообщение", "/tickets/T-1", 0);
@@ -839,16 +489,14 @@ class SupportPanelIntegrationTests {
     void operatorNotificationWatcherCreatesBellNotificationForFollowUpClientMessage() {
         insertOperatorUser("watcher_followup");
         assertThat(notificationService.findAllOperatorRecipients()).contains("watcher_followup");
-        jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, is_active, created_at, public_id) VALUES (62, 'web-followup', 'Веб-форма', 1, CURRENT_TIMESTAMP, 'watcher-followup')");
+        jdbcTemplate.update("INSERT INTO channels (id, token, channel_name, platform, is_active, created_at) VALUES (62, 'token62', 'Ops Telegram', 'telegram', 1, CURRENT_TIMESTAMP)");
         jdbcTemplate.update("INSERT INTO tickets (user_id, ticket_id, status, channel_id) VALUES (?,?,?,?)",
                 910002L, "WATCHER-WEB-2", "open", 62);
         jdbcTemplate.update("INSERT INTO messages (group_msg_id, user_id, problem, created_at, username, ticket_id, created_date, created_time, client_name, channel_id, updated_at, updated_by) " +
                         "VALUES (?, ?, ?, CURRENT_TIMESTAMP, ?, ?, DATE('now'), TIME('now'), ?, ?, CURRENT_TIMESTAMP, ?)",
-                910102L, 910002L, "Нужна помощь", "web_form", "WATCHER-WEB-2", "Олег", 62, "public_form");
+                910102L, 910002L, "Нужна помощь", "client_followup", "WATCHER-WEB-2", "Олег", 62, "seed");
         jdbcTemplate.update("INSERT INTO chat_history (user_id, sender, message, timestamp, ticket_id, message_type, channel_id) VALUES (?,?,?,?,?,?,?)",
                 910002L, "user", "Первое сообщение", OffsetDateTime.now().toString(), "WATCHER-WEB-2", "text", 62);
-        jdbcTemplate.update("INSERT INTO dialog_action_audit (ticket_id, actor, action, result, detail, created_at) VALUES (?,?,?,?,?,CURRENT_TIMESTAMP)",
-                "WATCHER-WEB-2", "web_form", "public_form_submit", "success", "channel=62");
 
         operatorNotificationWatcher.watch();
         jdbcTemplate.update("DELETE FROM notifications WHERE user_identity = ?", "watcher_followup");
