@@ -461,15 +461,9 @@
         return window.__settingsChannelEditorShellRuntime;
       }
       const runtime = createRuntime(options);
-      window.prepareChannelEditorSettingsTrigger = function prepareChannelEditorSettingsTrigger(trigger) {
-        return runtime.prepareChannelEditorSettingsTrigger(trigger);
-      };
-      window.resetChannelEditorSettingsModal = function resetChannelEditorSettingsModal() {
-        runtime.resetChannelEditorSettingsModal();
-      };
       window.SettingsPageCallbackRegistry?.registerMany({
-        prepareChannelEditorSettingsTrigger: window.prepareChannelEditorSettingsTrigger,
-        resetChannelEditorSettingsModal: window.resetChannelEditorSettingsModal,
+        prepareChannelEditorSettingsTrigger: runtime.prepareChannelEditorSettingsTrigger,
+        resetChannelEditorSettingsModal: runtime.resetChannelEditorSettingsModal,
       });
       window.__settingsChannelEditorShellRuntime = runtime;
       return runtime;

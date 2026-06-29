@@ -679,15 +679,9 @@
         return window.__settingsChannelsCatalogRuntime;
       }
       const runtime = createRuntime(options);
-      window.prepareAddChannelSettingsModal = function prepareAddChannelSettingsModal() {
-        return runtime.prepareAddChannelSettingsModal();
-      };
-      window.prepareVkWebhookSettingsTrigger = function prepareVkWebhookSettingsTrigger() {
-        return runtime.prepareVkWebhookSettingsTrigger();
-      };
       window.SettingsPageCallbackRegistry?.registerMany({
-        prepareAddChannelSettingsModal: window.prepareAddChannelSettingsModal,
-        prepareVkWebhookSettingsTrigger: window.prepareVkWebhookSettingsTrigger,
+        prepareAddChannelSettingsModal: runtime.prepareAddChannelSettingsModal,
+        prepareVkWebhookSettingsTrigger: runtime.prepareVkWebhookSettingsTrigger,
       });
       window.__settingsChannelsCatalogRuntime = runtime;
       return runtime;

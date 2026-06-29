@@ -1189,15 +1189,9 @@
         return window.__settingsIntegrationNetworkRuntime;
       }
       const runtime = createRuntime(options);
-      window.prepareIntegrationNetworkProfileSettingsTrigger = function prepareIntegrationNetworkProfileSettingsTrigger(trigger) {
-        return runtime.prepareIntegrationNetworkProfileSettingsTrigger(trigger);
-      };
-      window.resetIntegrationNetworkProfileSettingsModal = function resetIntegrationNetworkProfileSettingsModal() {
-        runtime.resetIntegrationNetworkProfileSettingsModal();
-      };
       window.SettingsPageCallbackRegistry?.registerMany({
-        prepareIntegrationNetworkProfileSettingsTrigger: window.prepareIntegrationNetworkProfileSettingsTrigger,
-        resetIntegrationNetworkProfileSettingsModal: window.resetIntegrationNetworkProfileSettingsModal,
+        prepareIntegrationNetworkProfileSettingsTrigger: runtime.prepareIntegrationNetworkProfileSettingsTrigger,
+        resetIntegrationNetworkProfileSettingsModal: runtime.resetIntegrationNetworkProfileSettingsModal,
       });
       window.__settingsIntegrationNetworkRuntime = runtime;
       return runtime;

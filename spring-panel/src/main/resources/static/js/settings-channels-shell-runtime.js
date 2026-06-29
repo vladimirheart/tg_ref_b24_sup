@@ -333,15 +333,9 @@
         return window.__settingsChannelsShellRuntime;
       }
       const runtime = createRuntime(options);
-      window.initChannelsManagement = function initChannelsManagement() {
-        runtime.initChannelsManagement();
-      };
-      window.addChannel = function addChannel() {
-        return runtime.addChannel();
-      };
       window.SettingsPageCallbackRegistry?.registerMany({
-        initChannelsManagement: window.initChannelsManagement,
-        addChannel: window.addChannel,
+        initChannelsManagement: runtime.initChannelsManagement,
+        addChannel: runtime.addChannel,
       });
       window.__settingsChannelsShellRuntime = runtime;
       return runtime;
