@@ -32,7 +32,9 @@
       : function fallbackGetCookieValue() { return ''; };
     const confirmDialog = typeof options.confirmDialog === 'function'
       ? options.confirmDialog
-      : function fallbackConfirmDialog(message) { return window.confirm(message); };
+      : function fallbackConfirmDialog(message) {
+          return typeof globalThis.confirm === 'function' ? globalThis.confirm(message) : false;
+        };
 
     const settingsDialogSlaCoreRuntime = window.SettingsDialogSlaCoreRuntime?.mount({
       getDialogConfig: () => options.dialogConfig || {},

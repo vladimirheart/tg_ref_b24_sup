@@ -9,6 +9,55 @@
     return typeof candidate === 'function' ? candidate : fallback;
   }
 
+  function getCommonUtils() {
+    const commonUtils = window.CommonUtils;
+    return commonUtils && typeof commonUtils === 'object' ? commonUtils : null;
+  }
+
+  function fallbackGetCookieValue(name) {
+    if (typeof document === 'undefined') {
+      return '';
+    }
+    const cookies = document.cookie ? document.cookie.split(';') : [];
+    const encodedName = encodeURIComponent(name) + '=';
+    for (const cookie of cookies) {
+      const trimmed = cookie.trim();
+      if (trimmed.startsWith(encodedName)) {
+        return decodeURIComponent(trimmed.slice(encodedName.length));
+      }
+    }
+    return '';
+  }
+
+  function fallbackShowNotification(message, type = 'info') {
+    const commonUtils = getCommonUtils();
+    if (typeof commonUtils?.showNotification === 'function') {
+      commonUtils.showNotification(message, type);
+      return;
+    }
+    console.log(message);
+  }
+
+  function fallbackShowPopup(message, type = 'info') {
+    const commonUtils = getCommonUtils();
+    if (typeof commonUtils?.showPopup === 'function') {
+      commonUtils.showPopup(message, type);
+      return;
+    }
+    fallbackShowNotification(message, type);
+  }
+
+  function fallbackConfirmDialog(message) {
+    if (typeof globalThis.confirm === 'function') {
+      return globalThis.confirm(message);
+    }
+    return false;
+  }
+
+  function fallbackRequestSettingsModalClose(source) {
+    return window.SettingsPageShell?.requestCloseModal?.(source);
+  }
+
   function parseRawConfig(source) {
     if (source && typeof source === 'object' && !(source instanceof HTMLElement)) {
       return source;
@@ -40,17 +89,11 @@
 
     const bootstrapRuntime = window.SettingsPageBootstrapRuntime?.mount({
       ...settingsPageConfig,
-      getCookieValue: resolveFunction(options.getCookieValue, window.getCookieValue),
-      requestSettingsModalClose: resolveFunction(
-        options.requestSettingsModalClose,
-        (source) => window.SettingsPageShell?.requestCloseModal?.(source),
-      ),
-      showPopup: resolveFunction(options.showPopup, window.showPopup),
-      showNotification: resolveFunction(options.showNotification, window.showNotification),
-      confirmDialog: resolveFunction(
-        options.confirmDialog,
-        typeof window.confirm === 'function' ? (message) => window.confirm(message) : null,
-      ),
+      getCookieValue: resolveFunction(options.getCookieValue, fallbackGetCookieValue),
+      requestSettingsModalClose: resolveFunction(options.requestSettingsModalClose, fallbackRequestSettingsModalClose),
+      showPopup: resolveFunction(options.showPopup, fallbackShowPopup),
+      showNotification: resolveFunction(options.showNotification, fallbackShowNotification),
+      confirmDialog: resolveFunction(options.confirmDialog, fallbackConfirmDialog),
     }) || null;
 
     return {
