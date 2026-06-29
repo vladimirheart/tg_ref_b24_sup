@@ -1219,6 +1219,27 @@
       window.removeAutoCloseTemplate = function removeAutoCloseTemplate(trigger) {
         return runtime.removeAutoCloseTemplate(trigger);
       };
+      window.SettingsPageCallbackRegistry?.registerMany({
+        addAutoCloseTemplate: window.addAutoCloseTemplate,
+        addCategoryTemplate: window.addCategoryTemplate,
+        addQuestionTemplate: window.addQuestionTemplate,
+        addCompletionTemplate: window.addCompletionTemplate,
+        addMacroTemplate: window.addMacroTemplate,
+        toggleDialogTemplateEditor: window.toggleDialogTemplateEditor,
+        removeCategoryTemplate: window.removeCategoryTemplate,
+        addCategoryRow: window.addCategoryRow,
+        removeCategoryRow: window.removeCategoryRow,
+        removeQuestionTemplate: window.removeQuestionTemplate,
+        addQuestionRow: window.addQuestionRow,
+        removeQuestionRow: window.removeQuestionRow,
+        removeCompletionTemplate: window.removeCompletionTemplate,
+        addCompletionRow: window.addCompletionRow,
+        removeCompletionRow: window.removeCompletionRow,
+        removeMacroTemplate: window.removeMacroTemplate,
+        addMacroTagRow: window.addMacroTagRow,
+        removeMacroTagRow: window.removeMacroTagRow,
+        removeAutoCloseTemplate: window.removeAutoCloseTemplate,
+      });
       runtime.initialize();
       window.__settingsDialogTemplatesRuntime = runtime;
       return runtime;

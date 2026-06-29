@@ -404,6 +404,7 @@
       }
       const runtime = createRuntime(options);
       runtime.initialize();
+      window.SettingsPageCallbackRegistry?.register('loadParameters', runtime.loadParameters);
       window.__settingsParametersShellRuntime = runtime;
       return runtime;
     },
