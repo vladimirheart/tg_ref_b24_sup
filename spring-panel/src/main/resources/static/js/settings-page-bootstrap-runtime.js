@@ -19,6 +19,7 @@
 
   function createRuntime(options = {}) {
     const escapeHtml = createEscapeHtml();
+    let settingsLocationsTreeRuntime = null;
 
     const showPopup = typeof options.showPopup === 'function'
       ? options.showPopup
@@ -90,7 +91,7 @@
       escapeHtml,
       requestSettingsModalClose: (source) => requestSettingsModalClose(source),
       confirmDialog: (message) => confirmDialog(message),
-      buildLocationsTree: () => window.SettingsLocationsTreeRuntime?.buildLocationsTree(),
+      buildLocationsTree: () => settingsLocationsTreeRuntime?.buildLocationsTree(),
     }) || null;
 
     const settingsNetworkProfilesRuntime = window.SettingsNetworkProfilesRuntime?.mount({
@@ -115,26 +116,29 @@
       initialSyncSettings: options.locationsIikoSyncSettingsInitial || {},
     }) || null;
 
-    const settingsLocationsTreeRuntime = window.SettingsLocationsTreeRuntime?.mount({
+    settingsLocationsTreeRuntime = window.SettingsLocationsTreeRuntime?.mount({
       initialLocations: options.locationsInitial || {},
       loadParameters: () => settingsParametersShellRuntime?.loadParameters(),
+      serializeLocationsIikoServerSources: () => settingsLocationsIikoRuntime?.serializeLocationsIikoServerSources?.() || [],
+      serializeLocationsIikoSyncSettings: () => settingsLocationsIikoRuntime?.serializeLocationsIikoSyncSettings?.() || {},
+      markLocationsIikoServerSourcesSaved: () => settingsLocationsIikoRuntime?.markLocationsIikoServerSourcesSaved?.(),
     }) || null;
 
     const settingsLocationWizardRuntime = window.SettingsLocationWizardRuntime?.mount({
       getParameterData: () => settingsParametersShellRuntime?.getParameterData() || {},
-      getLocationsState: () => window.SettingsLocationsTreeRuntime?.getState(),
+      getLocationsState: () => settingsLocationsTreeRuntime?.getState() || {},
       getCityOptionsFallback: () => options.cityOptions || [],
       loadParameters: () => settingsParametersShellRuntime?.loadParameters(),
       isParametersLoaded: () => settingsParametersShellRuntime?.isParametersLoaded() || false,
-      buildLocationsTree: () => window.SettingsLocationsTreeRuntime?.buildLocationsTree(),
-      setStatus: (level, parts, status) => window.SettingsLocationsTreeRuntime?.setStatus(level, parts, status),
-      writeNodeMeta: (mapName, key, meta) => window.SettingsLocationsTreeRuntime?.writeNodeMeta(mapName, key, meta),
+      buildLocationsTree: () => settingsLocationsTreeRuntime?.buildLocationsTree(),
+      setStatus: (level, parts, status) => settingsLocationsTreeRuntime?.setStatus(level, parts, status),
+      writeNodeMeta: (mapName, key, meta) => settingsLocationsTreeRuntime?.writeNodeMeta(mapName, key, meta),
       makeCityMetaKey: (business, typeName, cityName) =>
-        window.SettingsLocationsTreeRuntime?.makeCityMetaKey(business, typeName, cityName),
+        settingsLocationsTreeRuntime?.makeCityMetaKey(business, typeName, cityName),
       makeLocationMetaKey: (business, typeName, cityName, locationName) =>
-        window.SettingsLocationsTreeRuntime?.makeLocationMetaKey(business, typeName, cityName, locationName),
-      sortArrayAlphabetically: (values) => window.SettingsLocationsTreeRuntime?.sortArrayAlphabetically(values) || [],
-      defaultLocationStatus: window.SettingsLocationsTreeRuntime?.getDefaultLocationStatus(),
+        settingsLocationsTreeRuntime?.makeLocationMetaKey(business, typeName, cityName, locationName),
+      sortArrayAlphabetically: (values) => settingsLocationsTreeRuntime?.sortArrayAlphabetically(values) || [],
+      defaultLocationStatus: settingsLocationsTreeRuntime?.getDefaultLocationStatus(),
     }) || null;
 
     const settingsChannelsShellRuntime = window.SettingsChannelsShellRuntime?.mount({
@@ -153,7 +157,7 @@
     const settingsAdminShellRuntime = window.SettingsAdminShellRuntime?.mount({
       reportingConfigInitial: options.reportingConfigInitial || {},
       managerLocationBindingsInitial: options.managerLocationBindingsInitial || [],
-      getLocationsState: () => window.SettingsLocationsTreeRuntime?.getState(),
+      getLocationsState: () => settingsLocationsTreeRuntime?.getState() || {},
     }) || null;
 
     const settingsSaveRuntime = window.SettingsSaveRuntime?.mount({
@@ -165,10 +169,10 @@
       collectStatuses: () => Array.from(document.querySelectorAll('#statusesList .status-input'))
         .map((input) => input.value.trim())
         .filter(Boolean),
-      getLocationsState: () => window.SettingsLocationsTreeRuntime?.getState() || {},
-      serializeLocationsIikoServerSources: () => window.serializeLocationsIikoServerSources(),
-      serializeLocationsIikoSyncSettings: () => window.serializeLocationsIikoSyncSettings(),
-      markLocationsIikoServerSourcesSaved: () => window.markLocationsIikoServerSourcesSaved(),
+      getLocationsState: () => settingsLocationsTreeRuntime?.getState() || {},
+      serializeLocationsIikoServerSources: () => settingsLocationsIikoRuntime?.serializeLocationsIikoServerSources?.() || [],
+      serializeLocationsIikoSyncSettings: () => settingsLocationsIikoRuntime?.serializeLocationsIikoSyncSettings?.() || {},
+      markLocationsIikoServerSourcesSaved: () => settingsLocationsIikoRuntime?.markLocationsIikoServerSourcesSaved?.(),
       showPopup: (message) => showPopup(message),
       getSaveUrl: () => '/settings',
     }) || null;
