@@ -441,8 +441,7 @@
     if (typeof runtimeCallback === 'function') {
       return runtimeCallback;
     }
-    const legacyCallback = window[normalizedName];
-    return typeof legacyCallback === 'function' ? legacyCallback : null;
+    return null;
   }
 
   function isSettingsPage() {
