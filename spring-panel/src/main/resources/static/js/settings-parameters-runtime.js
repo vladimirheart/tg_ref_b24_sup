@@ -81,25 +81,33 @@
     function syncParameterData(data) {
       if (typeof options.syncParameterData === 'function') {
         options.syncParameterData(data);
+        return;
       }
+      window.SettingsParametersShellRuntime?.syncParameterData?.(data);
     }
 
     function renderPartnerContacts() {
       if (typeof options.renderPartnerContacts === 'function') {
         options.renderPartnerContacts();
+        return;
       }
+      window.SettingsPartnerContactsRuntime?.renderPartnerContacts?.();
     }
 
     function renderLegalEntities() {
       if (typeof options.renderLegalEntities === 'function') {
         options.renderLegalEntities();
+        return;
       }
+      window.SettingsLegalEntitiesRuntime?.renderLegalEntities?.();
     }
 
     function renderItConnectionsTable() {
       if (typeof options.renderItConnectionsTable === 'function') {
         options.renderItConnectionsTable();
+        return;
       }
+      window.SettingsItConnectionsRuntime?.renderItConnectionsTable?.();
     }
 
     function confirmAction(message) {
@@ -870,5 +878,34 @@
     },
   };
 
-  window.SettingsParametersRuntime = Object.freeze(api);
+  window.SettingsParametersRuntime = Object.freeze({
+    ...api,
+    deleteParameter(...args) {
+      return window.__settingsParametersRuntime?.deleteParameter?.(...args);
+    },
+    prepareCityParameterSettingsTrigger(...args) {
+      return window.__settingsParametersRuntime?.prepareCityParameterSettingsTrigger?.(...args);
+    },
+    prepareParameterSettingsTrigger(...args) {
+      return window.__settingsParametersRuntime?.prepareParameterSettingsTrigger?.(...args);
+    },
+    renderCityCard(...args) {
+      return window.__settingsParametersRuntime?.renderCityCard?.(...args);
+    },
+    renderCurrentParameterModal(...args) {
+      return window.__settingsParametersRuntime?.renderCurrentParameterModal?.(...args);
+    },
+    renderParameterModal(...args) {
+      return window.__settingsParametersRuntime?.renderParameterModal?.(...args);
+    },
+    renderParameters(...args) {
+      return window.__settingsParametersRuntime?.renderParameters?.(...args);
+    },
+    resetParameterItemsSettingsModal(...args) {
+      return window.__settingsParametersRuntime?.resetParameterItemsSettingsModal?.(...args);
+    },
+    restoreParameter(...args) {
+      return window.__settingsParametersRuntime?.restoreParameter?.(...args);
+    },
+  });
 }());

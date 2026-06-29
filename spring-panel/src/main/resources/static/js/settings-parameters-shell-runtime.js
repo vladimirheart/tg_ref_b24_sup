@@ -410,5 +410,34 @@
     },
   };
 
-  window.SettingsParametersShellRuntime = Object.freeze(api);
+  window.SettingsParametersShellRuntime = Object.freeze({
+    ...api,
+    getParameterData(...args) {
+      return window.__settingsParametersShellRuntime?.getParameterData?.(...args);
+    },
+    initialize(...args) {
+      return window.__settingsParametersShellRuntime?.initialize?.(...args);
+    },
+    isParametersLoaded(...args) {
+      return window.__settingsParametersShellRuntime?.isParametersLoaded?.(...args);
+    },
+    loadParameters(...args) {
+      return window.__settingsParametersShellRuntime?.loadParameters?.(...args);
+    },
+    renderCityCard(...args) {
+      return window.__settingsParametersShellRuntime?.renderCityCard?.(...args);
+    },
+    renderCurrentParameterModal(...args) {
+      return window.__settingsParametersShellRuntime?.renderCurrentParameterModal?.(...args);
+    },
+    renderItConnectionsTable(...args) {
+      return window.__settingsParametersShellRuntime?.renderItConnectionsTable?.(...args);
+    },
+    renderParameters(...args) {
+      return window.__settingsParametersShellRuntime?.renderParameters?.(...args);
+    },
+    syncParameterData(...args) {
+      return window.__settingsParametersShellRuntime?.syncParameterData?.(...args);
+    },
+  });
 }());

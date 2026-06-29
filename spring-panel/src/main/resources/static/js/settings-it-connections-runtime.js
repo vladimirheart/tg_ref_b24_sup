@@ -86,19 +86,25 @@
     function syncParameterData(data) {
       if (typeof options.syncParameterData === 'function') {
         options.syncParameterData(data);
+        return;
       }
+      window.SettingsParametersShellRuntime?.syncParameterData?.(data);
     }
 
     function rerenderParameters() {
       if (typeof options.renderParameters === 'function') {
         options.renderParameters({ forceBodies: true });
+        return;
       }
+      window.SettingsParametersShellRuntime?.renderParameters?.({ forceBodies: true });
     }
 
     function rerenderCurrentParameterModal() {
       if (typeof options.renderCurrentParameterModal === 'function') {
         options.renderCurrentParameterModal();
+        return;
       }
+      window.SettingsParametersShellRuntime?.renderCurrentParameterModal?.();
     }
 
     function requestClose(source) {
@@ -129,7 +135,9 @@
     function renderItEquipmentTable() {
       if (typeof options.renderItEquipmentTable === 'function') {
         options.renderItEquipmentTable();
+        return;
       }
+      window.SettingsItEquipmentRuntime?.renderItEquipmentTable?.();
     }
 
     function renderUsageLink(item) {
@@ -647,5 +655,16 @@
     },
   };
 
-  window.SettingsItConnectionsRuntime = Object.freeze(api);
+  window.SettingsItConnectionsRuntime = Object.freeze({
+    ...api,
+    renderItConnectionsTable(...args) {
+      return window.__settingsItConnectionsRuntime?.renderItConnectionsTable?.(...args);
+    },
+    addItConnectionRow(...args) {
+      return window.__settingsItConnectionsRuntime?.addItConnectionRow?.(...args);
+    },
+    prepareItConnectionAddSettingsModal(...args) {
+      return window.__settingsItConnectionsRuntime?.prepareItConnectionAddSettingsModal?.(...args);
+    },
+  });
 }());

@@ -108,13 +108,17 @@
     function syncParameterData(data) {
       if (typeof options.syncParameterData === 'function') {
         options.syncParameterData(data);
+        return;
       }
+      window.SettingsParametersShellRuntime?.syncParameterData?.(data);
     }
 
     function rerenderParameters() {
       if (typeof options.renderParameters === 'function') {
         options.renderParameters({ forceBodies: true });
+        return;
       }
+      window.SettingsParametersShellRuntime?.renderParameters?.({ forceBodies: true });
     }
 
     function requestClose(source) {
@@ -2624,5 +2628,31 @@
     },
   };
 
-  window.SettingsPartnerContactsRuntime = Object.freeze(api);
+  window.SettingsPartnerContactsRuntime = Object.freeze({
+    ...api,
+    clearPartnerContactEdits(...args) {
+      return window.__settingsPartnerContactsRuntime?.clearPartnerContactEdits?.(...args);
+    },
+    normalizePartnerContactExtra(...args) {
+      return window.__settingsPartnerContactsRuntime?.normalizePartnerContactExtra?.(...args);
+    },
+    preparePartnerContactDraftSettingsTrigger(...args) {
+      return window.__settingsPartnerContactsRuntime?.preparePartnerContactDraftSettingsTrigger?.(...args);
+    },
+    preparePartnerContactEditorSettingsTrigger(...args) {
+      return window.__settingsPartnerContactsRuntime?.preparePartnerContactEditorSettingsTrigger?.(...args);
+    },
+    renderPartnerContacts(...args) {
+      return window.__settingsPartnerContactsRuntime?.renderPartnerContacts?.(...args);
+    },
+    renderPartnerContactsSettingsModal(...args) {
+      return window.__settingsPartnerContactsRuntime?.renderPartnerContactsSettingsModal?.(...args);
+    },
+    resetPartnerContactEditorSettingsModal(...args) {
+      return window.__settingsPartnerContactsRuntime?.resetPartnerContactEditorSettingsModal?.(...args);
+    },
+    resetPartnerContactsSettingsModal(...args) {
+      return window.__settingsPartnerContactsRuntime?.resetPartnerContactsSettingsModal?.(...args);
+    },
+  });
 }());

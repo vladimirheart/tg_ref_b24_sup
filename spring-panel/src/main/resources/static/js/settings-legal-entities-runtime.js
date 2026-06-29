@@ -47,19 +47,25 @@
     function syncParameterData(data) {
       if (typeof options.syncParameterData === 'function') {
         options.syncParameterData(data);
+        return;
       }
+      window.SettingsParametersShellRuntime?.syncParameterData?.(data);
     }
 
     function rerenderParameters() {
       if (typeof options.renderParameters === 'function') {
         options.renderParameters({ forceBodies: true });
+        return;
       }
+      window.SettingsParametersShellRuntime?.renderParameters?.({ forceBodies: true });
     }
 
     function rerenderItConnectionsTable() {
       if (typeof options.renderItConnectionsTable === 'function') {
         options.renderItConnectionsTable();
+        return;
       }
+      window.SettingsItConnectionsRuntime?.renderItConnectionsTable?.();
     }
 
     function deleteParameter(id, type, trigger) {
@@ -450,5 +456,25 @@
     },
   };
 
-  window.SettingsLegalEntitiesRuntime = Object.freeze(api);
+  window.SettingsLegalEntitiesRuntime = Object.freeze({
+    ...api,
+    renderLegalEntities(...args) {
+      return window.__settingsLegalEntitiesRuntime?.renderLegalEntities?.(...args);
+    },
+    resetLegalEntitiesState(...args) {
+      return window.__settingsLegalEntitiesRuntime?.resetLegalEntitiesState?.(...args);
+    },
+    addLegalEntityDraft(...args) {
+      return window.__settingsLegalEntitiesRuntime?.addLegalEntityDraft?.(...args);
+    },
+    handleActionClick(...args) {
+      return window.__settingsLegalEntitiesRuntime?.handleActionClick?.(...args);
+    },
+    handleContainerInput(...args) {
+      return window.__settingsLegalEntitiesRuntime?.handleContainerInput?.(...args);
+    },
+    handleContainerChange(...args) {
+      return window.__settingsLegalEntitiesRuntime?.handleContainerChange?.(...args);
+    },
+  });
 }());
