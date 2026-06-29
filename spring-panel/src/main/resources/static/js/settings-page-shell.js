@@ -1543,10 +1543,6 @@
     if (!(modal instanceof HTMLElement)) {
       return '';
     }
-    const inlineCallbackName = String(modal.dataset[dataKey] || '').trim();
-    if (inlineCallbackName) {
-      return inlineCallbackName;
-    }
     if (!modal.id) {
       return '';
     }
@@ -1692,16 +1688,7 @@
   }
 
   function runSettingsDomainBootstrap() {
-    const shellRoot = getSettingsShellRoot();
-    const bootstrapAttr = shellRoot ? String(shellRoot.dataset.settingsBootstrap || '') : '';
-    const bootstrapFns = bootstrapAttr
-      ? bootstrapAttr
-        .split(',')
-        .map((fnName) => fnName.trim())
-        .filter(Boolean)
-      : DEFAULT_SETTINGS_BOOTSTRAP_FUNCTIONS;
-
-    bootstrapFns.forEach((fnName) => {
+    DEFAULT_SETTINGS_BOOTSTRAP_FUNCTIONS.forEach((fnName) => {
       const fn = resolveSettingsCallback(fnName);
       if (typeof fn === 'function') {
         fn();
@@ -1710,15 +1697,8 @@
   }
 
   function readSettingsUrlRequest(params) {
-    const shellRoot = getSettingsShellRoot();
-    const openParam = shellRoot
-      ? String(shellRoot.dataset.settingsUrlOpenParam || DEFAULT_SETTINGS_URL_PARAMS.open).trim() || DEFAULT_SETTINGS_URL_PARAMS.open
-      : DEFAULT_SETTINGS_URL_PARAMS.open;
-    const legacyParam = shellRoot
-      ? String(shellRoot.dataset.settingsUrlLegacyParam || DEFAULT_SETTINGS_URL_PARAMS.legacy).trim() || DEFAULT_SETTINGS_URL_PARAMS.legacy
-      : DEFAULT_SETTINGS_URL_PARAMS.legacy;
-    const primaryTarget = String(params.get(openParam) || '').trim().toLowerCase();
-    const legacyTarget = String(params.get(legacyParam) || '').trim().toLowerCase();
+    const primaryTarget = String(params.get(DEFAULT_SETTINGS_URL_PARAMS.open) || '').trim().toLowerCase();
+    const legacyTarget = String(params.get(DEFAULT_SETTINGS_URL_PARAMS.legacy) || '').trim().toLowerCase();
     return primaryTarget || legacyTarget;
   }
 
@@ -1772,10 +1752,6 @@
     if (!(modal instanceof HTMLElement)) {
       return '';
     }
-    const inlineTabId = String(modal.dataset.settingsResetTab || '').trim();
-    if (inlineTabId) {
-      return inlineTabId;
-    }
     if (!modal.id) {
       return '';
     }
@@ -1785,13 +1761,6 @@
   function resolveSettingsFocusConfig(modal) {
     if (!(modal instanceof HTMLElement)) {
       return null;
-    }
-    const inlineSelector = String(modal.dataset.settingsFocusTarget || '').trim();
-    if (inlineSelector) {
-      return {
-        selector: inlineSelector,
-        select: Object.prototype.hasOwnProperty.call(modal.dataset, 'settingsFocusSelect'),
-      };
     }
     if (!modal.id) {
       return null;
@@ -1816,18 +1785,6 @@
     if (!(modal instanceof HTMLElement)) {
       return null;
     }
-    const inlineExpectedValue = String(modal.dataset.settingsQueryOpen || '').trim().toLowerCase();
-    if (inlineExpectedValue) {
-      const queryParam = String(modal.dataset.settingsQueryParam || DEFAULT_SETTINGS_URL_PARAMS.open).trim() || DEFAULT_SETTINGS_URL_PARAMS.open;
-      const clearParam = Object.prototype.hasOwnProperty.call(modal.dataset, 'settingsQueryClearParam')
-        ? String(modal.dataset.settingsQueryClearParam || queryParam).trim() || queryParam
-        : '';
-      return {
-        queryParam,
-        expectedValue: inlineExpectedValue,
-        clearParam,
-      };
-    }
     if (!modal.id) {
       return null;
     }
@@ -1837,10 +1794,6 @@
   function resolveSettingsUrlModalName(modal) {
     if (!(modal instanceof HTMLElement)) {
       return '';
-    }
-    const inlineName = String(modal.dataset.settingsUrlModal || '').trim().toLowerCase();
-    if (inlineName) {
-      return inlineName;
     }
     if (!modal.id) {
       return '';
