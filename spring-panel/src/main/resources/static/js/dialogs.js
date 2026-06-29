@@ -874,7 +874,6 @@
     createdAt: '—',
   };
   let selectedCategories = new Set();
-  let activeReplyToTelegramId = null;
   const selectedTicketIds = new Set();
   let detailsCategoryModalState = {
     suppressDetailsReset: false,
@@ -1409,30 +1408,11 @@
   }
 
   function resetReplyTarget() {
-    activeReplyToTelegramId = null;
-    if (replyTarget) {
-      replyTarget.classList.add('d-none');
-    }
-    if (replyTargetText) {
-      replyTargetText.textContent = '';
-    }
-    if (detailsReplyText) {
-      detailsReplyText.placeholder = 'Введите ответ...';
-    }
+    dialogsDetailsHistoryRuntime?.resetReplyTarget();
   }
 
   function setReplyTarget(messageId, preview) {
-    activeReplyToTelegramId = messageId;
-    if (detailsReplyText) {
-      detailsReplyText.placeholder = `Ответ на сообщение #${messageId}`;
-    }
-    if (replyTarget) {
-      replyTarget.classList.remove('d-none');
-    }
-    if (replyTargetText) {
-      const safePreview = String(preview || '').trim();
-      replyTargetText.textContent = safePreview || `Сообщение #${messageId}`;
-    }
+    dialogsDetailsHistoryRuntime?.setReplyTarget(messageId, preview);
   }
 
   function resetWorkspaceReplyTarget(options = {}) {
@@ -1823,7 +1803,11 @@
       detailsHistory,
       detailsReplyText,
       detailsReplySend,
+      detailsReplyMediaTrigger,
       detailsReplyMedia,
+      replyTarget,
+      replyTargetText,
+      replyTargetClear,
       mediaPreviewModalEl,
       mediaPreviewModal,
       mediaPreviewVideo,
@@ -1936,7 +1920,7 @@
     getResponsibleColumnIndex: () => table.querySelector('th[data-column-key="responsible"]')?.cellIndex ?? -1,
     syncMyDialogsStateFromTable,
     renderMyDialogsPanel,
-    getActiveReplyToTelegramId: () => activeReplyToTelegramId,
+    getActiveReplyToTelegramId: () => dialogsDetailsHistoryRuntime?.getActiveReplyToTelegramId?.() ?? null,
     resetReplyTarget,
     getActiveDialogContext: () => activeDialogContext,
     operatorDisplayName: OPERATOR_DISPLAY_NAME,
@@ -3909,78 +3893,7 @@
   }
 
 
-  if (detailsHistory) {
-    detailsHistory.addEventListener('click', async (event) => {
-      const loadPreviousButton = event.target.closest('button[data-action="load-previous-history"]');
-      if (loadPreviousButton) {
-        await loadPreviousDialogHistory();
-        return;
-      }
-      if (dialogsDetailsHistoryRuntime?.handleMediaSurfaceClick(event)) {
-        return;
-      }
-      const menuToggle = event.target.closest('[data-action-menu]');
-      if (menuToggle) {
-        const menu = menuToggle.closest('.chat-message-menu');
-        if (!menu) return;
-        detailsHistory.querySelectorAll('.chat-message-menu.is-open').forEach((openMenu) => {
-          if (openMenu !== menu) openMenu.classList.remove('is-open');
-        });
-        menu.classList.toggle('is-open');
-        return;
-      }
-      const button = event.target.closest('button[data-action]');
-      const ticketId = resolveDetailsTicketId();
-      if (!button || !ticketId) return;
-      const menu = button.closest('.chat-message-menu');
-      if (menu) menu.classList.remove('is-open');
-      const messageId = Number.parseInt(button.dataset.messageId, 10);
-      if (!Number.isFinite(messageId)) return;
-      const action = button.dataset.action;
-      if (action === 'reply') {
-        const messageNode = button.closest('.chat-message');
-        const previewText = messageNode?.querySelector('.chat-message-reply-source')?.textContent
-          || messageNode?.querySelector('.chat-message-body')?.textContent
-          || '';
-        setReplyTarget(messageId, previewText);
-        if (detailsReplyText) {
-          detailsReplyText.focus();
-        }
-        return;
-      }
-      if (action === 'edit') {
-        const current = button.closest('.chat-message')?.querySelector('.chat-message-body')?.textContent || '';
-        const nextText = window.prompt('Введите новый текст сообщения:', current.trim());
-        if (!nextText || !nextText.trim()) return;
-        const resp = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/edit`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ telegramMessageId: messageId, message: nextText.trim() }),
-        });
-        const data = await resp.json();
-        if (!resp.ok || !data?.success) throw new Error(data?.error || `Ошибка ${resp.status}`);
-        await refreshHistory();
-        return;
-      }
-      if (action === 'delete') {
-        if (!window.confirm('Удалить сообщение у клиента?')) return;
-        const resp = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/delete`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ telegramMessageId: messageId }),
-        });
-        const data = await resp.json();
-        if (!resp.ok || !data?.success) throw new Error(data?.error || `Ошибка ${resp.status}`);
-        await refreshHistory();
-      }
-    });
-  }
-
-  document.addEventListener('click', (event) => {
-    if (!detailsHistory) return;
-    if (event.target.closest('.chat-message-menu')) return;
-    detailsHistory.querySelectorAll('.chat-message-menu.is-open').forEach((menu) => menu.classList.remove('is-open'));
-  });
+  runDialogsInitStep('dialogsDetailsHistoryRuntime.bindHistoryInteractionEvents', () => dialogsDetailsHistoryRuntime?.bindHistoryInteractionEvents());
 
   if (dialogFontSizeRange) {
     dialogFontSizeRange.addEventListener('input', () => {
@@ -4468,24 +4381,6 @@
     });
   }
 
-  if (detailsReplyMediaTrigger && detailsReplyMedia) {
-    detailsReplyMediaTrigger.addEventListener('click', () => {
-      detailsReplyMedia.click();
-    });
-    detailsReplyMedia.addEventListener('change', () => {
-      sendMediaFiles(detailsReplyMedia.files);
-    });
-  }
-
-  if (replyTargetClear) {
-    replyTargetClear.addEventListener('click', () => {
-      resetReplyTarget();
-      if (detailsReplyText) {
-        detailsReplyText.focus();
-      }
-    });
-  }
-
   if (mediaPreviewZoomIn) {
     mediaPreviewZoomIn.addEventListener('click', () => {
       dialogsDetailsHistoryRuntime?.adjustMediaPreviewZoom('in');
@@ -4495,12 +4390,6 @@
   if (mediaPreviewZoomOut) {
     mediaPreviewZoomOut.addEventListener('click', () => {
       dialogsDetailsHistoryRuntime?.adjustMediaPreviewZoom('out');
-    });
-  }
-
-  if (mediaPreviewModalEl) {
-    mediaPreviewModalEl.addEventListener('hidden.bs.modal', () => {
-      resetMediaPreview();
     });
   }
 

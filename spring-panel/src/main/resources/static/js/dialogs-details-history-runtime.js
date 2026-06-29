@@ -17,6 +17,7 @@
       activeAudioSource: null,
       mediaImageScale: 1,
       historyPollTimer: null,
+      activeReplyToTelegramId: null,
     };
 
     function getActiveDialogState() {
@@ -68,6 +69,44 @@
       if (typeof options.showNotification === 'function') {
         options.showNotification(message, type);
       }
+    }
+
+    function resetReplyTarget() {
+      state.activeReplyToTelegramId = null;
+      if (elements.replyTarget) {
+        elements.replyTarget.classList.add('d-none');
+      }
+      if (elements.replyTargetText) {
+        elements.replyTargetText.textContent = '';
+      }
+      if (elements.detailsReplyText) {
+        elements.detailsReplyText.placeholder = 'Введите ответ...';
+      }
+    }
+
+    function setReplyTarget(messageId, preview) {
+      const normalizedMessageId = Number.parseInt(messageId, 10);
+      if (!Number.isFinite(normalizedMessageId)) {
+        resetReplyTarget();
+        return;
+      }
+      state.activeReplyToTelegramId = normalizedMessageId;
+      if (elements.detailsReplyText) {
+        elements.detailsReplyText.placeholder = `Ответ на сообщение #${normalizedMessageId}`;
+      }
+      if (elements.replyTarget) {
+        elements.replyTarget.classList.remove('d-none');
+      }
+      if (elements.replyTargetText) {
+        const safePreview = String(preview || '').trim();
+        elements.replyTargetText.textContent = safePreview || `Сообщение #${normalizedMessageId}`;
+      }
+    }
+
+    function getActiveReplyToTelegramId() {
+      return Number.isFinite(Number(state.activeReplyToTelegramId))
+        ? Number(state.activeReplyToTelegramId)
+        : null;
     }
 
     function resetMediaPreview() {
@@ -746,7 +785,120 @@
       return false;
     }
 
+    function closeHistoryActionMenus(exceptMenu = null) {
+      if (!elements.detailsHistory) return;
+      elements.detailsHistory.querySelectorAll('.chat-message-menu.is-open').forEach((menu) => {
+        if (menu !== exceptMenu) {
+          menu.classList.remove('is-open');
+        }
+      });
+    }
+
+    function bindHistoryInteractionEvents() {
+      if (elements.detailsHistory) {
+        elements.detailsHistory.addEventListener('click', async (event) => {
+          const loadPreviousButton = event.target.closest('button[data-action="load-previous-history"]');
+          if (loadPreviousButton) {
+            await loadPreviousDialogHistory();
+            return;
+          }
+          if (handleMediaSurfaceClick(event)) {
+            return;
+          }
+          const menuToggle = event.target.closest('[data-action-menu]');
+          if (menuToggle) {
+            const menu = menuToggle.closest('.chat-message-menu');
+            if (!menu) return;
+            closeHistoryActionMenus(menu);
+            menu.classList.toggle('is-open');
+            return;
+          }
+          const button = event.target.closest('button[data-action]');
+          const ticketId = String(getActiveDialogState().ticketId || '').trim();
+          if (!button || !ticketId) return;
+          const menu = button.closest('.chat-message-menu');
+          if (menu) menu.classList.remove('is-open');
+          const messageId = Number.parseInt(button.dataset.messageId, 10);
+          if (!Number.isFinite(messageId)) return;
+          const action = button.dataset.action;
+          if (action === 'reply') {
+            const messageNode = button.closest('.chat-message');
+            const previewText = messageNode?.querySelector('.chat-message-reply-source')?.textContent
+              || messageNode?.querySelector('.chat-message-body')?.textContent
+              || '';
+            setReplyTarget(messageId, previewText);
+            if (elements.detailsReplyText) {
+              elements.detailsReplyText.focus();
+            }
+            return;
+          }
+          if (action === 'edit') {
+            const current = button.closest('.chat-message')?.querySelector('.chat-message-body')?.textContent || '';
+            const nextText = window.prompt('Введите новый текст сообщения:', current.trim());
+            if (!nextText || !nextText.trim()) return;
+            const response = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/edit`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ telegramMessageId: messageId, message: nextText.trim() }),
+            });
+            const payload = await response.json();
+            if (!response.ok || !payload?.success) {
+              throw new Error(payload?.error || `Ошибка ${response.status}`);
+            }
+            await refreshHistory();
+            return;
+          }
+          if (action === 'delete') {
+            if (!window.confirm('Удалить сообщение у клиента?')) return;
+            const response = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/delete`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ telegramMessageId: messageId }),
+            });
+            const payload = await response.json();
+            if (!response.ok || !payload?.success) {
+              throw new Error(payload?.error || `Ошибка ${response.status}`);
+            }
+            await refreshHistory();
+          }
+        });
+      }
+
+      document.addEventListener('click', (event) => {
+        if (!elements.detailsHistory) return;
+        if (event.target.closest('.chat-message-menu')) return;
+        closeHistoryActionMenus();
+      });
+
+      if (elements.detailsReplyMediaTrigger && elements.detailsReplyMedia) {
+        elements.detailsReplyMediaTrigger.addEventListener('click', () => {
+          elements.detailsReplyMedia.click();
+        });
+        elements.detailsReplyMedia.addEventListener('change', () => {
+          sendMediaFiles(elements.detailsReplyMedia.files);
+        });
+      }
+
+      if (elements.replyTargetClear) {
+        elements.replyTargetClear.addEventListener('click', () => {
+          resetReplyTarget();
+          if (elements.detailsReplyText) {
+            elements.detailsReplyText.focus();
+          }
+        });
+      }
+
+      if (elements.mediaPreviewModalEl) {
+        elements.mediaPreviewModalEl.addEventListener('hidden.bs.modal', () => {
+          resetMediaPreview();
+        });
+      }
+    }
+
     return {
+      resetReplyTarget,
+      setReplyTarget,
+      getActiveReplyToTelegramId,
       resetMediaPreview,
       showImagePreview,
       showVideoPreview,
@@ -770,6 +922,7 @@
       extractClipboardImageFiles,
       sendWorkspaceMediaFiles,
       handleMediaSurfaceClick,
+      bindHistoryInteractionEvents,
     };
   }
 
