@@ -114,7 +114,7 @@
       if (typeof options.confirmDialog === 'function') {
         return Boolean(options.confirmDialog(message));
       }
-      return window.confirm(message);
+      return false;
     }
 
     function getDependencyChain(type) {

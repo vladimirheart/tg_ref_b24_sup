@@ -46,9 +46,9 @@
 
     function confirmDialog(message) {
       if (typeof options.confirmDialog === 'function') {
-        return options.confirmDialog(message);
+        return Boolean(options.confirmDialog(message));
       }
-      return window.confirm(message);
+      return false;
     }
 
     function parseDeliverySettings(raw) {

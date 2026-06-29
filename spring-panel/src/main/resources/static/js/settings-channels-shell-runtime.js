@@ -269,7 +269,7 @@
       loadChannels: (...args) => settingsChannelsCatalog.loadChannels(...args),
       requestSettingsModalClose: requestCloseModal,
       showPopup: (message) => popup(message),
-      confirmDialog: (message) => typeof options.confirmDialog === 'function' ? options.confirmDialog(message) : window.confirm(message),
+      confirmDialog: (message) => typeof options.confirmDialog === 'function' ? options.confirmDialog(message) : false,
     });
     const settingsChannelEditorControls = window.SettingsChannelEditorControlsRuntime?.mount({
       getChannelEditorState: () => state.channelEditorState,
