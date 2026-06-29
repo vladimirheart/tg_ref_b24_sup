@@ -1,9 +1,33 @@
 (function () {
   'use strict';
 
-  if (typeof BOT_SETTINGS_INITIAL === 'undefined' || typeof BOT_PRESET_DEFINITIONS === 'undefined') {
+  function resolveLegacyBotConfig() {
+    const pageConfigRuntime = window.SettingsPageConfigRuntime;
+    if (pageConfigRuntime
+      && typeof pageConfigRuntime.getBotSettingsInitial === 'function'
+      && typeof pageConfigRuntime.getBotPresetDefinitions === 'function') {
+      return {
+        initial: pageConfigRuntime.getBotSettingsInitial(),
+        presets: pageConfigRuntime.getBotPresetDefinitions(),
+      };
+    }
+
+    if (typeof BOT_SETTINGS_INITIAL !== 'undefined' && typeof BOT_PRESET_DEFINITIONS !== 'undefined') {
+      return {
+        initial: BOT_SETTINGS_INITIAL,
+        presets: BOT_PRESET_DEFINITIONS,
+      };
+    }
+
+    return null;
+  }
+
+  const legacyBotConfig = resolveLegacyBotConfig();
+  if (!legacyBotConfig) {
     return;
   }
+  const BOT_SETTINGS_INITIAL = legacyBotConfig.initial;
+  const BOT_PRESET_DEFINITIONS = legacyBotConfig.presets;
 
   const mainModal = document.querySelector('[data-bot-settings-modal]');
   if (!mainModal) {

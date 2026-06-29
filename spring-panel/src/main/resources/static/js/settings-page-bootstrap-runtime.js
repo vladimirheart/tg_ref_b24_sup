@@ -131,6 +131,7 @@
       getCityOptionsFallback: () => options.cityOptions || [],
       loadParameters: () => settingsParametersShellRuntime?.loadParameters(),
       isParametersLoaded: () => settingsParametersShellRuntime?.isParametersLoaded() || false,
+      requestSettingsModalClose: (source) => requestSettingsModalClose(source),
       buildLocationsTree: () => settingsLocationsTreeRuntime?.buildLocationsTree(),
       setStatus: (level, parts, status) => settingsLocationsTreeRuntime?.setStatus(level, parts, status),
       writeNodeMeta: (mapName, key, meta) => settingsLocationsTreeRuntime?.writeNodeMeta(mapName, key, meta),

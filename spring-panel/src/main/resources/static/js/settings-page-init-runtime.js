@@ -38,12 +38,13 @@
     const rawConfig = parseRawConfig(options.rawConfig);
     const settingsPageConfig = window.SettingsPageConfigRuntime?.build(rawConfig) || {};
 
-    window.SettingsPageConfigRuntime?.publishLegacyGlobals(settingsPageConfig);
-
     const bootstrapRuntime = window.SettingsPageBootstrapRuntime?.mount({
       ...settingsPageConfig,
       getCookieValue: resolveFunction(options.getCookieValue, window.getCookieValue),
-      requestSettingsModalClose: resolveFunction(options.requestSettingsModalClose, window.requestSettingsModalClose),
+      requestSettingsModalClose: resolveFunction(
+        options.requestSettingsModalClose,
+        (source) => window.SettingsPageShell?.requestCloseModal?.(source),
+      ),
       showPopup: resolveFunction(options.showPopup, window.showPopup),
       showNotification: resolveFunction(options.showNotification, window.showNotification),
       confirmDialog: resolveFunction(

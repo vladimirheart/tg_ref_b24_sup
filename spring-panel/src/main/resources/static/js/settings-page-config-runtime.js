@@ -3,6 +3,8 @@
     return;
   }
 
+  let lastBuiltConfig = {};
+
   const DEFAULT_DIALOG_TIME_METRICS = Object.freeze({
     good_limit: 30,
     warning_limit: 60,
@@ -292,7 +294,7 @@
   }
 
   function build(raw = {}) {
-    return {
+    lastBuiltConfig = {
       dialogConfig: normalizeObject(raw.dialogConfig),
       defaultDialogSlaConfig: DEFAULT_DIALOG_SLA_CONFIG,
       defaultDialogTimeMetrics: DEFAULT_DIALOG_TIME_METRICS,
@@ -332,15 +334,21 @@
       locationsIikoServerSourcesInitial: normalizeArray(raw.locationsIikoServerSourcesInitial),
       locationsIikoSyncSettingsInitial: normalizeObject(raw.locationsIikoSyncSettingsInitial),
     };
+    return lastBuiltConfig;
   }
 
-  function publishLegacyGlobals(config = {}) {
-    window.BOT_SETTINGS_INITIAL = normalizeObject(config.botSettingsInitial);
-    window.BOT_PRESET_DEFINITIONS = normalizeObject(config.botPresetDefinitions);
+  function getLastConfig() {
+    return normalizeObject(lastBuiltConfig);
   }
 
   window.SettingsPageConfigRuntime = Object.freeze({
     build,
-    publishLegacyGlobals,
+    getLastConfig,
+    getBotSettingsInitial() {
+      return normalizeObject(lastBuiltConfig.botSettingsInitial);
+    },
+    getBotPresetDefinitions() {
+      return normalizeObject(lastBuiltConfig.botPresetDefinitions);
+    },
   });
 }());

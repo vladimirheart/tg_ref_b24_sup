@@ -1834,6 +1834,4 @@
     hideClosestModal: hideClosestSettingsModal,
     hideModal: hideSettingsModal,
   });
-
-  window.requestSettingsModalClose = requestCloseSettingsModal;
 })();

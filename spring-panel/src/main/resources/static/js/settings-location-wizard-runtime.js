@@ -322,8 +322,8 @@
         notify('Такая запись уже существует в выбранной структуре.');
         return;
       }
-      if (locationWizardModalEl) {
-        window.requestSettingsModalClose?.(wizardFinishBtn);
+      if (locationWizardModalEl && typeof options.requestSettingsModalClose === 'function') {
+        options.requestSettingsModalClose(wizardFinishBtn);
       }
     }
 
