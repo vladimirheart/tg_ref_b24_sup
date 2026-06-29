@@ -758,34 +758,6 @@
     dialogsWorkspaceRuntime?.renderWorkspaceRolloutBanner(rollout);
   }
 
-  function resolveLegacyOpenPolicy(rollout) {
-    const policy = rollout?.legacy_manual_open_policy && typeof rollout.legacy_manual_open_policy === 'object'
-      ? rollout.legacy_manual_open_policy
-      : {};
-    return {
-      enabled: policy.enabled === true,
-      reasonRequired: policy.reason_required === true,
-      blocked: policy.blocked === true,
-      blockReason: String(policy.block_reason || '').trim(),
-      reviewedBy: String(policy.reviewed_by || '').trim(),
-      reviewedAtUtc: String(policy.reviewed_at_utc || '').trim(),
-      decision: String(policy.decision || '').trim(),
-    };
-  }
-
-  function formatLegacyOpenBlockReason(reason) {
-    switch (String(reason || '').trim()) {
-      case 'review_decision_hold':
-        return 'policy decision = HOLD';
-      case 'stale_review':
-        return 'policy review is stale';
-      case 'invalid_review_timestamp':
-        return 'policy review timestamp is invalid UTC';
-      default:
-        return 'legacy manual-open policy is blocking';
-    }
-  }
-
   function renderWorkspaceParityBanner(parity) {
     dialogsWorkspaceRuntime?.renderWorkspaceParityBanner(parity);
   }
@@ -1906,6 +1878,8 @@
       detailsReopen,
       detailsCategoriesBtn,
       detailsTakeBtn,
+      detailsReplyText,
+      detailsReplySend,
       workspaceAssignBtn,
       workspaceSnoozeBtn,
       workspaceResolveBtn,
@@ -1940,10 +1914,9 @@
     isResolvedRow: isResolved,
     isResolvedStatus,
     notifyPermissionDenied,
-    updateRowStatus,
-    updateRowResponsible,
     updateRowSlaBadge,
     updateDetailsResponsible,
+    updateDetailsStatusSummary,
     emitWorkspaceTelemetry,
     applyFilters,
     loadDialogParticipants,
@@ -1955,6 +1928,21 @@
     setActiveDialogRow,
     setSnooze,
     clearSnooze,
+    setRowUnreadCount,
+    statusClassByKey,
+    renderResponsibleCell,
+    isOwnedByCurrentOperator,
+    operatorAvatarUrl: OPERATOR_AVATAR_URL,
+    getResponsibleColumnIndex: () => table.querySelector('th[data-column-key="responsible"]')?.cellIndex ?? -1,
+    syncMyDialogsStateFromTable,
+    renderMyDialogsPanel,
+    getActiveReplyToTelegramId: () => activeReplyToTelegramId,
+    resetReplyTarget,
+    getActiveDialogContext: () => activeDialogContext,
+    operatorDisplayName: OPERATOR_DISPLAY_NAME,
+    appendHistoryMessage,
+    extractClipboardImageFiles,
+    sendMediaFiles,
     showNotification,
   }) || null;
 
@@ -2341,30 +2329,7 @@
   }
 
   function updateRowResponsible(row, responsible, options = {}) {
-    if (!row) return;
-    const value = String(options.displayResponsible ?? responsible ?? '').trim();
-    const rawValue = String(options.rawResponsible ?? responsible ?? '').trim();
-    const fallbackAvatar = isOwnedByCurrentOperator(rawValue || value)
-      ? String(OPERATOR_AVATAR_URL || '').trim()
-      : String(row.dataset.responsibleAvatarUrl || '').trim();
-    const avatarUrl = String(options.avatarUrl || fallbackAvatar || '').trim();
-    row.dataset.responsible = value;
-    row.dataset.responsibleRaw = rawValue || value;
-    row.dataset.responsibleAvatarUrl = avatarUrl;
-    const responsibleIndex = table.querySelector('th[data-column-key="responsible"]')?.cellIndex ?? -1;
-    const rowCells = row.children;
-    if (responsibleIndex >= 0 && rowCells[responsibleIndex]) {
-      rowCells[responsibleIndex].innerHTML = renderResponsibleCell(value || '—', avatarUrl);
-    }
-    const takeBtn = row.querySelector('.dialog-take-btn');
-    if (takeBtn) {
-      takeBtn.classList.toggle('d-none', !canTakeDialogOwnership(rawValue || value, isResolved(row)));
-    }
-    if (row === activeDialogRow || String(row.dataset.ticketId || '').trim() === String(activeDialogTicketId || '').trim()) {
-      updateDetailsResponsible(value || '—', { rawResponsible: rawValue || value });
-    }
-    syncMyDialogsStateFromTable();
-    renderMyDialogsPanel();
+    dialogsActionsRuntime?.updateRowResponsible(row, responsible, options);
   }
 
   function updateDetailsTakeButton(responsible) {
@@ -3765,21 +3730,7 @@
   }
 
   function updateRowStatus(row, statusRaw, statusLabel, statusKey, unreadCount = 0) {
-    if (!row) return;
-    row.dataset.status = statusLabel;
-    row.dataset.statusRaw = statusRaw;
-    if (statusKey) {
-      row.dataset.statusKey = statusKey;
-    }
-    const badge = row.querySelector('.badge');
-    if (badge) {
-      badge.textContent = statusLabel;
-      badge.className = `badge rounded-pill ${statusClassByKey(statusKey)}`;
-    }
-    setRowUnreadCount(row, unreadCount);
-    updateRowQuickActions(row);
-    syncMyDialogsStateFromTable();
-    renderMyDialogsPanel();
+    dialogsActionsRuntime?.updateRowStatus(row, statusRaw, statusLabel, statusKey, unreadCount);
   }
 
   function updateDetailsStatusSummary(statusLabel, statusKey = 'waiting_client') {
@@ -3878,6 +3829,7 @@
   runDialogsInitStep('dialogsActionsRuntime.bindDocumentQuickActions', () => dialogsActionsRuntime?.bindDocumentQuickActions());
   runDialogsInitStep('dialogsActionsRuntime.bindTableQuickActions', () => dialogsActionsRuntime?.bindTableQuickActions());
   runDialogsInitStep('dialogsActionsRuntime.bindDetailsQuickActions', () => dialogsActionsRuntime?.bindDetailsQuickActions());
+  runDialogsInitStep('dialogsActionsRuntime.bindDetailsReplyActions', () => dialogsActionsRuntime?.bindDetailsReplyActions());
   runDialogsInitStep('dialogsActionsRuntime.bindWorkspaceQuickActions', () => dialogsActionsRuntime?.bindWorkspaceQuickActions());
   runDialogsInitStep('dialogsTemplatesRuntime.bindTemplateEvents', () => dialogsTemplatesRuntime?.bindTemplateEvents());
   runDialogsInitStep('dialogsMacroRuntime.bindMacroTemplateEvents', () => dialogsMacroRuntime?.bindMacroTemplateEvents());
@@ -3936,103 +3888,8 @@
     });
   }
 
-  if (workspaceLegacyBtn) {
-    workspaceLegacyBtn.addEventListener('click', async () => {
-      if (WORKSPACE_SINGLE_MODE) return;
-      if (!activeWorkspaceTicketId || !activeDialogRow || workspaceLegacyBtn.disabled) return;
-      const policy = resolveLegacyOpenPolicy(activeWorkspacePayload?.meta?.rollout);
-      if (policy.enabled && policy.blocked) {
-        const blockReason = policy.blockReason || 'policy_blocked';
-        const humanReason = formatLegacyOpenBlockReason(blockReason);
-        if (typeof showNotification === 'function') {
-          const reviewMeta = [policy.reviewedBy, policy.reviewedAtUtc].filter(Boolean).join(' @ ');
-          showNotification(`Legacy modal blocked: ${humanReason}${reviewMeta ? ` (${reviewMeta})` : ''}.`, 'warning');
-        }
-        await emitWorkspaceTelemetry('workspace_open_legacy_blocked', {
-          ticketId: activeWorkspaceTicketId,
-          reason: blockReason,
-          decision: policy.decision || null,
-          reviewedBy: policy.reviewedBy || null,
-          reviewedAtUtc: policy.reviewedAtUtc || null,
-          contractVersion: activeWorkspacePayload?.contract_version || null,
-        });
-        return;
-      }
-      let legacyOpenReason = 'manual_rollback';
-      if (policy.enabled && policy.reasonRequired) {
-        const answer = window.prompt('Укажите причину manual legacy-open (UTC policy checkpoint):', 'manual_rollback');
-        legacyOpenReason = String(answer || '').trim();
-        if (!legacyOpenReason) {
-          if (typeof showNotification === 'function') {
-            showNotification('Legacy modal не открыт: требуется причина manual open.', 'warning');
-          }
-          return;
-        }
-      }
-      await emitWorkspaceTelemetry('workspace_open_legacy_manual', {
-        ticketId: activeWorkspaceTicketId,
-        reason: legacyOpenReason,
-        contractVersion: activeWorkspacePayload?.contract_version || null,
-      });
-      openDialogDetails(activeWorkspaceTicketId, activeDialogRow);
-    });
-  }
-
   function resolveDetailsTicketId() {
     return dialogsActionsRuntime?.resolveDetailsTicketId() || null;
-  }
-
-  if (detailsReplySend && detailsReplyText) {
-    const sendReply = async () => {
-      const message = detailsReplyText.value.trim();
-      const ticketId = resolveDetailsTicketId();
-      if (!message || !ticketId) return;
-      detailsReplySend.disabled = true;
-      try {
-        const resp = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/reply`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message, replyToTelegramId: activeReplyToTelegramId }),
-        });
-        const data = await resp.json();
-        if (!resp.ok || !data?.success) {
-          throw new Error(data?.error || `Ошибка ${resp.status}`);
-        }
-        detailsReplyText.value = '';
-        resetReplyTarget();
-        updateDetailsResponsible(data.responsible || activeDialogContext.operatorName);
-        appendHistoryMessage({
-          sender: OPERATOR_DISPLAY_NAME || data.responsible || 'Оператор',
-          message,
-          timestamp: data.timestamp || new Date().toISOString(),
-          messageType: 'operator_message',
-        });
-        if (activeDialogRow) {
-          updateRowStatus(activeDialogRow, 'pending', 'ожидает ответа клиента', 'waiting_client', 0);
-          updateRowResponsible(activeDialogRow, data.responsible || activeDialogRow.dataset.responsible || '');
-          applyFilters();
-        }
-        updateDetailsStatusSummary('ожидает ответа клиента', 'waiting_client');
-      } catch (error) {
-        if (typeof showNotification === 'function') {
-          showNotification(error.message || 'Не удалось отправить сообщение', 'error');
-        }
-      } finally {
-        detailsReplySend.disabled = false;
-      }
-    };
-    detailsReplySend.addEventListener('click', sendReply);
-    detailsReplyText.addEventListener('keydown', (event) => {
-      if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
-        sendReply();
-      }
-    });
-    detailsReplyText.addEventListener('paste', (event) => {
-      const files = extractClipboardImageFiles(event);
-      if (!files.length) return;
-      event.preventDefault();
-      sendMediaFiles(files);
-    });
   }
 
   function renderWorkspaceMessageItem(message) {

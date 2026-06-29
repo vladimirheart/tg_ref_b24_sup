@@ -55,6 +55,82 @@
       return categoriesValue.split(',').map((item) => item.trim()).filter(Boolean);
     }
 
+    function resolveLegacyOpenPolicy(rollout) {
+      const policy = rollout?.legacy_manual_open_policy && typeof rollout.legacy_manual_open_policy === 'object'
+        ? rollout.legacy_manual_open_policy
+        : {};
+      return {
+        enabled: policy.enabled === true,
+        reasonRequired: policy.reason_required === true,
+        blocked: policy.blocked === true,
+        blockReason: String(policy.block_reason || '').trim(),
+        reviewedBy: String(policy.reviewed_by || '').trim(),
+        reviewedAtUtc: String(policy.reviewed_at_utc || '').trim(),
+        decision: String(policy.decision || '').trim(),
+      };
+    }
+
+    function formatLegacyOpenBlockReason(reason) {
+      switch (String(reason || '').trim()) {
+        case 'review_decision_hold':
+          return 'policy decision = HOLD';
+        case 'stale_review':
+          return 'policy review is stale';
+        case 'invalid_review_timestamp':
+          return 'policy review timestamp is invalid UTC';
+        default:
+          return 'legacy manual-open policy is blocking';
+      }
+    }
+
+    function updateRowResponsible(row, responsible, runtimeOptions = {}) {
+      if (!row) return;
+      const activeDialogState = getActiveDialogState();
+      const value = String(runtimeOptions.displayResponsible ?? responsible ?? '').trim();
+      const rawValue = String(runtimeOptions.rawResponsible ?? responsible ?? '').trim();
+      const fallbackAvatar = options.isOwnedByCurrentOperator?.(rawValue || value)
+        ? String(options.operatorAvatarUrl || '').trim()
+        : String(row.dataset.responsibleAvatarUrl || '').trim();
+      const avatarUrl = String(runtimeOptions.avatarUrl || fallbackAvatar || '').trim();
+      row.dataset.responsible = value;
+      row.dataset.responsibleRaw = rawValue || value;
+      row.dataset.responsibleAvatarUrl = avatarUrl;
+      const responsibleIndex = typeof options.getResponsibleColumnIndex === 'function'
+        ? options.getResponsibleColumnIndex()
+        : -1;
+      const rowCells = row.children;
+      if (responsibleIndex >= 0 && rowCells[responsibleIndex]) {
+        rowCells[responsibleIndex].innerHTML = options.renderResponsibleCell?.(value || '—', avatarUrl) || (value || '—');
+      }
+      const takeBtn = row.querySelector('.dialog-take-btn');
+      if (takeBtn) {
+        takeBtn.classList.toggle('d-none', !options.canTakeDialogOwnership?.(rawValue || value, options.isResolvedRow?.(row) === true));
+      }
+      if (row === activeDialogState.row || String(row.dataset.ticketId || '').trim() === String(activeDialogState.ticketId || '').trim()) {
+        options.updateDetailsResponsible?.(value || '—', { rawResponsible: rawValue || value, avatarUrl });
+      }
+      options.syncMyDialogsStateFromTable?.();
+      options.renderMyDialogsPanel?.();
+    }
+
+    function updateRowStatus(row, statusRaw, statusLabel, statusKey, unreadCount = 0) {
+      if (!row) return;
+      row.dataset.status = statusLabel;
+      row.dataset.statusRaw = statusRaw;
+      if (statusKey) {
+        row.dataset.statusKey = statusKey;
+      }
+      const badge = row.querySelector('.badge');
+      if (badge) {
+        badge.textContent = statusLabel;
+        badge.className = `badge rounded-pill ${options.statusClassByKey?.(statusKey) || ''}`.trim();
+      }
+      options.setRowUnreadCount?.(row, unreadCount);
+      updateRowQuickActions(row);
+      options.syncMyDialogsStateFromTable?.();
+      options.renderMyDialogsPanel?.();
+    }
+
     function updateRowQuickActions(row) {
       if (!row) return;
       const isClosed = options.isResolvedRow?.(row) === true;
@@ -116,7 +192,7 @@
       if (!resp.ok || !data?.success) {
         throw new Error(data?.error || `Ошибка ${resp.status}`);
       }
-      options.updateRowStatus?.(row, 'resolved', 'Закрыт', 'closed', 0);
+      updateRowStatus(row, 'resolved', 'Закрыт', 'closed', 0);
       options.emitWorkspaceTelemetry?.('triage_quick_close', { ticketId });
       options.updateRowSlaBadge?.(row);
       updateRowQuickActions(row);
@@ -147,7 +223,7 @@
         if (!resp.ok || !data?.success) {
           throw new Error(data?.error || `Ошибка ${resp.status}`);
         }
-        options.updateRowResponsible?.(row || targetRow, data.responsible || '');
+        updateRowResponsible(row || targetRow, data.responsible || '');
         if (String(activeDialogState.ticketId || '').trim() === String(ticketId || '').trim()
             && typeof options.loadDialogParticipants === 'function') {
           options.loadDialogParticipants().catch(() => {});
@@ -510,6 +586,46 @@
     }
 
     function bindWorkspaceQuickActions() {
+      if (elements.workspaceLegacyBtn) {
+        elements.workspaceLegacyBtn.addEventListener('click', async () => {
+          const activeDialogState = getActiveDialogState();
+          const activeWorkspaceState = getActiveWorkspaceState();
+          if (options.workspaceSingleMode) return;
+          if (!activeWorkspaceState.ticketId || !activeDialogState.row || elements.workspaceLegacyBtn.disabled) return;
+          const policy = resolveLegacyOpenPolicy(activeWorkspaceState.payload?.meta?.rollout);
+          if (policy.enabled && policy.blocked) {
+            const blockReason = policy.blockReason || 'policy_blocked';
+            const humanReason = formatLegacyOpenBlockReason(blockReason);
+            const reviewMeta = [policy.reviewedBy, policy.reviewedAtUtc].filter(Boolean).join(' @ ');
+            notify(`Legacy modal blocked: ${humanReason}${reviewMeta ? ` (${reviewMeta})` : ''}.`, 'warning');
+            await options.emitWorkspaceTelemetry?.('workspace_open_legacy_blocked', {
+              ticketId: activeWorkspaceState.ticketId,
+              reason: blockReason,
+              decision: policy.decision || null,
+              reviewedBy: policy.reviewedBy || null,
+              reviewedAtUtc: policy.reviewedAtUtc || null,
+              contractVersion: activeWorkspaceState.payload?.contract_version || null,
+            });
+            return;
+          }
+          let legacyOpenReason = 'manual_rollback';
+          if (policy.enabled && policy.reasonRequired) {
+            const answer = window.prompt('Укажите причину manual legacy-open (UTC policy checkpoint):', 'manual_rollback');
+            legacyOpenReason = String(answer || '').trim();
+            if (!legacyOpenReason) {
+              notify('Legacy modal не открыт: требуется причина manual open.', 'warning');
+              return;
+            }
+          }
+          await options.emitWorkspaceTelemetry?.('workspace_open_legacy_manual', {
+            ticketId: activeWorkspaceState.ticketId,
+            reason: legacyOpenReason,
+            contractVersion: activeWorkspaceState.payload?.contract_version || null,
+          });
+          options.openDialogDetails?.(activeWorkspaceState.ticketId, activeDialogState.row);
+        });
+      }
+
       if (elements.workspaceAssignBtn) {
         elements.workspaceAssignBtn.addEventListener('click', async () => {
           const activeDialogState = getActiveDialogState();
@@ -597,7 +713,66 @@
       }
     }
 
+    function bindDetailsReplyActions() {
+      if (!elements.detailsReplySend || !elements.detailsReplyText) return;
+      const sendReply = async () => {
+        const activeDialogState = getActiveDialogState();
+        const message = elements.detailsReplyText.value.trim();
+        const ticketId = resolveDetailsTicketId();
+        if (!message || !ticketId) return;
+        elements.detailsReplySend.disabled = true;
+        try {
+          const response = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/reply`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              message,
+              replyToTelegramId: options.getActiveReplyToTelegramId?.() ?? null,
+            }),
+          });
+          const payload = await response.json();
+          if (!response.ok || !payload?.success) {
+            throw new Error(payload?.error || `Ошибка ${response.status}`);
+          }
+          elements.detailsReplyText.value = '';
+          options.resetReplyTarget?.();
+          options.updateDetailsResponsible?.(payload.responsible || options.getActiveDialogContext?.().operatorName);
+          options.appendHistoryMessage?.({
+            sender: options.operatorDisplayName || payload.responsible || 'Оператор',
+            message,
+            timestamp: payload.timestamp || new Date().toISOString(),
+            messageType: 'operator_message',
+          });
+          if (activeDialogState.row) {
+            updateRowStatus(activeDialogState.row, 'pending', 'ожидает ответа клиента', 'waiting_client', 0);
+            updateRowResponsible(activeDialogState.row, payload.responsible || activeDialogState.row.dataset.responsible || '');
+            options.applyFilters?.();
+          }
+          options.updateDetailsStatusSummary?.('ожидает ответа клиента', 'waiting_client');
+        } catch (error) {
+          notify(error?.message || 'Не удалось отправить сообщение', 'error');
+        } finally {
+          elements.detailsReplySend.disabled = false;
+        }
+      };
+
+      elements.detailsReplySend.addEventListener('click', sendReply);
+      elements.detailsReplyText.addEventListener('keydown', (event) => {
+        if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+          sendReply();
+        }
+      });
+      elements.detailsReplyText.addEventListener('paste', (event) => {
+        const files = options.extractClipboardImageFiles?.(event) || [];
+        if (!files.length) return;
+        event.preventDefault();
+        options.sendMediaFiles?.(files);
+      });
+    }
+
     return {
+      updateRowResponsible,
+      updateRowStatus,
       updateRowQuickActions,
       setDialogActionsMenuOpen,
       closeDialogActionsMenus,
@@ -610,6 +785,7 @@
       bindDocumentQuickActions,
       bindTableQuickActions,
       bindDetailsQuickActions,
+      bindDetailsReplyActions,
       bindWorkspaceQuickActions,
     };
   }
