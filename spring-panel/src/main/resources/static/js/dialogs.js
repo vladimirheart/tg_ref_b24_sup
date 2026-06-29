@@ -1841,8 +1841,8 @@
     resolveDialogMessageAvatarSpec,
     withChannelParam,
     showNotification,
-    updateDialogUnreadCount,
-    requestSidebarNotificationRefresh,
+    updateDialogUnreadCount: (unreadCount) => dialogsNotificationsRuntime?.updateDialogUnreadCount(unreadCount),
+    requestSidebarNotificationRefresh: (source = 'dialogs') => dialogsNotificationsRuntime?.requestSidebarNotificationRefresh(source),
     updateDetailsResponsible,
     updateRowStatus,
     updateDetailsStatusSummary,
@@ -1912,7 +1912,7 @@
     setActiveDialogRow,
     setSnooze,
     clearSnooze,
-    setRowUnreadCount,
+    setRowUnreadCount: (row, unreadCount) => dialogsNotificationsRuntime?.setRowUnreadCount(row, unreadCount),
     statusClassByKey,
     renderResponsibleCell,
     isOwnedByCurrentOperator,
@@ -2596,7 +2596,7 @@
     syncMyDialogsStateFromTable,
     renderMyDialogsPanel,
     refreshSummaryCounters,
-    requestSidebarNotificationRefresh,
+    requestSidebarNotificationRefresh: (source = 'dialogs') => dialogsNotificationsRuntime?.requestSidebarNotificationRefresh(source),
     parseUtcDateValue,
     getSnoozeUntil,
     canRunAction,
@@ -3255,7 +3255,7 @@
     loadDetailsAiSuggestions,
     updateResolveButton,
     updateRowStatus,
-    updateDialogUnreadCount,
+    updateDialogUnreadCount: (unreadCount) => dialogsNotificationsRuntime?.updateDialogUnreadCount(unreadCount),
     startHistoryPolling,
     renderSummaryBadge,
     resolveSummaryBadgeStyle,
@@ -3699,18 +3699,6 @@
 
   function updateResolveButton(statusRaw) {
     dialogsActionsRuntime?.updateResolveButton(statusRaw);
-  }
-
-  function setRowUnreadCount(row, unreadCount) {
-    dialogsNotificationsRuntime?.setRowUnreadCount(row, unreadCount);
-  }
-
-  function updateDialogUnreadCount(unreadCount) {
-    dialogsNotificationsRuntime?.updateDialogUnreadCount(unreadCount);
-  }
-
-  function requestSidebarNotificationRefresh(source = 'dialogs') {
-    dialogsNotificationsRuntime?.requestSidebarNotificationRefresh(source);
   }
 
   function updateRowStatus(row, statusRaw, statusLabel, statusKey, unreadCount = 0) {
