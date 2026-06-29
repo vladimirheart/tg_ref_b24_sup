@@ -217,5 +217,8 @@
 
   window.SettingsPageBootstrapRuntime = Object.freeze({
     mount,
+    saveSettings(...args) {
+      return window.__settingsPageBootstrapRuntime?.saveSettings?.(...args);
+    },
   });
 }());

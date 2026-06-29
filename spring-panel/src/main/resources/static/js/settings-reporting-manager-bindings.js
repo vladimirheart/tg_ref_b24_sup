@@ -486,5 +486,14 @@
   window.SettingsReportingManagerBindings = Object.freeze({
     mount,
     normalizeReportingConfig,
+    initReporting(...args) {
+      return window.__settingsReportingManagerBindingsRuntime?.initReporting?.(...args);
+    },
+    prepareReportingSettingsModal(...args) {
+      return window.__settingsReportingManagerBindingsRuntime?.prepareReportingSettingsModal?.(...args);
+    },
+    prepareManagerBindingsSettingsModal(...args) {
+      return window.__settingsReportingManagerBindingsRuntime?.prepareManagerBindingsSettingsModal?.(...args);
+    },
   });
 }());

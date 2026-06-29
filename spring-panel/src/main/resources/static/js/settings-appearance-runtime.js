@@ -860,5 +860,23 @@
 
   window.SettingsAppearanceRuntime = Object.freeze({
     mount,
+    initClientStatuses(...args) {
+      return window.__settingsAppearanceRuntime?.initClientStatuses?.(...args);
+    },
+    initBusinessStylesEditor(...args) {
+      return window.__settingsAppearanceRuntime?.initBusinessStylesEditor?.(...args);
+    },
+    startStatusesEdit(...args) {
+      return window.__settingsAppearanceRuntime?.startStatusesEdit?.(...args);
+    },
+    saveClientStatuses(...args) {
+      return window.__settingsAppearanceRuntime?.saveClientStatuses?.(...args);
+    },
+    cancelStatusesEdit(...args) {
+      return window.__settingsAppearanceRuntime?.cancelStatusesEdit?.(...args);
+    },
+    addStatus(...args) {
+      return window.__settingsAppearanceRuntime?.addStatus?.(...args);
+    },
   });
 }());
