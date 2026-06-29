@@ -659,12 +659,6 @@
   let activeWorkspacePayload = null;
   let workspaceAiReviewProblemCandidates = [];
   let workspaceAiReviewSolutionCandidates = [];
-  let workspaceLastProfileGapSignature = '';
-  let workspaceLastContextSourceGapSignature = '';
-  let workspaceLastAttributePolicyGapSignature = '';
-  let workspaceLastContextBlockGapSignature = '';
-  let workspaceLastSlaPolicyGapSignature = '';
-  let workspaceLastParityGapSignature = '';
   const workspaceContextDisclosureSignatures = new Set();
 
 
@@ -1850,7 +1844,10 @@
       workspaceSlaState,
       workspaceSlaContent,
       workspaceSlaError,
+      workspaceCategoriesState,
+      workspaceCategoriesList,
       workspaceCategoriesError,
+      workspaceCategoriesClear,
     },
     getActiveWorkspaceState: () => ({
       ticketId: activeWorkspaceTicketId,
@@ -1885,6 +1882,11 @@
     setWorkspaceReadonlyMode,
     resolveWorkspaceReadonlyReason,
     normalizeCategories,
+    getSelectedCategories: () => selectedCategories,
+    getActiveDialogTicketId: () => activeDialogTicketId,
+    dialogTemplates: DIALOG_TEMPLATES,
+    canRunAction,
+    isWorkspaceActionEnabled,
     setSelectedCategories: (categories) => {
       selectedCategories = categories instanceof Set ? categories : new Set();
     },
@@ -1902,24 +1904,10 @@
     loadWorkspaceAiReview,
     loadWorkspaceAiControl,
     updateWorkspaceActionButtons,
-    renderWorkspaceParityBanner,
     bindWorkspaceContextDisclosureTelemetry,
-    renderWorkspaceCategories,
-    emitWorkspaceProfileGapTelemetry,
-    emitWorkspaceContextSourceGapTelemetry,
-    emitWorkspaceContextAttributePolicyGapTelemetry,
-    emitWorkspaceContextBlockGapTelemetry,
-    emitWorkspaceContextContractGapTelemetry,
-    emitWorkspaceSlaPolicyGapTelemetry,
-    emitWorkspaceParityGapTelemetry,
-    resolveWorkspaceSlaBadgeClass,
-    formatWorkspaceSlaRemaining,
     emitWorkspaceTelemetry,
     renderWorkspaceMessageItem,
-    mergeWorkspacePayload,
     preloadWorkspaceContract,
-    renderWorkspaceShell,
-    setWorkspaceSectionLoading,
     setActiveWorkspacePayload: (payload) => {
       activeWorkspacePayload = payload;
     },
@@ -3085,63 +3073,19 @@
 
 
   function resolveWorkspaceSlaBadgeClass(state) {
-    const normalized = String(state || '').trim().toLowerCase();
-    if (normalized === 'breached') return 'text-bg-danger';
-    if (normalized === 'at_risk') return 'text-bg-warning';
-    if (normalized === 'closed') return 'text-bg-secondary';
-    return 'text-bg-success';
+    return dialogsWorkspaceRuntime?.resolveWorkspaceSlaBadgeClass(state) || 'text-bg-success';
   }
 
   function formatWorkspaceSlaRemaining(minutesLeft) {
-    const value = Number(minutesLeft);
-    if (!Number.isFinite(value)) return '—';
-    if (value === 0) return '0м';
-    const absValue = Math.abs(Math.round(value));
-    const hours = Math.floor(absValue / 60);
-    const minutes = absValue % 60;
-    const suffix = value < 0 ? 'назад' : 'осталось';
-    if (hours > 0) {
-      return `${hours}ч ${minutes}м ${suffix}`;
-    }
-    return `${minutes}м ${suffix}`;
+    return dialogsWorkspaceRuntime?.formatWorkspaceSlaRemaining(minutesLeft) || '—';
   }
 
   function mergeWorkspacePayload(basePayload, partialPayload, include) {
-    const includeSet = new Set(String(include || '').split(',').map((item) => item.trim()).filter(Boolean));
-    if (!basePayload || typeof basePayload !== 'object') {
-      return partialPayload;
-    }
-    if (!partialPayload || typeof partialPayload !== 'object') {
-      return basePayload;
-    }
-    const merged = {
-      ...basePayload,
-      conversation: partialPayload.conversation || basePayload.conversation,
-      composer: partialPayload.composer || basePayload.composer,
-      meta: partialPayload.meta || basePayload.meta,
-      success: partialPayload.success,
-    };
-    if (includeSet.has('messages')) {
-      merged.messages = partialPayload.messages || basePayload.messages;
-    }
-    if (includeSet.has('context')) {
-      merged.context = partialPayload.context || basePayload.context;
-    }
-    if (includeSet.has('sla')) {
-      merged.sla = partialPayload.sla || basePayload.sla;
-    }
-    if (includeSet.has('permissions')) {
-      merged.permissions = partialPayload.permissions || basePayload.permissions;
-    }
-    return merged;
+    return dialogsWorkspaceRuntime?.mergeWorkspacePayload(basePayload, partialPayload, include) || partialPayload || basePayload;
   }
 
   function setWorkspaceSectionLoading(stateEl, errorEl, message) {
-    if (errorEl) errorEl.classList.add('d-none');
-    if (stateEl) {
-      stateEl.classList.remove('d-none');
-      stateEl.textContent = message;
-    }
+    dialogsWorkspaceRuntime?.setWorkspaceSectionLoading(stateEl, errorEl, message);
   }
 
   async function reloadWorkspaceSection(include, options = {}) {
@@ -3153,38 +3097,7 @@
   }
 
   function renderWorkspaceCategories() {
-    if (!workspaceCategoriesList || !workspaceCategoriesState) return;
-    const categoriesEnabled = isWorkspaceActionEnabled(
-      'categories',
-      canRunAction('can_close'),
-      activeWorkspaceTicketId || activeDialogTicketId
-    );
-    const templateCategories = DIALOG_TEMPLATES.categoryTemplates
-      .flatMap((template) => Array.isArray(template?.categories) ? template.categories : [])
-      .map((item) => String(item || '').trim())
-      .filter(Boolean);
-    const ordered = Array.from(new Set([...templateCategories, ...Array.from(selectedCategories)]));
-    if (ordered.length === 0) {
-      workspaceCategoriesState.classList.remove('d-none');
-      workspaceCategoriesState.textContent = 'Категории не настроены.';
-      workspaceCategoriesList.classList.add('d-none');
-      workspaceCategoriesList.innerHTML = '';
-      return;
-    }
-    workspaceCategoriesState.classList.remove('d-none');
-    workspaceCategoriesState.textContent = !categoriesEnabled
-      ? 'Изменение категорий недоступно для текущего диалога.'
-      : (selectedCategories.size > 0
-        ? `Выбрано: ${selectedCategories.size}. Изменения сохраняются автоматически.`
-        : 'Выберите хотя бы одну категорию для закрытия диалога.');
-    workspaceCategoriesList.classList.remove('d-none');
-    workspaceCategoriesList.innerHTML = ordered.map((category) => {
-      const selected = selectedCategories.has(category);
-      return `<button class="badge rounded-pill text-bg-light border dialog-category-badge ${selected ? 'is-selected' : ''}" type="button" data-category-value="${escapeHtml(category)}" ${categoriesEnabled ? '' : 'disabled'}>${escapeHtml(category)}</button>`;
-    }).join('');
-    if (workspaceCategoriesClear) {
-      workspaceCategoriesClear.disabled = !categoriesEnabled;
-    }
+    dialogsWorkspaceRuntime?.renderWorkspaceCategories();
   }
 
   function updateWorkspaceActionButtons(conversation, permissions, payload = null) {
@@ -3192,195 +3105,31 @@
   }
 
   function emitWorkspaceProfileGapTelemetry(context, conversation) {
-    const profileHealth = context?.profile_health;
-    if (!profileHealth || profileHealth.enabled !== true) {
-      workspaceLastProfileGapSignature = '';
-      return;
-    }
-    const missingFields = Array.isArray(profileHealth.missing_fields) ? profileHealth.missing_fields.filter(Boolean) : [];
-    if (profileHealth.ready === true || missingFields.length === 0) {
-      workspaceLastProfileGapSignature = '';
-      return;
-    }
-    const activeSegments = Array.isArray(profileHealth.active_segments)
-      ? profileHealth.active_segments.filter(Boolean).map((item) => String(item).trim())
-      : [];
-    const ticketId = String(conversation?.ticketId || activeWorkspaceTicketId || '').trim();
-    const signature = `${ticketId}:${activeSegments.join('|')}:${missingFields.join(',')}`;
-    if (!ticketId || workspaceLastProfileGapSignature === signature) {
-      return;
-    }
-    workspaceLastProfileGapSignature = signature;
-    emitWorkspaceTelemetry('workspace_context_profile_gap', {
-      ticketId,
-      reason: [
-        ...activeSegments.map((segment) => `segment:${segment}`),
-        ...missingFields.map((field) => `field:${field}`),
-      ].join(','),
-      durationMs: missingFields.length,
-      contractVersion: activeWorkspacePayload?.contract_version || 'workspace.v1',
-    });
+    dialogsWorkspaceRuntime?.emitWorkspaceProfileGapTelemetry(context, conversation);
   }
 
   function emitWorkspaceContextSourceGapTelemetry(context, conversation) {
-    const contextSources = Array.isArray(context?.context_sources)
-      ? context.context_sources
-      : (Array.isArray(context?.client?.context_sources) ? context.client.context_sources : []);
-    if (!contextSources.length) {
-      workspaceLastContextSourceGapSignature = '';
-      return;
-    }
-    const blockingSources = contextSources
-      .filter((source) => source && source.required === true && source.ready !== true)
-      .map((source) => `${String(source.key || '').trim()}:${String(source.status || 'unknown').trim()}`)
-      .filter(Boolean);
-    if (!blockingSources.length) {
-      workspaceLastContextSourceGapSignature = '';
-      return;
-    }
-    const ticketId = String(conversation?.ticketId || activeWorkspaceTicketId || '').trim();
-    const signature = `${ticketId}:${blockingSources.join(',')}`;
-    if (!ticketId || workspaceLastContextSourceGapSignature === signature) {
-      return;
-    }
-    workspaceLastContextSourceGapSignature = signature;
-    emitWorkspaceTelemetry('workspace_context_source_gap', {
-      ticketId,
-      reason: blockingSources.join(','),
-      durationMs: blockingSources.length,
-      contractVersion: activeWorkspacePayload?.contract_version || 'workspace.v1',
-    });
+    dialogsWorkspaceRuntime?.emitWorkspaceContextSourceGapTelemetry(context, conversation);
   }
 
   function emitWorkspaceContextAttributePolicyGapTelemetry(context, conversation) {
-    const attributePolicies = Array.isArray(context?.attribute_policies)
-      ? context.attribute_policies
-      : (Array.isArray(context?.client?.attribute_policies) ? context.client.attribute_policies : []);
-    if (!attributePolicies.length) {
-      workspaceLastAttributePolicyGapSignature = '';
-      return;
-    }
-    const blockingPolicies = attributePolicies
-      .filter((item) => item && item.required === true && item.ready !== true)
-      .map((item) => `field:${String(item.key || '').trim()}:${String(item.status || 'unknown').trim()}`)
-      .filter(Boolean);
-    if (!blockingPolicies.length) {
-      workspaceLastAttributePolicyGapSignature = '';
-      return;
-    }
-    const ticketId = String(conversation?.ticketId || activeWorkspaceTicketId || '').trim();
-    const signature = `${ticketId}:${blockingPolicies.join(',')}`;
-    if (!ticketId || workspaceLastAttributePolicyGapSignature === signature) {
-      return;
-    }
-    workspaceLastAttributePolicyGapSignature = signature;
-    emitWorkspaceTelemetry('workspace_context_attribute_policy_gap', {
-      ticketId,
-      reason: blockingPolicies.join(','),
-      durationMs: blockingPolicies.length,
-      contractVersion: activeWorkspacePayload?.contract_version || 'workspace.v1',
-    });
+    dialogsWorkspaceRuntime?.emitWorkspaceContextAttributePolicyGapTelemetry(context, conversation);
   }
 
   function emitWorkspaceContextBlockGapTelemetry(context, conversation) {
-    const health = context?.blocks_health;
-    if (!health || health.enabled !== true) {
-      workspaceLastContextBlockGapSignature = '';
-      return;
-    }
-    const missingBlocks = Array.isArray(health.missing_required_keys)
-      ? health.missing_required_keys.filter(Boolean).map((item) => String(item).trim())
-      : [];
-    if (health.ready === true || missingBlocks.length === 0) {
-      workspaceLastContextBlockGapSignature = '';
-      return;
-    }
-    const ticketId = String(conversation?.ticketId || activeWorkspaceTicketId || '').trim();
-    const signature = `${ticketId}:${missingBlocks.join(',')}`;
-    if (!ticketId || workspaceLastContextBlockGapSignature === signature) {
-      return;
-    }
-    workspaceLastContextBlockGapSignature = signature;
-    emitWorkspaceTelemetry('workspace_context_block_gap', {
-      ticketId,
-      reason: missingBlocks.join(','),
-      durationMs: missingBlocks.length,
-      contractVersion: activeWorkspacePayload?.contract_version || 'workspace.v1',
-    });
+    dialogsWorkspaceRuntime?.emitWorkspaceContextBlockGapTelemetry(context, conversation);
   }
 
   function emitWorkspaceContextContractGapTelemetry(context, conversation) {
-    const contract = context?.contract;
-    if (!contract || contract.enabled !== true || contract.ready === true) {
-      return;
-    }
-    const violationDetails = normalizeWorkspaceContextViolationDetails(contract?.violation_details);
-    const violations = Array.isArray(contract.violations)
-      ? contract.violations.filter(Boolean).map((item) => String(item).trim()).filter(Boolean)
-      : [];
-    const ticketId = String(conversation?.ticketId || activeWorkspaceTicketId || '').trim();
-    if (!ticketId) {
-      return;
-    }
-    const telemetryReasons = violationDetails.length
-      ? violationDetails.map((item) => item.analyticsMessage || item.code).filter(Boolean)
-      : violations;
-    emitWorkspaceTelemetry('workspace_context_contract_gap', {
-      ticketId,
-      reason: telemetryReasons.join(',') || 'contract_not_ready',
-      durationMs: telemetryReasons.length,
-      contractVersion: activeWorkspacePayload?.contract_version || 'workspace.v1',
-    });
+    dialogsWorkspaceRuntime?.emitWorkspaceContextContractGapTelemetry(context, conversation);
   }
 
   function emitWorkspaceSlaPolicyGapTelemetry(sla, conversation) {
-    const policy = sla?.policy;
-    if (!policy || typeof policy !== 'object') {
-      workspaceLastSlaPolicyGapSignature = '';
-      return;
-    }
-    const status = String(policy.status || '').trim().toLowerCase();
-    const issues = Array.isArray(policy.issues) ? policy.issues.filter(Boolean) : [];
-    if (!['attention', 'invalid_utc'].includes(status)) {
-      workspaceLastSlaPolicyGapSignature = '';
-      return;
-    }
-    const ticketId = String(conversation?.ticketId || activeWorkspaceTicketId || '').trim();
-    const reason = issues.join(',') || status || 'sla_policy_gap';
-    const signature = `${ticketId}:${reason}`;
-    if (!ticketId || workspaceLastSlaPolicyGapSignature === signature) {
-      return;
-    }
-    workspaceLastSlaPolicyGapSignature = signature;
-    emitWorkspaceTelemetry('workspace_sla_policy_gap', {
-      ticketId,
-      reason,
-      durationMs: Number.isFinite(Number(sla?.minutes_left)) ? Number(sla.minutes_left) : 0,
-      contractVersion: activeWorkspacePayload?.contract_version || 'workspace.v1',
-    });
+    dialogsWorkspaceRuntime?.emitWorkspaceSlaPolicyGapTelemetry(sla, conversation);
   }
 
   function emitWorkspaceParityGapTelemetry(parity, conversation) {
-    const safeParity = parity && typeof parity === 'object' ? parity : null;
-    if (!safeParity || String(safeParity?.status || '').toLowerCase() === 'ok') {
-      workspaceLastParityGapSignature = '';
-      return;
-    }
-    const ticketId = String(conversation?.ticketId || activeWorkspaceTicketId || '').trim();
-    const missingCapabilities = Array.isArray(safeParity?.missing_capabilities)
-      ? safeParity.missing_capabilities.filter(Boolean).map((item) => String(item).trim())
-      : [];
-    const signature = `${ticketId}:${String(safeParity?.status || '').trim()}:${missingCapabilities.join(',')}:${Number(safeParity?.score_pct || 0)}`;
-    if (!ticketId || workspaceLastParityGapSignature === signature) {
-      return;
-    }
-    workspaceLastParityGapSignature = signature;
-    emitWorkspaceTelemetry('workspace_parity_gap', {
-      ticketId,
-      reason: missingCapabilities.join(',') || String(safeParity?.status || 'parity_gap'),
-      durationMs: Number.isFinite(Number(safeParity?.score_pct)) ? Math.max(0, Math.min(100, Number(safeParity.score_pct))) : null,
-      contractVersion: activeWorkspacePayload?.contract_version || 'workspace.v1',
-    });
+    dialogsWorkspaceRuntime?.emitWorkspaceParityGapTelemetry(parity, conversation);
   }
 
   function renderWorkspaceNavigation(navigation) {

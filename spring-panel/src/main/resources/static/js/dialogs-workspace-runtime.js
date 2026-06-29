@@ -13,6 +13,12 @@
       draftAutosaveTimer: null,
       draftLastSavedValue: '',
       draftLastTelemetryAt: 0,
+      lastProfileGapSignature: '',
+      lastContextSourceGapSignature: '',
+      lastAttributePolicyGapSignature: '',
+      lastContextBlockGapSignature: '',
+      lastSlaPolicyGapSignature: '',
+      lastParityGapSignature: '',
     };
 
     function getActiveWorkspaceState() {
@@ -59,6 +65,28 @@
       return typeof options.renderWorkspaceSimpleList === 'function'
         ? options.renderWorkspaceSimpleList(items, formatter)
         : '';
+    }
+
+    function resolveWorkspaceSlaBadgeClass(stateValue) {
+      const normalized = String(stateValue || '').trim().toLowerCase();
+      if (normalized === 'breached') return 'text-bg-danger';
+      if (normalized === 'at_risk') return 'text-bg-warning';
+      if (normalized === 'closed') return 'text-bg-secondary';
+      return 'text-bg-success';
+    }
+
+    function formatWorkspaceSlaRemaining(minutesLeft) {
+      const value = Number(minutesLeft);
+      if (!Number.isFinite(value)) return '—';
+      if (value === 0) return '0м';
+      const absValue = Math.abs(Math.round(value));
+      const hours = Math.floor(absValue / 60);
+      const minutes = absValue % 60;
+      const suffix = value < 0 ? 'назад' : 'осталось';
+      if (hours > 0) {
+        return `${hours}ч ${minutes}м ${suffix}`;
+      }
+      return `${minutes}м ${suffix}`;
     }
 
     function resolveWorkspaceRolloutBannerClass(tone) {
@@ -409,20 +437,52 @@
     }
 
     function mergeWorkspacePayload(basePayload, partialPayload, include) {
-      return typeof options.mergeWorkspacePayload === 'function'
-        ? options.mergeWorkspacePayload(basePayload, partialPayload, include)
-        : partialPayload;
+      const includeSet = new Set(String(include || '').split(',').map((item) => item.trim()).filter(Boolean));
+      if (!basePayload || typeof basePayload !== 'object') {
+        return partialPayload;
+      }
+      if (!partialPayload || typeof partialPayload !== 'object') {
+        return basePayload;
+      }
+      const merged = {
+        ...basePayload,
+        conversation: partialPayload.conversation || basePayload.conversation,
+        composer: partialPayload.composer || basePayload.composer,
+        meta: partialPayload.meta || basePayload.meta,
+        success: partialPayload.success,
+      };
+      if (includeSet.has('messages')) {
+        merged.messages = partialPayload.messages || basePayload.messages;
+      }
+      if (includeSet.has('context')) {
+        merged.context = partialPayload.context || basePayload.context;
+      }
+      if (includeSet.has('sla')) {
+        merged.sla = partialPayload.sla || basePayload.sla;
+      }
+      if (includeSet.has('permissions')) {
+        merged.permissions = partialPayload.permissions || basePayload.permissions;
+      }
+      return merged;
+    }
+
+    function setWorkspaceSectionLoading(stateEl, errorEl, message) {
+      if (errorEl) errorEl.classList.add('d-none');
+      if (stateEl) {
+        stateEl.classList.remove('d-none');
+        stateEl.textContent = message;
+      }
     }
 
     async function reloadWorkspaceSection(include, reloadOptions = {}) {
       const activeState = getActiveWorkspaceState();
       if (!options.workspaceEnabled || !activeState.ticketId) return;
-      options.setWorkspaceSectionLoading?.(reloadOptions.stateElement, reloadOptions.errorElement, reloadOptions.statusText || 'Повторная загрузка...');
+      setWorkspaceSectionLoading(reloadOptions.stateElement, reloadOptions.errorElement, reloadOptions.statusText || 'Повторная загрузка...');
       try {
         const partialPayload = await options.preloadWorkspaceContract?.(activeState.ticketId, activeState.channelId, { include });
         const mergedPayload = mergeWorkspacePayload(activeState.payload, partialPayload, include);
         options.setActiveWorkspacePayload?.(mergedPayload);
-        options.renderWorkspaceShell?.(mergedPayload);
+        renderWorkspaceShell(mergedPayload);
       } catch (_error) {
         if (reloadOptions.errorElement) {
           reloadOptions.errorElement.classList.remove('d-none');
@@ -551,7 +611,7 @@
         limit: options.messagesPageLimit,
       });
       options.setActiveWorkspacePayload?.(payload);
-      options.renderWorkspaceShell?.(payload);
+      renderWorkspaceShell(payload);
       if (!refreshOptions.silent && refreshOptions.successMessage) {
         notify(refreshOptions.successMessage, 'success');
       }
@@ -564,6 +624,246 @@
       if (!addition) return;
       elements.workspaceComposerText.value = value ? `${value}\n\n${addition}` : addition;
       elements.workspaceComposerText.focus();
+    }
+
+    function renderWorkspaceCategories() {
+      if (!elements.workspaceCategoriesList || !elements.workspaceCategoriesState) return;
+      const activeState = getActiveWorkspaceState();
+      const selectedCategories = options.getSelectedCategories?.() instanceof Set
+        ? options.getSelectedCategories()
+        : new Set();
+      const categoriesEnabled = options.isWorkspaceActionEnabled?.(
+        'categories',
+        options.canRunAction?.('can_close') !== false,
+        activeState.ticketId || options.getActiveDialogTicketId?.() || null
+      ) !== false;
+      const templateCategories = Array.isArray(options.dialogTemplates?.categoryTemplates)
+        ? options.dialogTemplates.categoryTemplates
+          .flatMap((template) => Array.isArray(template?.categories) ? template.categories : [])
+          .map((item) => String(item || '').trim())
+          .filter(Boolean)
+        : [];
+      const ordered = Array.from(new Set([...templateCategories, ...Array.from(selectedCategories)]));
+      if (ordered.length === 0) {
+        elements.workspaceCategoriesState.classList.remove('d-none');
+        elements.workspaceCategoriesState.textContent = 'Категории не настроены.';
+        elements.workspaceCategoriesList.classList.add('d-none');
+        elements.workspaceCategoriesList.innerHTML = '';
+        return;
+      }
+      elements.workspaceCategoriesState.classList.remove('d-none');
+      elements.workspaceCategoriesState.textContent = !categoriesEnabled
+        ? 'Изменение категорий недоступно для текущего диалога.'
+        : (selectedCategories.size > 0
+          ? `Выбрано: ${selectedCategories.size}. Изменения сохраняются автоматически.`
+          : 'Выберите хотя бы одну категорию для закрытия диалога.');
+      elements.workspaceCategoriesList.classList.remove('d-none');
+      elements.workspaceCategoriesList.innerHTML = ordered.map((category) => {
+        const selected = selectedCategories.has(category);
+        return `<button class="badge rounded-pill text-bg-light border dialog-category-badge ${selected ? 'is-selected' : ''}" type="button" data-category-value="${escapeHtml(category)}" ${categoriesEnabled ? '' : 'disabled'}>${escapeHtml(category)}</button>`;
+      }).join('');
+      if (elements.workspaceCategoriesClear) {
+        elements.workspaceCategoriesClear.disabled = !categoriesEnabled;
+      }
+    }
+
+    function emitWorkspaceProfileGapTelemetry(context, conversation) {
+      const profileHealth = context?.profile_health;
+      if (!profileHealth || profileHealth.enabled !== true) {
+        state.lastProfileGapSignature = '';
+        return;
+      }
+      const missingFields = Array.isArray(profileHealth.missing_fields) ? profileHealth.missing_fields.filter(Boolean) : [];
+      if (profileHealth.ready === true || missingFields.length === 0) {
+        state.lastProfileGapSignature = '';
+        return;
+      }
+      const activeSegments = Array.isArray(profileHealth.active_segments)
+        ? profileHealth.active_segments.filter(Boolean).map((item) => String(item).trim())
+        : [];
+      const activeState = getActiveWorkspaceState();
+      const ticketId = String(conversation?.ticketId || activeState.ticketId || '').trim();
+      const signature = `${ticketId}:${activeSegments.join('|')}:${missingFields.join(',')}`;
+      if (!ticketId || state.lastProfileGapSignature === signature) {
+        return;
+      }
+      state.lastProfileGapSignature = signature;
+      options.emitWorkspaceTelemetry?.('workspace_context_profile_gap', {
+        ticketId,
+        reason: [
+          ...activeSegments.map((segment) => `segment:${segment}`),
+          ...missingFields.map((field) => `field:${field}`),
+        ].join(','),
+        durationMs: missingFields.length,
+        contractVersion: activeState.payload?.contract_version || 'workspace.v1',
+      });
+    }
+
+    function emitWorkspaceContextSourceGapTelemetry(context, conversation) {
+      const contextSources = Array.isArray(context?.context_sources)
+        ? context.context_sources
+        : (Array.isArray(context?.client?.context_sources) ? context.client.context_sources : []);
+      if (!contextSources.length) {
+        state.lastContextSourceGapSignature = '';
+        return;
+      }
+      const blockingSources = contextSources
+        .filter((source) => source && source.required === true && source.ready !== true)
+        .map((source) => `${String(source.key || '').trim()}:${String(source.status || 'unknown').trim()}`)
+        .filter(Boolean);
+      if (!blockingSources.length) {
+        state.lastContextSourceGapSignature = '';
+        return;
+      }
+      const activeState = getActiveWorkspaceState();
+      const ticketId = String(conversation?.ticketId || activeState.ticketId || '').trim();
+      const signature = `${ticketId}:${blockingSources.join(',')}`;
+      if (!ticketId || state.lastContextSourceGapSignature === signature) {
+        return;
+      }
+      state.lastContextSourceGapSignature = signature;
+      options.emitWorkspaceTelemetry?.('workspace_context_source_gap', {
+        ticketId,
+        reason: blockingSources.join(','),
+        durationMs: blockingSources.length,
+        contractVersion: activeState.payload?.contract_version || 'workspace.v1',
+      });
+    }
+
+    function emitWorkspaceContextAttributePolicyGapTelemetry(context, conversation) {
+      const attributePolicies = Array.isArray(context?.attribute_policies)
+        ? context.attribute_policies
+        : (Array.isArray(context?.client?.attribute_policies) ? context.client.attribute_policies : []);
+      if (!attributePolicies.length) {
+        state.lastAttributePolicyGapSignature = '';
+        return;
+      }
+      const blockingPolicies = attributePolicies
+        .filter((item) => item && item.required === true && item.ready !== true)
+        .map((item) => `field:${String(item.key || '').trim()}:${String(item.status || 'unknown').trim()}`)
+        .filter(Boolean);
+      if (!blockingPolicies.length) {
+        state.lastAttributePolicyGapSignature = '';
+        return;
+      }
+      const activeState = getActiveWorkspaceState();
+      const ticketId = String(conversation?.ticketId || activeState.ticketId || '').trim();
+      const signature = `${ticketId}:${blockingPolicies.join(',')}`;
+      if (!ticketId || state.lastAttributePolicyGapSignature === signature) {
+        return;
+      }
+      state.lastAttributePolicyGapSignature = signature;
+      options.emitWorkspaceTelemetry?.('workspace_context_attribute_policy_gap', {
+        ticketId,
+        reason: blockingPolicies.join(','),
+        durationMs: blockingPolicies.length,
+        contractVersion: activeState.payload?.contract_version || 'workspace.v1',
+      });
+    }
+
+    function emitWorkspaceContextBlockGapTelemetry(context, conversation) {
+      const health = context?.blocks_health;
+      if (!health || health.enabled !== true) {
+        state.lastContextBlockGapSignature = '';
+        return;
+      }
+      const missingBlocks = Array.isArray(health.missing_required_keys)
+        ? health.missing_required_keys.filter(Boolean).map((item) => String(item).trim())
+        : [];
+      if (health.ready === true || missingBlocks.length === 0) {
+        state.lastContextBlockGapSignature = '';
+        return;
+      }
+      const activeState = getActiveWorkspaceState();
+      const ticketId = String(conversation?.ticketId || activeState.ticketId || '').trim();
+      const signature = `${ticketId}:${missingBlocks.join(',')}`;
+      if (!ticketId || state.lastContextBlockGapSignature === signature) {
+        return;
+      }
+      state.lastContextBlockGapSignature = signature;
+      options.emitWorkspaceTelemetry?.('workspace_context_block_gap', {
+        ticketId,
+        reason: missingBlocks.join(','),
+        durationMs: missingBlocks.length,
+        contractVersion: activeState.payload?.contract_version || 'workspace.v1',
+      });
+    }
+
+    function emitWorkspaceContextContractGapTelemetry(context, conversation) {
+      const contract = context?.contract;
+      if (!contract || contract.enabled !== true || contract.ready === true) {
+        return;
+      }
+      const violationDetails = normalizeWorkspaceContextViolationDetails(contract?.violation_details);
+      const violations = Array.isArray(contract.violations)
+        ? contract.violations.filter(Boolean).map((item) => String(item).trim()).filter(Boolean)
+        : [];
+      const activeState = getActiveWorkspaceState();
+      const ticketId = String(conversation?.ticketId || activeState.ticketId || '').trim();
+      if (!ticketId) {
+        return;
+      }
+      const telemetryReasons = violationDetails.length
+        ? violationDetails.map((item) => item.analyticsMessage || item.code).filter(Boolean)
+        : violations;
+      options.emitWorkspaceTelemetry?.('workspace_context_contract_gap', {
+        ticketId,
+        reason: telemetryReasons.join(',') || 'contract_not_ready',
+        durationMs: telemetryReasons.length,
+        contractVersion: activeState.payload?.contract_version || 'workspace.v1',
+      });
+    }
+
+    function emitWorkspaceSlaPolicyGapTelemetry(sla, conversation) {
+      const policy = sla?.policy;
+      if (!policy || typeof policy !== 'object') {
+        state.lastSlaPolicyGapSignature = '';
+        return;
+      }
+      const status = String(policy.status || '').trim().toLowerCase();
+      const issues = Array.isArray(policy.issues) ? policy.issues.filter(Boolean) : [];
+      if (!['attention', 'invalid_utc'].includes(status)) {
+        state.lastSlaPolicyGapSignature = '';
+        return;
+      }
+      const activeState = getActiveWorkspaceState();
+      const ticketId = String(conversation?.ticketId || activeState.ticketId || '').trim();
+      const reason = issues.join(',') || status || 'sla_policy_gap';
+      const signature = `${ticketId}:${reason}`;
+      if (!ticketId || state.lastSlaPolicyGapSignature === signature) {
+        return;
+      }
+      state.lastSlaPolicyGapSignature = signature;
+      options.emitWorkspaceTelemetry?.('workspace_sla_policy_gap', {
+        ticketId,
+        reason,
+        durationMs: Number.isFinite(Number(sla?.minutes_left)) ? Number(sla.minutes_left) : 0,
+        contractVersion: activeState.payload?.contract_version || 'workspace.v1',
+      });
+    }
+
+    function emitWorkspaceParityGapTelemetry(parity, conversation) {
+      const safeParity = parity && typeof parity === 'object' ? parity : null;
+      if (!safeParity || String(safeParity?.status || '').toLowerCase() === 'ok') {
+        state.lastParityGapSignature = '';
+        return;
+      }
+      const activeState = getActiveWorkspaceState();
+      const ticketId = String(conversation?.ticketId || activeState.ticketId || '').trim();
+      const missingCapabilities = Array.isArray(safeParity?.missing_capabilities)
+        ? safeParity.missing_capabilities.filter(Boolean).map((item) => String(item).trim())
+        : [];
+      const signature = `${ticketId}:${String(safeParity?.status || '').trim()}:${missingCapabilities.join(',')}:${Number(safeParity?.score_pct || 0)}`;
+      if (!ticketId || state.lastParityGapSignature === signature) {
+        return;
+      }
+      state.lastParityGapSignature = signature;
+      options.emitWorkspaceTelemetry?.('workspace_parity_gap', {
+        ticketId,
+        reason: missingCapabilities.join(',') || String(safeParity?.status || 'parity_gap'),
+        durationMs: Number.isFinite(Number(safeParity?.score_pct)) ? Math.max(0, Math.min(100, Number(safeParity.score_pct))) : null,
+        contractVersion: activeState.payload?.contract_version || 'workspace.v1',
+      });
     }
 
     function renderWorkspaceSlaPolicyMarkup(policy) {
@@ -1256,8 +1556,8 @@
         if (elements.workspaceSlaState) elements.workspaceSlaState.classList.add('d-none');
         if (elements.workspaceSlaError) elements.workspaceSlaError.classList.add('d-none');
         if (elements.workspaceSlaContent) {
-          const badgeClass = options.resolveWorkspaceSlaBadgeClass?.(sla.state) || 'text-bg-success';
-          const remaining = options.formatWorkspaceSlaRemaining?.(sla.minutes_left) || '—';
+          const badgeClass = resolveWorkspaceSlaBadgeClass(sla.state);
+          const remaining = formatWorkspaceSlaRemaining(sla.minutes_left);
           const policyMarkup = renderWorkspaceSlaPolicyMarkup(sla.policy);
           const escalationHint = sla.escalation_required === true
             ? '<div class="small text-danger mt-1">Требуется эскалация: окно SLA критичное.</div>'
@@ -1339,7 +1639,7 @@
 
       renderWorkspaceNavigation(navigation);
       options.updateWorkspaceActionButtons?.(conversation, permissions || {}, payload);
-      options.renderWorkspaceParityBanner?.(parity);
+      renderWorkspaceParityBanner(parity);
 
       if (elements.workspaceMessagesState) {
         elements.workspaceMessagesState.classList.toggle('d-none', Array.isArray(messages.items) && messages.items.length > 0);
@@ -1361,17 +1661,17 @@
       renderWorkspaceHistorySection(context);
       renderWorkspaceRelatedEventsSection(context);
 
-      options.renderWorkspaceCategories?.();
+      renderWorkspaceCategories();
       if (elements.workspaceCategoriesError) {
         elements.workspaceCategoriesError.classList.add('d-none');
       }
-      options.emitWorkspaceProfileGapTelemetry?.(context, conversation);
-      options.emitWorkspaceContextSourceGapTelemetry?.(context, conversation);
-      options.emitWorkspaceContextAttributePolicyGapTelemetry?.(context, conversation);
-      options.emitWorkspaceContextBlockGapTelemetry?.(context, conversation);
-      options.emitWorkspaceContextContractGapTelemetry?.(context, conversation);
-      options.emitWorkspaceSlaPolicyGapTelemetry?.(sla, conversation);
-      options.emitWorkspaceParityGapTelemetry?.(parity, conversation);
+      emitWorkspaceProfileGapTelemetry(context, conversation);
+      emitWorkspaceContextSourceGapTelemetry(context, conversation);
+      emitWorkspaceContextAttributePolicyGapTelemetry(context, conversation);
+      emitWorkspaceContextBlockGapTelemetry(context, conversation);
+      emitWorkspaceContextContractGapTelemetry(context, conversation);
+      emitWorkspaceSlaPolicyGapTelemetry(sla, conversation);
+      emitWorkspaceParityGapTelemetry(parity, conversation);
 
       renderWorkspaceSlaSection(sla);
     }
@@ -1395,6 +1695,18 @@
       navigateWorkspaceInline,
       refreshActiveWorkspaceContract,
       appendToWorkspaceComposer,
+      renderWorkspaceCategories,
+      emitWorkspaceProfileGapTelemetry,
+      emitWorkspaceContextSourceGapTelemetry,
+      emitWorkspaceContextAttributePolicyGapTelemetry,
+      emitWorkspaceContextBlockGapTelemetry,
+      emitWorkspaceContextContractGapTelemetry,
+      emitWorkspaceSlaPolicyGapTelemetry,
+      emitWorkspaceParityGapTelemetry,
+      resolveWorkspaceSlaBadgeClass,
+      formatWorkspaceSlaRemaining,
+      mergeWorkspacePayload,
+      setWorkspaceSectionLoading,
       renderWorkspaceRolloutBanner,
       renderWorkspaceParityBanner,
       setWorkspaceReadonlyMode,
