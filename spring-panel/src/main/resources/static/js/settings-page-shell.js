@@ -17,6 +17,35 @@
     'initReporting',
   ];
 
+  const SETTINGS_RUNTIME_CALLBACK_TARGETS = Object.freeze({
+    addLocationsIikoServerSource: Object.freeze({ runtimeName: 'SettingsLocationsIikoRuntime', methodName: 'addLocationsIikoServerSource' }),
+    addBusiness: Object.freeze({ runtimeName: 'SettingsLocationsTreeRuntime', methodName: 'addBusiness' }),
+    buildLocationsTree: Object.freeze({ runtimeName: 'SettingsLocationsTreeRuntime', methodName: 'buildLocationsTree' }),
+    loadLocationsSyncStatus: Object.freeze({ runtimeName: 'SettingsLocationsIikoRuntime', methodName: 'loadLocationsSyncStatus' }),
+    loadParameters: Object.freeze({ runtimeName: 'SettingsParametersShellRuntime', methodName: 'loadParameters' }),
+    prepareCityParameterSettingsTrigger: Object.freeze({ runtimeName: 'SettingsParametersRuntime', methodName: 'prepareCityParameterSettingsTrigger' }),
+    prepareItConnectionAddSettingsModal: Object.freeze({ runtimeName: 'SettingsItConnectionsRuntime', methodName: 'prepareItConnectionAddSettingsModal' }),
+    prepareItEquipmentAddSettingsModal: Object.freeze({ runtimeName: 'SettingsItEquipmentRuntime', methodName: 'prepareItEquipmentAddSettingsModal' }),
+    prepareLocationsSettingsModal: Object.freeze({ runtimeName: 'SettingsLocationsIikoRuntime', methodName: 'prepareLocationsSettingsModal' }),
+    prepareParameterSettingsTrigger: Object.freeze({ runtimeName: 'SettingsParametersRuntime', methodName: 'prepareParameterSettingsTrigger' }),
+    preparePartnerContactDraftSettingsTrigger: Object.freeze({ runtimeName: 'SettingsPartnerContactsRuntime', methodName: 'preparePartnerContactDraftSettingsTrigger' }),
+    preparePartnerContactEditorSettingsTrigger: Object.freeze({ runtimeName: 'SettingsPartnerContactsRuntime', methodName: 'preparePartnerContactEditorSettingsTrigger' }),
+    removeLocationsIikoServerSource: Object.freeze({ runtimeName: 'SettingsLocationsIikoRuntime', methodName: 'removeLocationsIikoServerSource' }),
+    renderLegalEntitiesSettingsModal: Object.freeze({ runtimeName: 'SettingsLegalEntitiesRuntime', methodName: 'renderLegalEntities' }),
+    renderLocationsIikoServerSourcesEditor: Object.freeze({ runtimeName: 'SettingsLocationsIikoRuntime', methodName: 'renderLocationsIikoServerSourcesEditor' }),
+    renderLocationsIikoSyncSettings: Object.freeze({ runtimeName: 'SettingsLocationsIikoRuntime', methodName: 'renderLocationsIikoSyncSettings' }),
+    renderPartnerContactsSettingsModal: Object.freeze({ runtimeName: 'SettingsPartnerContactsRuntime', methodName: 'renderPartnerContactsSettingsModal' }),
+    resetLegalEntitiesSettingsModal: Object.freeze({ runtimeName: 'SettingsLegalEntitiesRuntime', methodName: 'resetLegalEntitiesState' }),
+    resetLocationsSettingsModal: Object.freeze({ runtimeName: 'SettingsLocationsIikoRuntime', methodName: 'resetLocationsSettingsModal' }),
+    resetParameterItemsSettingsModal: Object.freeze({ runtimeName: 'SettingsParametersRuntime', methodName: 'resetParameterItemsSettingsModal' }),
+    resetPartnerContactEditorSettingsModal: Object.freeze({ runtimeName: 'SettingsPartnerContactsRuntime', methodName: 'resetPartnerContactEditorSettingsModal' }),
+    resetPartnerContactsSettingsModal: Object.freeze({ runtimeName: 'SettingsPartnerContactsRuntime', methodName: 'resetPartnerContactsSettingsModal' }),
+    runLocationsIikoSyncNow: Object.freeze({ runtimeName: 'SettingsLocationsIikoRuntime', methodName: 'runLocationsIikoSyncNow' }),
+    saveLocationsChanges: Object.freeze({ runtimeName: 'SettingsLocationsTreeRuntime', methodName: 'saveLocationsChanges' }),
+    updateLocationsIikoServerSource: Object.freeze({ runtimeName: 'SettingsLocationsIikoRuntime', methodName: 'updateLocationsIikoServerSource' }),
+    updateLocationsIikoSyncSetting: Object.freeze({ runtimeName: 'SettingsLocationsIikoRuntime', methodName: 'updateLocationsIikoSyncSetting' }),
+  });
+
   const DEFAULT_SETTINGS_MODAL_LIFECYCLE_CALLBACKS = Object.freeze({
     usersModal: Object.freeze({
       shown: 'mountAuthManagementSettingsModal',
@@ -338,6 +367,23 @@
     return root instanceof HTMLElement ? root : null;
   }
 
+  function resolveSettingsRuntimeNamespaceCallback(callbackName) {
+    const normalizedName = typeof callbackName === 'string' ? callbackName.trim() : '';
+    if (!normalizedName) {
+      return null;
+    }
+    const target = SETTINGS_RUNTIME_CALLBACK_TARGETS[normalizedName];
+    if (!target || typeof target !== 'object') {
+      return null;
+    }
+    const runtime = window[target.runtimeName];
+    if (!runtime || typeof runtime !== 'object') {
+      return null;
+    }
+    const callback = runtime[target.methodName];
+    return typeof callback === 'function' ? callback : null;
+  }
+
   function resolveSettingsCallback(callbackName) {
     const normalizedName = typeof callbackName === 'string' ? callbackName.trim() : '';
     if (!normalizedName) {
@@ -346,6 +392,10 @@
     const registryCallback = window.SettingsPageCallbackRegistry?.resolve?.(normalizedName);
     if (typeof registryCallback === 'function') {
       return registryCallback;
+    }
+    const runtimeCallback = resolveSettingsRuntimeNamespaceCallback(normalizedName);
+    if (typeof runtimeCallback === 'function') {
+      return runtimeCallback;
     }
     const legacyCallback = window[normalizedName];
     return typeof legacyCallback === 'function' ? legacyCallback : null;
