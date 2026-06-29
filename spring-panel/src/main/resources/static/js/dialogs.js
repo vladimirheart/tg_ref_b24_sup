@@ -904,7 +904,6 @@
   let selectedCategories = new Set();
   let activeReplyToTelegramId = null;
   const selectedTicketIds = new Set();
-  let categorySaveTimer = null;
   let detailsCategoryModalState = {
     suppressDetailsReset: false,
     reopenAfterClose: false,
@@ -1240,67 +1239,16 @@
   }
 
   function normalizeCategories(value) {
-    if (Array.isArray(value)) {
-      return value.map((item) => String(item || '').trim()).filter((item) => item && item !== '—');
-    }
-    const normalized = String(value || '').trim();
-    if (!normalized || normalized === '—') return [];
-    return normalized
-      .split(',')
-      .map((item) => item.trim())
-      .filter((item) => item && item !== '—');
-  }
-
-  function categoryBadgePalette(label) {
-    const text = String(label || '');
-    let hash = 0;
-    for (let i = 0; i < text.length; i += 1) {
-      hash = (hash * 31 + text.charCodeAt(i)) % 360;
-    }
-    const hue = hash;
-    return {
-      background: `hsl(${hue} 70% 92%)`,
-      text: `hsl(${hue} 45% 28%)`,
-    };
+    return dialogsTemplatesRuntime?.normalizeCategories(value) || [];
   }
 
   function renderCategoryBadges(categories) {
-    const list = normalizeCategories(categories);
-    if (!list.length) {
-      return '<span class="text-muted">—</span>';
-    }
-    const badges = list.map((category) => {
-      const palette = categoryBadgePalette(category);
-      return `
-        <span class="dialog-category-chip" style="background-color: ${palette.background}; color: ${palette.text};">
-          ${escapeHtml(category)}
-        </span>
-      `;
-    }).join('');
-    return `<span class="dialog-category-list">${badges}</span>`;
+    return dialogsTemplatesRuntime?.renderCategoryBadges(categories)
+      || '<span class="text-muted">—</span>';
   }
 
   function updateSummaryCategories(label) {
-    if (detailsCategories) {
-      detailsCategories.innerHTML = `
-        <span>Категории:</span>
-        ${renderCategoryBadges(label)}
-      `;
-    }
-    if (detailsSummary) {
-      const summaryValue = detailsSummary.querySelector('[data-summary-field="categories"] [data-summary-value]');
-      if (summaryValue) {
-        summaryValue.innerHTML = renderCategoryBadges(label);
-      }
-    }
-    if (activeDialogRow) {
-      const rowLabel = label || '—';
-      activeDialogRow.dataset.categories = rowLabel;
-      const categoriesIndex = table.querySelector('th[data-column-key="categories"]')?.cellIndex ?? -1;
-      if (categoriesIndex >= 0 && activeDialogRow.children[categoriesIndex]) {
-        activeDialogRow.children[categoriesIndex].textContent = rowLabel;
-      }
-    }
+    dialogsTemplatesRuntime?.updateSummaryCategories(label);
   }
 
   function updateDetailsLocationLabel(value) {
@@ -1309,44 +1257,8 @@
     detailsLocation.textContent = `Локация: ${safeValue}`;
   }
 
-  async function persistDialogCategories(categories) {
-    const ticketId = activeDialogTicketId || activeWorkspaceTicketId;
-    if (!ticketId) return;
-    const payload = { categories };
-    const resp = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/categories`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    const data = await resp.json();
-    if (!resp.ok || !data?.success) {
-      throw new Error(data?.error || `Ошибка ${resp.status}`);
-    }
-  }
-
   function scheduleCategorySave() {
-    if (!activeDialogTicketId && !activeWorkspaceTicketId) return;
-    if (categorySaveTimer) {
-      clearTimeout(categorySaveTimer);
-    }
-    categorySaveTimer = setTimeout(async () => {
-      try {
-        const categories = Array.from(selectedCategories);
-        await persistDialogCategories(categories);
-        updateSummaryCategories(formatCategoriesLabel(categories));
-        renderWorkspaceCategories();
-        if (workspaceCategoriesError) {
-          workspaceCategoriesError.classList.add('d-none');
-        }
-      } catch (error) {
-        if (workspaceCategoriesError) {
-          workspaceCategoriesError.classList.remove('d-none');
-        }
-        if (typeof showNotification === 'function') {
-          showNotification(error.message || 'Не удалось сохранить категории', 'error');
-        }
-      }
-    }, 400);
+    dialogsTemplatesRuntime?.scheduleCategorySave();
   }
 
   function persistColumnState() {
@@ -2069,6 +1981,9 @@
       macroTemplatesSection,
       workspaceCategoriesList,
       workspaceCategoriesClear,
+      workspaceCategoriesError,
+      detailsCategories,
+      detailsSummary,
       detailsCategoriesBtn,
       categoriesModalEl,
       categoriesModal,
@@ -2090,6 +2005,8 @@
       activeWorkspaceTicketId,
       detailsModalOpen: detailsModalEl?.classList.contains('show') === true,
     }),
+    getActiveDialogRow: () => activeDialogRow,
+    getCategoriesColumnIndex: () => table.querySelector('th[data-column-key="categories"]')?.cellIndex ?? -1,
     getCategoryPanelState: () => detailsCategoryModalState,
     setCategoryPanelState: (nextState) => {
       detailsCategoryModalState = {
@@ -2097,14 +2014,14 @@
         reopenAfterClose: nextState?.reopenAfterClose === true,
       };
     },
+    escapeHtml,
     buildTemplateOptions,
     findTemplateByValue,
     notifyActionBlocked,
     showModalSafe,
+    showNotification,
     renderWorkspaceCategories,
-    updateSummaryCategories,
     formatCategoriesLabel,
-    scheduleCategorySave,
   }) || null;
 
   dialogsMacroRuntime = window.DialogsMacroRuntime?.createRuntime({

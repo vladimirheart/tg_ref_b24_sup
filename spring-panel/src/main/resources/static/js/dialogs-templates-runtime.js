@@ -7,8 +7,21 @@
     const elements = options.elements || {};
     const state = {
       completionHideTimer: null,
+      categorySaveTimer: null,
       templateEventsBound: false,
     };
+
+    function escapeHtml(value) {
+      return typeof options.escapeHtml === 'function'
+        ? options.escapeHtml(value)
+        : String(value ?? '');
+    }
+
+    function notify(message, type = 'info') {
+      if (typeof options.showNotification === 'function') {
+        options.showNotification(message, type);
+      }
+    }
 
     function getSelectedCategories() {
       const categories = typeof options.getSelectedCategories === 'function'
@@ -39,6 +52,120 @@
           activeWorkspaceTicketId: '',
           detailsModalOpen: false,
         };
+    }
+
+    function getActiveDialogRow() {
+      const row = typeof options.getActiveDialogRow === 'function'
+        ? options.getActiveDialogRow()
+        : null;
+      return row && row.tagName === 'TR' ? row : null;
+    }
+
+    function normalizeCategories(value) {
+      if (Array.isArray(value)) {
+        return value.map((item) => String(item || '').trim()).filter((item) => item && item !== '—');
+      }
+      const normalized = String(value || '').trim();
+      if (!normalized || normalized === '—') return [];
+      return normalized
+        .split(',')
+        .map((item) => item.trim())
+        .filter((item) => item && item !== '—');
+    }
+
+    function categoryBadgePalette(label) {
+      const text = String(label || '');
+      let hash = 0;
+      for (let i = 0; i < text.length; i += 1) {
+        hash = (hash * 31 + text.charCodeAt(i)) % 360;
+      }
+      const hue = hash;
+      return {
+        background: `hsl(${hue} 70% 92%)`,
+        text: `hsl(${hue} 45% 28%)`,
+      };
+    }
+
+    function renderCategoryBadges(categories) {
+      const list = normalizeCategories(categories);
+      if (!list.length) {
+        return '<span class="text-muted">—</span>';
+      }
+      const badges = list.map((category) => {
+        const palette = categoryBadgePalette(category);
+        return `
+        <span class="dialog-category-chip" style="background-color: ${palette.background}; color: ${palette.text};">
+          ${escapeHtml(category)}
+        </span>
+      `;
+      }).join('');
+      return `<span class="dialog-category-list">${badges}</span>`;
+    }
+
+    function updateSummaryCategories(label) {
+      if (elements.detailsCategories) {
+        elements.detailsCategories.innerHTML = `
+        <span>Категории:</span>
+        ${renderCategoryBadges(label)}
+      `;
+      }
+      if (elements.detailsSummary) {
+        const summaryValue = elements.detailsSummary.querySelector('[data-summary-field="categories"] [data-summary-value]');
+        if (summaryValue) {
+          summaryValue.innerHTML = renderCategoryBadges(label);
+        }
+      }
+      const activeDialogRow = getActiveDialogRow();
+      if (activeDialogRow) {
+        const rowLabel = label || '—';
+        activeDialogRow.dataset.categories = rowLabel;
+        const categoriesIndex = typeof options.getCategoriesColumnIndex === 'function'
+          ? options.getCategoriesColumnIndex()
+          : -1;
+        if (categoriesIndex >= 0 && activeDialogRow.children[categoriesIndex]) {
+          activeDialogRow.children[categoriesIndex].textContent = rowLabel;
+        }
+      }
+    }
+
+    async function persistDialogCategories(categories) {
+      const dialogState = getDialogState();
+      const ticketId = dialogState.activeDialogTicketId || dialogState.activeWorkspaceTicketId;
+      if (!ticketId) return;
+      const payload = { categories };
+      const response = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/categories`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await response.json();
+      if (!response.ok || !data?.success) {
+        throw new Error(data?.error || `Ошибка ${response.status}`);
+      }
+    }
+
+    function scheduleCategorySave() {
+      const dialogState = getDialogState();
+      if (!dialogState.activeDialogTicketId && !dialogState.activeWorkspaceTicketId) return;
+      if (state.categorySaveTimer) {
+        window.clearTimeout(state.categorySaveTimer);
+      }
+      state.categorySaveTimer = window.setTimeout(async () => {
+        try {
+          const categories = Array.from(getSelectedCategories());
+          await persistDialogCategories(categories);
+          updateSummaryCategories(options.formatCategoriesLabel?.(categories) || '—');
+          options.renderWorkspaceCategories?.();
+          if (elements.workspaceCategoriesError) {
+            elements.workspaceCategoriesError.classList.add('d-none');
+          }
+        } catch (error) {
+          if (elements.workspaceCategoriesError) {
+            elements.workspaceCategoriesError.classList.remove('d-none');
+          }
+          notify(error?.message || 'Не удалось сохранить категории', 'error');
+        }
+      }, 400);
     }
 
     function renderCategoryTemplate(template) {
@@ -196,8 +323,8 @@
       }
       syncCategorySelections();
       options.renderWorkspaceCategories?.();
-      options.updateSummaryCategories?.(options.formatCategoriesLabel?.(Array.from(selectedCategories)) || '—');
-      options.scheduleCategorySave?.();
+      updateSummaryCategories(options.formatCategoriesLabel?.(Array.from(selectedCategories)) || '—');
+      scheduleCategorySave();
     }
 
     function bindTemplateEvents() {
@@ -266,8 +393,8 @@
           options.setSelectedCategories?.(new Set());
           syncCategorySelections();
           options.renderWorkspaceCategories?.();
-          options.updateSummaryCategories?.('—');
-          options.scheduleCategorySave?.();
+          updateSummaryCategories('—');
+          scheduleCategorySave();
         });
       }
 
@@ -360,6 +487,10 @@
       renderQuestionTemplate,
       renderCompletionTemplate,
       initTemplatePanels,
+      normalizeCategories,
+      renderCategoryBadges,
+      updateSummaryCategories,
+      scheduleCategorySave,
       syncCategorySelections,
       renderEmojiPanel,
       openCategoryPanel,

@@ -1716,7 +1716,7 @@
 Наблюдение:
 
 - `dialogs.js` после последних runtime split всё ещё остаётся самым тяжёлым
-  dialog browser entrypoint и держит около `4985` строк;
+  dialog browser entrypoint и держит около `4902` строк;
 - по содержанию там смешаны list/filter/runtime polling, details/history,
   workspace contract, quick actions, macro workflow, AI assistant/review,
   notifications refresh loop и media/reply surface;
@@ -1785,6 +1785,11 @@
   disclosure-wiring, contract preload/validation и fallback-reason resolver,
   поэтому `dialogs.js` больше не держит этот transport/guardrail cluster
   inline;
+- следующим более широким templates/category-slice сам
+  `dialogs-templates-runtime.js` забрал category badge rendering,
+  details/workspace category summary sync и debounced categories save, поэтому
+  `dialogs.js` больше не держит этот details/workspace categories cluster
+  inline;
 - `dialogs/index.html` теперь подключает эти runtime entrypoint'ы отдельно, а
   `dialogs.js` в основном держит thin orchestration и compatibility delegates
   между уже вынесенными bounded surface'ами;
@@ -1792,7 +1797,7 @@
   вынесенные list/AI/details-history/workspace/actions/macro/notifications/
   templates/flow/experiment/shell/participants кластеры, а должен добирать
   только remaining orchestration drift вокруг workspace reply/action,
-  legacy modal flows и соседнего
+  row-state/details continuity, legacy modal flows и соседнего
   UI wiring;
 
 - live regression corridor для `take -> categories -> reply -> follow-up ->
