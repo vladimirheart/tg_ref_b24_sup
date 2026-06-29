@@ -13,12 +13,16 @@
       draftAutosaveTimer: null,
       draftLastSavedValue: '',
       draftLastTelemetryAt: 0,
+      failureStreak: 0,
+      temporarilyDisabledUntil: 0,
+      openTimers: new Map(),
       lastProfileGapSignature: '',
       lastContextSourceGapSignature: '',
       lastAttributePolicyGapSignature: '',
       lastContextBlockGapSignature: '',
       lastSlaPolicyGapSignature: '',
       lastParityGapSignature: '',
+      contextDisclosureSignatures: new Set(),
     };
 
     function getActiveWorkspaceState() {
@@ -62,9 +66,230 @@
     }
 
     function renderWorkspaceSimpleList(items, formatter) {
-      return typeof options.renderWorkspaceSimpleList === 'function'
-        ? options.renderWorkspaceSimpleList(items, formatter)
-        : '';
+      const list = Array.isArray(items) ? items : [];
+      if (list.length === 0) {
+        return '<div class="small text-muted">Пока нет данных.</div>';
+      }
+      return `<ul class="list-unstyled small mb-0">${list.map((item) => `<li class="mb-2">${formatter(item)}</li>`).join('')}</ul>`;
+    }
+
+    async function emitWorkspaceTelemetry(eventType, payload = {}) {
+      if (!eventType) return;
+      const eventGroup = options.workspaceTelemetryEventGroups?.[eventType] || null;
+      const experimentContext = options.workspaceExperimentContext || {};
+      const body = {
+        event_type: String(eventType),
+        event_group: eventGroup,
+        timestamp: new Date().toISOString(),
+        ticket_id: payload.ticketId || null,
+        reason: payload.reason || null,
+        error_code: payload.errorCode || null,
+        contract_version: payload.contractVersion || null,
+        duration_ms: Number.isFinite(payload.durationMs) ? payload.durationMs : null,
+        experiment_name: experimentContext.experimentName || null,
+        experiment_cohort: experimentContext.cohort || null,
+        operator_segment: experimentContext.operatorSegment || null,
+        primary_kpis: options.workspacePrimaryKpis || null,
+        secondary_kpis: options.workspaceSecondaryKpis || null,
+        template_id: payload.templateId || null,
+        template_name: payload.templateName || null,
+      };
+      try {
+        await fetch('/api/dialogs/workspace-telemetry', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+      } catch (_error) {
+        // no-op: telemetry should never break operator flow
+      }
+    }
+
+    function emitWorkspaceContextDisclosureTelemetry(eventType, detail) {
+      const activeState = getActiveWorkspaceState();
+      const ticketId = String(activeState.ticketId || '').trim();
+      if (!ticketId || !eventType || !detail || detail.open !== true) return;
+      const reason = [
+        `section:${String(detail.section || 'unknown').trim()}`,
+        `items:${Number(detail.items || 0)}`,
+        `required:${Number(detail.required || 0)}`,
+        `gaps:${Number(detail.gaps || 0)}`,
+        `hidden:${Number(detail.hidden || 0)}`,
+      ].join('|');
+      const signature = `${ticketId}:${eventType}:${reason}`;
+      if (state.contextDisclosureSignatures.has(signature)) {
+        return;
+      }
+      state.contextDisclosureSignatures.add(signature);
+      emitWorkspaceTelemetry(eventType, {
+        ticketId,
+        reason,
+        durationMs: Number(detail.items || 0),
+        contractVersion: activeState.payload?.contract_version || 'workspace.v1',
+      });
+    }
+
+    function bindWorkspaceContextDisclosureTelemetry(container) {
+      if (!container) return;
+      const eventBySection = {
+        context_sources: 'workspace_context_sources_expanded',
+        attribute_policy: 'workspace_context_attribute_policy_expanded',
+        extra_attributes: 'workspace_context_extra_attributes_expanded',
+      };
+      container.querySelectorAll('details[data-workspace-telemetry-section]').forEach((node) => {
+        if (node.dataset.telemetryBound === 'true') return;
+        node.dataset.telemetryBound = 'true';
+        node.addEventListener('toggle', () => {
+          const section = String(node.dataset.workspaceTelemetrySection || '').trim();
+          const eventType = eventBySection[section];
+          if (!eventType) return;
+          emitWorkspaceContextDisclosureTelemetry(eventType, {
+            section,
+            open: node.open === true,
+            items: Number(node.dataset.workspaceTelemetryItems || 0),
+            required: Number(node.dataset.workspaceTelemetryRequired || 0),
+            gaps: Number(node.dataset.workspaceTelemetryGaps || 0),
+            hidden: Number(node.dataset.workspaceTelemetryHidden || 0),
+          });
+        });
+      });
+    }
+
+    function isValidWorkspaceContract(payload) {
+      const version = String(payload?.contract_version || '').trim();
+      const ticketId = String(payload?.conversation?.ticketId || '').trim();
+      const status = String(payload?.conversation?.statusKey || payload?.conversation?.status || '').trim();
+      const permissions = payload?.permissions;
+      const slaState = String(payload?.sla?.state || '').trim();
+      const hasPermissions = Boolean(permissions && typeof permissions === 'object');
+      return version === 'workspace.v1' && Boolean(ticketId) && Boolean(status) && hasPermissions && Boolean(slaState);
+    }
+
+    function resolveWorkspaceFallbackReason(error) {
+      const rawCode = String(error?.code || error?.message || '').trim();
+      if (rawCode === 'version_mismatch') return 'version_mismatch';
+      if (rawCode === 'invalid_payload') return 'invalid_payload';
+      if (rawCode === 'timeout' || rawCode === 'AbortError') return 'timeout';
+      const status = Number(error?.httpStatus);
+      if (Number.isInteger(status) && status >= 500) return '5xx';
+      if (rawCode.startsWith('workspace_http_5')) return '5xx';
+      return 'unknown_error';
+    }
+
+    async function preloadWorkspaceContract(ticketId, channelId, requestOptions = {}) {
+      let endpoint = typeof options.withChannelParam === 'function'
+        ? options.withChannelParam(`/api/dialogs/${encodeURIComponent(ticketId)}/workspace`, channelId)
+        : `/api/dialogs/${encodeURIComponent(ticketId)}/workspace`;
+      const queryParams = new URLSearchParams();
+      const include = typeof requestOptions.include === 'string' && requestOptions.include.trim()
+        ? requestOptions.include.trim()
+        : String(options.workspaceContractInclude || '').trim();
+      if (include) {
+        queryParams.set('include', include);
+      }
+      if (Number.isInteger(requestOptions.cursor) && requestOptions.cursor >= 0) {
+        queryParams.set('cursor', String(requestOptions.cursor));
+      }
+      if (Number.isInteger(requestOptions.limit) && requestOptions.limit > 0) {
+        queryParams.set('limit', String(requestOptions.limit));
+      }
+      if (queryParams.size > 0) {
+        endpoint += `${endpoint.includes('?') ? '&' : '?'}${queryParams.toString()}`;
+      }
+      let response = null;
+      let payload = null;
+      const retryAttempts = Math.max(0, Number(options.workspaceContractRetryAttempts || 0));
+      const timeoutMs = Math.max(1, Number(options.workspaceContractTimeoutMs || 8000));
+      for (let attempt = 0; attempt <= retryAttempts; attempt += 1) {
+        const controller = new AbortController();
+        const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+        try {
+          response = await fetch(endpoint, {
+            credentials: 'same-origin',
+            cache: 'no-store',
+            signal: controller.signal,
+          });
+          payload = await response.json();
+        } catch (fetchError) {
+          window.clearTimeout(timeoutId);
+          if (fetchError?.name === 'AbortError') {
+            const timeoutError = new Error('workspace_request_timeout');
+            timeoutError.code = 'timeout';
+            throw timeoutError;
+          }
+          if (attempt < retryAttempts) {
+            continue;
+          }
+          const networkError = new Error('workspace_network_error');
+          networkError.code = 'network_error';
+          throw networkError;
+        }
+        window.clearTimeout(timeoutId);
+        if (response.ok) break;
+        if (response.status >= 500 && attempt < retryAttempts) {
+          continue;
+        }
+        const requestError = new Error(payload?.error || `workspace_http_${response.status}`);
+        requestError.code = `workspace_http_${response.status}`;
+        requestError.httpStatus = response.status;
+        throw requestError;
+      }
+      const contractVersion = String(payload?.contract_version || '').trim();
+      if (contractVersion !== 'workspace.v1') {
+        const error = new Error('workspace_version_mismatch');
+        error.code = 'version_mismatch';
+        error.contractVersion = contractVersion || null;
+        throw error;
+      }
+      if (!isValidWorkspaceContract(payload)) {
+        const error = new Error('workspace_invalid_payload');
+        error.code = 'invalid_payload';
+        error.contractVersion = contractVersion;
+        throw error;
+      }
+      return payload;
+    }
+
+    function buildWorkspaceDialogUrl(ticketId, channelId) {
+      if (!ticketId) return '/dialogs';
+      const basePath = `/dialogs/${encodeURIComponent(ticketId)}`;
+      return typeof options.withChannelParam === 'function'
+        ? options.withChannelParam(basePath, channelId)
+        : basePath;
+    }
+
+    function startWorkspaceOpenTimer(ticketId) {
+      if (!ticketId) return;
+      state.openTimers.set(String(ticketId), performance.now());
+    }
+
+    function finishWorkspaceOpenTimer(ticketId) {
+      const key = String(ticketId || '');
+      const startedAt = state.openTimers.get(key);
+      if (!Number.isFinite(startedAt)) return null;
+      state.openTimers.delete(key);
+      const elapsedMs = Math.max(0, Math.round(performance.now() - startedAt));
+      return elapsedMs;
+    }
+
+    function isWorkspaceTemporarilyDisabled() {
+      return state.temporarilyDisabledUntil > Date.now();
+    }
+
+    function registerWorkspaceFailure() {
+      state.failureStreak += 1;
+      if (state.failureStreak >= Number(options.workspaceFailureStreakThreshold || 0)) {
+        state.temporarilyDisabledUntil = Date.now() + Number(options.workspaceFailureCooldownMs || 0);
+        state.failureStreak = 0;
+        return true;
+      }
+      return false;
+    }
+
+    function clearWorkspaceFailureStreak() {
+      state.failureStreak = 0;
+      state.temporarilyDisabledUntil = 0;
     }
 
     function resolveWorkspaceSlaBadgeClass(stateValue) {
@@ -228,7 +453,7 @@
         elements.workspaceComposerText.placeholder = 'Введите ответ клиенту…';
       }
       if (hadActiveTarget && replyOptions.emitTelemetry !== false) {
-        options.emitWorkspaceTelemetry?.('workspace_reply_target_cleared', {
+        emitWorkspaceTelemetry('workspace_reply_target_cleared', {
           ticketId: activeState.ticketId,
           reason: replyOptions.reason || 'manual_clear',
           contractVersion: activeState.payload?.contract_version || 'workspace.v1',
@@ -254,7 +479,7 @@
         const safePreview = String(preview || '').trim();
         elements.workspaceReplyTargetText.textContent = safePreview || `Сообщение #${normalizedMessageId}`;
       }
-      options.emitWorkspaceTelemetry?.('workspace_reply_target_selected', {
+      emitWorkspaceTelemetry('workspace_reply_target_selected', {
         ticketId: activeState.ticketId,
         reason: `message:${normalizedMessageId}`,
         contractVersion: activeState.payload?.contract_version || 'workspace.v1',
@@ -305,7 +530,7 @@
             || (saveOptions.reason === 'autosave' && now - state.draftLastTelemetryAt >= minInterval);
           if (shouldSendDraftTelemetry) {
             state.draftLastTelemetryAt = now;
-            options.emitWorkspaceTelemetry?.('workspace_draft_saved', {
+            emitWorkspaceTelemetry('workspace_draft_saved', {
               ticketId,
               reason: saveOptions.reason || 'manual',
               length: value.length,
@@ -326,7 +551,7 @@
         state.draftLastSavedValue = elements.workspaceComposerText.value.trim();
         if (stored) {
           updateWorkspaceDraftState('Черновик восстановлен');
-          options.emitWorkspaceTelemetry?.('workspace_draft_restored', {
+          emitWorkspaceTelemetry('workspace_draft_restored', {
             ticketId,
             length: stored.length,
           });
@@ -479,7 +704,7 @@
       if (!options.workspaceEnabled || !activeState.ticketId) return;
       setWorkspaceSectionLoading(reloadOptions.stateElement, reloadOptions.errorElement, reloadOptions.statusText || 'Повторная загрузка...');
       try {
-        const partialPayload = await options.preloadWorkspaceContract?.(activeState.ticketId, activeState.channelId, { include });
+        const partialPayload = await preloadWorkspaceContract(activeState.ticketId, activeState.channelId, { include });
         const mergedPayload = mergeWorkspacePayload(activeState.payload, partialPayload, include);
         options.setActiveWorkspacePayload?.(mergedPayload);
         renderWorkspaceShell(mergedPayload);
@@ -497,7 +722,7 @@
       state.messagesLoadingMore = true;
       updateWorkspaceMessagesLoadMoreState();
       try {
-        const workspacePayload = await options.preloadWorkspaceContract?.(activeState.ticketId, activeState.channelId, {
+        const workspacePayload = await preloadWorkspaceContract(activeState.ticketId, activeState.channelId, {
           include: 'messages',
           cursor: state.messagesNextCursor,
           limit: options.messagesPageLimit,
@@ -592,13 +817,13 @@
       }
       const row = (options.rowsList?.() || []).find((item) => String(item.dataset.ticketId || '') === target.ticketId) || null;
       options.setActiveDialogRow?.(row, { ensureVisible: true });
-      await options.emitWorkspaceTelemetry?.('workspace_inline_navigation', {
+      await emitWorkspaceTelemetry('workspace_inline_navigation', {
         ticketId: target.ticketId,
         reason: safeDirection,
         durationMs: Number.isFinite(Number(navigation?.position)) ? Number(navigation.position) : null,
         contractVersion: activeState.payload?.contract_version || 'workspace.v1',
       });
-      await options.openDialogWithWorkspaceFallback?.(target.ticketId, row, {
+      await openDialogWithWorkspaceFallback(target.ticketId, row, {
         source: `inline_navigation_${safeDirection}`,
         channelId: target.channelId,
       });
@@ -607,7 +832,7 @@
     async function refreshActiveWorkspaceContract(refreshOptions = {}) {
       const activeState = getActiveWorkspaceState();
       if (!activeState.ticketId) return;
-      const payload = await options.preloadWorkspaceContract?.(activeState.ticketId, activeState.channelId, {
+      const payload = await preloadWorkspaceContract(activeState.ticketId, activeState.channelId, {
         limit: options.messagesPageLimit,
       });
       options.setActiveWorkspacePayload?.(payload);
@@ -624,6 +849,139 @@
       if (!addition) return;
       elements.workspaceComposerText.value = value ? `${value}\n\n${addition}` : addition;
       elements.workspaceComposerText.focus();
+    }
+
+    async function reloadWorkspaceForInitialRoute(statusText = 'Повторная загрузка ленты…') {
+      const activeState = getActiveWorkspaceState();
+      if (!options.workspaceEnabled || !activeState.ticketId) return;
+      const initialRow = (options.rowsList?.() || []).find((row) => String(row.dataset.ticketId || '') === activeState.ticketId) || null;
+      if (elements.workspaceMessagesError) elements.workspaceMessagesError.classList.add('d-none');
+      if (elements.workspaceClientError) elements.workspaceClientError.classList.add('d-none');
+      if (elements.workspaceHistoryError) elements.workspaceHistoryError.classList.add('d-none');
+      if (elements.workspaceRelatedEventsError) elements.workspaceRelatedEventsError.classList.add('d-none');
+      if (elements.workspaceSlaError) elements.workspaceSlaError.classList.add('d-none');
+      if (elements.workspaceMessagesState) {
+        elements.workspaceMessagesState.classList.remove('d-none');
+        elements.workspaceMessagesState.textContent = statusText;
+      }
+      await openDialogWithWorkspaceFallback(activeState.ticketId, initialRow, { source: 'initial_route' });
+    }
+
+    async function openDialogWithWorkspaceFallback(ticketId, row, runtimeOptions = {}) {
+      options.setActiveWorkspacePayload?.(null);
+      const source = runtimeOptions.source || 'manual_open';
+      const channelId = runtimeOptions.channelId ?? row?.dataset?.channelId ?? null;
+      const activeState = getActiveWorkspaceState();
+      if (isWorkspaceTemporarilyDisabled()) {
+        if (!options.workspaceDisableLegacyFallback) {
+          notify('Workspace временно в cooldown — открыт legacy modal как rollback.', 'warning');
+          await options.openDialogDetails?.(ticketId, row || activeState.row);
+        } else {
+          notify('Legacy modal отключён: дождитесь завершения workspace cooldown или исправьте причину деградации workspace.', 'warning');
+        }
+        return;
+      }
+      startWorkspaceOpenTimer(ticketId);
+      try {
+        const workspacePayload = await preloadWorkspaceContract(ticketId, channelId, {
+          limit: options.messagesPageLimit,
+        });
+        const durationMs = finishWorkspaceOpenTimer(ticketId);
+        await emitWorkspaceTelemetry('workspace_open_ms', {
+          ticketId,
+          durationMs,
+          contractVersion: workspacePayload?.contract_version || null,
+        });
+        if (Number.isFinite(durationMs) && durationMs > Number(options.workspaceOpenSloMs || 0)) {
+          console.warn(`workspace_open_ms degraded for ticket ${ticketId}: ${durationMs}ms > ${options.workspaceOpenSloMs}ms`);
+          await emitWorkspaceTelemetry('workspace_guardrail_breach', {
+            ticketId,
+            reason: 'slow_open',
+            sloMs: options.workspaceOpenSloMs,
+            durationMs,
+            source,
+            contractVersion: workspacePayload?.contract_version || null,
+          });
+        }
+        clearWorkspaceFailureStreak();
+        options.setActiveWorkspaceTicketId?.(String(ticketId || '').trim());
+        options.setActiveWorkspaceChannelId?.(channelId);
+        options.setActiveWorkspacePayload?.(workspacePayload);
+        if (source === 'initial_route' || options.inlineNavigation) {
+          renderWorkspaceShell(workspacePayload);
+          if (source !== 'initial_route') {
+            const nextUrl = buildWorkspaceDialogUrl(ticketId, channelId);
+            window.history.pushState({ ticketId: String(ticketId || '').trim() }, '', nextUrl);
+          }
+        } else {
+          const nextUrl = buildWorkspaceDialogUrl(ticketId, channelId);
+          window.location.assign(nextUrl);
+        }
+      } catch (error) {
+        setWorkspaceReadonlyMode(false);
+        const durationMs = finishWorkspaceOpenTimer(ticketId);
+        const reason = resolveWorkspaceFallbackReason(error);
+        await emitWorkspaceTelemetry('workspace_render_error', {
+          ticketId,
+          durationMs,
+          errorCode: reason,
+          contractVersion: error?.contractVersion || null,
+          httpStatus: Number(error?.httpStatus) || null,
+        });
+        await emitWorkspaceTelemetry('workspace_guardrail_breach', {
+          ticketId,
+          reason: 'render_error',
+          errorCode: reason,
+          durationMs,
+          source,
+          contractVersion: error?.contractVersion || null,
+          httpStatus: Number(error?.httpStatus) || null,
+        });
+        await emitWorkspaceTelemetry('workspace_fallback_to_legacy', {
+          ticketId,
+          reason,
+          durationMs,
+          contractVersion: error?.contractVersion || null,
+          httpStatus: Number(error?.httpStatus) || null,
+        });
+        await emitWorkspaceTelemetry('workspace_guardrail_breach', {
+          ticketId,
+          reason: 'fallback_to_legacy',
+          fallbackReason: reason,
+          durationMs,
+          source,
+          contractVersion: error?.contractVersion || null,
+          httpStatus: Number(error?.httpStatus) || null,
+        });
+        const activatedCooldown = registerWorkspaceFailure();
+        if (activatedCooldown) {
+          await emitWorkspaceTelemetry('workspace_guardrail_breach', {
+            ticketId,
+            reason: 'fallback_streak_cooldown',
+            threshold: options.workspaceFailureStreakThreshold,
+            cooldownMs: options.workspaceFailureCooldownMs,
+            source,
+          });
+          notify('Workspace временно переведён в cooldown из-за серии ошибок. Используется legacy-режим.', 'warning');
+        }
+        const fallbackAllowed = options.workspaceDisableLegacyFallback !== true;
+        if (fallbackAllowed) {
+          notify('Workspace временно недоступен — выполнен rollback в legacy modal.', 'warning');
+          await options.openDialogDetails?.(ticketId, row || activeState.row);
+          return;
+        }
+        if (source === 'initial_route' && elements.workspaceShell) {
+          elements.workspaceShell.classList.remove('d-none');
+          if (elements.workspaceMessagesState) {
+            elements.workspaceMessagesState.classList.remove('d-none');
+            elements.workspaceMessagesState.textContent = 'Workspace временно недоступен. Auto-fallback в legacy отключён текущим режимом rollout.';
+          }
+          if (elements.workspaceMessagesError) {
+            elements.workspaceMessagesError.classList.remove('d-none');
+          }
+        }
+        notify('Legacy modal отключён: auto-fallback недоступен. Проверьте telemetry workspace и исправьте ошибку контракта.', 'warning');
+      }
     }
 
     function renderWorkspaceCategories() {
@@ -688,7 +1046,7 @@
         return;
       }
       state.lastProfileGapSignature = signature;
-      options.emitWorkspaceTelemetry?.('workspace_context_profile_gap', {
+      emitWorkspaceTelemetry('workspace_context_profile_gap', {
         ticketId,
         reason: [
           ...activeSegments.map((segment) => `segment:${segment}`),
@@ -722,7 +1080,7 @@
         return;
       }
       state.lastContextSourceGapSignature = signature;
-      options.emitWorkspaceTelemetry?.('workspace_context_source_gap', {
+      emitWorkspaceTelemetry('workspace_context_source_gap', {
         ticketId,
         reason: blockingSources.join(','),
         durationMs: blockingSources.length,
@@ -753,7 +1111,7 @@
         return;
       }
       state.lastAttributePolicyGapSignature = signature;
-      options.emitWorkspaceTelemetry?.('workspace_context_attribute_policy_gap', {
+      emitWorkspaceTelemetry('workspace_context_attribute_policy_gap', {
         ticketId,
         reason: blockingPolicies.join(','),
         durationMs: blockingPolicies.length,
@@ -781,7 +1139,7 @@
         return;
       }
       state.lastContextBlockGapSignature = signature;
-      options.emitWorkspaceTelemetry?.('workspace_context_block_gap', {
+      emitWorkspaceTelemetry('workspace_context_block_gap', {
         ticketId,
         reason: missingBlocks.join(','),
         durationMs: missingBlocks.length,
@@ -806,7 +1164,7 @@
       const telemetryReasons = violationDetails.length
         ? violationDetails.map((item) => item.analyticsMessage || item.code).filter(Boolean)
         : violations;
-      options.emitWorkspaceTelemetry?.('workspace_context_contract_gap', {
+      emitWorkspaceTelemetry('workspace_context_contract_gap', {
         ticketId,
         reason: telemetryReasons.join(',') || 'contract_not_ready',
         durationMs: telemetryReasons.length,
@@ -834,7 +1192,7 @@
         return;
       }
       state.lastSlaPolicyGapSignature = signature;
-      options.emitWorkspaceTelemetry?.('workspace_sla_policy_gap', {
+      emitWorkspaceTelemetry('workspace_sla_policy_gap', {
         ticketId,
         reason,
         durationMs: Number.isFinite(Number(sla?.minutes_left)) ? Number(sla.minutes_left) : 0,
@@ -858,7 +1216,7 @@
         return;
       }
       state.lastParityGapSignature = signature;
-      options.emitWorkspaceTelemetry?.('workspace_parity_gap', {
+      emitWorkspaceTelemetry('workspace_parity_gap', {
         ticketId,
         reason: missingCapabilities.join(',') || String(safeParity?.status || 'parity_gap'),
         durationMs: Number.isFinite(Number(safeParity?.score_pct)) ? Math.max(0, Math.min(100, Number(safeParity.score_pct))) : null,
@@ -1498,7 +1856,7 @@
         if (elements.workspaceClientContent) {
           elements.workspaceClientContent.classList.remove('d-none');
           elements.workspaceClientContent.innerHTML = renderWorkspaceClientProfile(client, context);
-          options.bindWorkspaceContextDisclosureTelemetry?.(elements.workspaceClientContent);
+          bindWorkspaceContextDisclosureTelemetry(elements.workspaceClientContent);
         }
       } else {
         if (elements.workspaceClientState) elements.workspaceClientState.classList.add('d-none');
@@ -1695,6 +2053,12 @@
       navigateWorkspaceInline,
       refreshActiveWorkspaceContract,
       appendToWorkspaceComposer,
+      reloadWorkspaceForInitialRoute,
+      isWorkspaceTemporarilyDisabled,
+      registerWorkspaceFailure,
+      clearWorkspaceFailureStreak,
+      openDialogWithWorkspaceFallback,
+      emitWorkspaceTelemetry,
       renderWorkspaceCategories,
       emitWorkspaceProfileGapTelemetry,
       emitWorkspaceContextSourceGapTelemetry,

@@ -652,14 +652,11 @@
   });
   let workspaceReadonlyMode = false;
   let workspaceComposerTicketId = '';
-  let workspaceFailureStreak = 0;
-  let workspaceTemporarilyDisabledUntil = 0;
   let activeWorkspaceTicketId = INITIAL_DIALOG_TICKET_ID;
   let activeWorkspaceChannelId = null;
   let activeWorkspacePayload = null;
   let workspaceAiReviewProblemCandidates = [];
   let workspaceAiReviewSolutionCandidates = [];
-  const workspaceContextDisclosureSignatures = new Set();
 
 
   const BUSINESS_STYLES = (window.BUSINESS_CELL_STYLES && typeof window.BUSINESS_CELL_STYLES === 'object')
@@ -912,7 +909,6 @@
     suppressDetailsReset: false,
     reopenAfterClose: false,
   };
-  const workspaceOpenTimers = new Map();
   const workspaceExperimentContext = resolveWorkspaceExperimentContext();
   const WORKSPACE_EXPERIENCE_ENABLED = resolveWorkspaceExperienceEnabled();
   const INITIAL_MY_DIALOGS = (window.INITIAL_MY_DIALOGS && typeof window.INITIAL_MY_DIALOGS === 'object')
@@ -1859,6 +1855,17 @@
     }),
     workspaceEnabled: WORKSPACE_V1_ENABLED,
     inlineNavigation: WORKSPACE_INLINE_NAVIGATION,
+    workspaceDisableLegacyFallback: WORKSPACE_DISABLE_LEGACY_FALLBACK,
+    workspaceOpenSloMs: WORKSPACE_OPEN_SLO_MS,
+    workspaceFailureStreakThreshold: WORKSPACE_FAILURE_STREAK_THRESHOLD,
+    workspaceFailureCooldownMs: WORKSPACE_FAILURE_COOLDOWN_MS,
+    workspaceContractTimeoutMs: WORKSPACE_CONTRACT_TIMEOUT_MS,
+    workspaceContractRetryAttempts: WORKSPACE_CONTRACT_RETRY_ATTEMPTS,
+    workspaceContractInclude: WORKSPACE_CONTRACT_INCLUDE,
+    workspaceTelemetryEventGroups: DIALOGS_TELEMETRY_EVENT_GROUPS,
+    workspaceExperimentContext,
+    workspacePrimaryKpis: WORKSPACE_AB_TEST_CONFIG.primaryKpis,
+    workspaceSecondaryKpis: WORKSPACE_AB_TEST_CONFIG.secondaryKpis,
     messagesPageLimit: WORKSPACE_MESSAGES_PAGE_LIMIT,
     draftStoragePrefix: STORAGE_WORKSPACE_DRAFT_PREFIX,
     draftAutosaveDelay: WORKSPACE_DRAFT_AUTOSAVE_DELAY_MS,
@@ -1871,7 +1878,6 @@
     escapeHtml,
     formatTimestamp,
     formatWorkspaceDateTime,
-    renderWorkspaceSimpleList,
     workspaceMutatingPermissionKeys: WORKSPACE_MUTATING_PERMISSION_KEYS,
     getActiveDialogContext: () => activeDialogContext,
     setActiveDialogContext: (context) => {
@@ -1896,6 +1902,12 @@
     setWorkspaceReadonlyState: (nextState) => {
       workspaceReadonlyMode = nextState === true;
     },
+    setActiveWorkspaceTicketId: (ticketId) => {
+      activeWorkspaceTicketId = String(ticketId || '').trim();
+    },
+    setActiveWorkspaceChannelId: (channelId) => {
+      activeWorkspaceChannelId = channelId ?? null;
+    },
     getWorkspaceComposerMeta: () => dialogsMacroRuntime?.getWorkspaceComposerMeta() || {
       hasActiveMacroTemplate: false,
       macroTemplatesLength: 0,
@@ -1904,17 +1916,15 @@
     loadWorkspaceAiReview,
     loadWorkspaceAiControl,
     updateWorkspaceActionButtons,
-    bindWorkspaceContextDisclosureTelemetry,
-    emitWorkspaceTelemetry,
     renderWorkspaceMessageItem,
-    preloadWorkspaceContract,
+    withChannelParam,
+    openDialogDetails,
     setActiveWorkspacePayload: (payload) => {
       activeWorkspacePayload = payload;
     },
     rowsList,
     setActiveDialogRow,
     openVisibleDialogByOffset,
-    openDialogWithWorkspaceFallback,
     updateBulkToolbarState,
     renderTableFromRows,
     updateRowStatus,
@@ -2878,109 +2888,8 @@
     return /^\/dialogs\/[^/]+/.test(String(pathname || ''));
   }
 
-  function startWorkspaceOpenTimer(ticketId) {
-    if (!ticketId) return;
-    workspaceOpenTimers.set(String(ticketId), performance.now());
-  }
-
-  function finishWorkspaceOpenTimer(ticketId) {
-    const key = String(ticketId || '');
-    const startedAt = workspaceOpenTimers.get(key);
-    if (!Number.isFinite(startedAt)) return null;
-    workspaceOpenTimers.delete(key);
-    const elapsedMs = Math.max(0, Math.round(performance.now() - startedAt));
-    return elapsedMs;
-  }
-
   async function emitWorkspaceTelemetry(eventType, payload = {}) {
-    if (!eventType) return;
-    const eventGroup = DIALOGS_TELEMETRY_EVENT_GROUPS[eventType] || null;
-    const body = {
-      event_type: String(eventType),
-      event_group: eventGroup,
-      timestamp: new Date().toISOString(),
-      ticket_id: payload.ticketId || null,
-      reason: payload.reason || null,
-      error_code: payload.errorCode || null,
-      contract_version: payload.contractVersion || null,
-      duration_ms: Number.isFinite(payload.durationMs) ? payload.durationMs : null,
-      experiment_name: workspaceExperimentContext.experimentName,
-      experiment_cohort: workspaceExperimentContext.cohort,
-      operator_segment: workspaceExperimentContext.operatorSegment,
-      primary_kpis: WORKSPACE_AB_TEST_CONFIG.primaryKpis,
-      secondary_kpis: WORKSPACE_AB_TEST_CONFIG.secondaryKpis,
-      template_id: payload.templateId || null,
-      template_name: payload.templateName || null,
-    };
-    try {
-      await fetch('/api/dialogs/workspace-telemetry', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-    } catch (_error) {
-      // no-op: telemetry should never break operator flow
-    }
-  }
-
-  function emitWorkspaceContextDisclosureTelemetry(eventType, detail) {
-    const ticketId = String(activeWorkspaceTicketId || '').trim();
-    if (!ticketId || !eventType || !detail || detail.open !== true) return;
-    const reason = [
-      `section:${String(detail.section || 'unknown').trim()}`,
-      `items:${Number(detail.items || 0)}`,
-      `required:${Number(detail.required || 0)}`,
-      `gaps:${Number(detail.gaps || 0)}`,
-      `hidden:${Number(detail.hidden || 0)}`,
-    ].join('|');
-    const signature = `${ticketId}:${eventType}:${reason}`;
-    if (workspaceContextDisclosureSignatures.has(signature)) {
-      return;
-    }
-    workspaceContextDisclosureSignatures.add(signature);
-    emitWorkspaceTelemetry(eventType, {
-      ticketId,
-      reason,
-      durationMs: Number(detail.items || 0),
-      contractVersion: activeWorkspacePayload?.contract_version || 'workspace.v1',
-    });
-  }
-
-  function bindWorkspaceContextDisclosureTelemetry(container) {
-    if (!container) return;
-    const eventBySection = {
-      context_sources: 'workspace_context_sources_expanded',
-      attribute_policy: 'workspace_context_attribute_policy_expanded',
-      extra_attributes: 'workspace_context_extra_attributes_expanded',
-    };
-    container.querySelectorAll('details[data-workspace-telemetry-section]').forEach((node) => {
-      if (node.dataset.telemetryBound === 'true') return;
-      node.dataset.telemetryBound = 'true';
-      node.addEventListener('toggle', () => {
-        const section = String(node.dataset.workspaceTelemetrySection || '').trim();
-        const eventType = eventBySection[section];
-        if (!eventType) return;
-        emitWorkspaceContextDisclosureTelemetry(eventType, {
-          section,
-          open: node.open === true,
-          items: Number(node.dataset.workspaceTelemetryItems || 0),
-          required: Number(node.dataset.workspaceTelemetryRequired || 0),
-          gaps: Number(node.dataset.workspaceTelemetryGaps || 0),
-          hidden: Number(node.dataset.workspaceTelemetryHidden || 0),
-        });
-      });
-    });
-  }
-
-  function isValidWorkspaceContract(payload) {
-    const version = String(payload?.contract_version || '').trim();
-    const ticketId = String(payload?.conversation?.ticketId || '').trim();
-    const status = String(payload?.conversation?.statusKey || payload?.conversation?.status || '').trim();
-    const permissions = payload?.permissions;
-    const slaState = String(payload?.sla?.state || '').trim();
-    const hasPermissions = Boolean(permissions && typeof permissions === 'object');
-    return version === 'workspace.v1' && Boolean(ticketId) && Boolean(status) && hasPermissions && Boolean(slaState);
+    await dialogsWorkspaceRuntime?.emitWorkspaceTelemetry(eventType, payload);
   }
 
   function renderExperimentInfoPanel() {
@@ -3001,14 +2910,6 @@
 
   function formatWorkspaceDateTime(value) {
     return formatTimestamp(value, { includeTime: true, fallback: '—' });
-  }
-
-  function renderWorkspaceSimpleList(items, formatter) {
-    const list = Array.isArray(items) ? items : [];
-    if (list.length === 0) {
-      return '<div class="small text-muted">Пока нет данных.</div>';
-    }
-    return `<ul class="list-unstyled small mb-0">${list.map((item) => `<li class="mb-2">${formatter(item)}</li>`).join('')}</ul>`;
   }
 
   function hasUnsavedWorkspaceComposerChanges(nextTicketId) {
@@ -3321,240 +3222,24 @@
     return dialogsWorkspaceRuntime?.normalizeWorkspaceClientAttributeKey(key) || '';
   }
 
-  function resolveWorkspaceFallbackReason(error) {
-    const rawCode = String(error?.code || error?.message || '').trim();
-    if (rawCode === 'version_mismatch') return 'version_mismatch';
-    if (rawCode === 'invalid_payload') return 'invalid_payload';
-    if (rawCode === 'timeout' || rawCode === 'AbortError') return 'timeout';
-    const status = Number(error?.httpStatus);
-    if (Number.isInteger(status) && status >= 500) return '5xx';
-    if (rawCode.startsWith('workspace_http_5')) return '5xx';
-    return 'unknown_error';
-  }
-
-  async function preloadWorkspaceContract(ticketId, channelId, options = {}) {
-    let endpoint = withChannelParam(`/api/dialogs/${encodeURIComponent(ticketId)}/workspace`, channelId);
-    const queryParams = new URLSearchParams();
-    const include = typeof options.include === 'string' && options.include.trim()
-      ? options.include.trim()
-      : WORKSPACE_CONTRACT_INCLUDE;
-    queryParams.set('include', include);
-    if (Number.isInteger(options.cursor) && options.cursor >= 0) {
-      queryParams.set('cursor', String(options.cursor));
-    }
-    if (Number.isInteger(options.limit) && options.limit > 0) {
-      queryParams.set('limit', String(options.limit));
-    }
-    if (queryParams.size > 0) {
-      endpoint += `${endpoint.includes('?') ? '&' : '?'}${queryParams.toString()}`;
-    }
-    let response = null;
-    let payload = null;
-    for (let attempt = 0; attempt <= WORKSPACE_CONTRACT_RETRY_ATTEMPTS; attempt += 1) {
-      const controller = new AbortController();
-      const timeoutId = window.setTimeout(() => controller.abort(), WORKSPACE_CONTRACT_TIMEOUT_MS);
-      try {
-        response = await fetch(endpoint, {
-          credentials: 'same-origin',
-          cache: 'no-store',
-          signal: controller.signal,
-        });
-        payload = await response.json();
-      } catch (fetchError) {
-        window.clearTimeout(timeoutId);
-        if (fetchError?.name === 'AbortError') {
-          const timeoutError = new Error('workspace_request_timeout');
-          timeoutError.code = 'timeout';
-          throw timeoutError;
-        }
-        if (attempt < WORKSPACE_CONTRACT_RETRY_ATTEMPTS) {
-          continue;
-        }
-        const networkError = new Error('workspace_network_error');
-        networkError.code = 'network_error';
-        throw networkError;
-      }
-      window.clearTimeout(timeoutId);
-      if (response.ok) break;
-      if (response.status >= 500 && attempt < WORKSPACE_CONTRACT_RETRY_ATTEMPTS) {
-        continue;
-      }
-      const requestError = new Error(payload?.error || `workspace_http_${response.status}`);
-      requestError.code = `workspace_http_${response.status}`;
-      requestError.httpStatus = response.status;
-      throw requestError;
-    }
-    const contractVersion = String(payload?.contract_version || '').trim();
-    if (contractVersion !== 'workspace.v1') {
-      const error = new Error('workspace_version_mismatch');
-      error.code = 'version_mismatch';
-      error.contractVersion = contractVersion || null;
-      throw error;
-    }
-    if (!isValidWorkspaceContract(payload)) {
-      const error = new Error('workspace_invalid_payload');
-      error.code = 'invalid_payload';
-      error.contractVersion = contractVersion;
-      throw error;
-    }
-    return payload;
-  }
-
   async function reloadWorkspaceForInitialRoute(statusText = 'Повторная загрузка ленты…') {
-    if (!WORKSPACE_V1_ENABLED || !activeWorkspaceTicketId) return;
-    const initialRow = rowsList().find((row) => String(row.dataset.ticketId || '') === activeWorkspaceTicketId) || null;
-    if (workspaceMessagesError) workspaceMessagesError.classList.add('d-none');
-    if (workspaceClientError) workspaceClientError.classList.add('d-none');
-    if (workspaceHistoryError) workspaceHistoryError.classList.add('d-none');
-    if (workspaceRelatedEventsError) workspaceRelatedEventsError.classList.add('d-none');
-    if (workspaceSlaError) workspaceSlaError.classList.add('d-none');
-    if (workspaceMessagesState) {
-      workspaceMessagesState.classList.remove('d-none');
-      workspaceMessagesState.textContent = statusText;
-    }
-    await openDialogWithWorkspaceFallback(activeWorkspaceTicketId, initialRow, { source: 'initial_route' });
+    await dialogsWorkspaceRuntime?.reloadWorkspaceForInitialRoute(statusText);
   }
 
   function isWorkspaceTemporarilyDisabled() {
-    return workspaceTemporarilyDisabledUntil > Date.now();
+    return dialogsWorkspaceRuntime?.isWorkspaceTemporarilyDisabled() === true;
   }
 
   function registerWorkspaceFailure() {
-    workspaceFailureStreak += 1;
-    if (workspaceFailureStreak >= WORKSPACE_FAILURE_STREAK_THRESHOLD) {
-      workspaceTemporarilyDisabledUntil = Date.now() + WORKSPACE_FAILURE_COOLDOWN_MS;
-      workspaceFailureStreak = 0;
-      return true;
-    }
-    return false;
+    return dialogsWorkspaceRuntime?.registerWorkspaceFailure() === true;
   }
 
   function clearWorkspaceFailureStreak() {
-    workspaceFailureStreak = 0;
-    workspaceTemporarilyDisabledUntil = 0;
+    dialogsWorkspaceRuntime?.clearWorkspaceFailureStreak();
   }
 
   async function openDialogWithWorkspaceFallback(ticketId, row, options = {}) {
-    activeWorkspacePayload = null;
-    const source = options.source || 'manual_open';
-    const channelId = options.channelId ?? row?.dataset?.channelId ?? null;
-    if (isWorkspaceTemporarilyDisabled()) {
-      if (!WORKSPACE_DISABLE_LEGACY_FALLBACK) {
-        if (typeof showNotification === 'function') {
-          showNotification('Workspace временно в cooldown — открыт legacy modal как rollback.', 'warning');
-        }
-        openDialogDetails(ticketId, row || activeDialogRow);
-      } else if (typeof showNotification === 'function') {
-        showNotification('Legacy modal отключён: дождитесь завершения workspace cooldown или исправьте причину деградации workspace.', 'warning');
-      }
-      return;
-    }
-    startWorkspaceOpenTimer(ticketId);
-    try {
-      const workspacePayload = await preloadWorkspaceContract(ticketId, channelId, { limit: WORKSPACE_MESSAGES_PAGE_LIMIT });
-      const durationMs = finishWorkspaceOpenTimer(ticketId);
-      await emitWorkspaceTelemetry('workspace_open_ms', {
-        ticketId,
-        durationMs,
-        contractVersion: workspacePayload?.contract_version || null,
-      });
-      if (Number.isFinite(durationMs) && durationMs > WORKSPACE_OPEN_SLO_MS) {
-        console.warn(`workspace_open_ms degraded for ticket ${ticketId}: ${durationMs}ms > ${WORKSPACE_OPEN_SLO_MS}ms`);
-        await emitWorkspaceTelemetry('workspace_guardrail_breach', {
-          ticketId,
-          reason: 'slow_open',
-          sloMs: WORKSPACE_OPEN_SLO_MS,
-          durationMs,
-          source,
-          contractVersion: workspacePayload?.contract_version || null,
-        });
-      }
-      clearWorkspaceFailureStreak();
-      activeWorkspaceTicketId = String(ticketId || '').trim();
-      activeWorkspaceChannelId = channelId;
-      activeWorkspacePayload = workspacePayload;
-      if (source === 'initial_route' || WORKSPACE_INLINE_NAVIGATION) {
-        renderWorkspaceShell(workspacePayload);
-        if (source !== 'initial_route') {
-          const nextUrl = buildWorkspaceDialogUrl(ticketId, channelId);
-          window.history.pushState({ ticketId: activeWorkspaceTicketId }, '', nextUrl);
-        }
-      } else {
-        const nextUrl = buildWorkspaceDialogUrl(ticketId, channelId);
-        window.location.assign(nextUrl);
-      }
-    } catch (error) {
-      setWorkspaceReadonlyMode(false);
-      const durationMs = finishWorkspaceOpenTimer(ticketId);
-      const reason = resolveWorkspaceFallbackReason(error);
-      await emitWorkspaceTelemetry('workspace_render_error', {
-        ticketId,
-        durationMs,
-        errorCode: reason,
-        contractVersion: error?.contractVersion || null,
-        httpStatus: Number(error?.httpStatus) || null,
-      });
-      await emitWorkspaceTelemetry('workspace_guardrail_breach', {
-        ticketId,
-        reason: 'render_error',
-        errorCode: reason,
-        durationMs,
-        source,
-        contractVersion: error?.contractVersion || null,
-        httpStatus: Number(error?.httpStatus) || null,
-      });
-      await emitWorkspaceTelemetry('workspace_fallback_to_legacy', {
-        ticketId,
-        reason,
-        durationMs,
-        contractVersion: error?.contractVersion || null,
-        httpStatus: Number(error?.httpStatus) || null,
-      });
-      await emitWorkspaceTelemetry('workspace_guardrail_breach', {
-        ticketId,
-        reason: 'fallback_to_legacy',
-        fallbackReason: reason,
-        durationMs,
-        source,
-        contractVersion: error?.contractVersion || null,
-        httpStatus: Number(error?.httpStatus) || null,
-      });
-      const activatedCooldown = registerWorkspaceFailure();
-      if (activatedCooldown) {
-        await emitWorkspaceTelemetry('workspace_guardrail_breach', {
-          ticketId,
-          reason: 'fallback_streak_cooldown',
-          threshold: WORKSPACE_FAILURE_STREAK_THRESHOLD,
-          cooldownMs: WORKSPACE_FAILURE_COOLDOWN_MS,
-          source,
-        });
-        if (typeof showNotification === 'function') {
-          showNotification('Workspace временно переведён в cooldown из-за серии ошибок. Используется legacy-режим.', 'warning');
-        }
-      }
-      const fallbackAllowed = !WORKSPACE_DISABLE_LEGACY_FALLBACK;
-      if (fallbackAllowed) {
-        if (typeof showNotification === 'function') {
-          showNotification('Workspace временно недоступен — выполнен rollback в legacy modal.', 'warning');
-        }
-        openDialogDetails(ticketId, row || activeDialogRow);
-        return;
-      }
-      if (source === 'initial_route' && workspaceShell) {
-        workspaceShell.classList.remove('d-none');
-        if (workspaceMessagesState) {
-          workspaceMessagesState.classList.remove('d-none');
-          workspaceMessagesState.textContent = 'Workspace временно недоступен. Auto-fallback в legacy отключён текущим режимом rollout.';
-        }
-        if (workspaceMessagesError) {
-          workspaceMessagesError.classList.remove('d-none');
-        }
-      }
-      if (typeof showNotification === 'function') {
-        showNotification('Legacy modal отключён: auto-fallback недоступен. Проверьте telemetry workspace и исправьте ошибку контракта.', 'warning');
-      }
-      return;
-    }
+    await dialogsWorkspaceRuntime?.openDialogWithWorkspaceFallback(ticketId, row, options);
   }
 
   function openDialogEntry(ticketId, row) {
