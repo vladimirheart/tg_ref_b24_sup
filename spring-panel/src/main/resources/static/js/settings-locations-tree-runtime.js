@@ -1187,18 +1187,16 @@
           locations: state,
           locations_iiko_server_sources: typeof options.serializeLocationsIikoServerSources === 'function'
             ? options.serializeLocationsIikoServerSources()
-            : window.SettingsLocationsIikoRuntime?.serializeLocationsIikoServerSources?.() || [],
+            : [],
           locations_iiko_sync: typeof options.serializeLocationsIikoSyncSettings === 'function'
             ? options.serializeLocationsIikoSyncSettings()
-            : window.SettingsLocationsIikoRuntime?.serializeLocationsIikoSyncSettings?.() || {},
+            : {},
         }),
       });
       const data = await response.json();
       if (data.success) {
           if (typeof options.markLocationsIikoServerSourcesSaved === 'function') {
             options.markLocationsIikoServerSourcesSaved();
-          } else {
-            window.SettingsLocationsIikoRuntime?.markLocationsIikoServerSourcesSaved?.();
           }
           if (typeof options.loadParameters === 'function') {
             await options.loadParameters();

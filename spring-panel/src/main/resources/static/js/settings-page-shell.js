@@ -448,9 +448,42 @@
     return getSettingsShellRoot() instanceof HTMLElement;
   }
 
+  function resolveThemeRuntime() {
+    const runtime = globalThis.ThemeRuntime;
+    if (runtime && typeof runtime === 'object') {
+      return runtime;
+    }
+    const legacyTheme = globalThis.iguanaTheme;
+    const legacyPalette = globalThis.iguanaThemePalette;
+    if (!legacyTheme || !legacyPalette) {
+      return null;
+    }
+    return {
+      theme: legacyTheme,
+      palette: legacyPalette,
+      getTheme() {
+        return typeof legacyTheme.get === 'function' ? legacyTheme.get() : 'light';
+      },
+      setTheme(theme) {
+        if (typeof legacyTheme.set === 'function') {
+          legacyTheme.set(theme);
+        }
+      },
+      getPalette() {
+        return typeof legacyPalette.get === 'function' ? legacyPalette.get() : 'neo';
+      },
+      setPalette(palette) {
+        if (typeof legacyPalette.set === 'function') {
+          legacyPalette.set(palette);
+        }
+      },
+    };
+  }
+
   function initThemeFormSync() {
     const form = document.querySelector('[data-theme-form]');
-    if (!(form instanceof HTMLElement) || !window.iguanaTheme || !window.iguanaThemePalette) {
+    const themeRuntime = resolveThemeRuntime();
+    if (!(form instanceof HTMLElement) || !themeRuntime?.theme || !themeRuntime?.palette) {
       return;
     }
 
@@ -458,21 +491,21 @@
     const paletteRadios = Array.from(form.querySelectorAll('input[name="themePaletteOption"]'));
 
     const syncTheme = (theme) => {
-      const normalized = typeof theme === 'string' ? theme : window.iguanaTheme.get();
+      const normalized = typeof theme === 'string' ? theme : themeRuntime.getTheme();
       themeRadios.forEach((radio) => {
         radio.checked = radio.value === normalized;
       });
     };
 
     const syncPalette = (palette) => {
-      const normalized = typeof palette === 'string' ? palette : window.iguanaThemePalette.get();
+      const normalized = typeof palette === 'string' ? palette : themeRuntime.getPalette();
       paletteRadios.forEach((radio) => {
         radio.checked = radio.value === normalized;
       });
     };
 
-    syncTheme(window.iguanaTheme.get());
-    syncPalette(window.iguanaThemePalette.get());
+    syncTheme(themeRuntime.getTheme());
+    syncPalette(themeRuntime.getPalette());
 
     form.addEventListener('change', (event) => {
       const target = event.target;
@@ -480,22 +513,22 @@
         return;
       }
       if (target.name === 'themeOption') {
-        window.iguanaTheme.set(target.value);
+        themeRuntime.setTheme(target.value);
       }
       if (target.name === 'themePaletteOption') {
-        window.iguanaThemePalette.set(target.value);
+        themeRuntime.setPalette(target.value);
       }
     });
 
     document.addEventListener('theme:change', (event) => {
       const detail = event && event.detail ? event.detail : {};
-      syncTheme(detail.theme || window.iguanaTheme.get());
-      syncPalette(detail.palette || window.iguanaThemePalette.get());
+      syncTheme(detail.theme || themeRuntime.getTheme());
+      syncPalette(detail.palette || themeRuntime.getPalette());
     });
 
     document.addEventListener('theme:palette-change', (event) => {
       const detail = event && event.detail ? event.detail : {};
-      syncPalette(detail.palette || window.iguanaThemePalette.get());
+      syncPalette(detail.palette || themeRuntime.getPalette());
     });
   }
 

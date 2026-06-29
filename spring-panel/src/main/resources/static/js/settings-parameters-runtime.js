@@ -81,33 +81,25 @@
     function syncParameterData(data) {
       if (typeof options.syncParameterData === 'function') {
         options.syncParameterData(data);
-        return;
       }
-      window.SettingsParametersShellRuntime?.syncParameterData?.(data);
     }
 
     function renderPartnerContacts() {
       if (typeof options.renderPartnerContacts === 'function') {
         options.renderPartnerContacts();
-        return;
       }
-      window.SettingsPartnerContactsRuntime?.renderPartnerContacts?.();
     }
 
     function renderLegalEntities() {
       if (typeof options.renderLegalEntities === 'function') {
         options.renderLegalEntities();
-        return;
       }
-      window.SettingsLegalEntitiesRuntime?.renderLegalEntities?.();
     }
 
     function renderItConnectionsTable() {
       if (typeof options.renderItConnectionsTable === 'function') {
         options.renderItConnectionsTable();
-        return;
       }
-      window.SettingsItConnectionsRuntime?.renderItConnectionsTable?.();
     }
 
     function confirmAction(message) {

@@ -121,6 +121,22 @@
 
   window.iguanaTheme = apiTheme;
   window.iguanaThemePalette = apiPalette;
+  window.ThemeRuntime = Object.freeze({
+    theme: apiTheme,
+    palette: apiPalette,
+    getTheme() {
+      return apiTheme.get();
+    },
+    setTheme(theme) {
+      apiTheme.set(theme);
+    },
+    getPalette() {
+      return apiPalette.get();
+    },
+    setPalette(palette) {
+      apiPalette.set(palette);
+    },
+  });
 
   if (media && media.addEventListener) {
     media.addEventListener('change', () => {

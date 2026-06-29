@@ -47,25 +47,19 @@
     function syncParameterData(data) {
       if (typeof options.syncParameterData === 'function') {
         options.syncParameterData(data);
-        return;
       }
-      window.SettingsParametersShellRuntime?.syncParameterData?.(data);
     }
 
     function rerenderParameters() {
       if (typeof options.renderParameters === 'function') {
         options.renderParameters({ forceBodies: true });
-        return;
       }
-      window.SettingsParametersShellRuntime?.renderParameters?.({ forceBodies: true });
     }
 
     function rerenderItConnectionsTable() {
       if (typeof options.renderItConnectionsTable === 'function') {
         options.renderItConnectionsTable();
-        return;
       }
-      window.SettingsItConnectionsRuntime?.renderItConnectionsTable?.();
     }
 
     function deleteParameter(id, type, trigger) {
