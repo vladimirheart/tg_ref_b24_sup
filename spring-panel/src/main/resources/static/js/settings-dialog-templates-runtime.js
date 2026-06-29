@@ -1246,5 +1246,64 @@
     },
   };
 
-  window.SettingsDialogTemplatesRuntime = Object.freeze(api);
+  window.SettingsDialogTemplatesRuntime = Object.freeze({
+    ...api,
+    addAutoCloseTemplate(...args) {
+      return window.__settingsDialogTemplatesRuntime?.addAutoCloseTemplate?.(...args);
+    },
+    addCategoryTemplate(...args) {
+      return window.__settingsDialogTemplatesRuntime?.addCategoryTemplate?.(...args);
+    },
+    addQuestionTemplate(...args) {
+      return window.__settingsDialogTemplatesRuntime?.addQuestionTemplate?.(...args);
+    },
+    addCompletionTemplate(...args) {
+      return window.__settingsDialogTemplatesRuntime?.addCompletionTemplate?.(...args);
+    },
+    addMacroTemplate(...args) {
+      return window.__settingsDialogTemplatesRuntime?.addMacroTemplate?.(...args);
+    },
+    toggleDialogTemplateEditor(...args) {
+      return window.__settingsDialogTemplatesRuntime?.toggleDialogTemplateEditor?.(...args);
+    },
+    removeCategoryTemplate(...args) {
+      return window.__settingsDialogTemplatesRuntime?.removeCategoryTemplate?.(...args);
+    },
+    addCategoryRow(...args) {
+      return window.__settingsDialogTemplatesRuntime?.addCategoryRow?.(...args);
+    },
+    removeCategoryRow(...args) {
+      return window.__settingsDialogTemplatesRuntime?.removeCategoryRow?.(...args);
+    },
+    removeQuestionTemplate(...args) {
+      return window.__settingsDialogTemplatesRuntime?.removeQuestionTemplate?.(...args);
+    },
+    addQuestionRow(...args) {
+      return window.__settingsDialogTemplatesRuntime?.addQuestionRow?.(...args);
+    },
+    removeQuestionRow(...args) {
+      return window.__settingsDialogTemplatesRuntime?.removeQuestionRow?.(...args);
+    },
+    removeCompletionTemplate(...args) {
+      return window.__settingsDialogTemplatesRuntime?.removeCompletionTemplate?.(...args);
+    },
+    addCompletionRow(...args) {
+      return window.__settingsDialogTemplatesRuntime?.addCompletionRow?.(...args);
+    },
+    removeCompletionRow(...args) {
+      return window.__settingsDialogTemplatesRuntime?.removeCompletionRow?.(...args);
+    },
+    removeMacroTemplate(...args) {
+      return window.__settingsDialogTemplatesRuntime?.removeMacroTemplate?.(...args);
+    },
+    addMacroTagRow(...args) {
+      return window.__settingsDialogTemplatesRuntime?.addMacroTagRow?.(...args);
+    },
+    removeMacroTagRow(...args) {
+      return window.__settingsDialogTemplatesRuntime?.removeMacroTagRow?.(...args);
+    },
+    removeAutoCloseTemplate(...args) {
+      return window.__settingsDialogTemplatesRuntime?.removeAutoCloseTemplate?.(...args);
+    },
+  });
 }());
