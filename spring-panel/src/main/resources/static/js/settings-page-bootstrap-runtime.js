@@ -119,6 +119,7 @@
     settingsLocationsTreeRuntime = window.SettingsLocationsTreeRuntime?.mount({
       initialLocations: options.locationsInitial || {},
       loadParameters: () => settingsParametersShellRuntime?.loadParameters(),
+      showPopup: (message, type) => showPopup(message, type),
       serializeLocationsIikoServerSources: () => settingsLocationsIikoRuntime?.serializeLocationsIikoServerSources?.() || [],
       serializeLocationsIikoSyncSettings: () => settingsLocationsIikoRuntime?.serializeLocationsIikoSyncSettings?.() || {},
       markLocationsIikoServerSourcesSaved: () => settingsLocationsIikoRuntime?.markLocationsIikoServerSourcesSaved?.(),

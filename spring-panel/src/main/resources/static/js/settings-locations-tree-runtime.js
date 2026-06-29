@@ -25,7 +25,7 @@
   const COLLAPSE_ICON_HTML = '<i class="bi bi-chevron-down"></i>';
   const EXPAND_ICON_HTML = '<i class="bi bi-chevron-right"></i>';
 
-  function notify(message, type = 'info') {
+  function defaultNotify(message, type = 'info') {
     if (typeof window.showPopup === 'function') {
       window.showPopup(message, type);
       return;
@@ -122,6 +122,9 @@
 
   function createRuntime(options = {}) {
     const collapsedLocationNodes = new Set();
+    const popup = typeof options.showPopup === 'function'
+      ? options.showPopup
+      : defaultNotify;
     const state = {
       tree:
         options.initialLocations &&
@@ -868,7 +871,7 @@
       }
       const trimmed = (newName || '').trim() || currentName;
       if (trimmed !== currentName && Object.prototype.hasOwnProperty.call(tree, trimmed)) {
-        notify(`Бизнес "${trimmed}" уже существует`);
+        popup(`Бизнес "${trimmed}" уже существует`);
         return false;
       }
       if (trimmed !== currentName) {
@@ -901,7 +904,7 @@
         return;
       }
       if (Object.prototype.hasOwnProperty.call(state.tree || {}, trimmed)) {
-        notify(`Бизнес "${trimmed}" уже существует`);
+        popup(`Бизнес "${trimmed}" уже существует`);
         return;
       }
       state.tree[trimmed] = { 'Новый тип': { 'Новый город': [] } };
@@ -935,7 +938,7 @@
       const currentName = (oldName || '').trim();
       const trimmed = (newName || '').trim() || currentName;
       if (trimmed !== currentName && Object.prototype.hasOwnProperty.call(types, trimmed)) {
-        notify(`Тип "${trimmed}" уже существует`);
+        popup(`Тип "${trimmed}" уже существует`);
         return false;
       }
       if (trimmed !== currentName) {
@@ -975,7 +978,7 @@
         return;
       }
       if (Object.prototype.hasOwnProperty.call(types, trimmed)) {
-        notify(`Тип "${trimmed}" уже существует`);
+        popup(`Тип "${trimmed}" уже существует`);
         return;
       }
       types[trimmed] = { 'Новый город': [] };
@@ -1016,7 +1019,7 @@
       const currentName = (oldName || '').trim();
       const trimmed = (newName || '').trim() || currentName;
       if (trimmed !== currentName && Object.prototype.hasOwnProperty.call(cities, trimmed)) {
-        notify(`Город "${trimmed}" уже существует`);
+        popup(`Город "${trimmed}" уже существует`);
         return false;
       }
       if (trimmed !== currentName) {
@@ -1059,7 +1062,7 @@
         return;
       }
       if (Object.prototype.hasOwnProperty.call(cities, trimmed)) {
-        notify(`Город "${trimmed}" уже существует`);
+        popup(`Город "${trimmed}" уже существует`);
         return;
       }
       cities[trimmed] = [];
@@ -1103,7 +1106,7 @@
       const currentName = (oldName || '').trim();
       const trimmed = (newName || '').trim() || currentName;
       if (trimmed !== currentName && locations.includes(trimmed)) {
-        notify(`Локация "${trimmed}" уже существует`);
+        popup(`Локация "${trimmed}" уже существует`);
         return false;
       }
       const index = locations.indexOf(currentName);
@@ -1146,7 +1149,7 @@
         return;
       }
       if (list.includes(trimmed)) {
-        notify(`Локация "${trimmed}" уже существует`);
+        popup(`Локация "${trimmed}" уже существует`);
         return;
       }
       list.push(trimmed);
@@ -1188,10 +1191,10 @@
           locations: state,
           locations_iiko_server_sources: typeof options.serializeLocationsIikoServerSources === 'function'
             ? options.serializeLocationsIikoServerSources()
-            : window.serializeLocationsIikoServerSources(),
+            : window.SettingsLocationsIikoRuntime?.serializeLocationsIikoServerSources?.() || [],
           locations_iiko_sync: typeof options.serializeLocationsIikoSyncSettings === 'function'
             ? options.serializeLocationsIikoSyncSettings()
-            : window.serializeLocationsIikoSyncSettings(),
+            : window.SettingsLocationsIikoRuntime?.serializeLocationsIikoSyncSettings?.() || {},
         }),
       });
       const data = await response.json();
@@ -1199,17 +1202,17 @@
           if (typeof options.markLocationsIikoServerSourcesSaved === 'function') {
             options.markLocationsIikoServerSourcesSaved();
           } else {
-            window.markLocationsIikoServerSourcesSaved();
+            window.SettingsLocationsIikoRuntime?.markLocationsIikoServerSourcesSaved?.();
           }
           if (typeof options.loadParameters === 'function') {
             await options.loadParameters();
           }
-          notify('✅ Структура локаций сохранена');
+          popup('✅ Структура локаций сохранена');
         } else {
-          notify('❌ Ошибка: ' + (data.error || 'неизвестная ошибка'));
+          popup('❌ Ошибка: ' + (data.error || 'неизвестная ошибка'));
         }
       } catch (error) {
-        notify('❌ Ошибка сети: ' + error.message);
+        popup('❌ Ошибка сети: ' + error.message);
       }
     }
 
@@ -1249,6 +1252,12 @@
     },
     buildLocationsTree() {
       return window.__settingsLocationsTreeRuntime?.buildLocationsTree();
+    },
+    addBusiness(...args) {
+      return window.__settingsLocationsTreeRuntime?.addBusiness(...args);
+    },
+    saveLocationsChanges(...args) {
+      return window.__settingsLocationsTreeRuntime?.saveLocationsChanges(...args);
     },
     setStatus(...args) {
       return window.__settingsLocationsTreeRuntime?.setStatus(...args);
