@@ -840,12 +840,6 @@
 
     const runtime = createRuntime(options);
     runtime.init();
-    window.initClientStatuses = runtime.initClientStatuses;
-    window.initBusinessStylesEditor = runtime.initBusinessStylesEditor;
-    window.startStatusesEdit = runtime.startStatusesEdit;
-    window.saveClientStatuses = runtime.saveClientStatuses;
-    window.cancelStatusesEdit = runtime.cancelStatusesEdit;
-    window.addStatus = runtime.addStatus;
     window.SettingsPageCallbackRegistry?.registerMany({
       initClientStatuses: runtime.initClientStatuses,
       initBusinessStylesEditor: runtime.initBusinessStylesEditor,

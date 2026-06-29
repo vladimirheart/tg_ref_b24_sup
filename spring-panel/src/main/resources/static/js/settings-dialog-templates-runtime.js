@@ -1162,83 +1162,26 @@
         return window.__settingsDialogTemplatesRuntime;
       }
       const runtime = createRuntime(options);
-      window.addAutoCloseTemplate = function addAutoCloseTemplate(template) {
-        return runtime.addAutoCloseTemplate(template);
-      };
-      window.addCategoryTemplate = function addCategoryTemplate(template) {
-        return runtime.addCategoryTemplate(template);
-      };
-      window.addQuestionTemplate = function addQuestionTemplate(template) {
-        return runtime.addQuestionTemplate(template);
-      };
-      window.addCompletionTemplate = function addCompletionTemplate(template) {
-        return runtime.addCompletionTemplate(template);
-      };
-      window.addMacroTemplate = function addMacroTemplate(template) {
-        return runtime.addMacroTemplate(template);
-      };
-      window.toggleDialogTemplateEditor = function toggleDialogTemplateEditor(source, forceState) {
-        return runtime.toggleDialogTemplateEditor(source, forceState);
-      };
-      window.removeCategoryTemplate = function removeCategoryTemplate(trigger) {
-        return runtime.removeCategoryTemplate(trigger);
-      };
-      window.addCategoryRow = function addCategoryRow(source, value) {
-        return runtime.addCategoryRow(source, value);
-      };
-      window.removeCategoryRow = function removeCategoryRow(trigger) {
-        return runtime.removeCategoryRow(trigger);
-      };
-      window.removeQuestionTemplate = function removeQuestionTemplate(trigger) {
-        return runtime.removeQuestionTemplate(trigger);
-      };
-      window.addQuestionRow = function addQuestionRow(source, value) {
-        return runtime.addQuestionRow(source, value);
-      };
-      window.removeQuestionRow = function removeQuestionRow(trigger) {
-        return runtime.removeQuestionRow(trigger);
-      };
-      window.removeCompletionTemplate = function removeCompletionTemplate(trigger) {
-        return runtime.removeCompletionTemplate(trigger);
-      };
-      window.addCompletionRow = function addCompletionRow(source, questionValue, actionValue) {
-        return runtime.addCompletionRow(source, questionValue, actionValue);
-      };
-      window.removeCompletionRow = function removeCompletionRow(trigger) {
-        return runtime.removeCompletionRow(trigger);
-      };
-      window.removeMacroTemplate = function removeMacroTemplate(trigger) {
-        return runtime.removeMacroTemplate(trigger);
-      };
-      window.addMacroTagRow = function addMacroTagRow(source, value) {
-        return runtime.addMacroTagRow(source, value);
-      };
-      window.removeMacroTagRow = function removeMacroTagRow(trigger) {
-        return runtime.removeMacroTagRow(trigger);
-      };
-      window.removeAutoCloseTemplate = function removeAutoCloseTemplate(trigger) {
-        return runtime.removeAutoCloseTemplate(trigger);
-      };
       window.SettingsPageCallbackRegistry?.registerMany({
-        addAutoCloseTemplate: window.addAutoCloseTemplate,
-        addCategoryTemplate: window.addCategoryTemplate,
-        addQuestionTemplate: window.addQuestionTemplate,
-        addCompletionTemplate: window.addCompletionTemplate,
-        addMacroTemplate: window.addMacroTemplate,
-        toggleDialogTemplateEditor: window.toggleDialogTemplateEditor,
-        removeCategoryTemplate: window.removeCategoryTemplate,
-        addCategoryRow: window.addCategoryRow,
-        removeCategoryRow: window.removeCategoryRow,
-        removeQuestionTemplate: window.removeQuestionTemplate,
-        addQuestionRow: window.addQuestionRow,
-        removeQuestionRow: window.removeQuestionRow,
-        removeCompletionTemplate: window.removeCompletionTemplate,
-        addCompletionRow: window.addCompletionRow,
-        removeCompletionRow: window.removeCompletionRow,
-        removeMacroTemplate: window.removeMacroTemplate,
-        addMacroTagRow: window.addMacroTagRow,
-        removeMacroTagRow: window.removeMacroTagRow,
-        removeAutoCloseTemplate: window.removeAutoCloseTemplate,
+        addAutoCloseTemplate: runtime.addAutoCloseTemplate,
+        addCategoryTemplate: runtime.addCategoryTemplate,
+        addQuestionTemplate: runtime.addQuestionTemplate,
+        addCompletionTemplate: runtime.addCompletionTemplate,
+        addMacroTemplate: runtime.addMacroTemplate,
+        toggleDialogTemplateEditor: runtime.toggleDialogTemplateEditor,
+        removeCategoryTemplate: runtime.removeCategoryTemplate,
+        addCategoryRow: runtime.addCategoryRow,
+        removeCategoryRow: runtime.removeCategoryRow,
+        removeQuestionTemplate: runtime.removeQuestionTemplate,
+        addQuestionRow: runtime.addQuestionRow,
+        removeQuestionRow: runtime.removeQuestionRow,
+        removeCompletionTemplate: runtime.removeCompletionTemplate,
+        addCompletionRow: runtime.addCompletionRow,
+        removeCompletionRow: runtime.removeCompletionRow,
+        removeMacroTemplate: runtime.removeMacroTemplate,
+        addMacroTagRow: runtime.addMacroTagRow,
+        removeMacroTagRow: runtime.removeMacroTagRow,
+        removeAutoCloseTemplate: runtime.removeAutoCloseTemplate,
       });
       runtime.initialize();
       window.__settingsDialogTemplatesRuntime = runtime;

@@ -518,19 +518,10 @@
         return window.__settingsNetworkProfilesRuntime;
       }
       const runtime = createRuntime(options);
-      window.prepareNetworkProfileSettingsTrigger = function prepareNetworkProfileSettingsTrigger(trigger) {
-        return runtime.prepareNetworkProfileSettingsTrigger(trigger);
-      };
-      window.renderNetworkProfiles = function renderNetworkProfiles() {
-        runtime.renderNetworkProfiles();
-      };
-      window.resetNetworkProfileSettingsModal = function resetNetworkProfileSettingsModal() {
-        runtime.resetNetworkProfileSettingsModal();
-      };
       window.SettingsPageCallbackRegistry?.registerMany({
-        prepareNetworkProfileSettingsTrigger: window.prepareNetworkProfileSettingsTrigger,
-        renderNetworkProfiles: window.renderNetworkProfiles,
-        resetNetworkProfileSettingsModal: window.resetNetworkProfileSettingsModal,
+        prepareNetworkProfileSettingsTrigger: runtime.prepareNetworkProfileSettingsTrigger,
+        renderNetworkProfiles: runtime.renderNetworkProfiles,
+        resetNetworkProfileSettingsModal: runtime.resetNetworkProfileSettingsModal,
       });
       window.__settingsNetworkProfilesRuntime = runtime;
       return runtime;

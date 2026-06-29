@@ -471,9 +471,6 @@
     }
 
     const runtime = createRuntime(options);
-    window.initReporting = runtime.initReporting;
-    window.prepareReportingSettingsModal = runtime.prepareReportingSettingsModal;
-    window.prepareManagerBindingsSettingsModal = runtime.prepareManagerBindingsSettingsModal;
     window.SettingsPageCallbackRegistry?.registerMany({
       initReporting: runtime.initReporting,
       prepareReportingSettingsModal: runtime.prepareReportingSettingsModal,
