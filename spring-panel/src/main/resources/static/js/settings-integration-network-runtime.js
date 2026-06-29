@@ -1142,6 +1142,11 @@
       probeIntegrationNetworkProfiles(getIntegrationNetworkProfileOptions(), { bulk: true });
     }
 
+    function prepareIntegrationNetworkProfileSettingsTrigger(trigger) {
+      const indexValue = trigger instanceof HTMLElement ? trigger.dataset.integrationNetworkProfileIndex : trigger;
+      return prepareIntegrationNetworkProfileEditor(indexValue);
+    }
+
     return {
       parsePlatformConfig,
       normalizeChannelWorkingHours,
@@ -1170,6 +1175,7 @@
       handleProfileFormSubmit,
       handleProfileDeleteClick,
       handleProbeAllProfilesClick,
+      prepareIntegrationNetworkProfileSettingsTrigger,
       resetIntegrationNetworkProfileSettingsModal,
       renderIntegrationNetworkProfileSelectors,
       resetMissingIntegrationNetworkProfileSelections,
@@ -1184,8 +1190,7 @@
       }
       const runtime = createRuntime(options);
       window.prepareIntegrationNetworkProfileSettingsTrigger = function prepareIntegrationNetworkProfileSettingsTrigger(trigger) {
-        const indexValue = trigger instanceof HTMLElement ? trigger.dataset.integrationNetworkProfileIndex : null;
-        return runtime.prepareIntegrationNetworkProfileEditor(indexValue);
+        return runtime.prepareIntegrationNetworkProfileSettingsTrigger(trigger);
       };
       window.resetIntegrationNetworkProfileSettingsModal = function resetIntegrationNetworkProfileSettingsModal() {
         runtime.resetIntegrationNetworkProfileSettingsModal();
@@ -1199,5 +1204,19 @@
     },
   };
 
-  window.SettingsIntegrationNetworkRuntime = Object.freeze(api);
+  window.SettingsIntegrationNetworkRuntime = Object.freeze({
+    ...api,
+    prepareIntegrationNetworkProfileSettingsTrigger(...args) {
+      return window.__settingsIntegrationNetworkRuntime?.prepareIntegrationNetworkProfileSettingsTrigger?.(...args);
+    },
+    resetIntegrationNetworkProfileSettingsModal(...args) {
+      return window.__settingsIntegrationNetworkRuntime?.resetIntegrationNetworkProfileSettingsModal?.(...args);
+    },
+    renderIntegrationNetworkProfilesTable(...args) {
+      return window.__settingsIntegrationNetworkRuntime?.renderIntegrationNetworkProfilesTable?.(...args);
+    },
+    updateChannelsManageOverview(...args) {
+      return window.__settingsIntegrationNetworkRuntime?.updateChannelsManageOverview?.(...args);
+    },
+  });
 }());

@@ -348,5 +348,13 @@
     },
   };
 
-  window.SettingsChannelsShellRuntime = Object.freeze(api);
+  window.SettingsChannelsShellRuntime = Object.freeze({
+    ...api,
+    initChannelsManagement(...args) {
+      return window.__settingsChannelsShellRuntime?.initChannelsManagement?.(...args);
+    },
+    addChannel(...args) {
+      return window.__settingsChannelsShellRuntime?.addChannel?.(...args);
+    },
+  });
 }());
