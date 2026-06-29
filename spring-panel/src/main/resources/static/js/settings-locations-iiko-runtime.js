@@ -509,9 +509,6 @@
     }
 
     const runtime = createRuntime(options);
-    window.serializeLocationsIikoServerSources = runtime.serializeLocationsIikoServerSources;
-    window.serializeLocationsIikoSyncSettings = runtime.serializeLocationsIikoSyncSettings;
-    window.markLocationsIikoServerSourcesSaved = runtime.markLocationsIikoServerSourcesSaved;
     window.SettingsPageCallbackRegistry?.registerMany({
       renderLocationsIikoServerSourcesEditor: runtime.renderLocationsIikoServerSourcesEditor,
       renderLocationsIikoSyncSettings: runtime.renderLocationsIikoSyncSettings,
