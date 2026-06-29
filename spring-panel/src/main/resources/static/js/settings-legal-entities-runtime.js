@@ -441,6 +441,10 @@
       window.resetLegalEntitiesSettingsModal = function resetLegalEntitiesSettingsModal() {
         runtime.resetLegalEntitiesState();
       };
+      window.SettingsPageCallbackRegistry?.registerMany({
+        renderLegalEntitiesSettingsModal: window.renderLegalEntitiesSettingsModal,
+        resetLegalEntitiesSettingsModal: window.resetLegalEntitiesSettingsModal,
+      });
       window.__settingsLegalEntitiesRuntime = runtime;
       return runtime;
     },

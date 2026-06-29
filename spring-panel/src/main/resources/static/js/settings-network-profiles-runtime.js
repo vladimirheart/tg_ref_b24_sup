@@ -527,6 +527,11 @@
       window.resetNetworkProfileSettingsModal = function resetNetworkProfileSettingsModal() {
         runtime.resetNetworkProfileSettingsModal();
       };
+      window.SettingsPageCallbackRegistry?.registerMany({
+        prepareNetworkProfileSettingsTrigger: window.prepareNetworkProfileSettingsTrigger,
+        renderNetworkProfiles: window.renderNetworkProfiles,
+        resetNetworkProfileSettingsModal: window.resetNetworkProfileSettingsModal,
+      });
       window.__settingsNetworkProfilesRuntime = runtime;
       return runtime;
     },

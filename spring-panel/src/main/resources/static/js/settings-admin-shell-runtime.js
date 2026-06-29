@@ -59,6 +59,10 @@
     const runtime = createRuntime(options);
     window.mountAuthManagementSettingsModal = runtime.mountAuthManagementSettingsModal;
     window.resetAuthManagementSettingsModal = runtime.resetAuthManagementSettingsModal;
+    window.SettingsPageCallbackRegistry?.registerMany({
+      mountAuthManagementSettingsModal: runtime.mountAuthManagementSettingsModal,
+      resetAuthManagementSettingsModal: runtime.resetAuthManagementSettingsModal,
+    });
     window.__settingsAdminShellRuntime = runtime;
     return runtime;
   }

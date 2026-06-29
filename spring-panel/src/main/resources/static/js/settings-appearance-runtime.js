@@ -846,6 +846,14 @@
     window.saveClientStatuses = runtime.saveClientStatuses;
     window.cancelStatusesEdit = runtime.cancelStatusesEdit;
     window.addStatus = runtime.addStatus;
+    window.SettingsPageCallbackRegistry?.registerMany({
+      initClientStatuses: runtime.initClientStatuses,
+      initBusinessStylesEditor: runtime.initBusinessStylesEditor,
+      startStatusesEdit: runtime.startStatusesEdit,
+      saveClientStatuses: runtime.saveClientStatuses,
+      cancelStatusesEdit: runtime.cancelStatusesEdit,
+      addStatus: runtime.addStatus,
+    });
     window.__settingsAppearanceRuntime = runtime;
     return runtime;
   }

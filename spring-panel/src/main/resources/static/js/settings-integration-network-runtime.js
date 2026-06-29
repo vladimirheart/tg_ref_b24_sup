@@ -1190,6 +1190,10 @@
       window.resetIntegrationNetworkProfileSettingsModal = function resetIntegrationNetworkProfileSettingsModal() {
         runtime.resetIntegrationNetworkProfileSettingsModal();
       };
+      window.SettingsPageCallbackRegistry?.registerMany({
+        prepareIntegrationNetworkProfileSettingsTrigger: window.prepareIntegrationNetworkProfileSettingsTrigger,
+        resetIntegrationNetworkProfileSettingsModal: window.resetIntegrationNetworkProfileSettingsModal,
+      });
       window.__settingsIntegrationNetworkRuntime = runtime;
       return runtime;
     },

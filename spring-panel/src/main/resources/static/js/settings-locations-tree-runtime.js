@@ -1228,6 +1228,11 @@
       window.buildLocationsTree = runtime.buildLocationsTree;
       window.addBusiness = runtime.addBusiness;
       window.saveLocationsChanges = runtime.saveLocationsChanges;
+      window.SettingsPageCallbackRegistry?.registerMany({
+        buildLocationsTree: runtime.buildLocationsTree,
+        addBusiness: runtime.addBusiness,
+        saveLocationsChanges: runtime.saveLocationsChanges,
+      });
       window.__settingsLocationsTreeRuntime = runtime;
       return runtime;
     },

@@ -476,6 +476,11 @@
     window.initLocationWizard = runtime.initLocationWizard;
     window.resetLocationWizardSettingsModal = runtime.resetLocationWizardSettingsModal;
     window.prepareLocationWizardSettingsTrigger = runtime.prepareLocationWizardSettingsTrigger;
+    window.SettingsPageCallbackRegistry?.registerMany({
+      initLocationWizard: runtime.initLocationWizard,
+      resetLocationWizardSettingsModal: runtime.resetLocationWizardSettingsModal,
+      prepareLocationWizardSettingsTrigger: runtime.prepareLocationWizardSettingsTrigger,
+    });
     window.__settingsLocationWizardRuntime = runtime;
     return runtime;
   }

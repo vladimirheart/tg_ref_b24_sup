@@ -339,6 +339,10 @@
       window.addChannel = function addChannel() {
         return runtime.addChannel();
       };
+      window.SettingsPageCallbackRegistry?.registerMany({
+        initChannelsManagement: window.initChannelsManagement,
+        addChannel: window.addChannel,
+      });
       window.__settingsChannelsShellRuntime = runtime;
       return runtime;
     },

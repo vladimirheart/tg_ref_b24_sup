@@ -205,6 +205,7 @@
 
     const runtime = createRuntime(options);
     window.saveSettings = runtime.saveSettings;
+    window.SettingsPageCallbackRegistry?.register('saveSettings', runtime.saveSettings);
     window.__settingsPageBootstrapRuntime = runtime;
     return runtime;
   }

@@ -685,6 +685,10 @@
       window.prepareVkWebhookSettingsTrigger = function prepareVkWebhookSettingsTrigger() {
         return runtime.prepareVkWebhookSettingsTrigger();
       };
+      window.SettingsPageCallbackRegistry?.registerMany({
+        prepareAddChannelSettingsModal: window.prepareAddChannelSettingsModal,
+        prepareVkWebhookSettingsTrigger: window.prepareVkWebhookSettingsTrigger,
+      });
       window.__settingsChannelsCatalogRuntime = runtime;
       return runtime;
     },

@@ -638,6 +638,10 @@
       window.addItConnectionRow = function addItConnectionRow(initial) {
         runtime.addItConnectionRow(initial);
       };
+      window.SettingsPageCallbackRegistry?.registerMany({
+        prepareItConnectionAddSettingsModal: window.prepareItConnectionAddSettingsModal,
+        addItConnectionRow: window.addItConnectionRow,
+      });
       window.__settingsItConnectionsRuntime = runtime;
       return runtime;
     },

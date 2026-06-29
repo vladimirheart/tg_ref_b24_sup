@@ -7,11 +7,6 @@
   const DEFAULT_SETTINGS_BOOTSTRAP_FUNCTIONS = [
     'initClientStatuses',
     'initBusinessStylesEditor',
-    'initAutoCloseTemplates',
-    'initDialogTemplates',
-    'initTimeMetricsControls',
-    'initWorkspaceGovernanceUtcTimestampFields',
-    'initDialogStatusBadges',
     'initLocationWizard',
     'renderLocationsIikoServerSourcesEditor',
     'renderLocationsIikoSyncSettings',
@@ -19,7 +14,6 @@
     'buildLocationsTree',
     'initChannelsManagement',
     'loadParameters',
-    'renderNetworkProfiles',
     'initReporting',
   ];
 
@@ -342,6 +336,19 @@
   function getSettingsShellRoot() {
     const root = document.querySelector('.settings-surface.page-shell--settings');
     return root instanceof HTMLElement ? root : null;
+  }
+
+  function resolveSettingsCallback(callbackName) {
+    const normalizedName = typeof callbackName === 'string' ? callbackName.trim() : '';
+    if (!normalizedName) {
+      return null;
+    }
+    const registryCallback = window.SettingsPageCallbackRegistry?.resolve?.(normalizedName);
+    if (typeof registryCallback === 'function') {
+      return registryCallback;
+    }
+    const legacyCallback = window[normalizedName];
+    return typeof legacyCallback === 'function' ? legacyCallback : null;
   }
 
   function isSettingsPage() {
@@ -908,7 +915,7 @@
     if (!callbackName) {
       return true;
     }
-    const callback = window[callbackName];
+    const callback = resolveSettingsCallback(callbackName);
     if (typeof callback !== 'function') {
       console.warn(`Settings action callback "${callbackName}" is not available.`);
       return false;
@@ -977,7 +984,7 @@
     if (!normalizedName) {
       return true;
     }
-    const callback = window[normalizedName];
+    const callback = resolveSettingsCallback(normalizedName);
     if (typeof callback !== 'function') {
       console.warn(`Settings callback "${normalizedName}" is not available.`);
       return false;
@@ -1389,7 +1396,7 @@
     if (!normalizedName) {
       return;
     }
-    const callback = window[normalizedName];
+    const callback = resolveSettingsCallback(normalizedName);
     if (typeof callback !== 'function') {
       console.warn(`Settings modal callback "${normalizedName}" is not available for ${eventName}.`);
       return;
@@ -1569,7 +1576,7 @@
       : DEFAULT_SETTINGS_BOOTSTRAP_FUNCTIONS;
 
     bootstrapFns.forEach((fnName) => {
-      const fn = window[fnName];
+      const fn = resolveSettingsCallback(fnName);
       if (typeof fn === 'function') {
         fn();
       }

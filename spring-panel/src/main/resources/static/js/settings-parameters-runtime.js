@@ -860,6 +860,11 @@
       window.prepareParameterSettingsTrigger = function prepareParameterSettingsTrigger(trigger) {
         return runtime.prepareParameterSettingsTrigger(trigger);
       };
+      window.SettingsPageCallbackRegistry?.registerMany({
+        resetParameterItemsSettingsModal: window.resetParameterItemsSettingsModal,
+        prepareCityParameterSettingsTrigger: window.prepareCityParameterSettingsTrigger,
+        prepareParameterSettingsTrigger: window.prepareParameterSettingsTrigger,
+      });
       window.__settingsParametersRuntime = runtime;
       return runtime;
     },

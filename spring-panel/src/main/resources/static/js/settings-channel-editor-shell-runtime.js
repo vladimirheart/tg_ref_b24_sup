@@ -467,6 +467,10 @@
       window.resetChannelEditorSettingsModal = function resetChannelEditorSettingsModal() {
         runtime.resetChannelEditorSettingsModal();
       };
+      window.SettingsPageCallbackRegistry?.registerMany({
+        prepareChannelEditorSettingsTrigger: window.prepareChannelEditorSettingsTrigger,
+        resetChannelEditorSettingsModal: window.resetChannelEditorSettingsModal,
+      });
       window.__settingsChannelEditorShellRuntime = runtime;
       return runtime;
     },

@@ -522,6 +522,19 @@
     window.markLocationsIikoServerSourcesSaved = runtime.markLocationsIikoServerSourcesSaved;
     window.updateLocationsIikoServerSource = runtime.updateLocationsIikoServerSource;
     window.removeLocationsIikoServerSource = runtime.removeLocationsIikoServerSource;
+    window.SettingsPageCallbackRegistry?.registerMany({
+      renderLocationsIikoServerSourcesEditor: runtime.renderLocationsIikoServerSourcesEditor,
+      renderLocationsIikoSyncSettings: runtime.renderLocationsIikoSyncSettings,
+      updateLocationsIikoSyncSetting: runtime.updateLocationsIikoSyncSetting,
+      loadLocationsSyncStatus: runtime.loadLocationsSyncStatus,
+      prepareLocationsSettingsModal: runtime.prepareLocationsSettingsModal,
+      resetLocationsSettingsModal: runtime.resetLocationsSettingsModal,
+      runLocationsIikoSyncNow: runtime.runLocationsIikoSyncNow,
+      addLocationsIikoServerSource: runtime.addLocationsIikoServerSource,
+      markLocationsIikoServerSourcesSaved: runtime.markLocationsIikoServerSourcesSaved,
+      updateLocationsIikoServerSource: runtime.updateLocationsIikoServerSource,
+      removeLocationsIikoServerSource: runtime.removeLocationsIikoServerSource,
+    });
     window.__settingsLocationsIikoRuntime = runtime;
     return runtime;
   }

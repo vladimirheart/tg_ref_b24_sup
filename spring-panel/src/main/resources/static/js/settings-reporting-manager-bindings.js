@@ -474,6 +474,11 @@
     window.initReporting = runtime.initReporting;
     window.prepareReportingSettingsModal = runtime.prepareReportingSettingsModal;
     window.prepareManagerBindingsSettingsModal = runtime.prepareManagerBindingsSettingsModal;
+    window.SettingsPageCallbackRegistry?.registerMany({
+      initReporting: runtime.initReporting,
+      prepareReportingSettingsModal: runtime.prepareReportingSettingsModal,
+      prepareManagerBindingsSettingsModal: runtime.prepareManagerBindingsSettingsModal,
+    });
     window.__settingsReportingManagerBindingsRuntime = runtime;
     return runtime;
   }

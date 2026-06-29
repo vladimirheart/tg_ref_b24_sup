@@ -651,6 +651,7 @@
       window.prepareItEquipmentAddSettingsModal = function prepareItEquipmentAddSettingsModal() {
         runtime.prepareItEquipmentAddSettingsModal();
       };
+      window.SettingsPageCallbackRegistry?.register('prepareItEquipmentAddSettingsModal', window.prepareItEquipmentAddSettingsModal);
       window.__settingsItEquipmentRuntime = runtime;
       return runtime;
     },

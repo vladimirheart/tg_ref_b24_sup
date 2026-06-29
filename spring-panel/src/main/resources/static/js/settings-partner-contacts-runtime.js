@@ -2612,6 +2612,13 @@
       window.resetPartnerContactsSettingsModal = function resetPartnerContactsSettingsModal() {
         runtime.resetPartnerContactsSettingsModal();
       };
+      window.SettingsPageCallbackRegistry?.registerMany({
+        preparePartnerContactEditorSettingsTrigger: window.preparePartnerContactEditorSettingsTrigger,
+        preparePartnerContactDraftSettingsTrigger: window.preparePartnerContactDraftSettingsTrigger,
+        renderPartnerContactsSettingsModal: window.renderPartnerContactsSettingsModal,
+        resetPartnerContactEditorSettingsModal: window.resetPartnerContactEditorSettingsModal,
+        resetPartnerContactsSettingsModal: window.resetPartnerContactsSettingsModal,
+      });
       window.__settingsPartnerContactsRuntime = runtime;
       return runtime;
     },
