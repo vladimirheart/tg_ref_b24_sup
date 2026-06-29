@@ -8,18 +8,7 @@
   const BUSINESS_ICON_ALLOWED_PREFIXES = ['http://', 'https://', '/', 'data:image/'];
   const BUSINESS_ICON_MAX_FILE_SIZE = 16 * 1024;
 
-  function notify(message, type = 'info') {
-    if (typeof window.showPopup === 'function') {
-      window.showPopup(message, type);
-      return;
-    }
-    console.log(message);
-  }
-
-  function escapeHtml(value) {
-    if (typeof window.escapeHtml === 'function') {
-      return window.escapeHtml(value);
-    }
+  function fallbackEscapeHtml(value) {
     return String(value ?? '')
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
@@ -63,6 +52,12 @@
   }
 
   function createRuntime(options = {}) {
+    const notify = typeof options.showPopup === 'function'
+      ? options.showPopup
+      : (message) => console.log(message);
+    const escapeHtml = typeof options.escapeHtml === 'function'
+      ? options.escapeHtml
+      : fallbackEscapeHtml;
     const state = {
       clientStatusUsage: options.statusUsage && typeof options.statusUsage === 'object'
         ? { ...options.statusUsage }

@@ -122,9 +122,6 @@
   const generatedRatingTemplateIds = new Set();
 
   function html(value) {
-    if (typeof window.escapeHtml === 'function') {
-      return window.escapeHtml(value);
-    }
     const div = document.createElement('div');
     div.textContent = value == null ? '' : String(value);
     return div.innerHTML;

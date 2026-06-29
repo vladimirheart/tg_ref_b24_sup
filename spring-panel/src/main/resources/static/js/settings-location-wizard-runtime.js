@@ -5,14 +5,6 @@
 
   const TYPE_OPTIONS = ['Корпоративная сеть', 'Партнёры-франчайзи'];
 
-  function notify(message, type = 'info') {
-    if (typeof window.showPopup === 'function') {
-      window.showPopup(message, type);
-      return;
-    }
-    console.log(message);
-  }
-
   function uniqueSorted(values) {
     return Array.from(
       new Set(
@@ -24,6 +16,9 @@
   }
 
   function createRuntime(options = {}) {
+    const notify = typeof options.showPopup === 'function'
+      ? options.showPopup
+      : (message) => console.log(message);
     let locationWizardModalEl = null;
     let locationWizardInitialised = false;
     let locationWizardStep = 0;

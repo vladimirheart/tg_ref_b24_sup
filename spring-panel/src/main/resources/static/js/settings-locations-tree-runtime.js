@@ -26,10 +26,6 @@
   const EXPAND_ICON_HTML = '<i class="bi bi-chevron-right"></i>';
 
   function defaultNotify(message, type = 'info') {
-    if (typeof window.showPopup === 'function') {
-      window.showPopup(message, type);
-      return;
-    }
     console.log(message);
   }
 

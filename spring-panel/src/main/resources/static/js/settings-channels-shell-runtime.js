@@ -115,7 +115,10 @@
         state.integrationNetworkProfilesData = Array.isArray(nextProfiles) ? nextProfiles : [];
       },
       getChannelsRegistry: () => state.channelsRegistry,
+      escapeHtml: options.escapeHtml,
+      getCookieValue: (name) => typeof options.getCookieValue === 'function' ? options.getCookieValue(name) : '',
       requestSettingsModalClose: requestCloseModal,
+      showPopup: (message, type) => typeof options.showPopup === 'function' ? options.showPopup(message, type) : undefined,
     });
     state.integrationNetworkProfilesData = Array.isArray(options.integrationNetworkProfilesInitial)
       ? options.integrationNetworkProfilesInitial.map((item) => settingsIntegrationNetwork.normalizeIntegrationNetworkProfile(item))

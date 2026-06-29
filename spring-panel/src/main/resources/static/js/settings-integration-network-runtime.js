@@ -3,15 +3,7 @@
     return;
   }
 
-  function notify(message, type = 'info') {
-    if (typeof window.showPopup === 'function') {
-      window.showPopup(message, type);
-      return;
-    }
-    console.log(message);
-  }
-
-  function escapeHtml(value) {
+  function fallbackEscapeHtml(value) {
     if (value === null || value === undefined) {
       return '';
     }
@@ -172,6 +164,15 @@
   }
 
   function createRuntime(options = {}) {
+    const notify = typeof options.showPopup === 'function'
+      ? options.showPopup
+      : (message) => console.log(message);
+    const escapeHtml = typeof options.escapeHtml === 'function'
+      ? options.escapeHtml
+      : fallbackEscapeHtml;
+    const getCookieValue = typeof options.getCookieValue === 'function'
+      ? options.getCookieValue
+      : () => '';
     const state = {
       integrationNetwork: normalizeIntegrationNetworkConfig(options.initialIntegrationNetwork),
       profileEditingIndex: null,
@@ -866,7 +867,7 @@
           elements.integrationNetworkProfilesProbeAllBtn.disabled = true;
           elements.integrationNetworkProfilesProbeAllBtn.textContent = 'Проверяем…';
         }
-        const xsrfToken = typeof window.getCookieValue === 'function' ? window.getCookieValue('XSRF-TOKEN') : '';
+        const xsrfToken = getCookieValue('XSRF-TOKEN');
         const response = await fetch('/api/settings/integration-network/profiles/probe', {
           method: 'POST',
           headers: {

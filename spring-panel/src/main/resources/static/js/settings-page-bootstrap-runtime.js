@@ -109,11 +109,15 @@
       initialClientStatuses: options.initialClientStatuses || [],
       initialClientStatusColors: options.initialClientStatusColors || {},
       initialBusinessCellStyles: options.initialBusinessCellStyles || {},
+      showPopup: (message, type) => showPopup(message, type),
+      escapeHtml,
     }) || null;
 
     const settingsLocationsIikoRuntime = window.SettingsLocationsIikoRuntime?.mount({
       initialServerSources: options.locationsIikoServerSourcesInitial || [],
       initialSyncSettings: options.locationsIikoSyncSettingsInitial || {},
+      showPopup: (message, type) => showPopup(message, type),
+      escapeHtml,
     }) || null;
 
     settingsLocationsTreeRuntime = window.SettingsLocationsTreeRuntime?.mount({
@@ -131,6 +135,7 @@
       getCityOptionsFallback: () => options.cityOptions || [],
       loadParameters: () => settingsParametersShellRuntime?.loadParameters(),
       isParametersLoaded: () => settingsParametersShellRuntime?.isParametersLoaded() || false,
+      showPopup: (message, type) => showPopup(message, type),
       requestSettingsModalClose: (source) => requestSettingsModalClose(source),
       buildLocationsTree: () => settingsLocationsTreeRuntime?.buildLocationsTree(),
       setStatus: (level, parts, status) => settingsLocationsTreeRuntime?.setStatus(level, parts, status),

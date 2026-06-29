@@ -61,9 +61,6 @@
       if (typeof options.getCookieValue === 'function') {
         return options.getCookieValue('XSRF-TOKEN');
       }
-      if (typeof window.getCookieValue === 'function') {
-        return window.getCookieValue('XSRF-TOKEN');
-      }
       return '';
     }
 

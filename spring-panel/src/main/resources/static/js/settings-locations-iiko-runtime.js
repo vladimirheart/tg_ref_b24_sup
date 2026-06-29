@@ -3,24 +3,13 @@
     return;
   }
 
-  function escapeHtml(value) {
-    if (typeof window.escapeHtml === 'function') {
-      return window.escapeHtml(value);
-    }
+  function fallbackEscapeHtml(value) {
     return String(value ?? '')
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
-  }
-
-  function notify(message, type = 'info') {
-    if (typeof window.showPopup === 'function') {
-      window.showPopup(message, type);
-      return;
-    }
-    console.log(message);
   }
 
   function createLocationsIikoServerSourceId() {
@@ -86,6 +75,12 @@
   }
 
   function createRuntime(options = {}) {
+    const escapeHtml = typeof options.escapeHtml === 'function'
+      ? options.escapeHtml
+      : fallbackEscapeHtml;
+    const notify = typeof options.showPopup === 'function'
+      ? options.showPopup
+      : (message) => console.log(message);
     let locationsIikoServerSourcesState = sanitizeLocationsIikoServerSources(options.initialServerSources);
     let locationsIikoSyncSettingsState = sanitizeLocationsIikoSyncSettings(options.initialSyncSettings);
     let locationsSyncStatusPollTimer = null;

@@ -47,9 +47,6 @@
   }
 
   function escapeHtml(value) {
-    if (typeof window.escapeHtml === 'function') {
-      return window.escapeHtml(value);
-    }
     return String(value ?? '')
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
