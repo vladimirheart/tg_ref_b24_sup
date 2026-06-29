@@ -640,15 +640,9 @@
         return window.__settingsItConnectionsRuntime;
       }
       const runtime = createRuntime(options);
-      window.prepareItConnectionAddSettingsModal = function prepareItConnectionAddSettingsModal() {
-        runtime.prepareItConnectionAddSettingsModal();
-      };
-      window.addItConnectionRow = function addItConnectionRow(initial) {
-        runtime.addItConnectionRow(initial);
-      };
       window.SettingsPageCallbackRegistry?.registerMany({
-        prepareItConnectionAddSettingsModal: window.prepareItConnectionAddSettingsModal,
-        addItConnectionRow: window.addItConnectionRow,
+        prepareItConnectionAddSettingsModal: runtime.prepareItConnectionAddSettingsModal,
+        addItConnectionRow: runtime.addItConnectionRow,
       });
       window.__settingsItConnectionsRuntime = runtime;
       return runtime;

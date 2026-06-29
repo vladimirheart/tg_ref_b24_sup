@@ -859,19 +859,10 @@
         return window.__settingsParametersRuntime;
       }
       const runtime = createRuntime(options);
-      window.resetParameterItemsSettingsModal = function resetParameterItemsSettingsModal() {
-        runtime.resetParameterItemsSettingsModal();
-      };
-      window.prepareCityParameterSettingsTrigger = function prepareCityParameterSettingsTrigger() {
-        return runtime.prepareCityParameterSettingsTrigger();
-      };
-      window.prepareParameterSettingsTrigger = function prepareParameterSettingsTrigger(trigger) {
-        return runtime.prepareParameterSettingsTrigger(trigger);
-      };
       window.SettingsPageCallbackRegistry?.registerMany({
-        resetParameterItemsSettingsModal: window.resetParameterItemsSettingsModal,
-        prepareCityParameterSettingsTrigger: window.prepareCityParameterSettingsTrigger,
-        prepareParameterSettingsTrigger: window.prepareParameterSettingsTrigger,
+        resetParameterItemsSettingsModal: runtime.resetParameterItemsSettingsModal,
+        prepareCityParameterSettingsTrigger: runtime.prepareCityParameterSettingsTrigger,
+        prepareParameterSettingsTrigger: runtime.prepareParameterSettingsTrigger,
       });
       window.__settingsParametersRuntime = runtime;
       return runtime;

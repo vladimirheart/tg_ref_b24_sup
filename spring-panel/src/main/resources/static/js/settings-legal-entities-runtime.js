@@ -441,15 +441,9 @@
         return window.__settingsLegalEntitiesRuntime;
       }
       const runtime = createRuntime(options);
-      window.renderLegalEntitiesSettingsModal = function renderLegalEntitiesSettingsModal() {
-        runtime.renderLegalEntities();
-      };
-      window.resetLegalEntitiesSettingsModal = function resetLegalEntitiesSettingsModal() {
-        runtime.resetLegalEntitiesState();
-      };
       window.SettingsPageCallbackRegistry?.registerMany({
-        renderLegalEntitiesSettingsModal: window.renderLegalEntitiesSettingsModal,
-        resetLegalEntitiesSettingsModal: window.resetLegalEntitiesSettingsModal,
+        renderLegalEntitiesSettingsModal: runtime.renderLegalEntities,
+        resetLegalEntitiesSettingsModal: runtime.resetLegalEntitiesState,
       });
       window.__settingsLegalEntitiesRuntime = runtime;
       return runtime;

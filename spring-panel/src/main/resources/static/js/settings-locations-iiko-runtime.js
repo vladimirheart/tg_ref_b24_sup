@@ -511,17 +511,7 @@
     const runtime = createRuntime(options);
     window.serializeLocationsIikoServerSources = runtime.serializeLocationsIikoServerSources;
     window.serializeLocationsIikoSyncSettings = runtime.serializeLocationsIikoSyncSettings;
-    window.renderLocationsIikoServerSourcesEditor = runtime.renderLocationsIikoServerSourcesEditor;
-    window.renderLocationsIikoSyncSettings = runtime.renderLocationsIikoSyncSettings;
-    window.updateLocationsIikoSyncSetting = runtime.updateLocationsIikoSyncSetting;
-    window.loadLocationsSyncStatus = runtime.loadLocationsSyncStatus;
-    window.prepareLocationsSettingsModal = runtime.prepareLocationsSettingsModal;
-    window.resetLocationsSettingsModal = runtime.resetLocationsSettingsModal;
-    window.runLocationsIikoSyncNow = runtime.runLocationsIikoSyncNow;
-    window.addLocationsIikoServerSource = runtime.addLocationsIikoServerSource;
     window.markLocationsIikoServerSourcesSaved = runtime.markLocationsIikoServerSourcesSaved;
-    window.updateLocationsIikoServerSource = runtime.updateLocationsIikoServerSource;
-    window.removeLocationsIikoServerSource = runtime.removeLocationsIikoServerSource;
     window.SettingsPageCallbackRegistry?.registerMany({
       renderLocationsIikoServerSourcesEditor: runtime.renderLocationsIikoServerSourcesEditor,
       renderLocationsIikoSyncSettings: runtime.renderLocationsIikoSyncSettings,

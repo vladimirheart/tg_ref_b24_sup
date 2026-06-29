@@ -648,10 +648,7 @@
         return window.__settingsItEquipmentRuntime;
       }
       const runtime = createRuntime(options);
-      window.prepareItEquipmentAddSettingsModal = function prepareItEquipmentAddSettingsModal() {
-        runtime.prepareItEquipmentAddSettingsModal();
-      };
-      window.SettingsPageCallbackRegistry?.register('prepareItEquipmentAddSettingsModal', window.prepareItEquipmentAddSettingsModal);
+      window.SettingsPageCallbackRegistry?.register('prepareItEquipmentAddSettingsModal', runtime.prepareItEquipmentAddSettingsModal);
       window.__settingsItEquipmentRuntime = runtime;
       return runtime;
     },

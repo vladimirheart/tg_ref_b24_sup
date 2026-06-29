@@ -2601,27 +2601,12 @@
         return window.__settingsPartnerContactsRuntime;
       }
       const runtime = createRuntime(options);
-      window.preparePartnerContactEditorSettingsTrigger = function preparePartnerContactEditorSettingsTrigger(trigger) {
-        return runtime.preparePartnerContactEditorSettingsTrigger(trigger);
-      };
-      window.preparePartnerContactDraftSettingsTrigger = function preparePartnerContactDraftSettingsTrigger(trigger) {
-        return runtime.preparePartnerContactDraftSettingsTrigger(trigger);
-      };
-      window.renderPartnerContactsSettingsModal = function renderPartnerContactsSettingsModal() {
-        runtime.renderPartnerContactsSettingsModal();
-      };
-      window.resetPartnerContactEditorSettingsModal = function resetPartnerContactEditorSettingsModal() {
-        runtime.resetPartnerContactEditorSettingsModal();
-      };
-      window.resetPartnerContactsSettingsModal = function resetPartnerContactsSettingsModal() {
-        runtime.resetPartnerContactsSettingsModal();
-      };
       window.SettingsPageCallbackRegistry?.registerMany({
-        preparePartnerContactEditorSettingsTrigger: window.preparePartnerContactEditorSettingsTrigger,
-        preparePartnerContactDraftSettingsTrigger: window.preparePartnerContactDraftSettingsTrigger,
-        renderPartnerContactsSettingsModal: window.renderPartnerContactsSettingsModal,
-        resetPartnerContactEditorSettingsModal: window.resetPartnerContactEditorSettingsModal,
-        resetPartnerContactsSettingsModal: window.resetPartnerContactsSettingsModal,
+        preparePartnerContactEditorSettingsTrigger: runtime.preparePartnerContactEditorSettingsTrigger,
+        preparePartnerContactDraftSettingsTrigger: runtime.preparePartnerContactDraftSettingsTrigger,
+        renderPartnerContactsSettingsModal: runtime.renderPartnerContactsSettingsModal,
+        resetPartnerContactEditorSettingsModal: runtime.resetPartnerContactEditorSettingsModal,
+        resetPartnerContactsSettingsModal: runtime.resetPartnerContactsSettingsModal,
       });
       window.__settingsPartnerContactsRuntime = runtime;
       return runtime;

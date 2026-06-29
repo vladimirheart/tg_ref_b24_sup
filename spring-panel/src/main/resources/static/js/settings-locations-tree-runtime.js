@@ -1236,9 +1236,6 @@
         return window.__settingsLocationsTreeRuntime;
       }
       const runtime = createRuntime(options);
-      window.buildLocationsTree = runtime.buildLocationsTree;
-      window.addBusiness = runtime.addBusiness;
-      window.saveLocationsChanges = runtime.saveLocationsChanges;
       window.SettingsPageCallbackRegistry?.registerMany({
         buildLocationsTree: runtime.buildLocationsTree,
         addBusiness: runtime.addBusiness,
