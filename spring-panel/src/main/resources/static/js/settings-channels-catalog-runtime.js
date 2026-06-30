@@ -685,22 +685,5 @@
     },
   };
 
-  window.SettingsChannelsCatalogRuntime = Object.freeze({
-    ...api,
-    renderChannels(...args) {
-      return window.__settingsChannelsCatalogRuntime?.renderChannels?.(...args);
-    },
-    loadChannels(...args) {
-      return window.__settingsChannelsCatalogRuntime?.loadChannels?.(...args);
-    },
-    prepareAddChannelSettingsModal(...args) {
-      return window.__settingsChannelsCatalogRuntime?.prepareAddChannelSettingsModal?.(...args);
-    },
-    addChannel(...args) {
-      return window.__settingsChannelsCatalogRuntime?.addChannel?.(...args);
-    },
-    prepareVkWebhookSettingsTrigger(...args) {
-      return window.__settingsChannelsCatalogRuntime?.prepareVkWebhookSettingsTrigger?.(...args);
-    },
-  });
+  window.SettingsChannelsCatalogRuntime = Object.freeze(api);
 }());

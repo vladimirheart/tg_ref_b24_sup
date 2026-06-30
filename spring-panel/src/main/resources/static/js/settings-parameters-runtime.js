@@ -861,34 +861,5 @@
     },
   };
 
-  window.SettingsParametersRuntime = Object.freeze({
-    ...api,
-    deleteParameter(...args) {
-      return window.__settingsParametersRuntime?.deleteParameter?.(...args);
-    },
-    prepareCityParameterSettingsTrigger(...args) {
-      return window.__settingsParametersRuntime?.prepareCityParameterSettingsTrigger?.(...args);
-    },
-    prepareParameterSettingsTrigger(...args) {
-      return window.__settingsParametersRuntime?.prepareParameterSettingsTrigger?.(...args);
-    },
-    renderCityCard(...args) {
-      return window.__settingsParametersRuntime?.renderCityCard?.(...args);
-    },
-    renderCurrentParameterModal(...args) {
-      return window.__settingsParametersRuntime?.renderCurrentParameterModal?.(...args);
-    },
-    renderParameterModal(...args) {
-      return window.__settingsParametersRuntime?.renderParameterModal?.(...args);
-    },
-    renderParameters(...args) {
-      return window.__settingsParametersRuntime?.renderParameters?.(...args);
-    },
-    resetParameterItemsSettingsModal(...args) {
-      return window.__settingsParametersRuntime?.resetParameterItemsSettingsModal?.(...args);
-    },
-    restoreParameter(...args) {
-      return window.__settingsParametersRuntime?.restoreParameter?.(...args);
-    },
-  });
+  window.SettingsParametersRuntime = Object.freeze(api);
 }());

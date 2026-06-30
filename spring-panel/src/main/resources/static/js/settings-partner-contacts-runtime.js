@@ -2609,31 +2609,5 @@
     },
   };
 
-  window.SettingsPartnerContactsRuntime = Object.freeze({
-    ...api,
-    clearPartnerContactEdits(...args) {
-      return window.__settingsPartnerContactsRuntime?.clearPartnerContactEdits?.(...args);
-    },
-    normalizePartnerContactExtra(...args) {
-      return window.__settingsPartnerContactsRuntime?.normalizePartnerContactExtra?.(...args);
-    },
-    preparePartnerContactDraftSettingsTrigger(...args) {
-      return window.__settingsPartnerContactsRuntime?.preparePartnerContactDraftSettingsTrigger?.(...args);
-    },
-    preparePartnerContactEditorSettingsTrigger(...args) {
-      return window.__settingsPartnerContactsRuntime?.preparePartnerContactEditorSettingsTrigger?.(...args);
-    },
-    renderPartnerContacts(...args) {
-      return window.__settingsPartnerContactsRuntime?.renderPartnerContacts?.(...args);
-    },
-    renderPartnerContactsSettingsModal(...args) {
-      return window.__settingsPartnerContactsRuntime?.renderPartnerContactsSettingsModal?.(...args);
-    },
-    resetPartnerContactEditorSettingsModal(...args) {
-      return window.__settingsPartnerContactsRuntime?.resetPartnerContactEditorSettingsModal?.(...args);
-    },
-    resetPartnerContactsSettingsModal(...args) {
-      return window.__settingsPartnerContactsRuntime?.resetPartnerContactsSettingsModal?.(...args);
-    },
-  });
+  window.SettingsPartnerContactsRuntime = Object.freeze(api);
 }());

@@ -877,17 +877,5 @@
     initBusinessStylesEditor(...args) {
       return window.__settingsAppearanceRuntime?.initBusinessStylesEditor?.(...args);
     },
-    startStatusesEdit(...args) {
-      return window.__settingsAppearanceRuntime?.startStatusesEdit?.(...args);
-    },
-    saveClientStatuses(...args) {
-      return window.__settingsAppearanceRuntime?.saveClientStatuses?.(...args);
-    },
-    cancelStatusesEdit(...args) {
-      return window.__settingsAppearanceRuntime?.cancelStatusesEdit?.(...args);
-    },
-    addStatus(...args) {
-      return window.__settingsAppearanceRuntime?.addStatus?.(...args);
-    },
   });
 }());

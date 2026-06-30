@@ -552,22 +552,5 @@
     },
   };
 
-  window.SettingsNetworkProfilesRuntime = Object.freeze({
-    ...api,
-    collectNetworkProfilesPayload(...args) {
-      return window.__settingsNetworkProfilesRuntime?.collectNetworkProfilesPayload?.(...args);
-    },
-    prepareNetworkProfileSettingsTrigger(...args) {
-      return window.__settingsNetworkProfilesRuntime?.prepareNetworkProfileSettingsTrigger?.(...args);
-    },
-    renderNetworkProfiles(...args) {
-      return window.__settingsNetworkProfilesRuntime?.renderNetworkProfiles?.(...args);
-    },
-    resetNetworkProfileSettingsModal(...args) {
-      return window.__settingsNetworkProfilesRuntime?.resetNetworkProfileSettingsModal?.(...args);
-    },
-    saveNetworkProfilesSection(...args) {
-      return window.__settingsNetworkProfilesRuntime?.saveNetworkProfilesSection?.(...args);
-    },
-  });
+  window.SettingsNetworkProfilesRuntime = Object.freeze(api);
 }());

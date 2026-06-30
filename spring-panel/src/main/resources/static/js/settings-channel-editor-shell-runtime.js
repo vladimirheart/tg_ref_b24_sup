@@ -470,16 +470,5 @@
     },
   };
 
-  window.SettingsChannelEditorShellRuntime = Object.freeze({
-    ...api,
-    prepareChannelEditorSettingsTrigger(...args) {
-      return window.__settingsChannelEditorShellRuntime?.prepareChannelEditorSettingsTrigger?.(...args);
-    },
-    resetChannelEditorSettingsModal(...args) {
-      return window.__settingsChannelEditorShellRuntime?.resetChannelEditorSettingsModal?.(...args);
-    },
-    refreshChannelEditorIfOpen(...args) {
-      return window.__settingsChannelEditorShellRuntime?.refreshChannelEditorIfOpen?.(...args);
-    },
-  });
+  window.SettingsChannelEditorShellRuntime = Object.freeze(api);
 }());

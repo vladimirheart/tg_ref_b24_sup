@@ -444,25 +444,5 @@
     },
   };
 
-  window.SettingsLegalEntitiesRuntime = Object.freeze({
-    ...api,
-    renderLegalEntities(...args) {
-      return window.__settingsLegalEntitiesRuntime?.renderLegalEntities?.(...args);
-    },
-    resetLegalEntitiesState(...args) {
-      return window.__settingsLegalEntitiesRuntime?.resetLegalEntitiesState?.(...args);
-    },
-    addLegalEntityDraft(...args) {
-      return window.__settingsLegalEntitiesRuntime?.addLegalEntityDraft?.(...args);
-    },
-    handleActionClick(...args) {
-      return window.__settingsLegalEntitiesRuntime?.handleActionClick?.(...args);
-    },
-    handleContainerInput(...args) {
-      return window.__settingsLegalEntitiesRuntime?.handleContainerInput?.(...args);
-    },
-    handleContainerChange(...args) {
-      return window.__settingsLegalEntitiesRuntime?.handleContainerChange?.(...args);
-    },
-  });
+  window.SettingsLegalEntitiesRuntime = Object.freeze(api);
 }());

@@ -482,11 +482,5 @@
     initLocationWizard(...args) {
       return window.__settingsLocationWizardRuntime?.initLocationWizard?.(...args);
     },
-    resetLocationWizardSettingsModal(...args) {
-      return window.__settingsLocationWizardRuntime?.resetLocationWizardSettingsModal?.(...args);
-    },
-    prepareLocationWizardSettingsTrigger(...args) {
-      return window.__settingsLocationWizardRuntime?.prepareLocationWizardSettingsTrigger?.(...args);
-    },
   });
 }());

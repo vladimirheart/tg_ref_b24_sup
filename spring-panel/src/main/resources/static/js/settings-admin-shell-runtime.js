@@ -83,11 +83,5 @@
 
   window.SettingsAdminShellRuntime = Object.freeze({
     mount,
-    mountAuthManagementSettingsModal(...args) {
-      return window.__settingsAdminShellRuntime?.mountAuthManagementSettingsModal?.(...args);
-    },
-    resetAuthManagementSettingsModal(...args) {
-      return window.__settingsAdminShellRuntime?.resetAuthManagementSettingsModal?.(...args);
-    },
   });
 }());

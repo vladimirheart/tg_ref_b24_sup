@@ -1199,19 +1199,5 @@
     },
   };
 
-  window.SettingsIntegrationNetworkRuntime = Object.freeze({
-    ...api,
-    prepareIntegrationNetworkProfileSettingsTrigger(...args) {
-      return window.__settingsIntegrationNetworkRuntime?.prepareIntegrationNetworkProfileSettingsTrigger?.(...args);
-    },
-    resetIntegrationNetworkProfileSettingsModal(...args) {
-      return window.__settingsIntegrationNetworkRuntime?.resetIntegrationNetworkProfileSettingsModal?.(...args);
-    },
-    renderIntegrationNetworkProfilesTable(...args) {
-      return window.__settingsIntegrationNetworkRuntime?.renderIntegrationNetworkProfilesTable?.(...args);
-    },
-    updateChannelsManageOverview(...args) {
-      return window.__settingsIntegrationNetworkRuntime?.updateChannelsManageOverview?.(...args);
-    },
-  });
+  window.SettingsIntegrationNetworkRuntime = Object.freeze(api);
 }());

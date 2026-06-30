@@ -654,16 +654,5 @@
     },
   };
 
-  window.SettingsItEquipmentRuntime = Object.freeze({
-    ...api,
-    renderItEquipmentTable(...args) {
-      return window.__settingsItEquipmentRuntime?.renderItEquipmentTable?.(...args);
-    },
-    loadItEquipment(...args) {
-      return window.__settingsItEquipmentRuntime?.loadItEquipment?.(...args);
-    },
-    prepareItEquipmentAddSettingsModal(...args) {
-      return window.__settingsItEquipmentRuntime?.prepareItEquipmentAddSettingsModal?.(...args);
-    },
-  });
+  window.SettingsItEquipmentRuntime = Object.freeze(api);
 }());

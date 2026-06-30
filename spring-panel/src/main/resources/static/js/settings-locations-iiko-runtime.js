@@ -544,44 +544,14 @@
     mount,
     sanitizeLocationsIikoServerSources,
     sanitizeLocationsIikoSyncSettings,
-    serializeLocationsIikoServerSources() {
-      return window.__settingsLocationsIikoRuntime?.serializeLocationsIikoServerSources?.() || [];
-    },
-    serializeLocationsIikoSyncSettings() {
-      return window.__settingsLocationsIikoRuntime?.serializeLocationsIikoSyncSettings?.() || {};
-    },
     renderLocationsIikoServerSourcesEditor(...args) {
       return window.__settingsLocationsIikoRuntime?.renderLocationsIikoServerSourcesEditor?.(...args);
     },
     renderLocationsIikoSyncSettings(...args) {
       return window.__settingsLocationsIikoRuntime?.renderLocationsIikoSyncSettings?.(...args);
     },
-    updateLocationsIikoSyncSetting(...args) {
-      return window.__settingsLocationsIikoRuntime?.updateLocationsIikoSyncSetting?.(...args);
-    },
     loadLocationsSyncStatus(...args) {
       return window.__settingsLocationsIikoRuntime?.loadLocationsSyncStatus?.(...args);
-    },
-    prepareLocationsSettingsModal(...args) {
-      return window.__settingsLocationsIikoRuntime?.prepareLocationsSettingsModal?.(...args);
-    },
-    resetLocationsSettingsModal(...args) {
-      return window.__settingsLocationsIikoRuntime?.resetLocationsSettingsModal?.(...args);
-    },
-    runLocationsIikoSyncNow(...args) {
-      return window.__settingsLocationsIikoRuntime?.runLocationsIikoSyncNow?.(...args);
-    },
-    addLocationsIikoServerSource(...args) {
-      return window.__settingsLocationsIikoRuntime?.addLocationsIikoServerSource?.(...args);
-    },
-    markLocationsIikoServerSourcesSaved(...args) {
-      return window.__settingsLocationsIikoRuntime?.markLocationsIikoServerSourcesSaved?.(...args);
-    },
-    updateLocationsIikoServerSource(...args) {
-      return window.__settingsLocationsIikoRuntime?.updateLocationsIikoServerSource?.(...args);
-    },
-    removeLocationsIikoServerSource(...args) {
-      return window.__settingsLocationsIikoRuntime?.removeLocationsIikoServerSource?.(...args);
     },
   });
 }());

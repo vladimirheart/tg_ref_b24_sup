@@ -1258,35 +1258,8 @@
       window.__settingsLocationsTreeRuntime = runtime;
       return runtime;
     },
-    getState() {
-      return window.__settingsLocationsTreeRuntime?.getState();
-    },
     buildLocationsTree() {
       return window.__settingsLocationsTreeRuntime?.buildLocationsTree();
-    },
-    addBusiness(...args) {
-      return window.__settingsLocationsTreeRuntime?.addBusiness(...args);
-    },
-    saveLocationsChanges(...args) {
-      return window.__settingsLocationsTreeRuntime?.saveLocationsChanges(...args);
-    },
-    setStatus(...args) {
-      return window.__settingsLocationsTreeRuntime?.setStatus(...args);
-    },
-    writeNodeMeta(...args) {
-      return window.__settingsLocationsTreeRuntime?.writeNodeMeta(...args);
-    },
-    makeCityMetaKey(...args) {
-      return window.__settingsLocationsTreeRuntime?.makeCityMetaKey(...args);
-    },
-    makeLocationMetaKey(...args) {
-      return window.__settingsLocationsTreeRuntime?.makeLocationMetaKey(...args);
-    },
-    sortArrayAlphabetically(...args) {
-      return window.__settingsLocationsTreeRuntime?.sortArrayAlphabetically(...args);
-    },
-    getDefaultLocationStatus() {
-      return window.__settingsLocationsTreeRuntime?.getDefaultLocationStatus();
     },
   };
 

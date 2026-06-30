@@ -648,16 +648,5 @@
     },
   };
 
-  window.SettingsItConnectionsRuntime = Object.freeze({
-    ...api,
-    renderItConnectionsTable(...args) {
-      return window.__settingsItConnectionsRuntime?.renderItConnectionsTable?.(...args);
-    },
-    addItConnectionRow(...args) {
-      return window.__settingsItConnectionsRuntime?.addItConnectionRow?.(...args);
-    },
-    prepareItConnectionAddSettingsModal(...args) {
-      return window.__settingsItConnectionsRuntime?.prepareItConnectionAddSettingsModal?.(...args);
-    },
-  });
+  window.SettingsItConnectionsRuntime = Object.freeze(api);
 }());
