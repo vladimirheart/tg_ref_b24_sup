@@ -445,34 +445,7 @@
 
   function resolveThemeRuntime() {
     const runtime = window.SettingsRuntimeAccess?.resolveRuntimeApi?.('ThemeRuntime');
-    if (runtime && typeof runtime === 'object') {
-      return runtime;
-    }
-    const legacyTheme = globalThis.iguanaTheme;
-    const legacyPalette = globalThis.iguanaThemePalette;
-    if (!legacyTheme || !legacyPalette) {
-      return null;
-    }
-    return {
-      theme: legacyTheme,
-      palette: legacyPalette,
-      getTheme() {
-        return typeof legacyTheme.get === 'function' ? legacyTheme.get() : 'light';
-      },
-      setTheme(theme) {
-        if (typeof legacyTheme.set === 'function') {
-          legacyTheme.set(theme);
-        }
-      },
-      getPalette() {
-        return typeof legacyPalette.get === 'function' ? legacyPalette.get() : 'neo';
-      },
-      setPalette(palette) {
-        if (typeof legacyPalette.set === 'function') {
-          legacyPalette.set(palette);
-        }
-      },
-    };
+    return runtime && typeof runtime === 'object' ? runtime : null;
   }
 
   function initThemeFormSync() {
