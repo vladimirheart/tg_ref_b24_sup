@@ -50,7 +50,7 @@
 🟢 [01-028] Разделить AI orchestration на специализированные сервисы и исправить learning semantics
 🟢 [01-029] Внедрить intent+slots модель, intent catalog и базовый intent extraction pipeline
 🟢 [01-030] Реализовать hybrid retrieval, consistency checks и канонические knowledge units
-🟡 [01-031] Добавить decision trace API, offline eval-контур и расширенный KPI-мониторинг AI-агента
+🟢 [01-031] Добавить decision trace API, offline eval-контур и расширенный KPI-мониторинг AI-агента
 🟢 [01-032] Подключить LLM как контролируемый слой (parser/rewrite/composer/explainer) с output guard
 🟡 [01-033] Добавить в панель автоматизацию отключения корпоративных скидок через Bitrix24 и iiko
 🟢 [01-034] Перенести действия отдельного диалога в раскрывающийся список и расширить стартовую ширину баблов сообщений
@@ -150,7 +150,7 @@
 🟣 [01-128] Вынести page-shell и inline bootstrap страницы настроек в отдельный settings-page-shell runtime
 🟣 [01-129] Разрезать giant settings runtime на bounded client-side модули
 🟡 [01-130] Разделить giant dialogs.js на bounded client-side runtime modules
-🟠 [01-131] Разрезать ChannelApiController по transport responsibility
+🟣 [01-131] Разрезать ChannelApiController по transport responsibility
 🟠 [01-132] Разрезать AnalyticsController по bounded governance и analytics use-cases
 🟣 [01-133] Автосоздавать задачу при auto-close диалога с тем же ответственным, соисполнителями-участниками и ссылкой на диалог
 🟣 [01-134] Выпилить оставшийся backend/test слой PublicForm после удаления публичных форм из проекта

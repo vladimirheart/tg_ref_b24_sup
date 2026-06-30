@@ -1,5 +1,7 @@
 package com.example.panel.controller;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
@@ -17,24 +19,48 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.example.panel.entity.Channel;
 import com.example.panel.model.channel.BotCredential;
 import com.example.panel.repository.ChannelRepository;
+import com.example.panel.service.ChannelTransportService;
 import com.example.panel.service.IntegrationNetworkService;
 import com.example.panel.service.SharedConfigService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.net.Authenticator;
+import java.net.CookieHandler;
+import java.net.ProxySelector;
+import java.net.URI;
 import java.net.http.HttpClient;
+import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.file.Files;
+import java.time.Duration;
+import java.util.Collections;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLParameters;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Bean;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
 import org.springframework.test.web.servlet.MockMvc;
 
-@WebMvcTest(ChannelApiController.class)
+@WebMvcTest({
+    ChannelApiController.class,
+    ChannelBotCredentialApiController.class,
+    ChannelTelegramDiagnosticsApiController.class,
+    ChannelNotificationApiController.class
+})
 @AutoConfigureMockMvc(addFilters = false)
+@Import(ChannelTransportService.class)
 class ChannelApiControllerWebMvcTest {
 
     @Autowired
@@ -43,14 +69,214 @@ class ChannelApiControllerWebMvcTest {
     @MockBean
     private ChannelRepository channelRepository;
 
-    @MockBean
+    @Autowired
     private SharedConfigService sharedConfigService;
 
     @Autowired
     private ObjectMapper objectMapper;
 
-    @MockBean
-    private IntegrationNetworkService integrationNetworkService;
+    @Autowired
+    private FakeIntegrationNetworkService integrationNetworkService;
+
+    @BeforeEach
+    void resetSharedConfigCredentials() {
+        sharedConfigService.saveBotCredentials(List.of());
+        integrationNetworkService.reset();
+    }
+
+    @TestConfiguration
+    static class SharedConfigTestConfig {
+
+        @Bean
+        @Primary
+        SharedConfigService sharedConfigService(ObjectMapper objectMapper) throws Exception {
+            return new SharedConfigService(objectMapper, Files.createTempDirectory("channel-api-webmvc-shared").toString());
+        }
+
+        @Bean
+        @Primary
+        FakeIntegrationNetworkService integrationNetworkService(SharedConfigService sharedConfigService, ObjectMapper objectMapper) {
+            return new FakeIntegrationNetworkService(sharedConfigService, objectMapper);
+        }
+    }
+
+    static class FakeIntegrationNetworkService extends IntegrationNetworkService {
+
+        private HttpClient httpClient;
+        private RuntimeException createClientException;
+        private String legacyTelegramBaseUrl;
+
+        FakeIntegrationNetworkService(SharedConfigService sharedConfigService, ObjectMapper objectMapper) {
+            super(sharedConfigService, objectMapper);
+        }
+
+        void reset() {
+            httpClient = null;
+            createClientException = null;
+            legacyTelegramBaseUrl = null;
+        }
+
+        void setHttpClient(HttpClient httpClient) {
+            this.httpClient = httpClient;
+        }
+
+        void setCreateClientException(RuntimeException createClientException) {
+            this.createClientException = createClientException;
+        }
+
+        void setLegacyTelegramBaseUrl(String legacyTelegramBaseUrl) {
+            this.legacyTelegramBaseUrl = legacyTelegramBaseUrl;
+        }
+
+        @Override
+        public HttpClient createChannelHttpClient(Channel channel, Duration timeout) {
+            if (createClientException != null) {
+                throw createClientException;
+            }
+            if (httpClient != null) {
+                return httpClient;
+            }
+            return super.createChannelHttpClient(channel, timeout);
+        }
+
+        @Override
+        public String resolveTelegramLegacyBotApiBaseUrl(Channel channel) {
+            return legacyTelegramBaseUrl;
+        }
+    }
+
+    static class StubHttpClient extends HttpClient {
+
+        private final int statusCode;
+        private final String responseBody;
+        private HttpRequest lastRequest;
+
+        StubHttpClient(int statusCode, String responseBody) {
+            this.statusCode = statusCode;
+            this.responseBody = responseBody;
+        }
+
+        String lastRequestUri() {
+            return lastRequest != null ? lastRequest.uri().toString() : null;
+        }
+
+        @Override
+        public Optional<CookieHandler> cookieHandler() {
+            return Optional.empty();
+        }
+
+        @Override
+        public Optional<Duration> connectTimeout() {
+            return Optional.empty();
+        }
+
+        @Override
+        public Redirect followRedirects() {
+            return Redirect.NEVER;
+        }
+
+        @Override
+        public Optional<ProxySelector> proxy() {
+            return Optional.empty();
+        }
+
+        @Override
+        public SSLContext sslContext() {
+            return null;
+        }
+
+        @Override
+        public SSLParameters sslParameters() {
+            return new SSLParameters();
+        }
+
+        @Override
+        public Optional<Authenticator> authenticator() {
+            return Optional.empty();
+        }
+
+        @Override
+        public Version version() {
+            return Version.HTTP_1_1;
+        }
+
+        @Override
+        public Optional<Executor> executor() {
+            return Optional.empty();
+        }
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public <T> HttpResponse<T> send(HttpRequest request, HttpResponse.BodyHandler<T> responseBodyHandler) {
+            this.lastRequest = request;
+            return (HttpResponse<T>) new StubHttpResponse(statusCode, responseBody, request);
+        }
+
+        @Override
+        public <T> CompletableFuture<HttpResponse<T>> sendAsync(HttpRequest request, HttpResponse.BodyHandler<T> responseBodyHandler) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public <T> CompletableFuture<HttpResponse<T>> sendAsync(HttpRequest request,
+                                                                HttpResponse.BodyHandler<T> responseBodyHandler,
+                                                                HttpResponse.PushPromiseHandler<T> pushPromiseHandler) {
+            throw new UnsupportedOperationException();
+        }
+    }
+
+    static class StubHttpResponse implements HttpResponse<String> {
+
+        private final int statusCode;
+        private final String body;
+        private final HttpRequest request;
+
+        StubHttpResponse(int statusCode, String body, HttpRequest request) {
+            this.statusCode = statusCode;
+            this.body = body;
+            this.request = request;
+        }
+
+        @Override
+        public int statusCode() {
+            return statusCode;
+        }
+
+        @Override
+        public HttpRequest request() {
+            return request;
+        }
+
+        @Override
+        public Optional<HttpResponse<String>> previousResponse() {
+            return Optional.empty();
+        }
+
+        @Override
+        public HttpHeaders headers() {
+            return HttpHeaders.of(Collections.emptyMap(), (name, value) -> true);
+        }
+
+        @Override
+        public String body() {
+            return body;
+        }
+
+        @Override
+        public Optional<javax.net.ssl.SSLSession> sslSession() {
+            return Optional.empty();
+        }
+
+        @Override
+        public URI uri() {
+            return request != null ? request.uri() : URI.create("http://localhost");
+        }
+
+        @Override
+        public Version version() {
+            return Version.HTTP_1_1;
+        }
+    }
 
     @Test
     void regeneratePublicIdSupportsChannelsRouteAlias() throws Exception {
@@ -60,7 +286,7 @@ class ChannelApiControllerWebMvcTest {
 
         when(channelRepository.findById(55L)).thenReturn(Optional.of(channel));
         when(channelRepository.save(any(Channel.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(sharedConfigService.loadBotCredentials()).thenReturn(List.of());
+        sharedConfigService.saveBotCredentials(List.of());
 
         mockMvc.perform(post("/api/channels/55/public-id/regenerate"))
                 .andExpect(status().isOk())
@@ -82,7 +308,7 @@ class ChannelApiControllerWebMvcTest {
     @Test
     void getChannelsReturnsEmptySuccessPayloadWhenRepositoryIsEmpty() throws Exception {
         when(channelRepository.findAll()).thenReturn(List.of());
-        when(sharedConfigService.loadBotCredentials()).thenReturn(List.of());
+        sharedConfigService.saveBotCredentials(List.of());
 
         mockMvc.perform(get("/api/channels"))
             .andExpect(status().isOk())
@@ -101,9 +327,8 @@ class ChannelApiControllerWebMvcTest {
         channel.setPublicId("pub-11");
 
         when(channelRepository.findAll()).thenReturn(List.of(channel));
-        when(sharedConfigService.loadBotCredentials()).thenReturn(List.of());
-        when(integrationNetworkService.createChannelHttpClient(any(Channel.class), any()))
-            .thenThrow(new IllegalStateException("network offline"));
+        sharedConfigService.saveBotCredentials(List.of());
+        integrationNetworkService.setCreateClientException(new IllegalStateException("network offline"));
 
         mockMvc.perform(get("/api/channels"))
             .andExpect(status().isOk())
@@ -128,11 +353,7 @@ class ChannelApiControllerWebMvcTest {
         channel.setQuestionsCfg("{}");
         channel.setDeliverySettings("{}");
 
-        @SuppressWarnings("unchecked")
-        HttpResponse<String> response = (HttpResponse<String>) mock(HttpResponse.class);
-        HttpClient httpClient = mock(HttpClient.class);
-        when(response.statusCode()).thenReturn(200);
-        when(response.body()).thenReturn("""
+        StubHttpClient httpClient = new StubHttpClient(200, """
                 {
                   "ok": true,
                   "result": {
@@ -143,9 +364,8 @@ class ChannelApiControllerWebMvcTest {
                 """);
         when(channelRepository.findAll()).thenReturn(List.of(channel));
         when(channelRepository.saveAll(any())).thenThrow(new RuntimeException("db unavailable"));
-        when(sharedConfigService.loadBotCredentials()).thenReturn(List.of());
-        when(integrationNetworkService.createChannelHttpClient(any(Channel.class), any())).thenReturn(httpClient);
-        when(httpClient.send(any(), any(HttpResponse.BodyHandler.class))).thenReturn(response);
+        sharedConfigService.saveBotCredentials(List.of());
+        integrationNetworkService.setHttpClient(httpClient);
 
         mockMvc.perform(get("/api/channels"))
             .andExpect(status().isOk())
@@ -153,10 +373,7 @@ class ChannelApiControllerWebMvcTest {
             .andExpect(jsonPath("$.channels[0].bot_name").value("Support"))
             .andExpect(jsonPath("$.channels[0].bot_username").value("support_bot"));
 
-        verify(httpClient).send(
-            argThat((HttpRequest request) -> "https://telegram.ftl-dev.ru/bottg-token/getMe".equals(request.uri().toString())),
-            any(HttpResponse.BodyHandler.class)
-        );
+        assertEquals("https://telegram.ftl-dev.ru/bottg-token/getMe", httpClient.lastRequestUri());
     }
 
     @Test
@@ -166,7 +383,7 @@ class ChannelApiControllerWebMvcTest {
             channel.setId(42L);
             return channel;
         });
-        when(sharedConfigService.loadBotCredentials()).thenReturn(List.of());
+        sharedConfigService.saveBotCredentials(List.of());
 
         mockMvc.perform(post("/api/channels")
                         .contentType("application/json")
@@ -299,7 +516,7 @@ class ChannelApiControllerWebMvcTest {
             channel.setId(43L);
             return channel;
         });
-        when(sharedConfigService.loadBotCredentials()).thenReturn(List.of());
+        sharedConfigService.saveBotCredentials(List.of());
 
         mockMvc.perform(post("/api/channels")
                         .contentType("application/json")
@@ -343,7 +560,7 @@ class ChannelApiControllerWebMvcTest {
 
         when(channelRepository.findById(44L)).thenReturn(Optional.of(channel));
         when(channelRepository.save(any(Channel.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(sharedConfigService.loadBotCredentials()).thenReturn(List.of(
+        sharedConfigService.saveBotCredentials(List.of(
             new BotCredential(9L, "TG Main", "telegram", "token-9", true)
         ));
 
@@ -481,7 +698,7 @@ class ChannelApiControllerWebMvcTest {
 
         when(channelRepository.findById(47L)).thenReturn(Optional.of(channel));
         when(channelRepository.save(any(Channel.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(sharedConfigService.loadBotCredentials()).thenReturn(List.of());
+        sharedConfigService.saveBotCredentials(List.of());
 
         mockMvc.perform(post("/api/channels/47")
                         .contentType("application/json")
@@ -643,18 +860,13 @@ class ChannelApiControllerWebMvcTest {
                 }
                 """);
 
-        @SuppressWarnings("unchecked")
-        HttpResponse<String> response = (HttpResponse<String>) mock(HttpResponse.class);
-        HttpClient httpClient = mock(HttpClient.class);
-        when(response.statusCode()).thenReturn(200);
-        when(response.body()).thenReturn("""
+        StubHttpClient httpClient = new StubHttpClient(200, """
                 {
                   "ok": true
                 }
                 """);
         when(channelRepository.findById(63L)).thenReturn(Optional.of(channel));
-        when(integrationNetworkService.createChannelHttpClient(any(Channel.class), any())).thenReturn(httpClient);
-        when(httpClient.send(any(), any(HttpResponse.BodyHandler.class))).thenReturn(response);
+        integrationNetworkService.setHttpClient(httpClient);
 
         mockMvc.perform(post("/api/channels/63/test-message")
                         .contentType("application/json")
@@ -686,13 +898,9 @@ class ChannelApiControllerWebMvcTest {
                 }
                 """);
 
-        @SuppressWarnings("unchecked")
-        HttpResponse<String> response = (HttpResponse<String>) mock(HttpResponse.class);
-        HttpClient httpClient = mock(HttpClient.class);
-        when(response.statusCode()).thenReturn(500);
+        StubHttpClient httpClient = new StubHttpClient(500, "");
         when(channelRepository.findById(64L)).thenReturn(Optional.of(channel));
-        when(integrationNetworkService.createChannelHttpClient(any(Channel.class), any())).thenReturn(httpClient);
-        when(httpClient.send(any(), any(HttpResponse.BodyHandler.class))).thenReturn(response);
+        integrationNetworkService.setHttpClient(httpClient);
 
         mockMvc.perform(post("/api/channels/64/test-message")
                         .contentType("application/json")
@@ -716,18 +924,13 @@ class ChannelApiControllerWebMvcTest {
         channel.setToken("tg-token");
         channel.setDeliverySettings("{}");
 
-        @SuppressWarnings("unchecked")
-        HttpResponse<String> response = (HttpResponse<String>) mock(HttpResponse.class);
-        HttpClient httpClient = mock(HttpClient.class);
-        when(response.statusCode()).thenReturn(200);
-        when(response.body()).thenReturn("""
+        StubHttpClient httpClient = new StubHttpClient(200, """
                 {
                   "ok": true
                 }
                 """);
         when(channelRepository.findById(65L)).thenReturn(Optional.of(channel));
-        when(integrationNetworkService.createChannelHttpClient(any(Channel.class), any())).thenReturn(httpClient);
-        when(httpClient.send(any(), any(HttpResponse.BodyHandler.class))).thenReturn(response);
+        integrationNetworkService.setHttpClient(httpClient);
 
         mockMvc.perform(post("/api/channels/65/test-message")
                         .contentType("application/json")
@@ -793,13 +996,9 @@ class ChannelApiControllerWebMvcTest {
         channel.setPlatform("telegram");
         channel.setToken("tg-token");
 
-        @SuppressWarnings("unchecked")
-        HttpResponse<String> response = (HttpResponse<String>) mock(HttpResponse.class);
-        HttpClient httpClient = mock(HttpClient.class);
-        when(response.statusCode()).thenReturn(500);
+        StubHttpClient httpClient = new StubHttpClient(500, "");
         when(channelRepository.findById(73L)).thenReturn(Optional.of(channel));
-        when(integrationNetworkService.createChannelHttpClient(any(Channel.class), any())).thenReturn(httpClient);
-        when(httpClient.send(any(), any(HttpResponse.BodyHandler.class))).thenReturn(response);
+        integrationNetworkService.setHttpClient(httpClient);
 
         mockMvc.perform(post("/api/channels/73/bot-info"))
                 .andExpect(status().isBadRequest())
@@ -819,11 +1018,7 @@ class ChannelApiControllerWebMvcTest {
         channel.setQuestionsCfg("{}");
         channel.setDeliverySettings("{}");
 
-        @SuppressWarnings("unchecked")
-        HttpResponse<String> response = (HttpResponse<String>) mock(HttpResponse.class);
-        HttpClient httpClient = mock(HttpClient.class);
-        when(response.statusCode()).thenReturn(200);
-        when(response.body()).thenReturn("""
+        StubHttpClient httpClient = new StubHttpClient(200, """
                 {
                   "ok": true,
                   "result": {
@@ -835,9 +1030,8 @@ class ChannelApiControllerWebMvcTest {
                 """);
         when(channelRepository.findById(74L)).thenReturn(Optional.of(channel));
         when(channelRepository.save(any(Channel.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(sharedConfigService.loadBotCredentials()).thenReturn(List.of());
-        when(integrationNetworkService.createChannelHttpClient(any(Channel.class), any())).thenReturn(httpClient);
-        when(httpClient.send(any(), any(HttpResponse.BodyHandler.class))).thenReturn(response);
+        sharedConfigService.saveBotCredentials(List.of());
+        integrationNetworkService.setHttpClient(httpClient);
 
         mockMvc.perform(post("/api/channels/74/bot-info"))
                 .andExpect(status().isOk())
@@ -872,11 +1066,7 @@ class ChannelApiControllerWebMvcTest {
             }
             """);
 
-        @SuppressWarnings("unchecked")
-        HttpResponse<String> response = (HttpResponse<String>) mock(HttpResponse.class);
-        HttpClient httpClient = mock(HttpClient.class);
-        when(response.statusCode()).thenReturn(200);
-        when(response.body()).thenReturn("""
+        StubHttpClient httpClient = new StubHttpClient(200, """
                 {
                   "ok": true,
                   "result": {
@@ -887,21 +1077,16 @@ class ChannelApiControllerWebMvcTest {
                 """);
         when(channelRepository.findById(77L)).thenReturn(Optional.of(channel));
         when(channelRepository.save(any(Channel.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(sharedConfigService.loadBotCredentials()).thenReturn(List.of());
-        when(integrationNetworkService.resolveTelegramLegacyBotApiBaseUrl(any(Channel.class)))
-            .thenReturn("https://telegram.ftl-dev.ru");
-        when(integrationNetworkService.createChannelHttpClient(any(Channel.class), any())).thenReturn(httpClient);
-        when(httpClient.send(any(), any(HttpResponse.BodyHandler.class))).thenReturn(response);
+        sharedConfigService.saveBotCredentials(List.of());
+        integrationNetworkService.setLegacyTelegramBaseUrl("https://telegram.ftl-dev.ru");
+        integrationNetworkService.setHttpClient(httpClient);
 
         mockMvc.perform(post("/api/channels/77/bot-info"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.channel.bot_username").value("support_bot"));
 
-        verify(httpClient).send(
-            argThat((HttpRequest request) -> "https://telegram.ftl-dev.ru/bottg-token/getMe".equals(request.uri().toString())),
-            any(HttpResponse.BodyHandler.class)
-        );
+        assertEquals("https://telegram.ftl-dev.ru/bottg-token/getMe", httpClient.lastRequestUri());
     }
 
     @Test
@@ -914,19 +1099,14 @@ class ChannelApiControllerWebMvcTest {
         channel.setQuestionsCfg("{}");
         channel.setDeliverySettings("{}");
 
-        @SuppressWarnings("unchecked")
-        HttpResponse<String> response = (HttpResponse<String>) mock(HttpResponse.class);
-        HttpClient httpClient = mock(HttpClient.class);
-        when(response.statusCode()).thenReturn(200);
-        when(response.body()).thenReturn("""
+        StubHttpClient httpClient = new StubHttpClient(200, """
                 {
                   "ok": true,
                   "result": {}
                 }
                 """);
         when(channelRepository.findById(76L)).thenReturn(Optional.of(channel));
-        when(integrationNetworkService.createChannelHttpClient(any(Channel.class), any())).thenReturn(httpClient);
-        when(httpClient.send(any(), any(HttpResponse.BodyHandler.class))).thenReturn(response);
+        integrationNetworkService.setHttpClient(httpClient);
 
         mockMvc.perform(post("/api/channels/76/bot-info"))
                 .andExpect(status().isBadRequest())
@@ -946,7 +1126,7 @@ class ChannelApiControllerWebMvcTest {
         channel.setPublicId("pub-12");
 
         when(channelRepository.findAll()).thenReturn(List.of(channel));
-        when(sharedConfigService.loadBotCredentials()).thenReturn(List.of(
+        sharedConfigService.saveBotCredentials(List.of(
             new BotCredential(5L, "TG Main", "telegram", "123456:ABCDEF", true)
         ));
 
@@ -962,7 +1142,7 @@ class ChannelApiControllerWebMvcTest {
 
     @Test
     void getBotCredentialsReturnsSharedConfigCredentials() throws Exception {
-        when(sharedConfigService.loadBotCredentials()).thenReturn(List.of(
+        sharedConfigService.saveBotCredentials(List.of(
             new BotCredential(5L, "TG Main", "telegram", "123456:ABCDEF", true)
         ));
 
@@ -978,7 +1158,7 @@ class ChannelApiControllerWebMvcTest {
 
     @Test
     void getBotCredentialsNormalizesBlankPlatformToTelegram() throws Exception {
-        when(sharedConfigService.loadBotCredentials()).thenReturn(List.of(
+        sharedConfigService.saveBotCredentials(List.of(
             new BotCredential(6L, "Fallback TG", "", "123456:ABCDEF", true)
         ));
 
@@ -1007,7 +1187,7 @@ class ChannelApiControllerWebMvcTest {
     void createBotCredentialPersistsExpandedSharedConfigCredentialList() throws Exception {
         List<BotCredential> existing = new ArrayList<>();
         existing.add(new BotCredential(2L, "Legacy", "telegram", "legacy-token", true));
-        when(sharedConfigService.loadBotCredentials()).thenReturn(existing);
+        sharedConfigService.saveBotCredentials(existing);
 
         mockMvc.perform(post("/api/bot-credentials")
                 .contentType("application/json")
@@ -1026,16 +1206,15 @@ class ChannelApiControllerWebMvcTest {
             .andExpect(jsonPath("$.credential.platform").value("vk"))
             .andExpect(jsonPath("$.credential.is_active").value(false));
 
-        verify(sharedConfigService).saveBotCredentials(argThat(credentials ->
-            credentials.size() == 2
-                && credentials.stream().anyMatch(item -> item.id() == 2L && "Legacy".equals(item.name()))
-                && credentials.stream().anyMatch(item -> item.id() == 3L && "VK Main".equals(item.name()) && "vk".equals(item.platform()) && Boolean.FALSE.equals(item.active()))
-        ));
+        List<BotCredential> savedCredentials = sharedConfigService.loadBotCredentials();
+        assertEquals(2, savedCredentials.size());
+        assertTrue(savedCredentials.stream().anyMatch(item -> item.id() == 2L && "Legacy".equals(item.name())));
+        assertTrue(savedCredentials.stream().anyMatch(item -> item.id() == 3L && "VK Main".equals(item.name()) && "vk".equals(item.platform()) && Boolean.FALSE.equals(item.active())));
     }
 
     @Test
     void createBotCredentialNormalizesBlankPlatformToTelegram() throws Exception {
-        when(sharedConfigService.loadBotCredentials()).thenReturn(List.of());
+        sharedConfigService.saveBotCredentials(List.of());
 
         mockMvc.perform(post("/api/bot-credentials")
                 .contentType("application/json")
@@ -1051,15 +1230,14 @@ class ChannelApiControllerWebMvcTest {
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.credential.platform").value("telegram"));
 
-        verify(sharedConfigService).saveBotCredentials(argThat(credentials ->
-            credentials.size() == 1
-                && "telegram".equals(credentials.get(0).platform())
-        ));
+        List<BotCredential> savedCredentials = sharedConfigService.loadBotCredentials();
+        assertEquals(1, savedCredentials.size());
+        assertEquals("telegram", savedCredentials.get(0).platform());
     }
 
     @Test
     void createBotCredentialDefaultsIsActiveToTrueWhenFlagIsMissing() throws Exception {
-        when(sharedConfigService.loadBotCredentials()).thenReturn(List.of());
+        sharedConfigService.saveBotCredentials(List.of());
 
         mockMvc.perform(post("/api/bot-credentials")
                 .contentType("application/json")
@@ -1073,14 +1251,14 @@ class ChannelApiControllerWebMvcTest {
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.credential.is_active").value(true));
 
-        verify(sharedConfigService).saveBotCredentials(argThat(credentials ->
-            credentials.size() == 1 && Boolean.TRUE.equals(credentials.get(0).active())
-        ));
+        List<BotCredential> savedCredentials = sharedConfigService.loadBotCredentials();
+        assertEquals(1, savedCredentials.size());
+        assertTrue(Boolean.TRUE.equals(savedCredentials.get(0).active()));
     }
 
     @Test
     void createBotCredentialAssignsNextIdAfterSparseAndNullExistingIds() throws Exception {
-        when(sharedConfigService.loadBotCredentials()).thenReturn(List.of(
+        sharedConfigService.saveBotCredentials(List.of(
             new BotCredential(null, "Legacy Null", "telegram", "token-0", true),
             new BotCredential(10L, "TG Main", "telegram", "token-1", true),
             new BotCredential(4L, "VK Backup", "vk", "token-2", false)
@@ -1104,7 +1282,7 @@ class ChannelApiControllerWebMvcTest {
 
     @Test
     void deleteBotCredentialClearsLinkedChannelsAndPersistsTrimmedCredentialList() throws Exception {
-        when(sharedConfigService.loadBotCredentials()).thenReturn(List.of(
+        sharedConfigService.saveBotCredentials(List.of(
             new BotCredential(7L, "TG Main", "telegram", "token-1", true),
             new BotCredential(8L, "VK Backup", "vk", "token-2", false)
         ));
@@ -1117,9 +1295,9 @@ class ChannelApiControllerWebMvcTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true));
 
-        verify(sharedConfigService).saveBotCredentials(argThat(credentials ->
-            credentials.size() == 1 && credentials.get(0).id() == 7L
-        ));
+        List<BotCredential> savedCredentials = sharedConfigService.loadBotCredentials();
+        assertEquals(1, savedCredentials.size());
+        assertEquals(7L, savedCredentials.get(0).id());
         verify(channelRepository).saveAll(argThat(channels ->
             channels.iterator().hasNext() && channels.iterator().next().getCredentialId() == null
         ));
@@ -1127,7 +1305,7 @@ class ChannelApiControllerWebMvcTest {
 
     @Test
     void deleteBotCredentialReturnsNotFoundWhenCredentialIsMissing() throws Exception {
-        when(sharedConfigService.loadBotCredentials()).thenReturn(List.of(
+        sharedConfigService.saveBotCredentials(List.of(
             new BotCredential(7L, "TG Main", "telegram", "token-1", true)
         ));
 
@@ -1139,7 +1317,7 @@ class ChannelApiControllerWebMvcTest {
 
     @Test
     void deleteBotCredentialSkipsChannelSaveWhenNoChannelsReferenceCredential() throws Exception {
-        when(sharedConfigService.loadBotCredentials()).thenReturn(List.of(
+        sharedConfigService.saveBotCredentials(List.of(
             new BotCredential(7L, "TG Main", "telegram", "token-1", true)
         ));
         Channel unrelatedChannel = new Channel();
@@ -1156,7 +1334,7 @@ class ChannelApiControllerWebMvcTest {
 
     @Test
     void deleteBotCredentialClearsMultipleLinkedChannels() throws Exception {
-        when(sharedConfigService.loadBotCredentials()).thenReturn(List.of(
+        sharedConfigService.saveBotCredentials(List.of(
             new BotCredential(7L, "TG Main", "telegram", "token-1", true),
             new BotCredential(8L, "VK Backup", "vk", "token-2", false)
         ));

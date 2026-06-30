@@ -1890,6 +1890,19 @@
   а `AnalyticsController` держит и page rendering, и export, и rollout/context,
   и SLA/macro governance mutations.
 
+Текущий статус:
+
+- `01-131` закрыл bounded split `ChannelApiController`: исходный mixed
+  controller уменьшен до thin `/channels` CRUD/public-id wrapper (`~52`
+  строки), transport orchestration вынесена в `ChannelTransportService`
+  (`~1045` строк), а остальные responsibility разнесены по
+  `ChannelBotCredentialApiController`,
+  `ChannelTelegramDiagnosticsApiController` и
+  `ChannelNotificationApiController`.
+- `ChannelApiControllerWebMvcTest` обновлён под multi-controller transport
+  boundary и сохраняет прежний `/api/...` route contract для channel CRUD,
+  bot credentials, Telegram diagnostics и channel notifications.
+
 Что логично делать:
 
 1. `ChannelApiController` резать по transport responsibility:
