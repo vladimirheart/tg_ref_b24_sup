@@ -17,14 +17,6 @@
     };
   }
 
-  function mountSettingsRuntime(runtimeName, options = {}) {
-    const runtimeApi = globalThis[runtimeName];
-    if (!runtimeApi || typeof runtimeApi.mount !== 'function') {
-      return null;
-    }
-    return runtimeApi.mount(options);
-  }
-
   function createRuntime(options = {}) {
     const escapeHtml = createEscapeHtml();
     let settingsLocationsTreeRuntime = null;
@@ -44,29 +36,29 @@
           return typeof globalThis.confirm === 'function' ? globalThis.confirm(message) : false;
         };
 
-    const settingsDialogSlaCoreRuntime = mountSettingsRuntime('SettingsDialogSlaCoreRuntime', {
+    const settingsDialogSlaCoreRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsDialogSlaCoreRuntime', {
       getDialogConfig: () => options.dialogConfig || {},
       getDefaultDialogSlaConfig: () => options.defaultDialogSlaConfig || {},
     }) || null;
 
-    const settingsDialogMetricsRuntime = mountSettingsRuntime('SettingsDialogMetricsRuntime', {
+    const settingsDialogMetricsRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsDialogMetricsRuntime', {
       getDialogConfig: () => options.dialogConfig || {},
       getDefaultDialogTimeMetrics: () => options.defaultDialogTimeMetrics || {},
       getDefaultSummaryBadges: () => options.defaultSummaryBadges || {},
     }) || null;
 
-    const settingsDialogWorkspaceGovernanceRuntime = mountSettingsRuntime('SettingsDialogWorkspaceGovernanceRuntime', {
+    const settingsDialogWorkspaceGovernanceRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsDialogWorkspaceGovernanceRuntime', {
       getDialogConfig: () => options.dialogConfig || {},
       getDefaultDialogSlaConfig: () => options.defaultDialogSlaConfig || {},
     }) || null;
 
-    const settingsDialogWorkspaceExternalKpiRuntime = mountSettingsRuntime('SettingsDialogWorkspaceExternalKpiRuntime', {
+    const settingsDialogWorkspaceExternalKpiRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsDialogWorkspaceExternalKpiRuntime', {
       getDialogConfig: () => options.dialogConfig || {},
       getDefaultDialogSlaConfig: () => options.defaultDialogSlaConfig || {},
       escapeHtml,
     }) || null;
 
-    const settingsDialogTemplatesRuntime = mountSettingsRuntime('SettingsDialogTemplatesRuntime', {
+    const settingsDialogTemplatesRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsDialogTemplatesRuntime', {
       getDialogConfig: () => options.dialogConfig || {},
       getAutoCloseConfig: () => options.autoCloseConfig || {},
       getAutoCloseFallbackHours: () => options.autoCloseFallbackHours ?? 24,
@@ -75,13 +67,13 @@
       escapeHtml,
     }) || null;
 
-    const settingsDialogShellRuntime = mountSettingsRuntime('SettingsDialogShellRuntime', {
+    const settingsDialogShellRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsDialogShellRuntime', {
       slaCoreRuntime: settingsDialogSlaCoreRuntime,
       workspaceGovernanceRuntime: settingsDialogWorkspaceGovernanceRuntime,
       workspaceExternalKpiRuntime: settingsDialogWorkspaceExternalKpiRuntime,
     }) || null;
 
-    const settingsParametersShellRuntime = mountSettingsRuntime('SettingsParametersShellRuntime', {
+    const settingsParametersShellRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsParametersShellRuntime', {
       getParameterTitles: () => options.parameterTitles || {},
       getParameterDependencies: () => options.parameterDependencies || {},
       getParameterStateTypes: () => options.parameterStateTypes || new Set(),
@@ -104,7 +96,7 @@
       buildLocationsTree: () => settingsLocationsTreeRuntime?.buildLocationsTree(),
     }) || null;
 
-    const settingsNetworkProfilesRuntime = mountSettingsRuntime('SettingsNetworkProfilesRuntime', {
+    const settingsNetworkProfilesRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsNetworkProfilesRuntime', {
       getInitialProfiles: () => options.networkProfilesInitial || [],
       getContractUsageData: () => options.contractUsageData || {},
       escapeHtml,
@@ -114,7 +106,7 @@
     }) || null;
     settingsNetworkProfilesRuntime?.renderNetworkProfiles();
 
-    const settingsAppearanceRuntime = mountSettingsRuntime('SettingsAppearanceRuntime', {
+    const settingsAppearanceRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsAppearanceRuntime', {
       statusUsage: options.statusUsage || {},
       initialClientStatuses: options.initialClientStatuses || [],
       initialClientStatusColors: options.initialClientStatusColors || {},
@@ -123,14 +115,14 @@
       escapeHtml,
     }) || null;
 
-    const settingsLocationsIikoRuntime = mountSettingsRuntime('SettingsLocationsIikoRuntime', {
+    const settingsLocationsIikoRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsLocationsIikoRuntime', {
       initialServerSources: options.locationsIikoServerSourcesInitial || [],
       initialSyncSettings: options.locationsIikoSyncSettingsInitial || {},
       showPopup: (message, type) => showPopup(message, type),
       escapeHtml,
     }) || null;
 
-    settingsLocationsTreeRuntime = mountSettingsRuntime('SettingsLocationsTreeRuntime', {
+    settingsLocationsTreeRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsLocationsTreeRuntime', {
       initialLocations: options.locationsInitial || {},
       loadParameters: () => settingsParametersShellRuntime?.loadParameters(),
       showPopup: (message, type) => showPopup(message, type),
@@ -139,7 +131,7 @@
       markLocationsIikoServerSourcesSaved: () => settingsLocationsIikoRuntime?.markLocationsIikoServerSourcesSaved?.(),
     }) || null;
 
-    const settingsLocationWizardRuntime = mountSettingsRuntime('SettingsLocationWizardRuntime', {
+    const settingsLocationWizardRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsLocationWizardRuntime', {
       getParameterData: () => settingsParametersShellRuntime?.getParameterData() || {},
       getLocationsState: () => settingsLocationsTreeRuntime?.getState() || {},
       getCityOptionsFallback: () => options.cityOptions || [],
@@ -158,7 +150,7 @@
       defaultLocationStatus: settingsLocationsTreeRuntime?.getDefaultLocationStatus(),
     }) || null;
 
-    const settingsChannelsShellRuntime = mountSettingsRuntime('SettingsChannelsShellRuntime', {
+    const settingsChannelsShellRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsChannelsShellRuntime', {
       botSettingsInitial: options.botSettingsInitial || {},
       autoCloseConfig: options.autoCloseConfig || {},
       integrationNetworkInitial: options.integrationNetworkInitial || {},
@@ -171,13 +163,13 @@
       confirmDialog: (message) => confirmDialog(message),
     }) || null;
 
-    const settingsAdminShellRuntime = mountSettingsRuntime('SettingsAdminShellRuntime', {
+    const settingsAdminShellRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsAdminShellRuntime', {
       reportingConfigInitial: options.reportingConfigInitial || {},
       managerLocationBindingsInitial: options.managerLocationBindingsInitial || [],
       getLocationsState: () => settingsLocationsTreeRuntime?.getState() || {},
     }) || null;
 
-    const settingsSaveRuntime = mountSettingsRuntime('SettingsSaveRuntime', {
+    const settingsSaveRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsSaveRuntime', {
       templatesRuntime: settingsDialogTemplatesRuntime,
       metricsRuntime: settingsDialogMetricsRuntime,
       dialogShellRuntime: settingsDialogShellRuntime,

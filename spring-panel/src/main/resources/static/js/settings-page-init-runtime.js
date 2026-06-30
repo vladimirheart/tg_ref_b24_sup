@@ -10,24 +10,8 @@
   }
 
   function getCommonUtils() {
-    const commonUtils = window.CommonUtils;
+    const commonUtils = window.SettingsRuntimeAccess?.resolveRuntimeApi?.('CommonUtils');
     return commonUtils && typeof commonUtils === 'object' ? commonUtils : null;
-  }
-
-  function mountSettingsRuntime(runtimeName, options = {}) {
-    const runtimeApi = globalThis[runtimeName];
-    if (!runtimeApi || typeof runtimeApi.mount !== 'function') {
-      return null;
-    }
-    return runtimeApi.mount(options);
-  }
-
-  function buildSettingsPageConfig(rawConfig) {
-    const runtimeApi = globalThis.SettingsPageConfigRuntime;
-    if (!runtimeApi || typeof runtimeApi.build !== 'function') {
-      return {};
-    }
-    return runtimeApi.build(rawConfig) || {};
   }
 
   function fallbackGetCookieValue(name) {
@@ -71,7 +55,8 @@
   }
 
   function fallbackRequestSettingsModalClose(source) {
-    return window.SettingsPageShell?.requestCloseModal?.(source);
+    const requestCloseModal = window.SettingsRuntimeAccess?.resolveRuntimeMethod?.('SettingsPageShell', 'requestCloseModal');
+    return typeof requestCloseModal === 'function' ? requestCloseModal(source) : undefined;
   }
 
   function parseRawConfig(source) {
@@ -101,9 +86,9 @@
 
   function createRuntime(options = {}) {
     const rawConfig = parseRawConfig(options.rawConfig);
-    const settingsPageConfig = buildSettingsPageConfig(rawConfig);
+    const settingsPageConfig = window.SettingsRuntimeAccess?.buildPageConfig?.(rawConfig) || {};
 
-    const bootstrapRuntime = mountSettingsRuntime('SettingsPageBootstrapRuntime', {
+    const bootstrapRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsPageBootstrapRuntime', {
       ...settingsPageConfig,
       getCookieValue: resolveFunction(options.getCookieValue, fallbackGetCookieValue),
       requestSettingsModalClose: resolveFunction(options.requestSettingsModalClose, fallbackRequestSettingsModalClose),

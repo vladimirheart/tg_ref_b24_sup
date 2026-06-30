@@ -411,14 +411,6 @@
     return root instanceof HTMLElement ? root : null;
   }
 
-  function resolveSettingsRuntimeApi(runtimeName) {
-    if (typeof runtimeName !== 'string' || !runtimeName.trim()) {
-      return null;
-    }
-    const runtimeApi = globalThis[runtimeName.trim()];
-    return runtimeApi && typeof runtimeApi === 'object' ? runtimeApi : null;
-  }
-
   function resolveSettingsRuntimeNamespaceCallback(callbackName) {
     const normalizedName = typeof callbackName === 'string' ? callbackName.trim() : '';
     if (!normalizedName) {
@@ -428,12 +420,7 @@
     if (!target || typeof target !== 'object') {
       return null;
     }
-    const runtime = resolveSettingsRuntimeApi(target.runtimeName);
-    if (!runtime || typeof runtime !== 'object') {
-      return null;
-    }
-    const callback = runtime[target.methodName];
-    return typeof callback === 'function' ? callback : null;
+    return window.SettingsRuntimeAccess?.resolveRuntimeMethod?.(target.runtimeName, target.methodName) || null;
   }
 
   function resolveSettingsCallback(callbackName) {
@@ -457,7 +444,7 @@
   }
 
   function resolveThemeRuntime() {
-    const runtime = globalThis.ThemeRuntime;
+    const runtime = window.SettingsRuntimeAccess?.resolveRuntimeApi?.('ThemeRuntime');
     if (runtime && typeof runtime === 'object') {
       return runtime;
     }

@@ -2,7 +2,7 @@
   'use strict';
 
   function resolveLegacyBotConfig() {
-    const pageConfigRuntime = window.SettingsPageConfigRuntime;
+    const pageConfigRuntime = window.SettingsRuntimeAccess?.resolvePageConfigRuntime?.();
     if (pageConfigRuntime
       && typeof pageConfigRuntime.getBotSettingsInitial === 'function'
       && typeof pageConfigRuntime.getBotPresetDefinitions === 'function') {

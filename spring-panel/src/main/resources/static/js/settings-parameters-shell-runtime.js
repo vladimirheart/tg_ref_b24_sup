@@ -3,14 +3,6 @@
     return;
   }
 
-  function mountSettingsRuntime(runtimeName, options = {}) {
-    const runtimeApi = globalThis[runtimeName];
-    if (!runtimeApi || typeof runtimeApi.mount !== 'function') {
-      return null;
-    }
-    return runtimeApi.mount(options);
-  }
-
   function createRuntime(options = {}) {
     const state = {
       parameterData: {},
@@ -264,7 +256,7 @@
     }
 
     function mountNestedRuntimes() {
-      settingsParameterDataRuntime = mountSettingsRuntime('SettingsParameterDataRuntime', {
+      settingsParameterDataRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsParameterDataRuntime', {
         getParameterTitles,
         getParameterDependencies,
         getParameterStates,
@@ -276,7 +268,7 @@
       });
       state.parameterData = settingsParameterDataRuntime?.getParameterData() || state.parameterData;
 
-      settingsLegalEntitiesRuntime = mountSettingsRuntime('SettingsLegalEntitiesRuntime', {
+      settingsLegalEntitiesRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsLegalEntitiesRuntime', {
         getParameterData,
         getParameterStates,
         escapeHtml,
@@ -288,7 +280,7 @@
         restoreParameter: (...args) => restoreParameter(...args),
       });
 
-      settingsItConnectionsRuntime = mountSettingsRuntime('SettingsItConnectionsRuntime', {
+      settingsItConnectionsRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsItConnectionsRuntime', {
         getParameterData,
         getDefaultCategory: () => settingsParameterDataRuntime?.getItConnectionDefaultCategory() || 'equipment_type',
         getCategoryFieldMap: getItConnectionCategoryFields,
@@ -307,7 +299,7 @@
         renderItEquipmentTable: (...args) => renderItEquipmentTable(...args),
       });
 
-      settingsItEquipmentRuntime = mountSettingsRuntime('SettingsItEquipmentRuntime', {
+      settingsItEquipmentRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsItEquipmentRuntime', {
         getParameterData,
         normalizeItConnectionCategory: (...args) => normalizeItConnectionCategory(...args),
         escapeHtml,
@@ -316,7 +308,7 @@
         confirmDialog: (message) => confirmAction(message),
       });
 
-      settingsPartnerContactsRuntime = mountSettingsRuntime('SettingsPartnerContactsRuntime', {
+      settingsPartnerContactsRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsPartnerContactsRuntime', {
         getParameterData,
         getParameterStates,
         getPartnerContactTypes,
@@ -332,7 +324,7 @@
         restoreParameter: (...args) => restoreParameter(...args),
       });
 
-      settingsParametersRuntime = mountSettingsRuntime('SettingsParametersRuntime', {
+      settingsParametersRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsParametersRuntime', {
         getParameterData,
         getParameterTitles,
         getParameterDependencies,

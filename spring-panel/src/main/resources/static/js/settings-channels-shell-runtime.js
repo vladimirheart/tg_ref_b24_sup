@@ -3,14 +3,6 @@
     return;
   }
 
-  function mountSettingsRuntime(runtimeName, options = {}) {
-    const runtimeApi = globalThis[runtimeName];
-    if (!runtimeApi || typeof runtimeApi.mount !== 'function') {
-      return null;
-    }
-    return runtimeApi.mount(options);
-  }
-
   function createRuntime(options = {}) {
     const state = {
       channelsInitialized: false,
@@ -109,14 +101,14 @@
       return parts.length ? parts.join(' • ') : '—';
     }
 
-    const settingsChannelTemplates = mountSettingsRuntime('SettingsChannelTemplatesRuntime', {
+    const settingsChannelTemplates = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsChannelTemplatesRuntime', {
       botSettingsInitial: options.botSettingsInitial || {},
       autoCloseConfig: options.autoCloseConfig || {},
       escapeHtml: options.escapeHtml,
       pluralize,
     });
-    const settingsChannelConfig = mountSettingsRuntime('SettingsChannelConfigRuntime');
-    const settingsIntegrationNetwork = mountSettingsRuntime('SettingsIntegrationNetworkRuntime', {
+    const settingsChannelConfig = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsChannelConfigRuntime');
+    const settingsIntegrationNetwork = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsIntegrationNetworkRuntime', {
       initialIntegrationNetwork: options.integrationNetworkInitial || {},
       getProfilesData: () => state.integrationNetworkProfilesData,
       setProfilesData: (nextProfiles) => {
@@ -197,7 +189,7 @@
       };
     }
 
-    const settingsChannelsCatalog = mountSettingsRuntime('SettingsChannelsCatalogRuntime', {
+    const settingsChannelsCatalog = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsChannelsCatalogRuntime', {
       getChannelsRegistry: () => state.channelsRegistry,
       getChannelEditorState: () => state.channelEditorState,
       getQuestionTemplates: () => settingsChannelTemplates.getQuestionTemplates(),
@@ -224,7 +216,7 @@
       showNotification: typeof options.showNotification === 'function' ? options.showNotification : null,
       startBot: (...args) => settingsChannelsBotRuntime.startBot(...args),
     });
-    const settingsChannelsBotRuntime = mountSettingsRuntime('SettingsChannelsBotRuntime', {
+    const settingsChannelsBotRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsChannelsBotRuntime', {
       getChannelsRegistry: () => state.channelsRegistry,
       getChannelEditorState: () => state.channelEditorState,
       notifyChannelStatus: (...args) => settingsChannelsCatalog.notifyChannelStatus(...args),
@@ -232,7 +224,7 @@
       showPopup: (message) => popup(message),
       getCookieValue: (name) => typeof options.getCookieValue === 'function' ? options.getCookieValue(name) : '',
     });
-    const settingsChannelEditorShell = mountSettingsRuntime('SettingsChannelEditorShellRuntime', {
+    const settingsChannelEditorShell = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsChannelEditorShellRuntime', {
       getChannelsRegistry: () => state.channelsRegistry,
       getChannelEditorState: () => state.channelEditorState,
       getQuestionTemplates: () => settingsChannelTemplates.getQuestionTemplates(),
@@ -265,7 +257,7 @@
       showPopup: (message) => popup(message),
       populateChannelEditor,
     });
-    const settingsChannelEditorPersistence = mountSettingsRuntime('SettingsChannelEditorPersistenceRuntime', {
+    const settingsChannelEditorPersistence = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsChannelEditorPersistenceRuntime', {
       getChannelsRegistry: () => state.channelsRegistry,
       getChannelEditorState: () => state.channelEditorState,
       parseDeliverySettings: (...args) => settingsChannelConfig.parseDeliverySettings(...args),
@@ -279,7 +271,7 @@
       showPopup: (message) => popup(message),
       confirmDialog: (message) => typeof options.confirmDialog === 'function' ? options.confirmDialog(message) : false,
     });
-    const settingsChannelEditorControls = mountSettingsRuntime('SettingsChannelEditorControlsRuntime', {
+    const settingsChannelEditorControls = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsChannelEditorControlsRuntime', {
       getChannelEditorState: () => state.channelEditorState,
       channelEditorShell: settingsChannelEditorShell,
       channelBotRuntime: settingsChannelsBotRuntime,
