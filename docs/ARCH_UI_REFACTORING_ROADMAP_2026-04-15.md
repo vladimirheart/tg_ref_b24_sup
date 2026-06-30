@@ -1716,7 +1716,7 @@
 Наблюдение:
 
 - `dialogs.js` после последних runtime split всё ещё остаётся самым тяжёлым
-  dialog browser entrypoint и держит около `4636` строк;
+  dialog browser entrypoint и держит около `4498` строк;
 - по содержанию там смешаны list/filter/runtime polling, details/history,
   workspace contract, quick actions, macro workflow, AI assistant/review,
   notifications refresh loop и media/reply surface;
@@ -1802,14 +1802,18 @@
 - следующим небольшим notifications delegate cleanup шагом `dialogs.js`
   перестал держать даже тонкие notification wrappers: соседние runtime'ы
   теперь подключаются к `dialogs-notifications-runtime.js` напрямую;
+- следующим более крупным workspace interaction-slice сам
+  `dialogs-workspace-runtime.js` забрал retry/load-more wiring, workspace
+  message reply/media interaction и composer draft/send shortcut bindings,
+  поэтому `dialogs.js` больше не держит этот workspace event-layer inline;
 - `dialogs/index.html` теперь подключает эти runtime entrypoint'ы отдельно, а
   `dialogs.js` в основном держит thin orchestration и compatibility delegates
   между уже вынесенными bounded surface'ами;
 - это означает, что следующий проход не должен заново разбирать уже
   вынесенные list/AI/details-history/workspace/actions/macro/notifications/
   templates/flow/experiment/shell/participants кластеры, а должен добирать
-  только remaining orchestration drift вокруг workspace reply/action,
-  workspace/media-retry flows и соседнего
+  только remaining orchestration drift вокруг workspace/task/AI-refresh
+  helpers, shared utility/state slice и соседнего
   UI wiring;
 
 - live regression corridor для `take -> categories -> reply -> follow-up ->

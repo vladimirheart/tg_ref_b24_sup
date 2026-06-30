@@ -1688,21 +1688,26 @@
       workspaceMessagesList,
       workspaceMessagesLoadMoreWrap,
       workspaceMessagesLoadMore,
+      workspaceMessagesRetry,
       workspaceMessagesError,
       workspaceNavPrevBtn,
       workspaceNavNextBtn,
       workspaceNavState,
       workspaceClientState,
       workspaceClientContent,
+      workspaceClientRetry,
       workspaceClientError,
       workspaceHistoryState,
       workspaceHistoryContent,
+      workspaceHistoryRetry,
       workspaceHistoryError,
       workspaceRelatedEventsState,
       workspaceRelatedEventsContent,
+      workspaceRelatedEventsRetry,
       workspaceRelatedEventsError,
       workspaceSlaState,
       workspaceSlaContent,
+      workspaceSlaRetry,
       workspaceSlaError,
       workspaceCategoriesState,
       workspaceCategoriesList,
@@ -1757,6 +1762,7 @@
     dialogTemplates: DIALOG_TEMPLATES,
     canRunAction,
     isWorkspaceActionEnabled,
+    handleMediaSurfaceClick: (event) => dialogsDetailsHistoryRuntime?.handleMediaSurfaceClick(event),
     setSelectedCategories: (categories) => {
       selectedCategories = categories instanceof Set ? categories : new Set();
     },
@@ -1781,6 +1787,8 @@
     loadWorkspaceAiControl,
     updateWorkspaceActionButtons,
     renderWorkspaceMessageItem,
+    extractClipboardImageFiles,
+    sendWorkspaceMediaFiles,
     withChannelParam,
     openDialogDetails,
     setActiveWorkspacePayload: (payload) => {
@@ -3803,6 +3811,7 @@
   runDialogsInitStep('dialogsActionsRuntime.bindDetailsQuickActions', () => dialogsActionsRuntime?.bindDetailsQuickActions());
   runDialogsInitStep('dialogsActionsRuntime.bindDetailsReplyActions', () => dialogsActionsRuntime?.bindDetailsReplyActions());
   runDialogsInitStep('dialogsActionsRuntime.bindWorkspaceQuickActions', () => dialogsActionsRuntime?.bindWorkspaceQuickActions());
+  runDialogsInitStep('dialogsWorkspaceRuntime.bindWorkspaceInteractionEvents', () => dialogsWorkspaceRuntime?.bindWorkspaceInteractionEvents());
   runDialogsInitStep('dialogsTemplatesRuntime.bindTemplateEvents', () => dialogsTemplatesRuntime?.bindTemplateEvents());
   runDialogsInitStep('dialogsMacroRuntime.bindMacroTemplateEvents', () => dialogsMacroRuntime?.bindMacroTemplateEvents());
   runDialogsInitStep('dialogsMyDialogsRuntime.bindPanelEvents', () => dialogsMyDialogsRuntime?.bindPanelEvents());
@@ -3843,20 +3852,6 @@
       if (!ticketId) return;
       setTaskDraft({ ticketId, client });
       window.location.href = buildTaskCreateUrl(ticketId, client);
-    });
-  }
-
-  if (workspaceNavPrevBtn) {
-    workspaceNavPrevBtn.addEventListener('click', async () => {
-      if (workspaceNavPrevBtn.disabled) return;
-      await navigateWorkspaceInline('previous');
-    });
-  }
-
-  if (workspaceNavNextBtn) {
-    workspaceNavNextBtn.addEventListener('click', async () => {
-      if (workspaceNavNextBtn.disabled) return;
-      await navigateWorkspaceInline('next');
     });
   }
 
@@ -4390,139 +4385,6 @@
     rowsList().forEach((row) => updateRowQuickActions(row));
     updateBulkActionsState();
   }
-  if (workspaceMessagesRetry) {
-    workspaceMessagesRetry.addEventListener('click', () => {
-      reloadWorkspaceSection('messages', {
-        stateElement: workspaceMessagesState,
-        errorElement: workspaceMessagesError,
-        statusText: 'Повторная загрузка ленты…',
-        failMessage: 'Не удалось обновить ленту workspace.',
-      });
-    });
-  }
-
-  if (workspaceMessagesLoadMore) {
-    workspaceMessagesLoadMore.addEventListener('click', () => {
-      loadMoreWorkspaceMessages();
-    });
-  }
-
-  if (workspaceMessagesList) {
-    workspaceMessagesList.addEventListener('click', (event) => {
-      const replyButton = event.target.closest('button[data-workspace-action="reply"]');
-      if (replyButton) {
-        const messageId = Number.parseInt(replyButton.dataset.messageId, 10);
-        if (!Number.isFinite(messageId)) return;
-        const messageNode = replyButton.closest('.workspace-message-item');
-        const previewText = messageNode?.querySelector('.workspace-message-reply-source')?.textContent
-          || messageNode?.querySelector('.workspace-message-body')?.textContent
-          || '';
-        setWorkspaceReplyTarget(messageId, previewText);
-        if (workspaceComposerText) {
-          workspaceComposerText.focus();
-        }
-        return;
-      }
-      dialogsDetailsHistoryRuntime?.handleMediaSurfaceClick(event);
-    });
-  }
-
-  if (workspaceClientRetry) {
-    workspaceClientRetry.addEventListener('click', () => {
-      reloadWorkspaceSection('context', {
-        stateElement: workspaceClientState,
-        errorElement: workspaceClientError,
-        statusText: 'Повторная загрузка профиля клиента…',
-        failMessage: 'Не удалось обновить профиль клиента.',
-      });
-    });
-  }
-
-  if (workspaceHistoryRetry) {
-    workspaceHistoryRetry.addEventListener('click', () => {
-      reloadWorkspaceSection('context', {
-        stateElement: workspaceHistoryState,
-        errorElement: workspaceHistoryError,
-        statusText: 'Повторная загрузка истории клиента…',
-        failMessage: 'Не удалось обновить историю клиента.',
-      });
-    });
-  }
-
-  if (workspaceRelatedEventsRetry) {
-    workspaceRelatedEventsRetry.addEventListener('click', () => {
-      reloadWorkspaceSection('context', {
-        stateElement: workspaceRelatedEventsState,
-        errorElement: workspaceRelatedEventsError,
-        statusText: 'Повторная загрузка связанных событий…',
-        failMessage: 'Не удалось обновить связанные события.',
-      });
-    });
-  }
-
-  if (workspaceSlaRetry) {
-    workspaceSlaRetry.addEventListener('click', () => {
-      reloadWorkspaceSection('sla', {
-        stateElement: workspaceSlaState,
-        errorElement: workspaceSlaError,
-        statusText: 'Повторная загрузка SLA-контекста…',
-        failMessage: 'Не удалось обновить SLA-контекст.',
-      });
-    });
-  }
-
-  if (workspaceComposerSend) {
-    workspaceComposerSend.addEventListener('click', () => {
-      sendWorkspaceReply();
-    });
-  }
-
-  if (workspaceComposerMediaTrigger && workspaceComposerMedia) {
-    workspaceComposerMediaTrigger.addEventListener('click', () => {
-      workspaceComposerMedia.click();
-    });
-    workspaceComposerMedia.addEventListener('change', async () => {
-      await sendWorkspaceMediaFiles(workspaceComposerMedia.files);
-    });
-  }
-
-  if (workspaceComposerSaveDraft) {
-    workspaceComposerSaveDraft.addEventListener('click', () => {
-      saveWorkspaceDraft(workspaceComposerTicketId, workspaceComposerText?.value || '', { reason: 'manual' });
-    });
-  }
-
-  if (workspaceComposerText) {
-    workspaceComposerText.addEventListener('input', () => {
-      scheduleWorkspaceDraftAutosave();
-    });
-    workspaceComposerText.addEventListener('paste', (event) => {
-      const files = extractClipboardImageFiles(event);
-      if (!files.length || !activeWorkspaceTicketId) return;
-      event.preventDefault();
-      sendWorkspaceMediaFiles(files);
-    });
-    workspaceComposerText.addEventListener('keydown', (event) => {
-      if (((event.ctrlKey || event.metaKey || event.altKey) && event.key === 'Enter')) {
-        event.preventDefault();
-        sendWorkspaceReply();
-      }
-      if (((event.ctrlKey || event.metaKey || event.altKey) && String(event.key).toLowerCase() === 's')) {
-        event.preventDefault();
-        saveWorkspaceDraft(workspaceComposerTicketId, workspaceComposerText.value, { reason: 'manual' });
-      }
-    });
-  }
-
-  if (workspaceReplyTargetClear) {
-    workspaceReplyTargetClear.addEventListener('click', () => {
-      resetWorkspaceReplyTarget({ reason: 'manual_clear' });
-      if (workspaceComposerText) {
-        workspaceComposerText.focus();
-      }
-    });
-  }
-
   dialogsFlowRuntime?.bindWorkspaceAbandonTelemetry();
 
   initDialogTemplates();

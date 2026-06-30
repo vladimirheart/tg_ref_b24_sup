@@ -851,6 +851,158 @@
       elements.workspaceComposerText.focus();
     }
 
+    function bindWorkspaceInteractionEvents() {
+      if (elements.workspaceMessagesRetry) {
+        elements.workspaceMessagesRetry.addEventListener('click', () => {
+          reloadWorkspaceSection('messages', {
+            stateElement: elements.workspaceMessagesState,
+            errorElement: elements.workspaceMessagesError,
+            statusText: 'Повторная загрузка ленты…',
+            failMessage: 'Не удалось обновить ленту workspace.',
+          });
+        });
+      }
+
+      if (elements.workspaceMessagesLoadMore) {
+        elements.workspaceMessagesLoadMore.addEventListener('click', () => {
+          loadMoreWorkspaceMessages();
+        });
+      }
+
+      if (elements.workspaceMessagesList) {
+        elements.workspaceMessagesList.addEventListener('click', (event) => {
+          const replyButton = event.target.closest('button[data-workspace-action="reply"]');
+          if (replyButton) {
+            const messageId = Number.parseInt(replyButton.dataset.messageId, 10);
+            if (!Number.isFinite(messageId)) return;
+            const messageNode = replyButton.closest('.workspace-message-item');
+            const previewText = messageNode?.querySelector('.workspace-message-reply-source')?.textContent
+              || messageNode?.querySelector('.workspace-message-body')?.textContent
+              || '';
+            setWorkspaceReplyTarget(messageId, previewText);
+            if (elements.workspaceComposerText) {
+              elements.workspaceComposerText.focus();
+            }
+            return;
+          }
+          options.handleMediaSurfaceClick?.(event);
+        });
+      }
+
+      if (elements.workspaceClientRetry) {
+        elements.workspaceClientRetry.addEventListener('click', () => {
+          reloadWorkspaceSection('context', {
+            stateElement: elements.workspaceClientState,
+            errorElement: elements.workspaceClientError,
+            statusText: 'Повторная загрузка профиля клиента…',
+            failMessage: 'Не удалось обновить профиль клиента.',
+          });
+        });
+      }
+
+      if (elements.workspaceHistoryRetry) {
+        elements.workspaceHistoryRetry.addEventListener('click', () => {
+          reloadWorkspaceSection('context', {
+            stateElement: elements.workspaceHistoryState,
+            errorElement: elements.workspaceHistoryError,
+            statusText: 'Повторная загрузка истории клиента…',
+            failMessage: 'Не удалось обновить историю клиента.',
+          });
+        });
+      }
+
+      if (elements.workspaceRelatedEventsRetry) {
+        elements.workspaceRelatedEventsRetry.addEventListener('click', () => {
+          reloadWorkspaceSection('context', {
+            stateElement: elements.workspaceRelatedEventsState,
+            errorElement: elements.workspaceRelatedEventsError,
+            statusText: 'Повторная загрузка связанных событий…',
+            failMessage: 'Не удалось обновить связанные события.',
+          });
+        });
+      }
+
+      if (elements.workspaceSlaRetry) {
+        elements.workspaceSlaRetry.addEventListener('click', () => {
+          reloadWorkspaceSection('sla', {
+            stateElement: elements.workspaceSlaState,
+            errorElement: elements.workspaceSlaError,
+            statusText: 'Повторная загрузка SLA-контекста…',
+            failMessage: 'Не удалось обновить SLA-контекст.',
+          });
+        });
+      }
+
+      if (elements.workspaceComposerSend) {
+        elements.workspaceComposerSend.addEventListener('click', () => {
+          sendWorkspaceReply();
+        });
+      }
+
+      if (elements.workspaceComposerMediaTrigger && elements.workspaceComposerMedia) {
+        elements.workspaceComposerMediaTrigger.addEventListener('click', () => {
+          elements.workspaceComposerMedia.click();
+        });
+        elements.workspaceComposerMedia.addEventListener('change', async () => {
+          await options.sendWorkspaceMediaFiles?.(elements.workspaceComposerMedia.files);
+        });
+      }
+
+      if (elements.workspaceComposerSaveDraft) {
+        elements.workspaceComposerSaveDraft.addEventListener('click', () => {
+          const activeState = getActiveWorkspaceState();
+          saveWorkspaceDraft(activeState.composerTicketId, elements.workspaceComposerText?.value || '', { reason: 'manual' });
+        });
+      }
+
+      if (elements.workspaceComposerText) {
+        elements.workspaceComposerText.addEventListener('input', () => {
+          scheduleWorkspaceDraftAutosave();
+        });
+        elements.workspaceComposerText.addEventListener('paste', (event) => {
+          const files = options.extractClipboardImageFiles?.(event) || [];
+          const activeState = getActiveWorkspaceState();
+          if (!files.length || !activeState.ticketId) return;
+          event.preventDefault();
+          options.sendWorkspaceMediaFiles?.(files);
+        });
+        elements.workspaceComposerText.addEventListener('keydown', (event) => {
+          if ((event.ctrlKey || event.metaKey || event.altKey) && event.key === 'Enter') {
+            event.preventDefault();
+            sendWorkspaceReply();
+          }
+          if ((event.ctrlKey || event.metaKey || event.altKey) && String(event.key).toLowerCase() === 's') {
+            event.preventDefault();
+            const activeState = getActiveWorkspaceState();
+            saveWorkspaceDraft(activeState.composerTicketId, elements.workspaceComposerText.value, { reason: 'manual' });
+          }
+        });
+      }
+
+      if (elements.workspaceReplyTargetClear) {
+        elements.workspaceReplyTargetClear.addEventListener('click', () => {
+          resetWorkspaceReplyTarget({ reason: 'manual_clear' });
+          if (elements.workspaceComposerText) {
+            elements.workspaceComposerText.focus();
+          }
+        });
+      }
+
+      if (elements.workspaceNavPrevBtn) {
+        elements.workspaceNavPrevBtn.addEventListener('click', async () => {
+          if (elements.workspaceNavPrevBtn.disabled) return;
+          await navigateWorkspaceInline('previous');
+        });
+      }
+
+      if (elements.workspaceNavNextBtn) {
+        elements.workspaceNavNextBtn.addEventListener('click', async () => {
+          if (elements.workspaceNavNextBtn.disabled) return;
+          await navigateWorkspaceInline('next');
+        });
+      }
+    }
+
     async function reloadWorkspaceForInitialRoute(statusText = 'Повторная загрузка ленты…') {
       const activeState = getActiveWorkspaceState();
       if (!options.workspaceEnabled || !activeState.ticketId) return;
@@ -2053,6 +2205,7 @@
       navigateWorkspaceInline,
       refreshActiveWorkspaceContract,
       appendToWorkspaceComposer,
+      bindWorkspaceInteractionEvents,
       reloadWorkspaceForInitialRoute,
       isWorkspaceTemporarilyDisabled,
       registerWorkspaceFailure,
