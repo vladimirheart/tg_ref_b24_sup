@@ -145,18 +145,23 @@
   }
 
   function createRuntime(options = {}) {
+    const initialManagerBindings = Array.isArray(options.managerLocationBindingsInitial)
+      ? options.managerLocationBindingsInitial
+      : null;
     const reportingState = {
       config: normalizeReportingConfig(options.reportingConfigInitial || {}),
       channelsLoaded: false,
     };
 
     const managerBindingsState = {
-      rows: normalizeManagerBindingRows(options.managerLocationBindingsInitial),
+      rows: normalizeManagerBindingRows(initialManagerBindings),
       options: {
         locations: [],
         managers: [],
         supervisors: [],
       },
+      bindingsLoaded: Array.isArray(initialManagerBindings),
+      bindingsLoadingPromise: null,
       orgOptionsLoaded: false,
     };
 
@@ -191,6 +196,30 @@
         return options.getLocationsState();
       }
       return null;
+    }
+
+    function ensureManagerBindingsLoaded() {
+      if (managerBindingsState.bindingsLoaded) {
+        return Promise.resolve(managerBindingsState.rows);
+      }
+      if (managerBindingsState.bindingsLoadingPromise) {
+        return managerBindingsState.bindingsLoadingPromise;
+      }
+      const fetchPageDataSection = window.SettingsRuntimeAccess?.fetchPageDataSection;
+      if (typeof fetchPageDataSection !== 'function') {
+        managerBindingsState.bindingsLoaded = true;
+        return Promise.resolve(managerBindingsState.rows);
+      }
+      managerBindingsState.bindingsLoadingPromise = fetchPageDataSection('admin')
+        .then((section) => {
+          managerBindingsState.rows = normalizeManagerBindingRows(section?.managerLocationBindings);
+          managerBindingsState.bindingsLoaded = true;
+          return managerBindingsState.rows;
+        })
+        .finally(() => {
+          managerBindingsState.bindingsLoadingPromise = null;
+        });
+      return managerBindingsState.bindingsLoadingPromise;
     }
 
     function renderReportingSummary(config) {
@@ -406,6 +435,7 @@
     }
 
     async function prepareManagerBindingsSettingsModal() {
+      await ensureManagerBindingsLoaded();
       await loadManagerBindingOrgOptions();
       renderManagerBindingsRows();
     }

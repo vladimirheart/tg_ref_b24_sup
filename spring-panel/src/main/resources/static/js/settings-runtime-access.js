@@ -7,6 +7,13 @@
     return typeof runtimeName === 'string' ? runtimeName.trim() : '';
   }
 
+  const pageDataSectionCache = new Map();
+  const pageDataSectionPending = new Map();
+
+  function normalizePageSectionName(sectionName) {
+    return typeof sectionName === 'string' ? sectionName.trim().toLowerCase() : '';
+  }
+
   function resolveRuntimeApi(runtimeName) {
     const normalizedName = normalizeRuntimeName(runtimeName);
     if (!normalizedName) {
@@ -55,10 +62,63 @@
     return runtimeApi.build(rawConfig) || {};
   }
 
+  function getCachedPageDataSection(sectionName) {
+    const normalizedSectionName = normalizePageSectionName(sectionName);
+    if (!normalizedSectionName || !pageDataSectionCache.has(normalizedSectionName)) {
+      return null;
+    }
+    return pageDataSectionCache.get(normalizedSectionName);
+  }
+
+  function primePageDataSection(sectionName, data) {
+    const normalizedSectionName = normalizePageSectionName(sectionName);
+    if (!normalizedSectionName) {
+      return null;
+    }
+    const normalizedData = data && typeof data === 'object' && !Array.isArray(data) ? data : {};
+    pageDataSectionCache.set(normalizedSectionName, normalizedData);
+    return normalizedData;
+  }
+
+  function fetchPageDataSection(sectionName, options = {}) {
+    const normalizedSectionName = normalizePageSectionName(sectionName);
+    if (!normalizedSectionName) {
+      return Promise.resolve({});
+    }
+
+    const force = Boolean(options && options.force);
+    if (!force && pageDataSectionCache.has(normalizedSectionName)) {
+      return Promise.resolve(pageDataSectionCache.get(normalizedSectionName));
+    }
+    if (!force && pageDataSectionPending.has(normalizedSectionName)) {
+      return pageDataSectionPending.get(normalizedSectionName);
+    }
+
+    const request = fetch(`/api/settings/page-data/${encodeURIComponent(normalizedSectionName)}`, {
+      credentials: 'same-origin',
+    })
+      .then(async (response) => {
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || payload.success === false) {
+          throw new Error(payload.error || `HTTP ${response.status}`);
+        }
+        return primePageDataSection(normalizedSectionName, payload.data);
+      })
+      .finally(() => {
+        pageDataSectionPending.delete(normalizedSectionName);
+      });
+
+    pageDataSectionPending.set(normalizedSectionName, request);
+    return request;
+  }
+
   window.SettingsRuntimeAccess = Object.freeze({
     buildPageConfig,
+    fetchPageDataSection,
+    getCachedPageDataSection,
     invokeRuntimeMethod,
     mountRuntime,
+    primePageDataSection,
     resolvePageConfigRuntime,
     resolveRuntimeApi,
     resolveRuntimeMethod,

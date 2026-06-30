@@ -98,8 +98,6 @@
       requestSettingsModalClose: (source) => requestSettingsModalClose(source),
       confirmDialog: (message) => confirmDialog(message),
     }) || null;
-    settingsNetworkProfilesRuntime?.renderNetworkProfiles();
-
     const settingsAppearanceRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsAppearanceRuntime', {
       config: appearance,
       showPopup: (message, type) => showPopup(message, type),

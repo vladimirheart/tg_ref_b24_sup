@@ -177,6 +177,8 @@
       integrationNetwork: normalizeIntegrationNetworkConfig(options.initialIntegrationNetwork),
       profileEditingIndex: null,
       profileProbeState: new Map(),
+      networkDataLoaded: Boolean(options.hasInitialData),
+      networkDataLoadingPromise: null,
     };
 
     const elements = {
@@ -268,6 +270,48 @@
     function getProfilesData() {
       const source = typeof options.getProfilesData === 'function' ? options.getProfilesData() : [];
       return Array.isArray(source) ? source : [];
+    }
+
+    function applyPageData(section) {
+      state.integrationNetwork = normalizeIntegrationNetworkConfig(section?.integrationNetwork);
+      setProfilesData(
+        Array.isArray(section?.integrationNetworkProfiles)
+          ? section.integrationNetworkProfiles.map((item) => normalizeIntegrationNetworkProfile(item))
+          : [],
+      );
+      state.networkDataLoaded = true;
+    }
+
+    function ensureNetworkDataLoaded() {
+      if (state.networkDataLoaded) {
+        return Promise.resolve({
+          integrationNetwork: state.integrationNetwork,
+          profiles: getProfilesData(),
+        });
+      }
+      if (state.networkDataLoadingPromise) {
+        return state.networkDataLoadingPromise;
+      }
+      const fetchPageDataSection = window.SettingsRuntimeAccess?.fetchPageDataSection;
+      if (typeof fetchPageDataSection !== 'function') {
+        state.networkDataLoaded = true;
+        return Promise.resolve({
+          integrationNetwork: state.integrationNetwork,
+          profiles: getProfilesData(),
+        });
+      }
+      state.networkDataLoadingPromise = fetchPageDataSection('channels')
+        .then((section) => {
+          applyPageData(section);
+          return {
+            integrationNetwork: state.integrationNetwork,
+            profiles: getProfilesData(),
+          };
+        })
+        .finally(() => {
+          state.networkDataLoadingPromise = null;
+        });
+      return state.networkDataLoadingPromise;
     }
 
     function setProfilesData(nextProfiles) {
@@ -669,6 +713,12 @@
     }
 
     function renderIntegrationNetworkSettings() {
+      if (!state.networkDataLoaded) {
+        if (elements.integrationNetworkStatusEl) {
+          elements.integrationNetworkStatusEl.textContent = 'Загружаем сетевые маршруты...';
+        }
+        return ensureNetworkDataLoaded().then(() => renderIntegrationNetworkSettings());
+      }
       renderIntegrationNetworkProfileSelectors();
       applyRouteToInputs('project', state.integrationNetwork.project);
       applyRouteToInputs('bots', state.integrationNetwork.bots);
@@ -761,6 +811,12 @@
     }
 
     function renderIntegrationNetworkProfilesTable() {
+      if (!state.networkDataLoaded) {
+        if (elements.integrationNetworkProfilesBody) {
+          elements.integrationNetworkProfilesBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">Загрузка профилей...</td></tr>';
+        }
+        return ensureNetworkDataLoaded().then(() => renderIntegrationNetworkProfilesTable());
+      }
       if (!elements.integrationNetworkProfilesBody) {
         return;
       }
@@ -817,7 +873,8 @@
       toggleProxyCredentialFields('integration-profile');
     }
 
-    function prepareIntegrationNetworkProfileEditor(index) {
+    async function prepareIntegrationNetworkProfileEditor(index) {
+      await ensureNetworkDataLoaded();
       const numericIndex = Number.isInteger(index) ? index : Number.parseInt(index, 10);
       const profiles = getProfilesData();
       const isEdit = Number.isInteger(numericIndex) && numericIndex >= 0 && numericIndex < profiles.length;

@@ -23,6 +23,9 @@
     const autoCloseConfig = readConfigObject(config, 'autoCloseConfig') || options.autoCloseConfig || {};
     const integrationNetworkInitial = readConfigObject(config, 'integrationNetwork') || options.integrationNetworkInitial || {};
     const integrationNetworkProfilesInitial = readConfigArray(config, 'integrationNetworkProfiles') || options.integrationNetworkProfilesInitial || [];
+    const hasInitialIntegrationNetworkData = Boolean(
+      readConfigObject(config, 'integrationNetwork') || readConfigArray(config, 'integrationNetworkProfiles'),
+    );
     const state = {
       channelsInitialized: false,
       channelsRegistry: new Map(),
@@ -128,7 +131,8 @@
     });
     const settingsChannelConfig = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsChannelConfigRuntime');
     const settingsIntegrationNetwork = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsIntegrationNetworkRuntime', {
-      initialIntegrationNetwork,
+      initialIntegrationNetwork: integrationNetworkInitial,
+      hasInitialData: hasInitialIntegrationNetworkData,
       getProfilesData: () => state.integrationNetworkProfilesData,
       setProfilesData: (nextProfiles) => {
         state.integrationNetworkProfilesData = Array.isArray(nextProfiles) ? nextProfiles : [];

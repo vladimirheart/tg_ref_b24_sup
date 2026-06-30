@@ -8,11 +8,7 @@
     'initClientStatuses',
     'initBusinessStylesEditor',
     'initLocationWizard',
-    'renderLocationsIikoServerSourcesEditor',
-    'renderLocationsIikoSyncSettings',
-    'loadLocationsSyncStatus',
     'buildLocationsTree',
-    'initChannelsManagement',
     'loadParameters',
     'initReporting',
   ];
@@ -69,11 +65,17 @@
     itEquipmentAddModal: Object.freeze({
       show: 'prepareItEquipmentAddSettingsModal',
     }),
+    itConnectionsModal: Object.freeze({
+      shown: 'renderNetworkProfiles',
+    }),
     reportingModal: Object.freeze({
       show: 'prepareReportingSettingsModal',
     }),
     managerBindingsModal: Object.freeze({
       show: 'prepareManagerBindingsSettingsModal',
+    }),
+    channelsModal: Object.freeze({
+      shown: 'initChannelsManagement',
     }),
     addChannelModal: Object.freeze({
       show: 'prepareAddChannelSettingsModal',

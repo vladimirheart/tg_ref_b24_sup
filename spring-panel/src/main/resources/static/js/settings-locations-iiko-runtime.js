@@ -90,19 +90,57 @@
 
   function createRuntime(options = {}) {
     const config = resolveConfig(options);
+    const initialServerSources = readConfigArray(config, 'iikoServerSources') || options.initialServerSources;
+    const initialSyncSettings = readConfigObject(config, 'iikoSyncSettings') || options.initialSyncSettings;
     const escapeHtml = typeof options.escapeHtml === 'function'
       ? options.escapeHtml
       : fallbackEscapeHtml;
     const notify = typeof options.showPopup === 'function'
       ? options.showPopup
       : (message) => console.log(message);
-    let locationsIikoServerSourcesState = sanitizeLocationsIikoServerSources(
-      readConfigArray(config, 'iikoServerSources') || options.initialServerSources,
-    );
-    let locationsIikoSyncSettingsState = sanitizeLocationsIikoSyncSettings(
-      readConfigObject(config, 'iikoSyncSettings') || options.initialSyncSettings,
-    );
+    let locationsIikoServerSourcesState = sanitizeLocationsIikoServerSources(initialServerSources);
+    let locationsIikoSyncSettingsState = sanitizeLocationsIikoSyncSettings(initialSyncSettings);
     let locationsSyncStatusPollTimer = null;
+    let locationsSettingsLoaded = Array.isArray(initialServerSources) || Boolean(initialSyncSettings);
+    let locationsSettingsLoadingPromise = null;
+
+    function applyPageData(section) {
+      locationsIikoServerSourcesState = sanitizeLocationsIikoServerSources(section?.iikoServerSources);
+      locationsIikoSyncSettingsState = sanitizeLocationsIikoSyncSettings(section?.iikoSyncSettings);
+      locationsSettingsLoaded = true;
+    }
+
+    function ensureLocationsSettingsLoaded() {
+      if (locationsSettingsLoaded) {
+        return Promise.resolve({
+          iikoServerSources: locationsIikoServerSourcesState,
+          iikoSyncSettings: locationsIikoSyncSettingsState,
+        });
+      }
+      if (locationsSettingsLoadingPromise) {
+        return locationsSettingsLoadingPromise;
+      }
+      const fetchPageDataSection = window.SettingsRuntimeAccess?.fetchPageDataSection;
+      if (typeof fetchPageDataSection !== 'function') {
+        locationsSettingsLoaded = true;
+        return Promise.resolve({
+          iikoServerSources: locationsIikoServerSourcesState,
+          iikoSyncSettings: locationsIikoSyncSettingsState,
+        });
+      }
+      locationsSettingsLoadingPromise = fetchPageDataSection('locations')
+        .then((section) => {
+          applyPageData(section);
+          return {
+            iikoServerSources: locationsIikoServerSourcesState,
+            iikoSyncSettings: locationsIikoSyncSettingsState,
+          };
+        })
+        .finally(() => {
+          locationsSettingsLoadingPromise = null;
+        });
+      return locationsSettingsLoadingPromise;
+    }
 
     function serializeLocationsIikoServerSources() {
       return sanitizeLocationsIikoServerSources(locationsIikoServerSourcesState).map((source) => ({
@@ -119,7 +157,8 @@
       return sanitizeLocationsIikoSyncSettings(locationsIikoSyncSettingsState);
     }
 
-    function renderLocationsIikoServerSourcesEditor() {
+    async function renderLocationsIikoServerSourcesEditor() {
+      await ensureLocationsSettingsLoaded();
       const container = document.getElementById('locationsIikoServerSourcesEditor');
       if (!(container instanceof HTMLElement)) {
         return;
@@ -217,7 +256,8 @@
       }).join('');
     }
 
-    function renderLocationsIikoSyncSettings() {
+    async function renderLocationsIikoSyncSettings() {
+      await ensureLocationsSettingsLoaded();
       const enabledInput = document.getElementById('locationsIikoSyncEnabled');
       const intervalInput = document.getElementById('locationsIikoSyncInterval');
       if (enabledInput instanceof HTMLInputElement) {
@@ -392,9 +432,10 @@
       locationsSyncStatusPollTimer = null;
     }
 
-    function prepareLocationsSettingsModal() {
-      renderLocationsIikoServerSourcesEditor();
-      renderLocationsIikoSyncSettings();
+    async function prepareLocationsSettingsModal() {
+      await ensureLocationsSettingsLoaded();
+      await renderLocationsIikoServerSourcesEditor();
+      await renderLocationsIikoSyncSettings();
       loadLocationsSyncStatus().then((status) => {
         const running = Boolean(status && (status.running || String(status.state || '').toLowerCase() === 'running'));
         if (running) {
@@ -417,6 +458,7 @@
     }
 
     async function saveLocationsSyncSettingsOnly() {
+      await ensureLocationsSettingsLoaded();
       const response = await fetch('/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

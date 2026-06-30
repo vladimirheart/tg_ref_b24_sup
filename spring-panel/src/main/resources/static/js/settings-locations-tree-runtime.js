@@ -130,6 +130,9 @@
     const collapsedLocationNodes = new Set();
     const config = resolveConfig(options);
     const initialLocations = readConfigObject(config, 'tree') || options.initialLocations || {};
+    const hasInitialLocationsPayload = initialLocations && typeof initialLocations === 'object'
+      ? Object.keys(initialLocations).length > 0
+      : false;
     const confirmDialog = typeof options.confirmDialog === 'function'
       ? options.confirmDialog
       : (message) => (typeof globalThis.confirm === 'function' ? globalThis.confirm(message) : false);
@@ -164,7 +167,59 @@
           ? initialLocations.location_meta
           : {},
       ),
+      locationsLoaded: hasInitialLocationsPayload,
+      locationsLoadingPromise: null,
     };
+
+    function applyLocationsPayload(payload) {
+      const effectiveLocations = payload && typeof payload === 'object' ? payload : {};
+      state.tree =
+        effectiveLocations &&
+        typeof effectiveLocations === 'object' &&
+        effectiveLocations.tree &&
+        typeof effectiveLocations.tree === 'object'
+          ? normalizeLocationTree(effectiveLocations.tree)
+          : normalizeLocationTree(effectiveLocations || {});
+      state.statuses = sanitizeStatusesMap(
+        effectiveLocations && typeof effectiveLocations === 'object'
+          ? effectiveLocations.statuses
+          : {},
+      );
+      state.city_meta = sanitizeMetaMap(
+        effectiveLocations && typeof effectiveLocations === 'object'
+          ? effectiveLocations.city_meta
+          : {},
+      );
+      state.location_meta = sanitizeMetaMap(
+        effectiveLocations && typeof effectiveLocations === 'object'
+          ? effectiveLocations.location_meta
+          : {},
+      );
+      state.locationsLoaded = true;
+    }
+
+    function ensureLocationsLoaded() {
+      if (state.locationsLoaded) {
+        return Promise.resolve(state);
+      }
+      if (state.locationsLoadingPromise) {
+        return state.locationsLoadingPromise;
+      }
+      const fetchPageDataSection = window.SettingsRuntimeAccess?.fetchPageDataSection;
+      if (typeof fetchPageDataSection !== 'function') {
+        state.locationsLoaded = true;
+        return Promise.resolve(state);
+      }
+      state.locationsLoadingPromise = fetchPageDataSection('locations')
+        .then((section) => {
+          applyLocationsPayload(section?.tree);
+          return state;
+        })
+        .finally(() => {
+          state.locationsLoadingPromise = null;
+        });
+      return state.locationsLoadingPromise;
+    }
 
     function getState() {
       return state;
@@ -850,7 +905,7 @@
       return item;
     }
 
-    function buildLocationsTree() {
+    function renderLocationsTree() {
       const container = document.getElementById('locationsEditor');
       if (!(container instanceof HTMLElement)) {
         return;
@@ -877,6 +932,27 @@
         list.appendChild(createBusinessNode(businessName, tree[businessName] || {}));
       });
       container.appendChild(list);
+    }
+
+    function buildLocationsTree() {
+      const container = document.getElementById('locationsEditor');
+      if (!(container instanceof HTMLElement)) {
+        return;
+      }
+      if (!state.locationsLoaded) {
+        container.innerHTML = '<div class="alert alert-light small mb-0">Загружаем структуру локаций...</div>';
+        return ensureLocationsLoaded()
+          .then(() => {
+            renderLocationsTree();
+            return state;
+          })
+          .catch((error) => {
+            container.innerHTML = `<div class="alert alert-danger small mb-0">${String(error?.message || 'Не удалось загрузить структуру локаций.')}</div>`;
+            return state;
+          });
+      }
+      renderLocationsTree();
+      return state;
     }
 
     function updateBusiness(oldName, newName, statusValue) {
@@ -913,7 +989,8 @@
       return true;
     }
 
-    function addBusiness() {
+    async function addBusiness() {
+      await ensureLocationsLoaded();
       const name = promptDialog('Название бизнеса:');
       const trimmed = (name || '').trim();
       if (!trimmed) {
@@ -1200,6 +1277,7 @@
 
     async function saveLocationsChanges() {
       try {
+        await ensureLocationsLoaded();
         const response = await fetch('/settings', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

@@ -15,8 +15,6 @@ import com.example.panel.repository.TaskRepository;
 import com.example.panel.service.NavigationService;
 import com.example.panel.service.PermissionService;
 import com.example.panel.service.IikoDepartmentLocationCatalogService;
-import com.example.panel.service.LocationsIikoServerSourceSettingsService;
-import com.example.panel.service.LocationsIikoSyncSettingsService;
 import com.example.panel.service.ObjectPassportService;
 import com.example.panel.service.SettingsCatalogService;
 import com.example.panel.service.SettingsParameterService;
@@ -54,8 +52,6 @@ public class ManagementController {
     private final SharedConfigService sharedConfigService;
     private final SettingsCatalogService settingsCatalogService;
     private final SettingsParameterService settingsParameterService;
-    private final LocationsIikoServerSourceSettingsService locationsIikoServerSourceSettingsService;
-    private final LocationsIikoSyncSettingsService locationsIikoSyncSettingsService;
     private final IikoDepartmentLocationCatalogService locationCatalogService;
     private final PermissionService permissionService;
     private final ObjectMapper objectMapper;
@@ -71,8 +67,6 @@ public class ManagementController {
                                 SharedConfigService sharedConfigService,
                                 SettingsCatalogService settingsCatalogService,
                                 SettingsParameterService settingsParameterService,
-                                LocationsIikoServerSourceSettingsService locationsIikoServerSourceSettingsService,
-                                LocationsIikoSyncSettingsService locationsIikoSyncSettingsService,
                                 IikoDepartmentLocationCatalogService locationCatalogService,
                                 PermissionService permissionService,
                                 ObjectMapper objectMapper) {
@@ -87,8 +81,6 @@ public class ManagementController {
         this.sharedConfigService = sharedConfigService;
         this.settingsCatalogService = settingsCatalogService;
         this.settingsParameterService = settingsParameterService;
-        this.locationsIikoServerSourceSettingsService = locationsIikoServerSourceSettingsService;
-        this.locationsIikoSyncSettingsService = locationsIikoSyncSettingsService;
         this.locationCatalogService = locationCatalogService;
         this.permissionService = permissionService;
         this.objectMapper = objectMapper;
@@ -167,13 +159,7 @@ public class ManagementController {
             model.addAttribute("appSettings", appSettings);
             model.addAttribute("systemParameters", systemParameters);
             var settings = sharedConfigService.loadSettings();
-            model.addAttribute("clientStatuses", settings.getOrDefault("client_statuses", List.of()));
-            model.addAttribute("clientStatusColors", settings.getOrDefault("client_status_colors", Map.of()));
             model.addAttribute("settingsPayload", settings);
-            model.addAttribute("locationsIikoServerSources",
-                    locationsIikoServerSourceSettingsService.loadForClient(settings));
-            model.addAttribute("locationsIikoSyncSettings",
-                    locationsIikoSyncSettingsService.loadForClient(settings));
             IikoDepartmentLocationCatalogService.LocationCatalogSnapshot effectiveCatalog = locationCatalogService.loadCatalog();
             Map<String, Object> effectiveLocationsPayload = locationCatalogService.buildEffectiveLocationsPayload(effectiveCatalog);
             Map<String, Object> effectiveLocationTree = Map.of();
@@ -184,7 +170,6 @@ public class ManagementController {
             if (effectiveLocationsPayload.get("statuses") instanceof Map<?, ?> statuses) {
                 effectiveLocationStatuses = (Map<String, Object>) statuses;
             }
-            model.addAttribute("locationsPayload", effectiveLocationsPayload);
             model.addAttribute("cities", settingsCatalogService.collectCities(effectiveLocationTree));
             model.addAttribute("parameterTypes", settingsCatalogService.getParameterTypes());
             model.addAttribute("parameterDependencies", settingsCatalogService.getParameterDependencies());
@@ -194,9 +179,6 @@ public class ManagementController {
                 settingsCatalogService.buildLocationPresets(
                         effectiveLocationTree,
                         effectiveLocationStatuses));
-            model.addAttribute("locationsCatalogSource", effectiveCatalog.source());
-            model.addAttribute("contractUsage", Map.of());
-            model.addAttribute("statusUsage", Map.of());
             model.addAttribute("canPublishDialogMacros",
                 canPublishDialogMacros(authentication, settings));
             log.info("Loaded settings for user {}: {} app settings, {} system parameters", authentication.getName(), appSettings.size(), systemParameters.size());

@@ -19,14 +19,14 @@
 
   function createRuntime(options = {}) {
     const config = resolveConfig(options);
+    const initialProfilesFromConfig = readConfigArray(config, 'networkProfiles');
+    const initialProfilesFromOptions = typeof options.getInitialProfiles === 'function' ? options.getInitialProfiles() : null;
 
     function getInitialProfiles() {
-      const configValue = readConfigArray(config, 'networkProfiles');
-      if (configValue) {
-        return configValue;
+      if (initialProfilesFromConfig) {
+        return initialProfilesFromConfig;
       }
-      const value = typeof options.getInitialProfiles === 'function' ? options.getInitialProfiles() : null;
-      return Array.isArray(value) ? value : [];
+      return Array.isArray(initialProfilesFromOptions) ? initialProfilesFromOptions : [];
     }
 
     function getContractUsageData() {
@@ -41,6 +41,8 @@
     const state = {
       items: getInitialProfiles().map((item) => prepareNetworkProfile(item)),
       editingIndex: null,
+      profilesLoaded: Array.isArray(initialProfilesFromConfig) || Array.isArray(initialProfilesFromOptions),
+      profilesLoadingPromise: null,
     };
 
     const elements = {
@@ -166,6 +168,49 @@
 
     function createEmptyNetworkProfile() {
       return prepareNetworkProfile({});
+    }
+
+    function setLoadingState(message = 'Загрузка профилей...') {
+      if (!elements.networkProfilesBody) {
+        return;
+      }
+      elements.networkProfilesBody.innerHTML = '';
+      const row = document.createElement('tr');
+      row.innerHTML = `<td colspan="7" class="text-muted text-center">${escapeHtml(message)}</td>`;
+      elements.networkProfilesBody.appendChild(row);
+    }
+
+    function applyPageData(section) {
+      const nextProfiles = Array.isArray(section && section.networkProfiles) ? section.networkProfiles : [];
+      state.items = nextProfiles.map((item) => prepareNetworkProfile(item));
+      state.profilesLoaded = true;
+    }
+
+    function ensureProfilesLoaded() {
+      if (state.profilesLoaded) {
+        return Promise.resolve(state.items);
+      }
+      if (state.profilesLoadingPromise) {
+        return state.profilesLoadingPromise;
+      }
+      const fetchPageDataSection = window.SettingsRuntimeAccess?.fetchPageDataSection;
+      if (typeof fetchPageDataSection !== 'function') {
+        state.profilesLoaded = true;
+        return Promise.resolve(state.items);
+      }
+      state.profilesLoadingPromise = fetchPageDataSection('parameters')
+        .then((section) => {
+          applyPageData(section);
+          return state.items;
+        })
+        .catch((error) => {
+          popup('Не удалось загрузить профили провайдеров: ' + error.message);
+          throw error;
+        })
+        .finally(() => {
+          state.profilesLoadingPromise = null;
+        });
+      return state.profilesLoadingPromise;
     }
 
     function getProfileRestaurantIds(profile) {
@@ -297,7 +342,8 @@
       renderRestaurantIdInputs(ids.length ? ids : ['']);
     }
 
-    function prepareNetworkProfileModal(index) {
+    async function prepareNetworkProfileModal(index) {
+      await ensureProfilesLoaded();
       const numericIndex = Number.isInteger(index) ? index : Number.parseInt(index, 10);
       const isEdit = Number.isInteger(numericIndex) && numericIndex >= 0 && numericIndex < state.items.length;
       state.editingIndex = isEdit ? numericIndex : null;
@@ -318,6 +364,14 @@
     }
 
     function renderNetworkProfiles() {
+      if (!state.profilesLoaded) {
+        setLoadingState();
+        return ensureProfilesLoaded()
+          .then(() => renderNetworkProfiles())
+          .catch(() => {
+            setLoadingState('Не удалось загрузить профили');
+          });
+      }
       if (!elements.networkProfilesBody) return;
       elements.networkProfilesBody.innerHTML = '';
       if (!state.items.length) {
