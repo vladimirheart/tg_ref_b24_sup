@@ -310,26 +310,35 @@
   }
 
   function build(raw = {}) {
-    lastBuiltConfig = {
-      dialogConfig: normalizeObject(resolveConfigValue(raw, 'dialog', 'config', 'dialogConfig')),
-      defaultDialogSlaConfig: DEFAULT_DIALOG_SLA_CONFIG,
-      defaultDialogTimeMetrics: DEFAULT_DIALOG_TIME_METRICS,
+    const dialog = {
+      config: normalizeObject(resolveConfigValue(raw, 'dialog', 'config', 'dialogConfig')),
+      defaultSlaConfig: DEFAULT_DIALOG_SLA_CONFIG,
+      defaultTimeMetrics: DEFAULT_DIALOG_TIME_METRICS,
       defaultSummaryBadges: DEFAULT_SUMMARY_BADGES,
-      canPublishDialogMacros: Boolean(resolveConfigValue(raw, 'dialog', 'canPublishMacros', 'canPublishDialogMacros')),
+      canPublishMacros: Boolean(resolveConfigValue(raw, 'dialog', 'canPublishMacros', 'canPublishDialogMacros')),
       autoCloseConfig: normalizeObject(resolveConfigValue(raw, 'dialog', 'autoCloseConfig', 'autoCloseConfig')),
       autoCloseFallbackHours: normalizeNumber(resolveConfigValue(raw, 'dialog', 'autoCloseFallbackHours', 'autoCloseFallbackHours'), 24) || 24,
-      fallbackDialogCategories: normalizeArray(resolveConfigValue(raw, 'dialog', 'fallbackCategories', 'fallbackDialogCategories')),
-      reportingConfigInitial: normalizeObject(resolveConfigValue(raw, 'admin', 'reportingConfig', 'reportingConfigInitial')),
-      managerLocationBindingsInitial: normalizeArray(resolveConfigValue(raw, 'admin', 'managerLocationBindings', 'managerLocationBindingsInitial')),
-      botSettingsInitial: normalizeObject(resolveConfigValue(raw, 'channels', 'botSettings', 'botSettingsInitial')),
+      fallbackCategories: normalizeArray(resolveConfigValue(raw, 'dialog', 'fallbackCategories', 'fallbackDialogCategories')),
+    };
+
+    const admin = {
+      reportingConfig: normalizeObject(resolveConfigValue(raw, 'admin', 'reportingConfig', 'reportingConfigInitial')),
+      managerLocationBindings: normalizeArray(resolveConfigValue(raw, 'admin', 'managerLocationBindings', 'managerLocationBindingsInitial')),
+    };
+
+    const channels = {
+      botSettings: normalizeObject(resolveConfigValue(raw, 'channels', 'botSettings', 'botSettingsInitial')),
       botPresetDefinitions: normalizeObject(resolveConfigValue(raw, 'channels', 'botPresetDefinitions', 'botPresetDefinitions')),
-      integrationNetworkInitial: normalizeObject(resolveConfigValue(raw, 'channels', 'integrationNetwork', 'integrationNetworkInitial')),
-      integrationNetworkProfilesInitial: normalizeArray(resolveConfigValue(raw, 'channels', 'integrationNetworkProfiles', 'integrationNetworkProfilesInitial')),
-      parameterTitles: normalizeObject(resolveConfigValue(raw, 'parameters', 'titles', 'parameterTitles')),
-      parameterDependencies: normalizeObject(resolveConfigValue(raw, 'parameters', 'dependencies', 'parameterDependencies')),
-      parameterStateTypes: PARAMETER_STATE_TYPES,
-      parameterStates: PARAMETER_STATES,
-      parameterFilterKeys: PARAMETER_FILTER_KEYS,
+      integrationNetwork: normalizeObject(resolveConfigValue(raw, 'channels', 'integrationNetwork', 'integrationNetworkInitial')),
+      integrationNetworkProfiles: normalizeArray(resolveConfigValue(raw, 'channels', 'integrationNetworkProfiles', 'integrationNetworkProfilesInitial')),
+    };
+
+    const parameters = {
+      titles: normalizeObject(resolveConfigValue(raw, 'parameters', 'titles', 'parameterTitles')),
+      dependencies: normalizeObject(resolveConfigValue(raw, 'parameters', 'dependencies', 'parameterDependencies')),
+      stateTypes: PARAMETER_STATE_TYPES,
+      states: PARAMETER_STATES,
+      filterKeys: PARAMETER_FILTER_KEYS,
       itConnectionUsageFilterParams: IT_CONNECTION_USAGE_FILTER_PARAMS,
       partnerContactTypes: PARTNER_CONTACT_TYPES,
       partnerContactPhoneTypes: PARTNER_CONTACT_PHONE_TYPES,
@@ -341,14 +350,67 @@
       itConnectionCategoryFields: normalizeObject(resolveConfigValue(raw, 'parameters', 'itConnectionCategoryFields', 'itConnectionCategoryFields')),
       cityOptions: normalizeCityOptions(resolveConfigValue(raw, 'parameters', 'cityOptions', 'cityOptions')),
       contractUsageData: normalizeObject(resolveConfigValue(raw, 'parameters', 'contractUsageData', 'contractUsageData')),
-      networkProfilesInitial: normalizeArray(resolveConfigValue(raw, 'parameters', 'networkProfiles', 'networkProfilesInitial')),
+      networkProfiles: normalizeArray(resolveConfigValue(raw, 'parameters', 'networkProfiles', 'networkProfilesInitial')),
+    };
+
+    const appearance = {
       statusUsage: normalizeObject(resolveConfigValue(raw, 'appearance', 'statusUsage', 'statusUsage')),
-      initialClientStatuses: normalizeArray(resolveConfigValue(raw, 'appearance', 'clientStatuses', 'initialClientStatuses')),
-      initialClientStatusColors: normalizeObject(resolveConfigValue(raw, 'appearance', 'clientStatusColors', 'initialClientStatusColors')),
-      initialBusinessCellStyles: normalizeObject(resolveConfigValue(raw, 'appearance', 'businessCellStyles', 'initialBusinessCellStyles')),
-      locationsInitial: normalizeObject(resolveConfigValue(raw, 'locations', 'tree', 'locationsInitial')),
-      locationsIikoServerSourcesInitial: normalizeArray(resolveConfigValue(raw, 'locations', 'iikoServerSources', 'locationsIikoServerSourcesInitial')),
-      locationsIikoSyncSettingsInitial: normalizeObject(resolveConfigValue(raw, 'locations', 'iikoSyncSettings', 'locationsIikoSyncSettingsInitial')),
+      clientStatuses: normalizeArray(resolveConfigValue(raw, 'appearance', 'clientStatuses', 'initialClientStatuses')),
+      clientStatusColors: normalizeObject(resolveConfigValue(raw, 'appearance', 'clientStatusColors', 'initialClientStatusColors')),
+      businessCellStyles: normalizeObject(resolveConfigValue(raw, 'appearance', 'businessCellStyles', 'initialBusinessCellStyles')),
+    };
+
+    const locations = {
+      tree: normalizeObject(resolveConfigValue(raw, 'locations', 'tree', 'locationsInitial')),
+      iikoServerSources: normalizeArray(resolveConfigValue(raw, 'locations', 'iikoServerSources', 'locationsIikoServerSourcesInitial')),
+      iikoSyncSettings: normalizeObject(resolveConfigValue(raw, 'locations', 'iikoSyncSettings', 'locationsIikoSyncSettingsInitial')),
+    };
+
+    lastBuiltConfig = {
+      dialog,
+      admin,
+      channels,
+      parameters,
+      appearance,
+      locations,
+      dialogConfig: dialog.config,
+      defaultDialogSlaConfig: dialog.defaultSlaConfig,
+      defaultDialogTimeMetrics: dialog.defaultTimeMetrics,
+      defaultSummaryBadges: dialog.defaultSummaryBadges,
+      canPublishDialogMacros: dialog.canPublishMacros,
+      autoCloseConfig: dialog.autoCloseConfig,
+      autoCloseFallbackHours: dialog.autoCloseFallbackHours,
+      fallbackDialogCategories: dialog.fallbackCategories,
+      reportingConfigInitial: admin.reportingConfig,
+      managerLocationBindingsInitial: admin.managerLocationBindings,
+      botSettingsInitial: channels.botSettings,
+      botPresetDefinitions: channels.botPresetDefinitions,
+      integrationNetworkInitial: channels.integrationNetwork,
+      integrationNetworkProfilesInitial: channels.integrationNetworkProfiles,
+      parameterTitles: parameters.titles,
+      parameterDependencies: parameters.dependencies,
+      parameterStateTypes: parameters.stateTypes,
+      parameterStates: parameters.states,
+      parameterFilterKeys: parameters.filterKeys,
+      itConnectionUsageFilterParams: parameters.itConnectionUsageFilterParams,
+      partnerContactTypes: parameters.partnerContactTypes,
+      partnerContactPhoneTypes: parameters.partnerContactPhoneTypes,
+      partnerContactEmailTypes: parameters.partnerContactEmailTypes,
+      partnerContactStateClassMap: parameters.partnerContactStateClassMap,
+      cityParameterType: parameters.cityParameterType,
+      cityParameterLabel: parameters.cityParameterLabel,
+      itConnectionFallbackLabels: parameters.itConnectionFallbackLabels,
+      itConnectionCategoryFields: parameters.itConnectionCategoryFields,
+      cityOptions: parameters.cityOptions,
+      contractUsageData: parameters.contractUsageData,
+      networkProfilesInitial: parameters.networkProfiles,
+      statusUsage: appearance.statusUsage,
+      initialClientStatuses: appearance.clientStatuses,
+      initialClientStatusColors: appearance.clientStatusColors,
+      initialBusinessCellStyles: appearance.businessCellStyles,
+      locationsInitial: locations.tree,
+      locationsIikoServerSourcesInitial: locations.iikoServerSources,
+      locationsIikoSyncSettingsInitial: locations.iikoSyncSettings,
     };
     return lastBuiltConfig;
   }
@@ -361,10 +423,10 @@
     build,
     getLastConfig,
     getBotSettingsInitial() {
-      return normalizeObject(lastBuiltConfig.botSettingsInitial);
+      return normalizeObject(lastBuiltConfig.channels?.botSettings || lastBuiltConfig.botSettingsInitial);
     },
     getBotPresetDefinitions() {
-      return normalizeObject(lastBuiltConfig.botPresetDefinitions);
+      return normalizeObject(lastBuiltConfig.channels?.botPresetDefinitions || lastBuiltConfig.botPresetDefinitions);
     },
   });
 }());

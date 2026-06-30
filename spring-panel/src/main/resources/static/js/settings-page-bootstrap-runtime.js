@@ -17,9 +17,20 @@
     };
   }
 
+  function resolveConfigSection(options, sectionName) {
+    const section = options && typeof options === 'object' ? options[sectionName] : null;
+    return section && typeof section === 'object' ? section : {};
+  }
+
   function createRuntime(options = {}) {
     const escapeHtml = createEscapeHtml();
     let settingsLocationsTreeRuntime = null;
+    const dialog = resolveConfigSection(options, 'dialog');
+    const admin = resolveConfigSection(options, 'admin');
+    const channels = resolveConfigSection(options, 'channels');
+    const parameters = resolveConfigSection(options, 'parameters');
+    const appearance = resolveConfigSection(options, 'appearance');
+    const locations = resolveConfigSection(options, 'locations');
 
     const showPopup = typeof options.showPopup === 'function'
       ? options.showPopup
@@ -37,33 +48,33 @@
         };
 
     const settingsDialogSlaCoreRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsDialogSlaCoreRuntime', {
-      getDialogConfig: () => options.dialogConfig || {},
-      getDefaultDialogSlaConfig: () => options.defaultDialogSlaConfig || {},
+      getDialogConfig: () => dialog.config || options.dialogConfig || {},
+      getDefaultDialogSlaConfig: () => dialog.defaultSlaConfig || options.defaultDialogSlaConfig || {},
     }) || null;
 
     const settingsDialogMetricsRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsDialogMetricsRuntime', {
-      getDialogConfig: () => options.dialogConfig || {},
-      getDefaultDialogTimeMetrics: () => options.defaultDialogTimeMetrics || {},
-      getDefaultSummaryBadges: () => options.defaultSummaryBadges || {},
+      getDialogConfig: () => dialog.config || options.dialogConfig || {},
+      getDefaultDialogTimeMetrics: () => dialog.defaultTimeMetrics || options.defaultDialogTimeMetrics || {},
+      getDefaultSummaryBadges: () => dialog.defaultSummaryBadges || options.defaultSummaryBadges || {},
     }) || null;
 
     const settingsDialogWorkspaceGovernanceRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsDialogWorkspaceGovernanceRuntime', {
-      getDialogConfig: () => options.dialogConfig || {},
-      getDefaultDialogSlaConfig: () => options.defaultDialogSlaConfig || {},
+      getDialogConfig: () => dialog.config || options.dialogConfig || {},
+      getDefaultDialogSlaConfig: () => dialog.defaultSlaConfig || options.defaultDialogSlaConfig || {},
     }) || null;
 
     const settingsDialogWorkspaceExternalKpiRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsDialogWorkspaceExternalKpiRuntime', {
-      getDialogConfig: () => options.dialogConfig || {},
-      getDefaultDialogSlaConfig: () => options.defaultDialogSlaConfig || {},
+      getDialogConfig: () => dialog.config || options.dialogConfig || {},
+      getDefaultDialogSlaConfig: () => dialog.defaultSlaConfig || options.defaultDialogSlaConfig || {},
       escapeHtml,
     }) || null;
 
     const settingsDialogTemplatesRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsDialogTemplatesRuntime', {
-      getDialogConfig: () => options.dialogConfig || {},
-      getAutoCloseConfig: () => options.autoCloseConfig || {},
-      getAutoCloseFallbackHours: () => options.autoCloseFallbackHours ?? 24,
-      getFallbackDialogCategories: () => options.fallbackDialogCategories || [],
-      canPublishDialogMacros: () => Boolean(options.canPublishDialogMacros),
+      getDialogConfig: () => dialog.config || options.dialogConfig || {},
+      getAutoCloseConfig: () => dialog.autoCloseConfig || options.autoCloseConfig || {},
+      getAutoCloseFallbackHours: () => dialog.autoCloseFallbackHours ?? options.autoCloseFallbackHours ?? 24,
+      getFallbackDialogCategories: () => dialog.fallbackCategories || options.fallbackDialogCategories || [],
+      canPublishDialogMacros: () => Boolean(dialog.canPublishMacros ?? options.canPublishDialogMacros),
       escapeHtml,
     }) || null;
 
@@ -74,21 +85,21 @@
     }) || null;
 
     const settingsParametersShellRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsParametersShellRuntime', {
-      getParameterTitles: () => options.parameterTitles || {},
-      getParameterDependencies: () => options.parameterDependencies || {},
-      getParameterStateTypes: () => options.parameterStateTypes || new Set(),
-      getParameterStates: () => options.parameterStates || [],
-      getParameterFilterKeys: () => options.parameterFilterKeys || {},
-      getCityParameterType: () => options.cityParameterType || 'city',
-      getCityParameterLabel: () => options.cityParameterLabel || 'Город',
-      getCityOptions: () => options.cityOptions || [],
-      getItConnectionFallbackLabels: () => options.itConnectionFallbackLabels || {},
-      getItConnectionCategoryFields: () => options.itConnectionCategoryFields || {},
-      getItConnectionUsageFilterParams: () => options.itConnectionUsageFilterParams || {},
-      getPartnerContactTypes: () => options.partnerContactTypes || {},
-      getPartnerContactPhoneTypes: () => options.partnerContactPhoneTypes || {},
-      getPartnerContactEmailTypes: () => options.partnerContactEmailTypes || {},
-      getPartnerContactStateClassMap: () => options.partnerContactStateClassMap || {},
+      getParameterTitles: () => parameters.titles || options.parameterTitles || {},
+      getParameterDependencies: () => parameters.dependencies || options.parameterDependencies || {},
+      getParameterStateTypes: () => parameters.stateTypes || options.parameterStateTypes || new Set(),
+      getParameterStates: () => parameters.states || options.parameterStates || [],
+      getParameterFilterKeys: () => parameters.filterKeys || options.parameterFilterKeys || {},
+      getCityParameterType: () => parameters.cityParameterType || options.cityParameterType || 'city',
+      getCityParameterLabel: () => parameters.cityParameterLabel || options.cityParameterLabel || 'Город',
+      getCityOptions: () => parameters.cityOptions || options.cityOptions || [],
+      getItConnectionFallbackLabels: () => parameters.itConnectionFallbackLabels || options.itConnectionFallbackLabels || {},
+      getItConnectionCategoryFields: () => parameters.itConnectionCategoryFields || options.itConnectionCategoryFields || {},
+      getItConnectionUsageFilterParams: () => parameters.itConnectionUsageFilterParams || options.itConnectionUsageFilterParams || {},
+      getPartnerContactTypes: () => parameters.partnerContactTypes || options.partnerContactTypes || {},
+      getPartnerContactPhoneTypes: () => parameters.partnerContactPhoneTypes || options.partnerContactPhoneTypes || {},
+      getPartnerContactEmailTypes: () => parameters.partnerContactEmailTypes || options.partnerContactEmailTypes || {},
+      getPartnerContactStateClassMap: () => parameters.partnerContactStateClassMap || options.partnerContactStateClassMap || {},
       showPopup: (message) => showPopup(message),
       escapeHtml,
       requestSettingsModalClose: (source) => requestSettingsModalClose(source),
@@ -97,8 +108,8 @@
     }) || null;
 
     const settingsNetworkProfilesRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsNetworkProfilesRuntime', {
-      getInitialProfiles: () => options.networkProfilesInitial || [],
-      getContractUsageData: () => options.contractUsageData || {},
+      getInitialProfiles: () => parameters.networkProfiles || options.networkProfilesInitial || [],
+      getContractUsageData: () => parameters.contractUsageData || options.contractUsageData || {},
       escapeHtml,
       showPopup: (message) => showPopup(message),
       requestSettingsModalClose: (source) => requestSettingsModalClose(source),
@@ -107,23 +118,23 @@
     settingsNetworkProfilesRuntime?.renderNetworkProfiles();
 
     const settingsAppearanceRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsAppearanceRuntime', {
-      statusUsage: options.statusUsage || {},
-      initialClientStatuses: options.initialClientStatuses || [],
-      initialClientStatusColors: options.initialClientStatusColors || {},
-      initialBusinessCellStyles: options.initialBusinessCellStyles || {},
+      statusUsage: appearance.statusUsage || options.statusUsage || {},
+      initialClientStatuses: appearance.clientStatuses || options.initialClientStatuses || [],
+      initialClientStatusColors: appearance.clientStatusColors || options.initialClientStatusColors || {},
+      initialBusinessCellStyles: appearance.businessCellStyles || options.initialBusinessCellStyles || {},
       showPopup: (message, type) => showPopup(message, type),
       escapeHtml,
     }) || null;
 
     const settingsLocationsIikoRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsLocationsIikoRuntime', {
-      initialServerSources: options.locationsIikoServerSourcesInitial || [],
-      initialSyncSettings: options.locationsIikoSyncSettingsInitial || {},
+      initialServerSources: locations.iikoServerSources || options.locationsIikoServerSourcesInitial || [],
+      initialSyncSettings: locations.iikoSyncSettings || options.locationsIikoSyncSettingsInitial || {},
       showPopup: (message, type) => showPopup(message, type),
       escapeHtml,
     }) || null;
 
     settingsLocationsTreeRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsLocationsTreeRuntime', {
-      initialLocations: options.locationsInitial || {},
+      initialLocations: locations.tree || options.locationsInitial || {},
       loadParameters: () => settingsParametersShellRuntime?.loadParameters(),
       showPopup: (message, type) => showPopup(message, type),
       serializeLocationsIikoServerSources: () => settingsLocationsIikoRuntime?.serializeLocationsIikoServerSources?.() || [],
@@ -134,7 +145,7 @@
     const settingsLocationWizardRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsLocationWizardRuntime', {
       getParameterData: () => settingsParametersShellRuntime?.getParameterData() || {},
       getLocationsState: () => settingsLocationsTreeRuntime?.getState() || {},
-      getCityOptionsFallback: () => options.cityOptions || [],
+      getCityOptionsFallback: () => parameters.cityOptions || options.cityOptions || [],
       loadParameters: () => settingsParametersShellRuntime?.loadParameters(),
       isParametersLoaded: () => settingsParametersShellRuntime?.isParametersLoaded() || false,
       showPopup: (message, type) => showPopup(message, type),
@@ -151,10 +162,10 @@
     }) || null;
 
     const settingsChannelsShellRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsChannelsShellRuntime', {
-      botSettingsInitial: options.botSettingsInitial || {},
-      autoCloseConfig: options.autoCloseConfig || {},
-      integrationNetworkInitial: options.integrationNetworkInitial || {},
-      integrationNetworkProfilesInitial: options.integrationNetworkProfilesInitial || [],
+      botSettingsInitial: channels.botSettings || options.botSettingsInitial || {},
+      autoCloseConfig: dialog.autoCloseConfig || options.autoCloseConfig || {},
+      integrationNetworkInitial: channels.integrationNetwork || options.integrationNetworkInitial || {},
+      integrationNetworkProfilesInitial: channels.integrationNetworkProfiles || options.integrationNetworkProfilesInitial || [],
       escapeHtml,
       getCookieValue: (name) => getCookieValue(name),
       requestSettingsModalClose: (source) => requestSettingsModalClose(source),
@@ -164,8 +175,8 @@
     }) || null;
 
     const settingsAdminShellRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsAdminShellRuntime', {
-      reportingConfigInitial: options.reportingConfigInitial || {},
-      managerLocationBindingsInitial: options.managerLocationBindingsInitial || [],
+      reportingConfigInitial: admin.reportingConfig || options.reportingConfigInitial || {},
+      managerLocationBindingsInitial: admin.managerLocationBindings || options.managerLocationBindingsInitial || [],
       getLocationsState: () => settingsLocationsTreeRuntime?.getState() || {},
     }) || null;
 
@@ -174,7 +185,7 @@
       metricsRuntime: settingsDialogMetricsRuntime,
       dialogShellRuntime: settingsDialogShellRuntime,
       networkProfilesRuntime: settingsNetworkProfilesRuntime,
-      getAutoCloseFallbackHours: () => options.autoCloseFallbackHours ?? 24,
+      getAutoCloseFallbackHours: () => dialog.autoCloseFallbackHours ?? options.autoCloseFallbackHours ?? 24,
       collectStatuses: () => Array.from(document.querySelectorAll('#statusesList .status-input'))
         .map((input) => input.value.trim())
         .filter(Boolean),
