@@ -1822,6 +1822,14 @@
   details/workspace reread -> bell ack -> next follow-up` уже нужен как
   обязательный контракт, потому что именно там расходятся row `unreadCount`,
   `my_dialogs` bucket placement и panel bell unread semantics;
+- финальный regression pass по этому corridor уже собран и сузил live debt до
+  трёх конкретных red-paths поверх уже вынесенных runtime-модулей:
+  details bell reread rearm (`$.unread = 3` вместо `1` в
+  `DialogDetailsIntegrationTest`), workspace status continuity
+  (`auto_processing` вместо `waiting_operator` в
+  `DialogWorkspaceIntegrationTest`) и quick-actions peer notification dedup
+  (`5` вместо `4`, `2` вместо `1` в
+  `DialogQuickActionsIntegrationTest`);
 - рядом с этим таким же базовым smoke-коридором остаются pagination,
   workspace/reply handoff и remaining history/workspace render helpers: теперь
   это уже не utility debt, а индикатор remaining orchestration drift поверх
@@ -1843,6 +1851,10 @@
   dialog с активным `auto_processing` после live `POST /reassign` не должен
   оставаться в AI overlay-состоянии, а reread'ом переходит в
   `waiting_client` / `my_dialogs.in_work` для нового owner;
+- page-level `/dialogs` WebMvc smoke сейчас тоже требует отдельного
+  follow-up, но это уже не regression giant runtime split: красный
+  `DialogsControllerWebMvcTest` упирается в server-side navbar fragment,
+  которому не хватает model flags `canManageChannels` / `canViewSettings`.
 - тот же boundary теперь подтверждён и прямо на workspace payload:
   `conversation/workflow` после `reassign` больше не держат старый
   AI overlay и reread'ят нового owner уже в `waiting_client`, так что
