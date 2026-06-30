@@ -1,7 +1,8 @@
 (function () {
-  if (window.SettingsPageInitRuntime) {
+  if (window.__settingsPageInitRuntimeScriptLoaded) {
     return;
   }
+  window.__settingsPageInitRuntimeScriptLoaded = true;
 
   const PAYLOAD_SELECTOR = 'script[data-settings-page-init-payload]';
 
@@ -220,9 +221,4 @@
   } else {
     autoMountFromDocument();
   }
-
-  window.SettingsPageInitRuntime = Object.freeze({
-    mount,
-    mountFromPayload,
-  });
 }());

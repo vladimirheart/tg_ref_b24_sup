@@ -817,65 +817,6 @@
     unblockCooldownMinutes: 60,
   };
 
-  const bridgeSubscribers = new Set();
-
-  function getBridgeSnapshot() {
-    return {
-      questionTemplates: state.templates.map((template) => ({
-        id: template.id,
-        name: template.name || 'Шаблон вопросов',
-        description: template.description || '',
-        startMessage: template.startMessage || '',
-        questionFlow: template.questionFlow.map((question) => ({ ...question })),
-        questionsCount: template.questionFlow.length,
-      })),
-      activeQuestionTemplateId: state.activeTemplateId,
-      ratingTemplates: state.ratingTemplates.map((template) => ({
-        id: template.id,
-        name: template.name || 'Шаблон оценок',
-        description: template.description || '',
-        scaleSize: normalizeScale(template.scaleSize || template.scale_size || 0),
-      })),
-      activeRatingTemplateId: state.activeRatingTemplateId,
-      unblockCooldownMinutes: state.unblockCooldownMinutes,
-    };
-  }
-
-  function notifyBridgeSubscribers() {
-    const snapshot = getBridgeSnapshot();
-    bridgeSubscribers.forEach((callback) => {
-      try {
-        callback(snapshot);
-      } catch (error) {
-        console.error('BotSettingsBridge subscriber error:', error);
-      }
-    });
-  }
-
-  function setupBridge() {
-    if (window.BotSettingsBridge && window.BotSettingsBridge.__initialized) {
-      return;
-    }
-    window.BotSettingsBridge = {
-      __initialized: true,
-      getSnapshot: () => getBridgeSnapshot(),
-      subscribe(callback) {
-        if (typeof callback !== 'function') {
-          return () => {};
-        }
-        bridgeSubscribers.add(callback);
-        try {
-          callback(getBridgeSnapshot());
-        } catch (error) {
-          console.error('BotSettingsBridge subscriber error:', error);
-        }
-        return () => {
-          bridgeSubscribers.delete(callback);
-        };
-      },
-    };
-  }
-
   const editorState = {
     index: -1,
     templateId: null,
@@ -908,7 +849,6 @@
   }
 
   hydrateStateFrom(initialState);
-  setupBridge();
   renderTemplates();
   renderRatingTemplates();
   renderCooldownSettings();
@@ -970,7 +910,6 @@
 
   function renderTemplates() {
     if (!templatesContainer) {
-      notifyBridgeSubscribers();
       return;
     }
     templatesContainer.innerHTML = '';
@@ -979,7 +918,6 @@
       placeholder.className = 'alert alert-light border mb-0';
       placeholder.textContent = 'Шаблоны не созданы. Добавьте шаблон, чтобы настроить вопросы бота.';
       templatesContainer.appendChild(placeholder);
-      notifyBridgeSubscribers();
       return;
     }
     state.templates.forEach((template) => {
@@ -1013,7 +951,6 @@
       `;
       templatesContainer.appendChild(card);
     });
-    notifyBridgeSubscribers();
   }
 
   function setRatingTemplateStatus(message, isError) {
@@ -1067,7 +1004,6 @@
 
   function renderRatingTemplates() {
     if (!ratingTemplatesContainer) {
-      notifyBridgeSubscribers();
       return;
     }
     ratingTemplatesContainer.innerHTML = '';
@@ -1076,7 +1012,6 @@
       placeholder.className = 'alert alert-light border mb-0';
       placeholder.textContent = 'Шаблоны оценок не созданы. Добавьте шаблон, чтобы настроить систему оценок.';
       ratingTemplatesContainer.appendChild(placeholder);
-      notifyBridgeSubscribers();
       return;
     }
     state.ratingTemplates.forEach((template) => {
@@ -1118,7 +1053,6 @@
       `;
       ratingTemplatesContainer.appendChild(card);
     });
-    notifyBridgeSubscribers();
   }
 
   function openRatingTemplateEditor(index) {
@@ -2272,7 +2206,6 @@
       const templateId = input.value;
       if (state.templates.some((template) => template.id === templateId)) {
         state.activeTemplateId = templateId;
-        notifyBridgeSubscribers();
       }
     });
   }
@@ -2470,7 +2403,6 @@
       const templateId = input.value;
       if (state.ratingTemplates.some((template) => template.id === templateId)) {
         state.activeRatingTemplateId = templateId;
-        notifyBridgeSubscribers();
       }
     });
   }
