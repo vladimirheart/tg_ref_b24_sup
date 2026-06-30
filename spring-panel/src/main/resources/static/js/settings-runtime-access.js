@@ -30,12 +30,17 @@
     return typeof method === 'function' ? method : null;
   }
 
-  function mountRuntime(runtimeName, options = {}) {
-    const mount = resolveRuntimeMethod(runtimeName, 'mount');
-    if (typeof mount !== 'function') {
-      return null;
+  function invokeRuntimeMethod(runtimeName, methodName, ...args) {
+    const method = resolveRuntimeMethod(runtimeName, methodName);
+    if (typeof method !== 'function') {
+      return undefined;
     }
-    return mount(options);
+    return method(...args);
+  }
+
+  function mountRuntime(runtimeName, ...args) {
+    const result = invokeRuntimeMethod(runtimeName, 'mount', ...args);
+    return result == null ? null : result;
   }
 
   function resolvePageConfigRuntime() {
@@ -52,6 +57,7 @@
 
   window.SettingsRuntimeAccess = Object.freeze({
     buildPageConfig,
+    invokeRuntimeMethod,
     mountRuntime,
     resolvePageConfigRuntime,
     resolveRuntimeApi,

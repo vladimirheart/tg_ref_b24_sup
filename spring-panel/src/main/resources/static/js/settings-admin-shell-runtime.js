@@ -10,7 +10,7 @@
   }
 
   function createRuntime(options = {}) {
-    const reportingRuntime = window.SettingsReportingManagerBindings?.mount({
+    const reportingRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsReportingManagerBindings', {
       reportingConfigInitial: options.reportingConfigInitial,
       managerLocationBindingsInitial: options.managerLocationBindingsInitial,
       getLocationsState: typeof options.getLocationsState === 'function'
@@ -20,13 +20,14 @@
 
     function mountAuthManagementSettingsModal(modalEl) {
       const container = resolveAuthManagementContainer(modalEl);
-      if (!(container instanceof HTMLElement) || !window.AuthManagement) {
+      const authManagementApi = window.SettingsRuntimeAccess?.resolveRuntimeApi?.('AuthManagement');
+      if (!(container instanceof HTMLElement) || !authManagementApi) {
         console.error('Модуль управления доступом недоступен.');
         return;
       }
 
       if (!container.__authManager) {
-        container.__authManager = window.AuthManagement.mount(container);
+        container.__authManager = window.SettingsRuntimeAccess?.mountRuntime?.('AuthManagement', container) || null;
         return;
       }
 
