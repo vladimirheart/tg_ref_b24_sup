@@ -292,6 +292,162 @@
       return [];
     }
 
+    function getColumnMeta() {
+      if (typeof options.getColumnMeta === 'function') {
+        const meta = options.getColumnMeta();
+        return Array.isArray(meta) ? meta : [];
+      }
+      return [];
+    }
+
+    function getColumnState() {
+      if (typeof options.getColumnState === 'function') {
+        const state = options.getColumnState();
+        return state && typeof state === 'object' ? state : {};
+      }
+      return {};
+    }
+
+    function getDefaultColumnState() {
+      if (typeof options.getDefaultColumnState === 'function') {
+        const state = options.getDefaultColumnState();
+        return state && typeof state === 'object' ? state : {};
+      }
+      return {};
+    }
+
+    function setColumnState(nextState) {
+      if (typeof options.setColumnState === 'function') {
+        options.setColumnState(nextState);
+      }
+    }
+
+    function cloneColumnState(source) {
+      return source && typeof source === 'object' ? { ...source } : {};
+    }
+
+    function loadColumnState() {
+      const storageKey = resolveStorageKey(options.storage?.columns);
+      if (!storageKey) return;
+      try {
+        const raw = localStorage.getItem(storageKey);
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object') return;
+        const nextState = cloneColumnState(getDefaultColumnState());
+        Object.keys(nextState).forEach((key) => {
+          if (Object.prototype.hasOwnProperty.call(parsed, key)) {
+            nextState[key] = Boolean(parsed[key]);
+          }
+        });
+        setColumnState(nextState);
+      } catch (_error) {
+        setColumnState(cloneColumnState(getDefaultColumnState()));
+      }
+    }
+
+    function persistColumnState() {
+      const storageKey = resolveStorageKey(options.storage?.columns);
+      if (!storageKey) return;
+      localStorage.setItem(storageKey, JSON.stringify(getColumnState()));
+    }
+
+    function applyColumnState() {
+      const table = options.elements?.table;
+      if (!table) return;
+      const headerRow = table.tHead?.rows?.[0];
+      if (!headerRow) return;
+      const columnState = getColumnState();
+      getColumnMeta().forEach(({ key }) => {
+        const visible = columnState[key] !== false;
+        const headerCell = headerRow.querySelector(`th[data-column-key="${key}"]`);
+        if (!headerCell) return;
+        const columnIndex = headerCell.cellIndex;
+        headerCell.classList.toggle('d-none', !visible);
+        Array.from(table.tBodies || []).forEach((tbody) => {
+          Array.from(tbody.rows || []).forEach((row) => {
+            const cell = row.children?.[columnIndex];
+            if (cell) {
+              cell.classList.toggle('d-none', !visible);
+            }
+          });
+        });
+      });
+    }
+
+    function syncColumnsList() {
+      const columnsList = options.elements?.columnsList;
+      if (!columnsList) return;
+      const columnState = getColumnState();
+      columnsList.querySelectorAll('[data-column-toggle]').forEach((checkbox) => {
+        const key = checkbox.dataset.columnToggle;
+        checkbox.checked = columnState[key] !== false;
+      });
+    }
+
+    function buildColumnsList() {
+      const columnsList = options.elements?.columnsList;
+      if (!columnsList) return;
+      columnsList.innerHTML = '';
+      getColumnMeta().forEach(({ key, label }) => {
+        const col = document.createElement('div');
+        col.className = 'col-12 col-sm-6';
+        col.innerHTML = `
+        <label class="dialog-column-option">
+          <input type="checkbox" class="form-check-input" data-column-toggle="${key}">
+          <span>${label}</span>
+        </label>
+      `;
+        columnsList.appendChild(col);
+      });
+      syncColumnsList();
+    }
+
+    function resetColumnState() {
+      setColumnState(cloneColumnState(getDefaultColumnState()));
+      persistColumnState();
+      applyColumnState();
+      syncColumnsList();
+    }
+
+    function bindColumnStateEvents() {
+      const columnsBtn = options.elements?.columnsBtn;
+      const columnsModalEl = options.elements?.columnsModalEl;
+      const columnsModal = options.elements?.columnsModal;
+      const columnsApply = options.elements?.columnsApply;
+      const columnsReset = options.elements?.columnsReset;
+      const columnsList = options.elements?.columnsList;
+
+      if (columnsBtn && columnsModalEl) {
+        columnsBtn.addEventListener('click', () => {
+          syncColumnsList();
+          showModalSafe(columnsModalEl, columnsModal);
+        });
+      }
+
+      if (columnsApply) {
+        columnsApply.addEventListener('click', () => {
+          if (columnsList) {
+            const nextState = cloneColumnState(getColumnState());
+            columnsList.querySelectorAll('[data-column-toggle]').forEach((checkbox) => {
+              const key = checkbox.dataset.columnToggle;
+              nextState[key] = checkbox.checked;
+            });
+            setColumnState(nextState);
+            persistColumnState();
+            applyColumnState();
+          }
+          hideModalSafe(columnsModalEl, columnsModal);
+        });
+      }
+
+      if (columnsReset) {
+        columnsReset.addEventListener('click', () => {
+          resetColumnState();
+        });
+      }
+    }
+
     function saveColumnWidths() {
       const storageKey = resolveStorageKey(options.storage?.widths);
       if (!storageKey) return;
@@ -455,6 +611,12 @@
       applyListOnlyMode,
       loadListOnlyMode,
       toggleListOnlyMode,
+      loadColumnState,
+      persistColumnState,
+      applyColumnState,
+      buildColumnsList,
+      syncColumnsList,
+      bindColumnStateEvents,
       saveColumnWidths,
       restoreColumnWidths,
       initColumnResize,

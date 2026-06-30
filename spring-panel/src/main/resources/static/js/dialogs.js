@@ -381,6 +381,26 @@
     dialogsShellRuntime?.openTaskCreateSurface(ticketId, clientName);
   }
 
+  function loadColumnState() {
+    dialogsShellRuntime?.loadColumnState();
+  }
+
+  function persistColumnState() {
+    dialogsShellRuntime?.persistColumnState();
+  }
+
+  function applyColumnState() {
+    dialogsShellRuntime?.applyColumnState();
+  }
+
+  function buildColumnsList() {
+    dialogsShellRuntime?.buildColumnsList();
+  }
+
+  function syncColumnsList() {
+    dialogsShellRuntime?.syncColumnsList();
+  }
+
   const STORAGE_COLUMNS = 'iguana:dialogs:columns';
   const STORAGE_WIDTHS = 'iguana:dialogs:column-widths';
   const STORAGE_TASK = 'iguana:dialogs:create-task';
@@ -1012,23 +1032,6 @@
       : [],
   };
 
-  function loadColumnState() {
-    try {
-      const raw = localStorage.getItem(STORAGE_COLUMNS);
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
-      if (!parsed || typeof parsed !== 'object') return;
-      columnState = { ...defaultColumnState };
-      Object.keys(defaultColumnState).forEach((key) => {
-        if (Object.prototype.hasOwnProperty.call(parsed, key)) {
-          columnState[key] = Boolean(parsed[key]);
-        }
-      });
-    } catch (error) {
-      columnState = { ...defaultColumnState };
-    }
-  }
-
   function loadPageSize() {
     dialogsListRuntime?.loadPageSize();
   }
@@ -1101,31 +1104,6 @@
     dialogsTemplatesRuntime?.scheduleCategorySave();
   }
 
-  function persistColumnState() {
-    localStorage.setItem(STORAGE_COLUMNS, JSON.stringify(columnState));
-  }
-
-  function applyColumnState() {
-    if (!table) return;
-    const headerRow = table.tHead?.rows?.[0];
-    if (!headerRow) return;
-    columnMeta.forEach(({ key }) => {
-      const visible = columnState[key] !== false;
-      const headerCell = headerRow.querySelector(`th[data-column-key="${key}"]`);
-      if (!headerCell) return;
-      const columnIndex = headerCell.cellIndex;
-      headerCell.classList.toggle('d-none', !visible);
-      Array.from(table.tBodies || []).forEach((tbody) => {
-        Array.from(tbody.rows || []).forEach((row) => {
-          const cell = row.children?.[columnIndex];
-          if (cell) {
-            cell.classList.toggle('d-none', !visible);
-          }
-        });
-      });
-    });
-  }
-
   function buildDialogItemMarker(item) {
     return [
       item?.ticketId || '',
@@ -1162,31 +1140,6 @@
     row.dataset.dialogMarker = buildDialogItemMarker(item);
     hydrateAvatars(row);
     return row;
-  }
-
-  function buildColumnsList() {
-    if (!columnsList) return;
-    columnsList.innerHTML = '';
-    columnMeta.forEach(({ key, label }) => {
-      const col = document.createElement('div');
-      col.className = 'col-12 col-sm-6';
-      col.innerHTML = `
-        <label class="dialog-column-option">
-          <input type="checkbox" class="form-check-input" data-column-toggle="${key}">
-          <span>${label}</span>
-        </label>
-      `;
-      columnsList.appendChild(col);
-    });
-    syncColumnsList();
-  }
-
-  function syncColumnsList() {
-    if (!columnsList) return;
-    columnsList.querySelectorAll('[data-column-toggle]').forEach((checkbox) => {
-      const key = checkbox.dataset.columnToggle;
-      checkbox.checked = columnState[key] !== false;
-    });
   }
 
   function collectRowSearchText(row) {
@@ -1296,6 +1249,12 @@
     elements: {
       dialogCompactToggle,
       dialogListOnlyToggle,
+      columnsBtn,
+      columnsList,
+      columnsApply,
+      columnsReset,
+      columnsModalEl,
+      columnsModal,
       detailsSidebar,
       detailsResizeHandle,
       table,
@@ -1303,9 +1262,18 @@
     storage: {
       compactMode: STORAGE_COMPACT_MODE,
       listOnlyMode: STORAGE_LIST_ONLY_MODE,
+      columns: STORAGE_COLUMNS,
       widths: STORAGE_WIDTHS,
       task: STORAGE_TASK,
     },
+    getColumnMeta: () => columnMeta,
+    getColumnState: () => columnState,
+    setColumnState: (nextState) => {
+      columnState = nextState && typeof nextState === 'object'
+        ? nextState
+        : { ...defaultColumnState };
+    },
+    getDefaultColumnState: () => defaultColumnState,
     getHeaderCells: () => headerCells,
     rowsList,
   }) || null;
@@ -3631,35 +3599,7 @@
     });
   }
 
-  if (columnsBtn && columnsModalEl) {
-    columnsBtn.addEventListener('click', () => {
-      syncColumnsList();
-      showModalSafe(columnsModalEl, columnsModal);
-    });
-  }
-
-  if (columnsApply) {
-    columnsApply.addEventListener('click', () => {
-      if (columnsList) {
-        columnsList.querySelectorAll('[data-column-toggle]').forEach((checkbox) => {
-          const key = checkbox.dataset.columnToggle;
-          columnState[key] = checkbox.checked;
-        });
-        persistColumnState();
-        applyColumnState();
-      }
-      hideModalSafe(columnsModalEl, columnsModal);
-    });
-  }
-
-  if (columnsReset) {
-    columnsReset.addEventListener('click', () => {
-      columnState = { ...defaultColumnState };
-      persistColumnState();
-      applyColumnState();
-      syncColumnsList();
-    });
-  }
+  dialogsShellRuntime?.bindColumnStateEvents();
 
   if (detailsModalEl) {
     bindFallbackModalDismiss(detailsModalEl, detailsModal);
