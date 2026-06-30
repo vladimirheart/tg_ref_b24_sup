@@ -65,6 +65,234 @@
       return typeof options.getListLoading === 'function' ? options.getListLoading() === true : false;
     }
 
+    let triagePreferencesLoadedFromServer = false;
+    let triagePreferencesSaveTimer = null;
+
+    function resolveStorageKey(key) {
+      return String(key || '').trim();
+    }
+
+    function normalizePageSize(value) {
+      if (typeof options.normalizePageSize === 'function') {
+        return options.normalizePageSize(value);
+      }
+      if (value === 'all') return Infinity;
+      const parsed = Number.parseInt(value, 10);
+      return Number.isFinite(parsed) && parsed > 0 ? parsed : options.defaultPageSize;
+    }
+
+    function normalizeDialogView(value) {
+      if (typeof options.normalizeDialogView === 'function') {
+        return options.normalizeDialogView(value);
+      }
+      return String(value || 'all').trim().toLowerCase() || 'all';
+    }
+
+    function getSlaWindowPresets() {
+      return Array.isArray(options.dialogSlaWindowPresets) ? options.dialogSlaWindowPresets : [];
+    }
+
+    function getViewTabs() {
+      return Array.from(elements.viewTabs || []);
+    }
+
+    function loadPageSize() {
+      const storageKey = resolveStorageKey(options.storage?.pageSize);
+      const raw = storageKey ? localStorage.getItem(storageKey) : null;
+      const normalized = normalizePageSize(raw);
+      const filterState = getFilterState();
+      filterState.pageSize = normalized;
+      if (elements.pageSizeSelect) {
+        elements.pageSizeSelect.value = normalized === Infinity ? 'all' : String(normalized);
+      }
+    }
+
+    function configureSlaWindowSelect() {
+      if (!elements.slaWindowSelect) {
+        return;
+      }
+      const optionsMarkup = ['<option value="">SLA: все</option>']
+        .concat(getSlaWindowPresets().map((minutes) => `<option value="${minutes}">Реакция ≤ ${minutes}м</option>`))
+        .join('');
+      elements.slaWindowSelect.innerHTML = optionsMarkup;
+      const filterState = getFilterState();
+      elements.slaWindowSelect.value = Number.isFinite(filterState.slaWindowMinutes)
+        ? String(filterState.slaWindowMinutes)
+        : '';
+    }
+
+    function queueServerTriagePreferencesSave() {
+      if (triagePreferencesSaveTimer) {
+        clearTimeout(triagePreferencesSaveTimer);
+      }
+      triagePreferencesSaveTimer = setTimeout(() => {
+        triagePreferencesSaveTimer = null;
+        void saveServerTriagePreferences();
+      }, 500);
+    }
+
+    function persistPageSize() {
+      const storageKey = resolveStorageKey(options.storage?.pageSize);
+      if (!storageKey) return;
+      const filterState = getFilterState();
+      if (filterState.pageSize === Infinity) {
+        localStorage.setItem(storageKey, 'all');
+        queueServerTriagePreferencesSave();
+        return;
+      }
+      localStorage.setItem(storageKey, String(filterState.pageSize));
+      queueServerTriagePreferencesSave();
+    }
+
+    function restoreDialogPreferences() {
+      try {
+        const filterState = getFilterState();
+        const viewStorageKey = resolveStorageKey(options.storage?.view);
+        const slaWindowStorageKey = resolveStorageKey(options.storage?.slaWindow);
+        const sortModeStorageKey = resolveStorageKey(options.storage?.sortMode);
+        const storedView = viewStorageKey ? localStorage.getItem(viewStorageKey) : null;
+        if (storedView) {
+          filterState.view = normalizeDialogView(storedView);
+        }
+        const storedSlaWindow = Number.parseInt(
+          slaWindowStorageKey ? localStorage.getItem(slaWindowStorageKey) : null,
+          10
+        );
+        if (Number.isFinite(storedSlaWindow) && getSlaWindowPresets().includes(storedSlaWindow)) {
+          filterState.slaWindowMinutes = storedSlaWindow;
+        }
+        const storedSortMode = String(sortModeStorageKey ? localStorage.getItem(sortModeStorageKey) : '')
+          .trim()
+          .toLowerCase();
+        filterState.sortMode = storedSortMode === 'sla_priority' ? 'sla_priority' : filterState.sortMode;
+      } catch (_error) {
+        // ignore storage read errors
+      }
+    }
+
+    function persistDialogPreferences() {
+      try {
+        const filterState = getFilterState();
+        const viewStorageKey = resolveStorageKey(options.storage?.view);
+        const slaWindowStorageKey = resolveStorageKey(options.storage?.slaWindow);
+        const sortModeStorageKey = resolveStorageKey(options.storage?.sortMode);
+        if (viewStorageKey) {
+          localStorage.setItem(viewStorageKey, filterState.view || 'all');
+        }
+        if (slaWindowStorageKey) {
+          if (Number.isFinite(filterState.slaWindowMinutes) && filterState.slaWindowMinutes > 0) {
+            localStorage.setItem(slaWindowStorageKey, String(filterState.slaWindowMinutes));
+          } else {
+            localStorage.removeItem(slaWindowStorageKey);
+          }
+        }
+        if (sortModeStorageKey) {
+          localStorage.setItem(sortModeStorageKey, filterState.sortMode || 'default');
+        }
+        queueServerTriagePreferencesSave();
+      } catch (_error) {
+        // ignore storage write errors
+      }
+    }
+
+    function applyServerTriagePreferences(preferences) {
+      if (!preferences || typeof preferences !== 'object') return false;
+      const filterState = getFilterState();
+      let changed = false;
+      const rawView = String(preferences.view || '').trim().toLowerCase();
+      if (rawView) {
+        const normalizedView = normalizeDialogView(rawView);
+        if (normalizedView !== filterState.view) {
+          filterState.view = normalizedView;
+          changed = true;
+        }
+      }
+      const rawSortMode = String(preferences.sort_mode || preferences.sortMode || '').trim().toLowerCase();
+      if (rawSortMode) {
+        const normalizedSortMode = rawSortMode === 'sla_priority' ? 'sla_priority' : 'default';
+        if (normalizedSortMode !== filterState.sortMode) {
+          filterState.sortMode = normalizedSortMode;
+          changed = true;
+        }
+      }
+      const rawSlaWindow = Number.parseInt(preferences.sla_window_minutes ?? preferences.slaWindowMinutes, 10);
+      if (Number.isFinite(rawSlaWindow) && getSlaWindowPresets().includes(rawSlaWindow)) {
+        if (rawSlaWindow !== filterState.slaWindowMinutes) {
+          filterState.slaWindowMinutes = rawSlaWindow;
+          changed = true;
+        }
+      } else if ((preferences.sla_window_minutes === null || preferences.slaWindowMinutes === null)
+        && Number.isFinite(filterState.slaWindowMinutes)) {
+        filterState.slaWindowMinutes = null;
+        changed = true;
+      }
+      const rawPageSize = String(preferences.page_size || preferences.pageSize || '').trim().toLowerCase();
+      if (rawPageSize) {
+        const normalizedPageSize = normalizePageSize(rawPageSize);
+        if (normalizedPageSize !== filterState.pageSize) {
+          filterState.pageSize = normalizedPageSize;
+          changed = true;
+        }
+      }
+      return changed;
+    }
+
+    async function loadServerTriagePreferences() {
+      try {
+        const response = await fetch('/api/dialogs/triage-preferences', { headers: { Accept: 'application/json' } });
+        if (!response.ok) return;
+        const payload = await response.json().catch(() => null);
+        if (!payload || payload.success !== true || !payload.preferences) return;
+        if (applyServerTriagePreferences(payload.preferences)) {
+          if (elements.pageSizeSelect) {
+            const filterState = getFilterState();
+            elements.pageSizeSelect.value = filterState.pageSize === Infinity ? 'all' : String(filterState.pageSize);
+          }
+          configureSlaWindowSelect();
+          if (elements.sortModeSelect) {
+            elements.sortModeSelect.value = getFilterState().sortMode;
+          }
+          const activeTab = getViewTabs().find((tab) => tab.dataset.dialogView === getFilterState().view);
+          if (activeTab) {
+            setViewTab(getFilterState().view);
+          } else {
+            applyFilters();
+          }
+        }
+        triagePreferencesLoadedFromServer = true;
+      } catch (_error) {
+        // ignore network errors and continue with local defaults
+      }
+    }
+
+    async function saveServerTriagePreferences() {
+      const filterState = getFilterState();
+      const payload = {
+        view: filterState.view || 'all',
+        sort_mode: filterState.sortMode || 'default',
+        sla_window_minutes: Number.isFinite(filterState.slaWindowMinutes) ? filterState.slaWindowMinutes : null,
+        page_size: filterState.pageSize === Infinity ? 'all' : String(filterState.pageSize || options.defaultPageSize),
+      };
+      try {
+        const response = await fetch('/api/dialogs/triage-preferences', {
+          method: 'POST',
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+        if (!response.ok) return;
+        if (triagePreferencesLoadedFromServer) {
+          options.emitWorkspaceTelemetry('triage_preferences_saved', {
+            reason: `view=${payload.view};sort=${payload.sort_mode};sla=${payload.sla_window_minutes || 'all'};page=${payload.page_size}`,
+          });
+        }
+      } catch (_error) {
+        // ignore network errors and keep local-storage behavior
+      }
+    }
+
     function updateSelectAllState() {
       if (!elements.selectAllCheckbox) {
         return;
@@ -676,7 +904,7 @@
       if (previousView !== resolvedView) {
         options.emitWorkspaceTelemetry('triage_view_switch', { reason: `${previousView}->${resolvedView}` });
       }
-      options.persistDialogPreferences();
+      persistDialogPreferences();
       applyFilters({ resetPage: true });
     }
 
@@ -898,6 +1126,12 @@
       updateBulkActionsState,
       clearSelection,
       runBulkAction,
+      loadPageSize,
+      configureSlaWindowSelect,
+      persistPageSize,
+      restoreDialogPreferences,
+      persistDialogPreferences,
+      loadServerTriagePreferences,
       applyFilters,
       applyQuickSearch,
       applyStatusFilter,

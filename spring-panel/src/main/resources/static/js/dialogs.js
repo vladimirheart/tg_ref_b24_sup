@@ -1009,8 +1009,6 @@
   }, {});
 
   let columnState = { ...defaultColumnState };
-  let triagePreferencesLoadedFromServer = false;
-  let triagePreferencesSaveTimer = null;
   let myDialogsState = {
     unanswered: Array.isArray(INITIAL_MY_DIALOGS.unanswered)
       ? INITIAL_MY_DIALOGS.unanswered.filter((item) => item && typeof item === 'object')
@@ -1044,172 +1042,27 @@
   }
 
   function loadPageSize() {
-    const raw = localStorage.getItem(STORAGE_PAGE_SIZE);
-    const normalized = normalizePageSize(raw);
-    filterState.pageSize = normalized;
-    if (pageSizeSelect) {
-      pageSizeSelect.value = normalized === Infinity ? 'all' : String(normalized);
-    }
+    dialogsListRuntime?.loadPageSize();
   }
 
   function configureSlaWindowSelect() {
-    if (!slaWindowSelect) {
-      return;
-    }
-    const optionsMarkup = ['<option value="">SLA: все</option>']
-      .concat(DIALOG_SLA_WINDOW_PRESETS.map((minutes) => `<option value="${minutes}">Реакция ≤ ${minutes}м</option>`))
-      .join('');
-    slaWindowSelect.innerHTML = optionsMarkup;
-    slaWindowSelect.value = Number.isFinite(filterState.slaWindowMinutes)
-      ? String(filterState.slaWindowMinutes)
-      : '';
+    dialogsListRuntime?.configureSlaWindowSelect();
   }
 
   function persistPageSize() {
-    if (filterState.pageSize === Infinity) {
-      localStorage.setItem(STORAGE_PAGE_SIZE, 'all');
-      queueServerTriagePreferencesSave();
-      return;
-    }
-    localStorage.setItem(STORAGE_PAGE_SIZE, String(filterState.pageSize));
-    queueServerTriagePreferencesSave();
+    dialogsListRuntime?.persistPageSize();
   }
 
   function restoreDialogPreferences() {
-    try {
-      const storedView = localStorage.getItem(STORAGE_VIEW);
-      if (storedView) {
-        filterState.view = normalizeDialogView(storedView);
-      }
-      const storedSlaWindow = Number.parseInt(localStorage.getItem(STORAGE_SLA_WINDOW), 10);
-      if (Number.isFinite(storedSlaWindow) && DIALOG_SLA_WINDOW_PRESETS.includes(storedSlaWindow)) {
-        filterState.slaWindowMinutes = storedSlaWindow;
-      }
-      const storedSortMode = String(localStorage.getItem(STORAGE_SORT_MODE) || '').trim().toLowerCase();
-      filterState.sortMode = storedSortMode === 'sla_priority' ? 'sla_priority' : filterState.sortMode;
-    } catch (_error) {
-      // ignore storage read errors
-    }
+    dialogsListRuntime?.restoreDialogPreferences();
   }
 
   function persistDialogPreferences() {
-    try {
-      localStorage.setItem(STORAGE_VIEW, filterState.view || 'all');
-      if (Number.isFinite(filterState.slaWindowMinutes) && filterState.slaWindowMinutes > 0) {
-        localStorage.setItem(STORAGE_SLA_WINDOW, String(filterState.slaWindowMinutes));
-      } else {
-        localStorage.removeItem(STORAGE_SLA_WINDOW);
-      }
-      localStorage.setItem(STORAGE_SORT_MODE, filterState.sortMode || 'default');
-      queueServerTriagePreferencesSave();
-    } catch (_error) {
-      // ignore storage write errors
-    }
-  }
-
-  function applyServerTriagePreferences(preferences) {
-    if (!preferences || typeof preferences !== 'object') return false;
-    let changed = false;
-    const rawView = String(preferences.view || '').trim().toLowerCase();
-    if (rawView) {
-      const normalizedView = normalizeDialogView(rawView);
-      if (normalizedView !== filterState.view) {
-        filterState.view = normalizedView;
-        changed = true;
-      }
-    }
-    const rawSortMode = String(preferences.sort_mode || preferences.sortMode || '').trim().toLowerCase();
-    if (rawSortMode) {
-      const normalizedSortMode = rawSortMode === 'sla_priority' ? 'sla_priority' : 'default';
-      if (normalizedSortMode !== filterState.sortMode) {
-        filterState.sortMode = normalizedSortMode;
-        changed = true;
-      }
-    }
-    const rawSlaWindow = Number.parseInt(preferences.sla_window_minutes ?? preferences.slaWindowMinutes, 10);
-    if (Number.isFinite(rawSlaWindow) && DIALOG_SLA_WINDOW_PRESETS.includes(rawSlaWindow)) {
-      if (rawSlaWindow !== filterState.slaWindowMinutes) {
-        filterState.slaWindowMinutes = rawSlaWindow;
-        changed = true;
-      }
-    } else if ((preferences.sla_window_minutes === null || preferences.slaWindowMinutes === null)
-      && Number.isFinite(filterState.slaWindowMinutes)) {
-      filterState.slaWindowMinutes = null;
-      changed = true;
-    }
-    const rawPageSize = String(preferences.page_size || preferences.pageSize || '').trim().toLowerCase();
-    if (rawPageSize) {
-      const normalizedPageSize = normalizePageSize(rawPageSize);
-      if (normalizedPageSize !== filterState.pageSize) {
-        filterState.pageSize = normalizedPageSize;
-        changed = true;
-      }
-    }
-    return changed;
+    dialogsListRuntime?.persistDialogPreferences();
   }
 
   async function loadServerTriagePreferences() {
-    try {
-      const response = await fetch('/api/dialogs/triage-preferences', { headers: { Accept: 'application/json' } });
-      if (!response.ok) return;
-      const payload = await response.json().catch(() => null);
-      if (!payload || payload.success !== true || !payload.preferences) return;
-      if (applyServerTriagePreferences(payload.preferences)) {
-        if (pageSizeSelect) {
-          pageSizeSelect.value = filterState.pageSize === Infinity ? 'all' : String(filterState.pageSize);
-        }
-        configureSlaWindowSelect();
-        if (sortModeSelect) {
-          sortModeSelect.value = filterState.sortMode;
-        }
-        const activeTab = Array.from(viewTabs).find((tab) => tab.dataset.dialogView === filterState.view);
-        if (activeTab) {
-          setViewTab(filterState.view);
-        } else {
-          applyFilters();
-        }
-      }
-      triagePreferencesLoadedFromServer = true;
-    } catch (_error) {
-      // ignore network errors and continue with local defaults
-    }
-  }
-
-  function queueServerTriagePreferencesSave() {
-    if (triagePreferencesSaveTimer) {
-      clearTimeout(triagePreferencesSaveTimer);
-    }
-    triagePreferencesSaveTimer = setTimeout(() => {
-      triagePreferencesSaveTimer = null;
-      void saveServerTriagePreferences();
-    }, 500);
-  }
-
-  async function saveServerTriagePreferences() {
-    const payload = {
-      view: filterState.view || 'all',
-      sort_mode: filterState.sortMode || 'default',
-      sla_window_minutes: Number.isFinite(filterState.slaWindowMinutes) ? filterState.slaWindowMinutes : null,
-      page_size: filterState.pageSize === Infinity ? 'all' : String(filterState.pageSize || DEFAULT_PAGE_SIZE),
-    };
-    try {
-      const response = await fetch('/api/dialogs/triage-preferences', {
-        method: 'POST',
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-      if (!response.ok) return;
-      if (triagePreferencesLoadedFromServer) {
-        emitWorkspaceTelemetry('triage_preferences_saved', {
-          reason: `view=${payload.view};sort=${payload.sort_mode};sla=${payload.sla_window_minutes || 'all'};page=${payload.page_size}`,
-        });
-      }
-    } catch (_error) {
-      // ignore network errors and keep local-storage behavior
-    }
+    return await dialogsListRuntime?.loadServerTriagePreferences();
   }
 
   function applyDialogFontSize(value) {
@@ -2509,6 +2362,7 @@
     slaOrchestrationByTicket,
     listPollInterval: LIST_POLL_INTERVAL,
     defaultPageSize: DEFAULT_PAGE_SIZE,
+    dialogSlaWindowPresets: DIALOG_SLA_WINDOW_PRESETS,
     quickSnoozeMinutes: QUICK_SNOOZE_MINUTES,
     overdueThresholdHours: OVERDUE_THRESHOLD_HOURS,
     slaCriticalMinutes: SLA_CRITICAL_MINUTES,
@@ -2526,6 +2380,8 @@
       bulkClearBtn,
       selectAllCheckbox,
       statusFilter,
+      pageSizeSelect,
+      slaWindowSelect,
       viewTabs,
       sortModeSelect,
       pagePrevBtn,
@@ -2589,7 +2445,14 @@
     closeDialogQuick,
     clearSnooze,
     collectRowSearchText,
-    persistDialogPreferences,
+    normalizePageSize,
+    normalizeDialogView,
+    storage: {
+      pageSize: STORAGE_PAGE_SIZE,
+      view: STORAGE_VIEW,
+      slaWindow: STORAGE_SLA_WINDOW,
+      sortMode: STORAGE_SORT_MODE,
+    },
     openDialogEntry,
   }) || null;
 
