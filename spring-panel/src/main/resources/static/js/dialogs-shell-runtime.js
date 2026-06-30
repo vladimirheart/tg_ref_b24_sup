@@ -404,6 +404,31 @@
       });
     }
 
+    function setTaskDraft(payload) {
+      const storageKey = resolveStorageKey(options.storage?.task);
+      if (!storageKey || !payload || !payload.ticketId) return;
+      localStorage.setItem(storageKey, JSON.stringify(payload));
+    }
+
+    function buildTaskCreateUrl(ticketId, clientName) {
+      const params = new URLSearchParams();
+      params.set('create', '1');
+      if (ticketId) params.set('ticketId', String(ticketId));
+      if (clientName) params.set('client', String(clientName));
+      return `/tasks?${params.toString()}`;
+    }
+
+    function openTaskCreateSurface(ticketId, clientName) {
+      const normalizedTicketId = String(ticketId || '').trim();
+      if (!normalizedTicketId) return;
+      const normalizedClientName = String(clientName || '').trim();
+      setTaskDraft({
+        ticketId: normalizedTicketId,
+        client: normalizedClientName,
+      });
+      window.location.href = buildTaskCreateUrl(normalizedTicketId, normalizedClientName);
+    }
+
     function openDialogSurface(ticketId, row, runtimeOptions = {}) {
       if (!ticketId) {
         return Promise.resolve();
@@ -434,6 +459,9 @@
       restoreColumnWidths,
       initColumnResize,
       initDetailsResize,
+      setTaskDraft,
+      buildTaskCreateUrl,
+      openTaskCreateSurface,
       openDialogSurface,
     };
   }

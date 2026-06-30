@@ -377,6 +377,10 @@
     dialogsShellRuntime?.toggleListOnlyMode();
   }
 
+  function openTaskCreateSurface(ticketId, clientName) {
+    dialogsShellRuntime?.openTaskCreateSurface(ticketId, clientName);
+  }
+
   const STORAGE_COLUMNS = 'iguana:dialogs:columns';
   const STORAGE_WIDTHS = 'iguana:dialogs:column-widths';
   const STORAGE_TASK = 'iguana:dialogs:create-task';
@@ -1344,19 +1348,6 @@
     });
   }
 
-  function setTaskDraft(payload) {
-    if (!payload || !payload.ticketId) return;
-    localStorage.setItem(STORAGE_TASK, JSON.stringify(payload));
-  }
-
-  function buildTaskCreateUrl(ticketId, clientName) {
-    const params = new URLSearchParams();
-    params.set('create', '1');
-    if (ticketId) params.set('ticketId', String(ticketId));
-    if (clientName) params.set('client', String(clientName));
-    return `/tasks?${params.toString()}`;
-  }
-
   function collectRowSearchText(row) {
     const parts = [
       row.dataset.ticketId,
@@ -1472,6 +1463,7 @@
       compactMode: STORAGE_COMPACT_MODE,
       listOnlyMode: STORAGE_LIST_ONLY_MODE,
       widths: STORAGE_WIDTHS,
+      task: STORAGE_TASK,
     },
     getHeaderCells: () => headerCells,
     rowsList,
@@ -3602,11 +3594,7 @@
       if (actionMenu) setDialogActionsMenuOpen(actionMenu, false);
       const ticketId = taskBtn.dataset.ticketId;
       const clientName = taskBtn.dataset.client;
-      setTaskDraft({
-        ticketId,
-        client: clientName,
-      });
-      window.location.href = buildTaskCreateUrl(ticketId, clientName);
+      openTaskCreateSurface(ticketId, clientName);
       return;
     }
   });
@@ -3656,8 +3644,7 @@
       const ticketId = String(activeDialogTicketId || activeWorkspaceTicketId || '').trim();
       const client = String(detailsClientName?.textContent || '').trim();
       if (!ticketId) return;
-      setTaskDraft({ ticketId, client });
-      window.location.href = buildTaskCreateUrl(ticketId, client);
+      openTaskCreateSurface(ticketId, client);
     });
   }
 
@@ -3682,8 +3669,7 @@
       const ticketId = String(activeWorkspaceTicketId || '').trim();
       const client = String(detailsClientName?.textContent || '').trim();
       if (!ticketId) return;
-      setTaskDraft({ ticketId, client });
-      window.location.href = buildTaskCreateUrl(ticketId, client);
+      openTaskCreateSurface(ticketId, client);
     });
   }
 
