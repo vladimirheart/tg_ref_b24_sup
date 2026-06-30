@@ -51,7 +51,26 @@
     return map;
   }
 
+  function resolveConfig(options) {
+    const config = options && typeof options.config === 'object' ? options.config : null;
+    return config && !Array.isArray(config) ? config : {};
+  }
+
+  function readConfigObject(config, key) {
+    const value = config && typeof config[key] === 'object' ? config[key] : null;
+    return value && !Array.isArray(value) ? value : null;
+  }
+
+  function readConfigArray(config, key) {
+    return Array.isArray(config && config[key]) ? config[key] : null;
+  }
+
   function createRuntime(options = {}) {
+    const config = resolveConfig(options);
+    const clientStatusUsage = readConfigObject(config, 'statusUsage') || options.statusUsage || {};
+    const initialClientStatuses = readConfigArray(config, 'clientStatuses') || options.initialClientStatuses || [];
+    const initialClientStatusColors = readConfigObject(config, 'clientStatusColors') || options.initialClientStatusColors || {};
+    const initialBusinessCellStyles = readConfigObject(config, 'businessCellStyles') || options.initialBusinessCellStyles || {};
     const notify = typeof options.showPopup === 'function'
       ? options.showPopup
       : (message) => console.log(message);
@@ -59,17 +78,17 @@
       ? options.escapeHtml
       : fallbackEscapeHtml;
     const state = {
-      clientStatusUsage: options.statusUsage && typeof options.statusUsage === 'object'
-        ? { ...options.statusUsage }
+      clientStatusUsage: clientStatusUsage && typeof clientStatusUsage === 'object'
+        ? { ...clientStatusUsage }
         : {},
-      initialClientStatuses: Array.isArray(options.initialClientStatuses)
-        ? options.initialClientStatuses.slice()
+      initialClientStatuses: Array.isArray(initialClientStatuses)
+        ? initialClientStatuses.slice()
         : [],
-      initialClientStatusColors: options.initialClientStatusColors && typeof options.initialClientStatusColors === 'object'
-        ? { ...options.initialClientStatusColors }
+      initialClientStatusColors: initialClientStatusColors && typeof initialClientStatusColors === 'object'
+        ? { ...initialClientStatusColors }
         : {},
-      initialBusinessCellStyles: options.initialBusinessCellStyles && typeof options.initialBusinessCellStyles === 'object'
-        ? { ...options.initialBusinessCellStyles }
+      initialBusinessCellStyles: initialBusinessCellStyles && typeof initialBusinessCellStyles === 'object'
+        ? { ...initialBusinessCellStyles }
         : {},
       clientStatusColors: {},
       statusEditMode: false,

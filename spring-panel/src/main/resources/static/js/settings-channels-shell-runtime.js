@@ -3,7 +3,26 @@
     return;
   }
 
+  function resolveConfig(options) {
+    const config = options && typeof options.config === 'object' ? options.config : null;
+    return config && !Array.isArray(config) ? config : {};
+  }
+
+  function readConfigObject(config, key) {
+    const value = config && typeof config[key] === 'object' ? config[key] : null;
+    return value && !Array.isArray(value) ? value : null;
+  }
+
+  function readConfigArray(config, key) {
+    return Array.isArray(config && config[key]) ? config[key] : null;
+  }
+
   function createRuntime(options = {}) {
+    const config = resolveConfig(options);
+    const botSettingsInitial = readConfigObject(config, 'botSettings') || options.botSettingsInitial || {};
+    const autoCloseConfig = readConfigObject(config, 'autoCloseConfig') || options.autoCloseConfig || {};
+    const integrationNetworkInitial = readConfigObject(config, 'integrationNetwork') || options.integrationNetworkInitial || {};
+    const integrationNetworkProfilesInitial = readConfigArray(config, 'integrationNetworkProfiles') || options.integrationNetworkProfilesInitial || [];
     const state = {
       channelsInitialized: false,
       channelsRegistry: new Map(),
@@ -11,8 +30,8 @@
         channelId: null,
         tokenVisible: false,
       },
-      integrationNetworkProfilesData: Array.isArray(options.integrationNetworkProfilesInitial)
-        ? options.integrationNetworkProfilesInitial
+      integrationNetworkProfilesData: Array.isArray(integrationNetworkProfilesInitial)
+        ? integrationNetworkProfilesInitial
         : [],
     };
 
@@ -102,14 +121,14 @@
     }
 
     const settingsChannelTemplates = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsChannelTemplatesRuntime', {
-      botSettingsInitial: options.botSettingsInitial || {},
-      autoCloseConfig: options.autoCloseConfig || {},
+      botSettingsInitial,
+      autoCloseConfig,
       escapeHtml: options.escapeHtml,
       pluralize,
     });
     const settingsChannelConfig = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsChannelConfigRuntime');
     const settingsIntegrationNetwork = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsIntegrationNetworkRuntime', {
-      initialIntegrationNetwork: options.integrationNetworkInitial || {},
+      initialIntegrationNetwork,
       getProfilesData: () => state.integrationNetworkProfilesData,
       setProfilesData: (nextProfiles) => {
         state.integrationNetworkProfilesData = Array.isArray(nextProfiles) ? nextProfiles : [];
@@ -120,8 +139,8 @@
       requestSettingsModalClose: requestCloseModal,
       showPopup: (message, type) => typeof options.showPopup === 'function' ? options.showPopup(message, type) : undefined,
     });
-    state.integrationNetworkProfilesData = Array.isArray(options.integrationNetworkProfilesInitial)
-      ? options.integrationNetworkProfilesInitial.map((item) => settingsIntegrationNetwork.normalizeIntegrationNetworkProfile(item))
+    state.integrationNetworkProfilesData = Array.isArray(integrationNetworkProfilesInitial)
+      ? integrationNetworkProfilesInitial.map((item) => settingsIntegrationNetwork.normalizeIntegrationNetworkProfile(item))
       : [];
 
     function populateChannelEditor(channel) {

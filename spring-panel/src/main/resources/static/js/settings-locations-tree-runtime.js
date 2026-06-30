@@ -116,32 +116,44 @@
     return result;
   }
 
+  function resolveConfig(options) {
+    const config = options && typeof options.config === 'object' ? options.config : null;
+    return config && !Array.isArray(config) ? config : {};
+  }
+
+  function readConfigObject(config, key) {
+    const value = config && typeof config[key] === 'object' ? config[key] : null;
+    return value && !Array.isArray(value) ? value : null;
+  }
+
   function createRuntime(options = {}) {
     const collapsedLocationNodes = new Set();
+    const config = resolveConfig(options);
+    const initialLocations = readConfigObject(config, 'tree') || options.initialLocations || {};
     const popup = typeof options.showPopup === 'function'
       ? options.showPopup
       : defaultNotify;
     const state = {
       tree:
-        options.initialLocations &&
-        typeof options.initialLocations === 'object' &&
-        options.initialLocations.tree &&
-        typeof options.initialLocations.tree === 'object'
-          ? normalizeLocationTree(options.initialLocations.tree)
-          : normalizeLocationTree(options.initialLocations || {}),
+        initialLocations &&
+        typeof initialLocations === 'object' &&
+        initialLocations.tree &&
+        typeof initialLocations.tree === 'object'
+          ? normalizeLocationTree(initialLocations.tree)
+          : normalizeLocationTree(initialLocations || {}),
       statuses: sanitizeStatusesMap(
-        options.initialLocations && typeof options.initialLocations === 'object'
-          ? options.initialLocations.statuses
+        initialLocations && typeof initialLocations === 'object'
+          ? initialLocations.statuses
           : {},
       ),
       city_meta: sanitizeMetaMap(
-        options.initialLocations && typeof options.initialLocations === 'object'
-          ? options.initialLocations.city_meta
+        initialLocations && typeof initialLocations === 'object'
+          ? initialLocations.city_meta
           : {},
       ),
       location_meta: sanitizeMetaMap(
-        options.initialLocations && typeof options.initialLocations === 'object'
-          ? options.initialLocations.location_meta
+        initialLocations && typeof initialLocations === 'object'
+          ? initialLocations.location_meta
           : {},
       ),
     };

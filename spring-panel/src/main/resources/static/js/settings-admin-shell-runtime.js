@@ -9,10 +9,25 @@
       : null;
   }
 
+  function resolveConfig(options) {
+    const config = options && typeof options.config === 'object' ? options.config : null;
+    return config && !Array.isArray(config) ? config : {};
+  }
+
+  function readConfigObject(config, key) {
+    const value = config && typeof config[key] === 'object' ? config[key] : null;
+    return value && !Array.isArray(value) ? value : null;
+  }
+
+  function readConfigArray(config, key) {
+    return Array.isArray(config && config[key]) ? config[key] : null;
+  }
+
   function createRuntime(options = {}) {
+    const config = resolveConfig(options);
     const reportingRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsReportingManagerBindings', {
-      reportingConfigInitial: options.reportingConfigInitial,
-      managerLocationBindingsInitial: options.managerLocationBindingsInitial,
+      reportingConfigInitial: readConfigObject(config, 'reportingConfig') || options.reportingConfigInitial,
+      managerLocationBindingsInitial: readConfigArray(config, 'managerLocationBindings') || options.managerLocationBindingsInitial,
       getLocationsState: typeof options.getLocationsState === 'function'
         ? options.getLocationsState
         : null,

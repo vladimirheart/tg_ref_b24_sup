@@ -74,15 +74,34 @@
     };
   }
 
+  function resolveConfig(options) {
+    const config = options && typeof options.config === 'object' ? options.config : null;
+    return config && !Array.isArray(config) ? config : {};
+  }
+
+  function readConfigObject(config, key) {
+    const value = config && typeof config[key] === 'object' ? config[key] : null;
+    return value && !Array.isArray(value) ? value : null;
+  }
+
+  function readConfigArray(config, key) {
+    return Array.isArray(config && config[key]) ? config[key] : null;
+  }
+
   function createRuntime(options = {}) {
+    const config = resolveConfig(options);
     const escapeHtml = typeof options.escapeHtml === 'function'
       ? options.escapeHtml
       : fallbackEscapeHtml;
     const notify = typeof options.showPopup === 'function'
       ? options.showPopup
       : (message) => console.log(message);
-    let locationsIikoServerSourcesState = sanitizeLocationsIikoServerSources(options.initialServerSources);
-    let locationsIikoSyncSettingsState = sanitizeLocationsIikoSyncSettings(options.initialSyncSettings);
+    let locationsIikoServerSourcesState = sanitizeLocationsIikoServerSources(
+      readConfigArray(config, 'iikoServerSources') || options.initialServerSources,
+    );
+    let locationsIikoSyncSettingsState = sanitizeLocationsIikoSyncSettings(
+      readConfigObject(config, 'iikoSyncSettings') || options.initialSyncSettings,
+    );
     let locationsSyncStatusPollTimer = null;
 
     function serializeLocationsIikoServerSources() {

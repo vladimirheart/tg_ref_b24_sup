@@ -3,7 +3,22 @@
     return;
   }
 
+  function resolveConfig(options) {
+    const config = options && typeof options.config === 'object' ? options.config : null;
+    return config && !Array.isArray(config) ? config : {};
+  }
+
+  function readConfigObject(config, key) {
+    const value = config && typeof config[key] === 'object' ? config[key] : null;
+    return value && !Array.isArray(value) ? value : null;
+  }
+
+  function readConfigArray(config, key) {
+    return Array.isArray(config && config[key]) ? config[key] : null;
+  }
+
   function createRuntime(options = {}) {
+    const config = resolveConfig(options);
     const state = {
       parameterData: {},
       parametersLoaded: false,
@@ -55,46 +70,79 @@
     }
 
     function getParameterTitles() {
+      const configValue = readConfigObject(config, 'titles');
+      if (configValue) {
+        return configValue;
+      }
       const value = typeof options.getParameterTitles === 'function' ? options.getParameterTitles() : null;
       return value && typeof value === 'object' ? value : {};
     }
 
     function getParameterDependencies() {
+      const configValue = readConfigObject(config, 'dependencies');
+      if (configValue) {
+        return configValue;
+      }
       const value = typeof options.getParameterDependencies === 'function' ? options.getParameterDependencies() : null;
       return value && typeof value === 'object' ? value : {};
     }
 
     function getParameterStateTypes() {
+      if (config.stateTypes instanceof Set) {
+        return config.stateTypes;
+      }
       const value = typeof options.getParameterStateTypes === 'function' ? options.getParameterStateTypes() : null;
       return value instanceof Set ? value : new Set();
     }
 
     function getParameterStates() {
+      const configValue = readConfigArray(config, 'states');
+      if (configValue) {
+        return configValue;
+      }
       const value = typeof options.getParameterStates === 'function' ? options.getParameterStates() : null;
       return Array.isArray(value) && value.length ? value : ['Активен'];
     }
 
     function getParameterFilterKeys() {
+      const configValue = readConfigObject(config, 'filterKeys');
+      if (configValue) {
+        return configValue;
+      }
       const value = typeof options.getParameterFilterKeys === 'function' ? options.getParameterFilterKeys() : null;
       return value && typeof value === 'object' ? value : {};
     }
 
     function getCityParameterType() {
+      if (typeof config.cityParameterType === 'string' && config.cityParameterType.trim()) {
+        return config.cityParameterType.trim();
+      }
       return typeof options.getCityParameterType === 'function' ? options.getCityParameterType() : 'city';
     }
 
     function getCityParameterLabel() {
+      if (typeof config.cityParameterLabel === 'string' && config.cityParameterLabel.trim()) {
+        return config.cityParameterLabel.trim();
+      }
       return typeof options.getCityParameterLabel === 'function'
         ? options.getCityParameterLabel()
         : 'Город';
     }
 
     function getCityOptions() {
+      const configValue = readConfigArray(config, 'cityOptions');
+      if (configValue) {
+        return configValue;
+      }
       const value = typeof options.getCityOptions === 'function' ? options.getCityOptions() : null;
       return Array.isArray(value) ? value : [];
     }
 
     function getItConnectionFallbackLabels() {
+      const configValue = readConfigObject(config, 'itConnectionFallbackLabels');
+      if (configValue) {
+        return configValue;
+      }
       const value = typeof options.getItConnectionFallbackLabels === 'function'
         ? options.getItConnectionFallbackLabels()
         : null;
@@ -102,6 +150,10 @@
     }
 
     function getItConnectionCategoryFields() {
+      const configValue = readConfigObject(config, 'itConnectionCategoryFields');
+      if (configValue) {
+        return configValue;
+      }
       const value = typeof options.getItConnectionCategoryFields === 'function'
         ? options.getItConnectionCategoryFields()
         : null;
@@ -109,6 +161,10 @@
     }
 
     function getItConnectionUsageFilterParams() {
+      const configValue = readConfigObject(config, 'itConnectionUsageFilterParams');
+      if (configValue) {
+        return configValue;
+      }
       const value = typeof options.getItConnectionUsageFilterParams === 'function'
         ? options.getItConnectionUsageFilterParams()
         : null;
@@ -116,11 +172,19 @@
     }
 
     function getPartnerContactTypes() {
+      const configValue = readConfigObject(config, 'partnerContactTypes');
+      if (configValue) {
+        return configValue;
+      }
       const value = typeof options.getPartnerContactTypes === 'function' ? options.getPartnerContactTypes() : null;
       return value && typeof value === 'object' ? value : {};
     }
 
     function getPartnerContactPhoneTypes() {
+      const configValue = readConfigObject(config, 'partnerContactPhoneTypes');
+      if (configValue) {
+        return configValue;
+      }
       const value = typeof options.getPartnerContactPhoneTypes === 'function'
         ? options.getPartnerContactPhoneTypes()
         : null;
@@ -128,6 +192,10 @@
     }
 
     function getPartnerContactEmailTypes() {
+      const configValue = readConfigObject(config, 'partnerContactEmailTypes');
+      if (configValue) {
+        return configValue;
+      }
       const value = typeof options.getPartnerContactEmailTypes === 'function'
         ? options.getPartnerContactEmailTypes()
         : null;
@@ -135,6 +203,10 @@
     }
 
     function getPartnerContactStateClassMap() {
+      const configValue = readConfigObject(config, 'partnerContactStateClassMap');
+      if (configValue) {
+        return configValue;
+      }
       const value = typeof options.getPartnerContactStateClassMap === 'function'
         ? options.getPartnerContactStateClassMap()
         : null;

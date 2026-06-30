@@ -3,13 +3,37 @@
     return;
   }
 
+  function resolveConfig(options) {
+    const config = options && typeof options.config === 'object' ? options.config : null;
+    return config && !Array.isArray(config) ? config : {};
+  }
+
+  function readConfigObject(config, key) {
+    const value = config && typeof config[key] === 'object' ? config[key] : null;
+    return value && !Array.isArray(value) ? value : null;
+  }
+
+  function readConfigArray(config, key) {
+    return Array.isArray(config && config[key]) ? config[key] : null;
+  }
+
   function createRuntime(options = {}) {
+    const config = resolveConfig(options);
+
     function getInitialProfiles() {
+      const configValue = readConfigArray(config, 'networkProfiles');
+      if (configValue) {
+        return configValue;
+      }
       const value = typeof options.getInitialProfiles === 'function' ? options.getInitialProfiles() : null;
       return Array.isArray(value) ? value : [];
     }
 
     function getContractUsageData() {
+      const configValue = readConfigObject(config, 'contractUsageData');
+      if (configValue) {
+        return configValue;
+      }
       const value = typeof options.getContractUsageData === 'function' ? options.getContractUsageData() : null;
       return value && typeof value === 'object' ? value : {};
     }

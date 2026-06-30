@@ -85,21 +85,7 @@
     }) || null;
 
     const settingsParametersShellRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsParametersShellRuntime', {
-      getParameterTitles: () => parameters.titles || options.parameterTitles || {},
-      getParameterDependencies: () => parameters.dependencies || options.parameterDependencies || {},
-      getParameterStateTypes: () => parameters.stateTypes || options.parameterStateTypes || new Set(),
-      getParameterStates: () => parameters.states || options.parameterStates || [],
-      getParameterFilterKeys: () => parameters.filterKeys || options.parameterFilterKeys || {},
-      getCityParameterType: () => parameters.cityParameterType || options.cityParameterType || 'city',
-      getCityParameterLabel: () => parameters.cityParameterLabel || options.cityParameterLabel || 'Город',
-      getCityOptions: () => parameters.cityOptions || options.cityOptions || [],
-      getItConnectionFallbackLabels: () => parameters.itConnectionFallbackLabels || options.itConnectionFallbackLabels || {},
-      getItConnectionCategoryFields: () => parameters.itConnectionCategoryFields || options.itConnectionCategoryFields || {},
-      getItConnectionUsageFilterParams: () => parameters.itConnectionUsageFilterParams || options.itConnectionUsageFilterParams || {},
-      getPartnerContactTypes: () => parameters.partnerContactTypes || options.partnerContactTypes || {},
-      getPartnerContactPhoneTypes: () => parameters.partnerContactPhoneTypes || options.partnerContactPhoneTypes || {},
-      getPartnerContactEmailTypes: () => parameters.partnerContactEmailTypes || options.partnerContactEmailTypes || {},
-      getPartnerContactStateClassMap: () => parameters.partnerContactStateClassMap || options.partnerContactStateClassMap || {},
+      config: parameters,
       showPopup: (message) => showPopup(message),
       escapeHtml,
       requestSettingsModalClose: (source) => requestSettingsModalClose(source),
@@ -108,8 +94,7 @@
     }) || null;
 
     const settingsNetworkProfilesRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsNetworkProfilesRuntime', {
-      getInitialProfiles: () => parameters.networkProfiles || options.networkProfilesInitial || [],
-      getContractUsageData: () => parameters.contractUsageData || options.contractUsageData || {},
+      config: parameters,
       escapeHtml,
       showPopup: (message) => showPopup(message),
       requestSettingsModalClose: (source) => requestSettingsModalClose(source),
@@ -118,23 +103,19 @@
     settingsNetworkProfilesRuntime?.renderNetworkProfiles();
 
     const settingsAppearanceRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsAppearanceRuntime', {
-      statusUsage: appearance.statusUsage || options.statusUsage || {},
-      initialClientStatuses: appearance.clientStatuses || options.initialClientStatuses || [],
-      initialClientStatusColors: appearance.clientStatusColors || options.initialClientStatusColors || {},
-      initialBusinessCellStyles: appearance.businessCellStyles || options.initialBusinessCellStyles || {},
+      config: appearance,
       showPopup: (message, type) => showPopup(message, type),
       escapeHtml,
     }) || null;
 
     const settingsLocationsIikoRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsLocationsIikoRuntime', {
-      initialServerSources: locations.iikoServerSources || options.locationsIikoServerSourcesInitial || [],
-      initialSyncSettings: locations.iikoSyncSettings || options.locationsIikoSyncSettingsInitial || {},
+      config: locations,
       showPopup: (message, type) => showPopup(message, type),
       escapeHtml,
     }) || null;
 
     settingsLocationsTreeRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsLocationsTreeRuntime', {
-      initialLocations: locations.tree || options.locationsInitial || {},
+      config: locations,
       loadParameters: () => settingsParametersShellRuntime?.loadParameters(),
       showPopup: (message, type) => showPopup(message, type),
       serializeLocationsIikoServerSources: () => settingsLocationsIikoRuntime?.serializeLocationsIikoServerSources?.() || [],
@@ -162,10 +143,10 @@
     }) || null;
 
     const settingsChannelsShellRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsChannelsShellRuntime', {
-      botSettingsInitial: channels.botSettings || options.botSettingsInitial || {},
-      autoCloseConfig: dialog.autoCloseConfig || options.autoCloseConfig || {},
-      integrationNetworkInitial: channels.integrationNetwork || options.integrationNetworkInitial || {},
-      integrationNetworkProfilesInitial: channels.integrationNetworkProfiles || options.integrationNetworkProfilesInitial || [],
+      config: {
+        ...channels,
+        autoCloseConfig: dialog.autoCloseConfig || options.autoCloseConfig || {},
+      },
       escapeHtml,
       getCookieValue: (name) => getCookieValue(name),
       requestSettingsModalClose: (source) => requestSettingsModalClose(source),
@@ -175,8 +156,7 @@
     }) || null;
 
     const settingsAdminShellRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsAdminShellRuntime', {
-      reportingConfigInitial: admin.reportingConfig || options.reportingConfigInitial || {},
-      managerLocationBindingsInitial: admin.managerLocationBindings || options.managerLocationBindingsInitial || [],
+      config: admin,
       getLocationsState: () => settingsLocationsTreeRuntime?.getState() || {},
     }) || null;
 
