@@ -46,6 +46,11 @@
       : function fallbackConfirmDialog(message) {
           return typeof globalThis.confirm === 'function' ? globalThis.confirm(message) : false;
         };
+    const promptDialog = typeof options.promptDialog === 'function'
+      ? options.promptDialog
+      : function fallbackPromptDialog(message, defaultValue = '') {
+          return typeof globalThis.prompt === 'function' ? globalThis.prompt(message, defaultValue) : null;
+        };
 
     const settingsDialogSlaCoreRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsDialogSlaCoreRuntime', {
       getDialogConfig: () => dialog.config || options.dialogConfig || {},
@@ -90,6 +95,7 @@
       escapeHtml,
       requestSettingsModalClose: (source) => requestSettingsModalClose(source),
       confirmDialog: (message) => confirmDialog(message),
+      promptDialog: (message, defaultValue) => promptDialog(message, defaultValue),
       buildLocationsTree: () => settingsLocationsTreeRuntime?.buildLocationsTree(),
     }) || null;
 
@@ -105,6 +111,7 @@
     const settingsAppearanceRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsAppearanceRuntime', {
       config: appearance,
       showPopup: (message, type) => showPopup(message, type),
+      confirmDialog: (message) => confirmDialog(message),
       escapeHtml,
     }) || null;
 
@@ -118,6 +125,8 @@
       config: locations,
       loadParameters: () => settingsParametersShellRuntime?.loadParameters(),
       showPopup: (message, type) => showPopup(message, type),
+      confirmDialog: (message) => confirmDialog(message),
+      promptDialog: (message, defaultValue) => promptDialog(message, defaultValue),
       serializeLocationsIikoServerSources: () => settingsLocationsIikoRuntime?.serializeLocationsIikoServerSources?.() || [],
       serializeLocationsIikoSyncSettings: () => settingsLocationsIikoRuntime?.serializeLocationsIikoSyncSettings?.() || {},
       markLocationsIikoServerSourcesSaved: () => settingsLocationsIikoRuntime?.markLocationsIikoServerSourcesSaved?.(),

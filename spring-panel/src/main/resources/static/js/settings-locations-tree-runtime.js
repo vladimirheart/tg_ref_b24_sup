@@ -130,6 +130,14 @@
     const collapsedLocationNodes = new Set();
     const config = resolveConfig(options);
     const initialLocations = readConfigObject(config, 'tree') || options.initialLocations || {};
+    const confirmDialog = typeof options.confirmDialog === 'function'
+      ? options.confirmDialog
+      : (message) => (typeof globalThis.confirm === 'function' ? globalThis.confirm(message) : false);
+    const promptDialog = typeof options.promptDialog === 'function'
+      ? options.promptDialog
+      : (message, defaultValue = '') => (typeof globalThis.prompt === 'function'
+        ? globalThis.prompt(message, defaultValue)
+        : null);
     const popup = typeof options.showPopup === 'function'
       ? options.showPopup
       : defaultNotify;
@@ -506,7 +514,7 @@
       const total = Number.isFinite(Number(attempts)) && attempts > 0 ? Math.ceil(attempts) : 1;
       for (let index = 1; index <= total; index += 1) {
         const suffix = total > 1 ? `\nПодтвердите действие (${index}/${total})` : '';
-        if (!confirm(`${message}${suffix}`)) {
+        if (!confirmDialog(`${message}${suffix}`)) {
           return false;
         }
       }
@@ -906,7 +914,7 @@
     }
 
     function addBusiness() {
-      const name = prompt('Название бизнеса:');
+      const name = promptDialog('Название бизнеса:');
       const trimmed = (name || '').trim();
       if (!trimmed) {
         return;
@@ -980,7 +988,7 @@
       if (!types) {
         return;
       }
-      const name = prompt('Название типа:');
+      const name = promptDialog('Название типа:');
       const trimmed = (name || '').trim();
       if (!trimmed) {
         return;
@@ -1064,7 +1072,7 @@
       if (!cities || typeof cities !== 'object') {
         return;
       }
-      const name = prompt('Название города:');
+      const name = promptDialog('Название города:');
       const trimmed = (name || '').trim();
       if (!trimmed) {
         return;
@@ -1151,7 +1159,7 @@
         return;
       }
       const list = Array.isArray(cities[cityName]) ? cities[cityName] : [];
-      const name = prompt('Название локации:');
+      const name = promptDialog('Название локации:');
       const trimmed = (name || '').trim();
       if (!trimmed) {
         return;

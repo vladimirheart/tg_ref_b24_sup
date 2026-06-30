@@ -69,6 +69,13 @@
       return false;
     }
 
+    function promptAction(message, defaultValue = '') {
+      if (typeof options.promptDialog === 'function') {
+        return options.promptDialog(message, defaultValue);
+      }
+      return null;
+    }
+
     function getParameterTitles() {
       const configValue = readConfigObject(config, 'titles');
       if (configValue) {
@@ -368,6 +375,7 @@
         renderCurrentParameterModal: (...args) => renderCurrentParameterModal(...args),
         requestSettingsModalClose: (source) => requestClose(source),
         confirmDialog: (message) => confirmAction(message),
+        promptDialog: (message, defaultValue) => promptAction(message, defaultValue),
         renderItEquipmentTable: (...args) => renderItEquipmentTable(...args),
       });
 

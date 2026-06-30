@@ -114,6 +114,13 @@
       return false;
     }
 
+    function promptAction(message, defaultValue = '') {
+      if (typeof options.promptDialog === 'function') {
+        return options.promptDialog(message, defaultValue);
+      }
+      return null;
+    }
+
     function rebuildCategorySelect(select, selectedKey) {
       if (typeof options.rebuildItConnectionCategorySelect === 'function') {
         options.rebuildItConnectionCategorySelect(select, selectedKey);
@@ -488,7 +495,7 @@
 
     async function handleCategoryCreate() {
       const promptMessage = 'Введите название новой категории подключения';
-      let label = window.prompt(promptMessage);
+      let label = promptAction(promptMessage);
       if (label === null) {
         return;
       }

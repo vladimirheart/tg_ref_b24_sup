@@ -74,6 +74,9 @@
     const notify = typeof options.showPopup === 'function'
       ? options.showPopup
       : (message) => console.log(message);
+    const confirmDialog = typeof options.confirmDialog === 'function'
+      ? options.confirmDialog
+      : (message) => (typeof globalThis.confirm === 'function' ? globalThis.confirm(message) : false);
     const escapeHtml = typeof options.escapeHtml === 'function'
       ? options.escapeHtml
       : fallbackEscapeHtml;
@@ -397,7 +400,7 @@
       }, {});
 
       if (!statuses.length) {
-        if (!confirm('Список статусов пуст. Сохранить и удалить все статусы?')) {
+        if (!confirmDialog('Список статусов пуст. Сохранить и удалить все статусы?')) {
           return;
         }
       }

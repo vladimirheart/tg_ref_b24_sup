@@ -54,6 +54,13 @@
     return false;
   }
 
+  function fallbackPromptDialog(message, defaultValue = '') {
+    if (typeof globalThis.prompt === 'function') {
+      return globalThis.prompt(message, defaultValue);
+    }
+    return null;
+  }
+
   function fallbackRequestSettingsModalClose(source) {
     const requestCloseModal = window.SettingsRuntimeAccess?.resolveRuntimeMethod?.('SettingsPageShell', 'requestCloseModal');
     return typeof requestCloseModal === 'function' ? requestCloseModal(source) : undefined;
@@ -95,6 +102,7 @@
       showPopup: resolveFunction(options.showPopup, fallbackShowPopup),
       showNotification: resolveFunction(options.showNotification, fallbackShowNotification),
       confirmDialog: resolveFunction(options.confirmDialog, fallbackConfirmDialog),
+      promptDialog: resolveFunction(options.promptDialog, fallbackPromptDialog),
     }) || null;
 
     return {
