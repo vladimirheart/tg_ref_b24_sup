@@ -63,7 +63,7 @@
 - часть inline `style/script` блоков в `settings`, `dashboard`, `dialogs`
   остаётся техническим долгом UI-слоя, но главный remaining browser-hotspot
   теперь заметнее сконцентрирован в `dialogs.js`, который после последних
-  bounded runtime-срезов уже сжат примерно до `4382` строк и ближе к thin
+  bounded runtime-срезов уже сжат примерно до `4330` строк и ближе к thin
   orchestration shell, чем к исходному монолиту.
 
 ## Фазы

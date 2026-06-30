@@ -3450,81 +3450,29 @@
     dialogsShellRuntime?.initDetailsResize();
   }
 
-  function normalizeMessageSender(sender) {
-    const value = String(sender || '').toLowerCase();
-    if (value.includes('support') || value.includes('operator') || value.includes('admin') || value.includes('system') || value.includes('ai_agent')) {
-      return 'support';
-    }
-    return 'user';
-  }
-
   function normalizeMessageSenderByType(messageType, sender) {
-    const type = String(messageType || '').toLowerCase();
-    if (type.includes('operator')) return 'support';
-    if (type.includes('system')) return 'system';
-    return normalizeMessageSender(sender);
+    return dialogsPresentationRuntime?.normalizeMessageSenderByType(messageType, sender) || 'user';
   }
 
   function resolveSenderLabel(message, context) {
-    const senderType = normalizeMessageSenderByType(message?.messageType, message?.sender);
-    if (senderType === 'support') {
-      return context?.operatorName || message?.sender || OPERATOR_DISPLAY_NAME || 'Оператор';
-    }
-    if (senderType === 'system') {
-      return message?.sender || 'Система';
-    }
-    return context?.clientName || message?.sender || 'Клиент';
+    return dialogsPresentationRuntime?.resolveSenderLabel(message, context)
+      || context?.clientName
+      || message?.sender
+      || 'Клиент';
   }
 
   function parseUtcDateValue(value) {
-    if (value === null || value === undefined || value === '') return null;
-    const rawValue = typeof value === 'string' ? value.trim() : value;
-    if (rawValue === '') return null;
-    let normalized = rawValue;
-    if (typeof rawValue === 'string' && /^\d+(\.\d+)?$/.test(rawValue)) {
-      normalized = Number(rawValue);
-    }
-    if (typeof normalized === 'number') {
-      const epochMs = normalized < 1000000000000 ? normalized * 1000 : normalized;
-      const parsedFromEpoch = new Date(epochMs);
-      return Number.isNaN(parsedFromEpoch.getTime()) ? null : parsedFromEpoch;
-    }
-    if (typeof normalized === 'string') {
-      let candidate = normalized.replace(' ', 'T');
-      if (/^\d{4}-\d{2}-\d{2}$/.test(candidate)) {
-        candidate = `${candidate}T00:00:00Z`;
-      } else if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?$/.test(candidate)) {
-        candidate = `${candidate}Z`;
-      }
-      const parsedFromString = new Date(candidate);
-      if (!Number.isNaN(parsedFromString.getTime())) {
-        return parsedFromString;
-      }
-    }
-    const parsed = new Date(normalized);
-    return Number.isNaN(parsed.getTime()) ? null : parsed;
+    return dialogsPresentationRuntime?.parseUtcDateValue(value) || null;
   }
 
   function formatUtcDate(date, options = {}) {
-    if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
-      return options.fallback || '—';
-    }
-    const day = String(date.getUTCDate()).padStart(2, '0');
-    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-    const year = date.getUTCFullYear();
-    const base = `${day}.${month}.${year}`;
-    if (!options.includeTime) {
-      return base;
-    }
-    const hours = String(date.getUTCHours()).padStart(2, '0');
-    const minutes = String(date.getUTCMinutes()).padStart(2, '0');
-    return `${base} ${hours}:${minutes} UTC`;
+    return dialogsPresentationRuntime?.formatUtcDate(date, options) || options.fallback || '—';
   }
 
   function formatTimestamp(value, options = {}) {
-    const parsed = parseUtcDateValue(value);
-    if (!parsed) return options.fallback || String(value || '');
-    return formatUtcDate(parsed, { includeTime: options.includeTime, fallback: options.fallback || '—' });
+    return dialogsPresentationRuntime?.formatTimestamp(value, options)
+      || options.fallback
+      || String(value || '');
   }
 
   function buildMediaMarkup(message) {
