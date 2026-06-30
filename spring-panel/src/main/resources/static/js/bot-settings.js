@@ -35,11 +35,19 @@
   }
   const parentModalEl = mainModal.closest('.modal');
 
-  const templateModalEl = document.getElementById('botTemplateEditorModal');
-  const templateModal = templateModalEl && typeof bootstrap !== 'undefined'
-    ? new bootstrap.Modal(templateModalEl)
-    : null;
+  function resolveSettingsPageShellMethod(methodName) {
+    const settingsPageShell = window.SettingsPageShell;
+    if (settingsPageShell && typeof settingsPageShell[methodName] === 'function') {
+      return settingsPageShell[methodName].bind(settingsPageShell);
+    }
+    const runtimeMethod = window.SettingsRuntimeAccess?.resolveRuntimeMethod?.('SettingsPageShell', methodName);
+    return typeof runtimeMethod === 'function' ? runtimeMethod : null;
+  }
 
+  const showSettingsModal = resolveSettingsPageShellMethod('showModal');
+  const hideSettingsModal = resolveSettingsPageShellMethod('hideModal');
+
+  const templateModalEl = document.getElementById('botTemplateEditorModal');
   const templatesContainer = mainModal.querySelector('[data-bot-templates-container]');
   const createTemplateButton = mainModal.querySelector('[data-bot-template-create]');
   const ratingTemplatesContainer = mainModal.querySelector('[data-bot-rating-templates-container]');
@@ -59,9 +67,6 @@
   const templateCancelButton = templateModalEl ? templateModalEl.querySelector('[data-bot-template-cancel]') : null;
 
   const ratingModalEl = document.getElementById('botRatingTemplateModal');
-  const ratingModal = ratingModalEl && typeof bootstrap !== 'undefined'
-    ? new bootstrap.Modal(ratingModalEl)
-    : null;
   const ratingNameInput = ratingModalEl ? ratingModalEl.querySelector('[data-bot-rating-template-name]') : null;
   const ratingDescriptionInput = ratingModalEl ? ratingModalEl.querySelector('[data-bot-rating-template-description]') : null;
   const ratingPromptInput = ratingModalEl ? ratingModalEl.querySelector('[data-bot-rating-template-prompt]') : null;
@@ -84,6 +89,28 @@
       parentModalEl.removeAttribute('aria-hidden');
       parentModalEl.inert = false;
     }
+  }
+
+  function canManageChildModal(modalEl) {
+    return modalEl instanceof HTMLElement
+      && typeof showSettingsModal === 'function'
+      && typeof hideSettingsModal === 'function';
+  }
+
+  function showChildModal(modalEl) {
+    if (!canManageChildModal(modalEl)) {
+      return false;
+    }
+    showSettingsModal(modalEl);
+    return true;
+  }
+
+  function hideChildModal(modalEl) {
+    if (!canManageChildModal(modalEl)) {
+      return false;
+    }
+    hideSettingsModal(modalEl);
+    return true;
   }
 
   const PRESET_GROUPS = {};
@@ -791,7 +818,6 @@
   };
 
   const bridgeSubscribers = new Set();
-  let bridgeReady = false;
 
   function getBridgeSnapshot() {
     return {
@@ -824,11 +850,6 @@
         console.error('BotSettingsBridge subscriber error:', error);
       }
     });
-    window.dispatchEvent(new CustomEvent('bot-settings:change', { detail: snapshot }));
-    if (!bridgeReady) {
-      bridgeReady = true;
-      window.dispatchEvent(new CustomEvent('bot-settings:ready', { detail: snapshot }));
-    }
   }
 
   function setupBridge() {
@@ -1139,9 +1160,7 @@
 
     renderRatingEditorResponses();
     setRatingTemplateStatus('', false);
-    if (ratingModal) {
-      ratingModal.show();
-    }
+    showChildModal(ratingModalEl);
   }
 
   function saveRatingTemplateFromEditor() {
@@ -1190,9 +1209,7 @@
       }
     }
 
-    if (ratingModal) {
-      ratingModal.hide();
-    }
+    hideChildModal(ratingModalEl);
     renderRatingTemplates();
   }
 
@@ -1667,7 +1684,7 @@
     renderPresetHints();
   }
   function openTemplateEditor(index) {
-    if (!templateModal) {
+    if (!canManageChildModal(templateModalEl)) {
       return;
     }
     if (typeof index === 'number' && index >= 0 && index < state.templates.length) {
@@ -1697,7 +1714,7 @@
     }
     setTemplateStatus('', false);
     renderQuestions();
-    templateModal.show();
+    showChildModal(templateModalEl);
   }
 
   async function saveTemplateFromEditor() {
@@ -1818,7 +1835,7 @@
     try {
       await persistBotSettingsPayload(collectPayload());
       setTemplateStatus('Шаблон сохранён.', false);
-      templateModal.hide();
+      hideChildModal(templateModalEl);
       return true;
     } catch (error) {
       state.templates = previousTemplates.map((template) => cloneTemplate(template));
@@ -2387,9 +2404,9 @@
     });
   }
 
-  if (templateCancelButton && templateModal) {
+  if (templateCancelButton && templateModalEl) {
     templateCancelButton.addEventListener('click', () => {
-      templateModal.hide();
+      hideChildModal(templateModalEl);
     });
   }
 
@@ -2464,9 +2481,9 @@
     });
   }
 
-  if (ratingCancelButton && ratingModal) {
+  if (ratingCancelButton && ratingModalEl) {
     ratingCancelButton.addEventListener('click', () => {
-      ratingModal.hide();
+      hideChildModal(ratingModalEl);
     });
   }
 
