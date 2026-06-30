@@ -151,7 +151,7 @@
 🟣 [01-129] Разрезать giant settings runtime на bounded client-side модули
 🟡 [01-130] Разделить giant dialogs.js на bounded client-side runtime modules
 🟣 [01-131] Разрезать ChannelApiController по transport responsibility
-🟠 [01-132] Разрезать AnalyticsController по bounded governance и analytics use-cases
+🟣 [01-132] Разрезать AnalyticsController по bounded governance и analytics use-cases
 🟣 [01-133] Автосоздавать задачу при auto-close диалога с тем же ответственным, соисполнителями-участниками и ссылкой на диалог
 🟣 [01-134] Выпилить оставшийся backend/test слой PublicForm после удаления публичных форм из проекта
 🟠 [01-135] Дочистить server-rendered payload/data contract страницы settings после runtime split

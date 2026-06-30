@@ -35,7 +35,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
-@WebMvcTest(AnalyticsController.class)
+@WebMvcTest({
+        AnalyticsController.class,
+        AnalyticsWorkspaceRolloutGovernanceController.class,
+        AnalyticsWorkspaceContextController.class,
+        AnalyticsSlaGovernanceController.class,
+        AnalyticsMacroGovernanceController.class
+})
 @AutoConfigureMockMvc(addFilters = false)
 class AnalyticsControllerWebMvcTest {
 
