@@ -411,6 +411,14 @@
     return root instanceof HTMLElement ? root : null;
   }
 
+  function resolveSettingsRuntimeApi(runtimeName) {
+    if (typeof runtimeName !== 'string' || !runtimeName.trim()) {
+      return null;
+    }
+    const runtimeApi = globalThis[runtimeName.trim()];
+    return runtimeApi && typeof runtimeApi === 'object' ? runtimeApi : null;
+  }
+
   function resolveSettingsRuntimeNamespaceCallback(callbackName) {
     const normalizedName = typeof callbackName === 'string' ? callbackName.trim() : '';
     if (!normalizedName) {
@@ -420,7 +428,7 @@
     if (!target || typeof target !== 'object') {
       return null;
     }
-    const runtime = window[target.runtimeName];
+    const runtime = resolveSettingsRuntimeApi(target.runtimeName);
     if (!runtime || typeof runtime !== 'object') {
       return null;
     }

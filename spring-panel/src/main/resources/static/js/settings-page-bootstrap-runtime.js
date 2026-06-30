@@ -13,8 +13,16 @@
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
+      .replace(/'/g, '&#039;');
     };
+  }
+
+  function mountSettingsRuntime(runtimeName, options = {}) {
+    const runtimeApi = globalThis[runtimeName];
+    if (!runtimeApi || typeof runtimeApi.mount !== 'function') {
+      return null;
+    }
+    return runtimeApi.mount(options);
   }
 
   function createRuntime(options = {}) {
@@ -36,29 +44,29 @@
           return typeof globalThis.confirm === 'function' ? globalThis.confirm(message) : false;
         };
 
-    const settingsDialogSlaCoreRuntime = window.SettingsDialogSlaCoreRuntime?.mount({
+    const settingsDialogSlaCoreRuntime = mountSettingsRuntime('SettingsDialogSlaCoreRuntime', {
       getDialogConfig: () => options.dialogConfig || {},
       getDefaultDialogSlaConfig: () => options.defaultDialogSlaConfig || {},
     }) || null;
 
-    const settingsDialogMetricsRuntime = window.SettingsDialogMetricsRuntime?.mount({
+    const settingsDialogMetricsRuntime = mountSettingsRuntime('SettingsDialogMetricsRuntime', {
       getDialogConfig: () => options.dialogConfig || {},
       getDefaultDialogTimeMetrics: () => options.defaultDialogTimeMetrics || {},
       getDefaultSummaryBadges: () => options.defaultSummaryBadges || {},
     }) || null;
 
-    const settingsDialogWorkspaceGovernanceRuntime = window.SettingsDialogWorkspaceGovernanceRuntime?.mount({
+    const settingsDialogWorkspaceGovernanceRuntime = mountSettingsRuntime('SettingsDialogWorkspaceGovernanceRuntime', {
       getDialogConfig: () => options.dialogConfig || {},
       getDefaultDialogSlaConfig: () => options.defaultDialogSlaConfig || {},
     }) || null;
 
-    const settingsDialogWorkspaceExternalKpiRuntime = window.SettingsDialogWorkspaceExternalKpiRuntime?.mount({
+    const settingsDialogWorkspaceExternalKpiRuntime = mountSettingsRuntime('SettingsDialogWorkspaceExternalKpiRuntime', {
       getDialogConfig: () => options.dialogConfig || {},
       getDefaultDialogSlaConfig: () => options.defaultDialogSlaConfig || {},
       escapeHtml,
     }) || null;
 
-    const settingsDialogTemplatesRuntime = window.SettingsDialogTemplatesRuntime?.mount({
+    const settingsDialogTemplatesRuntime = mountSettingsRuntime('SettingsDialogTemplatesRuntime', {
       getDialogConfig: () => options.dialogConfig || {},
       getAutoCloseConfig: () => options.autoCloseConfig || {},
       getAutoCloseFallbackHours: () => options.autoCloseFallbackHours ?? 24,
@@ -67,13 +75,13 @@
       escapeHtml,
     }) || null;
 
-    const settingsDialogShellRuntime = window.SettingsDialogShellRuntime?.mount({
+    const settingsDialogShellRuntime = mountSettingsRuntime('SettingsDialogShellRuntime', {
       slaCoreRuntime: settingsDialogSlaCoreRuntime,
       workspaceGovernanceRuntime: settingsDialogWorkspaceGovernanceRuntime,
       workspaceExternalKpiRuntime: settingsDialogWorkspaceExternalKpiRuntime,
     }) || null;
 
-    const settingsParametersShellRuntime = window.SettingsParametersShellRuntime?.mount({
+    const settingsParametersShellRuntime = mountSettingsRuntime('SettingsParametersShellRuntime', {
       getParameterTitles: () => options.parameterTitles || {},
       getParameterDependencies: () => options.parameterDependencies || {},
       getParameterStateTypes: () => options.parameterStateTypes || new Set(),
@@ -96,7 +104,7 @@
       buildLocationsTree: () => settingsLocationsTreeRuntime?.buildLocationsTree(),
     }) || null;
 
-    const settingsNetworkProfilesRuntime = window.SettingsNetworkProfilesRuntime?.mount({
+    const settingsNetworkProfilesRuntime = mountSettingsRuntime('SettingsNetworkProfilesRuntime', {
       getInitialProfiles: () => options.networkProfilesInitial || [],
       getContractUsageData: () => options.contractUsageData || {},
       escapeHtml,
@@ -106,7 +114,7 @@
     }) || null;
     settingsNetworkProfilesRuntime?.renderNetworkProfiles();
 
-    const settingsAppearanceRuntime = window.SettingsAppearanceRuntime?.mount({
+    const settingsAppearanceRuntime = mountSettingsRuntime('SettingsAppearanceRuntime', {
       statusUsage: options.statusUsage || {},
       initialClientStatuses: options.initialClientStatuses || [],
       initialClientStatusColors: options.initialClientStatusColors || {},
@@ -115,14 +123,14 @@
       escapeHtml,
     }) || null;
 
-    const settingsLocationsIikoRuntime = window.SettingsLocationsIikoRuntime?.mount({
+    const settingsLocationsIikoRuntime = mountSettingsRuntime('SettingsLocationsIikoRuntime', {
       initialServerSources: options.locationsIikoServerSourcesInitial || [],
       initialSyncSettings: options.locationsIikoSyncSettingsInitial || {},
       showPopup: (message, type) => showPopup(message, type),
       escapeHtml,
     }) || null;
 
-    settingsLocationsTreeRuntime = window.SettingsLocationsTreeRuntime?.mount({
+    settingsLocationsTreeRuntime = mountSettingsRuntime('SettingsLocationsTreeRuntime', {
       initialLocations: options.locationsInitial || {},
       loadParameters: () => settingsParametersShellRuntime?.loadParameters(),
       showPopup: (message, type) => showPopup(message, type),
@@ -131,7 +139,7 @@
       markLocationsIikoServerSourcesSaved: () => settingsLocationsIikoRuntime?.markLocationsIikoServerSourcesSaved?.(),
     }) || null;
 
-    const settingsLocationWizardRuntime = window.SettingsLocationWizardRuntime?.mount({
+    const settingsLocationWizardRuntime = mountSettingsRuntime('SettingsLocationWizardRuntime', {
       getParameterData: () => settingsParametersShellRuntime?.getParameterData() || {},
       getLocationsState: () => settingsLocationsTreeRuntime?.getState() || {},
       getCityOptionsFallback: () => options.cityOptions || [],
@@ -150,7 +158,7 @@
       defaultLocationStatus: settingsLocationsTreeRuntime?.getDefaultLocationStatus(),
     }) || null;
 
-    const settingsChannelsShellRuntime = window.SettingsChannelsShellRuntime?.mount({
+    const settingsChannelsShellRuntime = mountSettingsRuntime('SettingsChannelsShellRuntime', {
       botSettingsInitial: options.botSettingsInitial || {},
       autoCloseConfig: options.autoCloseConfig || {},
       integrationNetworkInitial: options.integrationNetworkInitial || {},
@@ -163,13 +171,13 @@
       confirmDialog: (message) => confirmDialog(message),
     }) || null;
 
-    const settingsAdminShellRuntime = window.SettingsAdminShellRuntime?.mount({
+    const settingsAdminShellRuntime = mountSettingsRuntime('SettingsAdminShellRuntime', {
       reportingConfigInitial: options.reportingConfigInitial || {},
       managerLocationBindingsInitial: options.managerLocationBindingsInitial || [],
       getLocationsState: () => settingsLocationsTreeRuntime?.getState() || {},
     }) || null;
 
-    const settingsSaveRuntime = window.SettingsSaveRuntime?.mount({
+    const settingsSaveRuntime = mountSettingsRuntime('SettingsSaveRuntime', {
       templatesRuntime: settingsDialogTemplatesRuntime,
       metricsRuntime: settingsDialogMetricsRuntime,
       dialogShellRuntime: settingsDialogShellRuntime,

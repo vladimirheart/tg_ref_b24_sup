@@ -3,6 +3,14 @@
     return;
   }
 
+  function mountSettingsRuntime(runtimeName, options = {}) {
+    const runtimeApi = globalThis[runtimeName];
+    if (!runtimeApi || typeof runtimeApi.mount !== 'function') {
+      return null;
+    }
+    return runtimeApi.mount(options);
+  }
+
   function createRuntime(options = {}) {
     const state = {
       channelsInitialized: false,
@@ -101,14 +109,14 @@
       return parts.length ? parts.join(' • ') : '—';
     }
 
-    const settingsChannelTemplates = window.SettingsChannelTemplatesRuntime?.mount({
+    const settingsChannelTemplates = mountSettingsRuntime('SettingsChannelTemplatesRuntime', {
       botSettingsInitial: options.botSettingsInitial || {},
       autoCloseConfig: options.autoCloseConfig || {},
       escapeHtml: options.escapeHtml,
       pluralize,
     });
-    const settingsChannelConfig = window.SettingsChannelConfigRuntime?.mount();
-    const settingsIntegrationNetwork = window.SettingsIntegrationNetworkRuntime?.mount({
+    const settingsChannelConfig = mountSettingsRuntime('SettingsChannelConfigRuntime');
+    const settingsIntegrationNetwork = mountSettingsRuntime('SettingsIntegrationNetworkRuntime', {
       initialIntegrationNetwork: options.integrationNetworkInitial || {},
       getProfilesData: () => state.integrationNetworkProfilesData,
       setProfilesData: (nextProfiles) => {
@@ -189,7 +197,7 @@
       };
     }
 
-    const settingsChannelsCatalog = window.SettingsChannelsCatalogRuntime?.mount({
+    const settingsChannelsCatalog = mountSettingsRuntime('SettingsChannelsCatalogRuntime', {
       getChannelsRegistry: () => state.channelsRegistry,
       getChannelEditorState: () => state.channelEditorState,
       getQuestionTemplates: () => settingsChannelTemplates.getQuestionTemplates(),
@@ -216,7 +224,7 @@
       showNotification: typeof options.showNotification === 'function' ? options.showNotification : null,
       startBot: (...args) => settingsChannelsBotRuntime.startBot(...args),
     });
-    const settingsChannelsBotRuntime = window.SettingsChannelsBotRuntime?.mount({
+    const settingsChannelsBotRuntime = mountSettingsRuntime('SettingsChannelsBotRuntime', {
       getChannelsRegistry: () => state.channelsRegistry,
       getChannelEditorState: () => state.channelEditorState,
       notifyChannelStatus: (...args) => settingsChannelsCatalog.notifyChannelStatus(...args),
@@ -224,7 +232,7 @@
       showPopup: (message) => popup(message),
       getCookieValue: (name) => typeof options.getCookieValue === 'function' ? options.getCookieValue(name) : '',
     });
-    const settingsChannelEditorShell = window.SettingsChannelEditorShellRuntime?.mount({
+    const settingsChannelEditorShell = mountSettingsRuntime('SettingsChannelEditorShellRuntime', {
       getChannelsRegistry: () => state.channelsRegistry,
       getChannelEditorState: () => state.channelEditorState,
       getQuestionTemplates: () => settingsChannelTemplates.getQuestionTemplates(),
@@ -257,7 +265,7 @@
       showPopup: (message) => popup(message),
       populateChannelEditor,
     });
-    const settingsChannelEditorPersistence = window.SettingsChannelEditorPersistenceRuntime?.mount({
+    const settingsChannelEditorPersistence = mountSettingsRuntime('SettingsChannelEditorPersistenceRuntime', {
       getChannelsRegistry: () => state.channelsRegistry,
       getChannelEditorState: () => state.channelEditorState,
       parseDeliverySettings: (...args) => settingsChannelConfig.parseDeliverySettings(...args),
@@ -271,7 +279,7 @@
       showPopup: (message) => popup(message),
       confirmDialog: (message) => typeof options.confirmDialog === 'function' ? options.confirmDialog(message) : false,
     });
-    const settingsChannelEditorControls = window.SettingsChannelEditorControlsRuntime?.mount({
+    const settingsChannelEditorControls = mountSettingsRuntime('SettingsChannelEditorControlsRuntime', {
       getChannelEditorState: () => state.channelEditorState,
       channelEditorShell: settingsChannelEditorShell,
       channelBotRuntime: settingsChannelsBotRuntime,
