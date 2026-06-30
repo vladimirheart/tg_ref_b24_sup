@@ -3,6 +3,27 @@
     return;
   }
 
+  const ALLOWED_DIALOG_VIEWS = new Set([
+    'all',
+    'active',
+    'new',
+    'unassigned',
+    'overdue',
+    'sla_critical',
+    'escalation_required',
+  ]);
+
+  function normalizeDialogView(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    return ALLOWED_DIALOG_VIEWS.has(normalized) ? normalized : 'all';
+  }
+
+  function normalizePageSize(value, fallbackValue = 20) {
+    if (value === 'all') return Infinity;
+    const parsed = Number.parseInt(value, 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : fallbackValue;
+  }
+
   function createRuntime(options = {}) {
     const elements = options.elements || {};
     const table = options.table;
@@ -72,20 +93,12 @@
       return String(key || '').trim();
     }
 
-    function normalizePageSize(value) {
-      if (typeof options.normalizePageSize === 'function') {
-        return options.normalizePageSize(value);
-      }
-      if (value === 'all') return Infinity;
-      const parsed = Number.parseInt(value, 10);
-      return Number.isFinite(parsed) && parsed > 0 ? parsed : options.defaultPageSize;
+    function resolvePageSize(value) {
+      return normalizePageSize(value, options.defaultPageSize);
     }
 
-    function normalizeDialogView(value) {
-      if (typeof options.normalizeDialogView === 'function') {
-        return options.normalizeDialogView(value);
-      }
-      return String(value || 'all').trim().toLowerCase() || 'all';
+    function resolveDialogView(value) {
+      return normalizeDialogView(value);
     }
 
     function getSlaWindowPresets() {
@@ -99,7 +112,7 @@
     function loadPageSize() {
       const storageKey = resolveStorageKey(options.storage?.pageSize);
       const raw = storageKey ? localStorage.getItem(storageKey) : null;
-      const normalized = normalizePageSize(raw);
+      const normalized = resolvePageSize(raw);
       const filterState = getFilterState();
       filterState.pageSize = normalized;
       if (elements.pageSizeSelect) {
@@ -152,7 +165,7 @@
         const sortModeStorageKey = resolveStorageKey(options.storage?.sortMode);
         const storedView = viewStorageKey ? localStorage.getItem(viewStorageKey) : null;
         if (storedView) {
-          filterState.view = normalizeDialogView(storedView);
+          filterState.view = resolveDialogView(storedView);
         }
         const storedSlaWindow = Number.parseInt(
           slaWindowStorageKey ? localStorage.getItem(slaWindowStorageKey) : null,
@@ -201,7 +214,7 @@
       let changed = false;
       const rawView = String(preferences.view || '').trim().toLowerCase();
       if (rawView) {
-        const normalizedView = normalizeDialogView(rawView);
+        const normalizedView = resolveDialogView(rawView);
         if (normalizedView !== filterState.view) {
           filterState.view = normalizedView;
           changed = true;
@@ -228,13 +241,53 @@
       }
       const rawPageSize = String(preferences.page_size || preferences.pageSize || '').trim().toLowerCase();
       if (rawPageSize) {
-        const normalizedPageSize = normalizePageSize(rawPageSize);
+        const normalizedPageSize = resolvePageSize(rawPageSize);
         if (normalizedPageSize !== filterState.pageSize) {
           filterState.pageSize = normalizedPageSize;
           changed = true;
         }
       }
       return changed;
+    }
+
+    function bindViewStateEvents() {
+      if (elements.pageSizeSelect) {
+        elements.pageSizeSelect.addEventListener('change', () => {
+          const filterState = getFilterState();
+          filterState.pageSize = resolvePageSize(elements.pageSizeSelect.value);
+          persistPageSize();
+          applyFilters({ resetPage: true });
+        });
+      }
+
+      if (elements.slaWindowSelect) {
+        elements.slaWindowSelect.addEventListener('change', () => {
+          const parsed = Number.parseInt(elements.slaWindowSelect.value, 10);
+          const filterState = getFilterState();
+          filterState.slaWindowMinutes = Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+          persistDialogPreferences();
+          applyFilters({ resetPage: true });
+        });
+      }
+
+      if (elements.sortModeSelect) {
+        elements.sortModeSelect.addEventListener('change', () => {
+          const filterState = getFilterState();
+          const value = String(elements.sortModeSelect.value || 'default').trim().toLowerCase();
+          filterState.sortMode = value === 'sla_priority' ? 'sla_priority' : 'default';
+          if (filterState.sortMode !== 'sla_priority') {
+            options.setLastManualSortMode?.(filterState.sortMode);
+          }
+          persistDialogPreferences();
+          applyFilters({ resetPage: true });
+        });
+      }
+
+      getViewTabs().forEach((tab) => {
+        tab.addEventListener('click', () => {
+          setViewTab(tab.dataset.dialogView || 'all');
+        });
+      });
     }
 
     async function loadServerTriagePreferences() {
@@ -1132,6 +1185,7 @@
       restoreDialogPreferences,
       persistDialogPreferences,
       loadServerTriagePreferences,
+      bindViewStateEvents,
       applyFilters,
       applyQuickSearch,
       applyStatusFilter,
@@ -1151,5 +1205,7 @@
 
   window.DialogsListRuntime = {
     createRuntime,
+    normalizeDialogView,
+    normalizePageSize,
   };
 })();

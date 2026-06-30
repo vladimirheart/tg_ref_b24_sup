@@ -472,12 +472,6 @@
     return Math.min(maxValue, Math.max(minValue, parsed));
   }
 
-  function normalizeDialogView(value) {
-    const normalized = String(value || '').trim().toLowerCase();
-    const allowed = new Set(['all', 'active', 'new', 'unassigned', 'overdue', 'sla_critical', 'escalation_required']);
-    return allowed.has(normalized) ? normalized : 'all';
-  }
-
   function formatSnoozeActionLabel(minutes) {
     const normalizedMinutes = Math.max(1, Number(minutes) || QUICK_SNOOZE_MINUTES);
     if (normalizedMinutes % 60 === 0) {
@@ -528,7 +522,7 @@
     const parsed = Number.parseInt(window.DIALOG_CONFIG?.sla_window_default_minutes, 10);
     return Number.isFinite(parsed) && DIALOG_SLA_WINDOW_PRESETS.includes(parsed) ? parsed : null;
   })();
-  const DIALOG_DEFAULT_VIEW = normalizeDialogView(window.DIALOG_CONFIG?.default_view || 'all');
+  const DIALOG_DEFAULT_VIEW = window.DialogsListRuntime?.normalizeDialogView?.(window.DIALOG_CONFIG?.default_view || 'all') || 'all';
   const QUICK_SNOOZE_MINUTES = normalizeNumberInRange(
     window.DIALOG_CONFIG?.quick_snooze_minutes,
     DEFAULT_QUICK_SNOOZE_MINUTES,
@@ -1033,12 +1027,6 @@
     } catch (error) {
       columnState = { ...defaultColumnState };
     }
-  }
-
-  function normalizePageSize(value) {
-    if (value === 'all') return Infinity;
-    const parsed = Number.parseInt(value, 10);
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_PAGE_SIZE;
   }
 
   function loadPageSize() {
@@ -2445,8 +2433,6 @@
     closeDialogQuick,
     clearSnooze,
     collectRowSearchText,
-    normalizePageSize,
-    normalizeDialogView,
     storage: {
       pageSize: STORAGE_PAGE_SIZE,
       view: STORAGE_VIEW,
@@ -3586,34 +3572,7 @@
     });
   }
 
-  if (pageSizeSelect) {
-    pageSizeSelect.addEventListener('change', () => {
-      filterState.pageSize = normalizePageSize(pageSizeSelect.value);
-      persistPageSize();
-      applyFilters({ resetPage: true });
-    });
-  }
-
-  if (slaWindowSelect) {
-    slaWindowSelect.addEventListener('change', () => {
-      const parsed = Number.parseInt(slaWindowSelect.value, 10);
-      filterState.slaWindowMinutes = Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-      persistDialogPreferences();
-      applyFilters({ resetPage: true });
-    });
-  }
-
-  if (sortModeSelect) {
-    sortModeSelect.addEventListener('change', () => {
-      const value = String(sortModeSelect.value || 'default').trim().toLowerCase();
-      filterState.sortMode = value === 'sla_priority' ? 'sla_priority' : 'default';
-      if (filterState.sortMode !== 'sla_priority') {
-        lastManualSortMode = filterState.sortMode;
-      }
-      persistDialogPreferences();
-      applyFilters({ resetPage: true });
-    });
-  }
+  dialogsListRuntime?.bindViewStateEvents();
 
   bindFallbackModalDismiss(filtersModalEl, filtersModal);
   bindFallbackModalDismiss(columnsModalEl, columnsModal);
@@ -3663,14 +3622,6 @@
       lastManualSortMode = 'default';
       persistDialogPreferences();
       applyFilters({ resetPage: true });
-    });
-  }
-
-  if (viewTabs.length) {
-    viewTabs.forEach((tab) => {
-      tab.addEventListener('click', () => {
-        setViewTab(tab.dataset.dialogView || 'all');
-      });
     });
   }
 
