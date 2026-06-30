@@ -195,6 +195,215 @@
       });
     }
 
+    function resolveStorageKey(key) {
+      return String(key || '').trim();
+    }
+
+    function applyCompactMode(enabled) {
+      const active = Boolean(enabled);
+      document.body.classList.toggle('dialog-compact-mode', active);
+      const toggle = options.elements?.dialogCompactToggle;
+      if (toggle) {
+        toggle.textContent = active ? 'Standard mode' : 'Compact mode';
+        toggle.setAttribute('aria-pressed', active ? 'true' : 'false');
+      }
+    }
+
+    function loadCompactMode() {
+      const storageKey = resolveStorageKey(options.storage?.compactMode);
+      if (!storageKey) {
+        applyCompactMode(true);
+        return;
+      }
+      try {
+        const raw = String(localStorage.getItem(storageKey) || '').trim().toLowerCase();
+        if (!raw) {
+          applyCompactMode(true);
+          localStorage.setItem(storageKey, '1');
+          return;
+        }
+        applyCompactMode(raw === '1' || raw === 'true' || raw === 'on');
+      } catch (_error) {
+        applyCompactMode(true);
+      }
+    }
+
+    function toggleCompactMode() {
+      const next = !document.body.classList.contains('dialog-compact-mode');
+      applyCompactMode(next);
+      const storageKey = resolveStorageKey(options.storage?.compactMode);
+      if (!storageKey) return;
+      try {
+        localStorage.setItem(storageKey, next ? '1' : '0');
+      } catch (_error) {
+        // ignore storage write errors
+      }
+    }
+
+    function applyListOnlyMode(enabled) {
+      const active = Boolean(enabled);
+      document.body.classList.toggle('dialog-list-only-mode', active);
+      const toggle = options.elements?.dialogListOnlyToggle;
+      if (toggle) {
+        toggle.textContent = active ? 'Полная страница' : 'Только список';
+        toggle.setAttribute('aria-pressed', active ? 'true' : 'false');
+      }
+    }
+
+    function loadListOnlyMode() {
+      const storageKey = resolveStorageKey(options.storage?.listOnlyMode);
+      if (!storageKey) {
+        applyListOnlyMode(false);
+        return;
+      }
+      try {
+        const raw = String(localStorage.getItem(storageKey) || '').trim().toLowerCase();
+        applyListOnlyMode(raw === '1' || raw === 'true' || raw === 'on');
+      } catch (_error) {
+        applyListOnlyMode(false);
+      }
+    }
+
+    function toggleListOnlyMode() {
+      const next = !document.body.classList.contains('dialog-list-only-mode');
+      applyListOnlyMode(next);
+      const storageKey = resolveStorageKey(options.storage?.listOnlyMode);
+      if (!storageKey) return;
+      try {
+        localStorage.setItem(storageKey, next ? '1' : '0');
+      } catch (_error) {
+        // ignore storage write errors
+      }
+    }
+
+    function getHeaderCells() {
+      if (typeof options.getHeaderCells === 'function') {
+        const cells = options.getHeaderCells();
+        return Array.isArray(cells) ? cells : [];
+      }
+      return [];
+    }
+
+    function getRows() {
+      if (typeof options.rowsList === 'function') {
+        const rows = options.rowsList();
+        return Array.isArray(rows) ? rows : [];
+      }
+      return [];
+    }
+
+    function saveColumnWidths() {
+      const storageKey = resolveStorageKey(options.storage?.widths);
+      if (!storageKey) return;
+      const widths = {};
+      getHeaderCells().forEach((cell) => {
+        const key = cell?.dataset?.columnKey;
+        if (!key || !cell.style.width) return;
+        widths[key] = cell.style.width;
+      });
+      localStorage.setItem(storageKey, JSON.stringify(widths));
+    }
+
+    function restoreColumnWidths() {
+      const storageKey = resolveStorageKey(options.storage?.widths);
+      const table = options.elements?.table;
+      if (!storageKey || !table) return;
+      try {
+        const raw = localStorage.getItem(storageKey);
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object') return;
+        Object.entries(parsed).forEach(([key, width]) => {
+          if (!width) return;
+          const header = table.querySelector(`th[data-column-key="${key}"]`);
+          if (!header) return;
+          header.style.width = width;
+          const index = header.cellIndex;
+          getRows().forEach((row) => {
+            const cell = row.children[index];
+            if (cell) cell.style.width = width;
+          });
+        });
+      } catch (_error) {
+        // ignore restore errors
+      }
+    }
+
+    function initColumnResize() {
+      getHeaderCells().forEach((header) => {
+        if (header?.dataset?.resizable !== 'true') return;
+        const oldHandle = header.querySelector('.resize-handle');
+        if (oldHandle) oldHandle.remove();
+        const handle = document.createElement('div');
+        handle.className = 'resize-handle';
+        header.appendChild(handle);
+
+        handle.addEventListener('mousedown', (event) => {
+          const computed = getComputedStyle(header).width;
+          header.style.width = computed;
+          const index = header.cellIndex;
+          getRows().forEach((row) => {
+            const cell = row.children[index];
+            if (cell) cell.style.width = computed;
+          });
+
+          const startX = event.pageX;
+          const startWidth = parseFloat(computed);
+          document.documentElement.classList.add('resizing');
+
+          function onMouseMove(moveEvent) {
+            const next = startWidth + (moveEvent.pageX - startX);
+            if (next < 80) return;
+            header.style.width = `${next}px`;
+            getRows().forEach((row) => {
+              const cell = row.children[index];
+              if (cell) cell.style.width = `${next}px`;
+            });
+          }
+
+          function onMouseUp() {
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+            document.documentElement.classList.remove('resizing');
+            saveColumnWidths();
+          }
+
+          document.addEventListener('mousemove', onMouseMove);
+          document.addEventListener('mouseup', onMouseUp);
+          event.preventDefault();
+        });
+      });
+    }
+
+    function initDetailsResize() {
+      const detailsSidebar = options.elements?.detailsSidebar;
+      const detailsResizeHandle = options.elements?.detailsResizeHandle;
+      if (!detailsSidebar || !detailsResizeHandle) return;
+      let startX = 0;
+      let startWidth = 0;
+
+      function onMouseMove(event) {
+        const delta = event.clientX - startX;
+        const nextWidth = Math.min(480, Math.max(220, startWidth + delta));
+        detailsSidebar.style.flexBasis = `${nextWidth}px`;
+      }
+
+      function onMouseUp() {
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+        document.documentElement.classList.remove('resizing');
+      }
+
+      detailsResizeHandle.addEventListener('mousedown', (event) => {
+        startX = event.clientX;
+        startWidth = detailsSidebar.getBoundingClientRect().width;
+        document.documentElement.classList.add('resizing');
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+        event.preventDefault();
+      });
+    }
+
     function openDialogSurface(ticketId, row, runtimeOptions = {}) {
       if (!ticketId) {
         return Promise.resolve();
@@ -215,6 +424,16 @@
       getDialogUserId,
       bindAvatar,
       hydrateAvatars,
+      applyCompactMode,
+      loadCompactMode,
+      toggleCompactMode,
+      applyListOnlyMode,
+      loadListOnlyMode,
+      toggleListOnlyMode,
+      saveColumnWidths,
+      restoreColumnWidths,
+      initColumnResize,
+      initDetailsResize,
       openDialogSurface,
     };
   }

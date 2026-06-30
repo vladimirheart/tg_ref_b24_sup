@@ -353,6 +353,30 @@
     });
   }
 
+  function applyCompactMode(enabled) {
+    dialogsShellRuntime?.applyCompactMode(enabled);
+  }
+
+  function loadCompactMode() {
+    dialogsShellRuntime?.loadCompactMode();
+  }
+
+  function toggleCompactMode() {
+    dialogsShellRuntime?.toggleCompactMode();
+  }
+
+  function applyListOnlyMode(enabled) {
+    dialogsShellRuntime?.applyListOnlyMode(enabled);
+  }
+
+  function loadListOnlyMode() {
+    dialogsShellRuntime?.loadListOnlyMode();
+  }
+
+  function toggleListOnlyMode() {
+    dialogsShellRuntime?.toggleListOnlyMode();
+  }
+
   const STORAGE_COLUMNS = 'iguana:dialogs:columns';
   const STORAGE_WIDTHS = 'iguana:dialogs:column-widths';
   const STORAGE_TASK = 'iguana:dialogs:create-task';
@@ -1437,6 +1461,20 @@
     workspaceEnabled: WORKSPACE_V1_ENABLED,
     openDialogWithWorkspaceFallback,
     openDialogDetails,
+    elements: {
+      dialogCompactToggle,
+      dialogListOnlyToggle,
+      detailsSidebar,
+      detailsResizeHandle,
+      table,
+    },
+    storage: {
+      compactMode: STORAGE_COMPACT_MODE,
+      listOnlyMode: STORAGE_LIST_ONLY_MODE,
+      widths: STORAGE_WIDTHS,
+    },
+    getHeaderCells: () => headerCells,
+    rowsList,
   }) || null;
   dialogsParticipantsRuntime = window.DialogsParticipantsRuntime?.createRuntime({
     elements: {
@@ -2380,67 +2418,6 @@
     dialogsParticipantsRuntime?.syncDialogAssignControls();
   }
 
-  function applyCompactMode(enabled) {
-    const active = Boolean(enabled);
-    document.body.classList.toggle('dialog-compact-mode', active);
-    if (dialogCompactToggle) {
-      dialogCompactToggle.textContent = active ? 'Standard mode' : 'Compact mode';
-      dialogCompactToggle.setAttribute('aria-pressed', active ? 'true' : 'false');
-    }
-  }
-
-  function loadCompactMode() {
-    try {
-      const raw = String(localStorage.getItem(STORAGE_COMPACT_MODE) || '').trim().toLowerCase();
-      if (!raw) {
-        applyCompactMode(true);
-        localStorage.setItem(STORAGE_COMPACT_MODE, '1');
-        return;
-      }
-      applyCompactMode(raw === '1' || raw === 'true' || raw === 'on');
-    } catch (_error) {
-      applyCompactMode(true);
-    }
-  }
-
-  function toggleCompactMode() {
-    const next = !document.body.classList.contains('dialog-compact-mode');
-    applyCompactMode(next);
-    try {
-      localStorage.setItem(STORAGE_COMPACT_MODE, next ? '1' : '0');
-    } catch (_error) {
-      // ignore storage write errors
-    }
-  }
-
-  function applyListOnlyMode(enabled) {
-    const active = Boolean(enabled);
-    document.body.classList.toggle('dialog-list-only-mode', active);
-    if (dialogListOnlyToggle) {
-      dialogListOnlyToggle.textContent = active ? 'Полная страница' : 'Только список';
-      dialogListOnlyToggle.setAttribute('aria-pressed', active ? 'true' : 'false');
-    }
-  }
-
-  function loadListOnlyMode() {
-    try {
-      const raw = String(localStorage.getItem(STORAGE_LIST_ONLY_MODE) || '').trim().toLowerCase();
-      applyListOnlyMode(raw === '1' || raw === 'true' || raw === 'on');
-    } catch (_error) {
-      applyListOnlyMode(false);
-    }
-  }
-
-  function toggleListOnlyMode() {
-    const next = !document.body.classList.contains('dialog-list-only-mode');
-    applyListOnlyMode(next);
-    try {
-      localStorage.setItem(STORAGE_LIST_ONLY_MODE, next ? '1' : '0');
-    } catch (_error) {
-      // ignore storage write errors
-    }
-  }
-
   function switchWorkspaceTab(tabName) {
     const target = String(tabName || 'client').trim().toLowerCase() || 'client';
     workspaceTabButtons.forEach((button) => {
@@ -3133,25 +3110,7 @@
   }
 
   function restoreColumnWidths() {
-    try {
-      const raw = localStorage.getItem(STORAGE_WIDTHS);
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
-      if (!parsed || typeof parsed !== 'object') return;
-      Object.entries(parsed).forEach(([key, width]) => {
-        if (!width) return;
-        const header = table.querySelector(`th[data-column-key="${key}"]`);
-        if (!header) return;
-        header.style.width = width;
-        const index = header.cellIndex;
-        rowsList().forEach((row) => {
-          const cell = row.children[index];
-          if (cell) cell.style.width = width;
-        });
-      });
-    } catch (error) {
-      // ignore restore errors
-    }
+    dialogsShellRuntime?.restoreColumnWidths();
   }
 
   function sanitizeHexColor(value, fallback) {
@@ -3483,87 +3442,12 @@
     await dialogsMacroRuntime?.applyMacroTemplate();
   }
 
-  function saveColumnWidths() {
-    const widths = {};
-    headerCells.forEach((cell) => {
-      const key = cell.dataset.columnKey;
-      if (!key || !cell.style.width) return;
-      widths[key] = cell.style.width;
-    });
-    localStorage.setItem(STORAGE_WIDTHS, JSON.stringify(widths));
-  }
-
   function initColumnResize() {
-    headerCells.forEach((header) => {
-      if (header.dataset.resizable !== 'true') return;
-      const oldHandle = header.querySelector('.resize-handle');
-      if (oldHandle) oldHandle.remove();
-      const handle = document.createElement('div');
-      handle.className = 'resize-handle';
-      header.appendChild(handle);
-
-      handle.addEventListener('mousedown', (event) => {
-        const computed = getComputedStyle(header).width;
-        header.style.width = computed;
-        const index = header.cellIndex;
-        rowsList().forEach((row) => {
-          const cell = row.children[index];
-          if (cell) cell.style.width = computed;
-        });
-
-        const startX = event.pageX;
-        const startWidth = parseFloat(computed);
-        document.documentElement.classList.add('resizing');
-
-        function onMouseMove(moveEvent) {
-          const next = startWidth + (moveEvent.pageX - startX);
-          if (next < 80) return;
-          header.style.width = `${next}px`;
-          rowsList().forEach((row) => {
-            const cell = row.children[index];
-            if (cell) cell.style.width = `${next}px`;
-          });
-        }
-
-        function onMouseUp() {
-          document.removeEventListener('mousemove', onMouseMove);
-          document.removeEventListener('mouseup', onMouseUp);
-          document.documentElement.classList.remove('resizing');
-          saveColumnWidths();
-        }
-
-        document.addEventListener('mousemove', onMouseMove);
-        document.addEventListener('mouseup', onMouseUp);
-        event.preventDefault();
-      });
-    });
+    dialogsShellRuntime?.initColumnResize();
   }
 
   function initDetailsResize() {
-    if (!detailsSidebar || !detailsResizeHandle) return;
-    let startX = 0;
-    let startWidth = 0;
-
-    function onMouseMove(event) {
-      const delta = event.clientX - startX;
-      const nextWidth = Math.min(480, Math.max(220, startWidth + delta));
-      detailsSidebar.style.flexBasis = `${nextWidth}px`;
-    }
-
-    function onMouseUp() {
-      document.removeEventListener('mousemove', onMouseMove);
-      document.removeEventListener('mouseup', onMouseUp);
-      document.documentElement.classList.remove('resizing');
-    }
-
-    detailsResizeHandle.addEventListener('mousedown', (event) => {
-      startX = event.clientX;
-      startWidth = detailsSidebar.getBoundingClientRect().width;
-      document.documentElement.classList.add('resizing');
-      document.addEventListener('mousemove', onMouseMove);
-      document.addEventListener('mouseup', onMouseUp);
-      event.preventDefault();
-    });
+    dialogsShellRuntime?.initDetailsResize();
   }
 
   function normalizeMessageSender(sender) {
