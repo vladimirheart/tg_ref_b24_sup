@@ -6859,31 +6859,43 @@
     <script src="/js/settings-page-init-runtime.js"></script>
     <script id="settingsPageInitPayload" type="application/json" data-settings-page-init-payload th:inline="javascript">
 {
-  "dialogConfig": [[${settingsPayload['dialog_config']}]],
-  "canPublishDialogMacros": [[${canPublishDialogMacros}]],
-  "autoCloseConfig": [[${settingsPayload['auto_close_config']}]],
-  "autoCloseFallbackHours": [[${settingsPayload['auto_close_hours']}]],
-  "fallbackDialogCategories": [[${settingsPayload['categories']}]],
-  "reportingConfigInitial": [[${settingsPayload['reporting_config']}]],
-  "managerLocationBindingsInitial": [[${settingsPayload['manager_location_bindings']}]],
-  "botSettingsInitial": [[${settingsPayload['bot_settings']}]],
-  "botPresetDefinitions": [[${botQuestionPresets}]],
-  "integrationNetworkInitial": [[${settingsPayload['integration_network']}]],
-  "integrationNetworkProfilesInitial": [[${settingsPayload['integration_network_profiles']}]],
-  "parameterTitles": [[${parameterTypes}]],
-  "parameterDependencies": [[${parameterDependencies}]],
-  "itConnectionFallbackLabels": [[${itConnectionCategories}]],
-  "itConnectionCategoryFields": [[${itConnectionCategoryFields}]],
-  "cityOptions": [[${cities}]],
-  "contractUsageData": [[${contractUsage}]],
-  "networkProfilesInitial": [[${settingsPayload['network_profiles']}]],
-  "statusUsage": [[${statusUsage}]],
-  "initialClientStatuses": [[${settingsPayload['client_statuses']}]],
-  "initialClientStatusColors": [[${settingsPayload['client_status_colors']}]],
-  "initialBusinessCellStyles": [[${settingsPayload['business_cell_styles']}]],
-  "locationsInitial": [[${locationsPayload}]],
-  "locationsIikoServerSourcesInitial": [[${locationsIikoServerSources}]],
-  "locationsIikoSyncSettingsInitial": [[${locationsIikoSyncSettings}]]
+  "dialog": {
+    "config": [[${settingsPayload['dialog_config']}]],
+    "canPublishMacros": [[${canPublishDialogMacros}]],
+    "autoCloseConfig": [[${settingsPayload['auto_close_config']}]],
+    "autoCloseFallbackHours": [[${settingsPayload['auto_close_hours']}]],
+    "fallbackCategories": [[${settingsPayload['categories']}]]
+  },
+  "admin": {
+    "reportingConfig": [[${settingsPayload['reporting_config']}]],
+    "managerLocationBindings": [[${settingsPayload['manager_location_bindings']}]]
+  },
+  "channels": {
+    "botSettings": [[${settingsPayload['bot_settings']}]],
+    "botPresetDefinitions": [[${botQuestionPresets}]],
+    "integrationNetwork": [[${settingsPayload['integration_network']}]],
+    "integrationNetworkProfiles": [[${settingsPayload['integration_network_profiles']}]]
+  },
+  "parameters": {
+    "titles": [[${parameterTypes}]],
+    "dependencies": [[${parameterDependencies}]],
+    "itConnectionFallbackLabels": [[${itConnectionCategories}]],
+    "itConnectionCategoryFields": [[${itConnectionCategoryFields}]],
+    "cityOptions": [[${cities}]],
+    "contractUsageData": [[${contractUsage}]],
+    "networkProfiles": [[${settingsPayload['network_profiles']}]]
+  },
+  "appearance": {
+    "statusUsage": [[${statusUsage}]],
+    "clientStatuses": [[${settingsPayload['client_statuses']}]],
+    "clientStatusColors": [[${settingsPayload['client_status_colors']}]],
+    "businessCellStyles": [[${settingsPayload['business_cell_styles']}]]
+  },
+  "locations": {
+    "tree": [[${locationsPayload}]],
+    "iikoServerSources": [[${locationsIikoServerSources}]],
+    "iikoSyncSettings": [[${locationsIikoSyncSettings}]]
+  }
 }
   </script>
 
