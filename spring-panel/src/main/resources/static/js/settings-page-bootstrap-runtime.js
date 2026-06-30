@@ -22,6 +22,11 @@
     return section && typeof section === 'object' ? section : {};
   }
 
+  function resolveHelper(options, name, fallback) {
+    const candidate = options && typeof options[name] === 'function' ? options[name] : null;
+    return candidate || fallback;
+  }
+
   function createRuntime(options = {}) {
     const escapeHtml = createEscapeHtml();
     let settingsLocationsTreeRuntime = null;
@@ -32,25 +37,12 @@
     const appearance = resolveConfigSection(options, 'appearance');
     const locations = resolveConfigSection(options, 'locations');
 
-    const showPopup = typeof options.showPopup === 'function'
-      ? options.showPopup
-      : function noopShowPopup() {};
-    const requestSettingsModalClose = typeof options.requestSettingsModalClose === 'function'
-      ? options.requestSettingsModalClose
-      : function noopRequestSettingsModalClose() {};
-    const getCookieValue = typeof options.getCookieValue === 'function'
-      ? options.getCookieValue
-      : function fallbackGetCookieValue() { return ''; };
-    const confirmDialog = typeof options.confirmDialog === 'function'
-      ? options.confirmDialog
-      : function fallbackConfirmDialog(message) {
-          return typeof globalThis.confirm === 'function' ? globalThis.confirm(message) : false;
-        };
-    const promptDialog = typeof options.promptDialog === 'function'
-      ? options.promptDialog
-      : function fallbackPromptDialog(message, defaultValue = '') {
-          return typeof globalThis.prompt === 'function' ? globalThis.prompt(message, defaultValue) : null;
-        };
+    const showPopup = resolveHelper(options, 'showPopup', function noopShowPopup() {});
+    const showNotification = resolveHelper(options, 'showNotification', null);
+    const requestSettingsModalClose = resolveHelper(options, 'requestSettingsModalClose', function noopRequestSettingsModalClose() {});
+    const getCookieValue = resolveHelper(options, 'getCookieValue', function fallbackGetCookieValue() { return ''; });
+    const confirmDialog = resolveHelper(options, 'confirmDialog', function fallbackConfirmDialog() { return false; });
+    const promptDialog = resolveHelper(options, 'promptDialog', function fallbackPromptDialog() { return null; });
 
     const settingsDialogSlaCoreRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsDialogSlaCoreRuntime', {
       getDialogConfig: () => dialog.config || options.dialogConfig || {},
@@ -160,7 +152,7 @@
       getCookieValue: (name) => getCookieValue(name),
       requestSettingsModalClose: (source) => requestSettingsModalClose(source),
       showPopup: (message) => showPopup(message),
-      showNotification: typeof options.showNotification === 'function' ? options.showNotification : null,
+      showNotification,
       confirmDialog: (message) => confirmDialog(message),
     }) || null;
 

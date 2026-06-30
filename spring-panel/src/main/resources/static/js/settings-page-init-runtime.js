@@ -5,13 +5,30 @@
 
   const PAYLOAD_SELECTOR = 'script[data-settings-page-init-payload]';
 
-  function resolveFunction(candidate, fallback) {
-    return typeof candidate === 'function' ? candidate : fallback;
+  function resolveFunction(candidate, ...fallbacks) {
+    if (typeof candidate === 'function') {
+      return candidate;
+    }
+    for (const fallback of fallbacks) {
+      if (typeof fallback === 'function') {
+        return fallback;
+      }
+    }
+    return null;
   }
 
   function getCommonUtils() {
     const commonUtils = window.SettingsRuntimeAccess?.resolveRuntimeApi?.('CommonUtils');
     return commonUtils && typeof commonUtils === 'object' ? commonUtils : null;
+  }
+
+  function resolveCommonUtilsMethod(methodName) {
+    const commonUtils = getCommonUtils();
+    if (!commonUtils || typeof methodName !== 'string' || !methodName.trim()) {
+      return null;
+    }
+    const candidate = commonUtils[methodName.trim()];
+    return typeof candidate === 'function' ? candidate.bind(commonUtils) : null;
   }
 
   function fallbackGetCookieValue(name) {
@@ -29,19 +46,23 @@
     return '';
   }
 
-  function fallbackShowNotification(message, type = 'info') {
-    const commonUtils = getCommonUtils();
-    if (typeof commonUtils?.showNotification === 'function') {
-      commonUtils.showNotification(message, type);
-      return;
-    }
+  function noopShowNotification(message) {
     console.log(message);
   }
 
+  function fallbackShowNotification(message, type = 'info') {
+    const showNotification = resolveCommonUtilsMethod('showNotification');
+    if (showNotification) {
+      showNotification(message, type);
+      return;
+    }
+    noopShowNotification(message, type);
+  }
+
   function fallbackShowPopup(message, type = 'info') {
-    const commonUtils = getCommonUtils();
-    if (typeof commonUtils?.showPopup === 'function') {
-      commonUtils.showPopup(message, type);
+    const showPopup = resolveCommonUtilsMethod('showPopup');
+    if (showPopup) {
+      showPopup(message, type);
       return;
     }
     fallbackShowNotification(message, type);
@@ -64,6 +85,62 @@
   function fallbackRequestSettingsModalClose(source) {
     const requestCloseModal = window.SettingsRuntimeAccess?.resolveRuntimeMethod?.('SettingsPageShell', 'requestCloseModal');
     return typeof requestCloseModal === 'function' ? requestCloseModal(source) : undefined;
+  }
+
+  function resolveGetCookieValue(options) {
+    return resolveFunction(
+      options.getCookieValue,
+      resolveCommonUtilsMethod('getCookieValue'),
+      fallbackGetCookieValue,
+    ) || fallbackGetCookieValue;
+  }
+
+  function resolveRequestSettingsModalClose(options) {
+    return resolveFunction(
+      options.requestSettingsModalClose,
+      fallbackRequestSettingsModalClose,
+    ) || fallbackRequestSettingsModalClose;
+  }
+
+  function resolveShowPopup(options) {
+    return resolveFunction(
+      options.showPopup,
+      resolveCommonUtilsMethod('showPopup'),
+      fallbackShowPopup,
+    ) || fallbackShowPopup;
+  }
+
+  function resolveShowNotification(options) {
+    return resolveFunction(
+      options.showNotification,
+      resolveCommonUtilsMethod('showNotification'),
+      fallbackShowNotification,
+    ) || fallbackShowNotification;
+  }
+
+  function resolveConfirmDialog(options) {
+    return resolveFunction(
+      options.confirmDialog,
+      fallbackConfirmDialog,
+    ) || fallbackConfirmDialog;
+  }
+
+  function resolvePromptDialog(options) {
+    return resolveFunction(
+      options.promptDialog,
+      fallbackPromptDialog,
+    ) || fallbackPromptDialog;
+  }
+
+  function createHelperContract(options = {}) {
+    return {
+      getCookieValue: resolveGetCookieValue(options),
+      requestSettingsModalClose: resolveRequestSettingsModalClose(options),
+      showPopup: resolveShowPopup(options),
+      showNotification: resolveShowNotification(options),
+      confirmDialog: resolveConfirmDialog(options),
+      promptDialog: resolvePromptDialog(options),
+    };
   }
 
   function parseRawConfig(source) {
@@ -94,19 +171,16 @@
   function createRuntime(options = {}) {
     const rawConfig = parseRawConfig(options.rawConfig);
     const settingsPageConfig = window.SettingsRuntimeAccess?.buildPageConfig?.(rawConfig) || {};
+    const helpers = createHelperContract(options);
 
     const bootstrapRuntime = window.SettingsRuntimeAccess?.mountRuntime?.('SettingsPageBootstrapRuntime', {
       ...settingsPageConfig,
-      getCookieValue: resolveFunction(options.getCookieValue, fallbackGetCookieValue),
-      requestSettingsModalClose: resolveFunction(options.requestSettingsModalClose, fallbackRequestSettingsModalClose),
-      showPopup: resolveFunction(options.showPopup, fallbackShowPopup),
-      showNotification: resolveFunction(options.showNotification, fallbackShowNotification),
-      confirmDialog: resolveFunction(options.confirmDialog, fallbackConfirmDialog),
-      promptDialog: resolveFunction(options.promptDialog, fallbackPromptDialog),
+      ...helpers,
     }) || null;
 
     return {
       bootstrapRuntime,
+      helpers,
       settingsPageConfig,
     };
   }

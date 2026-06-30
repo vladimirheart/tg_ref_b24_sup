@@ -492,6 +492,7 @@ if (typeof window !== 'undefined' && !window.__customAlertPatched) {
 
 // Экспортируем функции в глобальную область видимости
 window.CommonUtils = {
+    getCookieValue,
     showPopup,
     showNotification,
     exportDataGeneric,
