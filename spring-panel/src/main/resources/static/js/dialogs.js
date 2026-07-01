@@ -377,6 +377,19 @@
     dialogsShellRuntime?.toggleListOnlyMode();
   }
 
+  function exitListOnlyMode(reason = 'dialog_open') {
+    if (!document.body.classList.contains('dialog-list-only-mode')) {
+      return;
+    }
+    dialogsShellRuntime?.applyListOnlyMode(false);
+    try {
+      localStorage.setItem(STORAGE_LIST_ONLY_MODE, '0');
+    } catch (_error) {
+      // ignore storage write errors
+    }
+    debugLog('listOnlyMode.exited', { reason });
+  }
+
   function openTaskCreateSurface(ticketId, clientName) {
     dialogsShellRuntime?.openTaskCreateSurface(ticketId, clientName);
   }
@@ -2051,6 +2064,10 @@
   function renderDialogRow(item) {
     const ticketId = item?.ticketId || '—';
     const requestNumber = item?.requestNumber;
+    const channelId = item?.channelId;
+    const openHref = channelId
+      ? `/dialogs/${encodeURIComponent(ticketId)}?channelId=${encodeURIComponent(channelId)}`
+      : `/dialogs/${encodeURIComponent(ticketId)}`;
     const displayNumber = requestNumber || ticketId;
     const clientName = item?.clientName || item?.username || 'Неизвестный клиент';
     const clientStatus = item?.clientStatus || 'статус не указан';
@@ -2140,7 +2157,7 @@
         </td>
         <td class="dialog-actions">
           <div class="dialog-actions-inline">
-            <a href="#" class="btn btn-sm btn-outline-primary dialog-open-btn" data-ticket-id="${escapeHtml(ticketId)}">Открыть</a>
+            <a href="${escapeHtml(openHref)}" class="btn btn-sm btn-outline-primary dialog-open-btn" data-ticket-id="${escapeHtml(ticketId)}">Открыть</a>
             <div class="dialog-actions-dropdown" data-dialog-actions>
               <button type="button" class="btn btn-sm btn-outline-secondary dialog-actions-toggle" data-dialog-actions-toggle aria-expanded="false">Действия</button>
               <div class="dialog-actions-menu" data-dialog-actions-menu>
@@ -2912,6 +2929,7 @@
   }
 
   function openDialogSurface(ticketId, row, options = {}) {
+    exitListOnlyMode(options?.reason || options?.source || 'dialog_open');
     return dialogsShellRuntime?.openDialogSurface(ticketId, row, options) || Promise.resolve();
   }
 

@@ -466,7 +466,7 @@
                         </td>
                         <td class="dialog-actions">
                             <div class="dialog-actions-inline">
-                                <a th:href="@{/dialogs/{ticketId}(ticketId=${dialog.ticketId})}"
+                                <a th:href="@{/dialogs/{ticketId}(ticketId=${dialog.ticketId},channelId=${dialog.channelId()})}"
                                    class="btn btn-sm btn-outline-primary dialog-open-btn"
                                    th:data-ticket-id="${dialog.ticketId}">Открыть</a>
                                 <div class="dialog-actions-dropdown" data-dialog-actions>
