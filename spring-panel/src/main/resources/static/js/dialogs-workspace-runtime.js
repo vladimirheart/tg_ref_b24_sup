@@ -1059,14 +1059,17 @@
         options.setActiveWorkspaceTicketId?.(String(ticketId || '').trim());
         options.setActiveWorkspaceChannelId?.(channelId);
         options.setActiveWorkspacePayload?.(workspacePayload);
-        if (source === 'initial_route' || options.inlineNavigation) {
+        const nextUrl = buildWorkspaceDialogUrl(ticketId, channelId);
+        const currentUrl = `${window.location.pathname || ''}${window.location.search || ''}`;
+        const shouldRenderInline = source === 'initial_route'
+          || options.inlineNavigation
+          || currentUrl === nextUrl;
+        if (shouldRenderInline) {
           renderWorkspaceShell(workspacePayload);
-          if (source !== 'initial_route') {
-            const nextUrl = buildWorkspaceDialogUrl(ticketId, channelId);
+          if (source !== 'initial_route' && currentUrl !== nextUrl) {
             window.history.pushState({ ticketId: String(ticketId || '').trim() }, '', nextUrl);
           }
         } else {
-          const nextUrl = buildWorkspaceDialogUrl(ticketId, channelId);
           window.location.assign(nextUrl);
         }
       } catch (error) {

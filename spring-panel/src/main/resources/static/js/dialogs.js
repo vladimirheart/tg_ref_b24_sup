@@ -621,7 +621,14 @@
     ...DEFAULT_OPERATOR_PERMISSIONS,
     ...CONFIG_OPERATOR_PERMISSIONS,
   });
-  const INITIAL_DIALOG_TICKET_ID = String(document.body?.dataset?.initialDialogTicketId || '').trim();
+  const INITIAL_DIALOG_TICKET_ID = (() => {
+    const fromBody = String(document.body?.dataset?.initialDialogTicketId || '').trim();
+    if (fromBody) {
+      return fromBody;
+    }
+    const routeMatch = (window.location.pathname || '').match(/^\/dialogs\/([^/]+)$/);
+    return routeMatch?.[1] ? decodeURIComponent(routeMatch[1]) : '';
+  })();
   const INITIAL_DIALOG_CHANNEL_ID = (() => {
     const raw = new URLSearchParams(window.location.search || '').get('channelId');
     const normalized = String(raw || '').trim();
@@ -1184,30 +1191,24 @@
   function buildDialogsMarker(dialogs) {
     if (!Array.isArray(dialogs) || dialogs.length === 0) return 'empty';
     return dialogs
-      .map((item) => ({
-        ticketId: item?.ticketId || '',
-        requestNumber: item?.requestNumber || '',
-        channelId: item?.channelId || '',
-        status: item?.status || '',
-        statusKey: item?.statusKey || '',
-        unreadCount: Number(item?.unreadCount) || 0,
-        lastMessageTimestamp: item?.lastMessageTimestamp || '',
-        categories: item?.categories || '',
-        rating: Number(item?.rating) || 0,
-      }))
-      .sort((a, b) => `${a.ticketId}:${a.channelId}`.localeCompare(`${b.ticketId}:${b.channelId}`))
-      .map((item) => [
-        item.ticketId,
-        item.requestNumber,
-        item.channelId,
-        item.status,
-        item.statusKey,
-        item.unreadCount,
-        item.lastMessageTimestamp,
-        item.categories,
-        item.rating,
-      ].join('|'))
+      .map((item) => {
+        if (item && typeof item === 'object' && typeof item.dialogMarker === 'string' && item.dialogMarker.trim()) {
+          return item.dialogMarker.trim();
+        }
+        return buildDialogItemMarker(item);
+      })
+      .sort((left, right) => left.localeCompare(right))
       .join('||');
+  }
+
+  function buildDialogsMarkerFromRows(rows) {
+    const normalizedRows = Array.isArray(rows) ? rows : [];
+    if (!normalizedRows.length) return 'empty';
+    return normalizedRows
+      .map((row) => String(row?.dataset?.dialogMarker || '').trim())
+      .filter(Boolean)
+      .sort((left, right) => left.localeCompare(right))
+      .join('||') || 'empty';
   }
 
   function escapeHtml(value) {
@@ -4010,16 +4011,7 @@
 
   initDialogTemplates();
   renderEmojiPanel();
-  lastListMarker = buildDialogsMarker(rowsList().map((row) => ({
-    ticketId: row.dataset.ticketId || '',
-    requestNumber: row.dataset.requestNumber || '',
-    channelId: row.dataset.channelId || '',
-    status: row.dataset.statusRaw || row.dataset.status || '',
-    statusKey: row.dataset.statusKey || '',
-    unreadCount: Number(row.dataset.unread || 0) || 0,
-    lastMessageTimestamp: row.dataset.lastMessageTimestamp || row.dataset.createdAt || '',
-    rating: Number(row.dataset.rating) || 0,
-  })));
+  lastListMarker = buildDialogsMarkerFromRows(rowsList());
   startDialogsPolling();
   loadColumnState();
   restoreDialogPreferences();
@@ -4066,9 +4058,11 @@
   renderMyDialogsPanel();
   window.openDialogDetailsByTicketId = (ticketId, runtimeOptions = {}) => {
     const normalizedTicketId = String(ticketId || '').trim();
+    const routeMatch = (window.location.pathname || '').match(/^\/dialogs\/([^/]+)$/);
+    const routeTicketId = routeMatch?.[1] ? decodeURIComponent(routeMatch[1]) : '';
     const normalizedChannelId = normalizeChannelId(runtimeOptions?.channelId)
       || (normalizedTicketId === INITIAL_DIALOG_TICKET_ID ? INITIAL_DIALOG_CHANNEL_ID : null)
-      || (normalizedTicketId === decodeURIComponent((window.location.pathname || '').match(/^\/dialogs\/([^/]+)$/)?.[1] || '')
+      || (normalizedTicketId === routeTicketId
         ? getRouteChannelId()
         : null);
     if (!normalizedTicketId) return;
@@ -4078,8 +4072,9 @@
     });
     const row = findDialogRowByTicketId(normalizedTicketId, normalizedChannelId);
     setActiveDialogRow(row, { ensureVisible: true });
+    const source = normalizedTicketId === routeTicketId ? 'initial_route' : 'manual_open';
     openDialogSurface(normalizedTicketId, row, {
-      source: 'manual_open',
+      source,
       channelId: normalizedChannelId,
     });
   };
