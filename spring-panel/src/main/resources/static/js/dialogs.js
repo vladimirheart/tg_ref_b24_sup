@@ -583,6 +583,7 @@
   const WORKSPACE_V1_ENABLED = window.DIALOG_CONFIG?.workspace_v1 !== false;
   const WORKSPACE_SINGLE_MODE = window.DIALOG_CONFIG?.workspace_single_mode === true;
   const WORKSPACE_FORCE_MODE = window.DIALOG_CONFIG?.workspace_force_workspace === true || WORKSPACE_SINGLE_MODE;
+  const OPEN_DIALOGS_IN_WORKSPACE = false;
   const WORKSPACE_CLIENT_EXTRA_ATTRIBUTES_MAX = normalizeNumberInRange(
     window.DIALOG_CONFIG?.workspace_client_extra_attributes_max,
     20,
@@ -1162,7 +1163,7 @@
     wrapper.innerHTML = renderDialogRow(item).trim();
     const row = wrapper.firstElementChild;
     if (!row) return null;
-    row.dataset.dialogMarker = buildDialogItemMarker(item);
+    row.dataset.dialogMarker = String(item?.dialogMarker || '').trim() || buildDialogItemMarker(item);
     hydrateAvatars(row);
     return row;
   }
@@ -1262,7 +1263,7 @@
   let dialogsPresentationRuntime = null;
   dialogsShellRuntime = window.DialogsShellRuntime?.createRuntime({
     debugLog,
-    workspaceEnabled: WORKSPACE_V1_ENABLED,
+    workspaceEnabled: OPEN_DIALOGS_IN_WORKSPACE,
     openDialogWithWorkspaceFallback,
     openDialogDetails,
     elements: {
@@ -1416,7 +1417,7 @@
       reassignModal,
     },
     debugLog,
-    workspaceEnabled: WORKSPACE_V1_ENABLED,
+    workspaceEnabled: OPEN_DIALOGS_IN_WORKSPACE,
     workspaceAbandonEventGroup: DIALOGS_TELEMETRY_EVENT_GROUPS.workspace_abandon,
     workspaceExperimentContext,
     workspacePrimaryKpis: WORKSPACE_AB_TEST_CONFIG.primaryKpis,
@@ -4095,10 +4096,7 @@
     if (initialRow) {
       setActiveDialogRow(initialRow, { ensureVisible: true });
     }
-    openDialogSurface(INITIAL_DIALOG_TICKET_ID, initialRow, {
-      source: 'initial_route',
-      channelId: INITIAL_DIALOG_CHANNEL_ID,
-    });
+    openDialogDetails(INITIAL_DIALOG_TICKET_ID, initialRow);
   }
 
   window.addEventListener('beforeunload', () => {
@@ -4106,7 +4104,7 @@
     saveWorkspaceDraft(workspaceComposerTicketId, workspaceComposerText.value, { reason: 'autosave' });
   });
 
-  if (WORKSPACE_EXPERIENCE_ENABLED && WORKSPACE_INLINE_NAVIGATION) {
+  if (OPEN_DIALOGS_IN_WORKSPACE && WORKSPACE_EXPERIENCE_ENABLED && WORKSPACE_INLINE_NAVIGATION) {
     window.addEventListener('popstate', () => {
       const path = window.location.pathname || '';
       const match = path.match(/^\/dialogs\/([^/]+)$/);

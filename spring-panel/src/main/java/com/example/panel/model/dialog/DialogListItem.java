@@ -268,6 +268,7 @@ public record DialogListItem(String ticketId,
         return categories;
     }
 
+    @JsonProperty("dialogMarker")
     public String dialogMarker() {
         return String.join("|",
                 safe(ticketId),
