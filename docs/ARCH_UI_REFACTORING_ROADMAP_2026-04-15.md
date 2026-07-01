@@ -840,6 +840,14 @@
   projection и notification audience side-effects. Заодно cleanup тестового
   слоя синхронизирован с `ticket_participants`, `ticket_active` и
   `ticket_responsibles`, чтобы repeated прогон не тек между сценариями.
+- следующим dialogs continuity шагом закрыт и остаточный watcher-driven
+  regression corridor вокруг `/dialogs`: `OperatorNotificationWatcher`
+  получил replay-age guard для `chat_history`, поэтому исторические
+  seeded/follow-up сообщения больше не поднимают duplicate bell/operator
+  notifications и не реармят AI processing как live event. Это отдельно
+  закреплено новым `OperatorNotificationWatcherTest`, а sequential
+  integration re-run подтвердил зелёный `DialogDetailsIntegrationTest`,
+  `DialogWorkspaceIntegrationTest` и `DialogQuickActionsIntegrationTest`.
 - следующим bounded follow-up пакетом добран уже и `DialogReadController`
   runtime contract: новый `DialogReadIntegrationTest` плюс расширенный
   `DialogReadControllerWebMvcTest` фиксируют `history`,

@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.sql.Connection;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -27,6 +28,7 @@ public class OperatorNotificationWatcher {
 
     private static final Logger log = LoggerFactory.getLogger(OperatorNotificationWatcher.class);
     private static final int DEFAULT_FIRST_RESPONSE_TARGET_MINUTES = 24 * 60;
+    private static final Duration LIVE_MESSAGE_REPLAY_WINDOW = Duration.ofDays(1);
     private static final DateTimeFormatter LOCAL_TIMESTAMP_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     private final JdbcTemplate jdbcTemplate;
@@ -77,7 +79,7 @@ public class OperatorNotificationWatcher {
         long afterId = lastChatHistoryId.get();
         jdbcTemplate.query(
                 """
-                SELECT id, ticket_id, sender, message, message_type, attachment, channel_id
+                SELECT id, ticket_id, sender, message, message_type, attachment, channel_id, timestamp
                   FROM chat_history
                  WHERE id > ?
                  ORDER BY id ASC
@@ -95,6 +97,7 @@ public class OperatorNotificationWatcher {
                         String message = trimToNull(rs.getString("message"));
                         String attachment = trimToNull(rs.getString("attachment"));
                         Long channelId = rs.getObject("channel_id") != null ? rs.getLong("channel_id") : null;
+                        String timestampRaw = trimToNull(rs.getString("timestamp"));
                         Channel channel = channelId != null ? channelRepository.findById(channelId).orElse(null) : null;
 
                         if (!StringUtils.hasText(ticketId)) {
@@ -109,6 +112,9 @@ public class OperatorNotificationWatcher {
                                 notificationService.notifyUsers(recipients, text, notificationService.buildDialogUrl(ticketId));
                             }
                             notifySupportChat(channel, text);
+                            continue;
+                        }
+                        if (!shouldReplayAsLiveMessage(timestampRaw)) {
                             continue;
                         }
                         if (!isExternalDialogEvent(sender, messageType)) {
@@ -324,6 +330,18 @@ public class OperatorNotificationWatcher {
         } catch (DateTimeParseException ignored) {
             return null;
         }
+    }
+
+    private boolean shouldReplayAsLiveMessage(String timestampRaw) {
+        OffsetDateTime eventTimestamp = parseTimestamp(timestampRaw);
+        if (eventTimestamp == null) {
+            return true;
+        }
+        Duration age = Duration.between(eventTimestamp, OffsetDateTime.now(ZoneOffset.UTC));
+        if (age.isNegative()) {
+            return true;
+        }
+        return age.compareTo(LIVE_MESSAGE_REPLAY_WINDOW) <= 0;
     }
 
     private long readMaxId(String table) {

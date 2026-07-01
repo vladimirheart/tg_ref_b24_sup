@@ -105,6 +105,28 @@ class OperatorNotificationWatcherTest {
     }
 
     @Test
+    void watchIgnoresHistoricalClientMessagesOutsideLiveReplayWindow() {
+        Channel channel = channel(9L, "History Replay Guard");
+        when(channelRepository.findById(9L)).thenReturn(Optional.of(channel));
+
+        jdbcTemplate.update("""
+                INSERT INTO chat_history(id, ticket_id, sender, message, message_type, attachment, channel_id, timestamp)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                1L, "T-103", "user", "Старое историческое сообщение", "text", null, 9L, OffsetDateTime.now(ZoneOffset.UTC).minusDays(5).toString());
+
+        watcher.watch();
+
+        verify(alertQueueService, never()).notifyIncomingClientMessage(channel, "T-103", "Старое историческое сообщение");
+        verify(notificationService, never()).notifyAllOperators(
+                eq("Новое сообщение в обращении T-103: Старое историческое сообщение"),
+                eq("/dialogs/T-103"),
+                isNull()
+        );
+        verify(dialogAiAssistantService, never()).processIncomingClientMessage("T-103", "Старое историческое сообщение", "text", null);
+    }
+
+    @Test
     void watchFallsBackToOperatorAudienceWhenFirstResponseOverdueQueueRoutingDeclines() {
         Channel channel = channel(12L, "Escalation Queue");
         when(sharedConfigService.loadSettings()).thenReturn(Map.of(
