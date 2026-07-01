@@ -155,4 +155,4 @@
 🟣 [01-133] Автосоздавать задачу при auto-close диалога с тем же ответственным, соисполнителями-участниками и ссылкой на диалог
 🟣 [01-134] Выпилить оставшийся backend/test слой PublicForm после удаления публичных форм из проекта
 🟣 [01-135] Дочистить server-rendered payload/data contract страницы settings после runtime split
-🟠 [01-136] Починить server-side navbar/template contract страницы dialogs для зелёного DialogsControllerWebMvcTest
+🟣 [01-136] Починить server-side navbar/template contract страницы dialogs для зелёного DialogsControllerWebMvcTest
