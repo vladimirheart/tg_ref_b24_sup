@@ -12,10 +12,10 @@
 </head>
 <body class="with-sidebar sidebar-pinned" data-ui-page="knowledge">
 <div th:replace="~{fragments/navbar :: navbar('knowledge')}"></div>
-<main class="main-content container-fluid py-4">
+<main class="main-content container-fluid py-4 page-shell">
     <div class="row g-4">
         <div class="col-12 col-xl-8">
-            <div class="card shadow-sm">
+            <div class="card shadow-sm kb-editor-main">
                 <div class="card-body p-4">
                     <div class="alert mb-4"
                          th:if="${message != null and !message.isBlank()}"
@@ -45,7 +45,7 @@
                         </div>
                     </div>
 
-                    <div class="row g-3 mb-4" th:if="${article.id != null}">
+                    <div class="row g-3 mb-4 kb-editor-meta" th:if="${article.id != null}">
                         <div class="col-sm-6 col-lg-4" th:if="${article.author != null and !article.author.isBlank()}">
                             <div class="border rounded-3 p-3 h-100">
                                 <div class="text-muted small mb-1">Автор</div>
@@ -81,7 +81,7 @@
                     <div class="alert alert-light border mb-4"
                          th:if="${article.externalSource == 'notion' and article.externalId != null and !article.externalId.isBlank()}">
                         <div class="fw-semibold mb-1">Связь с Notion</div>
-                        <div class="small text-muted mb-2" th:text="'External ID: ' + ${article.externalId}"></div>
+                        <div class="small text-muted mb-2"><span class="kb-source-chip" th:text="'External ID: ' + ${article.externalId}"></span></div>
                         <a class="small text-decoration-none"
                            th:if="${article.externalUrl != null and !article.externalUrl.isBlank()}"
                            th:href="${article.externalUrl}"
@@ -173,7 +173,7 @@
         </div>
 
         <div class="col-12 col-xl-4">
-            <div class="card shadow-sm mb-4">
+            <div class="card shadow-sm mb-4 kb-editor-side">
                 <div class="card-header bg-white fw-semibold">Вложения</div>
                 <div class="card-body">
                     <p class="text-muted" th:if="${#lists.isEmpty(article.attachments)}">Нет загруженных файлов.</p>

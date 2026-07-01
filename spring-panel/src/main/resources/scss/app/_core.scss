@@ -27,6 +27,53 @@ body {
     overflow: hidden;
 }
 
+.page-header-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    padding: var(--ui-panel-padding-lg);
+    border: 1px solid var(--ui-panel-border);
+    border-radius: var(--ui-panel-radius);
+    background: color-mix(in srgb, var(--card) 99%, white);
+    box-shadow: var(--ui-panel-shadow);
+}
+
+.page-header-card--compact {
+    padding: var(--ui-panel-padding);
+}
+
+.page-kicker {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    min-height: 26px;
+    padding: 0 0.62rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--primary) 9%, white);
+    color: color-mix(in srgb, var(--primary) 88%, var(--foreground));
+    font-size: 0.68rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+}
+
+.page-title {
+    margin: 0;
+    font-size: clamp(1.35rem, 1.7vw, 1.85rem);
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+    font-weight: 800;
+}
+
+.page-subtitle {
+    margin: 0;
+    max-width: 72ch;
+    color: var(--color-text-muted);
+    font-size: 0.88rem;
+    line-height: 1.5;
+}
+
 .ui-panel,
 .control-panel,
 .data-panel {
@@ -98,6 +145,13 @@ body[data-ui-page='dashboard'] .page-shell--dashboard {
     padding-top: calc(var(--ui-page-padding-y) + 0.35rem);
 }
 
+body[data-ui-page='dialogs'] .page-header-card,
+body[data-ui-page='settings'] .page-header-card,
+body[data-ui-page='ai-ops'] .page-header-card,
+body[data-ui-page='knowledge'] .page-header-card {
+    box-shadow: none;
+}
+
 body[data-ui-page='settings'][data-ui-density='compact'] .settings-tiles .settings-tile .card-body {
     gap: 0.45rem;
 }
@@ -120,17 +174,30 @@ body[data-ui-page='dialogs'][data-ui-density='comfortable'] .workspace-shell-car
 }
 
 .card {
-    border: 1px solid transparent;
-    box-shadow: var(--card-shadow);
+    border: 1px solid var(--ui-panel-border);
+    box-shadow: var(--ui-panel-shadow);
 }
 
 .table > :not(caption) > * > * {
     vertical-align: middle;
+    padding-top: 0.62rem;
+    padding-bottom: 0.62rem;
+}
+
+.table thead th {
+    color: var(--color-text-muted);
+    font-size: 0.74rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    border-bottom-color: var(--ui-panel-border);
 }
 
 .badge {
-    font-size: 0.85rem;
-    font-weight: 600;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    padding: 0.42em 0.68em;
 }
 
 .btn-rounded {
@@ -140,7 +207,14 @@ body[data-ui-page='dialogs'][data-ui-density='comfortable'] .workspace-shell-car
 .form-control,
 .form-select,
 .btn {
-    border-radius: 0.75rem;
+    border-radius: 0.7rem;
+    min-height: 2.25rem;
+}
+
+.btn-sm,
+.form-control-sm,
+.form-select-sm {
+    min-height: 2rem;
 }
 
 .text-muted {

@@ -320,6 +320,130 @@
     background-color: #ffffff;
 }
 
+body[data-ui-page='dialogs'] .dialogs-toolbar-card,
+body[data-ui-page='dialogs'] .dialogs-table-card,
+body[data-ui-page='dialogs'] .workspace-shell-card {
+    box-shadow: none;
+}
+
+body[data-ui-page='dialogs'] .dialogs-toolbar-card .card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+}
+
+.dialog-list-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.8rem;
+}
+
+.dialog-list-head__title {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+}
+
+.dialog-list-head__meta {
+    margin: 0.2rem 0 0;
+    color: var(--color-text-muted);
+    font-size: 0.78rem;
+    line-height: 1.4;
+}
+
+.dialog-status-group .btn {
+    border-radius: 999px;
+    border-color: var(--ui-panel-border);
+    background: color-mix(in srgb, var(--card) 96%, white);
+    color: var(--color-text-muted);
+    box-shadow: none;
+}
+
+.dialog-status-group .btn.active {
+    background: color-mix(in srgb, var(--primary) 12%, white);
+    border-color: color-mix(in srgb, var(--primary) 24%, white);
+    color: var(--primary);
+}
+
+.dialog-bulk-toolbar {
+    padding: 0.7rem 0.85rem;
+    border: 1px solid var(--ui-panel-border);
+    border-radius: var(--ui-panel-radius);
+    background: color-mix(in srgb, var(--card) 98%, white);
+}
+
+.dialog-table {
+    table-layout: fixed;
+}
+
+.dialog-table th,
+.dialog-table td {
+    padding-top: 0.55rem !important;
+    padding-bottom: 0.55rem !important;
+}
+
+.dialog-table .client-cell {
+    gap: 10px;
+}
+
+.dialog-table .dialog-avatar,
+.dialog-table .avatar-circle {
+    width: 38px;
+    height: 38px;
+}
+
+.dialog-table .dialog-avatar {
+    box-shadow: none;
+    border-color: var(--ui-panel-border);
+}
+
+.dialog-table .dialog-open-btn {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: var(--primary-foreground);
+}
+
+.dialog-table .dialog-actions-inline {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.dialog-table .dialog-actions-toggle {
+    min-width: 0;
+}
+
+.dialog-channel-pill,
+.dialog-business-pill,
+.dialog-sla-badge {
+    font-size: 0.7rem;
+    font-weight: 700;
+}
+
+.workspace-panel-block {
+    border-radius: calc(var(--ui-panel-radius) - 0.05rem);
+    background: color-mix(in srgb, var(--card) 97%, var(--secondary) 3%);
+    box-shadow: none;
+}
+
+.workspace-tabs {
+    gap: 0.3rem;
+}
+
+.workspace-tab-btn {
+    border-radius: 0.7rem;
+    padding: 0.32rem 0.68rem;
+}
+
+.workspace-tab-btn.is-active {
+    background: color-mix(in srgb, var(--primary) 12%, white);
+    border-color: color-mix(in srgb, var(--primary) 24%, white);
+    color: var(--primary);
+}
+
 .dialog-table {
     font-size: 0.92rem;
 }

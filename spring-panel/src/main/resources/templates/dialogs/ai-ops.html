@@ -11,18 +11,65 @@
     <link rel="stylesheet" th:href="@{/css/style.css}">
     <link rel="stylesheet" th:href="@{/css/sidebar.css}">
     <link rel="stylesheet" th:href="@{/css/app.css}">
+    <style>
+        .aiops-shell {
+            max-width: 1660px;
+        }
+        .aiops-tab-nav {
+            display: inline-flex;
+            gap: 0.35rem;
+            padding: 0.3rem;
+            border: 1px solid var(--ui-panel-border);
+            border-radius: 0.85rem;
+            background: color-mix(in srgb, var(--card) 98%, white);
+        }
+        .aiops-tab-nav .nav-link {
+            border-radius: 0.65rem;
+            border: 1px solid transparent;
+            font-weight: 700;
+        }
+        .aiops-section-card,
+        .aiops-automation-card {
+            box-shadow: none;
+        }
+        .aiops-section-card .card-header,
+        .aiops-automation-card .card-header {
+            background: color-mix(in srgb, var(--card) 99%, white);
+            border-bottom-color: var(--ui-panel-border);
+        }
+        .aiops-filterbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+        }
+        .ai-ops-filter-input {
+            max-width: 14rem;
+        }
+        .aiops-stream,
+        .aiops-memory-stream {
+            display: flex;
+            flex-direction: column;
+            gap: 0.55rem;
+            font-family: var(--font-mono);
+            font-size: 0.78rem;
+        }
+        .aiops-runbook {
+            margin-bottom: 0;
+        }
+    </style>
 </head>
-<body class="with-sidebar sidebar-pinned" data-ui-page="ai-ops">
+<body class="with-sidebar sidebar-pinned" data-ui-page="ai-ops" data-ui-density="compact">
 <div th:replace="~{fragments/navbar :: navbar('ai-ops')}"></div>
 
-<main class="main-content container-fluid py-4">
-    <div class="page-header-card mb-4">
+<main class="main-content container-fluid py-4 page-shell aiops-shell">
+    <div class="page-header-card page-header-card--compact mb-4">
         <span class="page-kicker">Operations</span>
         <h1 class="page-title">AI Ops</h1>
         <p class="page-subtitle">Панель мониторинга качества AI-агента, алертов и событий.</p>
     </div>
 
-    <ul class="nav nav-tabs mb-4" id="aiOpsTabs" role="tablist">
+    <ul class="nav nav-tabs mb-4 aiops-tab-nav" id="aiOpsTabs" role="tablist">
         <li class="nav-item" role="presentation">
             <button class="nav-link active" id="aiOpsOverviewTab" data-bs-toggle="tab" data-bs-target="#aiOpsOverviewPane" type="button" role="tab" aria-controls="aiOpsOverviewPane" aria-selected="true">AI Ops</button>
         </li>
@@ -34,35 +81,35 @@
     <div class="tab-content" id="aiOpsTabsContent">
         <div class="tab-pane fade show active" id="aiOpsOverviewPane" role="tabpanel" aria-labelledby="aiOpsOverviewTab" tabindex="0">
 
-    <section class="card shadow-sm mb-4">
+    <section class="card shadow-sm mb-4 aiops-section-card">
         <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-2">
             <strong>AI Monitoring</strong>
             <button class="btn btn-sm btn-outline-secondary" id="aiOpsRefresh" type="button">Обновить</button>
         </div>
         <div class="card-body">
             <div class="small text-muted mb-2" id="aiOpsState">Загрузка...</div>
-            <div class="row g-2 mb-3">
-                <div class="col-md-3 col-6"><div class="border rounded p-2"><div class="small text-muted">Auto-reply rate</div><div class="fw-semibold" id="aiOpsAutoReplyRate">-</div></div></div>
-                <div class="col-md-3 col-6"><div class="border rounded p-2"><div class="small text-muted">Assist usage rate</div><div class="fw-semibold" id="aiOpsAssistRate">-</div></div></div>
-                <div class="col-md-3 col-6"><div class="border rounded p-2"><div class="small text-muted">Escalation rate</div><div class="fw-semibold" id="aiOpsEscalationRate">-</div></div></div>
-                <div class="col-md-3 col-6"><div class="border rounded p-2"><div class="small text-muted">Correction rate</div><div class="fw-semibold" id="aiOpsCorrectionRate">-</div></div></div>
+            <div class="ui-kpi-grid mb-3">
+                <div class="ui-kpi-card"><div class="ui-kpi-label">Auto-reply rate</div><div class="ui-kpi-value" id="aiOpsAutoReplyRate">-</div></div>
+                <div class="ui-kpi-card"><div class="ui-kpi-label">Assist usage rate</div><div class="ui-kpi-value" id="aiOpsAssistRate">-</div></div>
+                <div class="ui-kpi-card"><div class="ui-kpi-label">Escalation rate</div><div class="ui-kpi-value" id="aiOpsEscalationRate">-</div></div>
+                <div class="ui-kpi-card"><div class="ui-kpi-label">Correction rate</div><div class="ui-kpi-value" id="aiOpsCorrectionRate">-</div></div>
             </div>
             <div class="small fw-semibold mb-1">Алерты</div>
-            <div id="aiOpsAlerts" class="small text-muted mb-3">-</div>
+            <div id="aiOpsAlerts" class="small text-muted mb-3 ui-log-list">-</div>
             <div class="small fw-semibold mb-1">Runbook</div>
-            <ul id="aiOpsRunbook" class="small ps-3 mb-3"></ul>
+            <ul id="aiOpsRunbook" class="small ps-3 mb-3 aiops-runbook"></ul>
             <div class="small fw-semibold mb-1">События</div>
-            <div class="d-flex flex-wrap gap-2 mb-2">
+            <div class="aiops-filterbar">
                 <input type="text" class="form-control form-control-sm ai-ops-filter-input" id="aiOpsEventType" placeholder="event type">
                 <input type="text" class="form-control form-control-sm ai-ops-filter-input" id="aiOpsActor" placeholder="actor">
                 <button class="btn btn-sm btn-outline-secondary" id="aiOpsApplyFilters" type="button">Применить</button>
                 <button class="btn btn-sm btn-outline-secondary" id="aiOpsExportCsv" type="button">Экспорт CSV</button>
             </div>
-            <div id="aiOpsEvents" class="small text-muted">-</div>
+            <div id="aiOpsEvents" class="small text-muted aiops-stream">-</div>
         </div>
     </section>
 
-    <section class="card shadow-sm mb-4">
+    <section class="card shadow-sm mb-4 aiops-section-card">
         <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-2">
             <strong>AI Solution Memory</strong>
             <button class="btn btn-sm btn-outline-secondary" id="aiOpsMemoryRefresh" type="button">Обновить</button>
@@ -73,14 +120,14 @@
                 <button class="btn btn-sm btn-outline-secondary" id="aiOpsMemorySearch" type="button">Поиск</button>
             </div>
             <div class="small text-muted mb-2" id="aiOpsMemoryState">Загрузка...</div>
-            <div id="aiOpsMemoryList" class="small text-muted">-</div>
+            <div id="aiOpsMemoryList" class="small text-muted aiops-memory-stream">-</div>
         </div>
     </section>
 
         </div>
         <div class="tab-pane fade" id="aiOpsAutomationPane" role="tabpanel" aria-labelledby="aiOpsAutomationTab" tabindex="0">
 
-    <section class="card shadow-sm mb-4">
+    <section class="card shadow-sm mb-4 aiops-automation-card">
         <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-2">
             <strong>Bitrix24 + iiko automation</strong>
             <div class="d-flex flex-wrap gap-2">

@@ -106,9 +106,27 @@
             display: none !important;
         }
     </style>
+    <style>
+        body[data-ui-page="dialogs"] .dialogs-toolbar-card .card-body {
+            background: color-mix(in srgb, var(--card) 98%, white);
+        }
+        body[data-ui-page="dialogs"] .dialogs-title {
+            font-size: 1.35rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+        }
+        body[data-ui-page="dialogs"] .dialog-toolbar-search {
+            min-width: min(18rem, 100%);
+            max-width: 26rem;
+        }
+        body[data-ui-page="dialogs"] .dialog-table .text-truncate {
+            max-width: 18rem;
+        }
+    </style>
 </head>
 <body class="with-sidebar sidebar-pinned dialog-compact-mode"
       data-ui-page="dialogs"
+      data-ui-density="compact"
       th:attr="data-initial-dialog-ticket-id=${initialDialogTicketId},
                data-operator-identity=${operatorIdentity},
                data-operator-display-name=${sidebarUserDisplayName},
@@ -134,7 +152,7 @@
                 <button class="btn btn-outline-primary btn-sm" id="dialogFiltersBtn" type="button" data-bs-toggle="modal" data-bs-target="#dialogFiltersModal">Фильтры</button>
                 <button class="btn btn-outline-secondary btn-sm" id="dialogColumnsBtn" type="button" data-bs-toggle="modal" data-bs-target="#dialogColumnsModal">Колонки</button>
                 <button class="btn btn-outline-secondary btn-sm" id="dialogCompactToggle" type="button">Compact mode</button>
-                <a class="btn btn-outline-secondary btn-sm" href="/ai-ops">AI Ops</a>
+                <a class="btn btn-ai-soft btn-sm" href="/ai-ops">AI Ops</a>
                 <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#dialogToolbarAdvanced" aria-expanded="false" aria-controls="dialogToolbarAdvanced">Ещё параметры</button>
             </div>
             <div class="mt-3 dialog-status-group">
@@ -350,11 +368,15 @@
 
     <div class="card shadow-sm dialogs-table-card gradient-border-hover">
         <div class="card-body">
-            <div class="d-flex justify-content-end mb-2">
+            <div class="dialog-list-head">
+                <div>
+                    <h2 class="dialog-list-head__title">Inbox</h2>
+                    <p class="dialog-list-head__meta">Плотный список с каналом, клиентом, SLA, ответственным и действиями оператора.</p>
+                </div>
                 <button class="btn btn-outline-secondary btn-sm" id="dialogListOnlyToggle" type="button">Только список</button>
             </div>
             <div class="table-responsive">
-                <table class="table table-striped align-middle dialog-table" id="dialogsTable">
+                <table class="table table-striped align-middle dialog-table table-ops" id="dialogsTable">
                     <thead>
                     <tr>
                         <th class="dialog-select-column">
@@ -467,7 +489,7 @@
                         <td class="dialog-actions">
                             <div class="dialog-actions-inline">
                                 <a th:href="@{/dialogs/{ticketId}(ticketId=${dialog.ticketId},channelId=${dialog.channelId()})}"
-                                   class="btn btn-sm btn-outline-primary dialog-open-btn"
+                                   class="btn btn-sm btn-primary dialog-open-btn"
                                    th:data-ticket-id="${dialog.ticketId}">Открыть</a>
                                 <div class="dialog-actions-dropdown" data-dialog-actions>
                                     <button type="button"

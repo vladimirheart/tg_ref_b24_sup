@@ -1194,8 +1194,60 @@
       }
     }
   </style>
+  <style>
+    .reports-tab-nav {
+      padding: 0.25rem;
+      border-radius: 0.85rem;
+      background: color-mix(in srgb, var(--card) 98%, white);
+      border-color: var(--ui-panel-border);
+      box-shadow: none;
+    }
+    .reports-tab-nav .nav-link {
+      padding: 0.58rem 0.82rem;
+      border-radius: 0.62rem;
+      font-size: 0.8rem;
+    }
+    .reports-tab-nav .nav-link.active {
+      background: color-mix(in srgb, var(--primary) 10%, white);
+      border-color: color-mix(in srgb, var(--primary) 22%, white);
+      box-shadow: none;
+    }
+    .chart-panel,
+    .filter-panel,
+    .metrics-panel {
+      border-radius: var(--ui-panel-radius);
+      border-color: var(--ui-panel-border);
+      box-shadow: none;
+    }
+    .filter-panel::before,
+    .metrics-panel::before,
+    .chart-panel::before {
+      display: none;
+    }
+    .filter-panel,
+    .chart-panel {
+      background: color-mix(in srgb, var(--card) 99%, white);
+    }
+    .metrics-panel {
+      background: linear-gradient(180deg, #183228, #12271f 58%, #10231c);
+      border-color: color-mix(in srgb, var(--primary) 18%, #10231c);
+      box-shadow: none;
+    }
+    .metric-card,
+    .metric-card--primary,
+    .metric-card--spotlight,
+    .metric-card--note {
+      box-shadow: none;
+      background: rgba(255, 255, 255, 0.06);
+      border-color: rgba(255, 255, 255, 0.08);
+    }
+    .metric-card {
+      min-height: 124px;
+      border-radius: 0.95rem;
+    }
+  </style>
 </head>
-<body class="with-sidebar sidebar-pinned" data-ui-page="dashboard">
+<body class="with-sidebar sidebar-pinned" data-ui-page="dashboard" data-ui-density="compact">
   <div th:replace="~{fragments/navbar :: navbar(${activePage})}"></div>
   <main class="main-content container-fluid">
   <div class="reports-shell page-shell page-shell--dashboard">
