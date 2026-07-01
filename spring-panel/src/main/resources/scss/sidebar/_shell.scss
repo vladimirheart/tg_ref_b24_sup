@@ -58,7 +58,6 @@ body.with-sidebar.sidebar-hovering {
     linear-gradient(180deg, color-mix(in srgb, var(--sidebar-surface) 92%, white), var(--sidebar-surface-strong));
   border-right: 1px solid var(--sidebar-stroke);
   box-shadow: var(--sidebar-shadow);
-  backdrop-filter: blur(18px);
   transition: width 0.28s ease, transform 0.28s ease, opacity 0.28s ease;
 }
 

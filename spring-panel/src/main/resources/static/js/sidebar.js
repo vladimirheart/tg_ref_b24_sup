@@ -765,6 +765,13 @@
   }
 
   function requestNotificationsDropdownPosition() {
+    if (!notificationsOpen || !bellBtn || !bellDropdown || bellDropdown.hidden) {
+      if (notificationPositionFrame) {
+        window.cancelAnimationFrame(notificationPositionFrame);
+        notificationPositionFrame = 0;
+      }
+      return;
+    }
     if (notificationPositionFrame) {
       window.cancelAnimationFrame(notificationPositionFrame);
     }
