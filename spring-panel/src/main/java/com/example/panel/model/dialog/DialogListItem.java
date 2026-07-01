@@ -268,6 +268,34 @@ public record DialogListItem(String ticketId,
         return categories;
     }
 
+    public String dialogMarker() {
+        return String.join("|",
+                safe(ticketId),
+                requestNumber != null ? requestNumber.toString() : "",
+                safe(clientName != null && !clientName.isBlank() ? clientName : username),
+                safe(clientStatus),
+                channelId != null ? channelId.toString() : "",
+                safe(channelName),
+                safe(business),
+                safe(problem),
+                safe(location()),
+                safe(categoriesSafe()),
+                safe(rawResponsible()),
+                safe(responsible()),
+                safe(responsibleAvatarUrl),
+                safe(status),
+                safe(statusKey()),
+                unreadCount != null ? unreadCount.toString() : "0",
+                safe(lastMessageSender),
+                safe(lastMessageTimestamp),
+                safe(createdAt),
+                safe(createdDateSafe()),
+                safe(createdTimeSafe()),
+                rating != null ? rating.toString() : "0",
+                userId != null ? userId.toString() : ""
+        );
+    }
+
     public String createdDateSafe() {
         if (createdDate != null && !createdDate.isBlank()) {
             String formatted = formatEpoch(createdDate, DATE_FORMAT);
@@ -369,5 +397,9 @@ public record DialogListItem(String ticketId,
         } catch (NumberFormatException ex) {
             return null;
         }
+    }
+
+    private static String safe(String value) {
+        return value != null ? value : "";
     }
 }

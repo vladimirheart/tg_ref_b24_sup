@@ -609,6 +609,11 @@
     ...CONFIG_OPERATOR_PERMISSIONS,
   });
   const INITIAL_DIALOG_TICKET_ID = String(document.body?.dataset?.initialDialogTicketId || '').trim();
+  const INITIAL_DIALOG_CHANNEL_ID = (() => {
+    const raw = new URLSearchParams(window.location.search || '').get('channelId');
+    const normalized = String(raw || '').trim();
+    return normalized || null;
+  })();
   const WORKSPACE_OPEN_SLO_MS = normalizeNumberInRange(
     window.DIALOG_CONFIG?.workspace_open_slo_ms,
     2000,
@@ -3330,6 +3335,32 @@
     return `${path}${separator}channelId=${encodeURIComponent(channelId)}`;
   }
 
+  function normalizeChannelId(channelId) {
+    if (channelId === null || channelId === undefined) return null;
+    const normalized = String(channelId).trim();
+    return normalized || null;
+  }
+
+  function getRouteChannelId(search = window.location.search || '') {
+    return normalizeChannelId(new URLSearchParams(search).get('channelId'));
+  }
+
+  function findDialogRowByTicketId(ticketId, channelId = null) {
+    const normalizedTicketId = String(ticketId || '').trim();
+    const normalizedChannelId = normalizeChannelId(channelId);
+    if (!normalizedTicketId) return null;
+    if (normalizedChannelId) {
+      const exactMatch = rowsList().find((row) => {
+        return String(row.dataset.ticketId || '') === normalizedTicketId
+          && normalizeChannelId(row.dataset.channelId) === normalizedChannelId;
+      });
+      if (exactMatch) {
+        return exactMatch;
+      }
+    }
+    return rowsList().find((row) => String(row.dataset.ticketId || '') === normalizedTicketId) || null;
+  }
+
   async function loadPreviousDialogHistory() {
     return dialogsDetailsHistoryRuntime?.loadPreviousDialogHistory();
   }
@@ -4015,13 +4046,24 @@
     applyFilters();
   }
   renderMyDialogsPanel();
-  window.openDialogDetailsByTicketId = (ticketId) => {
+  window.openDialogDetailsByTicketId = (ticketId, runtimeOptions = {}) => {
     const normalizedTicketId = String(ticketId || '').trim();
+    const normalizedChannelId = normalizeChannelId(runtimeOptions?.channelId)
+      || (normalizedTicketId === INITIAL_DIALOG_TICKET_ID ? INITIAL_DIALOG_CHANNEL_ID : null)
+      || (normalizedTicketId === decodeURIComponent((window.location.pathname || '').match(/^\/dialogs\/([^/]+)$/)?.[1] || '')
+        ? getRouteChannelId()
+        : null);
     if (!normalizedTicketId) return;
-    debugLog('window.openDialogDetailsByTicketId.called', { ticketId: normalizedTicketId });
-    const row = rowsList().find((item) => String(item.dataset.ticketId || '') === normalizedTicketId) || null;
+    debugLog('window.openDialogDetailsByTicketId.called', {
+      ticketId: normalizedTicketId,
+      channelId: normalizedChannelId,
+    });
+    const row = findDialogRowByTicketId(normalizedTicketId, normalizedChannelId);
     setActiveDialogRow(row, { ensureVisible: true });
-    openDialogSurface(normalizedTicketId, row, { source: 'manual_open' });
+    openDialogSurface(normalizedTicketId, row, {
+      source: 'manual_open',
+      channelId: normalizedChannelId,
+    });
   };
   window.refreshAiReviewQueue = () => {};
 
@@ -4032,12 +4074,18 @@
   }
 
   if (INITIAL_DIALOG_TICKET_ID) {
-    debugLog('initialTicket.autoload', { ticketId: INITIAL_DIALOG_TICKET_ID });
-    const initialRow = rowsList().find((row) => String(row.dataset.ticketId || '') === INITIAL_DIALOG_TICKET_ID) || null;
+    debugLog('initialTicket.autoload', {
+      ticketId: INITIAL_DIALOG_TICKET_ID,
+      channelId: INITIAL_DIALOG_CHANNEL_ID,
+    });
+    const initialRow = findDialogRowByTicketId(INITIAL_DIALOG_TICKET_ID, INITIAL_DIALOG_CHANNEL_ID);
     if (initialRow) {
       setActiveDialogRow(initialRow, { ensureVisible: true });
     }
-    openDialogSurface(INITIAL_DIALOG_TICKET_ID, initialRow, { source: 'initial_route' });
+    openDialogSurface(INITIAL_DIALOG_TICKET_ID, initialRow, {
+      source: 'initial_route',
+      channelId: INITIAL_DIALOG_CHANNEL_ID,
+    });
   }
 
   window.addEventListener('beforeunload', () => {
@@ -4051,14 +4099,15 @@
       const match = path.match(/^\/dialogs\/([^/]+)$/);
       if (!match?.[1]) return;
       const ticketId = decodeURIComponent(match[1]);
+      const channelId = getRouteChannelId();
       if (!confirmWorkspaceTicketSwitch(ticketId)) {
         const rollbackUrl = buildWorkspaceDialogUrl(activeWorkspaceTicketId, activeWorkspaceChannelId);
         window.history.pushState({ ticketId: activeWorkspaceTicketId }, '', rollbackUrl);
         return;
       }
-      const row = rowsList().find((item) => String(item.dataset.ticketId || '') === ticketId) || null;
+      const row = findDialogRowByTicketId(ticketId, channelId);
       setActiveDialogRow(row, { ensureVisible: true });
-      openDialogSurface(ticketId, row, { source: 'initial_route' });
+      openDialogSurface(ticketId, row, { source: 'initial_route', channelId });
     });
   }
 

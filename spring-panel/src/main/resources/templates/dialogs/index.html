@@ -380,6 +380,7 @@
                     </tr>
                     <tr th:each="dialog : ${dialogs}"
                         th:data-ticket-id="${dialog.ticketId}"
+                        th:data-dialog-marker="${dialog.dialogMarker()}"
                         th:data-client="${dialog.displayClientName()}"
                         th:data-client-status="${dialog.clientStatusLabel()}"
                         th:data-user-id="${dialog.userId()}"
@@ -1226,10 +1227,17 @@
     const initialTicketFromModel = /*[[${initialDialogTicketId}]]*/ null;
     const pathMatch = (window.location.pathname || '').match(/^\/dialogs\/([^/]+)$/);
     const initialTicketFromPath = pathMatch && pathMatch[1] ? decodeURIComponent(pathMatch[1]) : null;
+    const channelIdFromQuery = (() => {
+      const raw = new URLSearchParams(window.location.search || '').get('channelId');
+      if (raw === null || raw === undefined) return null;
+      const normalized = String(raw).trim();
+      return normalized || null;
+    })();
     const ticketId = initialTicketFromModel || initialTicketFromPath;
     dbg('template.fallback.init', {
       ticketIdFromModel: initialTicketFromModel,
       ticketIdFromPath: initialTicketFromPath,
+      channelIdFromQuery,
       resolvedTicketId: ticketId,
       href: window.location.href,
     });
@@ -1244,7 +1252,7 @@
         hasOpenFn: typeof window.openDialogDetailsByTicketId === 'function',
       });
       if (typeof window.openDialogDetailsByTicketId === 'function') {
-        window.openDialogDetailsByTicketId(ticketId);
+        window.openDialogDetailsByTicketId(ticketId, { channelId: channelIdFromQuery });
         return;
       }
       if (attempts < maxAttempts) {
