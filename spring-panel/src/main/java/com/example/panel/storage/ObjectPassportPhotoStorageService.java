@@ -15,12 +15,14 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
+import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
+import java.nio.charset.StandardCharsets;
 
 @Service
 public class ObjectPassportPhotoStorageService {
@@ -81,7 +83,10 @@ public class ObjectPassportPhotoStorageService {
         String filename = resolved.getFileName() != null ? resolved.getFileName().toString() : "photo";
         String mimeType = probeContentType(resolved, null);
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=" + filename)
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.builder("inline")
+                        .filename(filename, StandardCharsets.UTF_8)
+                        .build()
+                        .toString())
                 .contentType(MediaType.parseMediaType(mimeType))
                 .contentLength(Files.size(resolved))
                 .body(new InputStreamResource(Files.newInputStream(resolved)));

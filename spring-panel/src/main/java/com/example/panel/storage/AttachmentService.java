@@ -4,6 +4,7 @@ import com.example.panel.service.PermissionService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
+import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +17,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -175,12 +177,12 @@ public class AttachmentService {
     }
 
     private ResponseEntity<Resource> buildDownloadResponse(Path file, String downloadName) throws IOException {
-        return buildResponse(file, "attachment; filename=" + downloadName);
+        return buildResponse(file, buildContentDisposition("attachment", downloadName));
     }
 
     private ResponseEntity<Resource> buildInlineResponse(Path file) throws IOException {
         String filename = file.getFileName() != null ? file.getFileName().toString() : "file";
-        return buildResponse(file, "inline; filename=" + filename);
+        return buildResponse(file, buildContentDisposition("inline", filename));
     }
 
     private ResponseEntity<Resource> buildResponse(Path file, String disposition) throws IOException {
@@ -191,6 +193,14 @@ public class AttachmentService {
                 .contentType(mediaType)
                 .contentLength(Files.size(file))
                 .body(resource);
+    }
+
+    private String buildContentDisposition(String type, String filename) {
+        String safeFilename = StringUtils.hasText(filename) ? filename.trim() : "file";
+        return ContentDisposition.builder(type)
+                .filename(safeFilename, StandardCharsets.UTF_8)
+                .build()
+                .toString();
     }
 
     private Path resolveAttachment(Path root, String ticketId, String filename) {
