@@ -1043,20 +1043,44 @@ public class SupportBot extends TelegramLongPollingBot {
         String safeCaption = caption != null && caption.length() > 1024
                 ? caption.substring(0, 1021) + "..."
                 : caption;
+        String normalizedType = String.valueOf(messageType).trim().toLowerCase(Locale.ROOT);
         try {
-            InputFile inputFile = new InputFile(file);
-            switch (String.valueOf(messageType).trim().toLowerCase(Locale.ROOT)) {
-                case "photo" -> execute(SendPhoto.builder().chatId(operatorChatId).photo(inputFile).caption(safeCaption).build());
-                case "video", "video_note" -> execute(SendVideo.builder().chatId(operatorChatId).video(inputFile).caption(safeCaption).build());
-                case "voice" -> execute(SendVoice.builder().chatId(operatorChatId).voice(inputFile).caption(safeCaption).build());
-                case "audio" -> execute(SendAudio.builder().chatId(operatorChatId).audio(inputFile).caption(safeCaption).build());
-                case "animation" -> execute(SendAnimation.builder().chatId(operatorChatId).animation(inputFile).caption(safeCaption).build());
-                default -> execute(SendDocument.builder().chatId(operatorChatId).document(inputFile).caption(safeCaption).build());
-            }
+            relayAttachmentWithPreferredType(operatorChatId, normalizedType, file, safeCaption);
             return true;
-        } catch (Exception ex) {
-            log.error("Failed to relay attachment to operator channel: type={} path={}", messageType, attachmentPath, ex);
+        } catch (Exception primaryEx) {
+            log.warn("Failed to relay attachment with preferred Telegram method: type={} path={}",
+                    normalizedType,
+                    attachmentPath,
+                    primaryEx);
+        }
+        try {
+            execute(SendDocument.builder()
+                    .chatId(operatorChatId)
+                    .document(new InputFile(file))
+                    .caption(safeCaption)
+                    .build());
+            return true;
+        } catch (Exception fallbackEx) {
+            log.error("Failed to relay attachment to operator channel even as document: type={} path={}",
+                    normalizedType,
+                    attachmentPath,
+                    fallbackEx);
             return false;
+        }
+    }
+
+    private void relayAttachmentWithPreferredType(Long operatorChatId,
+                                                  String normalizedType,
+                                                  File file,
+                                                  String caption) throws TelegramApiException {
+        InputFile inputFile = new InputFile(file);
+        switch (normalizedType) {
+            case "photo" -> execute(SendPhoto.builder().chatId(operatorChatId).photo(inputFile).caption(caption).build());
+            case "video", "video_note" -> execute(SendVideo.builder().chatId(operatorChatId).video(inputFile).caption(caption).build());
+            case "voice" -> execute(SendVoice.builder().chatId(operatorChatId).voice(inputFile).caption(caption).build());
+            case "audio" -> execute(SendAudio.builder().chatId(operatorChatId).audio(inputFile).caption(caption).build());
+            case "animation" -> execute(SendAnimation.builder().chatId(operatorChatId).animation(inputFile).caption(caption).build());
+            default -> execute(SendDocument.builder().chatId(operatorChatId).document(inputFile).caption(caption).build());
         }
     }
 

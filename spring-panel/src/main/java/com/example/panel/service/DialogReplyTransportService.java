@@ -503,6 +503,40 @@ public class DialogReplyTransportService {
         };
     }
 
+    private static String sanitizeMultipartFilename(String originalFilename, String contentType) {
+        String cleaned = StringUtils.cleanPath(StringUtils.hasText(originalFilename) ? originalFilename : "file");
+        String sanitized = cleaned
+                .replace("\\", "_")
+                .replace("/", "_")
+                .replace("\"", "_")
+                .replace("\r", "_")
+                .replace("\n", "_")
+                .replaceAll("[^A-Za-z0-9._-]", "_")
+                .replaceAll("_+", "_");
+        if (StringUtils.hasText(sanitized) && !sanitized.startsWith(".")) {
+            return sanitized;
+        }
+        return "file" + defaultMultipartExtension(contentType, originalFilename);
+    }
+
+    private static String defaultMultipartExtension(String contentType, String originalFilename) {
+        String filename = StringUtils.hasText(originalFilename) ? originalFilename.trim() : "";
+        int dotIndex = filename.lastIndexOf('.');
+        if (dotIndex >= 0 && dotIndex < filename.length() - 1) {
+            String extension = filename.substring(dotIndex).replaceAll("[^A-Za-z0-9.]", "");
+            if (StringUtils.hasText(extension) && extension.startsWith(".")) {
+                return extension;
+            }
+        }
+        return switch (resolveMessageType(contentType, originalFilename)) {
+            case "audio" -> ".mp3";
+            case "video" -> ".mp4";
+            case "animation" -> ".gif";
+            case "image" -> ".png";
+            default -> ".bin";
+        };
+    }
+
     private static byte[] buildTelegramMultipartBody(Long chatId,
                                                      String caption,
                                                      String fieldName,
@@ -599,7 +633,7 @@ public class DialogReplyTransportService {
         }
 
         private static byte[] file(String name, MultipartFile file) throws IOException {
-            String filename = StringUtils.cleanPath(file.getOriginalFilename() != null ? file.getOriginalFilename() : "file.bin");
+            String filename = sanitizeMultipartFilename(file.getOriginalFilename(), file.getContentType());
             String contentType = file.getContentType() != null ? file.getContentType() : "application/octet-stream";
             String header = "--" + BOUNDARY + "\r\n"
                     + "Content-Disposition: form-data; name=\"" + name + "\"; filename=\"" + filename + "\"\r\n"

@@ -630,11 +630,47 @@
       return mediaInput instanceof HTMLInputElement ? Array.from(mediaInput.files || []) : [];
     }
 
+    function isUploadableMediaFile(file) {
+      if (!file || typeof file !== 'object') return false;
+      if (typeof Blob === 'function' && file instanceof Blob) return true;
+      return typeof file.size === 'number' && typeof file.type === 'string';
+    }
+
+    function resolvePendingMediaFileName(file, fallbackName = '') {
+      const directName = typeof file?.name === 'string' ? file.name.trim() : '';
+      const stagedName = typeof file?.__dialogsPendingName === 'string' ? file.__dialogsPendingName.trim() : '';
+      return directName || stagedName || fallbackName || `attachment-${Date.now()}.bin`;
+    }
+
+    function createClipboardUploadFile(file, fallbackName) {
+      if (!isUploadableMediaFile(file)) {
+        return null;
+      }
+      const normalizedName = String(fallbackName || '').trim() || `clipboard-${Date.now()}.png`;
+      if (typeof File === 'function') {
+        try {
+          const normalizedType = String(file.type || '').trim() || 'application/octet-stream';
+          return new File([file], resolvePendingMediaFileName(file, normalizedName), { type: normalizedType });
+        } catch (error) {
+          // Fall back to using Blob directly below.
+        }
+      }
+      try {
+        Object.defineProperty(file, '__dialogsPendingName', {
+          value: resolvePendingMediaFileName(file, normalizedName),
+          configurable: true,
+        });
+      } catch (error) {
+        file.__dialogsPendingName = resolvePendingMediaFileName(file, normalizedName);
+      }
+      return file;
+    }
+
     function getStagedMediaFiles(mediaInput) {
       if (!(mediaInput instanceof HTMLInputElement) || !Array.isArray(mediaInput.__stagedMediaFiles)) {
         return [];
       }
-      return mediaInput.__stagedMediaFiles.filter((file) => file instanceof File);
+      return mediaInput.__stagedMediaFiles.filter((file) => isUploadableMediaFile(file));
     }
 
     function getPendingMediaFiles(mediaInput) {
@@ -647,7 +683,7 @@
       }
       const stagedFiles = getStagedMediaFiles(mediaInput);
       Array.from(files).forEach((file) => {
-        if (file instanceof File) {
+        if (isUploadableMediaFile(file)) {
           stagedFiles.push(file);
         }
       });
@@ -680,7 +716,7 @@
       try {
         for (const file of Array.from(files)) {
           const formData = new FormData();
-          formData.append('file', file);
+          formData.append('file', file, resolvePendingMediaFileName(file));
           if (caption) {
             formData.append('message', caption);
           }
@@ -753,13 +789,13 @@
         if (item?.kind !== 'file' || !String(item.type || '').startsWith('image/')) continue;
         const file = item.getAsFile ? item.getAsFile() : null;
         if (!file) continue;
-        if (file instanceof File && file.name) {
-          files.push(file);
-          continue;
-        }
         const extension = mimeToExtension(file.type);
         const generatedName = `clipboard-${Date.now()}-${sequence++}.${extension}`;
-        files.push(new File([file], generatedName, { type: file.type || 'image/png' }));
+        const normalizedFile = createClipboardUploadFile(file, generatedName);
+        if (normalizedFile) {
+          files.push(normalizedFile);
+          continue;
+        }
       }
       return files;
     }
