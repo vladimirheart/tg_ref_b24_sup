@@ -715,11 +715,41 @@
 
     function bindDetailsReplyActions() {
       if (!elements.detailsReplySend || !elements.detailsReplyText) return;
+      const stageMediaFilesInInput = (fileInput, files) => {
+        if (!(fileInput instanceof HTMLInputElement) || !files?.length || typeof DataTransfer === 'undefined') {
+          return false;
+        }
+        const transfer = new DataTransfer();
+        Array.from(fileInput.files || []).forEach((file) => transfer.items.add(file));
+        Array.from(files).forEach((file) => {
+          if (file instanceof File) {
+            transfer.items.add(file);
+          }
+        });
+        fileInput.files = transfer.files;
+        return transfer.files.length > 0;
+      };
       const sendReply = async () => {
         const activeDialogState = getActiveDialogState();
         const message = elements.detailsReplyText.value.trim();
+        const pendingMediaFiles = Array.from(elements.detailsReplyMedia?.files || []);
         const ticketId = resolveDetailsTicketId();
-        if (!message || !ticketId) return;
+        const replyToTelegramId = options.getActiveReplyToTelegramId?.() ?? null;
+        if ((!message && !pendingMediaFiles.length) || !ticketId) return;
+        if (pendingMediaFiles.length) {
+          await options.sendMediaFiles?.(pendingMediaFiles, {
+            ticketId,
+            caption: message,
+            sendButton: elements.detailsReplySend,
+            mediaInput: elements.detailsReplyMedia,
+            replyToTelegramId,
+            afterSuccess: () => {
+              elements.detailsReplyText.value = '';
+              options.resetReplyTarget?.();
+            },
+          });
+          return;
+        }
         elements.detailsReplySend.disabled = true;
         try {
           const response = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/reply`, {
@@ -727,7 +757,7 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               message,
-              replyToTelegramId: options.getActiveReplyToTelegramId?.() ?? null,
+              replyToTelegramId,
             }),
           });
           const payload = await response.json();
@@ -766,7 +796,11 @@
         const files = options.extractClipboardImageFiles?.(event) || [];
         if (!files.length) return;
         event.preventDefault();
-        options.sendMediaFiles?.(files);
+        if (!stageMediaFilesInInput(elements.detailsReplyMedia, files)) {
+          notify('Не удалось прикрепить скриншот автоматически. Используйте кнопку прикрепления медиа.', 'warning');
+          return;
+        }
+        notify(`Скриншот прикреплён: ${files.length}. Нажмите "Отправить", чтобы отправить его клиенту.`, 'info');
       });
     }
 

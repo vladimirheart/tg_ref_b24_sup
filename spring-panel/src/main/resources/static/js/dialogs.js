@@ -3559,8 +3559,8 @@
     return dialogsDetailsHistoryRuntime?.extractClipboardImageFiles(event) || [];
   }
 
-  async function sendWorkspaceMediaFiles(files) {
-    await dialogsDetailsHistoryRuntime?.sendWorkspaceMediaFiles(files);
+  async function sendWorkspaceMediaFiles(files, options = {}) {
+    await dialogsDetailsHistoryRuntime?.sendWorkspaceMediaFiles(files, options);
   }
 
 

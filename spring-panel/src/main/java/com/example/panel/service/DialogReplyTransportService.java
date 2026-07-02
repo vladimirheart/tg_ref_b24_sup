@@ -122,14 +122,15 @@ public class DialogReplyTransportService {
                                                 Long userId,
                                                 MultipartFile file,
                                                 String caption,
-                                                String originalName) {
+                                                String originalName,
+                                                Long replyToTelegramId) {
         String platform = normalizePlatform(channel.getPlatform());
         if ("max".equals(platform)) {
             String error = sendMaxMedia(channel, userId, file, caption, originalName);
             return error == null ? DialogReplyTransportResult.success(null) : DialogReplyTransportResult.error(error);
         }
         if ("telegram".equals(platform)) {
-            return sendTelegramMedia(channel, userId, file, caption, originalName);
+            return sendTelegramMedia(channel, userId, file, caption, originalName, replyToTelegramId);
         }
         return DialogReplyTransportResult.error("Отправка медиа пока поддерживается только для Telegram и MAX.");
     }
@@ -153,10 +154,7 @@ public class DialogReplyTransportService {
                     .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload)))
                     .build();
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() / 100 != 2) {
-                return DialogReplyTransportResult.error("Ошибка отправки сообщения в Telegram.");
-            }
-            return DialogReplyTransportResult.success(extractTelegramMessageId(response.body()));
+            return resolveTelegramTransportResult(response, "Ошибка отправки сообщения в Telegram.");
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
             return DialogReplyTransportResult.error("Не удалось отправить сообщение в Telegram.");
@@ -209,7 +207,8 @@ public class DialogReplyTransportService {
                                                          Long userId,
                                                          MultipartFile file,
                                                          String caption,
-                                                         String originalName) {
+                                                         String originalName,
+                                                         Long replyToTelegramId) {
         if (userId == null) {
             return DialogReplyTransportResult.error("Не удалось определить получателя в Telegram.");
         }
@@ -225,14 +224,12 @@ public class DialogReplyTransportService {
                             userId,
                             caption,
                             fieldName,
-                            file
+                            file,
+                            replyToTelegramId
                     )))
                     .build();
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() / 100 != 2) {
-                return DialogReplyTransportResult.error("Ошибка отправки файла в Telegram.");
-            }
-            return DialogReplyTransportResult.success(extractTelegramMessageId(response.body()));
+            return resolveTelegramTransportResult(response, "Ошибка отправки файла в Telegram.");
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
             return DialogReplyTransportResult.error("Не удалось отправить файл в Telegram.");
@@ -506,18 +503,67 @@ public class DialogReplyTransportService {
         };
     }
 
-    private static byte[] buildTelegramMultipartBody(Long chatId, String caption, String fieldName, MultipartFile file) {
+    private static byte[] buildTelegramMultipartBody(Long chatId,
+                                                     String caption,
+                                                     String fieldName,
+                                                     MultipartFile file,
+                                                     Long replyToTelegramId) {
         try {
             List<byte[]> parts = new ArrayList<>();
             parts.add(MultipartPayload.field("chat_id", String.valueOf(chatId)));
             if (StringUtils.hasText(caption)) {
                 parts.add(MultipartPayload.field("caption", caption));
             }
+            if (replyToTelegramId != null) {
+                parts.add(MultipartPayload.field("reply_to_message_id", String.valueOf(replyToTelegramId)));
+            }
             parts.add(MultipartPayload.file(fieldName, file));
             parts.add(MultipartPayload.finish());
             return MultipartPayload.combine(parts);
         } catch (IOException ex) {
             throw new UncheckedIOException("Failed to build multipart body", ex);
+        }
+    }
+
+    private DialogReplyTransportResult resolveTelegramTransportResult(HttpResponse<String> response, String fallbackError) {
+        if (response == null) {
+            return DialogReplyTransportResult.error(fallbackError);
+        }
+        String responseBody = response.body();
+        if (response.statusCode() / 100 != 2) {
+            return DialogReplyTransportResult.error(resolveTelegramError(responseBody, fallbackError));
+        }
+        if (isTelegramApiFailure(responseBody)) {
+            return DialogReplyTransportResult.error(resolveTelegramError(responseBody, fallbackError));
+        }
+        return DialogReplyTransportResult.success(extractTelegramMessageId(responseBody));
+    }
+
+    private String resolveTelegramError(String responseBody, String fallbackError) {
+        if (!StringUtils.hasText(responseBody)) {
+            return fallbackError;
+        }
+        try {
+            JsonNode root = objectMapper.readTree(responseBody);
+            String description = root.path("description").asText("");
+            if (StringUtils.hasText(description)) {
+                return "Telegram: " + description.trim();
+            }
+        } catch (IOException ignored) {
+            // ignore parse errors and return fallback below
+        }
+        return fallbackError;
+    }
+
+    private boolean isTelegramApiFailure(String responseBody) {
+        if (!StringUtils.hasText(responseBody)) {
+            return false;
+        }
+        try {
+            JsonNode root = objectMapper.readTree(responseBody);
+            return root.has("ok") && !root.path("ok").asBoolean(true);
+        } catch (IOException ignored) {
+            return false;
         }
     }
 

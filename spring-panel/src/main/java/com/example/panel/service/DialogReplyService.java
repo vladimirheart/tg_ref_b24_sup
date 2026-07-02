@@ -158,6 +158,7 @@ public class DialogReplyService {
     public DialogMediaReplyResult sendMediaReply(String ticketId,
                                                  MultipartFile file,
                                                  String caption,
+                                                 Long replyToTelegramId,
                                                  String operator,
                                                  String storedName,
                                                  String originalName) {
@@ -184,7 +185,7 @@ public class DialogReplyService {
         }
 
         DialogReplyTransportService.DialogReplyTransportResult transportResult =
-                dialogReplyTransportService.sendMedia(channel, target.userId(), file, caption, originalName);
+                dialogReplyTransportService.sendMedia(channel, target.userId(), file, caption, originalName, replyToTelegramId);
         if (transportResult.error() != null) {
             return DialogMediaReplyResult.error(transportResult.error());
         }
@@ -196,7 +197,8 @@ public class DialogReplyService {
                 caption,
                 storedName,
                 messageType,
-                transportResult.telegramMessageId()
+                transportResult.telegramMessageId(),
+                replyToTelegramId
         );
         dialogReplyTargetService.touchTicketActivity(ticketId, operator);
         String responsible = dialogResponsibilityService.assignResponsibleIfMissing(ticketId, operator);

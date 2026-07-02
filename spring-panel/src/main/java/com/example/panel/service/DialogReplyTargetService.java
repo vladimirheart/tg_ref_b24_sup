@@ -83,11 +83,12 @@ public class DialogReplyTargetService {
                                           String caption,
                                           String storedName,
                                           String messageType,
-                                          Long telegramMessageId) {
+                                          Long telegramMessageId,
+                                          Long replyToTelegramId) {
         String timestamp = OffsetDateTime.now().toString();
         jdbcTemplate.update("""
-                INSERT INTO chat_history(user_id, sender, message, timestamp, ticket_id, message_type, attachment, channel_id, tg_message_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO chat_history(user_id, sender, message, timestamp, ticket_id, message_type, attachment, channel_id, tg_message_id, reply_to_tg_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 target.userId(),
                 "operator",
@@ -97,7 +98,8 @@ public class DialogReplyTargetService {
                 messageType,
                 storedName,
                 target.channelId(),
-                telegramMessageId
+                telegramMessageId,
+                replyToTelegramId
         );
         return timestamp;
     }

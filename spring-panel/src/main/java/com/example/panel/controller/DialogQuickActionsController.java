@@ -129,6 +129,7 @@ public class DialogQuickActionsController {
     public ResponseEntity<?> replyWithMedia(@PathVariable String ticketId,
                                             @RequestParam("file") MultipartFile file,
                                             @RequestParam(value = "message", required = false) String message,
+                                            @RequestParam(value = "replyToTelegramId", required = false) Long replyToTelegramId,
                                             Authentication authentication) throws IOException {
         return withQuickActionTimingIo("reply_media", ticketId, () -> {
             ResponseEntity<Map<String, Object>> permissionDenied = dialogAuthorizationService.requirePermission(authentication, "can_reply", "reply_media", ticketId);
@@ -136,7 +137,7 @@ public class DialogQuickActionsController {
                 return permissionDenied;
             }
             String operator = authentication != null ? authentication.getName() : null;
-            Map<String, Object> payload = dialogQuickActionService.sendMediaReply(ticketId, file, message, operator, authentication);
+            Map<String, Object> payload = dialogQuickActionService.sendMediaReply(ticketId, file, message, replyToTelegramId, operator, authentication);
             if (!Boolean.TRUE.equals(payload.get("success"))) {
                 String error = payload.get("error") instanceof String value && StringUtils.hasText(value)
                         ? value

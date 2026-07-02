@@ -143,11 +143,12 @@ public class DialogQuickActionService {
     public Map<String, Object> sendMediaReply(String ticketId,
                                               MultipartFile file,
                                               String message,
+                                              Long replyToTelegramId,
                                               String operator,
                                               Authentication authentication) throws IOException {
         dialogAiAssistantService.clearProcessing(ticketId, "operator_reply_media", null);
         var metadata = attachmentService.storeTicketAttachment(authentication, ticketId, file);
-        var result = dialogReplyService.sendMediaReply(ticketId, file, message, operator, metadata.storedName(), metadata.originalName());
+        var result = dialogReplyService.sendMediaReply(ticketId, file, message, replyToTelegramId, operator, metadata.storedName(), metadata.originalName());
         if (!result.success()) {
             return Map.of(
                     "success", false,

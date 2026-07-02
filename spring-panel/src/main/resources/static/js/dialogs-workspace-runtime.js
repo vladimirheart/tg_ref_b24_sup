@@ -609,17 +609,45 @@
       updateWorkspaceMessagesLoadMoreState();
     }
 
+    function stageMediaFilesInInput(fileInput, files) {
+      if (!(fileInput instanceof HTMLInputElement) || !files?.length || typeof DataTransfer === 'undefined') {
+        return false;
+      }
+      const transfer = new DataTransfer();
+      Array.from(fileInput.files || []).forEach((file) => transfer.items.add(file));
+      Array.from(files).forEach((file) => {
+        if (file instanceof File) {
+          transfer.items.add(file);
+        }
+      });
+      fileInput.files = transfer.files;
+      return transfer.files.length > 0;
+    }
+
     async function sendWorkspaceReply() {
       const activeState = getActiveWorkspaceState();
       if (!elements.workspaceComposerText || !elements.workspaceComposerSend || !activeState.composerTicketId) return;
       const message = elements.workspaceComposerText.value.trim();
+      const pendingMediaFiles = Array.from(elements.workspaceComposerMedia?.files || []);
       const replyToTelegramId = Number.isFinite(Number(state.activeReplyToTelegramId))
         ? Number(state.activeReplyToTelegramId)
         : null;
       const replyPreview = elements.workspaceReplyTargetText ? elements.workspaceReplyTargetText.textContent.trim() : '';
-      if (!message) return;
+      if (!message && !pendingMediaFiles.length) return;
       if (activeState.readonlyMode || elements.workspaceComposerText.disabled) {
         options.notifyPermissionDenied?.('Отправка ответа');
+        return;
+      }
+      if (pendingMediaFiles.length) {
+        await options.sendWorkspaceMediaFiles?.(pendingMediaFiles, {
+          caption: message,
+          replyToTelegramId,
+          sendButton: elements.workspaceComposerSend,
+          mediaInput: elements.workspaceComposerMedia,
+          afterSuccess: () => {
+            resetWorkspaceReplyTarget({ reason: 'media_sent' });
+          },
+        });
         return;
       }
       elements.workspaceComposerSend.disabled = true;
@@ -964,7 +992,11 @@
           const activeState = getActiveWorkspaceState();
           if (!files.length || !activeState.ticketId) return;
           event.preventDefault();
-          options.sendWorkspaceMediaFiles?.(files);
+          if (!stageMediaFilesInInput(elements.workspaceComposerMedia, files)) {
+            notify('Не удалось прикрепить скриншот автоматически. Используйте кнопку прикрепления медиа.', 'warning');
+            return;
+          }
+          notify(`Скриншот прикреплён: ${files.length}. Отправьте сообщение явно кнопкой "Отправить".`, 'info');
         });
         elements.workspaceComposerText.addEventListener('keydown', (event) => {
           if ((event.ctrlKey || event.metaKey || event.altKey) && event.key === 'Enter') {

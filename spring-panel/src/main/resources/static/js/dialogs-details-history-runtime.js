@@ -633,6 +633,9 @@
       if (!ticketId || !files || files.length === 0) return;
       const captionSource = typeof sendOptions.caption === 'string' ? sendOptions.caption : elements.detailsReplyText?.value || '';
       const caption = String(captionSource).trim();
+      const replyToTelegramId = Number.isFinite(Number(sendOptions.replyToTelegramId))
+        ? Number(sendOptions.replyToTelegramId)
+        : null;
       const sendButton = sendOptions.sendButton || elements.detailsReplySend;
       const mediaInput = sendOptions.mediaInput || elements.detailsReplyMedia;
       const appendHistoryFlag = sendOptions.appendHistory !== false;
@@ -643,6 +646,9 @@
           formData.append('file', file);
           if (caption) {
             formData.append('message', caption);
+          }
+          if (replyToTelegramId !== null) {
+            formData.append('replyToTelegramId', String(replyToTelegramId));
           }
           const resp = await fetch(`/api/dialogs/${encodeURIComponent(ticketId)}/media`, {
             method: 'POST',
@@ -721,19 +727,28 @@
       return files;
     }
 
-    async function sendWorkspaceMediaFiles(files) {
+    async function sendWorkspaceMediaFiles(files, sendOptions = {}) {
       const activeWorkspaceState = getActiveWorkspaceState();
+      const afterSuccess = typeof sendOptions.afterSuccess === 'function' ? sendOptions.afterSuccess : null;
       await sendMediaFiles(files, {
         ticketId: activeWorkspaceState.ticketId,
-        caption: activeWorkspaceState.composerText?.value || '',
-        sendButton: activeWorkspaceState.composerSend,
-        mediaInput: activeWorkspaceState.composerMedia,
+        caption: typeof sendOptions.caption === 'string'
+          ? sendOptions.caption
+          : (activeWorkspaceState.composerText?.value || ''),
+        replyToTelegramId: sendOptions.replyToTelegramId,
+        sendButton: sendOptions.sendButton || activeWorkspaceState.composerSend,
+        mediaInput: sendOptions.mediaInput || activeWorkspaceState.composerMedia,
         appendHistory: false,
+        successMessage: sendOptions.successMessage,
+        errorMessage: sendOptions.errorMessage,
         afterSuccess: () => {
           if (activeWorkspaceState.composerText) {
             activeWorkspaceState.composerText.value = '';
           }
           options.saveWorkspaceDraft?.(activeWorkspaceState.composerTicketId, '');
+          if (afterSuccess) {
+            afterSuccess();
+          }
           options.reloadWorkspaceSection?.('messages', {
             stateElement: activeWorkspaceState.messagesState,
             errorElement: activeWorkspaceState.messagesError,
