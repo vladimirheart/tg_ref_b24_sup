@@ -157,3 +157,4 @@
 🟣 [01-135] Дочистить server-rendered payload/data contract страницы settings после runtime split
 🟣 [01-136] Починить server-side navbar/template contract страницы dialogs для зелёного DialogsControllerWebMvcTest
 🟡 [01-137] Провести enterprise UI-проход Iguana в стиле Calm Operations без изменения продуктовой логики
+🟣 [01-138] Стабилизировать history-модалку диалога и убрать шум из карточек сообщений

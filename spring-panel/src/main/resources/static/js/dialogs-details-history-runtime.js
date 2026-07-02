@@ -245,49 +245,76 @@
       return extension ? `Файл ${extension}` : 'Файл';
     }
 
+    function resolveAttachmentTypeLabel(message, kind = '') {
+      const normalizedKind = String(kind || '').trim()
+        || resolveAttachmentKind(message?.messageType, message?.attachment);
+      const normalizedType = String(message?.messageType || '').toLowerCase();
+      if (normalizedType.includes('video_note') || normalizedType.includes('videonote')) return 'Видеосообщение';
+      if (normalizedType.includes('voice')) return 'Голосовое сообщение';
+      if (normalizedType.includes('audio')) return 'Аудио';
+      if (normalizedType.includes('video')) return 'Видео';
+      if (normalizedType.includes('animation')) return 'Анимация';
+      if (normalizedType.includes('sticker')) return 'Стикер';
+      if (normalizedType.includes('photo') || normalizedType.includes('image')) return 'Изображение';
+      if (normalizedKind === 'audio') return 'Аудио';
+      if (normalizedKind === 'video') return 'Видео';
+      if (normalizedKind === 'animation') return 'Анимация';
+      if (normalizedKind === 'sticker') return 'Стикер';
+      if (normalizedKind === 'image') return 'Изображение';
+      return 'Файл';
+    }
+
+    function buildMediaInfoMarkup(message, name, kind) {
+      if (!message?.attachment) return '';
+      const attachmentUrl = escapeAttribute(message.attachment);
+      const typeLabel = resolveAttachmentTypeLabel(message, kind);
+      const normalizedName = String(name || '').trim();
+      const shouldShowFileName = normalizedName && normalizedName !== typeLabel;
+      return `
+        <div class="chat-media-info">
+          <button class="chat-media-info-toggle" type="button" aria-label="Информация о вложении">i</button>
+          <div class="chat-media-info-panel">
+            <div class="chat-media-info-label">${escapeHtml(typeLabel)}</div>
+            ${shouldShowFileName ? `<div class="chat-media-info-value">${escapeHtml(normalizedName)}</div>` : ''}
+            <a class="btn btn-sm btn-outline-secondary" href="${attachmentUrl}" download target="_blank" rel="noopener">
+              Скачать
+            </a>
+          </div>
+        </div>
+      `;
+    }
+
     function buildMediaMarkup(message) {
       if (!message?.attachment) return '';
       const kind = resolveAttachmentKind(message.messageType, message.attachment);
       const name = resolveAttachmentName(message.message, message.attachment);
-      const downloadLink = `
-        <a class="btn btn-sm btn-outline-secondary" href="${message.attachment}" download target="_blank" rel="noopener">
-          Скачать
-        </a>
-      `;
+      const attachmentUrl = escapeAttribute(message.attachment);
+      const mediaInfo = buildMediaInfoMarkup(message, name, kind);
       if (kind === 'audio') {
         return `
-          <div class="chat-media">
-            <audio class="chat-media-audio" src="${message.attachment}" controls preload="metadata"></audio>
-            <div class="chat-media-actions">
-              ${downloadLink}
-              <span class="chat-media-file-name">${name}</span>
-            </div>
+          <div class="chat-media chat-media--audio">
+            <audio class="chat-media-audio" src="${attachmentUrl}" controls preload="metadata"></audio>
+            ${mediaInfo}
           </div>
         `;
       }
       if (kind === 'video') {
         return `
           <div class="chat-media">
-            <video class="chat-media-preview video" src="${message.attachment}" data-video-src="${message.attachment}" data-media-name="${name}" muted playsinline preload="metadata"></video>
-            <div class="chat-media-actions">
-              ${downloadLink}
-              <span class="chat-media-file-name">${name}</span>
-            </div>
+            <video class="chat-media-preview video" src="${attachmentUrl}" data-video-src="${attachmentUrl}" data-media-name="${escapeAttribute(name)}" muted playsinline preload="metadata"></video>
+            ${mediaInfo}
           </div>
         `;
       }
       if (kind === 'animation') {
         const isGif = /\.gif($|\?)/i.test(message.attachment);
         const preview = isGif
-          ? `<img class=\"chat-media-preview\" src=\"${message.attachment}\" alt=\"${name}\" data-image-src=\"${message.attachment}\" data-media-name=\"${name}\">`
-          : `<video class=\"chat-media-preview video\" src=\"${message.attachment}\" data-video-src=\"${message.attachment}\" data-media-name=\"${name}\" controls loop muted playsinline preload=\"metadata\"></video>`;
+          ? `<img class=\"chat-media-preview\" src=\"${attachmentUrl}\" alt=\"${escapeAttribute(name)}\" data-image-src=\"${attachmentUrl}\" data-media-name=\"${escapeAttribute(name)}\">`
+          : `<video class=\"chat-media-preview video\" src=\"${attachmentUrl}\" data-video-src=\"${attachmentUrl}\" data-media-name=\"${escapeAttribute(name)}\" controls loop muted playsinline preload=\"metadata\"></video>`;
         return `
           <div class="chat-media">
             ${preview}
-            <div class="chat-media-actions">
-              ${downloadLink}
-              <span class="chat-media-file-name">${name}</span>
-            </div>
+            ${mediaInfo}
           </div>
         `;
       }
@@ -299,42 +326,34 @@
         `;
         if (isTgsStickerAttachment(message.attachment)) {
           preview = `
-            <div class="chat-media-preview chat-media-sticker" data-sticker-src="${escapeAttribute(message.attachment)}" data-media-name="${escapeAttribute(name)}">
+            <div class="chat-media-preview chat-media-sticker" data-sticker-src="${attachmentUrl}" data-media-name="${escapeAttribute(name)}">
               <div class="chat-media-sticker-status text-muted">Загрузка стикера…</div>
             </div>
           `;
         } else if (isVideoStickerAttachment(message.attachment)) {
-          preview = `<video class="chat-media-preview" src="${message.attachment}" autoplay loop muted playsinline preload="metadata"></video>`;
+          preview = `<video class="chat-media-preview" src="${attachmentUrl}" autoplay loop muted playsinline preload="metadata"></video>`;
         } else if (isImageStickerAttachment(message.attachment)) {
-          preview = `<img class="chat-media-preview" src="${message.attachment}" alt="${name}" data-image-src="${message.attachment}" data-media-name="${name}">`;
+          preview = `<img class="chat-media-preview" src="${attachmentUrl}" alt="${escapeAttribute(name)}" data-image-src="${attachmentUrl}" data-media-name="${escapeAttribute(name)}">`;
         }
         return `
           <div class="chat-media">
             ${preview}
-            <div class="chat-media-actions">
-              ${downloadLink}
-              <span class="chat-media-file-name">${name}</span>
-            </div>
+            ${mediaInfo}
           </div>
         `;
       }
       if (kind === 'image') {
         return `
           <div class="chat-media">
-            <img class="chat-media-preview" src="${message.attachment}" alt="${name}" data-image-src="${message.attachment}" data-media-name="${name}">
-            <div class="chat-media-actions">
-              ${downloadLink}
-              <span class="chat-media-file-name">${name}</span>
-            </div>
+            <img class="chat-media-preview" src="${attachmentUrl}" alt="${escapeAttribute(name)}" data-image-src="${attachmentUrl}" data-media-name="${escapeAttribute(name)}">
+            ${mediaInfo}
           </div>
         `;
       }
       return `
-        <div class="chat-media">
-          <div class="chat-media-actions">
-            ${downloadLink}
-            <span class="chat-media-file-name">${name}</span>
-          </div>
+        <div class="chat-media chat-media--file">
+          <div class="chat-media-file-tile">Вложение</div>
+          ${mediaInfo}
         </div>
       `;
     }
@@ -429,6 +448,9 @@
       const isEdited = Boolean(message?.editedAt);
       const isSupport = senderType === 'support';
       const archivedHistory = renderOptions.archivedHistory === true;
+      const mediaKind = message?.attachment
+        ? resolveAttachmentKind(message.messageType, message.attachment)
+        : '';
       const replyPreview = message?.replyPreview
         ? `<div class="small text-muted border-start ps-2 mb-1 chat-message-reply-source">↪ ${escapeHtml(message.replyPreview)}</div>`
         : '';
@@ -436,8 +458,19 @@
         ? `<div class="small text-muted mb-1">Переслано от ${escapeHtml(message.forwardedFrom)}</div>`
         : '';
       const bodyText = message?.message ? escapeHtml(message.message).replace(/\n/g, '<br>') : '';
-      const fallbackType = message?.messageType && !bodyText ? `[${escapeHtml(message.messageType)}]` : '';
-      const body = isDeleted ? '<span class="text-muted">Сообщение удалено</span>' : (bodyText || fallbackType || '—');
+      const fallbackType = !message?.attachment && message?.messageType && !bodyText
+        ? `[${escapeHtml(message.messageType)}]`
+        : '';
+      let body = '';
+      if (isDeleted) {
+        body = '<span class="text-muted">Сообщение удалено</span>';
+      } else if (bodyText) {
+        body = bodyText;
+      } else if (fallbackType) {
+        body = fallbackType;
+      } else if (!message?.attachment) {
+        body = '—';
+      }
       const originalBlock = isEdited && message?.originalMessage && message.originalMessage !== message.message
         ? `<div class="small text-muted mt-1"><div>Было: ${escapeHtml(message.originalMessage)}</div><div>Стало: ${escapeHtml(message.message || '')}</div></div>`
         : '';
@@ -447,6 +480,8 @@
         archivedHistory ? '<span class="chat-message-meta-badge">Архив</span>' : '',
       ].join(' ');
       const media = isDeleted ? '' : buildMediaMarkup(message);
+      const messagePreviewText = String(message?.replyPreview || message?.message || '').trim()
+        || (message?.attachment ? resolveAttachmentTypeLabel(message, mediaKind) : 'Сообщение');
       const canReply = !archivedHistory && senderType !== 'system' && message?.telegramMessageId;
       const actionButtons = canReply
         ? `<div class="chat-message-menu">
@@ -466,7 +501,7 @@
       return `
         <div class="chat-message-row ${senderType} ${archivedHistory ? 'is-archived-history' : ''}" data-telegram-message-id="${message?.telegramMessageId || ''}">
           ${avatarMarkup}
-          <div class="chat-message ${senderType} ${isDeleted ? 'is-deleted' : ''} ${archivedHistory ? 'is-archived-history' : ''}">
+          <div class="chat-message ${senderType} ${isDeleted ? 'is-deleted' : ''} ${archivedHistory ? 'is-archived-history' : ''}" data-message-preview="${escapeAttribute(messagePreviewText)}">
             <div class="chat-message-header">
               <span>${escapeHtml(senderLabel)}</span>
               <span>${escapeHtml(timestamp)}</span>
@@ -474,7 +509,7 @@
             ${statusBadges ? `<div class="small text-muted mb-1">${statusBadges}</div>` : ''}
             ${forwardedBadge}
             ${replyPreview}
-            <div class="chat-message-body">${body}</div>
+            ${body ? `<div class="chat-message-body">${body}</div>` : ''}
             ${originalBlock}
             ${media}
             ${actionButtons}
@@ -625,8 +660,47 @@
       `;
     }
 
+    function captureHistoryViewport() {
+      if (!elements.detailsHistory) return null;
+      const container = elements.detailsHistory;
+      const containerTop = container.getBoundingClientRect().top;
+      const anchor = Array.from(container.querySelectorAll('.chat-message-row'))
+        .find((row) => {
+          const rect = row.getBoundingClientRect();
+          return rect.bottom >= containerTop + 4;
+        });
+      return {
+        scrollTop: container.scrollTop,
+        pinnedToBottom: Math.abs((container.scrollHeight - container.clientHeight) - container.scrollTop) <= 24,
+        anchorMessageId: String(anchor?.dataset?.telegramMessageId || '').trim(),
+        anchorOffset: anchor ? anchor.getBoundingClientRect().top - containerTop : 0,
+      };
+    }
+
+    function restoreHistoryViewport(snapshot, renderOptions = {}) {
+      if (!elements.detailsHistory || !snapshot) return;
+      const container = elements.detailsHistory;
+      if (renderOptions.scrollToBottom !== false) {
+        container.scrollTop = container.scrollHeight;
+        return;
+      }
+      if (snapshot.pinnedToBottom && renderOptions.stickToBottom !== false) {
+        container.scrollTop = container.scrollHeight;
+        return;
+      }
+      if (snapshot.anchorMessageId) {
+        const anchor = container.querySelector(`.chat-message-row[data-telegram-message-id="${CSS.escape(snapshot.anchorMessageId)}"]`);
+        if (anchor instanceof HTMLElement) {
+          container.scrollTop = Math.max(0, anchor.offsetTop - snapshot.anchorOffset);
+          return;
+        }
+      }
+      container.scrollTop = Math.max(0, snapshot.scrollTop);
+    }
+
     function renderDialogHistory(renderOptions = {}) {
       if (!elements.detailsHistory) return;
+      const viewportSnapshot = renderOptions.preserveViewport ? captureHistoryViewport() : null;
       const currentMessages = filterDialogHistoryMessages(state.currentMessages);
       const controlsMarkup = renderPreviousDialogHistoryControls();
       const archivedMarkup = state.previousBatches.map(renderArchivedHistoryBatch).join('');
@@ -635,7 +709,9 @@
         : '<div class="text-muted">Сообщения не найдены.</div>';
       elements.detailsHistory.innerHTML = `${controlsMarkup}${archivedMarkup}${currentMarkup}`;
       hydrateMediaRoot(elements.detailsHistory);
-      if (renderOptions.scrollToBottom !== false) {
+      if (viewportSnapshot) {
+        restoreHistoryViewport(viewportSnapshot, renderOptions);
+      } else if (renderOptions.scrollToBottom !== false) {
         elements.detailsHistory.scrollTop = elements.detailsHistory.scrollHeight;
       }
     }
@@ -725,10 +801,16 @@
           throw new Error(data?.error || `Ошибка ${resp.status}`);
         }
         const messages = data.messages || [];
-        const marker = historyMarker(messages);
+        const marker = historyMarker(filterDialogHistoryMessages(messages));
         const hasHistoryChanges = marker !== state.lastHistoryMarker;
         if (hasHistoryChanges) {
-          renderHistory(messages);
+          const shouldPreserveViewport = state.lastHistoryMarker !== null;
+          renderHistory(
+            messages,
+            shouldPreserveViewport
+              ? { scrollToBottom: false, preserveViewport: true, stickToBottom: true }
+              : {}
+          );
         }
         options.updateDialogUnreadCount?.(0);
         if (hasHistoryChanges) {
@@ -1048,7 +1130,8 @@
           const action = button.dataset.action;
           if (action === 'reply') {
             const messageNode = button.closest('.chat-message');
-            const previewText = messageNode?.querySelector('.chat-message-reply-source')?.textContent
+            const previewText = messageNode?.dataset.messagePreview
+              || messageNode?.querySelector('.chat-message-reply-source')?.textContent
               || messageNode?.querySelector('.chat-message-body')?.textContent
               || '';
             setReplyTarget(messageId, previewText);

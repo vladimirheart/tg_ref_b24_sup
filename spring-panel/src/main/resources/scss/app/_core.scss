@@ -461,6 +461,7 @@ body[data-ui-page='dialogs'][data-ui-density='comfortable'] .workspace-shell-car
     display: flex;
     flex-direction: column;
     align-items: flex-end;
+    width: fit-content;
     z-index: 2;
 }
 
@@ -475,20 +476,27 @@ body[data-ui-page='dialogs'][data-ui-density='comfortable'] .workspace-shell-car
     align-items: center;
     justify-content: center;
     font-size: 1rem;
-    opacity: 0.4;
+    opacity: 0;
     transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.chat-message:hover .chat-message-menu-toggle,
+.chat-message:focus-within .chat-message-menu-toggle,
+.chat-message-menu.is-open .chat-message-menu-toggle,
+.chat-message-menu:hover .chat-message-menu-toggle {
+    opacity: 1;
 }
 
 .chat-message-menu-toggle:hover,
 .chat-message-menu-toggle:focus,
-.chat-message-menu.is-open .chat-message-menu-toggle,
-.chat-message-menu:hover .chat-message-menu-toggle {
-    opacity: 1;
+.chat-message-menu.is-open .chat-message-menu-toggle {
     background: rgba(108, 117, 125, 0.2);
 }
 
 .chat-message-menu-list {
-    margin-top: 0.35rem;
+    position: absolute;
+    top: calc(100% + 0.35rem);
+    right: 0;
     background: #fff;
     border: 1px solid #e9ecef;
     border-radius: 0.5rem;
@@ -501,14 +509,17 @@ body[data-ui-page='dialogs'][data-ui-density='comfortable'] .workspace-shell-car
     opacity: 0;
     transform: translateY(-4px);
     pointer-events: none;
+    visibility: hidden;
     transition: opacity 0.15s ease, transform 0.15s ease;
 }
 
 .chat-message-menu.is-open .chat-message-menu-list,
-.chat-message-menu:hover .chat-message-menu-list {
+.chat-message-menu:hover .chat-message-menu-list,
+.chat-message-menu:focus-within .chat-message-menu-list {
     opacity: 1;
     transform: translateY(0);
     pointer-events: auto;
+    visibility: visible;
 }
 
 .chat-message-menu-list .btn {
