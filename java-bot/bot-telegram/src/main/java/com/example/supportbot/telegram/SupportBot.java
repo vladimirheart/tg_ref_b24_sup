@@ -52,8 +52,13 @@ import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.io.File;
+import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.InetSocketAddress;
+import java.net.Proxy;
+import java.net.URL;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -1087,7 +1092,69 @@ public class SupportBot extends TelegramLongPollingBot {
     private InputStream fetchFile(String fileId) throws TelegramApiException {
         GetFile request = new GetFile(fileId);
         org.telegram.telegrambots.meta.api.objects.File file = execute(request);
-        return downloadFileAsStream(file);
+        String filePath = file != null ? file.getFilePath() : null;
+        if (filePath == null || filePath.isBlank()) {
+            throw new TelegramApiException("Telegram returned empty file path for fileId=" + fileId);
+        }
+        String downloadUrl = normalizeTelegramApiRootUrl(env("TELEGRAM_BOT_API_BASE_URL"))
+                + "/file/bot"
+                + getBotToken()
+                + "/"
+                + filePath;
+        try {
+            HttpURLConnection connection = openTelegramFileConnection(downloadUrl);
+            int statusCode = connection.getResponseCode();
+            if (statusCode / 100 != 2) {
+                String responseMessage = connection.getResponseMessage();
+                connection.disconnect();
+                throw new TelegramApiException("Telegram file download failed with HTTP "
+                        + statusCode
+                        + (responseMessage != null && !responseMessage.isBlank() ? " " + responseMessage : "")
+                        + " for fileId="
+                        + fileId);
+            }
+            InputStream responseStream = connection.getInputStream();
+            return new FilterInputStream(responseStream) {
+                @Override
+                public void close() throws IOException {
+                    try {
+                        super.close();
+                    } finally {
+                        connection.disconnect();
+                    }
+                }
+            };
+        } catch (IOException ex) {
+            throw new TelegramApiException("Error downloading file via configured Telegram API base URL", ex);
+        }
+    }
+
+    private HttpURLConnection openTelegramFileConnection(String downloadUrl) throws IOException {
+        URL url = new URL(downloadUrl);
+        Proxy proxy = resolveTelegramFileProxyFromEnv();
+        HttpURLConnection connection = (HttpURLConnection) (proxy == null ? url.openConnection() : url.openConnection(proxy));
+        connection.setConnectTimeout((int) Duration.ofSeconds(20).toMillis());
+        connection.setReadTimeout((int) Duration.ofSeconds(60).toMillis());
+        connection.setRequestMethod("GET");
+        connection.setDoInput(true);
+        return connection;
+    }
+
+    private Proxy resolveTelegramFileProxyFromEnv() {
+        String networkMode = env("APP_NETWORK_MODE").toLowerCase(Locale.ROOT);
+        if (!"proxy".equals(networkMode)) {
+            return null;
+        }
+        String host = env("APP_NETWORK_PROXY_HOST");
+        int port = parsePositiveInt(env("APP_NETWORK_PROXY_PORT"));
+        if (host.isBlank() || port <= 0) {
+            return null;
+        }
+        Proxy.Type type = switch (env("APP_NETWORK_PROXY_SCHEME").toLowerCase(Locale.ROOT)) {
+            case "socks4", "socks5", "vless" -> Proxy.Type.SOCKS;
+            default -> Proxy.Type.HTTP;
+        };
+        return new Proxy(type, new InetSocketAddress(host, port));
     }
 
     @Transactional
