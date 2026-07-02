@@ -368,6 +368,23 @@
       return typeof options.rowsList === 'function' ? options.rowsList() : [];
     }
 
+    function preserveClientAvatar(existingRow, nextRow) {
+      if (!existingRow || !nextRow) return;
+      const existingAvatar = existingRow.querySelector('.dialog-avatar[data-avatar-user-id]');
+      const nextAvatar = nextRow.querySelector('.dialog-avatar[data-avatar-user-id]');
+      if (!(existingAvatar instanceof HTMLElement) || !(nextAvatar instanceof HTMLElement)) {
+        return;
+      }
+      const existingUserId = String(existingAvatar.dataset.avatarUserId || '').trim();
+      const nextUserId = String(nextAvatar.dataset.avatarUserId || '').trim();
+      if (!existingUserId || existingUserId !== nextUserId) {
+        return;
+      }
+      const preservedAvatar = existingAvatar.cloneNode(true);
+      preservedAvatar.dataset.avatarName = String(nextAvatar.dataset.avatarName || preservedAvatar.dataset.avatarName || '').trim();
+      nextAvatar.replaceWith(preservedAvatar);
+    }
+
     function syncDialogsTable(dialogs) {
       const tbody = table?.tBodies?.[0];
       if (!tbody) {
@@ -391,7 +408,13 @@
             orderedRows.push(existingRow);
             return;
           }
+          const nextRow = options.createDialogRowElement(item);
+          if (nextRow) {
+            preserveClientAvatar(existingRow, nextRow);
+            orderedRows.push(nextRow);
+          }
           existingRow.remove();
+          return;
         }
         const nextRow = options.createDialogRowElement(item);
         if (nextRow) {

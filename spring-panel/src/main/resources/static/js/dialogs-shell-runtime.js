@@ -4,6 +4,8 @@
   }
 
   function createRuntime(options = {}) {
+    const avatarStateByUserId = new Map();
+
     let fallbackModalBackdrop = null;
 
     function debugLog(eventName, payload) {
@@ -164,6 +166,7 @@
 
     function bindAvatar(container, userId, name) {
       if (!container) return;
+      const normalizedUserId = String(userId || '').trim();
       const img = container.querySelector('[data-avatar-img]');
       const initialEl = container.querySelector('[data-avatar-initial]');
       if (initialEl) {
@@ -171,21 +174,61 @@
         initialEl.classList.remove('d-none');
       }
       if (!img) return;
-      img.classList.add('d-none');
-      if (!userId) {
+      if (!normalizedUserId) {
+        container.dataset.avatarBoundUserId = '';
+        delete img.dataset.avatarSrc;
+        delete img.dataset.avatarLoaded;
+        img.classList.add('d-none');
         return;
       }
-      const src = buildAvatarUrl(userId);
+      const src = buildAvatarUrl(normalizedUserId);
       if (!src) return;
+      const boundUserId = String(container.dataset.avatarBoundUserId || '').trim();
+      const currentSrc = String(img.dataset.avatarSrc || img.getAttribute('src') || '').trim();
+      if (boundUserId === normalizedUserId && currentSrc === src && img.dataset.avatarLoaded === 'true') {
+        img.classList.remove('d-none');
+        if (initialEl) initialEl.classList.add('d-none');
+        return;
+      }
+      const cachedState = avatarStateByUserId.get(normalizedUserId);
+      container.dataset.avatarBoundUserId = normalizedUserId;
+      img.dataset.avatarSrc = src;
+      if (cachedState === 'loaded') {
+        if (currentSrc !== src) {
+          img.src = src;
+        }
+        img.dataset.avatarLoaded = 'true';
+        img.classList.remove('d-none');
+        if (initialEl) initialEl.classList.add('d-none');
+        return;
+      }
+      if (cachedState === 'missing') {
+        img.dataset.avatarLoaded = 'false';
+        img.classList.add('d-none');
+        if (initialEl) initialEl.classList.remove('d-none');
+        return;
+      }
+      img.classList.add('d-none');
       img.onload = () => {
+        avatarStateByUserId.set(normalizedUserId, 'loaded');
+        img.dataset.avatarLoaded = 'true';
         img.classList.remove('d-none');
         if (initialEl) initialEl.classList.add('d-none');
       };
       img.onerror = () => {
+        avatarStateByUserId.set(normalizedUserId, 'missing');
+        img.dataset.avatarLoaded = 'false';
         img.classList.add('d-none');
         if (initialEl) initialEl.classList.remove('d-none');
       };
-      img.src = src;
+      if (currentSrc !== src) {
+        img.src = src;
+      } else if (img.complete && img.naturalWidth > 0) {
+        avatarStateByUserId.set(normalizedUserId, 'loaded');
+        img.dataset.avatarLoaded = 'true';
+        img.classList.remove('d-none');
+        if (initialEl) initialEl.classList.add('d-none');
+      }
     }
 
     function hydrateAvatars(root) {
