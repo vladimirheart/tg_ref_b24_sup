@@ -117,6 +117,22 @@ public class BotProcessService {
         if (process != null && process.isAlive()) {
             return BotProcessStatus.running(startedAt.get(channelId));
         }
+        if (process != null) {
+            processes.remove(channelId);
+            startedAt.remove(channelId);
+        }
+        Path botWorkingDir = resolveBotWorkingDir();
+        Path pidFile = resolvePidFile(botWorkingDir, channelId);
+        ProcessHandle handle = resolveProcessHandleFromPidFile(pidFile, channelId, true);
+        if (handle != null && handle.isAlive()) {
+            OffsetDateTime detectedStart = handle.info().startInstant()
+                .map(instant -> OffsetDateTime.ofInstant(instant, java.time.ZoneId.systemDefault()))
+                .orElse(null);
+            if (detectedStart != null) {
+                startedAt.put(channelId, detectedStart);
+            }
+            return BotProcessStatus.running(detectedStart);
+        }
         return BotProcessStatus.stopped();
     }
 
@@ -417,10 +433,9 @@ public class BotProcessService {
             return;
         }
         try {
-            String content = Files.readString(pidFile).trim();
-            if (!content.isEmpty()) {
-                long pid = Long.parseLong(content);
-                ProcessHandle.of(pid).ifPresent(handle -> stopProcess(handle, "pid-file", channelId));
+            ProcessHandle handle = resolveProcessHandleFromPidFile(pidFile, channelId, false);
+            if (handle != null) {
+                stopProcess(handle, "pid-file", channelId);
             }
         } catch (Exception ex) {
             log.warn("Failed to stop process from pid file {} for channel {}", pidFile, channelId, ex);
@@ -431,6 +446,39 @@ public class BotProcessService {
                 log.warn("Failed to delete pid file {} for channel {}", pidFile, channelId, ex);
             }
         }
+    }
+
+    private ProcessHandle resolveProcessHandleFromPidFile(Path pidFile, Long channelId, boolean cleanupStalePidFile) {
+        if (pidFile == null || !Files.exists(pidFile)) {
+            return null;
+        }
+        try {
+            String content = Files.readString(pidFile).trim();
+            if (content.isEmpty()) {
+                if (cleanupStalePidFile) {
+                    Files.deleteIfExists(pidFile);
+                }
+                return null;
+            }
+            long pid = Long.parseLong(content);
+            ProcessHandle handle = ProcessHandle.of(pid).orElse(null);
+            if (handle != null && handle.isAlive()) {
+                return handle;
+            }
+            if (cleanupStalePidFile) {
+                Files.deleteIfExists(pidFile);
+            }
+        } catch (Exception ex) {
+            log.warn("Failed to resolve process from pid file {} for channel {}", pidFile, channelId, ex);
+            if (cleanupStalePidFile) {
+                try {
+                    Files.deleteIfExists(pidFile);
+                } catch (IOException deleteEx) {
+                    log.warn("Failed to delete stale pid file {} for channel {}", pidFile, channelId, deleteEx);
+                }
+            }
+        }
+        return null;
     }
 
     private void stopProcess(ProcessHandle handle, String source, Long channelId) {

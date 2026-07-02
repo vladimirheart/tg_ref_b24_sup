@@ -6,6 +6,7 @@ import org.springframework.context.SmartLifecycle;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.TelegramBotsApi;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
+import org.telegram.telegrambots.meta.generics.BotSession;
 import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
 
 @Component
@@ -17,6 +18,7 @@ public class TelegramLongPollingLifecycle implements SmartLifecycle {
 
     private volatile boolean running = false;
     private TelegramBotsApi botsApi;
+    private BotSession botSession;
 
     public TelegramLongPollingLifecycle(SupportBot supportBot) {
         this.supportBot = supportBot;
@@ -29,7 +31,7 @@ public class TelegramLongPollingLifecycle implements SmartLifecycle {
         }
         try {
             botsApi = new TelegramBotsApi(DefaultBotSession.class);
-            botsApi.registerBot(supportBot);
+            botSession = botsApi.registerBot(supportBot);
 
             running = true;
             log.info("Telegram long polling started. username={}", supportBot.getBotUsername());
@@ -43,6 +45,12 @@ public class TelegramLongPollingLifecycle implements SmartLifecycle {
 
     @Override
     public void stop() {
+        BotSession currentSession = botSession;
+        botSession = null;
+        if (currentSession != null) {
+            currentSession.stop();
+        }
+        botsApi = null;
         running = false;
         log.info("Telegram long polling stopped. username={}", supportBot.getBotUsername());
     }

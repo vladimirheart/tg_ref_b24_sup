@@ -1105,24 +1105,26 @@
     in_work: Array.isArray(RAW_MY_IN_WORK_DIALOGS) ? RAW_MY_IN_WORK_DIALOGS : [],
   };
 </script>
-<script th:src="@{/js/dialogs-list-runtime.js}"></script>
-<script th:src="@{/js/dialogs-shell-runtime.js}"></script>
-<script th:src="@{/js/dialogs-avatar-runtime.js}"></script>
-<script th:src="@{/js/dialogs-sla-runtime.js}"></script>
-<script th:src="@{/js/dialogs-presentation-runtime.js}"></script>
-<script th:src="@{/js/dialogs-ai-runtime.js}"></script>
-<script th:src="@{/js/dialogs-details-history-runtime.js}"></script>
-<script th:src="@{/js/dialogs-details-runtime.js}"></script>
-<script th:src="@{/js/dialogs-workspace-runtime.js}"></script>
-<script th:src="@{/js/dialogs-actions-runtime.js}"></script>
-<script th:src="@{/js/dialogs-participants-runtime.js}"></script>
-<script th:src="@{/js/dialogs-my-dialogs-runtime.js}"></script>
-<script th:src="@{/js/dialogs-macro-runtime.js}"></script>
-<script th:src="@{/js/dialogs-notifications-runtime.js}"></script>
-<script th:src="@{/js/dialogs-templates-runtime.js}"></script>
-<script th:src="@{/js/dialogs-flow-runtime.js}"></script>
-<script th:src="@{/js/dialogs-experiment-runtime.js}"></script>
-<script th:src="@{/js/dialogs.js}"></script>
+<th:block th:with="dialogsAssetVersion='20260702-3'">
+<script th:src="@{/js/dialogs-list-runtime.js(v=${dialogsAssetVersion})}"></script>
+<script th:src="@{/js/dialogs-shell-runtime.js(v=${dialogsAssetVersion})}"></script>
+<script th:src="@{/js/dialogs-avatar-runtime.js(v=${dialogsAssetVersion})}"></script>
+<script th:src="@{/js/dialogs-sla-runtime.js(v=${dialogsAssetVersion})}"></script>
+<script th:src="@{/js/dialogs-presentation-runtime.js(v=${dialogsAssetVersion})}"></script>
+<script th:src="@{/js/dialogs-ai-runtime.js(v=${dialogsAssetVersion})}"></script>
+<script th:src="@{/js/dialogs-details-history-runtime.js(v=${dialogsAssetVersion})}"></script>
+<script th:src="@{/js/dialogs-details-runtime.js(v=${dialogsAssetVersion})}"></script>
+<script th:src="@{/js/dialogs-workspace-runtime.js(v=${dialogsAssetVersion})}"></script>
+<script th:src="@{/js/dialogs-actions-runtime.js(v=${dialogsAssetVersion})}"></script>
+<script th:src="@{/js/dialogs-participants-runtime.js(v=${dialogsAssetVersion})}"></script>
+<script th:src="@{/js/dialogs-my-dialogs-runtime.js(v=${dialogsAssetVersion})}"></script>
+<script th:src="@{/js/dialogs-macro-runtime.js(v=${dialogsAssetVersion})}"></script>
+<script th:src="@{/js/dialogs-notifications-runtime.js(v=${dialogsAssetVersion})}"></script>
+<script th:src="@{/js/dialogs-templates-runtime.js(v=${dialogsAssetVersion})}"></script>
+<script th:src="@{/js/dialogs-flow-runtime.js(v=${dialogsAssetVersion})}"></script>
+<script th:src="@{/js/dialogs-experiment-runtime.js(v=${dialogsAssetVersion})}"></script>
+<script th:src="@{/js/dialogs.js(v=${dialogsAssetVersion})}"></script>
+</th:block>
 <script>
   (() => {
     const STORAGE_COMPACT_MODE = 'iguana:dialogs:compact-mode';

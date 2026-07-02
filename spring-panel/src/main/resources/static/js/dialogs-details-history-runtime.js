@@ -770,8 +770,6 @@
     }
 
     function extractClipboardImageFiles(event) {
-      const items = Array.from(event?.clipboardData?.items || []);
-      if (!items.length) return [];
       const files = [];
       let sequence = 1;
       const mimeToExtension = (mimeType) => {
@@ -785,6 +783,7 @@
         if (normalized.includes('png')) return 'png';
         return 'png';
       };
+      const items = Array.from(event?.clipboardData?.items || []);
       for (const item of items) {
         if (item?.kind !== 'file' || !String(item.type || '').startsWith('image/')) continue;
         const file = item.getAsFile ? item.getAsFile() : null;
@@ -794,7 +793,18 @@
         const normalizedFile = createClipboardUploadFile(file, generatedName);
         if (normalizedFile) {
           files.push(normalizedFile);
-          continue;
+        }
+      }
+      if (!files.length) {
+        const clipboardFiles = Array.from(event?.clipboardData?.files || []);
+        for (const file of clipboardFiles) {
+          if (!String(file?.type || '').startsWith('image/')) continue;
+          const extension = mimeToExtension(file.type);
+          const generatedName = `clipboard-${Date.now()}-${sequence++}.${extension}`;
+          const normalizedFile = createClipboardUploadFile(file, generatedName);
+          if (normalizedFile) {
+            files.push(normalizedFile);
+          }
         }
       }
       return files;
