@@ -2120,13 +2120,13 @@
         </td>
         <td>${escapeHtml(displayNumber)}</td>
         <td>
-          <div class="d-flex align-items-center gap-2">
+          <div class="client-cell">
             <div class="dialog-avatar" data-avatar-user-id="${escapeHtml(userId)}"
                  data-avatar-name="${escapeHtml(clientName)}">
               <img class="dialog-avatar-img d-none" alt="Аватар клиента" data-avatar-img>
               <span class="avatar-circle" data-avatar-initial>${escapeHtml(avatarInitial(clientName))}</span>
             </div>
-            <div>
+            <div class="dialog-client-meta">
               <div class="fw-semibold">${escapeHtml(clientName)}</div>
               <div class="small text-muted">${escapeHtml(clientStatus)}</div>
             </div>
@@ -2146,7 +2146,9 @@
             <span class="dialog-business-text">${escapeHtml(businessLabel)}</span>
           </div>
         </td>
-        <td class="text-truncate" style="max-width: 260px;">${escapeHtml(problemLabel)}</td>
+        <td>
+          <span class="text-truncate dialog-problem-cell d-block">${escapeHtml(problemLabel)}</span>
+        </td>
         <td>${escapeHtml(locationLabel)}</td>
         <td>${escapeHtml(categories)}</td>
         <td>${renderResponsibleCell(responsible, responsibleAvatarUrl)}</td>
@@ -2161,7 +2163,7 @@
           <div class="dialog-actions-inline">
             <a href="${escapeHtml(openHref)}" class="btn btn-sm btn-outline-primary dialog-open-btn" data-ticket-id="${escapeHtml(ticketId)}">Открыть</a>
             <div class="dialog-actions-dropdown" data-dialog-actions>
-              <button type="button" class="btn btn-sm btn-outline-secondary dialog-actions-toggle" data-dialog-actions-toggle aria-expanded="false">Действия</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary dialog-actions-toggle" data-dialog-actions-toggle aria-expanded="false" aria-label="Действия" title="Действия">⋯</button>
               <div class="dialog-actions-menu" data-dialog-actions-menu>
               <button type="button" class="btn btn-sm btn-outline-success dialog-take-btn ${isResolvedStatusKey(statusKey) || !canTakeOwnership || !canRunAction('can_assign') ? 'd-none' : ''}" data-ticket-id="${escapeHtml(ticketId)}">Взять себе</button>
               <button type="button" class="btn btn-sm btn-outline-warning dialog-snooze-btn ${isResolvedStatusKey(statusKey) || !canRunAction('can_snooze') ? 'd-none' : ''}" data-ticket-id="${escapeHtml(ticketId)}">${formatSnoozeActionLabel(QUICK_SNOOZE_MINUTES)}</button>

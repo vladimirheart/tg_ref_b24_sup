@@ -15,6 +15,7 @@ body.with-sidebar {
   margin: 0;
   background: var(--color-bg);
   padding-left: var(--sidebar-w);
+  overflow-x: hidden;
   transition: padding-left 0.28s ease;
   min-height: var(--page-min-height, 1080px);
   min-height: max(100vh, var(--page-min-height, 1080px));
@@ -37,6 +38,8 @@ body.with-sidebar.sidebar-hovering {
 
 .main-content {
   min-width: 0;
+  width: 100%;
+  max-width: 100%;
   min-height: var(--page-min-height, 1080px);
   min-height: max(100vh, var(--page-min-height, 1080px));
 }

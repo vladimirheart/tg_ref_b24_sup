@@ -13,7 +13,9 @@ body {
 }
 
 .page-shell {
-    width: min(100%, var(--ui-page-max-width));
+    box-sizing: border-box;
+    width: 100%;
+    max-width: var(--ui-page-max-width);
     margin: 0 auto;
     padding: var(--ui-page-padding-y) var(--ui-page-padding-x) var(--ui-page-padding-bottom);
 }
@@ -143,6 +145,11 @@ body[data-ui-density='compact'] .control-panel {
 
 body[data-ui-page='dashboard'] .page-shell--dashboard {
     padding-top: calc(var(--ui-page-padding-y) + 0.35rem);
+}
+
+body[data-ui-page='dialogs'] .page-shell--dialogs {
+    max-width: none;
+    margin: 0;
 }
 
 body[data-ui-page='dialogs'] .page-header-card,

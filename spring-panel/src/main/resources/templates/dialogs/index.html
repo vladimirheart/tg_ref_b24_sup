@@ -15,7 +15,6 @@
     <style>
         .dialogs-hero,
         .dialogs-summary-card,
-        .dialogs-table-card,
         .workspace-shell-card {
             overflow: hidden;
         }
@@ -117,7 +116,7 @@
         }
         body[data-ui-page="dialogs"] .dialog-toolbar-search {
             min-width: min(18rem, 100%);
-            max-width: 26rem;
+            max-width: none;
         }
         body[data-ui-page="dialogs"] .dialog-table .text-truncate {
             max-width: 18rem;
@@ -461,7 +460,9 @@
                                 <span class="dialog-business-text" th:text="${dialog.businessLabel()}">—</span>
                             </div>
                         </td>
-                        <td class="text-truncate dialog-problem-cell" th:text="${dialog.problemSafe()}">—</td>
+                        <td>
+                            <span class="text-truncate dialog-problem-cell d-block" th:text="${dialog.problemSafe()}">—</span>
+                        </td>
                         <td th:text="${dialog.location()} ?: '—'">—</td>
                         <td th:text="${dialog.categoriesSafe()}">—</td>
                         <td>
@@ -495,9 +496,9 @@
                                     <button type="button"
                                             class="btn btn-sm btn-outline-secondary dialog-actions-toggle"
                                             data-dialog-actions-toggle
-                                            aria-expanded="false">
-                                        Действия
-                                    </button>
+                                            aria-expanded="false"
+                                            aria-label="Действия"
+                                            title="Действия">⋯</button>
                                     <div class="dialog-actions-menu" data-dialog-actions-menu>
                                     <button type="button" class="btn btn-sm btn-outline-success dialog-take-btn"
                                             th:data-ticket-id="${dialog.ticketId}"
