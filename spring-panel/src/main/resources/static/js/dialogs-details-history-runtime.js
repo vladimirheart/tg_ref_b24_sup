@@ -257,9 +257,8 @@
       if (kind === 'audio') {
         return `
           <div class="chat-media">
+            <audio class="chat-media-audio" src="${message.attachment}" controls preload="metadata"></audio>
             <div class="chat-media-actions">
-              <button class="btn btn-sm btn-outline-primary chat-audio-play" type="button"
-                data-audio-src="${message.attachment}">Воспроизвести</button>
               ${downloadLink}
               <span class="chat-media-file-name">${name}</span>
             </div>
@@ -281,7 +280,7 @@
         const isGif = /\.gif($|\?)/i.test(message.attachment);
         const preview = isGif
           ? `<img class=\"chat-media-preview\" src=\"${message.attachment}\" alt=\"${name}\" data-image-src=\"${message.attachment}\" data-media-name=\"${name}\">`
-          : `<video class=\"chat-media-preview\" src=\"${message.attachment}\" autoplay loop muted playsinline></video>`;
+          : `<video class=\"chat-media-preview video\" src=\"${message.attachment}\" data-video-src=\"${message.attachment}\" data-media-name=\"${name}\" controls loop muted playsinline preload=\"metadata\"></video>`;
         return `
           <div class="chat-media">
             ${preview}
