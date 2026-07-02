@@ -586,6 +586,7 @@
         'beforeend',
         options.renderWorkspaceMessageItem?.(message) || '',
       );
+      options.hydrateMediaRoot?.(elements.workspaceMessagesList);
       if (elements.workspaceMessagesState) {
         elements.workspaceMessagesState.classList.add('d-none');
         elements.workspaceMessagesState.textContent = '';
@@ -746,6 +747,7 @@
           const markup = items.map((item) => options.renderWorkspaceMessageItem?.(item) || '').join('');
           elements.workspaceMessagesList.insertAdjacentHTML('beforeend', markup);
           elements.workspaceMessagesList.classList.remove('d-none');
+          options.hydrateMediaRoot?.(elements.workspaceMessagesList);
         }
         state.messagesNextCursor = Number.isInteger(messages.next_cursor) ? messages.next_cursor : null;
         state.messagesHasMore = messages.has_more === true;
@@ -2185,6 +2187,7 @@
         const items = Array.isArray(messages.items) ? messages.items : [];
         elements.workspaceMessagesList.classList.toggle('d-none', items.length === 0);
         elements.workspaceMessagesList.innerHTML = items.map((item) => options.renderWorkspaceMessageItem?.(item) || '').join('');
+        options.hydrateMediaRoot?.(elements.workspaceMessagesList);
       }
       syncWorkspaceMessagesPagination(messages);
       if (elements.workspaceMessagesError) {

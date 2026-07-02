@@ -1650,6 +1650,7 @@
     stageMediaFilesInInput,
     getPendingMediaFiles,
     clearPendingMediaFiles,
+    hydrateMediaRoot: (root) => dialogsDetailsHistoryRuntime?.hydrateMediaRoot?.(root),
     sendWorkspaceMediaFiles,
     withChannelParam,
     openDialogDetails,

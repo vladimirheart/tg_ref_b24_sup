@@ -18,6 +18,7 @@
       mediaImageScale: 1,
       historyPollTimer: null,
       activeReplyToTelegramId: null,
+      stickerPreviewCache: new Map(),
     };
 
     function getActiveDialogState() {
@@ -191,18 +192,36 @@
 
     function resolveAttachmentKind(messageType, attachment) {
       const type = String(messageType || '').toLowerCase();
+      if (type.includes('sticker')) return 'sticker';
       if (type.includes('animation')) return 'animation';
       if (type.includes('video') || type.includes('videonote') || type.includes('video_note')) return 'video';
       if (type.includes('audio') || type.includes('voice')) return 'audio';
       if (type.includes('photo') || type.includes('image')) return 'image';
       if (attachment) {
         const lower = attachment.toLowerCase();
+        if (lower.endsWith('.tgs')) return 'sticker';
         if (lower.endsWith('.gif')) return 'animation';
         if (/\.(mp4|webm|mov|m4v)$/i.test(lower)) return 'video';
         if (/\.(mp3|wav|ogg|m4a)$/i.test(lower)) return 'audio';
         if (/\.(png|jpe?g|webp|bmp)$/i.test(lower)) return 'image';
       }
       return 'file';
+    }
+
+    function isTgsStickerAttachment(attachment) {
+      return /\.tgs($|\?)/i.test(String(attachment || ''));
+    }
+
+    function isVideoStickerAttachment(attachment) {
+      return /\.webm($|\?)/i.test(String(attachment || ''));
+    }
+
+    function isImageStickerAttachment(attachment) {
+      return /\.(webp|png|jpe?g|bmp)($|\?)/i.test(String(attachment || ''));
+    }
+
+    function escapeAttribute(value) {
+      return escapeHtml(value).replace(/"/g, '&quot;');
     }
 
     function resolveAttachmentName(message, attachment) {
@@ -273,6 +292,33 @@
           </div>
         `;
       }
+      if (kind === 'sticker') {
+        let preview = `
+          <div class="chat-media-preview chat-media-sticker">
+            <div class="chat-media-sticker-status text-muted">Предпросмотр стикера недоступен.</div>
+          </div>
+        `;
+        if (isTgsStickerAttachment(message.attachment)) {
+          preview = `
+            <div class="chat-media-preview chat-media-sticker" data-sticker-src="${escapeAttribute(message.attachment)}" data-media-name="${escapeAttribute(name)}">
+              <div class="chat-media-sticker-status text-muted">Загрузка стикера…</div>
+            </div>
+          `;
+        } else if (isVideoStickerAttachment(message.attachment)) {
+          preview = `<video class="chat-media-preview" src="${message.attachment}" autoplay loop muted playsinline preload="metadata"></video>`;
+        } else if (isImageStickerAttachment(message.attachment)) {
+          preview = `<img class="chat-media-preview" src="${message.attachment}" alt="${name}" data-image-src="${message.attachment}" data-media-name="${name}">`;
+        }
+        return `
+          <div class="chat-media">
+            ${preview}
+            <div class="chat-media-actions">
+              ${downloadLink}
+              <span class="chat-media-file-name">${name}</span>
+            </div>
+          </div>
+        `;
+      }
       if (kind === 'image') {
         return `
           <div class="chat-media">
@@ -292,6 +338,87 @@
           </div>
         </div>
       `;
+    }
+
+    async function loadTgsAnimationData(src) {
+      const cacheKey = String(src || '').trim();
+      if (!cacheKey) {
+        throw new Error('Sticker source is empty');
+      }
+      if (state.stickerPreviewCache.has(cacheKey)) {
+        return state.stickerPreviewCache.get(cacheKey);
+      }
+      const loader = (async () => {
+        const response = await fetch(cacheKey, {
+          credentials: 'same-origin',
+          cache: 'force-cache',
+        });
+        if (!response.ok) {
+          throw new Error(`Sticker request failed with status ${response.status}`);
+        }
+        if (typeof DecompressionStream !== 'function') {
+          throw new Error('Browser does not support gzip decompression for TGS');
+        }
+        const decompressed = response.body.pipeThrough(new DecompressionStream('gzip'));
+        const payload = await new Response(decompressed).text();
+        return JSON.parse(payload);
+      })();
+      state.stickerPreviewCache.set(cacheKey, loader);
+      try {
+        return await loader;
+      } catch (error) {
+        state.stickerPreviewCache.delete(cacheKey);
+        throw error;
+      }
+    }
+
+    async function hydrateStickerPreview(container) {
+      if (!(container instanceof HTMLElement)) return;
+      const src = String(container.dataset.stickerSrc || '').trim();
+      if (!src) return;
+      if (container.dataset.stickerState === 'loading' || container.dataset.stickerState === 'ready') return;
+      const statusNode = container.querySelector('.chat-media-sticker-status');
+      container.dataset.stickerState = 'loading';
+      if (statusNode) {
+        statusNode.textContent = 'Загрузка стикера…';
+      }
+      if (!window.lottie || typeof window.lottie.loadAnimation !== 'function') {
+        container.dataset.stickerState = 'error';
+        if (statusNode) {
+          statusNode.textContent = 'Не удалось загрузить проигрыватель стикеров.';
+        }
+        return;
+      }
+      try {
+        const animationData = await loadTgsAnimationData(src);
+        container.innerHTML = '';
+        window.lottie.loadAnimation({
+          container,
+          renderer: 'svg',
+          loop: true,
+          autoplay: true,
+          animationData,
+          rendererSettings: {
+            preserveAspectRatio: 'xMidYMid meet',
+          },
+        });
+        container.dataset.stickerState = 'ready';
+      } catch (_error) {
+        container.dataset.stickerState = 'error';
+        if (statusNode) {
+          statusNode.textContent = 'Не удалось показать стикер.';
+        } else {
+          container.innerHTML = '<div class="chat-media-sticker-status text-muted">Не удалось показать стикер.</div>';
+        }
+      }
+    }
+
+    function hydrateMediaRoot(root) {
+      if (!(root instanceof Element || root instanceof Document)) return;
+      const stickerContainers = root.querySelectorAll('[data-sticker-src]');
+      stickerContainers.forEach((container) => {
+        hydrateStickerPreview(container);
+      });
     }
 
     function messageToHtml(message, renderOptions = {}) {
@@ -508,6 +635,7 @@
         ? currentMessages.map((message) => messageToHtml(message)).join('')
         : '<div class="text-muted">Сообщения не найдены.</div>';
       elements.detailsHistory.innerHTML = `${controlsMarkup}${archivedMarkup}${currentMarkup}`;
+      hydrateMediaRoot(elements.detailsHistory);
       if (renderOptions.scrollToBottom !== false) {
         elements.detailsHistory.scrollTop = elements.detailsHistory.scrollHeight;
       }
@@ -1025,12 +1153,13 @@
       clearPendingMediaFiles,
       extractClipboardImageFiles,
       sendWorkspaceMediaFiles,
+      hydrateMediaRoot,
       handleMediaSurfaceClick,
       bindHistoryInteractionEvents,
     };
   }
 
   window.DialogsDetailsHistoryRuntime = {
-    createRuntime,
-  };
+      createRuntime,
+    };
 })();
