@@ -609,26 +609,11 @@
       updateWorkspaceMessagesLoadMoreState();
     }
 
-    function stageMediaFilesInInput(fileInput, files) {
-      if (!(fileInput instanceof HTMLInputElement) || !files?.length || typeof DataTransfer === 'undefined') {
-        return false;
-      }
-      const transfer = new DataTransfer();
-      Array.from(fileInput.files || []).forEach((file) => transfer.items.add(file));
-      Array.from(files).forEach((file) => {
-        if (file instanceof File) {
-          transfer.items.add(file);
-        }
-      });
-      fileInput.files = transfer.files;
-      return transfer.files.length > 0;
-    }
-
     async function sendWorkspaceReply() {
       const activeState = getActiveWorkspaceState();
       if (!elements.workspaceComposerText || !elements.workspaceComposerSend || !activeState.composerTicketId) return;
       const message = elements.workspaceComposerText.value.trim();
-      const pendingMediaFiles = Array.from(elements.workspaceComposerMedia?.files || []);
+      const pendingMediaFiles = options.getPendingMediaFiles?.(elements.workspaceComposerMedia) || [];
       const replyToTelegramId = Number.isFinite(Number(state.activeReplyToTelegramId))
         ? Number(state.activeReplyToTelegramId)
         : null;
@@ -971,8 +956,11 @@
         elements.workspaceComposerMediaTrigger.addEventListener('click', () => {
           elements.workspaceComposerMedia.click();
         });
-        elements.workspaceComposerMedia.addEventListener('change', async () => {
-          await options.sendWorkspaceMediaFiles?.(elements.workspaceComposerMedia.files);
+        elements.workspaceComposerMedia.addEventListener('change', () => {
+          const totalFiles = options.getPendingMediaFiles?.(elements.workspaceComposerMedia)?.length || 0;
+          if (totalFiles > 0) {
+            notify(`Медиа прикреплено: ${totalFiles}. Нажмите "Отправить", чтобы отправить клиенту.`, 'info');
+          }
         });
       }
 
@@ -992,11 +980,12 @@
           const activeState = getActiveWorkspaceState();
           if (!files.length || !activeState.ticketId) return;
           event.preventDefault();
-          if (!stageMediaFilesInInput(elements.workspaceComposerMedia, files)) {
+          const totalFiles = options.stageMediaFilesInInput?.(elements.workspaceComposerMedia, files) || 0;
+          if (!totalFiles) {
             notify('Не удалось прикрепить скриншот автоматически. Используйте кнопку прикрепления медиа.', 'warning');
             return;
           }
-          notify(`Скриншот прикреплён: ${files.length}. Отправьте сообщение явно кнопкой "Отправить".`, 'info');
+          notify(`Скриншот прикреплён. Всего вложений: ${totalFiles}. Отправьте сообщение явно кнопкой "Отправить".`, 'info');
         });
         elements.workspaceComposerText.addEventListener('keydown', (event) => {
           if ((event.ctrlKey || event.metaKey || event.altKey) && event.key === 'Enter') {

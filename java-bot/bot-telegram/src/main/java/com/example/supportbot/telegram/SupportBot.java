@@ -32,7 +32,14 @@ import org.telegram.telegrambots.meta.api.methods.GetFile;
 import org.telegram.telegrambots.meta.api.methods.groupadministration.GetChatMember;
 import org.telegram.telegrambots.meta.api.methods.GetMe;
 import org.telegram.telegrambots.meta.api.methods.updates.DeleteWebhook;
+import org.telegram.telegrambots.meta.api.methods.send.SendAnimation;
+import org.telegram.telegrambots.meta.api.methods.send.SendAudio;
+import org.telegram.telegrambots.meta.api.methods.send.SendDocument;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
+import org.telegram.telegrambots.meta.api.methods.send.SendVideo;
+import org.telegram.telegrambots.meta.api.methods.send.SendVoice;
+import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.*;
 import org.telegram.telegrambots.meta.api.objects.chatmember.ChatMember;
 import org.telegram.telegrambots.meta.api.objects.games.Animation;
@@ -44,6 +51,7 @@ import org.telegram.telegrambots.bots.DefaultBotOptions;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
@@ -865,6 +873,7 @@ public class SupportBot extends TelegramLongPollingBot {
                 messageType,
                 attachmentPath);
         ticketService.registerActivity(ticketId, username != null ? username : (userId != null ? userId.toString() : null));
+        relayActiveMessageToOperators(ticketId, messageType, text, attachmentPath, username, userId);
         return true;
     }
 
@@ -958,16 +967,50 @@ public class SupportBot extends TelegramLongPollingBot {
                                                String attachmentPath,
                                                String username,
                                                Long userId) {
-        Long channelId = properties.getChannelId();
-        if (channelId == null || channelId <= 0) {
+        Long operatorChatId = resolveOperatorRelayChatId();
+        if (operatorChatId == null || operatorChatId <= 0) {
             return;
         }
         log.info("Relaying client message to operator chat {}: ticketId={} userId={} messageType={} attachment={}",
-                channelId,
+                operatorChatId,
                 ticketId,
                 userId,
                 messageType,
                 attachmentPath);
+        String relayText = buildOperatorRelayText(ticketId, messageType, text, attachmentPath, username, userId);
+        if (attachmentPath != null && !attachmentPath.isBlank() && relayAttachmentToOperators(operatorChatId, messageType, attachmentPath, relayText)) {
+            return;
+        }
+        SendMessage toChannel = SendMessage.builder()
+                .chatId(operatorChatId)
+                .text(relayText)
+                .build();
+        try {
+            execute(toChannel);
+        } catch (TelegramApiException e) {
+            log.error("Failed to relay active ticket message to operator channel", e);
+        }
+    }
+
+    private Long resolveOperatorRelayChatId() {
+        Channel channel = getChannel();
+        if (channel != null && channel.getSupportChatId() != null && !channel.getSupportChatId().isBlank()) {
+            try {
+                return Long.parseLong(channel.getSupportChatId().trim());
+            } catch (NumberFormatException ex) {
+                log.warn("Support chat id {} is not a valid Telegram chat id", channel.getSupportChatId());
+            }
+        }
+        Long fallback = properties.getChannelId();
+        return fallback != null && fallback > 0 ? fallback : null;
+    }
+
+    private String buildOperatorRelayText(String ticketId,
+                                          String messageType,
+                                          String text,
+                                          String attachmentPath,
+                                          String username,
+                                          Long userId) {
         String senderLabel = username != null && !username.isBlank()
                 ? "@" + username
                 : (userId != null ? String.valueOf(userId) : "клиент");
@@ -982,14 +1025,38 @@ public class SupportBot extends TelegramLongPollingBot {
         if (attachmentPath != null && !attachmentPath.isBlank()) {
             builder.append("\nВложение: ").append(attachmentPath);
         }
-        SendMessage toChannel = SendMessage.builder()
-                .chatId(channelId)
-                .text(builder.toString())
-                .build();
+        return builder.toString();
+    }
+
+    private boolean relayAttachmentToOperators(Long operatorChatId,
+                                               String messageType,
+                                               String attachmentPath,
+                                               String caption) {
+        if (operatorChatId == null || operatorChatId <= 0 || attachmentPath == null || attachmentPath.isBlank()) {
+            return false;
+        }
+        File file = Path.of(attachmentPath).toFile();
+        if (!file.isFile()) {
+            log.warn("Operator relay attachment is missing on disk: {}", attachmentPath);
+            return false;
+        }
+        String safeCaption = caption != null && caption.length() > 1024
+                ? caption.substring(0, 1021) + "..."
+                : caption;
         try {
-            execute(toChannel);
-        } catch (TelegramApiException e) {
-            log.error("Failed to relay active ticket message to operator channel", e);
+            InputFile inputFile = new InputFile(file);
+            switch (String.valueOf(messageType).trim().toLowerCase(Locale.ROOT)) {
+                case "photo" -> execute(SendPhoto.builder().chatId(operatorChatId).photo(inputFile).caption(safeCaption).build());
+                case "video", "video_note" -> execute(SendVideo.builder().chatId(operatorChatId).video(inputFile).caption(safeCaption).build());
+                case "voice" -> execute(SendVoice.builder().chatId(operatorChatId).voice(inputFile).caption(safeCaption).build());
+                case "audio" -> execute(SendAudio.builder().chatId(operatorChatId).audio(inputFile).caption(safeCaption).build());
+                case "animation" -> execute(SendAnimation.builder().chatId(operatorChatId).animation(inputFile).caption(safeCaption).build());
+                default -> execute(SendDocument.builder().chatId(operatorChatId).document(inputFile).caption(safeCaption).build());
+            }
+            return true;
+        } catch (Exception ex) {
+            log.error("Failed to relay attachment to operator channel: type={} path={}", messageType, attachmentPath, ex);
+            return false;
         }
     }
 

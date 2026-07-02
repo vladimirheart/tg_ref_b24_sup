@@ -1647,6 +1647,9 @@
     updateWorkspaceActionButtons,
     renderWorkspaceMessageItem,
     extractClipboardImageFiles,
+    stageMediaFilesInInput,
+    getPendingMediaFiles,
+    clearPendingMediaFiles,
     sendWorkspaceMediaFiles,
     withChannelParam,
     openDialogDetails,
@@ -1793,6 +1796,9 @@
     operatorDisplayName: OPERATOR_DISPLAY_NAME,
     appendHistoryMessage,
     extractClipboardImageFiles,
+    stageMediaFilesInInput,
+    getPendingMediaFiles,
+    clearPendingMediaFiles,
     sendMediaFiles,
     showNotification,
   }) || null;
@@ -3561,6 +3567,18 @@
 
   async function sendWorkspaceMediaFiles(files, options = {}) {
     await dialogsDetailsHistoryRuntime?.sendWorkspaceMediaFiles(files, options);
+  }
+
+  function stageMediaFilesInInput(mediaInput, files) {
+    return dialogsDetailsHistoryRuntime?.stageMediaFilesInInput(mediaInput, files) || 0;
+  }
+
+  function getPendingMediaFiles(mediaInput) {
+    return dialogsDetailsHistoryRuntime?.getPendingMediaFiles(mediaInput) || [];
+  }
+
+  function clearPendingMediaFiles(mediaInput) {
+    dialogsDetailsHistoryRuntime?.clearPendingMediaFiles(mediaInput);
   }
 
 

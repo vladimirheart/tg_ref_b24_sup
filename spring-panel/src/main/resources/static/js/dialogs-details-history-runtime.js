@@ -626,6 +626,43 @@
       }
     }
 
+    function getSelectedMediaFiles(mediaInput) {
+      return mediaInput instanceof HTMLInputElement ? Array.from(mediaInput.files || []) : [];
+    }
+
+    function getStagedMediaFiles(mediaInput) {
+      if (!(mediaInput instanceof HTMLInputElement) || !Array.isArray(mediaInput.__stagedMediaFiles)) {
+        return [];
+      }
+      return mediaInput.__stagedMediaFiles.filter((file) => file instanceof File);
+    }
+
+    function getPendingMediaFiles(mediaInput) {
+      return getSelectedMediaFiles(mediaInput).concat(getStagedMediaFiles(mediaInput));
+    }
+
+    function stageMediaFilesInInput(mediaInput, files) {
+      if (!(mediaInput instanceof HTMLInputElement) || !files?.length) {
+        return 0;
+      }
+      const stagedFiles = getStagedMediaFiles(mediaInput);
+      Array.from(files).forEach((file) => {
+        if (file instanceof File) {
+          stagedFiles.push(file);
+        }
+      });
+      mediaInput.__stagedMediaFiles = stagedFiles;
+      return getPendingMediaFiles(mediaInput).length;
+    }
+
+    function clearPendingMediaFiles(mediaInput) {
+      if (!(mediaInput instanceof HTMLInputElement)) {
+        return;
+      }
+      mediaInput.value = '';
+      mediaInput.__stagedMediaFiles = [];
+    }
+
     async function sendMediaFiles(files, sendOptions = {}) {
       const activeDialogState = getActiveDialogState();
       const activeWorkspaceState = getActiveWorkspaceState();
@@ -691,7 +728,7 @@
       } finally {
         if (sendButton) sendButton.disabled = false;
         if (mediaInput) {
-          mediaInput.value = '';
+          clearPendingMediaFiles(mediaInput);
         }
       }
     }
@@ -890,7 +927,10 @@
           elements.detailsReplyMedia.click();
         });
         elements.detailsReplyMedia.addEventListener('change', () => {
-          sendMediaFiles(elements.detailsReplyMedia.files);
+          const totalFiles = getPendingMediaFiles(elements.detailsReplyMedia).length;
+          if (totalFiles > 0) {
+            notify(`Медиа прикреплено: ${totalFiles}. Нажмите "Отправить", чтобы отправить клиенту.`, 'info');
+          }
         });
       }
 
@@ -934,6 +974,9 @@
       startHistoryPolling,
       stopHistoryPolling,
       sendMediaFiles,
+      stageMediaFilesInInput,
+      getPendingMediaFiles,
+      clearPendingMediaFiles,
       extractClipboardImageFiles,
       sendWorkspaceMediaFiles,
       handleMediaSurfaceClick,
