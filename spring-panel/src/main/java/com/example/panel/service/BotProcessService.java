@@ -140,11 +140,20 @@ public class BotProcessService {
         return botRuntimeContractService.describe(channel, resolveBotWorkingDir());
     }
 
+    public void stopAllForStartup() {
+        stopAllProcesses("panel startup");
+    }
+
     @PreDestroy
     public void stopAll() {
-        log.info("Stopping all bot processes due to panel shutdown");
-        processes.forEach((channelId, process) -> stopProcess(process.toHandle(), "shutdown", channelId));
+        stopAllProcesses("panel shutdown");
+    }
+
+    private void stopAllProcesses(String reason) {
+        log.info("Stopping all bot processes due to {}", reason);
+        processes.forEach((channelId, process) -> stopProcess(process.toHandle(), reason, channelId));
         processes.clear();
+        startedAt.clear();
         try {
             Path runDir = resolveBotWorkingDir().resolve("../run").normalize();
             if (Files.isDirectory(runDir)) {

@@ -32,6 +32,7 @@ public class BotAutoStartService {
     @EventListener(ApplicationReadyEvent.class)
     public void autoStartActiveBots() {
         try {
+            botProcessService.stopAllForStartup();
             List<Channel> channels = channelRepository.findAll();
             int started = 0;
             for (Channel channel : channels) {
