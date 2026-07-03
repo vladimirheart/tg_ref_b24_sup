@@ -1143,10 +1143,6 @@ body[data-ui-page='dialogs'] .dialog-open-btn {
   overflow: hidden;
 }
 
-.dialog-details-sidebar.dialog-details-sidebar--end {
-  order: 2;
-}
-
 .dialog-details-sidebar-scroll {
   display: flex;
   flex-direction: column;
@@ -1164,7 +1160,24 @@ body[data-ui-page='dialogs'] .dialog-open-btn {
   min-width: 0;
   display: flex;
   min-height: 0;
-  order: 1;
+}
+
+.dialog-details-rail {
+  flex: 0 0 300px;
+  min-width: 240px;
+  max-width: 360px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.dialog-details-rail-scroll {
+  min-height: 0;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 0.2rem;
+  scrollbar-gutter: stable;
 }
 
 .dialog-details-main .card {
@@ -1372,16 +1385,6 @@ body[data-ui-page='dialogs'] .dialog-open-btn {
   border-radius: 2px;
 }
 
-.dialog-details-resize-handle.dialog-details-resize-handle--start {
-  right: auto;
-  left: -8px;
-}
-
-.dialog-details-resize-handle.dialog-details-resize-handle--start::after {
-  left: auto;
-  right: 7px;
-}
-
 .dialog-metric-item {
   display: flex;
   justify-content: space-between;
@@ -1434,7 +1437,19 @@ body[data-ui-page='dialogs'] .dialog-open-btn {
     overflow: visible;
   }
 
+  .dialog-details-rail {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: none;
+  }
+
   .dialog-details-sidebar-scroll {
+    height: auto;
+    overflow: visible;
+    padding-right: 0;
+  }
+
+  .dialog-details-rail-scroll {
     height: auto;
     overflow: visible;
     padding-right: 0;

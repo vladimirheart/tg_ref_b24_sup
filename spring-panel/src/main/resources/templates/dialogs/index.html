@@ -638,7 +638,7 @@
             </div>
             <div class="modal-body">
                 <div class="dialog-details-layout">
-                    <div class="dialog-details-sidebar dialog-details-sidebar--end" id="dialogDetailsSidebar">
+                    <div class="dialog-details-sidebar" id="dialogDetailsSidebar">
                             <div class="dialog-details-sidebar-scroll">
                                 <details class="dialog-details-section dialog-details-disclosure">
                                     <summary class="dialog-details-disclosure-toggle">
@@ -680,24 +680,8 @@
                                         <div class="text-muted small d-none" id="dialogCompletionTemplateEmpty">Шаблоны действий не настроены.</div>
                                     </div>
                                 </div>
-                                <div class="dialog-details-section" id="dialogMyDialogsPanel">
-                                    <div class="fw-semibold mb-2">Мои диалоги <span class="text-muted fw-normal" id="dialogMyDialogsCount">(0)</span></div>
-                                    <div class="text-muted small d-none" id="dialogMyDialogsEmpty">Нет новых и открытых диалогов</div>
-                                    <div class="dialog-my-dialogs-section d-none" id="dialogMyDialogsNewSection">
-                                        <div class="dialog-my-dialogs-heading">Новые</div>
-                                        <div class="dialog-my-dialogs-list" id="dialogMyDialogsNewList"></div>
-                                    </div>
-                                    <div class="dialog-my-dialogs-section d-none" id="dialogMyDialogsUnansweredSection">
-                                        <div class="dialog-my-dialogs-heading">Неотвеченные</div>
-                                        <div class="dialog-my-dialogs-list" id="dialogMyDialogsUnansweredList"></div>
-                                    </div>
-                                    <div class="dialog-my-dialogs-section d-none" id="dialogMyDialogsInWorkSection">
-                                        <div class="dialog-my-dialogs-heading">В работе</div>
-                                        <div class="dialog-my-dialogs-list" id="dialogMyDialogsInWorkList"></div>
-                                    </div>
-                                </div>
                             </div>
-                        <div class="dialog-details-resize-handle dialog-details-resize-handle--start" id="dialogDetailsResizeHandle" aria-hidden="true"></div>
+                        <div class="dialog-details-resize-handle" id="dialogDetailsResizeHandle" aria-hidden="true"></div>
                     </div>
                     <div class="dialog-details-main">
                         <div class="card shadow-sm border-0 h-100">
@@ -786,6 +770,26 @@
                             </div>
                         </div>
                     </div>
+                    <aside class="dialog-details-rail" aria-label="Мои диалоги">
+                        <div class="dialog-details-rail-scroll">
+                            <div class="dialog-details-section" id="dialogMyDialogsPanel">
+                                <div class="fw-semibold mb-2">Мои диалоги <span class="text-muted fw-normal" id="dialogMyDialogsCount">(0)</span></div>
+                                <div class="text-muted small d-none" id="dialogMyDialogsEmpty">Нет новых и открытых диалогов</div>
+                                <div class="dialog-my-dialogs-section d-none" id="dialogMyDialogsNewSection">
+                                    <div class="dialog-my-dialogs-heading">Новые</div>
+                                    <div class="dialog-my-dialogs-list" id="dialogMyDialogsNewList"></div>
+                                </div>
+                                <div class="dialog-my-dialogs-section d-none" id="dialogMyDialogsUnansweredSection">
+                                    <div class="dialog-my-dialogs-heading">Неотвеченные</div>
+                                    <div class="dialog-my-dialogs-list" id="dialogMyDialogsUnansweredList"></div>
+                                </div>
+                                <div class="dialog-my-dialogs-section d-none" id="dialogMyDialogsInWorkSection">
+                                    <div class="dialog-my-dialogs-heading">В работе</div>
+                                    <div class="dialog-my-dialogs-list" id="dialogMyDialogsInWorkList"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </aside>
                 </div>
             </div>
         </div>
