@@ -1,7 +1,7 @@
 {
   "auto_close_hours" : 1,
   "categories" : [ "Консультация", "Основной шаблон", "Не работает акция", "Ошибка отдела обращения", "Техническая проблема", "Другое" ],
-  "client_statuses" : [ "Сотрудник локации", "Менеджер", "ТУ", "Сотрудник офиса", "VIP", "Постоянный клиент", "Новый клиент", "Проблемный клиент" ],
+  "client_statuses" : [ ],
   "client_status_colors" : {
     "Сотрудник локации" : "#0d6efd",
     "Менеджер" : "#6610f2",
@@ -162,7 +162,7 @@
     "sla_critical_auto_assign_governance_review_ttl_hours" : 168,
     "sla_critical_auto_assign_governance_dry_run_ticket_required" : false,
     "sla_critical_auto_assign_governance_decision_required" : false,
-    "sla_critical_auto_assign_governance_policy_changed_at" : "2026-06-17T18:50:03.872746Z",
+    "sla_critical_auto_assign_governance_policy_changed_at" : "2026-07-02T14:30:36.445521200Z",
     "sla_critical_operator_skills" : { },
     "sla_critical_operator_queues" : { },
     "sla_critical_escalation_webhook_enabled" : false,
@@ -347,28 +347,7 @@
     "public_form_session_token_rotate_on_read" : false,
     "public_form_default_locale" : "auto"
   },
-  "network_profiles" : [ {
-    "provider" : "Ростелеком",
-    "contract_number" : "33333",
-    "support_phone" : "+7-999-999-99-99",
-    "legal_entity" : "Крепвиль",
-    "restaurant_id" : "",
-    "restaurant_ids" : [ ]
-  }, {
-    "provider" : "ДомРу",
-    "contract_number" : "ДР555",
-    "support_phone" : "+7-955-555-55-55",
-    "legal_entity" : "Сашим",
-    "restaurant_id" : "",
-    "restaurant_ids" : [ ]
-  }, {
-    "provider" : "ДомРу",
-    "contract_number" : "ДР5555",
-    "support_phone" : "+7-955-555-55-59",
-    "legal_entity" : "Сашим",
-    "restaurant_id" : "",
-    "restaurant_ids" : [ ]
-  } ],
+  "network_profiles" : [ ],
   "it_connection_categories" : { },
   "bot_settings" : {
     "question_templates" : [ {
@@ -529,24 +508,10 @@
     "direction_subtype_property" : "Поднаправление",
     "status_property" : "Статус"
   },
-  "locations_iiko_server_sources" : [ {
-    "id" : "iiko-source-motms7i8-g2bwhf",
-    "name" : "СушиВесла",
-    "base_url" : "https://gk-sv.iiko.it",
-    "api_login" : "SinicinVV",
-    "api_secret" : "0d3e58bb9e6b6af02f4689f843b936c8588b91f0",
-    "enabled" : true
-  }, {
-    "id" : "iiko-source-motmum0f-pvvpz1",
-    "name" : "БлинБерри",
-    "base_url" : "https://bb-chain.iiko.it",
-    "api_login" : "SinicinVV",
-    "api_secret" : "0d3e58bb9e6b6af02f4689f843b936c8588b91f0",
-    "enabled" : true
-  } ],
+  "locations_iiko_server_sources" : [ ],
   "locations_iiko_sync" : {
     "enabled" : true,
-    "interval_minutes" : 140
+    "interval_minutes" : 5
   },
   "auto_close_config" : {
     "templates" : [ {
