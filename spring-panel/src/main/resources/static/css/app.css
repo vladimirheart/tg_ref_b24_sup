@@ -1679,6 +1679,10 @@ body[data-ui-page=dialogs] .dialog-open-btn {
   overflow: hidden;
 }
 
+.dialog-details-sidebar.dialog-details-sidebar--end {
+  order: 2;
+}
+
 .dialog-details-sidebar-scroll {
   display: flex;
   flex-direction: column;
@@ -1696,6 +1700,7 @@ body[data-ui-page=dialogs] .dialog-open-btn {
   min-width: 0;
   display: flex;
   min-height: 0;
+  order: 1;
 }
 
 .dialog-details-main .card {
@@ -1901,6 +1906,16 @@ body[data-ui-page=dialogs] .dialog-open-btn {
   height: 80%;
   background: rgba(13, 110, 253, 0.25);
   border-radius: 2px;
+}
+
+.dialog-details-resize-handle.dialog-details-resize-handle--start {
+  right: auto;
+  left: -8px;
+}
+
+.dialog-details-resize-handle.dialog-details-resize-handle--start::after {
+  left: auto;
+  right: 7px;
 }
 
 .dialog-metric-item {

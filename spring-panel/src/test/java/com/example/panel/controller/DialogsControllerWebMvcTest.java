@@ -109,11 +109,12 @@ class DialogsControllerWebMvcTest {
         );
         stubDialogsPageData(new DialogSummary(1, 1, 0, Collections.emptyList()),
                 dialogs,
-                new DialogMyDialogs(dialogs, List.of()));
+                new DialogMyDialogs(List.of(), dialogs, List.of()));
 
         mockMvc.perform(get("/dialogs").with(user("operator")))
                 .andExpect(status().isOk())
                 .andExpect(view().name("dialogs/index"))
+                .andExpect(model().attributeExists("myNewDialogs"))
                 .andExpect(model().attributeExists("myUnansweredDialogs"))
                 .andExpect(model().attributeExists("myInWorkDialogs"))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"dialogsTable\"")))

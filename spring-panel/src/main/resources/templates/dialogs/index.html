@@ -638,7 +638,7 @@
             </div>
             <div class="modal-body">
                 <div class="dialog-details-layout">
-                    <div class="dialog-details-sidebar" id="dialogDetailsSidebar">
+                    <div class="dialog-details-sidebar dialog-details-sidebar--end" id="dialogDetailsSidebar">
                             <div class="dialog-details-sidebar-scroll">
                                 <details class="dialog-details-section dialog-details-disclosure">
                                     <summary class="dialog-details-disclosure-toggle">
@@ -682,7 +682,11 @@
                                 </div>
                                 <div class="dialog-details-section" id="dialogMyDialogsPanel">
                                     <div class="fw-semibold mb-2">Мои диалоги <span class="text-muted fw-normal" id="dialogMyDialogsCount">(0)</span></div>
-                                    <div class="text-muted small d-none" id="dialogMyDialogsEmpty">У вас нет открытых диалогов</div>
+                                    <div class="text-muted small d-none" id="dialogMyDialogsEmpty">Нет новых и открытых диалогов</div>
+                                    <div class="dialog-my-dialogs-section d-none" id="dialogMyDialogsNewSection">
+                                        <div class="dialog-my-dialogs-heading">Новые</div>
+                                        <div class="dialog-my-dialogs-list" id="dialogMyDialogsNewList"></div>
+                                    </div>
                                     <div class="dialog-my-dialogs-section d-none" id="dialogMyDialogsUnansweredSection">
                                         <div class="dialog-my-dialogs-heading">Неотвеченные</div>
                                         <div class="dialog-my-dialogs-list" id="dialogMyDialogsUnansweredList"></div>
@@ -693,7 +697,7 @@
                                     </div>
                                 </div>
                             </div>
-                        <div class="dialog-details-resize-handle" id="dialogDetailsResizeHandle" aria-hidden="true"></div>
+                        <div class="dialog-details-resize-handle dialog-details-resize-handle--start" id="dialogDetailsResizeHandle" aria-hidden="true"></div>
                     </div>
                     <div class="dialog-details-main">
                         <div class="card shadow-sm border-0 h-100">
@@ -1099,14 +1103,16 @@
   window.BUSINESS_CELL_STYLES = RAW_BUSINESS_CELL_STYLES && typeof RAW_BUSINESS_CELL_STYLES === 'object'
     ? RAW_BUSINESS_CELL_STYLES
     : {};
+  const RAW_MY_NEW_DIALOGS = /*[[${myNewDialogs}]]*/ [];
   const RAW_MY_UNANSWERED_DIALOGS = /*[[${myUnansweredDialogs}]]*/ [];
   const RAW_MY_IN_WORK_DIALOGS = /*[[${myInWorkDialogs}]]*/ [];
   window.INITIAL_MY_DIALOGS = {
+    new: Array.isArray(RAW_MY_NEW_DIALOGS) ? RAW_MY_NEW_DIALOGS : [],
     unanswered: Array.isArray(RAW_MY_UNANSWERED_DIALOGS) ? RAW_MY_UNANSWERED_DIALOGS : [],
     in_work: Array.isArray(RAW_MY_IN_WORK_DIALOGS) ? RAW_MY_IN_WORK_DIALOGS : [],
   };
 </script>
-<th:block th:with="dialogsAssetVersion='20260702-4'">
+<th:block th:with="dialogsAssetVersion='20260703-1'">
 <script th:src="@{/js/dialogs-list-runtime.js(v=${dialogsAssetVersion})}"></script>
 <script th:src="@{/js/dialogs-shell-runtime.js(v=${dialogsAssetVersion})}"></script>
 <script th:src="@{/js/dialogs-avatar-runtime.js(v=${dialogsAssetVersion})}"></script>

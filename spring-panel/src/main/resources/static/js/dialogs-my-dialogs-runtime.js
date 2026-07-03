@@ -16,13 +16,13 @@
       const state = options.getMyDialogsState?.();
       return state && typeof state === 'object'
         ? state
-        : { unanswered: [], inWork: [] };
+        : { new: [], unanswered: [], inWork: [] };
     }
 
     function setMyDialogsState(state) {
       options.setMyDialogsState?.(state && typeof state === 'object'
         ? state
-        : { unanswered: [], inWork: [] });
+        : { new: [], unanswered: [], inWork: [] });
     }
 
     function normalizeMyDialogsCollection(items) {
@@ -46,6 +46,7 @@
     function normalizeMyDialogsState(payload) {
       const source = payload && typeof payload === 'object' ? payload : {};
       setMyDialogsState({
+        new: normalizeMyDialogsCollection(source.new || source.new_unassigned || source.newUnassigned),
         unanswered: normalizeMyDialogsCollection(source.unanswered),
         inWork: normalizeMyDialogsCollection(source.in_work || source.inWork),
       });
@@ -86,19 +87,40 @@
 
     function syncMyDialogsStateFromTable() {
       const nextState = {
+        new: [],
         unanswered: [],
         inWork: [],
       };
       (options.rowsList?.() || []).forEach((row) => {
         const dialog = buildMyDialogStateFromRow(row);
-        if (!dialog || !dialog.ticketId || isMyDialogItemClosed(dialog)) {
+        const statusKey = String(row?.dataset?.statusKey || '').trim().toLowerCase();
+        const rawResponsible = resolveRowResponsibleRaw(row);
+        const isUnassigned = !String(row?.dataset?.responsible || '').trim() || !rawResponsible;
+        if (dialog && dialog.ticketId && !isMyDialogItemClosed(dialog)) {
+          if (isMyDialogItemUnanswered(dialog)) {
+            nextState.unanswered.push(dialog);
+          } else {
+            nextState.inWork.push(dialog);
+          }
           return;
         }
-        if (isMyDialogItemUnanswered(dialog)) {
-          nextState.unanswered.push(dialog);
-        } else {
-          nextState.inWork.push(dialog);
+        if (!row || statusKey !== 'new' || !isUnassigned) {
+          return;
         }
+        nextState.new.push({
+          ticketId: String(row.dataset.ticketId || '').trim(),
+          requestNumber: String(row.dataset.requestNumber || '').trim(),
+          clientName: String(row.dataset.client || '').trim(),
+          channelName: String(row.dataset.channel || '').trim(),
+          problem: String(row.dataset.problem || '').trim(),
+          statusKey,
+          unreadCount: Number(row.dataset.unread) || 0,
+          rawResponsible: rawResponsible,
+          responsible: String(row.dataset.responsible || '').trim(),
+          lastMessageSender: String(row.dataset.lastMessageSender || '').trim(),
+          lastMessageTimestamp: String(row.dataset.lastMessageTimestamp || '').trim(),
+          userId: String(row.dataset.userId || '').trim(),
+        });
       });
       setMyDialogsState(nextState);
     }
@@ -146,15 +168,20 @@
     }
 
     function renderMyDialogsPanel() {
-      if (!elements.panel || !elements.unansweredList || !elements.inWorkList) return;
+      if (!elements.panel || !elements.newList || !elements.unansweredList || !elements.inWorkList) return;
       const state = getMyDialogsState();
+      const newDialogs = normalizeMyDialogsCollection(state.new);
       const unanswered = normalizeMyDialogsCollection(state.unanswered);
       const inWork = normalizeMyDialogsCollection(state.inWork);
-      const totalActive = unanswered.length + inWork.length;
+      const totalActive = newDialogs.length + unanswered.length + inWork.length;
+      elements.newList.innerHTML = newDialogs.map(renderMyDialogItem).join('');
       elements.unansweredList.innerHTML = unanswered.map(renderMyDialogItem).join('');
       elements.inWorkList.innerHTML = inWork.map(renderMyDialogItem).join('');
       if (elements.count) {
         elements.count.textContent = `(${totalActive})`;
+      }
+      if (elements.newSection) {
+        elements.newSection.classList.toggle('d-none', newDialogs.length === 0);
       }
       if (elements.unansweredSection) {
         elements.unansweredSection.classList.toggle('d-none', unanswered.length === 0);
@@ -163,7 +190,7 @@
         elements.inWorkSection.classList.toggle('d-none', inWork.length === 0);
       }
       if (elements.empty) {
-        elements.empty.classList.toggle('d-none', unanswered.length > 0 || inWork.length > 0);
+        elements.empty.classList.toggle('d-none', newDialogs.length > 0 || unanswered.length > 0 || inWork.length > 0);
       }
     }
 

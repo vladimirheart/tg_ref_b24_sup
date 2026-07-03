@@ -91,6 +91,7 @@ class DialogLookupReadServiceTest {
     @Test
     void groupMyActiveDialogsKeepsOnlyCurrentOperatorsOpenDialogsAndSplitsByUnread() {
         List<DialogListItem> dialogs = List.of(
+                dialogItem("T-100", null, "pending", "client", 1),
                 dialogItem("T-101", "operator", "pending", "client", 2),
                 dialogItem("T-102", "operator", "pending", "support", 0),
                 dialogItem("T-103", "other", "pending", "client", 4),
@@ -99,6 +100,7 @@ class DialogLookupReadServiceTest {
 
         var myDialogs = service.groupMyActiveDialogs(dialogs, "operator");
 
+        assertThat(myDialogs.newUnassigned()).extracting(DialogListItem::ticketId).containsExactly("T-100");
         assertThat(myDialogs.unanswered()).extracting(DialogListItem::ticketId).containsExactly("T-101");
         assertThat(myDialogs.inWork()).extracting(DialogListItem::ticketId).containsExactly("T-102");
     }
@@ -112,6 +114,7 @@ class DialogLookupReadServiceTest {
 
         var myDialogs = service.groupMyActiveDialogs(dialogs, "operator");
 
+        assertThat(myDialogs.newUnassigned()).isEmpty();
         assertThat(myDialogs.unanswered()).extracting(DialogListItem::ticketId).containsExactly("T-202");
         assertThat(myDialogs.inWork()).extracting(DialogListItem::ticketId).containsExactly("T-201");
     }
@@ -125,6 +128,7 @@ class DialogLookupReadServiceTest {
 
         var myDialogs = service.groupMyActiveDialogs(dialogs, "operator");
 
+        assertThat(myDialogs.newUnassigned()).isEmpty();
         assertThat(myDialogs.unanswered()).extracting(DialogListItem::ticketId).containsExactly("T-212");
         assertThat(myDialogs.inWork()).extracting(DialogListItem::ticketId).containsExactly("T-211");
     }
@@ -140,8 +144,10 @@ class DialogLookupReadServiceTest {
         var oldOwnerDialogs = service.groupMyActiveDialogs(dialogs, "operator");
         var newOwnerDialogs = service.groupMyActiveDialogs(dialogs, "new_owner");
 
+        assertThat(oldOwnerDialogs.newUnassigned()).isEmpty();
         assertThat(oldOwnerDialogs.unanswered()).extracting(DialogListItem::ticketId).containsExactly("T-301");
         assertThat(oldOwnerDialogs.inWork()).isEmpty();
+        assertThat(newOwnerDialogs.newUnassigned()).isEmpty();
         assertThat(newOwnerDialogs.unanswered()).extracting(DialogListItem::ticketId).containsExactly("T-302");
         assertThat(newOwnerDialogs.inWork()).extracting(DialogListItem::ticketId).containsExactly("T-303");
     }

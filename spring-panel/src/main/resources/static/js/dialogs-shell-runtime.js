@@ -580,9 +580,13 @@
       if (!detailsSidebar || !detailsResizeHandle) return;
       let startX = 0;
       let startWidth = 0;
+      const reverseDirection = detailsSidebar.classList.contains('dialog-details-sidebar--end')
+        || detailsResizeHandle.classList.contains('dialog-details-resize-handle--start');
 
       function onMouseMove(event) {
-        const delta = event.clientX - startX;
+        const delta = reverseDirection
+          ? startX - event.clientX
+          : event.clientX - startX;
         const nextWidth = Math.min(480, Math.max(220, startWidth + delta));
         detailsSidebar.style.flexBasis = `${nextWidth}px`;
       }

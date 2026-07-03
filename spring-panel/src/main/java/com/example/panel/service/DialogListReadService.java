@@ -41,6 +41,7 @@ public class DialogListReadService {
         payload.put("summary", summary);
         payload.put("dialogs", dialogs);
         payload.put("my_dialogs", Map.of(
+                "new", myDialogs.newUnassigned(),
                 "unanswered", myDialogs.unanswered(),
                 "in_work", myDialogs.inWork()
         ));

@@ -247,10 +247,18 @@ public class DialogLookupReadService {
         if (normalizedOperator == null || dialogs == null || dialogs.isEmpty()) {
             return DialogMyDialogs.empty();
         }
+        List<DialogListItem> newUnassigned = new ArrayList<>();
         List<DialogListItem> unanswered = new ArrayList<>();
         List<DialogListItem> inWork = new ArrayList<>();
         for (DialogListItem item : dialogs) {
-            if (!belongsToCurrentOperator(item, normalizedOperator) || isClosedDialog(item)) {
+            if (isClosedDialog(item)) {
+                continue;
+            }
+            if (isNewUnassignedDialog(item)) {
+                newUnassigned.add(item);
+                continue;
+            }
+            if (!belongsToCurrentOperator(item, normalizedOperator)) {
                 continue;
             }
             int unreadCount = item.unreadCount() != null ? item.unreadCount() : 0;
@@ -260,7 +268,7 @@ public class DialogLookupReadService {
             }
             inWork.add(item);
         }
-        return new DialogMyDialogs(List.copyOf(unanswered), List.copyOf(inWork));
+        return new DialogMyDialogs(List.copyOf(newUnassigned), List.copyOf(unanswered), List.copyOf(inWork));
     }
 
     public Optional<DialogListItem> findDialog(String ticketId, String operator) {
@@ -601,6 +609,14 @@ public class DialogLookupReadService {
     private boolean belongsToCurrentOperator(DialogListItem item, String normalizedOperator) {
         return normalizedOperator != null
                 && normalizedOperator.equals(normalizeIdentity(item != null ? item.rawResponsible() : null));
+    }
+
+    private boolean isNewUnassignedDialog(DialogListItem item) {
+        if (item == null) {
+            return false;
+        }
+        return "new".equals(normalizeIdentity(item.statusKey()))
+                && normalizeIdentity(item.rawResponsible()) == null;
     }
 
     private boolean isClosedDialog(DialogListItem item) {

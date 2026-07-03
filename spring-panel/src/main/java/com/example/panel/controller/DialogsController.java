@@ -76,6 +76,7 @@ public class DialogsController {
             DialogMyDialogs myDialogs = dialogLookupReadService.groupMyActiveDialogs(dialogs, operatorIdentity);
             model.addAttribute("summary", summary);
             model.addAttribute("dialogs", dialogs);
+            model.addAttribute("myNewDialogs", myDialogs.newUnassigned());
             model.addAttribute("myUnansweredDialogs", myDialogs.unanswered());
             model.addAttribute("myInWorkDialogs", myDialogs.inWork());
             model.addAttribute("settingsPayload", sharedConfigService.loadSettings());

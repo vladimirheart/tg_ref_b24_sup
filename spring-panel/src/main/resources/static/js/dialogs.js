@@ -234,6 +234,8 @@
   const myDialogsPanel = document.getElementById('dialogMyDialogsPanel');
   const myDialogsCount = document.getElementById('dialogMyDialogsCount');
   const myDialogsEmpty = document.getElementById('dialogMyDialogsEmpty');
+  const myDialogsNewSection = document.getElementById('dialogMyDialogsNewSection');
+  const myDialogsNewList = document.getElementById('dialogMyDialogsNewList');
   const myDialogsUnansweredSection = document.getElementById('dialogMyDialogsUnansweredSection');
   const myDialogsUnansweredList = document.getElementById('dialogMyDialogsUnansweredList');
   const myDialogsInWorkSection = document.getElementById('dialogMyDialogsInWorkSection');
@@ -1050,6 +1052,9 @@
 
   let columnState = { ...defaultColumnState };
   let myDialogsState = {
+    new: Array.isArray(INITIAL_MY_DIALOGS.new)
+      ? INITIAL_MY_DIALOGS.new.filter((item) => item && typeof item === 'object')
+      : [],
     unanswered: Array.isArray(INITIAL_MY_DIALOGS.unanswered)
       ? INITIAL_MY_DIALOGS.unanswered.filter((item) => item && typeof item === 'object')
       : [],
@@ -1348,6 +1353,8 @@
       panel: myDialogsPanel,
       count: myDialogsCount,
       empty: myDialogsEmpty,
+      newSection: myDialogsNewSection,
+      newList: myDialogsNewList,
       unansweredSection: myDialogsUnansweredSection,
       unansweredList: myDialogsUnansweredList,
       inWorkSection: myDialogsInWorkSection,
@@ -1362,7 +1369,7 @@
     setMyDialogsState: (state) => {
       myDialogsState = state && typeof state === 'object'
         ? state
-        : { unanswered: [], inWork: [] };
+        : { new: [], unanswered: [], inWork: [] };
     },
     getActiveDialogTicketId: () => activeDialogTicketId,
     findRowByTicketId: (ticketId) => table.querySelector(`tr[data-ticket-id="${escapeSelectorValue(ticketId)}"]`),
