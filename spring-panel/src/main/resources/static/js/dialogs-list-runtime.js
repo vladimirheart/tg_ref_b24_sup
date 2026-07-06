@@ -632,7 +632,10 @@
     function isNewDialog(row) {
       const key = String(row.dataset.statusKey || '').toLowerCase();
       const raw = String(row.dataset.statusRaw || '').toLowerCase();
-      return key === 'new' || raw === 'new';
+      if (key === 'new' || raw === 'new') {
+        return true;
+      }
+      return key === 'auto_processing' && isUnassignedDialog(row);
     }
 
     function isUnassignedDialog(row) {

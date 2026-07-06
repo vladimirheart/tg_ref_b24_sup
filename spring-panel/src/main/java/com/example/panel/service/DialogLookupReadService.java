@@ -615,8 +615,11 @@ public class DialogLookupReadService {
         if (item == null) {
             return false;
         }
-        return "new".equals(normalizeIdentity(item.statusKey()))
-                && normalizeIdentity(item.rawResponsible()) == null;
+        String statusKey = normalizeIdentity(item.statusKey());
+        if (normalizeIdentity(item.rawResponsible()) != null) {
+            return false;
+        }
+        return "new".equals(statusKey) || "auto_processing".equals(statusKey);
     }
 
     private boolean isClosedDialog(DialogListItem item) {

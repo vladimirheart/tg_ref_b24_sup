@@ -273,6 +273,56 @@ class DialogListIntegrationTest {
     }
 
     @Test
+    void listApiKeepsUnassignedAutoProcessingDialogVisibleInNewBucket() throws Exception {
+        jdbcTemplate.update("""
+                INSERT INTO channels (id, token, channel_name, platform, is_active, created_at)
+                VALUES (67, 'token67', 'Dialog List Auto Queue', 'telegram', 1, CURRENT_TIMESTAMP)
+                """);
+        jdbcTemplate.update("""
+                INSERT INTO tickets (user_id, ticket_id, status, channel_id, created_at)
+                VALUES (?,?,?,?,?)
+                """,
+                920067L, "T-LIST-AUTO-QUEUE", "open", 67L, "2026-05-28T10:10:00Z");
+        jdbcTemplate.update("""
+                INSERT INTO messages (
+                    group_msg_id, user_id, business, city, location_name, problem, created_at,
+                    username, ticket_id, created_date, created_time, client_name, channel_id, updated_at, updated_by
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                6701L,
+                920067L,
+                "Retail",
+                "Ярославль",
+                "Точка Auto Queue",
+                "Проверка new bucket при auto_processing без owner",
+                "2026-05-28T10:10:00Z",
+                "list_auto_queue_user",
+                "T-LIST-AUTO-QUEUE",
+                "2026-05-28",
+                "10:10:00",
+                "Клиент Auto Queue",
+                67L,
+                "2026-05-28T10:10:00Z",
+                "seed");
+        jdbcTemplate.update("""
+                INSERT INTO ticket_ai_agent_state(ticket_id, is_processing, mode, last_action, updated_at)
+                VALUES (?, 1, ?, ?, CURRENT_TIMESTAMP)
+                """,
+                "T-LIST-AUTO-QUEUE", "assist", "drafting");
+        insertHistoryRow("T-LIST-AUTO-QUEUE", 920067L, "user", "Клиент пишет в новый auto queue", "2026-05-28T10:11:00Z", "text", 671L, null, 67L);
+
+        mockMvc.perform(get("/api/dialogs")
+                        .principal(new TestingAuthenticationToken("watcher_owner", "n/a", "PAGE_DIALOGS")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dialogs[0].ticketId").value("T-LIST-AUTO-QUEUE"))
+                .andExpect(jsonPath("$.dialogs[0].statusKey").value("auto_processing"))
+                .andExpect(jsonPath("$.dialogs[0].rawResponsible").isEmpty())
+                .andExpect(jsonPath("$.my_dialogs.new[0].ticketId").value("T-LIST-AUTO-QUEUE"))
+                .andExpect(jsonPath("$.my_dialogs.unanswered").isEmpty())
+                .andExpect(jsonPath("$.my_dialogs.in_work").isEmpty());
+    }
+
+    @Test
     void listApiRefreshesMyDialogsAcrossHttpResolveAndReopenLifecycle() throws Exception {
         insertDirectoryUser("watcher_owner", "Watcher Owner", "/img/watcher-owner.png");
         jdbcTemplate.update("""

@@ -54,13 +54,18 @@
 
     function isMyDialogItemUnanswered(dialog) {
       const unreadCount = Number(dialog?.unreadCount ?? dialog?.unread_count ?? 0) || 0;
-      const statusKey = String(dialog?.statusKey || dialog?.status_key || '').trim().toLowerCase();
-      return unreadCount > 0 || statusKey === 'waiting_operator';
+      return unreadCount > 0;
     }
 
     function isMyDialogItemClosed(dialog) {
       const statusKey = String(dialog?.statusKey || dialog?.status_key || '').trim().toLowerCase();
       return statusKey === 'closed' || statusKey === 'auto_closed';
+    }
+
+    function isMyDialogItemNewUnassigned(dialog) {
+      const statusKey = String(dialog?.statusKey || dialog?.status_key || '').trim().toLowerCase();
+      const rawResponsible = resolveResponsibleRawFromItem(dialog);
+      return !rawResponsible && (statusKey === 'new' || statusKey === 'auto_processing');
     }
 
     function buildMyDialogStateFromRow(row) {
@@ -104,7 +109,13 @@
           }
           return;
         }
-        if (!row || statusKey !== 'new' || !isUnassigned) {
+        if (!row || !isUnassigned) {
+          return;
+        }
+        if (!isMyDialogItemNewUnassigned({
+          statusKey,
+          rawResponsible,
+        })) {
           return;
         }
         nextState.new.push({
@@ -220,6 +231,7 @@
       normalizeMyDialogsState,
       isMyDialogItemUnanswered,
       isMyDialogItemClosed,
+      isMyDialogItemNewUnassigned,
       buildMyDialogStateFromRow,
       syncMyDialogsStateFromTable,
       formatMyDialogLastActivity,

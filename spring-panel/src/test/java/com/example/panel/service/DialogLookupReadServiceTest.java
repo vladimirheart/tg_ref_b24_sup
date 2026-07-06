@@ -134,6 +134,20 @@ class DialogLookupReadServiceTest {
     }
 
     @Test
+    void groupMyActiveDialogsKeepsUnassignedAutoProcessingDialogsInNewBucket() {
+        List<DialogListItem> dialogs = List.of(
+                dialogItem("T-221", null, "pending", true, "client", 1),
+                dialogItem("T-222", "operator", "pending", false, "support", 0)
+        );
+
+        var myDialogs = service.groupMyActiveDialogs(dialogs, "operator");
+
+        assertThat(myDialogs.newUnassigned()).extracting(DialogListItem::ticketId).containsExactly("T-221");
+        assertThat(myDialogs.unanswered()).isEmpty();
+        assertThat(myDialogs.inWork()).extracting(DialogListItem::ticketId).containsExactly("T-222");
+    }
+
+    @Test
     void groupMyActiveDialogsFiltersOutTicketsReassignedToDifferentOwnerEvenWhenUnreadExists() {
         List<DialogListItem> dialogs = List.of(
                 dialogItem("T-301", "operator", "pending", "client", 2),
