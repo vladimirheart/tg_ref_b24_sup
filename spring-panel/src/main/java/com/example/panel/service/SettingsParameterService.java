@@ -9,12 +9,16 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 @Service
 public class SettingsParameterService {
+
+    private static final Logger log = LoggerFactory.getLogger(SettingsParameterService.class);
 
     private final JdbcTemplate jdbcTemplate;
     private final SharedConfigService sharedConfigService;
@@ -128,6 +132,20 @@ public class SettingsParameterService {
 
     public void syncParametersFromLocationsPayload(Object locationsPayload) {
         syncParametersFromLocations(locationsPayload);
+    }
+
+    public boolean repairLocationsSharedConfigIfNeeded() {
+        JsonNode existingLocations = sharedConfigService.loadLocations();
+        boolean hasTree = existingLocations != null
+                && existingLocations.isObject()
+                && existingLocations.path("tree").isObject()
+                && existingLocations.path("tree").size() > 0;
+        if (hasTree || !hasLocationParametersForRepair()) {
+            return false;
+        }
+        syncLocationsFromParameters();
+        log.info("Rebuilt shared locations config from settings_parameters because locations.json was empty or missing");
+        return true;
     }
 
     private Map<String, Object> fetchParametersGrouped(boolean includeDeleted) {
@@ -359,6 +377,15 @@ public class SettingsParameterService {
         payload.put("location_meta", locationMeta);
         sharedConfigService.saveLocations(payload);
         syncParametersFromLocations(payload);
+    }
+
+    private boolean hasLocationParametersForRepair() {
+        Integer count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM settings_parameters "
+                        + "WHERE is_deleted = 0 AND param_type IN ('business', 'city', 'department')",
+                Integer.class
+        );
+        return count != null && count > 0;
     }
 
     private void syncParametersFromLocations(Object locationsPayload) {

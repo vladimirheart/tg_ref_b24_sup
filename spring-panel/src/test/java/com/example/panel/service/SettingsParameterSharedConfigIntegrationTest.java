@@ -10,6 +10,7 @@ import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
 import javax.sql.DataSource;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -186,5 +187,59 @@ class SettingsParameterSharedConfigIntegrationTest {
                 "SELECT COUNT(*) FROM settings_parameters WHERE param_type = 'department'",
                 Integer.class
         ));
+    }
+
+    @Test
+    void repairLocationsSharedConfigIfNeededRestoresEmptyLocationsJsonFromParameters() {
+        service.createParameter(Map.of("param_type", "business", "value", "БлинБери"));
+        service.createParameter(Map.of("param_type", "business", "value", "СушиВёсла"));
+        service.createParameter(Map.of(
+                "param_type", "city",
+                "value", "Москва",
+                "dependencies", Map.of(
+                        "country", "Россия",
+                        "partner_type", "Корпоративная сеть",
+                        "business", "БлинБери"
+                )
+        ));
+        service.createParameter(Map.of(
+                "param_type", "department",
+                "value", "Тверская",
+                "dependencies", Map.of(
+                        "country", "Россия",
+                        "partner_type", "Корпоративная сеть",
+                        "business", "БлинБери",
+                        "city", "Москва"
+                )
+        ));
+        service.createParameter(Map.of(
+                "param_type", "department",
+                "value", "Арбат",
+                "dependencies", Map.of(
+                        "country", "Россия",
+                        "partner_type", "Корпоративная сеть",
+                        "business", "СушиВёсла",
+                        "city", "Москва"
+                )
+        ));
+
+        Map<String, Object> emptyLocations = new LinkedHashMap<>();
+        emptyLocations.put("tree", Map.of());
+        emptyLocations.put("statuses", Map.of());
+        emptyLocations.put("city_meta", Map.of());
+        emptyLocations.put("location_meta", Map.of());
+        emptyLocations.put("locationsLoaded", false);
+        emptyLocations.put("locationsLoadingPromise", null);
+        sharedConfigService.saveLocations(emptyLocations);
+
+        assertTrue(service.repairLocationsSharedConfigIfNeeded());
+
+        JsonNode locations = sharedConfigService.loadLocations();
+        assertEquals("Тверская",
+                locations.path("tree").path("БлинБери").path("Корпоративная сеть").path("Москва").get(0).asText());
+        assertEquals("Арбат",
+                locations.path("tree").path("СушиВёсла").path("Корпоративная сеть").path("Москва").get(0).asText());
+        assertEquals("Россия",
+                locations.path("city_meta").path("СушиВёсла::Корпоративная сеть::Москва").path("country").asText());
     }
 }
