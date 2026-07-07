@@ -19,6 +19,9 @@ import org.springframework.util.StringUtils;
 public class SettingsParameterService {
 
     private static final Logger log = LoggerFactory.getLogger(SettingsParameterService.class);
+    private static final Map<String, String> BUSINESS_NAME_ALIASES = Map.of(
+            "СушиВесла", "СушиВёсла"
+    );
 
     private final JdbcTemplate jdbcTemplate;
     private final SharedConfigService sharedConfigService;
@@ -41,11 +44,12 @@ public class SettingsParameterService {
 
     public Map<String, Object> createParameter(Map<String, Object> payload) {
         String paramType = stringValue(payload.get("param_type"));
-        String value = stringValue(payload.get("value"));
+        Map<String, Object> normalizedPayload = normalizePayloadForPersistence(paramType, payload);
+        String value = stringValue(normalizedPayload.get("value"));
         if (!StringUtils.hasText(paramType) || !StringUtils.hasText(value)) {
             return Map.of("success", false, "error", "Тип и значение параметра обязательны");
         }
-        String state = stringValue(payload.get("state"));
+        String state = stringValue(normalizedPayload.get("state"));
         if (!StringUtils.hasText(state)) {
             state = "Активен";
         }
@@ -54,7 +58,7 @@ public class SettingsParameterService {
         } catch (IllegalArgumentException ex) {
             return Map.of("success", false, "error", ex.getMessage());
         }
-        String extraJson = buildExtraJson(payload, Set.of("param_type", "value", "state"));
+        String extraJson = buildExtraJson(normalizedPayload, Set.of("param_type", "value", "state"));
         jdbcTemplate.update(
                 "INSERT INTO settings_parameters(param_type, value, state, is_deleted, extra_json) VALUES (?, ?, ?, 0, ?)",
                 paramType, value, state, extraJson
@@ -74,8 +78,9 @@ public class SettingsParameterService {
         Map<String, Object> existing = existingRows.get(0);
 
         String paramType = stringValue(existing.get("param_type"));
-        String finalValue = payload.containsKey("value")
-                ? stringValue(payload.get("value"))
+        Map<String, Object> normalizedPayload = normalizePayloadForPersistence(paramType, payload);
+        String finalValue = normalizedPayload.containsKey("value")
+                ? stringValue(normalizedPayload.get("value"))
                 : stringValue(existing.get("value"));
         try {
             validateParameterUniqueness(paramType, finalValue, paramId);
@@ -86,25 +91,25 @@ public class SettingsParameterService {
         StringBuilder updates = new StringBuilder();
         List<Object> params = new ArrayList<>();
 
-        if (payload.containsKey("value")) {
+        if (normalizedPayload.containsKey("value")) {
             updates.append("value = ?,");
-            params.add(stringValue(payload.get("value")));
+            params.add(stringValue(normalizedPayload.get("value")));
         }
-        if (payload.containsKey("state")) {
+        if (normalizedPayload.containsKey("state")) {
             updates.append("state = ?,");
-            params.add(stringValue(payload.get("state")));
+            params.add(stringValue(normalizedPayload.get("state")));
         }
-        if (payload.containsKey("is_deleted")) {
+        if (normalizedPayload.containsKey("is_deleted")) {
             updates.append("is_deleted = ?,");
-            params.add(Boolean.TRUE.equals(payload.get("is_deleted")) ? 1 : 0);
-            if (Boolean.TRUE.equals(payload.get("is_deleted"))) {
+            params.add(Boolean.TRUE.equals(normalizedPayload.get("is_deleted")) ? 1 : 0);
+            if (Boolean.TRUE.equals(normalizedPayload.get("is_deleted"))) {
                 updates.append("deleted_at = datetime('now'),");
             } else {
                 updates.append("deleted_at = NULL,");
             }
         }
 
-        String extraJson = mergeExtraJson(existing.get("extra_json"), payload, Set.of("value", "state", "is_deleted"));
+        String extraJson = mergeExtraJson(existing.get("extra_json"), normalizedPayload, Set.of("value", "state", "is_deleted"));
         updates.append("extra_json = ?");
         params.add(extraJson);
 
@@ -148,6 +153,18 @@ public class SettingsParameterService {
         return true;
     }
 
+    public boolean normalizeLocationBusinessAliasesIfNeeded() {
+        boolean changed = false;
+        for (Map.Entry<String, String> aliasEntry : BUSINESS_NAME_ALIASES.entrySet()) {
+            changed |= normalizeLocationBusinessAlias(aliasEntry.getKey(), aliasEntry.getValue());
+        }
+        if (changed) {
+            syncLocationsFromParameters();
+            log.info("Normalized location business aliases in settings_parameters and rebuilt shared locations config");
+        }
+        return changed;
+    }
+
     private Map<String, Object> fetchParametersGrouped(boolean includeDeleted) {
         Map<String, Object> grouped = new LinkedHashMap<>();
         Map<String, String> types = settingsCatalogService.getParameterTypes();
@@ -174,7 +191,8 @@ public class SettingsParameterService {
                 Map<?, ?> depsMap = rawDeps instanceof Map<?, ?> map ? map : Map.of();
                 for (String key : depKeys) {
                     Object value = depsMap.containsKey(key) ? depsMap.get(key) : extra.get(key);
-                    dependencies.put(key, value != null ? value.toString().trim() : "");
+                    String normalizedValue = value != null ? value.toString().trim() : "";
+                    dependencies.put(key, "business".equals(key) ? normalizeBusinessName(normalizedValue) : normalizedValue);
                 }
                 extra.put("dependencies", dependencies);
             }
@@ -286,7 +304,8 @@ public class SettingsParameterService {
         Map<?, ?> dependenciesMap = rawDependencies instanceof Map<?, ?> map ? map : Map.of();
         for (String key : dependencyKeys) {
             Object raw = dependenciesMap.containsKey(key) ? dependenciesMap.get(key) : source.get(key);
-            result.put(key, stringValue(raw));
+            String normalized = stringValue(raw);
+            result.put(key, "business".equals(key) ? normalizeBusinessName(normalized) : normalized);
         }
         return result;
     }
@@ -318,6 +337,9 @@ public class SettingsParameterService {
             if (!StringUtils.hasText(paramType) || !StringUtils.hasText(value)) {
                 continue;
             }
+            if ("business".equals(paramType)) {
+                value = normalizeBusinessName(value);
+            }
 
             Map<String, Object> extra = parseExtraJson(row.get("extra_json"));
             Map<String, String> dependencies = extractDependencies(
@@ -330,7 +352,7 @@ public class SettingsParameterService {
                 continue;
             }
 
-            String business = stringValue(dependencies.get("business"));
+            String business = normalizeBusinessName(stringValue(dependencies.get("business")));
             String partnerType = stringValue(dependencies.get("partner_type"));
             String country = stringValue(dependencies.get("country"));
             if (!StringUtils.hasText(business) || !StringUtils.hasText(partnerType)) {
@@ -404,7 +426,7 @@ public class SettingsParameterService {
         Set<String> countries = new LinkedHashSet<>();
 
         for (Map.Entry<?, ?> businessEntry : tree.entrySet()) {
-            String business = stringValue(businessEntry.getKey());
+            String business = normalizeBusinessName(stringValue(businessEntry.getKey()));
             if (!StringUtils.hasText(business)) {
                 continue;
             }
@@ -573,5 +595,120 @@ public class SettingsParameterService {
         attrs.put("country", StringUtils.hasText(country) ? country : "");
         attrs.put("partner_type", StringUtils.hasText(partnerType) ? partnerType : "");
         target.put(path, attrs);
+    }
+
+    private Map<String, Object> normalizePayloadForPersistence(String paramType, Map<String, Object> payload) {
+        if (payload == null || payload.isEmpty()) {
+            return payload == null ? Map.of() : payload;
+        }
+        Map<String, Object> normalized = new LinkedHashMap<>(payload);
+        if ("business".equals(paramType) && normalized.containsKey("value")) {
+            normalized.put("value", normalizeBusinessName(normalized.get("value")));
+        }
+        if (normalized.containsKey("business")) {
+            normalized.put("business", normalizeBusinessName(normalized.get("business")));
+        }
+        Object rawDependencies = normalized.get("dependencies");
+        if (rawDependencies instanceof Map<?, ?> dependencies) {
+            Map<String, Object> normalizedDependencies = new LinkedHashMap<>();
+            dependencies.forEach((key, value) -> {
+                String dependencyKey = stringValue(key);
+                Object normalizedValue = value;
+                if ("business".equals(dependencyKey)) {
+                    normalizedValue = normalizeBusinessName(value);
+                }
+                normalizedDependencies.put(dependencyKey, normalizedValue);
+            });
+            normalized.put("dependencies", normalizedDependencies);
+        }
+        return normalized;
+    }
+
+    private boolean normalizeLocationBusinessAlias(String alias, String canonical) {
+        if (!StringUtils.hasText(alias) || !StringUtils.hasText(canonical) || alias.equals(canonical)) {
+            return false;
+        }
+        boolean changed = false;
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                "SELECT id, extra_json FROM settings_parameters WHERE is_deleted = 0 AND extra_json LIKE ?",
+                "%" + alias + "%"
+        );
+        for (Map<String, Object> row : rows) {
+            Map<String, Object> extra = parseExtraJson(row.get("extra_json"));
+            if (!normalizeBusinessInExtra(extra, alias, canonical)) {
+                continue;
+            }
+            jdbcTemplate.update(
+                    "UPDATE settings_parameters SET extra_json = ? WHERE id = ?",
+                    writeJson(extra),
+                    ((Number) row.get("id")).longValue()
+            );
+            changed = true;
+        }
+
+        Integer aliasCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM settings_parameters WHERE is_deleted = 0 AND param_type = 'business' AND value = ?",
+                Integer.class,
+                alias
+        );
+        if (aliasCount == null || aliasCount == 0) {
+            return changed;
+        }
+        Integer canonicalCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM settings_parameters WHERE is_deleted = 0 AND param_type = 'business' AND value = ?",
+                Integer.class,
+                canonical
+        );
+        if (canonicalCount != null && canonicalCount > 0) {
+            jdbcTemplate.update(
+                    "UPDATE settings_parameters SET is_deleted = 1, deleted_at = CURRENT_TIMESTAMP "
+                            + "WHERE is_deleted = 0 AND param_type = 'business' AND value = ?",
+                    alias
+            );
+        } else {
+            jdbcTemplate.update(
+                    "UPDATE settings_parameters SET value = ? WHERE is_deleted = 0 AND param_type = 'business' AND value = ?",
+                    canonical,
+                    alias
+            );
+        }
+        return true;
+    }
+
+    private boolean normalizeBusinessInExtra(Map<String, Object> extra, String alias, String canonical) {
+        if (extra == null || extra.isEmpty()) {
+            return false;
+        }
+        boolean changed = false;
+        String business = stringValue(extra.get("business"));
+        if (alias.equals(business)) {
+            extra.put("business", canonical);
+            changed = true;
+        }
+        Object rawDependencies = extra.get("dependencies");
+        if (rawDependencies instanceof Map<?, ?> dependencies) {
+            Map<String, Object> normalizedDependencies = new LinkedHashMap<>();
+            dependencies.forEach((key, value) -> {
+                String dependencyKey = stringValue(key);
+                Object normalizedValue = value;
+                if ("business".equals(dependencyKey) && alias.equals(stringValue(value))) {
+                    normalizedValue = canonical;
+                }
+                normalizedDependencies.put(dependencyKey, normalizedValue);
+            });
+            if (!normalizedDependencies.equals(dependencies)) {
+                extra.put("dependencies", normalizedDependencies);
+                changed = true;
+            }
+        }
+        return changed;
+    }
+
+    private String normalizeBusinessName(Object raw) {
+        String value = stringValue(raw);
+        if (!StringUtils.hasText(value)) {
+            return value;
+        }
+        return BUSINESS_NAME_ALIASES.getOrDefault(value, value);
     }
 }

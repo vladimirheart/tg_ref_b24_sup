@@ -242,4 +242,55 @@ class SettingsParameterSharedConfigIntegrationTest {
         assertEquals("Россия",
                 locations.path("city_meta").path("СушиВёсла::Корпоративная сеть::Москва").path("country").asText());
     }
+
+    @Test
+    void normalizeLocationBusinessAliasesIfNeededMergesLegacyBusinessAliasIntoCanonicalName() {
+        jdbcTemplate.update(
+                "INSERT INTO settings_parameters(param_type, value, state, is_deleted, extra_json) VALUES (?, ?, 'Активен', 0, ?)",
+                "business",
+                "СушиВесла",
+                "{\"dependencies\":{}}"
+        );
+        jdbcTemplate.update(
+                "INSERT INTO settings_parameters(param_type, value, state, is_deleted, extra_json) VALUES (?, ?, 'Активен', 0, ?)",
+                "business",
+                "СушиВёсла",
+                "{\"dependencies\":{}}"
+        );
+        jdbcTemplate.update(
+                "INSERT INTO settings_parameters(param_type, value, state, is_deleted, extra_json) VALUES (?, ?, 'Активен', 0, ?)",
+                "city",
+                "Москва",
+                "{\"dependencies\":{\"country\":\"Россия\",\"partner_type\":\"Корпоративная сеть\",\"business\":\"СушиВесла\"},\"country\":\"Россия\",\"partner_type\":\"Корпоративная сеть\",\"business\":\"СушиВесла\"}"
+        );
+        jdbcTemplate.update(
+                "INSERT INTO settings_parameters(param_type, value, state, is_deleted, extra_json) VALUES (?, ?, 'Активен', 0, ?)",
+                "department",
+                "Арбат",
+                "{\"dependencies\":{\"country\":\"Россия\",\"partner_type\":\"Корпоративная сеть\",\"business\":\"СушиВесла\",\"city\":\"Москва\"},\"country\":\"Россия\",\"partner_type\":\"Корпоративная сеть\",\"business\":\"СушиВесла\",\"city\":\"Москва\"}"
+        );
+
+        assertTrue(service.normalizeLocationBusinessAliasesIfNeeded());
+
+        assertEquals(0, jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM settings_parameters WHERE param_type = 'business' AND value = 'СушиВесла' AND is_deleted = 0",
+                Integer.class
+        ));
+        assertEquals(1, jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM settings_parameters WHERE param_type = 'business' AND value = 'СушиВёсла' AND is_deleted = 0",
+                Integer.class
+        ));
+
+        String cityExtra = jdbcTemplate.queryForObject(
+                "SELECT extra_json FROM settings_parameters WHERE param_type = 'city' AND value = 'Москва'",
+                String.class
+        );
+        assertTrue(cityExtra.contains("СушиВёсла"));
+
+        JsonNode locations = sharedConfigService.loadLocations();
+        assertTrue(locations.path("tree").path("СушиВесла").isMissingNode()
+                || locations.path("tree").path("СушиВесла").isEmpty());
+        assertEquals("Арбат",
+                locations.path("tree").path("СушиВёсла").path("Корпоративная сеть").path("Москва").get(0).asText());
+    }
 }

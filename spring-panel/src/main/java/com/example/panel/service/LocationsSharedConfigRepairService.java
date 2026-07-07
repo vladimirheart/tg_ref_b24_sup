@@ -15,6 +15,7 @@ public class LocationsSharedConfigRepairService implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
+        settingsParameterService.normalizeLocationBusinessAliasesIfNeeded();
         settingsParameterService.repairLocationsSharedConfigIfNeeded();
     }
 }
