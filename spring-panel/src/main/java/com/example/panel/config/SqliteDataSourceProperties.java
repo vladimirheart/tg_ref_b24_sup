@@ -9,7 +9,7 @@ public class SqliteDataSourceProperties extends AbstractSqliteDataSourceProperti
     private static final Logger log = LoggerFactory.getLogger(SqliteDataSourceProperties.class);
 
     public SqliteDataSourceProperties() {
-        super("tickets.db", "app.datasource.sqlite.path", "primary");
+        super("panel_runtime.db", "app.datasource.sqlite.path", "primary");
     }
 
     @Override

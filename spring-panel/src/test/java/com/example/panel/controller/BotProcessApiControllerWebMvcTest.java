@@ -211,7 +211,7 @@ class BotProcessApiControllerWebMvcTest {
                 "jar",
                 "explicit-config",
                 "C:/bots/bot-telegram.jar",
-                List.of("APP_DB_TICKETS", "TELEGRAM_BOT_TOKEN"),
+                List.of("APP_DB_PANEL_RUNTIME", "TELEGRAM_BOT_TOKEN"),
                 List.of("HTTP_PROXY"),
                 List.of(),
                 new BotRuntimeContractService.BotReadinessContract(45000L, 250L, "Spring Boot started marker", "APPLICATION FAILED TO START banner"),
@@ -226,7 +226,7 @@ class BotProcessApiControllerWebMvcTest {
             .andExpect(jsonPath("$.contract.botModule").value("bot-telegram"))
             .andExpect(jsonPath("$.contract.resolvedLauncherKind").value("jar"))
             .andExpect(jsonPath("$.contract.artifactSource").value("explicit-config"))
-            .andExpect(jsonPath("$.contract.requiredEnvironmentKeys[0]").value("APP_DB_TICKETS"))
+            .andExpect(jsonPath("$.contract.requiredEnvironmentKeys[0]").value("APP_DB_PANEL_RUNTIME"))
             .andExpect(jsonPath("$.contract.readiness.timeoutMillis").value(45000))
             .andExpect(jsonPath("$.contract.production.readyForProduction").value(true))
             .andExpect(jsonPath("$.contract.lifecycle.runningStatus").value("running"));
@@ -249,7 +249,7 @@ class BotProcessApiControllerWebMvcTest {
                 "jar",
                 "explicit-config",
                 "C:/bots/bot-max.jar",
-                List.of("APP_DB_TICKETS", "MAX_BOT_TOKEN", "SERVER_PORT"),
+                List.of("APP_DB_PANEL_RUNTIME", "MAX_BOT_TOKEN", "SERVER_PORT"),
                 List.of("MAX_WEBHOOK_SECRET"),
                 List.of(),
                 new BotRuntimeContractService.BotReadinessContract(45000L, 250L, "Spring Boot started marker", "APPLICATION FAILED TO START banner"),

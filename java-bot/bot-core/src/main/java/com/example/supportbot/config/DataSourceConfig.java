@@ -94,12 +94,16 @@ public class DataSourceConfig {
         }
 
         Path cwd = Paths.get("").toAbsolutePath().normalize();
-        Path existing = findExistingSibling(cwd, "tickets.db");
+        Path existing = findExistingSibling(cwd, "panel_runtime.db");
+        if (existing != null) {
+            return existing;
+        }
+        existing = findExistingSibling(cwd, "tickets.db");
         if (existing != null) {
             return existing;
         }
 
-        Path fallback = normalizeAndEnsureParent(cwd.resolve("tickets.db"));
+        Path fallback = normalizeAndEnsureParent(cwd.resolve("panel_runtime.db"));
         ensureSqliteFile(fallback);
         return fallback;
     }

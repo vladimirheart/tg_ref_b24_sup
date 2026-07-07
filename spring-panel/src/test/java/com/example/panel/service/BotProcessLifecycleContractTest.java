@@ -41,7 +41,7 @@ class BotProcessLifecycleContractTest {
         properties.setStartupPollInterval(Duration.ofMillis(50));
 
         SqliteDataSourceProperties sqliteProperties = new SqliteDataSourceProperties();
-        sqliteProperties.setPath(tempDir.resolve("tickets.db").toString());
+        sqliteProperties.setPath(tempDir.resolve("panel_runtime.db").toString());
 
         SharedConfigService sharedConfigService = mock(SharedConfigService.class);
         when(sharedConfigService.loadBotCredentials()).thenReturn(List.of());

@@ -6,7 +6,8 @@ existing SQLite data into a set of `INSERT` statements that can be executed agai
 ## Prerequisites
 
 * Python 3.10+
-* Access to the SQLite backups (`tickets.db`, `users.db`, `bot_database.db`)
+* Access to the SQLite backups (`panel_runtime.db`, `panel_identity.db`, `bot_runtime.db`)
+  or their legacy aliases (`tickets.db`, `users.db`, `bot_database.db`)
 * A target PostgreSQL or MySQL database that already contains the schema produced by the Flyway migrations
 * Existing Java-bot SQLite installs upgraded to the latest Alembic revision (`python -c "from migrations_runner import ensure_schema_is_current; ensure_schema_is_current()"`)
 

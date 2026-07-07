@@ -103,7 +103,8 @@ export SPRING_OPTS="--server.port=8080"
 Ключевые точки конфигурации:
 
 - `TELEGRAM_BOT_TOKEN` и другие токены каналов;
-- `APP_DB_*` для основных БД;
+- `APP_DB_PANEL_RUNTIME`, `APP_DB_PANEL_IDENTITY`, `APP_DB_BOT_RUNTIME` для канонических main DB;
+- `APP_DB_TICKETS`, `APP_DB_USERS`, `APP_DB_BOT` остаются поддержаны как legacy aliases;
 - `APP_BOT_DATABASE_DIR` для отдельных bot-баз;
 - `config/shared/settings.json`;
 - `config/shared/locations.json`;
@@ -115,8 +116,9 @@ export SPRING_OPTS="--server.port=8080"
 
 В проекте используется разделение по SQLite-файлам:
 
-- `tickets.db` — диалоги, сообщения, активные обращения;
-- `users.db` — пользователи панели, роли и аватары;
+- `panel_runtime.db` — диалоги, сообщения, активные обращения и основной runtime панели;
+- `panel_identity.db` — пользователи панели, роли и аватары;
+- `bot_runtime.db` — shared runtime-контур ботов;
 - `clients.db` — профили клиентов;
 - `knowledge_base.db` — база знаний;
 - `objects.db` — объекты и связанные справочники;

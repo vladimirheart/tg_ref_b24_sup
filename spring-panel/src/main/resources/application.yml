@@ -35,13 +35,13 @@ spring:
 app:
   datasource:
     sqlite:
-      path: ${APP_DB_TICKETS:tickets.db}
+      path: ${APP_DB_PANEL_RUNTIME:${APP_DB_TICKETS:panel_runtime.db}}
     monitoring-sqlite:
       path: ${APP_DB_MONITORING:monitoring.db}
     users-sqlite:
-      path: ${APP_DB_USERS:users.db}
+      path: ${APP_DB_PANEL_IDENTITY:${APP_DB_USERS:panel_identity.db}}
     bot-sqlite:
-      path: ${APP_DB_BOT:bot_database.db}
+      path: ${APP_DB_BOT_RUNTIME:${APP_DB_BOT:bot_runtime.db}}
     clients-sqlite:
       path: ${APP_DB_CLIENTS:clients.db}
     knowledge-sqlite:

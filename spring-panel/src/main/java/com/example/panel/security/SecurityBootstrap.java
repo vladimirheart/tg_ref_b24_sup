@@ -28,7 +28,7 @@ public class SecurityBootstrap {
         if (jdbcTemplate == null) {
             return;
         }
-        // 1) гарантируем таблицу authorities (важно для старых users.db)
+        // 1) гарантируем таблицу authorities (важно для старых panel identity SQLite installs)
         ensureAuthoritiesTable();
 
         // 2) гарантируем наличие admin
@@ -41,7 +41,7 @@ public class SecurityBootstrap {
 
     /**
      * Создаёт таблицу user_authorities, если её ещё нет.
-     * Это защищает "чистое развёртывание" и сценарий, когда users.db без user_authorities.
+     * Это защищает "чистое развёртывание" и сценарий, когда panel identity DB ещё без user_authorities.
      */
     private void ensureAuthoritiesTable() {
         try {

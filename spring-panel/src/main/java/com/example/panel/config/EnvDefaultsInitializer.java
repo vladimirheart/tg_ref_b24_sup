@@ -6,7 +6,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Stream;
 
 import org.slf4j.Logger;
@@ -26,38 +25,119 @@ public class EnvDefaultsInitializer implements ApplicationContextInitializer<Con
 
     private static final Logger log = LoggerFactory.getLogger(EnvDefaultsInitializer.class);
 
-    private static final String[] DB_KEYS = {
-        "APP_DB_TICKETS",
-        "APP_DB_MONITORING",
-        "APP_DB_USERS",
-        "APP_DB_BOT",
-        "APP_DB_OBJECT_PASSPORTS",
-        "APP_DB_CLIENTS",
-        "APP_DB_KNOWLEDGE",
-        "APP_DB_OBJECTS",
-        "APP_DB_SETTINGS"
-    };
+    private static final String APP_DB_PANEL_RUNTIME = "APP_DB_PANEL_RUNTIME";
+    private static final String APP_DB_TICKETS = "APP_DB_TICKETS";
+    private static final String APP_DB_PANEL_IDENTITY = "APP_DB_PANEL_IDENTITY";
+    private static final String APP_DB_USERS = "APP_DB_USERS";
+    private static final String APP_DB_BOT_RUNTIME = "APP_DB_BOT_RUNTIME";
+    private static final String APP_DB_BOT = "APP_DB_BOT";
+    private static final String APP_DB_MONITORING = "APP_DB_MONITORING";
+    private static final String APP_DB_OBJECT_PASSPORTS = "APP_DB_OBJECT_PASSPORTS";
+    private static final String APP_DB_CLIENTS = "APP_DB_CLIENTS";
+    private static final String APP_DB_KNOWLEDGE = "APP_DB_KNOWLEDGE";
+    private static final String APP_DB_OBJECTS = "APP_DB_OBJECTS";
+    private static final String APP_DB_SETTINGS = "APP_DB_SETTINGS";
 
     @Override
     public void initialize(ConfigurableApplicationContext applicationContext) {
         ConfigurableEnvironment environment = applicationContext.getEnvironment();
         Path projectRoot = locateProjectRoot();
         Map<String, String> dotEnv = loadDotEnv(projectRoot.resolve(".env"));
-        String ticketsPath = resolveTicketsPath(environment, dotEnv, projectRoot);
+        String panelRuntimePath = resolveCanonicalPath(
+            environment,
+            dotEnv,
+            projectRoot,
+            new String[]{APP_DB_PANEL_RUNTIME, APP_DB_TICKETS},
+            null,
+            new String[]{"panel_runtime.db", "tickets.db"},
+            "panel_runtime.db"
+        );
+        String panelIdentityPath = resolveCanonicalPath(
+            environment,
+            dotEnv,
+            projectRoot,
+            new String[]{APP_DB_PANEL_IDENTITY, APP_DB_USERS},
+            panelRuntimePath,
+            new String[]{"panel_identity.db", "users.db"},
+            "panel_identity.db"
+        );
+        String botRuntimePath = resolveCanonicalPath(
+            environment,
+            dotEnv,
+            projectRoot,
+            new String[]{APP_DB_BOT_RUNTIME, APP_DB_BOT},
+            panelRuntimePath,
+            new String[]{"bot_runtime.db", "bot_database.db"},
+            "bot_runtime.db"
+        );
+        String monitoringPath = resolveCanonicalPath(
+            environment,
+            dotEnv,
+            projectRoot,
+            new String[]{APP_DB_MONITORING},
+            panelRuntimePath,
+            new String[]{"monitoring.db"},
+            "monitoring.db"
+        );
+        String objectPassportsPath = resolveCanonicalPath(
+            environment,
+            dotEnv,
+            projectRoot,
+            new String[]{APP_DB_OBJECT_PASSPORTS},
+            panelRuntimePath,
+            new String[]{"object_passports.db"},
+            "object_passports.db"
+        );
+        String clientsPath = resolveCanonicalPath(
+            environment,
+            dotEnv,
+            projectRoot,
+            new String[]{APP_DB_CLIENTS},
+            panelRuntimePath,
+            new String[]{"clients.db"},
+            "clients.db"
+        );
+        String knowledgePath = resolveCanonicalPath(
+            environment,
+            dotEnv,
+            projectRoot,
+            new String[]{APP_DB_KNOWLEDGE},
+            panelRuntimePath,
+            new String[]{"knowledge_base.db"},
+            "knowledge_base.db"
+        );
+        String objectsPath = resolveCanonicalPath(
+            environment,
+            dotEnv,
+            projectRoot,
+            new String[]{APP_DB_OBJECTS},
+            panelRuntimePath,
+            new String[]{"objects.db"},
+            "objects.db"
+        );
+        String settingsPath = resolveCanonicalPath(
+            environment,
+            dotEnv,
+            projectRoot,
+            new String[]{APP_DB_SETTINGS},
+            panelRuntimePath,
+            new String[]{"settings.db"},
+            "settings.db"
+        );
 
         Map<String, Object> defaults = new HashMap<>();
-        for (String key : DB_KEYS) {
-            String envValue = environment.getProperty(key);
-            if (StringUtils.hasText(envValue) && pathExists(envValue, projectRoot)) {
-                continue; // Respect values already provided via environment variables or system properties.
-            }
-            if (StringUtils.hasText(envValue)) {
-                log.warn("Environment variable {} points to missing file {}, falling back to defaults.", key, envValue);
-            }
-
-            String resolved = resolveDefaultPath(key, projectRoot, dotEnv, ticketsPath);
-            defaults.put(key, resolved);
-        }
+        registerDefault(defaults, environment, APP_DB_PANEL_RUNTIME, panelRuntimePath, projectRoot);
+        registerDefault(defaults, environment, APP_DB_TICKETS, panelRuntimePath, projectRoot);
+        registerDefault(defaults, environment, APP_DB_PANEL_IDENTITY, panelIdentityPath, projectRoot);
+        registerDefault(defaults, environment, APP_DB_USERS, panelIdentityPath, projectRoot);
+        registerDefault(defaults, environment, APP_DB_BOT_RUNTIME, botRuntimePath, projectRoot);
+        registerDefault(defaults, environment, APP_DB_BOT, botRuntimePath, projectRoot);
+        registerDefault(defaults, environment, APP_DB_MONITORING, monitoringPath, projectRoot);
+        registerDefault(defaults, environment, APP_DB_OBJECT_PASSPORTS, objectPassportsPath, projectRoot);
+        registerDefault(defaults, environment, APP_DB_CLIENTS, clientsPath, projectRoot);
+        registerDefault(defaults, environment, APP_DB_KNOWLEDGE, knowledgePath, projectRoot);
+        registerDefault(defaults, environment, APP_DB_OBJECTS, objectsPath, projectRoot);
+        registerDefault(defaults, environment, APP_DB_SETTINGS, settingsPath, projectRoot);
 
         if (!defaults.isEmpty()) {
             MutablePropertySources sources = environment.getPropertySources();
@@ -69,7 +149,9 @@ public class EnvDefaultsInitializer implements ApplicationContextInitializer<Con
     private Path locateProjectRoot() {
         Path current = Paths.get("").toAbsolutePath().normalize();
         while (current != null) {
-            if (Files.exists(current.resolve("tickets.db")) && Files.exists(current.resolve("users.db"))) {
+            boolean hasRuntime = Files.exists(current.resolve("panel_runtime.db")) || Files.exists(current.resolve("tickets.db"));
+            boolean hasIdentity = Files.exists(current.resolve("panel_identity.db")) || Files.exists(current.resolve("users.db"));
+            if (hasRuntime && hasIdentity) {
                 return current;
             }
             current = current.getParent();
@@ -102,99 +184,72 @@ public class EnvDefaultsInitializer implements ApplicationContextInitializer<Con
         }
     }
 
-    private String mapKeyToFileName(String key) {
-        return switch (key) {
-            case "APP_DB_TICKETS" -> "tickets.db";
-            case "APP_DB_MONITORING" -> "monitoring.db";
-            case "APP_DB_USERS" -> "users.db";
-            case "APP_DB_BOT" -> "bot_database.db";
-            case "APP_DB_OBJECT_PASSPORTS" -> "object_passports.db";
-            case "APP_DB_CLIENTS" -> "clients.db";
-            case "APP_DB_KNOWLEDGE" -> "knowledge_base.db";
-            case "APP_DB_OBJECTS" -> "objects.db";
-            case "APP_DB_SETTINGS" -> "settings.db";
-            default -> key.toLowerCase();
-        };
+    private String resolveCanonicalPath(ConfigurableEnvironment environment,
+                                        Map<String, String> dotEnv,
+                                        Path projectRoot,
+                                        String[] envKeys,
+                                        String siblingBasePath,
+                                        String[] candidateFileNames,
+                                        String preferredFileName) {
+        String configured = resolveConfiguredPath(environment, dotEnv, projectRoot, envKeys);
+        if (StringUtils.hasText(configured)) {
+            return configured;
+        }
+        if (StringUtils.hasText(siblingBasePath)) {
+            for (String candidateFileName : candidateFileNames) {
+                String sibling = resolveSiblingPath(siblingBasePath, candidateFileName);
+                if (StringUtils.hasText(sibling)) {
+                    return sibling;
+                }
+            }
+        }
+        for (String candidateFileName : candidateFileNames) {
+            Path candidate = projectRoot.resolve(candidateFileName).normalize();
+            if (Files.exists(candidate)) {
+                return candidate.toString();
+            }
+        }
+        return projectRoot.resolve(preferredFileName).toString();
     }
 
-    private String resolveTicketsPath(ConfigurableEnvironment environment,
-                                      Map<String, String> dotEnv,
-                                      Path projectRoot) {
-        String raw = Optional.ofNullable(environment.getProperty("APP_DB_TICKETS"))
-            .filter(StringUtils::hasText)
-            .orElse(dotEnv.get("APP_DB_TICKETS"));
-        if (!StringUtils.hasText(raw)) {
-            return null;
-        }
-        Path candidate = normalizeCandidate(raw, projectRoot);
-        if (Files.exists(candidate)) {
-            return candidate.toString();
+    private String resolveConfiguredPath(ConfigurableEnvironment environment,
+                                         Map<String, String> dotEnv,
+                                         Path projectRoot,
+                                         String[] envKeys) {
+        for (String key : envKeys) {
+            String envValue = environment.getProperty(key);
+            if (StringUtils.hasText(envValue)) {
+                Path candidate = normalizeCandidate(envValue, projectRoot);
+                if (Files.exists(candidate)) {
+                    return candidate.toString();
+                }
+                log.warn("Environment variable {} points to missing file {}, falling back to defaults.", key, envValue);
+            }
+            String dotEnvValue = dotEnv.get(key);
+            if (StringUtils.hasText(dotEnvValue)) {
+                Path candidate = normalizeCandidate(dotEnvValue, projectRoot);
+                if (Files.exists(candidate)) {
+                    return candidate.toString();
+                }
+                log.warn("Dotenv variable {} points to missing file {}, falling back to defaults.", key, dotEnvValue);
+            }
         }
         return null;
     }
 
-    private String resolveDefaultPath(String key,
-                                      Path projectRoot,
-                                      Map<String, String> dotEnv,
-                                      String ticketsPath) {
-        String fromEnv = dotEnv.get(key);
-        if (StringUtils.hasText(fromEnv)) {
-            Path candidate = normalizeCandidate(fromEnv, projectRoot);
-            if (Files.exists(candidate)) {
-                return candidate.toString();
-            }
-            log.warn("Dotenv variable {} points to missing file {}, falling back to defaults.", key, fromEnv);
+    private void registerDefault(Map<String, Object> defaults,
+                                 ConfigurableEnvironment environment,
+                                 String key,
+                                 String resolvedValue,
+                                 Path projectRoot) {
+        if (!StringUtils.hasText(resolvedValue)) {
+            return;
         }
-        if ("APP_DB_USERS".equals(key)) {
-            String sibling = resolveSiblingPath(ticketsPath, "users.db");
-            if (StringUtils.hasText(sibling)) {
-                return sibling;
-            }
+        String envValue = environment.getProperty(key);
+        if (StringUtils.hasText(envValue) && pathExists(envValue, projectRoot)) {
+            return;
         }
-        if ("APP_DB_MONITORING".equals(key)) {
-            String sibling = resolveSiblingPath(ticketsPath, "monitoring.db");
-            if (StringUtils.hasText(sibling)) {
-                return sibling;
-            }
-        }
-        if ("APP_DB_BOT".equals(key)) {
-            String sibling = resolveSiblingPath(ticketsPath, "bot_database.db");
-            if (StringUtils.hasText(sibling)) {
-                return sibling;
-            }
-        }
-        if ("APP_DB_OBJECT_PASSPORTS".equals(key)) {
-            String sibling = resolveSiblingPath(ticketsPath, "object_passports.db");
-            if (StringUtils.hasText(sibling)) {
-                return sibling;
-            }
-        }
-        if ("APP_DB_CLIENTS".equals(key)) {
-            String sibling = resolveSiblingPath(ticketsPath, "clients.db");
-            if (StringUtils.hasText(sibling)) {
-                return sibling;
-            }
-        }
-        if ("APP_DB_KNOWLEDGE".equals(key)) {
-            String sibling = resolveSiblingPath(ticketsPath, "knowledge_base.db");
-            if (StringUtils.hasText(sibling)) {
-                return sibling;
-            }
-        }
-        if ("APP_DB_OBJECTS".equals(key)) {
-            String sibling = resolveSiblingPath(ticketsPath, "objects.db");
-            if (StringUtils.hasText(sibling)) {
-                return sibling;
-            }
-        }
-        if ("APP_DB_SETTINGS".equals(key)) {
-            String sibling = resolveSiblingPath(ticketsPath, "settings.db");
-            if (StringUtils.hasText(sibling)) {
-                return sibling;
-            }
-        }
-        Path defaultPath = projectRoot.resolve(mapKeyToFileName(key));
-        return defaultPath.toString();
+        defaults.put(key, resolvedValue);
     }
 
     private String resolveSiblingPath(String ticketsPath, String fileName) {

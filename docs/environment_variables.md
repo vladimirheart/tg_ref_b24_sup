@@ -22,13 +22,16 @@
 
 | Переменная | Описание | По умолчанию |
 | --- | --- | --- |
-| `APP_DB_TICKETS` | база заявок | `tickets.db` |
-| `APP_DB_USERS` | база пользователей панели | `users.db` |
+| `APP_DB_PANEL_RUNTIME` | каноническая operational-база панели | `panel_runtime.db` |
+| `APP_DB_PANEL_IDENTITY` | база пользователей панели | `panel_identity.db` |
+| `APP_DB_BOT_RUNTIME` | shared bot runtime база | `bot_runtime.db` |
+| `APP_DB_TICKETS` | legacy alias для `APP_DB_PANEL_RUNTIME` | `panel_runtime.db` |
+| `APP_DB_USERS` | legacy alias для `APP_DB_PANEL_IDENTITY` | `panel_identity.db` |
+| `APP_DB_BOT` | legacy alias для `APP_DB_BOT_RUNTIME` | `bot_runtime.db` |
 | `APP_DB_CLIENTS` | база клиентов | `clients.db` |
 | `APP_DB_KNOWLEDGE` | база знаний | `knowledge_base.db` |
 | `APP_DB_OBJECTS` | база объектов | `objects.db` |
 | `APP_DB_SETTINGS` | общая база настроек | `settings.db` |
-| `APP_DB_BOT` | база данных бота (если не используете отдельные базы) | `bot_database.db` |
 | `APP_BOT_DATABASE_DIR` | каталог баз каждого бота | `../bot_databases` |
 
 ## Хранилища
@@ -44,7 +47,9 @@
 
 ```bash
 export TELEGRAM_BOT_TOKEN="123:ABC"
-export APP_DB_TICKETS="/srv/iguana/tickets.db"
+export APP_DB_PANEL_RUNTIME="/srv/iguana/panel_runtime.db"
+export APP_DB_PANEL_IDENTITY="/srv/iguana/panel_identity.db"
+export APP_DB_BOT_RUNTIME="/srv/iguana/bot_runtime.db"
 export APP_DB_CLIENTS="/srv/iguana/clients.db"
 export APP_BOT_DATABASE_DIR="/srv/iguana/bots"
 ```

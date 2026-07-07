@@ -9,7 +9,7 @@ public class BotSqliteDataSourceProperties extends AbstractSqliteDataSourcePrope
     private static final Logger log = LoggerFactory.getLogger(BotSqliteDataSourceProperties.class);
 
     public BotSqliteDataSourceProperties() {
-        super("bot_database.db", "app.datasource.bot-sqlite.path", "bot");
+        super("bot_runtime.db", "app.datasource.bot-sqlite.path", "bot");
     }
 
     @Override

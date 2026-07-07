@@ -315,7 +315,7 @@ class BotProcessServiceTest {
         properties.setLaunchMode(launchMode);
         properties.setExecutableJars(executableJars);
         SqliteDataSourceProperties sqliteProperties = new SqliteDataSourceProperties();
-        sqliteProperties.setPath(tempDir.resolve("tickets.db").toString());
+        sqliteProperties.setPath(tempDir.resolve("panel_runtime.db").toString());
         SharedConfigService sharedConfigService = mock(SharedConfigService.class);
         when(sharedConfigService.loadSettings()).thenReturn(Map.of());
         IntegrationNetworkService integrationNetworkService = new IntegrationNetworkService(sharedConfigService, new ObjectMapper());

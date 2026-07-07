@@ -18,13 +18,17 @@
 
 Обязательные cross-platform env keys:
 
-- `APP_DB_TICKETS`
+- `APP_DB_PANEL_RUNTIME`
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_BOT_USERNAME`
 - `GROUP_CHAT_ID`
 - `APP_BOT_LOG_PATH`
 - `SPRING_PROFILES_ACTIVE`
 - `JAVA_TOOL_OPTIONS`
+
+Legacy compatibility:
+
+- panel дополнительно прокидывает `APP_DB_TICKETS` как alias для `APP_DB_PANEL_RUNTIME`, чтобы старые runtime-сценарии не ломались в один шаг.
 
 Platform-specific:
 

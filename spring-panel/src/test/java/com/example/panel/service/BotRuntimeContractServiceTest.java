@@ -33,7 +33,7 @@ class BotRuntimeContractServiceTest {
 
         assertThat(contract.resolvedLauncherKind()).isEqualTo("maven");
         assertThat(contract.warnings()).anyMatch(item -> item.contains("fallback на Maven"));
-        assertThat(contract.requiredEnvironmentKeys()).contains("APP_DB_TICKETS", "TELEGRAM_BOT_TOKEN");
+        assertThat(contract.requiredEnvironmentKeys()).contains("APP_DB_PANEL_RUNTIME", "TELEGRAM_BOT_TOKEN");
         assertThat(contract.readiness().timeoutMillis()).isEqualTo(45_000L);
     }
 
@@ -147,7 +147,9 @@ class BotRuntimeContractServiceTest {
             .containsEntry("MAX_CHANNEL_ID", "17")
             .containsEntry("MAX_SUPPORT_CHAT_ID", "support-room")
             .containsEntry("MAX_WEBHOOK_SECRET", "max-secret")
-            .containsEntry("SUPPORT_BOT_DATABASE_PATH", tempDir.resolve("tickets.db").toString())
+            .containsEntry("APP_DB_PANEL_RUNTIME", tempDir.resolve("panel_runtime.db").toString())
+            .containsEntry("APP_DB_TICKETS", tempDir.resolve("panel_runtime.db").toString())
+            .containsEntry("SUPPORT_BOT_DATABASE_PATH", tempDir.resolve("panel_runtime.db").toString())
             .containsEntry("SPRING_SQL_INIT_MODE", "always")
             .containsEntry("SPRING_MAIN_WEB_APPLICATION_TYPE", "servlet");
     }
@@ -233,8 +235,9 @@ class BotRuntimeContractServiceTest {
         );
 
         assertThat(env)
-            .containsEntry("APP_DB_TICKETS", tempDir.resolve("tickets.db").toString())
-            .containsEntry("SUPPORT_BOT_DATABASE_PATH", tempDir.resolve("tickets.db").toString())
+            .containsEntry("APP_DB_PANEL_RUNTIME", tempDir.resolve("panel_runtime.db").toString())
+            .containsEntry("APP_DB_TICKETS", tempDir.resolve("panel_runtime.db").toString())
+            .containsEntry("SUPPORT_BOT_DATABASE_PATH", tempDir.resolve("panel_runtime.db").toString())
             .containsEntry("SPRING_SQL_INIT_MODE", "always")
             .containsEntry("TELEGRAM_BOT_TOKEN", "tg-token")
             .containsEntry("TELEGRAM_BOT_USERNAME", "support_bot")
@@ -521,7 +524,7 @@ class BotRuntimeContractServiceTest {
                                                     Map<String, String> executableJars,
                                                     Map<String, Object> settings) {
         SqliteDataSourceProperties sqliteProperties = new SqliteDataSourceProperties();
-        sqliteProperties.setPath(tempDir.resolve("tickets.db").toString());
+        sqliteProperties.setPath(tempDir.resolve("panel_runtime.db").toString());
         BotProcessProperties properties = new BotProcessProperties();
         properties.setLaunchMode(launchMode);
         properties.setExecutableJars(executableJars);

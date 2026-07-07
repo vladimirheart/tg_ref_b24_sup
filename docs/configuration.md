@@ -9,8 +9,9 @@
 ```
 TELEGRAM_BOT_TOKEN=123:ABC
 GROUP_CHAT_ID=-1001234567890
-APP_DB_TICKETS=/srv/iguana/tickets.db
-APP_DB_USERS=/srv/iguana/users.db
+APP_DB_PANEL_RUNTIME=/srv/iguana/panel_runtime.db
+APP_DB_PANEL_IDENTITY=/srv/iguana/panel_identity.db
+APP_DB_BOT_RUNTIME=/srv/iguana/bot_runtime.db
 APP_DB_CLIENTS=/srv/iguana/clients.db
 APP_DB_KNOWLEDGE=/srv/iguana/knowledge_base.db
 APP_DB_OBJECTS=/srv/iguana/objects.db
@@ -22,7 +23,9 @@ APP_BOT_DATABASE_DIR=/srv/iguana/bots
 
 - `TELEGRAM_BOT_TOKEN` — токен Telegram-бота.
 - `GROUP_CHAT_ID` — ID рабочей группы/чата для уведомлений (можно оставить пустым и сохранить в панели).
-- `APP_DB_*` — пути к SQLite-файлам для отдельных баз (заявки, пользователи, клиенты, база знаний, объекты, общие настройки).
+- `APP_DB_PANEL_RUNTIME`, `APP_DB_PANEL_IDENTITY`, `APP_DB_BOT_RUNTIME` — канонические пути к основным SQLite-контурам.
+- `APP_DB_TICKETS`, `APP_DB_USERS`, `APP_DB_BOT` — legacy aliases, которые пока остаются поддержаны.
+- `APP_DB_*` для secondary-баз задают пути к клиентам, knowledge, объектам и registry-контуру.
 - `APP_BOT_DATABASE_DIR` — каталог, в котором будут храниться отдельные базы для каждого бота.
 - `DATABASE_URL` — опционально, строка подключения к PostgreSQL/MySQL вместо SQLite.
 

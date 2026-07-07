@@ -27,13 +27,13 @@ Target-state topology проекта описана в `docs/db/sqlite-target-to
 
 Исключения допускаются только по отдельной архитектурной задаче с явным обоснованием по росту, retention или operational isolation.
 
-## Transitional ownership до полной миграции
+## Current ownership после physical rename
 
-Пока physical rename и переносы не завершены, источником истины для runtime ownership остаётся следующее сопоставление.
+После physical rename источником истины для runtime ownership остаётся следующее сопоставление.
 
-### `APP_DB_TICKETS` / `tickets.db`
+### `APP_DB_PANEL_RUNTIME` / `panel_runtime.db`
 
-Текущий physical файл `tickets.db` уже трактуется как logical contour `panel-runtime`.
+Текущий physical файл `panel_runtime.db` трактуется как logical contour `panel-runtime`.
 
 Здесь допустимо канонически держать:
 
@@ -47,9 +47,11 @@ Target-state topology проекта описана в `docs/db/sqlite-target-to
 
 Новые raw telemetry/audit таблицы не должны автоматически селиться здесь, если их lifecycle явно технический и ограниченный по времени.
 
-### `APP_DB_USERS` / `users.db`
+Legacy alias `APP_DB_TICKETS` допустим как compatibility fallback, но новые изменения должны ориентироваться на `APP_DB_PANEL_RUNTIME` и `panel_runtime.db`.
 
-Текущий physical файл `users.db` трактуется как logical contour `panel-identity`.
+### `APP_DB_PANEL_IDENTITY` / `panel_identity.db`
+
+Текущий physical файл `panel_identity.db` трактуется как logical contour `panel-identity`.
 
 Здесь канонически живут:
 
@@ -57,6 +59,8 @@ Target-state topology проекта описана в `docs/db/sqlite-target-to
 - `roles`
 - `user_authorities`
 - password reset и session-related таблицы
+
+Legacy alias `APP_DB_USERS` допустим как compatibility fallback, но новые изменения должны ориентироваться на `APP_DB_PANEL_IDENTITY` и `panel_identity.db`.
 
 ### `APP_DB_MONITORING` / `monitoring.db`
 
@@ -78,11 +82,11 @@ Target-state topology проекта описана в `docs/db/sqlite-target-to
 - `ai_agent_event_log`
 - прочей технической telemetry/history, не являющейся business source of truth
 
-Если код пока физически пишет такие таблицы в `tickets.db`, новая задача обязана либо оформить migration path в `panel_telemetry`, либо явно зафиксировать, почему это временное исключение.
+Если код пока физически пишет такие таблицы в `panel_runtime.db`, новая задача обязана либо оформить migration path в `panel_telemetry`, либо явно зафиксировать, почему это временное исключение.
 
-### `APP_DB_BOT` / `bot_database.db`
+### `APP_DB_BOT_RUNTIME` / `bot_runtime.db`
 
-Текущий physical файл `bot_database.db` трактуется как logical contour `bot-runtime`.
+Текущий physical файл `bot_runtime.db` трактуется как logical contour `bot-runtime`.
 
 Здесь канонически живут:
 
@@ -92,6 +96,8 @@ Target-state topology проекта описана в `docs/db/sqlite-target-to
 - связанные bot-side transport/runtime записи
 
 Per-channel `bot-<channelId>.db` не должны считаться отдельными доменными базами. Это либо temporary runtime-artifact, либо shard-слой того же `bot-runtime`.
+
+Legacy alias `APP_DB_BOT` допустим как compatibility fallback, но новые изменения должны ориентироваться на `APP_DB_BOT_RUNTIME` и `bot_runtime.db`.
 
 ## Transitional legacy, который не должен становиться target-state
 
@@ -119,8 +125,8 @@ Per-channel `bot-<channelId>.db` не должны считаться отдел
 
 ## Практические правила
 
-- Архитектурные решения нужно принимать по logical contour, а не по legacy filename.
-- Новые индексы для диалогов сначала рассматриваются для `panel-runtime.chat_history`; до physical rename это означает `tickets.db.chat_history`.
+- Архитектурные решения нужно принимать по logical contour и canonical filename, а не по legacy alias.
+- Новые индексы для диалогов сначала рассматриваются для `panel-runtime.chat_history`; сейчас это означает `panel_runtime.db.chat_history`.
 - Secondary SQLite datasource должны собираться через общий конфигурационный контракт (`journal_mode`, `busy_timeout`, transaction mode, date format), а не через разрозненные ad hoc подключения.
 - Technical history по умолчанию проектируется либо в `monitoring`, либо в будущий `panel-telemetry`, а не в `panel-runtime`.
 - Если новая задача реально переносит домен в другой logical contour или создаёт новый physical файл, она обязана обновить:

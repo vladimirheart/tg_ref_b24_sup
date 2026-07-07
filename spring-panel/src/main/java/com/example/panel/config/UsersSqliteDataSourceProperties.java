@@ -9,7 +9,7 @@ public class UsersSqliteDataSourceProperties extends AbstractSqliteDataSourcePro
     private static final Logger log = LoggerFactory.getLogger(UsersSqliteDataSourceProperties.class);
 
     public UsersSqliteDataSourceProperties() {
-        super("users.db", "app.datasource.users-sqlite.path", "users");
+        super("panel_identity.db", "app.datasource.users-sqlite.path", "users");
     }
 
     @Override

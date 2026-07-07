@@ -122,9 +122,10 @@ public class BotRuntimeContractService {
 
     public Map<String, String> buildEnvironment(Channel channel, BotCredential credential, Path logFile) {
         Map<String, String> env = new LinkedHashMap<>();
-        String ticketsDbPath = ticketsDbProperties.getNormalizedPath().toString();
-        env.put("APP_DB_TICKETS", ticketsDbPath);
-        env.put("SUPPORT_BOT_DATABASE_PATH", ticketsDbPath);
+        String panelRuntimeDbPath = ticketsDbProperties.getNormalizedPath().toString();
+        env.put("APP_DB_PANEL_RUNTIME", panelRuntimeDbPath);
+        env.put("APP_DB_TICKETS", panelRuntimeDbPath);
+        env.put("SUPPORT_BOT_DATABASE_PATH", panelRuntimeDbPath);
         env.put("SPRING_SQL_INIT_MODE", "always");
         env.put("TELEGRAM_BOT_TOKEN", credential.token());
         env.put("TELEGRAM_BOT_USERNAME", Objects.toString(channel.getBotUsername(), ""));
@@ -244,7 +245,7 @@ public class BotRuntimeContractService {
 
     private List<String> requiredEnvironmentKeys(Channel channel) {
         List<String> keys = new ArrayList<>(List.of(
-            "APP_DB_TICKETS",
+            "APP_DB_PANEL_RUNTIME",
             "TELEGRAM_BOT_TOKEN",
             "TELEGRAM_BOT_USERNAME",
             "GROUP_CHAT_ID",
